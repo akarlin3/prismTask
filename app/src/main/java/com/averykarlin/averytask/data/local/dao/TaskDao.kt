@@ -18,11 +18,14 @@ interface TaskDao {
     @Query("SELECT * FROM tasks WHERE project_id = :projectId")
     fun getTasksByProject(projectId: Long): Flow<List<TaskEntity>>
 
-    @Query("SELECT * FROM tasks WHERE parent_task_id = :parentTaskId")
+    @Query("SELECT * FROM tasks WHERE parent_task_id = :parentTaskId ORDER BY created_at ASC")
     fun getSubtasks(parentTaskId: Long): Flow<List<TaskEntity>>
 
     @Query("SELECT * FROM tasks WHERE is_completed = 0")
     fun getIncompleteTasks(): Flow<List<TaskEntity>>
+
+    @Query("SELECT * FROM tasks WHERE is_completed = 0 AND parent_task_id IS NULL ORDER BY due_date ASC, priority DESC")
+    fun getIncompleteRootTasks(): Flow<List<TaskEntity>>
 
     @Query("SELECT * FROM tasks WHERE due_date >= :startOfDay AND due_date < :endOfDay")
     fun getTasksDueOnDate(startOfDay: Long, endOfDay: Long): Flow<List<TaskEntity>>

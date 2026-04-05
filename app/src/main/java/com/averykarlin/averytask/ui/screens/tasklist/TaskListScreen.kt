@@ -21,6 +21,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AddTask
 import androidx.compose.material.icons.filled.CheckBoxOutlineBlank
 import androidx.compose.material.icons.filled.FolderCopy
 import androidx.compose.material.icons.filled.SortByAlpha
@@ -40,6 +41,9 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -53,6 +57,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.averykarlin.averytask.data.local.entity.ProjectEntity
 import com.averykarlin.averytask.data.local.entity.TaskEntity
+import com.averykarlin.averytask.ui.components.SubtaskSection
 import com.averykarlin.averytask.ui.navigation.AveryTaskRoute
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -68,6 +73,9 @@ fun TaskListScreen(
     val filteredTasks by viewModel.filteredTasks.collectAsStateWithLifecycle()
     val projects by viewModel.projects.collectAsStateWithLifecycle()
     val selectedProjectId by viewModel.selectedProjectId.collectAsStateWithLifecycle()
+    val subtasksMap by viewModel.subtasksMap.collectAsStateWithLifecycle()
+    var expandedTaskIds by remember { mutableStateOf(setOf<Long>()) }
+    var focusSubtaskForId by remember { mutableStateOf<Long?>(null) }
 
     Scaffold(
         topBar = {
@@ -134,14 +142,42 @@ fun TaskListScreen(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     item { Spacer(modifier = Modifier.height(4.dp)) }
-                    items(filteredTasks, key = { it.id }) { task ->
-                        val project = projects.find { it.id == task.projectId }
-                        TaskItem(
-                            task = task,
-                            project = project,
-                            onToggleComplete = { viewModel.onToggleComplete(task.id, task.isCompleted) },
-                            onClick = { navController.navigate(AveryTaskRoute.AddEditTask.createRoute(task.id)) }
-                        )
+                    filteredTasks.forEach { task ->
+                        val subtasks = subtasksMap[task.id].orEmpty()
+                        item(key = task.id) {
+                            val project = projects.find { it.id == task.projectId }
+                            TaskItem(
+                                task = task,
+                                project = project,
+                                subtasks = subtasks,
+                                onToggleComplete = { viewModel.onToggleComplete(task.id, task.isCompleted) },
+                                onClick = { navController.navigate(AveryTaskRoute.AddEditTask.createRoute(task.id)) },
+                                onAddSubtaskClick = {
+                                    expandedTaskIds = expandedTaskIds + task.id
+                                    focusSubtaskForId = task.id
+                                }
+                            )
+                        }
+                        if (subtasks.isNotEmpty() || expandedTaskIds.contains(task.id)) {
+                            item(key = "subtasks_${task.id}") {
+                                SubtaskSection(
+                                    parentTaskId = task.id,
+                                    subtasks = subtasks,
+                                    onToggleComplete = viewModel::onToggleSubtaskComplete,
+                                    onAddSubtask = viewModel::onAddSubtask,
+                                    expanded = expandedTaskIds.contains(task.id),
+                                    onToggleExpand = {
+                                        expandedTaskIds = if (expandedTaskIds.contains(task.id)) {
+                                            expandedTaskIds - task.id
+                                        } else {
+                                            expandedTaskIds + task.id
+                                        }
+                                    },
+                                    requestFocus = focusSubtaskForId == task.id,
+                                    onFocusHandled = { focusSubtaskForId = null }
+                                )
+                            }
+                        }
                     }
                     item { Spacer(modifier = Modifier.height(80.dp)) }
                 }
@@ -207,8 +243,10 @@ private fun ProjectFilterRow(
 private fun TaskItem(
     task: TaskEntity,
     project: ProjectEntity?,
+    subtasks: List<TaskEntity>,
     onToggleComplete: () -> Unit,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onAddSubtaskClick: () -> Unit
 ) {
     Card(
         modifier = Modifier
@@ -222,7 +260,7 @@ private fun TaskItem(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 4.dp, end = 12.dp, top = 8.dp, bottom = 8.dp),
+                .padding(start = 4.dp, end = 4.dp, top = 8.dp, bottom = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Checkbox(
@@ -257,15 +295,35 @@ private fun TaskItem(
                         )
                     }
 
+                    if (subtasks.isNotEmpty()) {
+                        val completed = subtasks.count { it.isCompleted }
+                        Text(
+                            text = "$completed/${subtasks.size} subtasks",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
                     if (project != null) {
                         ProjectChip(project)
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.width(8.dp))
+            IconButton(
+                onClick = onAddSubtaskClick,
+                modifier = Modifier.size(32.dp)
+            ) {
+                Icon(
+                    Icons.Default.AddTask,
+                    contentDescription = "Add subtask",
+                    modifier = Modifier.size(18.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                )
+            }
 
             PriorityDot(task.priority)
+            Spacer(modifier = Modifier.width(8.dp))
         }
     }
 }

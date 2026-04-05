@@ -23,10 +23,27 @@ class TaskRepository @Inject constructor(
 
     fun getIncompleteTasks(): Flow<List<TaskEntity>> = taskDao.getIncompleteTasks()
 
+    fun getIncompleteRootTasks(): Flow<List<TaskEntity>> = taskDao.getIncompleteRootTasks()
+
     fun getTasksDueOnDate(startOfDay: Long, endOfDay: Long): Flow<List<TaskEntity>> =
         taskDao.getTasksDueOnDate(startOfDay, endOfDay)
 
     fun getOverdueTasks(now: Long): Flow<List<TaskEntity>> = taskDao.getOverdueTasks(now)
+
+    suspend fun addSubtask(title: String, parentTaskId: Long, priority: Int = 0): Long {
+        val now = System.currentTimeMillis()
+        val parent = taskDao.getTaskById(parentTaskId).firstOrNull()
+        val task = TaskEntity(
+            title = title,
+            parentTaskId = parentTaskId,
+            projectId = parent?.projectId,
+            dueDate = parent?.dueDate,
+            priority = priority,
+            createdAt = now,
+            updatedAt = now
+        )
+        return taskDao.insert(task)
+    }
 
     fun getTaskById(id: Long): Flow<TaskEntity?> = taskDao.getTaskById(id)
 
@@ -76,7 +93,7 @@ class TaskRepository @Inject constructor(
     }
 
     fun getTasksGroupedByDate(): Flow<Map<String, List<TaskEntity>>> =
-        taskDao.getIncompleteTasks().map { tasks -> groupByDate(tasks) }
+        taskDao.getIncompleteRootTasks().map { tasks -> groupByDate(tasks) }
 
     private fun groupByDate(tasks: List<TaskEntity>): Map<String, List<TaskEntity>> {
         val now = System.currentTimeMillis()
