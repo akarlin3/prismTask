@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 
 interface ActivityOption {
   id: string;
@@ -28,11 +28,54 @@ export function LeisureTab() {
   const [musicDone, setMusicDone] = useState(false);
   const [flexDone, setFlexDone] = useState(false);
 
+  const [elapsed, setElapsed] = useState(0);
+  const [running, setRunning] = useState(false);
+  const intervalRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (running) {
+      intervalRef.current = window.setInterval(() => {
+        setElapsed(prev => prev + 10);
+      }, 10);
+    } else if (intervalRef.current !== null) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+    return () => {
+      if (intervalRef.current !== null) clearInterval(intervalRef.current);
+    };
+  }, [running]);
+
+  const hours = Math.floor(elapsed / 3600000);
+  const minutes = Math.floor((elapsed % 3600000) / 60000);
+  const seconds = Math.floor((elapsed % 60000) / 1000);
+  const centiseconds = Math.floor((elapsed % 1000) / 10);
+  const pad = (n: number, d = 2) => String(n).padStart(d, '0');
+
   const completedCount = (musicDone ? 1 : 0) + (flexDone ? 1 : 0);
   const progress = completedCount / 2;
 
   return (
     <div className="tab-content leisure-tab">
+      <div className="stopwatch-card">
+        <div className="stopwatch-display">
+          {hours > 0 && <><span className="stopwatch-digit">{pad(hours)}</span><span className="stopwatch-sep">:</span></>}
+          <span className="stopwatch-digit">{pad(minutes)}</span>
+          <span className="stopwatch-sep">:</span>
+          <span className="stopwatch-digit">{pad(seconds)}</span>
+          <span className="stopwatch-sep">.</span>
+          <span className="stopwatch-digit stopwatch-cs">{pad(centiseconds)}</span>
+        </div>
+        <div className="stopwatch-controls">
+          <button className="stopwatch-btn reset" onClick={() => { setRunning(false); setElapsed(0); }}>Reset</button>
+          {running ? (
+            <button className="stopwatch-btn stop" onClick={() => setRunning(false)}>Stop</button>
+          ) : (
+            <button className="stopwatch-btn start" onClick={() => setRunning(true)}>Start</button>
+          )}
+        </div>
+      </div>
+
       <div className="leisure-progress-card">
         <div className="leisure-progress-header">
           <span className="leisure-progress-text">
