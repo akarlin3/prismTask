@@ -4,6 +4,7 @@ import { TasksTab } from './tabs/TasksTab';
 import { ProjectsTab } from './tabs/ProjectsTab';
 import { HabitsTab } from './tabs/HabitsTab';
 import { LeisureTab } from './tabs/LeisureTab';
+import { SchoolworkTab } from './tabs/SchoolworkTab';
 import { SettingsTab } from './tabs/SettingsTab';
 
 const tabs: Record<string, () => React.JSX.Element> = {
@@ -12,6 +13,7 @@ const tabs: Record<string, () => React.JSX.Element> = {
   projects: ProjectsTab,
   habits: HabitsTab,
   leisure: LeisureTab,
+  schoolwork: SchoolworkTab,
   settings: SettingsTab,
 };
 

@@ -11,12 +11,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FolderCopy
 import androidx.compose.material.icons.automirrored.filled.FormatListBulleted
 import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.SelfImprovement
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Today
 import androidx.compose.material.icons.outlined.FolderCopy
 import androidx.compose.material.icons.automirrored.outlined.FormatListBulleted
 import androidx.compose.material.icons.outlined.FitnessCenter
+import androidx.compose.material.icons.outlined.School
 import androidx.compose.material.icons.outlined.SelfImprovement
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Today
@@ -84,6 +86,7 @@ sealed class AveryTaskRoute(val route: String) {
         fun createRoute(habitId: Long): String = "habit_analytics?habitId=$habitId"
     }
     data object Leisure : AveryTaskRoute("leisure")
+    data object Schoolwork : AveryTaskRoute("schoolwork")
 }
 
 data class BottomNavItem(
@@ -100,6 +103,7 @@ private val bottomNavItems = listOf(
     BottomNavItem(AveryTaskRoute.ProjectList.route, "Projects", Icons.Filled.FolderCopy, Icons.Outlined.FolderCopy, "projects"),
     BottomNavItem(AveryTaskRoute.HabitList.route, "Habits", Icons.Filled.FitnessCenter, Icons.Outlined.FitnessCenter, "habits"),
     BottomNavItem(AveryTaskRoute.Leisure.route, "Leisure", Icons.Filled.SelfImprovement, Icons.Outlined.SelfImprovement, "leisure"),
+    BottomNavItem(AveryTaskRoute.Schoolwork.route, "School", Icons.Filled.School, Icons.Outlined.School, "schoolwork"),
     BottomNavItem(AveryTaskRoute.Settings.route, "Settings", Icons.Filled.Settings, Icons.Outlined.Settings, "settings"),
 )
 

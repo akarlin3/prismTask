@@ -1020,3 +1020,485 @@ html, body {
   background: var(--on-surface-faint);
   border-radius: 2px;
 }
+
+/* === Schoolwork Tab === */
+.sw-header {
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+.sw-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.sw-title {
+  font-size: 22px;
+  font-weight: 700;
+  margin: 4px 0 2px;
+}
+
+.sw-subtitle {
+  font-size: 13px;
+  color: var(--on-surface-dim);
+}
+
+.sw-progress-card {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  margin-bottom: 12px;
+}
+
+.sw-progress-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.sw-progress-text {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.sw-progress-pct {
+  font-size: 13px;
+  color: var(--on-surface-dim);
+}
+
+.sw-progress-bar {
+  height: 6px;
+  background: var(--surface-variant);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.sw-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+  border-radius: 3px;
+  transition: width 0.4s ease;
+}
+
+.sw-progress-fill.complete {
+  background: var(--success);
+}
+
+/* Course switcher */
+.sw-switcher {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.sw-switch-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 12px 8px;
+  background: var(--surface);
+  border: 2px solid var(--surface-variant);
+  border-radius: var(--radius);
+  color: var(--on-surface-dim);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.sw-switch-btn.active {
+  border-color: var(--accent);
+  background: rgba(74, 144, 217, 0.08);
+  color: var(--on-surface);
+}
+
+.sw-switch-code {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.sw-switch-name {
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.sw-switch-pct {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+/* Course view */
+.sw-course-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.sw-course-info {
+  flex: 1;
+}
+
+.sw-course-code {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: var(--on-surface-dim);
+  text-transform: uppercase;
+}
+
+.sw-course-name {
+  font-size: 17px;
+  font-weight: 700;
+  margin: 2px 0;
+}
+
+.sw-course-deadline {
+  font-size: 12px;
+  color: var(--on-surface-dim);
+}
+
+/* Progress ring */
+.sw-course-progress-ring {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  flex-shrink: 0;
+}
+
+.sw-ring {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.sw-ring-bg {
+  fill: none;
+  stroke: var(--surface-variant);
+  stroke-width: 3;
+}
+
+.sw-ring-fill {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 3;
+  stroke-linecap: round;
+  transition: stroke-dasharray 0.4s ease;
+}
+
+.sw-ring-text {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--on-surface-dim);
+}
+
+/* Phase headers (5424) */
+.sw-phase {
+  margin-bottom: 16px;
+}
+
+.sw-phase-header {
+  margin-bottom: 8px;
+  padding-left: 4px;
+}
+
+.sw-phase-title {
+  font-size: 14px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.sw-phase-sub {
+  font-size: 11px;
+  color: var(--on-surface-dim);
+}
+
+/* Items container */
+.sw-items {
+  background: var(--surface);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.sw-date-header {
+  padding: 6px 14px 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--on-surface-dim);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  background: rgba(255,255,255,0.02);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sw-date-header.today {
+  color: var(--accent);
+}
+
+.sw-today-badge {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--accent);
+  background: rgba(74, 144, 217, 0.15);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+.sw-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 14px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.sw-item:active:not(.off) {
+  background: var(--surface-variant);
+}
+
+.sw-item.off {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.sw-checkbox {
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  border: 2px solid var(--on-surface-faint);
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+  transition: all 0.15s;
+}
+
+.sw-checkbox.checked {
+  background: var(--success);
+  border-color: var(--success);
+}
+
+.sw-checkbox.buffer {
+  border-style: dashed;
+}
+
+.sw-checkbox.off {
+  background: rgba(255,255,255,0.05);
+  border: none;
+  color: var(--on-surface-dim);
+  font-size: 11px;
+}
+
+.sw-item-label {
+  flex: 1;
+  font-size: 13px;
+  line-height: 1.4;
+  transition: color 0.15s;
+}
+
+.sw-item-label.checked {
+  text-decoration: line-through;
+  color: var(--on-surface-dim);
+}
+
+.sw-time-badge {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent);
+  background: rgba(74, 144, 217, 0.1);
+  padding: 2px 7px;
+  border-radius: 5px;
+  flex-shrink: 0;
+  transition: all 0.15s;
+}
+
+.sw-time-badge.checked {
+  color: var(--on-surface-dim);
+  background: transparent;
+}
+
+/* 5454 day cards */
+.sw-day-off {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  margin: 3px 0;
+  background: var(--surface);
+  border-radius: var(--radius-sm);
+  border-left: 3px solid var(--surface-variant);
+  opacity: 0.6;
+}
+
+.sw-day-off.exam {
+  border-left-color: var(--error);
+}
+
+.sw-day-off.deadline {
+  border-left-color: #eab308;
+}
+
+.sw-day-off-date {
+  font-size: 11px;
+  color: var(--on-surface-dim);
+  font-weight: 500;
+  min-width: 40px;
+}
+
+.sw-day-off-label {
+  flex: 1;
+  font-size: 12px;
+  color: var(--on-surface-dim);
+}
+
+.sw-day-off-label.exam {
+  color: #fca5a5;
+}
+
+.sw-day-off-label.deadline {
+  color: #fde047;
+}
+
+.sw-day-off-tag {
+  font-size: 10px;
+  color: var(--on-surface-dim);
+  font-weight: 500;
+}
+
+.sw-day {
+  margin: 5px 0;
+  background: var(--surface);
+  border: 1px solid var(--surface-variant);
+  border-radius: var(--radius);
+  overflow: hidden;
+  position: relative;
+}
+
+.sw-day.today {
+  border-color: var(--accent);
+}
+
+.sw-today-bar {
+  height: 2px;
+  background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+}
+
+.sw-day-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px 4px;
+}
+
+.sw-day-header-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sw-day-date {
+  font-size: 11px;
+  color: var(--on-surface-dim);
+  font-weight: 500;
+}
+
+.sw-cat-badge {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.sw-day-header-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sw-phase-badge {
+  font-size: 10px;
+  color: var(--on-surface-dim);
+  font-weight: 500;
+}
+
+.sw-day-done {
+  font-size: 13px;
+  color: var(--success);
+}
+
+.sw-day-tasks {
+  padding: 0 6px 6px;
+}
+
+.sw-task-btn {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 8px;
+  margin: 1px 0;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: left;
+  color: var(--on-surface);
+  transition: background 0.15s;
+}
+
+.sw-task-btn:active {
+  background: var(--surface-variant);
+}
+
+.sw-task-btn.checked {
+  background: rgba(76, 175, 80, 0.05);
+}
+
+.sw-task-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.sw-task-text {
+  font-size: 13px;
+  line-height: 1.4;
+  transition: all 0.15s;
+}
+
+.sw-task-text.checked {
+  text-decoration: line-through;
+  color: var(--on-surface-dim);
+}
+
+.sw-type-icon {
+  margin-right: 5px;
+  font-size: 11px;
+  opacity: 0.5;
+}
+
+.sw-task-time {
+  font-size: 11px;
+  color: var(--on-surface-dim);
+  flex-shrink: 0;
+  margin-top: 1px;
+}
