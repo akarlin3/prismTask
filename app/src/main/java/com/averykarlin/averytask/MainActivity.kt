@@ -54,7 +54,7 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            AveryTaskTheme(themeMode = "dark", accentColor = accentColor) {
+            AveryTaskTheme(themeMode = themeMode, accentColor = accentColor) {
                 AveryTaskNavGraph(modifier = Modifier.fillMaxSize())
             }
         }

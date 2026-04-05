@@ -41,6 +41,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.averykarlin.averytask.ui.screens.auth.AuthScreen
+import com.averykarlin.averytask.ui.screens.auth.AuthViewModel
 import com.averykarlin.averytask.ui.screens.addedittask.AddEditTaskScreen
 import com.averykarlin.averytask.ui.screens.archive.ArchiveScreen
 import com.averykarlin.averytask.ui.screens.habits.AddEditHabitScreen
@@ -73,6 +75,7 @@ sealed class AveryTaskRoute(val route: String) {
     data object TagManagement : AveryTaskRoute("tag_management")
     data object Search : AveryTaskRoute("search")
     data object Archive : AveryTaskRoute("archive")
+    data object Auth : AveryTaskRoute("auth")
     data object WeekView : AveryTaskRoute("week_view")
     data object MonthView : AveryTaskRoute("month_view")
     data object Timeline : AveryTaskRoute("timeline")
@@ -418,6 +421,32 @@ fun AveryTaskNavGraph(
                 }
             ) {
                 AddEditHabitScreen(navController)
+            }
+
+            composable(
+                route = AveryTaskRoute.Auth.route,
+                enterTransition = {
+                    slideInHorizontally(initialOffsetX = { it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
+                },
+                exitTransition = {
+                    slideOutHorizontally(targetOffsetX = { -it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
+                },
+                popEnterTransition = {
+                    slideInHorizontally(initialOffsetX = { -it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
+                },
+                popExitTransition = {
+                    slideOutHorizontally(targetOffsetX = { it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
+                }
+            ) {
+                val authViewModel: AuthViewModel = androidx.hilt.navigation.compose.hiltViewModel()
+                AuthScreen(
+                    viewModel = authViewModel,
+                    onContinue = { navController.popBackStack() }
+                )
             }
 
             composable(
