@@ -1,4 +1,4 @@
-package com.averykarlin.averytodo.ui.theme
+package com.averykarlin.averytask.ui.theme
 
 import androidx.compose.ui.graphics.Color
 

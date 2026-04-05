@@ -1,4 +1,4 @@
-package com.averykarlin.averytodo.ui.theme
+package com.averykarlin.averytask.ui.theme
 
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle

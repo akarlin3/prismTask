@@ -18,4 +18,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Edge-to-edge display support
 - AGPL-3.0 license
 
-[Unreleased]: https://github.com/akarlin3/personal_todo/commits/main
+[Unreleased]: https://github.com/akarlin3/averyTask/commits/main

@@ -1,4 +1,4 @@
-package com.averykarlin.averytodo.ui.theme
+package com.averykarlin.averytask.ui.theme
 
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -23,7 +23,7 @@ private val LightColorScheme = lightColorScheme(
 )
 
 @Composable
-fun AveryTodoTheme(
+fun AveryTaskTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     dynamicColor: Boolean = true,
     content: @Composable () -> Unit

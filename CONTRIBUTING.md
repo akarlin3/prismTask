@@ -6,8 +6,8 @@ Thank you for your interest in contributing. This document covers development se
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/akarlin3/personal_todo.git
-   cd personal_todo
+   git clone https://github.com/akarlin3/averyTask.git
+   cd averyTask
    ```
 
 2. Open the project in Android Studio Ladybug (2024.2.1) or later.
@@ -78,7 +78,7 @@ Thank you for your interest in contributing. This document covers development se
 
 ## Reporting Issues
 
-Use [GitHub Issues](https://github.com/akarlin3/personal_todo/issues) to report bugs or request features. Include:
+Use [GitHub Issues](https://github.com/akarlin3/averyTask/issues) to report bugs or request features. Include:
 
 - Steps to reproduce (for bugs)
 - Device/emulator info and Android version

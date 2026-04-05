@@ -30,8 +30,8 @@ A native Android todo list app built with Kotlin and Jetpack Compose. Currently 
 
 ```bash
 # Clone the repository
-git clone https://github.com/akarlin3/personal_todo.git
-cd personal_todo
+git clone https://github.com/akarlin3/averyTask.git
+cd averyTask
 
 # Build debug APK
 ./gradlew assembleDebug
