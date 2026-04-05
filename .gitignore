@@ -14,5 +14,12 @@ local.properties
 *.ap_
 captures/
 
+# React web app
+web/node_modules/
+web/dist/
+
+# APK output (committed via CI)
+!apk/
+
 # macOS
 .DS_Store
