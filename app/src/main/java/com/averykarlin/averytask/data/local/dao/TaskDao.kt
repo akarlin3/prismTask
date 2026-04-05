@@ -48,6 +48,12 @@ interface TaskDao {
     @Query("DELETE FROM tasks WHERE id = :id")
     suspend fun deleteById(id: Long)
 
+    @Query("SELECT * FROM tasks WHERE id = :id")
+    suspend fun getTaskByIdOnce(id: Long): TaskEntity?
+
+    @Query("SELECT * FROM tasks WHERE is_completed = 0 AND reminder_offset IS NOT NULL AND due_date IS NOT NULL")
+    suspend fun getIncompleteTasksWithReminders(): List<TaskEntity>
+
     @Query("UPDATE tasks SET is_completed = 1, completed_at = :completedAt, updated_at = :completedAt WHERE id = :id")
     suspend fun markCompleted(id: Long, completedAt: Long)
 

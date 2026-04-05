@@ -1,7 +1,9 @@
 package com.averykarlin.averytask.data.repository
 
+import com.averykarlin.averytask.data.local.converter.RecurrenceConverter
 import com.averykarlin.averytask.data.local.dao.TaskDao
 import com.averykarlin.averytask.data.local.entity.TaskEntity
+import com.averykarlin.averytask.domain.usecase.RecurrenceEngine
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
@@ -47,6 +49,10 @@ class TaskRepository @Inject constructor(
 
     fun getTaskById(id: Long): Flow<TaskEntity?> = taskDao.getTaskById(id)
 
+    suspend fun getTaskByIdOnce(id: Long): TaskEntity? = taskDao.getTaskByIdOnce(id)
+
+    suspend fun insertTask(task: TaskEntity): Long = taskDao.insert(task)
+
     suspend fun addTask(
         title: String,
         description: String? = null,
@@ -78,8 +84,24 @@ class TaskRepository @Inject constructor(
     suspend fun completeTask(id: Long) {
         val now = System.currentTimeMillis()
         val task = taskDao.getTaskById(id).firstOrNull()
-        if (task?.recurrenceRule != null) {
-            // TODO: Parse recurrenceRule JSON and create the next occurrence
+        if (task?.recurrenceRule != null && task.dueDate != null) {
+            val rule = RecurrenceConverter.fromJson(task.recurrenceRule)
+            if (rule != null) {
+                val nextDueDate = RecurrenceEngine.calculateNextDueDate(task.dueDate, rule)
+                if (nextDueDate != null) {
+                    val updatedRule = rule.copy(occurrenceCount = rule.occurrenceCount + 1)
+                    val nextTask = task.copy(
+                        id = 0,
+                        isCompleted = false,
+                        dueDate = nextDueDate,
+                        recurrenceRule = RecurrenceConverter.toJson(updatedRule),
+                        completedAt = null,
+                        createdAt = now,
+                        updatedAt = now
+                    )
+                    taskDao.insert(nextTask)
+                }
+            }
         }
         taskDao.markCompleted(id, now)
     }

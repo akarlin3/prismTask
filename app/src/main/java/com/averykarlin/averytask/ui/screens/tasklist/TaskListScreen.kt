@@ -11,7 +11,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
+
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -25,12 +25,14 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AddTask
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckBoxOutlineBlank
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FolderCopy
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Repeat
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.FormatListBulleted
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.SortByAlpha
-import androidx.compose.material3.Badge
-import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
@@ -44,9 +46,13 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -68,8 +74,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.averykarlin.averytask.data.local.entity.ProjectEntity
 import com.averykarlin.averytask.data.local.entity.TaskEntity
+import com.averykarlin.averytask.ui.components.EmptyState
 import com.averykarlin.averytask.ui.components.SubtaskSection
 import com.averykarlin.averytask.ui.navigation.AveryTaskRoute
+import com.averykarlin.averytask.ui.theme.PriorityColors
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -97,6 +105,7 @@ fun TaskListScreen(
     var showSortMenu by remember { mutableStateOf(false) }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(hostState = viewModel.snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
@@ -215,7 +224,21 @@ fun TaskListScreen(
                 filteredTasks
 
             if (allTasks.isEmpty()) {
-                EmptyState(modifier = Modifier.weight(1f))
+                if (selectedProjectId != null) {
+                    EmptyState(
+                        icon = Icons.Default.Search,
+                        title = "No tasks match your filters",
+                        subtitle = "Try selecting a different project",
+                        modifier = Modifier.weight(1f)
+                    )
+                } else {
+                    EmptyState(
+                        icon = Icons.Default.CheckBoxOutlineBlank,
+                        title = "No tasks yet",
+                        subtitle = "Tap + to add your first task",
+                        modifier = Modifier.weight(1f)
+                    )
+                }
             } else {
                 LazyColumn(
                     modifier = Modifier
@@ -267,6 +290,7 @@ fun TaskListScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 private fun androidx.compose.foundation.lazy.LazyListScope.taskItemWithSubtasks(
     task: TaskEntity,
     projects: List<ProjectEntity>,
@@ -281,17 +305,69 @@ private fun androidx.compose.foundation.lazy.LazyListScope.taskItemWithSubtasks(
     val subtasks = subtasksMap[task.id].orEmpty()
     item(key = task.id) {
         val project = projects.find { it.id == task.projectId }
-        TaskItem(
-            task = task,
-            project = project,
-            subtasks = subtasks,
-            onToggleComplete = { viewModel.onToggleComplete(task.id, task.isCompleted) },
-            onClick = { navController.navigate(AveryTaskRoute.AddEditTask.createRoute(task.id)) },
-            onAddSubtaskClick = {
-                onExpandChange(expandedTaskIds + task.id)
-                onFocusChange(task.id)
+        val dismissState = rememberSwipeToDismissBoxState(
+            confirmValueChange = { value ->
+                when (value) {
+                    SwipeToDismissBoxValue.StartToEnd -> {
+                        viewModel.onCompleteTaskWithUndo(task.id)
+                        true
+                    }
+                    SwipeToDismissBoxValue.EndToStart -> {
+                        viewModel.onDeleteTaskWithUndo(task.id)
+                        true
+                    }
+                    SwipeToDismissBoxValue.Settled -> false
+                }
             }
         )
+
+        SwipeToDismissBox(
+            state = dismissState,
+            backgroundContent = {
+                val direction = dismissState.dismissDirection
+                val backgroundColor = when (direction) {
+                    SwipeToDismissBoxValue.StartToEnd -> Color(0xFF4CAF50)
+                    SwipeToDismissBoxValue.EndToStart -> Color(0xFFE53935)
+                    else -> Color.Transparent
+                }
+                val icon = when (direction) {
+                    SwipeToDismissBoxValue.StartToEnd -> Icons.Default.Check
+                    SwipeToDismissBoxValue.EndToStart -> Icons.Default.Delete
+                    else -> Icons.Default.Check
+                }
+                val alignment = when (direction) {
+                    SwipeToDismissBoxValue.StartToEnd -> Alignment.CenterStart
+                    else -> Alignment.CenterEnd
+                }
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(backgroundColor)
+                        .padding(horizontal = 20.dp),
+                    contentAlignment = alignment
+                ) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = Color.White
+                    )
+                }
+            }
+        ) {
+            TaskItem(
+                task = task,
+                project = project,
+                subtasks = subtasks,
+                onToggleComplete = { viewModel.onToggleComplete(task.id, task.isCompleted) },
+                onClick = { navController.navigate(AveryTaskRoute.AddEditTask.createRoute(task.id)) },
+                onAddSubtaskClick = {
+                    onExpandChange(expandedTaskIds + task.id)
+                    onFocusChange(task.id)
+                }
+            )
+        }
     }
     if (subtasks.isNotEmpty() || expandedTaskIds.contains(task.id)) {
         item(key = "subtasks_${task.id}") {
@@ -470,6 +546,24 @@ private fun TaskItem(
                         )
                     }
 
+                    if (task.reminderOffset != null) {
+                        Icon(
+                            imageVector = Icons.Default.Notifications,
+                            contentDescription = "Reminder set",
+                            modifier = Modifier.size(14.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    if (task.recurrenceRule != null) {
+                        Icon(
+                            imageVector = Icons.Default.Repeat,
+                            contentDescription = "Recurring task",
+                            modifier = Modifier.size(14.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
                     if (subtasks.isNotEmpty()) {
                         val completed = subtasks.count { it.isCompleted }
                         Text(
@@ -516,18 +610,11 @@ private fun isTaskOverdue(task: TaskEntity): Boolean {
 
 @Composable
 private fun PriorityDot(priority: Int) {
-    val color = when (priority) {
-        1 -> Color(0xFF4A90D9)
-        2 -> Color(0xFFF5C542)
-        3 -> Color(0xFFE8872A)
-        4 -> Color(0xFFD93025)
-        else -> Color(0xFFAAAAAA)
-    }
     Box(
         modifier = Modifier
             .size(10.dp)
             .clip(CircleShape)
-            .background(color)
+            .background(PriorityColors.forLevel(priority))
     )
 }
 
@@ -586,31 +673,3 @@ private fun formatDueDate(epochMillis: Long): DueDateLabel {
     }
 }
 
-@Composable
-private fun EmptyState(modifier: Modifier = Modifier) {
-    Box(
-        modifier = modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(
-                imageVector = Icons.Default.CheckBoxOutlineBlank,
-                contentDescription = null,
-                modifier = Modifier.size(72.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                text = "No tasks yet",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = "Tap + to add your first task",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
-            )
-        }
-    }
-}

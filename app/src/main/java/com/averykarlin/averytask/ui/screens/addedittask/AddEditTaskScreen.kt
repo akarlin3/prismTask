@@ -28,6 +28,8 @@ import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.NotificationsNone
 import androidx.compose.material3.Button
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
@@ -62,6 +64,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.averykarlin.averytask.ui.components.RecurrenceSelector
+import com.averykarlin.averytask.ui.theme.PriorityColors
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
@@ -82,6 +86,7 @@ fun AddEditTaskScreen(
 
     var showDatePicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
+    var showReminderDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -238,6 +243,47 @@ fun AddEditTaskScreen(
                 }
             }
 
+            // Reminder
+            SectionLabel("Reminder")
+            val hasDate = viewModel.dueDate != null
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(enabled = hasDate) { showReminderDialog = true }
+                    .padding(vertical = 8.dp)
+            ) {
+                Icon(
+                    imageVector = if (viewModel.reminderOffset != null)
+                        Icons.Default.Notifications
+                    else
+                        Icons.Default.NotificationsNone,
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp),
+                    tint = if (hasDate)
+                        MaterialTheme.colorScheme.onSurface
+                    else
+                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Text(
+                    text = if (!hasDate) "Set a due date first"
+                    else reminderOffsetLabel(viewModel.reminderOffset),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (hasDate)
+                        MaterialTheme.colorScheme.onSurface
+                    else
+                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                )
+            }
+
+            // Recurrence
+            SectionLabel("Recurrence")
+            RecurrenceSelector(
+                currentRule = viewModel.recurrenceRule,
+                onRuleChanged = viewModel::onRecurrenceRuleChange
+            )
+
             // Priority
             SectionLabel("Priority")
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -303,6 +349,18 @@ fun AddEditTaskScreen(
         }
     }
 
+    // Reminder picker dialog
+    if (showReminderDialog) {
+        ReminderPickerDialog(
+            currentOffset = viewModel.reminderOffset,
+            onSelect = { offset ->
+                viewModel.onReminderOffsetChange(offset)
+                showReminderDialog = false
+            },
+            onDismiss = { showReminderDialog = false }
+        )
+    }
+
     // Time picker dialog
     if (showTimePicker) {
         val cal = Calendar.getInstance().apply {
@@ -341,11 +399,11 @@ private fun SectionLabel(text: String) {
 }
 
 private enum class PriorityOption(val value: Int, val label: String, val color: Color) {
-    NONE(0, "None", Color(0xFFAAAAAA)),
-    LOW(1, "Low", Color(0xFF4A90D9)),
-    MEDIUM(2, "Med", Color(0xFFF5C542)),
-    HIGH(3, "High", Color(0xFFE8872A)),
-    URGENT(4, "Urgent", Color(0xFFD93025))
+    NONE(0, "None", PriorityColors.None),
+    LOW(1, "Low", PriorityColors.Low),
+    MEDIUM(2, "Med", PriorityColors.Medium),
+    HIGH(3, "High", PriorityColors.High),
+    URGENT(4, "Urgent", PriorityColors.Urgent)
 }
 
 @Composable
@@ -497,4 +555,61 @@ private fun formatDateSmart(epochMillis: Long): String {
 private fun formatTime(epochMillis: Long): String {
     val fmt = SimpleDateFormat("h:mm a", Locale.getDefault())
     return fmt.format(Date(epochMillis))
+}
+
+private fun reminderOffsetLabel(offset: Long?): String = when (offset) {
+    null -> "No reminder"
+    0L -> "At due time"
+    900_000L -> "15 minutes before"
+    1_800_000L -> "30 minutes before"
+    3_600_000L -> "1 hour before"
+    86_400_000L -> "1 day before"
+    else -> "${offset / 60_000} min before"
+}
+
+private data class ReminderOption(val label: String, val offset: Long?)
+
+private val reminderOptions = listOf(
+    ReminderOption("None", null),
+    ReminderOption("At due time", 0L),
+    ReminderOption("15 minutes before", 900_000L),
+    ReminderOption("30 minutes before", 1_800_000L),
+    ReminderOption("1 hour before", 3_600_000L),
+    ReminderOption("1 day before", 86_400_000L)
+)
+
+@Composable
+private fun ReminderPickerDialog(
+    currentOffset: Long?,
+    onSelect: (Long?) -> Unit,
+    onDismiss: () -> Unit
+) {
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {},
+        title = { Text("Set Reminder") },
+        text = {
+            Column {
+                reminderOptions.forEach { option ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onSelect(option.offset) }
+                            .padding(vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        androidx.compose.material3.RadioButton(
+                            selected = currentOffset == option.offset,
+                            onClick = { onSelect(option.offset) }
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = option.label,
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                    }
+                }
+            }
+        }
+    )
 }
