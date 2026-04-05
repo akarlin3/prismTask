@@ -27,6 +27,10 @@
 # ── WorkManager workers ──
 -keep class com.averykarlin.averytask.workers.** { *; }
 
+# ── Firebase / Firestore ──
+-keep class com.averykarlin.averytask.data.remote.model.** { *; }
+-keep class com.averykarlin.averytask.data.remote.mapper.** { *; }
+
 # ── Gson ──
 -keepattributes Signature
 -keepattributes *Annotation*

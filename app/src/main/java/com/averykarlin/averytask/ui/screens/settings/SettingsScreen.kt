@@ -220,10 +220,27 @@ fun SettingsScreen(
 
             HorizontalDivider()
 
+            SectionHeader("Backup & Export")
+
+            SettingsRow(
+                title = "Export as JSON",
+                onClick = { viewModel.onExportJson() }
+            )
+            SettingsRow(
+                title = "Export as CSV",
+                onClick = { viewModel.onExportCsv() }
+            )
+            SettingsRow(
+                title = "Import from JSON",
+                onClick = { viewModel.onImportJson() }
+            )
+
+            HorizontalDivider()
+
             SectionHeader("About")
 
             Text(
-                text = "AveryTask v0.1.0",
+                text = "AveryTask v0.4.0",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.padding(vertical = 4.dp)

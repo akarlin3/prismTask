@@ -38,6 +38,12 @@ interface ProjectDao {
     """)
     fun getProjectWithTaskCount(): Flow<List<ProjectWithCount>>
 
+    @Query("SELECT * FROM projects")
+    suspend fun getAllProjectsOnce(): List<ProjectEntity>
+
+    @Query("SELECT * FROM projects WHERE id = :id")
+    suspend fun getProjectByIdOnce(id: Long): ProjectEntity?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(project: ProjectEntity): Long
 

@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-**AveryTask** (`com.averykarlin.averytask`) is a native Android todo list app built with Kotlin and Jetpack Compose. v0.3.0 includes full task management, projects, subtasks, tags, recurrence, reminders, notifications, NLP quick-add, Today focus screen, week/month views, urgency scoring, and smart suggestions.
+**AveryTask** (`com.averykarlin.averytask`) is a native Android todo list app built with Kotlin and Jetpack Compose. v0.4.0 includes full task management, projects, subtasks, tags, recurrence, reminders, notifications, NLP quick-add, Today focus screen, week/month/timeline views, urgency scoring, smart suggestions, Firebase cloud sync, Google Sign-In, and JSON/CSV data export/import.
 
 ## Tech Stack
 
@@ -12,6 +12,8 @@
 - **Database**: Room 2.8.4 with KSP
 - **Navigation**: Jetpack Navigation Compose 2.9.7
 - **Serialization**: Gson 2.11.0 (for RecurrenceRule JSON)
+- **Cloud**: Firebase Auth + Firestore + Storage (BOM 33.7.0)
+- **Auth**: Credential Manager + Google Identity
 - **Build**: Gradle 8.13 with Kotlin DSL
 - **Min SDK**: 26 (Android 8.0) / **Target SDK**: 35 (Android 15)
 
@@ -32,7 +34,7 @@ app/src/main/java/com/averykarlin/averytask/
 │   │   │   ├── AttachmentDao.kt       # Attachment CRUD
 │   │   │   └── UsageLogDao.kt         # Usage analytics for smart suggestions
 │   │   ├── database/
-│   │   │   └── AveryTaskDatabase.kt   # Room DB (v5, migrations 1→5)
+│   │   │   └── AveryTaskDatabase.kt   # Room DB (v6, migrations 1→6)
 │   │   └── entity/
 │   │       ├── TaskEntity.kt          # Tasks table with plannedDate, FKs, indices
 │   │       ├── ProjectEntity.kt       # Projects table
@@ -40,7 +42,17 @@ app/src/main/java/com/averykarlin/averytask/
 │   │       ├── TaskTagCrossRef.kt     # Task-tag junction table
 │   │       ├── TaskWithTags.kt        # Room relation
 │   │       ├── AttachmentEntity.kt    # File attachments
-│   │       └── UsageLogEntity.kt      # Usage logs for suggestion engine
+│   │       ├── UsageLogEntity.kt      # Usage logs for suggestion engine
+│   │       ├── SyncMetadataEntity.kt  # Cloud sync local↔remote ID mapping
+│   │       └── CalendarSyncEntity.kt  # Task↔Google Calendar event mapping
+│   ├── remote/
+│   │   ├── AuthManager.kt            # Firebase Auth + Google Sign-In
+│   │   ├── SyncService.kt            # Firestore push/pull/real-time sync
+│   │   └── mapper/
+│   │       └── SyncMapper.kt         # Entity ↔ Firestore document mapping
+│   ├── export/
+│   │   ├── DataExporter.kt           # JSON + CSV export
+│   │   └── DataImporter.kt           # JSON import with merge/replace modes
 │   ├── preferences/
 │   │   ├── ThemePreferences.kt        # Theme mode + accent color DataStore
 │   │   └── ArchivePreferences.kt      # Auto-archive settings
@@ -80,6 +92,9 @@ app/src/main/java/com/averykarlin/averytask/
     ├── navigation/
     │   └── NavGraph.kt               # NavHost with bottom nav (Today, Tasks, Projects, Settings)
     ├── screens/
+    │   ├── auth/
+    │   │   ├── AuthScreen.kt         # Google Sign-In screen
+    │   │   └── AuthViewModel.kt      # Auth state management
     │   ├── today/
     │   │   ├── TodayScreen.kt        # Today focus: progress ring, overdue, planned, completed
     │   │   └── TodayViewModel.kt     # Today state, plan-for-today, rollover
@@ -100,6 +115,9 @@ app/src/main/java/com/averykarlin/averytask/
     │   ├── monthview/
     │   │   ├── MonthViewScreen.kt     # Calendar grid with density dots, day detail
     │   │   └── MonthViewModel.kt      # Month navigation, day info aggregation
+    │   ├── timeline/
+    │   │   ├── TimelineScreen.kt      # Daily timeline with scheduled blocks
+    │   │   └── TimelineViewModel.kt   # Timeline state, scheduling
     │   ├── search/
     │   │   ├── SearchScreen.kt
     │   │   └── SearchViewModel.kt
@@ -134,6 +152,10 @@ app/src/main/java/com/averykarlin/averytask/
 - **Today Focus**: Progress ring, overdue/today/planned sections, plan-for-today sheet
 - **Urgency Scoring**: `UrgencyScorer` computes 0–1 score from due date, priority, age, subtask progress
 - **Smart Suggestions**: `SuggestionEngine` suggests tags/projects based on usage log keyword matching
+- **Cloud Sync**: Firebase Firestore for cross-device sync, `SyncService` with push/pull/real-time listeners
+- **Auth**: Google Sign-In via Credential Manager, optional (local-only mode supported)
+- **Timeline**: Daily view with scheduled time blocks, duration management, current time indicator
+- **Export/Import**: JSON full backup + CSV tasks export; JSON import with merge/replace modes
 
 ## Build Commands
 
@@ -171,5 +193,6 @@ app/src/main/java/com/averykarlin/averytask/
 - `app/build.gradle.kts` — App module dependencies, build config, ProGuard/R8 settings
 - `app/proguard-rules.pro` — Keep rules for Room, Gson, domain models
 - `app/src/main/AndroidManifest.xml` — Activity, receivers, permissions
+- `app/google-services.json` — Firebase config (placeholder — replace with actual)
 - `app/src/test/` — RecurrenceEngine (18), NaturalLanguageParser (32), UrgencyScorer (10) unit tests
 - `app/src/androidTest/` — DAO + recurrence integration tests

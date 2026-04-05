@@ -5,20 +5,24 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.averykarlin.averytask.data.local.dao.AttachmentDao
+import com.averykarlin.averytask.data.local.dao.CalendarSyncDao
 import com.averykarlin.averytask.data.local.dao.ProjectDao
+import com.averykarlin.averytask.data.local.dao.SyncMetadataDao
 import com.averykarlin.averytask.data.local.dao.TagDao
 import com.averykarlin.averytask.data.local.dao.TaskDao
 import com.averykarlin.averytask.data.local.dao.UsageLogDao
 import com.averykarlin.averytask.data.local.entity.AttachmentEntity
+import com.averykarlin.averytask.data.local.entity.CalendarSyncEntity
 import com.averykarlin.averytask.data.local.entity.ProjectEntity
+import com.averykarlin.averytask.data.local.entity.SyncMetadataEntity
 import com.averykarlin.averytask.data.local.entity.TagEntity
 import com.averykarlin.averytask.data.local.entity.TaskEntity
 import com.averykarlin.averytask.data.local.entity.TaskTagCrossRef
 import com.averykarlin.averytask.data.local.entity.UsageLogEntity
 
 @Database(
-    entities = [TaskEntity::class, ProjectEntity::class, TagEntity::class, TaskTagCrossRef::class, AttachmentEntity::class, UsageLogEntity::class],
-    version = 5,
+    entities = [TaskEntity::class, ProjectEntity::class, TagEntity::class, TaskTagCrossRef::class, AttachmentEntity::class, UsageLogEntity::class, SyncMetadataEntity::class, CalendarSyncEntity::class],
+    version = 6,
     exportSchema = false
 )
 abstract class AveryTaskDatabase : RoomDatabase() {
@@ -27,6 +31,8 @@ abstract class AveryTaskDatabase : RoomDatabase() {
     abstract fun tagDao(): TagDao
     abstract fun attachmentDao(): AttachmentDao
     abstract fun usageLogDao(): UsageLogDao
+    abstract fun syncMetadataDao(): SyncMetadataDao
+    abstract fun calendarSyncDao(): CalendarSyncDao
 
     companion object {
         val MIGRATION_1_2 = object : Migration(1, 2) {
@@ -89,6 +95,35 @@ abstract class AveryTaskDatabase : RoomDatabase() {
                         `task_title` TEXT NOT NULL,
                         `title_keywords` TEXT NOT NULL,
                         `timestamp` INTEGER NOT NULL
+                    )"""
+                )
+            }
+        }
+
+        val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE tasks ADD COLUMN estimated_duration INTEGER")
+                db.execSQL("ALTER TABLE tasks ADD COLUMN scheduled_start_time INTEGER")
+                db.execSQL(
+                    """CREATE TABLE IF NOT EXISTS `sync_metadata` (
+                        `local_id` INTEGER NOT NULL,
+                        `entity_type` TEXT NOT NULL,
+                        `cloud_id` TEXT NOT NULL DEFAULT '',
+                        `last_synced_at` INTEGER NOT NULL DEFAULT 0,
+                        `sync_version` INTEGER NOT NULL DEFAULT 0,
+                        `pending_action` TEXT,
+                        `retry_count` INTEGER NOT NULL DEFAULT 0,
+                        PRIMARY KEY(`local_id`, `entity_type`)
+                    )"""
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_sync_metadata_pending_action` ON `sync_metadata` (`pending_action`)")
+                db.execSQL(
+                    """CREATE TABLE IF NOT EXISTS `calendar_sync` (
+                        `task_id` INTEGER NOT NULL PRIMARY KEY,
+                        `calendar_event_id` TEXT NOT NULL,
+                        `last_synced_at` INTEGER NOT NULL,
+                        `last_synced_version` INTEGER NOT NULL DEFAULT 0,
+                        FOREIGN KEY(`task_id`) REFERENCES `tasks`(`id`) ON DELETE CASCADE
                     )"""
                 )
             }

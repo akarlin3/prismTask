@@ -77,5 +77,11 @@ data class TaskEntity(
     val notes: String? = null,
 
     @ColumnInfo(name = "planned_date")
-    val plannedDate: Long? = null
+    val plannedDate: Long? = null,
+
+    @ColumnInfo(name = "estimated_duration")
+    val estimatedDuration: Int? = null,
+
+    @ColumnInfo(name = "scheduled_start_time")
+    val scheduledStartTime: Long? = null
 )

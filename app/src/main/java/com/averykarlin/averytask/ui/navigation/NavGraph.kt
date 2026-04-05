@@ -48,6 +48,7 @@ import com.averykarlin.averytask.ui.screens.settings.SettingsScreen
 import com.averykarlin.averytask.ui.screens.tags.TagManagementScreen
 import com.averykarlin.averytask.ui.screens.tasklist.TaskListScreen
 import com.averykarlin.averytask.ui.screens.monthview.MonthViewScreen
+import com.averykarlin.averytask.ui.screens.timeline.TimelineScreen
 import com.averykarlin.averytask.ui.screens.today.TodayScreen
 import com.averykarlin.averytask.ui.screens.weekview.WeekViewScreen
 
@@ -69,6 +70,7 @@ sealed class AveryTaskRoute(val route: String) {
     data object Archive : AveryTaskRoute("archive")
     data object WeekView : AveryTaskRoute("week_view")
     data object MonthView : AveryTaskRoute("month_view")
+    data object Timeline : AveryTaskRoute("timeline")
 }
 
 data class BottomNavItem(
@@ -320,6 +322,28 @@ fun AveryTaskNavGraph(
                 }
             ) {
                 MonthViewScreen(navController)
+            }
+
+            composable(
+                route = AveryTaskRoute.Timeline.route,
+                enterTransition = {
+                    slideInHorizontally(initialOffsetX = { it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
+                },
+                exitTransition = {
+                    slideOutHorizontally(targetOffsetX = { -it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
+                },
+                popEnterTransition = {
+                    slideInHorizontally(initialOffsetX = { -it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
+                },
+                popExitTransition = {
+                    slideOutHorizontally(targetOffsetX = { it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
+                }
+            ) {
+                TimelineScreen(navController)
             }
 
             composable(

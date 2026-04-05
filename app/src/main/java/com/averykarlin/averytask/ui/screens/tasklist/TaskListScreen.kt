@@ -351,6 +351,10 @@ fun TaskListScreen(
                                     text = { Text("Month") },
                                     onClick = { showViewMenu = false; navController.navigate(AveryTaskRoute.MonthView.route) }
                                 )
+                                DropdownMenuItem(
+                                    text = { Text("Timeline") },
+                                    onClick = { showViewMenu = false; navController.navigate(AveryTaskRoute.Timeline.route) }
+                                )
                             }
                         }
                         IconButton(onClick = { navController.navigate(AveryTaskRoute.TagManagement.route) }) {

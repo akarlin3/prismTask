@@ -3,7 +3,9 @@ package com.averykarlin.averytask.di
 import android.content.Context
 import androidx.room.Room
 import com.averykarlin.averytask.data.local.dao.AttachmentDao
+import com.averykarlin.averytask.data.local.dao.CalendarSyncDao
 import com.averykarlin.averytask.data.local.dao.ProjectDao
+import com.averykarlin.averytask.data.local.dao.SyncMetadataDao
 import com.averykarlin.averytask.data.local.dao.TagDao
 import com.averykarlin.averytask.data.local.dao.TaskDao
 import com.averykarlin.averytask.data.local.dao.UsageLogDao
@@ -27,7 +29,7 @@ object DatabaseModule {
             AveryTaskDatabase::class.java,
             "averytask.db"
         )
-            .addMigrations(AveryTaskDatabase.MIGRATION_1_2, AveryTaskDatabase.MIGRATION_2_3, AveryTaskDatabase.MIGRATION_3_4, AveryTaskDatabase.MIGRATION_4_5)
+            .addMigrations(AveryTaskDatabase.MIGRATION_1_2, AveryTaskDatabase.MIGRATION_2_3, AveryTaskDatabase.MIGRATION_3_4, AveryTaskDatabase.MIGRATION_4_5, AveryTaskDatabase.MIGRATION_5_6)
             .build()
 
     @Provides
@@ -44,4 +46,10 @@ object DatabaseModule {
 
     @Provides
     fun provideUsageLogDao(database: AveryTaskDatabase): UsageLogDao = database.usageLogDao()
+
+    @Provides
+    fun provideSyncMetadataDao(database: AveryTaskDatabase): SyncMetadataDao = database.syncMetadataDao()
+
+    @Provides
+    fun provideCalendarSyncDao(database: AveryTaskDatabase): CalendarSyncDao = database.calendarSyncDao()
 }

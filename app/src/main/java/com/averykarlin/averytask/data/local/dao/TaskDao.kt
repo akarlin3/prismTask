@@ -53,6 +53,9 @@ interface TaskDao {
     @Query("SELECT * FROM tasks WHERE id = :id")
     suspend fun getTaskByIdOnce(id: Long): TaskEntity?
 
+    @Query("SELECT * FROM tasks")
+    suspend fun getAllTasksOnce(): List<TaskEntity>
+
     @Query("SELECT * FROM tasks WHERE is_completed = 0 AND reminder_offset IS NOT NULL AND due_date IS NOT NULL")
     suspend fun getIncompleteTasksWithReminders(): List<TaskEntity>
 
