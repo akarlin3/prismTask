@@ -17,6 +17,8 @@ concurrency:
 jobs:
   build-and-release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       - uses: actions/checkout@v4
@@ -55,14 +57,14 @@ jobs:
           echo "version_code=$NEW_CODE" >> $GITHUB_ENV
 
       - name: Build release APK
-        run: ./gradlew assembleRelease --build-cache --parallel
+        run: ./gradlew assembleRelease --no-configuration-cache --build-cache --parallel
         env:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
 
       - name: Build release AAB
-        run: ./gradlew bundleRelease --build-cache --parallel
+        run: ./gradlew bundleRelease --no-configuration-cache --build-cache --parallel
         env:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
@@ -110,3 +112,17 @@ jobs:
         with:
           name: release-aab
           path: app/build/outputs/bundle/release/*.aab
+
+      - name: Commit AAB to repo root
+        run: |
+          AAB_PATH=$(find app/build/outputs/bundle/release -name '*.aab' | head -1)
+          if [ -z "$AAB_PATH" ]; then
+            echo "ERROR: No AAB found"
+            exit 1
+          fi
+          cp "$AAB_PATH" app-release.aab
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add app-release.aab
+          git commit -m "Update release AAB (v${{ steps.version.outputs.version_name }}, build ${{ steps.version.outputs.version_code }})"
+          git push

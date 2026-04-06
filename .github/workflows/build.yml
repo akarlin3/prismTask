@@ -50,13 +50,14 @@ jobs:
           name: debug-aab
           path: app/build/outputs/bundle/debug/*.aab
 
-      - name: Commit APK to repo
+      - name: Commit APK and AAB to repo
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
           mkdir -p apk
           cp app/build/outputs/apk/debug/*.apk apk/averytask-debug.apk
+          cp app/build/outputs/bundle/debug/*.aab apk/averytask-debug.aab
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add apk/averytask-debug.apk
-          git diff --cached --quiet || git commit -m "Build: update debug APK [skip ci]"
+          git add apk/averytask-debug.apk apk/averytask-debug.aab
+          git diff --cached --quiet || git commit -m "Build: update debug APK and AAB [skip ci]"
           git push
