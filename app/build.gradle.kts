@@ -37,6 +37,8 @@ android {
     buildTypes {
         debug {
             buildConfigField("String", "API_BASE_URL", "\"http://10.0.2.2:8000\"")
+            // Speed up debug builds
+            isDebuggable = true
         }
         release {
             signingConfig = signingConfigs.findByName("release")
