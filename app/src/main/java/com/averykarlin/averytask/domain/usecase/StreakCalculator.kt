@@ -28,6 +28,7 @@ object StreakCalculator {
             "weekly" -> calculateWeeklyStreak(completions, habit, today, longest = false)
             "fortnightly" -> calculateFortnightlyStreak(completions, habit, today, longest = false)
             "monthly" -> calculateMonthlyStreak(completions, habit, today, longest = false)
+            "bimonthly" -> calculateBimonthlyStreak(completions, habit, today, longest = false)
             else -> calculateDailyStreak(completions, habit, today, longest = false)
         }
     }
@@ -43,6 +44,7 @@ object StreakCalculator {
             "weekly" -> calculateWeeklyStreak(completions, habit, today, longest = true)
             "fortnightly" -> calculateFortnightlyStreak(completions, habit, today, longest = true)
             "monthly" -> calculateMonthlyStreak(completions, habit, today, longest = true)
+            "bimonthly" -> calculateBimonthlyStreak(completions, habit, today, longest = true)
             else -> calculateDailyStreak(completions, habit, today, longest = true)
         }
     }
@@ -323,6 +325,60 @@ object StreakCalculator {
         while ((completionsByMonth[checkMonth] ?: 0) >= target) {
             streak++
             checkMonth = checkMonth.minusMonths(1)
+        }
+        return streak
+    }
+
+    private fun getBimonthStart(date: LocalDate): LocalDate {
+        // Align to 2-month periods starting from January
+        val month = date.monthValue
+        val startMonth = if (month % 2 == 0) month - 1 else month
+        return date.withMonth(startMonth).withDayOfMonth(1)
+    }
+
+    private fun calculateBimonthlyStreak(
+        completions: List<HabitCompletionEntity>,
+        habit: HabitEntity,
+        today: LocalDate,
+        longest: Boolean
+    ): Int {
+        val target = habit.targetFrequency
+
+        // Group completions by bimonth start (Jan-Feb, Mar-Apr, etc.)
+        val completionsByBimonth = completions.groupBy { completion ->
+            val date = completion.completedDate.toLocalDate()
+            getBimonthStart(date)
+        }.mapValues { it.value.groupBy { c -> c.completedDate.toLocalDate() }.size }
+
+        if (longest) {
+            val bimonths = completionsByBimonth.keys.sorted()
+            if (bimonths.isEmpty()) return 0
+
+            var maxStreak = 0
+            var currentStreak = 0
+            var expected = bimonths.first()
+
+            for (bm in bimonths) {
+                while (expected.isBefore(bm)) {
+                    if ((completionsByBimonth[expected] ?: 0) >= target) currentStreak++
+                    else { maxStreak = maxOf(maxStreak, currentStreak); currentStreak = 0 }
+                    expected = expected.plusMonths(2)
+                }
+                if ((completionsByBimonth[bm] ?: 0) >= target) currentStreak++
+                else { maxStreak = maxOf(maxStreak, currentStreak); currentStreak = 0 }
+                expected = bm.plusMonths(2)
+            }
+            return maxOf(maxStreak, currentStreak)
+        }
+
+        var streak = 0
+        var checkStart = getBimonthStart(today)
+        if ((completionsByBimonth[checkStart] ?: 0) < target) {
+            checkStart = checkStart.minusMonths(2)
+        }
+        while ((completionsByBimonth[checkStart] ?: 0) >= target) {
+            streak++
+            checkStart = checkStart.minusMonths(2)
         }
         return streak
     }

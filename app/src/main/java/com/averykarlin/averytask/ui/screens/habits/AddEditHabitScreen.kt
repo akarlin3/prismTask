@@ -246,7 +246,7 @@ fun AddEditHabitScreen(
             // Frequency
             SectionLabel("Frequency")
             SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                val periods = listOf("daily" to "Daily", "weekly" to "Weekly", "fortnightly" to "Fortnightly", "monthly" to "Monthly")
+                val periods = listOf("daily" to "Daily", "weekly" to "Weekly", "fortnightly" to "Fortnightly", "monthly" to "Monthly", "bimonthly" to "Bimonthly")
                 periods.forEachIndexed { index, (value, label) ->
                     SegmentedButton(
                         selected = viewModel.frequencyPeriod == value,
@@ -266,6 +266,7 @@ fun AddEditHabitScreen(
                     "weekly" -> "Target per week:"
                     "fortnightly" -> "Target per fortnight:"
                     "monthly" -> "Target per month:"
+                    "bimonthly" -> "Target per 2 months:"
                     else -> "Target:"
                 }
                 val maxTarget = when (viewModel.frequencyPeriod) {
@@ -273,6 +274,7 @@ fun AddEditHabitScreen(
                     "weekly" -> 7
                     "fortnightly" -> 14
                     "monthly" -> 30
+                    "bimonthly" -> 60
                     else -> 10
                 }
                 Text(
