@@ -72,6 +72,20 @@ kotlin {
     }
 }
 
+// Copy built AAB files to the repository root
+android.applicationVariants.all {
+    val variant = this
+    tasks.named("bundle${variant.name.replaceFirstChar { it.uppercase() }}").configure {
+        doLast {
+            val aabDir = file("${project.layout.buildDirectory.get()}/outputs/bundle/${variant.name}")
+            aabDir.listFiles()?.filter { it.extension == "aab" }?.forEach { aab ->
+                aab.copyTo(rootProject.layout.projectDirectory.file(aab.name).asFile, overwrite = true)
+                println("Copied ${aab.name} to project root")
+            }
+        }
+    }
+}
+
 dependencies {
     // Core
     implementation("androidx.core:core-ktx:1.15.0")
