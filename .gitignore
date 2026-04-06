@@ -41,6 +41,9 @@ test.db
 *.jks
 keystore_base64.txt
 
+# Firebase config (contains API keys — generate locally)
+app/google-services.json
+
 # macOS
 .DS_Store
 /.claude

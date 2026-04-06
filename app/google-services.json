@@ -1,34 +1,34 @@
 {
   "project_info": {
-    "project_number": "403186103462",
-    "firebase_url": "https://averytask-50dc5-default-rtdb.firebaseio.com",
-    "project_id": "averytask-50dc5",
-    "storage_bucket": "averytask-50dc5.firebasestorage.app"
+    "project_number": "YOUR_PROJECT_NUMBER",
+    "firebase_url": "https://YOUR_PROJECT_ID.firebaseio.com",
+    "project_id": "YOUR_PROJECT_ID",
+    "storage_bucket": "YOUR_PROJECT_ID.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:403186103462:android:919c46244d4a7f5f47b067",
+        "mobilesdk_app_id": "YOUR_MOBILE_SDK_APP_ID",
         "android_client_info": {
           "package_name": "com.averykarlin.averytask"
         }
       },
       "oauth_client": [
         {
-          "client_id": "403186103462-j09m2o9781jgnpb2eqotn65jdcg7qgqj.apps.googleusercontent.com",
+          "client_id": "YOUR_OAUTH_CLIENT_ID",
           "client_type": 3
         }
       ],
       "api_key": [
         {
-          "current_key": "AIzaSyA0pOqMUq5Twv6QHgAaZCVnhE_sYAosEQ4"
+          "current_key": "YOUR_FIREBASE_API_KEY"
         }
       ],
       "services": {
         "appinvite_service": {
           "other_platform_oauth_client": [
             {
-              "client_id": "403186103462-j09m2o9781jgnpb2eqotn65jdcg7qgqj.apps.googleusercontent.com",
+              "client_id": "YOUR_OAUTH_CLIENT_ID",
               "client_type": 3
             }
           ]

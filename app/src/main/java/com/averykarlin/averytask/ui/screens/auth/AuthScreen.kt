@@ -34,13 +34,13 @@ import androidx.credentials.CredentialManager
 import androidx.credentials.GetCredentialRequest
 import androidx.credentials.exceptions.GetCredentialException
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.averykarlin.averytask.BuildConfig
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import kotlinx.coroutines.launch
 
-// Replace with your actual web client ID from Firebase Console
-private const val WEB_CLIENT_ID = "403186103462-j09m2o9781jgnpb2eqotn65jdcg7qgqj.apps.googleusercontent.com"
+private val WEB_CLIENT_ID = BuildConfig.WEB_CLIENT_ID
 
 @Composable
 fun AuthScreen(

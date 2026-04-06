@@ -26,8 +26,8 @@ services:
     volumes:
       - ./backend:/app
     environment:
-      DATABASE_URL: postgresql+asyncpg://averytask:averytask@db:5432/averytask
-      JWT_SECRET_KEY: dev-secret-key-change-in-production
+      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://averytask:averytask@db:5432/averytask}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?Set JWT_SECRET_KEY in .env}
       JWT_ALGORITHM: HS256
     depends_on:
       db:

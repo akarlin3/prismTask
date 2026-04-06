@@ -34,12 +34,14 @@ android {
         debug {
             applicationIdSuffix = ".debug"
             buildConfigField("String", "API_BASE_URL", "\"http://10.0.2.2:8000\"")
+            buildConfigField("String", "WEB_CLIENT_ID", "\"${System.getenv("GOOGLE_WEB_CLIENT_ID") ?: ""}\"")
             // Speed up debug builds
             isDebuggable = true
         }
         release {
             signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
-            buildConfigField("String", "API_BASE_URL", "\"https://averytask-api.up.railway.app\"")
+            buildConfigField("String", "API_BASE_URL", "\"${System.getenv("API_BASE_URL") ?: "https://averytask-api.up.railway.app"}\"")
+            buildConfigField("String", "WEB_CLIENT_ID", "\"${System.getenv("GOOGLE_WEB_CLIENT_ID") ?: ""}\"")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
