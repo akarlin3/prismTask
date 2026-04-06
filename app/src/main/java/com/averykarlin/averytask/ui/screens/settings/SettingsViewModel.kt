@@ -126,6 +126,35 @@ class SettingsViewModel @Inject constructor(
     val dayStartHour: StateFlow<Int> = taskBehaviorPreferences.getDayStartHour()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
+    // --- Modes ---
+    val selfCareEnabled: StateFlow<Boolean> = habitListPreferences.isSelfCareEnabled()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
+    val medicationEnabled: StateFlow<Boolean> = habitListPreferences.isMedicationEnabled()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
+    val schoolEnabled: StateFlow<Boolean> = habitListPreferences.isSchoolEnabled()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
+    val leisureEnabled: StateFlow<Boolean> = habitListPreferences.isLeisureEnabled()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
+    fun setSelfCareEnabled(enabled: Boolean) {
+        viewModelScope.launch { habitListPreferences.setSelfCareEnabled(enabled) }
+    }
+
+    fun setMedicationEnabled(enabled: Boolean) {
+        viewModelScope.launch { habitListPreferences.setMedicationEnabled(enabled) }
+    }
+
+    fun setSchoolEnabled(enabled: Boolean) {
+        viewModelScope.launch { habitListPreferences.setSchoolEnabled(enabled) }
+    }
+
+    fun setLeisureEnabled(enabled: Boolean) {
+        viewModelScope.launch { habitListPreferences.setLeisureEnabled(enabled) }
+    }
+
     // --- Archive / Data ---
     val autoArchiveDays: StateFlow<Int> = archivePreferences.getAutoArchiveDays()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 7)

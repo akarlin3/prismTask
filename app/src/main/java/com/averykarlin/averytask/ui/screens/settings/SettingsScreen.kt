@@ -535,6 +535,21 @@ fun SettingsScreen(
 
             HorizontalDivider()
 
+            // ========== MODES ==========
+            SectionHeader("Modes")
+
+            val selfCareEnabled by viewModel.selfCareEnabled.collectAsStateWithLifecycle()
+            val medicationEnabled by viewModel.medicationEnabled.collectAsStateWithLifecycle()
+            val schoolEnabled by viewModel.schoolEnabled.collectAsStateWithLifecycle()
+            val leisureEnabled by viewModel.leisureEnabled.collectAsStateWithLifecycle()
+
+            ModeToggleRow("Self Care", selfCareEnabled) { viewModel.setSelfCareEnabled(it) }
+            ModeToggleRow("Medication", medicationEnabled) { viewModel.setMedicationEnabled(it) }
+            ModeToggleRow("Schoolwork", schoolEnabled) { viewModel.setSchoolEnabled(it) }
+            ModeToggleRow("Leisure", leisureEnabled) { viewModel.setLeisureEnabled(it) }
+
+            HorizontalDivider()
+
             // ========== NAVIGATION ==========
             SectionHeader("Navigation")
 
@@ -1166,6 +1181,23 @@ private fun PriorityColorRow(label: String, currentHex: String, defaultColor: Co
             text = if (currentHex.isNotBlank()) currentHex else "Default",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+private fun ModeToggleRow(label: String, enabled: Boolean, onToggle: (Boolean) -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(label, style = MaterialTheme.typography.bodyLarge)
+        androidx.compose.material3.Switch(
+            checked = enabled,
+            onCheckedChange = onToggle
         )
     }
 }
