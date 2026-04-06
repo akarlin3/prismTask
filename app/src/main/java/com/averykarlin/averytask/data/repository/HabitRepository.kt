@@ -209,6 +209,10 @@ class HabitRepository @Inject constructor(
                         periodStart = getBimonthStart(today)
                         periodEnd = getBimonthEnd(today)
                     }
+                    "quarterly" -> {
+                        periodStart = getQuarterStart(today)
+                        periodEnd = getQuarterEnd(today)
+                    }
                     else -> {
                         periodStart = weekStart
                         periodEnd = weekEnd
@@ -328,6 +332,32 @@ class HabitRepository @Inject constructor(
             val cal = Calendar.getInstance()
             cal.timeInMillis = getBimonthStart(today)
             cal.add(Calendar.MONTH, 2)
+            cal.add(Calendar.DAY_OF_MONTH, -1)
+            cal.set(Calendar.HOUR_OF_DAY, 23)
+            cal.set(Calendar.MINUTE, 59)
+            cal.set(Calendar.SECOND, 59)
+            cal.set(Calendar.MILLISECOND, 999)
+            return cal.timeInMillis
+        }
+
+        fun getQuarterStart(today: Long): Long {
+            val cal = Calendar.getInstance()
+            cal.timeInMillis = today
+            val month = cal.get(Calendar.MONTH) // 0-based
+            val startMonth = (month / 3) * 3
+            cal.set(Calendar.MONTH, startMonth)
+            cal.set(Calendar.DAY_OF_MONTH, 1)
+            cal.set(Calendar.HOUR_OF_DAY, 0)
+            cal.set(Calendar.MINUTE, 0)
+            cal.set(Calendar.SECOND, 0)
+            cal.set(Calendar.MILLISECOND, 0)
+            return cal.timeInMillis
+        }
+
+        fun getQuarterEnd(today: Long): Long {
+            val cal = Calendar.getInstance()
+            cal.timeInMillis = getQuarterStart(today)
+            cal.add(Calendar.MONTH, 3)
             cal.add(Calendar.DAY_OF_MONTH, -1)
             cal.set(Calendar.HOUR_OF_DAY, 23)
             cal.set(Calendar.MINUTE, 59)

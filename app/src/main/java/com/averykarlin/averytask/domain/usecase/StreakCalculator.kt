@@ -29,6 +29,7 @@ object StreakCalculator {
             "fortnightly" -> calculateFortnightlyStreak(completions, habit, today, longest = false)
             "monthly" -> calculateMonthlyStreak(completions, habit, today, longest = false)
             "bimonthly" -> calculateBimonthlyStreak(completions, habit, today, longest = false)
+            "quarterly" -> calculateQuarterlyStreak(completions, habit, today, longest = false)
             else -> calculateDailyStreak(completions, habit, today, longest = false)
         }
     }
@@ -45,6 +46,7 @@ object StreakCalculator {
             "fortnightly" -> calculateFortnightlyStreak(completions, habit, today, longest = true)
             "monthly" -> calculateMonthlyStreak(completions, habit, today, longest = true)
             "bimonthly" -> calculateBimonthlyStreak(completions, habit, today, longest = true)
+            "quarterly" -> calculateQuarterlyStreak(completions, habit, today, longest = true)
             else -> calculateDailyStreak(completions, habit, today, longest = true)
         }
     }
@@ -379,6 +381,60 @@ object StreakCalculator {
         while ((completionsByBimonth[checkStart] ?: 0) >= target) {
             streak++
             checkStart = checkStart.minusMonths(2)
+        }
+        return streak
+    }
+
+    private fun getQuarterStart(date: LocalDate): LocalDate {
+        // Align to 3-month periods starting from January (Q1=Jan-Mar, Q2=Apr-Jun, etc.)
+        val month = date.monthValue
+        val startMonth = ((month - 1) / 3) * 3 + 1
+        return date.withMonth(startMonth).withDayOfMonth(1)
+    }
+
+    private fun calculateQuarterlyStreak(
+        completions: List<HabitCompletionEntity>,
+        habit: HabitEntity,
+        today: LocalDate,
+        longest: Boolean
+    ): Int {
+        val target = habit.targetFrequency
+
+        // Group completions by quarter start
+        val completionsByQuarter = completions.groupBy { completion ->
+            val date = completion.completedDate.toLocalDate()
+            getQuarterStart(date)
+        }.mapValues { it.value.groupBy { c -> c.completedDate.toLocalDate() }.size }
+
+        if (longest) {
+            val quarters = completionsByQuarter.keys.sorted()
+            if (quarters.isEmpty()) return 0
+
+            var maxStreak = 0
+            var currentStreak = 0
+            var expected = quarters.first()
+
+            for (q in quarters) {
+                while (expected.isBefore(q)) {
+                    if ((completionsByQuarter[expected] ?: 0) >= target) currentStreak++
+                    else { maxStreak = maxOf(maxStreak, currentStreak); currentStreak = 0 }
+                    expected = expected.plusMonths(3)
+                }
+                if ((completionsByQuarter[q] ?: 0) >= target) currentStreak++
+                else { maxStreak = maxOf(maxStreak, currentStreak); currentStreak = 0 }
+                expected = q.plusMonths(3)
+            }
+            return maxOf(maxStreak, currentStreak)
+        }
+
+        var streak = 0
+        var checkStart = getQuarterStart(today)
+        if ((completionsByQuarter[checkStart] ?: 0) < target) {
+            checkStart = checkStart.minusMonths(3)
+        }
+        while ((completionsByQuarter[checkStart] ?: 0) >= target) {
+            streak++
+            checkStart = checkStart.minusMonths(3)
         }
         return streak
     }
