@@ -52,4 +52,10 @@ interface SelfCareDao {
 
     @Update
     suspend fun updateSteps(steps: List<SelfCareStepEntity>)
+
+    @Query("SELECT * FROM self_care_logs ORDER BY date DESC")
+    suspend fun getAllLogsOnce(): List<SelfCareLogEntity>
+
+    @Query("SELECT * FROM self_care_steps ORDER BY sort_order ASC")
+    suspend fun getAllStepsOnce(): List<SelfCareStepEntity>
 }

@@ -37,6 +37,12 @@
 # ── Claude API models (inner classes in ClaudeParserService, deserialized by Gson) ──
 -keep class com.averykarlin.averytask.data.remote.ClaudeParserService$* { *; }
 
+# ── Google Drive API ──
+-keep class com.google.api.services.drive.** { *; }
+-keep class com.google.api.client.** { *; }
+-dontwarn com.google.api.client.**
+-dontwarn com.google.api.services.**
+
 # ── Gson ──
 -keepattributes Signature
 -keepattributes *Annotation*
