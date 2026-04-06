@@ -40,7 +40,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -1069,12 +1068,6 @@ fun SettingsScreen(
                             Spacer(modifier = Modifier.width(8.dp))
                             Text("Downloading...")
                         }
-                        Spacer(modifier = Modifier.height(8.dp))
-                        LinearProgressIndicator(
-                            modifier = Modifier.fillMaxWidth(),
-                            color = Color(0xFF4CAF50),
-                            trackColor = Color(0xFF4CAF50).copy(alpha = 0.2f)
-                        )
                     }
                 }
                 UpdateStatus.READY_TO_INSTALL -> {
