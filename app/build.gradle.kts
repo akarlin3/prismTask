@@ -1,3 +1,4 @@
+// CI pipeline test
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
