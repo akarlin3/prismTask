@@ -20,6 +20,7 @@ web/dist/
 
 # APK output (committed via CI)
 !apk/
+!apk/*.apk
 
 # Python
 __pycache__/
