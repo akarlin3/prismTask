@@ -3,6 +3,9 @@
 build/
 local.properties
 
+# Kotlin
+.kotlin/
+
 # IDE
 .idea/
 !.idea/codeStyles/

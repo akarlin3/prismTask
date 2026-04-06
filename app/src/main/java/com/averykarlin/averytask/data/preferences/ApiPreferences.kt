@@ -12,7 +12,7 @@ import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
 
-private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "api_prefs")
+private val Context.apiDataStore: DataStore<Preferences> by preferencesDataStore(name = "api_prefs")
 
 @Singleton
 class ApiPreferences @Inject constructor(
@@ -22,23 +22,23 @@ class ApiPreferences @Inject constructor(
         private val CLAUDE_API_KEY = stringPreferencesKey("claude_api_key")
     }
 
-    fun getClaudeApiKey(): Flow<String> = context.dataStore.data.map { prefs ->
+    fun getClaudeApiKey(): Flow<String> = context.apiDataStore.data.map { prefs ->
         prefs[CLAUDE_API_KEY] ?: ""
     }
 
     suspend fun setClaudeApiKey(key: String) {
-        context.dataStore.edit { prefs ->
+        context.apiDataStore.edit { prefs ->
             prefs[CLAUDE_API_KEY] = key
         }
     }
 
     suspend fun clearClaudeApiKey() {
-        context.dataStore.edit { prefs ->
+        context.apiDataStore.edit { prefs ->
             prefs.remove(CLAUDE_API_KEY)
         }
     }
 
     suspend fun clearAll() {
-        context.dataStore.edit { it.clear() }
+        context.apiDataStore.edit { it.clear() }
     }
 }
