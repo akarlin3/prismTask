@@ -1,11 +1,6 @@
 name: Build APK
 
 on:
-  push:
-    branches: [ main ]
-    paths-ignore:
-      - 'backend/**'
-      - '*.md'
   workflow_dispatch:
 
 concurrency:
