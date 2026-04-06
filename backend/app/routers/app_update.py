@@ -1,7 +1,7 @@
 import hashlib
 import os
 
-from fastapi import APIRouter, Depends, Header, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, Form, Header, HTTPException, UploadFile, File
 from fastapi.responses import FileResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -66,10 +66,10 @@ async def download_apk(version_code: int, db: AsyncSession = Depends(get_db)):
 
 @router.post("/releases", response_model=ReleaseCreateResponse)
 async def create_release(
-    version_code: int,
-    version_name: str,
-    release_notes: str = "",
-    is_mandatory: bool = False,
+    version_code: int = Form(...),
+    version_name: str = Form(...),
+    release_notes: str = Form(""),
+    is_mandatory: bool = Form(False),
     apk: UploadFile = File(...),
     _: None = Depends(verify_deploy_key),
     db: AsyncSession = Depends(get_db),
