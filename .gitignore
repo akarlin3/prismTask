@@ -21,8 +21,16 @@ web/dist/
 # APK output (committed via CI)
 !apk/
 
+# Python
+__pycache__/
+*.pyc
+.env
+.venv/
+*.egg-info/
+.pytest_cache/
+test.db
+
 # macOS
 .DS_Store
 /.claude
 .claude/worktrees/hungry-wilbur
-/.claude
