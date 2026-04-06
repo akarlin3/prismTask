@@ -45,7 +45,7 @@ class QuickAddViewModel @Inject constructor(
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
-    private val _isExpanded = MutableStateFlow(true)
+    private val _isExpanded = MutableStateFlow(false)
     val isExpanded: StateFlow<Boolean> = _isExpanded
 
     private val _isSubmitting = MutableStateFlow(false)
