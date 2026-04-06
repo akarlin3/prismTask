@@ -35,6 +35,7 @@ import androidx.credentials.GetCredentialRequest
 import androidx.credentials.exceptions.GetCredentialException
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
+import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import kotlinx.coroutines.launch
 
@@ -112,14 +113,29 @@ fun AuthScreen(
                     scope.launch {
                         try {
                             val credentialManager = CredentialManager.create(context)
-                            val googleIdOption = GetGoogleIdOption.Builder()
-                                .setServerClientId(WEB_CLIENT_ID)
-                                .setFilterByAuthorizedAccounts(false)
-                                .build()
-                            val request = GetCredentialRequest.Builder()
-                                .addCredentialOption(googleIdOption)
-                                .build()
-                            val result = credentialManager.getCredential(context as Activity, request)
+                            val activity = context as Activity
+
+                            // First try returning users (authorized accounts)
+                            val result = try {
+                                val googleIdOption = GetGoogleIdOption.Builder()
+                                    .setServerClientId(WEB_CLIENT_ID)
+                                    .setFilterByAuthorizedAccounts(true)
+                                    .setAutoSelectEnabled(true)
+                                    .build()
+                                val request = GetCredentialRequest.Builder()
+                                    .addCredentialOption(googleIdOption)
+                                    .build()
+                                credentialManager.getCredential(activity, request)
+                            } catch (e: GetCredentialException) {
+                                // No returning user found — fall back to Sign In With Google button
+                                val signInOption = GetSignInWithGoogleOption.Builder(WEB_CLIENT_ID)
+                                    .build()
+                                val request = GetCredentialRequest.Builder()
+                                    .addCredentialOption(signInOption)
+                                    .build()
+                                credentialManager.getCredential(activity, request)
+                            }
+
                             val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(result.credential.data)
                             viewModel.onGoogleSignIn(googleIdTokenCredential.idToken)
                         } catch (e: GetCredentialException) {
