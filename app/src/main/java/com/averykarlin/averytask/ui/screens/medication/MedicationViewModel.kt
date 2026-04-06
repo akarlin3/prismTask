@@ -5,9 +5,11 @@ import androidx.lifecycle.viewModelScope
 import com.averykarlin.averytask.data.local.entity.SelfCareLogEntity
 import com.averykarlin.averytask.data.local.entity.SelfCareStepEntity
 import com.averykarlin.averytask.data.preferences.MedicationPreferences
+import com.averykarlin.averytask.data.preferences.MedicationScheduleMode
 import com.averykarlin.averytask.data.repository.MedStepLog
 import com.averykarlin.averytask.data.repository.SelfCareRepository
 import com.averykarlin.averytask.domain.model.SelfCareRoutines
+import com.averykarlin.averytask.notifications.MedicationReminderScheduler
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -19,7 +21,8 @@ import javax.inject.Inject
 @HiltViewModel
 class MedicationViewModel @Inject constructor(
     private val repository: SelfCareRepository,
-    private val medicationPreferences: MedicationPreferences
+    private val medicationPreferences: MedicationPreferences,
+    private val reminderScheduler: MedicationReminderScheduler
 ) : ViewModel() {
 
     private val _editMode = MutableStateFlow(false)
@@ -33,6 +36,37 @@ class MedicationViewModel @Inject constructor(
 
     val reminderIntervalMinutes: StateFlow<Int> = medicationPreferences.getReminderIntervalMinutes()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), MedicationPreferences.DEFAULT_INTERVAL)
+
+    val scheduleMode: StateFlow<MedicationScheduleMode> = medicationPreferences.getScheduleMode()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), MedicationScheduleMode.INTERVAL)
+
+    val specificTimes: StateFlow<Set<String>> = medicationPreferences.getSpecificTimes()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
+
+    fun setScheduleMode(mode: MedicationScheduleMode) {
+        viewModelScope.launch {
+            medicationPreferences.setScheduleMode(mode)
+            reminderScheduler.rescheduleAll()
+        }
+    }
+
+    fun addSpecificTime(time: String) {
+        viewModelScope.launch {
+            medicationPreferences.addSpecificTime(time)
+            if (medicationPreferences.getScheduleModeOnce() == MedicationScheduleMode.SPECIFIC_TIMES) {
+                reminderScheduler.scheduleSpecificTimes()
+            }
+        }
+    }
+
+    fun removeSpecificTime(time: String) {
+        viewModelScope.launch {
+            medicationPreferences.removeSpecificTime(time)
+            if (medicationPreferences.getScheduleModeOnce() == MedicationScheduleMode.SPECIFIC_TIMES) {
+                reminderScheduler.scheduleSpecificTimes()
+            }
+        }
+    }
 
     fun setReminderInterval(minutes: Int) {
         viewModelScope.launch {

@@ -20,8 +20,12 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccessTime
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
@@ -35,8 +39,12 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.InputChip
+import androidx.compose.material3.InputChipDefaults
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuAnchorType
@@ -44,8 +52,10 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TimePicker
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -64,6 +74,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.averykarlin.averytask.data.local.entity.SelfCareStepEntity
+import com.averykarlin.averytask.data.preferences.MedicationScheduleMode
 import com.averykarlin.averytask.data.repository.MedStepLog
 import com.averykarlin.averytask.domain.model.RoutineTier
 import com.averykarlin.averytask.domain.model.SelfCareRoutines
@@ -81,6 +92,8 @@ fun MedicationScreen(
     val allSteps by viewModel.steps.collectAsStateWithLifecycle()
     val editMode by viewModel.editMode.collectAsStateWithLifecycle()
     val reminderInterval by viewModel.reminderIntervalMinutes.collectAsStateWithLifecycle()
+    val scheduleMode by viewModel.scheduleMode.collectAsStateWithLifecycle()
+    val specificTimes by viewModel.specificTimes.collectAsStateWithLifecycle()
 
     val completedSteps = viewModel.getCompletedSteps(todayLog)
     val medStepLogs = viewModel.getMedStepLogs(todayLog)
@@ -157,47 +170,140 @@ fun MedicationScreen(
                 Spacer(modifier = Modifier.height(16.dp))
             }
 
-            // Reminder interval setting (shown in edit mode)
+            // Reminder scheduling settings (shown in edit mode)
             if (editMode) {
                 item {
-                    var intervalText by remember(reminderInterval) {
-                        mutableStateOf(if (reminderInterval > 0) reminderInterval.toString() else "")
-                    }
-                    Row(
+                    var showTimePicker by remember { mutableStateOf(false) }
+
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(12.dp))
                             .background(MaterialTheme.colorScheme.surfaceContainerLow)
                             .padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "Reminder interval",
-                                style = MaterialTheme.typography.bodyLarge,
-                                fontWeight = FontWeight.SemiBold
+                        Text(
+                            text = "Reminder schedule",
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.SemiBold
+                        )
+
+                        // Mode toggle chips
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            FilterChip(
+                                selected = scheduleMode == MedicationScheduleMode.INTERVAL,
+                                onClick = { viewModel.setScheduleMode(MedicationScheduleMode.INTERVAL) },
+                                label = { Text("Interval") },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = MaterialTheme.colorScheme.primaryContainer
+                                )
                             )
+                            FilterChip(
+                                selected = scheduleMode == MedicationScheduleMode.SPECIFIC_TIMES,
+                                onClick = { viewModel.setScheduleMode(MedicationScheduleMode.SPECIFIC_TIMES) },
+                                label = { Text("Specific times") },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = MaterialTheme.colorScheme.primaryContainer
+                                )
+                            )
+                        }
+
+                        // Interval mode UI
+                        if (scheduleMode == MedicationScheduleMode.INTERVAL) {
+                            var intervalText by remember(reminderInterval) {
+                                mutableStateOf(if (reminderInterval > 0) reminderInterval.toString() else "")
+                            }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = if (reminderInterval > 0) "Remind ${reminderInterval} min after logging"
+                                    else "No reminder after logging",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                Spacer(modifier = Modifier.width(12.dp))
+                                OutlinedTextField(
+                                    value = intervalText,
+                                    onValueChange = { raw ->
+                                        intervalText = raw.filter { c -> c.isDigit() }
+                                        val mins = intervalText.toIntOrNull() ?: 0
+                                        viewModel.setReminderInterval(mins)
+                                    },
+                                    label = { Text("Min") },
+                                    singleLine = true,
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                    modifier = Modifier.width(90.dp)
+                                )
+                            }
+                        }
+
+                        // Specific times mode UI
+                        if (scheduleMode == MedicationScheduleMode.SPECIFIC_TIMES) {
                             Text(
-                                text = if (reminderInterval > 0) "Remind ${reminderInterval} min after logging"
-                                else "No reminder after logging",
+                                text = "Set exact times to be reminded each day",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
+                            val sortedTimes = specificTimes.sorted().toList()
+                            if (sortedTimes.isNotEmpty()) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .horizontalScroll(rememberScrollState()),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    sortedTimes.forEach { time ->
+                                        InputChip(
+                                            selected = false,
+                                            onClick = { viewModel.removeSpecificTime(time) },
+                                            label = { Text(formatTime24to12(time)) },
+                                            trailingIcon = {
+                                                Icon(
+                                                    Icons.Default.Close,
+                                                    contentDescription = "Remove $time",
+                                                    modifier = Modifier.size(16.dp)
+                                                )
+                                            },
+                                            colors = InputChipDefaults.inputChipColors(
+                                                containerColor = MaterialTheme.colorScheme.secondaryContainer
+                                            )
+                                        )
+                                    }
+                                }
+                            }
+                            TextButton(
+                                onClick = { showTimePicker = true }
+                            ) {
+                                Icon(
+                                    Icons.Default.AccessTime,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Add time")
+                            }
                         }
-                        Spacer(modifier = Modifier.width(12.dp))
-                        OutlinedTextField(
-                            value = intervalText,
-                            onValueChange = { raw ->
-                                intervalText = raw.filter { c -> c.isDigit() }
-                                val mins = intervalText.toIntOrNull() ?: 0
-                                viewModel.setReminderInterval(mins)
-                            },
-                            label = { Text("Min") },
-                            singleLine = true,
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            modifier = Modifier.width(90.dp)
+                    }
+
+                    // Time picker dialog
+                    if (showTimePicker) {
+                        TimePickerDialog(
+                            onDismiss = { showTimePicker = false },
+                            onConfirm = { hour, minute ->
+                                val timeStr = String.format(Locale.US, "%02d:%02d", hour, minute)
+                                viewModel.addSpecificTime(timeStr)
+                                showTimePicker = false
+                            }
                         )
                     }
+
                     Spacer(modifier = Modifier.height(16.dp))
                 }
             }
@@ -686,6 +792,51 @@ private fun LogTierDialog(
         confirmButton = {
             TextButton(onClick = { onConfirm(note.trim()) }) {
                 Text("Log ${stepsToLog.size} med${if (stepsToLog.size != 1) "s" else ""}")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+
+/** Convert "HH:mm" (24h) to "h:mm a" (12h) for display. */
+private fun formatTime24to12(time: String): String {
+    val parts = time.split(":")
+    val hour = parts.getOrNull(0)?.toIntOrNull() ?: 0
+    val minute = parts.getOrNull(1)?.toIntOrNull() ?: 0
+    val amPm = if (hour < 12) "AM" else "PM"
+    val displayHour = when {
+        hour == 0 -> 12
+        hour > 12 -> hour - 12
+        else -> hour
+    }
+    return String.format(Locale.US, "%d:%02d %s", displayHour, minute, amPm)
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TimePickerDialog(
+    onDismiss: () -> Unit,
+    onConfirm: (hour: Int, minute: Int) -> Unit
+) {
+    val timePickerState = rememberTimePickerState(
+        initialHour = 8,
+        initialMinute = 0,
+        is24Hour = false
+    )
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Select time") },
+        text = {
+            TimePicker(state = timePickerState)
+        },
+        confirmButton = {
+            TextButton(onClick = { onConfirm(timePickerState.hour, timePickerState.minute) }) {
+                Text("Add")
             }
         },
         dismissButton = {
