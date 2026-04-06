@@ -9,6 +9,7 @@
 -keep class com.averykarlin.averytask.data.local.entity.** { *; }
 -keep interface com.averykarlin.averytask.data.local.dao.** { *; }
 -keep class com.averykarlin.averytask.data.local.dao.ProjectWithCount { *; }
+-keep class com.averykarlin.averytask.data.local.dao.EntityFrequency { *; }
 
 # ── Room relation / cross-ref classes ──
 -keep class com.averykarlin.averytask.data.local.entity.TaskTagCrossRef { *; }
@@ -25,6 +26,10 @@
 
 # ── WorkManager workers ──
 -keep class com.averykarlin.averytask.workers.** { *; }
+
+# ── Firebase / Firestore ──
+-keep class com.averykarlin.averytask.data.remote.model.** { *; }
+-keep class com.averykarlin.averytask.data.remote.mapper.** { *; }
 
 # ── Gson ──
 -keepattributes Signature

@@ -15,6 +15,7 @@ import com.averykarlin.averytask.data.repository.TagRepository
 import com.averykarlin.averytask.data.repository.TaskRepository
 import com.averykarlin.averytask.domain.model.TagFilterMode
 import com.averykarlin.averytask.domain.model.TaskFilter
+import com.averykarlin.averytask.domain.usecase.UrgencyScorer
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -32,13 +33,16 @@ import javax.inject.Inject
 enum class SortOption(val label: String) {
     DUE_DATE("Due Date"),
     PRIORITY("Priority"),
+    URGENCY("Urgency"),
     CREATED("Date Created"),
     ALPHABETICAL("Alphabetical")
 }
 
 enum class ViewMode(val label: String) {
     UPCOMING("Upcoming"),
-    LIST("List")
+    LIST("List"),
+    WEEK("Week"),
+    MONTH("Month")
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -436,6 +440,7 @@ class TaskListViewModel @Inject constructor(
                     .thenBy { it.dueDate }
             )
             SortOption.CREATED -> tasks.sortedByDescending { it.createdAt }
+            SortOption.URGENCY -> tasks.sortedByDescending { UrgencyScorer.calculateScore(it) }
             SortOption.ALPHABETICAL -> tasks.sortedBy { it.title.lowercase() }
         }
 

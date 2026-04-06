@@ -4,8 +4,10 @@ import androidx.arch.core.executor.testing.InstantTaskExecutorRule
 import androidx.room.Room
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import com.averykarlin.averytask.data.local.dao.ProjectDao
 import com.averykarlin.averytask.data.local.dao.TaskDao
 import com.averykarlin.averytask.data.local.database.AveryTaskDatabase
+import com.averykarlin.averytask.data.local.entity.ProjectEntity
 import com.averykarlin.averytask.data.local.entity.TaskEntity
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
@@ -28,6 +30,7 @@ class TaskDaoTest {
 
     private lateinit var database: AveryTaskDatabase
     private lateinit var taskDao: TaskDao
+    private lateinit var projectDao: ProjectDao
 
     @Before
     fun setup() {
@@ -36,6 +39,7 @@ class TaskDaoTest {
             .allowMainThreadQueries()
             .build()
         taskDao = database.taskDao()
+        projectDao = database.projectDao()
     }
 
     @After
@@ -88,13 +92,16 @@ class TaskDaoTest {
 
     @Test
     fun test_getTasksByProject() = runTest {
-        taskDao.insert(TaskEntity(title = "Project A task", projectId = 1L))
-        taskDao.insert(TaskEntity(title = "Project B task", projectId = 2L))
-        taskDao.insert(TaskEntity(title = "Another A task", projectId = 1L))
+        val projectAId = projectDao.insert(ProjectEntity(name = "Project A"))
+        val projectBId = projectDao.insert(ProjectEntity(name = "Project B"))
 
-        val projectATasks = taskDao.getTasksByProject(1L).first()
+        taskDao.insert(TaskEntity(title = "Project A task", projectId = projectAId))
+        taskDao.insert(TaskEntity(title = "Project B task", projectId = projectBId))
+        taskDao.insert(TaskEntity(title = "Another A task", projectId = projectAId))
+
+        val projectATasks = taskDao.getTasksByProject(projectAId).first()
         assertEquals(2, projectATasks.size)
-        assertTrue(projectATasks.all { it.projectId == 1L })
+        assertTrue(projectATasks.all { it.projectId == projectAId })
     }
 
     @Test

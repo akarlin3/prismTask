@@ -53,6 +53,9 @@ interface TaskDao {
     @Query("SELECT * FROM tasks WHERE id = :id")
     suspend fun getTaskByIdOnce(id: Long): TaskEntity?
 
+    @Query("SELECT * FROM tasks")
+    suspend fun getAllTasksOnce(): List<TaskEntity>
+
     @Query("SELECT * FROM tasks WHERE is_completed = 0 AND reminder_offset IS NOT NULL AND due_date IS NOT NULL")
     suspend fun getIncompleteTasksWithReminders(): List<TaskEntity>
 
@@ -89,4 +92,38 @@ interface TaskDao {
 
     @Query("SELECT * FROM tasks WHERE archived_at IS NOT NULL AND (title LIKE '%' || :query || '%' OR description LIKE '%' || :query || '%')")
     fun searchArchivedTasks(query: String): Flow<List<TaskEntity>>
+
+    // Today screen queries
+    @Query("SELECT * FROM tasks WHERE is_completed = 0 AND due_date < :startOfToday AND archived_at IS NULL AND parent_task_id IS NULL ORDER BY priority DESC")
+    fun getOverdueRootTasks(startOfToday: Long): Flow<List<TaskEntity>>
+
+    @Query("SELECT * FROM tasks WHERE is_completed = 0 AND due_date >= :startOfToday AND due_date < :endOfToday AND archived_at IS NULL AND parent_task_id IS NULL ORDER BY priority DESC")
+    fun getTodayTasks(startOfToday: Long, endOfToday: Long): Flow<List<TaskEntity>>
+
+    @Query("SELECT * FROM tasks WHERE is_completed = 0 AND planned_date >= :startOfToday AND planned_date < :endOfToday AND (due_date IS NULL OR due_date >= :endOfToday OR due_date < :startOfToday) AND archived_at IS NULL AND parent_task_id IS NULL ORDER BY priority DESC")
+    fun getPlannedForToday(startOfToday: Long, endOfToday: Long): Flow<List<TaskEntity>>
+
+    @Query("SELECT * FROM tasks WHERE is_completed = 1 AND completed_at >= :startOfToday AND archived_at IS NULL AND parent_task_id IS NULL ORDER BY completed_at DESC")
+    fun getCompletedToday(startOfToday: Long): Flow<List<TaskEntity>>
+
+    @Query("SELECT * FROM tasks WHERE is_completed = 0 AND due_date < :startOfToday AND archived_at IS NULL AND parent_task_id IS NULL ORDER BY priority DESC")
+    suspend fun getOverdueRootTasksOnce(startOfToday: Long): List<TaskEntity>
+
+    @Query("SELECT * FROM tasks WHERE is_completed = 0 AND due_date >= :startOfToday AND due_date < :endOfToday AND archived_at IS NULL AND parent_task_id IS NULL ORDER BY priority DESC")
+    suspend fun getTodayTasksOnce(startOfToday: Long, endOfToday: Long): List<TaskEntity>
+
+    @Query("SELECT * FROM tasks WHERE is_completed = 1 AND completed_at >= :startOfToday AND archived_at IS NULL AND parent_task_id IS NULL ORDER BY completed_at DESC")
+    suspend fun getCompletedTodayOnce(startOfToday: Long): List<TaskEntity>
+
+    @Query("UPDATE tasks SET planned_date = :plannedDate, updated_at = :now WHERE id = :id")
+    suspend fun setPlanDate(id: Long, plannedDate: Long?, now: Long = System.currentTimeMillis())
+
+    @Query("SELECT * FROM tasks WHERE is_completed = 0 AND archived_at IS NULL AND parent_task_id IS NULL AND (due_date IS NULL OR due_date >= :endOfToday) AND (planned_date IS NULL OR planned_date < :startOfToday OR planned_date >= :endOfToday) ORDER BY due_date ASC, priority DESC")
+    fun getTasksNotInToday(startOfToday: Long, endOfToday: Long): Flow<List<TaskEntity>>
+
+    @Query("UPDATE tasks SET planned_date = NULL, updated_at = :now WHERE planned_date < :startOfToday AND is_completed = 0")
+    suspend fun clearExpiredPlans(startOfToday: Long, now: Long = System.currentTimeMillis())
+
+    @Query("UPDATE tasks SET due_date = :newDate, updated_at = :now WHERE id = :id")
+    suspend fun updateDueDate(id: Long, newDate: Long?, now: Long = System.currentTimeMillis())
 }

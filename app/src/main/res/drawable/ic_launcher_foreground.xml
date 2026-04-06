@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Infinity symbol at the top -->
+    <path
+        android:pathData="M54,34
+            C54,34 48,26 40,26
+            C32,26 26,32 26,38
+            C26,44 32,50 40,50
+            C48,50 54,42 54,42
+            C54,42 60,50 68,50
+            C76,50 82,44 82,38
+            C82,32 76,26 68,26
+            C60,26 54,34 54,34Z"
+        android:strokeColor="#81C784"
+        android:strokeWidth="3"
+        android:fillColor="#00000000" />
+
+    <!-- Marijuana leaf - center leaflet -->
+    <path
+        android:fillColor="#4CAF50"
+        android:pathData="M54,52 L52,62 Q48,72 46,78 Q50,76 54,70 Q58,76 62,78 Q60,72 56,62 Z" />
+
+    <!-- Left leaflet -->
+    <path
+        android:fillColor="#4CAF50"
+        android:pathData="M54,58 Q46,54 38,56 Q34,58 32,62 Q36,62 40,60 Q44,64 48,66 Z" />
+
+    <!-- Right leaflet -->
+    <path
+        android:fillColor="#4CAF50"
+        android:pathData="M54,58 Q62,54 70,56 Q74,58 76,62 Q72,62 68,60 Q64,64 60,66 Z" />
+
+    <!-- Far left leaflet -->
+    <path
+        android:fillColor="#4CAF50"
+        android:pathData="M50,62 Q42,58 36,60 Q32,64 30,68 Q34,66 38,64 Q42,68 46,68 Z" />
+
+    <!-- Far right leaflet -->
+    <path
+        android:fillColor="#4CAF50"
+        android:pathData="M58,62 Q66,58 72,60 Q76,64 78,68 Q74,66 70,64 Q66,68 62,68 Z" />
+
+    <!-- Stem -->
+    <path
+        android:fillColor="#388E3C"
+        android:pathData="M53,78 L53,86 L55,86 L55,78 Z" />
+
+</vector>

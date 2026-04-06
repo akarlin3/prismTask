@@ -6,21 +6,79 @@
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.2.10-purple.svg)](https://kotlinlang.org)
 [![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-Material%203-4285F4.svg)](https://developer.android.com/jetpack/compose)
 
-A native Android todo list app built with Kotlin and Jetpack Compose. Supports task management with projects, subtasks, recurring schedules, and reminders.
+A native Android task management and habit tracking app built with Kotlin and Jetpack Compose. Full-featured productivity tool with projects, subtasks, recurrence, NLP quick-add, habit streaks, cloud sync, and home screen widgets.
 
 ## Features
 
-- **Task management** — create, edit, delete, and complete tasks with titles, descriptions, due dates, times, and priority levels
-- **Projects** — organize tasks into color-coded projects with custom emoji icons
-- **Subtasks** — add subtasks inline with completion tracking and parent-child cascade delete
-- **Recurring tasks** — daily, weekly (multi-day), monthly, and yearly recurrence with configurable intervals and end conditions; completing a recurring task auto-creates the next occurrence
-- **Reminders** — schedule notifications at due time or 15 min / 30 min / 1 hour / 1 day before; persists across device reboots
-- **Upcoming view** — tasks grouped by Overdue, Today, Tomorrow, This Week, Later, No Date
-- **Sorting** — by due date, priority, date created, or alphabetical
-- **Project filtering** — horizontal chip row to filter by project
-- **Overdue detection** — red-tinted cards, left border accent, and badge count in the top bar
-- **Swipe gestures** — swipe right to complete, swipe left to delete, with undo snackbars
-- **Quick date picker** — Today / Tomorrow / +1 Week chips plus full Material 3 date picker
+### Task Management
+- Create, edit, and delete tasks with titles, descriptions, due dates, times, and priority levels (None/Low/Medium/High/Urgent)
+- Organize tasks into projects with custom colors and emoji icons
+- Nested subtasks with completion tracking and cascade delete
+- Flexible tagging system (many-to-many) with color-coded tags
+- Notes and file/link attachments per task
+- Swipe-to-complete and swipe-to-delete gestures with undo snackbars
+- Multi-select mode with batch complete, delete, and move operations
+- Urgency scoring (0-1) based on due date proximity, priority, age, and subtask progress
+
+### Recurrence
+- Daily, weekly (multi-day), monthly, and yearly patterns with configurable intervals
+- Skip-weekends option for daily recurrence
+- End conditions: max occurrences or end date
+- Completing a recurring task auto-creates the next occurrence
+
+### Reminders and Notifications
+- Per-task reminders with configurable offset before due date
+- AlarmManager scheduling with BroadcastReceiver delivery
+- "Complete" action directly from the notification
+- Reminders re-scheduled after device reboot
+
+### NLP Quick-Add
+- Natural language task creation from a single text input
+- Extracts dates ("today", "tomorrow", "next Monday", "in 3 days", "Jan 15", "5/20", "2026-05-15"), times ("at 3pm", "at 15:00", "at noon"), tags (#work), projects (@home), priority (!urgent, !!), and recurrence hints (daily, weekly)
+- Parsed results resolved against existing tags and projects with unmatched item feedback
+- Smart suggestions for tags and projects based on usage keyword matching
+
+### Views
+- **Today** -- Focus screen with combined task + habit progress ring, overdue/today/planned/completed sections, habits section, "Plan for Today" bottom sheet
+- **Task List** -- Grouped or flat list with sorting (priority, date, urgency, alphabetical), advanced filtering (tags, priorities, projects, date range), search with highlighted results
+- **Week View** -- 7-day column layout with task cards per day and week navigation
+- **Month View** -- Calendar grid with density dots and day detail panel
+- **Timeline** -- Daily scheduled view with time blocks, duration management, and current-time indicator
+- **Projects** -- Project list with task counts and full CRUD
+- **Habits** -- Habit list with streak badges, weekly progress dots, and circular completion checkboxes
+- **Archive** -- Archived tasks with search and restore/permanent-delete options
+
+### Habit Tracking
+- Create habits with name, description, icon (16 emoji options), color (12 options), and category
+- Daily or weekly frequency with configurable target count and active day selection
+- Streak engine: current streak, longest streak, completion rates (7/30/90 day), best/worst day analysis
+- Analytics screen: GitHub-style contribution grid (12 weeks), weekly trend line chart, day-of-week bar chart, stat cards
+- Habits integrated into Today screen with combined progress ring
+- Optional daily reminder and auto-create-task features
+- Weekly habit summary notification via WorkManager (Sunday 7PM)
+
+### Cloud Sync
+- Firebase Authentication with Google Sign-In via Credential Manager
+- Firestore bidirectional sync for tasks, projects, tags, habits, and habit completions
+- Offline queue with pending action tracking and retry logic
+- Real-time snapshot listeners for cross-device updates
+
+### Home Screen Widgets
+- **Today Widget** -- Combined progress count + top task names + habit completion count
+- **Habit Streak Widget** -- Up to 6 habits with icons and completion status
+- **Quick-Add Widget** -- Minimal tap-to-launch bar for fast task creation
+- Built with Glance for Compose
+
+### Data Management
+- JSON export (full backup: tasks with tag/project names, projects, tags)
+- CSV export (tasks only with proper escaping)
+- JSON import with merge (skip duplicates) or replace (delete-all-first) modes
+- Customizable dashboard section ordering and visibility
+
+### Theming
+- Material 3 with dynamic colors on Android 12+
+- Light, Dark, and System theme modes with 12 accent color options
+- Edge-to-edge display
 
 ## Tech Stack
 
@@ -28,9 +86,16 @@ A native Android todo list app built with Kotlin and Jetpack Compose. Supports t
 |-------|-----------|---------|
 | Language | Kotlin | 2.2.10 |
 | UI | Jetpack Compose + Material 3 | BOM 2024.12.01 |
-| DI | Hilt (Dagger) | 2.59.2 |
-| Database | Room | 2.8.4 |
 | Navigation | Jetpack Navigation Compose | 2.9.7 |
+| DI | Hilt (Dagger) + KSP | 2.59.2 |
+| Database | Room + KSP | 2.8.4 |
+| Preferences | DataStore | 1.2.1 |
+| Background | WorkManager | 2.10.1 |
+| Cloud | Firebase Auth + Firestore + Storage | BOM 33.7.0 |
+| Auth | Credential Manager + Google Identity | 1.5.0 / 1.1.1 |
+| Widgets | Glance for Compose | 1.1.1 |
+| Serialization | Gson | 2.11.0 |
+| Async | Kotlin Coroutines | 1.10.2 |
 | Build | Gradle (Kotlin DSL) | 8.13 |
 
 **Target:** Android 8.0+ (API 26) through Android 15 (API 35)
@@ -56,6 +121,8 @@ cd averyTask
 ./gradlew installDebug
 ```
 
+Replace `app/google-services.json` with your Firebase project configuration for cloud sync and authentication features. The app works fully offline without Firebase.
+
 ## Build Commands
 
 ```bash
@@ -65,10 +132,10 @@ cd averyTask
 # Release build (R8 minification + resource shrinking)
 ./gradlew assembleRelease
 
-# Run unit tests
+# Run unit tests (137 tests)
 ./gradlew testDebugUnitTest
 
-# Run instrumentation tests
+# Run instrumentation tests (requires device/emulator)
 ./gradlew connectedDebugAndroidTest
 
 # Clean
@@ -77,13 +144,98 @@ cd averyTask
 
 ## Architecture
 
-The app follows MVVM with a single-activity Compose architecture:
+Single-activity MVVM with Hilt dependency injection:
 
 - **UI layer**: Jetpack Compose screens with Material 3, connected to ViewModels via `hiltViewModel()`
-- **ViewModel layer**: Exposes `StateFlow` from repositories, handles user actions in `viewModelScope`
-- **Data layer**: Room database with DAOs returning `Flow`, repositories as the single source of truth
-- **DI**: Hilt provides database, DAOs, and repositories as singletons
-- **Notifications**: `AlarmManager` + `BroadcastReceiver` for scheduled reminders, surviving reboots via `BOOT_COMPLETED`
+- **ViewModel layer**: Exposes `StateFlow` from repositories via `stateIn(WhileSubscribed)`, handles user actions in `viewModelScope`
+- **Repository layer**: Single source of truth wrapping Room DAOs with business logic (recurrence completion, date grouping, streak calculation, duplicate prevention)
+- **Data layer**: Room database (v7, 10 entities) with reactive `Flow` queries, Firebase Firestore for cloud sync, DataStore for preferences
+- **Domain layer**: Pure use-case objects -- RecurrenceEngine, NaturalLanguageParser, UrgencyScorer, StreakCalculator, SuggestionEngine, ParsedTaskResolver
+- **Notifications**: AlarmManager + BroadcastReceiver for task reminders, WorkManager for weekly habit summaries
+- **Widgets**: Glance for Compose with direct Room queries via WidgetDataProvider
+
+```
+UI (Compose Screens + ViewModels)
+        |
+        v
+  Repositories
+        |
+   +---------+---------+
+   |         |         |
+Room DAOs  SyncService  DataStore
+   |         |
+SQLite    Firestore
+```
+
+## Test Coverage
+
+**137 unit tests** across 11 test files:
+
+| Test File | Tests | Covers |
+|-----------|-------|--------|
+| NaturalLanguageParserTest | 38 | Tags, projects, priority, dates, times, recurrence, edge cases |
+| RecurrenceEngineTest | 28 | Daily/weekly/monthly/yearly, intervals, skip weekends, end conditions |
+| StreakCalculatorTest | 26 | Current/longest streak, completion rate, weekly, by-day, multi-target |
+| TaskFilterTest | 13 | Filter activation, counting, defaults, all 7 filter types |
+| SyncMapperTest | 13 | Round-trip for tasks, projects, tags, habits, completions, defaults |
+| UrgencyScorerTest | 11 | Due date, priority, age, subtasks, urgency levels, clamping |
+| RecurrenceConverterTest | 8 | JSON round-trip, invalid input, partial data, all recurrence types |
+| SuggestionEngineTest | 8 | Keyword extraction, stop words, short words, casing, empty input |
+| HabitRepositoryHelpersTest | 7 | Date normalization, week boundaries, idempotency |
+| DataExporterTest | 7 | CSV escaping: commas, quotes, newlines, combined, empty |
+
+**15 instrumentation tests** across 3 test files:
+
+| Test File | Tests | Covers |
+|-----------|-------|--------|
+| TaskDaoTest | 7 | CRUD, completion, project/subtask queries, date queries |
+| ProjectDaoTest | 4 | CRUD, task count aggregation |
+| RecurrenceIntegrationTest | 4 | Recurring task completion flow, max occurrences |
+
+## Database
+
+Room database `averytask.db` at version 7 with 10 entities:
+
+| Table | Purpose |
+|-------|---------|
+| `tasks` | Core task data with FKs to projects and parent tasks |
+| `projects` | Project grouping with color and icon |
+| `tags` | Tag definitions with color |
+| `task_tags` | Many-to-many junction (task-tag) |
+| `attachments` | File and link attachments per task |
+| `usage_logs` | Keyword-entity frequency for smart suggestions |
+| `sync_metadata` | Local-to-cloud ID mapping with pending action queue |
+| `calendar_sync` | Task-to-Google Calendar event mapping |
+| `habits` | Habit definitions: frequency, color, icon, category |
+| `habit_completions` | Per-day habit completion records |
+
+Migrations: 1-2 (tags), 2-3 (notes/attachments), 3-4 (planned date), 4-5 (usage logs), 5-6 (duration/sync), 6-7 (habits).
+
+## Project Structure
+
+```
+app/src/main/java/com/averykarlin/averytask/
+├── MainActivity.kt                  # Single-activity entry point
+├── AveryTaskApplication.kt          # @HiltAndroidApp
+├── data/
+│   ├── local/                       # Room entities (10), DAOs (9), database, converters
+│   ├── remote/                      # Firebase auth, sync service, entity mappers
+│   ├── export/                      # JSON/CSV export and JSON import
+│   ├── preferences/                 # DataStore: theme, archive, dashboard
+│   └── repository/                  # Task, Project, Tag, Habit, Attachment
+├── di/                              # Hilt DatabaseModule
+├── domain/
+│   ├── model/                       # RecurrenceRule, TaskFilter
+│   └── usecase/                     # RecurrenceEngine, NLP Parser, UrgencyScorer,
+│                                      StreakCalculator, SuggestionEngine, ParsedTaskResolver
+├── notifications/                   # Reminders, receivers, weekly summary worker
+├── widget/                          # Glance widgets: Today, HabitStreak, QuickAdd
+└── ui/
+    ├── components/                  # Reusable composables (10+)
+    ├── navigation/                  # NavGraph with 5-tab bottom nav
+    ├── screens/                     # 14 screen packages
+    └── theme/                       # Color, Theme, Type, PriorityColors
+```
 
 ## Contributing
 
@@ -96,3 +248,7 @@ See [SECURITY.md](SECURITY.md) for security considerations and how to report vul
 ## License
 
 This project is licensed under the [GNU Affero General Public License v3.0](LICENSE).
+
+## Author
+
+Avery Karlin

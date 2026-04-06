@@ -22,6 +22,15 @@ interface TagDao {
     @Query("SELECT t.* FROM tags t INNER JOIN task_tags tt ON t.id = tt.tagId WHERE tt.taskId = :taskId")
     fun getTagsForTask(taskId: Long): Flow<List<TagEntity>>
 
+    @Query("SELECT * FROM tags")
+    suspend fun getAllTagsOnce(): List<TagEntity>
+
+    @Query("SELECT * FROM tags WHERE id = :id")
+    suspend fun getTagByIdOnce(id: Long): TagEntity?
+
+    @Query("SELECT tagId FROM task_tags WHERE taskId = :taskId")
+    suspend fun getTagIdsForTaskOnce(taskId: Long): List<Long>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(tag: TagEntity): Long
 

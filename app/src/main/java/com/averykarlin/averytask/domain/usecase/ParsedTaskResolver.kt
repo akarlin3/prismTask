@@ -1,7 +1,10 @@
 package com.averykarlin.averytask.domain.usecase
 
+<<<<<<< HEAD
 import com.averykarlin.averytask.data.local.entity.ProjectEntity
 import com.averykarlin.averytask.data.local.entity.TagEntity
+=======
+>>>>>>> a2293f05d619015c47d595dca2556c3e2fc16dae
 import com.averykarlin.averytask.data.repository.ProjectRepository
 import com.averykarlin.averytask.data.repository.TagRepository
 import com.averykarlin.averytask.domain.model.RecurrenceRule
@@ -28,12 +31,19 @@ class ParsedTaskResolver @Inject constructor(
     private val projectRepository: ProjectRepository
 ) {
     suspend fun resolve(parsed: ParsedTask): ResolvedTask {
+<<<<<<< HEAD
         val allTags = tagRepository.getAllTags().firstOrNull() ?: emptyList()
         val allProjects = projectRepository.getAllProjects().firstOrNull() ?: emptyList()
 
         val tagIds = mutableListOf<Long>()
         val unmatchedTags = mutableListOf<String>()
 
+=======
+        val tagIds = mutableListOf<Long>()
+        val unmatchedTags = mutableListOf<String>()
+
+        val allTags = tagRepository.getAllTags().firstOrNull() ?: emptyList()
+>>>>>>> a2293f05d619015c47d595dca2556c3e2fc16dae
         for (tagName in parsed.tags) {
             val match = allTags.find { it.name.equals(tagName, ignoreCase = true) }
             if (match != null) {
@@ -45,8 +55,13 @@ class ParsedTaskResolver @Inject constructor(
 
         var projectId: Long? = null
         var unmatchedProject: String? = null
+<<<<<<< HEAD
 
         if (parsed.projectName != null) {
+=======
+        if (parsed.projectName != null) {
+            val allProjects = projectRepository.getAllProjects().firstOrNull() ?: emptyList()
+>>>>>>> a2293f05d619015c47d595dca2556c3e2fc16dae
             val match = allProjects.find { it.name.equals(parsed.projectName, ignoreCase = true) }
             if (match != null) {
                 projectId = match.id

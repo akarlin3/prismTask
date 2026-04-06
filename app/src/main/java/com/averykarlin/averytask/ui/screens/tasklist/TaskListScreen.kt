@@ -101,6 +101,7 @@ import com.averykarlin.averytask.data.local.entity.TaskEntity
 import com.averykarlin.averytask.domain.model.TaskFilter
 import com.averykarlin.averytask.ui.components.EmptyState
 import com.averykarlin.averytask.ui.components.FilterPanel
+import com.averykarlin.averytask.ui.components.QuickAddBar
 import com.averykarlin.averytask.ui.components.SubtaskSection
 import com.averykarlin.averytask.ui.navigation.AveryTaskRoute
 import com.averykarlin.averytask.ui.theme.PriorityColors
@@ -319,24 +320,42 @@ fun TaskListScreen(
                                 )
                             }
                         }
-                        IconButton(onClick = {
-                            viewModel.onChangeViewMode(
-                                if (viewMode == ViewMode.UPCOMING) ViewMode.LIST else ViewMode.UPCOMING
-                            )
-                        }) {
-                            Icon(
-                                imageVector = if (viewMode == ViewMode.UPCOMING)
-                                    Icons.Default.FormatListBulleted
-                                else
-                                    Icons.Default.Schedule,
-                                contentDescription = if (viewMode == ViewMode.UPCOMING) "List view" else "Upcoming view"
-                            )
-                        }
-                        IconButton(onClick = { navController.navigate(AveryTaskRoute.ProjectList.route) }) {
-                            Icon(
-                                imageVector = Icons.Default.FolderCopy,
-                                contentDescription = "Projects"
-                            )
+                        var showViewMenu by remember { mutableStateOf(false) }
+                        Box {
+                            IconButton(onClick = { showViewMenu = true }) {
+                                Icon(
+                                    imageVector = if (viewMode == ViewMode.UPCOMING) Icons.Default.Schedule
+                                    else Icons.Default.FormatListBulleted,
+                                    contentDescription = "View mode"
+                                )
+                            }
+                            DropdownMenu(
+                                expanded = showViewMenu,
+                                onDismissRequest = { showViewMenu = false }
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text("Upcoming") },
+                                    onClick = { viewModel.onChangeViewMode(ViewMode.UPCOMING); showViewMenu = false },
+                                    trailingIcon = if (viewMode == ViewMode.UPCOMING) { { Icon(Icons.Default.Check, null, Modifier.size(18.dp)) } } else null
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("List") },
+                                    onClick = { viewModel.onChangeViewMode(ViewMode.LIST); showViewMenu = false },
+                                    trailingIcon = if (viewMode == ViewMode.LIST) { { Icon(Icons.Default.Check, null, Modifier.size(18.dp)) } } else null
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Week") },
+                                    onClick = { showViewMenu = false; navController.navigate(AveryTaskRoute.WeekView.route) }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Month") },
+                                    onClick = { showViewMenu = false; navController.navigate(AveryTaskRoute.MonthView.route) }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Timeline") },
+                                    onClick = { showViewMenu = false; navController.navigate(AveryTaskRoute.Timeline.route) }
+                                )
+                            }
                         }
                         IconButton(onClick = { navController.navigate(AveryTaskRoute.TagManagement.route) }) {
                             Icon(
@@ -348,12 +367,6 @@ fun TaskListScreen(
                             Icon(
                                 imageVector = Icons.Default.Inventory2,
                                 contentDescription = "Archive"
-                            )
-                        }
-                        IconButton(onClick = { navController.navigate(AveryTaskRoute.Settings.route) }) {
-                            Icon(
-                                imageVector = Icons.Default.Settings,
-                                contentDescription = "Settings"
                             )
                         }
                         Box {
@@ -422,6 +435,9 @@ fun TaskListScreen(
                     onSelectProject = viewModel::onSelectProject
                 )
             }
+
+            // Quick add bar
+            QuickAddBar()
 
             // Active filter pills
             if (currentFilter.isActive()) {
