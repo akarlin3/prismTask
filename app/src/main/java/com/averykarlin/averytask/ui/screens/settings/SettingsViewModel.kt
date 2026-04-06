@@ -21,6 +21,7 @@ import com.averykarlin.averytask.data.remote.AppUpdater
 import com.averykarlin.averytask.data.remote.AuthManager
 import com.averykarlin.averytask.data.remote.CalendarSyncService
 import com.averykarlin.averytask.data.remote.DeviceCalendar
+import com.averykarlin.averytask.data.remote.GoogleDriveService
 import com.averykarlin.averytask.data.remote.SyncService
 import com.averykarlin.averytask.data.repository.TaskRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -55,6 +56,7 @@ class SettingsViewModel @Inject constructor(
     private val syncService: SyncService,
     private val calendarSyncService: CalendarSyncService,
     private val taskRepository: TaskRepository,
+    private val googleDriveService: GoogleDriveService,
     val appUpdater: AppUpdater
 ) : ViewModel() {
 
@@ -236,6 +238,12 @@ class SettingsViewModel @Inject constructor(
     private val _isExporting = MutableStateFlow(false)
     val isExporting: StateFlow<Boolean> = _isExporting
 
+    private val _isDriveExporting = MutableStateFlow(false)
+    val isDriveExporting: StateFlow<Boolean> = _isDriveExporting
+
+    private val _isDriveImporting = MutableStateFlow(false)
+    val isDriveImporting: StateFlow<Boolean> = _isDriveImporting
+
     // --- Theme setters ---
     fun setThemeMode(mode: String) {
         viewModelScope.launch { themePreferences.setThemeMode(mode) }
@@ -379,13 +387,76 @@ class SettingsViewModel @Inject constructor(
             _isImporting.value = true
             try {
                 val result = dataImporter.importFromJson(jsonString, ImportMode.MERGE)
-                _messages.emit("Imported ${result.tasksImported} tasks, ${result.projectsImported} projects, ${result.tagsImported} tags" +
-                    if (result.duplicatesSkipped > 0) " (${result.duplicatesSkipped} duplicates skipped)" else "")
+                val parts = mutableListOf<String>()
+                if (result.tasksImported > 0) parts.add("${result.tasksImported} tasks")
+                if (result.projectsImported > 0) parts.add("${result.projectsImported} projects")
+                if (result.tagsImported > 0) parts.add("${result.tagsImported} tags")
+                if (result.habitsImported > 0) parts.add("${result.habitsImported} habits")
+                if (result.habitCompletionsImported > 0) parts.add("${result.habitCompletionsImported} habit completions")
+                if (result.leisureLogsImported > 0) parts.add("${result.leisureLogsImported} leisure logs")
+                if (result.selfCareLogsImported > 0) parts.add("${result.selfCareLogsImported} self-care logs")
+                if (result.selfCareStepsImported > 0) parts.add("${result.selfCareStepsImported} self-care steps")
+                if (result.coursesImported > 0) parts.add("${result.coursesImported} courses")
+                if (result.assignmentsImported > 0) parts.add("${result.assignmentsImported} assignments")
+                if (result.courseCompletionsImported > 0) parts.add("${result.courseCompletionsImported} course completions")
+                if (result.configImported) parts.add("config")
+                val summary = if (parts.isEmpty()) "Nothing new to import" else "Imported ${parts.joinToString(", ")}"
+                val dupInfo = if (result.duplicatesSkipped > 0) " (${result.duplicatesSkipped} duplicates skipped)" else ""
+                _messages.emit("$summary$dupInfo")
             } catch (e: Exception) {
                 Log.e("SettingsVM", "Import failed", e)
                 _messages.emit("Import failed: ${e.message}")
             } finally {
                 _isImporting.value = false
+            }
+        }
+    }
+
+    fun onExportToDrive() {
+        viewModelScope.launch {
+            _isDriveExporting.value = true
+            try {
+                val jsonData = dataExporter.exportToJson()
+                val result = googleDriveService.exportToDrive(jsonData)
+                result.fold(
+                    onSuccess = { _messages.emit(it) },
+                    onFailure = { _messages.emit("Drive export failed: ${it.message}") }
+                )
+            } catch (e: Exception) {
+                Log.e("SettingsVM", "Drive export failed", e)
+                _messages.emit("Drive export failed: ${e.message}")
+            } finally {
+                _isDriveExporting.value = false
+            }
+        }
+    }
+
+    fun onImportFromDrive() {
+        viewModelScope.launch {
+            _isDriveImporting.value = true
+            try {
+                val result = googleDriveService.importFromDrive()
+                result.fold(
+                    onSuccess = { jsonData ->
+                        val importResult = dataImporter.importFromJson(jsonData, ImportMode.MERGE)
+                        val parts = mutableListOf<String>()
+                        if (importResult.tasksImported > 0) parts.add("${importResult.tasksImported} tasks")
+                        if (importResult.projectsImported > 0) parts.add("${importResult.projectsImported} projects")
+                        if (importResult.tagsImported > 0) parts.add("${importResult.tagsImported} tags")
+                        if (importResult.habitsImported > 0) parts.add("${importResult.habitsImported} habits")
+                        if (importResult.habitCompletionsImported > 0) parts.add("${importResult.habitCompletionsImported} completions")
+                        if (importResult.configImported) parts.add("config")
+                        val summary = if (parts.isEmpty()) "Nothing new to import" else "Restored ${parts.joinToString(", ")}"
+                        val dupInfo = if (importResult.duplicatesSkipped > 0) " (${importResult.duplicatesSkipped} duplicates skipped)" else ""
+                        _messages.emit("$summary from Google Drive$dupInfo")
+                    },
+                    onFailure = { _messages.emit("Drive import failed: ${it.message}") }
+                )
+            } catch (e: Exception) {
+                Log.e("SettingsVM", "Drive import failed", e)
+                _messages.emit("Drive import failed: ${e.message}")
+            } finally {
+                _isDriveImporting.value = false
             }
         }
     }

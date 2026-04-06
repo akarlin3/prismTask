@@ -139,6 +139,8 @@ fun SettingsScreen(
     val isImporting by viewModel.isImporting.collectAsStateWithLifecycle()
     val isExporting by viewModel.isExporting.collectAsStateWithLifecycle()
     val isResetting by viewModel.isResetting.collectAsStateWithLifecycle()
+    val isDriveExporting by viewModel.isDriveExporting.collectAsStateWithLifecycle()
+    val isDriveImporting by viewModel.isDriveImporting.collectAsStateWithLifecycle()
     val pendingJson by viewModel.pendingJsonExport.collectAsStateWithLifecycle()
     val pendingCsv by viewModel.pendingCsvExport.collectAsStateWithLifecycle()
     val sectionOrder by viewModel.sectionOrder.collectAsStateWithLifecycle()
@@ -758,6 +760,49 @@ fun SettingsScreen(
             SettingsRow(title = "Export as JSON", onClick = { viewModel.onExportJson() })
             SettingsRow(title = "Export as CSV", onClick = { viewModel.onExportCsv() })
             SettingsRow(title = "Import from JSON", onClick = { importLauncher.launch(arrayOf("application/json", "*/*")) })
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Text(
+                text = "Google Drive",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(bottom = 4.dp)
+            )
+
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp)
+            ) {
+                OutlinedButton(
+                    onClick = { viewModel.onExportToDrive() },
+                    enabled = !isDriveExporting && !isDriveImporting,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    if (isDriveExporting) {
+                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Saving...")
+                    } else {
+                        Text("Backup to Drive")
+                    }
+                }
+                OutlinedButton(
+                    onClick = { viewModel.onImportFromDrive() },
+                    enabled = !isDriveImporting && !isDriveExporting,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    if (isDriveImporting) {
+                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Restoring...")
+                    } else {
+                        Text("Restore from Drive")
+                    }
+                }
+            }
 
             HorizontalDivider()
 

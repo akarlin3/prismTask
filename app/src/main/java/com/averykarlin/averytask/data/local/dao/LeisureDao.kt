@@ -26,6 +26,9 @@ interface LeisureDao {
     @Query("SELECT * FROM leisure_logs ORDER BY date DESC")
     fun getAllLogs(): Flow<List<LeisureLogEntity>>
 
+    @Query("SELECT * FROM leisure_logs ORDER BY date DESC")
+    suspend fun getAllLogsOnce(): List<LeisureLogEntity>
+
     @Query("SELECT COUNT(*) FROM leisure_logs WHERE music_done = 1 AND flex_done = 1")
     fun getCompletedDaysCount(): Flow<Int>
 }

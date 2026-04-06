@@ -30,6 +30,9 @@ interface HabitDao {
     @Query("SELECT * FROM habits WHERE is_archived = 0 ORDER BY sort_order ASC")
     suspend fun getActiveHabitsOnce(): List<HabitEntity>
 
+    @Query("SELECT * FROM habits ORDER BY sort_order ASC")
+    suspend fun getAllHabitsOnce(): List<HabitEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(habit: HabitEntity): Long
 

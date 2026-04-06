@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-**AveryTask** (`com.averykarlin.averytask`) is a native Android todo list app built with Kotlin and Jetpack Compose. v0.7.0 includes full task management, projects, subtasks, tags, recurrence, reminders, notifications, NLP quick-add, Today focus screen, week/month/timeline views, urgency scoring, smart suggestions, Firebase cloud sync, Google Sign-In, JSON/CSV data export/import, habit tracking with streaks/analytics, home screen widgets, app self-update, and a FastAPI web backend.
+**AveryTask** (`com.averykarlin.averytask`) is a native Android todo list app built with Kotlin and Jetpack Compose. v0.7.0 includes full task management, projects, subtasks, tags, recurrence, reminders, notifications, NLP quick-add, Today focus screen, week/month/timeline views, urgency scoring, smart suggestions, Firebase cloud sync, Google Sign-In, JSON/CSV data export/import, Google Drive backup/restore, habit tracking with streaks/analytics, home screen widgets, app self-update, and a FastAPI web backend.
 
 ## Tech Stack
 
@@ -12,7 +12,7 @@
 - **Database**: Room 2.8.4 with KSP
 - **Navigation**: Jetpack Navigation Compose 2.9.7
 - **Serialization**: Gson 2.11.0 (for RecurrenceRule JSON)
-- **Cloud**: Firebase Auth + Firestore + Storage (BOM 33.7.0)
+- **Cloud**: Firebase Auth + Firestore + Storage (BOM 33.7.0), Google Drive API v3
 - **Auth**: Credential Manager + Google Identity
 - **Widgets**: Glance for Compose 1.1.1
 - **Build**: Gradle 8.13 with Kotlin DSL
@@ -52,12 +52,13 @@ app/src/main/java/com/averykarlin/averytask/
 │   │       └── HabitCompletionEntity.kt # Habit completions with FK to habits
 │   ├── remote/
 │   │   ├── AuthManager.kt            # Firebase Auth + Google Sign-In
+│   │   ├── GoogleDriveService.kt     # Google Drive backup/restore (export + import JSON)
 │   │   ├── SyncService.kt            # Firestore push/pull/real-time sync
 │   │   └── mapper/
 │   │       └── SyncMapper.kt         # Entity ↔ Firestore document mapping
 │   ├── export/
-│   │   ├── DataExporter.kt           # JSON + CSV export
-│   │   └── DataImporter.kt           # JSON import with merge/replace modes
+│   │   ├── DataExporter.kt           # Full JSON export (tasks, habits, self-care, leisure, schoolwork, config) + CSV
+│   │   └── DataImporter.kt           # Full JSON import with merge/replace (all data types + config restore)
 │   ├── repository/
 │   │   ├── TaskRepository.kt          # Task CRUD, recurrence completion, date grouping
 │   │   ├── ProjectRepository.kt       # Project CRUD
@@ -181,7 +182,7 @@ app/src/main/java/com/averykarlin/averytask/
 - **Cloud Sync**: Firebase Firestore for cross-device sync, `SyncService` with push/pull/real-time listeners
 - **Auth**: Google Sign-In via Credential Manager, optional (local-only mode supported)
 - **Timeline**: Daily view with scheduled time blocks, duration management, current time indicator
-- **Export/Import**: JSON full backup + CSV tasks export; JSON import with merge/replace modes
+- **Export/Import**: JSON full backup (tasks, habits, habit completions, self-care logs/steps, leisure logs, courses, assignments, course completions, all preferences/config) + CSV tasks export; JSON import with merge/replace modes; Google Drive backup/restore via Drive API v3
 - **Habits**: Habit tracking with daily/weekly frequency, streaks, analytics, contribution grid, weekly summary notification
 - **Widgets**: Glance-based home screen widgets (Today, Habit Streaks, Quick-Add)
 - **Dashboard**: Customizable Today section order via DashboardPreferences DataStore

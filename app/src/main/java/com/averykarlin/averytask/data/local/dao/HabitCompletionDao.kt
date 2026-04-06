@@ -51,4 +51,7 @@ interface HabitCompletionDao {
 
     @Query("SELECT * FROM habit_completions WHERE habit_id = :habitId ORDER BY completed_at DESC LIMIT 1")
     suspend fun getLastCompletionOnce(habitId: Long): HabitCompletionEntity?
+
+    @Query("SELECT * FROM habit_completions ORDER BY completed_date DESC")
+    suspend fun getAllCompletionsOnce(): List<HabitCompletionEntity>
 }

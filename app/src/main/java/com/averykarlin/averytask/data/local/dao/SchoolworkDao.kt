@@ -40,6 +40,9 @@ interface SchoolworkDao {
     @Query("SELECT COUNT(*) FROM courses WHERE active = 1")
     suspend fun getActiveCourseCount(): Int
 
+    @Query("SELECT * FROM courses ORDER BY sort_order ASC, name ASC")
+    suspend fun getAllCoursesOnce(): List<CourseEntity>
+
     // --- Assignments ---
 
     @Query("SELECT * FROM assignments WHERE course_id = :courseId ORDER BY completed ASC, due_date ASC, created_at DESC")
@@ -66,6 +69,9 @@ interface SchoolworkDao {
     @Query("SELECT COUNT(*) FROM assignments WHERE course_id = :courseId AND completed = 0")
     fun getActiveAssignmentCount(courseId: Long): Flow<Int>
 
+    @Query("SELECT * FROM assignments ORDER BY due_date ASC, created_at DESC")
+    suspend fun getAllAssignmentsOnce(): List<AssignmentEntity>
+
     // --- Course Completions ---
 
     @Query("SELECT * FROM course_completions WHERE date = :date")
@@ -88,6 +94,9 @@ interface SchoolworkDao {
 
     @Query("DELETE FROM course_completions WHERE date = :date")
     suspend fun deleteCompletionsForDate(date: Long)
+
+    @Query("SELECT * FROM course_completions ORDER BY date DESC")
+    suspend fun getAllCompletionsOnce(): List<CourseCompletionEntity>
 
     // --- Study Logs (legacy, kept for migration compatibility) ---
 
