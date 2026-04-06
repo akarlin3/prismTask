@@ -21,9 +21,11 @@ captures/
 web/node_modules/
 web/dist/
 
-# APK output (committed via CI)
+# APK/AAB output (committed via CI)
 !apk/
 !apk/*.apk
+!apk/*.aab
+!app-release.aab
 
 # Python
 __pycache__/
@@ -33,6 +35,11 @@ __pycache__/
 *.egg-info/
 .pytest_cache/
 test.db
+
+# Signing keys and credentials
+*.keystore
+*.jks
+keystore_base64.txt
 
 # macOS
 .DS_Store
