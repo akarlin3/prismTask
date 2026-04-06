@@ -10,8 +10,12 @@ import com.averykarlin.averytask.data.local.dao.TaskDao
 import com.averykarlin.averytask.data.local.entity.TagEntity
 import com.averykarlin.averytask.data.local.entity.TaskEntity
 import com.averykarlin.averytask.data.preferences.DashboardPreferences
+import com.averykarlin.averytask.data.preferences.HabitListPreferences
 import com.averykarlin.averytask.data.repository.HabitRepository
 import com.averykarlin.averytask.data.repository.HabitWithStatus
+import com.averykarlin.averytask.data.repository.LeisureRepository
+import com.averykarlin.averytask.data.repository.SchoolworkRepository
+import com.averykarlin.averytask.data.repository.SelfCareRepository
 import com.averykarlin.averytask.data.repository.TagRepository
 import com.averykarlin.averytask.data.repository.TaskRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -35,7 +39,8 @@ class TodayViewModel @Inject constructor(
     private val tagRepository: TagRepository,
     private val taskDao: TaskDao,
     private val habitRepository: HabitRepository,
-    private val dashboardPreferences: DashboardPreferences
+    private val dashboardPreferences: DashboardPreferences,
+    private val habitListPreferences: HabitListPreferences
 ) : ViewModel() {
 
     val snackbarHostState = SnackbarHostState()
@@ -109,11 +114,34 @@ class TodayViewModel @Inject constructor(
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
     // Habits
-    val todayHabits: StateFlow<List<HabitWithStatus>> = habitRepository.getHabitsWithTodayStatus()
-        .map { habits ->
-            habits.sortedBy { it.habit.sortOrder }
+    private val selfCareEnabled: StateFlow<Boolean> = habitListPreferences.isSelfCareEnabled()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
+    private val medicationEnabled: StateFlow<Boolean> = habitListPreferences.isMedicationEnabled()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
+    private val schoolEnabled: StateFlow<Boolean> = habitListPreferences.isSchoolEnabled()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
+    private val leisureEnabled: StateFlow<Boolean> = habitListPreferences.isLeisureEnabled()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
+    val todayHabits: StateFlow<List<HabitWithStatus>> = combine(
+        habitRepository.getHabitsWithTodayStatus(),
+        selfCareEnabled, medicationEnabled, schoolEnabled, leisureEnabled
+    ) { habits, selfCareOn, medicationOn, schoolOn, leisureOn ->
+        val disabledNames = mutableSetOf<String>()
+        if (!selfCareOn) {
+            disabledNames.add(SelfCareRepository.MORNING_HABIT_NAME)
+            disabledNames.add(SelfCareRepository.BEDTIME_HABIT_NAME)
         }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+        if (!medicationOn) disabledNames.add(SelfCareRepository.MEDICATION_HABIT_NAME)
+        if (!schoolOn) disabledNames.add(SchoolworkRepository.SCHOOL_HABIT_NAME)
+        if (!leisureOn) disabledNames.add(LeisureRepository.LEISURE_HABIT_NAME)
+        habits
+            .filter { it.habit.name !in disabledNames }
+            .sortedBy { it.habit.sortOrder }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val habitCompletedCount: StateFlow<Int> = todayHabits.map { habits ->
         habits.count { it.isCompletedToday }

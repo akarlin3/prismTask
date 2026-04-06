@@ -94,8 +94,21 @@ class HabitListViewModel @Inject constructor(
                 HabitListPreferences.DEFAULT_LEISURE_ORDER
             ))
 
+    private val selfCareEnabled: StateFlow<Boolean> = habitListPreferences.isSelfCareEnabled()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
+    private val medicationEnabled: StateFlow<Boolean> = habitListPreferences.isMedicationEnabled()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
+    private val schoolEnabled: StateFlow<Boolean> = habitListPreferences.isSchoolEnabled()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
+    private val leisureEnabled: StateFlow<Boolean> = habitListPreferences.isLeisureEnabled()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
     val items: StateFlow<List<HabitListItem>> = combine(
-        habits, morningLog, bedtimeLog, medicationLog, morningSteps, bedtimeSteps, medicationSteps, builtInSortOrders
+        habits, morningLog, bedtimeLog, medicationLog, morningSteps, bedtimeSteps, medicationSteps, builtInSortOrders,
+        selfCareEnabled, medicationEnabled, schoolEnabled, leisureEnabled
     ) { values ->
         @Suppress("UNCHECKED_CAST")
         val habitList = values[0] as List<HabitWithStatus>
@@ -106,12 +119,25 @@ class HabitListViewModel @Inject constructor(
         val bSteps = values[5] as List<SelfCareStepEntity>
         val medSteps = values[6] as List<SelfCareStepEntity>
         val sortOrders = values[7] as BuiltInSortOrders
+        val selfCareOn = values[8] as Boolean
+        val medicationOn = values[9] as Boolean
+        val schoolOn = values[10] as Boolean
+        val leisureOn = values[11] as Boolean
 
         val morningCard = computeCardData(mLog, mSteps, "morning")
         val bedtimeCard = computeCardData(bLog, bSteps, "bedtime")
         val medicationCard = computeCardData(medLog, medSteps, "medication")
 
-        val autoHabitNames = setOf(
+        val autoHabitNames = mutableSetOf<String>()
+        if (selfCareOn) {
+            autoHabitNames.add(SelfCareRepository.MORNING_HABIT_NAME)
+            autoHabitNames.add(SelfCareRepository.BEDTIME_HABIT_NAME)
+        }
+        if (medicationOn) autoHabitNames.add(SelfCareRepository.MEDICATION_HABIT_NAME)
+        if (schoolOn) autoHabitNames.add(SchoolworkRepository.SCHOOL_HABIT_NAME)
+        if (leisureOn) autoHabitNames.add(LeisureRepository.LEISURE_HABIT_NAME)
+        // Always filter out built-in habit names from the regular habit list
+        val allBuiltInNames = setOf(
             SelfCareRepository.MORNING_HABIT_NAME,
             SelfCareRepository.BEDTIME_HABIT_NAME,
             SelfCareRepository.MEDICATION_HABIT_NAME,
@@ -123,17 +149,21 @@ class HabitListViewModel @Inject constructor(
         val leisureHabit = habitList.find { it.habit.name == LeisureRepository.LEISURE_HABIT_NAME }
 
         val allItems = mutableListOf<HabitListItem>()
-        allItems.add(HabitListItem.SelfCareItem("morning", morningCard, sortOrders.morning))
-        allItems.add(HabitListItem.SelfCareItem("bedtime", bedtimeCard, sortOrders.bedtime))
-        allItems.add(HabitListItem.SelfCareItem("medication", medicationCard, sortOrders.medication))
-        if (schoolHabit != null) {
+        if (selfCareOn) {
+            allItems.add(HabitListItem.SelfCareItem("morning", morningCard, sortOrders.morning))
+            allItems.add(HabitListItem.SelfCareItem("bedtime", bedtimeCard, sortOrders.bedtime))
+        }
+        if (medicationOn) {
+            allItems.add(HabitListItem.SelfCareItem("medication", medicationCard, sortOrders.medication))
+        }
+        if (schoolOn && schoolHabit != null) {
             allItems.add(HabitListItem.BuiltInHabitItem("school", schoolHabit, sortOrders.school))
         }
-        if (leisureHabit != null) {
+        if (leisureOn && leisureHabit != null) {
             allItems.add(HabitListItem.BuiltInHabitItem("leisure", leisureHabit, sortOrders.leisure))
         }
         habitList
-            .filter { it.habit.name !in autoHabitNames }
+            .filter { it.habit.name !in allBuiltInNames }
             .forEach { allItems.add(HabitListItem.HabitItem(it)) }
 
         allItems.sortedBy { it.sortOrder }

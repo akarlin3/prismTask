@@ -3,6 +3,7 @@ package com.averykarlin.averytask.data.preferences
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -32,6 +33,10 @@ class HabitListPreferences @Inject constructor(
         private val MEDICATION_SORT_ORDER = intPreferencesKey("medication_sort_order")
         private val SCHOOL_SORT_ORDER = intPreferencesKey("school_sort_order")
         private val LEISURE_SORT_ORDER = intPreferencesKey("leisure_sort_order")
+        private val SELF_CARE_ENABLED = booleanPreferencesKey("self_care_enabled")
+        private val MEDICATION_ENABLED = booleanPreferencesKey("medication_enabled")
+        private val SCHOOL_ENABLED = booleanPreferencesKey("school_enabled")
+        private val LEISURE_ENABLED = booleanPreferencesKey("leisure_enabled")
         const val DEFAULT_MORNING_ORDER = -5
         const val DEFAULT_BEDTIME_ORDER = -4
         const val DEFAULT_MEDICATION_ORDER = -3
@@ -73,6 +78,38 @@ class HabitListPreferences @Inject constructor(
             prefs[SCHOOL_SORT_ORDER] = orders.school
             prefs[LEISURE_SORT_ORDER] = orders.leisure
         }
+    }
+
+    fun isSelfCareEnabled(): Flow<Boolean> = context.habitListDataStore.data.map { prefs ->
+        prefs[SELF_CARE_ENABLED] ?: true
+    }
+
+    fun isMedicationEnabled(): Flow<Boolean> = context.habitListDataStore.data.map { prefs ->
+        prefs[MEDICATION_ENABLED] ?: true
+    }
+
+    fun isSchoolEnabled(): Flow<Boolean> = context.habitListDataStore.data.map { prefs ->
+        prefs[SCHOOL_ENABLED] ?: true
+    }
+
+    fun isLeisureEnabled(): Flow<Boolean> = context.habitListDataStore.data.map { prefs ->
+        prefs[LEISURE_ENABLED] ?: true
+    }
+
+    suspend fun setSelfCareEnabled(enabled: Boolean) {
+        context.habitListDataStore.edit { prefs -> prefs[SELF_CARE_ENABLED] = enabled }
+    }
+
+    suspend fun setMedicationEnabled(enabled: Boolean) {
+        context.habitListDataStore.edit { prefs -> prefs[MEDICATION_ENABLED] = enabled }
+    }
+
+    suspend fun setSchoolEnabled(enabled: Boolean) {
+        context.habitListDataStore.edit { prefs -> prefs[SCHOOL_ENABLED] = enabled }
+    }
+
+    suspend fun setLeisureEnabled(enabled: Boolean) {
+        context.habitListDataStore.edit { prefs -> prefs[LEISURE_ENABLED] = enabled }
     }
 
     suspend fun clearAll() {
