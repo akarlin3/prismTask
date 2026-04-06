@@ -59,6 +59,7 @@ jobs:
       - name: Build release APK
         run: ./gradlew assembleRelease --no-configuration-cache --build-cache --parallel
         env:
+          KEYSTORE_PATH: release.keystore
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
@@ -66,6 +67,7 @@ jobs:
       - name: Build release AAB
         run: ./gradlew bundleRelease --no-configuration-cache --build-cache --parallel
         env:
+          KEYSTORE_PATH: release.keystore
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}

@@ -31,9 +31,9 @@ android {
 
     signingConfigs {
         create("release") {
-            storeFile = file(System.getenv("KEYSTORE_PATH") ?: "../averytask-release.keystore")
+            storeFile = file(System.getenv("KEYSTORE_PATH") ?: "release.keystore")
             storePassword = System.getenv("KEYSTORE_PASSWORD") ?: ""
-            keyAlias = "averytask"
+            keyAlias = System.getenv("KEY_ALIAS") ?: "averytask"
             keyPassword = System.getenv("KEY_PASSWORD") ?: ""
         }
     }
@@ -45,7 +45,6 @@ android {
             isDebuggable = true
         }
         release {
-            signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
             buildConfigField("String", "API_BASE_URL", "\"https://averytask-api.up.railway.app\"")
             isMinifyEnabled = true
             isShrinkResources = true
