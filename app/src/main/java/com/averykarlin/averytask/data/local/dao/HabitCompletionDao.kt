@@ -28,15 +28,27 @@ interface HabitCompletionDao {
     @Query("SELECT EXISTS(SELECT 1 FROM habit_completions WHERE habit_id = :habitId AND completed_date = :date)")
     suspend fun isCompletedOnDateOnce(habitId: Long, date: Long): Boolean
 
+    @Query("SELECT COUNT(*) FROM habit_completions WHERE habit_id = :habitId AND completed_date = :date")
+    suspend fun getCompletionCountForDateOnce(habitId: Long, date: Long): Int
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(completion: HabitCompletionEntity): Long
 
+    @Query("SELECT * FROM habit_completions WHERE habit_id = :habitId AND completed_date = :date LIMIT 1")
+    suspend fun getByHabitAndDate(habitId: Long, date: Long): HabitCompletionEntity?
+
     @Query("DELETE FROM habit_completions WHERE habit_id = :habitId AND completed_date = :date")
     suspend fun deleteByHabitAndDate(habitId: Long, date: Long)
+
+    @Query("DELETE FROM habit_completions WHERE id = (SELECT id FROM habit_completions WHERE habit_id = :habitId AND completed_date = :date ORDER BY completed_at DESC LIMIT 1)")
+    suspend fun deleteLatestByHabitAndDate(habitId: Long, date: Long)
 
     @Query("SELECT * FROM habit_completions WHERE habit_id = :habitId ORDER BY completed_date DESC LIMIT 1")
     fun getLastCompletion(habitId: Long): Flow<HabitCompletionEntity?>
 
     @Query("SELECT * FROM habit_completions WHERE habit_id = :habitId ORDER BY completed_date DESC")
     suspend fun getCompletionsForHabitOnce(habitId: Long): List<HabitCompletionEntity>
+
+    @Query("SELECT * FROM habit_completions WHERE habit_id = :habitId ORDER BY completed_at DESC LIMIT 1")
+    suspend fun getLastCompletionOnce(habitId: Long): HabitCompletionEntity?
 }

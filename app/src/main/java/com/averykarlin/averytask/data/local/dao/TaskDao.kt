@@ -20,6 +20,9 @@ interface TaskDao {
     @Query("SELECT * FROM tasks WHERE project_id = :projectId")
     fun getTasksByProject(projectId: Long): Flow<List<TaskEntity>>
 
+    @Query("DELETE FROM tasks WHERE project_id = :projectId")
+    suspend fun deleteTasksByProjectId(projectId: Long)
+
     @Query("SELECT * FROM tasks WHERE parent_task_id = :parentTaskId ORDER BY created_at ASC")
     fun getSubtasks(parentTaskId: Long): Flow<List<TaskEntity>>
 

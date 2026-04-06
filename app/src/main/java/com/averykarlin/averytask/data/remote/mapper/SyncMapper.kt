@@ -97,7 +97,6 @@ object SyncMapper {
         "reminderTime" to habit.reminderTime,
         "sortOrder" to habit.sortOrder,
         "isArchived" to habit.isArchived,
-        "createDailyTask" to habit.createDailyTask,
         "category" to habit.category,
         "createdAt" to habit.createdAt,
         "updatedAt" to habit.updatedAt
@@ -115,7 +114,6 @@ object SyncMapper {
         reminderTime = (data["reminderTime"] as? Number)?.toLong(),
         sortOrder = (data["sortOrder"] as? Number)?.toInt() ?: 0,
         isArchived = data["isArchived"] as? Boolean ?: false,
-        createDailyTask = data["createDailyTask"] as? Boolean ?: false,
         category = data["category"] as? String,
         createdAt = (data["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
         updatedAt = (data["updatedAt"] as? Number)?.toLong() ?: System.currentTimeMillis()

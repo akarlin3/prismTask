@@ -3,6 +3,8 @@ package com.averykarlin.averytask.data.repository
 import com.averykarlin.averytask.data.local.converter.RecurrenceConverter
 import com.averykarlin.averytask.data.local.dao.TaskDao
 import com.averykarlin.averytask.data.local.entity.TaskEntity
+import com.averykarlin.averytask.data.remote.CalendarSyncService
+import com.averykarlin.averytask.data.remote.SyncTracker
 import com.averykarlin.averytask.domain.usecase.RecurrenceEngine
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.firstOrNull
@@ -13,7 +15,9 @@ import javax.inject.Singleton
 
 @Singleton
 class TaskRepository @Inject constructor(
-    private val taskDao: TaskDao
+    private val taskDao: TaskDao,
+    private val syncTracker: SyncTracker,
+    private val calendarSyncService: CalendarSyncService
 ) {
     fun getAllTasks(): Flow<List<TaskEntity>> = taskDao.getAllTasks()
 
@@ -22,6 +26,9 @@ class TaskRepository @Inject constructor(
 
     fun getSubtasks(parentTaskId: Long): Flow<List<TaskEntity>> =
         taskDao.getSubtasks(parentTaskId)
+
+    suspend fun deleteTasksByProjectId(projectId: Long) =
+        taskDao.deleteTasksByProjectId(projectId)
 
     fun getIncompleteTasks(): Flow<List<TaskEntity>> = taskDao.getIncompleteTasks()
 
@@ -44,14 +51,24 @@ class TaskRepository @Inject constructor(
             createdAt = now,
             updatedAt = now
         )
-        return taskDao.insert(task)
+        val id = taskDao.insert(task)
+        syncTracker.trackCreate(id, "task")
+        calendarSyncService.syncTaskToCalendar(task.copy(id = id))
+        return id
     }
+
+    suspend fun getAllTasksOnce(): List<TaskEntity> = taskDao.getAllTasksOnce()
 
     fun getTaskById(id: Long): Flow<TaskEntity?> = taskDao.getTaskById(id)
 
     suspend fun getTaskByIdOnce(id: Long): TaskEntity? = taskDao.getTaskByIdOnce(id)
 
-    suspend fun insertTask(task: TaskEntity): Long = taskDao.insert(task)
+    suspend fun insertTask(task: TaskEntity): Long {
+        val id = taskDao.insert(task)
+        syncTracker.trackCreate(id, "task")
+        calendarSyncService.syncTaskToCalendar(task.copy(id = id))
+        return id
+    }
 
     suspend fun addTask(
         title: String,
@@ -74,11 +91,17 @@ class TaskRepository @Inject constructor(
             createdAt = now,
             updatedAt = now
         )
-        return taskDao.insert(task)
+        val id = taskDao.insert(task)
+        syncTracker.trackCreate(id, "task")
+        calendarSyncService.syncTaskToCalendar(task.copy(id = id))
+        return id
     }
 
     suspend fun updateTask(task: TaskEntity) {
-        taskDao.update(task.copy(updatedAt = System.currentTimeMillis()))
+        val updated = task.copy(updatedAt = System.currentTimeMillis())
+        taskDao.update(updated)
+        syncTracker.trackUpdate(task.id, "task")
+        calendarSyncService.syncTaskToCalendar(updated)
     }
 
     suspend fun completeTask(id: Long) {
@@ -99,18 +122,27 @@ class TaskRepository @Inject constructor(
                         createdAt = now,
                         updatedAt = now
                     )
-                    taskDao.insert(nextTask)
+                    val nextId = taskDao.insert(nextTask)
+                    syncTracker.trackCreate(nextId, "task")
+                    calendarSyncService.syncTaskToCalendar(nextTask.copy(id = nextId))
                 }
             }
         }
         taskDao.markCompleted(id, now)
+        syncTracker.trackUpdate(id, "task")
+        calendarSyncService.removeEventForTask(id)
     }
 
     suspend fun uncompleteTask(id: Long) {
         taskDao.markIncomplete(id, System.currentTimeMillis())
+        syncTracker.trackUpdate(id, "task")
+        val task = taskDao.getTaskByIdOnce(id)
+        if (task != null) calendarSyncService.syncTaskToCalendar(task)
     }
 
     suspend fun deleteTask(id: Long) {
+        calendarSyncService.removeEventForTask(id)
+        syncTracker.trackDelete(id, "task")
         taskDao.deleteById(id)
     }
 
@@ -120,13 +152,17 @@ class TaskRepository @Inject constructor(
 
     suspend fun archiveTask(id: Long) {
         taskDao.archiveTask(id, System.currentTimeMillis())
+        syncTracker.trackUpdate(id, "task")
     }
 
     suspend fun unarchiveTask(id: Long) {
         taskDao.unarchiveTask(id, System.currentTimeMillis())
+        syncTracker.trackUpdate(id, "task")
     }
 
     suspend fun permanentlyDeleteTask(id: Long) {
+        calendarSyncService.removeEventForTask(id)
+        syncTracker.trackDelete(id, "task")
         taskDao.permanentlyDelete(id)
     }
 

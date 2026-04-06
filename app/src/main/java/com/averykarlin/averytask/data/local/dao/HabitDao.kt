@@ -24,6 +24,9 @@ interface HabitDao {
     @Query("SELECT * FROM habits WHERE id = :id")
     suspend fun getHabitByIdOnce(id: Long): HabitEntity?
 
+    @Query("SELECT * FROM habits WHERE name = :name LIMIT 1")
+    suspend fun getHabitByName(name: String): HabitEntity?
+
     @Query("SELECT * FROM habits WHERE is_archived = 0 ORDER BY sort_order ASC")
     suspend fun getActiveHabitsOnce(): List<HabitEntity>
 
@@ -41,4 +44,8 @@ interface HabitDao {
 
     @Update
     suspend fun updateAll(habits: List<HabitEntity>)
+
+    @Query("SELECT * FROM habits WHERE reminder_interval_millis IS NOT NULL AND is_archived = 0")
+    suspend fun getHabitsWithIntervalReminder(): List<HabitEntity>
+
 }

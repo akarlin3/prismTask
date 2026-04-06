@@ -36,7 +36,7 @@ import com.averykarlin.averytask.data.local.entity.TagEntity
 import com.averykarlin.averytask.domain.model.DateRange
 import com.averykarlin.averytask.domain.model.TagFilterMode
 import com.averykarlin.averytask.domain.model.TaskFilter
-import com.averykarlin.averytask.ui.theme.PriorityColors
+import com.averykarlin.averytask.ui.theme.LocalPriorityColors
 import java.util.Calendar
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -183,8 +183,8 @@ fun FilterPanel(
                     },
                     label = { Text(label) },
                     colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = PriorityColors.forLevel(level).copy(alpha = 0.2f),
-                        selectedLabelColor = PriorityColors.forLevel(level)
+                        selectedContainerColor = LocalPriorityColors.current.forLevel(level).copy(alpha = 0.2f),
+                        selectedLabelColor = LocalPriorityColors.current.forLevel(level)
                     )
                 )
             }

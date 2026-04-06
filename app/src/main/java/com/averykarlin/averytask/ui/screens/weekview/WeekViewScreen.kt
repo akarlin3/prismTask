@@ -48,7 +48,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.averykarlin.averytask.data.local.entity.TaskEntity
 import com.averykarlin.averytask.ui.navigation.AveryTaskRoute
-import com.averykarlin.averytask.ui.theme.PriorityColors
+import com.averykarlin.averytask.ui.theme.LocalPriorityColors
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
@@ -235,7 +235,7 @@ private fun WeekTaskCard(task: TaskEntity, isOverdue: Boolean, onClick: () -> Un
                         .width(3.dp)
                         .height(24.dp)
                         .clip(RoundedCornerShape(2.dp))
-                        .background(PriorityColors.forLevel(task.priority))
+                        .background(LocalPriorityColors.current.forLevel(task.priority))
                 )
                 Spacer(modifier = Modifier.width(3.dp))
             }

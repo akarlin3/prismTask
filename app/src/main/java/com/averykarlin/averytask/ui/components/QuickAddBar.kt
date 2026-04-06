@@ -45,7 +45,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.averykarlin.averytask.domain.usecase.ParsedTask
-import com.averykarlin.averytask.ui.theme.PriorityColors
+import com.averykarlin.averytask.ui.theme.LocalPriorityColors
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -187,7 +187,7 @@ private fun ParsedPreview(parsed: ParsedTask) {
                 4 -> "Urgent"
                 else -> ""
             }
-            val priorityColor = PriorityColors.forLevel(parsed.priority)
+            val priorityColor = LocalPriorityColors.current.forLevel(parsed.priority)
             PreviewChip(label = priorityLabel, icon = null, color = priorityColor)
         }
 

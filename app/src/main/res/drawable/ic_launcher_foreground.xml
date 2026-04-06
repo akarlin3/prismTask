@@ -5,70 +5,19 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- Infinity symbol (lemniscate) at the top -->
+    <!-- Gold infinity symbol - thick stroke, centered in adaptive icon safe zone -->
     <path
-        android:pathData="M54,31
-            C50,23 38,21 33,27
-            C28,33 32,41 40,41
-            C46,41 50,36 54,31
-            C58,36 62,41 68,41
-            C76,41 80,33 75,27
-            C70,21 58,23 54,31Z"
-        android:strokeColor="#A5D6A7"
-        android:strokeWidth="2.5"
-        android:fillColor="#00000000" />
-
-    <!-- Center leaflet (tallest) -->
-    <path
-        android:fillColor="#66BB6A"
-        android:pathData="M54,43 L50.5,52 L49,58 L49.5,62 L54,65 L58.5,62 L59,58 L57.5,52 Z" />
-
-    <!-- Upper-left leaflet -->
-    <path
-        android:fillColor="#66BB6A"
-        android:pathData="M54,65 L48,56 L43,50 L38,48 L35,50 L38,54 L43,57 L48,61 Z" />
-
-    <!-- Upper-right leaflet -->
-    <path
-        android:fillColor="#66BB6A"
-        android:pathData="M54,65 L60,56 L65,50 L70,48 L73,50 L70,54 L65,57 L60,61 Z" />
-
-    <!-- Mid-left leaflet -->
-    <path
-        android:fillColor="#66BB6A"
-        android:pathData="M54,65 L47,59 L41,56 L36,56 L33,59 L37,60 L42,60 L48,63 Z" />
-
-    <!-- Mid-right leaflet -->
-    <path
-        android:fillColor="#66BB6A"
-        android:pathData="M54,65 L61,59 L67,56 L72,56 L75,59 L71,60 L66,60 L60,63 Z" />
-
-    <!-- Lower-left leaflet -->
-    <path
-        android:fillColor="#66BB6A"
-        android:pathData="M54,65 L48,63 L43,62 L39,63 L37,66 L41,65 L46,65 L51,66 Z" />
-
-    <!-- Lower-right leaflet -->
-    <path
-        android:fillColor="#66BB6A"
-        android:pathData="M54,65 L60,63 L65,62 L69,63 L71,66 L67,65 L62,65 L57,66 Z" />
-
-    <!-- Center vein lines -->
-    <path
-        android:strokeColor="#43A047"
-        android:strokeWidth="0.8"
+        android:pathData="M54,54
+            C49,42 38,34 31,42
+            C24,50 31,62 40,62
+            C47,62 51,56 54,54
+            C57,56 61,62 68,62
+            C77,62 84,50 77,42
+            C70,34 59,42 54,54Z"
         android:fillColor="#00000000"
-        android:pathData="M54,43 L54,65
-            M54,65 L36,51
-            M54,65 L72,51
-            M54,65 L33,59
-            M54,65 L75,59
-            M54,65 L37,66
-            M54,65 L71,66" />
-
-    <!-- Stem -->
-    <path
-        android:fillColor="#388E3C"
-        android:pathData="M52.5,65 L52.5,85 L55.5,85 L55.5,65 Z" />
+        android:strokeColor="#FFD700"
+        android:strokeWidth="5.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
 
 </vector>

@@ -84,7 +84,7 @@ import androidx.compose.ui.unit.dp
 import com.averykarlin.averytask.data.local.entity.AttachmentEntity
 import com.averykarlin.averytask.ui.components.RecurrenceSelector
 import com.averykarlin.averytask.ui.components.TagSelector
-import com.averykarlin.averytask.ui.theme.PriorityColors
+import com.averykarlin.averytask.ui.theme.LocalPriorityColors
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
@@ -317,10 +317,11 @@ fun AddEditTaskScreen(
             // Priority
             SectionLabel("Priority")
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                val priorityColors = LocalPriorityColors.current
                 PriorityOption.entries.forEach { option ->
                     PriorityChip(
                         label = option.label,
-                        color = option.color,
+                        color = priorityColors.forLevel(option.value),
                         selected = viewModel.priority == option.value,
                         onClick = { viewModel.onPriorityChange(option.value) }
                     )
@@ -577,12 +578,12 @@ private fun SectionLabel(text: String) {
     )
 }
 
-private enum class PriorityOption(val value: Int, val label: String, val color: Color) {
-    NONE(0, "None", PriorityColors.None),
-    LOW(1, "Low", PriorityColors.Low),
-    MEDIUM(2, "Med", PriorityColors.Medium),
-    HIGH(3, "High", PriorityColors.High),
-    URGENT(4, "Urgent", PriorityColors.Urgent)
+private enum class PriorityOption(val value: Int, val label: String) {
+    NONE(0, "None"),
+    LOW(1, "Low"),
+    MEDIUM(2, "Med"),
+    HIGH(3, "High"),
+    URGENT(4, "Urgent")
 }
 
 @Composable

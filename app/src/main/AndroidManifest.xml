@@ -7,6 +7,8 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.READ_CALENDAR" />
+    <uses-permission android:name="android.permission.WRITE_CALENDAR" />
 
     <application
         android:name=".AveryTaskApplication"
@@ -45,6 +47,18 @@
 
         <receiver
             android:name=".notifications.CompleteTaskReceiver"
+            android:exported="false" />
+
+        <receiver
+            android:name=".notifications.MedicationReminderReceiver"
+            android:exported="false" />
+
+        <receiver
+            android:name=".notifications.LogMedicationReceiver"
+            android:exported="false" />
+
+        <receiver
+            android:name=".notifications.MedStepReminderReceiver"
             android:exported="false" />
 
         <receiver

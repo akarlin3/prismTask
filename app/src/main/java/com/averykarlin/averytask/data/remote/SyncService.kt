@@ -10,9 +10,12 @@ import com.averykarlin.averytask.data.local.dao.ProjectDao
 import com.averykarlin.averytask.data.local.entity.SyncMetadataEntity
 import com.averykarlin.averytask.data.local.entity.TaskTagCrossRef
 import com.averykarlin.averytask.data.remote.mapper.SyncMapper
-import com.google.firebase.firestore.DocumentChange
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -29,6 +32,8 @@ class SyncService @Inject constructor(
 ) {
     private val firestore = FirebaseFirestore.getInstance()
     private val listeners = mutableListOf<ListenerRegistration>()
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    @Volatile private var isSyncing = false
 
     private fun userCollection(collection: String) =
         authManager.userId?.let { firestore.collection("users").document(it).collection(collection) }
@@ -269,8 +274,24 @@ class SyncService @Inject constructor(
     }
 
     suspend fun fullSync() {
-        pushLocalChanges()
-        pullRemoteChanges()
+        if (isSyncing) return
+        isSyncing = true
+        try {
+            pushLocalChanges()
+            pullRemoteChanges()
+        } finally {
+            isSyncing = false
+        }
+    }
+
+    fun startAutoSync() {
+        if (authManager.userId == null) return
+        startRealtimeListeners()
+        scope.launch {
+            try { fullSync() } catch (e: Exception) {
+                Log.e("SyncService", "Auto-sync failed", e)
+            }
+        }
     }
 
     fun startRealtimeListeners() {
@@ -278,7 +299,17 @@ class SyncService @Inject constructor(
         listOf("tasks", "projects", "tags", "habits", "habit_completions").forEach { collection ->
             val reg = userCollection(collection)?.addSnapshotListener { snapshot, error ->
                 if (error != null || snapshot == null) return@addSnapshotListener
-                // Real-time changes handled via snapshot listener — lightweight re-pull on change
+                if (snapshot.metadata.hasPendingWrites()) return@addSnapshotListener
+                if (snapshot.documentChanges.isEmpty()) return@addSnapshotListener
+                // Remote change detected — trigger a pull
+                scope.launch {
+                    if (isSyncing) return@launch
+                    try {
+                        pullRemoteChanges()
+                    } catch (e: Exception) {
+                        Log.e("SyncService", "Real-time pull failed", e)
+                    }
+                }
             }
             if (reg != null) listeners.add(reg)
         }

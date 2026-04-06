@@ -31,4 +31,8 @@ class ArchivePreferences @Inject constructor(
             prefs[AUTO_ARCHIVE_DAYS_KEY] = days
         }
     }
+
+    suspend fun clearAll() {
+        context.archiveDataStore.edit { it.clear() }
+    }
 }

@@ -54,7 +54,7 @@ import com.averykarlin.averytask.data.local.entity.TagEntity
 import com.averykarlin.averytask.data.local.entity.TaskEntity
 import com.averykarlin.averytask.ui.components.HighlightedText
 import com.averykarlin.averytask.ui.navigation.AveryTaskRoute
-import com.averykarlin.averytask.ui.theme.PriorityColors
+import com.averykarlin.averytask.ui.theme.LocalPriorityColors
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -268,7 +268,7 @@ private fun SearchTaskItem(
                 modifier = Modifier
                     .size(10.dp)
                     .clip(CircleShape)
-                    .background(PriorityColors.forLevel(task.priority))
+                    .background(LocalPriorityColors.current.forLevel(task.priority))
             )
             Spacer(modifier = Modifier.width(8.dp))
         }

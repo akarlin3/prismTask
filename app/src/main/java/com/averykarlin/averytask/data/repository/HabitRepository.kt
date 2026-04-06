@@ -4,7 +4,9 @@ import com.averykarlin.averytask.data.local.dao.HabitCompletionDao
 import com.averykarlin.averytask.data.local.dao.HabitDao
 import com.averykarlin.averytask.data.local.entity.HabitCompletionEntity
 import com.averykarlin.averytask.data.local.entity.HabitEntity
+import com.averykarlin.averytask.data.remote.SyncTracker
 import com.averykarlin.averytask.domain.usecase.StreakCalculator
+import com.averykarlin.averytask.notifications.MedicationReminderScheduler
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import java.time.LocalDate
@@ -16,13 +18,17 @@ data class HabitWithStatus(
     val habit: HabitEntity,
     val isCompletedToday: Boolean,
     val currentStreak: Int,
-    val completionsThisWeek: Int
+    val completionsThisWeek: Int,
+    val completionsToday: Int = if (isCompletedToday) 1 else 0,
+    val dailyTarget: Int = 1
 )
 
 @Singleton
 class HabitRepository @Inject constructor(
     private val habitDao: HabitDao,
-    private val completionDao: HabitCompletionDao
+    private val completionDao: HabitCompletionDao,
+    private val syncTracker: SyncTracker,
+    private val medicationReminderScheduler: MedicationReminderScheduler
 ) {
     fun getAllHabits(): Flow<List<HabitEntity>> = habitDao.getAllHabits()
 
@@ -34,41 +40,96 @@ class HabitRepository @Inject constructor(
 
     suspend fun addHabit(habit: HabitEntity): Long {
         val now = System.currentTimeMillis()
-        return habitDao.insert(habit.copy(createdAt = now, updatedAt = now))
+        val id = habitDao.insert(habit.copy(createdAt = now, updatedAt = now))
+        syncTracker.trackCreate(id, "habit")
+        return id
     }
 
     suspend fun updateHabit(habit: HabitEntity) {
         habitDao.update(habit.copy(updatedAt = System.currentTimeMillis()))
+        syncTracker.trackUpdate(habit.id, "habit")
     }
 
     suspend fun deleteHabit(id: Long) {
+        medicationReminderScheduler.cancel(id)
+        syncTracker.trackDelete(id, "habit")
         habitDao.deleteById(id)
     }
 
     suspend fun archiveHabit(id: Long) {
         val habit = habitDao.getHabitByIdOnce(id) ?: return
+        medicationReminderScheduler.cancel(id)
         habitDao.update(habit.copy(isArchived = true, updatedAt = System.currentTimeMillis()))
+        syncTracker.trackUpdate(id, "habit")
     }
 
     suspend fun unarchiveHabit(id: Long) {
         val habit = habitDao.getHabitByIdOnce(id) ?: return
         habitDao.update(habit.copy(isArchived = false, updatedAt = System.currentTimeMillis()))
+        syncTracker.trackUpdate(id, "habit")
     }
 
-    suspend fun completeHabit(habitId: Long, date: Long) {
+    suspend fun completeHabit(habitId: Long, date: Long, notes: String? = null) {
         val normalizedDate = normalizeToMidnight(date)
-        if (completionDao.isCompletedOnDateOnce(habitId, normalizedDate)) return
-        completionDao.insert(
+        val habit = habitDao.getHabitByIdOnce(habitId)
+        val hasMedInterval = habit?.reminderIntervalMillis != null
+        val timesPerDay = habit?.reminderTimesPerDay ?: 1
+        val target = if (habit?.frequencyPeriod == "daily") habit.targetFrequency else 1
+        val currentCount = completionDao.getCompletionCountForDateOnce(habitId, normalizedDate)
+
+        // Allow completion if under target, or up to timesPerDay for medication-interval habits
+        if (hasMedInterval) {
+            if (currentCount >= timesPerDay) return
+        } else {
+            if (currentCount >= target) return
+        }
+
+        val now = System.currentTimeMillis()
+        val id = completionDao.insert(
             HabitCompletionEntity(
                 habitId = habitId,
                 completedDate = normalizedDate,
-                completedAt = System.currentTimeMillis()
+                completedAt = now,
+                notes = notes?.trim()?.ifEmpty { null }
             )
         )
+        syncTracker.trackCreate(id, "habit_completion")
+
+        if (habit != null && habit.reminderIntervalMillis != null) {
+            val newCount = currentCount + 1
+            if (newCount < timesPerDay) {
+                medicationReminderScheduler.scheduleNext(
+                    habitId, habit.name, habit.description, now, habit.reminderIntervalMillis,
+                    doseNumber = newCount + 1, totalDoses = timesPerDay
+                )
+            }
+        }
     }
 
     suspend fun uncompleteHabit(habitId: Long, date: Long) {
-        completionDao.deleteByHabitAndDate(habitId, normalizeToMidnight(date))
+        val normalizedDate = normalizeToMidnight(date)
+        val completion = completionDao.getByHabitAndDate(habitId, normalizedDate)
+        if (completion != null) {
+            syncTracker.trackDelete(completion.id, "habit_completion")
+        }
+        completionDao.deleteLatestByHabitAndDate(habitId, normalizedDate)
+
+        // Reschedule from previous completion or cancel if none remain
+        val habit = habitDao.getHabitByIdOnce(habitId)
+        if (habit?.reminderIntervalMillis != null) {
+            val previousCompletion = completionDao.getLastCompletionOnce(habitId)
+            val timesPerDay = habit.reminderTimesPerDay
+            val newCount = completionDao.getCompletionCountForDateOnce(habitId, normalizedDate)
+            if (previousCompletion != null && newCount < timesPerDay) {
+                medicationReminderScheduler.scheduleNext(
+                    habitId, habit.name, habit.description,
+                    previousCompletion.completedAt, habit.reminderIntervalMillis,
+                    doseNumber = newCount + 1, totalDoses = timesPerDay
+                )
+            } else {
+                medicationReminderScheduler.cancel(habitId)
+            }
+        }
     }
 
     fun getCompletionsForHabit(habitId: Long): Flow<List<HabitCompletionEntity>> =
@@ -86,20 +147,26 @@ class HabitRepository @Inject constructor(
 
     fun getHabitsWithTodayStatus(): Flow<List<HabitWithStatus>> {
         val today = normalizeToMidnight(System.currentTimeMillis())
-        val weekStart = getWeekStart(today)
-        val weekEnd = getWeekEnd(today)
 
         return combine(
             habitDao.getActiveHabits(),
             completionDao.getCompletionsForDate(today)
         ) { habits, todayCompletions ->
-            val todayCompletedIds = todayCompletions.map { it.habitId }.toSet()
+            val countByHabit = todayCompletions.groupBy { it.habitId }.mapValues { it.value.size }
             habits.map { habit ->
+                val target = if (habit.reminderIntervalMillis != null) {
+                    habit.reminderTimesPerDay
+                } else if (habit.frequencyPeriod == "daily") {
+                    habit.targetFrequency
+                } else 1
+                val count = countByHabit[habit.id] ?: 0
                 HabitWithStatus(
                     habit = habit,
-                    isCompletedToday = habit.id in todayCompletedIds,
-                    currentStreak = 0, // computed lazily in detail/analytics
-                    completionsThisWeek = 0 // placeholder, updated below
+                    isCompletedToday = count >= target,
+                    currentStreak = 0,
+                    completionsThisWeek = 0,
+                    completionsToday = count,
+                    dailyTarget = target
                 )
             }
         }
@@ -115,15 +182,25 @@ class HabitRepository @Inject constructor(
             habitDao.getActiveHabits(),
             completionDao.getCompletionsForDate(today)
         ) { habits, todayCompletions ->
-            val todayCompletedIds = todayCompletions.map { it.habitId }.toSet()
+            val countByHabit = todayCompletions.groupBy { it.habitId }.mapValues { it.value.size }
             habits.map { habit ->
                 val completions = completionDao.getCompletionsForHabitOnce(habit.id)
-                val weekCompletions = completions.count { it.completedDate in weekStart..weekEnd }
+                val target = if (habit.reminderIntervalMillis != null) {
+                    habit.reminderTimesPerDay
+                } else if (habit.frequencyPeriod == "daily") {
+                    habit.targetFrequency
+                } else 1
+                val count = countByHabit[habit.id] ?: 0
+                val weekCompletions = completions.filter { it.completedDate in weekStart..weekEnd }
+                    .groupBy { it.completedDate }
+                    .count { (_, dayCompletions) -> dayCompletions.size >= target }
                 HabitWithStatus(
                     habit = habit,
-                    isCompletedToday = habit.id in todayCompletedIds,
+                    isCompletedToday = count >= target,
                     currentStreak = StreakCalculator.calculateCurrentStreak(completions, habit, todayLocal),
-                    completionsThisWeek = weekCompletions
+                    completionsThisWeek = weekCompletions,
+                    completionsToday = count,
+                    dailyTarget = target
                 )
             }
         }

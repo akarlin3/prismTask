@@ -48,7 +48,7 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.averykarlin.averytask.data.local.entity.TaskEntity
-import com.averykarlin.averytask.ui.theme.PriorityColors
+import com.averykarlin.averytask.ui.theme.LocalPriorityColors
 
 @Composable
 fun SubtaskSection(
@@ -162,7 +162,7 @@ private fun PriorityDot(priority: Int) {
         modifier = Modifier
             .size(8.dp)
             .clip(CircleShape)
-            .background(PriorityColors.forLevel(priority))
+            .background(LocalPriorityColors.current.forLevel(priority))
     )
 }
 

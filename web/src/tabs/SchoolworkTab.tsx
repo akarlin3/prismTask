@@ -58,6 +58,7 @@ interface Task5454 {
   text: string;
   time: string;
   type: 'video' | 'assignment' | 'code';
+  done?: boolean;
 }
 
 interface Day5454 {
@@ -185,7 +186,7 @@ const STORAGE_5454 = "csca5454-checked";
 function loadChecked(key: string, defaults: Record<string, boolean> = {}): Record<string, boolean> {
   try {
     const raw = localStorage.getItem(key);
-    if (raw) return JSON.parse(raw);
+    if (raw) return { ...defaults, ...JSON.parse(raw) };
   } catch { /* ignore */ }
   return defaults;
 }
@@ -215,9 +216,15 @@ export function SchoolworkTab() {
   });
 
   // 5454 state
-  const [checked5454, setChecked5454] = useState<Record<string, boolean>>(() =>
-    loadChecked(STORAGE_5454)
-  );
+  const [checked5454, setChecked5454] = useState<Record<string, boolean>>(() => {
+    const defaults: Record<string, boolean> = {};
+    CSCA5454_SCHEDULE.forEach(day => {
+      day.tasks?.forEach(task => {
+        if (task.done) defaults[task.id] = true;
+      });
+    });
+    return loadChecked(STORAGE_5454, defaults);
+  });
 
   useEffect(() => { saveChecked(STORAGE_5424, checked5424); }, [checked5424]);
   useEffect(() => { saveChecked(STORAGE_5454, checked5454); }, [checked5454]);

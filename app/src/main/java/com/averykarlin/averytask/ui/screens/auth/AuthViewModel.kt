@@ -53,6 +53,10 @@ class AuthViewModel @Inject constructor(
         }
     }
 
+    fun onSignInError(message: String) {
+        _authState.value = AuthState.Error(message)
+    }
+
     fun onSignOut() {
         syncService.stopRealtimeListeners()
         authManager.signOut()

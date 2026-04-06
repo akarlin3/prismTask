@@ -1,12 +1,18 @@
 package com.averykarlin.averytask.domain.usecase
 
 import com.averykarlin.averytask.data.local.entity.TaskEntity
+import com.averykarlin.averytask.data.preferences.UrgencyWeights
 
 enum class UrgencyLevel { LOW, MEDIUM, HIGH, CRITICAL }
 
 object UrgencyScorer {
 
-    fun calculateScore(task: TaskEntity, subtaskCount: Int = 0, subtaskCompleted: Int = 0): Float {
+    fun calculateScore(
+        task: TaskEntity,
+        subtaskCount: Int = 0,
+        subtaskCompleted: Int = 0,
+        weights: UrgencyWeights = UrgencyWeights()
+    ): Float {
         val now = System.currentTimeMillis()
 
         // 1. Due date proximity (weight 0.40)
@@ -53,7 +59,7 @@ object UrgencyScorer {
             else -> 0.0f
         }
 
-        return (dueDateScore * 0.40f + priorityScore * 0.30f + ageScore * 0.15f + subtaskScore * 0.15f)
+        return (dueDateScore * weights.dueDate + priorityScore * weights.priority + ageScore * weights.age + subtaskScore * weights.subtasks)
             .coerceIn(0f, 1f)
     }
 

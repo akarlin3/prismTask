@@ -14,6 +14,7 @@ class BootReceiver : BroadcastReceiver() {
     @dagger.hilt.InstallIn(SingletonComponent::class)
     interface BootEntryPoint {
         fun reminderScheduler(): ReminderScheduler
+        fun medicationReminderScheduler(): MedicationReminderScheduler
     }
 
     override fun onReceive(context: Context, intent: Intent) {
@@ -23,11 +24,11 @@ class BootReceiver : BroadcastReceiver() {
             context.applicationContext,
             BootEntryPoint::class.java
         )
-        val scheduler = entryPoint.reminderScheduler()
 
         @Suppress("GlobalCoroutineUsage")
         GlobalScope.launch {
-            scheduler.rescheduleAllReminders()
+            entryPoint.reminderScheduler().rescheduleAllReminders()
+            entryPoint.medicationReminderScheduler().rescheduleAll()
         }
     }
 }

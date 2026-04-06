@@ -3,13 +3,15 @@ package com.averykarlin.averytask.data.repository
 import com.averykarlin.averytask.data.local.dao.ProjectDao
 import com.averykarlin.averytask.data.local.dao.ProjectWithCount
 import com.averykarlin.averytask.data.local.entity.ProjectEntity
+import com.averykarlin.averytask.data.remote.SyncTracker
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class ProjectRepository @Inject constructor(
-    private val projectDao: ProjectDao
+    private val projectDao: ProjectDao,
+    private val syncTracker: SyncTracker
 ) {
     fun getAllProjects(): Flow<List<ProjectEntity>> = projectDao.getAllProjects()
 
@@ -29,14 +31,18 @@ class ProjectRepository @Inject constructor(
             createdAt = now,
             updatedAt = now
         )
-        return projectDao.insert(project)
+        val id = projectDao.insert(project)
+        syncTracker.trackCreate(id, "project")
+        return id
     }
 
     suspend fun updateProject(project: ProjectEntity) {
         projectDao.update(project.copy(updatedAt = System.currentTimeMillis()))
+        syncTracker.trackUpdate(project.id, "project")
     }
 
     suspend fun deleteProject(project: ProjectEntity) {
+        syncTracker.trackDelete(project.id, "project")
         projectDao.delete(project)
     }
 }

@@ -1,5 +1,7 @@
 package com.averykarlin.averytask.ui.screens.projects
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -20,11 +22,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.UploadFile
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -32,18 +37,24 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SmallFloatingActionButton
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -63,10 +74,69 @@ fun ProjectListScreen(
     navController: NavController,
     viewModel: ProjectListViewModel = hiltViewModel()
 ) {
+    val context = LocalContext.current
     val projects by viewModel.projects.collectAsStateWithLifecycle()
     var projectToDelete by remember { mutableStateOf<ProjectWithCount?>(null) }
+    var showPasteDialog by remember { mutableStateOf(false) }
+    var pasteContent by remember { mutableStateOf("") }
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    val filePicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        uri?.let { viewModel.importFromFile(context, it) }
+    }
+
+    LaunchedEffect(Unit) {
+        viewModel.snackbarHostState.currentSnackbarData?.dismiss()
+    }
+
+    if (showPasteDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                showPasteDialog = false
+                pasteContent = ""
+            },
+            title = { Text("Paste To-Do List") },
+            text = {
+                OutlinedTextField(
+                    value = pasteContent,
+                    onValueChange = { pasteContent = it },
+                    placeholder = { Text("Paste JSX / markdown list here...") },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(200.dp),
+                    textStyle = MaterialTheme.typography.bodySmall,
+                    maxLines = 50
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        if (pasteContent.isNotBlank()) {
+                            viewModel.importFromText(pasteContent)
+                        }
+                        showPasteDialog = false
+                        pasteContent = ""
+                    },
+                    enabled = pasteContent.isNotBlank()
+                ) {
+                    Text("Import")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showPasteDialog = false
+                    pasteContent = ""
+                }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(viewModel.snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text("Projects", fontWeight = FontWeight.Bold) },
@@ -81,15 +151,32 @@ fun ProjectListScreen(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = { navController.navigate(AveryTaskRoute.AddEditProject.createRoute()) },
-                containerColor = MaterialTheme.colorScheme.primary
+            Column(
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Icon(
-                    Icons.Default.Add,
-                    contentDescription = "Add Project",
-                    tint = MaterialTheme.colorScheme.onPrimary
-                )
+                SmallFloatingActionButton(
+                    onClick = { showPasteDialog = true },
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer
+                ) {
+                    Icon(Icons.Default.ContentPaste, contentDescription = "Paste To-Do List", modifier = Modifier.size(20.dp))
+                }
+                SmallFloatingActionButton(
+                    onClick = { filePicker.launch(arrayOf("*/*")) },
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer
+                ) {
+                    Icon(Icons.Default.UploadFile, contentDescription = "Import File", modifier = Modifier.size(20.dp))
+                }
+                FloatingActionButton(
+                    onClick = { navController.navigate(AveryTaskRoute.AddEditProject.createRoute()) },
+                    containerColor = MaterialTheme.colorScheme.primary
+                ) {
+                    Icon(
+                        Icons.Default.Add,
+                        contentDescription = "Add Project",
+                        tint = MaterialTheme.colorScheme.onPrimary
+                    )
+                }
             }
         }
     ) { padding ->
@@ -129,10 +216,40 @@ fun ProjectListScreen(
     }
 
     projectToDelete?.let { project ->
+        var deleteTasksToo by remember { mutableStateOf(false) }
         AlertDialog(
             onDismissRequest = { projectToDelete = null },
             title = { Text("Delete Project") },
-            text = { Text("Delete \"${project.name}\"? Tasks in this project will be kept but unassigned.") },
+            text = {
+                Column {
+                    Text("Delete \"${project.name}\"?")
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { deleteTasksToo = !deleteTasksToo }
+                    ) {
+                        Checkbox(
+                            checked = deleteTasksToo,
+                            onCheckedChange = { deleteTasksToo = it }
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "Also delete all ${project.taskCount} task${if (project.taskCount != 1) "s" else ""}",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                    if (!deleteTasksToo) {
+                        Text(
+                            text = "Tasks will be kept but unassigned.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(start = 48.dp)
+                        )
+                    }
+                }
+            },
             confirmButton = {
                 TextButton(onClick = {
                     viewModel.onDeleteProject(
@@ -143,7 +260,8 @@ fun ProjectListScreen(
                             icon = project.icon,
                             createdAt = project.createdAt,
                             updatedAt = project.updatedAt
-                        )
+                        ),
+                        deleteTasks = deleteTasksToo
                     )
                     projectToDelete = null
                 }) {
