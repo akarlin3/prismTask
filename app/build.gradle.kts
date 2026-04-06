@@ -41,7 +41,7 @@ android {
             isDebuggable = true
         }
         release {
-            signingConfig = signingConfigs.findByName("release")
+            signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
             buildConfigField("String", "API_BASE_URL", "\"https://averytask-api.up.railway.app\"")
             isMinifyEnabled = true
             isShrinkResources = true
