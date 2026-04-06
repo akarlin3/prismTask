@@ -50,7 +50,10 @@ class SelfCareRepository @Inject constructor(
         selfCareDao.getStepsForRoutine(routineType)
 
     suspend fun ensureDefaultStepsSeeded() {
-        if (selfCareDao.getStepCount() > 0) return
+        if (selfCareDao.getStepCount() > 0) {
+            ensureHouseworkStepsSeeded()
+            return
+        }
         val morningEntities = SelfCareRoutines.morningSteps.mapIndexed { i, step ->
             SelfCareStepEntity(
                 stepId = step.id,
@@ -75,7 +78,37 @@ class SelfCareRepository @Inject constructor(
                 sortOrder = i
             )
         }
-        selfCareDao.insertSteps(morningEntities + bedtimeEntities)
+        val houseworkEntities = SelfCareRoutines.houseworkSteps.mapIndexed { i, step ->
+            SelfCareStepEntity(
+                stepId = step.id,
+                routineType = "housework",
+                label = step.label,
+                duration = step.duration,
+                tier = step.tier,
+                note = step.note,
+                phase = step.phase,
+                sortOrder = i
+            )
+        }
+        selfCareDao.insertSteps(morningEntities + bedtimeEntities + houseworkEntities)
+    }
+
+    private suspend fun ensureHouseworkStepsSeeded() {
+        val existing = selfCareDao.getStepsForRoutineOnce("housework")
+        if (existing.isNotEmpty()) return
+        val houseworkEntities = SelfCareRoutines.houseworkSteps.mapIndexed { i, step ->
+            SelfCareStepEntity(
+                stepId = step.id,
+                routineType = "housework",
+                label = step.label,
+                duration = step.duration,
+                tier = step.tier,
+                note = step.note,
+                phase = step.phase,
+                sortOrder = i
+            )
+        }
+        selfCareDao.insertSteps(houseworkEntities)
     }
 
     suspend fun addStep(
@@ -147,10 +180,10 @@ class SelfCareRepository @Inject constructor(
         if (routineType == "medication") {
             return if (steps.isEmpty()) emptyList() else listOf("Medications" to steps)
         }
-        val phaseOrder = if (routineType == "morning") {
-            listOf("Skincare", "Hygiene", "Grooming")
-        } else {
-            listOf("Wash", "Skincare", "Hygiene", "Sleep")
+        val phaseOrder = when (routineType) {
+            "morning" -> listOf("Skincare", "Hygiene", "Grooming")
+            "housework" -> listOf("Kitchen", "Living Areas", "Bathroom", "Laundry")
+            else -> listOf("Wash", "Skincare", "Hygiene", "Sleep")
         }
         val grouped = steps.groupBy { it.phase }
         val result = mutableListOf<Pair<String, List<SelfCareStepEntity>>>()
@@ -473,12 +506,14 @@ class SelfCareRepository @Inject constructor(
         getOrCreateHabit("morning")
         getOrCreateHabit("bedtime")
         getOrCreateHabit("medication")
+        getOrCreateHabit("housework")
     }
 
     private suspend fun getOrCreateHabit(routineType: String): HabitEntity {
         val name = when (routineType) {
             "morning" -> MORNING_HABIT_NAME
             "medication" -> MEDICATION_HABIT_NAME
+            "housework" -> HOUSEWORK_HABIT_NAME
             else -> BEDTIME_HABIT_NAME
         }
         val existing = habitDao.getHabitByName(name)
@@ -487,17 +522,24 @@ class SelfCareRepository @Inject constructor(
         val icon = when (routineType) {
             "morning" -> "\u2600\uFE0F"
             "medication" -> "\uD83D\uDC8A"
+            "housework" -> "\uD83C\uDFE0"
             else -> "\uD83C\uDF19"
         }
         val color = when (routineType) {
             "morning" -> "#F59E0B"
             "medication" -> "#EF4444"
+            "housework" -> "#10B981"
             else -> "#8B5CF6"
         }
-        val category = if (routineType == "medication") "Medication" else "Self-Care"
+        val category = when (routineType) {
+            "medication" -> "Medication"
+            "housework" -> "Housework"
+            else -> "Self-Care"
+        }
         val desc = when (routineType) {
             "morning" -> "Complete morning self-care routine"
             "medication" -> "Take all daily medications"
+            "housework" -> "Complete daily housework routine"
             else -> "Complete bedtime self-care routine"
         }
 
@@ -560,6 +602,7 @@ class SelfCareRepository @Inject constructor(
         const val MORNING_HABIT_NAME = "Morning Self-Care"
         const val BEDTIME_HABIT_NAME = "Bedtime Self-Care"
         const val MEDICATION_HABIT_NAME = "Medication"
+        const val HOUSEWORK_HABIT_NAME = "Housework"
         private const val GLOBAL_MED_REMINDER_REQUEST_CODE = 500_000
 
         fun todayMidnight(): Long {

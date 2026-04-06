@@ -71,28 +71,30 @@ object SelfCareRoutines {
     fun getSteps(routineType: String): List<RoutineStep> = when (routineType) {
         "morning" -> morningSteps
         "medication" -> medicationSteps
+        "housework" -> houseworkSteps
         else -> bedtimeSteps
     }
 
     fun getTiers(routineType: String): List<RoutineTier> = when (routineType) {
         "morning" -> morningTiers
         "medication" -> medicationTiers
+        "housework" -> houseworkTiers
         else -> bedtimeTiers
     }
 
     fun getTierOrder(routineType: String): List<String> = when (routineType) {
         "morning" -> morningTierOrder
         "medication" -> medicationTierOrder
+        "housework" -> houseworkTierOrder
         else -> bedtimeTierOrder
     }
 
     fun getPhases(routineType: String): List<RoutinePhase> {
         val steps = getSteps(routineType)
-        val tierOrder = getTierOrder(routineType)
-        val phaseOrder = if (routineType == "morning") {
-            listOf("Skincare", "Hygiene", "Grooming")
-        } else {
-            listOf("Wash", "Skincare", "Hygiene", "Sleep")
+        val phaseOrder = when (routineType) {
+            "morning" -> listOf("Skincare", "Hygiene", "Grooming")
+            "housework" -> listOf("Kitchen", "Living Areas", "Bathroom", "Laundry")
+            else -> listOf("Wash", "Skincare", "Hygiene", "Sleep")
         }
         return phaseOrder.map { phaseName ->
             RoutinePhase(phaseName, steps.filter { it.phase == phaseName })
@@ -114,6 +116,30 @@ object SelfCareRoutines {
     val medicationSteps = emptyList<RoutineStep>()
 
     val medicationTierOrder = listOf("essential", "prescription", "complete")
+
+    // --- Housework ---
+
+    val houseworkTiers = listOf(
+        RoutineTier("quick", "Quick", "~15 min", 0xFFF59E0B),
+        RoutineTier("regular", "Regular", "~30 min", 0xFF3B82F6),
+        RoutineTier("deep", "Deep", "~60+ min", 0xFF8B5CF6),
+    )
+
+    val houseworkSteps = listOf(
+        RoutineStep("dishes", "Dishes", "~10 min", "quick", phase = "Kitchen"),
+        RoutineStep("wipe_counters", "Wipe counters", "~3 min", "quick", phase = "Kitchen"),
+        RoutineStep("tidy_up", "Tidy up", "~5 min", "quick", phase = "Living Areas"),
+        RoutineStep("vacuum_sweep", "Vacuum / sweep", "~10 min", "regular", phase = "Living Areas"),
+        RoutineStep("trash", "Take out trash", "~3 min", "regular", phase = "Kitchen"),
+        RoutineStep("start_laundry", "Start laundry", "~5 min", "regular", phase = "Laundry"),
+        RoutineStep("clean_sink", "Clean bathroom sink", "~5 min", "deep", phase = "Bathroom"),
+        RoutineStep("clean_toilet", "Clean toilet", "~5 min", "deep", phase = "Bathroom"),
+        RoutineStep("dust", "Dust surfaces", "~10 min", "deep", phase = "Living Areas"),
+        RoutineStep("mop", "Mop floors", "~10 min", "deep", phase = "Living Areas"),
+        RoutineStep("fold_laundry", "Fold laundry", "~10 min", "deep", phase = "Laundry"),
+    )
+
+    val houseworkTierOrder = listOf("quick", "regular", "deep")
 
     val isMedicationType: (String) -> Boolean = { it == "medication" }
 

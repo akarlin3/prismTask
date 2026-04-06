@@ -226,10 +226,9 @@ fun HabitListScreen(
                                     routineType = listItem.routineType,
                                     cardData = listItem.cardData,
                                     onClick = {
-                                        if (listItem.routineType == "medication") {
-                                            navController.navigate(AveryTaskRoute.Medication.route)
-                                        } else {
-                                            navController.navigate(
+                                        when (listItem.routineType) {
+                                            "medication" -> navController.navigate(AveryTaskRoute.Medication.route)
+                                            else -> navController.navigate(
                                                 AveryTaskRoute.SelfCare.createRoute(listItem.routineType)
                                             )
                                         }
@@ -625,16 +624,19 @@ private fun SelfCareRoutineCard(
     val title = when (routineType) {
         "morning" -> "Morning Routine"
         "medication" -> "Medication"
+        "housework" -> "Housework"
         else -> "Bedtime Routine"
     }
     val icon = when (routineType) {
         "morning" -> "\u2600\uFE0F"
         "medication" -> "\uD83D\uDC8A"
+        "housework" -> "\uD83C\uDFE0"
         else -> "\uD83C\uDF19"
     }
     val color = when (routineType) {
         "morning" -> Color(0xFFF59E0B)
         "medication" -> Color(0xFFEF4444)
+        "housework" -> Color(0xFF10B981)
         else -> Color(0xFF8B5CF6)
     }
 
