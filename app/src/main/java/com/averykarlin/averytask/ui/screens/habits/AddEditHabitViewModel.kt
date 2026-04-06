@@ -111,6 +111,7 @@ class AddEditHabitViewModel @Inject constructor(
             "weekly" -> 7
             "fortnightly" -> 14
             "monthly" -> 30
+            "bimonthly" -> 60
             else -> 10
         }
         targetFrequency = value.coerceIn(1, max)
@@ -121,6 +122,7 @@ class AddEditHabitViewModel @Inject constructor(
             "weekly" -> 7
             "fortnightly" -> 14
             "monthly" -> 30
+            "bimonthly" -> 60
             else -> 10
         }
         targetFrequency = targetFrequency.coerceIn(1, max)

@@ -94,7 +94,7 @@ fun HabitListScreen(
     var selectedTab by remember { mutableIntStateOf(0) }
     val tabTitles = listOf("Daily", "Recurring")
 
-    val recurringPeriods = setOf("weekly", "fortnightly", "monthly")
+    val recurringPeriods = setOf("weekly", "fortnightly", "monthly", "bimonthly")
     val filteredItems = remember(items, selectedTab) {
         if (selectedTab == 0) {
             items.filter { item ->
@@ -163,7 +163,7 @@ fun HabitListScreen(
                 EmptyState(
                     icon = Icons.Default.FitnessCenter,
                     title = if (selectedTab == 0) "Build better habits!" else "No recurring habits yet",
-                    subtitle = if (selectedTab == 0) "Tap + to start tracking." else "Tap + to add a weekly, fortnightly, or monthly habit.",
+                    subtitle = if (selectedTab == 0) "Tap + to start tracking." else "Tap + to add a weekly, fortnightly, monthly, or bimonthly habit.",
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 32.dp)
@@ -370,12 +370,14 @@ private fun HabitItem(
                         "weekly" -> "this week"
                         "fortnightly" -> "this fortnight"
                         "monthly" -> "this month"
+                        "bimonthly" -> "this period"
                         else -> "this week"
                     }
                     val streakUnit = when (habit.frequencyPeriod) {
                         "weekly" -> "week streak"
                         "fortnightly" -> "fortnight streak"
                         "monthly" -> "month streak"
+                        "bimonthly" -> "bimonth streak"
                         else -> "day streak"
                     }
                     if (habit.frequencyPeriod == "daily" && habitWithStatus.dailyTarget > 1) {
