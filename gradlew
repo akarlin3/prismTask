@@ -199,6 +199,15 @@ if "$cygwin" || "$msys" ; then
 fi
 
 
+# Ensure custom java.io.tmpdir from gradle.properties exists before daemon starts
+if [ -f "$APP_HOME/gradle.properties" ]; then
+    _tmpdir=$( sed -n 's/.*-Djava.io.tmpdir=\([^ "]*\).*/\1/p' "$APP_HOME/gradle.properties" )
+    if [ -n "$_tmpdir" ] && [ ! -d "$_tmpdir" ]; then
+        mkdir -p "$_tmpdir"
+    fi
+    unset _tmpdir
+fi
+
 # Add default JVM options here. You can also use JAVA_OPTS and GRADLE_OPTS to pass JVM options to this script.
 DEFAULT_JVM_OPTS='"-Xmx64m" "-Xms64m"'
 
