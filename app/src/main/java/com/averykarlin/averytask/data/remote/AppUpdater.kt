@@ -17,6 +17,7 @@ import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import java.net.HttpURLConnection
 import java.net.URL
+import java.time.Instant
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -42,8 +43,6 @@ class AppUpdater @Inject constructor(
             "https://api.github.com/repos/$REPO/commits?path=$APK_PATH&sha=main&per_page=1"
         private const val RAW_DOWNLOAD_URL =
             "https://github.com/$REPO/raw/main/$APK_PATH"
-        private const val PREFS_NAME = "app_updater"
-        private const val KEY_LAST_COMMIT_SHA = "last_commit_sha"
     }
 
     private val _status = MutableStateFlow(UpdateStatus.IDLE)
@@ -58,16 +57,6 @@ class AppUpdater @Inject constructor(
     private var downloadId: Long = -1
     private var latestSha: String? = null
 
-    private fun getSavedCommitSha(): String? {
-        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        return prefs.getString(KEY_LAST_COMMIT_SHA, null)
-    }
-
-    private fun saveCommitSha(sha: String) {
-        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            .edit().putString(KEY_LAST_COMMIT_SHA, sha).apply()
-    }
-
     suspend fun checkForUpdate() {
         _status.value = UpdateStatus.CHECKING
         _errorMessage.value = null
@@ -77,6 +66,8 @@ class AppUpdater @Inject constructor(
                 val conn = url.openConnection() as HttpURLConnection
                 conn.requestMethod = "GET"
                 conn.setRequestProperty("Accept", "application/vnd.github.v3+json")
+                conn.setRequestProperty("Cache-Control", "no-cache")
+                conn.useCaches = false
                 conn.connectTimeout = 10_000
                 conn.readTimeout = 10_000
 
@@ -94,13 +85,18 @@ class AppUpdater @Inject constructor(
 
                 val latestCommit = commits.getJSONObject(0)
                 latestSha = latestCommit.getString("sha")
-                val commitDate = latestCommit.getJSONObject("commit")
+                val commitDateStr = latestCommit.getJSONObject("commit")
                     .getJSONObject("committer")
                     .getString("date")
-                _latestCommitDate.value = commitDate
+                _latestCommitDate.value = commitDateStr
 
-                val savedSha = getSavedCommitSha()
-                if (savedSha == null || savedSha != latestSha) {
+                // Compare repo APK commit time against app install/update time
+                val commitTime = Instant.parse(commitDateStr)
+                val packageInfo = context.packageManager
+                    .getPackageInfo(context.packageName, 0)
+                val appUpdateTime = Instant.ofEpochMilli(packageInfo.lastUpdateTime)
+
+                if (commitTime.isAfter(appUpdateTime)) {
                     _status.value = UpdateStatus.UPDATE_AVAILABLE
                 } else {
                     _status.value = UpdateStatus.NO_UPDATE
@@ -155,8 +151,6 @@ class AppUpdater @Inject constructor(
                     val uri = dm.getUriForDownloadedFile(downloadId)
                     if (uri != null) {
                         _status.value = UpdateStatus.READY_TO_INSTALL
-                        // Save the sha so we don't prompt again for this version
-                        latestSha?.let { saveCommitSha(it) }
                         installApk(uri)
                     } else {
                         _errorMessage.value = "Download failed"

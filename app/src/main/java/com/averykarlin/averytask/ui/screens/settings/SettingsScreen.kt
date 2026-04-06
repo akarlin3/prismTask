@@ -1056,17 +1056,25 @@ fun SettingsScreen(
                     }
                 }
                 UpdateStatus.DOWNLOADING -> {
-                    OutlinedButton(
-                        onClick = {},
-                        enabled = false,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(16.dp),
-                            strokeWidth = 2.dp
+                    Column {
+                        OutlinedButton(
+                            onClick = {},
+                            enabled = false,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                strokeWidth = 2.dp
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Downloading...")
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        LinearProgressIndicator(
+                            modifier = Modifier.fillMaxWidth(),
+                            color = Color(0xFF4CAF50),
+                            trackColor = Color(0xFF4CAF50).copy(alpha = 0.2f)
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Downloading...")
                     }
                 }
                 UpdateStatus.READY_TO_INSTALL -> {
