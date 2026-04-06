@@ -188,6 +188,8 @@ app/src/main/java/com/averykarlin/averytask/
 
 ## Build Commands
 
+**Note:** The Android SDK is not available in the Claude Code environment. Do not attempt local builds or tests. Instead, push your changes and wait for GitHub CI to build and report results.
+
 ```bash
 # Debug build
 ./gradlew assembleDebug
