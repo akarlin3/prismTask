@@ -66,12 +66,19 @@ jobs:
 
       - name: Upload APK to backend
         run: |
+          APK_PATH=$(find app/build/outputs/apk/release -name '*.apk' | head -1)
+          if [ -z "$APK_PATH" ]; then
+            echo "ERROR: No APK found in app/build/outputs/apk/release/"
+            ls -la app/build/outputs/apk/release/ || true
+            exit 1
+          fi
+          echo "Uploading APK: $APK_PATH"
           curl -f -X POST "${{ secrets.API_BASE_URL }}/api/v1/app/releases" \
             -H "Authorization: Bearer ${{ secrets.DEPLOY_API_KEY }}" \
             -F "version_code=${{ steps.version.outputs.version_code }}" \
             -F "version_name=${{ steps.version.outputs.version_name }}" \
             -F "release_notes=${{ steps.notes.outputs.release_notes }}" \
-            -F "apk=@app/build/outputs/apk/release/app-release.apk"
+            -F "apk=@${APK_PATH}"
 
       - name: Upload APK as artifact
         uses: actions/upload-artifact@v4
