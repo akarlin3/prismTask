@@ -28,6 +28,7 @@ import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -68,7 +69,7 @@ import com.averykarlin.averytask.ui.components.EmptyState
 import com.averykarlin.averytask.ui.components.QuickAddBar
 import com.averykarlin.averytask.ui.components.StreakBadge
 import com.averykarlin.averytask.ui.navigation.AveryTaskRoute
-import com.averykarlin.averytask.ui.theme.PriorityColors
+import com.averykarlin.averytask.ui.theme.LocalPriorityColors
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -93,6 +94,9 @@ fun TodayScreen(
     val combinedTotal by viewModel.combinedTotal.collectAsStateWithLifecycle()
     val combinedCompleted by viewModel.combinedCompleted.collectAsStateWithLifecycle()
     val combinedProgress by viewModel.combinedProgress.collectAsStateWithLifecycle()
+    val sectionOrder by viewModel.sectionOrder.collectAsStateWithLifecycle()
+    val hiddenSections by viewModel.hiddenSections.collectAsStateWithLifecycle()
+    val progressStyle by viewModel.progressStyle.collectAsStateWithLifecycle()
 
     var overdueExpanded by remember { mutableStateOf(true) }
     var habitsExpanded by remember { mutableStateOf(true) }
@@ -133,137 +137,149 @@ fun TodayScreen(
                         .padding(horizontal = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    // Progress card (combined tasks + habits)
-                    item(key = "progress") {
-                        val taskRemaining = overdueTasks.size + todayTasks.size + plannedTasks.size
-                        val habitRemaining = todayHabits.count { !it.isCompletedToday }
-                        ProgressCard(
-                            completed = combinedCompleted,
-                            total = combinedTotal + combinedCompleted,
-                            progress = combinedProgress,
-                            subtitle = "${taskRemaining} task${if (taskRemaining != 1) "s" else ""} \u00B7 ${habitRemaining} habit${if (habitRemaining != 1) "s" else ""} remaining"
-                        )
-                    }
+                    sectionOrder.forEach { sectionKey ->
+                        if (sectionKey in hiddenSections) return@forEach
 
-                    // Habits section
-                    if (todayHabits.isNotEmpty()) {
-                        val habitsDoneCount = todayHabits.count { it.isCompletedToday }
-                        item(key = "header_habits") {
-                            SectionHeader(
-                                title = "Habits",
-                                count = todayHabits.size,
-                                color = MaterialTheme.colorScheme.tertiary,
-                                expanded = habitsExpanded,
-                                onToggle = { habitsExpanded = !habitsExpanded }
-                            )
-                        }
-                        if (habitsExpanded) {
-                            items(todayHabits, key = { "habit_${it.habit.id}" }) { hws ->
-                                CompactHabitItem(
-                                    habitWithStatus = hws,
-                                    onToggle = {
-                                        viewModel.onToggleHabitCompletion(hws.habit.id, hws.isCompletedToday)
-                                    },
-                                    onClick = {
-                                        navController.navigate(
-                                            AveryTaskRoute.HabitAnalytics.createRoute(hws.habit.id)
+                        when (sectionKey) {
+                            "progress" -> {
+                                item(key = "progress") {
+                                    val taskRemaining = todayTasks.size + plannedTasks.size
+                                    val habitRemaining = todayHabits.count { !it.isCompletedToday }
+                                    ProgressCard(
+                                        completed = combinedCompleted,
+                                        total = combinedTotal + combinedCompleted,
+                                        progress = combinedProgress,
+                                        style = progressStyle,
+                                        subtitle = "${taskRemaining} task${if (taskRemaining != 1) "s" else ""} \u00B7 ${habitRemaining} habit${if (habitRemaining != 1) "s" else ""} remaining"
+                                    )
+                                }
+                            }
+
+                            "habits" -> {
+                                if (todayHabits.isNotEmpty()) {
+                                    item(key = "header_habits") {
+                                        SectionHeader(
+                                            title = "Habits",
+                                            count = todayHabits.size,
+                                            color = MaterialTheme.colorScheme.tertiary,
+                                            expanded = habitsExpanded,
+                                            onToggle = { habitsExpanded = !habitsExpanded }
                                         )
                                     }
-                                )
+                                    if (habitsExpanded) {
+                                        items(todayHabits, key = { "habit_${it.habit.id}" }) { hws ->
+                                            CompactHabitItem(
+                                                habitWithStatus = hws,
+                                                onToggle = {
+                                                    viewModel.onToggleHabitCompletion(hws.habit.id, hws.isCompletedToday)
+                                                },
+                                                onClick = {
+                                                    navController.navigate(
+                                                        AveryTaskRoute.HabitAnalytics.createRoute(hws.habit.id)
+                                                    )
+                                                }
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
+                            "overdue" -> {
+                                if (overdueTasks.isNotEmpty()) {
+                                    item(key = "header_overdue") {
+                                        SectionHeader(
+                                            title = "Overdue",
+                                            count = overdueTasks.size,
+                                            color = OverdueRed,
+                                            expanded = overdueExpanded,
+                                            onToggle = { overdueExpanded = !overdueExpanded }
+                                        )
+                                    }
+                                    if (overdueExpanded) {
+                                        items(overdueTasks, key = { it.id }) { task ->
+                                            SwipeableTaskItem(
+                                                task = task,
+                                                tags = taskTagsMap[task.id].orEmpty(),
+                                                isOverdue = true,
+                                                onComplete = { viewModel.onCompleteWithUndo(task.id) },
+                                                onClick = { navController.navigate(AveryTaskRoute.AddEditTask.createRoute(task.id)) }
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
+                            "today_tasks" -> {
+                                val todayAndPlanned = todayTasks + plannedTasks
+                                if (todayAndPlanned.isNotEmpty()) {
+                                    item(key = "header_today") {
+                                        SectionHeader(
+                                            title = "Today",
+                                            count = todayAndPlanned.size,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
+                                    items(todayAndPlanned, key = { it.id }) { task ->
+                                        val isPlanned = task.plannedDate != null && task.dueDate?.let {
+                                            val cal = java.util.Calendar.getInstance()
+                                            cal.set(java.util.Calendar.HOUR_OF_DAY, 0)
+                                            cal.set(java.util.Calendar.MINUTE, 0)
+                                            cal.set(java.util.Calendar.SECOND, 0)
+                                            cal.set(java.util.Calendar.MILLISECOND, 0)
+                                            val start = cal.timeInMillis
+                                            val end = start + 24 * 60 * 60 * 1000
+                                            it < start || it >= end
+                                        } ?: (task.plannedDate != null)
+
+                                        SwipeableTaskItem(
+                                            task = task,
+                                            tags = taskTagsMap[task.id].orEmpty(),
+                                            isPlanned = isPlanned,
+                                            onComplete = { viewModel.onCompleteWithUndo(task.id) },
+                                            onClick = { navController.navigate(AveryTaskRoute.AddEditTask.createRoute(task.id)) }
+                                        )
+                                    }
+                                }
+                            }
+
+                            "plan_more" -> {
+                                item(key = "plan_more") {
+                                    TextButton(
+                                        onClick = { viewModel.onShowPlanSheet() },
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text("Plan more")
+                                    }
+                                }
+                            }
+
+                            "completed" -> {
+                                if (completedToday.isNotEmpty()) {
+                                    item(key = "header_completed") {
+                                        SectionHeader(
+                                            title = "Completed",
+                                            count = completedToday.size,
+                                            color = CompletedGreen,
+                                            expanded = completedExpanded,
+                                            onToggle = { completedExpanded = !completedExpanded }
+                                        )
+                                    }
+                                    if (completedExpanded) {
+                                        items(completedToday, key = { "done_${it.id}" }) { task ->
+                                            CompletedTaskItem(
+                                                task = task,
+                                                onUncomplete = { viewModel.onToggleComplete(task.id, true) }
+                                            )
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
 
-                    // Overdue section
-                    if (overdueTasks.isNotEmpty()) {
-                        item(key = "header_overdue") {
-                            SectionHeader(
-                                title = "Overdue",
-                                count = overdueTasks.size,
-                                color = OverdueRed,
-                                expanded = overdueExpanded,
-                                onToggle = { overdueExpanded = !overdueExpanded }
-                            )
-                        }
-                        if (overdueExpanded) {
-                            items(overdueTasks, key = { it.id }) { task ->
-                                SwipeableTaskItem(
-                                    task = task,
-                                    tags = taskTagsMap[task.id].orEmpty(),
-                                    isOverdue = true,
-                                    onComplete = { viewModel.onCompleteWithUndo(task.id) },
-                                    onClick = { navController.navigate(AveryTaskRoute.AddEditTask.createRoute(task.id)) }
-                                )
-                            }
-                        }
-                    }
-
-                    // Today + Planned section
-                    val todayAndPlanned = todayTasks + plannedTasks
-                    if (todayAndPlanned.isNotEmpty()) {
-                        item(key = "header_today") {
-                            SectionHeader(
-                                title = "Today",
-                                count = todayAndPlanned.size,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                        items(todayAndPlanned, key = { it.id }) { task ->
-                            val isPlanned = task.plannedDate != null && task.dueDate?.let {
-                                val cal = java.util.Calendar.getInstance()
-                                cal.set(java.util.Calendar.HOUR_OF_DAY, 0)
-                                cal.set(java.util.Calendar.MINUTE, 0)
-                                cal.set(java.util.Calendar.SECOND, 0)
-                                cal.set(java.util.Calendar.MILLISECOND, 0)
-                                val start = cal.timeInMillis
-                                val end = start + 24 * 60 * 60 * 1000
-                                it < start || it >= end
-                            } ?: (task.plannedDate != null)
-
-                            SwipeableTaskItem(
-                                task = task,
-                                tags = taskTagsMap[task.id].orEmpty(),
-                                isPlanned = isPlanned,
-                                onComplete = { viewModel.onCompleteWithUndo(task.id) },
-                                onClick = { navController.navigate(AveryTaskRoute.AddEditTask.createRoute(task.id)) }
-                            )
-                        }
-                    }
-
-                    // Plan more button
-                    item(key = "plan_more") {
-                        TextButton(
-                            onClick = { viewModel.onShowPlanSheet() },
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("Plan more")
-                        }
-                    }
-
-                    // Completed section
-                    if (completedToday.isNotEmpty()) {
-                        item(key = "header_completed") {
-                            SectionHeader(
-                                title = "Completed",
-                                count = completedToday.size,
-                                color = CompletedGreen,
-                                expanded = completedExpanded,
-                                onToggle = { completedExpanded = !completedExpanded }
-                            )
-                        }
-                        if (completedExpanded) {
-                            items(completedToday, key = { "done_${it.id}" }) { task ->
-                                CompletedTaskItem(
-                                    task = task,
-                                    onUncomplete = { viewModel.onToggleComplete(task.id, true) }
-                                )
-                            }
-                        }
-                    }
-
-                    // Summary
+                    // Summary (always last)
                     item(key = "summary") {
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
@@ -291,7 +307,7 @@ fun TodayScreen(
 }
 
 @Composable
-private fun ProgressCard(completed: Int, total: Int, progress: Float, subtitle: String? = null) {
+private fun ProgressCard(completed: Int, total: Int, progress: Float, style: String = "ring", subtitle: String? = null) {
     val animatedProgress by animateFloatAsState(
         targetValue = progress,
         animationSpec = tween(600),
@@ -316,30 +332,60 @@ private fun ProgressCard(completed: Int, total: Int, progress: Float, subtitle: 
                 .padding(20.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Box(contentAlignment = Alignment.Center, modifier = Modifier.size(100.dp)) {
-                val trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
-                androidx.compose.foundation.Canvas(modifier = Modifier.size(100.dp)) {
-                    drawArc(
-                        color = trackColor,
-                        startAngle = -90f,
-                        sweepAngle = 360f,
-                        useCenter = false,
-                        style = Stroke(width = 10.dp.toPx(), cap = StrokeCap.Round)
+            when (style) {
+                "bar" -> {
+                    Text(
+                        text = if (progress >= 1f) "Done!" else "$completed/$total",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = ringColor
                     )
-                    drawArc(
+                    Spacer(modifier = Modifier.height(8.dp))
+                    LinearProgressIndicator(
+                        progress = { animatedProgress },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(10.dp)
+                            .clip(RoundedCornerShape(5.dp)),
                         color = ringColor,
-                        startAngle = -90f,
-                        sweepAngle = animatedProgress * 360f,
-                        useCenter = false,
-                        style = Stroke(width = 10.dp.toPx(), cap = StrokeCap.Round)
+                        trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
                     )
                 }
-                Text(
-                    text = if (progress >= 1f) "Done!" else "$completed/$total",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = ringColor
-                )
+                "percentage" -> {
+                    Text(
+                        text = if (progress >= 1f) "Done!" else "${(progress * 100).toInt()}%",
+                        style = MaterialTheme.typography.displaySmall,
+                        fontWeight = FontWeight.Bold,
+                        color = ringColor
+                    )
+                }
+                else -> {
+                    Box(contentAlignment = Alignment.Center, modifier = Modifier.size(100.dp)) {
+                        val trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
+                        androidx.compose.foundation.Canvas(modifier = Modifier.size(100.dp)) {
+                            drawArc(
+                                color = trackColor,
+                                startAngle = -90f,
+                                sweepAngle = 360f,
+                                useCenter = false,
+                                style = Stroke(width = 10.dp.toPx(), cap = StrokeCap.Round)
+                            )
+                            drawArc(
+                                color = ringColor,
+                                startAngle = -90f,
+                                sweepAngle = animatedProgress * 360f,
+                                useCenter = false,
+                                style = Stroke(width = 10.dp.toPx(), cap = StrokeCap.Round)
+                            )
+                        }
+                        Text(
+                            text = if (progress >= 1f) "Done!" else "$completed/$total",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = ringColor
+                        )
+                    }
+                }
             }
             Spacer(modifier = Modifier.height(8.dp))
             Text(
@@ -393,6 +439,14 @@ private fun CompactHabitItem(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
+            if (habitWithStatus.dailyTarget > 1 && !habitWithStatus.isCompletedToday) {
+                Text(
+                    text = "${habitWithStatus.completionsToday}/${habitWithStatus.dailyTarget}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+            }
             if (habitWithStatus.currentStreak > 0) {
                 StreakBadge(streak = habitWithStatus.currentStreak)
                 Spacer(modifier = Modifier.width(8.dp))
@@ -517,7 +571,7 @@ private fun SwipeableTaskItem(
                                 modifier = Modifier
                                     .size(8.dp)
                                     .clip(CircleShape)
-                                    .background(PriorityColors.forLevel(task.priority))
+                                    .background(LocalPriorityColors.current.forLevel(task.priority))
                             )
                         }
                         if (isOverdue && task.dueDate != null) {
@@ -679,7 +733,7 @@ private fun PlanForTodaySheet(
                                             modifier = Modifier
                                                 .size(8.dp)
                                                 .clip(CircleShape)
-                                                .background(PriorityColors.forLevel(task.priority))
+                                                .background(LocalPriorityColors.current.forLevel(task.priority))
                                         )
                                         Spacer(modifier = Modifier.width(8.dp))
                                     }

@@ -1,6 +1,8 @@
 package com.averykarlin.averytask.ui.screens.tasklist
 
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -27,6 +29,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AddTask
+import androidx.compose.material.icons.filled.ContentPaste
+import androidx.compose.material.icons.filled.UploadFile
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckBoxOutlineBlank
 import androidx.compose.material.icons.filled.Close
@@ -61,6 +65,8 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -82,6 +88,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
@@ -104,7 +111,7 @@ import com.averykarlin.averytask.ui.components.FilterPanel
 import com.averykarlin.averytask.ui.components.QuickAddBar
 import com.averykarlin.averytask.ui.components.SubtaskSection
 import com.averykarlin.averytask.ui.navigation.AveryTaskRoute
-import com.averykarlin.averytask.ui.theme.PriorityColors
+import com.averykarlin.averytask.ui.theme.LocalPriorityColors
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -134,16 +141,69 @@ fun TaskListScreen(
     val allTags by viewModel.allTags.collectAsStateWithLifecycle()
     val isMultiSelectMode by viewModel.isMultiSelectMode.collectAsStateWithLifecycle()
     val selectedTaskIds by viewModel.selectedTaskIds.collectAsStateWithLifecycle()
+    val context = LocalContext.current
     var expandedTaskIds by remember { mutableStateOf(setOf<Long>()) }
     var focusSubtaskForId by remember { mutableStateOf<Long?>(null) }
     var showSortMenu by remember { mutableStateOf(false) }
     var showFilterSheet by remember { mutableStateOf(false) }
     var showPriorityDialog by remember { mutableStateOf(false) }
+    var showPasteDialog by remember { mutableStateOf(false) }
+    var pasteContent by remember { mutableStateOf("") }
     val filterSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
 
+    val filePicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        uri?.let { viewModel.importFromFile(context, it) }
+    }
+
     BackHandler(enabled = isMultiSelectMode) {
         viewModel.onExitMultiSelect()
+    }
+
+    if (showPasteDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                showPasteDialog = false
+                pasteContent = ""
+            },
+            title = { Text("Paste To-Do List") },
+            text = {
+                OutlinedTextField(
+                    value = pasteContent,
+                    onValueChange = { pasteContent = it },
+                    placeholder = { Text("Paste JSX / markdown list here...") },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(200.dp),
+                    textStyle = MaterialTheme.typography.bodySmall,
+                    maxLines = 50
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        if (pasteContent.isNotBlank()) {
+                            viewModel.importFromText(pasteContent)
+                        }
+                        showPasteDialog = false
+                        pasteContent = ""
+                    },
+                    enabled = pasteContent.isNotBlank()
+                ) {
+                    Text("Import")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showPasteDialog = false
+                    pasteContent = ""
+                }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 
     if (showFilterSheet) {
@@ -266,7 +326,7 @@ fun TaskListScreen(
                     title = {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
-                                text = "AveryTask",
+                                text = "Tasks",
                                 fontWeight = FontWeight.Bold
                             )
                             if (overdueCount > 0) {
@@ -410,15 +470,32 @@ fun TaskListScreen(
         },
         floatingActionButton = {
             if (!isMultiSelectMode) {
-                FloatingActionButton(
-                    onClick = { navController.navigate(AveryTaskRoute.AddEditTask.createRoute()) },
-                    containerColor = MaterialTheme.colorScheme.primary
+                Column(
+                    horizontalAlignment = Alignment.End,
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = "Add Task",
-                        tint = MaterialTheme.colorScheme.onPrimary
-                    )
+                    SmallFloatingActionButton(
+                        onClick = { showPasteDialog = true },
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer
+                    ) {
+                        Icon(Icons.Default.ContentPaste, contentDescription = "Paste To-Do List", modifier = Modifier.size(20.dp))
+                    }
+                    SmallFloatingActionButton(
+                        onClick = { filePicker.launch(arrayOf("*/*")) },
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer
+                    ) {
+                        Icon(Icons.Default.UploadFile, contentDescription = "Import File", modifier = Modifier.size(20.dp))
+                    }
+                    FloatingActionButton(
+                        onClick = { navController.navigate(AveryTaskRoute.AddEditTask.createRoute()) },
+                        containerColor = MaterialTheme.colorScheme.primary
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = "Add Task",
+                            tint = MaterialTheme.colorScheme.onPrimary
+                        )
+                    }
                 }
             }
         }
@@ -428,13 +505,12 @@ fun TaskListScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            if (projects.isNotEmpty()) {
-                ProjectFilterRow(
-                    projects = projects,
-                    selectedProjectId = selectedProjectId,
-                    onSelectProject = viewModel::onSelectProject
-                )
-            }
+            ProjectFilterRow(
+                projects = projects,
+                selectedProjectId = selectedProjectId,
+                onSelectProject = viewModel::onSelectProject,
+                onManageProjects = { navController.navigate(AveryTaskRoute.ProjectList.route) }
+            )
 
             // Quick add bar
             QuickAddBar()
@@ -697,7 +773,8 @@ private fun GroupHeader(group: String, count: Int) {
 private fun ProjectFilterRow(
     projects: List<ProjectEntity>,
     selectedProjectId: Long?,
-    onSelectProject: (Long?) -> Unit
+    onSelectProject: (Long?) -> Unit,
+    onManageProjects: () -> Unit
 ) {
     LazyRow(
         contentPadding = PaddingValues(horizontal = 16.dp),
@@ -739,6 +816,25 @@ private fun ProjectFilterRow(
                 colors = FilterChipDefaults.filterChipColors(
                     selectedContainerColor = projectColor.copy(alpha = 0.15f),
                     selectedLabelColor = projectColor
+                )
+            )
+        }
+        item {
+            AssistChip(
+                onClick = onManageProjects,
+                label = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Default.FolderCopy,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Manage")
+                    }
+                },
+                colors = AssistChipDefaults.assistChipColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
                 )
             )
         }
@@ -933,7 +1029,7 @@ private fun PriorityDot(priority: Int) {
         modifier = Modifier
             .size(10.dp)
             .clip(CircleShape)
-            .background(PriorityColors.forLevel(priority))
+            .background(LocalPriorityColors.current.forLevel(priority))
     )
 }
 

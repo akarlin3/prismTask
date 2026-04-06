@@ -59,7 +59,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.averykarlin.averytask.data.local.entity.TaskEntity
 import com.averykarlin.averytask.ui.navigation.AveryTaskRoute
-import com.averykarlin.averytask.ui.theme.PriorityColors
+import com.averykarlin.averytask.ui.theme.LocalPriorityColors
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.YearMonth
@@ -260,7 +260,7 @@ private fun DayCell(
                     horizontalArrangement = Arrangement.spacedBy(2.dp),
                     modifier = Modifier.padding(top = 2.dp)
                 ) {
-                    val dotColor = if (info.topPriority > 0) PriorityColors.forLevel(info.topPriority)
+                    val dotColor = if (info.topPriority > 0) LocalPriorityColors.current.forLevel(info.topPriority)
                     else MaterialTheme.colorScheme.primary
                     val dots = when {
                         info.taskCount >= 5 -> 3
@@ -349,7 +349,7 @@ private fun DayDetail(
                                     modifier = Modifier
                                         .size(8.dp)
                                         .clip(CircleShape)
-                                        .background(PriorityColors.forLevel(task.priority))
+                                        .background(LocalPriorityColors.current.forLevel(task.priority))
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                             }

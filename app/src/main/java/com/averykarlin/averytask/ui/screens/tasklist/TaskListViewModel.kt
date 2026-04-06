@@ -1,5 +1,7 @@
 package com.averykarlin.averytask.ui.screens.tasklist
 
+import android.content.Context
+import android.net.Uri
 import android.util.Log
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHostState
@@ -9,12 +11,16 @@ import androidx.lifecycle.viewModelScope
 import com.averykarlin.averytask.data.local.entity.ProjectEntity
 import com.averykarlin.averytask.data.local.entity.TagEntity
 import com.averykarlin.averytask.data.local.entity.TaskEntity
+import com.averykarlin.averytask.data.preferences.TaskBehaviorPreferences
+import com.averykarlin.averytask.data.preferences.UrgencyWeights
 import com.averykarlin.averytask.data.repository.AttachmentRepository
 import com.averykarlin.averytask.data.repository.ProjectRepository
 import com.averykarlin.averytask.data.repository.TagRepository
 import com.averykarlin.averytask.data.repository.TaskRepository
 import com.averykarlin.averytask.domain.model.TagFilterMode
 import com.averykarlin.averytask.domain.model.TaskFilter
+import com.averykarlin.averytask.domain.usecase.ParsedTodoItem
+import com.averykarlin.averytask.domain.usecase.TodoListParser
 import com.averykarlin.averytask.domain.usecase.UrgencyScorer
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -51,10 +57,34 @@ class TaskListViewModel @Inject constructor(
     private val taskRepository: TaskRepository,
     private val projectRepository: ProjectRepository,
     private val tagRepository: TagRepository,
-    private val attachmentRepository: AttachmentRepository
+    private val attachmentRepository: AttachmentRepository,
+    private val todoListParser: TodoListParser,
+    private val taskBehaviorPreferences: TaskBehaviorPreferences
 ) : ViewModel() {
 
     val snackbarHostState = SnackbarHostState()
+
+    private val _urgencyWeights = MutableStateFlow(UrgencyWeights())
+
+    init {
+        viewModelScope.launch {
+            taskBehaviorPreferences.getDefaultSort().collect { sortName ->
+                val sort = SortOption.entries.find { it.name == sortName } ?: SortOption.DUE_DATE
+                if (_currentSort.value == SortOption.DUE_DATE) _currentSort.value = sort
+            }
+        }
+        viewModelScope.launch {
+            taskBehaviorPreferences.getDefaultViewMode().collect { modeName ->
+                val mode = ViewMode.entries.find { it.name == modeName } ?: ViewMode.UPCOMING
+                if (_viewMode.value == ViewMode.UPCOMING) _viewMode.value = mode
+            }
+        }
+        viewModelScope.launch {
+            taskBehaviorPreferences.getUrgencyWeights().collect { weights ->
+                _urgencyWeights.value = weights
+            }
+        }
+    }
 
     private val rootTasks: StateFlow<List<TaskEntity>> = taskRepository.getIncompleteRootTasks()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -427,6 +457,71 @@ class TaskListViewModel @Inject constructor(
         }
     }
 
+    // --- Import from JSX / file ---
+
+    fun importFromFile(context: Context, uri: Uri) {
+        viewModelScope.launch {
+            try {
+                val content = context.contentResolver.openInputStream(uri)
+                    ?.bufferedReader()?.use { it.readText() }
+                    ?: run {
+                        snackbarHostState.showSnackbar("Could not read file")
+                        return@launch
+                    }
+                importContent(content)
+            } catch (e: Exception) {
+                snackbarHostState.showSnackbar("Import failed: ${e.message}")
+            }
+        }
+    }
+
+    fun importFromText(content: String) {
+        viewModelScope.launch {
+            try {
+                importContent(content)
+            } catch (e: Exception) {
+                snackbarHostState.showSnackbar("Import failed: ${e.message}")
+            }
+        }
+    }
+
+    private suspend fun importContent(content: String) {
+        val parsed = todoListParser.parse(content)
+        if (parsed == null) {
+            snackbarHostState.showSnackbar("Could not parse to-do list format")
+            return
+        }
+
+        var count = 0
+        for (item in parsed.items) {
+            val taskId = insertParsedItem(item, parentTaskId = null)
+            if (taskId > 0) count++
+            for (sub in item.subtasks) {
+                insertParsedItem(sub, parentTaskId = taskId)
+            }
+        }
+
+        val label = parsed.name?.let { "$it: " } ?: ""
+        snackbarHostState.showSnackbar("Imported ${label}$count tasks")
+    }
+
+    private suspend fun insertParsedItem(item: ParsedTodoItem, parentTaskId: Long?): Long {
+        val now = System.currentTimeMillis()
+        return taskRepository.insertTask(
+            TaskEntity(
+                title = item.title,
+                description = item.description,
+                dueDate = item.dueDate,
+                priority = item.priority,
+                isCompleted = item.completed,
+                completedAt = if (item.completed) now else null,
+                parentTaskId = parentTaskId,
+                createdAt = now,
+                updatedAt = now
+            )
+        )
+    }
+
     private fun sortTasks(tasks: List<TaskEntity>, sort: SortOption): List<TaskEntity> =
         when (sort) {
             SortOption.DUE_DATE -> tasks.sortedWith(
@@ -440,7 +535,7 @@ class TaskListViewModel @Inject constructor(
                     .thenBy { it.dueDate }
             )
             SortOption.CREATED -> tasks.sortedByDescending { it.createdAt }
-            SortOption.URGENCY -> tasks.sortedByDescending { UrgencyScorer.calculateScore(it) }
+            SortOption.URGENCY -> tasks.sortedByDescending { UrgencyScorer.calculateScore(it, weights = _urgencyWeights.value) }
             SortOption.ALPHABETICAL -> tasks.sortedBy { it.title.lowercase() }
         }
 

@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -39,9 +40,14 @@ import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TimePicker
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -288,9 +294,15 @@ fun AddEditHabitScreen(
             }
 
             if (viewModel.reminderEnabled) {
+                val showTimePicker = remember { mutableStateOf(false) }
+
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable { showTimePicker.value = true }
+                        .padding(vertical = 4.dp)
                 ) {
                     Text(
                         text = "Reminder time:",
@@ -300,30 +312,133 @@ fun AddEditHabitScreen(
                     Text(
                         text = String.format("%02d:%02d", viewModel.reminderHour, viewModel.reminderMinute),
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+
+                if (showTimePicker.value) {
+                    val timePickerState = rememberTimePickerState(
+                        initialHour = viewModel.reminderHour,
+                        initialMinute = viewModel.reminderMinute,
+                        is24Hour = false
+                    )
+                    AlertDialog(
+                        onDismissRequest = { showTimePicker.value = false },
+                        confirmButton = {
+                            TextButton(onClick = {
+                                viewModel.onReminderHourChange(timePickerState.hour)
+                                viewModel.onReminderMinuteChange(timePickerState.minute)
+                                showTimePicker.value = false
+                            }) { Text("OK") }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { showTimePicker.value = false }) { Text("Cancel") }
+                        },
+                        text = { TimePicker(state = timePickerState) }
                     )
                 }
             }
 
-            // Create daily task
+            // Medication reminder interval
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "Create daily task",
+                        text = "Repeat reminder after logging",
                         style = MaterialTheme.typography.bodyMedium
                     )
                     Text(
-                        text = "Auto-creates a task each day for this habit",
+                        text = "Reminds you after a set interval",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
                 Switch(
-                    checked = viewModel.createDailyTask,
-                    onCheckedChange = viewModel::onCreateDailyTaskChange
+                    checked = viewModel.medicationReminderEnabled,
+                    onCheckedChange = viewModel::onMedicationReminderEnabledChange
+                )
+            }
+
+            if (viewModel.medicationReminderEnabled) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = "Interval:",
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.weight(1f)
+                    )
+                    IconButton(
+                        onClick = { viewModel.onMedicationReminderIntervalChange(viewModel.medicationReminderIntervalIndex - 1) },
+                        enabled = viewModel.medicationReminderIntervalIndex > 1
+                    ) {
+                        Icon(Icons.Default.Remove, contentDescription = "Decrease")
+                    }
+                    Text(
+                        text = formatMedInterval(viewModel.medicationReminderIntervalIndex),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    IconButton(
+                        onClick = { viewModel.onMedicationReminderIntervalChange(viewModel.medicationReminderIntervalIndex + 1) },
+                        enabled = viewModel.medicationReminderIntervalIndex < 48
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = "Increase")
+                    }
+                }
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = "Times per day:",
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.weight(1f)
+                    )
+                    IconButton(
+                        onClick = { viewModel.onMedicationTimesPerDayChange(viewModel.medicationTimesPerDay - 1) },
+                        enabled = viewModel.medicationTimesPerDay > 1
+                    ) {
+                        Icon(Icons.Default.Remove, contentDescription = "Decrease")
+                    }
+                    Text(
+                        text = "${viewModel.medicationTimesPerDay}",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    IconButton(
+                        onClick = { viewModel.onMedicationTimesPerDayChange(viewModel.medicationTimesPerDay + 1) },
+                        enabled = viewModel.medicationTimesPerDay < 10
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = "Increase")
+                    }
+                }
+            }
+
+            // Enable logging
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Enable logging",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Text(
+                        text = "Add notes when completing, view past logs",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Switch(
+                    checked = viewModel.hasLogging,
+                    onCheckedChange = viewModel::onHasLoggingChange
                 )
             }
 
@@ -390,6 +505,17 @@ private fun ColorCircle(hex: String, selected: Boolean, onClick: () -> Unit) {
                 modifier = Modifier.size(20.dp)
             )
         }
+    }
+}
+
+private fun formatMedInterval(index: Int): String {
+    val halfHours = index
+    val hours = halfHours / 2
+    val hasHalf = halfHours % 2 != 0
+    return when {
+        hours == 0 -> "30m"
+        !hasHalf -> "${hours}h"
+        else -> "${hours}.5h"
     }
 }
 

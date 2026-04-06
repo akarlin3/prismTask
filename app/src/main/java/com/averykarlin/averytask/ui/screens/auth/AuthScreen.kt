@@ -21,6 +21,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
@@ -38,7 +39,7 @@ import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import kotlinx.coroutines.launch
 
 // Replace with your actual web client ID from Firebase Console
-private const val WEB_CLIENT_ID = "000000000000-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.apps.googleusercontent.com"
+private const val WEB_CLIENT_ID = "403186103462-j09m2o9781jgnpb2eqotn65jdcg7qgqj.apps.googleusercontent.com"
 
 @Composable
 fun AuthScreen(
@@ -48,6 +49,13 @@ fun AuthScreen(
     val authState by viewModel.authState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+
+    // Navigate away once sign-in succeeds
+    if (authState is AuthState.SignedIn) {
+        LaunchedEffect(Unit) {
+            onContinue()
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -116,6 +124,7 @@ fun AuthScreen(
                             viewModel.onGoogleSignIn(googleIdTokenCredential.idToken)
                         } catch (e: GetCredentialException) {
                             Log.e("AuthScreen", "Sign-in failed", e)
+                            viewModel.onSignInError(e.message ?: "Google Sign-In failed")
                         }
                     }
                 },

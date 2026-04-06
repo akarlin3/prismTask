@@ -6,10 +6,20 @@ import androidx.lifecycle.viewModelScope
 import com.averykarlin.averytask.data.export.DataExporter
 import com.averykarlin.averytask.data.export.DataImporter
 import com.averykarlin.averytask.data.export.ImportMode
-import com.averykarlin.averytask.data.export.ImportResult
+import com.averykarlin.averytask.data.preferences.ApiPreferences
 import com.averykarlin.averytask.data.preferences.ArchivePreferences
+import com.averykarlin.averytask.data.preferences.CalendarPreferences
+import com.averykarlin.averytask.data.preferences.DashboardPreferences
+import com.averykarlin.averytask.data.preferences.TabPreferences
+import com.averykarlin.averytask.data.preferences.TaskBehaviorPreferences
 import com.averykarlin.averytask.data.preferences.ThemePreferences
+import com.averykarlin.averytask.data.preferences.UrgencyWeights
+import com.averykarlin.averytask.data.local.database.AveryTaskDatabase
+import com.averykarlin.averytask.data.preferences.HabitListPreferences
+import com.averykarlin.averytask.data.preferences.LeisurePreferences
 import com.averykarlin.averytask.data.remote.AuthManager
+import com.averykarlin.averytask.data.remote.CalendarSyncService
+import com.averykarlin.averytask.data.remote.DeviceCalendar
 import com.averykarlin.averytask.data.remote.SyncService
 import com.averykarlin.averytask.data.repository.TaskRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -20,31 +30,151 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.time.DayOfWeek
 import javax.inject.Inject
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val themePreferences: ThemePreferences,
     private val archivePreferences: ArchivePreferences,
+    private val apiPreferences: ApiPreferences,
+    private val dashboardPreferences: DashboardPreferences,
+    private val tabPreferences: TabPreferences,
+    private val taskBehaviorPreferences: TaskBehaviorPreferences,
+    private val calendarPreferences: CalendarPreferences,
+    private val leisurePreferences: LeisurePreferences,
+    private val habitListPreferences: HabitListPreferences,
+    private val database: AveryTaskDatabase,
     private val dataExporter: DataExporter,
     private val dataImporter: DataImporter,
     private val authManager: AuthManager,
     private val syncService: SyncService,
-    taskRepository: TaskRepository
+    private val calendarSyncService: CalendarSyncService,
+    private val taskRepository: TaskRepository
 ) : ViewModel() {
 
+    // --- Theme ---
     val themeMode: StateFlow<String> = themePreferences.getThemeMode()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "system")
 
     val accentColor: StateFlow<String> = themePreferences.getAccentColor()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "#2563EB")
 
+    val backgroundColor: StateFlow<String> = themePreferences.getBackgroundColor()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "")
+
+    val surfaceColor: StateFlow<String> = themePreferences.getSurfaceColor()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "")
+
+    val errorColor: StateFlow<String> = themePreferences.getErrorColor()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "")
+
+    val fontScale: StateFlow<Float> = themePreferences.getFontScale()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 1.0f)
+
+    val priorityColorNone: StateFlow<String> = themePreferences.getPriorityColorNone()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "")
+
+    val priorityColorLow: StateFlow<String> = themePreferences.getPriorityColorLow()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "")
+
+    val priorityColorMedium: StateFlow<String> = themePreferences.getPriorityColorMedium()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "")
+
+    val priorityColorHigh: StateFlow<String> = themePreferences.getPriorityColorHigh()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "")
+
+    val priorityColorUrgent: StateFlow<String> = themePreferences.getPriorityColorUrgent()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "")
+
+    // --- Dashboard ---
+    val sectionOrder: StateFlow<List<String>> = dashboardPreferences.getSectionOrder()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DashboardPreferences.DEFAULT_ORDER)
+
+    val hiddenSections: StateFlow<Set<String>> = dashboardPreferences.getHiddenSections()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
+
+    val progressStyle: StateFlow<String> = dashboardPreferences.getProgressStyle()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "ring")
+
+    // --- Navigation ---
+    val tabOrder: StateFlow<List<String>> = tabPreferences.getTabOrder()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), TabPreferences.DEFAULT_ORDER)
+
+    val hiddenTabs: StateFlow<Set<String>> = tabPreferences.getHiddenTabs()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
+
+    // --- Task Behavior ---
+    val defaultSort: StateFlow<String> = taskBehaviorPreferences.getDefaultSort()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "DUE_DATE")
+
+    val defaultViewMode: StateFlow<String> = taskBehaviorPreferences.getDefaultViewMode()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "UPCOMING")
+
+    val urgencyWeights: StateFlow<UrgencyWeights> = taskBehaviorPreferences.getUrgencyWeights()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), UrgencyWeights())
+
+    val reminderPresets: StateFlow<List<Long>> = taskBehaviorPreferences.getReminderPresets()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), listOf(0L, 900_000L, 1_800_000L, 3_600_000L, 86_400_000L))
+
+    val firstDayOfWeek: StateFlow<DayOfWeek> = taskBehaviorPreferences.getFirstDayOfWeek()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DayOfWeek.MONDAY)
+
+    val dayStartHour: StateFlow<Int> = taskBehaviorPreferences.getDayStartHour()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+    // --- Archive / Data ---
     val autoArchiveDays: StateFlow<Int> = archivePreferences.getAutoArchiveDays()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 7)
 
+    val claudeApiKey: StateFlow<String> = apiPreferences.getClaudeApiKey()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "")
+
     val archivedCount: StateFlow<Int> = taskRepository.getArchivedCount()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+    // --- Calendar Sync ---
+    val calendarSyncEnabled: StateFlow<Boolean> = calendarPreferences.isEnabled()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    val calendarName: StateFlow<String> = calendarPreferences.getCalendarName()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "")
+
+    private val _availableCalendars = MutableStateFlow<List<DeviceCalendar>>(emptyList())
+    val availableCalendars: StateFlow<List<DeviceCalendar>> = _availableCalendars
+
+    fun loadCalendars() {
+        _availableCalendars.value = calendarSyncService.getAvailableCalendars()
+    }
+
+    fun setCalendarSyncEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            calendarPreferences.setEnabled(enabled)
+            if (enabled) {
+                // Sync all existing tasks with due dates
+                try {
+                    val tasks = taskRepository.getAllTasksOnce()
+                    calendarSyncService.fullCalendarSync(tasks)
+                    _messages.emit("Calendar sync enabled")
+                } catch (e: Exception) {
+                    _messages.emit("Calendar sync failed: ${e.message}")
+                }
+            } else {
+                calendarSyncService.clearAllEvents()
+                _messages.emit("Calendar sync disabled")
+            }
+        }
+    }
+
+    fun selectCalendar(calendar: DeviceCalendar) {
+        viewModelScope.launch {
+            calendarPreferences.setCalendarId(calendar.id)
+            calendarPreferences.setCalendarName(calendar.name)
+        }
+    }
 
     val isSignedIn: StateFlow<Boolean> = authManager.isSignedIn
 
@@ -53,7 +183,6 @@ class SettingsViewModel @Inject constructor(
     private val _messages = MutableSharedFlow<String>()
     val messages: SharedFlow<String> = _messages.asSharedFlow()
 
-    // Export data holders — Screen reads these after requesting a file location
     private val _pendingJsonExport = MutableStateFlow<String?>(null)
     val pendingJsonExport: StateFlow<String?> = _pendingJsonExport
 
@@ -63,6 +192,13 @@ class SettingsViewModel @Inject constructor(
     private val _isSyncing = MutableStateFlow(false)
     val isSyncing: StateFlow<Boolean> = _isSyncing
 
+    private val _isImporting = MutableStateFlow(false)
+    val isImporting: StateFlow<Boolean> = _isImporting
+
+    private val _isExporting = MutableStateFlow(false)
+    val isExporting: StateFlow<Boolean> = _isExporting
+
+    // --- Theme setters ---
     fun setThemeMode(mode: String) {
         viewModelScope.launch { themePreferences.setThemeMode(mode) }
     }
@@ -71,28 +207,126 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch { themePreferences.setAccentColor(hex) }
     }
 
+    fun setBackgroundColor(hex: String) {
+        viewModelScope.launch { themePreferences.setBackgroundColor(hex) }
+    }
+
+    fun setSurfaceColor(hex: String) {
+        viewModelScope.launch { themePreferences.setSurfaceColor(hex) }
+    }
+
+    fun setErrorColor(hex: String) {
+        viewModelScope.launch { themePreferences.setErrorColor(hex) }
+    }
+
+    fun setFontScale(scale: Float) {
+        viewModelScope.launch { themePreferences.setFontScale(scale) }
+    }
+
+    fun setPriorityColor(level: Int, hex: String) {
+        viewModelScope.launch { themePreferences.setPriorityColor(level, hex) }
+    }
+
+    fun resetColorOverrides() {
+        viewModelScope.launch { themePreferences.resetColorOverrides() }
+    }
+
+    // --- Dashboard setters ---
+    fun setSectionOrder(order: List<String>) {
+        viewModelScope.launch { dashboardPreferences.setSectionOrder(order) }
+    }
+
+    fun setHiddenSections(hidden: Set<String>) {
+        viewModelScope.launch { dashboardPreferences.setHiddenSections(hidden) }
+    }
+
+    fun setProgressStyle(style: String) {
+        viewModelScope.launch { dashboardPreferences.setProgressStyle(style) }
+    }
+
+    fun resetDashboardDefaults() {
+        viewModelScope.launch { dashboardPreferences.resetToDefaults() }
+    }
+
+    // --- Navigation setters ---
+    fun setTabOrder(order: List<String>) {
+        viewModelScope.launch { tabPreferences.setTabOrder(order) }
+    }
+
+    fun setHiddenTabs(hidden: Set<String>) {
+        viewModelScope.launch { tabPreferences.setHiddenTabs(hidden) }
+    }
+
+    fun resetTabDefaults() {
+        viewModelScope.launch { tabPreferences.resetToDefaults() }
+    }
+
+    // --- Task Behavior setters ---
+    fun setDefaultSort(sort: String) {
+        viewModelScope.launch { taskBehaviorPreferences.setDefaultSort(sort) }
+    }
+
+    fun setDefaultViewMode(mode: String) {
+        viewModelScope.launch { taskBehaviorPreferences.setDefaultViewMode(mode) }
+    }
+
+    fun setUrgencyWeights(weights: UrgencyWeights) {
+        viewModelScope.launch { taskBehaviorPreferences.setUrgencyWeights(weights) }
+    }
+
+    fun setReminderPresets(presets: List<Long>) {
+        viewModelScope.launch { taskBehaviorPreferences.setReminderPresets(presets) }
+    }
+
+    fun setFirstDayOfWeek(day: DayOfWeek) {
+        viewModelScope.launch { taskBehaviorPreferences.setFirstDayOfWeek(day) }
+    }
+
+    fun setDayStartHour(hour: Int) {
+        viewModelScope.launch { taskBehaviorPreferences.setDayStartHour(hour) }
+    }
+
+    fun resetTaskBehaviorDefaults() {
+        viewModelScope.launch { taskBehaviorPreferences.resetToDefaults() }
+    }
+
+    // --- Archive ---
     fun setAutoArchiveDays(days: Int) {
         viewModelScope.launch { archivePreferences.setAutoArchiveDays(days) }
     }
 
+    fun setClaudeApiKey(key: String) {
+        viewModelScope.launch { apiPreferences.setClaudeApiKey(key) }
+    }
+
+    fun clearClaudeApiKey() {
+        viewModelScope.launch { apiPreferences.clearClaudeApiKey() }
+    }
+
     fun onExportJson() {
         viewModelScope.launch {
+            _isExporting.value = true
             try {
                 _pendingJsonExport.value = dataExporter.exportToJson()
             } catch (e: Exception) {
                 Log.e("SettingsVM", "JSON export failed", e)
                 _messages.emit("Export failed: ${e.message}")
+            } finally {
+                _isExporting.value = false
             }
         }
     }
 
     fun onExportCsv() {
         viewModelScope.launch {
+            _isExporting.value = true
             try {
                 _pendingCsvExport.value = dataExporter.exportToCsv()
             } catch (e: Exception) {
                 Log.e("SettingsVM", "CSV export failed", e)
                 _messages.emit("Export failed: ${e.message}")
+            } finally {
+                _isExporting.value = false
             }
         }
     }
@@ -104,6 +338,7 @@ class SettingsViewModel @Inject constructor(
 
     fun onImportJson(jsonString: String) {
         viewModelScope.launch {
+            _isImporting.value = true
             try {
                 val result = dataImporter.importFromJson(jsonString, ImportMode.MERGE)
                 _messages.emit("Imported ${result.tasksImported} tasks, ${result.projectsImported} projects, ${result.tagsImported} tags" +
@@ -111,6 +346,8 @@ class SettingsViewModel @Inject constructor(
             } catch (e: Exception) {
                 Log.e("SettingsVM", "Import failed", e)
                 _messages.emit("Import failed: ${e.message}")
+            } finally {
+                _isImporting.value = false
             }
         }
     }
@@ -134,6 +371,35 @@ class SettingsViewModel @Inject constructor(
         authManager.signOut()
         viewModelScope.launch {
             _messages.emit("Signed out")
+        }
+    }
+
+    private val _isResetting = MutableStateFlow(false)
+    val isResetting: StateFlow<Boolean> = _isResetting
+
+    fun resetApp() {
+        viewModelScope.launch {
+            _isResetting.value = true
+            try {
+                withContext(Dispatchers.IO) {
+                    database.clearAllTables()
+                }
+                themePreferences.clearAll()
+                archivePreferences.clearAll()
+                dashboardPreferences.resetToDefaults()
+                tabPreferences.resetToDefaults()
+                taskBehaviorPreferences.resetToDefaults()
+                calendarPreferences.clearAll()
+                leisurePreferences.clearAll()
+                habitListPreferences.clearAll()
+                authManager.signOut()
+                _messages.emit("App reset complete. Restart recommended.")
+            } catch (e: Exception) {
+                Log.e("SettingsVM", "Reset failed", e)
+                _messages.emit("Reset failed: ${e.message}")
+            } finally {
+                _isResetting.value = false
+            }
         }
     }
 }

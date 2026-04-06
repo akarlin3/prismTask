@@ -58,7 +58,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.averykarlin.averytask.data.local.entity.TaskEntity
 import com.averykarlin.averytask.ui.navigation.AveryTaskRoute
-import com.averykarlin.averytask.ui.theme.PriorityColors
+import com.averykarlin.averytask.ui.theme.LocalPriorityColors
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
@@ -217,7 +217,7 @@ fun TimelineScreen(
                             },
                         shape = RoundedCornerShape(6.dp),
                         colors = CardDefaults.cardColors(
-                            containerColor = PriorityColors.forLevel(block.priority).copy(alpha = 0.2f)
+                            containerColor = LocalPriorityColors.current.forLevel(block.priority).copy(alpha = 0.2f)
                         )
                     ) {
                         Row(
@@ -229,7 +229,7 @@ fun TimelineScreen(
                                     .width(3.dp)
                                     .height(blockHeight - 8.dp)
                                     .clip(RoundedCornerShape(2.dp))
-                                    .background(PriorityColors.forLevel(block.priority))
+                                    .background(LocalPriorityColors.current.forLevel(block.priority))
                             )
                             Spacer(Modifier.width(6.dp))
                             Text(
@@ -272,7 +272,7 @@ fun TimelineScreen(
                                         modifier = Modifier
                                             .size(8.dp)
                                             .clip(CircleShape)
-                                            .background(PriorityColors.forLevel(task.priority))
+                                            .background(LocalPriorityColors.current.forLevel(task.priority))
                                     )
                                     Spacer(Modifier.width(8.dp))
                                 }

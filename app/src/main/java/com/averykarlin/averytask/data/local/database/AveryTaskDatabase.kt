@@ -10,16 +10,24 @@ import com.averykarlin.averytask.data.local.dao.HabitCompletionDao
 import com.averykarlin.averytask.data.local.dao.HabitDao
 import com.averykarlin.averytask.data.local.dao.LeisureDao
 import com.averykarlin.averytask.data.local.dao.ProjectDao
+import com.averykarlin.averytask.data.local.dao.SchoolworkDao
+import com.averykarlin.averytask.data.local.dao.SelfCareDao
 import com.averykarlin.averytask.data.local.dao.SyncMetadataDao
 import com.averykarlin.averytask.data.local.dao.TagDao
 import com.averykarlin.averytask.data.local.dao.TaskDao
 import com.averykarlin.averytask.data.local.dao.UsageLogDao
 import com.averykarlin.averytask.data.local.entity.AttachmentEntity
 import com.averykarlin.averytask.data.local.entity.CalendarSyncEntity
+import com.averykarlin.averytask.data.local.entity.CourseCompletionEntity
 import com.averykarlin.averytask.data.local.entity.HabitCompletionEntity
 import com.averykarlin.averytask.data.local.entity.HabitEntity
+import com.averykarlin.averytask.data.local.entity.AssignmentEntity
+import com.averykarlin.averytask.data.local.entity.CourseEntity
 import com.averykarlin.averytask.data.local.entity.LeisureLogEntity
 import com.averykarlin.averytask.data.local.entity.ProjectEntity
+import com.averykarlin.averytask.data.local.entity.SelfCareLogEntity
+import com.averykarlin.averytask.data.local.entity.SelfCareStepEntity
+import com.averykarlin.averytask.data.local.entity.StudyLogEntity
 import com.averykarlin.averytask.data.local.entity.SyncMetadataEntity
 import com.averykarlin.averytask.data.local.entity.TagEntity
 import com.averykarlin.averytask.data.local.entity.TaskEntity
@@ -27,8 +35,8 @@ import com.averykarlin.averytask.data.local.entity.TaskTagCrossRef
 import com.averykarlin.averytask.data.local.entity.UsageLogEntity
 
 @Database(
-    entities = [TaskEntity::class, ProjectEntity::class, TagEntity::class, TaskTagCrossRef::class, AttachmentEntity::class, UsageLogEntity::class, SyncMetadataEntity::class, CalendarSyncEntity::class, HabitEntity::class, HabitCompletionEntity::class, LeisureLogEntity::class],
-    version = 8,
+    entities = [TaskEntity::class, ProjectEntity::class, TagEntity::class, TaskTagCrossRef::class, AttachmentEntity::class, UsageLogEntity::class, SyncMetadataEntity::class, CalendarSyncEntity::class, HabitEntity::class, HabitCompletionEntity::class, LeisureLogEntity::class, CourseEntity::class, AssignmentEntity::class, StudyLogEntity::class, CourseCompletionEntity::class, SelfCareLogEntity::class, SelfCareStepEntity::class],
+    version = 18,
     exportSchema = false
 )
 abstract class AveryTaskDatabase : RoomDatabase() {
@@ -42,6 +50,8 @@ abstract class AveryTaskDatabase : RoomDatabase() {
     abstract fun habitDao(): HabitDao
     abstract fun habitCompletionDao(): HabitCompletionDao
     abstract fun leisureDao(): LeisureDao
+    abstract fun schoolworkDao(): SchoolworkDao
+    abstract fun selfCareDao(): SelfCareDao
 
     companion object {
         val MIGRATION_1_2 = object : Migration(1, 2) {
@@ -189,6 +199,141 @@ abstract class AveryTaskDatabase : RoomDatabase() {
                     )"""
                 )
                 db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_leisure_logs_date` ON `leisure_logs` (`date`)")
+            }
+        }
+
+        val MIGRATION_8_9 = object : Migration(8, 9) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """CREATE TABLE IF NOT EXISTS `courses` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `name` TEXT NOT NULL,
+                        `code` TEXT NOT NULL,
+                        `color` INTEGER NOT NULL DEFAULT 0,
+                        `icon` TEXT NOT NULL DEFAULT '📚',
+                        `active` INTEGER NOT NULL DEFAULT 1,
+                        `sort_order` INTEGER NOT NULL DEFAULT 0,
+                        `created_at` INTEGER NOT NULL
+                    )"""
+                )
+                db.execSQL(
+                    """CREATE TABLE IF NOT EXISTS `assignments` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `course_id` INTEGER NOT NULL,
+                        `title` TEXT NOT NULL,
+                        `due_date` INTEGER,
+                        `completed` INTEGER NOT NULL DEFAULT 0,
+                        `completed_at` INTEGER,
+                        `notes` TEXT,
+                        `created_at` INTEGER NOT NULL,
+                        FOREIGN KEY(`course_id`) REFERENCES `courses`(`id`) ON DELETE CASCADE
+                    )"""
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_assignments_course_id` ON `assignments` (`course_id`)")
+                db.execSQL(
+                    """CREATE TABLE IF NOT EXISTS `study_logs` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `date` INTEGER NOT NULL,
+                        `course_pick` INTEGER,
+                        `study_done` INTEGER NOT NULL DEFAULT 0,
+                        `assignment_pick` INTEGER,
+                        `assignment_done` INTEGER NOT NULL DEFAULT 0,
+                        `started_at` INTEGER,
+                        `created_at` INTEGER NOT NULL
+                    )"""
+                )
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_study_logs_date` ON `study_logs` (`date`)")
+            }
+        }
+
+        val MIGRATION_9_10 = object : Migration(9, 10) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """CREATE TABLE IF NOT EXISTS `course_completions` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `date` INTEGER NOT NULL,
+                        `course_id` INTEGER NOT NULL,
+                        `completed` INTEGER NOT NULL DEFAULT 0,
+                        `completed_at` INTEGER,
+                        `created_at` INTEGER NOT NULL,
+                        FOREIGN KEY(`course_id`) REFERENCES `courses`(`id`) ON DELETE CASCADE
+                    )"""
+                )
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_course_completions_date_course_id` ON `course_completions` (`date`, `course_id`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_course_completions_course_id` ON `course_completions` (`course_id`)")
+            }
+        }
+
+        val MIGRATION_10_11 = object : Migration(10, 11) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """CREATE TABLE IF NOT EXISTS `self_care_logs` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `routine_type` TEXT NOT NULL,
+                        `date` INTEGER NOT NULL,
+                        `selected_tier` TEXT NOT NULL DEFAULT 'solid',
+                        `completed_steps` TEXT NOT NULL DEFAULT '[]',
+                        `is_complete` INTEGER NOT NULL DEFAULT 0,
+                        `started_at` INTEGER,
+                        `created_at` INTEGER NOT NULL
+                    )"""
+                )
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_self_care_logs_routine_type_date` ON `self_care_logs` (`routine_type`, `date`)")
+            }
+        }
+
+        val MIGRATION_11_12 = object : Migration(11, 12) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """CREATE TABLE IF NOT EXISTS `self_care_steps` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `step_id` TEXT NOT NULL,
+                        `routine_type` TEXT NOT NULL,
+                        `label` TEXT NOT NULL,
+                        `duration` TEXT NOT NULL,
+                        `tier` TEXT NOT NULL,
+                        `note` TEXT NOT NULL DEFAULT '',
+                        `phase` TEXT NOT NULL,
+                        `sort_order` INTEGER NOT NULL DEFAULT 0
+                    )"""
+                )
+            }
+        }
+
+        val MIGRATION_12_13 = object : Migration(12, 13) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE habits ADD COLUMN reminder_interval_millis INTEGER")
+            }
+        }
+
+        val MIGRATION_13_14 = object : Migration(13, 14) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE tasks ADD COLUMN source_habit_id INTEGER")
+            }
+        }
+
+        val MIGRATION_14_15 = object : Migration(14, 15) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE habits ADD COLUMN has_logging INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
+        val MIGRATION_15_16 = object : Migration(15, 16) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Removed create_daily_task from habits and source_habit_id from tasks.
+                // Columns remain in DB but are no longer mapped by Room entities.
+            }
+        }
+
+        val MIGRATION_16_17 = object : Migration(16, 17) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE habits ADD COLUMN reminder_times_per_day INTEGER NOT NULL DEFAULT 1")
+            }
+        }
+
+        val MIGRATION_17_18 = object : Migration(17, 18) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE self_care_steps ADD COLUMN reminder_delay_millis INTEGER")
             }
         }
     }

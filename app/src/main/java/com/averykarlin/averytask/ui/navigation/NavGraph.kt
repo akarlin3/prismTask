@@ -5,30 +5,31 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.FolderCopy
 import androidx.compose.material.icons.automirrored.filled.FormatListBulleted
 import androidx.compose.material.icons.filled.FitnessCenter
-import androidx.compose.material.icons.filled.SelfImprovement
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Today
-import androidx.compose.material.icons.outlined.FolderCopy
 import androidx.compose.material.icons.automirrored.outlined.FormatListBulleted
 import androidx.compose.material.icons.outlined.FitnessCenter
-import androidx.compose.material.icons.outlined.SelfImprovement
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Today
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
@@ -52,8 +53,16 @@ import com.averykarlin.averytask.ui.screens.tags.TagManagementScreen
 import com.averykarlin.averytask.ui.screens.monthview.MonthViewScreen
 import com.averykarlin.averytask.ui.screens.timeline.TimelineScreen
 import com.averykarlin.averytask.ui.screens.weekview.WeekViewScreen
-import com.averykarlin.averytask.ui.webview.ReactTabViewModel
-import com.averykarlin.averytask.ui.webview.ReactTabWebView
+import com.averykarlin.averytask.ui.screens.today.TodayScreen
+import com.averykarlin.averytask.ui.screens.tasklist.TaskListScreen
+import com.averykarlin.averytask.ui.screens.projects.ProjectListScreen
+import com.averykarlin.averytask.ui.screens.habits.HabitListScreen
+import com.averykarlin.averytask.ui.screens.leisure.LeisureScreen
+import com.averykarlin.averytask.ui.screens.schoolwork.AddEditCourseScreen
+import com.averykarlin.averytask.ui.screens.schoolwork.SchoolworkScreen
+import com.averykarlin.averytask.ui.screens.medication.MedicationScreen
+import com.averykarlin.averytask.ui.screens.selfcare.SelfCareScreen
+import com.averykarlin.averytask.ui.screens.settings.SettingsScreen
 
 sealed class AveryTaskRoute(val route: String) {
     data object Today : AveryTaskRoute("today")
@@ -83,43 +92,80 @@ sealed class AveryTaskRoute(val route: String) {
     data object HabitAnalytics : AveryTaskRoute("habit_analytics?habitId={habitId}") {
         fun createRoute(habitId: Long): String = "habit_analytics?habitId=$habitId"
     }
+    data object SelfCare : AveryTaskRoute("self_care?routineType={routineType}") {
+        fun createRoute(routineType: String = "morning"): String = "self_care?routineType=$routineType"
+    }
+    data object Medication : AveryTaskRoute("medication")
     data object Leisure : AveryTaskRoute("leisure")
+    data object Schoolwork : AveryTaskRoute("schoolwork")
+    data object AddEditCourse : AveryTaskRoute("add_edit_course?courseId={courseId}") {
+        fun createRoute(courseId: Long? = null): String =
+            if (courseId != null) "add_edit_course?courseId=$courseId" else "add_edit_course"
+    }
 }
 
 data class BottomNavItem(
     val route: String,
     val label: String,
     val selectedIcon: ImageVector,
-    val unselectedIcon: ImageVector,
-    val reactTab: String // Hash route name for the React app
+    val unselectedIcon: ImageVector
 )
 
-private val bottomNavItems = listOf(
-    BottomNavItem(AveryTaskRoute.Today.route, "Today", Icons.Filled.Today, Icons.Outlined.Today, "today"),
-    BottomNavItem(AveryTaskRoute.TaskList.route, "Tasks", Icons.AutoMirrored.Filled.FormatListBulleted, Icons.AutoMirrored.Outlined.FormatListBulleted, "tasks"),
-    BottomNavItem(AveryTaskRoute.ProjectList.route, "Projects", Icons.Filled.FolderCopy, Icons.Outlined.FolderCopy, "projects"),
-    BottomNavItem(AveryTaskRoute.HabitList.route, "Habits", Icons.Filled.FitnessCenter, Icons.Outlined.FitnessCenter, "habits"),
-    BottomNavItem(AveryTaskRoute.Leisure.route, "Leisure", Icons.Filled.SelfImprovement, Icons.Outlined.SelfImprovement, "leisure"),
-    BottomNavItem(AveryTaskRoute.Settings.route, "Settings", Icons.Filled.Settings, Icons.Outlined.Settings, "settings"),
+val ALL_BOTTOM_NAV_ITEMS = listOf(
+    BottomNavItem(AveryTaskRoute.Today.route, "Today", Icons.Filled.Today, Icons.Outlined.Today),
+    BottomNavItem(AveryTaskRoute.TaskList.route, "Tasks", Icons.AutoMirrored.Filled.FormatListBulleted, Icons.AutoMirrored.Outlined.FormatListBulleted),
+    BottomNavItem(AveryTaskRoute.HabitList.route, "Habits", Icons.Filled.FitnessCenter, Icons.Outlined.FitnessCenter),
 )
-
-private val mainRoutes = bottomNavItems.map { it.route }.toSet()
-private val reactTabMap = bottomNavItems.associate { it.route to it.reactTab }
 
 private const val NAV_ANIM_DURATION = 300
 
 @Composable
 fun AveryTaskNavGraph(
     modifier: Modifier = Modifier,
-    navController: NavHostController = rememberNavController()
+    navController: NavHostController = rememberNavController(),
+    tabOrder: List<String> = ALL_BOTTOM_NAV_ITEMS.map { it.route },
+    hiddenTabs: Set<String> = emptySet()
 ) {
+    val bottomNavItems = tabOrder
+        .mapNotNull { route -> ALL_BOTTOM_NAV_ITEMS.find { it.route == route } }
+        .filter { it.route !in hiddenTabs }
+        .ifEmpty { ALL_BOTTOM_NAV_ITEMS.take(2) }
+    val mainRoutes = bottomNavItems.map { it.route }.toSet()
+    val startRoute = bottomNavItems.firstOrNull()?.route ?: AveryTaskRoute.Today.route
+
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
     val showBottomBar = currentRoute in mainRoutes
-    val scope = rememberCoroutineScope()
 
     Scaffold(
         modifier = modifier,
+        topBar = {
+            if (showBottomBar) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .statusBarsPadding()
+                        .padding(end = 4.dp),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(
+                        onClick = {
+                            navController.navigate(AveryTaskRoute.Settings.route) {
+                                launchSingleTop = true
+                            }
+                        },
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Settings,
+                            contentDescription = "Settings",
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+            }
+        },
         bottomBar = {
             if (showBottomBar) {
                 NavigationBar {
@@ -153,55 +199,102 @@ fun AveryTaskNavGraph(
     ) { innerPadding ->
         NavHost(
             navController = navController,
-            startDestination = AveryTaskRoute.Today.route,
+            startDestination = startRoute,
             modifier = Modifier.padding(innerPadding)
         ) {
-            // Main tab screens — React WebView tabs
-            mainRoutes.forEach { route ->
-                composable(
-                    route = route,
-                    enterTransition = { fadeIn(animationSpec = tween(NAV_ANIM_DURATION)) },
-                    exitTransition = { fadeOut(animationSpec = tween(NAV_ANIM_DURATION)) },
-                    popEnterTransition = { fadeIn(animationSpec = tween(NAV_ANIM_DURATION)) },
-                    popExitTransition = { fadeOut(animationSpec = tween(NAV_ANIM_DURATION)) }
-                ) {
-                    val viewModel: ReactTabViewModel = hiltViewModel()
-                    val tabName = reactTabMap[route] ?: "today"
+            // Main tab screens — native Compose
+            composable(
+                route = AveryTaskRoute.Today.route,
+                enterTransition = { fadeIn(animationSpec = tween(NAV_ANIM_DURATION)) },
+                exitTransition = { fadeOut(animationSpec = tween(NAV_ANIM_DURATION)) },
+                popEnterTransition = { fadeIn(animationSpec = tween(NAV_ANIM_DURATION)) },
+                popExitTransition = { fadeOut(animationSpec = tween(NAV_ANIM_DURATION)) }
+            ) {
+                TodayScreen(navController)
+            }
 
-                    ReactTabWebView(
-                        tabName = tabName,
-                        taskRepository = viewModel.taskRepository,
-                        projectRepository = viewModel.projectRepository,
-                        habitRepository = viewModel.habitRepository,
-                        tagRepository = viewModel.tagRepository,
-                        themePreferences = viewModel.themePreferences,
-                        onNavigate = { targetRoute ->
-                            // Handle navigation from React to native screens
-                            when {
-                                targetRoute.startsWith("add_edit_task") -> navController.navigate(targetRoute)
-                                targetRoute.startsWith("add_edit_project") -> navController.navigate(targetRoute)
-                                targetRoute.startsWith("add_edit_habit") -> navController.navigate(targetRoute)
-                                targetRoute.startsWith("habit_analytics") -> navController.navigate(targetRoute)
-                                targetRoute == "tag_management" -> navController.navigate(AveryTaskRoute.TagManagement.route)
-                                targetRoute == "archive" -> navController.navigate(AveryTaskRoute.Archive.route)
-                                targetRoute == "search" -> navController.navigate(AveryTaskRoute.Search.route)
-                                targetRoute == "auth" -> navController.navigate(AveryTaskRoute.Auth.route)
-                                targetRoute == "week_view" -> navController.navigate(AveryTaskRoute.WeekView.route)
-                                targetRoute == "month_view" -> navController.navigate(AveryTaskRoute.MonthView.route)
-                                targetRoute == "timeline" -> navController.navigate(AveryTaskRoute.Timeline.route)
-                                // Settings actions handled natively
-                                targetRoute == "export_json" || targetRoute == "export_csv" ||
-                                targetRoute == "import_json" || targetRoute == "sync_now" ||
-                                targetRoute == "sign_out" -> {
-                                    // These would be handled by native code via the settings screen
-                                    // For now they trigger navigation to settings
-                                }
-                            }
-                        },
-                        scope = scope,
-                        modifier = Modifier.fillMaxSize()
-                    )
+            composable(
+                route = AveryTaskRoute.TaskList.route,
+                enterTransition = { fadeIn(animationSpec = tween(NAV_ANIM_DURATION)) },
+                exitTransition = { fadeOut(animationSpec = tween(NAV_ANIM_DURATION)) },
+                popEnterTransition = { fadeIn(animationSpec = tween(NAV_ANIM_DURATION)) },
+                popExitTransition = { fadeOut(animationSpec = tween(NAV_ANIM_DURATION)) }
+            ) {
+                TaskListScreen(navController)
+            }
+
+            composable(
+                route = AveryTaskRoute.ProjectList.route,
+                enterTransition = {
+                    slideInHorizontally(initialOffsetX = { it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
+                },
+                exitTransition = {
+                    slideOutHorizontally(targetOffsetX = { -it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
+                },
+                popEnterTransition = {
+                    slideInHorizontally(initialOffsetX = { -it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
+                },
+                popExitTransition = {
+                    slideOutHorizontally(targetOffsetX = { it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
                 }
+            ) {
+                ProjectListScreen(navController)
+            }
+
+            composable(
+                route = AveryTaskRoute.HabitList.route,
+                enterTransition = { fadeIn(animationSpec = tween(NAV_ANIM_DURATION)) },
+                exitTransition = { fadeOut(animationSpec = tween(NAV_ANIM_DURATION)) },
+                popEnterTransition = { fadeIn(animationSpec = tween(NAV_ANIM_DURATION)) },
+                popExitTransition = { fadeOut(animationSpec = tween(NAV_ANIM_DURATION)) }
+            ) {
+                HabitListScreen(navController)
+            }
+
+            composable(
+                route = AveryTaskRoute.Leisure.route,
+                enterTransition = { slideInHorizontally(initialOffsetX = { it }, animationSpec = tween(NAV_ANIM_DURATION)) },
+                exitTransition = { slideOutHorizontally(targetOffsetX = { it }, animationSpec = tween(NAV_ANIM_DURATION)) },
+                popEnterTransition = { slideInHorizontally(initialOffsetX = { -it }, animationSpec = tween(NAV_ANIM_DURATION)) },
+                popExitTransition = { slideOutHorizontally(targetOffsetX = { it }, animationSpec = tween(NAV_ANIM_DURATION)) }
+            ) {
+                LeisureScreen(navController)
+            }
+
+            composable(
+                route = AveryTaskRoute.Schoolwork.route,
+                enterTransition = { slideInHorizontally(initialOffsetX = { it }, animationSpec = tween(NAV_ANIM_DURATION)) },
+                exitTransition = { slideOutHorizontally(targetOffsetX = { it }, animationSpec = tween(NAV_ANIM_DURATION)) },
+                popEnterTransition = { slideInHorizontally(initialOffsetX = { -it }, animationSpec = tween(NAV_ANIM_DURATION)) },
+                popExitTransition = { slideOutHorizontally(targetOffsetX = { it }, animationSpec = tween(NAV_ANIM_DURATION)) }
+            ) {
+                SchoolworkScreen(navController)
+            }
+
+            composable(
+                route = AveryTaskRoute.Settings.route,
+                enterTransition = {
+                    slideInHorizontally(initialOffsetX = { it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
+                },
+                exitTransition = {
+                    slideOutHorizontally(targetOffsetX = { -it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
+                },
+                popEnterTransition = {
+                    slideInHorizontally(initialOffsetX = { -it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
+                },
+                popExitTransition = {
+                    slideOutHorizontally(targetOffsetX = { it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
+                }
+            ) {
+                SettingsScreen(navController)
             }
 
             // Detail screens — remain native Compose, slide transitions
@@ -473,6 +566,84 @@ fun AveryTaskNavGraph(
                 }
             ) {
                 HabitAnalyticsScreen(navController)
+            }
+
+            composable(
+                route = AveryTaskRoute.SelfCare.route,
+                arguments = listOf(
+                    navArgument("routineType") {
+                        type = NavType.StringType
+                        defaultValue = "morning"
+                    }
+                ),
+                enterTransition = {
+                    slideInHorizontally(initialOffsetX = { it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
+                },
+                exitTransition = {
+                    slideOutHorizontally(targetOffsetX = { -it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
+                },
+                popEnterTransition = {
+                    slideInHorizontally(initialOffsetX = { -it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
+                },
+                popExitTransition = {
+                    slideOutHorizontally(targetOffsetX = { it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
+                }
+            ) {
+                SelfCareScreen(navController)
+            }
+
+            composable(
+                route = AveryTaskRoute.Medication.route,
+                enterTransition = {
+                    slideInHorizontally(initialOffsetX = { it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
+                },
+                exitTransition = {
+                    slideOutHorizontally(targetOffsetX = { -it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
+                },
+                popEnterTransition = {
+                    slideInHorizontally(initialOffsetX = { -it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
+                },
+                popExitTransition = {
+                    slideOutHorizontally(targetOffsetX = { it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
+                }
+            ) {
+                MedicationScreen(navController)
+            }
+
+            composable(
+                route = AveryTaskRoute.AddEditCourse.route,
+                arguments = listOf(
+                    navArgument("courseId") {
+                        type = NavType.LongType
+                        defaultValue = -1L
+                    }
+                ),
+                enterTransition = {
+                    slideInHorizontally(initialOffsetX = { it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
+                },
+                exitTransition = {
+                    slideOutHorizontally(targetOffsetX = { -it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
+                },
+                popEnterTransition = {
+                    slideInHorizontally(initialOffsetX = { -it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
+                },
+                popExitTransition = {
+                    slideOutHorizontally(targetOffsetX = { it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
+                }
+            ) {
+                AddEditCourseScreen(navController)
             }
         }
     }

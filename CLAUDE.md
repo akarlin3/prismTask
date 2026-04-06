@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-**AveryTask** (`com.averykarlin.averytask`) is a native Android todo list app built with Kotlin and Jetpack Compose. v0.5.0 includes full task management, projects, subtasks, tags, recurrence, reminders, notifications, NLP quick-add, Today focus screen, week/month/timeline views, urgency scoring, smart suggestions, Firebase cloud sync, Google Sign-In, JSON/CSV data export/import, habit tracking with streaks/analytics, and home screen widgets.
+**AveryTask** (`com.averykarlin.averytask`) is a native Android todo list app built with Kotlin and Jetpack Compose. v0.6.0 includes full task management, projects, subtasks, tags, recurrence, reminders, notifications, NLP quick-add, Today focus screen, week/month/timeline views, urgency scoring, smart suggestions, Firebase cloud sync, Google Sign-In, JSON/CSV data export/import, habit tracking with streaks/analytics, and home screen widgets.
 
 ## Tech Stack
 

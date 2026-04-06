@@ -31,6 +31,9 @@
 -keep class com.averykarlin.averytask.data.remote.model.** { *; }
 -keep class com.averykarlin.averytask.data.remote.mapper.** { *; }
 
+# ── Claude API models (inner classes in ClaudeParserService, deserialized by Gson) ──
+-keep class com.averykarlin.averytask.data.remote.ClaudeParserService$* { *; }
+
 # ── Gson ──
 -keepattributes Signature
 -keepattributes *Annotation*

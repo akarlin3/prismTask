@@ -3,24 +3,35 @@ package com.averykarlin.averytask.data.repository
 import com.averykarlin.averytask.data.local.dao.TagDao
 import com.averykarlin.averytask.data.local.entity.TagEntity
 import com.averykarlin.averytask.data.local.entity.TaskTagCrossRef
+import com.averykarlin.averytask.data.remote.SyncTracker
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class TagRepository @Inject constructor(
-    private val tagDao: TagDao
+    private val tagDao: TagDao,
+    private val syncTracker: SyncTracker
 ) {
     fun getAllTags(): Flow<List<TagEntity>> = tagDao.getAllTags()
 
     fun searchTags(query: String): Flow<List<TagEntity>> = tagDao.searchTags(query)
 
-    suspend fun addTag(name: String, color: String = "#6B7280"): Long =
-        tagDao.insert(TagEntity(name = name, color = color))
+    suspend fun addTag(name: String, color: String = "#6B7280"): Long {
+        val id = tagDao.insert(TagEntity(name = name, color = color))
+        syncTracker.trackCreate(id, "tag")
+        return id
+    }
 
-    suspend fun updateTag(tag: TagEntity) = tagDao.update(tag)
+    suspend fun updateTag(tag: TagEntity) {
+        tagDao.update(tag)
+        syncTracker.trackUpdate(tag.id, "tag")
+    }
 
-    suspend fun deleteTag(tag: TagEntity) = tagDao.delete(tag)
+    suspend fun deleteTag(tag: TagEntity) {
+        syncTracker.trackDelete(tag.id, "tag")
+        tagDao.delete(tag)
+    }
 
     fun getTagsForTask(taskId: Long): Flow<List<TagEntity>> = tagDao.getTagsForTask(taskId)
 

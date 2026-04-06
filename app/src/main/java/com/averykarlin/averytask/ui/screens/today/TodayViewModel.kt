@@ -9,8 +9,10 @@ import androidx.lifecycle.viewModelScope
 import com.averykarlin.averytask.data.local.dao.TaskDao
 import com.averykarlin.averytask.data.local.entity.TagEntity
 import com.averykarlin.averytask.data.local.entity.TaskEntity
+import com.averykarlin.averytask.data.preferences.DashboardPreferences
 import com.averykarlin.averytask.data.repository.HabitRepository
 import com.averykarlin.averytask.data.repository.HabitWithStatus
+import com.averykarlin.averytask.data.repository.SelfCareRepository
 import com.averykarlin.averytask.data.repository.TagRepository
 import com.averykarlin.averytask.data.repository.TaskRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -33,10 +35,20 @@ class TodayViewModel @Inject constructor(
     private val taskRepository: TaskRepository,
     private val tagRepository: TagRepository,
     private val taskDao: TaskDao,
-    private val habitRepository: HabitRepository
+    private val habitRepository: HabitRepository,
+    private val dashboardPreferences: DashboardPreferences
 ) : ViewModel() {
 
     val snackbarHostState = SnackbarHostState()
+
+    val sectionOrder: StateFlow<List<String>> = dashboardPreferences.getSectionOrder()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DashboardPreferences.DEFAULT_ORDER)
+
+    val hiddenSections: StateFlow<Set<String>> = dashboardPreferences.getHiddenSections()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
+
+    val progressStyle: StateFlow<String> = dashboardPreferences.getProgressStyle()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "ring")
 
     private fun startOfToday(): Long {
         val cal = Calendar.getInstance()
@@ -68,8 +80,8 @@ class TodayViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val allTodayItems: StateFlow<List<TaskEntity>> =
-        combine(overdueTasks, todayTasks, plannedTasks) { overdue, today, planned ->
-            overdue + today + planned
+        combine(todayTasks, plannedTasks) { today, planned ->
+            today + planned
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val totalTodayCount: StateFlow<Int> = allTodayItems.map { it.size }
@@ -98,7 +110,17 @@ class TodayViewModel @Inject constructor(
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
     // Habits
+    private val selfCareNames = setOf(
+        SelfCareRepository.MORNING_HABIT_NAME,
+        SelfCareRepository.BEDTIME_HABIT_NAME,
+        SelfCareRepository.MEDICATION_HABIT_NAME
+    )
+
     val todayHabits: StateFlow<List<HabitWithStatus>> = habitRepository.getHabitsWithTodayStatus()
+        .map { habits ->
+            habits.filter { it.habit.name !in selfCareNames }
+                .sortedBy { it.habit.sortOrder }
+        }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val habitCompletedCount: StateFlow<Int> = todayHabits.map { habits ->

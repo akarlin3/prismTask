@@ -10,6 +10,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.averykarlin.averytask.data.local.entity.HabitEntity
 import com.averykarlin.averytask.data.repository.HabitRepository
+import com.averykarlin.averytask.notifications.MedicationReminderScheduler
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -20,6 +21,7 @@ import javax.inject.Inject
 @HiltViewModel
 class AddEditHabitViewModel @Inject constructor(
     private val habitRepository: HabitRepository,
+    private val medicationReminderScheduler: MedicationReminderScheduler,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -53,7 +55,13 @@ class AddEditHabitViewModel @Inject constructor(
         private set
     var category by mutableStateOf("")
         private set
-    var createDailyTask by mutableStateOf(false)
+    var medicationReminderEnabled by mutableStateOf(false)
+        private set
+    var medicationReminderIntervalIndex by mutableIntStateOf(2) // 1=0.5h, 2=1h, ..., 48=24h
+        private set
+    var medicationTimesPerDay by mutableIntStateOf(1)
+        private set
+    var hasLogging by mutableStateOf(false)
         private set
     var nameError by mutableStateOf(false)
         private set
@@ -71,11 +79,16 @@ class AddEditHabitViewModel @Inject constructor(
                     color = habit.color
                     icon = habit.icon
                     category = habit.category ?: ""
-                    createDailyTask = habit.createDailyTask
+                    hasLogging = habit.hasLogging
                     if (habit.reminderTime != null) {
                         reminderEnabled = true
                         reminderHour = (habit.reminderTime / (60 * 60 * 1000)).toInt()
                         reminderMinute = ((habit.reminderTime % (60 * 60 * 1000)) / (60 * 1000)).toInt()
+                    }
+                    if (habit.reminderIntervalMillis != null) {
+                        medicationReminderEnabled = true
+                        medicationReminderIntervalIndex = (habit.reminderIntervalMillis / 1_800_000L).toInt().coerceIn(1, 48)
+                        medicationTimesPerDay = habit.reminderTimesPerDay.coerceIn(1, 10)
                     }
                 }
             }
@@ -99,7 +112,10 @@ class AddEditHabitViewModel @Inject constructor(
     fun onReminderHourChange(value: Int) { reminderHour = value }
     fun onReminderMinuteChange(value: Int) { reminderMinute = value }
     fun onCategoryChange(value: String) { category = value }
-    fun onCreateDailyTaskChange(value: Boolean) { createDailyTask = value }
+    fun onMedicationReminderEnabledChange(value: Boolean) { medicationReminderEnabled = value }
+    fun onMedicationReminderIntervalChange(index: Int) { medicationReminderIntervalIndex = index.coerceIn(1, 48) }
+    fun onMedicationTimesPerDayChange(value: Int) { medicationTimesPerDay = value.coerceIn(1, 10) }
+    fun onHasLoggingChange(value: Boolean) { hasLogging = value }
 
     suspend fun saveHabit(): Boolean {
         if (name.isBlank()) {
@@ -111,6 +127,12 @@ class AddEditHabitViewModel @Inject constructor(
             val reminderTime = if (reminderEnabled) {
                 (reminderHour.toLong() * 60 * 60 * 1000) + (reminderMinute.toLong() * 60 * 1000)
             } else null
+
+            val reminderIntervalMillis = if (medicationReminderEnabled) {
+                medicationReminderIntervalIndex.toLong() * 1_800_000L
+            } else null
+
+            val timesPerDay = if (medicationReminderEnabled) medicationTimesPerDay else 1
 
             val activeDaysJson = if (frequencyPeriod == "weekly" && activeDays.isNotEmpty()) {
                 "[${activeDays.sorted().joinToString(",")}]"
@@ -128,10 +150,18 @@ class AddEditHabitViewModel @Inject constructor(
                         color = color,
                         icon = icon,
                         reminderTime = reminderTime,
+                        reminderIntervalMillis = reminderIntervalMillis,
+                        reminderTimesPerDay = timesPerDay,
                         category = category.trim().ifEmpty { null },
-                        createDailyTask = createDailyTask
+                        hasLogging = hasLogging
                     )
                 )
+                // Cancel or reschedule medication reminder on edit
+                if (reminderIntervalMillis == null) {
+                    medicationReminderScheduler.cancel(existing.id)
+                } else {
+                    medicationReminderScheduler.rescheduleAll()
+                }
             } else {
                 habitRepository.addHabit(
                     HabitEntity(
@@ -143,8 +173,10 @@ class AddEditHabitViewModel @Inject constructor(
                         color = color,
                         icon = icon,
                         reminderTime = reminderTime,
+                        reminderIntervalMillis = reminderIntervalMillis,
+                        reminderTimesPerDay = timesPerDay,
                         category = category.trim().ifEmpty { null },
-                        createDailyTask = createDailyTask
+                        hasLogging = hasLogging
                     )
                 )
             }
