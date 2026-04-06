@@ -6,7 +6,10 @@ import android.content.Context
 import android.content.Intent
 import com.averykarlin.averytask.data.local.dao.HabitCompletionDao
 import com.averykarlin.averytask.data.local.dao.HabitDao
+import com.averykarlin.averytask.data.preferences.MedicationPreferences
+import com.averykarlin.averytask.data.preferences.MedicationScheduleMode
 import dagger.hilt.android.qualifiers.ApplicationContext
+import java.util.Calendar
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -14,7 +17,8 @@ import javax.inject.Singleton
 class MedicationReminderScheduler @Inject constructor(
     @ApplicationContext private val context: Context,
     private val habitDao: HabitDao,
-    private val completionDao: HabitCompletionDao
+    private val completionDao: HabitCompletionDao,
+    private val medicationPreferences: MedicationPreferences
 ) {
 
     private val alarmManager: AlarmManager
@@ -53,6 +57,48 @@ class MedicationReminderScheduler @Inject constructor(
         )
     }
 
+    /**
+     * Schedule a reminder at a specific time of day.
+     * Uses request code offset 300_000 + index to avoid collision with interval-based reminders.
+     */
+    fun scheduleAtSpecificTime(
+        timeIndex: Int,
+        triggerTimeMillis: Long,
+        habitName: String
+    ) {
+        val intent = Intent(context, MedicationReminderReceiver::class.java).apply {
+            putExtra("habitId", 0L)
+            putExtra("habitName", habitName)
+            putExtra("habitDescription", "Scheduled medication time")
+            putExtra("intervalMillis", 0L)
+            putExtra("doseNumber", timeIndex + 1)
+            putExtra("totalDoses", -1) // sentinel: specific-time mode
+        }
+        val pendingIntent = PendingIntent.getBroadcast(
+            context,
+            300_000 + timeIndex,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        alarmManager.setExactAndAllowWhileIdle(
+            AlarmManager.RTC_WAKEUP,
+            triggerTimeMillis,
+            pendingIntent
+        )
+    }
+
+    fun cancelSpecificTime(timeIndex: Int) {
+        val intent = Intent(context, MedicationReminderReceiver::class.java)
+        val pendingIntent = PendingIntent.getBroadcast(
+            context,
+            300_000 + timeIndex,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        alarmManager.cancel(pendingIntent)
+    }
+
     fun cancel(habitId: Long) {
         val intent = Intent(context, MedicationReminderReceiver::class.java)
         val pendingIntent = PendingIntent.getBroadcast(
@@ -64,7 +110,29 @@ class MedicationReminderScheduler @Inject constructor(
         alarmManager.cancel(pendingIntent)
     }
 
+    /** Schedule alarms for all specific times that haven't passed yet today. */
+    suspend fun scheduleSpecificTimes() {
+        val times = medicationPreferences.getSpecificTimesOnce()
+        val now = System.currentTimeMillis()
+        val sortedTimes = times.sorted().toList()
+
+        sortedTimes.forEachIndexed { index, timeStr ->
+            val triggerMillis = timeStringToNextTrigger(timeStr, now)
+            scheduleAtSpecificTime(index, triggerMillis, "Medication Reminder")
+        }
+        // Cancel any leftover slots beyond current count
+        for (i in sortedTimes.size until sortedTimes.size + 10) {
+            cancelSpecificTime(i)
+        }
+    }
+
     suspend fun rescheduleAll() {
+        val mode = medicationPreferences.getScheduleModeOnce()
+        if (mode == MedicationScheduleMode.SPECIFIC_TIMES) {
+            scheduleSpecificTimes()
+            return
+        }
+
         val habits = habitDao.getHabitsWithIntervalReminder()
         val today = com.averykarlin.averytask.data.repository.HabitRepository.normalizeToMidnight(System.currentTimeMillis())
         for (habit in habits) {
@@ -77,6 +145,27 @@ class MedicationReminderScheduler @Inject constructor(
                 habit.id, habit.name, habit.description, lastCompletion.completedAt, interval,
                 doseNumber = todayCount + 1, totalDoses = timesPerDay
             )
+        }
+    }
+
+    companion object {
+        /** Convert "HH:mm" to next trigger timestamp (today if not passed, tomorrow if passed). */
+        fun timeStringToNextTrigger(timeStr: String, now: Long): Long {
+            val parts = timeStr.split(":")
+            val hour = parts.getOrNull(0)?.toIntOrNull() ?: 8
+            val minute = parts.getOrNull(1)?.toIntOrNull() ?: 0
+
+            val cal = Calendar.getInstance().apply {
+                timeInMillis = now
+                set(Calendar.HOUR_OF_DAY, hour)
+                set(Calendar.MINUTE, minute)
+                set(Calendar.SECOND, 0)
+                set(Calendar.MILLISECOND, 0)
+            }
+            if (cal.timeInMillis <= now) {
+                cal.add(Calendar.DAY_OF_YEAR, 1)
+            }
+            return cal.timeInMillis
         }
     }
 }
