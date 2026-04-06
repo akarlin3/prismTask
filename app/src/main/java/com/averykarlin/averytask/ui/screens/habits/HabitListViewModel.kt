@@ -84,6 +84,12 @@ class HabitListViewModel @Inject constructor(
     private val medicationSteps: StateFlow<List<SelfCareStepEntity>> = selfCareRepository.getSteps("medication")
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    private val houseworkLog: StateFlow<SelfCareLogEntity?> = selfCareRepository.getTodayLog("housework")
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    private val houseworkSteps: StateFlow<List<SelfCareStepEntity>> = selfCareRepository.getSteps("housework")
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     private val builtInSortOrders: StateFlow<BuiltInSortOrders> = habitListPreferences.getBuiltInSortOrders()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000),
             BuiltInSortOrders(
@@ -91,7 +97,8 @@ class HabitListViewModel @Inject constructor(
                 HabitListPreferences.DEFAULT_BEDTIME_ORDER,
                 HabitListPreferences.DEFAULT_MEDICATION_ORDER,
                 HabitListPreferences.DEFAULT_SCHOOL_ORDER,
-                HabitListPreferences.DEFAULT_LEISURE_ORDER
+                HabitListPreferences.DEFAULT_LEISURE_ORDER,
+                HabitListPreferences.DEFAULT_HOUSEWORK_ORDER
             ))
 
     private val selfCareEnabled: StateFlow<Boolean> = habitListPreferences.isSelfCareEnabled()
@@ -106,9 +113,12 @@ class HabitListViewModel @Inject constructor(
     private val leisureEnabled: StateFlow<Boolean> = habitListPreferences.isLeisureEnabled()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
 
+    private val houseworkEnabled: StateFlow<Boolean> = habitListPreferences.isHouseworkEnabled()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
     val items: StateFlow<List<HabitListItem>> = combine(
         habits, morningLog, bedtimeLog, medicationLog, morningSteps, bedtimeSteps, medicationSteps, builtInSortOrders,
-        selfCareEnabled, medicationEnabled, schoolEnabled, leisureEnabled
+        selfCareEnabled, medicationEnabled, schoolEnabled, leisureEnabled, houseworkLog, houseworkSteps, houseworkEnabled
     ) { values ->
         @Suppress("UNCHECKED_CAST")
         val habitList = values[0] as List<HabitWithStatus>
@@ -123,10 +133,14 @@ class HabitListViewModel @Inject constructor(
         val medicationOn = values[9] as Boolean
         val schoolOn = values[10] as Boolean
         val leisureOn = values[11] as Boolean
+        val hwLog = values[12] as SelfCareLogEntity?
+        val hwSteps = values[13] as List<SelfCareStepEntity>
+        val houseworkOn = values[14] as Boolean
 
         val morningCard = computeCardData(mLog, mSteps, "morning")
         val bedtimeCard = computeCardData(bLog, bSteps, "bedtime")
         val medicationCard = computeCardData(medLog, medSteps, "medication")
+        val houseworkCard = computeCardData(hwLog, hwSteps, "housework")
 
         val autoHabitNames = mutableSetOf<String>()
         if (selfCareOn) {
@@ -134,6 +148,7 @@ class HabitListViewModel @Inject constructor(
             autoHabitNames.add(SelfCareRepository.BEDTIME_HABIT_NAME)
         }
         if (medicationOn) autoHabitNames.add(SelfCareRepository.MEDICATION_HABIT_NAME)
+        if (houseworkOn) autoHabitNames.add(SelfCareRepository.HOUSEWORK_HABIT_NAME)
         if (schoolOn) autoHabitNames.add(SchoolworkRepository.SCHOOL_HABIT_NAME)
         if (leisureOn) autoHabitNames.add(LeisureRepository.LEISURE_HABIT_NAME)
         // Always filter out built-in habit names from the regular habit list
@@ -141,6 +156,7 @@ class HabitListViewModel @Inject constructor(
             SelfCareRepository.MORNING_HABIT_NAME,
             SelfCareRepository.BEDTIME_HABIT_NAME,
             SelfCareRepository.MEDICATION_HABIT_NAME,
+            SelfCareRepository.HOUSEWORK_HABIT_NAME,
             SchoolworkRepository.SCHOOL_HABIT_NAME,
             LeisureRepository.LEISURE_HABIT_NAME
         )
@@ -155,6 +171,9 @@ class HabitListViewModel @Inject constructor(
         }
         if (medicationOn) {
             allItems.add(HabitListItem.SelfCareItem("medication", medicationCard, sortOrders.medication))
+        }
+        if (houseworkOn) {
+            allItems.add(HabitListItem.SelfCareItem("housework", houseworkCard, sortOrders.housework))
         }
         if (schoolOn && schoolHabit != null) {
             allItems.add(HabitListItem.BuiltInHabitItem("school", schoolHabit, sortOrders.school))
@@ -256,7 +275,8 @@ class HabitListViewModel @Inject constructor(
             bedtime = HabitListPreferences.DEFAULT_BEDTIME_ORDER,
             medication = HabitListPreferences.DEFAULT_MEDICATION_ORDER,
             school = HabitListPreferences.DEFAULT_SCHOOL_ORDER,
-            leisure = HabitListPreferences.DEFAULT_LEISURE_ORDER
+            leisure = HabitListPreferences.DEFAULT_LEISURE_ORDER,
+            housework = HabitListPreferences.DEFAULT_HOUSEWORK_ORDER
         )
 
         currentList.forEachIndexed { index, listItem ->
@@ -269,6 +289,7 @@ class HabitListViewModel @Inject constructor(
                         "morning" -> orders.copy(morning = index)
                         "bedtime" -> orders.copy(bedtime = index)
                         "medication" -> orders.copy(medication = index)
+                        "housework" -> orders.copy(housework = index)
                         else -> orders
                     }
                 }

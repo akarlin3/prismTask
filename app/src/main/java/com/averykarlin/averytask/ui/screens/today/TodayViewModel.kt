@@ -126,16 +126,27 @@ class TodayViewModel @Inject constructor(
     private val leisureEnabled: StateFlow<Boolean> = habitListPreferences.isLeisureEnabled()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
 
+    private val houseworkEnabled: StateFlow<Boolean> = habitListPreferences.isHouseworkEnabled()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
     val todayHabits: StateFlow<List<HabitWithStatus>> = combine(
         habitRepository.getHabitsWithTodayStatus(),
-        selfCareEnabled, medicationEnabled, schoolEnabled, leisureEnabled
-    ) { habits, selfCareOn, medicationOn, schoolOn, leisureOn ->
+        selfCareEnabled, medicationEnabled, schoolEnabled, leisureEnabled, houseworkEnabled
+    ) { values ->
+        @Suppress("UNCHECKED_CAST")
+        val habits = values[0] as List<HabitWithStatus>
+        val selfCareOn = values[1] as Boolean
+        val medicationOn = values[2] as Boolean
+        val schoolOn = values[3] as Boolean
+        val leisureOn = values[4] as Boolean
+        val houseworkOn = values[5] as Boolean
         val disabledNames = mutableSetOf<String>()
         if (!selfCareOn) {
             disabledNames.add(SelfCareRepository.MORNING_HABIT_NAME)
             disabledNames.add(SelfCareRepository.BEDTIME_HABIT_NAME)
         }
         if (!medicationOn) disabledNames.add(SelfCareRepository.MEDICATION_HABIT_NAME)
+        if (!houseworkOn) disabledNames.add(SelfCareRepository.HOUSEWORK_HABIT_NAME)
         if (!schoolOn) disabledNames.add(SchoolworkRepository.SCHOOL_HABIT_NAME)
         if (!leisureOn) disabledNames.add(LeisureRepository.LEISURE_HABIT_NAME)
         habits

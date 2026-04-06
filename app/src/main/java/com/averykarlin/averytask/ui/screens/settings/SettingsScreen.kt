@@ -545,9 +545,11 @@ fun SettingsScreen(
             val medicationEnabled by viewModel.medicationEnabled.collectAsStateWithLifecycle()
             val schoolEnabled by viewModel.schoolEnabled.collectAsStateWithLifecycle()
             val leisureEnabled by viewModel.leisureEnabled.collectAsStateWithLifecycle()
+            val houseworkEnabled by viewModel.houseworkEnabled.collectAsStateWithLifecycle()
 
             ModeToggleRow("Self Care", selfCareEnabled) { viewModel.setSelfCareEnabled(it) }
             ModeToggleRow("Medication", medicationEnabled) { viewModel.setMedicationEnabled(it) }
+            ModeToggleRow("Housework", houseworkEnabled) { viewModel.setHouseworkEnabled(it) }
             ModeToggleRow("Schoolwork", schoolEnabled) { viewModel.setSchoolEnabled(it) }
             ModeToggleRow("Leisure", leisureEnabled) { viewModel.setLeisureEnabled(it) }
 

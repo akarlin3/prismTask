@@ -20,7 +20,8 @@ data class BuiltInSortOrders(
     val bedtime: Int,
     val medication: Int,
     val school: Int,
-    val leisure: Int
+    val leisure: Int,
+    val housework: Int
 )
 
 @Singleton
@@ -33,13 +34,16 @@ class HabitListPreferences @Inject constructor(
         private val MEDICATION_SORT_ORDER = intPreferencesKey("medication_sort_order")
         private val SCHOOL_SORT_ORDER = intPreferencesKey("school_sort_order")
         private val LEISURE_SORT_ORDER = intPreferencesKey("leisure_sort_order")
+        private val HOUSEWORK_SORT_ORDER = intPreferencesKey("housework_sort_order")
         private val SELF_CARE_ENABLED = booleanPreferencesKey("self_care_enabled")
         private val MEDICATION_ENABLED = booleanPreferencesKey("medication_enabled")
         private val SCHOOL_ENABLED = booleanPreferencesKey("school_enabled")
         private val LEISURE_ENABLED = booleanPreferencesKey("leisure_enabled")
-        const val DEFAULT_MORNING_ORDER = -5
-        const val DEFAULT_BEDTIME_ORDER = -4
-        const val DEFAULT_MEDICATION_ORDER = -3
+        private val HOUSEWORK_ENABLED = booleanPreferencesKey("housework_enabled")
+        const val DEFAULT_MORNING_ORDER = -6
+        const val DEFAULT_BEDTIME_ORDER = -5
+        const val DEFAULT_MEDICATION_ORDER = -4
+        const val DEFAULT_HOUSEWORK_ORDER = -3
         const val DEFAULT_SCHOOL_ORDER = -2
         const val DEFAULT_LEISURE_ORDER = -1
     }
@@ -58,7 +62,8 @@ class HabitListPreferences @Inject constructor(
             bedtime = prefs[BEDTIME_SORT_ORDER] ?: DEFAULT_BEDTIME_ORDER,
             medication = prefs[MEDICATION_SORT_ORDER] ?: DEFAULT_MEDICATION_ORDER,
             school = prefs[SCHOOL_SORT_ORDER] ?: DEFAULT_SCHOOL_ORDER,
-            leisure = prefs[LEISURE_SORT_ORDER] ?: DEFAULT_LEISURE_ORDER
+            leisure = prefs[LEISURE_SORT_ORDER] ?: DEFAULT_LEISURE_ORDER,
+            housework = prefs[HOUSEWORK_SORT_ORDER] ?: DEFAULT_HOUSEWORK_ORDER
         )
     }
 
@@ -77,6 +82,7 @@ class HabitListPreferences @Inject constructor(
             prefs[MEDICATION_SORT_ORDER] = orders.medication
             prefs[SCHOOL_SORT_ORDER] = orders.school
             prefs[LEISURE_SORT_ORDER] = orders.leisure
+            prefs[HOUSEWORK_SORT_ORDER] = orders.housework
         }
     }
 
@@ -110,6 +116,14 @@ class HabitListPreferences @Inject constructor(
 
     suspend fun setLeisureEnabled(enabled: Boolean) {
         context.habitListDataStore.edit { prefs -> prefs[LEISURE_ENABLED] = enabled }
+    }
+
+    fun isHouseworkEnabled(): Flow<Boolean> = context.habitListDataStore.data.map { prefs ->
+        prefs[HOUSEWORK_ENABLED] ?: true
+    }
+
+    suspend fun setHouseworkEnabled(enabled: Boolean) {
+        context.habitListDataStore.edit { prefs -> prefs[HOUSEWORK_ENABLED] = enabled }
     }
 
     suspend fun clearAll() {

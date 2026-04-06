@@ -105,10 +105,10 @@ class SelfCareViewModel @Inject constructor(
     }
 
     fun getDefaultPhases(): List<String> {
-        return if (_routineType.value == "morning") {
-            listOf("Skincare", "Hygiene", "Grooming")
-        } else {
-            listOf("Wash", "Skincare", "Hygiene", "Sleep")
+        return when (_routineType.value) {
+            "morning" -> listOf("Skincare", "Hygiene", "Grooming")
+            "housework" -> listOf("Kitchen", "Living Areas", "Bathroom", "Laundry")
+            else -> listOf("Wash", "Skincare", "Hygiene", "Sleep")
         }
     }
 

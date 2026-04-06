@@ -96,6 +96,7 @@ fun SelfCareScreen(
     val activeTier = tiers.find { it.id == selectedTier } ?: tiers.first()
     val tierColor = Color(activeTier.color)
 
+    val isHousework = routineType == "housework"
     val tabIndex = if (routineType == "morning") 0 else 1
 
     var showAddDialog by remember { mutableStateOf(false) }
@@ -106,7 +107,7 @@ fun SelfCareScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Self-Care", fontWeight = FontWeight.Bold) },
+                title = { Text(if (isHousework) "Housework" else "Self-Care", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -145,32 +146,38 @@ fun SelfCareScreen(
                 .padding(padding)
                 .padding(horizontal = 16.dp)
         ) {
-            // Tab row
-            item {
-                TabRow(
-                    selectedTabIndex = tabIndex,
-                    modifier = Modifier.clip(RoundedCornerShape(12.dp)),
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                    contentColor = MaterialTheme.colorScheme.primary
-                ) {
-                    Tab(
-                        selected = tabIndex == 0,
-                        onClick = { viewModel.switchRoutine("morning") },
-                        text = { Text("Morning") }
-                    )
-                    Tab(
-                        selected = tabIndex == 1,
-                        onClick = { viewModel.switchRoutine("bedtime") },
-                        text = { Text("Bedtime") }
-                    )
+            // Tab row (only for self-care morning/bedtime, not housework)
+            if (!isHousework) {
+                item {
+                    TabRow(
+                        selectedTabIndex = tabIndex,
+                        modifier = Modifier.clip(RoundedCornerShape(12.dp)),
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                        contentColor = MaterialTheme.colorScheme.primary
+                    ) {
+                        Tab(
+                            selected = tabIndex == 0,
+                            onClick = { viewModel.switchRoutine("morning") },
+                            text = { Text("Morning") }
+                        )
+                        Tab(
+                            selected = tabIndex == 1,
+                            onClick = { viewModel.switchRoutine("bedtime") },
+                            text = { Text("Bedtime") }
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
                 }
-                Spacer(modifier = Modifier.height(16.dp))
             }
 
             // Header
             item {
                 Text(
-                    text = if (routineType == "morning") "Self-care routine" else "Wind-down routine",
+                    text = when (routineType) {
+                        "morning" -> "Self-care routine"
+                        "housework" -> "Housework routine"
+                        else -> "Wind-down routine"
+                    },
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.ExtraBold
                 )
@@ -281,7 +288,11 @@ fun SelfCareScreen(
                         if (allDone) {
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                text = if (routineType == "morning") "All done \u2014 go get it, Avery." else "All done \u2014 lights out. Sleep well, Avery.",
+                                text = when (routineType) {
+                        "morning" -> "All done \u2014 go get it, Avery."
+                        "housework" -> "All done \u2014 house is looking great!"
+                        else -> "All done \u2014 lights out. Sleep well, Avery."
+                    },
                                 style = MaterialTheme.typography.bodySmall,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFF10B981),
@@ -548,10 +559,10 @@ private fun StepDialog(
     var phase by remember { mutableStateOf(initialPhase) }
 
     val tiers = SelfCareRoutines.getTiers(routineType)
-    val phases = if (routineType == "morning") {
-        listOf("Skincare", "Hygiene", "Grooming")
-    } else {
-        listOf("Wash", "Skincare", "Hygiene", "Sleep")
+    val phases = when (routineType) {
+        "morning" -> listOf("Skincare", "Hygiene", "Grooming")
+        "housework" -> listOf("Kitchen", "Living Areas", "Bathroom", "Laundry")
+        else -> listOf("Wash", "Skincare", "Hygiene", "Sleep")
     }
 
     var tierExpanded by remember { mutableStateOf(false) }

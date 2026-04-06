@@ -141,6 +141,9 @@ class SettingsViewModel @Inject constructor(
     val leisureEnabled: StateFlow<Boolean> = habitListPreferences.isLeisureEnabled()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
 
+    val houseworkEnabled: StateFlow<Boolean> = habitListPreferences.isHouseworkEnabled()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
     fun setSelfCareEnabled(enabled: Boolean) {
         viewModelScope.launch { habitListPreferences.setSelfCareEnabled(enabled) }
     }
@@ -155,6 +158,10 @@ class SettingsViewModel @Inject constructor(
 
     fun setLeisureEnabled(enabled: Boolean) {
         viewModelScope.launch { habitListPreferences.setLeisureEnabled(enabled) }
+    }
+
+    fun setHouseworkEnabled(enabled: Boolean) {
+        viewModelScope.launch { habitListPreferences.setHouseworkEnabled(enabled) }
     }
 
     // --- Archive / Data ---
