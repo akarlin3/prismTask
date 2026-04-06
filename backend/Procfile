@@ -1,0 +1,1 @@
+web: alembic upgrade head && gunicorn app.main:app -c gunicorn.conf.py

@@ -249,6 +249,92 @@ See [SECURITY.md](SECURITY.md) for security considerations and how to report vul
 
 This project is licensed under the [GNU Affero General Public License v3.0](LICENSE).
 
+---
+
+## AveryTask Web Backend + React Native App
+
+In addition to the native Android app, AveryTask includes a full-stack web backend and cross-platform React Native mobile app.
+
+### Why I Built This
+
+I wanted a hierarchical task management system that maps how I actually think about work — career goals broken into projects, projects broken into tasks. Most task apps are flat lists. AveryTask gives me Goal → Project → Task hierarchy with an NLP parser powered by Claude that lets me create tasks from natural language.
+
+### Web Stack
+
+| Layer | Technology | Purpose |
+|-------|-----------|---------|
+| Backend | FastAPI (Python 3.11+) | Async REST API with auto-docs |
+| ORM | SQLAlchemy 2.0 (async) | Models + migrations via Alembic |
+| Database | PostgreSQL | Production-grade relational DB |
+| Auth | JWT (PyJWT + bcrypt) | Stateless auth with refresh tokens |
+| NLP | Claude Haiku (Anthropic API) | Natural language task parsing |
+| Mobile | React Native (Expo) | Cross-platform with file-based routing |
+| State | Zustand | Lightweight state management |
+| CI | GitHub Actions | Automated tests + linting |
+| Deploy | Docker + Railway | Containerized deployment |
+
+### Architecture
+
+```
+Android/iOS Device (React Native + Expo)
+        │ HTTPS
+        ▼
+FastAPI Server (Railway)
+├── Auth (JWT)
+├── CRUD Routes (Goals → Projects → Tasks)
+├── NLP Parser (Claude Haiku)
+└── SQLAlchemy ORM + Alembic
+        │
+        ▼
+    PostgreSQL
+```
+
+### Backend API Endpoints
+
+All endpoints under `/api/v1`:
+
+- **Auth**: POST `/auth/register`, `/auth/login`, `/auth/refresh`
+- **Goals**: GET/POST `/goals`, GET/PATCH/DELETE `/goals/{id}`
+- **Projects**: GET/POST `/goals/{id}/projects`, GET/PATCH/DELETE `/projects/{id}`
+- **Tasks**: GET/POST `/projects/{id}/tasks`, GET/PATCH/DELETE `/tasks/{id}`, POST `/tasks/{id}/subtasks`
+- **Dashboard**: GET `/tasks/today`, `/tasks/overdue`, `/tasks/upcoming`, `/dashboard/summary`
+- **NLP**: POST `/tasks/parse` — natural language → structured task suggestion
+- **Search**: GET `/search?q=query` — full-text search across tasks
+
+### Getting Started (Backend)
+
+```bash
+# Prerequisites: Docker, Node.js 18+
+
+# Start backend + PostgreSQL
+docker compose up -d
+
+# API docs
+open http://localhost:8000/docs
+
+# Run tests
+docker compose exec backend pytest -v
+
+# Start mobile app
+cd mobile && npm install && npx expo start
+```
+
+### Environment Variables
+
+Copy `backend/.env.example` to `backend/.env`:
+
+```env
+DATABASE_URL=postgresql+asyncpg://averytask:averytask@localhost:5432/averytask
+JWT_SECRET_KEY=change-me-in-production
+JWT_ALGORITHM=HS256
+ANTHROPIC_API_KEY=sk-ant-your-key-here
+ENVIRONMENT=dev
+```
+
+### Backend Test Coverage
+
+21+ tests covering auth, goals CRUD, tasks/subtasks, depth constraints, and NLP parsing.
+
 ## Author
 
 Avery Karlin
