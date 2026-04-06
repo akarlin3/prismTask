@@ -413,7 +413,9 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun downloadAndInstallUpdate() {
-        appUpdater.downloadAndInstall()
+        viewModelScope.launch {
+            appUpdater.downloadAndInstall()
+        }
     }
 
     private val _isResetting = MutableStateFlow(false)

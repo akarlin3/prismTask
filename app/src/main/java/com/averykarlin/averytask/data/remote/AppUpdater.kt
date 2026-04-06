@@ -1,20 +1,17 @@
 package com.averykarlin.averytask.data.remote
 
-import android.app.DownloadManager
-import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.content.IntentFilter
 import android.net.Uri
-import android.os.Environment
 import android.util.Log
-import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
+import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
 import java.time.Instant
@@ -42,7 +39,7 @@ class AppUpdater @Inject constructor(
         private const val COMMITS_API_URL =
             "https://api.github.com/repos/$REPO/commits?path=$APK_PATH&sha=main&per_page=1"
         private const val RAW_DOWNLOAD_URL =
-            "https://github.com/$REPO/raw/main/$APK_PATH"
+            "https://raw.githubusercontent.com/$REPO/main/$APK_PATH"
     }
 
     private val _status = MutableStateFlow(UpdateStatus.IDLE)
@@ -54,7 +51,6 @@ class AppUpdater @Inject constructor(
     private val _latestCommitDate = MutableStateFlow<String?>(null)
     val latestCommitDate: StateFlow<String?> = _latestCommitDate
 
-    private var downloadId: Long = -1
     private var latestSha: String? = null
 
     suspend fun checkForUpdate() {
@@ -109,66 +105,61 @@ class AppUpdater @Inject constructor(
         }
     }
 
-    fun downloadAndInstall() {
+    suspend fun downloadAndInstall() {
         _status.value = UpdateStatus.DOWNLOADING
-
-        // Clean up old APKs via ContentResolver (works with scoped storage)
+        _errorMessage.value = null
         try {
-            val resolver = context.contentResolver
-            val collection = android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI
-            val selection = "${android.provider.MediaStore.Downloads.DISPLAY_NAME} LIKE ?"
-            val selectionArgs = arrayOf("AveryTask-%.apk")
-            resolver.delete(collection, selection, selectionArgs)
-        } catch (e: Exception) {
-            Log.w(TAG, "Could not clean up old APKs", e)
-        }
+            val apkFile = withContext(Dispatchers.IO) {
+                // Clean up old APKs in cache
+                val updateDir = File(context.cacheDir, "apk_updates")
+                if (updateDir.exists()) {
+                    updateDir.listFiles()?.forEach { it.delete() }
+                }
+                updateDir.mkdirs()
 
-        // Use timestamp in filename to avoid DownloadManager conflict
-        val fileName = "AveryTask-${System.currentTimeMillis()}.apk"
+                val targetFile = File(updateDir, "AveryTask-update.apk")
 
-        val request = DownloadManager.Request(Uri.parse(RAW_DOWNLOAD_URL))
-            .setTitle("AveryTask Update")
-            .setDescription("Downloading latest build")
-            .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName)
-            .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE)
-            .setMimeType("application/vnd.android.package-archive")
+                val url = URL(RAW_DOWNLOAD_URL)
+                val conn = url.openConnection() as HttpURLConnection
+                conn.instanceFollowRedirects = true
+                conn.connectTimeout = 30_000
+                conn.readTimeout = 60_000
 
-        val dm = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
-        try {
-            downloadId = dm.enqueue(request)
-        } catch (e: Exception) {
-            Log.e(TAG, "Download failed to start", e)
-            _errorMessage.value = e.message ?: "Download failed to start"
-            _status.value = UpdateStatus.ERROR
-            return
-        }
+                val responseCode = conn.responseCode
+                if (responseCode != 200) {
+                    conn.disconnect()
+                    throw Exception("Download failed: HTTP $responseCode")
+                }
 
-        val receiver = object : BroadcastReceiver() {
-            override fun onReceive(ctx: Context, intent: Intent) {
-                val id = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1)
-                if (id == downloadId) {
-                    context.unregisterReceiver(this)
-                    val uri = dm.getUriForDownloadedFile(downloadId)
-                    if (uri != null) {
-                        _status.value = UpdateStatus.READY_TO_INSTALL
-                        installApk(uri)
-                    } else {
-                        _errorMessage.value = "Download failed"
-                        _status.value = UpdateStatus.ERROR
+                conn.inputStream.use { input ->
+                    targetFile.outputStream().use { output ->
+                        input.copyTo(output, bufferSize = 8192)
                     }
                 }
-            }
-        }
+                conn.disconnect()
 
-        ContextCompat.registerReceiver(
-            context,
-            receiver,
-            IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE),
-            ContextCompat.RECEIVER_EXPORTED
-        )
+                if (!targetFile.exists() || targetFile.length() < 1000) {
+                    throw Exception("Downloaded file is invalid (${targetFile.length()} bytes)")
+                }
+
+                targetFile
+            }
+
+            _status.value = UpdateStatus.READY_TO_INSTALL
+            installApk(apkFile)
+        } catch (e: Exception) {
+            Log.e(TAG, "Download/install failed", e)
+            _errorMessage.value = e.message ?: "Download failed"
+            _status.value = UpdateStatus.ERROR
+        }
     }
 
-    private fun installApk(uri: Uri) {
+    private fun installApk(file: File) {
+        val uri: Uri = FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.fileprovider",
+            file
+        )
         val intent = Intent(Intent.ACTION_VIEW).apply {
             setDataAndType(uri, "application/vnd.android.package-archive")
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION
