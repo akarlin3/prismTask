@@ -191,14 +191,39 @@ class HabitRepository @Inject constructor(
                     habit.targetFrequency
                 } else 1
                 val count = countByHabit[habit.id] ?: 0
-                val weekCompletions = completions.filter { it.completedDate in weekStart..weekEnd }
+
+                val periodStart: Long
+                val periodEnd: Long
+                when (habit.frequencyPeriod) {
+                    "fortnightly" -> {
+                        periodStart = getFortnightStart(today)
+                        periodEnd = getFortnightEnd(today)
+                    }
+                    "monthly" -> {
+                        periodStart = getMonthStart(today)
+                        periodEnd = getMonthEnd(today)
+                    }
+                    else -> {
+                        periodStart = weekStart
+                        periodEnd = weekEnd
+                    }
+                }
+
+                val periodCompletions = completions.filter { it.completedDate in periodStart..periodEnd }
                     .groupBy { it.completedDate }
                     .count { (_, dayCompletions) -> dayCompletions.size >= target }
+
+                // For non-daily habits, "completed today" means the period target is met
+                val isCompleted = when (habit.frequencyPeriod) {
+                    "daily" -> count >= target
+                    else -> periodCompletions >= habit.targetFrequency
+                }
+
                 HabitWithStatus(
                     habit = habit,
-                    isCompletedToday = count >= target,
+                    isCompletedToday = isCompleted,
                     currentStreak = StreakCalculator.calculateCurrentStreak(completions, habit, todayLocal),
-                    completionsThisWeek = weekCompletions,
+                    completionsThisWeek = periodCompletions,
                     completionsToday = count,
                     dailyTarget = target
                 )
@@ -237,6 +262,55 @@ class HabitRepository @Inject constructor(
             cal.set(Calendar.SECOND, 59)
             cal.set(Calendar.MILLISECOND, 999)
             if (cal.timeInMillis < today) cal.add(Calendar.WEEK_OF_YEAR, 1)
+            return cal.timeInMillis
+        }
+
+        fun getFortnightStart(today: Long): Long {
+            val cal = Calendar.getInstance()
+            cal.timeInMillis = today
+            cal.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
+            cal.set(Calendar.HOUR_OF_DAY, 0)
+            cal.set(Calendar.MINUTE, 0)
+            cal.set(Calendar.SECOND, 0)
+            cal.set(Calendar.MILLISECOND, 0)
+            if (cal.timeInMillis > today) cal.add(Calendar.WEEK_OF_YEAR, -1)
+            // Use ISO week number to determine fortnight boundary (odd weeks start a fortnight)
+            val weekNum = cal.get(Calendar.WEEK_OF_YEAR)
+            if (weekNum % 2 == 0) cal.add(Calendar.WEEK_OF_YEAR, -1)
+            return cal.timeInMillis
+        }
+
+        fun getFortnightEnd(today: Long): Long {
+            val start = getFortnightStart(today)
+            val cal = Calendar.getInstance()
+            cal.timeInMillis = start
+            cal.add(Calendar.DAY_OF_YEAR, 13)
+            cal.set(Calendar.HOUR_OF_DAY, 23)
+            cal.set(Calendar.MINUTE, 59)
+            cal.set(Calendar.SECOND, 59)
+            cal.set(Calendar.MILLISECOND, 999)
+            return cal.timeInMillis
+        }
+
+        fun getMonthStart(today: Long): Long {
+            val cal = Calendar.getInstance()
+            cal.timeInMillis = today
+            cal.set(Calendar.DAY_OF_MONTH, 1)
+            cal.set(Calendar.HOUR_OF_DAY, 0)
+            cal.set(Calendar.MINUTE, 0)
+            cal.set(Calendar.SECOND, 0)
+            cal.set(Calendar.MILLISECOND, 0)
+            return cal.timeInMillis
+        }
+
+        fun getMonthEnd(today: Long): Long {
+            val cal = Calendar.getInstance()
+            cal.timeInMillis = today
+            cal.set(Calendar.DAY_OF_MONTH, cal.getActualMaximum(Calendar.DAY_OF_MONTH))
+            cal.set(Calendar.HOUR_OF_DAY, 23)
+            cal.set(Calendar.MINUTE, 59)
+            cal.set(Calendar.SECOND, 59)
+            cal.set(Calendar.MILLISECOND, 999)
             return cal.timeInMillis
         }
     }

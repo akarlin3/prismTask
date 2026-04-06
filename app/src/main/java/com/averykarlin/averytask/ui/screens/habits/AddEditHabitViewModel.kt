@@ -101,8 +101,25 @@ class AddEditHabitViewModel @Inject constructor(
     }
 
     fun onDescriptionChange(value: String) { description = value }
-    fun onTargetFrequencyChange(value: Int) { targetFrequency = value.coerceIn(1, 10) }
-    fun onFrequencyPeriodChange(value: String) { frequencyPeriod = value }
+    fun onTargetFrequencyChange(value: Int) {
+        val max = when (frequencyPeriod) {
+            "weekly" -> 7
+            "fortnightly" -> 14
+            "monthly" -> 30
+            else -> 10
+        }
+        targetFrequency = value.coerceIn(1, max)
+    }
+    fun onFrequencyPeriodChange(value: String) {
+        frequencyPeriod = value
+        val max = when (value) {
+            "weekly" -> 7
+            "fortnightly" -> 14
+            "monthly" -> 30
+            else -> 10
+        }
+        targetFrequency = targetFrequency.coerceIn(1, max)
+    }
     fun onToggleActiveDay(day: Int) {
         activeDays = if (day in activeDays) activeDays - day else activeDays + day
     }

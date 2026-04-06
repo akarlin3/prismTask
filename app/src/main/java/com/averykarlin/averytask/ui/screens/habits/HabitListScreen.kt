@@ -39,7 +39,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -49,6 +51,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -88,15 +91,45 @@ fun HabitListScreen(
     var habitToDelete by remember { mutableStateOf<HabitWithStatus?>(null) }
     var loggingHabit by remember { mutableStateOf<HabitWithStatus?>(null) }
     val scope = rememberCoroutineScope()
+    var selectedTab by remember { mutableIntStateOf(0) }
+    val tabTitles = listOf("Daily", "Recurring")
+
+    val recurringPeriods = setOf("weekly", "fortnightly", "monthly")
+    val filteredItems = remember(items, selectedTab) {
+        if (selectedTab == 0) {
+            items.filter { item ->
+                when (item) {
+                    is HabitListItem.HabitItem -> item.habitWithStatus.habit.frequencyPeriod == "daily"
+                    is HabitListItem.SelfCareItem -> true
+                    is HabitListItem.BuiltInHabitItem -> true
+                }
+            }
+        } else {
+            items.filter { item ->
+                item is HabitListItem.HabitItem && item.habitWithStatus.habit.frequencyPeriod in recurringPeriods
+            }
+        }
+    }
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Habits", fontWeight = FontWeight.Bold) },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
+            Column {
+                TopAppBar(
+                    title = { Text("Habits", fontWeight = FontWeight.Bold) },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.surface
+                    )
                 )
-            )
+                PrimaryTabRow(selectedTabIndex = selectedTab) {
+                    tabTitles.forEachIndexed { index, title ->
+                        Tab(
+                            selected = selectedTab == index,
+                            onClick = { selectedTab = index },
+                            text = { Text(title) }
+                        )
+                    }
+                }
+            }
         },
         floatingActionButton = {
             FloatingActionButton(
@@ -120,7 +153,7 @@ fun HabitListScreen(
             }
         }
 
-        if (items.isEmpty()) {
+        if (filteredItems.isEmpty()) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -129,8 +162,8 @@ fun HabitListScreen(
             ) {
                 EmptyState(
                     icon = Icons.Default.FitnessCenter,
-                    title = "Build better habits!",
-                    subtitle = "Tap + to start tracking.",
+                    title = if (selectedTab == 0) "Build better habits!" else "No recurring habits yet",
+                    subtitle = if (selectedTab == 0) "Tap + to start tracking." else "Tap + to add a weekly, fortnightly, or monthly habit.",
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 32.dp)
@@ -147,7 +180,7 @@ fun HabitListScreen(
             ) {
                 item { Spacer(modifier = Modifier.height(4.dp)) }
 
-                items(items, key = { it.key }) { listItem ->
+                items(filteredItems, key = { it.key }) { listItem ->
                     ReorderableItem(reorderableLazyListState, key = listItem.key) { isDragging ->
                         val elevation = if (isDragging) 8.dp else 0.dp
                         when (listItem) {
@@ -334,7 +367,19 @@ private fun HabitItem(
                     }
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    if (habitWithStatus.dailyTarget > 1) {
+                    val periodLabel = when (habit.frequencyPeriod) {
+                        "weekly" -> "this week"
+                        "fortnightly" -> "this fortnight"
+                        "monthly" -> "this month"
+                        else -> "this week"
+                    }
+                    val streakUnit = when (habit.frequencyPeriod) {
+                        "weekly" -> "week streak"
+                        "fortnightly" -> "fortnight streak"
+                        "monthly" -> "month streak"
+                        else -> "day streak"
+                    }
+                    if (habit.frequencyPeriod == "daily" && habitWithStatus.dailyTarget > 1) {
                         Text(
                             text = "${habitWithStatus.completionsToday}/${habitWithStatus.dailyTarget} today",
                             style = MaterialTheme.typography.bodySmall,
@@ -348,24 +393,34 @@ private fun HabitItem(
                         StreakBadge(streak = habitWithStatus.currentStreak)
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = "day streak",
+                            text = streakUnit,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    } else if (habit.frequencyPeriod != "daily") {
+                        Text(
+                            text = "${habitWithStatus.completionsThisWeek}/${habit.targetFrequency} $periodLabel",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     } else {
                         Text(
-                            text = "${habitWithStatus.completionsThisWeek}/${habit.targetFrequency} this week",
+                            text = "${habitWithStatus.completionsThisWeek}/${habit.targetFrequency} $periodLabel",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
 
-                // Weekly progress dots
+                // Progress dots
                 Spacer(modifier = Modifier.height(4.dp))
+                val dotsTarget = when (habit.frequencyPeriod) {
+                    "daily" -> 7
+                    else -> habit.targetFrequency.coerceAtMost(7)
+                }
                 WeeklyDots(
                     completionsThisWeek = habitWithStatus.completionsThisWeek,
-                    target = if (habit.frequencyPeriod == "weekly") habit.targetFrequency else 7,
+                    target = dotsTarget,
                     color = habitColor
                 )
             }

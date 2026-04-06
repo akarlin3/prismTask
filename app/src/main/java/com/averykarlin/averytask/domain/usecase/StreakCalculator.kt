@@ -24,10 +24,11 @@ object StreakCalculator {
     ): Int {
         if (completions.isEmpty()) return 0
 
-        return if (habit.frequencyPeriod == "weekly") {
-            calculateWeeklyStreak(completions, habit, today, longest = false)
-        } else {
-            calculateDailyStreak(completions, habit, today, longest = false)
+        return when (habit.frequencyPeriod) {
+            "weekly" -> calculateWeeklyStreak(completions, habit, today, longest = false)
+            "fortnightly" -> calculateFortnightlyStreak(completions, habit, today, longest = false)
+            "monthly" -> calculateMonthlyStreak(completions, habit, today, longest = false)
+            else -> calculateDailyStreak(completions, habit, today, longest = false)
         }
     }
 
@@ -38,10 +39,11 @@ object StreakCalculator {
     ): Int {
         if (completions.isEmpty()) return 0
 
-        return if (habit.frequencyPeriod == "weekly") {
-            calculateWeeklyStreak(completions, habit, today, longest = true)
-        } else {
-            calculateDailyStreak(completions, habit, today, longest = true)
+        return when (habit.frequencyPeriod) {
+            "weekly" -> calculateWeeklyStreak(completions, habit, today, longest = true)
+            "fortnightly" -> calculateFortnightlyStreak(completions, habit, today, longest = true)
+            "monthly" -> calculateMonthlyStreak(completions, habit, today, longest = true)
+            else -> calculateDailyStreak(completions, habit, today, longest = true)
         }
     }
 
@@ -221,6 +223,107 @@ object StreakCalculator {
             checkWeekStart = checkWeekStart.minusWeeks(1)
         }
 
+        return streak
+    }
+
+    private fun getFortnightStart(date: LocalDate): LocalDate {
+        val weekStart = date.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+        // Align fortnights using ISO week number: odd weeks start a fortnight
+        val weekNum = weekStart.get(java.time.temporal.IsoFields.WEEK_OF_WEEK_BASED_YEAR)
+        return if (weekNum % 2 == 0) weekStart.minusWeeks(1) else weekStart
+    }
+
+    private fun calculateFortnightlyStreak(
+        completions: List<HabitCompletionEntity>,
+        habit: HabitEntity,
+        today: LocalDate,
+        longest: Boolean
+    ): Int {
+        val target = habit.targetFrequency
+
+        // Group completions by fortnight start
+        val completionsByFortnight = completions.groupBy { completion ->
+            val date = completion.completedDate.toLocalDate()
+            getFortnightStart(date)
+        }.mapValues { it.value.groupBy { c -> c.completedDate.toLocalDate() }.size }
+
+        if (longest) {
+            val fortnights = completionsByFortnight.keys.sorted()
+            if (fortnights.isEmpty()) return 0
+
+            var maxStreak = 0
+            var currentStreak = 0
+            var expected = fortnights.first()
+
+            for (fn in fortnights) {
+                while (expected.isBefore(fn)) {
+                    if ((completionsByFortnight[expected] ?: 0) >= target) currentStreak++
+                    else { maxStreak = maxOf(maxStreak, currentStreak); currentStreak = 0 }
+                    expected = expected.plusWeeks(2)
+                }
+                if ((completionsByFortnight[fn] ?: 0) >= target) currentStreak++
+                else { maxStreak = maxOf(maxStreak, currentStreak); currentStreak = 0 }
+                expected = fn.plusWeeks(2)
+            }
+            return maxOf(maxStreak, currentStreak)
+        }
+
+        var streak = 0
+        var checkStart = getFortnightStart(today)
+        if ((completionsByFortnight[checkStart] ?: 0) < target) {
+            checkStart = checkStart.minusWeeks(2)
+        }
+        while ((completionsByFortnight[checkStart] ?: 0) >= target) {
+            streak++
+            checkStart = checkStart.minusWeeks(2)
+        }
+        return streak
+    }
+
+    private fun calculateMonthlyStreak(
+        completions: List<HabitCompletionEntity>,
+        habit: HabitEntity,
+        today: LocalDate,
+        longest: Boolean
+    ): Int {
+        val target = habit.targetFrequency
+
+        // Group completions by month start
+        val completionsByMonth = completions.groupBy { completion ->
+            val date = completion.completedDate.toLocalDate()
+            date.withDayOfMonth(1)
+        }.mapValues { it.value.groupBy { c -> c.completedDate.toLocalDate() }.size }
+
+        if (longest) {
+            val months = completionsByMonth.keys.sorted()
+            if (months.isEmpty()) return 0
+
+            var maxStreak = 0
+            var currentStreak = 0
+            var expected = months.first()
+
+            for (month in months) {
+                while (expected.isBefore(month)) {
+                    if ((completionsByMonth[expected] ?: 0) >= target) currentStreak++
+                    else { maxStreak = maxOf(maxStreak, currentStreak); currentStreak = 0 }
+                    expected = expected.plusMonths(1)
+                }
+                if ((completionsByMonth[month] ?: 0) >= target) currentStreak++
+                else { maxStreak = maxOf(maxStreak, currentStreak); currentStreak = 0 }
+                expected = month.plusMonths(1)
+            }
+            return maxOf(maxStreak, currentStreak)
+        }
+
+        var streak = 0
+        var checkMonth = today.withDayOfMonth(1)
+        if ((completionsByMonth[checkMonth] ?: 0) < target) {
+            checkMonth = checkMonth.minusMonths(1)
+        }
+        while ((completionsByMonth[checkMonth] ?: 0) >= target) {
+            streak++
+            checkMonth = checkMonth.minusMonths(1)
+        }
         return streak
     }
 

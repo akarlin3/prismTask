@@ -201,16 +201,14 @@ fun AddEditHabitScreen(
             // Frequency
             SectionLabel("Frequency")
             SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                SegmentedButton(
-                    selected = viewModel.frequencyPeriod == "daily",
-                    onClick = { viewModel.onFrequencyPeriodChange("daily") },
-                    shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2)
-                ) { Text("Daily") }
-                SegmentedButton(
-                    selected = viewModel.frequencyPeriod == "weekly",
-                    onClick = { viewModel.onFrequencyPeriodChange("weekly") },
-                    shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2)
-                ) { Text("Weekly") }
+                val periods = listOf("daily" to "Daily", "weekly" to "Weekly", "fortnightly" to "Fortnightly", "monthly" to "Monthly")
+                periods.forEachIndexed { index, (value, label) ->
+                    SegmentedButton(
+                        selected = viewModel.frequencyPeriod == value,
+                        onClick = { viewModel.onFrequencyPeriodChange(value) },
+                        shape = SegmentedButtonDefaults.itemShape(index = index, count = periods.size)
+                    ) { Text(label, style = MaterialTheme.typography.labelSmall) }
+                }
             }
 
             // Target count
@@ -218,8 +216,22 @@ fun AddEditHabitScreen(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth()
             ) {
+                val targetLabel = when (viewModel.frequencyPeriod) {
+                    "daily" -> "Target per day:"
+                    "weekly" -> "Target per week:"
+                    "fortnightly" -> "Target per fortnight:"
+                    "monthly" -> "Target per month:"
+                    else -> "Target:"
+                }
+                val maxTarget = when (viewModel.frequencyPeriod) {
+                    "daily" -> 10
+                    "weekly" -> 7
+                    "fortnightly" -> 14
+                    "monthly" -> 30
+                    else -> 10
+                }
                 Text(
-                    text = if (viewModel.frequencyPeriod == "daily") "Target per day:" else "Target per week:",
+                    text = targetLabel,
                     style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier.weight(1f)
                 )
@@ -236,7 +248,7 @@ fun AddEditHabitScreen(
                 )
                 IconButton(
                     onClick = { viewModel.onTargetFrequencyChange(viewModel.targetFrequency + 1) },
-                    enabled = viewModel.targetFrequency < if (viewModel.frequencyPeriod == "daily") 10 else 7
+                    enabled = viewModel.targetFrequency < maxTarget
                 ) {
                     Icon(Icons.Default.Add, contentDescription = "Increase")
                 }
