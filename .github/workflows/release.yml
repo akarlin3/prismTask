@@ -40,13 +40,15 @@ jobs:
           cache-read-only: false
 
       - name: Decode keystore
+        id: keystore
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
         run: |
           if [ -z "$KEYSTORE_BASE64" ]; then
-            echo "::error::KEYSTORE_BASE64 secret is not set. Encode your keystore with: base64 -w 0 your-keystore.jks"
-            exit 1
+            echo "::warning::KEYSTORE_BASE64 secret is not set. Skipping signed release build. To enable signing, encode your keystore with: base64 -w 0 your-keystore.jks"
+            echo "has_keystore=false" >> $GITHUB_OUTPUT
+            exit 0
           fi
           printf '%s' "$KEYSTORE_BASE64" | base64 -d > app/release.keystore
           # Validate the keystore is readable
@@ -54,6 +56,7 @@ jobs:
             echo "::error::Keystore is invalid or corrupted. Please re-encode with: base64 -w 0 your-keystore.jks"
             exit 1
           }
+          echo "has_keystore=true" >> $GITHUB_OUTPUT
 
       - name: Auto-increment versionCode
         run: |
@@ -64,6 +67,7 @@ jobs:
           echo "version_code=$NEW_CODE" >> $GITHUB_ENV
 
       - name: Build release APK
+        if: steps.keystore.outputs.has_keystore == 'true'
         run: ./gradlew assembleRelease --no-configuration-cache --build-cache --parallel
         env:
           KEYSTORE_PATH: release.keystore
@@ -72,6 +76,7 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
 
       - name: Build release AAB
+        if: steps.keystore.outputs.has_keystore == 'true'
         run: ./gradlew bundleRelease --no-configuration-cache --build-cache --parallel
         env:
           KEYSTORE_PATH: release.keystore
@@ -80,6 +85,7 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
 
       - name: Extract version name
+        if: steps.keystore.outputs.has_keystore == 'true'
         id: version
         run: |
           VERSION_NAME=$(grep 'versionName' app/build.gradle.kts | head -1 | grep -oP '"\K[^"]+')
@@ -87,6 +93,7 @@ jobs:
           echo "version_code=${{ env.version_code }}" >> $GITHUB_OUTPUT
 
       - name: Get recent commit messages for release notes
+        if: steps.keystore.outputs.has_keystore == 'true'
         id: notes
         run: |
           NOTES=$(git log -5 --pretty=format:"• %s" | head -c 500)
@@ -95,6 +102,7 @@ jobs:
           echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Upload APK to backend
+        if: steps.keystore.outputs.has_keystore == 'true'
         run: |
           APK_PATH=$(find app/build/outputs/apk/release -name '*.apk' | head -1)
           if [ -z "$APK_PATH" ]; then
@@ -111,18 +119,21 @@ jobs:
             -F "apk=@${APK_PATH}"
 
       - name: Upload APK as artifact
+        if: steps.keystore.outputs.has_keystore == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: release-apk
           path: app/build/outputs/apk/release/*.apk
 
       - name: Upload AAB as artifact
+        if: steps.keystore.outputs.has_keystore == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: release-aab
           path: app/build/outputs/bundle/release/*.aab
 
       - name: Commit AAB to repo root
+        if: steps.keystore.outputs.has_keystore == 'true'
         run: |
           AAB_PATH=$(find app/build/outputs/bundle/release -name '*.aab' | head -1)
           if [ -z "$AAB_PATH" ]; then
