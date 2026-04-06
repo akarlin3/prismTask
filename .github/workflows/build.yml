@@ -3,9 +3,15 @@ name: Build APK
 on:
   push:
     branches: [ main, 'claude/**' ]
+    paths-ignore:
+      - 'backend/**'
+      - '*.md'
   pull_request:
     branches: [ main ]
-  workflow_dispatch:  # lets you trigger manually
+    paths-ignore:
+      - 'backend/**'
+      - '*.md'
+  workflow_dispatch:
 
 jobs:
   build:
@@ -26,12 +32,11 @@ jobs:
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
-
-      - name: Grant execute permission for gradlew
-        run: chmod +x gradlew
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
 
       - name: Build debug APK
-        run: ./gradlew assembleDebug
+        run: ./gradlew assembleDebug --no-daemon --build-cache
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
