@@ -116,12 +116,19 @@ class AppUpdater @Inject constructor(
     fun downloadAndInstall() {
         _status.value = UpdateStatus.DOWNLOADING
 
-        // Clean up old APKs
-        val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-        downloadsDir.listFiles()?.filter { it.name.startsWith("AveryTask-") && it.name.endsWith(".apk") }
-            ?.forEach { it.delete() }
+        // Clean up old APKs via ContentResolver (works with scoped storage)
+        try {
+            val resolver = context.contentResolver
+            val collection = android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI
+            val selection = "${android.provider.MediaStore.Downloads.DISPLAY_NAME} LIKE ?"
+            val selectionArgs = arrayOf("AveryTask-%.apk")
+            resolver.delete(collection, selection, selectionArgs)
+        } catch (e: Exception) {
+            Log.w(TAG, "Could not clean up old APKs", e)
+        }
 
-        val fileName = "AveryTask-update.apk"
+        // Use timestamp in filename to avoid DownloadManager conflict
+        val fileName = "AveryTask-${System.currentTimeMillis()}.apk"
 
         val request = DownloadManager.Request(Uri.parse(RAW_DOWNLOAD_URL))
             .setTitle("AveryTask Update")
@@ -131,7 +138,14 @@ class AppUpdater @Inject constructor(
             .setMimeType("application/vnd.android.package-archive")
 
         val dm = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
-        downloadId = dm.enqueue(request)
+        try {
+            downloadId = dm.enqueue(request)
+        } catch (e: Exception) {
+            Log.e(TAG, "Download failed to start", e)
+            _errorMessage.value = e.message ?: "Download failed to start"
+            _status.value = UpdateStatus.ERROR
+            return
+        }
 
         val receiver = object : BroadcastReceiver() {
             override fun onReceive(ctx: Context, intent: Intent) {
