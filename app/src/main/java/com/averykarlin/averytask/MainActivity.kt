@@ -12,6 +12,9 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.core.content.ContextCompat
@@ -19,7 +22,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.averykarlin.averytask.data.preferences.TabPreferences
 import com.averykarlin.averytask.data.preferences.ThemePreferences
 import com.averykarlin.averytask.data.remote.SyncService
+import com.averykarlin.averytask.data.remote.UpdateChecker
+import com.averykarlin.averytask.data.remote.VersionInfo
 import com.averykarlin.averytask.notifications.NotificationHelper
+import com.averykarlin.averytask.ui.components.UpdateDialog
 import com.averykarlin.averytask.ui.navigation.AveryTaskNavGraph
 import com.averykarlin.averytask.ui.theme.AveryTaskTheme
 import com.averykarlin.averytask.ui.theme.PriorityColors
@@ -44,6 +50,24 @@ class MainActivity : ComponentActivity() {
         NotificationHelper.createNotificationChannel(this)
         syncService.startAutoSync()
         setContent {
+            var updateInfo by remember { mutableStateOf<VersionInfo?>(null) }
+
+            LaunchedEffect(Unit) {
+                val checker = UpdateChecker(this@MainActivity)
+                updateInfo = checker.checkForUpdate()
+            }
+
+            updateInfo?.let { info ->
+                UpdateDialog(
+                    versionInfo = info,
+                    onUpdate = {
+                        UpdateChecker(this@MainActivity).downloadAndInstall(info)
+                        updateInfo = null
+                    },
+                    onDismiss = { updateInfo = null }
+                )
+            }
+
             val themeMode by themePreferences.getThemeMode()
                 .collectAsStateWithLifecycle(initialValue = "system")
             val accentColor by themePreferences.getAccentColor()

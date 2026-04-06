@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     ANTHROPIC_API_KEY: str = ""
+    DEPLOY_API_KEY: str = ""
     ENVIRONMENT: str = "dev"
     CORS_ORIGINS: list[str] = ["*"]
 

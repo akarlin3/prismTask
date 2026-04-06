@@ -221,3 +221,18 @@ class HabitCompletion(Base):
     created_at = Column(DateTime, server_default=func.now())
 
     habit = relationship("Habit", back_populates="completions")
+
+
+class AppRelease(Base):
+    __tablename__ = "app_releases"
+
+    id = Column(Integer, primary_key=True)
+    version_code = Column(Integer, nullable=False, unique=True)
+    version_name = Column(String(50), nullable=False)
+    release_notes = Column(Text, nullable=True)
+    apk_url = Column(Text, nullable=False)
+    apk_size_bytes = Column(Integer, nullable=True)
+    sha256 = Column(String(64), nullable=True)
+    min_sdk = Column(Integer, default=26)
+    created_at = Column(DateTime, server_default=func.now())
+    is_mandatory = Column(Boolean, default=False)
