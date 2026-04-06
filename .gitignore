@@ -24,3 +24,5 @@ web/dist/
 # macOS
 .DS_Store
 /.claude
+.claude/worktrees/hungry-wilbur
+/.claude
