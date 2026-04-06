@@ -23,7 +23,11 @@ android {
     }
 
     buildTypes {
+        debug {
+            buildConfigField("String", "API_BASE_URL", "\"http://10.0.2.2:8000\"")
+        }
         release {
+            buildConfigField("String", "API_BASE_URL", "\"https://averytask-api.up.railway.app\"")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
@@ -40,6 +44,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     packaging {
