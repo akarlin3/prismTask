@@ -17,6 +17,7 @@ import com.averykarlin.averytask.data.preferences.UrgencyWeights
 import com.averykarlin.averytask.data.local.database.AveryTaskDatabase
 import com.averykarlin.averytask.data.preferences.HabitListPreferences
 import com.averykarlin.averytask.data.preferences.LeisurePreferences
+import com.averykarlin.averytask.data.remote.AppUpdater
 import com.averykarlin.averytask.data.remote.AuthManager
 import com.averykarlin.averytask.data.remote.CalendarSyncService
 import com.averykarlin.averytask.data.remote.DeviceCalendar
@@ -53,7 +54,8 @@ class SettingsViewModel @Inject constructor(
     private val authManager: AuthManager,
     private val syncService: SyncService,
     private val calendarSyncService: CalendarSyncService,
-    private val taskRepository: TaskRepository
+    private val taskRepository: TaskRepository,
+    val appUpdater: AppUpdater
 ) : ViewModel() {
 
     // --- Theme ---
@@ -401,6 +403,17 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             _messages.emit("Signed out")
         }
+    }
+
+    // --- App Update ---
+    fun checkForUpdate() {
+        viewModelScope.launch {
+            appUpdater.checkForUpdate()
+        }
+    }
+
+    fun downloadAndInstallUpdate() {
+        appUpdater.downloadAndInstall()
     }
 
     private val _isResetting = MutableStateFlow(false)

@@ -80,6 +80,7 @@ import java.time.DayOfWeek
 import java.time.format.TextStyle
 import java.util.Locale
 import com.averykarlin.averytask.ui.navigation.ALL_BOTTOM_NAV_ITEMS
+import com.averykarlin.averytask.data.remote.UpdateStatus
 import com.averykarlin.averytask.ui.theme.PriorityColors
 
 private val accentColors = listOf(
@@ -152,6 +153,8 @@ fun SettingsScreen(
     val calendarSyncEnabled by viewModel.calendarSyncEnabled.collectAsStateWithLifecycle()
     val calendarName by viewModel.calendarName.collectAsStateWithLifecycle()
     val availableCalendars by viewModel.availableCalendars.collectAsStateWithLifecycle()
+    val updateStatus by viewModel.appUpdater.status.collectAsStateWithLifecycle()
+    val updateError by viewModel.appUpdater.errorMessage.collectAsStateWithLifecycle()
 
     var showAutoArchiveDialog by remember { mutableStateOf(false) }
     var showResetConfirmDialog by remember { mutableStateOf(false) }
@@ -1009,6 +1012,90 @@ fun SettingsScreen(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Update button
+            when (updateStatus) {
+                UpdateStatus.IDLE -> {
+                    OutlinedButton(
+                        onClick = { viewModel.checkForUpdate() },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Check for Updates")
+                    }
+                }
+                UpdateStatus.CHECKING -> {
+                    OutlinedButton(
+                        onClick = {},
+                        enabled = false,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Checking...")
+                    }
+                }
+                UpdateStatus.UPDATE_AVAILABLE -> {
+                    Button(
+                        onClick = { viewModel.downloadAndInstallUpdate() },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Update Available - Download & Install")
+                    }
+                }
+                UpdateStatus.NO_UPDATE -> {
+                    OutlinedButton(
+                        onClick = { viewModel.appUpdater.resetStatus() },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Already up to date")
+                    }
+                }
+                UpdateStatus.DOWNLOADING -> {
+                    OutlinedButton(
+                        onClick = {},
+                        enabled = false,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Downloading...")
+                    }
+                }
+                UpdateStatus.READY_TO_INSTALL -> {
+                    OutlinedButton(
+                        onClick = { viewModel.appUpdater.resetStatus() },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Install prompted - check notifications")
+                    }
+                }
+                UpdateStatus.ERROR -> {
+                    Column {
+                        OutlinedButton(
+                            onClick = { viewModel.checkForUpdate() },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Retry Update Check")
+                        }
+                        if (updateError != null) {
+                            Text(
+                                text = updateError!!,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.padding(top = 4.dp)
+                            )
+                        }
+                    }
+                }
+            }
 
             Spacer(modifier = Modifier.height(32.dp))
             }
