@@ -62,6 +62,7 @@ class AppUpdater @Inject constructor(
                 val conn = url.openConnection() as HttpURLConnection
                 conn.requestMethod = "GET"
                 conn.setRequestProperty("Accept", "application/vnd.github.v3+json")
+                conn.setRequestProperty("User-Agent", "AveryTask-Android")
                 conn.setRequestProperty("Cache-Control", "no-cache")
                 conn.useCaches = false
                 conn.connectTimeout = 10_000
@@ -121,6 +122,7 @@ class AppUpdater @Inject constructor(
 
                 val url = URL(RAW_DOWNLOAD_URL)
                 val conn = url.openConnection() as HttpURLConnection
+                conn.setRequestProperty("User-Agent", "AveryTask-Android")
                 conn.instanceFollowRedirects = true
                 conn.connectTimeout = 30_000
                 conn.readTimeout = 60_000
