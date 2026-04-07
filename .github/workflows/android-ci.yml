@@ -114,4 +114,4 @@ jobs:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
         run: |
           npm install -g firebase-tools
-          firebase appdistribution:distribute app/build/outputs/apk/debug/app-debug.apk --app 1:403186103462:android:919c46244d4a7f5f47b067 --groups testers --token "$FIREBASE_TOKEN"
+          firebase appdistribution:distribute app/build/outputs/apk/debug/app-debug.apk --app 1:403186103462:android:919c46244d4a7f5f47b067 --groups testers --release-notes "Build from commit ${{ github.sha }}" --token "${{ secrets.FIREBASE_TOKEN }}"
