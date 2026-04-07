@@ -6,14 +6,17 @@ import androidx.work.Configuration
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
+import com.averycorp.averytask.data.preferences.TaskBehaviorPreferences
 import com.averycorp.averytask.data.repository.LeisureRepository
 import com.averycorp.averytask.data.repository.SchoolworkRepository
 import com.averycorp.averytask.data.repository.SelfCareRepository
 import com.averycorp.averytask.workers.AutoArchiveWorker
+import com.averycorp.averytask.workers.DailyResetWorker
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
@@ -33,6 +36,9 @@ class AveryTaskApplication : Application(), Configuration.Provider {
     @Inject
     lateinit var selfCareRepository: SelfCareRepository
 
+    @Inject
+    lateinit var taskBehaviorPreferences: TaskBehaviorPreferences
+
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override val workManagerConfiguration: Configuration
@@ -43,7 +49,21 @@ class AveryTaskApplication : Application(), Configuration.Provider {
     override fun onCreate() {
         super.onCreate()
         scheduleAutoArchive()
+        scheduleDailyReset()
         seedBuiltInHabits()
+    }
+
+    /**
+     * Schedules the daily reset worker to fire at the configured day-start
+     * hour, and re-schedules whenever the user changes the setting so the
+     * change takes effect immediately.
+     */
+    private fun scheduleDailyReset() {
+        appScope.launch {
+            taskBehaviorPreferences.getDayStartHour().collectLatest { hour ->
+                DailyResetWorker.schedule(this@AveryTaskApplication, hour)
+            }
+        }
     }
 
     private fun seedBuiltInHabits() {

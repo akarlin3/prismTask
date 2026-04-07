@@ -22,6 +22,7 @@ import com.averycorp.averytask.domain.model.TaskFilter
 import com.averycorp.averytask.domain.usecase.ParsedTodoItem
 import com.averycorp.averytask.domain.usecase.TodoListParser
 import com.averycorp.averytask.domain.usecase.UrgencyScorer
+import com.averycorp.averytask.util.DayBoundary
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -33,7 +34,6 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import java.util.Calendar
 import javax.inject.Inject
 
 enum class SortOption(val label: String) {
@@ -141,13 +141,11 @@ class TaskListViewModel @Inject constructor(
             groupByDate(filtered, sort)
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
-    val overdueCount: StateFlow<Int> = rootTasks.map { tasks ->
-        val startOfToday = Calendar.getInstance().apply {
-            set(Calendar.HOUR_OF_DAY, 0)
-            set(Calendar.MINUTE, 0)
-            set(Calendar.SECOND, 0)
-            set(Calendar.MILLISECOND, 0)
-        }.timeInMillis
+    private val dayStartFlow: StateFlow<Long> = taskBehaviorPreferences.getDayStartHour()
+        .map { DayBoundary.startOfCurrentDay(it) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DayBoundary.startOfCurrentDay(0))
+
+    val overdueCount: StateFlow<Int> = combine(rootTasks, dayStartFlow) { tasks, startOfToday ->
         tasks.count { it.dueDate != null && it.dueDate < startOfToday }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
@@ -540,22 +538,10 @@ class TaskListViewModel @Inject constructor(
         }
 
     private fun groupByDate(tasks: List<TaskEntity>, sort: SortOption): Map<String, List<TaskEntity>> {
-        val calendar = Calendar.getInstance()
-        calendar.set(Calendar.HOUR_OF_DAY, 0)
-        calendar.set(Calendar.MINUTE, 0)
-        calendar.set(Calendar.SECOND, 0)
-        calendar.set(Calendar.MILLISECOND, 0)
-        val startOfToday = calendar.timeInMillis
-
-        calendar.add(Calendar.DAY_OF_YEAR, 1)
-        val startOfTomorrow = calendar.timeInMillis
-
-        calendar.add(Calendar.DAY_OF_YEAR, 1)
-        val startOfDayAfterTomorrow = calendar.timeInMillis
-
-        calendar.timeInMillis = startOfToday
-        calendar.add(Calendar.DAY_OF_YEAR, 7)
-        val endOfWeek = calendar.timeInMillis
+        val startOfToday = dayStartFlow.value
+        val startOfTomorrow = startOfToday + DayBoundary.DAY_MILLIS
+        val startOfDayAfterTomorrow = startOfTomorrow + DayBoundary.DAY_MILLIS
+        val endOfWeek = startOfToday + 7 * DayBoundary.DAY_MILLIS
 
         val grouped = linkedMapOf<String, MutableList<TaskEntity>>()
 

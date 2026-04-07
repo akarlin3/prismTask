@@ -1,10 +1,20 @@
 package com.averycorp.averytask.widget
 
 import android.content.Context
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.preferencesDataStore
 import androidx.room.Room
 import com.averycorp.averytask.data.local.database.AveryTaskDatabase
-import com.averycorp.averytask.data.repository.HabitRepository
-import java.util.Calendar
+import com.averycorp.averytask.util.DayBoundary
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+
+private val Context.widgetTaskBehaviorPrefs by preferencesDataStore(name = "task_behavior_prefs")
+private val DAY_START_HOUR_KEY = intPreferencesKey("day_start_hour")
+
+private suspend fun Context.readDayStartHour(): Int =
+    widgetTaskBehaviorPrefs.data.map { it[DAY_START_HOUR_KEY] ?: 0 }.first()
 
 data class TodayWidgetData(
     val totalTasks: Int,
@@ -40,13 +50,9 @@ object WidgetDataProvider {
     suspend fun getTodayData(context: Context): TodayWidgetData {
         val db = getDb(context)
         try {
-            val cal = Calendar.getInstance()
-            cal.set(Calendar.HOUR_OF_DAY, 0)
-            cal.set(Calendar.MINUTE, 0)
-            cal.set(Calendar.SECOND, 0)
-            cal.set(Calendar.MILLISECOND, 0)
-            val startOfDay = cal.timeInMillis
-            val endOfDay = startOfDay + 24 * 60 * 60 * 1000
+            val dayStartHour = context.readDayStartHour()
+            val startOfDay = DayBoundary.startOfCurrentDay(dayStartHour)
+            val endOfDay = startOfDay + DayBoundary.DAY_MILLIS
 
             val taskDao = db.taskDao()
             val todayTasks = taskDao.getTodayTasksOnce(startOfDay, endOfDay)
@@ -57,8 +63,7 @@ object WidgetDataProvider {
             val habitDao = db.habitDao()
             val habits = habitDao.getActiveHabitsOnce()
             val completionDao = db.habitCompletionDao()
-            val todayMidnight = HabitRepository.normalizeToMidnight(System.currentTimeMillis())
-            val completedHabits = habits.count { completionDao.isCompletedOnDateOnce(it.id, todayMidnight) }
+            val completedHabits = habits.count { completionDao.isCompletedOnDateOnce(it.id, startOfDay) }
 
             return TodayWidgetData(
                 totalTasks = allTasks.size,
@@ -78,10 +83,11 @@ object WidgetDataProvider {
             val habitDao = db.habitDao()
             val completionDao = db.habitCompletionDao()
             val habits = habitDao.getActiveHabitsOnce()
-            val todayMidnight = HabitRepository.normalizeToMidnight(System.currentTimeMillis())
+            val dayStartHour = context.readDayStartHour()
+            val startOfDay = DayBoundary.startOfCurrentDay(dayStartHour)
 
             val items = habits.take(6).map { habit ->
-                val isCompleted = completionDao.isCompletedOnDateOnce(habit.id, todayMidnight)
+                val isCompleted = completionDao.isCompletedOnDateOnce(habit.id, startOfDay)
                 HabitWidgetItem(
                     id = habit.id,
                     name = habit.name,

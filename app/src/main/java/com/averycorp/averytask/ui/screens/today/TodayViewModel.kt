@@ -11,7 +11,9 @@ import com.averycorp.averytask.data.local.entity.TagEntity
 import com.averycorp.averytask.data.local.entity.TaskEntity
 import com.averycorp.averytask.data.preferences.DashboardPreferences
 import com.averycorp.averytask.data.preferences.HabitListPreferences
+import com.averycorp.averytask.data.preferences.TaskBehaviorPreferences
 import com.averycorp.averytask.data.repository.HabitRepository
+import com.averycorp.averytask.util.DayBoundary
 import com.averycorp.averytask.data.repository.HabitWithStatus
 import com.averycorp.averytask.data.repository.LeisureRepository
 import com.averycorp.averytask.data.repository.SchoolworkRepository
@@ -24,12 +26,12 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import java.util.Calendar
 import javax.inject.Inject
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -40,10 +42,20 @@ class TodayViewModel @Inject constructor(
     private val taskDao: TaskDao,
     private val habitRepository: HabitRepository,
     private val dashboardPreferences: DashboardPreferences,
-    private val habitListPreferences: HabitListPreferences
+    private val habitListPreferences: HabitListPreferences,
+    private val taskBehaviorPreferences: TaskBehaviorPreferences
 ) : ViewModel() {
 
     val snackbarHostState = SnackbarHostState()
+
+    /**
+     * Reactive "start of current day" timestamp. Re-emits whenever the user
+     * changes their day-start hour in settings, so that downstream task/habit
+     * queries automatically refresh and reset to the new day's window.
+     */
+    private val dayStart: StateFlow<Long> = taskBehaviorPreferences.getDayStartHour()
+        .map { DayBoundary.startOfCurrentDay(it) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DayBoundary.startOfCurrentDay(0))
 
     val sectionOrder: StateFlow<List<String>> = dashboardPreferences.getSectionOrder()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DashboardPreferences.DEFAULT_ORDER)
@@ -54,34 +66,30 @@ class TodayViewModel @Inject constructor(
     val progressStyle: StateFlow<String> = dashboardPreferences.getProgressStyle()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "ring")
 
-    private fun startOfToday(): Long {
-        val cal = Calendar.getInstance()
-        cal.set(Calendar.HOUR_OF_DAY, 0)
-        cal.set(Calendar.MINUTE, 0)
-        cal.set(Calendar.SECOND, 0)
-        cal.set(Calendar.MILLISECOND, 0)
-        return cal.timeInMillis
-    }
-
-    private fun endOfToday(): Long = startOfToday() + 24 * 60 * 60 * 1000
+    private suspend fun currentStartOfToday(): Long =
+        DayBoundary.startOfCurrentDay(taskBehaviorPreferences.getDayStartHour().first())
 
     init {
         viewModelScope.launch {
-            taskDao.clearExpiredPlans(startOfToday())
+            taskDao.clearExpiredPlans(currentStartOfToday())
         }
     }
 
-    val overdueTasks: StateFlow<List<TaskEntity>> = taskDao.getOverdueRootTasks(startOfToday())
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    val overdueTasks: StateFlow<List<TaskEntity>> = dayStart.flatMapLatest { start ->
+        taskDao.getOverdueRootTasks(start)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val todayTasks: StateFlow<List<TaskEntity>> = taskDao.getTodayTasks(startOfToday(), endOfToday())
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    val todayTasks: StateFlow<List<TaskEntity>> = dayStart.flatMapLatest { start ->
+        taskDao.getTodayTasks(start, start + DayBoundary.DAY_MILLIS)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val plannedTasks: StateFlow<List<TaskEntity>> = taskDao.getPlannedForToday(startOfToday(), endOfToday())
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    val plannedTasks: StateFlow<List<TaskEntity>> = dayStart.flatMapLatest { start ->
+        taskDao.getPlannedForToday(start, start + DayBoundary.DAY_MILLIS)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val completedToday: StateFlow<List<TaskEntity>> = taskDao.getCompletedToday(startOfToday())
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    val completedToday: StateFlow<List<TaskEntity>> = dayStart.flatMapLatest { start ->
+        taskDao.getCompletedToday(start)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val allTodayItems: StateFlow<List<TaskEntity>> =
         combine(todayTasks, plannedTasks) { today, planned ->
@@ -182,8 +190,9 @@ class TodayViewModel @Inject constructor(
     }
 
     // Plan for Today
-    val tasksNotInToday: StateFlow<List<TaskEntity>> = taskDao.getTasksNotInToday(startOfToday(), endOfToday())
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    val tasksNotInToday: StateFlow<List<TaskEntity>> = dayStart.flatMapLatest { start ->
+        taskDao.getTasksNotInToday(start, start + DayBoundary.DAY_MILLIS)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     private val _showPlanSheet = MutableStateFlow(false)
     val showPlanSheet: StateFlow<Boolean> = _showPlanSheet
@@ -193,7 +202,7 @@ class TodayViewModel @Inject constructor(
 
     fun onPlanForToday(taskId: Long) {
         viewModelScope.launch {
-            taskDao.setPlanDate(taskId, startOfToday())
+            taskDao.setPlanDate(taskId, currentStartOfToday())
         }
     }
 
@@ -237,8 +246,8 @@ class TodayViewModel @Inject constructor(
 
     // Rollover
     fun onRolloverToTomorrow(taskIds: List<Long>) {
-        val tomorrow = startOfToday() + 24 * 60 * 60 * 1000
         viewModelScope.launch {
+            val tomorrow = currentStartOfToday() + DayBoundary.DAY_MILLIS
             taskIds.forEach { id ->
                 taskDao.updateDueDate(id, tomorrow)
             }
