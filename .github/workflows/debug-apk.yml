@@ -1,0 +1,102 @@
+name: Build Debug APK on Version Bump
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'app/build.gradle.kts'
+
+concurrency:
+  group: debug-apk-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check-version:
+    runs-on: ubuntu-latest
+    outputs:
+      should_build: ${{ steps.check.outputs.should_build }}
+      version_name: ${{ steps.check.outputs.version_name }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Check if versionName increased
+        id: check
+        run: |
+          extract_version() {
+            grep 'versionName' "$1" | head -1 | grep -oP '"\K[^"]+' || echo ""
+          }
+          NEW_VERSION=$(extract_version app/build.gradle.kts)
+          echo "New versionName: $NEW_VERSION"
+          if [ -z "$NEW_VERSION" ]; then
+            echo "::warning::Could not extract versionName from app/build.gradle.kts"
+            echo "should_build=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          git show HEAD^:app/build.gradle.kts > /tmp/prev-build.gradle.kts 2>/dev/null || {
+            echo "No previous commit found; treating as version bump."
+            echo "should_build=true" >> $GITHUB_OUTPUT
+            echo "version_name=$NEW_VERSION" >> $GITHUB_OUTPUT
+            exit 0
+          }
+          OLD_VERSION=$(extract_version /tmp/prev-build.gradle.kts)
+          echo "Previous versionName: $OLD_VERSION"
+          if [ "$NEW_VERSION" = "$OLD_VERSION" ]; then
+            echo "versionName unchanged; skipping debug build."
+            echo "should_build=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          HIGHEST=$(printf '%s\n%s\n' "$OLD_VERSION" "$NEW_VERSION" | sort -V | tail -1)
+          if [ "$HIGHEST" = "$NEW_VERSION" ] && [ "$NEW_VERSION" != "$OLD_VERSION" ]; then
+            echo "versionName increased from $OLD_VERSION to $NEW_VERSION; building debug APK."
+            echo "should_build=true" >> $GITHUB_OUTPUT
+            echo "version_name=$NEW_VERSION" >> $GITHUB_OUTPUT
+          else
+            echo "versionName did not increase ($OLD_VERSION -> $NEW_VERSION); skipping debug build."
+            echo "should_build=false" >> $GITHUB_OUTPUT
+          fi
+
+  build-debug-apk:
+    needs: check-version
+    if: needs.check-version.outputs.should_build == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build debug APK
+        run: ./gradlew assembleDebug --build-cache --parallel
+
+      - name: Commit debug APK to repo root
+        run: |
+          APK_PATH=$(find app/build/outputs/apk/debug -name '*.apk' | head -1)
+          if [ -z "$APK_PATH" ]; then
+            echo "ERROR: No debug APK found"
+            ls -la app/build/outputs/apk/debug/ || true
+            exit 1
+          fi
+          cp "$APK_PATH" app-debug.apk
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add app-debug.apk
+          git diff --cached --quiet || git commit -m "Update debug APK (v${{ needs.check-version.outputs.version_name }}) [skip ci]"
+          git pull --rebase origin main || true
+          git push
