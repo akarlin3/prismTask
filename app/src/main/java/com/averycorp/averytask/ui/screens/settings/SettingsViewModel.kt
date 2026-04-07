@@ -484,6 +484,12 @@ class SettingsViewModel @Inject constructor(
     }
 
     // --- App Update ---
+    init {
+        viewModelScope.launch {
+            appUpdater.fetchLatestReleaseTag()
+        }
+    }
+
     fun checkForUpdate() {
         viewModelScope.launch {
             appUpdater.checkForUpdate()
@@ -493,6 +499,12 @@ class SettingsViewModel @Inject constructor(
     fun downloadAndInstallUpdate() {
         viewModelScope.launch {
             appUpdater.downloadAndInstall()
+        }
+    }
+
+    fun refreshLatestReleaseTag() {
+        viewModelScope.launch {
+            appUpdater.fetchLatestReleaseTag()
         }
     }
 

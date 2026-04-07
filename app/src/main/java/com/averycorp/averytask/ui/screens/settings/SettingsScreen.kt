@@ -74,9 +74,11 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import com.averycorp.averytask.BuildConfig
 import com.averycorp.averytask.data.preferences.DashboardPreferences
 import com.averycorp.averytask.data.preferences.TabPreferences
 import com.averycorp.averytask.data.preferences.UrgencyWeights
+import com.averycorp.averytask.data.remote.UpdateStatus
 import java.time.DayOfWeek
 import java.time.format.TextStyle
 import java.util.Locale
@@ -155,6 +157,10 @@ fun SettingsScreen(
     val calendarSyncEnabled by viewModel.calendarSyncEnabled.collectAsStateWithLifecycle()
     val calendarName by viewModel.calendarName.collectAsStateWithLifecycle()
     val availableCalendars by viewModel.availableCalendars.collectAsStateWithLifecycle()
+    val updateStatus by viewModel.appUpdater.status.collectAsStateWithLifecycle()
+    val updateError by viewModel.appUpdater.errorMessage.collectAsStateWithLifecycle()
+    val updateLatestCommitDate by viewModel.appUpdater.latestCommitDate.collectAsStateWithLifecycle()
+    val latestReleaseTag by viewModel.appUpdater.latestReleaseTag.collectAsStateWithLifecycle()
     var showAutoArchiveDialog by remember { mutableStateOf(false) }
     var showResetConfirmDialog by remember { mutableStateOf(false) }
     var showAppearanceAdvanced by remember { mutableStateOf(false) }
@@ -1042,14 +1048,79 @@ fun SettingsScreen(
 
             HorizontalDivider()
 
+            // ========== DEBUGGING ==========
+            SectionHeader("Debugging")
+
+            val isCheckingUpdate = updateStatus == UpdateStatus.CHECKING
+            val isDownloadingUpdate = updateStatus == UpdateStatus.DOWNLOADING
+            val isUpdateBusy = isCheckingUpdate || isDownloadingUpdate
+
+            Button(
+                onClick = {
+                    when (updateStatus) {
+                        UpdateStatus.UPDATE_AVAILABLE -> viewModel.downloadAndInstallUpdate()
+                        else -> viewModel.checkForUpdate()
+                    }
+                },
+                enabled = !isUpdateBusy,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                if (isUpdateBusy) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        strokeWidth = 2.dp,
+                        color = MaterialTheme.colorScheme.onPrimary
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                }
+                Text(
+                    text = when (updateStatus) {
+                        UpdateStatus.CHECKING -> "Checking..."
+                        UpdateStatus.DOWNLOADING -> "Downloading..."
+                        UpdateStatus.UPDATE_AVAILABLE -> "Download & Install Update"
+                        UpdateStatus.READY_TO_INSTALL -> "Install Update"
+                        else -> "Check for Update"
+                    }
+                )
+            }
+
+            val statusText = when (updateStatus) {
+                UpdateStatus.IDLE -> null
+                UpdateStatus.CHECKING -> "Checking for updates..."
+                UpdateStatus.UPDATE_AVAILABLE -> updateLatestCommitDate?.let { "Update available (built $it)" } ?: "Update available"
+                UpdateStatus.NO_UPDATE -> "You're on the latest build"
+                UpdateStatus.DOWNLOADING -> "Downloading APK..."
+                UpdateStatus.READY_TO_INSTALL -> "Ready to install"
+                UpdateStatus.ERROR -> updateError?.let { "Error: $it" } ?: "Update failed"
+            }
+            if (statusText != null) {
+                Text(
+                    text = statusText,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (updateStatus == UpdateStatus.ERROR)
+                        MaterialTheme.colorScheme.error
+                    else
+                        MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 6.dp)
+                )
+            }
+
+            HorizontalDivider()
+
             // ========== ABOUT ==========
             SectionHeader("About")
 
             Text(
-                text = "AveryTask v0.7.0",
+                text = "AveryTask v${BuildConfig.VERSION_NAME}",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.padding(vertical = 4.dp)
+            )
+            Text(
+                text = "Latest GitHub Release: ${latestReleaseTag ?: "Loading..."}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(bottom = 4.dp)
             )
             Text(
                 text = "Made by Avery Karlin",

@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
+import org.json.JSONObject
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
@@ -44,6 +45,8 @@ class AppUpdater @Inject constructor(
             "https://api.github.com/repos/$REPO/commits?path=$APK_PATH&sha=main&per_page=1"
         private const val RAW_DOWNLOAD_URL =
             "https://raw.githubusercontent.com/$REPO/main/$APK_PATH"
+        private const val LATEST_RELEASE_API_URL =
+            "https://api.github.com/repos/$REPO/releases/latest"
     }
 
     private val _status = MutableStateFlow(UpdateStatus.IDLE)
@@ -54,6 +57,9 @@ class AppUpdater @Inject constructor(
 
     private val _latestCommitDate = MutableStateFlow<String?>(null)
     val latestCommitDate: StateFlow<String?> = _latestCommitDate
+
+    private val _latestReleaseTag = MutableStateFlow<String?>(null)
+    val latestReleaseTag: StateFlow<String?> = _latestReleaseTag
 
     private var latestSha: String? = null
 
@@ -203,6 +209,36 @@ class AppUpdater @Inject constructor(
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION
         }
         context.startActivity(intent)
+    }
+
+    suspend fun fetchLatestReleaseTag() {
+        try {
+            withContext(Dispatchers.IO) {
+                val url = URL(LATEST_RELEASE_API_URL)
+                val conn = url.openConnection() as HttpURLConnection
+                conn.requestMethod = "GET"
+                conn.setRequestProperty("Accept", "application/vnd.github.v3+json")
+                conn.setRequestProperty("User-Agent", "AveryTask-Android")
+                conn.connectTimeout = 10_000
+                conn.readTimeout = 10_000
+
+                val code = conn.responseCode
+                if (code != 200) {
+                    conn.disconnect()
+                    throw Exception("GitHub API returned $code")
+                }
+
+                val body = conn.inputStream.bufferedReader().readText()
+                conn.disconnect()
+
+                val json = JSONObject(body)
+                val tag = json.optString("tag_name", "").takeIf { it.isNotBlank() }
+                _latestReleaseTag.value = tag
+            }
+        } catch (e: Exception) {
+            if (BuildConfig.DEBUG) Log.e(TAG, "Latest release fetch failed", e)
+            // Leave _latestReleaseTag as-is; About section will fall back gracefully.
+        }
     }
 
     fun resetStatus() {

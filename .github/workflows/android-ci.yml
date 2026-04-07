@@ -6,6 +6,11 @@ on:
     paths-ignore:
       - 'backend/**'
       - '*.md'
+  push:
+    branches: [ main ]
+    paths-ignore:
+      - 'backend/**'
+      - '*.md'
 
 concurrency:
   group: android-ci-${{ github.ref }}
@@ -14,6 +19,8 @@ concurrency:
 jobs:
   debug-build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
 
@@ -31,3 +38,72 @@ jobs:
 
       - name: Build debug APK and run unit tests
         run: ./gradlew assembleDebug testDebugUnitTest --build-cache --parallel -x lint -x lintVitalRelease
+
+      - name: Compute release tag
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        id: tag
+        run: |
+          set -euo pipefail
+          VERSION_NAME=$(grep 'versionName' app/build.gradle.kts | head -1 | grep -oP '"\K[^"]+')
+          if [ -z "$VERSION_NAME" ]; then
+            echo "::error::Could not extract versionName from app/build.gradle.kts"
+            exit 1
+          fi
+          BASE_TAG="v$VERSION_NAME"
+          echo "Base tag: $BASE_TAG"
+
+          # Query the remote for matching tags without needing a full local fetch
+          EXISTING_TAGS=$(git ls-remote --tags origin "refs/tags/${BASE_TAG}" "refs/tags/${BASE_TAG}-build.*" \
+            | awk '{print $2}' \
+            | sed 's|refs/tags/||' \
+            | sed 's|\^{}$||' \
+            | sort -u)
+          echo "Existing matching tags:"
+          echo "$EXISTING_TAGS"
+
+          if ! echo "$EXISTING_TAGS" | grep -qx "$BASE_TAG"; then
+            FINAL_TAG="$BASE_TAG"
+          else
+            HIGHEST=$(echo "$EXISTING_TAGS" \
+              | grep -E "^${BASE_TAG}-build\.[0-9]+$" \
+              | sed -E "s/^${BASE_TAG}-build\.([0-9]+)$/\1/" \
+              | sort -n \
+              | tail -1)
+            if [ -z "$HIGHEST" ]; then
+              NEXT=2
+            else
+              NEXT=$((HIGHEST + 1))
+            fi
+            FINAL_TAG="${BASE_TAG}-build.${NEXT}"
+          fi
+          echo "Final tag: $FINAL_TAG"
+          echo "tag=$FINAL_TAG" >> "$GITHUB_OUTPUT"
+          echo "version_name=$VERSION_NAME" >> "$GITHUB_OUTPUT"
+
+      - name: Stage APK for release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          set -euo pipefail
+          APK_SRC="app/build/outputs/apk/debug/app-debug.apk"
+          if [ ! -f "$APK_SRC" ]; then
+            echo "::error::Debug APK not found at $APK_SRC"
+            ls -la app/build/outputs/apk/debug/ || true
+            exit 1
+          fi
+          mkdir -p release-assets
+          cp "$APK_SRC" "release-assets/averyTask-debug.apk"
+
+      - name: Create GitHub Release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: ${{ steps.tag.outputs.tag }}
+          body: |
+            Automated debug build for version ${{ steps.tag.outputs.version_name }}.
+
+            Commit: ${{ github.sha }}
+          files: release-assets/averyTask-debug.apk
+          fail_on_unmatched_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
