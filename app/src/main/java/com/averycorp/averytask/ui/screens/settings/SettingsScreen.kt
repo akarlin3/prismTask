@@ -1046,7 +1046,7 @@ fun SettingsScreen(
             SectionHeader("About")
 
             Text(
-                text = "AveryTask v0.6.0",
+                text = "AveryTask v0.7.0",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.padding(vertical = 4.dp)
