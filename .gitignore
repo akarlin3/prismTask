@@ -16,19 +16,20 @@ app/build/outputs/apk/debug/*
 
 # Kotlin
 .kotlin/
+.kotlin/errors/
 
 # IDE
 .idea/
 !.idea/codeStyles/
 *.iml
+.vscode/
 
 # Android
 *.ap_
 captures/
 
 # React web app
-web/node_modules/
-web/dist/
+web/
 
 # Python
 __pycache__/
@@ -50,5 +51,6 @@ keystore_base64.txt
 
 # macOS
 .DS_Store
-/.claude
-.claude/worktrees/hungry-wilbur
+
+# Claude Code
+.claude/
