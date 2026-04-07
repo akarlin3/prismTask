@@ -22,7 +22,7 @@ jobs:
         with:
           fetch-depth: 2
 
-      - name: Check if versionName increased
+      - name: Check if versionName increased (major/minor only)
         id: check
         run: |
           extract_version() {
@@ -50,12 +50,22 @@ jobs:
           fi
           # Compare semver: ensure NEW is strictly greater than OLD
           HIGHEST=$(printf '%s\n%s\n' "$OLD_VERSION" "$NEW_VERSION" | sort -V | tail -1)
-          if [ "$HIGHEST" = "$NEW_VERSION" ] && [ "$NEW_VERSION" != "$OLD_VERSION" ]; then
-            echo "versionName increased from $OLD_VERSION to $NEW_VERSION; triggering release."
+          if [ "$HIGHEST" != "$NEW_VERSION" ] || [ "$NEW_VERSION" = "$OLD_VERSION" ]; then
+            echo "versionName did not increase ($OLD_VERSION -> $NEW_VERSION); skipping release."
+            echo "should_release=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          # Only release on major or minor bumps, not patch-only bumps
+          NEW_MAJOR=$(echo "$NEW_VERSION" | cut -d. -f1)
+          NEW_MINOR=$(echo "$NEW_VERSION" | cut -d. -f2)
+          OLD_MAJOR=$(echo "$OLD_VERSION" | cut -d. -f1)
+          OLD_MINOR=$(echo "$OLD_VERSION" | cut -d. -f2)
+          if [ "$NEW_MAJOR" != "$OLD_MAJOR" ] || [ "$NEW_MINOR" != "$OLD_MINOR" ]; then
+            echo "Major/minor versionName bump ($OLD_VERSION -> $NEW_VERSION); triggering release."
             echo "should_release=true" >> $GITHUB_OUTPUT
             echo "version_name=$NEW_VERSION" >> $GITHUB_OUTPUT
           else
-            echo "versionName did not increase ($OLD_VERSION -> $NEW_VERSION); skipping release."
+            echo "Patch-only versionName bump ($OLD_VERSION -> $NEW_VERSION); skipping release."
             echo "should_release=false" >> $GITHUB_OUTPUT
           fi
 
