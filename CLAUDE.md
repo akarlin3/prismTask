@@ -218,6 +218,7 @@ app/src/main/java/com/averycorp/averytask/
 - **Reminders**: `reminderOffset` is millis before due date; scheduling handled by `ReminderScheduler`
 - **Priority levels**: 0=None, 1=Low, 2=Medium, 3=High, 4=Urgent; colors in `PriorityColors`
 - **Error handling**: ViewModels catch exceptions and surface via `SnackbarHostState` or `SharedFlow<String>`
+- **Capitalization**: Use Title Capitalization in all user-facing strings throughout the app (screen titles, tab labels, button labels, section headers, menu items, dialog titles, empty states, notifications, etc.). Capitalize the first letter of each major word.
 
 ## Important Files
 
