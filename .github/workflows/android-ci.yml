@@ -65,7 +65,7 @@ jobs:
             FINAL_TAG="$BASE_TAG"
           else
             HIGHEST=$(echo "$EXISTING_TAGS" \
-              | grep -E "^${BASE_TAG}-build\.[0-9]+$" \
+              | { grep -E "^${BASE_TAG}-build\.[0-9]+$" || true; } \
               | sed -E "s/^${BASE_TAG}-build\.([0-9]+)$/\1/" \
               | sort -n \
               | tail -1)
