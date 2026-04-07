@@ -54,3 +54,6 @@ keystore_base64.txt
 
 # Claude Code
 .claude/
+
+# Nested bare git repo
+averyTask.git/
