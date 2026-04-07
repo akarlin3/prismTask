@@ -215,7 +215,7 @@ Migrations: 1-2 (tags), 2-3 (notes/attachments), 3-4 (planned date), 4-5 (usage 
 ## Project Structure
 
 ```
-app/src/main/java/com/averykarlin/averytask/
+app/src/main/java/com/averycorp/averytask/
 ├── MainActivity.kt                  # Single-activity entry point
 ├── AveryTaskApplication.kt          # @HiltAndroidApp
 ├── data/

@@ -21,7 +21,7 @@
 ## Project Structure
 
 ```
-app/src/main/java/com/averykarlin/averytask/
+app/src/main/java/com/averycorp/averytask/
 ├── MainActivity.kt                     # Single-activity entry point, notification permission
 ├── AveryTaskApplication.kt             # @HiltAndroidApp
 ├── data/
