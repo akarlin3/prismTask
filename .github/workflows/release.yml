@@ -51,7 +51,7 @@ jobs:
             echo "has_keystore=false" >> $GITHUB_OUTPUT
             exit 0
           fi
-          printf '%s' "$KEYSTORE_BASE64" | base64 -d > app/release.keystore
+          printf '%s' "$KEYSTORE_BASE64" | tr -d '[:space:]' | base64 -d > app/release.keystore
           # Validate the keystore is readable
           keytool -list -keystore app/release.keystore -storepass "$KEYSTORE_PASSWORD" > /dev/null 2>&1 || {
             echo "::error::Keystore is invalid or corrupted. Please re-encode with: base64 -w 0 your-keystore.jks"
