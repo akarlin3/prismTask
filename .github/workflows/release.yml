@@ -115,7 +115,14 @@ jobs:
 
       - name: Upload APK to backend
         if: steps.keystore.outputs.has_keystore == 'true'
+        env:
+          API_BASE_URL: ${{ secrets.API_BASE_URL }}
+          DEPLOY_API_KEY: ${{ secrets.DEPLOY_API_KEY }}
         run: |
+          if [ -z "$API_BASE_URL" ]; then
+            echo "::warning::API_BASE_URL secret is not set. Skipping APK upload to backend."
+            exit 0
+          fi
           APK_PATH=$(find app/build/outputs/apk/release -name '*.apk' | head -1)
           if [ -z "$APK_PATH" ]; then
             echo "ERROR: No APK found in app/build/outputs/apk/release/"
@@ -123,8 +130,8 @@ jobs:
             exit 1
           fi
           echo "Uploading APK: $APK_PATH"
-          curl -f -X POST "${{ secrets.API_BASE_URL }}/api/v1/app/releases" \
-            -H "Authorization: Bearer ${{ secrets.DEPLOY_API_KEY }}" \
+          curl -f -X POST "${API_BASE_URL}/api/v1/app/releases" \
+            -H "Authorization: Bearer ${DEPLOY_API_KEY}" \
             -F "version_code=${{ steps.version.outputs.version_code }}" \
             -F "version_name=${{ steps.version.outputs.version_name }}" \
             -F "release_notes=${{ steps.notes.outputs.release_notes }}" \
