@@ -57,6 +57,17 @@ jobs:
             echo "::error::Keystore is invalid or corrupted. Please re-encode with: base64 -w 0 your-keystore.jks"
             exit 1
           }
+          # Validate the key alias exists in the keystore
+          KEY_ALIAS="${{ secrets.KEY_ALIAS }}"
+          if [ -z "$KEY_ALIAS" ]; then
+            echo "::error::KEY_ALIAS secret is not set. Please set it to the alias of your signing key."
+            exit 1
+          fi
+          keytool -list -keystore app/release.keystore -storepass "$KEYSTORE_PASSWORD" -alias "$KEY_ALIAS" > /dev/null 2>&1 || {
+            echo "::error::Key alias '$KEY_ALIAS' not found in keystore. Available aliases:"
+            keytool -list -keystore app/release.keystore -storepass "$KEYSTORE_PASSWORD" 2>/dev/null | grep -i "alias"
+            exit 1
+          }
           echo "has_keystore=true" >> $GITHUB_OUTPUT
 
       - name: Auto-increment versionCode

@@ -29,12 +29,17 @@ android {
         )
     }
 
-    signingConfigs {
-        create("release") {
-            storeFile = file(System.getenv("KEYSTORE_PATH") ?: "release.keystore")
-            storePassword = System.getenv("KEYSTORE_PASSWORD") ?: ""
-            keyAlias = System.getenv("KEY_ALIAS") ?: "averytask"
-            keyPassword = System.getenv("KEY_PASSWORD") ?: ""
+    val keystorePath = System.getenv("KEYSTORE_PATH")
+    val hasReleaseSigning = keystorePath != null && file(keystorePath).exists()
+
+    if (hasReleaseSigning) {
+        signingConfigs {
+            create("release") {
+                storeFile = file(keystorePath!!)
+                storePassword = System.getenv("KEYSTORE_PASSWORD") ?: ""
+                keyAlias = System.getenv("KEY_ALIAS") ?: "averytask"
+                keyPassword = System.getenv("KEY_PASSWORD") ?: ""
+            }
         }
     }
     buildTypes {
@@ -52,7 +57,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            signingConfig = signingConfigs.getByName("release")
+            signingConfig = if (hasReleaseSigning) signingConfigs.getByName("release") else signingConfigs.getByName("debug")
         }
     }
 
