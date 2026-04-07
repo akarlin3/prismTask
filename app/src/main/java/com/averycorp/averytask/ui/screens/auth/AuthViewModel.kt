@@ -48,7 +48,14 @@ class AuthViewModel @Inject constructor(
                 try { syncService.initialUpload() } catch (_: Exception) { }
                 syncService.startRealtimeListeners()
             } else {
-                _authState.value = AuthState.Error(result.exceptionOrNull()?.message ?: "Sign-in failed")
+                // Firebase rejected the token (commonly a stale/revoked
+                // credential from Credential Manager auto-select). Clear the
+                // cached credential so the next attempt shows the account
+                // picker instead of silently reusing the bad one.
+                authManager.clearCredentialState()
+                _authState.value = AuthState.Error(
+                    result.exceptionOrNull()?.message ?: "Sign-in failed"
+                )
             }
         }
     }
@@ -58,9 +65,11 @@ class AuthViewModel @Inject constructor(
     }
 
     fun onSignOut() {
-        syncService.stopRealtimeListeners()
-        authManager.signOut()
-        _authState.value = AuthState.SignedOut
+        viewModelScope.launch {
+            syncService.stopRealtimeListeners()
+            authManager.signOut()
+            _authState.value = AuthState.SignedOut
+        }
     }
 
     fun onSkipSignIn() {

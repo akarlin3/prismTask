@@ -31,13 +31,18 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.credentials.CredentialManager
+import androidx.credentials.CustomCredential
 import androidx.credentials.GetCredentialRequest
+import androidx.credentials.GetCredentialResponse
+import androidx.credentials.exceptions.GetCredentialCancellationException
 import androidx.credentials.exceptions.GetCredentialException
+import androidx.credentials.exceptions.NoCredentialException
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.averycorp.averytask.BuildConfig
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
+import com.google.android.libraries.identity.googleid.GoogleIdTokenParsingException
 import kotlinx.coroutines.launch
 
 private val WEB_CLIENT_ID = BuildConfig.WEB_CLIENT_ID
@@ -111,33 +116,70 @@ fun AuthScreen(
             Button(
                 onClick = {
                     scope.launch {
-                        try {
-                            val credentialManager = CredentialManager.create(context)
-                            val activity = context as Activity
+                        val credentialManager = CredentialManager.create(context)
+                        val activity = context as Activity
 
-                            // First try returning users (authorized accounts)
+                        suspend fun requestAuthorized(): GetCredentialResponse {
+                            val googleIdOption = GetGoogleIdOption.Builder()
+                                .setServerClientId(WEB_CLIENT_ID)
+                                .setFilterByAuthorizedAccounts(true)
+                                .setAutoSelectEnabled(true)
+                                .build()
+                            val request = GetCredentialRequest.Builder()
+                                .addCredentialOption(googleIdOption)
+                                .build()
+                            return credentialManager.getCredential(activity, request)
+                        }
+
+                        suspend fun requestSignInButton(): GetCredentialResponse {
+                            val signInOption = GetSignInWithGoogleOption.Builder(WEB_CLIENT_ID)
+                                .build()
+                            val request = GetCredentialRequest.Builder()
+                                .addCredentialOption(signInOption)
+                                .build()
+                            return credentialManager.getCredential(activity, request)
+                        }
+
+                        try {
+                            // First try returning users (authorized accounts).
+                            // Only fall back on NoCredentialException — other
+                            // failures (user cancelled, network, etc.) should
+                            // surface as-is rather than silently retrying.
                             val result = try {
-                                val googleIdOption = GetGoogleIdOption.Builder()
-                                    .setServerClientId(WEB_CLIENT_ID)
-                                    .setFilterByAuthorizedAccounts(true)
-                                    .setAutoSelectEnabled(true)
-                                    .build()
-                                val request = GetCredentialRequest.Builder()
-                                    .addCredentialOption(googleIdOption)
-                                    .build()
-                                credentialManager.getCredential(activity, request)
-                            } catch (e: GetCredentialException) {
-                                // No returning user found — fall back to Sign In With Google button
-                                val signInOption = GetSignInWithGoogleOption.Builder(WEB_CLIENT_ID)
-                                    .build()
-                                val request = GetCredentialRequest.Builder()
-                                    .addCredentialOption(signInOption)
-                                    .build()
-                                credentialManager.getCredential(activity, request)
+                                requestAuthorized()
+                            } catch (_: NoCredentialException) {
+                                requestSignInButton()
                             }
 
-                            val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(result.credential.data)
-                            viewModel.onGoogleSignIn(googleIdTokenCredential.idToken)
+                            val credential = result.credential
+                            if (credential is CustomCredential &&
+                                credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL
+                            ) {
+                                try {
+                                    val googleIdTokenCredential =
+                                        GoogleIdTokenCredential.createFrom(credential.data)
+                                    viewModel.onGoogleSignIn(googleIdTokenCredential.idToken)
+                                } catch (e: GoogleIdTokenParsingException) {
+                                    Log.e("AuthScreen", "Failed to parse Google ID token", e)
+                                    // Clear cached credential — a malformed
+                                    // token usually means the cached account
+                                    // needs reauth.
+                                    runCatching {
+                                        credentialManager.clearCredentialState(
+                                            androidx.credentials.ClearCredentialStateRequest()
+                                        )
+                                    }
+                                    viewModel.onSignInError(
+                                        "Google account needs to be re-authenticated. Please try again."
+                                    )
+                                }
+                            } else {
+                                Log.e("AuthScreen", "Unexpected credential type: ${credential.type}")
+                                viewModel.onSignInError("Unexpected credential type")
+                            }
+                        } catch (_: GetCredentialCancellationException) {
+                            // User dismissed the sheet — return to idle.
+                            viewModel.onSignInError("Sign-in cancelled")
                         } catch (e: GetCredentialException) {
                             Log.e("AuthScreen", "Sign-in failed", e)
                             viewModel.onSignInError(e.message ?: "Google Sign-In failed")

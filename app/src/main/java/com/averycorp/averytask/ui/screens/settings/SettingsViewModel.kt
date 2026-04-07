@@ -477,8 +477,8 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun onSignOut() {
-        authManager.signOut()
         viewModelScope.launch {
+            authManager.signOut()
             _messages.emit("Signed out")
         }
     }
