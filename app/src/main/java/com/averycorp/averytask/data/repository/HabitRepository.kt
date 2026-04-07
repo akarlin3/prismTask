@@ -4,11 +4,15 @@ import com.averycorp.averytask.data.local.dao.HabitCompletionDao
 import com.averycorp.averytask.data.local.dao.HabitDao
 import com.averycorp.averytask.data.local.entity.HabitCompletionEntity
 import com.averycorp.averytask.data.local.entity.HabitEntity
+import com.averycorp.averytask.data.preferences.TaskBehaviorPreferences
 import com.averycorp.averytask.data.remote.SyncTracker
 import com.averycorp.averytask.domain.usecase.StreakCalculator
 import com.averycorp.averytask.notifications.MedicationReminderScheduler
+import com.averycorp.averytask.util.DayBoundary
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
 import java.time.LocalDate
 import java.util.Calendar
 import javax.inject.Inject
@@ -28,8 +32,13 @@ class HabitRepository @Inject constructor(
     private val habitDao: HabitDao,
     private val completionDao: HabitCompletionDao,
     private val syncTracker: SyncTracker,
-    private val medicationReminderScheduler: MedicationReminderScheduler
+    private val medicationReminderScheduler: MedicationReminderScheduler,
+    private val taskBehaviorPreferences: TaskBehaviorPreferences
 ) {
+    private suspend fun currentDayStartHour(): Int = taskBehaviorPreferences.getDayStartHour().first()
+
+    private suspend fun normalizeForToday(timestamp: Long): Long =
+        DayBoundary.normalizeToDayStart(timestamp, currentDayStartHour())
     fun getAllHabits(): Flow<List<HabitEntity>> = habitDao.getAllHabits()
 
     fun getActiveHabits(): Flow<List<HabitEntity>> = habitDao.getActiveHabits()
@@ -70,7 +79,7 @@ class HabitRepository @Inject constructor(
     }
 
     suspend fun completeHabit(habitId: Long, date: Long, notes: String? = null) {
-        val normalizedDate = normalizeToMidnight(date)
+        val normalizedDate = normalizeForToday(date)
         val habit = habitDao.getHabitByIdOnce(habitId)
         val hasMedInterval = habit?.reminderIntervalMillis != null
         val timesPerDay = habit?.reminderTimesPerDay ?: 1
@@ -107,7 +116,7 @@ class HabitRepository @Inject constructor(
     }
 
     suspend fun uncompleteHabit(habitId: Long, date: Long) {
-        val normalizedDate = normalizeToMidnight(date)
+        val normalizedDate = normalizeForToday(date)
         val completion = completionDao.getByHabitAndDate(habitId, normalizedDate)
         if (completion != null) {
             syncTracker.trackDelete(completion.id, "habit_completion")
@@ -147,43 +156,47 @@ class HabitRepository @Inject constructor(
         habitDao.updateAll(habits)
     }
 
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     fun getHabitsWithTodayStatus(): Flow<List<HabitWithStatus>> {
-        val today = normalizeToMidnight(System.currentTimeMillis())
-
-        return combine(
-            habitDao.getActiveHabits(),
-            completionDao.getCompletionsForDate(today)
-        ) { habits, todayCompletions ->
-            val countByHabit = todayCompletions.groupBy { it.habitId }.mapValues { it.value.size }
-            habits.map { habit ->
-                val target = if (habit.reminderIntervalMillis != null) {
-                    habit.reminderTimesPerDay
-                } else if (habit.frequencyPeriod == "daily") {
-                    habit.targetFrequency
-                } else 1
-                val count = countByHabit[habit.id] ?: 0
-                HabitWithStatus(
-                    habit = habit,
-                    isCompletedToday = count >= target,
-                    currentStreak = 0,
-                    completionsThisWeek = 0,
-                    completionsToday = count,
-                    dailyTarget = target
-                )
+        return taskBehaviorPreferences.getDayStartHour().flatMapLatest { dayStartHour ->
+            val today = DayBoundary.startOfCurrentDay(dayStartHour)
+            combine(
+                habitDao.getActiveHabits(),
+                completionDao.getCompletionsForDate(today)
+            ) { habits, todayCompletions ->
+                val countByHabit = todayCompletions.groupBy { it.habitId }.mapValues { it.value.size }
+                habits.map { habit ->
+                    val target = if (habit.reminderIntervalMillis != null) {
+                        habit.reminderTimesPerDay
+                    } else if (habit.frequencyPeriod == "daily") {
+                        habit.targetFrequency
+                    } else 1
+                    val count = countByHabit[habit.id] ?: 0
+                    HabitWithStatus(
+                        habit = habit,
+                        isCompletedToday = count >= target,
+                        currentStreak = 0,
+                        completionsThisWeek = 0,
+                        completionsToday = count,
+                        dailyTarget = target
+                    )
+                }
             }
         }
     }
 
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     fun getHabitsWithFullStatus(): Flow<List<HabitWithStatus>> {
-        val today = normalizeToMidnight(System.currentTimeMillis())
-        val weekStart = getWeekStart(today)
-        val weekEnd = getWeekEnd(today)
-        val todayLocal = LocalDate.now()
+        return taskBehaviorPreferences.getDayStartHour().flatMapLatest { dayStartHour ->
+            val today = DayBoundary.startOfCurrentDay(dayStartHour)
+            val weekStart = getWeekStart(today)
+            val weekEnd = getWeekEnd(today)
+            val todayLocal = LocalDate.now()
 
-        return combine(
-            habitDao.getActiveHabits(),
-            completionDao.getCompletionsForDate(today)
-        ) { habits, todayCompletions ->
+            combine(
+                habitDao.getActiveHabits(),
+                completionDao.getCompletionsForDate(today)
+            ) { habits, todayCompletions ->
             val countByHabit = todayCompletions.groupBy { it.habitId }.mapValues { it.value.size }
             habits.map { habit ->
                 val completions = completionDao.getCompletionsForHabitOnce(habit.id)
@@ -237,6 +250,7 @@ class HabitRepository @Inject constructor(
                     completionsToday = count,
                     dailyTarget = target
                 )
+            }
             }
         }
     }
