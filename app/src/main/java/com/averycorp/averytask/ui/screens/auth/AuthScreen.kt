@@ -188,7 +188,7 @@ fun AuthScreen(
                 },
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("Sign in with Google")
+                Text("Sign In with Google")
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -197,7 +197,7 @@ fun AuthScreen(
                 viewModel.onSkipSignIn()
                 onContinue()
             }) {
-                Text("Continue without account")
+                Text("Continue Without Account")
             }
         }
 

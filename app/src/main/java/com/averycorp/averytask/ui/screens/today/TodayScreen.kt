@@ -145,7 +145,7 @@ fun TodayScreen(
             if (allEmpty) {
                 EmptyState(
                     icon = Icons.Default.Check,
-                    title = "Nothing for today",
+                    title = "Nothing for Today",
                     subtitle = "Plan tasks for today or add a new one",
                     modifier = Modifier.weight(1f)
                 )
@@ -269,7 +269,7 @@ fun TodayScreen(
                                     ) {
                                         Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
                                         Spacer(modifier = Modifier.width(4.dp))
-                                        Text("Plan more")
+                                        Text("Plan More")
                                     }
                                 }
                             }
@@ -688,7 +688,7 @@ private fun PlanForTodaySheet(
 
             if (tasks.isEmpty()) {
                 Text(
-                    text = "No more tasks to plan",
+                    text = "No More Tasks to Plan",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(vertical = 24.dp)

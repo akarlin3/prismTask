@@ -219,7 +219,7 @@ fun AddEditHabitScreen(
                         OutlinedTextField(
                             value = customCategoryName.value,
                             onValueChange = { customCategoryName.value = it },
-                            label = { Text("Category name") },
+                            label = { Text("Category Name") },
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth()
                         )
@@ -344,7 +344,7 @@ fun AddEditHabitScreen(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(
-                    text = "Daily reminder",
+                    text = "Daily Reminder",
                     style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier.weight(1f)
                 )
@@ -488,7 +488,7 @@ fun AddEditHabitScreen(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "Enable logging",
+                        text = "Enable Logging",
                         style = MaterialTheme.typography.bodyMedium
                     )
                     Text(

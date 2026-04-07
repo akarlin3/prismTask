@@ -534,21 +534,21 @@ fun TaskListScreen(
                 if (currentFilter.isActive()) {
                     EmptyState(
                         icon = Icons.Default.FilterList,
-                        title = "No tasks match your filters",
+                        title = "No Tasks Match Your Filters",
                         subtitle = "Try adjusting or clearing your filters",
                         modifier = Modifier.weight(1f)
                     )
                 } else if (selectedProjectId != null) {
                     EmptyState(
                         icon = Icons.Default.Search,
-                        title = "No tasks match your filters",
+                        title = "No Tasks Match Your Filters",
                         subtitle = "Try selecting a different project",
                         modifier = Modifier.weight(1f)
                     )
                 } else {
                     EmptyState(
                         icon = Icons.Default.CheckBoxOutlineBlank,
-                        title = "No tasks yet",
+                        title = "No Tasks Yet",
                         subtitle = "Tap + to add your first task",
                         modifier = Modifier.weight(1f)
                     )

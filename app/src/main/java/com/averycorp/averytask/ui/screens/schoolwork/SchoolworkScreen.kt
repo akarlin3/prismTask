@@ -239,7 +239,7 @@ fun SchoolworkScreen(
                     Text("\uD83C\uDF93", fontSize = 48.sp)
                     Spacer(Modifier.height(12.dp))
                     Text(
-                        "No courses yet",
+                        "No Courses Yet",
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -609,7 +609,7 @@ private fun CourseCard(
                         OutlinedTextField(
                             value = newAssignmentTitle,
                             onValueChange = { newAssignmentTitle = it },
-                            placeholder = { Text("Assignment title") },
+                            placeholder = { Text("Assignment Title") },
                             modifier = Modifier.weight(1f),
                             singleLine = true,
                             textStyle = MaterialTheme.typography.bodyMedium,

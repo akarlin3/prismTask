@@ -137,7 +137,7 @@ fun ArchiveScreen(
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { viewModel.onSearchQueryChanged(it) },
-                placeholder = { Text("Search archived tasks...") },
+                placeholder = { Text("Search Archived Tasks...") },
                 singleLine = true,
                 modifier = Modifier
                     .fillMaxWidth()
@@ -160,7 +160,7 @@ fun ArchiveScreen(
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
-                            text = "Archive is empty",
+                            text = "Archive Is Empty",
                             style = MaterialTheme.typography.titleMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )

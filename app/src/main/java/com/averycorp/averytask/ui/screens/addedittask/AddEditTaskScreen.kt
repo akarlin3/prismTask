@@ -263,7 +263,7 @@ fun AddEditTaskScreen(
                     Icon(Icons.Default.AccessTime, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = viewModel.dueTime?.let { formatTime(it) } ?: "No time"
+                        text = viewModel.dueTime?.let { formatTime(it) } ?: "No Time"
                     )
                 }
                 if (viewModel.dueTime != null) {
@@ -644,7 +644,7 @@ private fun ProjectDropdown(
         )
         ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             DropdownMenuItem(
-                text = { Text("No project") },
+                text = { Text("No Project") },
                 onClick = {
                     onSelect(null)
                     expanded = false

@@ -241,14 +241,14 @@ fun FilterPanel(
                 checked = workingFilter.showCompleted,
                 onCheckedChange = { workingFilter = workingFilter.copy(showCompleted = it) }
             )
-            Text("Show completed")
+            Text("Show Completed")
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
             Checkbox(
                 checked = workingFilter.showArchived,
                 onCheckedChange = { workingFilter = workingFilter.copy(showArchived = it) }
             )
-            Text("Show archived")
+            Text("Show Archived")
         }
 
         Spacer(modifier = Modifier.height(16.dp))

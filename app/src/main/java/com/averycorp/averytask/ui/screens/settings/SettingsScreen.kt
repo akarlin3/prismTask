@@ -244,7 +244,7 @@ fun SettingsScreen(
             confirmButton = {
                 TextButton(onClick = { showAutoArchiveDialog = false }) { Text("Close") }
             },
-            title = { Text("Auto-archive completed tasks") },
+            title = { Text("Auto-Archive Completed Tasks") },
             text = {
                 Column {
                     options.forEach { (days, label) ->
@@ -445,7 +445,7 @@ fun SettingsScreen(
 
                     Spacer(modifier = Modifier.height(8.dp))
                     TextButton(onClick = { viewModel.resetColorOverrides() }) {
-                        Text("Reset all color overrides", color = MaterialTheme.colorScheme.error)
+                        Text("Reset All Color Overrides", color = MaterialTheme.colorScheme.error)
                     }
                 }
             }
@@ -530,7 +530,7 @@ fun SettingsScreen(
                     }
                     Spacer(modifier = Modifier.height(4.dp))
                     TextButton(onClick = { viewModel.resetDashboardDefaults() }) {
-                        Text("Reset dashboard", color = MaterialTheme.colorScheme.error)
+                        Text("Reset Dashboard", color = MaterialTheme.colorScheme.error)
                     }
                 }
             }
@@ -614,7 +614,7 @@ fun SettingsScreen(
                 )
             }
             TextButton(onClick = { viewModel.resetTabDefaults() }) {
-                Text("Reset navigation", color = MaterialTheme.colorScheme.error)
+                Text("Reset Navigation", color = MaterialTheme.colorScheme.error)
             }
 
             HorizontalDivider()
@@ -702,7 +702,7 @@ fun SettingsScreen(
 
                     Spacer(modifier = Modifier.height(8.dp))
                     TextButton(onClick = { viewModel.resetTaskBehaviorDefaults() }) {
-                        Text("Reset task defaults", color = MaterialTheme.colorScheme.error)
+                        Text("Reset Task Defaults", color = MaterialTheme.colorScheme.error)
                     }
                 }
             }
@@ -856,7 +856,7 @@ fun SettingsScreen(
                         .fillMaxWidth()
                         .padding(vertical = 8.dp)
                 ) {
-                    Text("Sign in with Google")
+                    Text("Sign In with Google")
                 }
             }
 
@@ -884,7 +884,7 @@ fun SettingsScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Sync tasks to calendar", style = MaterialTheme.typography.bodyLarge)
+                    Text("Sync Tasks to Calendar", style = MaterialTheme.typography.bodyLarge)
                     if (calendarSyncEnabled && calendarName.isNotBlank()) {
                         Text(
                             text = calendarName,
@@ -1298,7 +1298,7 @@ private fun ColorPickerDialog(
                 OutlinedTextField(
                     value = hexInput,
                     onValueChange = { hexInput = it },
-                    label = { Text("Hex color") },
+                    label = { Text("Hex Color") },
                     placeholder = { Text("#FF0000") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()

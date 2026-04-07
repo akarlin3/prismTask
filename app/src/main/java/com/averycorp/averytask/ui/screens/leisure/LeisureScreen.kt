@@ -399,7 +399,7 @@ private fun AddActivityDialog(
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
-                    label = { Text("Activity name") },
+                    label = { Text("Activity Name") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -407,7 +407,7 @@ private fun AddActivityDialog(
                 OutlinedTextField(
                     value = icon,
                     onValueChange = { if (it.length <= 2) icon = it },
-                    label = { Text("Emoji icon") },
+                    label = { Text("Emoji Icon") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )

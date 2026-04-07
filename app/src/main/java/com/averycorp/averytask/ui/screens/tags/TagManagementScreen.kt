@@ -153,7 +153,7 @@ fun TagManagementScreen(
                     OutlinedTextField(
                         value = newTagName,
                         onValueChange = { newTagName = it },
-                        label = { Text("Tag name") },
+                        label = { Text("Tag Name") },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -226,7 +226,7 @@ fun TagManagementScreen(
                     OutlinedTextField(
                         value = editTagName,
                         onValueChange = { editTagName = it },
-                        label = { Text("Tag name") },
+                        label = { Text("Tag Name") },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )

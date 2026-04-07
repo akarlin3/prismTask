@@ -162,7 +162,7 @@ fun HabitListScreen(
             ) {
                 EmptyState(
                     icon = Icons.Default.FitnessCenter,
-                    title = if (selectedTab == 0) "Build better habits!" else "No recurring habits yet",
+                    title = if (selectedTab == 0) "Build Better Habits!" else "No Recurring Habits Yet",
                     subtitle = if (selectedTab == 0) "Tap + to start tracking." else "Tap + to add a weekly, fortnightly, monthly, bimonthly, or quarterly habit.",
                     modifier = Modifier
                         .fillMaxWidth()

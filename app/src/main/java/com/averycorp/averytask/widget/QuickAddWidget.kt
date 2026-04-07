@@ -55,7 +55,7 @@ private fun QuickAddContent() {
         )
         Spacer(modifier = GlanceModifier.width(8.dp))
         Text(
-            text = "Add task...",
+            text = "Add Task...",
             style = TextStyle(
                 fontSize = 14.sp,
                 color = GlanceTheme.colors.secondary

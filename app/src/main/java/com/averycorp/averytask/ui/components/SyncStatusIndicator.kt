@@ -62,7 +62,7 @@ fun SyncStatusIndicator(
         }
         is SyncState.Error -> {
             StatusChip(
-                text = "Sync error",
+                text = "Sync Error",
                 color = MaterialTheme.colorScheme.error,
                 onClick = onTap,
                 modifier = modifier

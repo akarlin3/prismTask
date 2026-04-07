@@ -174,9 +174,9 @@ fun SelfCareScreen(
             item {
                 Text(
                     text = when (routineType) {
-                        "morning" -> "Self-care routine"
-                        "housework" -> "Housework routine"
-                        else -> "Wind-down routine"
+                        "morning" -> "Self-Care Routine"
+                        "housework" -> "Housework Routine"
+                        else -> "Wind-Down Routine"
                     },
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.ExtraBold

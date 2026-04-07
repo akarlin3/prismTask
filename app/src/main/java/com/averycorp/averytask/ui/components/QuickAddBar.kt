@@ -70,7 +70,7 @@ fun QuickAddBar(
             ) {
                 Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(4.dp))
-                Text("Quick add")
+                Text("Quick Add")
             }
         } else {
             Row(

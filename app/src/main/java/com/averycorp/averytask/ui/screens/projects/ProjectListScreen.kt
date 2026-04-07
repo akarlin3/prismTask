@@ -183,7 +183,7 @@ fun ProjectListScreen(
         if (projects.isEmpty()) {
             EmptyState(
                 icon = Icons.Default.Folder,
-                title = "No projects yet",
+                title = "No Projects Yet",
                 subtitle = "Tap + to create one",
                 modifier = Modifier
                     .fillMaxSize()

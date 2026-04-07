@@ -210,7 +210,7 @@ private fun RecurrenceDialog(
                     // Weekly: day-of-week chips
                     if (selectedType == RecurrenceType.WEEKLY) {
                         Spacer(modifier = Modifier.height(12.dp))
-                        Text("On days:", style = MaterialTheme.typography.labelMedium)
+                        Text("On Days:", style = MaterialTheme.typography.labelMedium)
                         Spacer(modifier = Modifier.height(4.dp))
                         FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                             val dayLabels = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
@@ -235,7 +235,7 @@ private fun RecurrenceDialog(
                     if (selectedType == RecurrenceType.MONTHLY) {
                         Spacer(modifier = Modifier.height(12.dp))
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("On day")
+                            Text("On Day")
                             Spacer(modifier = Modifier.width(8.dp))
                             OutlinedTextField(
                                 value = dayOfMonthText,
@@ -271,7 +271,7 @@ private fun RecurrenceDialog(
                             onClick = { endCondition = 1 }
                         )
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("Until date")
+                        Text("Until Date")
                         if (endCondition == 1) {
                             Spacer(modifier = Modifier.width(8.dp))
                             TextButton(onClick = { showEndDatePicker = true }) {

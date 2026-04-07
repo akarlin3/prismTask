@@ -379,7 +379,7 @@ private fun DayDetail(
             TextButton(onClick = onAddTask) {
                 Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
                 Spacer(modifier = Modifier.width(4.dp))
-                Text("Add task")
+                Text("Add Task")
             }
         }
     }
