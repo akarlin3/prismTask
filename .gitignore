@@ -43,6 +43,10 @@ test.db
 *.keystore
 *.jks
 keystore_base64.txt
+# Exception: the debug keystore is committed so all CI runs (and local
+# builds) produce APKs with a stable signature, which is required for
+# in-app updates to pass the installed-signature check.
+!app/debug.keystore
 
 # macOS
 .DS_Store

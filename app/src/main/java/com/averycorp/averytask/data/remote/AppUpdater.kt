@@ -218,7 +218,12 @@ class AppUpdater @Inject constructor(
 
         if (installedDigests.intersect(apkDigests).isEmpty()) {
             apkFile.delete()
-            throw Exception("APK signature does not match installed app — update rejected")
+            throw Exception(
+                "APK signature does not match installed app. This means the " +
+                    "installed build was signed with a different key than the " +
+                    "release. Uninstall AveryTask and reinstall from the latest " +
+                    "GitHub release to continue receiving in-app updates."
+            )
         }
     }
 

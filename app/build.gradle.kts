@@ -17,8 +17,8 @@ android {
         applicationId = "com.averycorp.averytask"
         minSdk = 26
         targetSdk = 35
-        versionCode = 22
-        versionName = "0.7.15"
+        versionCode = 23
+        versionName = "0.7.16"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
@@ -33,8 +33,19 @@ android {
     val keystorePath = System.getenv("KEYSTORE_PATH")
     val hasReleaseSigning = keystorePath != null && file(keystorePath).exists()
 
-    if (hasReleaseSigning) {
-        signingConfigs {
+    signingConfigs {
+        // Override the default auto-generated ~/.android/debug.keystore with
+        // a stable keystore committed to the repo. Without this, every CI
+        // runner signs the debug APK with a freshly-generated key, so each
+        // release has a different signature and the in-app updater's
+        // installed-signature check rejects every update.
+        getByName("debug") {
+            storeFile = file("debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+        if (hasReleaseSigning) {
             create("release") {
                 storeFile = file(keystorePath!!)
                 storePassword = System.getenv("KEYSTORE_PASSWORD") ?: ""
@@ -49,6 +60,7 @@ android {
             buildConfigField("String", "API_BASE_URL", "\"http://10.0.2.2:8000\"")
             // Speed up debug builds
             isDebuggable = true
+            signingConfig = signingConfigs.getByName("debug")
             firebaseAppDistribution {
                 groups = "testers"
             }
