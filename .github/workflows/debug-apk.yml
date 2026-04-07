@@ -83,7 +83,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Build debug APK
-        run: ./gradlew assembleDebug --build-cache --parallel
+        run: ./gradlew assembleDebug --build-cache --parallel -x lint -x lintVitalRelease
 
       - name: Commit debug APK to repo root
         run: |

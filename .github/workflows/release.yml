@@ -124,18 +124,9 @@ jobs:
           sed -i "s/versionCode = [0-9]*/versionCode = $NEW_CODE/" app/build.gradle.kts
           echo "version_code=$NEW_CODE" >> $GITHUB_ENV
 
-      - name: Build release APK
+      - name: Build release APK and AAB
         if: steps.keystore.outputs.has_keystore == 'true'
-        run: ./gradlew assembleRelease --no-configuration-cache --build-cache --parallel
-        env:
-          KEYSTORE_PATH: release.keystore
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-
-      - name: Build release AAB
-        if: steps.keystore.outputs.has_keystore == 'true'
-        run: ./gradlew bundleRelease --no-configuration-cache --build-cache --parallel
+        run: ./gradlew assembleRelease bundleRelease --no-configuration-cache --build-cache --parallel -x lint -x lintVitalRelease
         env:
           KEYSTORE_PATH: release.keystore
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}

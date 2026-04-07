@@ -29,8 +29,5 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Build debug APK
-        run: ./gradlew assembleDebug --build-cache --parallel
-
-      - name: Run unit tests
-        run: ./gradlew testDebugUnitTest --build-cache --parallel
+      - name: Build debug APK and run unit tests
+        run: ./gradlew assembleDebug testDebugUnitTest --build-cache --parallel -x lint -x lintVitalRelease
