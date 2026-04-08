@@ -1,5 +1,13 @@
 package com.averycorp.averytask.domain
 
+import com.averycorp.averytask.data.remote.api.AveryTaskApi
+import com.averycorp.averytask.data.remote.api.LoginRequest
+import com.averycorp.averytask.data.remote.api.ParseRequest
+import com.averycorp.averytask.data.remote.api.ParsedTaskResponse
+import com.averycorp.averytask.data.remote.api.RefreshRequest
+import com.averycorp.averytask.data.remote.api.RegisterRequest
+import com.averycorp.averytask.data.remote.api.TokenResponse
+import com.averycorp.averytask.data.remote.api.VersionResponse
 import com.averycorp.averytask.domain.usecase.NaturalLanguageParser
 import org.junit.Assert.*
 import org.junit.Before
@@ -15,6 +23,20 @@ class NaturalLanguageParserTest {
     private val zone = ZoneId.systemDefault()
     private val today = LocalDate.now()
 
+    /** Stub Retrofit API — these tests only exercise the offline regex parser. */
+    private val stubApi = object : AveryTaskApi {
+        override suspend fun register(request: RegisterRequest): TokenResponse =
+            error("not used in offline parser tests")
+        override suspend fun login(request: LoginRequest): TokenResponse =
+            error("not used in offline parser tests")
+        override suspend fun refresh(request: RefreshRequest): TokenResponse =
+            error("not used in offline parser tests")
+        override suspend fun parseTask(request: ParseRequest): ParsedTaskResponse =
+            error("not used in offline parser tests")
+        override suspend fun getVersion(): VersionResponse =
+            error("not used in offline parser tests")
+    }
+
     private fun dateMillis(date: LocalDate): Long =
         date.atStartOfDay(zone).toInstant().toEpochMilli()
 
@@ -23,7 +45,7 @@ class NaturalLanguageParserTest {
 
     @Before
     fun setup() {
-        parser = NaturalLanguageParser()
+        parser = NaturalLanguageParser(stubApi)
     }
 
     // Basic extraction tests

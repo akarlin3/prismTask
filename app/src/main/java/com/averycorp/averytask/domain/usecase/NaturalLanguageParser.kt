@@ -1,10 +1,17 @@
 package com.averycorp.averytask.domain.usecase
 
+import com.averycorp.averytask.data.remote.api.AveryTaskApi
+import com.averycorp.averytask.data.remote.api.ParseRequest
+import com.averycorp.averytask.data.remote.api.ParsedTaskResponse
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.Month
 import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.time.format.DateTimeParseException
 import java.time.format.TextStyle
 import java.time.temporal.TemporalAdjusters
 import java.util.Locale
@@ -22,9 +29,60 @@ data class ParsedTask(
 )
 
 @Singleton
-class NaturalLanguageParser @Inject constructor() {
+class NaturalLanguageParser @Inject constructor(
+    private val api: AveryTaskApi
+) {
 
     private val zone: ZoneId = ZoneId.systemDefault()
+
+    /**
+     * API-first parse: calls the backend `/api/v1/tasks/parse` endpoint, and
+     * falls back to the offline regex [parse] if the network call fails for
+     * any reason (no connectivity, server error, parse error, etc.).
+     *
+     * Use this from coroutine contexts (ViewModels). The synchronous [parse]
+     * method remains available for callers that cannot suspend (e.g. flow
+     * `map` operators that build live previews).
+     */
+    suspend fun parseRemote(input: String): ParsedTask = withContext(Dispatchers.IO) {
+        try {
+            val response = api.parseTask(ParseRequest(input))
+            response.toParsedTask(fallbackTitle = input)
+        } catch (_: Exception) {
+            parse(input)
+        }
+    }
+
+    private fun ParsedTaskResponse.toParsedTask(fallbackTitle: String): ParsedTask {
+        val date = dueDate?.let { parseIsoDate(it) }
+        val timeMillis = dueTime?.let { parseDateTimeMillis(date, it) }
+        val dateMillis = date?.atStartOfDay(zone)?.toInstant()?.toEpochMilli()
+        return ParsedTask(
+            title = title.ifBlank { fallbackTitle.trim() },
+            dueDate = dateMillis,
+            dueTime = timeMillis,
+            tags = tagSuggestions ?: emptyList(),
+            projectName = projectSuggestion,
+            priority = priority ?: 0,
+            recurrenceHint = recurrenceHint
+        )
+    }
+
+    private fun parseIsoDate(value: String): LocalDate? = try {
+        LocalDate.parse(value, DateTimeFormatter.ISO_LOCAL_DATE)
+    } catch (_: DateTimeParseException) {
+        null
+    }
+
+    private fun parseDateTimeMillis(date: LocalDate?, time: String): Long? {
+        val parsedTime = try {
+            LocalTime.parse(time, DateTimeFormatter.ISO_LOCAL_TIME)
+        } catch (_: DateTimeParseException) {
+            return null
+        }
+        val effectiveDate = date ?: LocalDate.now()
+        return effectiveDate.atTime(parsedTime).atZone(zone).toInstant().toEpochMilli()
+    }
 
     fun parse(input: String): ParsedTask {
         var text = input
