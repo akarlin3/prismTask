@@ -91,6 +91,15 @@ def parse_task_input(
             logger.info(f"Extracted response text: {content!r}")
             print(f"NLP: Extracted text: {content!r}")
 
+            # Strip markdown code fences if present
+            content = content.strip()
+            if content.startswith("```"):
+                # Remove opening fence (```json or ```)
+                content = content.split("\n", 1)[1] if "\n" in content else content[3:]
+            if content.endswith("```"):
+                content = content[:-3]
+            content = content.strip()
+
             parsed = json.loads(content)
             return ParsedTask(**parsed)
         except (json.JSONDecodeError, KeyError, TypeError, IndexError) as e:
