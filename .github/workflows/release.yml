@@ -1,74 +1,14 @@
 name: Build and Release APK
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'app/build.gradle.kts'
+  workflow_dispatch:
 
 concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  check-version:
-    runs-on: ubuntu-latest
-    outputs:
-      should_release: ${{ steps.check.outputs.should_release }}
-      version_name: ${{ steps.check.outputs.version_name }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 2
-
-      - name: Check if versionName increased (major only)
-        id: check
-        run: |
-          extract_version() {
-            grep 'versionName' "$1" | head -1 | grep -oP '"\K[^"]+' || echo ""
-          }
-          NEW_VERSION=$(extract_version app/build.gradle.kts)
-          echo "New versionName: $NEW_VERSION"
-          if [ -z "$NEW_VERSION" ]; then
-            echo "::warning::Could not extract versionName from app/build.gradle.kts"
-            echo "should_release=false" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-          git show HEAD^:app/build.gradle.kts > /tmp/prev-build.gradle.kts 2>/dev/null || {
-            echo "No previous commit found; skipping release (cannot verify major bump)."
-            echo "should_release=false" >> $GITHUB_OUTPUT
-            exit 0
-          }
-          OLD_VERSION=$(extract_version /tmp/prev-build.gradle.kts)
-          echo "Previous versionName: $OLD_VERSION"
-          if [ "$NEW_VERSION" = "$OLD_VERSION" ]; then
-            echo "versionName unchanged; skipping release."
-            echo "should_release=false" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-          # Compare semver: ensure NEW is strictly greater than OLD
-          HIGHEST=$(printf '%s\n%s\n' "$OLD_VERSION" "$NEW_VERSION" | sort -V | tail -1)
-          if [ "$HIGHEST" != "$NEW_VERSION" ] || [ "$NEW_VERSION" = "$OLD_VERSION" ]; then
-            echo "versionName did not increase ($OLD_VERSION -> $NEW_VERSION); skipping release."
-            echo "should_release=false" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-          # Only release on major bumps, not minor or patch bumps
-          NEW_MAJOR=$(echo "$NEW_VERSION" | cut -d. -f1)
-          OLD_MAJOR=$(echo "$OLD_VERSION" | cut -d. -f1)
-          if [ "$NEW_MAJOR" != "$OLD_MAJOR" ]; then
-            echo "Major versionName bump ($OLD_VERSION -> $NEW_VERSION); triggering release."
-            echo "should_release=true" >> $GITHUB_OUTPUT
-            echo "version_name=$NEW_VERSION" >> $GITHUB_OUTPUT
-          else
-            echo "Non-major versionName bump ($OLD_VERSION -> $NEW_VERSION); skipping release."
-            echo "should_release=false" >> $GITHUB_OUTPUT
-          fi
-
   build-and-release:
-    needs: check-version
-    if: needs.check-version.outputs.should_release == 'true'
     runs-on: ubuntu-latest
     environment: copilot
     permissions:
