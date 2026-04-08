@@ -20,7 +20,7 @@ private val Context.authTokenDataStore: DataStore<Preferences> by preferencesDat
  * DataStore-backed storage for backend API JWT tokens (access + refresh).
  *
  * Separate from the Firebase/Google auth flow — these tokens are issued by the
- * FastAPI backend (`/api/v1/auth/*`) and attached to requests by the OkHttp
+ * FastAPI backend (`/api/v1/auth/...`) and attached to requests by the OkHttp
  * auth interceptor.
  */
 @Singleton
