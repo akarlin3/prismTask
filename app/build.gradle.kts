@@ -56,7 +56,14 @@ android {
     }
     buildTypes {
         debug {
-            buildConfigField("String", "API_BASE_URL", "\"http://10.0.2.2:8000\"")
+            // Point debug builds at the live Railway backend so that sideloaded
+            // debug APKs can actually reach the Claude-Haiku parse endpoint.
+            // Override with a `API_BASE_URL_DEBUG` env var if you need to
+            // target a local FastAPI server from the emulator (use
+            // "http://10.0.2.2:8000" for emulator → host loopback).
+            val debugApiUrl = System.getenv("API_BASE_URL_DEBUG")
+                ?: "https://averytask-production.up.railway.app"
+            buildConfigField("String", "API_BASE_URL", "\"$debugApiUrl\"")
             // Speed up debug builds
             isDebuggable = true
             signingConfig = signingConfigs.getByName("debug")
