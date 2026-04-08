@@ -1,5 +1,6 @@
 import secrets
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings
 
 
@@ -18,6 +19,13 @@ class Settings(BaseSettings):
     DEPLOY_API_KEY: str = ""
     ENVIRONMENT: str = "dev"
     CORS_ORIGINS: list[str] = ["*"]
+
+    @field_validator("CORS_ORIGINS", mode="before")
+    @classmethod
+    def _parse_cors_origins(cls, v: object) -> object:
+        if isinstance(v, str):
+            return [origin.strip() for origin in v.split(",") if origin.strip()]
+        return v
 
     @property
     def is_production(self) -> bool:
