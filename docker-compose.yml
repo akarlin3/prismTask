@@ -29,6 +29,7 @@ services:
       DATABASE_URL: postgresql+asyncpg://averytask:averytask@db:5432/averytask
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:?Set JWT_SECRET_KEY in .env or environment}
       JWT_ALGORITHM: HS256
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
     depends_on:
       db:
         condition: service_healthy
