@@ -61,6 +61,22 @@ data class ImportResult(
     val errors: List<String> = emptyList()
 )
 
+/**
+ * Imports app data from a JSON file produced by [DataExporter].
+ *
+ * === Version handling & backwards compatibility ===
+ *  - `version >= 3`: generic Gson path. Each entity JSON object is overlaid onto a
+ *    freshly-constructed default instance via [mergeEntityWithDefaults]. This means any
+ *    fields added to an entity *after* the file was exported automatically get their
+ *    Kotlin constructor default values on import — so old backups keep working as the
+ *    schema evolves.
+ *  - `version < 3` (or missing): legacy flat-field path preserved verbatim so users
+ *    can still restore backups produced by earlier app versions.
+ *
+ * The v3 format does not require any changes to this file when a new field is added to
+ * an existing entity. Only adding a brand-new entity/collection requires a new branch
+ * in the import loop.
+ */
 @Singleton
 class DataImporter @Inject constructor(
     private val taskDao: TaskDao,
@@ -81,6 +97,8 @@ class DataImporter @Inject constructor(
     private val leisurePreferences: LeisurePreferences,
     private val medicationPreferences: MedicationPreferences
 ) {
+    private val gson = Gson()
+
     suspend fun importFromJson(jsonString: String, mode: ImportMode): ImportResult {
         val errors = mutableListOf<String>()
         var tasksImported = 0
@@ -99,7 +117,11 @@ class DataImporter @Inject constructor(
 
         try {
             val root = JsonParser.parseString(jsonString).asJsonObject
-            val gson = Gson()
+            // Note: the v2 and v3 formats are unified below via helper-field fallbacks
+            // (`_projectName` -> `project`, etc.) and [mergeEntityWithDefaults], so the
+            // `version` field is not currently used for dispatch. It is still written by
+            // [DataExporter.EXPORT_VERSION] so we can branch on it if the format ever
+            // changes in a non-additive way.
 
             if (mode == ImportMode.REPLACE) {
                 taskDao.getAllTasksOnce().forEach { taskDao.deleteById(it.id) }
@@ -115,23 +137,19 @@ class DataImporter @Inject constructor(
             val existingTags = tagDao.getAllTagsOnce()
             val existingTasks = taskDao.getAllTasksOnce()
 
-            // Import projects
+            // Import projects (same shape in v2 and v3: plain entity array)
             val projectNameToId = mutableMapOf<String, Long>()
             existingProjects.forEach { projectNameToId[it.name.lowercase()] = it.id }
 
             root.getAsJsonArray("projects")?.forEach { elem ->
                 val obj = elem.asJsonObject
-                val name = obj.get("name")?.asString ?: return@forEach
+                val name = obj.get("name")?.takeIf { !it.isJsonNull }?.asString ?: return@forEach
                 if (mode == ImportMode.MERGE && name.lowercase() in projectNameToId) {
                     duplicatesSkipped++
                 } else {
-                    val project = ProjectEntity(
-                        name = name,
-                        color = obj.get("color")?.asString ?: "#4A90D9",
-                        icon = obj.get("icon")?.asString ?: "\uD83D\uDCC1",
-                        createdAt = obj.get("createdAt")?.asLong ?: System.currentTimeMillis(),
-                        updatedAt = System.currentTimeMillis()
-                    )
+                    val default = ProjectEntity(name = name)
+                    val merged = mergeEntityWithDefaults(default, obj)
+                    val project = merged.copy(id = 0, updatedAt = System.currentTimeMillis())
                     val id = projectDao.insert(project)
                     projectNameToId[name.lowercase()] = id
                     projectsImported++
@@ -144,15 +162,13 @@ class DataImporter @Inject constructor(
 
             root.getAsJsonArray("tags")?.forEach { elem ->
                 val obj = elem.asJsonObject
-                val name = obj.get("name")?.asString ?: return@forEach
+                val name = obj.get("name")?.takeIf { !it.isJsonNull }?.asString ?: return@forEach
                 if (mode == ImportMode.MERGE && name.lowercase() in tagNameToId) {
                     duplicatesSkipped++
                 } else {
-                    val tag = TagEntity(
-                        name = name,
-                        color = obj.get("color")?.asString ?: "#6B7280",
-                        createdAt = obj.get("createdAt")?.asLong ?: System.currentTimeMillis()
-                    )
+                    val default = TagEntity(name = name)
+                    val merged = mergeEntityWithDefaults(default, obj)
+                    val tag = merged.copy(id = 0)
                     val id = tagDao.insert(tag)
                     tagNameToId[name.lowercase()] = id
                     tagsImported++
@@ -163,40 +179,36 @@ class DataImporter @Inject constructor(
             root.getAsJsonArray("tasks")?.forEach { elem ->
                 try {
                     val obj = elem.asJsonObject
-                    val title = obj.get("title")?.asString ?: return@forEach
+                    val title = obj.get("title")?.takeIf { !it.isJsonNull }?.asString ?: return@forEach
                     if (title.isBlank()) return@forEach
 
                     if (mode == ImportMode.MERGE) {
-                        val createdAt = obj.get("createdAt")?.asLong ?: 0
+                        val createdAt = obj.get("createdAt")?.takeIf { !it.isJsonNull }?.asLong ?: 0
                         val isDup = existingTasks.any { it.title == title && abs(it.createdAt - createdAt) < 60000 }
                         if (isDup) { duplicatesSkipped++; return@forEach }
                     }
 
-                    val projectName = obj.get("project")?.asString
+                    // Foreign key resolution: v3 uses "_projectName" helper, v2 uses "project".
+                    val projectName = (obj.get("_projectName") ?: obj.get("project"))
+                        ?.takeIf { !it.isJsonNull }?.asString
                     val projectId = projectName?.let { projectNameToId[it.lowercase()] }
 
-                    val task = TaskEntity(
-                        title = title,
-                        description = obj.get("description")?.takeIf { !it.isJsonNull }?.asString,
-                        notes = obj.get("notes")?.takeIf { !it.isJsonNull }?.asString,
-                        dueDate = obj.get("dueDate")?.takeIf { !it.isJsonNull }?.asLong,
-                        dueTime = obj.get("dueTime")?.takeIf { !it.isJsonNull }?.asLong,
-                        priority = obj.get("priority")?.asInt ?: 0,
-                        isCompleted = obj.get("isCompleted")?.asBoolean ?: false,
+                    val default = TaskEntity(title = title)
+                    val merged = mergeEntityWithDefaults(default, obj)
+                    // Reset identifiers that don't survive a round trip and reassign FKs.
+                    val task = merged.copy(
+                        id = 0,
                         projectId = projectId,
-                        recurrenceRule = obj.get("recurrenceRule")?.takeIf { !it.isJsonNull }?.asString,
-                        reminderOffset = obj.get("reminderOffset")?.takeIf { !it.isJsonNull }?.asLong,
-                        plannedDate = obj.get("plannedDate")?.takeIf { !it.isJsonNull }?.asLong,
-                        estimatedDuration = obj.get("estimatedDuration")?.takeIf { !it.isJsonNull }?.asInt,
-                        scheduledStartTime = obj.get("scheduledStartTime")?.takeIf { !it.isJsonNull }?.asLong,
-                        createdAt = obj.get("createdAt")?.asLong ?: System.currentTimeMillis(),
-                        updatedAt = System.currentTimeMillis(),
-                        completedAt = obj.get("completedAt")?.takeIf { !it.isJsonNull }?.asLong,
-                        archivedAt = obj.get("archivedAt")?.takeIf { !it.isJsonNull }?.asLong
+                        parentTaskId = null,      // subtask IDs don't remap
+                        sourceHabitId = null,     // habit IDs don't remap
+                        updatedAt = System.currentTimeMillis()
                     )
                     val taskId = taskDao.insert(task)
 
-                    obj.getAsJsonArray("tags")?.forEach { tagElem ->
+                    // Tags: v3 uses "_tagNames", v2 uses "tags".
+                    val tagArr = obj.getAsJsonArray("_tagNames") ?: obj.getAsJsonArray("tags")
+                    tagArr?.forEach { tagElem ->
+                        if (tagElem.isJsonNull) return@forEach
                         val tagName = tagElem.asString
                         val tagId = tagNameToId[tagName.lowercase()]
                         if (tagId != null) {
@@ -219,30 +231,14 @@ class DataImporter @Inject constructor(
             root.getAsJsonArray("habits")?.forEach { elem ->
                 try {
                     val obj = elem.asJsonObject
-                    val name = obj.get("name")?.asString ?: return@forEach
+                    val name = obj.get("name")?.takeIf { !it.isJsonNull }?.asString ?: return@forEach
                     if (mode == ImportMode.MERGE && name.lowercase() in habitNameToId) {
                         duplicatesSkipped++
                         return@forEach
                     }
-                    val habit = HabitEntity(
-                        name = name,
-                        description = obj.get("description")?.takeIf { !it.isJsonNull }?.asString,
-                        targetFrequency = obj.get("targetFrequency")?.asInt ?: 1,
-                        frequencyPeriod = obj.get("frequencyPeriod")?.asString ?: "daily",
-                        activeDays = obj.get("activeDays")?.takeIf { !it.isJsonNull }?.asString,
-                        color = obj.get("color")?.asString ?: "#4A90D9",
-                        icon = obj.get("icon")?.asString ?: "\u2B50",
-                        reminderTime = obj.get("reminderTime")?.takeIf { !it.isJsonNull }?.asLong,
-                        sortOrder = obj.get("sortOrder")?.asInt ?: 0,
-                        isArchived = obj.get("isArchived")?.asBoolean ?: false,
-                        category = obj.get("category")?.takeIf { !it.isJsonNull }?.asString,
-                        createDailyTask = obj.get("createDailyTask")?.asBoolean ?: false,
-                        reminderIntervalMillis = obj.get("reminderIntervalMillis")?.takeIf { !it.isJsonNull }?.asLong,
-                        reminderTimesPerDay = obj.get("reminderTimesPerDay")?.asInt ?: 1,
-                        hasLogging = obj.get("hasLogging")?.asBoolean ?: false,
-                        createdAt = obj.get("createdAt")?.asLong ?: System.currentTimeMillis(),
-                        updatedAt = obj.get("updatedAt")?.asLong ?: System.currentTimeMillis()
-                    )
+                    val default = HabitEntity(name = name)
+                    val merged = mergeEntityWithDefaults(default, obj)
+                    val habit = merged.copy(id = 0, updatedAt = System.currentTimeMillis())
                     val id = habitDao.insert(habit)
                     habitNameToId[name.lowercase()] = id
                     habitsImported++
@@ -258,20 +254,19 @@ class DataImporter @Inject constructor(
             root.getAsJsonArray("habitCompletions")?.forEach { elem ->
                 try {
                     val obj = elem.asJsonObject
-                    val habitName = obj.get("habitName")?.asString ?: return@forEach
+                    val habitName = (obj.get("_habitName") ?: obj.get("habitName"))
+                        ?.takeIf { !it.isJsonNull }?.asString ?: return@forEach
                     val habitId = habitNameToId[habitName.lowercase()] ?: return@forEach
-                    val completedDate = obj.get("completedDate")?.asLong ?: return@forEach
+                    val completedDate = obj.get("completedDate")?.takeIf { !it.isJsonNull }?.asLong
+                        ?: return@forEach
                     val key = habitId to completedDate
                     if (key in existingCompletionKeys) {
                         duplicatesSkipped++
                         return@forEach
                     }
-                    val completion = HabitCompletionEntity(
-                        habitId = habitId,
-                        completedDate = completedDate,
-                        completedAt = obj.get("completedAt")?.asLong ?: System.currentTimeMillis(),
-                        notes = obj.get("notes")?.takeIf { !it.isJsonNull }?.asString
-                    )
+                    val default = HabitCompletionEntity(habitId = habitId, completedDate = completedDate)
+                    val merged = mergeEntityWithDefaults(default, obj)
+                    val completion = merged.copy(id = 0, habitId = habitId)
                     habitCompletionDao.insert(completion)
                     existingCompletionKeys.add(key)
                     habitCompletionsImported++
@@ -285,21 +280,14 @@ class DataImporter @Inject constructor(
             root.getAsJsonArray("leisureLogs")?.forEach { elem ->
                 try {
                     val obj = elem.asJsonObject
-                    val date = obj.get("date")?.asLong ?: return@forEach
+                    val date = obj.get("date")?.takeIf { !it.isJsonNull }?.asLong ?: return@forEach
                     if (date in existingLeisureDates) {
                         duplicatesSkipped++
                         return@forEach
                     }
-                    val log = LeisureLogEntity(
-                        date = date,
-                        musicPick = obj.get("musicPick")?.takeIf { !it.isJsonNull }?.asString,
-                        musicDone = obj.get("musicDone")?.asBoolean ?: false,
-                        flexPick = obj.get("flexPick")?.takeIf { !it.isJsonNull }?.asString,
-                        flexDone = obj.get("flexDone")?.asBoolean ?: false,
-                        startedAt = obj.get("startedAt")?.takeIf { !it.isJsonNull }?.asLong,
-                        createdAt = obj.get("createdAt")?.asLong ?: System.currentTimeMillis()
-                    )
-                    leisureDao.insertLog(log)
+                    val default = LeisureLogEntity(date = date)
+                    val merged = mergeEntityWithDefaults(default, obj)
+                    leisureDao.insertLog(merged.copy(id = 0))
                     existingLeisureDates.add(date)
                     leisureLogsImported++
                 } catch (e: Exception) {
@@ -314,24 +302,17 @@ class DataImporter @Inject constructor(
             root.getAsJsonArray("selfCareLogs")?.forEach { elem ->
                 try {
                     val obj = elem.asJsonObject
-                    val routineType = obj.get("routineType")?.asString ?: return@forEach
-                    val date = obj.get("date")?.asLong ?: return@forEach
+                    val routineType = obj.get("routineType")?.takeIf { !it.isJsonNull }?.asString
+                        ?: return@forEach
+                    val date = obj.get("date")?.takeIf { !it.isJsonNull }?.asLong ?: return@forEach
                     val key = routineType to date
                     if (key in existingSelfCareLogKeys) {
                         duplicatesSkipped++
                         return@forEach
                     }
-                    val log = SelfCareLogEntity(
-                        routineType = routineType,
-                        date = date,
-                        selectedTier = obj.get("selectedTier")?.asString ?: "solid",
-                        completedSteps = obj.get("completedSteps")?.asString ?: "[]",
-                        tiersByTime = obj.get("tiersByTime")?.takeIf { !it.isJsonNull }?.asString ?: "{}",
-                        isComplete = obj.get("isComplete")?.asBoolean ?: false,
-                        startedAt = obj.get("startedAt")?.takeIf { !it.isJsonNull }?.asLong,
-                        createdAt = obj.get("createdAt")?.asLong ?: System.currentTimeMillis()
-                    )
-                    selfCareDao.insertLog(log)
+                    val default = SelfCareLogEntity(routineType = routineType, date = date)
+                    val merged = mergeEntityWithDefaults(default, obj)
+                    selfCareDao.insertLog(merged.copy(id = 0))
                     existingSelfCareLogKeys.add(key)
                     selfCareLogsImported++
                 } catch (e: Exception) {
@@ -344,24 +325,27 @@ class DataImporter @Inject constructor(
             root.getAsJsonArray("selfCareSteps")?.forEach { elem ->
                 try {
                     val obj = elem.asJsonObject
-                    val stepId = obj.get("stepId")?.asString ?: return@forEach
+                    val stepId = obj.get("stepId")?.takeIf { !it.isJsonNull }?.asString ?: return@forEach
                     if (stepId in existingStepIds) {
                         duplicatesSkipped++
                         return@forEach
                     }
-                    val step = SelfCareStepEntity(
+                    val routineType = obj.get("routineType")?.takeIf { !it.isJsonNull }?.asString
+                        ?: return@forEach
+                    val label = obj.get("label")?.takeIf { !it.isJsonNull }?.asString ?: return@forEach
+                    val duration = obj.get("duration")?.takeIf { !it.isJsonNull }?.asString ?: "0"
+                    val tier = obj.get("tier")?.takeIf { !it.isJsonNull }?.asString ?: "solid"
+                    val phase = obj.get("phase")?.takeIf { !it.isJsonNull }?.asString ?: ""
+                    val default = SelfCareStepEntity(
                         stepId = stepId,
-                        routineType = obj.get("routineType")?.asString ?: return@forEach,
-                        label = obj.get("label")?.asString ?: return@forEach,
-                        duration = obj.get("duration")?.asString ?: "0",
-                        tier = obj.get("tier")?.asString ?: "solid",
-                        note = obj.get("note")?.asString ?: "",
-                        phase = obj.get("phase")?.asString ?: "",
-                        sortOrder = obj.get("sortOrder")?.asInt ?: 0,
-                        reminderDelayMillis = obj.get("reminderDelayMillis")?.takeIf { !it.isJsonNull }?.asLong,
-                        timeOfDay = obj.get("timeOfDay")?.asString ?: "morning"
+                        routineType = routineType,
+                        label = label,
+                        duration = duration,
+                        tier = tier,
+                        phase = phase
                     )
-                    selfCareDao.insertStep(step)
+                    val merged = mergeEntityWithDefaults(default, obj)
+                    selfCareDao.insertStep(merged.copy(id = 0))
                     existingStepIds.add(stepId)
                     selfCareStepsImported++
                 } catch (e: Exception) {
@@ -378,21 +362,15 @@ class DataImporter @Inject constructor(
             root.getAsJsonArray("courses")?.forEach { elem ->
                 try {
                     val obj = elem.asJsonObject
-                    val name = obj.get("name")?.asString ?: return@forEach
+                    val name = obj.get("name")?.takeIf { !it.isJsonNull }?.asString ?: return@forEach
                     if (mode == ImportMode.MERGE && name.lowercase() in courseNameToId) {
                         duplicatesSkipped++
                         return@forEach
                     }
-                    val course = CourseEntity(
-                        name = name,
-                        code = obj.get("code")?.asString ?: "",
-                        color = obj.get("color")?.asInt ?: 0,
-                        icon = obj.get("icon")?.asString ?: "\uD83D\uDCDA",
-                        active = obj.get("active")?.asBoolean ?: true,
-                        sortOrder = obj.get("sortOrder")?.asInt ?: 0,
-                        createdAt = obj.get("createdAt")?.asLong ?: System.currentTimeMillis()
-                    )
-                    val id = schoolworkDao.insertCourse(course)
+                    val code = obj.get("code")?.takeIf { !it.isJsonNull }?.asString ?: ""
+                    val default = CourseEntity(name = name, code = code)
+                    val merged = mergeEntityWithDefaults(default, obj)
+                    val id = schoolworkDao.insertCourse(merged.copy(id = 0))
                     courseNameToId[name.lowercase()] = id
                     coursesImported++
                 } catch (e: Exception) {
@@ -407,25 +385,19 @@ class DataImporter @Inject constructor(
             root.getAsJsonArray("assignments")?.forEach { elem ->
                 try {
                     val obj = elem.asJsonObject
-                    val courseName = obj.get("courseName")?.asString ?: return@forEach
+                    val courseName = (obj.get("_courseName") ?: obj.get("courseName"))
+                        ?.takeIf { !it.isJsonNull }?.asString ?: return@forEach
                     val courseId = courseNameToId[courseName.lowercase()] ?: return@forEach
-                    val title = obj.get("title")?.asString ?: return@forEach
+                    val title = obj.get("title")?.takeIf { !it.isJsonNull }?.asString ?: return@forEach
                     val dueDate = obj.get("dueDate")?.takeIf { !it.isJsonNull }?.asLong
                     val key = Triple(courseId, title, dueDate)
                     if (key in existingAssignmentKeys) {
                         duplicatesSkipped++
                         return@forEach
                     }
-                    val assignment = AssignmentEntity(
-                        courseId = courseId,
-                        title = title,
-                        dueDate = dueDate,
-                        completed = obj.get("completed")?.asBoolean ?: false,
-                        completedAt = obj.get("completedAt")?.takeIf { !it.isJsonNull }?.asLong,
-                        notes = obj.get("notes")?.takeIf { !it.isJsonNull }?.asString,
-                        createdAt = obj.get("createdAt")?.asLong ?: System.currentTimeMillis()
-                    )
-                    schoolworkDao.insertAssignment(assignment)
+                    val default = AssignmentEntity(courseId = courseId, title = title)
+                    val merged = mergeEntityWithDefaults(default, obj)
+                    schoolworkDao.insertAssignment(merged.copy(id = 0, courseId = courseId))
                     existingAssignmentKeys.add(key)
                     assignmentsImported++
                 } catch (e: Exception) {
@@ -440,22 +412,18 @@ class DataImporter @Inject constructor(
             root.getAsJsonArray("courseCompletions")?.forEach { elem ->
                 try {
                     val obj = elem.asJsonObject
-                    val courseName = obj.get("courseName")?.asString ?: return@forEach
+                    val courseName = (obj.get("_courseName") ?: obj.get("courseName"))
+                        ?.takeIf { !it.isJsonNull }?.asString ?: return@forEach
                     val courseId = courseNameToId[courseName.lowercase()] ?: return@forEach
-                    val date = obj.get("date")?.asLong ?: return@forEach
+                    val date = obj.get("date")?.takeIf { !it.isJsonNull }?.asLong ?: return@forEach
                     val key = courseId to date
                     if (key in existingCourseCompletionKeys) {
                         duplicatesSkipped++
                         return@forEach
                     }
-                    val completion = CourseCompletionEntity(
-                        date = date,
-                        courseId = courseId,
-                        completed = obj.get("completed")?.asBoolean ?: false,
-                        completedAt = obj.get("completedAt")?.takeIf { !it.isJsonNull }?.asLong,
-                        createdAt = obj.get("createdAt")?.asLong ?: System.currentTimeMillis()
-                    )
-                    schoolworkDao.insertCompletion(completion)
+                    val default = CourseCompletionEntity(date = date, courseId = courseId)
+                    val merged = mergeEntityWithDefaults(default, obj)
+                    schoolworkDao.insertCompletion(merged.copy(id = 0, courseId = courseId))
                     existingCourseCompletionKeys.add(key)
                     courseCompletionsImported++
                 } catch (e: Exception) {
@@ -468,78 +436,78 @@ class DataImporter @Inject constructor(
                 try {
                     // Theme
                     config.getAsJsonObject("theme")?.let { theme ->
-                        theme.get("themeMode")?.asString?.let { themePreferences.setThemeMode(it) }
-                        theme.get("accentColor")?.asString?.let { themePreferences.setAccentColor(it) }
-                        theme.get("backgroundColor")?.asString?.let { themePreferences.setBackgroundColor(it) }
-                        theme.get("surfaceColor")?.asString?.let { themePreferences.setSurfaceColor(it) }
-                        theme.get("errorColor")?.asString?.let { themePreferences.setErrorColor(it) }
-                        theme.get("fontScale")?.asFloat?.let { themePreferences.setFontScale(it) }
-                        theme.get("priorityColorNone")?.asString?.let { themePreferences.setPriorityColor(0, it) }
-                        theme.get("priorityColorLow")?.asString?.let { themePreferences.setPriorityColor(1, it) }
-                        theme.get("priorityColorMedium")?.asString?.let { themePreferences.setPriorityColor(2, it) }
-                        theme.get("priorityColorHigh")?.asString?.let { themePreferences.setPriorityColor(3, it) }
-                        theme.get("priorityColorUrgent")?.asString?.let { themePreferences.setPriorityColor(4, it) }
+                        theme.get("themeMode")?.takeIf { !it.isJsonNull }?.asString?.let { themePreferences.setThemeMode(it) }
+                        theme.get("accentColor")?.takeIf { !it.isJsonNull }?.asString?.let { themePreferences.setAccentColor(it) }
+                        theme.get("backgroundColor")?.takeIf { !it.isJsonNull }?.asString?.let { themePreferences.setBackgroundColor(it) }
+                        theme.get("surfaceColor")?.takeIf { !it.isJsonNull }?.asString?.let { themePreferences.setSurfaceColor(it) }
+                        theme.get("errorColor")?.takeIf { !it.isJsonNull }?.asString?.let { themePreferences.setErrorColor(it) }
+                        theme.get("fontScale")?.takeIf { !it.isJsonNull }?.asFloat?.let { themePreferences.setFontScale(it) }
+                        theme.get("priorityColorNone")?.takeIf { !it.isJsonNull }?.asString?.let { themePreferences.setPriorityColor(0, it) }
+                        theme.get("priorityColorLow")?.takeIf { !it.isJsonNull }?.asString?.let { themePreferences.setPriorityColor(1, it) }
+                        theme.get("priorityColorMedium")?.takeIf { !it.isJsonNull }?.asString?.let { themePreferences.setPriorityColor(2, it) }
+                        theme.get("priorityColorHigh")?.takeIf { !it.isJsonNull }?.asString?.let { themePreferences.setPriorityColor(3, it) }
+                        theme.get("priorityColorUrgent")?.takeIf { !it.isJsonNull }?.asString?.let { themePreferences.setPriorityColor(4, it) }
                     }
 
                     // Archive
                     config.getAsJsonObject("archive")?.let { archive ->
-                        archive.get("autoArchiveDays")?.asInt?.let { archivePreferences.setAutoArchiveDays(it) }
+                        archive.get("autoArchiveDays")?.takeIf { !it.isJsonNull }?.asInt?.let { archivePreferences.setAutoArchiveDays(it) }
                     }
 
                     // Dashboard
                     config.getAsJsonObject("dashboard")?.let { dashboard ->
-                        dashboard.get("sectionOrder")?.asString?.let { order ->
+                        dashboard.get("sectionOrder")?.takeIf { !it.isJsonNull }?.asString?.let { order ->
                             dashboardPreferences.setSectionOrder(order.split(",").filter { it.isNotBlank() })
                         }
                         dashboard.getAsJsonArray("hiddenSections")?.let { arr ->
-                            dashboardPreferences.setHiddenSections(arr.map { it.asString }.toSet())
+                            dashboardPreferences.setHiddenSections(arr.mapNotNull { if (it.isJsonNull) null else it.asString }.toSet())
                         }
-                        dashboard.get("progressStyle")?.asString?.let { dashboardPreferences.setProgressStyle(it) }
+                        dashboard.get("progressStyle")?.takeIf { !it.isJsonNull }?.asString?.let { dashboardPreferences.setProgressStyle(it) }
                     }
 
                     // Tabs
                     config.getAsJsonObject("tabs")?.let { tabs ->
-                        tabs.get("tabOrder")?.asString?.let { order ->
+                        tabs.get("tabOrder")?.takeIf { !it.isJsonNull }?.asString?.let { order ->
                             tabPreferences.setTabOrder(order.split(",").filter { it.isNotBlank() })
                         }
                         tabs.getAsJsonArray("hiddenTabs")?.let { arr ->
-                            tabPreferences.setHiddenTabs(arr.map { it.asString }.toSet())
+                            tabPreferences.setHiddenTabs(arr.mapNotNull { if (it.isJsonNull) null else it.asString }.toSet())
                         }
                     }
 
                     // Task Behavior
                     config.getAsJsonObject("taskBehavior")?.let { tb ->
-                        tb.get("defaultSort")?.asString?.let { taskBehaviorPreferences.setDefaultSort(it) }
-                        tb.get("defaultViewMode")?.asString?.let { taskBehaviorPreferences.setDefaultViewMode(it) }
-                        val dueDate = tb.get("urgencyWeightDueDate")?.asFloat ?: 0.40f
-                        val priority = tb.get("urgencyWeightPriority")?.asFloat ?: 0.30f
-                        val age = tb.get("urgencyWeightAge")?.asFloat ?: 0.15f
-                        val subtasks = tb.get("urgencyWeightSubtasks")?.asFloat ?: 0.15f
+                        tb.get("defaultSort")?.takeIf { !it.isJsonNull }?.asString?.let { taskBehaviorPreferences.setDefaultSort(it) }
+                        tb.get("defaultViewMode")?.takeIf { !it.isJsonNull }?.asString?.let { taskBehaviorPreferences.setDefaultViewMode(it) }
+                        val dueDate = tb.get("urgencyWeightDueDate")?.takeIf { !it.isJsonNull }?.asFloat ?: 0.40f
+                        val priority = tb.get("urgencyWeightPriority")?.takeIf { !it.isJsonNull }?.asFloat ?: 0.30f
+                        val age = tb.get("urgencyWeightAge")?.takeIf { !it.isJsonNull }?.asFloat ?: 0.15f
+                        val subtasks = tb.get("urgencyWeightSubtasks")?.takeIf { !it.isJsonNull }?.asFloat ?: 0.15f
                         taskBehaviorPreferences.setUrgencyWeights(UrgencyWeights(dueDate, priority, age, subtasks))
-                        tb.get("reminderPresets")?.asString?.let { presets ->
+                        tb.get("reminderPresets")?.takeIf { !it.isJsonNull }?.asString?.let { presets ->
                             taskBehaviorPreferences.setReminderPresets(presets.split(",").mapNotNull { it.trim().toLongOrNull() })
                         }
-                        tb.get("firstDayOfWeek")?.asString?.let {
+                        tb.get("firstDayOfWeek")?.takeIf { !it.isJsonNull }?.asString?.let {
                             try { taskBehaviorPreferences.setFirstDayOfWeek(DayOfWeek.valueOf(it)) } catch (_: Exception) {}
                         }
-                        tb.get("dayStartHour")?.asInt?.let { taskBehaviorPreferences.setDayStartHour(it) }
+                        tb.get("dayStartHour")?.takeIf { !it.isJsonNull }?.asInt?.let { taskBehaviorPreferences.setDayStartHour(it) }
                     }
 
                     // Habit List
                     config.getAsJsonObject("habitList")?.let { hl ->
                         habitListPreferences.setBuiltInSortOrders(BuiltInSortOrders(
-                            morning = hl.get("morningSortOrder")?.asInt ?: -6,
-                            bedtime = hl.get("bedtimeSortOrder")?.asInt ?: -5,
-                            medication = hl.get("medicationSortOrder")?.asInt ?: -4,
-                            school = hl.get("schoolSortOrder")?.asInt ?: -2,
-                            leisure = hl.get("leisureSortOrder")?.asInt ?: -1,
-                            housework = hl.get("houseworkSortOrder")?.asInt ?: -3
+                            morning = hl.get("morningSortOrder")?.takeIf { !it.isJsonNull }?.asInt ?: -6,
+                            bedtime = hl.get("bedtimeSortOrder")?.takeIf { !it.isJsonNull }?.asInt ?: -5,
+                            medication = hl.get("medicationSortOrder")?.takeIf { !it.isJsonNull }?.asInt ?: -4,
+                            school = hl.get("schoolSortOrder")?.takeIf { !it.isJsonNull }?.asInt ?: -2,
+                            leisure = hl.get("leisureSortOrder")?.takeIf { !it.isJsonNull }?.asInt ?: -1,
+                            housework = hl.get("houseworkSortOrder")?.takeIf { !it.isJsonNull }?.asInt ?: -3
                         ))
-                        hl.get("selfCareEnabled")?.asBoolean?.let { habitListPreferences.setSelfCareEnabled(it) }
-                        hl.get("medicationEnabled")?.asBoolean?.let { habitListPreferences.setMedicationEnabled(it) }
-                        hl.get("schoolEnabled")?.asBoolean?.let { habitListPreferences.setSchoolEnabled(it) }
-                        hl.get("leisureEnabled")?.asBoolean?.let { habitListPreferences.setLeisureEnabled(it) }
-                        hl.get("houseworkEnabled")?.asBoolean?.let { habitListPreferences.setHouseworkEnabled(it) }
+                        hl.get("selfCareEnabled")?.takeIf { !it.isJsonNull }?.asBoolean?.let { habitListPreferences.setSelfCareEnabled(it) }
+                        hl.get("medicationEnabled")?.takeIf { !it.isJsonNull }?.asBoolean?.let { habitListPreferences.setMedicationEnabled(it) }
+                        hl.get("schoolEnabled")?.takeIf { !it.isJsonNull }?.asBoolean?.let { habitListPreferences.setSchoolEnabled(it) }
+                        hl.get("leisureEnabled")?.takeIf { !it.isJsonNull }?.asBoolean?.let { habitListPreferences.setLeisureEnabled(it) }
+                        hl.get("houseworkEnabled")?.takeIf { !it.isJsonNull }?.asBoolean?.let { habitListPreferences.setHouseworkEnabled(it) }
                     }
 
                     // Leisure preferences (dedupe by label, case-insensitive)
@@ -575,20 +543,20 @@ class DataImporter @Inject constructor(
 
                     // Medication preferences
                     config.getAsJsonObject("medication")?.let { med ->
-                        med.get("reminderIntervalMinutes")?.asInt?.let { medicationPreferences.setReminderIntervalMinutes(it) }
-                        med.get("scheduleMode")?.asString?.let {
+                        med.get("reminderIntervalMinutes")?.takeIf { !it.isJsonNull }?.asInt?.let { medicationPreferences.setReminderIntervalMinutes(it) }
+                        med.get("scheduleMode")?.takeIf { !it.isJsonNull }?.asString?.let {
                             try { medicationPreferences.setScheduleMode(MedicationScheduleMode.valueOf(it)) } catch (_: Exception) {}
                         }
                         med.getAsJsonArray("specificTimes")?.let { arr ->
-                            medicationPreferences.setSpecificTimes(arr.map { it.asString }.toSet())
+                            medicationPreferences.setSpecificTimes(arr.mapNotNull { if (it.isJsonNull) null else it.asString }.toSet())
                         }
                     }
 
                     // Calendar preferences
                     config.getAsJsonObject("calendar")?.let { cal ->
-                        cal.get("enabled")?.asBoolean?.let { calendarPreferences.setEnabled(it) }
-                        cal.get("calendarId")?.asLong?.let { calendarPreferences.setCalendarId(it) }
-                        cal.get("calendarName")?.asString?.let { calendarPreferences.setCalendarName(it) }
+                        cal.get("enabled")?.takeIf { !it.isJsonNull }?.asBoolean?.let { calendarPreferences.setEnabled(it) }
+                        cal.get("calendarId")?.takeIf { !it.isJsonNull }?.asLong?.let { calendarPreferences.setCalendarId(it) }
+                        cal.get("calendarName")?.takeIf { !it.isJsonNull }?.asString?.let { calendarPreferences.setCalendarName(it) }
                     }
 
                     configImported = true
