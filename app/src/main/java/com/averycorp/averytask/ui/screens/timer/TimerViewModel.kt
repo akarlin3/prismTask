@@ -28,11 +28,11 @@ class TimerViewModel @Inject constructor(
     private val timerPreferences: TimerPreferences
 ) : ViewModel() {
 
-    val workDurationSeconds: StateFlow<Int> = timerPreferences.getWorkDurationSeconds()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), TimerPreferences.DEFAULT_WORK_SECONDS)
+    private val workDurationSeconds: StateFlow<Int> = timerPreferences.getWorkDurationSeconds()
+        .stateIn(viewModelScope, SharingStarted.Eagerly, TimerPreferences.DEFAULT_WORK_SECONDS)
 
-    val breakDurationSeconds: StateFlow<Int> = timerPreferences.getBreakDurationSeconds()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), TimerPreferences.DEFAULT_BREAK_SECONDS)
+    private val breakDurationSeconds: StateFlow<Int> = timerPreferences.getBreakDurationSeconds()
+        .stateIn(viewModelScope, SharingStarted.Eagerly, TimerPreferences.DEFAULT_BREAK_SECONDS)
 
     private val _uiState = MutableStateFlow(TimerUiState())
     val uiState: StateFlow<TimerUiState> = _uiState.asStateFlow()
@@ -136,18 +136,6 @@ class TimerViewModel @Inject constructor(
             totalSeconds = total,
             isRunning = false
         )
-    }
-
-    fun setWorkDurationMinutes(minutes: Int) {
-        viewModelScope.launch {
-            timerPreferences.setWorkDurationSeconds(minutes * 60)
-        }
-    }
-
-    fun setBreakDurationMinutes(minutes: Int) {
-        viewModelScope.launch {
-            timerPreferences.setBreakDurationSeconds(minutes * 60)
-        }
     }
 
     override fun onCleared() {
