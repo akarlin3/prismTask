@@ -5,8 +5,10 @@
 [![Min SDK](https://img.shields.io/badge/Min%20SDK-26%20(Android%208.0)-orange.svg)]()
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.2.10-purple.svg)](https://kotlinlang.org)
 [![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-Material%203-4285F4.svg)](https://developer.android.com/jetpack/compose)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688.svg)](https://fastapi.tiangolo.com)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791.svg)](https://postgresql.org)
 
-A native Android task management and habit tracking app built with Kotlin and Jetpack Compose. Full-featured productivity tool with projects, subtasks, recurrence, NLP quick-add, habit streaks, cloud sync, and home screen widgets.
+A native Android task manager with a Python API backend featuring AI-powered natural language processing. Built with Kotlin/Jetpack Compose for the client and FastAPI/PostgreSQL for the server.
 
 ## Features
 
@@ -80,6 +82,25 @@ A native Android task management and habit tracking app built with Kotlin and Je
 - Light, Dark, and System theme modes with 12 accent color options
 - Edge-to-edge display
 
+## Architecture Overview
+
+```
+┌─────────────────────────┐         ┌──────────────────────────┐
+│   Android App (Kotlin)  │  HTTPS  │   FastAPI Backend         │
+│   Jetpack Compose        │◄───────►│   Python 3.12            │
+│   Room + Firebase        │         │   SQLAlchemy + Alembic   │
+│   Glance Widgets         │         │   JWT Auth               │
+└─────────────────────────┘         └──────────┬───────────────┘
+                                               │
+                                    ┌──────────▼───────────────┐
+                                    │   PostgreSQL 16          │
+                                    └──────────────────────────┘
+                                               │
+                                    ┌──────────▼───────────────┐
+                                    │   Claude Haiku (NLP)     │
+                                    └──────────────────────────┘
+```
+
 ## Tech Stack
 
 | Layer | Technology | Version |
@@ -100,6 +121,30 @@ A native Android task management and habit tracking app built with Kotlin and Je
 
 **Target:** Android 8.0+ (API 26) through Android 15 (API 35)
 
+## Backend API
+
+The FastAPI backend provides REST endpoints for cross-device sync, AI-powered task parsing, and self-updating.
+
+**Live API docs:** https://averytask-production.up.railway.app/docs
+
+| Layer | Technology | Version |
+|-------|-----------|---------|
+| Framework | FastAPI | 0.115.6 |
+| Database | PostgreSQL + SQLAlchemy | 16 / 2.0 |
+| Migrations | Alembic | - |
+| Auth | JWT (python-jose) + Firebase token bridge | - |
+| NLP | Anthropic Claude Haiku API | - |
+| Deployment | Railway + Docker | - |
+| CI | GitHub Actions | - |
+
+### Key Endpoints
+- `POST /api/v1/auth/register` — Create account
+- `POST /api/v1/auth/login` — JWT authentication
+- `POST /api/v1/tasks/parse` — AI-powered natural language task parsing
+- `GET /api/v1/dashboard/summary` — Dashboard statistics
+- `POST /api/v1/sync/push` / `GET /api/v1/sync/pull` — Cross-device sync
+- `GET /api/v1/app/version` — Self-update check
+
 ## Requirements
 
 - Android Studio Ladybug (2024.2.1) or later
@@ -108,6 +153,8 @@ A native Android task management and habit tracking app built with Kotlin and Je
 - Device or emulator running Android 8.0+ (API 26)
 
 ## Getting Started
+
+### Android
 
 ```bash
 # Clone the repository
@@ -122,6 +169,15 @@ cd averyTask
 ```
 
 Replace `app/google-services.json` with your Firebase project configuration for cloud sync and authentication features. The app works fully offline without Firebase.
+
+### Backend (optional — app works fully offline)
+
+```bash
+cd backend
+cp .env.example .env  # Edit with your settings
+docker compose up -d
+# API docs at http://localhost:8000/docs
+```
 
 ## Build Commands
 
@@ -215,28 +271,47 @@ Migrations: 1-2 (tags), 2-3 (notes/attachments), 3-4 (planned date), 4-5 (usage 
 ## Project Structure
 
 ```
-app/src/main/java/com/averycorp/averytask/
-├── MainActivity.kt                  # Single-activity entry point
-├── AveryTaskApplication.kt          # @HiltAndroidApp
-├── data/
-│   ├── local/                       # Room entities (10), DAOs (9), database, converters
-│   ├── remote/                      # Firebase auth, sync service, entity mappers
-│   ├── export/                      # JSON/CSV export and JSON import
-│   ├── preferences/                 # DataStore: theme, archive, dashboard
-│   └── repository/                  # Task, Project, Tag, Habit, Attachment
-├── di/                              # Hilt DatabaseModule
-├── domain/
-│   ├── model/                       # RecurrenceRule, TaskFilter
-│   └── usecase/                     # RecurrenceEngine, NLP Parser, UrgencyScorer,
-│                                      StreakCalculator, SuggestionEngine, ParsedTaskResolver
-├── notifications/                   # Reminders, receivers, weekly summary worker
-├── widget/                          # Glance widgets: Today, HabitStreak, QuickAdd
-└── ui/
-    ├── components/                  # Reusable composables (10+)
-    ├── navigation/                  # NavGraph with 5-tab bottom nav
-    ├── screens/                     # 14 screen packages
-    └── theme/                       # Color, Theme, Type, PriorityColors
+averyTask/
+├── app/                                    # Android app (Kotlin / Jetpack Compose)
+│   └── src/main/java/com/averycorp/averytask/
+│       ├── MainActivity.kt                 # Single-activity entry point
+│       ├── AveryTaskApplication.kt         # @HiltAndroidApp
+│       ├── data/
+│       │   ├── local/                      # Room entities (10), DAOs (9), database, converters
+│       │   ├── remote/                     # Firebase auth, sync service, entity mappers
+│       │   ├── export/                     # JSON/CSV export and JSON import
+│       │   ├── preferences/                # DataStore: theme, archive, dashboard
+│       │   └── repository/                 # Task, Project, Tag, Habit, Attachment
+│       ├── di/                             # Hilt DatabaseModule
+│       ├── domain/
+│       │   ├── model/                      # RecurrenceRule, TaskFilter
+│       │   └── usecase/                    # RecurrenceEngine, NLP Parser, UrgencyScorer,
+│       │                                     StreakCalculator, SuggestionEngine, ParsedTaskResolver
+│       ├── notifications/                  # Reminders, receivers, weekly summary worker
+│       ├── widget/                         # Glance widgets: Today, HabitStreak, QuickAdd
+│       └── ui/
+│           ├── components/                 # Reusable composables (10+)
+│           ├── navigation/                 # NavGraph with 5-tab bottom nav
+│           ├── screens/                    # 14 screen packages
+│           └── theme/                      # Color, Theme, Type, PriorityColors
+└── backend/                                # FastAPI backend (Python 3.12)
+    ├── app/                                # FastAPI application
+    │   ├── api/                            # REST routers (auth, tasks, sync, dashboard)
+    │   ├── core/                           # Config, security, JWT
+    │   ├── db/                             # SQLAlchemy models, session
+    │   ├── schemas/                        # Pydantic request/response models
+    │   └── services/                       # Claude Haiku NLP, sync logic
+    ├── alembic/                            # Database migrations
+    ├── tests/                              # Pytest suite
+    ├── Dockerfile
+    └── requirements.txt
 ```
+
+## Deployment
+
+- **Android:** Firebase App Distribution via GitHub Actions CI
+- **Backend:** Railway (Docker) with auto-deploy from main branch
+- **Database:** Railway PostgreSQL
 
 ## Contributing
 
