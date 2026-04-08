@@ -12,6 +12,7 @@ import com.averycorp.averytask.data.preferences.CalendarPreferences
 import com.averycorp.averytask.data.preferences.DashboardPreferences
 import com.averycorp.averytask.data.preferences.TabPreferences
 import com.averycorp.averytask.data.preferences.TaskBehaviorPreferences
+import com.averycorp.averytask.ui.navigation.ALL_BOTTOM_NAV_ITEMS
 import com.averycorp.averytask.data.preferences.ThemePreferences
 import com.averycorp.averytask.data.preferences.UrgencyWeights
 import com.averycorp.averytask.data.local.database.AveryTaskDatabase
@@ -31,6 +32,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -105,7 +107,10 @@ class SettingsViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "ring")
 
     // --- Navigation ---
+    // Append any tabs not yet in the saved order (e.g. new tabs added in an app update),
+    // so users who upgraded see the new tabs in the reorder list.
     val tabOrder: StateFlow<List<String>> = tabPreferences.getTabOrder()
+        .map { order -> order + ALL_BOTTOM_NAV_ITEMS.map { it.route }.filter { it !in order } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), TabPreferences.DEFAULT_ORDER)
 
     val hiddenTabs: StateFlow<Set<String>> = tabPreferences.getHiddenTabs()

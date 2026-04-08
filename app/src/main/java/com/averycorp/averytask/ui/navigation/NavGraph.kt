@@ -14,10 +14,12 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.FormatListBulleted
 import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Today
 import androidx.compose.material.icons.automirrored.outlined.FormatListBulleted
 import androidx.compose.material.icons.outlined.FitnessCenter
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.Timer
 import androidx.compose.material.icons.outlined.Today
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -63,6 +65,7 @@ import com.averycorp.averytask.ui.screens.schoolwork.SchoolworkScreen
 import com.averycorp.averytask.ui.screens.medication.MedicationScreen
 import com.averycorp.averytask.ui.screens.selfcare.SelfCareScreen
 import com.averycorp.averytask.ui.screens.settings.SettingsScreen
+import com.averycorp.averytask.ui.screens.timer.TimerScreen
 
 sealed class AveryTaskRoute(val route: String) {
     data object Today : AveryTaskRoute("today")
@@ -85,6 +88,7 @@ sealed class AveryTaskRoute(val route: String) {
     data object MonthView : AveryTaskRoute("month_view")
     data object Timeline : AveryTaskRoute("timeline")
     data object HabitList : AveryTaskRoute("habit_list")
+    data object Timer : AveryTaskRoute("timer")
     data object AddEditHabit : AveryTaskRoute("add_edit_habit?habitId={habitId}") {
         fun createRoute(habitId: Long? = null): String =
             if (habitId != null) "add_edit_habit?habitId=$habitId" else "add_edit_habit"
@@ -115,6 +119,7 @@ val ALL_BOTTOM_NAV_ITEMS = listOf(
     BottomNavItem(AveryTaskRoute.Today.route, "Today", Icons.Filled.Today, Icons.Outlined.Today),
     BottomNavItem(AveryTaskRoute.TaskList.route, "Tasks", Icons.AutoMirrored.Filled.FormatListBulleted, Icons.AutoMirrored.Outlined.FormatListBulleted),
     BottomNavItem(AveryTaskRoute.HabitList.route, "Habits", Icons.Filled.FitnessCenter, Icons.Outlined.FitnessCenter),
+    BottomNavItem(AveryTaskRoute.Timer.route, "Timer", Icons.Filled.Timer, Icons.Outlined.Timer),
 )
 
 private const val NAV_ANIM_DURATION = 300
@@ -126,7 +131,9 @@ fun AveryTaskNavGraph(
     tabOrder: List<String> = ALL_BOTTOM_NAV_ITEMS.map { it.route },
     hiddenTabs: Set<String> = emptySet()
 ) {
-    val bottomNavItems = tabOrder
+    // Append any tabs that aren't yet in the saved order (e.g. new tabs added in an update).
+    val effectiveOrder = tabOrder + ALL_BOTTOM_NAV_ITEMS.map { it.route }.filter { it !in tabOrder }
+    val bottomNavItems = effectiveOrder
         .mapNotNull { route -> ALL_BOTTOM_NAV_ITEMS.find { it.route == route } }
         .filter { it.route !in hiddenTabs }
         .ifEmpty { ALL_BOTTOM_NAV_ITEMS.take(2) }
@@ -253,6 +260,16 @@ fun AveryTaskNavGraph(
                 popExitTransition = { fadeOut(animationSpec = tween(NAV_ANIM_DURATION)) }
             ) {
                 HabitListScreen(navController)
+            }
+
+            composable(
+                route = AveryTaskRoute.Timer.route,
+                enterTransition = { fadeIn(animationSpec = tween(NAV_ANIM_DURATION)) },
+                exitTransition = { fadeOut(animationSpec = tween(NAV_ANIM_DURATION)) },
+                popEnterTransition = { fadeIn(animationSpec = tween(NAV_ANIM_DURATION)) },
+                popExitTransition = { fadeOut(animationSpec = tween(NAV_ANIM_DURATION)) }
+            ) {
+                TimerScreen(navController)
             }
 
             composable(
