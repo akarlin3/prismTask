@@ -680,12 +680,14 @@ private fun SelfCareRoutineCard(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                Text(
-                    text = cardData.tierLabel,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = color.copy(alpha = 0.8f),
-                    fontWeight = FontWeight.Bold
-                )
+                if (routineType != "medication") {
+                    Text(
+                        text = cardData.tierLabel,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = color.copy(alpha = 0.8f),
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.width(8.dp))

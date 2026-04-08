@@ -56,6 +56,9 @@ interface SelfCareDao {
     @Query("SELECT * FROM self_care_logs ORDER BY date DESC")
     suspend fun getAllLogsOnce(): List<SelfCareLogEntity>
 
+    @Query("SELECT * FROM self_care_logs WHERE routine_type = :routineType ORDER BY date DESC")
+    fun getLogsForRoutine(routineType: String): Flow<List<SelfCareLogEntity>>
+
     @Query("SELECT * FROM self_care_steps ORDER BY sort_order ASC")
     suspend fun getAllStepsOnce(): List<SelfCareStepEntity>
 }

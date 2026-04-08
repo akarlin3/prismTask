@@ -52,6 +52,9 @@ class SelfCareRepository @Inject constructor(
     fun getTodayLog(routineType: String): Flow<SelfCareLogEntity?> =
         selfCareDao.getLogForDate(routineType, todayMidnight())
 
+    fun getLogsForRoutine(routineType: String): Flow<List<SelfCareLogEntity>> =
+        selfCareDao.getLogsForRoutine(routineType)
+
     fun getSteps(routineType: String): Flow<List<SelfCareStepEntity>> =
         selfCareDao.getStepsForRoutine(routineType)
 

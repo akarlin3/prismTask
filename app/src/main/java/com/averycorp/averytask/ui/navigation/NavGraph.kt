@@ -62,6 +62,7 @@ import com.averycorp.averytask.ui.screens.habits.HabitListScreen
 import com.averycorp.averytask.ui.screens.leisure.LeisureScreen
 import com.averycorp.averytask.ui.screens.schoolwork.AddEditCourseScreen
 import com.averycorp.averytask.ui.screens.schoolwork.SchoolworkScreen
+import com.averycorp.averytask.ui.screens.medication.MedicationLogScreen
 import com.averycorp.averytask.ui.screens.medication.MedicationScreen
 import com.averycorp.averytask.ui.screens.selfcare.SelfCareScreen
 import com.averycorp.averytask.ui.screens.settings.SettingsScreen
@@ -100,6 +101,7 @@ sealed class AveryTaskRoute(val route: String) {
         fun createRoute(routineType: String = "morning"): String = "self_care?routineType=$routineType"
     }
     data object Medication : AveryTaskRoute("medication")
+    data object MedicationLog : AveryTaskRoute("medication_log")
     data object Leisure : AveryTaskRoute("leisure")
     data object Schoolwork : AveryTaskRoute("schoolwork")
     data object AddEditCourse : AveryTaskRoute("add_edit_course?courseId={courseId}") {
@@ -633,6 +635,28 @@ fun AveryTaskNavGraph(
                 }
             ) {
                 MedicationScreen(navController)
+            }
+
+            composable(
+                route = AveryTaskRoute.MedicationLog.route,
+                enterTransition = {
+                    slideInHorizontally(initialOffsetX = { it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
+                },
+                exitTransition = {
+                    slideOutHorizontally(targetOffsetX = { -it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
+                },
+                popEnterTransition = {
+                    slideInHorizontally(initialOffsetX = { -it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
+                },
+                popExitTransition = {
+                    slideOutHorizontally(targetOffsetX = { it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
+                }
+            ) {
+                MedicationLogScreen(navController)
             }
 
             composable(

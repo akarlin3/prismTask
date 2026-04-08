@@ -31,6 +31,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Refresh
@@ -77,6 +78,7 @@ import com.averycorp.averytask.data.local.entity.SelfCareStepEntity
 import com.averycorp.averytask.data.preferences.MedicationScheduleMode
 import com.averycorp.averytask.data.repository.MedStepLog
 import com.averycorp.averytask.domain.model.SelfCareRoutines
+import com.averycorp.averytask.ui.navigation.AveryTaskRoute
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -124,6 +126,13 @@ fun MedicationScreen(
                     }
                 },
                 actions = {
+                    if (!editMode) {
+                        IconButton(onClick = {
+                            navController.navigate(AveryTaskRoute.MedicationLog.route)
+                        }) {
+                            Icon(Icons.Default.History, contentDescription = "Medication log")
+                        }
+                    }
                     IconButton(onClick = { viewModel.toggleEditMode() }) {
                         Icon(
                             if (editMode) Icons.Default.Check else Icons.Default.Edit,
