@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 from app.database import get_db
 from app.main import app
+from app.middleware.rate_limit import auth_rate_limiter
 from app.models import Base
 
 TEST_DATABASE_URL = "sqlite+aiosqlite:///./test.db"
@@ -25,6 +26,10 @@ def event_loop():
 
 @pytest_asyncio.fixture(autouse=True)
 async def setup_db():
+    # Reset the in-memory auth rate limiter between tests so the per-IP
+    # counter doesn't leak across the session and start returning 429s
+    # once enough register/login calls have been made.
+    auth_rate_limiter._requests.clear()
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     yield
@@ -54,13 +59,15 @@ async def client() -> AsyncGenerator[AsyncClient, None]:
 
 @pytest_asyncio.fixture
 async def auth_headers(client: AsyncClient) -> dict:
-    await client.post(
+    reg = await client.post(
         "/api/v1/auth/register",
         json={"email": "test@example.com", "name": "Test User", "password": "testpass123"},
     )
+    assert reg.status_code == 201, f"register failed: {reg.status_code} {reg.text}"
     resp = await client.post(
         "/api/v1/auth/login",
         json={"email": "test@example.com", "password": "testpass123"},
     )
+    assert resp.status_code == 200, f"login failed: {resp.status_code} {resp.text}"
     token = resp.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
