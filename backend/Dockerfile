@@ -25,4 +25,4 @@ EXPOSE 8000
 
 ENV ENVIRONMENT=production
 
-CMD ["gunicorn", "app.main:app", "-c", "gunicorn.conf.py"]
+CMD ["sh", "-c", "alembic upgrade head && gunicorn app.main:app -c gunicorn.conf.py"]
