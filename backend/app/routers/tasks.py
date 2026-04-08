@@ -7,7 +7,7 @@ from sqlalchemy.orm import selectinload
 
 from app.database import get_db
 from app.middleware.auth import get_current_user
-from app.models import Project, ProjectStatus, Task, TaskStatus, User
+from app.models import Project, Task, TaskStatus, User
 from app.schemas.nlp import ParseRequest, ParseResponse
 from app.schemas.task import SubtaskCreate, TaskCreate, TaskResponse, TaskUpdate
 
@@ -186,22 +186,17 @@ async def create_subtask(
 
 
 @router.post("/tasks/parse", response_model=ParseResponse)
-async def parse_task(
-    data: ParseRequest,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    result = await db.execute(
-        select(Project.title).where(
-            Project.user_id == current_user.id,
-            Project.status == ProjectStatus.ACTIVE,
-        )
-    )
-    project_names = [row[0] for row in result.all()]
+async def parse_task(data: ParseRequest):
+    """
+    Parse free-text task input into structured fields.
 
+    This is a utility endpoint and does not require authentication — it has no
+    user context and simply runs the NLP parser against the supplied text.
+    Because there is no user, project-name suggestions are not available.
+    """
     try:
         from app.services.nlp_parser import parse_task_input
-        parsed = parse_task_input(data.text, project_names, date.today())
+        parsed = parse_task_input(data.text, [], date.today())
     except (ValueError, RuntimeError) as e:
         raise HTTPException(status_code=422, detail=str(e))
 
