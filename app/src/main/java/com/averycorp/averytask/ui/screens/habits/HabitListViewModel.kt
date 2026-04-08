@@ -198,6 +198,24 @@ class HabitListViewModel @Inject constructor(
         }
         val tiers = SelfCareRoutines.getTiers(routineType)
         val tierLabel = tiers.find { it.id == tier }?.label ?: tier.replaceFirstChar { it.uppercase() }
+
+        if (routineType == "medication") {
+            // Mirror MedicationScreen's counter: count how many time-of-day
+            // groups that actually have scheduled meds have been "clicked"
+            // (any tier picked, including "skipped").
+            val scheduledTods = SelfCareRoutines.timesOfDay
+                .filter { tod -> steps.any { step -> tod.id in SelfCareRoutines.parseTimeOfDay(step.timeOfDay) } }
+                .map { it.id }
+            val tiersByTime = selfCareRepository.parseTiersByTime(log?.tiersByTime ?: "{}")
+            val clickedCount = scheduledTods.count { it in tiersByTime.keys }
+            return SelfCareCardData(
+                completedCount = clickedCount,
+                totalCount = scheduledTods.size,
+                tierLabel = tierLabel,
+                isComplete = scheduledTods.isNotEmpty() && clickedCount == scheduledTods.size
+            )
+        }
+
         val visibleSteps = selfCareRepository.getVisibleStepsFromEntities(steps, tier, routineType)
         val completedStepIds = parseSteps(log?.completedSteps)
         val completedCount = visibleSteps.count { it.stepId in completedStepIds }
