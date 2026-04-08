@@ -95,7 +95,6 @@ fun MedicationScreen(
     val specificTimes by viewModel.specificTimes.collectAsStateWithLifecycle()
 
     val medStepLogs = viewModel.getMedStepLogs(todayLog)
-    val selectedTier = viewModel.getSelectedTier(todayLog)
     val tiers = SelfCareRoutines.medicationTiers
     val tiersByTime = viewModel.getTiersByTime(todayLog)
 
@@ -110,11 +109,6 @@ fun MedicationScreen(
     val timesChecked = timeGroupIds.count { it in tiersByTime.keys }
     val allDone = timesTotal > 0 && timesChecked == timesTotal
     val pct = if (timesTotal > 0) timesChecked.toFloat() / timesTotal else 0f
-
-    val activeTier = tiers.find { it.id == selectedTier }
-        ?: tiers.find { it.id == "complete" }
-        ?: tiers.first()
-    val tierColor = Color(activeTier.color)
 
     var showAddDialog by remember { mutableStateOf(false) }
     var editingStep by remember { mutableStateOf<SelfCareStepEntity?>(null) }
@@ -317,8 +311,11 @@ fun MedicationScreen(
             // Progress bar
             if (!editMode) {
                 item {
+                    // Neutral color until the user has actually checked at least
+                    // one time-of-day; no default tier color is applied.
+                    val neutralColor = MaterialTheme.colorScheme.primary
                     val progressColor by animateColorAsState(
-                        targetValue = if (allDone) Color(0xFF10B981) else tierColor,
+                        targetValue = if (allDone) Color(0xFF10B981) else neutralColor,
                         animationSpec = tween(300),
                         label = "progressColor"
                     )
