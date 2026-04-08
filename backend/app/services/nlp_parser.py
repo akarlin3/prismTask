@@ -51,6 +51,7 @@ def parse_task_input(
         )
 
     logger.info(f"API key length: {len(api_key)}")
+    print(f"NLP: API key length: {len(api_key)}")
 
     if anthropic is None:
         logger.error("anthropic package is not installed")
@@ -64,6 +65,7 @@ def parse_task_input(
     for attempt in range(2):
         try:
             try:
+                print(f"NLP: Sending to Anthropic...")
                 message = client.messages.create(
                     model="claude-haiku-4-5-20251001",
                     max_tokens=512,
@@ -75,15 +77,19 @@ def parse_task_input(
                     f"{type(api_err).__name__}: {api_err}\n"
                     f"{traceback.format_exc()}"
                 )
+                print(f"NLP ERROR: {type(api_err).__name__}: {api_err}")
                 raise
 
             logger.info(f"Raw Anthropic response: {message}")
+            print(f"NLP: Raw response type: {type(message)}")
+            print(f"NLP: Content blocks: {message.content}")
             if not message.content:
                 logger.error(
                     f"Empty content in Anthropic response: {message}"
                 )
             content = message.content[0].text
             logger.info(f"Extracted response text: {content!r}")
+            print(f"NLP: Extracted text: {content!r}")
 
             parsed = json.loads(content)
             return ParsedTask(**parsed)
@@ -93,6 +99,7 @@ def parse_task_input(
                 f"Failed to parse NLP response (attempt {attempt + 1}): "
                 f"{type(e).__name__}: {e}\n{traceback.format_exc()}"
             )
+            print(f"NLP ERROR: {type(e).__name__}: {e}")
             if attempt == 0:
                 continue
             raise ValueError(
@@ -103,6 +110,7 @@ def parse_task_input(
                 f"Unexpected error in NLP parser: "
                 f"{type(e).__name__}: {e}\n{traceback.format_exc()}"
             )
+            print(f"NLP ERROR: {type(e).__name__}: {e}")
             if "APIError" in type(e).__name__:
                 raise RuntimeError(f"Anthropic API error: {e}") from e
             raise

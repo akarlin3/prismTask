@@ -203,6 +203,27 @@ async def parse_task(data: ParseRequest):
     return ParseResponse(**parsed.model_dump(), needs_confirmation=True)
 
 
+@router.get("/tasks/parse-debug")
+async def parse_debug():
+    """Diagnostic endpoint for the NLP parser configuration."""
+    import os
+
+    from app.config import settings
+
+    api_key = os.environ.get("ANTHROPIC_API_KEY") or settings.ANTHROPIC_API_KEY or ""
+    try:
+        import anthropic  # noqa: F401
+        anthropic_installed = True
+    except ImportError:
+        anthropic_installed = False
+
+    return {
+        "api_key_length": len(api_key),
+        "model": "claude-haiku-4-5-20251001",
+        "anthropic_installed": anthropic_installed,
+    }
+
+
 @router.patch("/tasks/reorder", status_code=status.HTTP_200_OK)
 async def reorder_tasks(
     items: list[dict],
