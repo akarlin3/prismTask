@@ -98,6 +98,10 @@ kotlin {
     }
 }
 
+ksp {
+    arg("dagger.hilt.disableModulesHaveInstallInCheck", "true")
+}
+
 // Copy built AAB files to the repository root
 android.applicationVariants.all {
     val variant = this
