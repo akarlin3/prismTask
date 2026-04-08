@@ -18,6 +18,7 @@ import com.averycorp.averytask.data.preferences.TabPreferences
 import com.averycorp.averytask.data.preferences.TaskBehaviorPreferences
 import com.averycorp.averytask.data.preferences.ThemePreferences
 import com.google.gson.GsonBuilder
+import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import kotlinx.coroutines.flow.first
 import java.text.SimpleDateFormat
@@ -26,6 +27,27 @@ import java.util.Locale
 import javax.inject.Inject
 import javax.inject.Singleton
 
+/**
+ * Exports all app data to JSON.
+ *
+ * === Export format (version 3) ===
+ * As of v3, every entity is serialized using [com.google.gson.Gson.toJsonTree] directly
+ * on the entity object. This means that whenever a new field is added to any `*Entity`
+ * class, it is automatically included in the export without any changes to this file.
+ *
+ * Foreign-key relationships (which reference auto-generated IDs that won't match after
+ * import) are written as sibling helper fields prefixed with an underscore, e.g.
+ * `_projectName`, `_tagNames`, `_habitName`, `_courseName`. Helper fields are resolved
+ * back to the correct IDs on import.
+ *
+ * === Backwards compatibility ===
+ * Older exports (v1 and v2) use a hand-rolled flat field mapping. [DataImporter] detects
+ * the `version` field and falls back to the legacy import path for those files.
+ *
+ * When evolving an entity, prefer additive changes (add nullable fields or fields with
+ * defaults). Gson merges imported JSON onto a default instance, so missing fields in an
+ * older export automatically pick up the new Kotlin constructor defaults on import.
+ */
 @Singleton
 class DataExporter @Inject constructor(
     private val taskDao: TaskDao,
@@ -46,11 +68,11 @@ class DataExporter @Inject constructor(
     private val leisurePreferences: LeisurePreferences,
     private val medicationPreferences: MedicationPreferences
 ) {
-    private val gson = GsonBuilder().setPrettyPrinting().create()
+    private val gson = GsonBuilder().serializeNulls().setPrettyPrinting().create()
 
     suspend fun exportToJson(): String {
         val root = JsonObject()
-        root.addProperty("version", 2)
+        root.addProperty("version", EXPORT_VERSION)
         root.addProperty("exportedAt", System.currentTimeMillis())
         root.addProperty("appVersion", "0.7.1")
 
@@ -58,165 +80,67 @@ class DataExporter @Inject constructor(
         val tasks = taskDao.getAllTasksOnce()
         val projects = projectDao.getAllProjectsOnce()
         val tags = tagDao.getAllTagsOnce()
+        val projectNameById = projects.associate { it.id to it.name }
 
-        root.add("tasks", gson.toJsonTree(tasks.map { task ->
-            val taskTags = tagDao.getTagIdsForTaskOnce(task.id)
-            val tagNames = taskTags.mapNotNull { id -> tags.find { it.id == id }?.name }
-            val projectName = task.projectId?.let { pid -> projects.find { it.id == pid }?.name }
-            mapOf(
-                "title" to task.title,
-                "description" to task.description,
-                "notes" to task.notes,
-                "dueDate" to task.dueDate,
-                "dueTime" to task.dueTime,
-                "priority" to task.priority,
-                "isCompleted" to task.isCompleted,
-                "project" to projectName,
-                "tags" to tagNames,
-                "recurrenceRule" to task.recurrenceRule,
-                "reminderOffset" to task.reminderOffset,
-                "plannedDate" to task.plannedDate,
-                "estimatedDuration" to task.estimatedDuration,
-                "scheduledStartTime" to task.scheduledStartTime,
-                "createdAt" to task.createdAt,
-                "updatedAt" to task.updatedAt,
-                "completedAt" to task.completedAt,
-                "archivedAt" to task.archivedAt,
-                "parentTaskId" to task.parentTaskId,
-                "sourceHabitId" to task.sourceHabitId
-            )
-        }))
+        val tasksArr = JsonArray()
+        for (task in tasks) {
+            val obj = gson.toJsonTree(task).asJsonObject
+            // Helper fields for cross-table references (IDs won't survive a round trip).
+            obj.addProperty("_projectName", task.projectId?.let { projectNameById[it] })
+            val tagNames = tagDao.getTagIdsForTaskOnce(task.id)
+                .mapNotNull { id -> tags.find { it.id == id }?.name }
+            obj.add("_tagNames", gson.toJsonTree(tagNames))
+            tasksArr.add(obj)
+        }
+        root.add("tasks", tasksArr)
 
-        root.add("projects", gson.toJsonTree(projects.map {
-            mapOf("name" to it.name, "color" to it.color, "icon" to it.icon, "createdAt" to it.createdAt)
-        }))
-
-        root.add("tags", gson.toJsonTree(tags.map {
-            mapOf("name" to it.name, "color" to it.color, "createdAt" to it.createdAt)
-        }))
+        root.add("projects", gson.toJsonTree(projects))
+        root.add("tags", gson.toJsonTree(tags))
 
         // === Habits ===
         val habits = habitDao.getAllHabitsOnce()
-        root.add("habits", gson.toJsonTree(habits.map {
-            mapOf(
-                "name" to it.name,
-                "description" to it.description,
-                "targetFrequency" to it.targetFrequency,
-                "frequencyPeriod" to it.frequencyPeriod,
-                "activeDays" to it.activeDays,
-                "color" to it.color,
-                "icon" to it.icon,
-                "reminderTime" to it.reminderTime,
-                "sortOrder" to it.sortOrder,
-                "isArchived" to it.isArchived,
-                "category" to it.category,
-                "createDailyTask" to it.createDailyTask,
-                "reminderIntervalMillis" to it.reminderIntervalMillis,
-                "reminderTimesPerDay" to it.reminderTimesPerDay,
-                "hasLogging" to it.hasLogging,
-                "createdAt" to it.createdAt,
-                "updatedAt" to it.updatedAt
-            )
-        }))
+        root.add("habits", gson.toJsonTree(habits))
 
         // === Habit Completions ===
-        val habitCompletions = habitCompletionDao.getAllCompletionsOnce()
         val habitNameById = habits.associate { it.id to it.name }
-        root.add("habitCompletions", gson.toJsonTree(habitCompletions.map {
-            mapOf(
-                "habitName" to habitNameById[it.habitId],
-                "completedDate" to it.completedDate,
-                "completedAt" to it.completedAt,
-                "notes" to it.notes
-            )
-        }))
+        val habitCompletions = habitCompletionDao.getAllCompletionsOnce()
+        val completionsArr = JsonArray()
+        for (c in habitCompletions) {
+            val obj = gson.toJsonTree(c).asJsonObject
+            obj.addProperty("_habitName", habitNameById[c.habitId])
+            completionsArr.add(obj)
+        }
+        root.add("habitCompletions", completionsArr)
 
         // === Leisure Logs ===
-        val leisureLogs = leisureDao.getAllLogsOnce()
-        root.add("leisureLogs", gson.toJsonTree(leisureLogs.map {
-            mapOf(
-                "date" to it.date,
-                "musicPick" to it.musicPick,
-                "musicDone" to it.musicDone,
-                "flexPick" to it.flexPick,
-                "flexDone" to it.flexDone,
-                "startedAt" to it.startedAt,
-                "createdAt" to it.createdAt
-            )
-        }))
+        root.add("leisureLogs", gson.toJsonTree(leisureDao.getAllLogsOnce()))
 
-        // === Self-Care Logs ===
-        val selfCareLogs = selfCareDao.getAllLogsOnce()
-        root.add("selfCareLogs", gson.toJsonTree(selfCareLogs.map {
-            mapOf(
-                "routineType" to it.routineType,
-                "date" to it.date,
-                "selectedTier" to it.selectedTier,
-                "completedSteps" to it.completedSteps,
-                "tiersByTime" to it.tiersByTime,
-                "isComplete" to it.isComplete,
-                "startedAt" to it.startedAt,
-                "createdAt" to it.createdAt
-            )
-        }))
+        // === Self-Care Logs & Steps ===
+        root.add("selfCareLogs", gson.toJsonTree(selfCareDao.getAllLogsOnce()))
+        root.add("selfCareSteps", gson.toJsonTree(selfCareDao.getAllStepsOnce()))
 
-        // === Self-Care Steps ===
-        val selfCareSteps = selfCareDao.getAllStepsOnce()
-        root.add("selfCareSteps", gson.toJsonTree(selfCareSteps.map {
-            mapOf(
-                "stepId" to it.stepId,
-                "routineType" to it.routineType,
-                "label" to it.label,
-                "duration" to it.duration,
-                "tier" to it.tier,
-                "note" to it.note,
-                "phase" to it.phase,
-                "sortOrder" to it.sortOrder,
-                "reminderDelayMillis" to it.reminderDelayMillis,
-                "timeOfDay" to it.timeOfDay
-            )
-        }))
-
-        // === Courses ===
+        // === Courses / Assignments / Course Completions ===
         val courses = schoolworkDao.getAllCoursesOnce()
-        root.add("courses", gson.toJsonTree(courses.map {
-            mapOf(
-                "name" to it.name,
-                "code" to it.code,
-                "color" to it.color,
-                "icon" to it.icon,
-                "active" to it.active,
-                "sortOrder" to it.sortOrder,
-                "createdAt" to it.createdAt
-            )
-        }))
-
-        // === Assignments ===
-        val assignments = schoolworkDao.getAllAssignmentsOnce()
         val courseNameById = courses.associate { it.id to it.name }
-        root.add("assignments", gson.toJsonTree(assignments.map {
-            mapOf(
-                "courseName" to courseNameById[it.courseId],
-                "title" to it.title,
-                "dueDate" to it.dueDate,
-                "completed" to it.completed,
-                "completedAt" to it.completedAt,
-                "notes" to it.notes,
-                "createdAt" to it.createdAt
-            )
-        }))
+        root.add("courses", gson.toJsonTree(courses))
 
-        // === Course Completions ===
+        val assignments = schoolworkDao.getAllAssignmentsOnce()
+        val assignmentsArr = JsonArray()
+        for (a in assignments) {
+            val obj = gson.toJsonTree(a).asJsonObject
+            obj.addProperty("_courseName", courseNameById[a.courseId])
+            assignmentsArr.add(obj)
+        }
+        root.add("assignments", assignmentsArr)
+
         val courseCompletions = schoolworkDao.getAllCompletionsOnce()
-        root.add("courseCompletions", gson.toJsonTree(courseCompletions.map {
-            mapOf(
-                "date" to it.date,
-                "courseName" to courseNameById[it.courseId],
-                "completed" to it.completed,
-                "completedAt" to it.completedAt,
-                "createdAt" to it.createdAt
-            )
-        }))
+        val courseCompletionsArr = JsonArray()
+        for (c in courseCompletions) {
+            val obj = gson.toJsonTree(c).asJsonObject
+            obj.addProperty("_courseName", courseNameById[c.courseId])
+            courseCompletionsArr.add(obj)
+        }
+        root.add("courseCompletions", courseCompletionsArr)
 
         // === Configurations / Preferences ===
         val config = JsonObject()
@@ -346,4 +270,15 @@ class DataExporter @Inject constructor(
         if (value.contains(",") || value.contains("\"") || value.contains("\n"))
             "\"${value.replace("\"", "\"\"")}\""
         else value
+
+    companion object {
+        /**
+         * Current export format version.
+         *
+         * Bump this only for breaking structural changes. Purely additive changes
+         * (new entity fields, new entity collections) do NOT require a version bump
+         * because [DataImporter] tolerates missing fields via [DataImporter.mergeWithDefaults].
+         */
+        const val EXPORT_VERSION = 3
+    }
 }
