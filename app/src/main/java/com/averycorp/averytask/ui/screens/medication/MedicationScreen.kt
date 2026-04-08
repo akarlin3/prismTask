@@ -520,7 +520,7 @@ fun MedicationScreen(
                                 tierColor = stepColor,
                                 isDone = done,
                                 logEntry = stepLog,
-                                onClick = if (done) {
+                                onUnlog = if (done) {
                                     { viewModel.toggleStep(step.stepId, tod.id) }
                                 } else null
                             )
@@ -570,7 +570,7 @@ fun MedicationScreen(
                                 tierColor = stepColor,
                                 isDone = done,
                                 logEntry = stepLog,
-                                onClick = if (done) {
+                                onUnlog = if (done) {
                                     { viewModel.toggleStep(step.stepId) }
                                 } else null
                             )
@@ -987,7 +987,7 @@ private fun MedItem(
     tierColor: Color,
     isDone: Boolean,
     logEntry: MedStepLog?,
-    onClick: (() -> Unit)?
+    onUnlog: (() -> Unit)?
 ) {
     val timeFormat = remember { SimpleDateFormat("h:mm a", Locale.getDefault()) }
 
@@ -1005,7 +1005,6 @@ private fun MedItem(
                 color = if (isDone) tierColor.copy(alpha = 0.25f) else MaterialTheme.colorScheme.outlineVariant,
                 shape = RoundedCornerShape(12.dp)
             )
-            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
             .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -1070,6 +1069,20 @@ private fun MedItem(
                 fontWeight = FontWeight.Bold,
                 color = tierColor
             )
+        }
+        if (isDone && onUnlog != null) {
+            Spacer(modifier = Modifier.width(4.dp))
+            IconButton(
+                onClick = onUnlog,
+                modifier = Modifier.size(32.dp)
+            ) {
+                Icon(
+                    Icons.Default.Close,
+                    contentDescription = "Unlog",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
         }
     }
 }
