@@ -65,7 +65,7 @@ def parse_task_input(
     for attempt in range(2):
         try:
             try:
-                print(f"NLP: Sending to Anthropic...")
+                print("NLP: Sending to Anthropic...")
                 message = client.messages.create(
                     model="claude-haiku-4-5-20251001",
                     max_tokens=512,
