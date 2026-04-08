@@ -53,7 +53,8 @@ keystore_base64.txt
 .DS_Store
 
 # Claude Code
-.claude/
+.claude/*
+!.claude/settings.json
 
 # Nested bare git repo
 averyTask.git/
