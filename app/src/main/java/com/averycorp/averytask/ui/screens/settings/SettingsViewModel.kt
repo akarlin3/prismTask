@@ -12,6 +12,7 @@ import com.averycorp.averytask.data.preferences.CalendarPreferences
 import com.averycorp.averytask.data.preferences.DashboardPreferences
 import com.averycorp.averytask.data.preferences.TabPreferences
 import com.averycorp.averytask.data.preferences.TaskBehaviorPreferences
+import com.averycorp.averytask.data.preferences.TimerPreferences
 import com.averycorp.averytask.ui.navigation.ALL_BOTTOM_NAV_ITEMS
 import com.averycorp.averytask.data.preferences.ThemePreferences
 import com.averycorp.averytask.data.preferences.UrgencyWeights
@@ -48,6 +49,7 @@ class SettingsViewModel @Inject constructor(
     private val dashboardPreferences: DashboardPreferences,
     private val tabPreferences: TabPreferences,
     private val taskBehaviorPreferences: TaskBehaviorPreferences,
+    private val timerPreferences: TimerPreferences,
     private val calendarPreferences: CalendarPreferences,
     private val leisurePreferences: LeisurePreferences,
     private val habitListPreferences: HabitListPreferences,
@@ -134,6 +136,21 @@ class SettingsViewModel @Inject constructor(
 
     val dayStartHour: StateFlow<Int> = taskBehaviorPreferences.getDayStartHour()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+    // --- Timer ---
+    val timerWorkDurationSeconds: StateFlow<Int> = timerPreferences.getWorkDurationSeconds()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), TimerPreferences.DEFAULT_WORK_SECONDS)
+
+    val timerBreakDurationSeconds: StateFlow<Int> = timerPreferences.getBreakDurationSeconds()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), TimerPreferences.DEFAULT_BREAK_SECONDS)
+
+    fun setTimerWorkDurationMinutes(minutes: Int) {
+        viewModelScope.launch { timerPreferences.setWorkDurationSeconds(minutes * 60) }
+    }
+
+    fun setTimerBreakDurationMinutes(minutes: Int) {
+        viewModelScope.launch { timerPreferences.setBreakDurationSeconds(minutes * 60) }
+    }
 
     // --- Modes ---
     val selfCareEnabled: StateFlow<Boolean> = habitListPreferences.isSelfCareEnabled()

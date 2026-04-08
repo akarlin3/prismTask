@@ -31,7 +31,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -52,7 +51,6 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
-import com.averycorp.averytask.data.preferences.TimerPreferences
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -61,8 +59,6 @@ fun TimerScreen(
     viewModel: TimerViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val workSeconds by viewModel.workDurationSeconds.collectAsStateWithLifecycle()
-    val breakSeconds by viewModel.breakDurationSeconds.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
@@ -78,13 +74,9 @@ fun TimerScreen(
         TimerContent(
             padding = padding,
             uiState = uiState,
-            workMinutes = workSeconds / 60,
-            breakMinutes = breakSeconds / 60,
             onToggleStartPause = viewModel::toggleStartPause,
             onReset = viewModel::reset,
-            onSetMode = viewModel::setMode,
-            onSetWorkMinutes = viewModel::setWorkDurationMinutes,
-            onSetBreakMinutes = viewModel::setBreakDurationMinutes
+            onSetMode = viewModel::setMode
         )
     }
 }
@@ -94,13 +86,9 @@ fun TimerScreen(
 private fun TimerContent(
     padding: PaddingValues,
     uiState: TimerUiState,
-    workMinutes: Int,
-    breakMinutes: Int,
     onToggleStartPause: () -> Unit,
     onReset: () -> Unit,
-    onSetMode: (TimerMode) -> Unit,
-    onSetWorkMinutes: (Int) -> Unit,
-    onSetBreakMinutes: (Int) -> Unit
+    onSetMode: (TimerMode) -> Unit
 ) {
     val accent = MaterialTheme.colorScheme.primary
     val breakAccent = MaterialTheme.colorScheme.tertiary
@@ -180,22 +168,6 @@ private fun TimerContent(
                 )
             }
         }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        // Duration sliders
-        DurationSlider(
-            label = "Work Duration",
-            minutes = workMinutes,
-            onMinutesChange = onSetWorkMinutes,
-            accent = accent
-        )
-        DurationSlider(
-            label = "Break Duration",
-            minutes = breakMinutes,
-            onMinutesChange = onSetBreakMinutes,
-            accent = breakAccent
-        )
     }
 }
 
@@ -261,41 +233,6 @@ private fun TimerRing(
                 textAlign = TextAlign.Center
             )
         }
-    }
-}
-
-@Composable
-private fun DurationSlider(
-    label: String,
-    minutes: Int,
-    onMinutesChange: (Int) -> Unit,
-    accent: Color
-) {
-    val minMinutes = TimerPreferences.MIN_SECONDS / 60
-    val maxMinutes = TimerPreferences.MAX_SECONDS / 60
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = label,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Medium
-            )
-            Text(
-                text = "$minutes min",
-                style = MaterialTheme.typography.bodyMedium,
-                color = accent,
-                fontWeight = FontWeight.SemiBold
-            )
-        }
-        Slider(
-            value = minutes.toFloat().coerceIn(minMinutes.toFloat(), maxMinutes.toFloat()),
-            onValueChange = { onMinutesChange(it.toInt()) },
-            valueRange = minMinutes.toFloat()..maxMinutes.toFloat()
-        )
     }
 }
 

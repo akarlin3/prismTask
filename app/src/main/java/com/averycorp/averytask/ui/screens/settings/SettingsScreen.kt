@@ -77,6 +77,7 @@ import androidx.navigation.NavController
 import com.averycorp.averytask.BuildConfig
 import com.averycorp.averytask.data.preferences.DashboardPreferences
 import com.averycorp.averytask.data.preferences.TabPreferences
+import com.averycorp.averytask.data.preferences.TimerPreferences
 import com.averycorp.averytask.data.preferences.UrgencyWeights
 import com.averycorp.averytask.data.remote.UpdateStatus
 import java.time.DayOfWeek
@@ -154,6 +155,8 @@ fun SettingsScreen(
     val urgencyWeights by viewModel.urgencyWeights.collectAsStateWithLifecycle()
     val firstDayOfWeek by viewModel.firstDayOfWeek.collectAsStateWithLifecycle()
     val dayStartHour by viewModel.dayStartHour.collectAsStateWithLifecycle()
+    val timerWorkSeconds by viewModel.timerWorkDurationSeconds.collectAsStateWithLifecycle()
+    val timerBreakSeconds by viewModel.timerBreakDurationSeconds.collectAsStateWithLifecycle()
     val calendarSyncEnabled by viewModel.calendarSyncEnabled.collectAsStateWithLifecycle()
     val calendarName by viewModel.calendarName.collectAsStateWithLifecycle()
     val availableCalendars by viewModel.availableCalendars.collectAsStateWithLifecycle()
@@ -161,6 +164,8 @@ fun SettingsScreen(
     val updateError by viewModel.appUpdater.errorMessage.collectAsStateWithLifecycle()
     val latestReleaseTag by viewModel.appUpdater.latestReleaseTag.collectAsStateWithLifecycle()
     var showAutoArchiveDialog by remember { mutableStateOf(false) }
+    var showTimerWorkDialog by remember { mutableStateOf(false) }
+    var showTimerBreakDialog by remember { mutableStateOf(false) }
     var showResetConfirmDialog by remember { mutableStateOf(false) }
     var showAppearanceAdvanced by remember { mutableStateOf(false) }
     var showDashboardAdvanced by remember { mutableStateOf(false) }
@@ -276,6 +281,30 @@ fun SettingsScreen(
                     }
                 }
             }
+        )
+    }
+
+    if (showTimerWorkDialog) {
+        DurationPickerDialog(
+            title = "Work Duration",
+            currentMinutes = timerWorkSeconds / 60,
+            onConfirm = {
+                viewModel.setTimerWorkDurationMinutes(it)
+                showTimerWorkDialog = false
+            },
+            onDismiss = { showTimerWorkDialog = false }
+        )
+    }
+
+    if (showTimerBreakDialog) {
+        DurationPickerDialog(
+            title = "Break Duration",
+            currentMinutes = timerBreakSeconds / 60,
+            onConfirm = {
+                viewModel.setTimerBreakDurationMinutes(it)
+                showTimerBreakDialog = false
+            },
+            onDismiss = { showTimerBreakDialog = false }
         )
     }
 
@@ -711,6 +740,22 @@ fun SettingsScreen(
                     }
                 }
             }
+
+            HorizontalDivider()
+
+            // ========== TIMER ==========
+            SectionHeader("Timer")
+
+            SettingsRowWithSubtitle(
+                title = "Work Duration",
+                subtitle = "${timerWorkSeconds / 60} min",
+                onClick = { showTimerWorkDialog = true }
+            )
+            SettingsRowWithSubtitle(
+                title = "Break Duration",
+                subtitle = "${timerBreakSeconds / 60} min",
+                onClick = { showTimerBreakDialog = true }
+            )
 
             HorizontalDivider()
 
@@ -1409,6 +1454,56 @@ private fun ColorPickerDialog(
                 }
                 TextButton(onClick = onDismiss) { Text("Cancel") }
             }
+        }
+    )
+}
+
+@Composable
+private fun DurationPickerDialog(
+    title: String,
+    currentMinutes: Int,
+    onConfirm: (Int) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val minMinutes = TimerPreferences.MIN_SECONDS / 60
+    val maxMinutes = TimerPreferences.MAX_SECONDS / 60
+    var minutes by remember(currentMinutes) {
+        mutableStateOf(currentMinutes.coerceIn(minMinutes, maxMinutes))
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = {
+            Column {
+                Text(
+                    text = "$minutes min",
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 8.dp)
+                )
+                Slider(
+                    value = minutes.toFloat(),
+                    onValueChange = { minutes = it.toInt().coerceIn(minMinutes, maxMinutes) },
+                    valueRange = minMinutes.toFloat()..maxMinutes.toFloat()
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text("$minMinutes min", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("$maxMinutes min", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onConfirm(minutes) }) { Text("Save") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
         }
     )
 }
