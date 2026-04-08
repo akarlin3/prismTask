@@ -22,7 +22,9 @@ import javax.inject.Singleton
  * the [AveryTaskApi] interface.
  *
  * Base URL comes from `BuildConfig.API_BASE_URL`:
- *   - debug:   http://10.0.2.2:8000     (emulator → host loopback)
+ *   - debug:   https://averytask-production.up.railway.app   (override with
+ *              API_BASE_URL_DEBUG env var, e.g. http://10.0.2.2:8000 for
+ *              emulator → host loopback against a local FastAPI server)
  *   - release: https://averytask-production.up.railway.app
  *
  * Note: [AuthInterceptor] and [TokenAuthenticator] are constructor-injected

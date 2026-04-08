@@ -1,5 +1,6 @@
 package com.averycorp.averytask.domain.usecase
 
+import android.util.Log
 import com.averycorp.averytask.data.remote.api.AveryTaskApi
 import com.averycorp.averytask.data.remote.api.ParseRequest
 import com.averycorp.averytask.data.remote.api.ParsedTaskResponse
@@ -45,10 +46,13 @@ class NaturalLanguageParser @Inject constructor(
      * `map` operators that build live previews).
      */
     suspend fun parseRemote(input: String): ParsedTask = withContext(Dispatchers.IO) {
+        Log.i(TAG, "NLP: attempting API parse for input of length ${input.length}")
         try {
             val response = api.parseTask(ParseRequest(input))
+            Log.i(TAG, "NLP: using API parser (title='${response.title}', priority=${response.priority}, dueDate=${response.dueDate}, confidence=${response.confidence})")
             response.toParsedTask(fallbackTitle = input)
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            Log.w(TAG, "NLP: falling back to regex (${e.javaClass.simpleName}: ${e.message})", e)
             parse(input)
         }
     }
@@ -377,5 +381,9 @@ class NaturalLanguageParser @Inject constructor(
         "nov" -> Month.NOVEMBER
         "dec" -> Month.DECEMBER
         else -> null
+    }
+
+    companion object {
+        private const val TAG = "NaturalLanguageParser"
     }
 }
