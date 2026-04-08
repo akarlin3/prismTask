@@ -41,42 +41,68 @@ jobs:
       - name: Build debug APK and run unit tests
         run: ./gradlew assembleDebug testDebugUnitTest --build-cache --parallel -x lint -x lintVitalRelease
 
-      - name: Check if versionName increased
+      - name: Check if version increased
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         id: version_check
         run: |
-          extract_version() {
+          extract_version_name() {
             grep 'versionName' "$1" | head -1 | grep -oP '"\K[^"]+' || echo ""
           }
-          NEW_VERSION=$(extract_version app/build.gradle.kts)
+          extract_version_code() {
+            grep 'versionCode' "$1" | head -1 | grep -oP 'versionCode\s*=\s*\K[0-9]+' || echo ""
+          }
+          NEW_VERSION=$(extract_version_name app/build.gradle.kts)
+          NEW_CODE=$(extract_version_code app/build.gradle.kts)
           echo "New versionName: $NEW_VERSION"
+          echo "New versionCode: $NEW_CODE"
           if [ -z "$NEW_VERSION" ]; then
             echo "::warning::Could not extract versionName from app/build.gradle.kts"
             echo "version_bumped=false" >> $GITHUB_OUTPUT
+            echo "version_code_bumped=false" >> $GITHUB_OUTPUT
             exit 0
           fi
           git show HEAD^:app/build.gradle.kts > /tmp/prev-build.gradle.kts 2>/dev/null || {
             echo "No previous commit found; treating as version bump."
             echo "version_bumped=true" >> $GITHUB_OUTPUT
+            echo "version_code_bumped=true" >> $GITHUB_OUTPUT
             echo "version_name=$NEW_VERSION" >> $GITHUB_OUTPUT
+            echo "version_code=$NEW_CODE" >> $GITHUB_OUTPUT
             exit 0
           }
-          OLD_VERSION=$(extract_version /tmp/prev-build.gradle.kts)
+          OLD_VERSION=$(extract_version_name /tmp/prev-build.gradle.kts)
+          OLD_CODE=$(extract_version_code /tmp/prev-build.gradle.kts)
           echo "Previous versionName: $OLD_VERSION"
+          echo "Previous versionCode: $OLD_CODE"
+
+          # versionName bump: requires strict semver increase
           if [ "$NEW_VERSION" = "$OLD_VERSION" ]; then
-            echo "versionName unchanged; skipping release/commit/firebase steps."
+            echo "versionName unchanged."
             echo "version_bumped=false" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-          HIGHEST=$(printf '%s\n%s\n' "$OLD_VERSION" "$NEW_VERSION" | sort -V | tail -1)
-          if [ "$HIGHEST" = "$NEW_VERSION" ] && [ "$NEW_VERSION" != "$OLD_VERSION" ]; then
-            echo "versionName increased from $OLD_VERSION to $NEW_VERSION."
-            echo "version_bumped=true" >> $GITHUB_OUTPUT
-            echo "version_name=$NEW_VERSION" >> $GITHUB_OUTPUT
           else
-            echo "versionName did not increase ($OLD_VERSION -> $NEW_VERSION)."
-            echo "version_bumped=false" >> $GITHUB_OUTPUT
+            HIGHEST=$(printf '%s\n%s\n' "$OLD_VERSION" "$NEW_VERSION" | sort -V | tail -1)
+            if [ "$HIGHEST" = "$NEW_VERSION" ]; then
+              echo "versionName increased from $OLD_VERSION to $NEW_VERSION."
+              echo "version_bumped=true" >> $GITHUB_OUTPUT
+            else
+              echo "versionName did not increase ($OLD_VERSION -> $NEW_VERSION)."
+              echo "version_bumped=false" >> $GITHUB_OUTPUT
+            fi
           fi
+
+          # versionCode bump: strict numeric increase
+          if [ -n "$NEW_CODE" ] && [ -n "$OLD_CODE" ] && [ "$NEW_CODE" -gt "$OLD_CODE" ] 2>/dev/null; then
+            echo "versionCode increased from $OLD_CODE to $NEW_CODE."
+            echo "version_code_bumped=true" >> $GITHUB_OUTPUT
+          elif [ -n "$NEW_CODE" ] && [ -z "$OLD_CODE" ]; then
+            echo "versionCode added: $NEW_CODE."
+            echo "version_code_bumped=true" >> $GITHUB_OUTPUT
+          else
+            echo "versionCode did not increase ($OLD_CODE -> $NEW_CODE)."
+            echo "version_code_bumped=false" >> $GITHUB_OUTPUT
+          fi
+
+          echo "version_name=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "version_code=$NEW_CODE" >> $GITHUB_OUTPUT
 
       - name: Compute release tag
         if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.version_check.outputs.version_bumped == 'true'
@@ -144,15 +170,19 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload to Firebase App Distribution
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.version_check.outputs.version_bumped == 'true'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && (steps.version_check.outputs.version_bumped == 'true' || steps.version_check.outputs.version_code_bumped == 'true')
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
         run: |
           npm install -g firebase-tools
-          firebase appdistribution:distribute app/build/outputs/apk/debug/app-debug.apk --app 1:403186103462:android:919c46244d4a7f5f47b067 --groups testers --release-notes "Build from commit ${{ github.sha }}" --token "${{ secrets.FIREBASE_TOKEN }}"
+          firebase appdistribution:distribute app/build/outputs/apk/debug/app-debug.apk \
+            --app 1:403186103462:android:919c46244d4a7f5f47b067 \
+            --groups testers \
+            --release-notes "v${{ steps.version_check.outputs.version_name }} (build ${{ steps.version_check.outputs.version_code }}) from commit ${{ github.sha }}" \
+            --token "${{ secrets.FIREBASE_TOKEN }}"
 
       - name: Commit debug APK to repo root
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.version_check.outputs.version_bumped == 'true'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && (steps.version_check.outputs.version_bumped == 'true' || steps.version_check.outputs.version_code_bumped == 'true')
         run: |
           APK_PATH=$(find app/build/outputs/apk/debug -name '*.apk' | head -1)
           if [ -z "$APK_PATH" ]; then
@@ -164,6 +194,6 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add app-debug.apk
-          git diff --cached --quiet || git commit -m "Update debug APK (v${{ steps.version_check.outputs.version_name }}) [skip ci]"
+          git diff --cached --quiet || git commit -m "Update debug APK (v${{ steps.version_check.outputs.version_name }} build ${{ steps.version_check.outputs.version_code }}) [skip ci]"
           git pull --rebase origin main || true
           git push
