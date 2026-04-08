@@ -40,32 +40,32 @@ class AuthTokenPreferences @Inject constructor(
         prefs[REFRESH_TOKEN_KEY]
     }
 
-    /**
-     * Blocking read of the current access token. Used by the OkHttp interceptor,
-     * which runs on a network thread outside of a coroutine scope.
-     */
-    fun getAccessTokenBlocking(): String? = runBlocking {
+    suspend fun getAccessToken(): String? =
         context.authTokenDataStore.data.first()[ACCESS_TOKEN_KEY]
-    }
 
-    fun getRefreshTokenBlocking(): String? = runBlocking {
+    suspend fun getRefreshToken(): String? =
         context.authTokenDataStore.data.first()[REFRESH_TOKEN_KEY]
-    }
 
-    suspend fun setTokens(accessToken: String, refreshToken: String) {
+    suspend fun saveTokens(accessToken: String, refreshToken: String) {
         context.authTokenDataStore.edit { prefs ->
             prefs[ACCESS_TOKEN_KEY] = accessToken
             prefs[REFRESH_TOKEN_KEY] = refreshToken
         }
     }
 
-    fun setTokensBlocking(accessToken: String, refreshToken: String) {
-        runBlocking {
-            setTokens(accessToken, refreshToken)
-        }
+    suspend fun clearTokens() {
+        context.authTokenDataStore.edit { it.clear() }
     }
 
-    suspend fun clear() {
-        context.authTokenDataStore.edit { it.clear() }
+    /**
+     * Blocking read of the current access token. Used by the OkHttp interceptor,
+     * which runs on a network thread outside of a coroutine scope.
+     */
+    fun getAccessTokenBlocking(): String? = runBlocking { getAccessToken() }
+
+    fun getRefreshTokenBlocking(): String? = runBlocking { getRefreshToken() }
+
+    fun setTokensBlocking(accessToken: String, refreshToken: String) {
+        runBlocking { saveTokens(accessToken, refreshToken) }
     }
 }
