@@ -9,11 +9,13 @@ import androidx.lifecycle.viewModelScope
 import com.averycorp.averytask.data.local.dao.ProjectWithCount
 import com.averycorp.averytask.data.local.entity.ProjectEntity
 import com.averycorp.averytask.data.local.entity.TaskEntity
+import com.averycorp.averytask.data.preferences.SortPreferences
 import com.averycorp.averytask.data.repository.ProjectRepository
 import com.averycorp.averytask.data.repository.TaskRepository
 import com.averycorp.averytask.domain.usecase.ParsedTodoItem
 import com.averycorp.averytask.domain.usecase.TodoListParser
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
@@ -24,13 +26,28 @@ import javax.inject.Inject
 class ProjectListViewModel @Inject constructor(
     private val projectRepository: ProjectRepository,
     private val taskRepository: TaskRepository,
-    private val todoListParser: TodoListParser
+    private val todoListParser: TodoListParser,
+    private val sortPreferences: SortPreferences
 ) : ViewModel() {
 
     val snackbarHostState = SnackbarHostState()
 
     val projects: StateFlow<List<ProjectWithCount>> = projectRepository.getProjectWithTaskCount()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    /**
+     * Reactive per-project sort mode, keyed by the dynamic
+     * `sort_project_{projectId}` preference. UI that surfaces a per-project
+     * sort dropdown can collect this for a single project.
+     */
+    fun observeProjectSort(projectId: Long): Flow<String> =
+        sortPreferences.observeSortMode(SortPreferences.ScreenKeys.project(projectId))
+
+    fun onChangeProjectSort(projectId: Long, sortMode: String) {
+        viewModelScope.launch {
+            sortPreferences.setSortMode(SortPreferences.ScreenKeys.project(projectId), sortMode)
+        }
+    }
 
     fun onDeleteProject(project: ProjectEntity, deleteTasks: Boolean = false) {
         viewModelScope.launch {

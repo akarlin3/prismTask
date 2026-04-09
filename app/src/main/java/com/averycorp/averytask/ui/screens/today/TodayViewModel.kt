@@ -11,6 +11,7 @@ import com.averycorp.averytask.data.local.entity.TagEntity
 import com.averycorp.averytask.data.local.entity.TaskEntity
 import com.averycorp.averytask.data.preferences.DashboardPreferences
 import com.averycorp.averytask.data.preferences.HabitListPreferences
+import com.averycorp.averytask.data.preferences.SortPreferences
 import com.averycorp.averytask.data.preferences.TaskBehaviorPreferences
 import com.averycorp.averytask.data.repository.HabitRepository
 import com.averycorp.averytask.util.DayBoundary
@@ -46,8 +47,24 @@ class TodayViewModel @Inject constructor(
     private val projectRepository: ProjectRepository,
     private val dashboardPreferences: DashboardPreferences,
     private val habitListPreferences: HabitListPreferences,
-    private val taskBehaviorPreferences: TaskBehaviorPreferences
+    private val taskBehaviorPreferences: TaskBehaviorPreferences,
+    private val sortPreferences: SortPreferences
 ) : ViewModel() {
+
+    /**
+     * Persisted sort mode for the Today screen. Screens that don't yet have
+     * their own sort selector still expose this so future UI can read/write
+     * the same key without a second migration.
+     */
+    val currentSort: StateFlow<String> =
+        sortPreferences.observeSortMode(SortPreferences.ScreenKeys.TODAY)
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), SortPreferences.SortModes.DEFAULT)
+
+    fun onChangeSort(sortMode: String) {
+        viewModelScope.launch {
+            sortPreferences.setSortMode(SortPreferences.ScreenKeys.TODAY, sortMode)
+        }
+    }
 
     val snackbarHostState = SnackbarHostState()
 

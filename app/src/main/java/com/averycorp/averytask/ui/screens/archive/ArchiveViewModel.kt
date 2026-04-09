@@ -3,6 +3,7 @@ package com.averycorp.averytask.ui.screens.archive
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.averycorp.averytask.data.local.entity.TaskEntity
+import com.averycorp.averytask.data.preferences.SortPreferences
 import com.averycorp.averytask.data.repository.TaskRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -11,6 +12,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -18,26 +20,52 @@ import javax.inject.Inject
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class ArchiveViewModel @Inject constructor(
-    private val taskRepository: TaskRepository
+    private val taskRepository: TaskRepository,
+    private val sortPreferences: SortPreferences
 ) : ViewModel() {
 
     val searchQuery = MutableStateFlow("")
 
-    val archivedTasks: StateFlow<List<TaskEntity>> = taskRepository.getArchivedTasks()
+    val currentSort: StateFlow<String> =
+        sortPreferences.observeSortMode(SortPreferences.ScreenKeys.ARCHIVE)
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), SortPreferences.SortModes.DEFAULT)
+
+    fun onChangeSort(sortMode: String) {
+        viewModelScope.launch {
+            sortPreferences.setSortMode(SortPreferences.ScreenKeys.ARCHIVE, sortMode)
+        }
+    }
+
+    val archivedTasks: StateFlow<List<TaskEntity>> = combine(
+        taskRepository.getArchivedTasks(),
+        currentSort
+    ) { tasks, sort -> sortTasks(tasks, sort) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val archivedCount: StateFlow<Int> = taskRepository.getArchivedCount()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
-    val filteredArchive: StateFlow<List<TaskEntity>> = searchQuery
-        .flatMapLatest { query ->
+    val filteredArchive: StateFlow<List<TaskEntity>> = combine(
+        searchQuery.flatMapLatest { query ->
             if (query.isBlank()) {
                 taskRepository.getArchivedTasks()
             } else {
                 taskRepository.searchArchivedTasks(query)
             }
-        }
+        },
+        currentSort
+    ) { tasks, sort -> sortTasks(tasks, sort) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    private fun sortTasks(tasks: List<TaskEntity>, sort: String): List<TaskEntity> = when (sort) {
+        SortPreferences.SortModes.DUE_DATE -> tasks.sortedWith(
+            compareBy<TaskEntity> { it.dueDate == null }.thenBy { it.dueDate }
+        )
+        SortPreferences.SortModes.PRIORITY -> tasks.sortedByDescending { it.priority }
+        SortPreferences.SortModes.ALPHABETICAL -> tasks.sortedBy { it.title.lowercase() }
+        SortPreferences.SortModes.DATE_CREATED -> tasks.sortedByDescending { it.createdAt }
+        else -> tasks
+    }
 
     fun onSearchQueryChanged(query: String) {
         searchQuery.value = query

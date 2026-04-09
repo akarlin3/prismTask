@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.averycorp.averytask.data.local.dao.TaskDao
 import com.averycorp.averytask.data.local.entity.TaskEntity
+import com.averycorp.averytask.data.preferences.SortPreferences
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -12,6 +13,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.ZoneId
@@ -29,7 +31,8 @@ data class DayInfo(
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class MonthViewModel @Inject constructor(
-    private val taskDao: TaskDao
+    private val taskDao: TaskDao,
+    private val sortPreferences: SortPreferences
 ) : ViewModel() {
 
     private val zone = ZoneId.systemDefault()
@@ -39,6 +42,16 @@ class MonthViewModel @Inject constructor(
 
     private val _selectedDate = MutableStateFlow<LocalDate?>(null)
     val selectedDate: StateFlow<LocalDate?> = _selectedDate
+
+    val currentSort: StateFlow<String> =
+        sortPreferences.observeSortMode(SortPreferences.ScreenKeys.MONTH_VIEW)
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), SortPreferences.SortModes.DEFAULT)
+
+    fun onChangeSort(sortMode: String) {
+        viewModelScope.launch {
+            sortPreferences.setSortMode(SortPreferences.ScreenKeys.MONTH_VIEW, sortMode)
+        }
+    }
 
     val monthDayInfos: StateFlow<Map<LocalDate, DayInfo>> = _currentMonth.flatMapLatest { month ->
         val firstDay = month.atDay(1)
@@ -68,20 +81,35 @@ class MonthViewModel @Inject constructor(
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
-    val selectedDateTasks: StateFlow<List<TaskEntity>> = combine(_selectedDate, _currentMonth) { date, _ ->
-        date
-    }.flatMapLatest { date ->
-        if (date == null) {
-            kotlinx.coroutines.flow.flowOf(emptyList())
-        } else {
-            val start = date.atStartOfDay(zone).toInstant().toEpochMilli()
-            val end = date.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
-            taskDao.getTasksDueOnDate(start, end).map { tasks ->
-                tasks.filter { it.parentTaskId == null && it.archivedAt == null }
-                    .sortedWith(compareBy<TaskEntity> { it.isCompleted }.thenByDescending { it.priority })
+    val selectedDateTasks: StateFlow<List<TaskEntity>> = combine(
+        _selectedDate.flatMapLatest { date ->
+            if (date == null) {
+                kotlinx.coroutines.flow.flowOf(emptyList())
+            } else {
+                val start = date.atStartOfDay(zone).toInstant().toEpochMilli()
+                val end = date.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
+                taskDao.getTasksDueOnDate(start, end).map { tasks ->
+                    tasks.filter { it.parentTaskId == null && it.archivedAt == null }
+                }
             }
-        }
+        },
+        currentSort
+    ) { tasks, sort ->
+        // Always keep completed items at the bottom; apply the persisted sort
+        // to the remainder so user preference is respected.
+        val (done, open) = tasks.partition { it.isCompleted }
+        sortTasks(open, sort) + sortTasks(done, sort)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    private fun sortTasks(tasks: List<TaskEntity>, sort: String): List<TaskEntity> = when (sort) {
+        SortPreferences.SortModes.DUE_DATE -> tasks.sortedWith(
+            compareBy<TaskEntity> { it.dueDate == null }.thenBy { it.dueDate }.thenByDescending { it.priority }
+        )
+        SortPreferences.SortModes.PRIORITY -> tasks.sortedByDescending { it.priority }
+        SortPreferences.SortModes.ALPHABETICAL -> tasks.sortedBy { it.title.lowercase() }
+        SortPreferences.SortModes.DATE_CREATED -> tasks.sortedByDescending { it.createdAt }
+        else -> tasks.sortedByDescending { it.priority }
+    }
 
     fun onPreviousMonth() { _currentMonth.value = _currentMonth.value.minusMonths(1) }
     fun onNextMonth() { _currentMonth.value = _currentMonth.value.plusMonths(1) }

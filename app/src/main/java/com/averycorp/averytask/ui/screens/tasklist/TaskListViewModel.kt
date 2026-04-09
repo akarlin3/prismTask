@@ -11,6 +11,7 @@ import androidx.lifecycle.viewModelScope
 import com.averycorp.averytask.data.local.entity.ProjectEntity
 import com.averycorp.averytask.data.local.entity.TagEntity
 import com.averycorp.averytask.data.local.entity.TaskEntity
+import com.averycorp.averytask.data.preferences.SortPreferences
 import com.averycorp.averytask.data.preferences.TaskBehaviorPreferences
 import com.averycorp.averytask.data.preferences.UrgencyWeights
 import com.averycorp.averytask.data.repository.AttachmentRepository
@@ -29,6 +30,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
@@ -36,12 +38,17 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-enum class SortOption(val label: String) {
-    DUE_DATE("Due Date"),
-    PRIORITY("Priority"),
-    URGENCY("Urgency"),
-    CREATED("Date Created"),
-    ALPHABETICAL("Alphabetical")
+enum class SortOption(val label: String, val token: String) {
+    DUE_DATE("Due Date", SortPreferences.SortModes.DUE_DATE),
+    PRIORITY("Priority", SortPreferences.SortModes.PRIORITY),
+    URGENCY("Urgency", SortPreferences.SortModes.URGENCY),
+    CREATED("Date Created", SortPreferences.SortModes.DATE_CREATED),
+    ALPHABETICAL("Alphabetical", SortPreferences.SortModes.ALPHABETICAL);
+
+    companion object {
+        fun fromToken(token: String?): SortOption? =
+            entries.find { it.token == token }
+    }
 }
 
 enum class ViewMode(val label: String) {
@@ -59,7 +66,8 @@ class TaskListViewModel @Inject constructor(
     private val tagRepository: TagRepository,
     private val attachmentRepository: AttachmentRepository,
     private val todoListParser: TodoListParser,
-    private val taskBehaviorPreferences: TaskBehaviorPreferences
+    private val taskBehaviorPreferences: TaskBehaviorPreferences,
+    private val sortPreferences: SortPreferences
 ) : ViewModel() {
 
     val snackbarHostState = SnackbarHostState()
@@ -67,11 +75,17 @@ class TaskListViewModel @Inject constructor(
     private val _urgencyWeights = MutableStateFlow(UrgencyWeights())
 
     init {
+        // Prefer the per-screen sort saved in SortPreferences. When the user
+        // has never picked a sort on this screen, fall back to the app-wide
+        // "default sort" setting from TaskBehaviorPreferences so existing
+        // installs keep respecting the global preference.
         viewModelScope.launch {
-            taskBehaviorPreferences.getDefaultSort().collect { sortName ->
-                val sort = SortOption.entries.find { it.name == sortName } ?: SortOption.DUE_DATE
-                if (_currentSort.value == SortOption.DUE_DATE) _currentSort.value = sort
-            }
+            val savedToken = sortPreferences.getSortModeOrNull(SortPreferences.ScreenKeys.TASK_LIST)
+            val initial = SortOption.fromToken(savedToken)
+                ?: taskBehaviorPreferences.getDefaultSort().first().let { name ->
+                    SortOption.entries.find { it.name == name } ?: SortOption.DUE_DATE
+                }
+            _currentSort.value = initial
         }
         viewModelScope.launch {
             taskBehaviorPreferences.getDefaultViewMode().collect { modeName ->
@@ -343,10 +357,34 @@ class TaskListViewModel @Inject constructor(
         } else {
             current.copy(selectedProjectIds = listOf(projectId))
         }
+        // Restore the remembered sort for the newly-selected scope: per-project
+        // key when a single project is selected, otherwise the screen-wide key.
+        viewModelScope.launch {
+            val key = if (projectId != null) {
+                SortPreferences.ScreenKeys.project(projectId)
+            } else {
+                SortPreferences.ScreenKeys.TASK_LIST
+            }
+            val saved = sortPreferences.getSortModeOrNull(key)
+            SortOption.fromToken(saved)?.let { _currentSort.value = it }
+        }
     }
 
     fun onChangeSort(sort: SortOption) {
         _currentSort.value = sort
+        viewModelScope.launch {
+            // Persist per-screen so the next launch reopens with this sort.
+            // Also save under the currently-selected project (if any) so the
+            // choice sticks per project-scoped view.
+            sortPreferences.setSortMode(SortPreferences.ScreenKeys.TASK_LIST, sort.token)
+            val projectFilter = _currentFilter.value.selectedProjectIds
+            if (projectFilter.size == 1) {
+                sortPreferences.setSortMode(
+                    SortPreferences.ScreenKeys.project(projectFilter.first()),
+                    sort.token
+                )
+            }
+        }
     }
 
     fun onChangeViewMode(mode: ViewMode) {

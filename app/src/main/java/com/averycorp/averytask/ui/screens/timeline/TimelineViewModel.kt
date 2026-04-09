@@ -4,11 +4,13 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.averycorp.averytask.data.local.dao.TaskDao
 import com.averycorp.averytask.data.local.entity.TaskEntity
+import com.averycorp.averytask.data.preferences.SortPreferences
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -30,13 +32,24 @@ data class TimeBlock(
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class TimelineViewModel @Inject constructor(
-    private val taskDao: TaskDao
+    private val taskDao: TaskDao,
+    private val sortPreferences: SortPreferences
 ) : ViewModel() {
 
     private val zone = ZoneId.systemDefault()
 
     private val _currentDate = MutableStateFlow(LocalDate.now())
     val currentDate: StateFlow<LocalDate> = _currentDate
+
+    val currentSort: StateFlow<String> =
+        sortPreferences.observeSortMode(SortPreferences.ScreenKeys.TIMELINE)
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), SortPreferences.SortModes.DEFAULT)
+
+    fun onChangeSort(sortMode: String) {
+        viewModelScope.launch {
+            sortPreferences.setSortMode(SortPreferences.ScreenKeys.TIMELINE, sortMode)
+        }
+    }
 
     private val dayTasks = _currentDate.flatMapLatest { date ->
         val start = date.atStartOfDay(zone).toInstant().toEpochMilli()
@@ -61,8 +74,17 @@ class TimelineViewModel @Inject constructor(
         }.sortedBy { it.startTime }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val unscheduledTasks: StateFlow<List<TaskEntity>> = dayTasks.map { tasks ->
-        tasks.filter { it.scheduledStartTime == null }
+    val unscheduledTasks: StateFlow<List<TaskEntity>> = combine(dayTasks, currentSort) { tasks, sort ->
+        val unscheduled = tasks.filter { it.scheduledStartTime == null }
+        when (sort) {
+            SortPreferences.SortModes.DUE_DATE -> unscheduled.sortedWith(
+                compareBy<TaskEntity> { it.dueDate == null }.thenBy { it.dueDate }.thenByDescending { it.priority }
+            )
+            SortPreferences.SortModes.PRIORITY -> unscheduled.sortedByDescending { it.priority }
+            SortPreferences.SortModes.ALPHABETICAL -> unscheduled.sortedBy { it.title.lowercase() }
+            SortPreferences.SortModes.DATE_CREATED -> unscheduled.sortedByDescending { it.createdAt }
+            else -> unscheduled
+        }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     fun onNavigateDate(date: LocalDate) { _currentDate.value = date }
