@@ -5,6 +5,66 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v0.9.0 — UX Overhaul, QoL Features & Task Templates (April 2026)
+
+### Added — UX Overhaul
+- Today screen: compact progress header bar replacing large circular ring
+- Collapsible sections with remembered expand/collapse state (DataStore-persisted)
+- Overdue section visual urgency: red tint background and accent bar
+- Habits displayed as horizontal scrollable chips with tap-to-complete
+- Floating quick-add bar pinned above navigation (always accessible)
+- "All Caught Up" celebration state when all tasks are completed
+- Plan-for-Today sheet: inline quick-add, search filter, batch planning, sort options
+
+### Added — Task Editor Redesign
+- Task editor converted to full-screen modal bottom sheet
+- Three-tab layout: Details / Schedule / Organize
+- Title and priority selector always visible in sheet header
+- Details tab: inline subtask add, expandable description/notes fields
+- Schedule tab: quick date chips, conditional time/reminder visibility, duration presets
+- Organize tab: project card selector, inline tag toggle chips, smart context defaults
+- Subtask drag-to-reorder with smooth animations
+- Subtask swipe-to-complete and swipe-to-delete gestures
+- Unsaved changes detection with discard confirmation dialog
+
+### Added — Quality of Life
+- Sort preference memory: each screen remembers its last sort mode (DataStore-persisted)
+- Drag-to-reorder tasks in "Custom" sort mode with persistent order
+- Quick reschedule: long-press any task card for date shortcuts (Today, Tomorrow, Next Week, Pick Date)
+- Duplicate task from context menu or editor with optional subtask copying
+- Bulk edit extensions: batch change priority, due date, tags for multi-selected tasks
+- Move tasks between projects via long-press menu and drag in grouped-by-project view
+- "Custom" sort mode added to all sort pickers
+
+### Added — Task Templates
+- Template system: save reusable task blueprints with pre-filled fields
+- Template CRUD: create, edit, delete templates with icon, category, and all task fields
+- Create task from template with pre-filled editor (user can adjust before saving)
+- Quick-use: tap template in list to create task instantly
+- Save existing task as template from editor overflow menu
+- NLP shortcut: type "/templatename" in quick-add bar to use a template
+- 6 built-in templates: Morning Routine, Weekly Review, Meeting Prep, Grocery Run, Assignment, Deep Clean
+- Template usage tracking (count and last used date)
+- Template categories with filter chips
+
+### Added — Backend (Task Templates)
+- Template CRUD endpoints (GET/POST/PATCH/DELETE /api/v1/templates)
+- Use template endpoint (POST /api/v1/templates/{id}/use)
+- Create template from task endpoint (POST /api/v1/templates/from-task/{task_id})
+- Templates included in sync push/pull
+- Alembic migration for task_templates table
+
+### Changed
+- Room database version upgraded (sortOrder column, task_templates table)
+- Multi-select bottom action bar redesigned with 6 operation icons
+- Task card long-press shows quick reschedule popup
+
+### Infrastructure
+- New DataStore preferences: SortPreferences, EditorPreferences, DashboardPreferences
+- New Room entities: TaskTemplateEntity
+- New screens: TemplateListScreen, AddEditTemplateScreen
+- New components: QuickReschedulePopup, collapsible section headers, horizontal habit chips
+
 ## v0.8.0 — Backend Integration (April 2026)
 
 ### Added

@@ -32,6 +32,12 @@ A native Android task manager with a Python API backend featuring AI-powered nat
 - Notes and file/link attachments per task
 - Swipe-to-complete and swipe-to-delete gestures with undo snackbars
 - Multi-select mode with batch complete, delete, and move operations
+- Bulk edit: batch change priority, due date, tags, and move to project for multi-selected tasks
+- Drag-to-reorder tasks in "Custom" sort mode with persistent order
+- Quick reschedule via long-press popup (Today, Tomorrow, Next Week, Pick Date)
+- Duplicate task from context menu or editor with optional subtask copying
+- Move tasks between projects via long-press menu and drag in grouped-by-project view
+- Per-screen sort preference memory (DataStore-persisted)
 - Urgency scoring (0-1) based on due date proximity, priority, age, and subtask progress
 
 ### Recurrence
@@ -53,8 +59,9 @@ A native Android task manager with a Python API backend featuring AI-powered nat
 - Smart suggestions for tags and projects based on usage keyword matching
 
 ### Views
-- **Today** -- Focus screen with combined task + habit progress ring, overdue/today/planned/completed sections, habits section, "Plan for Today" bottom sheet
-- **Task List** -- Grouped or flat list with sorting (priority, date, urgency, alphabetical), advanced filtering (tags, priorities, projects, date range), search with highlighted results
+- **Today** -- Focus screen with compact progress header bar, collapsible sections (expand/collapse state persisted), overdue section with red urgency tint, horizontal habit chips with tap-to-complete, "All Caught Up" celebration state, "Plan for Today" bottom sheet with inline quick-add, search filter, batch planning, and sort options
+- **Task Editor** -- Full-screen modal bottom sheet with three-tab layout (Details / Schedule / Organize), title and priority always visible in header, subtask drag-to-reorder, swipe-to-complete/delete gestures, unsaved changes detection
+- **Task List** -- Grouped or flat list with sorting (priority, date, urgency, alphabetical, custom), advanced filtering (tags, priorities, projects, date range), search with highlighted results
 - **Week View** -- 7-day column layout with task cards per day and week navigation
 - **Month View** -- Calendar grid with density dots and day detail panel
 - **Timeline** -- Daily scheduled view with time blocks, duration management, and current-time indicator
@@ -70,6 +77,13 @@ A native Android task manager with a Python API backend featuring AI-powered nat
 - Habits integrated into Today screen with combined progress ring
 - Optional daily reminder and auto-create-task features
 - Weekly habit summary notification via WorkManager (Sunday 7PM)
+
+### Task Templates
+- Create reusable task blueprints with pre-filled title, description, priority, project, tags, subtasks, recurrence, and duration
+- 6 built-in templates (Morning Routine, Weekly Review, Meeting Prep, Grocery Run, Assignment, Deep Clean)
+- Quick-use from template list or NLP shortcut (`/templatename`)
+- Save any existing task as a template from editor overflow menu
+- Template categories, search, and usage tracking (count and last used date)
 
 ### Cloud Sync
 - Firebase Authentication with Google Sign-In via Credential Manager
@@ -119,14 +133,15 @@ A native Android task manager with a Python API backend featuring AI-powered nat
 |-------|-----------|---------|
 | Language | Kotlin | 2.2.10 |
 | UI | Jetpack Compose + Material 3 | BOM 2024.12.01 |
-| Navigation | Jetpack Navigation Compose | 2.9.7 |
+| Navigation | Jetpack Navigation Compose | 2.8.5 |
 | DI | Hilt (Dagger) + KSP | 2.59.2 |
 | Database | Room + KSP | 2.8.4 |
-| Preferences | DataStore | 1.2.1 |
-| Background | WorkManager | 2.10.1 |
-| Cloud | Firebase Auth + Firestore + Storage | BOM 33.7.0 |
-| Auth | Credential Manager + Google Identity | 1.5.0 / 1.1.1 |
-| Widgets | Glance for Compose | 1.1.1 |
+| Preferences | DataStore | 1.1.1 |
+| Background | WorkManager | 2.9.1 |
+| Cloud | Firebase Auth + Firestore + Storage | BOM 33.6.0 |
+| Auth | Credential Manager + Google Identity | 1.3.0 / 1.1.1 |
+| Drag-to-Reorder | sh.calvin.reorderable | 2.4.3 |
+| Widgets | Glance for Compose | 1.1.0 |
 | Serialization | Gson | 2.11.0 |
 | Async | Kotlin Coroutines | 1.10.2 |
 | Build | Gradle (Kotlin DSL) | 8.13 |
@@ -200,7 +215,7 @@ docker compose up -d
 # Release build (R8 minification + resource shrinking)
 ./gradlew assembleRelease
 
-# Run unit tests (176 tests)
+# Run unit tests (216 tests)
 ./gradlew testDebugUnitTest
 
 # Run instrumentation tests (requires device/emulator)
@@ -217,7 +232,7 @@ Single-activity MVVM with Hilt dependency injection:
 - **UI layer**: Jetpack Compose screens with Material 3, connected to ViewModels via `hiltViewModel()`
 - **ViewModel layer**: Exposes `StateFlow` from repositories via `stateIn(WhileSubscribed)`, handles user actions in `viewModelScope`
 - **Repository layer**: Single source of truth wrapping Room DAOs with business logic (recurrence completion, date grouping, streak calculation, duplicate prevention)
-- **Data layer**: Room database (v7, 10 entities) with reactive `Flow` queries, Firebase Firestore for cloud sync, DataStore for preferences
+- **Data layer**: Room database (v24, 18 entities) with reactive `Flow` queries, Firebase Firestore for cloud sync, DataStore for preferences
 - **Domain layer**: Pure use-case objects -- RecurrenceEngine, NaturalLanguageParser, UrgencyScorer, StreakCalculator, SuggestionEngine, ParsedTaskResolver
 - **Notifications**: AlarmManager + BroadcastReceiver for task reminders, WorkManager for weekly habit summaries
 - **Widgets**: Glance for Compose with direct Room queries via WidgetDataProvider
@@ -237,7 +252,7 @@ SQLite    Firestore
 
 ## Test Coverage
 
-**176 unit tests** across 12 test files:
+**216 unit tests** across 18 test files:
 
 | Test File | Tests | Covers |
 |-----------|-------|--------|
@@ -247,12 +262,18 @@ SQLite    Firestore
 | RecurrenceEngineTest | 18 | Daily/weekly/monthly/yearly, intervals, skip weekends, end conditions |
 | TaskFilterTest | 13 | Filter activation, counting, defaults, all 7 filter types |
 | SyncMapperTest | 13 | Round-trip for tasks, projects, tags, habits, completions, defaults |
+| TaskTemplateRepositoryTest | 11 | Template CRUD, create-from-template, built-in seeding, usage tracking |
 | UrgencyScorerTest | 10 | Due date, priority, age, subtasks, urgency levels, clamping |
 | EntityJsonMergerTest | 9 | Merge vs. replace import paths for tasks, projects, habits |
-| RecurrenceConverterTest | 8 | JSON round-trip, invalid input, partial data, all recurrence types |
 | SuggestionEngineTest | 8 | Keyword extraction, stop words, short words, casing, empty input |
+| RecurrenceConverterTest | 8 | JSON round-trip, invalid input, partial data, all recurrence types |
+| DateShortcutsTest | 7 | Quick reschedule date calculations (today, tomorrow, next week, etc.) |
+| DuplicateTaskTest | 7 | Task duplication with/without subtasks, field copying, ID isolation |
 | HabitRepositoryHelpersTest | 7 | Date normalization, week boundaries, idempotency |
 | DataExporterTest | 7 | CSV escaping: commas, quotes, newlines, combined, empty |
+| SortPreferencesTest | 6 | Per-screen sort mode persistence, defaults, screen isolation |
+| MoveToProjectTest | 5 | Move task between projects, null project, batch move |
+| TemplateSeederTest | 4 | Built-in template seeding, idempotency, field validation |
 
 **15 instrumentation tests** across 3 test files:
 
@@ -264,11 +285,11 @@ SQLite    Firestore
 
 ## Database
 
-Room database `averytask.db` at version 7 with 10 entities:
+Room database `averytask.db` at version 24 with 18 entities:
 
 | Table | Purpose |
 |-------|---------|
-| `tasks` | Core task data with FKs to projects and parent tasks |
+| `tasks` | Core task data with FKs to projects and parent tasks, sortOrder column |
 | `projects` | Project grouping with color and icon |
 | `tags` | Tag definitions with color |
 | `task_tags` | Many-to-many junction (task-tag) |
@@ -278,8 +299,16 @@ Room database `averytask.db` at version 7 with 10 entities:
 | `calendar_sync` | Task-to-Google Calendar event mapping |
 | `habits` | Habit definitions: frequency, color, icon, category |
 | `habit_completions` | Per-day habit completion records |
+| `leisure_logs` | Leisure activity tracking |
+| `courses` | Schoolwork course definitions |
+| `assignments` | Course assignment tracking |
+| `study_logs` | Study session logs |
+| `course_completions` | Course completion records |
+| `self_care_logs` | Self-care activity logs |
+| `self_care_steps` | Self-care routine step tracking |
+| `task_templates` | Reusable task blueprints with category, icon, and usage stats |
 
-Migrations: 1-2 (tags), 2-3 (notes/attachments), 3-4 (planned date), 4-5 (usage logs), 5-6 (duration/sync), 6-7 (habits).
+Migrations: 1→24 covering tags, notes/attachments, planned date, usage logs, duration/sync, habits, leisure, schoolwork, self-care, calendar sync, task templates, sort order, and more.
 
 ## Project Structure
 
@@ -290,11 +319,11 @@ averyTask/
 │       ├── MainActivity.kt                 # Single-activity entry point
 │       ├── AveryTaskApplication.kt         # @HiltAndroidApp
 │       ├── data/
-│       │   ├── local/                      # Room entities (10), DAOs (9), database, converters
+│       │   ├── local/                      # Room entities (18), DAOs (13), database, converters
 │       │   ├── remote/                     # Firebase auth, sync service, entity mappers
 │       │   ├── export/                     # JSON/CSV export and JSON import
-│       │   ├── preferences/                # DataStore: theme, archive, dashboard
-│       │   └── repository/                 # Task, Project, Tag, Habit, Attachment
+│       │   ├── preferences/                # DataStore: theme, archive, dashboard, sort, templates
+│       │   └── repository/                 # Task, Project, Tag, Habit, Attachment, TaskTemplate
 │       ├── di/                             # Hilt DatabaseModule
 │       ├── domain/
 │       │   ├── model/                      # RecurrenceRule, TaskFilter
@@ -305,7 +334,7 @@ averyTask/
 │       └── ui/
 │           ├── components/                 # Reusable composables (10+)
 │           ├── navigation/                 # NavGraph with 5-tab bottom nav
-│           ├── screens/                    # 14 screen packages
+│           ├── screens/                    # 19 screen packages (incl. templates)
 │           └── theme/                      # Color, Theme, Type, PriorityColors
 └── backend/                                # FastAPI backend (Python 3.12)
     ├── app/                                # FastAPI application

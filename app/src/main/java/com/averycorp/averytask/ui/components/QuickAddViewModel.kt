@@ -98,7 +98,6 @@ class QuickAddViewModel @Inject constructor(
         viewModelScope.launch {
             _isSubmitting.value = true
             try {
-                Log.i("QuickAddVM", "Submitting quick-add task, calling remote NLP parser")
                 val parsed = parser.parseRemote(text)
                 val resolved = resolver.resolve(parsed)
 
@@ -191,9 +190,7 @@ class QuickAddViewModel @Inject constructor(
         }
         val matches = fuzzyMatchTemplates(all, normalized)
         when {
-            matches.isEmpty() -> {
-                Log.i("QuickAddVM", "No template matches for '$normalized'")
-            }
+            matches.isEmpty() -> { }
             matches.size == 1 -> {
                 createFromTemplate(matches.first().id, plannedDateOverride)
                 inputText.value = ""

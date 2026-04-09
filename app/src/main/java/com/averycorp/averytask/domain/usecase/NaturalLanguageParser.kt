@@ -1,6 +1,5 @@
 package com.averycorp.averytask.domain.usecase
 
-import android.util.Log
 import com.averycorp.averytask.data.remote.api.AveryTaskApi
 import com.averycorp.averytask.data.remote.api.ParseRequest
 import com.averycorp.averytask.data.remote.api.ParsedTaskResponse
@@ -60,13 +59,10 @@ class NaturalLanguageParser @Inject constructor(
         extractTemplateQuery(input)?.let { query ->
             return@withContext ParsedTask(title = query, templateQuery = query)
         }
-        Log.d(TAG, "attempting API parse for input of length ${input.length}")
         try {
             val response = api.parseTask(ParseRequest(input))
-            Log.d(TAG, "using API parser (title='${response.title}', priority=${response.priority}, dueDate=${response.dueDate}, confidence=${response.confidence})")
             response.toParsedTask(fallbackTitle = input)
-        } catch (e: Exception) {
-            Log.d(TAG, "falling back to regex parser (${e.javaClass.simpleName}: ${e.message})")
+        } catch (_: Exception) {
             parse(input)
         }
     }
@@ -424,7 +420,4 @@ class NaturalLanguageParser @Inject constructor(
         else -> null
     }
 
-    companion object {
-        private const val TAG = "NLP"
-    }
 }

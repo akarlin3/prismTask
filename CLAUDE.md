@@ -2,19 +2,20 @@
 
 ## Project Overview
 
-**AveryTask** (`com.averycorp.averytask`) is a native Android todo list app built with Kotlin and Jetpack Compose. v0.8.0 includes full task management, projects, subtasks, tags, recurrence, reminders, notifications, NLP quick-add, Today focus screen, week/month/timeline views, urgency scoring, smart suggestions, Firebase cloud sync, Google Sign-In, JSON/CSV data export/import, Google Drive backup/restore, habit tracking with streaks/analytics, home screen widgets, app self-update, and a FastAPI web backend with Claude Haiku-powered NLP parsing.
+**AveryTask** (`com.averycorp.averytask`) is a native Android todo list app built with Kotlin and Jetpack Compose. v0.9.0 includes full task management, projects, subtasks, tags, recurrence, reminders, notifications, NLP quick-add, Today focus screen (compact header, collapsible sections), tabbed task editor (Details/Schedule/Organize), week/month/timeline views, urgency scoring, smart suggestions, drag-to-reorder with custom sort, quick reschedule, duplicate task, bulk edit (priority/date/tags/project), task templates with 6 built-ins and NLP shortcuts, Firebase cloud sync, Google Sign-In, JSON/CSV data export/import, Google Drive backup/restore, habit tracking with streaks/analytics, home screen widgets, app self-update, and a FastAPI web backend with Claude Haiku-powered NLP parsing.
 
 ## Tech Stack
 
-- **Language**: Kotlin 2.2.10 (JVM target 17)
+- **Language**: Kotlin 2.2.10 (JVM target 21)
 - **UI**: Jetpack Compose with Material 3 (BOM 2024.12.01)
 - **DI**: Hilt (Dagger) 2.59.2
 - **Database**: Room 2.8.4 with KSP
-- **Navigation**: Jetpack Navigation Compose 2.9.7
+- **Navigation**: Jetpack Navigation Compose 2.8.5
 - **Serialization**: Gson 2.11.0 (for RecurrenceRule JSON)
-- **Cloud**: Firebase Auth + Firestore + Storage (BOM 33.7.0), Google Drive API v3
+- **Cloud**: Firebase Auth + Firestore + Storage (BOM 33.6.0), Google Drive API v3
 - **Auth**: Credential Manager + Google Identity
-- **Widgets**: Glance for Compose 1.1.1
+- **Drag-to-Reorder**: sh.calvin.reorderable 2.4.3
+- **Widgets**: Glance for Compose 1.1.0
 - **Build**: Gradle 8.13 with Kotlin DSL
 - **Min SDK**: 26 (Android 8.0) / **Target SDK**: 35 (Android 15)
 
@@ -35,9 +36,10 @@ app/src/main/java/com/averycorp/averytask/
 │   │   │   ├── AttachmentDao.kt       # Attachment CRUD
 │   │   │   ├── UsageLogDao.kt         # Usage analytics for smart suggestions
 │   │   │   ├── HabitDao.kt            # Habit CRUD + active/archive filtering
-│   │   │   └── HabitCompletionDao.kt  # Habit completions: date queries, range, toggle
+│   │   │   ├── HabitCompletionDao.kt  # Habit completions: date queries, range, toggle
+│   │   │   └── TaskTemplateDao.kt     # Template CRUD + category/search queries
 │   │   ├── database/
-│   │   │   └── AveryTaskDatabase.kt   # Room DB (v7, migrations 1→7)
+│   │   │   └── AveryTaskDatabase.kt   # Room DB (v24, migrations 1→24)
 │   │   └── entity/
 │   │       ├── TaskEntity.kt          # Tasks table with plannedDate, FKs, indices
 │   │       ├── ProjectEntity.kt       # Projects table
@@ -49,7 +51,8 @@ app/src/main/java/com/averycorp/averytask/
 │   │       ├── SyncMetadataEntity.kt  # Cloud sync local↔remote ID mapping
 │   │       ├── CalendarSyncEntity.kt  # Task↔Google Calendar event mapping
 │   │       ├── HabitEntity.kt         # Habits: name, frequency, color, icon, category
-│   │       └── HabitCompletionEntity.kt # Habit completions with FK to habits
+│   │       ├── HabitCompletionEntity.kt # Habit completions with FK to habits
+│   │       └── TaskTemplateEntity.kt  # Task templates: title, fields, category, usage stats
 │   ├── remote/
 │   │   ├── AuthManager.kt            # Firebase Auth + Google Sign-In
 │   │   ├── GoogleDriveService.kt     # Google Drive backup/restore (export + import JSON)
@@ -64,10 +67,12 @@ app/src/main/java/com/averycorp/averytask/
 │   │   ├── ProjectRepository.kt       # Project CRUD
 │   │   ├── TagRepository.kt           # Tag CRUD + task assignment
 │   │   ├── AttachmentRepository.kt    # Attachment CRUD
-│   │   └── HabitRepository.kt         # Habit CRUD, completions, streak calc, HabitWithStatus
+│   │   ├── HabitRepository.kt         # Habit CRUD, completions, streak calc, HabitWithStatus
+│   │   └── TaskTemplateRepository.kt  # Template CRUD, create-from-template, built-in seeding
 │   └── preferences/
 │       ├── ThemePreferences.kt        # Theme mode + accent color DataStore
 │       ├── ArchivePreferences.kt      # Auto-archive settings
+│       ├── SortPreferences.kt         # Per-screen sort mode memory (DataStore-persisted)
 │       └── DashboardPreferences.kt    # Dashboard section order + visibility
 ├── di/
 │   └── DatabaseModule.kt              # Hilt module: Room DB, DAOs (incl. Habit DAOs)
@@ -108,7 +113,8 @@ app/src/main/java/com/averycorp/averytask/
     │   ├── QuickAddViewModel.kt      # Quick-add logic: parse → resolve → create
     │   ├── StreakBadge.kt            # Fire emoji streak badge with pulse animation
     │   ├── ContributionGrid.kt       # GitHub-style 12-week completion grid
-    │   └── WeeklyProgressDots.kt     # 7-dot Mon-Sun weekly progress indicator
+    │   ├── WeeklyProgressDots.kt     # 7-dot Mon-Sun weekly progress indicator
+    │   └── QuickReschedulePopup.kt   # Long-press date shortcut popup (Today/Tomorrow/Next Week/Pick)
     ├── navigation/
     │   └── NavGraph.kt               # NavHost with bottom nav (Today, Tasks, Projects, Settings)
     ├── screens/
@@ -154,9 +160,14 @@ app/src/main/java/com/averycorp/averytask/
     │   │   ├── AddEditHabitViewModel.kt  # Habit creation/editing
     │   │   ├── HabitAnalyticsScreen.kt   # Stats, contribution grid, charts
     │   │   └── HabitAnalyticsViewModel.kt # Analytics state computation
-    │   └── tags/
-    │       ├── TagManagementScreen.kt
-    │       └── TagManagementViewModel.kt
+    │   ├── tags/
+    │   │   ├── TagManagementScreen.kt
+    │   │   └── TagManagementViewModel.kt
+    │   └── templates/
+    │       ├── TemplateListScreen.kt         # Template list with categories and quick-use
+    │       ├── TemplateListViewModel.kt      # Template list state + quick-use/delete
+    │       ├── AddEditTemplateScreen.kt      # Template form: fields, icon, category
+    │       └── AddEditTemplateViewModel.kt   # Template creation/editing
     └── theme/
         ├── Color.kt                   # Material 3 color tokens
         ├── Theme.kt                   # Dynamic color theme (dark mode forced)
@@ -186,6 +197,10 @@ app/src/main/java/com/averycorp/averytask/
 - **Habits**: Habit tracking with daily/weekly frequency, streaks, analytics, contribution grid, weekly summary notification
 - **Widgets**: Glance-based home screen widgets (Today, Habit Streaks, Quick-Add)
 - **Dashboard**: Customizable Today section order via DashboardPreferences DataStore
+- **Task Templates**: Reusable blueprints with backend sync and NLP shortcut (`/templatename`)
+- **Tabbed Editor**: Bottom sheet with Details/Schedule/Organize tabs
+- **Sort Memory**: Per-screen sort preferences via DataStore
+- **Drag-to-Reorder**: Custom sort mode with persistent task order
 
 ## Build Commands
 
@@ -212,7 +227,7 @@ app/src/main/java/com/averycorp/averytask/
 
 - **Theme**: Use `AveryTaskTheme` as the root composable wrapper
 - **No XML layouts**: All UI must be Jetpack Compose
-- **JVM target**: 17 — do not change without updating both `compileOptions` and `kotlinOptions`
+- **JVM target**: 21 — do not change without updating both `compileOptions` and `kotlinOptions`
 - **Entity fields**: Use `@ColumnInfo` with snake_case column names
 - **Recurrence**: Stored as JSON string in `TaskEntity.recurrenceRule`, parsed via `RecurrenceConverter` (Gson)
 - **Reminders**: `reminderOffset` is millis before due date; scheduling handled by `ReminderScheduler`
@@ -227,5 +242,5 @@ app/src/main/java/com/averycorp/averytask/
 - `app/proguard-rules.pro` — Keep rules for Room, Gson, domain models
 - `app/src/main/AndroidManifest.xml` — Activity, receivers, permissions
 - `app/google-services.json` — Firebase config (placeholder — replace with actual)
-- `app/src/test/` — 154 unit tests: NaturalLanguageParser (38), StreakCalculator (21), RecurrenceEngine (18), TaskFilter (13), SyncMapper (13), AppUpdater (11), UrgencyScorer (10), SuggestionEngine (8), RecurrenceConverter (8), HabitRepositoryHelpers (7), DataExporter (7)
+- `app/src/test/` — 216 unit tests: NaturalLanguageParser (38), AppUpdater (24), StreakCalculator (21), RecurrenceEngine (18), TaskFilter (13), SyncMapper (13), TaskTemplateRepository (11), UrgencyScorer (10), EntityJsonMerger (9), SuggestionEngine (8), RecurrenceConverter (8), DateShortcuts (7), DuplicateTask (7), HabitRepositoryHelpers (7), DataExporter (7), SortPreferences (6), MoveToProject (5), TemplateSeeder (4)
 - `app/src/androidTest/` — DAO + recurrence integration tests
