@@ -200,7 +200,7 @@ docker compose up -d
 # Release build (R8 minification + resource shrinking)
 ./gradlew assembleRelease
 
-# Run unit tests (154 tests)
+# Run unit tests (176 tests)
 ./gradlew testDebugUnitTest
 
 # Run instrumentation tests (requires device/emulator)
@@ -237,17 +237,18 @@ SQLite    Firestore
 
 ## Test Coverage
 
-**154 unit tests** across 11 test files:
+**176 unit tests** across 12 test files:
 
 | Test File | Tests | Covers |
 |-----------|-------|--------|
 | NaturalLanguageParserTest | 38 | Tags, projects, priority, dates, times, recurrence, edge cases |
+| AppUpdaterTest | 24 | GitHub API parsing, version comparison, download, install triggers |
 | StreakCalculatorTest | 21 | Current/longest streak, completion rate, weekly, by-day, multi-target |
 | RecurrenceEngineTest | 18 | Daily/weekly/monthly/yearly, intervals, skip weekends, end conditions |
 | TaskFilterTest | 13 | Filter activation, counting, defaults, all 7 filter types |
 | SyncMapperTest | 13 | Round-trip for tasks, projects, tags, habits, completions, defaults |
-| AppUpdaterTest | 11 | GitHub API parsing, version comparison, download, install triggers |
 | UrgencyScorerTest | 10 | Due date, priority, age, subtasks, urgency levels, clamping |
+| EntityJsonMergerTest | 9 | Merge vs. replace import paths for tasks, projects, habits |
 | RecurrenceConverterTest | 8 | JSON round-trip, invalid input, partial data, all recurrence types |
 | SuggestionEngineTest | 8 | Keyword extraction, stop words, short words, casing, empty input |
 | HabitRepositoryHelpersTest | 7 | Date normalization, week boundaries, idempotency |
