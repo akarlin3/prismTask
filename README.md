@@ -7,6 +7,8 @@
 [![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-Material%203-4285F4.svg)](https://developer.android.com/jetpack/compose)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688.svg)](https://fastapi.tiangolo.com)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791.svg)](https://postgresql.org)
+[![Android CI](https://github.com/akarlin3/averyTask/actions/workflows/android-ci.yml/badge.svg)](https://github.com/akarlin3/averyTask/actions/workflows/android-ci.yml)
+[![Backend CI](https://github.com/akarlin3/averyTask/actions/workflows/ci.yml/badge.svg)](https://github.com/akarlin3/averyTask/actions/workflows/ci.yml)
 
 A native Android task manager with a Python API backend featuring AI-powered natural language processing. Built with Kotlin/Jetpack Compose for the client and FastAPI/PostgreSQL for the server.
 

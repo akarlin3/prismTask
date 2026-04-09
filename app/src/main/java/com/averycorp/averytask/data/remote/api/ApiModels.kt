@@ -66,3 +66,15 @@ data class VersionResponse(
 )
 
 // endregion
+
+// region Export / Import
+
+data class ImportResponse(
+    @SerializedName("tasks_imported") val tasksImported: Int,
+    @SerializedName("projects_imported") val projectsImported: Int,
+    @SerializedName("tags_imported") val tagsImported: Int,
+    @SerializedName("habits_imported") val habitsImported: Int,
+    val mode: String
+)
+
+// endregion

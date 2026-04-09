@@ -3,9 +3,13 @@ package com.averycorp.averytask.data.remote.api
 import com.averycorp.averytask.data.remote.sync.SyncPullResponse
 import com.averycorp.averytask.data.remote.sync.SyncPushRequest
 import com.averycorp.averytask.data.remote.sync.SyncPushResponse
+import okhttp3.MultipartBody
+import okhttp3.ResponseBody
 import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.Multipart
 import retrofit2.http.POST
+import retrofit2.http.Part
 import retrofit2.http.Query
 
 /**
@@ -35,4 +39,14 @@ interface AveryTaskApi {
 
     @GET("api/v1/sync/pull")
     suspend fun syncPull(@Query("since") since: Long): SyncPullResponse
+
+    @GET("api/v1/export/json")
+    suspend fun exportJson(): ResponseBody
+
+    @Multipart
+    @POST("api/v1/import/json")
+    suspend fun importJson(
+        @Part file: MultipartBody.Part,
+        @Query("mode") mode: String = "merge"
+    ): ImportResponse
 }

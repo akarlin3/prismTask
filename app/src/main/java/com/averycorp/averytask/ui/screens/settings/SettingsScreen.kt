@@ -147,6 +147,8 @@ fun SettingsScreen(
     val isResetting by viewModel.isResetting.collectAsStateWithLifecycle()
     val isDriveExporting by viewModel.isDriveExporting.collectAsStateWithLifecycle()
     val isDriveImporting by viewModel.isDriveImporting.collectAsStateWithLifecycle()
+    val isCloudExporting by viewModel.isCloudExporting.collectAsStateWithLifecycle()
+    val isCloudImporting by viewModel.isCloudImporting.collectAsStateWithLifecycle()
     val pendingJson by viewModel.pendingJsonExport.collectAsStateWithLifecycle()
     val pendingCsv by viewModel.pendingCsvExport.collectAsStateWithLifecycle()
     val sectionOrder by viewModel.sectionOrder.collectAsStateWithLifecycle()
@@ -217,6 +219,18 @@ fun SettingsScreen(
             }
             if (jsonString != null) {
                 viewModel.onImportJson(jsonString)
+            }
+        }
+    }
+
+    val cloudImportLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+            val filename = uri.lastPathSegment?.substringAfterLast('/') ?: "import.json"
+            if (bytes != null) {
+                viewModel.onImportFromCloud(bytes, filename)
             }
         }
     }
@@ -382,7 +396,7 @@ fun SettingsScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            AnimatedVisibility(visible = isSyncing || isImporting || isExporting || isBackendSyncing) {
+            AnimatedVisibility(visible = isSyncing || isImporting || isExporting || isBackendSyncing || isCloudExporting || isCloudImporting) {
                 LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
             }
             Column(
@@ -992,6 +1006,47 @@ fun SettingsScreen(
                         enabled = !isBackendSyncing
                     ) {
                         Text("Disconnect")
+                    }
+                }
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = { viewModel.onExportToCloud() },
+                        enabled = !isCloudExporting && !isCloudImporting,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        if (isCloudExporting) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                strokeWidth = 2.dp
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Exporting...")
+                        } else {
+                            Text("Export to Cloud")
+                        }
+                    }
+                    OutlinedButton(
+                        onClick = {
+                            cloudImportLauncher.launch(arrayOf("application/json", "*/*"))
+                        },
+                        enabled = !isCloudImporting && !isCloudExporting,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        if (isCloudImporting) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                strokeWidth = 2.dp
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Importing...")
+                        } else {
+                            Text("Import from Cloud")
+                        }
                     }
                 }
             } else {
