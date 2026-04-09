@@ -36,7 +36,7 @@ import com.averycorp.averytask.data.local.entity.UsageLogEntity
 
 @Database(
     entities = [TaskEntity::class, ProjectEntity::class, TagEntity::class, TaskTagCrossRef::class, AttachmentEntity::class, UsageLogEntity::class, SyncMetadataEntity::class, CalendarSyncEntity::class, HabitEntity::class, HabitCompletionEntity::class, LeisureLogEntity::class, CourseEntity::class, AssignmentEntity::class, StudyLogEntity::class, CourseCompletionEntity::class, SelfCareLogEntity::class, SelfCareStepEntity::class],
-    version = 20,
+    version = 21,
     exportSchema = false
 )
 abstract class AveryTaskDatabase : RoomDatabase() {
@@ -346,6 +346,26 @@ abstract class AveryTaskDatabase : RoomDatabase() {
         val MIGRATION_19_20 = object : Migration(19, 20) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE self_care_logs ADD COLUMN tiers_by_time TEXT NOT NULL DEFAULT '{}'")
+            }
+        }
+
+        val MIGRATION_20_21 = object : Migration(20, 21) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE tasks ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0")
+                // Seed sort_order for existing subtasks based on created_at so current
+                // ordering is preserved.
+                db.execSQL(
+                    """
+                    UPDATE tasks
+                    SET sort_order = (
+                        SELECT COUNT(*)
+                        FROM tasks AS t2
+                        WHERE t2.parent_task_id = tasks.parent_task_id
+                          AND t2.created_at < tasks.created_at
+                    )
+                    WHERE parent_task_id IS NOT NULL
+                    """.trimIndent()
+                )
             }
         }
     }

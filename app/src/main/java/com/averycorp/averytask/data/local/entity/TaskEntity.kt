@@ -86,5 +86,8 @@ data class TaskEntity(
     val scheduledStartTime: Long? = null,
 
     @ColumnInfo(name = "source_habit_id")
-    val sourceHabitId: Long? = null
+    val sourceHabitId: Long? = null,
+
+    @ColumnInfo(name = "sort_order")
+    val sortOrder: Int = 0
 )

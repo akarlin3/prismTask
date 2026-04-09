@@ -42,12 +42,14 @@ class TaskRepository @Inject constructor(
     suspend fun addSubtask(title: String, parentTaskId: Long, priority: Int = 0): Long {
         val now = System.currentTimeMillis()
         val parent = taskDao.getTaskById(parentTaskId).firstOrNull()
+        val nextSortOrder = taskDao.getMaxSubtaskSortOrder(parentTaskId) + 1
         val task = TaskEntity(
             title = title,
             parentTaskId = parentTaskId,
             projectId = parent?.projectId,
             dueDate = parent?.dueDate,
             priority = priority,
+            sortOrder = nextSortOrder,
             createdAt = now,
             updatedAt = now
         )
@@ -55,6 +57,13 @@ class TaskRepository @Inject constructor(
         syncTracker.trackCreate(id, "task")
         calendarSyncService.syncTaskToCalendar(task.copy(id = id))
         return id
+    }
+
+    suspend fun reorderSubtasks(parentTaskId: Long, orderedIds: List<Long>) {
+        orderedIds.forEachIndexed { index, id ->
+            taskDao.updateSortOrder(id, index)
+            syncTracker.trackUpdate(id, "task")
+        }
     }
 
     suspend fun getAllTasksOnce(): List<TaskEntity> = taskDao.getAllTasksOnce()

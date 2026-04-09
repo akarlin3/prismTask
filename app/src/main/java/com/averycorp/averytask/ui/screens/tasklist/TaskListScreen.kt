@@ -722,7 +722,11 @@ private fun androidx.compose.foundation.lazy.LazyListScope.taskItemWithSubtasks(
                 parentTaskId = task.id,
                 subtasks = subtasks,
                 onToggleComplete = viewModel::onToggleSubtaskComplete,
-                onAddSubtask = viewModel::onAddSubtask,
+                onAddSubtask = { title, parentId, priority ->
+                    viewModel.onAddSubtask(title, parentId, priority)
+                },
+                onDeleteSubtask = viewModel::onDeleteSubtaskWithUndo,
+                onReorderSubtasks = viewModel::onReorderSubtasks,
                 expanded = expandedTaskIds.contains(task.id),
                 onToggleExpand = {
                     onExpandChange(
