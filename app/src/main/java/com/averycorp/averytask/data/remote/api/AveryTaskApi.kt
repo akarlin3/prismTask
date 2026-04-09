@@ -1,8 +1,12 @@
 package com.averycorp.averytask.data.remote.api
 
+import com.averycorp.averytask.data.remote.sync.SyncPullResponse
+import com.averycorp.averytask.data.remote.sync.SyncPushRequest
+import com.averycorp.averytask.data.remote.sync.SyncPushResponse
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
+import retrofit2.http.Query
 
 /**
  * Retrofit interface for the AveryTask FastAPI backend.
@@ -25,4 +29,10 @@ interface AveryTaskApi {
 
     @GET("api/v1/app/version")
     suspend fun getVersion(): VersionResponse
+
+    @POST("api/v1/sync/push")
+    suspend fun syncPush(@Body request: SyncPushRequest): SyncPushResponse
+
+    @GET("api/v1/sync/pull")
+    suspend fun syncPull(@Query("since") since: Long): SyncPullResponse
 }

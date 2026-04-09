@@ -8,6 +8,8 @@ import com.averycorp.averytask.data.export.DataImporter
 import com.averycorp.averytask.data.export.ImportMode
 import com.averycorp.averytask.data.preferences.ApiPreferences
 import com.averycorp.averytask.data.preferences.ArchivePreferences
+import com.averycorp.averytask.data.preferences.AuthTokenPreferences
+import com.averycorp.averytask.data.preferences.BackendSyncPreferences
 import com.averycorp.averytask.data.preferences.CalendarPreferences
 import com.averycorp.averytask.data.preferences.DashboardPreferences
 import com.averycorp.averytask.data.preferences.TabPreferences
@@ -25,6 +27,10 @@ import com.averycorp.averytask.data.remote.CalendarSyncService
 import com.averycorp.averytask.data.remote.DeviceCalendar
 import com.averycorp.averytask.data.remote.GoogleDriveService
 import com.averycorp.averytask.data.remote.SyncService
+import com.averycorp.averytask.data.remote.api.AveryTaskApi
+import com.averycorp.averytask.data.remote.api.LoginRequest
+import com.averycorp.averytask.data.remote.api.RegisterRequest
+import com.averycorp.averytask.data.remote.sync.BackendSyncService
 import com.averycorp.averytask.data.repository.TaskRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -61,6 +67,10 @@ class SettingsViewModel @Inject constructor(
     private val calendarSyncService: CalendarSyncService,
     private val taskRepository: TaskRepository,
     private val googleDriveService: GoogleDriveService,
+    private val backendSyncService: BackendSyncService,
+    private val backendSyncPreferences: BackendSyncPreferences,
+    private val authTokenPreferences: AuthTokenPreferences,
+    private val averyTaskApi: AveryTaskApi,
     val appUpdater: AppUpdater
 ) : ViewModel() {
 
@@ -253,6 +263,20 @@ class SettingsViewModel @Inject constructor(
 
     private val _isSyncing = MutableStateFlow(false)
     val isSyncing: StateFlow<Boolean> = _isSyncing
+
+    // --- Backend Sync (FastAPI) ---
+    val backendLastSyncAt: StateFlow<Long> = backendSyncPreferences.lastSyncAtFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0L)
+
+    val backendConnected: StateFlow<Boolean> = authTokenPreferences.accessTokenFlow
+        .map { !it.isNullOrBlank() }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    private val _isBackendSyncing = MutableStateFlow(false)
+    val isBackendSyncing: StateFlow<Boolean> = _isBackendSyncing
+
+    private val _isBackendAuthenticating = MutableStateFlow(false)
+    val isBackendAuthenticating: StateFlow<Boolean> = _isBackendAuthenticating
 
     private val _isImporting = MutableStateFlow(false)
     val isImporting: StateFlow<Boolean> = _isImporting
@@ -498,6 +522,77 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    fun onBackendSync() {
+        viewModelScope.launch {
+            if (_isBackendSyncing.value) return@launch
+            _isBackendSyncing.value = true
+            try {
+                val result = backendSyncService.fullSync()
+                result.fold(
+                    onSuccess = { summary ->
+                        _messages.emit(
+                            "Backend sync complete — pushed ${summary.pushed}, pulled ${summary.pulled}"
+                        )
+                    },
+                    onFailure = { e ->
+                        Log.e("SettingsVM", "Backend sync failed", e)
+                        _messages.emit("Backend sync failed: ${e.message ?: "unknown error"}")
+                    }
+                )
+            } finally {
+                _isBackendSyncing.value = false
+            }
+        }
+    }
+
+    fun onBackendLogin(email: String, password: String, onComplete: (Boolean) -> Unit) {
+        viewModelScope.launch {
+            if (_isBackendAuthenticating.value) return@launch
+            _isBackendAuthenticating.value = true
+            try {
+                val tokens = averyTaskApi.login(LoginRequest(email = email, password = password))
+                authTokenPreferences.saveTokens(tokens.accessToken, tokens.refreshToken)
+                _messages.emit("Connected to backend")
+                onComplete(true)
+            } catch (e: Exception) {
+                Log.e("SettingsVM", "Backend login failed", e)
+                _messages.emit("Login failed: ${e.message ?: "unknown error"}")
+                onComplete(false)
+            } finally {
+                _isBackendAuthenticating.value = false
+            }
+        }
+    }
+
+    fun onBackendRegister(email: String, password: String, name: String, onComplete: (Boolean) -> Unit) {
+        viewModelScope.launch {
+            if (_isBackendAuthenticating.value) return@launch
+            _isBackendAuthenticating.value = true
+            try {
+                val tokens = averyTaskApi.register(
+                    RegisterRequest(email = email, password = password, name = name)
+                )
+                authTokenPreferences.saveTokens(tokens.accessToken, tokens.refreshToken)
+                _messages.emit("Backend account created")
+                onComplete(true)
+            } catch (e: Exception) {
+                Log.e("SettingsVM", "Backend register failed", e)
+                _messages.emit("Registration failed: ${e.message ?: "unknown error"}")
+                onComplete(false)
+            } finally {
+                _isBackendAuthenticating.value = false
+            }
+        }
+    }
+
+    fun onBackendDisconnect() {
+        viewModelScope.launch {
+            authTokenPreferences.clearTokens()
+            backendSyncPreferences.clear()
+            _messages.emit("Disconnected from backend")
+        }
+    }
+
     fun onSignOut() {
         viewModelScope.launch {
             authManager.signOut()
@@ -548,6 +643,8 @@ class SettingsViewModel @Inject constructor(
                 calendarPreferences.clearAll()
                 leisurePreferences.clearAll()
                 habitListPreferences.clearAll()
+                backendSyncPreferences.clear()
+                authTokenPreferences.clearTokens()
                 authManager.signOut()
                 _messages.emit("App reset complete. Restart recommended.")
             } catch (e: Exception) {
