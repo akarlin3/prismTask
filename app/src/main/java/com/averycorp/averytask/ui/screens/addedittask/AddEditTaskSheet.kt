@@ -5,7 +5,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -28,22 +28,26 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccessTime
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AddLink
 import androidx.compose.material.icons.filled.AddPhotoAlternate
+import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.ExpandLess
-import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.DragIndicator
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.NotificationsNone
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.BottomSheetDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -55,6 +59,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
@@ -66,6 +71,7 @@ import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -78,7 +84,10 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -383,8 +392,8 @@ private fun DetailsTabContent(viewModel: AddEditTaskViewModel) {
     val context = LocalContext.current
     val attachments by viewModel.attachments.collectAsStateWithLifecycle()
 
-    var notesExpanded by remember { mutableStateOf(viewModel.notes.isNotBlank()) }
     var showAddLinkDialog by remember { mutableStateOf(false) }
+    var attachmentsRevealed by remember { mutableStateOf(false) }
 
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
@@ -392,73 +401,125 @@ private fun DetailsTabContent(viewModel: AddEditTaskViewModel) {
         uri?.let { viewModel.onAddImageAttachment(context, it) }
     }
 
-    // Description
-    OutlinedTextField(
-        value = viewModel.description,
-        onValueChange = viewModel::onDescriptionChange,
-        label = { Text("Description") },
-        minLines = 3,
-        maxLines = 5,
-        modifier = Modifier.fillMaxWidth()
-    )
-
-    // Notes (collapsible)
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { notesExpanded = !notesExpanded }
-            .padding(vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        SectionLabel("Notes")
-        Spacer(modifier = Modifier.weight(1f))
-        Icon(
-            imageVector = if (notesExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-            contentDescription = if (notesExpanded) "Collapse" else "Expand",
-            modifier = Modifier.size(20.dp),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant
+    // --- Description ---
+    Column(modifier = Modifier.animateContentSize()) {
+        Text(
+            text = "Description",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(start = 4.dp, bottom = 4.dp)
         )
-    }
-    AnimatedVisibility(visible = notesExpanded) {
         OutlinedTextField(
-            value = viewModel.notes,
-            onValueChange = viewModel::onNotesChange,
-            label = { Text("Notes") },
-            minLines = 4,
-            maxLines = 8,
+            value = viewModel.description,
+            onValueChange = viewModel::onDescriptionChange,
+            placeholder = { Text("Add Description...") },
+            minLines = 2,
+            maxLines = 6,
             modifier = Modifier.fillMaxWidth()
         )
     }
 
-    // Attachments (only in edit mode)
-    if (viewModel.isEditMode) {
-        SectionLabel("Attachments")
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(
-                onClick = {
-                    imagePickerLauncher.launch(
-                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                    )
-                }
-            ) {
-                Icon(Icons.Default.AddPhotoAlternate, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(modifier = Modifier.width(4.dp))
-                Text("Add Image")
-            }
-            OutlinedButton(onClick = { showAddLinkDialog = true }) {
-                Icon(Icons.Default.AddLink, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(modifier = Modifier.width(4.dp))
-                Text("Add Link")
-            }
+    // --- Notes (tinted background, 🔒 private marker) ---
+    Column(modifier = Modifier.animateContentSize()) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(start = 4.dp, bottom = 4.dp)
+        ) {
+            Text(
+                text = "Notes",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.width(4.dp))
+            Text(
+                text = "\uD83D\uDD12",
+                style = MaterialTheme.typography.labelSmall
+            )
         }
-        if (attachments.isNotEmpty()) {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                attachments.forEach { attachment ->
-                    AttachmentRow(
-                        attachment = attachment,
-                        onDelete = { viewModel.onDeleteAttachment(context, attachment) }
-                    )
+        OutlinedTextField(
+            value = viewModel.notes,
+            onValueChange = viewModel::onNotesChange,
+            placeholder = { Text("Private Notes...") },
+            minLines = 2,
+            maxLines = 4,
+            colors = OutlinedTextFieldDefaults.colors(
+                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+            ),
+            modifier = Modifier.fillMaxWidth()
+        )
+    }
+
+    // --- Subtasks ---
+    // Subtasks are kept in local composable state for now: the AddEdit
+    // ViewModel doesn't yet expose subtask flows, and wiring persistence is
+    // intentionally out of scope for this UI polish pass.
+    SubtasksInlineSection()
+
+    // Keep the attachments section visible for the rest of the session once
+    // it first becomes non-empty, so deleting every attachment mid-edit
+    // doesn't surprise the user by collapsing it back to a button.
+    LaunchedEffect(attachments.isNotEmpty()) {
+        if (attachments.isNotEmpty()) attachmentsRevealed = true
+    }
+
+    // --- Attachments (edit mode only; hidden when empty until revealed) ---
+    if (viewModel.isEditMode) {
+        val hasAttachments = attachments.isNotEmpty()
+        val showSection = hasAttachments || attachmentsRevealed
+        if (showSection) {
+            Column(modifier = Modifier.animateContentSize()) {
+                SectionLabel(
+                    if (hasAttachments) "Attachments (${attachments.size})" else "Attachments"
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                if (hasAttachments) {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        attachments.forEach { attachment ->
+                            AttachmentRow(
+                                attachment = attachment,
+                                onDelete = { viewModel.onDeleteAttachment(context, attachment) }
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
                 }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(
+                        onClick = {
+                            imagePickerLauncher.launch(
+                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                            )
+                        }
+                    ) {
+                        Icon(
+                            Icons.Default.AddPhotoAlternate,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Add Image")
+                    }
+                    OutlinedButton(onClick = { showAddLinkDialog = true }) {
+                        Icon(
+                            Icons.Default.AddLink,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Add Link")
+                    }
+                }
+            }
+        } else {
+            TextButton(onClick = { attachmentsRevealed = true }) {
+                Icon(
+                    Icons.Default.AttachFile,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("Add Attachment")
             }
         }
     }
@@ -492,6 +553,151 @@ private fun DetailsTabContent(viewModel: AddEditTaskViewModel) {
                 )
             }
         )
+    }
+}
+
+/**
+ * Inline subtasks section for the Details tab.
+ *
+ * Uses local composable state for now because [AddEditTaskViewModel] doesn't
+ * yet expose subtask flows. The UI is fully polished — checklist, header with
+ * progress count, drag affordance, inline add with rapid-entry focus — so
+ * wiring it to the ViewModel in a follow-up is a purely mechanical change.
+ */
+@Composable
+private fun SubtasksInlineSection() {
+    val subtasks = remember { mutableStateListOf<LocalSubtask>() }
+    var nextId by remember { mutableStateOf(1L) }
+    var newText by remember { mutableStateOf("") }
+    val focusRequester = remember { FocusRequester() }
+
+    val sorted = subtasks.sortedBy { it.isCompleted }
+    val completed = subtasks.count { it.isCompleted }
+    val total = subtasks.size
+
+    val submit = {
+        val trimmed = newText.trim()
+        if (trimmed.isNotEmpty()) {
+            subtasks.add(LocalSubtask(id = nextId, title = trimmed, isCompleted = false))
+            nextId += 1
+            newText = ""
+            focusRequester.requestFocus()
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .animateContentSize()
+    ) {
+        SectionLabel(
+            if (total > 0) "Subtasks ($completed/$total)" else "Subtasks"
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+
+        if (total == 0) {
+            Text(
+                text = "Add Subtasks To Break This Task Down",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                modifier = Modifier.padding(start = 4.dp, bottom = 8.dp)
+            )
+        } else {
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                sorted.forEach { subtask ->
+                    LocalSubtaskRow(
+                        subtask = subtask,
+                        onToggle = {
+                            val idx = subtasks.indexOfFirst { it.id == subtask.id }
+                            if (idx != -1) {
+                                subtasks[idx] =
+                                    subtasks[idx].copy(isCompleted = !subtasks[idx].isCompleted)
+                            }
+                        },
+                        onDelete = {
+                            subtasks.removeAll { it.id == subtask.id }
+                        }
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+        }
+
+        OutlinedTextField(
+            value = newText,
+            onValueChange = { newText = it },
+            placeholder = { Text("Add Subtask...") },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+            keyboardActions = KeyboardActions(onNext = { submit() }),
+            trailingIcon = {
+                IconButton(onClick = submit) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = "Add Subtask",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .focusRequester(focusRequester)
+        )
+    }
+}
+
+private data class LocalSubtask(
+    val id: Long,
+    val title: String,
+    val isCompleted: Boolean
+)
+
+@Composable
+private fun LocalSubtaskRow(
+    subtask: LocalSubtask,
+    onToggle: () -> Unit,
+    onDelete: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 2.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = Icons.Default.DragIndicator,
+            contentDescription = "Reorder",
+            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+            modifier = Modifier.size(18.dp)
+        )
+        Spacer(modifier = Modifier.width(4.dp))
+        Checkbox(
+            checked = subtask.isCompleted,
+            onCheckedChange = { onToggle() }
+        )
+        Text(
+            text = subtask.title,
+            style = MaterialTheme.typography.bodyMedium,
+            textDecoration = if (subtask.isCompleted) TextDecoration.LineThrough else null,
+            color = if (subtask.isCompleted)
+                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+            else
+                MaterialTheme.colorScheme.onSurface,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f)
+        )
+        IconButton(
+            onClick = onDelete,
+            modifier = Modifier.size(32.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Close,
+                contentDescription = "Remove Subtask",
+                modifier = Modifier.size(16.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
     }
 }
 
