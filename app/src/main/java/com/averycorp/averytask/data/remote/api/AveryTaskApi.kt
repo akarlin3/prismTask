@@ -38,7 +38,7 @@ interface AveryTaskApi {
     suspend fun syncPush(@Body request: SyncPushRequest): SyncPushResponse
 
     @GET("api/v1/sync/pull")
-    suspend fun syncPull(@Query("since") since: Long): SyncPullResponse
+    suspend fun syncPull(@Query("since") since: String? = null): SyncPullResponse
 
     @GET("api/v1/export/json")
     suspend fun exportJson(): ResponseBody

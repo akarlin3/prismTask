@@ -15,6 +15,8 @@ import com.averycorp.averytask.data.preferences.AuthTokenPreferences
 import com.averycorp.averytask.data.preferences.BackendSyncPreferences
 import com.averycorp.averytask.data.remote.api.AveryTaskApi
 import com.google.gson.JsonObject
+import java.time.Instant
+import java.time.OffsetDateTime
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -27,6 +29,10 @@ import javax.inject.Singleton
  *
  * Conflict resolution: last-write-wins by `updated_at` timestamp. When a pulled
  * entity has an older `updated_at` than the local copy, the local copy is kept.
+ *
+ * The payload shape mirrors the Pydantic models in `backend/app/schemas/sync.py`.
+ * All timestamps crossing the wire are ISO 8601 strings (the backend uses
+ * `datetime` fields, which Pydantic rejects with 422 if we send epoch millis).
  */
 @Singleton
 class BackendSyncService @Inject constructor(
@@ -99,8 +105,12 @@ class BackendSyncService @Inject constructor(
 
         if (operations.isEmpty()) return 0
 
+        val request = SyncPushRequest(
+            operations = operations,
+            lastSync = if (since > 0) millisToIso(since) else null
+        )
         try {
-            api.syncPush(SyncPushRequest(operations))
+            api.syncPush(request)
         } catch (e: Exception) {
             Log.e(TAG, "Push failed", e)
             throw e
@@ -115,26 +125,28 @@ class BackendSyncService @Inject constructor(
      */
     suspend fun pullChanges(): Int {
         val since = backendSyncPreferences.getLastSyncAt()
+        val sinceParam = if (since > 0) millisToIso(since) else null
         val response = try {
-            api.syncPull(since)
+            api.syncPull(sinceParam)
         } catch (e: Exception) {
             Log.e(TAG, "Pull failed", e)
             throw e
         }
 
         var applied = 0
-        applied += applyProjectEntities(response.projects)
-        applied += applyTagEntities(response.tags)
-        applied += applyHabitEntities(response.habits)
-        applied += applyTaskEntities(response.tasks)
-        applied += applyHabitCompletionEntities(response.habitCompletions)
+        // The backend applies projects before tasks so FK references resolve
+        // correctly; mirror that ordering here.
+        applied += applyProjectChanges(response.changes.filter { it.entityType == "project" })
+        applied += applyTagChanges(response.changes.filter { it.entityType == "tag" })
+        applied += applyHabitChanges(response.changes.filter { it.entityType == "habit" })
+        applied += applyTaskChanges(response.changes.filter { it.entityType == "task" })
+        applied += applyHabitCompletionChanges(
+            response.changes.filter { it.entityType == "habit_completion" }
+        )
 
-        val timestamp = if (response.serverTimestamp > 0) {
-            response.serverTimestamp
-        } else {
-            System.currentTimeMillis()
-        }
-        backendSyncPreferences.setLastSyncAt(timestamp)
+        val timestampMillis = response.serverTimestamp?.let { isoToMillisOrNull(it) }
+            ?: System.currentTimeMillis()
+        backendSyncPreferences.setLastSyncAt(timestampMillis)
         return applied
     }
 
@@ -166,9 +178,9 @@ class BackendSyncService @Inject constructor(
         return SyncOperation(
             entityType = "task",
             operation = "update",
-            clientId = task.id,
-            updatedAt = task.updatedAt,
-            data = data
+            entityId = task.id,
+            data = data,
+            clientTimestamp = millisToIso(task.updatedAt)
         )
     }
 
@@ -184,9 +196,9 @@ class BackendSyncService @Inject constructor(
         return SyncOperation(
             entityType = "project",
             operation = "update",
-            clientId = project.id,
-            updatedAt = project.updatedAt,
-            data = data
+            entityId = project.id,
+            data = data,
+            clientTimestamp = millisToIso(project.updatedAt)
         )
     }
 
@@ -200,9 +212,9 @@ class BackendSyncService @Inject constructor(
         return SyncOperation(
             entityType = "tag",
             operation = "update",
-            clientId = tag.id,
-            updatedAt = tag.createdAt,
-            data = data
+            entityId = tag.id,
+            data = data,
+            clientTimestamp = millisToIso(tag.createdAt)
         )
     }
 
@@ -230,9 +242,9 @@ class BackendSyncService @Inject constructor(
         return SyncOperation(
             entityType = "habit",
             operation = "update",
-            clientId = habit.id,
-            updatedAt = habit.updatedAt,
-            data = data
+            entityId = habit.id,
+            data = data,
+            clientTimestamp = millisToIso(habit.updatedAt)
         )
     }
 
@@ -247,9 +259,9 @@ class BackendSyncService @Inject constructor(
         return SyncOperation(
             entityType = "habit_completion",
             operation = "update",
-            clientId = completion.id,
-            updatedAt = completion.completedAt,
-            data = data
+            entityId = completion.id,
+            data = data,
+            clientTimestamp = millisToIso(completion.completedAt)
         )
     }
 
@@ -257,18 +269,21 @@ class BackendSyncService @Inject constructor(
 
     // region Pull application
 
-    private suspend fun applyTaskEntities(entities: List<SyncEntity>): Int {
+    private suspend fun applyTaskChanges(changes: List<SyncChange>): Int {
         var applied = 0
-        for (entity in entities) {
-            val data = entity.data ?: continue
-            val clientId = entity.clientId ?: data.optLong("id") ?: continue
-            if (entity.deleted) {
+        for (change in changes) {
+            val clientId = change.entityId
+            if (change.operation == "delete") {
                 taskDao.deleteById(clientId)
                 applied++
                 continue
             }
+            val data = change.data ?: continue
+            val remoteUpdatedAt = data.optLong("updated_at")
+                ?: change.timestamp?.let { isoToMillisOrNull(it) }
+                ?: System.currentTimeMillis()
             val existing = taskDao.getTaskByIdOnce(clientId)
-            if (existing != null && existing.updatedAt >= entity.updatedAt) {
+            if (existing != null && existing.updatedAt >= remoteUpdatedAt) {
                 // Local copy is newer or equal — keep it (last-write-wins).
                 continue
             }
@@ -285,7 +300,7 @@ class BackendSyncService @Inject constructor(
                 recurrenceRule = data.optString("recurrence_rule"),
                 reminderOffset = data.optLong("reminder_offset"),
                 createdAt = data.optLong("created_at") ?: System.currentTimeMillis(),
-                updatedAt = entity.updatedAt,
+                updatedAt = remoteUpdatedAt,
                 completedAt = data.optLong("completed_at"),
                 archivedAt = data.optLong("archived_at"),
                 notes = data.optString("notes"),
@@ -300,25 +315,28 @@ class BackendSyncService @Inject constructor(
         return applied
     }
 
-    private suspend fun applyProjectEntities(entities: List<SyncEntity>): Int {
+    private suspend fun applyProjectChanges(changes: List<SyncChange>): Int {
         var applied = 0
-        for (entity in entities) {
-            val data = entity.data ?: continue
-            val clientId = entity.clientId ?: data.optLong("id") ?: continue
-            if (entity.deleted) {
+        for (change in changes) {
+            val clientId = change.entityId
+            if (change.operation == "delete") {
                 projectDao.getProjectByIdOnce(clientId)?.let { projectDao.delete(it) }
                 applied++
                 continue
             }
+            val data = change.data ?: continue
+            val remoteUpdatedAt = data.optLong("updated_at")
+                ?: change.timestamp?.let { isoToMillisOrNull(it) }
+                ?: System.currentTimeMillis()
             val existing = projectDao.getProjectByIdOnce(clientId)
-            if (existing != null && existing.updatedAt >= entity.updatedAt) continue
+            if (existing != null && existing.updatedAt >= remoteUpdatedAt) continue
             val project = ProjectEntity(
                 id = clientId,
                 name = data.optString("name") ?: "",
                 color = data.optString("color") ?: "#4A90D9",
                 icon = data.optString("icon") ?: "\uD83D\uDCC1",
                 createdAt = data.optLong("created_at") ?: System.currentTimeMillis(),
-                updatedAt = entity.updatedAt
+                updatedAt = remoteUpdatedAt
             )
             projectDao.insert(project)
             applied++
@@ -326,23 +344,26 @@ class BackendSyncService @Inject constructor(
         return applied
     }
 
-    private suspend fun applyTagEntities(entities: List<SyncEntity>): Int {
+    private suspend fun applyTagChanges(changes: List<SyncChange>): Int {
         var applied = 0
-        for (entity in entities) {
-            val data = entity.data ?: continue
-            val clientId = entity.clientId ?: data.optLong("id") ?: continue
-            if (entity.deleted) {
+        for (change in changes) {
+            val clientId = change.entityId
+            if (change.operation == "delete") {
                 tagDao.getTagByIdOnce(clientId)?.let { tagDao.delete(it) }
                 applied++
                 continue
             }
+            val data = change.data ?: continue
+            val remoteCreatedAt = data.optLong("created_at")
+                ?: change.timestamp?.let { isoToMillisOrNull(it) }
+                ?: System.currentTimeMillis()
             val existing = tagDao.getTagByIdOnce(clientId)
-            if (existing != null && existing.createdAt >= entity.updatedAt) continue
+            if (existing != null && existing.createdAt >= remoteCreatedAt) continue
             val tag = TagEntity(
                 id = clientId,
                 name = data.optString("name") ?: "",
                 color = data.optString("color") ?: "#6B7280",
-                createdAt = data.optLong("created_at") ?: entity.updatedAt
+                createdAt = remoteCreatedAt
             )
             tagDao.insert(tag)
             applied++
@@ -350,18 +371,21 @@ class BackendSyncService @Inject constructor(
         return applied
     }
 
-    private suspend fun applyHabitEntities(entities: List<SyncEntity>): Int {
+    private suspend fun applyHabitChanges(changes: List<SyncChange>): Int {
         var applied = 0
-        for (entity in entities) {
-            val data = entity.data ?: continue
-            val clientId = entity.clientId ?: data.optLong("id") ?: continue
-            if (entity.deleted) {
+        for (change in changes) {
+            val clientId = change.entityId
+            if (change.operation == "delete") {
                 habitDao.deleteById(clientId)
                 applied++
                 continue
             }
+            val data = change.data ?: continue
+            val remoteUpdatedAt = data.optLong("updated_at")
+                ?: change.timestamp?.let { isoToMillisOrNull(it) }
+                ?: System.currentTimeMillis()
             val existing = habitDao.getHabitByIdOnce(clientId)
-            if (existing != null && existing.updatedAt >= entity.updatedAt) continue
+            if (existing != null && existing.updatedAt >= remoteUpdatedAt) continue
             val habit = HabitEntity(
                 id = clientId,
                 name = data.optString("name") ?: "",
@@ -380,7 +404,7 @@ class BackendSyncService @Inject constructor(
                 reminderTimesPerDay = data.optInt("reminder_times_per_day") ?: 1,
                 hasLogging = data.optBool("has_logging") ?: false,
                 createdAt = data.optLong("created_at") ?: System.currentTimeMillis(),
-                updatedAt = entity.updatedAt
+                updatedAt = remoteUpdatedAt
             )
             habitDao.insert(habit)
             applied++
@@ -388,25 +412,28 @@ class BackendSyncService @Inject constructor(
         return applied
     }
 
-    private suspend fun applyHabitCompletionEntities(entities: List<SyncEntity>): Int {
+    private suspend fun applyHabitCompletionChanges(changes: List<SyncChange>): Int {
         var applied = 0
-        for (entity in entities) {
-            val data = entity.data ?: continue
-            val clientId = entity.clientId ?: data.optLong("id") ?: continue
-            if (entity.deleted) {
+        for (change in changes) {
+            val clientId = change.entityId
+            if (change.operation == "delete") {
                 // No delete-by-id on HabitCompletionDao; fall back to habit+date.
+                val data = change.data ?: continue
                 val habitId = data.optLong("habit_id") ?: continue
                 val completedDate = data.optLong("completed_date") ?: continue
                 habitCompletionDao.deleteByHabitAndDate(habitId, completedDate)
                 applied++
                 continue
             }
+            val data = change.data ?: continue
             val habitId = data.optLong("habit_id") ?: continue
+            val fallbackTimestamp = change.timestamp?.let { isoToMillisOrNull(it) }
+                ?: System.currentTimeMillis()
             val completion = HabitCompletionEntity(
                 id = clientId,
                 habitId = habitId,
                 completedDate = data.optLong("completed_date") ?: 0L,
-                completedAt = data.optLong("completed_at") ?: entity.updatedAt,
+                completedAt = data.optLong("completed_at") ?: fallbackTimestamp,
                 notes = data.optString("notes")
             )
             habitCompletionDao.insert(completion)
@@ -430,6 +457,31 @@ class BackendSyncService @Inject constructor(
 
     private fun JsonObject.optBool(key: String): Boolean? =
         get(key)?.takeIf { !it.isJsonNull }?.asBoolean
+
+    // endregion
+
+    // region Timestamp helpers
+
+    /**
+     * Convert epoch milliseconds to an ISO 8601 UTC string that Pydantic's
+     * `datetime` type accepts (e.g. "2026-04-09T12:34:56.789Z").
+     */
+    private fun millisToIso(millis: Long): String =
+        Instant.ofEpochMilli(millis).toString()
+
+    /**
+     * Parse an ISO 8601 datetime string (with or without timezone offset) into
+     * epoch milliseconds. Returns null if the string can't be parsed.
+     */
+    private fun isoToMillisOrNull(iso: String): Long? = try {
+        OffsetDateTime.parse(iso).toInstant().toEpochMilli()
+    } catch (_: Exception) {
+        try {
+            Instant.parse(iso).toEpochMilli()
+        } catch (_: Exception) {
+            null
+        }
+    }
 
     // endregion
 

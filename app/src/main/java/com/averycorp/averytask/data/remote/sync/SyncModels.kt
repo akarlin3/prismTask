@@ -7,11 +7,12 @@ import com.google.gson.annotations.SerializedName
  * Data models exchanged with the FastAPI backend sync endpoints
  * (`/api/v1/sync/push` and `/api/v1/sync/pull`).
  *
- * The payload uses generic JSON objects for entity data so the sync layer
- * stays decoupled from Room entity definitions.
+ * These mirror the Pydantic models in `backend/app/schemas/sync.py`. Keep the
+ * field names and nullability aligned with the server to avoid 422 Unprocessable
+ * Entity validation errors.
  *
  * Entity types (string): "task", "project", "tag", "habit", "habit_completion"
- * Operations (string): "create", "update", "delete"
+ * Operations (string): "create", "update", "delete" (push) / "upsert" (pull)
  */
 
 // region Push
@@ -19,48 +20,37 @@ import com.google.gson.annotations.SerializedName
 data class SyncOperation(
     @SerializedName("entity_type") val entityType: String,
     val operation: String,
-    @SerializedName("client_id") val clientId: Long,
-    @SerializedName("server_id") val serverId: String? = null,
-    @SerializedName("updated_at") val updatedAt: Long,
-    val data: JsonObject? = null
+    @SerializedName("entity_id") val entityId: Long? = null,
+    val data: JsonObject? = null,
+    @SerializedName("client_timestamp") val clientTimestamp: String
 )
 
 data class SyncPushRequest(
-    val operations: List<SyncOperation>
-)
-
-data class SyncPushResult(
-    @SerializedName("client_id") val clientId: Long,
-    @SerializedName("entity_type") val entityType: String,
-    @SerializedName("server_id") val serverId: String?,
-    val status: String,
-    val error: String? = null
+    val operations: List<SyncOperation>,
+    @SerializedName("last_sync") val lastSync: String? = null
 )
 
 data class SyncPushResponse(
-    val results: List<SyncPushResult> = emptyList(),
-    @SerializedName("server_timestamp") val serverTimestamp: Long = 0L
+    val processed: Int = 0,
+    val errors: List<String> = emptyList(),
+    @SerializedName("server_timestamp") val serverTimestamp: String? = null
 )
 
 // endregion
 
 // region Pull
 
-data class SyncEntity(
-    @SerializedName("server_id") val serverId: String?,
-    @SerializedName("client_id") val clientId: Long?,
-    @SerializedName("updated_at") val updatedAt: Long,
-    val deleted: Boolean = false,
-    val data: JsonObject? = null
+data class SyncChange(
+    @SerializedName("entity_type") val entityType: String,
+    val operation: String,
+    @SerializedName("entity_id") val entityId: Long,
+    val data: JsonObject? = null,
+    val timestamp: String? = null
 )
 
 data class SyncPullResponse(
-    val tasks: List<SyncEntity> = emptyList(),
-    val projects: List<SyncEntity> = emptyList(),
-    val tags: List<SyncEntity> = emptyList(),
-    val habits: List<SyncEntity> = emptyList(),
-    @SerializedName("habit_completions") val habitCompletions: List<SyncEntity> = emptyList(),
-    @SerializedName("server_timestamp") val serverTimestamp: Long = 0L
+    val changes: List<SyncChange> = emptyList(),
+    @SerializedName("server_timestamp") val serverTimestamp: String? = null
 )
 
 // endregion

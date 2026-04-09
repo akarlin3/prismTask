@@ -43,7 +43,7 @@ class NaturalLanguageParserTest {
             error("not used in offline parser tests")
         override suspend fun syncPush(request: SyncPushRequest): SyncPushResponse =
             error("not used in offline parser tests")
-        override suspend fun syncPull(since: Long): SyncPullResponse =
+        override suspend fun syncPull(since: String?): SyncPullResponse =
             error("not used in offline parser tests")
         override suspend fun exportJson(): ResponseBody =
             error("not used in offline parser tests")
