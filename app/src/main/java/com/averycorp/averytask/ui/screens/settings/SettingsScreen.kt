@@ -807,6 +807,10 @@ fun SettingsScreen(
                 title = "Manage Projects",
                 onClick = { navController.navigate("project_list") }
             )
+            SettingsRow(
+                title = "Templates",
+                onClick = { navController.navigate("templates") }
+            )
             SettingsRowWithSubtitle(
                 title = "Auto-archive",
                 subtitle = if (autoArchiveDays == 0) "Never" else "After $autoArchiveDays days",
