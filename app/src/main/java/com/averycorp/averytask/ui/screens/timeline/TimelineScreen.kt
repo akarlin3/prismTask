@@ -63,6 +63,7 @@ import com.averycorp.averytask.data.local.entity.TaskEntity
 import com.averycorp.averytask.ui.components.MoveToProjectSheet
 import com.averycorp.averytask.ui.components.QuickReschedulePopup
 import com.averycorp.averytask.ui.components.TaskContextMenuSheet
+import com.averycorp.averytask.ui.navigation.AveryTaskRoute
 import com.averycorp.averytask.ui.screens.addedittask.AddEditTaskSheetHost
 import com.averycorp.averytask.ui.theme.LocalPriorityColors
 import java.time.LocalDate
@@ -361,7 +362,11 @@ fun TimelineScreen(
             taskId = editorSheetTaskId,
             projectId = null,
             initialDate = if (editorSheetTaskId == null) initialDateForCreate else null,
-            onDismiss = { showEditorSheet = false }
+            onDismiss = { showEditorSheet = false },
+            onManageTemplates = {
+                showEditorSheet = false
+                navController.navigate(AveryTaskRoute.TemplateList.route)
+            }
         )
     }
 

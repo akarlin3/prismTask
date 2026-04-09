@@ -2,9 +2,11 @@ package com.averycorp.averytask.ui.screens.addedittask
 
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateListOf
 
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -20,6 +22,7 @@ import com.averycorp.averytask.data.repository.AttachmentRepository
 import com.averycorp.averytask.data.repository.ProjectRepository
 import com.averycorp.averytask.data.repository.TagRepository
 import com.averycorp.averytask.data.repository.TaskRepository
+import com.averycorp.averytask.data.repository.TaskTemplateRepository
 import com.averycorp.averytask.domain.model.RecurrenceRule
 import com.averycorp.averytask.notifications.ReminderScheduler
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -39,12 +42,25 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+/**
+ * Lightweight local model for subtasks surfaced in the editor's Details tab.
+ * Subtasks are held in VM state until the task is persisted — this lets
+ * templates pre-fill a list of titles that the user can tweak before the
+ * save path flushes them into [TaskRepository] as real [TaskEntity] rows.
+ */
+data class PendingSubtask(
+    val id: Long,
+    val title: String,
+    val isCompleted: Boolean = false
+)
+
 @HiltViewModel
 class AddEditTaskViewModel @Inject constructor(
     private val taskRepository: TaskRepository,
     private val projectRepository: ProjectRepository,
     private val tagRepository: TagRepository,
     private val attachmentRepository: AttachmentRepository,
+    private val templateRepository: TaskTemplateRepository,
     private val reminderScheduler: ReminderScheduler,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
@@ -88,6 +104,15 @@ class AddEditTaskViewModel @Inject constructor(
         private set
     var selectedTagIds by mutableStateOf(setOf<Long>())
         private set
+
+    /**
+     * Unpersisted subtasks for the task currently being composed. Populated
+     * either by the user typing into the Details tab's subtask field or by
+     * applying a template (which dumps its blueprint subtask titles here).
+     * Flushed into real [TaskEntity] rows when [saveTask] succeeds.
+     */
+    val pendingSubtasks: SnapshotStateList<PendingSubtask> = mutableStateListOf()
+    private var nextPendingSubtaskId: Long = 1L
 
     // Snapshot of initial values for unsaved-changes detection.
     private var hasInitialized: Boolean = false
@@ -168,6 +193,8 @@ class AddEditTaskViewModel @Inject constructor(
         notes = ""
         selectedTagIds = emptySet()
         titleError = false
+        pendingSubtasks.clear()
+        nextPendingSubtaskId = 1L
 
         if (taskId != null) {
             // Snapshot with defaults until the real task loads — the load
@@ -267,6 +294,99 @@ class AddEditTaskViewModel @Inject constructor(
     fun onEstimatedDurationChange(value: Int?) { estimatedDuration = value }
     fun onSelectedTagIdsChange(value: Set<Long>) { selectedTagIds = value }
     fun onParentTaskIdChange(value: Long?) { parentTaskId = value }
+
+    /**
+     * Appends a new pending subtask with the supplied [title] and returns
+     * the generated id. Subtasks are kept in VM state until [saveTask]
+     * flushes them to the database.
+     */
+    fun addPendingSubtask(title: String): Long {
+        val trimmed = title.trim()
+        if (trimmed.isEmpty()) return -1L
+        val id = nextPendingSubtaskId++
+        pendingSubtasks.add(PendingSubtask(id = id, title = trimmed))
+        return id
+    }
+
+    /** Toggles the local completion flag on an in-progress subtask. */
+    fun togglePendingSubtask(id: Long) {
+        val idx = pendingSubtasks.indexOfFirst { it.id == id }
+        if (idx >= 0) {
+            val current = pendingSubtasks[idx]
+            pendingSubtasks[idx] = current.copy(isCompleted = !current.isCompleted)
+        }
+    }
+
+    /** Removes a pending subtask from the list by id. */
+    fun removePendingSubtask(id: Long) {
+        pendingSubtasks.removeAll { it.id == id }
+    }
+
+    /**
+     * Loads the template referenced by [templateId] and pre-fills the
+     * in-progress form with its blueprint fields. Fires only in create mode
+     * — the editor hides its template button in edit mode so callers don't
+     * accidentally stomp an existing task's data. Returns true on success.
+     */
+    suspend fun applyTemplate(templateId: Long): Boolean {
+        return try {
+            val template = templateRepository.getTemplateById(templateId)
+                ?: run {
+                    _errorMessages.emit("Template not found")
+                    return false
+                }
+            title = template.templateTitle ?: template.name
+            description = template.templateDescription.orEmpty()
+            priority = template.templatePriority ?: priority
+            projectId = template.templateProjectId ?: projectId
+            recurrenceRule = template.templateRecurrenceJson
+                ?.let { RecurrenceConverter.fromJson(it) }
+            estimatedDuration = template.templateDuration
+            val templateTagIds = TaskTemplateRepository
+                .parseTagIds(template.templateTagsJson)
+                .toSet()
+            if (templateTagIds.isNotEmpty()) {
+                selectedTagIds = templateTagIds
+            }
+            pendingSubtasks.clear()
+            TaskTemplateRepository
+                .parseSubtaskTitles(template.templateSubtasksJson)
+                .forEach { subtaskTitle -> addPendingSubtask(subtaskTitle) }
+            titleError = false
+            true
+        } catch (e: Exception) {
+            Log.e("AddEditTaskVM", "Failed to apply template", e)
+            _errorMessages.emit("Failed to apply template")
+            false
+        }
+    }
+
+    /**
+     * Captures the currently-being-edited task as a reusable template.
+     * Only meaningful in edit mode — there is no draft state to persist in
+     * create mode, so this returns null without doing anything there.
+     */
+    suspend fun saveAsTemplate(
+        name: String,
+        icon: String?,
+        category: String?
+    ): Long? {
+        val taskId = currentTaskId ?: return null
+        val trimmedName = name.trim()
+        if (trimmedName.isEmpty()) return null
+        return try {
+            templateRepository.createTemplateFromTask(
+                taskId = taskId,
+                name = trimmedName,
+                icon = icon?.takeIf { it.isNotBlank() },
+                category = category?.trim()?.takeIf { it.isNotBlank() }
+            )
+        } catch (e: Exception) {
+            Log.e("AddEditTaskVM", "Failed to save task as template", e)
+            _errorMessages.emit("Failed to save template")
+            null
+        }
+    }
 
     /**
      * Inline project creation from the Organize tab. Creates the project via the
@@ -397,6 +517,24 @@ class AddEditTaskViewModel @Inject constructor(
 
             // Save tags
             tagRepository.setTagsForTask(savedId, selectedTagIds.toList())
+
+            // Flush any pending subtasks (e.g. from a template) into real rows.
+            if (pendingSubtasks.isNotEmpty()) {
+                val now = System.currentTimeMillis()
+                pendingSubtasks.forEachIndexed { index, sub ->
+                    val subtask = TaskEntity(
+                        title = sub.title,
+                        parentTaskId = savedId,
+                        isCompleted = sub.isCompleted,
+                        completedAt = if (sub.isCompleted) now else null,
+                        sortOrder = index,
+                        createdAt = now,
+                        updatedAt = now
+                    )
+                    taskRepository.insertTask(subtask)
+                }
+                pendingSubtasks.clear()
+            }
 
             // Schedule or cancel reminder
             if (reminderOffset != null && dueDate != null) {

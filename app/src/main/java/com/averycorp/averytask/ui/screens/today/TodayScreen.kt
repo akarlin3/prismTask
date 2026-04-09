@@ -348,6 +348,7 @@ fun TodayScreen(
     }
 
     // Plan for Today bottom sheet
+    val topTemplates by viewModel.topTemplates.collectAsStateWithLifecycle()
     if (showPlanSheet) {
         PlanForTodaySheet(
             plannedTasks = plannedTasks,
@@ -355,10 +356,16 @@ fun TodayScreen(
             upcomingTasks = tasksNotInToday,
             projects = projects,
             startOfToday = startOfToday,
+            topTemplates = topTemplates,
             onPlan = { viewModel.onPlanForToday(it) },
             onPlanMany = { viewModel.onPlanForToday(it) },
             onPlanAllOverdue = { viewModel.onPlanAllOverdue() },
             onUnplan = { viewModel.onRemoveFromToday(it) },
+            onUseTemplate = { viewModel.onCreateTaskFromTemplateForToday(it) },
+            onOpenManageTemplates = {
+                viewModel.onDismissPlanSheet()
+                navController.navigate(AveryTaskRoute.TemplateList.route)
+            },
             onDismiss = { viewModel.onDismissPlanSheet() }
         )
     }
@@ -369,7 +376,11 @@ fun TodayScreen(
             projectId = null,
             initialDate = if (editorSheetTaskId == null) startOfToday else null,
             onDismiss = { showEditorSheet = false },
-            onDeleteTask = { id -> viewModel.onDeleteTaskWithUndo(id) }
+            onDeleteTask = { id -> viewModel.onDeleteTaskWithUndo(id) },
+            onManageTemplates = {
+                showEditorSheet = false
+                navController.navigate(AveryTaskRoute.TemplateList.route)
+            }
         )
     }
 
@@ -1091,10 +1102,13 @@ private fun PlanForTodaySheet(
     upcomingTasks: List<TaskEntity>,
     projects: List<ProjectEntity>,
     startOfToday: Long,
+    topTemplates: List<com.averycorp.averytask.data.local.entity.TaskTemplateEntity>,
     onPlan: (Long) -> Unit,
     onPlanMany: (List<Long>) -> Unit,
     onPlanAllOverdue: () -> Unit,
     onUnplan: (Long) -> Unit,
+    onUseTemplate: (Long) -> Unit,
+    onOpenManageTemplates: () -> Unit,
     onDismiss: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
@@ -1102,6 +1116,7 @@ private fun PlanForTodaySheet(
     var sortMode by remember { mutableStateOf(PlanSortMode.DUE_DATE) }
     var selectedIds by remember { mutableStateOf(setOf<Long>()) }
     var multiSelectMode by remember { mutableStateOf(false) }
+    var showTemplatePickerSheet by remember { mutableStateOf(false) }
 
     // Collapsible group state
     var overdueExpanded by remember { mutableStateOf(true) }
@@ -1179,6 +1194,50 @@ private fun PlanForTodaySheet(
                     }) {
                         Text("Cancel")
                     }
+                }
+            }
+
+            // Templates section — shows top-used templates as compact chips
+            // for one-tap "plan this from template" creation. Empty when the
+            // user hasn't created any templates yet (no disruption).
+            if (topTemplates.isNotEmpty()) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 4.dp)
+                ) {
+                    Text(
+                        text = "\uD83D\uDCCB Templates",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(bottom = 6.dp)
+                    )
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        items(topTemplates, key = { it.id }) { template ->
+                            TemplateQuickChip(
+                                icon = template.icon,
+                                label = template.name,
+                                onClick = { onUseTemplate(template.id) }
+                            )
+                        }
+                        item {
+                            TextButton(
+                                onClick = { showTemplatePickerSheet = true },
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                            ) {
+                                Text(
+                                    text = "More Templates...",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
                 }
             }
 
@@ -1444,6 +1503,62 @@ private fun PlanForTodaySheet(
                     }
                 }
             }
+        }
+    }
+
+    // Full template picker overlay — shown when the user taps "More Templates..."
+    // on the chip row. Delegates to the shared TemplatePickerSheet so the UI
+    // matches what the task editor shows.
+    if (showTemplatePickerSheet) {
+        com.averycorp.averytask.ui.screens.templates.TemplatePickerSheet(
+            onDismiss = { showTemplatePickerSheet = false },
+            onUseTemplate = { template ->
+                onUseTemplate(template.id)
+                showTemplatePickerSheet = false
+            },
+            onManageTemplates = {
+                showTemplatePickerSheet = false
+                onOpenManageTemplates()
+            }
+        )
+    }
+}
+
+/**
+ * Compact chip surfaced in the Plan-for-Today sheet's Templates row. One
+ * tap fires [onClick], which invokes the ViewModel's
+ * `onCreateTaskFromTemplateForToday` and drops the resulting task straight
+ * onto today's dashboard.
+ */
+@Composable
+private fun TemplateQuickChip(
+    icon: String?,
+    label: String,
+    onClick: () -> Unit
+) {
+    Surface(
+        modifier = Modifier.clickable(onClick = onClick),
+        shape = RoundedCornerShape(20.dp),
+        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
+        tonalElevation = 0.dp
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = icon ?: "\uD83D\uDCCB",
+                style = MaterialTheme.typography.bodyMedium
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
         }
     }
 }

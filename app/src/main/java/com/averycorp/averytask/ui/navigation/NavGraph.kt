@@ -138,8 +138,17 @@ fun AveryTaskNavGraph(
     modifier: Modifier = Modifier,
     navController: NavHostController = rememberNavController(),
     tabOrder: List<String> = ALL_BOTTOM_NAV_ITEMS.map { it.route },
-    hiddenTabs: Set<String> = emptySet()
+    hiddenTabs: Set<String> = emptySet(),
+    initialLaunchAction: String? = null
 ) {
+    // Handle deep-link intents from the QuickAdd widget: "open_templates"
+    // routes straight to the Template List screen. Other launch actions
+    // fall through to the default start destination.
+    androidx.compose.runtime.LaunchedEffect(initialLaunchAction) {
+        if (initialLaunchAction == com.averycorp.averytask.MainActivity.ACTION_OPEN_TEMPLATES) {
+            navController.navigate(AveryTaskRoute.TemplateList.route)
+        }
+    }
     // Append any tabs that aren't yet in the saved order (e.g. new tabs added in an update).
     val effectiveOrder = tabOrder + ALL_BOTTOM_NAV_ITEMS.map { it.route }.filter { it !in tabOrder }
     val bottomNavItems = effectiveOrder

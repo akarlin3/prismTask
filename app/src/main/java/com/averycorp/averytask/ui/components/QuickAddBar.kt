@@ -4,6 +4,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,6 +27,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Icon
@@ -64,6 +66,65 @@ fun QuickAddBar(
     val parsedPreview by viewModel.parsedPreview.collectAsStateWithLifecycle()
     val isExpanded by viewModel.isExpanded.collectAsStateWithLifecycle()
     val isSubmitting by viewModel.isSubmitting.collectAsStateWithLifecycle()
+    val disambiguation by viewModel.templateDisambiguation.collectAsStateWithLifecycle()
+
+    // Disambiguation popup — shown when a "/query" shortcut matches more
+    // than one template and the user needs to pick.
+    disambiguation?.let { candidates ->
+        AlertDialog(
+            onDismissRequest = { viewModel.onDismissDisambiguation() },
+            title = { Text("Pick A Template") },
+            text = {
+                Column {
+                    Text(
+                        text = "Multiple Templates Match Your Shortcut. Tap One To Use:",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    candidates.forEach { template ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    viewModel.onDisambiguationSelected(
+                                        template.id,
+                                        plannedDateOverride
+                                    )
+                                    onTaskCreated()
+                                }
+                                .padding(vertical = 10.dp),
+                            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = template.icon ?: "\uD83D\uDCCB",
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Column {
+                                Text(
+                                    text = template.name,
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                                template.category?.let { category ->
+                                    Text(
+                                        text = category,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { viewModel.onDismissDisambiguation() }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
 
     val expandedState = alwaysExpanded || isExpanded
     Column(modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
@@ -153,6 +214,14 @@ private fun ParsedPreview(parsed: ParsedTask) {
         horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
+        parsed.templateQuery?.let { query ->
+            PreviewChip(
+                label = "Template: $query",
+                icon = "\uD83D\uDCCB",
+                color = MaterialTheme.colorScheme.primary
+            )
+        }
+
         parsed.dueDate?.let { millis ->
             PreviewChip(
                 label = dateFormat.format(Date(millis)),

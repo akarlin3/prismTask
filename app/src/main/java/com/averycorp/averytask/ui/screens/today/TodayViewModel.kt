@@ -9,6 +9,7 @@ import androidx.lifecycle.viewModelScope
 import com.averycorp.averytask.data.local.dao.TaskDao
 import com.averycorp.averytask.data.local.entity.TagEntity
 import com.averycorp.averytask.data.local.entity.TaskEntity
+import com.averycorp.averytask.data.local.entity.TaskTemplateEntity
 import com.averycorp.averytask.data.preferences.DashboardPreferences
 import com.averycorp.averytask.data.preferences.HabitListPreferences
 import com.averycorp.averytask.data.preferences.SortPreferences
@@ -23,6 +24,7 @@ import com.averycorp.averytask.data.repository.SchoolworkRepository
 import com.averycorp.averytask.data.repository.SelfCareRepository
 import com.averycorp.averytask.data.repository.TagRepository
 import com.averycorp.averytask.data.repository.TaskRepository
+import com.averycorp.averytask.data.repository.TaskTemplateRepository
 import com.averycorp.averytask.ui.components.QuickRescheduleFormatter
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -46,6 +48,7 @@ class TodayViewModel @Inject constructor(
     private val taskDao: TaskDao,
     private val habitRepository: HabitRepository,
     private val projectRepository: ProjectRepository,
+    private val templateRepository: TaskTemplateRepository,
     private val dashboardPreferences: DashboardPreferences,
     private val habitListPreferences: HabitListPreferences,
     private val taskBehaviorPreferences: TaskBehaviorPreferences,
@@ -448,6 +451,45 @@ class TodayViewModel @Inject constructor(
         viewModelScope.launch {
             taskIds.forEach { id ->
                 taskDao.updateDueDate(id, null)
+            }
+        }
+    }
+
+    /**
+     * Top 4 most-used templates for the Plan-for-Today sheet chip row.
+     * `getAllTemplates()` already orders by `usage_count DESC`, so a
+     * straight `take(4)` gives us the most frequently used ones.
+     */
+    val topTemplates: StateFlow<List<TaskTemplateEntity>> = templateRepository.getAllTemplates()
+        .map { it.take(4) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    /**
+     * Creates a task from a template and immediately plans it for today so
+     * it shows up on the current day's dashboard. Surfaces a snackbar so
+     * users can confirm the chip tap registered.
+     */
+    fun onCreateTaskFromTemplateForToday(templateId: Long) {
+        viewModelScope.launch {
+            try {
+                val today = currentStartOfToday()
+                val newTaskId = templateRepository.createTaskFromTemplate(
+                    templateId = templateId,
+                    dueDateOverride = today
+                )
+                // Pin to today's dashboard via planDate too — if the template
+                // has no due date, dueDateOverride still sets it, so this is
+                // a safety net for templates that already carry their own
+                // recurrence / schedule.
+                taskDao.setPlanDate(newTaskId, today)
+                val title = taskRepository.getTaskByIdOnce(newTaskId)?.title.orEmpty()
+                snackbarHostState.showSnackbar(
+                    message = "Added '${title.ifBlank { "task" }}' for today",
+                    duration = SnackbarDuration.Short
+                )
+            } catch (e: Exception) {
+                Log.e("TodayVM", "Failed to create task from template", e)
+                snackbarHostState.showSnackbar("Something went wrong")
             }
         }
     }

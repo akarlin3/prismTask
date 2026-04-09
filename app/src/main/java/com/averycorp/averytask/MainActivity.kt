@@ -45,11 +45,19 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var syncService: SyncService
 
+    companion object {
+        /** Intent extra key set by the QuickAdd widget to route deep-links. */
+        const val EXTRA_LAUNCH_ACTION = "com.averycorp.averytask.LAUNCH_ACTION"
+        const val ACTION_QUICK_ADD = "quick_add"
+        const val ACTION_OPEN_TEMPLATES = "open_templates"
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         NotificationHelper.createNotificationChannel(this)
         syncService.startAutoSync()
+        val launchAction = intent?.getStringExtra(EXTRA_LAUNCH_ACTION)
         setContent {
             var updateInfo by remember { mutableStateOf<VersionInfo?>(null) }
 
@@ -134,7 +142,8 @@ class MainActivity : ComponentActivity() {
                 AveryTaskNavGraph(
                     modifier = Modifier.fillMaxSize(),
                     tabOrder = tabOrder,
-                    hiddenTabs = hiddenTabs
+                    hiddenTabs = hiddenTabs,
+                    initialLaunchAction = launchAction
                 )
             }
         }

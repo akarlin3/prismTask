@@ -48,6 +48,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AddLink
 import androidx.compose.material.icons.filled.AddPhotoAlternate
 import androidx.compose.material.icons.filled.AttachFile
+import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Clear
@@ -92,7 +93,6 @@ import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -120,6 +120,7 @@ import com.averycorp.averytask.domain.model.RecurrenceRule
 import com.averycorp.averytask.domain.model.RecurrenceType
 import com.averycorp.averytask.ui.components.RecurrenceDialog
 import com.averycorp.averytask.ui.components.TagSelector
+import com.averycorp.averytask.ui.screens.templates.TemplatePickerSheet
 import com.averycorp.averytask.ui.theme.LocalPriorityColors
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -153,6 +154,7 @@ fun AddEditTaskSheetHost(
     initialTab: Int = 0,
     onDismiss: () -> Unit,
     onDeleteTask: ((Long) -> Unit)? = null,
+    onManageTemplates: (() -> Unit)? = null,
 ) {
     val viewModel: AddEditTaskViewModel = hiltViewModel(key = "addedit_task_sheet")
 
@@ -164,7 +166,8 @@ fun AddEditTaskSheetHost(
         viewModel = viewModel,
         initialTab = initialTab,
         onDismiss = onDismiss,
-        onDeleteTask = onDeleteTask
+        onDeleteTask = onDeleteTask,
+        onManageTemplates = onManageTemplates
     )
 }
 
@@ -179,12 +182,15 @@ fun AddEditTaskSheet(
     initialTab: Int = 0,
     onDismiss: () -> Unit,
     onDeleteTask: ((Long) -> Unit)? = null,
+    onManageTemplates: (() -> Unit)? = null,
 ) {
     val scope = rememberCoroutineScope()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var showDiscardConfirm by remember { mutableStateOf(false) }
     var showOverflowMenu by remember { mutableStateOf(false) }
     var showDuplicateDialog by remember { mutableStateOf(false) }
+    var showTemplatePicker by remember { mutableStateOf(false) }
+    var showSaveAsTemplateDialog by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
     val subtaskCount by viewModel.subtaskCount.collectAsStateWithLifecycle()
     val pagerState = rememberPagerState(
@@ -227,6 +233,23 @@ fun AddEditTaskSheet(
                     textAlign = TextAlign.Center,
                     modifier = Modifier.weight(1f)
                 )
+                // "From Template" shortcut — create mode only. Opens a
+                // picker sheet that pre-fills the form with the chosen
+                // template's fields. Hidden in edit mode so users don't
+                // accidentally blow away their task's data.
+                if (!viewModel.isEditMode) {
+                    TextButton(
+                        onClick = { showTemplatePicker = true },
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        Text(
+                            text = "\uD83D\uDCCB Template",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
                 TextButton(
                     onClick = {
                         scope.launch {
@@ -240,8 +263,8 @@ fun AddEditTaskSheet(
                         fontWeight = FontWeight.SemiBold
                     )
                 }
-                // Header overflow menu (edit mode only). Currently hosts the
-                // Duplicate action; add future task-wide actions here.
+                // Header overflow menu (edit mode only). Hosts Duplicate
+                // and Save-As-Template; add future task-wide actions here.
                 if (viewModel.isEditMode) {
                     Box {
                         IconButton(onClick = { showOverflowMenu = true }) {
@@ -265,6 +288,19 @@ fun AddEditTaskSheet(
                                 onClick = {
                                     showOverflowMenu = false
                                     showDuplicateDialog = true
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Save As Template") },
+                                leadingIcon = {
+                                    Icon(
+                                        Icons.Default.Bookmark,
+                                        contentDescription = null
+                                    )
+                                },
+                                onClick = {
+                                    showOverflowMenu = false
+                                    showSaveAsTemplateDialog = true
                                 }
                             )
                         }
@@ -424,6 +460,45 @@ fun AddEditTaskSheet(
             },
             dismissButton = {
                 TextButton(onClick = { showDuplicateDialog = false }) { Text("Cancel") }
+            }
+        )
+    }
+
+    // Template picker sheet — invoked from the header "📋 Template" button
+    // in create mode. On Use, applies the selected template to the form
+    // and surfaces a snackbar so the user knows fields were populated.
+    if (showTemplatePicker) {
+        TemplatePickerSheet(
+            onDismiss = { showTemplatePicker = false },
+            onUseTemplate = { template ->
+                showTemplatePicker = false
+                scope.launch {
+                    val ok = viewModel.applyTemplate(template.id)
+                    if (ok) {
+                        snackbarHostState.showSnackbar("Applied '${template.name}'")
+                    }
+                }
+            },
+            onManageTemplates = {
+                showTemplatePicker = false
+                onManageTemplates?.invoke()
+            }
+        )
+    }
+
+    // Save-As-Template dialog — invoked from the edit-mode overflow menu.
+    if (showSaveAsTemplateDialog) {
+        SaveAsTemplateDialog(
+            initialName = viewModel.title.trim().ifEmpty { "Untitled Template" },
+            onDismiss = { showSaveAsTemplateDialog = false },
+            onSave = { name, icon, category ->
+                showSaveAsTemplateDialog = false
+                scope.launch {
+                    val newId = viewModel.saveAsTemplate(name, icon, category)
+                    if (newId != null) {
+                        snackbarHostState.showSnackbar("Template saved!")
+                    }
+                }
             }
         )
     }
@@ -589,10 +664,10 @@ private fun DetailsTabContent(viewModel: AddEditTaskViewModel) {
     }
 
     // --- Subtasks ---
-    // Subtasks are kept in local composable state for now: the AddEdit
-    // ViewModel doesn't yet expose subtask flows, and wiring persistence is
-    // intentionally out of scope for this UI polish pass.
-    SubtasksInlineSection()
+    // Backed by `viewModel.pendingSubtasks` so template-applied subtasks
+    // and user-typed subtasks survive into the save path (the VM flushes
+    // the list as real TaskEntity rows once saveTask() succeeds).
+    SubtasksInlineSection(viewModel)
 
     // Keep the attachments section visible for the rest of the session once
     // it first becomes non-empty, so deleting every attachment mid-edit
@@ -697,15 +772,15 @@ private fun DetailsTabContent(viewModel: AddEditTaskViewModel) {
 /**
  * Inline subtasks section for the Details tab.
  *
- * Uses local composable state for now because [AddEditTaskViewModel] doesn't
- * yet expose subtask flows. The UI is fully polished — checklist, header with
- * progress count, drag affordance, inline add with rapid-entry focus — so
- * wiring it to the ViewModel in a follow-up is a purely mechanical change.
+ * Backed by [AddEditTaskViewModel.pendingSubtasks] so the list survives into
+ * the save path: once the user hits Save, the VM flushes each pending row
+ * into a real [com.averycorp.averytask.data.local.entity.TaskEntity] tied
+ * to the newly-created parent. Templates populate the same list when the
+ * user picks a template from the header button.
  */
 @Composable
-private fun SubtasksInlineSection() {
-    val subtasks = remember { mutableStateListOf<LocalSubtask>() }
-    var nextId by remember { mutableStateOf(1L) }
+private fun SubtasksInlineSection(viewModel: AddEditTaskViewModel) {
+    val subtasks = viewModel.pendingSubtasks
     var newText by remember { mutableStateOf("") }
     val focusRequester = remember { FocusRequester() }
 
@@ -714,10 +789,8 @@ private fun SubtasksInlineSection() {
     val total = subtasks.size
 
     val submit = {
-        val trimmed = newText.trim()
-        if (trimmed.isNotEmpty()) {
-            subtasks.add(LocalSubtask(id = nextId, title = trimmed, isCompleted = false))
-            nextId += 1
+        val id = viewModel.addPendingSubtask(newText)
+        if (id != -1L) {
             newText = ""
             focusRequester.requestFocus()
         }
@@ -745,16 +818,8 @@ private fun SubtasksInlineSection() {
                 sorted.forEach { subtask ->
                     LocalSubtaskRow(
                         subtask = subtask,
-                        onToggle = {
-                            val idx = subtasks.indexOfFirst { it.id == subtask.id }
-                            if (idx != -1) {
-                                subtasks[idx] =
-                                    subtasks[idx].copy(isCompleted = !subtasks[idx].isCompleted)
-                            }
-                        },
-                        onDelete = {
-                            subtasks.removeAll { it.id == subtask.id }
-                        }
+                        onToggle = { viewModel.togglePendingSubtask(subtask.id) },
+                        onDelete = { viewModel.removePendingSubtask(subtask.id) }
                     )
                 }
             }
@@ -784,15 +849,9 @@ private fun SubtasksInlineSection() {
     }
 }
 
-private data class LocalSubtask(
-    val id: Long,
-    val title: String,
-    val isCompleted: Boolean
-)
-
 @Composable
 private fun LocalSubtaskRow(
-    subtask: LocalSubtask,
+    subtask: PendingSubtask,
     onToggle: () -> Unit,
     onDelete: () -> Unit
 ) {
@@ -2036,3 +2095,98 @@ private val TAG_COLORS = listOf(
     "#6B7280", "#4A90D9", "#7B61FF", "#2E7D32",
     "#E8872A", "#D93025", "#00897B", "#F4B400"
 )
+
+// ---------------------------------------------------------------------------
+// Save-As-Template dialog
+// ---------------------------------------------------------------------------
+
+/** Compact emoji palette offered to the Save-As-Template dialog. */
+private val TEMPLATE_ICON_CHOICES = listOf(
+    "\uD83D\uDCCB", // 📋
+    "\uD83D\uDCDD", // 📝
+    "\u2B50",       // ⭐
+    "\uD83D\uDD25", // 🔥
+    "\uD83C\uDFAF", // 🎯
+    "\uD83D\uDCC5", // 📅
+    "\uD83D\uDCBC", // 💼
+    "\uD83C\uDFE0"  // 🏠
+)
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@Composable
+private fun SaveAsTemplateDialog(
+    initialName: String,
+    onDismiss: () -> Unit,
+    onSave: (name: String, icon: String?, category: String?) -> Unit
+) {
+    var name by remember { mutableStateOf(initialName) }
+    var selectedIcon by remember { mutableStateOf(TEMPLATE_ICON_CHOICES.first()) }
+    var category by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Save As Template") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Template Name") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Column {
+                    Text(
+                        text = "Icon",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        TEMPLATE_ICON_CHOICES.forEach { emoji ->
+                            val selected = emoji == selectedIcon
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .background(
+                                        if (selected)
+                                            MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
+                                        else
+                                            MaterialTheme.colorScheme.surfaceContainerHighest
+                                    )
+                                    .border(
+                                        width = if (selected) 2.dp else 0.dp,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        shape = CircleShape
+                                    )
+                                    .clickable { selectedIcon = emoji },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(text = emoji, style = MaterialTheme.typography.titleMedium)
+                            }
+                        }
+                    }
+                }
+                OutlinedTextField(
+                    value = category,
+                    onValueChange = { category = it },
+                    label = { Text("Category (Optional)") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onSave(name, selectedIcon, category) },
+                enabled = name.isNotBlank()
+            ) {
+                Text("Save Template", fontWeight = FontWeight.SemiBold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        }
+    )
+}
