@@ -1,8 +1,16 @@
 package com.averycorp.averytask.ui.screens.settings
 
+import android.content.ContentValues
+import android.content.Context
+import android.os.Build
+import android.os.Environment
+import android.provider.MediaStore
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dagger.hilt.android.qualifiers.ApplicationContext
+import java.io.File
+import java.io.FileOutputStream
 import com.averycorp.averytask.data.export.DataExporter
 import com.averycorp.averytask.data.export.DataImporter
 import com.averycorp.averytask.data.export.ImportMode
@@ -28,8 +36,12 @@ import com.averycorp.averytask.data.remote.DeviceCalendar
 import com.averycorp.averytask.data.remote.GoogleDriveService
 import com.averycorp.averytask.data.remote.SyncService
 import com.averycorp.averytask.data.remote.api.AveryTaskApi
+import com.averycorp.averytask.data.remote.api.ImportResponse
 import com.averycorp.averytask.data.remote.api.LoginRequest
 import com.averycorp.averytask.data.remote.api.RegisterRequest
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.toRequestBody
 import com.averycorp.averytask.data.remote.sync.BackendSyncService
 import com.averycorp.averytask.data.repository.TaskRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -49,6 +61,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
+    @ApplicationContext private val appContext: Context,
     private val themePreferences: ThemePreferences,
     private val archivePreferences: ArchivePreferences,
     private val apiPreferences: ApiPreferences,
@@ -289,6 +302,12 @@ class SettingsViewModel @Inject constructor(
 
     private val _isDriveImporting = MutableStateFlow(false)
     val isDriveImporting: StateFlow<Boolean> = _isDriveImporting
+
+    private val _isCloudExporting = MutableStateFlow(false)
+    val isCloudExporting: StateFlow<Boolean> = _isCloudExporting
+
+    private val _isCloudImporting = MutableStateFlow(false)
+    val isCloudImporting: StateFlow<Boolean> = _isCloudImporting
 
     // --- Theme setters ---
     fun setThemeMode(mode: String) {
@@ -590,6 +609,90 @@ class SettingsViewModel @Inject constructor(
             authTokenPreferences.clearTokens()
             backendSyncPreferences.clear()
             _messages.emit("Disconnected from backend")
+        }
+    }
+
+    fun onExportToCloud() {
+        viewModelScope.launch {
+            if (_isCloudExporting.value) return@launch
+            _isCloudExporting.value = true
+            try {
+                val responseBody = withContext(Dispatchers.IO) { averyTaskApi.exportJson() }
+                val bytes = withContext(Dispatchers.IO) { responseBody.bytes() }
+                val timestamp = java.text.SimpleDateFormat(
+                    "yyyyMMdd_HHmmss",
+                    java.util.Locale.US
+                ).format(java.util.Date())
+                val filename = "averytask_cloud_$timestamp.json"
+                val savedName = withContext(Dispatchers.IO) {
+                    saveToDownloads(filename, bytes)
+                }
+                _messages.emit("Saved $savedName to Downloads")
+            } catch (e: Exception) {
+                Log.e("SettingsVM", "Cloud export failed", e)
+                _messages.emit("Cloud export failed: ${e.message ?: "unknown error"}")
+            } finally {
+                _isCloudExporting.value = false
+            }
+        }
+    }
+
+    fun onImportFromCloud(jsonBytes: ByteArray, filename: String) {
+        viewModelScope.launch {
+            if (_isCloudImporting.value) return@launch
+            _isCloudImporting.value = true
+            try {
+                val mediaType = "application/json".toMediaType()
+                val part = MultipartBody.Part.createFormData(
+                    name = "file",
+                    filename = filename,
+                    body = jsonBytes.toRequestBody(mediaType)
+                )
+                val result: ImportResponse = withContext(Dispatchers.IO) {
+                    averyTaskApi.importJson(part, mode = "merge")
+                }
+                val parts = mutableListOf<String>()
+                if (result.tasksImported > 0) parts.add("${result.tasksImported} tasks")
+                if (result.projectsImported > 0) parts.add("${result.projectsImported} projects")
+                if (result.tagsImported > 0) parts.add("${result.tagsImported} tags")
+                if (result.habitsImported > 0) parts.add("${result.habitsImported} habits")
+                val summary = if (parts.isEmpty()) "Nothing imported" else "Imported ${parts.joinToString(", ")}"
+                _messages.emit(summary)
+            } catch (e: Exception) {
+                Log.e("SettingsVM", "Cloud import failed", e)
+                _messages.emit("Cloud import failed: ${e.message ?: "unknown error"}")
+            } finally {
+                _isCloudImporting.value = false
+            }
+        }
+    }
+
+    private fun saveToDownloads(filename: String, bytes: ByteArray): String {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val resolver = appContext.contentResolver
+            val values = ContentValues().apply {
+                put(MediaStore.Downloads.DISPLAY_NAME, filename)
+                put(MediaStore.Downloads.MIME_TYPE, "application/json")
+                put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
+                put(MediaStore.Downloads.IS_PENDING, 1)
+            }
+            val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+                ?: error("Unable to create Downloads entry")
+            resolver.openOutputStream(uri)?.use { it.write(bytes) }
+                ?: error("Unable to open output stream")
+            values.clear()
+            values.put(MediaStore.Downloads.IS_PENDING, 0)
+            resolver.update(uri, values, null, null)
+            return filename
+        } else {
+            // Pre-Q fallback: write to the app's external files Download dir,
+            // which doesn't require WRITE_EXTERNAL_STORAGE permission.
+            val dir = appContext.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
+                ?: error("External storage unavailable")
+            if (!dir.exists()) dir.mkdirs()
+            val file = File(dir, filename)
+            FileOutputStream(file).use { it.write(bytes) }
+            return file.absolutePath
         }
     }
 

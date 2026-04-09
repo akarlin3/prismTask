@@ -53,8 +53,15 @@ keystore_base64.txt
 .DS_Store
 
 # Claude Code
-.claude/*
-!.claude/settings.json
+.claude/
+
+# Stray test/log artifacts
+test.json
+sync-*.json
+parse-test.json
+simple-test.json
+build-log*.txt
+compile-log.txt
 
 # Nested bare git repo
 averyTask.git/
