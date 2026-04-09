@@ -138,6 +138,10 @@ fun SettingsScreen(
     val archivedCount by viewModel.archivedCount.collectAsStateWithLifecycle()
     val isSignedIn by viewModel.isSignedIn.collectAsStateWithLifecycle()
     val isSyncing by viewModel.isSyncing.collectAsStateWithLifecycle()
+    val backendConnected by viewModel.backendConnected.collectAsStateWithLifecycle()
+    val backendLastSyncAt by viewModel.backendLastSyncAt.collectAsStateWithLifecycle()
+    val isBackendSyncing by viewModel.isBackendSyncing.collectAsStateWithLifecycle()
+    val isBackendAuthenticating by viewModel.isBackendAuthenticating.collectAsStateWithLifecycle()
     val isImporting by viewModel.isImporting.collectAsStateWithLifecycle()
     val isExporting by viewModel.isExporting.collectAsStateWithLifecycle()
     val isResetting by viewModel.isResetting.collectAsStateWithLifecycle()
@@ -163,6 +167,7 @@ fun SettingsScreen(
     val updateStatus by viewModel.appUpdater.status.collectAsStateWithLifecycle()
     val updateError by viewModel.appUpdater.errorMessage.collectAsStateWithLifecycle()
     val latestReleaseTag by viewModel.appUpdater.latestReleaseTag.collectAsStateWithLifecycle()
+    var showBackendAuthDialog by remember { mutableStateOf(false) }
     var showAutoArchiveDialog by remember { mutableStateOf(false) }
     var showTimerWorkDialog by remember { mutableStateOf(false) }
     var showTimerBreakDialog by remember { mutableStateOf(false) }
@@ -222,6 +227,23 @@ fun SettingsScreen(
 
     LaunchedEffect(pendingCsv) {
         if (pendingCsv != null) createCsvLauncher.launch("averytask_tasks.csv")
+    }
+
+    if (showBackendAuthDialog) {
+        BackendAuthDialog(
+            isAuthenticating = isBackendAuthenticating,
+            onLogin = { email, password ->
+                viewModel.onBackendLogin(email, password) { success ->
+                    if (success) showBackendAuthDialog = false
+                }
+            },
+            onRegister = { email, password, name ->
+                viewModel.onBackendRegister(email, password, name) { success ->
+                    if (success) showBackendAuthDialog = false
+                }
+            },
+            onDismiss = { showBackendAuthDialog = false }
+        )
     }
 
     if (showResetConfirmDialog) {
@@ -360,7 +382,7 @@ fun SettingsScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            AnimatedVisibility(visible = isSyncing || isImporting || isExporting) {
+            AnimatedVisibility(visible = isSyncing || isImporting || isExporting || isBackendSyncing) {
                 LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
             }
             Column(
@@ -907,6 +929,85 @@ fun SettingsScreen(
                         .padding(vertical = 8.dp)
                 ) {
                     Text("Sign In with Google")
+                }
+            }
+
+            HorizontalDivider()
+
+            // ========== BACKEND SYNC (FastAPI) ==========
+            SectionHeader("Backend Sync")
+
+            Text(
+                text = "Sync your data with the AveryTask backend. This is separate from Firebase sync — use either or both.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+
+            if (backendConnected) {
+                Text(
+                    text = if (backendLastSyncAt > 0L) {
+                        "Last Sync: ${formatLastSync(backendLastSyncAt)}"
+                    } else {
+                        "Last Sync: Never"
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.padding(vertical = 4.dp)
+                )
+                AnimatedVisibility(visible = isBackendSyncing) {
+                    LinearProgressIndicator(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp)
+                    )
+                }
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp)
+                ) {
+                    Button(
+                        onClick = { viewModel.onBackendSync() },
+                        enabled = !isBackendSyncing,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        if (isBackendSyncing) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.onPrimary
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Syncing...")
+                        } else {
+                            Icon(Icons.Default.Sync, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Sync with Backend")
+                        }
+                    }
+                    OutlinedButton(
+                        onClick = { viewModel.onBackendDisconnect() },
+                        enabled = !isBackendSyncing
+                    ) {
+                        Text("Disconnect")
+                    }
+                }
+            } else {
+                Text(
+                    text = "Not connected",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(vertical = 4.dp)
+                )
+                Button(
+                    onClick = { showBackendAuthDialog = true },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp)
+                ) {
+                    Text("Connect to Backend")
                 }
             }
 
@@ -1504,6 +1605,125 @@ private fun DurationPickerDialog(
         },
         dismissButton = {
             TextButton(onClick = onDismiss) { Text("Cancel") }
+        }
+    )
+}
+
+private fun formatLastSync(timestamp: Long): String {
+    if (timestamp <= 0L) return "Never"
+    val now = System.currentTimeMillis()
+    val diff = now - timestamp
+    return when {
+        diff < 60_000L -> "Just now"
+        diff < 3_600_000L -> "${diff / 60_000L} min ago"
+        diff < 86_400_000L -> "${diff / 3_600_000L} hr ago"
+        else -> {
+            val date = java.util.Date(timestamp)
+            val format = java.text.SimpleDateFormat("MMM d, h:mm a", java.util.Locale.getDefault())
+            format.format(date)
+        }
+    }
+}
+
+@Composable
+private fun BackendAuthDialog(
+    isAuthenticating: Boolean,
+    onLogin: (email: String, password: String) -> Unit,
+    onRegister: (email: String, password: String, name: String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var isRegisterMode by remember { mutableStateOf(false) }
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var name by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = { if (!isAuthenticating) onDismiss() },
+        title = { Text(if (isRegisterMode) "Create Backend Account" else "Connect to Backend") },
+        text = {
+            Column {
+                Text(
+                    text = if (isRegisterMode) {
+                        "Create a new account to sync with the AveryTask backend."
+                    } else {
+                        "Sign in to sync with the AveryTask backend."
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 12.dp)
+                )
+                if (isRegisterMode) {
+                    OutlinedTextField(
+                        value = name,
+                        onValueChange = { name = it },
+                        label = { Text("Name") },
+                        singleLine = true,
+                        enabled = !isAuthenticating,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 8.dp)
+                    )
+                }
+                OutlinedTextField(
+                    value = email,
+                    onValueChange = { email = it },
+                    label = { Text("Email") },
+                    singleLine = true,
+                    enabled = !isAuthenticating,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 8.dp)
+                )
+                OutlinedTextField(
+                    value = password,
+                    onValueChange = { password = it },
+                    label = { Text("Password") },
+                    singleLine = true,
+                    enabled = !isAuthenticating,
+                    visualTransformation = PasswordVisualTransformation(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 8.dp)
+                )
+                TextButton(
+                    onClick = { isRegisterMode = !isRegisterMode },
+                    enabled = !isAuthenticating
+                ) {
+                    Text(
+                        text = if (isRegisterMode) {
+                            "Already have an account? Sign in"
+                        } else {
+                            "New user? Create an account"
+                        }
+                    )
+                }
+                if (isAuthenticating) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    if (isRegisterMode) {
+                        onRegister(email.trim(), password, name.trim())
+                    } else {
+                        onLogin(email.trim(), password)
+                    }
+                },
+                enabled = !isAuthenticating &&
+                        email.isNotBlank() &&
+                        password.isNotBlank() &&
+                        (!isRegisterMode || name.isNotBlank())
+            ) {
+                Text(if (isRegisterMode) "Register" else "Sign In")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss, enabled = !isAuthenticating) {
+                Text("Cancel")
+            }
         }
     )
 }
