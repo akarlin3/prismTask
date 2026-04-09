@@ -1,8 +1,10 @@
 package com.averycorp.averytask.data.repository
 
 import com.averycorp.averytask.data.local.converter.RecurrenceConverter
+import com.averycorp.averytask.data.local.dao.TagDao
 import com.averycorp.averytask.data.local.dao.TaskDao
 import com.averycorp.averytask.data.local.entity.TaskEntity
+import com.averycorp.averytask.data.local.entity.TaskTagCrossRef
 import com.averycorp.averytask.data.remote.CalendarSyncService
 import com.averycorp.averytask.data.remote.SyncTracker
 import com.averycorp.averytask.domain.usecase.RecurrenceEngine
@@ -18,6 +20,7 @@ import javax.inject.Singleton
 @Singleton
 class TaskRepository @Inject constructor(
     private val taskDao: TaskDao,
+    private val tagDao: TagDao,
     private val syncTracker: SyncTracker,
     private val calendarSyncService: CalendarSyncService,
     private val reminderScheduler: ReminderScheduler
@@ -261,6 +264,53 @@ class TaskRepository @Inject constructor(
 
     fun getArchivedCount(): Flow<Int> = taskDao.getArchivedCount()
 
+    /**
+     * Duplicates an existing task. Creates a copy that shares the original's
+     * content (title prefixed with "Copy of ", description, notes, priority,
+     * project, recurrence rule, estimated duration, and tag assignments) but
+     * resets all scheduling / completion / sync state so the duplicate starts
+     * life as a fresh, unplanned, incomplete task at the end of the list.
+     *
+     * When [includeSubtasks] is true, every subtask of the original is copied
+     * too, with its completion status reset and a fresh parent pointer to the
+     * new root task. Subtask titles are copied as-is (no "Copy of " prefix).
+     *
+     * @return the id of the newly created task, or -1 if the original doesn't
+     *   exist.
+     */
+    suspend fun duplicateTask(taskId: Long, includeSubtasks: Boolean = false): Long {
+        val original = taskDao.getTaskByIdOnce(taskId) ?: return -1L
+        val now = System.currentTimeMillis()
+
+        val nextSortOrder = if (original.parentTaskId != null) {
+            taskDao.getMaxSubtaskSortOrder(original.parentTaskId) + 1
+        } else {
+            taskDao.getMaxRootSortOrder() + 1
+        }
+
+        val duplicate = buildDuplicateEntity(original, nextSortOrder, now)
+        val newId = taskDao.insert(duplicate)
+        syncTracker.trackCreate(newId, "task")
+
+        // Copy tag cross-references so the duplicate inherits the same tags.
+        val tagIds = tagDao.getTagIdsForTaskOnce(taskId)
+        for (crossRef in buildTagCrossRefs(tagIds, newId)) {
+            tagDao.addTagToTask(crossRef)
+        }
+
+        if (includeSubtasks) {
+            val originalSubtasks = taskDao.getSubtasksOnce(taskId)
+            originalSubtasks.forEachIndexed { index, sub ->
+                val subCopy = buildSubtaskDuplicate(sub, newId, index, now)
+                val newSubId = taskDao.insert(subCopy)
+                syncTracker.trackCreate(newSubId, "task")
+            }
+        }
+
+        calendarSyncService.syncTaskToCalendar(duplicate.copy(id = newId))
+        return newId
+    }
+
     fun getTasksGroupedByDate(): Flow<Map<String, List<TaskEntity>>> =
         taskDao.getIncompleteRootTasks().map { tasks -> groupByDate(tasks) }
 
@@ -301,5 +351,72 @@ class TaskRepository @Inject constructor(
 
         val order = listOf("Overdue", "Today", "Tomorrow", "This Week", "Later")
         return order.filter { it in grouped }.associateWith { grouped[it]!! }
+    }
+
+    companion object {
+        /**
+         * Pure transformation: build a fresh [TaskEntity] that duplicates the
+         * content of [original] with a "Copy of " title prefix and all
+         * scheduling / completion / sync state reset. Does not touch the
+         * database — callers are responsible for inserting the result.
+         */
+        fun buildDuplicateEntity(
+            original: TaskEntity,
+            nextSortOrder: Int,
+            now: Long
+        ): TaskEntity {
+            return original.copy(
+                id = 0,
+                title = "Copy of ${original.title}",
+                dueDate = null,
+                dueTime = null,
+                plannedDate = null,
+                isCompleted = false,
+                completedAt = null,
+                createdAt = now,
+                updatedAt = now,
+                reminderOffset = null,
+                archivedAt = null,
+                scheduledStartTime = null,
+                sortOrder = nextSortOrder
+            )
+        }
+
+        /**
+         * Pure transformation: build a duplicate subtask that points at
+         * [newParentId] with a fresh completion / scheduling state. Subtask
+         * titles are copied verbatim (no "Copy of " prefix) since the parent
+         * already carries the duplication marker.
+         */
+        fun buildSubtaskDuplicate(
+            originalSubtask: TaskEntity,
+            newParentId: Long,
+            sortOrder: Int,
+            now: Long
+        ): TaskEntity {
+            return originalSubtask.copy(
+                id = 0,
+                parentTaskId = newParentId,
+                dueDate = null,
+                dueTime = null,
+                plannedDate = null,
+                isCompleted = false,
+                completedAt = null,
+                createdAt = now,
+                updatedAt = now,
+                reminderOffset = null,
+                archivedAt = null,
+                scheduledStartTime = null,
+                sortOrder = sortOrder
+            )
+        }
+
+        /**
+         * Pure transformation: produce the list of [TaskTagCrossRef] rows
+         * needed to copy [tagIds] onto [newTaskId].
+         */
+        fun buildTagCrossRefs(tagIds: List<Long>, newTaskId: Long): List<TaskTagCrossRef> {
+            return tagIds.map { tagId -> TaskTagCrossRef(taskId = newTaskId, tagId = tagId) }
+        }
     }
 }

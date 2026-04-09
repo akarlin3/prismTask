@@ -27,9 +27,12 @@ import com.averycorp.averytask.domain.usecase.UrgencyScorer
 import com.averycorp.averytask.util.DayBoundary
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
@@ -73,6 +76,11 @@ class TaskListViewModel @Inject constructor(
 ) : ViewModel() {
 
     val snackbarHostState = SnackbarHostState()
+
+    // Events emitted when the user wants to open the editor for a specific
+    // task id, e.g. after the "View" action on the "Task Duplicated" snackbar.
+    private val _openTaskEditorEvents = MutableSharedFlow<Long>(extraBufferCapacity = 1)
+    val openTaskEditorEvents: SharedFlow<Long> = _openTaskEditorEvents.asSharedFlow()
 
     private val _urgencyWeights = MutableStateFlow(UrgencyWeights())
 
@@ -584,6 +592,37 @@ class TaskListViewModel @Inject constructor(
                 }
             } catch (e: Exception) {
                 Log.e("TaskListVM", "Failed to reschedule", e)
+                snackbarHostState.showSnackbar("Something went wrong")
+            }
+        }
+    }
+
+    /**
+     * Duplicates the given task and shows a "Task Duplicated" snackbar with a
+     * "View" action that opens the editor on the new copy. Subtask copying is
+     * intentionally disabled here — the context menu is the fast path for
+     * single-card duplication. Callers that want subtasks duplicated (e.g. the
+     * editor sheet dialog) should call [TaskRepository.duplicateTask] directly
+     * with includeSubtasks = true.
+     */
+    fun onDuplicateTask(taskId: Long, includeSubtasks: Boolean = false) {
+        viewModelScope.launch {
+            try {
+                val newId = taskRepository.duplicateTask(taskId, includeSubtasks)
+                if (newId <= 0L) {
+                    snackbarHostState.showSnackbar("Something went wrong")
+                    return@launch
+                }
+                val result = snackbarHostState.showSnackbar(
+                    message = "Task Duplicated",
+                    actionLabel = "VIEW",
+                    duration = SnackbarDuration.Short
+                )
+                if (result == SnackbarResult.ActionPerformed) {
+                    _openTaskEditorEvents.tryEmit(newId)
+                }
+            } catch (e: Exception) {
+                Log.e("TaskListVM", "Failed to duplicate task", e)
                 snackbarHostState.showSnackbar("Something went wrong")
             }
         }
