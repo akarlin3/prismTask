@@ -66,6 +66,8 @@ import com.averycorp.averytask.ui.screens.medication.MedicationLogScreen
 import com.averycorp.averytask.ui.screens.medication.MedicationScreen
 import com.averycorp.averytask.ui.screens.selfcare.SelfCareScreen
 import com.averycorp.averytask.ui.screens.settings.SettingsScreen
+import com.averycorp.averytask.ui.screens.templates.AddEditTemplateScreen
+import com.averycorp.averytask.ui.screens.templates.TemplateListScreen
 import com.averycorp.averytask.ui.screens.timer.TimerScreen
 
 sealed class AveryTaskRoute(val route: String) {
@@ -107,6 +109,11 @@ sealed class AveryTaskRoute(val route: String) {
     data object AddEditCourse : AveryTaskRoute("add_edit_course?courseId={courseId}") {
         fun createRoute(courseId: Long? = null): String =
             if (courseId != null) "add_edit_course?courseId=$courseId" else "add_edit_course"
+    }
+    data object TemplateList : AveryTaskRoute("templates")
+    data object AddEditTemplate : AveryTaskRoute("templates/edit?templateId={templateId}") {
+        fun createRoute(templateId: Long? = null): String =
+            if (templateId != null) "templates/edit?templateId=$templateId" else "templates/edit"
     }
 }
 
@@ -685,6 +692,44 @@ fun AveryTaskNavGraph(
                 }
             ) {
                 AddEditCourseScreen(navController)
+            }
+
+            composable(
+                route = AveryTaskRoute.TemplateList.route,
+                enterTransition = {
+                    slideInHorizontally(initialOffsetX = { it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
+                },
+                exitTransition = {
+                    slideOutHorizontally(targetOffsetX = { -it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
+                },
+                popEnterTransition = {
+                    slideInHorizontally(initialOffsetX = { -it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
+                },
+                popExitTransition = {
+                    slideOutHorizontally(targetOffsetX = { it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
+                }
+            ) {
+                TemplateListScreen(navController)
+            }
+
+            composable(
+                route = AveryTaskRoute.AddEditTemplate.route,
+                arguments = listOf(
+                    navArgument("templateId") {
+                        type = NavType.LongType
+                        defaultValue = -1L
+                    }
+                ),
+                enterTransition = { fadeIn(animationSpec = tween(NAV_ANIM_DURATION)) },
+                exitTransition = { fadeOut(animationSpec = tween(NAV_ANIM_DURATION)) },
+                popEnterTransition = { fadeIn(animationSpec = tween(NAV_ANIM_DURATION)) },
+                popExitTransition = { fadeOut(animationSpec = tween(NAV_ANIM_DURATION)) }
+            ) {
+                AddEditTemplateScreen(navController)
             }
         }
     }
