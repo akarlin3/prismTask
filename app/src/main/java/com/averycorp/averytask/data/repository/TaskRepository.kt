@@ -311,6 +311,78 @@ class TaskRepository @Inject constructor(
         return newId
     }
 
+    // --- Batch edit operations (multi-select bulk editing) ---
+
+    /**
+     * Updates priority on every task in [taskIds] in a single Room
+     * transaction. Atomic: either every task updates or none do.
+     */
+    suspend fun batchUpdatePriority(taskIds: List<Long>, priority: Int) {
+        if (taskIds.isEmpty()) return
+        taskDao.batchUpdatePriority(taskIds, priority)
+        taskIds.forEach { syncTracker.trackUpdate(it, "task") }
+    }
+
+    /**
+     * Reschedules every task in [taskIds] to [newDueDate] (null clears the
+     * date) atomically. Also refreshes each task's reminder + calendar
+     * mapping so the change is visible outside the app.
+     */
+    suspend fun batchReschedule(taskIds: List<Long>, newDueDate: Long?) {
+        if (taskIds.isEmpty()) return
+        taskDao.batchReschedule(taskIds, newDueDate)
+        // Refresh reminders + calendar + sync for each touched task.
+        for (id in taskIds) {
+            val updated = taskDao.getTaskByIdOnce(id) ?: continue
+            val offset = updated.reminderOffset
+            if (offset != null && newDueDate != null) {
+                reminderScheduler.scheduleReminder(
+                    taskId = updated.id,
+                    taskTitle = updated.title,
+                    taskDescription = updated.description,
+                    dueDate = newDueDate,
+                    reminderOffset = offset
+                )
+            } else {
+                reminderScheduler.cancelReminder(id)
+            }
+            calendarSyncService.syncTaskToCalendar(updated)
+            syncTracker.trackUpdate(id, "task")
+        }
+    }
+
+    /**
+     * Moves every task in [taskIds] into [newProjectId] (null removes the
+     * project association) atomically.
+     */
+    suspend fun batchMoveToProject(taskIds: List<Long>, newProjectId: Long?) {
+        if (taskIds.isEmpty()) return
+        taskDao.batchMoveToProject(taskIds, newProjectId)
+        taskIds.forEach { syncTracker.trackUpdate(it, "task") }
+    }
+
+    /**
+     * Adds [tagId] to every task in [taskIds] atomically. Safe to call when
+     * some tasks already carry the tag — existing cross-refs are replaced
+     * via INSERT OR REPLACE, so the final state is "every selected task has
+     * this tag".
+     */
+    suspend fun batchAddTag(taskIds: List<Long>, tagId: Long) {
+        if (taskIds.isEmpty()) return
+        taskDao.batchAddTag(taskIds, tagId)
+        taskIds.forEach { syncTracker.trackUpdate(it, "task") }
+    }
+
+    /**
+     * Removes [tagId] from every task in [taskIds] atomically. Tasks that
+     * don't carry the tag are silently skipped.
+     */
+    suspend fun batchRemoveTag(taskIds: List<Long>, tagId: Long) {
+        if (taskIds.isEmpty()) return
+        taskDao.batchRemoveTag(taskIds, tagId)
+        taskIds.forEach { syncTracker.trackUpdate(it, "task") }
+    }
+
     fun getTasksGroupedByDate(): Flow<Map<String, List<TaskEntity>>> =
         taskDao.getIncompleteRootTasks().map { tasks -> groupByDate(tasks) }
 

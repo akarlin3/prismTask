@@ -5,10 +5,13 @@ import androidx.room.Room
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.averycorp.averytask.data.local.dao.ProjectDao
+import com.averycorp.averytask.data.local.dao.TagDao
 import com.averycorp.averytask.data.local.dao.TaskDao
 import com.averycorp.averytask.data.local.database.AveryTaskDatabase
 import com.averycorp.averytask.data.local.entity.ProjectEntity
+import com.averycorp.averytask.data.local.entity.TagEntity
 import com.averycorp.averytask.data.local.entity.TaskEntity
+import com.averycorp.averytask.data.local.entity.TaskTagCrossRef
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -31,6 +34,7 @@ class TaskDaoTest {
     private lateinit var database: AveryTaskDatabase
     private lateinit var taskDao: TaskDao
     private lateinit var projectDao: ProjectDao
+    private lateinit var tagDao: TagDao
 
     @Before
     fun setup() {
@@ -40,6 +44,7 @@ class TaskDaoTest {
             .build()
         taskDao = database.taskDao()
         projectDao = database.projectDao()
+        tagDao = database.tagDao()
     }
 
     @After
@@ -219,4 +224,125 @@ class TaskDaoTest {
         val ordered = taskDao.getAllTasksByCustomOrder().first()
         assertEquals(listOf("first", "second", "third"), ordered.map { it.title })
     }
+
+    // --- Batch edit operations (multi-select bulk editing) ---
+
+    @Test
+    fun test_batchUpdatePriority_updatesAllSpecifiedTasks() = runTest {
+        // Three tasks all start with priority 0 (None) — the batch should
+        // leave every one of them at priority 3 (High).
+        val id1 = taskDao.insert(TaskEntity(title = "A", priority = 0))
+        val id2 = taskDao.insert(TaskEntity(title = "B", priority = 0))
+        val id3 = taskDao.insert(TaskEntity(title = "C", priority = 0))
+
+        taskDao.batchUpdatePriority(listOf(id1, id2, id3), priority = 3)
+
+        assertEquals(3, taskDao.getTaskByIdOnce(id1)!!.priority)
+        assertEquals(3, taskDao.getTaskByIdOnce(id2)!!.priority)
+        assertEquals(3, taskDao.getTaskByIdOnce(id3)!!.priority)
+    }
+
+    @Test
+    fun test_batchUpdatePriority_doesNotAffectUnselectedTasks() = runTest {
+        // Only the two selected tasks should see their priority change;
+        // the third is left on its original value.
+        val id1 = taskDao.insert(TaskEntity(title = "A", priority = 1))
+        val id2 = taskDao.insert(TaskEntity(title = "B", priority = 1))
+        val untouched = taskDao.insert(TaskEntity(title = "C", priority = 2))
+
+        taskDao.batchUpdatePriority(listOf(id1, id2), priority = 4)
+
+        assertEquals(4, taskDao.getTaskByIdOnce(id1)!!.priority)
+        assertEquals(4, taskDao.getTaskByIdOnce(id2)!!.priority)
+        // Unselected task must keep its original priority.
+        assertEquals(2, taskDao.getTaskByIdOnce(untouched)!!.priority)
+    }
+
+    @Test
+    fun test_batchReschedule_setsNewDueDateForAllTasks() = runTest {
+        val id1 = taskDao.insert(TaskEntity(title = "A", dueDate = 1_000L))
+        val id2 = taskDao.insert(TaskEntity(title = "B", dueDate = 2_000L))
+        val newDate = 9_999L
+
+        taskDao.batchReschedule(listOf(id1, id2), newDate)
+
+        assertEquals(newDate, taskDao.getTaskByIdOnce(id1)!!.dueDate)
+        assertEquals(newDate, taskDao.getTaskByIdOnce(id2)!!.dueDate)
+    }
+
+    @Test
+    fun test_batchReschedule_handlesNullDateToRemoveDueDate() = runTest {
+        // Regression: passing null must clear the due_date column, not
+        // no-op. This is the "Remove Date" affordance in the popup.
+        val id1 = taskDao.insert(TaskEntity(title = "A", dueDate = 1_000L))
+        val id2 = taskDao.insert(TaskEntity(title = "B", dueDate = 2_000L))
+
+        taskDao.batchReschedule(listOf(id1, id2), newDueDate = null)
+
+        assertNull(taskDao.getTaskByIdOnce(id1)!!.dueDate)
+        assertNull(taskDao.getTaskByIdOnce(id2)!!.dueDate)
+    }
+
+    @Test
+    fun test_batchReschedule_doesNotAffectUnselectedTasks() = runTest {
+        val id1 = taskDao.insert(TaskEntity(title = "A", dueDate = 1_000L))
+        val untouched = taskDao.insert(TaskEntity(title = "B", dueDate = 2_000L))
+
+        taskDao.batchReschedule(listOf(id1), newDueDate = 5_000L)
+
+        assertEquals(5_000L, taskDao.getTaskByIdOnce(id1)!!.dueDate)
+        // The unselected task must keep its original due date.
+        assertEquals(2_000L, taskDao.getTaskByIdOnce(untouched)!!.dueDate)
+    }
+
+    @Test
+    fun test_batchAddTag_createsCrossReferencesForAllTasks() = runTest {
+        val id1 = taskDao.insert(TaskEntity(title = "A"))
+        val id2 = taskDao.insert(TaskEntity(title = "B"))
+        val id3 = taskDao.insert(TaskEntity(title = "C"))
+        val tagId = tagDao.insert(TagEntity(name = "urgent"))
+
+        taskDao.batchAddTag(listOf(id1, id2, id3), tagId)
+
+        // Every task should now carry the tag.
+        assertEquals(listOf(tagId), tagDao.getTagIdsForTaskOnce(id1))
+        assertEquals(listOf(tagId), tagDao.getTagIdsForTaskOnce(id2))
+        assertEquals(listOf(tagId), tagDao.getTagIdsForTaskOnce(id3))
+    }
+
+    @Test
+    fun test_batchRemoveTag_removesCrossReferencesForAllTasks() = runTest {
+        val id1 = taskDao.insert(TaskEntity(title = "A"))
+        val id2 = taskDao.insert(TaskEntity(title = "B"))
+        val tagId = tagDao.insert(TagEntity(name = "deprecated"))
+        tagDao.addTagToTask(TaskTagCrossRef(taskId = id1, tagId = tagId))
+        tagDao.addTagToTask(TaskTagCrossRef(taskId = id2, tagId = tagId))
+
+        taskDao.batchRemoveTag(listOf(id1, id2), tagId)
+
+        assertTrue(tagDao.getTagIdsForTaskOnce(id1).isEmpty())
+        assertTrue(tagDao.getTagIdsForTaskOnce(id2).isEmpty())
+    }
+
+    @Test
+    fun test_batchMoveToProject_updatesProjectIdAndAllowsNullToUnassign() = runTest {
+        val projectAId = projectDao.insert(ProjectEntity(name = "A"))
+        val projectBId = projectDao.insert(ProjectEntity(name = "B"))
+        val id1 = taskDao.insert(TaskEntity(title = "t1", projectId = projectAId))
+        val id2 = taskDao.insert(TaskEntity(title = "t2", projectId = projectAId))
+        val untouched = taskDao.insert(TaskEntity(title = "t3", projectId = projectAId))
+
+        // Move id1 + id2 into B. untouched stays in A.
+        taskDao.batchMoveToProject(listOf(id1, id2), projectBId)
+        assertEquals(projectBId, taskDao.getTaskByIdOnce(id1)!!.projectId)
+        assertEquals(projectBId, taskDao.getTaskByIdOnce(id2)!!.projectId)
+        assertEquals(projectAId, taskDao.getTaskByIdOnce(untouched)!!.projectId)
+
+        // Now remove id1 from any project by passing null.
+        taskDao.batchMoveToProject(listOf(id1), null)
+        assertNull(taskDao.getTaskByIdOnce(id1)!!.projectId)
+        // id2 must stay in B.
+        assertEquals(projectBId, taskDao.getTaskByIdOnce(id2)!!.projectId)
+    }
+
 }

@@ -156,4 +156,80 @@ interface TaskDao {
     // Tasks booked against a habit whose due_date or planned_date falls in the given range.
     @Query("SELECT * FROM tasks WHERE source_habit_id = :habitId AND archived_at IS NULL AND ((due_date IS NOT NULL AND due_date >= :startDate AND due_date <= :endDate) OR (planned_date IS NOT NULL AND planned_date >= :startDate AND planned_date <= :endDate))")
     suspend fun getTasksForHabitInRangeOnce(habitId: Long, startDate: Long, endDate: Long): List<TaskEntity>
+
+    // --- Batch edit operations (multi-select bulk editing) ---
+
+    @Query("UPDATE tasks SET priority = :priority, updated_at = :now WHERE id IN (:taskIds)")
+    suspend fun batchUpdatePriorityQuery(taskIds: List<Long>, priority: Int, now: Long)
+
+    @Query("UPDATE tasks SET due_date = :newDueDate, updated_at = :now WHERE id IN (:taskIds)")
+    suspend fun batchUpdateDueDateQuery(taskIds: List<Long>, newDueDate: Long?, now: Long)
+
+    @Query("UPDATE tasks SET project_id = :newProjectId, updated_at = :now WHERE id IN (:taskIds)")
+    suspend fun batchUpdateProjectQuery(taskIds: List<Long>, newProjectId: Long?, now: Long)
+
+    @Query("UPDATE tasks SET updated_at = :now WHERE id IN (:taskIds)")
+    suspend fun batchTouchTasksQuery(taskIds: List<Long>, now: Long)
+
+    @Query("INSERT OR REPLACE INTO task_tags (taskId, tagId) SELECT id, :tagId FROM tasks WHERE id IN (:taskIds)")
+    suspend fun batchInsertTaskTagsQuery(taskIds: List<Long>, tagId: Long)
+
+    @Query("DELETE FROM task_tags WHERE taskId IN (:taskIds) AND tagId = :tagId")
+    suspend fun batchDeleteTaskTagsQuery(taskIds: List<Long>, tagId: Long)
+
+    /**
+     * Atomically updates priority on every task in [taskIds]. Wraps a single
+     * UPDATE statement in a transaction so all touched tasks land in the same
+     * consistent state — if the statement fails, no task is changed.
+     */
+    @Transaction
+    suspend fun batchUpdatePriority(taskIds: List<Long>, priority: Int) {
+        if (taskIds.isEmpty()) return
+        batchUpdatePriorityQuery(taskIds, priority, System.currentTimeMillis())
+    }
+
+    /**
+     * Atomically rescheduling: sets [newDueDate] on every task in [taskIds].
+     * Passing null clears the due date.
+     */
+    @Transaction
+    suspend fun batchReschedule(taskIds: List<Long>, newDueDate: Long?) {
+        if (taskIds.isEmpty()) return
+        batchUpdateDueDateQuery(taskIds, newDueDate, System.currentTimeMillis())
+    }
+
+    /**
+     * Atomically moves every task in [taskIds] into [newProjectId]. Passing
+     * null removes the task from its current project.
+     */
+    @Transaction
+    suspend fun batchMoveToProject(taskIds: List<Long>, newProjectId: Long?) {
+        if (taskIds.isEmpty()) return
+        batchUpdateProjectQuery(taskIds, newProjectId, System.currentTimeMillis())
+    }
+
+    /**
+     * Atomically adds [tagId] to every task in [taskIds]. Uses INSERT OR
+     * REPLACE so re-adding an existing tag is a no-op. Also bumps updated_at
+     * on the tasks so sync tracking picks up the change.
+     */
+    @Transaction
+    suspend fun batchAddTag(taskIds: List<Long>, tagId: Long) {
+        if (taskIds.isEmpty()) return
+        val now = System.currentTimeMillis()
+        batchInsertTaskTagsQuery(taskIds, tagId)
+        batchTouchTasksQuery(taskIds, now)
+    }
+
+    /**
+     * Atomically removes [tagId] from every task in [taskIds]. Tasks that
+     * don't have the tag are silently skipped.
+     */
+    @Transaction
+    suspend fun batchRemoveTag(taskIds: List<Long>, tagId: Long) {
+        if (taskIds.isEmpty()) return
+        val now = System.currentTimeMillis()
+        batchDeleteTaskTagsQuery(taskIds, tagId)
+        batchTouchTasksQuery(taskIds, now)
+    }
 }
