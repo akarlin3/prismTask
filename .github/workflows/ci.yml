@@ -6,10 +6,6 @@ on:
     paths:
       - 'backend/**'
       - '.github/workflows/ci.yml'
-  pull_request:
-    paths:
-      - 'backend/**'
-      - '.github/workflows/ci.yml'
   workflow_dispatch:
 
 concurrency:

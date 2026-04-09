@@ -6,10 +6,6 @@ on:
     paths-ignore:
       - 'backend/**'
       - '**.md'
-  pull_request:
-    paths-ignore:
-      - 'backend/**'
-      - '**.md'
   workflow_dispatch:
 
 concurrency:
