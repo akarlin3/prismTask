@@ -17,8 +17,8 @@ android {
         applicationId = "com.averykarlin.averytask"
         minSdk = 26
         targetSdk = 35
-        versionCode = 59
-        versionName = "0.8.14"
+        versionCode = 60
+        versionName = "0.8.15"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
