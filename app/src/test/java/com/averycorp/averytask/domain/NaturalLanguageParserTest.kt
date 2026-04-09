@@ -8,6 +8,9 @@ import com.averycorp.averytask.data.remote.api.RefreshRequest
 import com.averycorp.averytask.data.remote.api.RegisterRequest
 import com.averycorp.averytask.data.remote.api.TokenResponse
 import com.averycorp.averytask.data.remote.api.VersionResponse
+import com.averycorp.averytask.data.remote.sync.SyncPullResponse
+import com.averycorp.averytask.data.remote.sync.SyncPushRequest
+import com.averycorp.averytask.data.remote.sync.SyncPushResponse
 import com.averycorp.averytask.domain.usecase.NaturalLanguageParser
 import org.junit.Assert.*
 import org.junit.Before
@@ -34,6 +37,10 @@ class NaturalLanguageParserTest {
         override suspend fun parseTask(request: ParseRequest): ParsedTaskResponse =
             error("not used in offline parser tests")
         override suspend fun getVersion(): VersionResponse =
+            error("not used in offline parser tests")
+        override suspend fun syncPush(request: SyncPushRequest): SyncPushResponse =
+            error("not used in offline parser tests")
+        override suspend fun syncPull(since: Long): SyncPullResponse =
             error("not used in offline parser tests")
     }
 
