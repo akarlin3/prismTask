@@ -10,6 +10,16 @@
 
 A native Android task manager with a Python API backend featuring AI-powered natural language processing. Built with Kotlin/Jetpack Compose for the client and FastAPI/PostgreSQL for the server.
 
+## Screenshots
+
+<p align="center">
+  <img src="screenshots/today-view.jpg" width="250" alt="Today View" />
+  &nbsp;&nbsp;
+  <img src="screenshots/habits-view.jpg" width="250" alt="Habits" />
+  &nbsp;&nbsp;
+  <img src="screenshots/timer-view.jpg" width="250" alt="Focus Timer" />
+</p>
+
 ## Features
 
 ### Task Management
