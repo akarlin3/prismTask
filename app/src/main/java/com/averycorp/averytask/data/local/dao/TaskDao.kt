@@ -23,8 +23,17 @@ interface TaskDao {
     @Query("DELETE FROM tasks WHERE project_id = :projectId")
     suspend fun deleteTasksByProjectId(projectId: Long)
 
-    @Query("SELECT * FROM tasks WHERE parent_task_id = :parentTaskId ORDER BY created_at ASC")
+    @Query("SELECT * FROM tasks WHERE parent_task_id = :parentTaskId ORDER BY sort_order ASC, created_at ASC")
     fun getSubtasks(parentTaskId: Long): Flow<List<TaskEntity>>
+
+    @Query("SELECT * FROM tasks WHERE parent_task_id = :parentTaskId ORDER BY sort_order ASC, created_at ASC")
+    suspend fun getSubtasksOnce(parentTaskId: Long): List<TaskEntity>
+
+    @Query("SELECT COALESCE(MAX(sort_order), -1) FROM tasks WHERE parent_task_id = :parentTaskId")
+    suspend fun getMaxSubtaskSortOrder(parentTaskId: Long): Int
+
+    @Query("UPDATE tasks SET sort_order = :sortOrder, updated_at = :now WHERE id = :id")
+    suspend fun updateSortOrder(id: Long, sortOrder: Int, now: Long = System.currentTimeMillis())
 
     @Query("SELECT * FROM tasks WHERE is_completed = 0")
     fun getIncompleteTasks(): Flow<List<TaskEntity>>

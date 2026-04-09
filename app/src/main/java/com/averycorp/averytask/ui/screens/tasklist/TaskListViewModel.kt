@@ -364,12 +364,43 @@ class TaskListViewModel @Inject constructor(
         }
     }
 
-    fun onAddSubtask(title: String, parentTaskId: Long) {
+    fun onAddSubtask(title: String, parentTaskId: Long, priority: Int = 0) {
         viewModelScope.launch {
             try {
-                taskRepository.addSubtask(title = title, parentTaskId = parentTaskId)
+                taskRepository.addSubtask(title = title, parentTaskId = parentTaskId, priority = priority)
             } catch (e: Exception) {
                 Log.e("TaskListVM", "Failed to add subtask", e)
+                snackbarHostState.showSnackbar("Something went wrong")
+            }
+        }
+    }
+
+    fun onDeleteSubtaskWithUndo(subtaskId: Long) {
+        viewModelScope.launch {
+            try {
+                val saved = taskRepository.getTaskByIdOnce(subtaskId) ?: return@launch
+                taskRepository.deleteTask(subtaskId)
+                val result = snackbarHostState.showSnackbar(
+                    message = "Subtask deleted",
+                    actionLabel = "UNDO",
+                    duration = SnackbarDuration.Short
+                )
+                if (result == SnackbarResult.ActionPerformed) {
+                    taskRepository.insertTask(saved)
+                }
+            } catch (e: Exception) {
+                Log.e("TaskListVM", "Failed to delete subtask", e)
+                snackbarHostState.showSnackbar("Something went wrong")
+            }
+        }
+    }
+
+    fun onReorderSubtasks(parentTaskId: Long, orderedIds: List<Long>) {
+        viewModelScope.launch {
+            try {
+                taskRepository.reorderSubtasks(parentTaskId, orderedIds)
+            } catch (e: Exception) {
+                Log.e("TaskListVM", "Failed to reorder subtasks", e)
                 snackbarHostState.showSnackbar("Something went wrong")
             }
         }
