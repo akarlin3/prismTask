@@ -15,7 +15,9 @@ import com.averycorp.averytask.data.preferences.TaskBehaviorPreferences
 import com.averycorp.averytask.data.repository.HabitRepository
 import com.averycorp.averytask.util.DayBoundary
 import com.averycorp.averytask.data.repository.HabitWithStatus
+import com.averycorp.averytask.data.local.entity.ProjectEntity
 import com.averycorp.averytask.data.repository.LeisureRepository
+import com.averycorp.averytask.data.repository.ProjectRepository
 import com.averycorp.averytask.data.repository.SchoolworkRepository
 import com.averycorp.averytask.data.repository.SelfCareRepository
 import com.averycorp.averytask.data.repository.TagRepository
@@ -41,6 +43,7 @@ class TodayViewModel @Inject constructor(
     private val tagRepository: TagRepository,
     private val taskDao: TaskDao,
     private val habitRepository: HabitRepository,
+    private val projectRepository: ProjectRepository,
     private val dashboardPreferences: DashboardPreferences,
     private val habitListPreferences: HabitListPreferences,
     private val taskBehaviorPreferences: TaskBehaviorPreferences
@@ -194,6 +197,12 @@ class TodayViewModel @Inject constructor(
         taskDao.getTasksNotInToday(start, start + DayBoundary.DAY_MILLIS)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    val projects: StateFlow<List<ProjectEntity>> = projectRepository.getAllProjects()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    // Reactive "start of today" exposed for UI (e.g. quick-add plannedDate override).
+    val startOfToday: StateFlow<Long> = dayStart
+
     private val _showPlanSheet = MutableStateFlow(false)
     val showPlanSheet: StateFlow<Boolean> = _showPlanSheet
 
@@ -203,6 +212,20 @@ class TodayViewModel @Inject constructor(
     fun onPlanForToday(taskId: Long) {
         viewModelScope.launch {
             taskDao.setPlanDate(taskId, currentStartOfToday())
+        }
+    }
+
+    fun onPlanForToday(taskIds: List<Long>) {
+        viewModelScope.launch {
+            val start = currentStartOfToday()
+            taskIds.forEach { id -> taskDao.setPlanDate(id, start) }
+        }
+    }
+
+    fun onPlanAllOverdue() {
+        viewModelScope.launch {
+            val start = currentStartOfToday()
+            overdueTasks.value.forEach { task -> taskDao.setPlanDate(task.id, start) }
         }
     }
 

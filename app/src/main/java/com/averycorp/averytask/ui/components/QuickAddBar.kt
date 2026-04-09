@@ -55,15 +55,19 @@ import java.util.Locale
 fun QuickAddBar(
     viewModel: QuickAddViewModel = hiltViewModel(),
     onTaskCreated: () -> Unit = {},
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    plannedDateOverride: Long? = null,
+    alwaysExpanded: Boolean = false,
+    placeholder: String = "Add task... (try: Buy milk tomorrow #groceries !high)"
 ) {
     val inputText by viewModel.inputText.collectAsStateWithLifecycle()
     val parsedPreview by viewModel.parsedPreview.collectAsStateWithLifecycle()
     val isExpanded by viewModel.isExpanded.collectAsStateWithLifecycle()
     val isSubmitting by viewModel.isSubmitting.collectAsStateWithLifecycle()
 
+    val expandedState = alwaysExpanded || isExpanded
     Column(modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
-        if (!isExpanded) {
+        if (!expandedState) {
             TextButton(
                 onClick = { viewModel.onToggleExpand() },
                 modifier = Modifier.fillMaxWidth()
@@ -73,21 +77,23 @@ fun QuickAddBar(
                 Text("Quick Add")
             }
         } else {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Spacer(modifier = Modifier.weight(1f))
-                IconButton(
-                    onClick = { viewModel.onToggleExpand() },
-                    modifier = Modifier.size(24.dp)
+            if (!alwaysExpanded) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        Icons.Default.ExpandLess,
-                        contentDescription = "Collapse",
-                        modifier = Modifier.size(18.dp)
-                    )
+                    Spacer(modifier = Modifier.weight(1f))
+                    IconButton(
+                        onClick = { viewModel.onToggleExpand() },
+                        modifier = Modifier.size(24.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.ExpandLess,
+                            contentDescription = "Collapse",
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
                 }
             }
 
@@ -95,12 +101,12 @@ fun QuickAddBar(
                 value = inputText,
                 onValueChange = { viewModel.onInputChanged(it) },
                 modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text("Add task... (try: Buy milk tomorrow #groceries !high)") },
+                placeholder = { Text(placeholder) },
                 leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(20.dp)) },
                 trailingIcon = {
                     IconButton(
                         onClick = {
-                            viewModel.onSubmit()
+                            viewModel.onSubmit(plannedDateOverride)
                             onTaskCreated()
                         },
                         enabled = inputText.isNotBlank() && !isSubmitting
@@ -111,7 +117,7 @@ fun QuickAddBar(
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                 keyboardActions = KeyboardActions(onDone = {
                     if (inputText.isNotBlank()) {
-                        viewModel.onSubmit()
+                        viewModel.onSubmit(plannedDateOverride)
                         onTaskCreated()
                     }
                 }),

@@ -59,7 +59,7 @@ class QuickAddViewModel @Inject constructor(
         _isExpanded.value = !_isExpanded.value
     }
 
-    fun onSubmit() {
+    fun onSubmit(plannedDateOverride: Long? = null) {
         val text = inputText.value.trim()
         if (text.isBlank()) return
 
@@ -93,6 +93,7 @@ class QuickAddViewModel @Inject constructor(
                     priority = resolved.priority,
                     projectId = projectId,
                     recurrenceRule = recurrenceJson,
+                    plannedDate = plannedDateOverride,
                     createdAt = now,
                     updatedAt = now
                 )
