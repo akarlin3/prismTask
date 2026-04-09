@@ -957,7 +957,7 @@ fun SettingsScreen(
             SectionHeader("Backend Sync")
 
             Text(
-                text = "Sync your data with the AveryTask backend. This is separate from Firebase sync — use either or both.",
+                text = "Sync your data with the PrismTask backend. This is separate from Firebase sync — use either or both.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(bottom = 8.dp)
@@ -1316,7 +1316,7 @@ fun SettingsScreen(
             SectionHeader("About")
 
             Text(
-                text = "AveryTask v${BuildConfig.VERSION_NAME}",
+                text = "PrismTask v${BuildConfig.VERSION_NAME}",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.padding(vertical = 4.dp)
@@ -1704,9 +1704,9 @@ private fun BackendAuthDialog(
             Column {
                 Text(
                     text = if (isRegisterMode) {
-                        "Create a new account to sync with the AveryTask backend."
+                        "Create a new account to sync with the PrismTask backend."
                     } else {
-                        "Sign in to sync with the AveryTask backend."
+                        "Sign in to sync with the PrismTask backend."
                     },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,

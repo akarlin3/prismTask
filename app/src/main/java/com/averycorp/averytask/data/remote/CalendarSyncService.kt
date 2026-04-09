@@ -176,7 +176,7 @@ class CalendarSyncService @Inject constructor(
             1 -> "Low"; 2 -> "Medium"; 3 -> "High"; 4 -> "Urgent"; else -> null
         }
         if (priorityLabel != null) parts.add("Priority: $priorityLabel")
-        parts.add("[AveryTask]")
+        parts.add("[PrismTask]")
         return parts.joinToString("\n")
     }
 

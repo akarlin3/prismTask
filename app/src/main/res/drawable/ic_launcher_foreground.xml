@@ -5,19 +5,55 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- Gold infinity symbol - thick stroke, centered in adaptive icon safe zone -->
+    <!-- PrismTask icon: a glass prism refracting an incoming white light
+         beam into a rainbow. Content is kept inside the adaptive icon safe
+         zone (roughly 21..87 on a 108x108 viewport). -->
+
+    <!-- Incoming white light beam from the left -->
     <path
-        android:pathData="M54,54
-            C49,42 38,34 31,42
-            C24,50 31,62 40,62
-            C47,62 51,56 54,54
-            C57,56 61,62 68,62
-            C77,62 84,50 77,42
-            C70,34 59,42 54,54Z"
-        android:fillColor="#00000000"
-        android:strokeColor="#FFD700"
-        android:strokeWidth="5.5"
-        android:strokeLineCap="round"
+        android:pathData="M22,54 L46,54"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="3.2"
+        android:strokeLineCap="round" />
+
+    <!-- Triangular prism -->
+    <path
+        android:pathData="M54,34 L72,72 L36,72 Z"
+        android:fillColor="#33FFFFFF"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="2.8"
         android:strokeLineJoin="round" />
+
+    <!-- Refracted rainbow rays fanning out from the right face -->
+    <path
+        android:pathData="M63,54 L86,38"
+        android:strokeColor="#FF3B30"
+        android:strokeWidth="2.8"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M63,54 L86,45"
+        android:strokeColor="#FF9500"
+        android:strokeWidth="2.8"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M63,54 L86,52"
+        android:strokeColor="#FFCC00"
+        android:strokeWidth="2.8"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M63,54 L86,59"
+        android:strokeColor="#34C759"
+        android:strokeWidth="2.8"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M63,54 L86,66"
+        android:strokeColor="#007AFF"
+        android:strokeWidth="2.8"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M63,54 L86,74"
+        android:strokeColor="#AF52DE"
+        android:strokeWidth="2.8"
+        android:strokeLineCap="round" />
 
 </vector>

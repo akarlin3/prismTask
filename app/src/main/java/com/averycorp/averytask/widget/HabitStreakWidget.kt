@@ -69,7 +69,7 @@ private fun HabitStreakContent(data: HabitWidgetData) {
 
         if (data.habits.isEmpty()) {
             Text(
-                text = "Add a habit in AveryTask",
+                text = "Add a habit in PrismTask",
                 style = TextStyle(
                     fontSize = 12.sp,
                     color = GlanceTheme.colors.secondary

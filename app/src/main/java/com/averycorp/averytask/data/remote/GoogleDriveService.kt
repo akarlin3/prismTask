@@ -21,8 +21,8 @@ class GoogleDriveService @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
     companion object {
-        private const val APP_FOLDER_NAME = "AveryTask Backups"
-        private const val BACKUP_FILE_NAME = "averytask_backup.json"
+        private const val APP_FOLDER_NAME = "PrismTask Backups"
+        private const val BACKUP_FILE_NAME = "prismtask_backup.json"
         private const val MIME_JSON = "application/json"
         private const val MIME_FOLDER = "application/vnd.google-apps.folder"
     }
@@ -38,7 +38,7 @@ class GoogleDriveService @Inject constructor(
             GsonFactory.getDefaultInstance(),
             credential
         )
-            .setApplicationName("AveryTask")
+            .setApplicationName("PrismTask")
             .build()
     }
 

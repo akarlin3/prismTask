@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">AveryTask</string>
+    <string name="app_name">PrismTask</string>
     <string name="today_widget_description">Today\'s tasks and habits progress</string>
     <string name="habit_widget_description">Habit streak tracker</string>
     <string name="quick_add_widget_description">Quick add a new task</string>

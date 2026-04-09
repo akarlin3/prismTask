@@ -4,8 +4,9 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- Deep purple background -->
+    <!-- Deep near-black background for high contrast with the refracted
+         rainbow in the foreground (PrismTask). -->
     <path
-        android:fillColor="#6A0DAD"
+        android:fillColor="#0B0B14"
         android:pathData="M0,0h108v108H0z" />
 </vector>

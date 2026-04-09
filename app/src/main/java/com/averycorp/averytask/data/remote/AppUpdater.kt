@@ -151,11 +151,11 @@ class AppUpdater @Inject constructor(
                 }
                 updateDir.mkdirs()
 
-                val targetFile = File(updateDir, "AveryTask-update.apk")
+                val targetFile = File(updateDir, "PrismTask-update.apk")
 
                 val url = URL(downloadUrl)
                 val conn = url.openConnection() as HttpURLConnection
-                conn.setRequestProperty("User-Agent", "AveryTask-Android")
+                conn.setRequestProperty("User-Agent", "PrismTask-Android")
                 conn.setRequestProperty("Accept", "application/octet-stream")
                 conn.instanceFollowRedirects = true
                 conn.connectTimeout = 30_000
@@ -221,7 +221,7 @@ class AppUpdater @Inject constructor(
             throw Exception(
                 "APK signature does not match installed app. This means the " +
                     "installed build was signed with a different key than the " +
-                    "release. Uninstall AveryTask and reinstall from the latest " +
+                    "release. Uninstall PrismTask and reinstall from the latest " +
                     "GitHub release to continue receiving in-app updates."
             )
         }
@@ -258,7 +258,7 @@ class AppUpdater @Inject constructor(
         val conn = url.openConnection() as HttpURLConnection
         conn.requestMethod = "GET"
         conn.setRequestProperty("Accept", "application/vnd.github.v3+json")
-        conn.setRequestProperty("User-Agent", "AveryTask-Android")
+        conn.setRequestProperty("User-Agent", "PrismTask-Android")
         conn.setRequestProperty("Cache-Control", "no-cache")
         conn.useCaches = false
         conn.connectTimeout = 10_000

@@ -53,11 +53,11 @@ class UpdateChecker(
         val uri = Uri.parse("$baseUrl${versionInfo.apkUrl}")
 
         val request = DownloadManager.Request(uri).apply {
-            setTitle("AveryTask Update ${versionInfo.versionName}")
+            setTitle("PrismTask Update ${versionInfo.versionName}")
             setDescription("Downloading update...")
             setDestinationInExternalPublicDir(
                 Environment.DIRECTORY_DOWNLOADS,
-                "AveryTask-${versionInfo.versionName}.apk"
+                "PrismTask-${versionInfo.versionName}.apk"
             )
             setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
             setMimeType("application/vnd.android.package-archive")
