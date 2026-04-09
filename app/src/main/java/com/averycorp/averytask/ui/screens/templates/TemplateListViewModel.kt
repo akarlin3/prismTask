@@ -4,6 +4,7 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.averycorp.averytask.data.local.entity.TaskTemplateEntity
+import com.averycorp.averytask.data.repository.TaskRepository
 import com.averycorp.averytask.data.repository.TaskTemplateRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -16,10 +17,30 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+/**
+ * Ephemeral banner state emitted after a quick-use template action so the
+ * [TemplateListScreen] can show a snackbar-style bar with View and Undo
+ * actions. Using a dedicated state model instead of [androidx.compose.material3.SnackbarHostState]
+ * because Material's Snackbar only supports a single action button.
+ */
+data class QuickUseBanner(
+    val newTaskId: Long,
+    val taskTitle: String
+)
+
 @HiltViewModel
 class TemplateListViewModel @Inject constructor(
-    private val templateRepository: TaskTemplateRepository
+    private val templateRepository: TaskTemplateRepository,
+    private val taskRepository: TaskRepository
 ) : ViewModel() {
+
+    /**
+     * Banner shown after a successful quick-use, with the id of the task
+     * that was just created so the screen can route "View" to the editor
+     * and "Undo" back through [undoQuickUse].
+     */
+    private val _quickUseBanner = MutableStateFlow<QuickUseBanner?>(null)
+    val quickUseBanner: StateFlow<QuickUseBanner?> = _quickUseBanner.asStateFlow()
 
     private val _selectedCategory = MutableStateFlow<String?>(null)
     val selectedCategory: StateFlow<String?> = _selectedCategory.asStateFlow()
@@ -66,6 +87,49 @@ class TemplateListViewModel @Inject constructor(
                 templateRepository.deleteTemplate(id)
             } catch (e: Exception) {
                 Log.e("TemplateListVM", "Failed to delete template", e)
+            }
+        }
+    }
+
+    /**
+     * Quick-use a template: creates a task immediately from the template
+     * and exposes a banner with View + Undo actions via [quickUseBanner].
+     * This is the "fastest path" entry point for users who don't need to
+     * tweak anything before creating the task.
+     */
+    fun quickUseTemplate(templateId: Long) {
+        viewModelScope.launch {
+            try {
+                val newTaskId = templateRepository.createTaskFromTemplate(templateId)
+                val createdTask = taskRepository.getTaskByIdOnce(newTaskId)
+                val title = createdTask?.title.orEmpty().ifBlank { "task" }
+                _quickUseBanner.value = QuickUseBanner(
+                    newTaskId = newTaskId,
+                    taskTitle = title
+                )
+            } catch (e: Exception) {
+                Log.e("TemplateListVM", "Failed to quick-use template", e)
+            }
+        }
+    }
+
+    /** Clears the quick-use banner (e.g. after auto-dismiss or View tap). */
+    fun dismissQuickUseBanner() {
+        _quickUseBanner.value = null
+    }
+
+    /**
+     * Undoes a quick-use action by deleting the task the repository just
+     * created. Safe to call even if the banner has already been dismissed
+     * from the UI; the deletion is idempotent on a missing task.
+     */
+    fun undoQuickUse(taskId: Long) {
+        viewModelScope.launch {
+            try {
+                taskRepository.deleteTask(taskId)
+                _quickUseBanner.value = null
+            } catch (e: Exception) {
+                Log.e("TemplateListVM", "Failed to undo quick-use", e)
             }
         }
     }

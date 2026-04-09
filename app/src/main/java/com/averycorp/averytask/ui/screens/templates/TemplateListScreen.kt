@@ -1,5 +1,10 @@
 package com.averycorp.averytask.ui.screens.templates
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -43,11 +48,13 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -66,6 +73,8 @@ import androidx.navigation.NavController
 import com.averycorp.averytask.data.local.entity.TaskTemplateEntity
 import com.averycorp.averytask.ui.components.EmptyState
 import com.averycorp.averytask.ui.navigation.AveryTaskRoute
+import com.averycorp.averytask.ui.screens.addedittask.AddEditTaskSheetHost
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -77,9 +86,22 @@ fun TemplateListScreen(
     val categories by viewModel.categories.collectAsStateWithLifecycle()
     val selectedCategory by viewModel.selectedCategory.collectAsStateWithLifecycle()
     val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
+    val quickUseBanner by viewModel.quickUseBanner.collectAsStateWithLifecycle()
 
     var showSearch by remember { mutableStateOf(false) }
     var templateToDelete by remember { mutableStateOf<TaskTemplateEntity?>(null) }
+    var editorSheetTaskId by remember { mutableStateOf<Long?>(null) }
+    var showEditorSheet by remember { mutableStateOf(false) }
+
+    // Auto-dismiss the quick-use banner after a short window so it behaves
+    // like a Snackbar despite being a bespoke composable. The delay is
+    // reset whenever a new quick-use lands.
+    LaunchedEffect(quickUseBanner?.newTaskId) {
+        if (quickUseBanner != null) {
+            delay(5_000)
+            viewModel.dismissQuickUseBanner()
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -154,42 +176,84 @@ fun TemplateListScreen(
             }
         }
     ) { padding ->
-        if (templates.isEmpty()) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            if (templates.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding)
+                ) {
+                    TemplatesEmptyState(
+                        hasAnyFilter = selectedCategory != null || searchQuery.isNotEmpty(),
+                        onCreate = {
+                            navController.navigate(AveryTaskRoute.AddEditTemplate.createRoute())
+                        }
+                    )
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding)
+                        .padding(horizontal = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    item { Spacer(modifier = Modifier.height(4.dp)) }
+                    items(templates, key = { it.id }) { template ->
+                        TemplateCard(
+                            template = template,
+                            onQuickUse = { viewModel.quickUseTemplate(template.id) },
+                            onEdit = {
+                                navController.navigate(
+                                    AveryTaskRoute.AddEditTemplate.createRoute(template.id)
+                                )
+                            },
+                            onDelete = { templateToDelete = template }
+                        )
+                    }
+                    item { Spacer(modifier = Modifier.height(80.dp)) }
+                }
+            }
+
+            // Quick-use banner — overlays the FAB at the bottom of the
+            // screen with View and Undo actions. Dismissed automatically
+            // after 5s via a LaunchedEffect above.
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(padding)
+                    .padding(padding),
+                contentAlignment = Alignment.BottomCenter
             ) {
-                TemplatesEmptyState(
-                    hasAnyFilter = selectedCategory != null || searchQuery.isNotEmpty(),
-                    onCreate = {
-                        navController.navigate(AveryTaskRoute.AddEditTemplate.createRoute())
+                AnimatedVisibility(
+                    visible = quickUseBanner != null,
+                    enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
+                    exit = slideOutVertically(targetOffsetY = { it }) + fadeOut()
+                ) {
+                    quickUseBanner?.let { banner ->
+                        QuickUseSnackbar(
+                            taskTitle = banner.taskTitle,
+                            onView = {
+                                editorSheetTaskId = banner.newTaskId
+                                showEditorSheet = true
+                                viewModel.dismissQuickUseBanner()
+                            },
+                            onUndo = { viewModel.undoQuickUse(banner.newTaskId) },
+                            onDismiss = { viewModel.dismissQuickUseBanner() }
+                        )
                     }
-                )
-            }
-        } else {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding)
-                    .padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                item { Spacer(modifier = Modifier.height(4.dp)) }
-                items(templates, key = { it.id }) { template ->
-                    TemplateCard(
-                        template = template,
-                        onEdit = {
-                            navController.navigate(
-                                AveryTaskRoute.AddEditTemplate.createRoute(template.id)
-                            )
-                        },
-                        onDelete = { templateToDelete = template }
-                    )
                 }
-                item { Spacer(modifier = Modifier.height(80.dp)) }
             }
         }
+    }
+
+    // Editor sheet — shown when user taps "View" on the quick-use banner.
+    if (showEditorSheet) {
+        AddEditTaskSheetHost(
+            taskId = editorSheetTaskId,
+            projectId = null,
+            initialDate = null,
+            onDismiss = { showEditorSheet = false }
+        )
     }
 
     templateToDelete?.let { template ->
@@ -254,6 +318,7 @@ private fun CategoryFilterRow(
 @Composable
 private fun TemplateCard(
     template: TaskTemplateEntity,
+    onQuickUse: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
@@ -263,7 +328,7 @@ private fun TemplateCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onEdit),
+            .clickable(onClick = onQuickUse),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow
@@ -423,6 +488,63 @@ private fun TemplatesEmptyState(
                 Icon(Icons.Default.Add, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
                 Text("Create Template")
+            }
+        }
+    }
+}
+
+/**
+ * Bespoke Material3-styled snackbar that hosts both the "View" and "Undo"
+ * actions for the quick-use flow. Material's default Snackbar only supports
+ * a single action slot, so we render our own surface with a Row of
+ * TextButtons instead.
+ */
+@Composable
+private fun QuickUseSnackbar(
+    taskTitle: String,
+    onView: () -> Unit,
+    onUndo: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 16.dp),
+        shape = RoundedCornerShape(8.dp),
+        color = MaterialTheme.colorScheme.inverseSurface,
+        tonalElevation = 6.dp,
+        shadowElevation = 6.dp
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 16.dp, end = 4.dp, top = 6.dp, bottom = 6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Created '$taskTitle' from template",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.inverseOnSurface,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
+            )
+            TextButton(onClick = onView) {
+                Text(
+                    text = "VIEW",
+                    color = MaterialTheme.colorScheme.inversePrimary,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+            TextButton(onClick = {
+                onUndo()
+                onDismiss()
+            }) {
+                Text(
+                    text = "UNDO",
+                    color = MaterialTheme.colorScheme.inversePrimary,
+                    fontWeight = FontWeight.SemiBold
+                )
             }
         }
     }

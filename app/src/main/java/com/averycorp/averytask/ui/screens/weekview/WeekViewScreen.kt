@@ -59,6 +59,7 @@ import com.averycorp.averytask.data.local.entity.TaskEntity
 import com.averycorp.averytask.ui.components.MoveToProjectSheet
 import com.averycorp.averytask.ui.components.QuickReschedulePopup
 import com.averycorp.averytask.ui.components.TaskContextMenuSheet
+import com.averycorp.averytask.ui.navigation.AveryTaskRoute
 import com.averycorp.averytask.ui.screens.addedittask.AddEditTaskSheetHost
 import com.averycorp.averytask.ui.theme.LocalPriorityColors
 import java.time.LocalDate
@@ -249,7 +250,11 @@ fun WeekViewScreen(
             taskId = state.taskId,
             projectId = null,
             initialDate = state.initialDate,
-            onDismiss = { editorState = null }
+            onDismiss = { editorState = null },
+            onManageTemplates = {
+                editorState = null
+                navController.navigate(AveryTaskRoute.TemplateList.route)
+            }
         )
     }
 

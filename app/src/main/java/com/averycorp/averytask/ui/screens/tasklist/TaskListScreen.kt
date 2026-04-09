@@ -798,7 +798,11 @@ fun TaskListScreen(
             projectId = state.projectId,
             initialDate = state.initialDate,
             onDismiss = { editorSheet = null },
-            onDeleteTask = { id -> viewModel.onDeleteTaskWithUndo(id) }
+            onDeleteTask = { id -> viewModel.onDeleteTaskWithUndo(id) },
+            onManageTemplates = {
+                editorSheet = null
+                navController.navigate(AveryTaskRoute.TemplateList.route)
+            }
         )
     }
 

@@ -26,7 +26,15 @@ data class ParsedTask(
     val tags: List<String> = emptyList(),
     val projectName: String? = null,
     val priority: Int = 0,
-    val recurrenceHint: String? = null
+    val recurrenceHint: String? = null,
+    /**
+     * Set when the input starts with a "/templatename" or "template:templatename"
+     * shortcut. The value is the raw query portion (with no leading prefix or
+     * whitespace). QuickAddViewModel fuzzy-matches this against the template
+     * library and either creates the task directly or surfaces a
+     * disambiguation popup.
+     */
+    val templateQuery: String? = null
 )
 
 @Singleton
@@ -46,6 +54,12 @@ class NaturalLanguageParser @Inject constructor(
      * `map` operators that build live previews).
      */
     suspend fun parseRemote(input: String): ParsedTask = withContext(Dispatchers.IO) {
+        // Template shortcuts are resolved locally — routing them through the
+        // API would waste a round-trip and the server doesn't know about
+        // the user's template library anyway.
+        extractTemplateQuery(input)?.let { query ->
+            return@withContext ParsedTask(title = query, templateQuery = query)
+        }
         Log.d(TAG, "attempting API parse for input of length ${input.length}")
         try {
             val response = api.parseTask(ParseRequest(input))
@@ -88,7 +102,34 @@ class NaturalLanguageParser @Inject constructor(
         return effectiveDate.atTime(parsedTime).atZone(zone).toInstant().toEpochMilli()
     }
 
+    /**
+     * If [input] begins with a "/templatename" or "template:templatename"
+     * shortcut, returns the raw query portion (trimmed, with no prefix).
+     * Returns null otherwise. Used by QuickAddViewModel to dispatch to a
+     * template match instead of the regular task-creation pipeline.
+     */
+    fun extractTemplateQuery(input: String): String? {
+        val trimmed = input.trim()
+        if (trimmed.isEmpty()) return null
+        // Explicit `template:query` form — supports anything after the colon.
+        val colonRegex = Regex("""(?i)^template:\s*(\S.*)$""")
+        colonRegex.matchEntire(trimmed)?.let { return it.groupValues[1].trim() }
+        // Slash shortcut `/query` — single leading slash, then a name that
+        // doesn't start with another slash (so "/" alone is ignored and
+        // doesn't clobber plain text starting with "/").
+        if (trimmed.startsWith("/") && trimmed.length >= 2 && trimmed[1] != '/') {
+            return trimmed.substring(1).trim().takeIf { it.isNotEmpty() }
+        }
+        return null
+    }
+
     fun parse(input: String): ParsedTask {
+        // Template shortcut detection runs before any other parsing so the
+        // query isn't mangled by tag/project/priority regexes.
+        extractTemplateQuery(input)?.let { query ->
+            return ParsedTask(title = query, templateQuery = query)
+        }
+
         var text = input
         val today = LocalDate.now()
 
