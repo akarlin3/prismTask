@@ -79,6 +79,8 @@ class AddEditTaskViewModel @Inject constructor(
         private set
     var reminderOffset by mutableStateOf<Long?>(null)
         private set
+    var estimatedDuration by mutableStateOf<Int?>(null)
+        private set
     var titleError by mutableStateOf(false)
         private set
     var notes by mutableStateOf("")
@@ -97,6 +99,7 @@ class AddEditTaskViewModel @Inject constructor(
     private var initialParentTaskId: Long? = null
     private var initialRecurrenceRule: RecurrenceRule? = null
     private var initialReminderOffset: Long? = null
+    private var initialEstimatedDuration: Int? = null
     private var initialNotes: String = ""
     private var initialSelectedTagIds: Set<Long> = emptySet()
 
@@ -150,6 +153,7 @@ class AddEditTaskViewModel @Inject constructor(
         parentTaskId = null
         recurrenceRule = null
         reminderOffset = null
+        estimatedDuration = null
         notes = ""
         selectedTagIds = emptySet()
         titleError = false
@@ -175,6 +179,7 @@ class AddEditTaskViewModel @Inject constructor(
                     parentTaskId = task.parentTaskId
                     recurrenceRule = task.recurrenceRule?.let { RecurrenceConverter.fromJson(it) }
                     reminderOffset = task.reminderOffset
+                    estimatedDuration = task.estimatedDuration
                     notes = task.notes.orEmpty()
                     selectedTagIds = tagIds
                     snapshotInitialValuesFromTask(task, tagIds)
@@ -199,6 +204,7 @@ class AddEditTaskViewModel @Inject constructor(
         initialParentTaskId = task.parentTaskId
         initialRecurrenceRule = task.recurrenceRule?.let { RecurrenceConverter.fromJson(it) }
         initialReminderOffset = task.reminderOffset
+        initialEstimatedDuration = task.estimatedDuration
         initialNotes = task.notes.orEmpty()
         initialSelectedTagIds = tagIds
     }
@@ -213,6 +219,7 @@ class AddEditTaskViewModel @Inject constructor(
         initialParentTaskId = null
         initialRecurrenceRule = null
         initialReminderOffset = null
+        initialEstimatedDuration = null
         initialNotes = ""
         initialSelectedTagIds = emptySet()
     }
@@ -228,6 +235,7 @@ class AddEditTaskViewModel @Inject constructor(
                 parentTaskId != initialParentTaskId ||
                 recurrenceRule != initialRecurrenceRule ||
                 reminderOffset != initialReminderOffset ||
+                estimatedDuration != initialEstimatedDuration ||
                 notes != initialNotes ||
                 selectedTagIds != initialSelectedTagIds
             )
@@ -245,6 +253,7 @@ class AddEditTaskViewModel @Inject constructor(
     fun onRecurrenceRuleChange(value: RecurrenceRule?) { recurrenceRule = value }
     fun onNotesChange(value: String) { notes = value }
     fun onReminderOffsetChange(value: Long?) { reminderOffset = value }
+    fun onEstimatedDurationChange(value: Int?) { estimatedDuration = value }
     fun onSelectedTagIdsChange(value: Set<Long>) { selectedTagIds = value }
     fun onParentTaskIdChange(value: Long?) { parentTaskId = value }
 
@@ -346,6 +355,7 @@ class AddEditTaskViewModel @Inject constructor(
                         parentTaskId = parentTaskId,
                         reminderOffset = reminderOffset,
                         recurrenceRule = recurrenceJson,
+                        estimatedDuration = estimatedDuration,
                         notes = trimmedNotes
                     )
                 )
@@ -360,13 +370,14 @@ class AddEditTaskViewModel @Inject constructor(
                     projectId = projectId,
                     parentTaskId = parentTaskId
                 )
-                // Update reminder offset and recurrence on the newly created task
-                if (reminderOffset != null || recurrenceJson != null) {
+                // Update reminder offset, recurrence, and estimated duration on the newly created task
+                if (reminderOffset != null || recurrenceJson != null || estimatedDuration != null) {
                     taskRepository.getTaskById(savedId).firstOrNull()?.let { created ->
                         taskRepository.updateTask(
                             created.copy(
                                 reminderOffset = reminderOffset ?: created.reminderOffset,
-                                recurrenceRule = recurrenceJson ?: created.recurrenceRule
+                                recurrenceRule = recurrenceJson ?: created.recurrenceRule,
+                                estimatedDuration = estimatedDuration ?: created.estimatedDuration
                             )
                         )
                     }

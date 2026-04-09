@@ -83,7 +83,7 @@ fun RecurrenceSelector(
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-private fun RecurrenceDialog(
+internal fun RecurrenceDialog(
     initialRule: RecurrenceRule?,
     onDismiss: () -> Unit,
     onConfirm: (RecurrenceRule?) -> Unit
