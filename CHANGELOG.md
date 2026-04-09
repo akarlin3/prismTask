@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v0.8.0 — Backend Integration (April 2026)
+
+### Added
+
+- FastAPI backend with PostgreSQL (deployed on Railway)
+- Claude Haiku-powered NLP task parsing via backend API
+- Backend sync (push/pull) with manual trigger in Settings
+- Cloud export/import (JSON) via backend
+- JWT authentication with token refresh
+- Self-update system via Firebase App Distribution
+- Backend CI pipeline (GitHub Actions)
+- API documentation (auto-generated Swagger UI)
+
+### Changed
+
+- NLP parser now tries Claude API first, falls back to local regex when offline
+- README updated with backend docs, screenshots, architecture diagram, CI badges
+
 ## [0.7.0] - 2026-04-06
 
 ### Added
