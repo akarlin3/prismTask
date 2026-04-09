@@ -2,6 +2,7 @@ package com.averycorp.averytask.ui.screens.today
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInVertically
@@ -13,6 +14,7 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -23,24 +25,30 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FabPosition
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -49,15 +57,15 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.Surface
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -65,9 +73,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
@@ -80,18 +90,22 @@ import com.averycorp.averytask.data.local.entity.ProjectEntity
 import com.averycorp.averytask.data.local.entity.TagEntity
 import com.averycorp.averytask.data.local.entity.TaskEntity
 import com.averycorp.averytask.data.repository.HabitWithStatus
-import com.averycorp.averytask.ui.components.EmptyState
 import com.averycorp.averytask.ui.components.QuickAddBar
-import com.averycorp.averytask.ui.components.StreakBadge
 import com.averycorp.averytask.ui.navigation.AveryTaskRoute
 import com.averycorp.averytask.ui.theme.LocalPriorityColors
+import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
-import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
 private val OverdueRed = Color(0xFFD93025)
 private val CompletedGreen = Color(0xFF4CAF50)
+
+private const val SECTION_OVERDUE = "overdue"
+private const val SECTION_TODAY_TASKS = "today_tasks"
+private const val SECTION_HABITS = "habits"
+private const val SECTION_PLANNED = "planned"
+private const val SECTION_COMPLETED = "completed"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -112,258 +126,195 @@ fun TodayScreen(
     val combinedTotal by viewModel.combinedTotal.collectAsStateWithLifecycle()
     val combinedCompleted by viewModel.combinedCompleted.collectAsStateWithLifecycle()
     val combinedProgress by viewModel.combinedProgress.collectAsStateWithLifecycle()
-    val sectionOrder by viewModel.sectionOrder.collectAsStateWithLifecycle()
     val hiddenSections by viewModel.hiddenSections.collectAsStateWithLifecycle()
-    val progressStyle by viewModel.progressStyle.collectAsStateWithLifecycle()
+    val collapsedSections by viewModel.collapsedSections.collectAsStateWithLifecycle()
 
-    var overdueExpanded by remember { mutableStateOf(true) }
-    var dailyHabitsExpanded by remember { mutableStateOf(true) }
-    var recurringHabitsExpanded by remember { mutableStateOf(true) }
-    var completedExpanded by remember { mutableStateOf(false) }
-
-    val recurringHabitPeriods = remember {
-        setOf("weekly", "fortnightly", "monthly", "bimonthly", "quarterly")
-    }
-    val dailyHabits = remember(todayHabits) {
-        todayHabits.filter { it.habit.frequencyPeriod == "daily" }
-    }
-    val recurringHabits = remember(todayHabits) {
-        todayHabits.filter { it.habit.frequencyPeriod in recurringHabitPeriods }
+    val totalForHeader = combinedTotal + combinedCompleted
+    val allTodayDone = remember(overdueTasks, todayTasks, plannedTasks, completedToday) {
+        overdueTasks.isEmpty() && todayTasks.isEmpty() && plannedTasks.isEmpty() && completedToday.isNotEmpty()
     }
 
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = viewModel.snackbarHostState) },
         topBar = {
-            val greeting = remember {
-                when (Calendar.getInstance().get(Calendar.HOUR_OF_DAY)) {
-                    in 0..11 -> "Good Morning"
-                    in 12..16 -> "Good Afternoon"
-                    else -> "Good Evening"
-                }
-            }
-            TopAppBar(
-                title = {
-                    Column {
-                        Text(greeting, fontWeight = FontWeight.Bold)
-                        Text(
-                            SimpleDateFormat("EEEE, MMM d", Locale.getDefault()).format(Date()),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                },
-                actions = {},
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    titleContentColor = MaterialTheme.colorScheme.onSurface
-                )
+            CompactProgressHeader(
+                completed = combinedCompleted,
+                total = totalForHeader,
+                progress = combinedProgress
             )
-        }
+        },
+        bottomBar = {
+            FloatingQuickAddBar()
+        },
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = { navController.navigate(AveryTaskRoute.AddEditTask.createRoute()) },
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "New Task")
+            }
+        },
+        floatingActionButtonPosition = FabPosition.End
     ) { padding ->
-        Column(
+        LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            QuickAddBar()
+            // All-Caught-Up celebration when there's nothing left to do (but at least one task done today)
+            if (allTodayDone) {
+                item(key = "all_caught_up") {
+                    AllCaughtUpCard(
+                        completedCount = combinedCompleted,
+                        onPlanTomorrow = { viewModel.onShowPlanSheet() }
+                    )
+                }
+            }
 
-            val allEmpty = overdueTasks.isEmpty() && todayTasks.isEmpty() && plannedTasks.isEmpty() && completedToday.isEmpty() && todayHabits.isEmpty()
-
-            if (allEmpty) {
-                EmptyState(
-                    icon = Icons.Default.Check,
-                    title = "Nothing for Today",
-                    subtitle = "Plan tasks for today or add a new one",
-                    modifier = Modifier.weight(1f)
-                )
-            } else {
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    sectionOrder.forEach { sectionKey ->
-                        if (sectionKey in hiddenSections) return@forEach
-
-                        when (sectionKey) {
-                            "progress" -> {
-                                item(key = "progress") {
-                                    val taskRemaining = todayTasks.size + plannedTasks.size
-                                    val habitRemaining = todayHabits.count { !it.isCompletedToday }
-                                    ProgressCard(
-                                        completed = combinedCompleted,
-                                        total = combinedTotal + combinedCompleted,
-                                        progress = combinedProgress,
-                                        style = progressStyle,
-                                        subtitle = "${taskRemaining} task${if (taskRemaining != 1) "s" else ""} \u00B7 ${habitRemaining} habit${if (habitRemaining != 1) "s" else ""} remaining"
-                                    )
-                                }
-                            }
-
-                            "habits" -> {
-                                if (dailyHabits.isNotEmpty()) {
-                                    item(key = "header_habits_daily") {
-                                        SectionHeader(
-                                            title = "Daily Habits",
-                                            count = dailyHabits.size,
-                                            color = MaterialTheme.colorScheme.tertiary,
-                                            expanded = dailyHabitsExpanded,
-                                            onToggle = { dailyHabitsExpanded = !dailyHabitsExpanded }
-                                        )
-                                    }
-                                    if (dailyHabitsExpanded) {
-                                        items(dailyHabits, key = { "habit_daily_${it.habit.id}" }) { hws ->
-                                            CompactHabitItem(
-                                                habitWithStatus = hws,
-                                                onToggle = {
-                                                    viewModel.onToggleHabitCompletion(hws.habit.id, hws.isCompletedToday)
-                                                },
-                                                onClick = {
-                                                    navController.navigate(
-                                                        AveryTaskRoute.HabitAnalytics.createRoute(hws.habit.id)
-                                                    )
-                                                }
-                                            )
-                                        }
-                                    }
-                                }
-                                if (recurringHabits.isNotEmpty()) {
-                                    item(key = "header_habits_recurring") {
-                                        SectionHeader(
-                                            title = "Recurring Habits",
-                                            count = recurringHabits.size,
-                                            color = MaterialTheme.colorScheme.tertiary,
-                                            expanded = recurringHabitsExpanded,
-                                            onToggle = { recurringHabitsExpanded = !recurringHabitsExpanded }
-                                        )
-                                    }
-                                    if (recurringHabitsExpanded) {
-                                        items(recurringHabits, key = { "habit_recurring_${it.habit.id}" }) { hws ->
-                                            CompactHabitItem(
-                                                habitWithStatus = hws,
-                                                onToggle = {
-                                                    viewModel.onToggleHabitCompletion(hws.habit.id, hws.isCompletedToday)
-                                                },
-                                                onClick = {
-                                                    navController.navigate(
-                                                        AveryTaskRoute.HabitAnalytics.createRoute(hws.habit.id)
-                                                    )
-                                                }
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-
-                            "overdue" -> {
-                                if (overdueTasks.isNotEmpty()) {
-                                    item(key = "header_overdue") {
-                                        SectionHeader(
-                                            title = "Overdue",
-                                            count = overdueTasks.size,
-                                            color = OverdueRed,
-                                            expanded = overdueExpanded,
-                                            onToggle = { overdueExpanded = !overdueExpanded }
-                                        )
-                                    }
-                                    if (overdueExpanded) {
-                                        items(overdueTasks, key = { it.id }) { task ->
-                                            SwipeableTaskItem(
-                                                task = task,
-                                                tags = taskTagsMap[task.id].orEmpty(),
-                                                isOverdue = true,
-                                                onComplete = { viewModel.onCompleteWithUndo(task.id) },
-                                                onClick = { navController.navigate(AveryTaskRoute.AddEditTask.createRoute(task.id)) }
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-
-                            "today_tasks" -> {
-                                val todayAndPlanned = todayTasks + plannedTasks
-                                if (todayAndPlanned.isNotEmpty()) {
-                                    item(key = "header_today") {
-                                        SectionHeader(
-                                            title = "Today",
-                                            count = todayAndPlanned.size,
-                                            color = MaterialTheme.colorScheme.primary
-                                        )
-                                    }
-                                    items(todayAndPlanned, key = { it.id }) { task ->
-                                        val isPlanned = task.plannedDate != null && task.dueDate?.let {
-                                            val cal = java.util.Calendar.getInstance()
-                                            cal.set(java.util.Calendar.HOUR_OF_DAY, 0)
-                                            cal.set(java.util.Calendar.MINUTE, 0)
-                                            cal.set(java.util.Calendar.SECOND, 0)
-                                            cal.set(java.util.Calendar.MILLISECOND, 0)
-                                            val start = cal.timeInMillis
-                                            val end = start + 24 * 60 * 60 * 1000
-                                            it < start || it >= end
-                                        } ?: (task.plannedDate != null)
-
-                                        SwipeableTaskItem(
-                                            task = task,
-                                            tags = taskTagsMap[task.id].orEmpty(),
-                                            isPlanned = isPlanned,
-                                            onComplete = { viewModel.onCompleteWithUndo(task.id) },
-                                            onClick = { navController.navigate(AveryTaskRoute.AddEditTask.createRoute(task.id)) }
-                                        )
-                                    }
-                                }
-                            }
-
-                            "plan_more" -> {
-                                item(key = "plan_more") {
-                                    TextButton(
-                                        onClick = { viewModel.onShowPlanSheet() },
-                                        modifier = Modifier.fillMaxWidth()
-                                    ) {
-                                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Text("Plan More")
-                                    }
-                                }
-                            }
-
-                            "completed" -> {
-                                if (completedToday.isNotEmpty()) {
-                                    item(key = "header_completed") {
-                                        SectionHeader(
-                                            title = "Completed",
-                                            count = completedToday.size,
-                                            color = CompletedGreen,
-                                            expanded = completedExpanded,
-                                            onToggle = { completedExpanded = !completedExpanded }
-                                        )
-                                    }
-                                    if (completedExpanded) {
-                                        items(completedToday, key = { "done_${it.id}" }) { task ->
-                                            CompletedTaskItem(
-                                                task = task,
-                                                onUncomplete = { viewModel.onToggleComplete(task.id, true) }
-                                            )
-                                        }
-                                    }
-                                }
+            // Overdue (special urgent treatment)
+            if (SECTION_OVERDUE !in hiddenSections && overdueTasks.isNotEmpty()) {
+                val expanded = SECTION_OVERDUE !in collapsedSections
+                item(key = "section_overdue") {
+                    OverdueSectionContainer(
+                        count = overdueTasks.size,
+                        expanded = expanded,
+                        onToggle = { viewModel.onToggleSectionCollapsed(SECTION_OVERDUE) }
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            overdueTasks.forEach { task ->
+                                SwipeableTaskItem(
+                                    task = task,
+                                    tags = taskTagsMap[task.id].orEmpty(),
+                                    isOverdue = true,
+                                    onComplete = { viewModel.onCompleteWithUndo(task.id) },
+                                    onClick = { navController.navigate(AveryTaskRoute.AddEditTask.createRoute(task.id)) }
+                                )
                             }
                         }
                     }
+                }
+            }
 
-                    // Summary (always last)
-                    item(key = "summary") {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "You completed $combinedCompleted item${if (combinedCompleted != 1) "s" else ""} today" +
-                                    if (overdueTasks.isNotEmpty()) " \u00B7 ${overdueTasks.size} overdue" else "",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        Spacer(modifier = Modifier.height(80.dp))
+            // Today Tasks (only items truly due today)
+            if (SECTION_TODAY_TASKS !in hiddenSections && todayTasks.isNotEmpty()) {
+                val expanded = SECTION_TODAY_TASKS !in collapsedSections
+                item(key = "section_today_tasks") {
+                    CollapsibleSection(
+                        emoji = "\uD83D\uDCCB",
+                        title = "Today Tasks",
+                        count = todayTasks.size,
+                        accentColor = MaterialTheme.colorScheme.primary,
+                        expanded = expanded,
+                        onToggle = { viewModel.onToggleSectionCollapsed(SECTION_TODAY_TASKS) }
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            todayTasks.forEach { task ->
+                                SwipeableTaskItem(
+                                    task = task,
+                                    tags = taskTagsMap[task.id].orEmpty(),
+                                    onComplete = { viewModel.onCompleteWithUndo(task.id) },
+                                    onClick = { navController.navigate(AveryTaskRoute.AddEditTask.createRoute(task.id)) }
+                                )
+                            }
+                        }
                     }
                 }
+            }
+
+            // Habits — horizontal scrollable
+            if (SECTION_HABITS !in hiddenSections && todayHabits.isNotEmpty()) {
+                val expanded = SECTION_HABITS !in collapsedSections
+                val habitCompletedCount = todayHabits.count { it.isCompletedToday }
+                item(key = "section_habits") {
+                    CollapsibleSection(
+                        emoji = "\uD83D\uDCAA",
+                        title = "Habits",
+                        count = todayHabits.size,
+                        countLabel = "$habitCompletedCount/${todayHabits.size}",
+                        accentColor = MaterialTheme.colorScheme.tertiary,
+                        expanded = expanded,
+                        onToggle = { viewModel.onToggleSectionCollapsed(SECTION_HABITS) }
+                    ) {
+                        HabitChipRow(
+                            habits = todayHabits,
+                            onToggle = { hws ->
+                                viewModel.onToggleHabitCompletion(hws.habit.id, hws.isCompletedToday)
+                            },
+                            onSeeAll = { navController.navigate(AveryTaskRoute.HabitList.route) }
+                        )
+                    }
+                }
+            }
+
+            // Planned for Today (separate from due-today tasks)
+            if (SECTION_PLANNED !in hiddenSections && plannedTasks.isNotEmpty()) {
+                val expanded = SECTION_PLANNED !in collapsedSections
+                item(key = "section_planned") {
+                    CollapsibleSection(
+                        emoji = "\uD83D\uDCCC",
+                        title = "Planned",
+                        count = plannedTasks.size,
+                        accentColor = MaterialTheme.colorScheme.secondary,
+                        expanded = expanded,
+                        onToggle = { viewModel.onToggleSectionCollapsed(SECTION_PLANNED) }
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            plannedTasks.forEach { task ->
+                                SwipeableTaskItem(
+                                    task = task,
+                                    tags = taskTagsMap[task.id].orEmpty(),
+                                    isPlanned = true,
+                                    onComplete = { viewModel.onCompleteWithUndo(task.id) },
+                                    onClick = { navController.navigate(AveryTaskRoute.AddEditTask.createRoute(task.id)) }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Plan more shortcut — only if there's space to plan
+            item(key = "plan_more") {
+                FilledTonalButton(
+                    onClick = { viewModel.onShowPlanSheet() },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Plan More")
+                }
+            }
+
+            // Completed
+            if (SECTION_COMPLETED !in hiddenSections && completedToday.isNotEmpty()) {
+                val expanded = SECTION_COMPLETED !in collapsedSections
+                item(key = "section_completed") {
+                    CollapsibleSection(
+                        emoji = "\u2705",
+                        title = "Completed",
+                        count = completedToday.size,
+                        accentColor = CompletedGreen,
+                        expanded = expanded,
+                        onToggle = { viewModel.onToggleSectionCollapsed(SECTION_COMPLETED) }
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            completedToday.forEach { task ->
+                                CompletedTaskItem(
+                                    task = task,
+                                    onUncomplete = { viewModel.onToggleComplete(task.id, true) }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Bottom padding so the last item doesn't sit under the floating bar / FAB
+            item(key = "bottom_pad") {
+                Spacer(modifier = Modifier.height(120.dp))
             }
         }
     }
@@ -385,193 +336,480 @@ fun TodayScreen(
     }
 }
 
+/**
+ * Sticky compact header bar shown in the Scaffold topBar slot.
+ *  - Left: "Today" + date subtitle
+ *  - Center: thin (4dp) horizontal progress bar
+ *  - Right: "completed/total" text
+ *  Briefly scales the progress bar and flashes green when all items are done.
+ */
 @Composable
-private fun ProgressCard(completed: Int, total: Int, progress: Float, style: String = "ring", subtitle: String? = null) {
+private fun CompactProgressHeader(
+    completed: Int,
+    total: Int,
+    progress: Float
+) {
+    val dateLabel = remember {
+        SimpleDateFormat("EEEE, MMMM d", Locale.getDefault()).format(Date())
+    }
+
     val animatedProgress by animateFloatAsState(
         targetValue = progress,
-        animationSpec = tween(600),
-        label = "progress"
-    )
-    val ringColor by animateColorAsState(
-        targetValue = if (progress >= 1f) CompletedGreen else MaterialTheme.colorScheme.primary,
-        animationSpec = tween(400),
-        label = "ringColor"
+        animationSpec = tween(500),
+        label = "headerProgress"
     )
 
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(20.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            when (style) {
-                "bar" -> {
-                    Text(
-                        text = if (progress >= 1f) "Done!" else "$completed/$total",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = ringColor
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    LinearProgressIndicator(
-                        progress = { animatedProgress },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(10.dp)
-                            .clip(RoundedCornerShape(5.dp)),
-                        color = ringColor,
-                        trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
-                    )
-                }
-                "percentage" -> {
-                    Text(
-                        text = if (progress >= 1f) "Done!" else "${(progress * 100).toInt()}%",
-                        style = MaterialTheme.typography.displaySmall,
-                        fontWeight = FontWeight.Bold,
-                        color = ringColor
-                    )
-                }
-                else -> {
-                    Box(contentAlignment = Alignment.Center, modifier = Modifier.size(100.dp)) {
-                        val trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
-                        androidx.compose.foundation.Canvas(modifier = Modifier.size(100.dp)) {
-                            drawArc(
-                                color = trackColor,
-                                startAngle = -90f,
-                                sweepAngle = 360f,
-                                useCenter = false,
-                                style = Stroke(width = 10.dp.toPx(), cap = StrokeCap.Round)
-                            )
-                            drawArc(
-                                color = ringColor,
-                                startAngle = -90f,
-                                sweepAngle = animatedProgress * 360f,
-                                useCenter = false,
-                                style = Stroke(width = 10.dp.toPx(), cap = StrokeCap.Round)
-                            )
-                        }
-                        Text(
-                            text = if (progress >= 1f) "Done!" else "$completed/$total",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold,
-                            color = ringColor
-                        )
-                    }
-                }
-            }
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = "Today's Progress",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            if (subtitle != null) {
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                )
-            }
+    // Brief celebration when all tasks complete: flash green + scale up the bar.
+    var celebrate by remember { mutableStateOf(false) }
+    LaunchedEffect(progress >= 1f && total > 0) {
+        if (progress >= 1f && total > 0) {
+            celebrate = true
+            delay(900)
+            celebrate = false
         }
     }
-}
+    val barColor by animateColorAsState(
+        targetValue = when {
+            progress >= 1f -> CompletedGreen
+            else -> MaterialTheme.colorScheme.primary
+        },
+        animationSpec = tween(400),
+        label = "headerBarColor"
+    )
+    val barScale by animateFloatAsState(
+        targetValue = if (celebrate) 1.6f else 1f,
+        animationSpec = tween(350),
+        label = "headerBarScale"
+    )
 
-@Composable
-private fun CompactHabitItem(
-    habitWithStatus: HabitWithStatus,
-    onToggle: () -> Unit,
-    onClick: () -> Unit
-) {
-    val habit = habitWithStatus.habit
-    val habitColor = try {
-        Color(android.graphics.Color.parseColor(habit.color))
-    } catch (_: Exception) { Color(0xFF4A90D9) }
-
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
+    Surface(
+        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = 2.dp,
+        shadowElevation = 2.dp
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 10.dp),
+                .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(text = habit.icon, style = MaterialTheme.typography.titleMedium)
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = habit.name,
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Medium,
-                modifier = Modifier.weight(1f),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            if (habitWithStatus.dailyTarget > 1 && !habitWithStatus.isCompletedToday) {
+            Column(modifier = Modifier.width(120.dp)) {
                 Text(
-                    text = "${habitWithStatus.completionsToday}/${habitWithStatus.dailyTarget}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    text = "Today",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
-                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = dateLabel,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
-            if (habitWithStatus.currentStreak > 0) {
-                StreakBadge(streak = habitWithStatus.currentStreak)
-                Spacer(modifier = Modifier.width(8.dp))
-            }
-            Checkbox(
-                checked = habitWithStatus.isCompletedToday,
-                onCheckedChange = { onToggle() }
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            LinearProgressIndicator(
+                progress = { animatedProgress.coerceIn(0f, 1f) },
+                modifier = Modifier
+                    .weight(1f)
+                    .height((4f * barScale).dp)
+                    .clip(RoundedCornerShape(8.dp)),
+                color = barColor,
+                trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
+            )
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Text(
+                text = "$completed/$total",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = if (progress >= 1f) CompletedGreen else MaterialTheme.colorScheme.onSurface
             )
         }
     }
 }
 
+/**
+ * Centered "all caught up" celebration shown when there are no remaining
+ * overdue/today/planned tasks but at least one task was completed today.
+ */
 @Composable
-private fun SectionHeader(
+private fun AllCaughtUpCard(
+    completedCount: Int,
+    onPlanTomorrow: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = CompletedGreen.copy(alpha = 0.15f)
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp, vertical = 28.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = "\uD83C\uDF89",
+                fontSize = 48.sp
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = "All Caught Up!",
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "You completed $completedCount task${if (completedCount != 1) "s" else ""} today",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.height(20.dp))
+            Button(onClick = onPlanTomorrow) {
+                Text("Plan Tomorrow")
+            }
+        }
+    }
+}
+
+/**
+ * A reusable collapsible section with an emoji header, count badge, and chevron.
+ * Animates content size on expand/collapse.
+ */
+@Composable
+private fun CollapsibleSection(
+    emoji: String,
     title: String,
     count: Int,
-    color: Color,
-    expanded: Boolean = true,
-    onToggle: (() -> Unit)? = null
+    accentColor: Color,
+    expanded: Boolean,
+    onToggle: () -> Unit,
+    countLabel: String? = null,
+    content: @Composable () -> Unit
 ) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .animateContentSize(animationSpec = tween(280))
+    ) {
+        SectionHeaderRow(
+            emoji = emoji,
+            title = title,
+            count = count,
+            countLabel = countLabel,
+            accentColor = accentColor,
+            expanded = expanded,
+            onToggle = onToggle
+        )
+        if (expanded) {
+            Spacer(modifier = Modifier.height(6.dp))
+            content()
+        }
+    }
+}
+
+/**
+ * The Overdue section gets special urgency treatment: red tinted background,
+ * left red accent bar, and a red count badge.
+ */
+@Composable
+private fun OverdueSectionContainer(
+    count: Int,
+    expanded: Boolean,
+    onToggle: () -> Unit,
+    content: @Composable () -> Unit
+) {
+    val barWidthDp = 4.dp
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f))
+            .drawBehind {
+                // Left red accent bar drawn at draw-time so it always matches
+                // the (animated) measured height.
+                drawRect(
+                    color = OverdueRed,
+                    topLeft = Offset.Zero,
+                    size = Size(barWidthDp.toPx(), size.height)
+                )
+            }
+            .padding(start = barWidthDp + 10.dp, end = 10.dp, top = 6.dp, bottom = 6.dp)
+            .animateContentSize(animationSpec = tween(280))
+    ) {
+        SectionHeaderRow(
+            emoji = "\uD83D\uDEA8",
+            title = "Overdue",
+            count = count,
+            countLabel = null,
+            accentColor = OverdueRed,
+            expanded = expanded,
+            onToggle = onToggle,
+            badgeStyle = BadgeStyle.RED_CIRCLE,
+            prominentWhenCollapsed = true
+        )
+        if (expanded) {
+            Spacer(modifier = Modifier.height(6.dp))
+            content()
+            Spacer(modifier = Modifier.height(4.dp))
+        }
+    }
+}
+
+private enum class BadgeStyle { DEFAULT, RED_CIRCLE }
+
+@Composable
+private fun SectionHeaderRow(
+    emoji: String,
+    title: String,
+    count: Int,
+    countLabel: String?,
+    accentColor: Color,
+    expanded: Boolean,
+    onToggle: () -> Unit,
+    badgeStyle: BadgeStyle = BadgeStyle.DEFAULT,
+    prominentWhenCollapsed: Boolean = false
+) {
+    val chevronRotation by animateFloatAsState(
+        targetValue = if (expanded) 0f else -90f,
+        animationSpec = tween(220),
+        label = "chevronRotation"
+    )
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .then(if (onToggle != null) Modifier.clickable { onToggle() } else Modifier)
-            .padding(top = 12.dp, bottom = 4.dp),
+            .clip(RoundedCornerShape(8.dp))
+            .clickable { onToggle() }
+            .padding(vertical = 8.dp, horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        Text(text = emoji, fontSize = 18.sp)
+        Spacer(modifier = Modifier.width(8.dp))
         Text(
             text = title,
             style = MaterialTheme.typography.titleSmall,
             fontWeight = FontWeight.Bold,
-            color = color
+            color = accentColor
         )
-        Spacer(modifier = Modifier.width(6.dp))
-        Text(
-            text = "$count",
-            style = MaterialTheme.typography.labelMedium,
-            color = color.copy(alpha = 0.7f)
+        Spacer(modifier = Modifier.width(8.dp))
+
+        // Count badge
+        when (badgeStyle) {
+            BadgeStyle.RED_CIRCLE -> {
+                val prominent = prominentWhenCollapsed && !expanded && count > 0
+                Box(
+                    modifier = Modifier
+                        .size(if (prominent) 24.dp else 20.dp)
+                        .clip(CircleShape)
+                        .background(OverdueRed),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "$count",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                        fontSize = if (prominent) 13.sp else 11.sp
+                    )
+                }
+            }
+            BadgeStyle.DEFAULT -> {
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(accentColor.copy(alpha = 0.16f))
+                        .padding(horizontal = 8.dp, vertical = 2.dp)
+                ) {
+                    Text(
+                        text = countLabel ?: "$count",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = accentColor
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.weight(1f))
+        Icon(
+            imageVector = Icons.Default.KeyboardArrowDown,
+            contentDescription = if (expanded) "Collapse" else "Expand",
+            modifier = Modifier
+                .size(20.dp)
+                .rotate(chevronRotation),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        if (onToggle != null) {
-            Spacer(modifier = Modifier.weight(1f))
+    }
+}
+
+/**
+ * Horizontal scrollable habit chips. Each chip shows the habit's emoji, name,
+ * and a small circular progress indicator. The trailing chip is a "See All"
+ * shortcut to the full habits list.
+ */
+@Composable
+private fun HabitChipRow(
+    habits: List<HabitWithStatus>,
+    onToggle: (HabitWithStatus) -> Unit,
+    onSeeAll: () -> Unit
+) {
+    LazyRow(
+        modifier = Modifier.fillMaxWidth(),
+        contentPadding = PaddingValues(horizontal = 2.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        items(habits, key = { "habit_chip_${it.habit.id}" }) { hws ->
+            HabitChip(
+                habitWithStatus = hws,
+                onTap = { onToggle(hws) }
+            )
+        }
+        item(key = "habit_see_all") {
+            SeeAllChip(onClick = onSeeAll)
+        }
+    }
+}
+
+@Composable
+private fun HabitChip(
+    habitWithStatus: HabitWithStatus,
+    onTap: () -> Unit
+) {
+    val habit = habitWithStatus.habit
+    val habitColor = remember(habit.color) {
+        try {
+            Color(android.graphics.Color.parseColor(habit.color))
+        } catch (_: Exception) {
+            Color(0xFF4A90D9)
+        }
+    }
+    val isComplete = habitWithStatus.isCompletedToday
+    val target = habitWithStatus.dailyTarget.coerceAtLeast(1)
+    val done = habitWithStatus.completionsToday.coerceAtMost(target)
+    val ringProgress = if (isComplete) 1f else done.toFloat() / target.toFloat()
+
+    val containerColor = if (isComplete) {
+        habitColor.copy(alpha = 0.18f)
+    } else {
+        MaterialTheme.colorScheme.surfaceContainerHigh
+    }
+    Card(
+        modifier = Modifier
+            .width(118.dp)
+            .clickable { onTap() },
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = containerColor)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 10.dp, vertical = 10.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Box(
+                modifier = Modifier.size(28.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(
+                    progress = { ringProgress.coerceIn(0f, 1f) },
+                    modifier = Modifier.size(28.dp),
+                    color = if (isComplete) CompletedGreen else habitColor,
+                    trackColor = habitColor.copy(alpha = 0.18f),
+                    strokeWidth = 2.5.dp
+                )
+                Text(
+                    text = habit.icon,
+                    fontSize = 14.sp
+                )
+            }
+            Spacer(modifier = Modifier.height(6.dp))
             Text(
-                text = if (expanded) "Hide" else "Show",
-                style = MaterialTheme.typography.labelSmall,
+                text = habit.name,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            if (target > 1 && !isComplete) {
+                Text(
+                    text = "$done/$target",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            } else if (isComplete) {
+                Text(
+                    text = "Done",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = CompletedGreen,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SeeAllChip(onClick: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .width(96.dp)
+            .clickable { onClick() },
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainer
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 10.dp, vertical = 18.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Icon(
+                imageVector = Icons.Default.ChevronRight,
+                contentDescription = null,
+                modifier = Modifier.size(24.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "See All",
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Medium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+        }
+    }
+}
+
+/**
+ * Floating QuickAddBar pinned to the bottom of the screen above the nav bar.
+ * Uses a semi-transparent surface so content faintly shows through.
+ */
+@Composable
+private fun FloatingQuickAddBar() {
+    Surface(
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f),
+        tonalElevation = 4.dp,
+        shadowElevation = 6.dp
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 6.dp)
+        ) {
+            QuickAddBar()
         }
     }
 }

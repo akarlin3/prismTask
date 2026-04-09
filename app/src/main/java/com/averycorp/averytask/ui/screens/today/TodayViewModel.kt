@@ -69,6 +69,16 @@ class TodayViewModel @Inject constructor(
     val progressStyle: StateFlow<String> = dashboardPreferences.getProgressStyle()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "ring")
 
+    val collapsedSections: StateFlow<Set<String>> = dashboardPreferences.getCollapsedSections()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DashboardPreferences.DEFAULT_COLLAPSED)
+
+    fun onToggleSectionCollapsed(sectionKey: String) {
+        viewModelScope.launch {
+            val isCollapsed = collapsedSections.value.contains(sectionKey)
+            dashboardPreferences.setSectionCollapsed(sectionKey, !isCollapsed)
+        }
+    }
+
     private suspend fun currentStartOfToday(): Long =
         DayBoundary.startOfCurrentDay(taskBehaviorPreferences.getDayStartHour().first())
 

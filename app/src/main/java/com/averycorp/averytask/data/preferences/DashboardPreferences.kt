@@ -23,8 +23,12 @@ class DashboardPreferences @Inject constructor(
         private val SECTION_ORDER = stringPreferencesKey("section_order")
         private val HIDDEN_SECTIONS = stringSetPreferencesKey("hidden_sections")
         private val PROGRESS_STYLE = stringPreferencesKey("progress_style")
+        private val COLLAPSED_SECTIONS = stringSetPreferencesKey("collapsed_sections")
 
         val DEFAULT_ORDER = listOf("progress", "habits", "overdue", "today_tasks", "plan_more", "completed")
+
+        // Sections collapsed by default. Anything not in this set is expanded.
+        val DEFAULT_COLLAPSED = setOf("planned", "completed")
     }
 
     fun getSectionOrder(): Flow<List<String>> = context.dashboardDataStore.data.map { prefs ->
@@ -37,6 +41,17 @@ class DashboardPreferences @Inject constructor(
 
     fun getProgressStyle(): Flow<String> = context.dashboardDataStore.data.map { prefs ->
         prefs[PROGRESS_STYLE] ?: "ring"
+    }
+
+    fun getCollapsedSections(): Flow<Set<String>> = context.dashboardDataStore.data.map { prefs ->
+        prefs[COLLAPSED_SECTIONS] ?: DEFAULT_COLLAPSED
+    }
+
+    suspend fun setSectionCollapsed(sectionKey: String, collapsed: Boolean) {
+        context.dashboardDataStore.edit { prefs ->
+            val current = prefs[COLLAPSED_SECTIONS] ?: DEFAULT_COLLAPSED
+            prefs[COLLAPSED_SECTIONS] = if (collapsed) current + sectionKey else current - sectionKey
+        }
     }
 
     suspend fun setSectionOrder(order: List<String>) {
@@ -62,6 +77,7 @@ class DashboardPreferences @Inject constructor(
             prefs.remove(SECTION_ORDER)
             prefs.remove(HIDDEN_SECTIONS)
             prefs.remove(PROGRESS_STYLE)
+            prefs.remove(COLLAPSED_SECTIONS)
         }
     }
 }
