@@ -66,6 +66,27 @@ class TaskRepository @Inject constructor(
         }
     }
 
+    /**
+     * Batch-update the sort order for a set of root tasks in a single Room
+     * transaction. Used by the drag-to-reorder flow on the task list: after a
+     * drop, the UI passes in `(taskId, newSortOrder)` pairs for every task
+     * whose position changed within the visible (filtered/grouped) slice.
+     */
+    suspend fun updateTaskOrder(taskOrders: List<Pair<Long, Int>>) {
+        if (taskOrders.isEmpty()) return
+        taskDao.updateSortOrders(taskOrders)
+        taskOrders.forEach { (id, _) ->
+            syncTracker.trackUpdate(id, "task")
+        }
+    }
+
+    /**
+     * Returns the next sort order for a newly-created root task so that new
+     * tasks land at the end of a custom-ordered list instead of clobbering an
+     * existing position.
+     */
+    suspend fun getNextRootSortOrder(): Int = taskDao.getMaxRootSortOrder() + 1
+
     suspend fun getAllTasksOnce(): List<TaskEntity> = taskDao.getAllTasksOnce()
 
     fun getTaskById(id: Long): Flow<TaskEntity?> = taskDao.getTaskById(id)
@@ -89,6 +110,11 @@ class TaskRepository @Inject constructor(
         parentTaskId: Long? = null
     ): Long {
         val now = System.currentTimeMillis()
+        // New root tasks go to the end of any custom-ordered list. Subtasks
+        // are still handled by addSubtask() which uses its own per-parent
+        // max-lookup.
+        val nextSortOrder =
+            if (parentTaskId == null) taskDao.getMaxRootSortOrder() + 1 else 0
         val task = TaskEntity(
             title = title,
             description = description,
@@ -97,6 +123,7 @@ class TaskRepository @Inject constructor(
             priority = priority,
             projectId = projectId,
             parentTaskId = parentTaskId,
+            sortOrder = nextSortOrder,
             createdAt = now,
             updatedAt = now
         )

@@ -39,7 +39,7 @@ object DatabaseModule {
             AveryTaskDatabase::class.java,
             "averytask.db"
         )
-            .addMigrations(AveryTaskDatabase.MIGRATION_1_2, AveryTaskDatabase.MIGRATION_2_3, AveryTaskDatabase.MIGRATION_3_4, AveryTaskDatabase.MIGRATION_4_5, AveryTaskDatabase.MIGRATION_5_6, AveryTaskDatabase.MIGRATION_6_7, AveryTaskDatabase.MIGRATION_7_8, AveryTaskDatabase.MIGRATION_8_9, AveryTaskDatabase.MIGRATION_9_10, AveryTaskDatabase.MIGRATION_10_11, AveryTaskDatabase.MIGRATION_11_12, AveryTaskDatabase.MIGRATION_12_13, AveryTaskDatabase.MIGRATION_13_14, AveryTaskDatabase.MIGRATION_14_15, AveryTaskDatabase.MIGRATION_15_16, AveryTaskDatabase.MIGRATION_16_17, AveryTaskDatabase.MIGRATION_17_18, AveryTaskDatabase.MIGRATION_18_19, AveryTaskDatabase.MIGRATION_19_20, AveryTaskDatabase.MIGRATION_20_21, AveryTaskDatabase.MIGRATION_21_22)
+            .addMigrations(AveryTaskDatabase.MIGRATION_1_2, AveryTaskDatabase.MIGRATION_2_3, AveryTaskDatabase.MIGRATION_3_4, AveryTaskDatabase.MIGRATION_4_5, AveryTaskDatabase.MIGRATION_5_6, AveryTaskDatabase.MIGRATION_6_7, AveryTaskDatabase.MIGRATION_7_8, AveryTaskDatabase.MIGRATION_8_9, AveryTaskDatabase.MIGRATION_9_10, AveryTaskDatabase.MIGRATION_10_11, AveryTaskDatabase.MIGRATION_11_12, AveryTaskDatabase.MIGRATION_12_13, AveryTaskDatabase.MIGRATION_13_14, AveryTaskDatabase.MIGRATION_14_15, AveryTaskDatabase.MIGRATION_15_16, AveryTaskDatabase.MIGRATION_16_17, AveryTaskDatabase.MIGRATION_17_18, AveryTaskDatabase.MIGRATION_18_19, AveryTaskDatabase.MIGRATION_19_20, AveryTaskDatabase.MIGRATION_20_21, AveryTaskDatabase.MIGRATION_21_22, AveryTaskDatabase.MIGRATION_22_23)
             .build()
 
     @Provides

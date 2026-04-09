@@ -36,7 +36,7 @@ import com.averycorp.averytask.data.local.entity.UsageLogEntity
 
 @Database(
     entities = [TaskEntity::class, ProjectEntity::class, TagEntity::class, TaskTagCrossRef::class, AttachmentEntity::class, UsageLogEntity::class, SyncMetadataEntity::class, CalendarSyncEntity::class, HabitEntity::class, HabitCompletionEntity::class, LeisureLogEntity::class, CourseEntity::class, AssignmentEntity::class, StudyLogEntity::class, CourseCompletionEntity::class, SelfCareLogEntity::class, SelfCareStepEntity::class],
-    version = 22,
+    version = 23,
     exportSchema = false
 )
 abstract class AveryTaskDatabase : RoomDatabase() {
@@ -371,6 +371,21 @@ abstract class AveryTaskDatabase : RoomDatabase() {
                           AND t2.created_at < tasks.created_at
                     )
                     WHERE parent_task_id IS NOT NULL
+                    """.trimIndent()
+                )
+            }
+        }
+
+        val MIGRATION_22_23 = object : Migration(22, 23) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Seed sort_order for root tasks so they have a natural initial
+                // order when a user first switches to Custom sort. Subtasks were
+                // already seeded in MIGRATION_20_21 and are left alone here.
+                db.execSQL(
+                    """
+                    UPDATE tasks
+                    SET sort_order = id
+                    WHERE parent_task_id IS NULL
                     """.trimIndent()
                 )
             }

@@ -17,6 +17,9 @@ interface TaskDao {
     @Query("SELECT * FROM tasks ORDER BY due_date ASC, priority DESC")
     fun getAllTasks(): Flow<List<TaskEntity>>
 
+    @Query("SELECT * FROM tasks ORDER BY sort_order ASC, id ASC")
+    fun getAllTasksByCustomOrder(): Flow<List<TaskEntity>>
+
     @Query("SELECT * FROM tasks WHERE project_id = :projectId")
     fun getTasksByProject(projectId: Long): Flow<List<TaskEntity>>
 
@@ -34,6 +37,17 @@ interface TaskDao {
 
     @Query("UPDATE tasks SET sort_order = :sortOrder, updated_at = :now WHERE id = :id")
     suspend fun updateSortOrder(id: Long, sortOrder: Int, now: Long = System.currentTimeMillis())
+
+    @Query("SELECT COALESCE(MAX(sort_order), -1) FROM tasks WHERE parent_task_id IS NULL")
+    suspend fun getMaxRootSortOrder(): Int
+
+    @Transaction
+    suspend fun updateSortOrders(taskOrders: List<Pair<Long, Int>>) {
+        val now = System.currentTimeMillis()
+        taskOrders.forEach { (id, order) ->
+            updateSortOrder(id, order, now)
+        }
+    }
 
     @Query("SELECT * FROM tasks WHERE is_completed = 0")
     fun getIncompleteTasks(): Flow<List<TaskEntity>>

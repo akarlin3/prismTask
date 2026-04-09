@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -47,6 +48,7 @@ import androidx.compose.material.icons.filled.FormatListBulleted
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.DragIndicator
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.SelectAll
 import androidx.compose.material.icons.filled.SortByAlpha
@@ -90,8 +92,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -114,6 +119,9 @@ import com.averycorp.averytask.ui.navigation.AveryTaskRoute
 import com.averycorp.averytask.ui.screens.addedittask.AddEditTaskSheetHost
 import com.averycorp.averytask.ui.theme.LocalPriorityColors
 import kotlinx.coroutines.launch
+import sh.calvin.reorderable.ReorderableItem
+import sh.calvin.reorderable.ReorderableLazyListState
+import sh.calvin.reorderable.rememberReorderableLazyListState
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -537,10 +545,15 @@ fun TaskListScreen(
                 )
             }
 
-            val allTasks = if (viewMode == ViewMode.UPCOMING)
-                groupedTasks.values.flatten()
-            else
-                filteredTasks
+            val isCustomSort = currentSort == SortOption.CUSTOM
+            // Custom sort always renders as a flat list (grouping by date
+            // doesn't make sense when the user has manually ordered things),
+            // regardless of the current view mode toggle.
+            val allTasks = when {
+                isCustomSort -> filteredTasks
+                viewMode == ViewMode.UPCOMING -> groupedTasks.values.flatten()
+                else -> filteredTasks
+            }
 
             if (allTasks.isEmpty()) {
                 if (currentFilter.isActive()) {
@@ -566,7 +579,25 @@ fun TaskListScreen(
                     )
                 }
             } else {
+                // Local draft ordering for the custom-sort drag-reorder. We
+                // mirror the upstream filteredTasks list so drag animations can
+                // update the order immediately, then push the committed order
+                // back to the ViewModel onDragEnd.
+                var draftOrder by remember(filteredTasks, isCustomSort) {
+                    mutableStateOf(filteredTasks)
+                }
+                val lazyListState = rememberLazyListState()
+                val reorderState = rememberReorderableLazyListState(lazyListState) { from, to ->
+                    val mutable = draftOrder.toMutableList()
+                    val fromIdx = mutable.indexOfFirst { it.id == from.key }
+                    val toIdx = mutable.indexOfFirst { it.id == to.key }
+                    if (fromIdx != -1 && toIdx != -1) {
+                        mutable.add(toIdx, mutable.removeAt(fromIdx))
+                        draftOrder = mutable
+                    }
+                }
                 LazyColumn(
+                    state = lazyListState,
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(horizontal = 16.dp),
@@ -574,7 +605,32 @@ fun TaskListScreen(
                 ) {
                     item { Spacer(modifier = Modifier.height(4.dp)) }
 
-                    if (viewMode == ViewMode.UPCOMING) {
+                    if (isCustomSort) {
+                        // Flat reorderable list. Drag handles are shown on the
+                        // left; long-press on the whole card also initiates
+                        // drag via longPressDraggableHandle.
+                        draftOrder.forEach { task ->
+                            reorderableTaskItemWithSubtasks(
+                                task = task,
+                                projects = projects,
+                                subtasksMap = subtasksMap,
+                                taskTagsMap = taskTagsMap,
+                                attachmentCountMap = attachmentCountMap,
+                                expandedTaskIds = expandedTaskIds,
+                                focusSubtaskForId = focusSubtaskForId,
+                                onTaskClick = { id -> editorSheet = TaskEditorSheetState(taskId = id) },
+                                viewModel = viewModel,
+                                isMultiSelectMode = isMultiSelectMode,
+                                selectedTaskIds = selectedTaskIds,
+                                onExpandChange = { expandedTaskIds = it },
+                                onFocusChange = { focusSubtaskForId = it },
+                                reorderState = reorderState,
+                                onDragEnd = {
+                                    viewModel.onReorderTasks(draftOrder.map { it.id })
+                                }
+                            )
+                        }
+                    } else if (viewMode == ViewMode.UPCOMING) {
                         groupedTasks.forEach { (group, tasks) ->
                             item(key = "header_$group") {
                                 GroupHeader(group = group, count = tasks.size)
@@ -631,6 +687,103 @@ fun TaskListScreen(
             onDismiss = { editorSheet = null },
             onDeleteTask = { id -> viewModel.onDeleteTaskWithUndo(id) }
         )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+private fun androidx.compose.foundation.lazy.LazyListScope.reorderableTaskItemWithSubtasks(
+    task: TaskEntity,
+    projects: List<ProjectEntity>,
+    subtasksMap: Map<Long, List<TaskEntity>>,
+    taskTagsMap: Map<Long, List<TagEntity>>,
+    attachmentCountMap: Map<Long, Int>,
+    expandedTaskIds: Set<Long>,
+    focusSubtaskForId: Long?,
+    onTaskClick: (Long) -> Unit,
+    viewModel: TaskListViewModel,
+    isMultiSelectMode: Boolean,
+    selectedTaskIds: Set<Long>,
+    onExpandChange: (Set<Long>) -> Unit,
+    onFocusChange: (Long?) -> Unit,
+    reorderState: ReorderableLazyListState,
+    onDragEnd: () -> Unit
+) {
+    val subtasks = subtasksMap[task.id].orEmpty()
+    val tags = taskTagsMap[task.id].orEmpty()
+    val attachmentCount = attachmentCountMap[task.id] ?: 0
+    val project = projects.find { it.id == task.projectId }
+
+    item(key = task.id) {
+        ReorderableItem(reorderState, key = task.id) { isDragging ->
+            val elevation = if (isDragging) 8.dp else 0.dp
+            val scale = if (isDragging) 1.02f else 1f
+            val alpha = if (isDragging) 0.85f else 1f
+
+            if (isMultiSelectMode) {
+                TaskItem(
+                    task = task,
+                    project = project,
+                    subtasks = subtasks,
+                    tags = tags,
+                    attachmentCount = attachmentCount,
+                    isSelected = task.id in selectedTaskIds,
+                    isMultiSelectMode = true,
+                    onToggleComplete = { viewModel.onToggleTaskSelection(task.id) },
+                    onClick = { viewModel.onToggleTaskSelection(task.id) },
+                    onAddSubtaskClick = {}
+                )
+            } else {
+                TaskItem(
+                    task = task,
+                    project = project,
+                    subtasks = subtasks,
+                    tags = tags,
+                    attachmentCount = attachmentCount,
+                    onToggleComplete = { viewModel.onToggleComplete(task.id, task.isCompleted) },
+                    onClick = { onTaskClick(task.id) },
+                    onAddSubtaskClick = {
+                        onExpandChange(expandedTaskIds + task.id)
+                        onFocusChange(task.id)
+                    },
+                    showDragHandle = true,
+                    dragHandleModifier = Modifier.longPressDraggableHandle(
+                        onDragStopped = { onDragEnd() }
+                    ),
+                    modifier = Modifier
+                        .longPressDraggableHandle(
+                            onDragStopped = { onDragEnd() }
+                        )
+                        .shadow(elevation, RoundedCornerShape(12.dp))
+                        .scale(scale)
+                        .alpha(alpha)
+                )
+            }
+        }
+    }
+    if (subtasks.isNotEmpty() || expandedTaskIds.contains(task.id)) {
+        item(key = "subtasks_${task.id}") {
+            SubtaskSection(
+                parentTaskId = task.id,
+                subtasks = subtasks,
+                onToggleComplete = viewModel::onToggleSubtaskComplete,
+                onAddSubtask = { title, parentId, priority ->
+                    viewModel.onAddSubtask(title, parentId, priority)
+                },
+                onDeleteSubtask = viewModel::onDeleteSubtaskWithUndo,
+                onReorderSubtasks = viewModel::onReorderSubtasks,
+                expanded = expandedTaskIds.contains(task.id),
+                onToggleExpand = {
+                    onExpandChange(
+                        if (expandedTaskIds.contains(task.id))
+                            expandedTaskIds - task.id
+                        else
+                            expandedTaskIds + task.id
+                    )
+                },
+                requestFocus = focusSubtaskForId == task.id,
+                onFocusHandled = { onFocusChange(null) }
+            )
+        }
     }
 }
 
@@ -880,13 +1033,16 @@ private fun TaskItem(
     onToggleComplete: () -> Unit,
     onClick: () -> Unit,
     onLongClick: (() -> Unit)? = null,
-    onAddSubtaskClick: () -> Unit
+    onAddSubtaskClick: () -> Unit,
+    showDragHandle: Boolean = false,
+    dragHandleModifier: Modifier = Modifier,
+    modifier: Modifier = Modifier
 ) {
     val isOverdue = isTaskOverdue(task)
     val borderColor = if (isOverdue) OverdueRed else Color.Transparent
 
     Card(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .combinedClickable(
                 onClick = onClick,
@@ -917,6 +1073,14 @@ private fun TaskItem(
                 .padding(start = if (isOverdue) 6.dp else 4.dp, end = 4.dp, top = 8.dp, bottom = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            if (showDragHandle) {
+                Icon(
+                    imageVector = Icons.Default.DragIndicator,
+                    contentDescription = "Drag To Reorder",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                    modifier = dragHandleModifier.size(24.dp)
+                )
+            }
             Checkbox(
                 checked = if (isMultiSelectMode) isSelected else task.isCompleted,
                 onCheckedChange = { onToggleComplete() }

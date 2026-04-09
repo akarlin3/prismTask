@@ -105,7 +105,8 @@ private val sortLabels = mapOf(
     "PRIORITY" to "Priority",
     "URGENCY" to "Urgency",
     "CREATED" to "Date Created",
-    "ALPHABETICAL" to "Alphabetical"
+    "ALPHABETICAL" to "Alphabetical",
+    "CUSTOM" to "Custom"
 )
 
 private val viewModeLabels = mapOf(

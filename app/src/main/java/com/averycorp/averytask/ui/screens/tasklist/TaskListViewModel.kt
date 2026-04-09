@@ -43,7 +43,8 @@ enum class SortOption(val label: String, val token: String) {
     PRIORITY("Priority", SortPreferences.SortModes.PRIORITY),
     URGENCY("Urgency", SortPreferences.SortModes.URGENCY),
     CREATED("Date Created", SortPreferences.SortModes.DATE_CREATED),
-    ALPHABETICAL("Alphabetical", SortPreferences.SortModes.ALPHABETICAL);
+    ALPHABETICAL("Alphabetical", SortPreferences.SortModes.ALPHABETICAL),
+    CUSTOM("Custom", SortPreferences.SortModes.CUSTOM);
 
     companion object {
         fun fromToken(token: String?): SortOption? =
@@ -371,6 +372,7 @@ class TaskListViewModel @Inject constructor(
     }
 
     fun onChangeSort(sort: SortOption) {
+        val previous = _currentSort.value
         _currentSort.value = sort
         viewModelScope.launch {
             // Persist per-screen so the next launch reopens with this sort.
@@ -383,6 +385,11 @@ class TaskListViewModel @Inject constructor(
                     SortPreferences.ScreenKeys.project(projectFilter.first()),
                     sort.token
                 )
+            }
+            // When the user explicitly picks Custom from the menu, hint at
+            // the new interaction so they discover drag-to-reorder.
+            if (sort == SortOption.CUSTOM && previous != SortOption.CUSTOM) {
+                snackbarHostState.showSnackbar("Drag To Reorder Tasks")
             }
         }
     }
@@ -439,6 +446,42 @@ class TaskListViewModel @Inject constructor(
                 taskRepository.reorderSubtasks(parentTaskId, orderedIds)
             } catch (e: Exception) {
                 Log.e("TaskListVM", "Failed to reorder subtasks", e)
+                snackbarHostState.showSnackbar("Something went wrong")
+            }
+        }
+    }
+
+    /**
+     * Persist a new order for a slice of tasks (e.g. one group in upcoming
+     * view, or the full filtered list in list view). The ViewModel rebases
+     * the ordering around the minimum existing sort_order of the affected
+     * tasks, so reordering inside one group never disturbs the sort_order of
+     * tasks in other groups.
+     *
+     * If the current sort mode isn't CUSTOM, also switches to CUSTOM sort and
+     * surfaces a snackbar so the user knows the view just rebound to custom
+     * ordering.
+     */
+    fun onReorderTasks(orderedIds: List<Long>) {
+        if (orderedIds.isEmpty()) return
+        viewModelScope.launch {
+            try {
+                val wasCustom = _currentSort.value == SortOption.CUSTOM
+                // Rebase around the minimum sort_order currently in the affected
+                // slice so that tasks outside the slice keep their spots.
+                val existing = orderedIds.mapNotNull { id ->
+                    taskRepository.getTaskByIdOnce(id)?.sortOrder
+                }
+                val base = existing.minOrNull() ?: 0
+                val pairs = orderedIds.mapIndexed { index, id -> id to (base + index) }
+                taskRepository.updateTaskOrder(pairs)
+
+                if (!wasCustom) {
+                    onChangeSort(SortOption.CUSTOM)
+                    snackbarHostState.showSnackbar("Switched To Custom Order")
+                }
+            } catch (e: Exception) {
+                Log.e("TaskListVM", "Failed to reorder tasks", e)
                 snackbarHostState.showSnackbar("Something went wrong")
             }
         }
@@ -604,6 +647,9 @@ class TaskListViewModel @Inject constructor(
             SortOption.CREATED -> tasks.sortedByDescending { it.createdAt }
             SortOption.URGENCY -> tasks.sortedByDescending { UrgencyScorer.calculateScore(it, weights = _urgencyWeights.value) }
             SortOption.ALPHABETICAL -> tasks.sortedBy { it.title.lowercase() }
+            SortOption.CUSTOM -> tasks.sortedWith(
+                compareBy<TaskEntity> { it.sortOrder }.thenBy { it.id }
+            )
         }
 
     private fun groupByDate(tasks: List<TaskEntity>, sort: SortOption): Map<String, List<TaskEntity>> {

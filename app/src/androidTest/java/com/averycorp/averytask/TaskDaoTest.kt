@@ -144,4 +144,79 @@ class TaskDaoTest {
         assertEquals(1, todayTasks.size)
         assertEquals("Today", todayTasks[0].title)
     }
+
+    // --- Drag-to-reorder / custom sort ---
+
+    @Test
+    fun test_updateSortOrders_persistsNewOrder() = runTest {
+        val aId = taskDao.insert(TaskEntity(title = "A"))
+        val bId = taskDao.insert(TaskEntity(title = "B"))
+        val cId = taskDao.insert(TaskEntity(title = "C"))
+
+        // Reverse the order: C, B, A
+        taskDao.updateSortOrders(listOf(cId to 0, bId to 1, aId to 2))
+
+        val ordered = taskDao.getAllTasksByCustomOrder().first()
+        assertEquals(listOf("C", "B", "A"), ordered.map { it.title })
+    }
+
+    @Test
+    fun test_getMaxRootSortOrder_emptyAndNonEmpty() = runTest {
+        // Empty: returns -1 so callers can use max + 1 as the "next" slot.
+        assertEquals(-1, taskDao.getMaxRootSortOrder())
+
+        taskDao.insert(TaskEntity(title = "first", sortOrder = 5))
+        taskDao.insert(TaskEntity(title = "second", sortOrder = 17))
+        taskDao.insert(TaskEntity(title = "third", sortOrder = 9))
+
+        assertEquals(17, taskDao.getMaxRootSortOrder())
+    }
+
+    @Test
+    fun test_getMaxRootSortOrder_ignoresSubtasks() = runTest {
+        val parentId = taskDao.insert(TaskEntity(title = "parent", sortOrder = 3))
+        // Subtask with a huge sort_order must NOT be reported because
+        // subtasks use per-parent sort_order, not global root order.
+        taskDao.insert(
+            TaskEntity(
+                title = "subtask",
+                parentTaskId = parentId,
+                sortOrder = 999
+            )
+        )
+
+        assertEquals(3, taskDao.getMaxRootSortOrder())
+    }
+
+    @Test
+    fun test_updateSortOrders_doesNotAffectOtherTasks() = runTest {
+        // Simulates reordering within a group: updating the sort_order of
+        // a subset must not disturb the sort_order of tasks outside the set.
+        val aId = taskDao.insert(TaskEntity(title = "A", sortOrder = 0))
+        val bId = taskDao.insert(TaskEntity(title = "B", sortOrder = 1))
+        val cId = taskDao.insert(TaskEntity(title = "C", sortOrder = 2))
+        val dId = taskDao.insert(TaskEntity(title = "D", sortOrder = 3))
+
+        // Swap A and B only; C and D should remain untouched.
+        taskDao.updateSortOrders(listOf(bId to 0, aId to 1))
+
+        val ordered = taskDao.getAllTasksByCustomOrder().first()
+        assertEquals(listOf("B", "A", "C", "D"), ordered.map { it.title })
+
+        val cTask = taskDao.getTaskByIdOnce(cId)!!
+        val dTask = taskDao.getTaskByIdOnce(dId)!!
+        assertEquals(2, cTask.sortOrder)
+        assertEquals(3, dTask.sortOrder)
+    }
+
+    @Test
+    fun test_getAllTasksByCustomOrder_respectsSortOrder() = runTest {
+        // Insert in arbitrary order; query should return them by sort_order.
+        taskDao.insert(TaskEntity(title = "second", sortOrder = 10))
+        taskDao.insert(TaskEntity(title = "third", sortOrder = 20))
+        taskDao.insert(TaskEntity(title = "first", sortOrder = 5))
+
+        val ordered = taskDao.getAllTasksByCustomOrder().first()
+        assertEquals(listOf("first", "second", "third"), ordered.map { it.title })
+    }
 }
