@@ -1,7 +1,9 @@
 package com.averycorp.averytask.ui.screens.timeline
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -31,6 +33,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimePicker
@@ -57,6 +60,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.averycorp.averytask.data.local.entity.TaskEntity
+import com.averycorp.averytask.ui.components.QuickReschedulePopup
 import com.averycorp.averytask.ui.screens.addedittask.AddEditTaskSheetHost
 import com.averycorp.averytask.ui.theme.LocalPriorityColors
 import java.time.LocalDate
@@ -69,7 +73,7 @@ private val HOUR_HEIGHT = 60.dp
 private const val START_HOUR = 6
 private const val END_HOUR = 23
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun TimelineScreen(
     navController: NavController,
@@ -85,6 +89,7 @@ fun TimelineScreen(
     var scheduleDialogTask by remember { mutableStateOf<TaskEntity?>(null) }
     var editorSheetTaskId by remember { mutableStateOf<Long?>(null) }
     var showEditorSheet by remember { mutableStateOf(false) }
+    var reschedulePopupTask by remember { mutableStateOf<TaskEntity?>(null) }
 
     // Scroll to current hour on first load
     LaunchedEffect(Unit) {
@@ -94,6 +99,7 @@ fun TimelineScreen(
     }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(hostState = viewModel.snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
@@ -214,12 +220,21 @@ fun TimelineScreen(
                             .offset(y = yOffset)
                             .fillMaxWidth()
                             .height(blockHeight)
-                            .clickable {
-                                block.taskId?.let {
-                                    editorSheetTaskId = it
-                                    showEditorSheet = true
+                            .combinedClickable(
+                                onClick = {
+                                    block.taskId?.let {
+                                        editorSheetTaskId = it
+                                        showEditorSheet = true
+                                    }
+                                },
+                                onLongClick = {
+                                    block.taskId?.let { id ->
+                                        viewModel.loadTaskForPopup(id) { task ->
+                                            reschedulePopupTask = task
+                                        }
+                                    }
                                 }
-                            },
+                            ),
                         shape = RoundedCornerShape(6.dp),
                         colors = CardDefaults.cardColors(
                             containerColor = LocalPriorityColors.current.forLevel(block.priority).copy(alpha = 0.2f)
@@ -264,7 +279,10 @@ fun TimelineScreen(
                         Card(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable { scheduleDialogTask = task },
+                                .combinedClickable(
+                                    onClick = { scheduleDialogTask = task },
+                                    onLongClick = { reschedulePopupTask = task }
+                                ),
                             shape = RoundedCornerShape(8.dp),
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
                         ) {
@@ -337,6 +355,15 @@ fun TimelineScreen(
             projectId = null,
             initialDate = if (editorSheetTaskId == null) initialDateForCreate else null,
             onDismiss = { showEditorSheet = false }
+        )
+    }
+
+    reschedulePopupTask?.let { task ->
+        QuickReschedulePopup(
+            hasDueDate = task.dueDate != null,
+            onDismiss = { reschedulePopupTask = null },
+            onReschedule = { newDate -> viewModel.onRescheduleTask(task.id, newDate) },
+            onPlanForToday = { viewModel.onPlanTaskForToday(task.id) }
         )
     }
 }

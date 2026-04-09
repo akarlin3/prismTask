@@ -1,7 +1,9 @@
 package com.averycorp.averytask.ui.screens.weekview
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -30,6 +32,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -50,6 +53,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.averycorp.averytask.data.local.entity.TaskEntity
+import com.averycorp.averytask.ui.components.QuickReschedulePopup
 import com.averycorp.averytask.ui.screens.addedittask.AddEditTaskSheetHost
 import com.averycorp.averytask.ui.theme.LocalPriorityColors
 import java.time.LocalDate
@@ -77,11 +81,13 @@ fun WeekViewScreen(
     val today = LocalDate.now()
 
     var editorState by remember { mutableStateOf<WeekTaskEditorState?>(null) }
+    var reschedulePopupTask by remember { mutableStateOf<TaskEntity?>(null) }
 
     val weekEnd = weekStart.plusDays(6)
     val headerFormatter = DateTimeFormatter.ofPattern("MMM d")
 
     Scaffold(
+        snackbarHost = { SnackbarHost(hostState = viewModel.snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
@@ -190,7 +196,8 @@ fun WeekViewScreen(
                             WeekTaskCard(
                                 task = task,
                                 isOverdue = isPast && !task.isCompleted,
-                                onClick = { editorState = WeekTaskEditorState(taskId = task.id) }
+                                onClick = { editorState = WeekTaskEditorState(taskId = task.id) },
+                                onLongPress = { reschedulePopupTask = task }
                             )
                         }
                         if (tasks.size > 4) {
@@ -235,14 +242,32 @@ fun WeekViewScreen(
             onDismiss = { editorState = null }
         )
     }
+
+    reschedulePopupTask?.let { task ->
+        QuickReschedulePopup(
+            hasDueDate = task.dueDate != null,
+            onDismiss = { reschedulePopupTask = null },
+            onReschedule = { newDate -> viewModel.onRescheduleTask(task.id, newDate) },
+            onPlanForToday = { viewModel.onPlanTaskForToday(task.id) }
+        )
+    }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun WeekTaskCard(task: TaskEntity, isOverdue: Boolean, onClick: () -> Unit) {
+private fun WeekTaskCard(
+    task: TaskEntity,
+    isOverdue: Boolean,
+    onClick: () -> Unit,
+    onLongPress: () -> Unit = {}
+) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick() },
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongPress
+            ),
         shape = RoundedCornerShape(6.dp),
         colors = CardDefaults.cardColors(
             containerColor = if (isOverdue)

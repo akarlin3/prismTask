@@ -1,10 +1,16 @@
 package com.averycorp.averytask.ui.screens.timeline
 
+import android.util.Log
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.averycorp.averytask.data.local.dao.TaskDao
 import com.averycorp.averytask.data.local.entity.TaskEntity
 import com.averycorp.averytask.data.preferences.SortPreferences
+import com.averycorp.averytask.data.repository.TaskRepository
+import com.averycorp.averytask.ui.components.QuickRescheduleFormatter
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -33,8 +39,11 @@ data class TimeBlock(
 @HiltViewModel
 class TimelineViewModel @Inject constructor(
     private val taskDao: TaskDao,
+    private val taskRepository: TaskRepository,
     private val sortPreferences: SortPreferences
 ) : ViewModel() {
+
+    val snackbarHostState = SnackbarHostState()
 
     private val zone = ZoneId.systemDefault()
 
@@ -103,6 +112,49 @@ class TimelineViewModel @Inject constructor(
         viewModelScope.launch {
             val task = taskDao.getTaskByIdOnce(taskId) ?: return@launch
             taskDao.update(task.copy(scheduledStartTime = null, updatedAt = System.currentTimeMillis()))
+        }
+    }
+
+    /**
+     * Helper for the quick-reschedule popup, which needs the full [TaskEntity]
+     * (for the `hasDueDate` flag) but the Timeline screen only has a taskId
+     * inside its scheduled blocks. Runs in [viewModelScope] so the caller
+     * receives the result on the main dispatcher.
+     */
+    fun loadTaskForPopup(taskId: Long, onLoaded: (TaskEntity?) -> Unit) {
+        viewModelScope.launch {
+            onLoaded(taskDao.getTaskByIdOnce(taskId))
+        }
+    }
+
+    fun onRescheduleTask(taskId: Long, newDueDate: Long?) {
+        viewModelScope.launch {
+            try {
+                val previous = taskRepository.getTaskByIdOnce(taskId)?.dueDate
+                taskRepository.rescheduleTask(taskId, newDueDate)
+                val label = QuickRescheduleFormatter.describe(newDueDate)
+                val result = snackbarHostState.showSnackbar(
+                    message = "Rescheduled to $label",
+                    actionLabel = "UNDO",
+                    duration = SnackbarDuration.Short
+                )
+                if (result == SnackbarResult.ActionPerformed) {
+                    taskRepository.rescheduleTask(taskId, previous)
+                }
+            } catch (e: Exception) {
+                Log.e("TimelineVM", "Failed to reschedule", e)
+            }
+        }
+    }
+
+    fun onPlanTaskForToday(taskId: Long) {
+        viewModelScope.launch {
+            try {
+                taskRepository.planTaskForToday(taskId)
+                snackbarHostState.showSnackbar("Planned for today", duration = SnackbarDuration.Short)
+            } catch (e: Exception) {
+                Log.e("TimelineVM", "Failed to plan for today", e)
+            }
         }
     }
 }

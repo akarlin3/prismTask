@@ -23,6 +23,7 @@ import com.averycorp.averytask.data.repository.SchoolworkRepository
 import com.averycorp.averytask.data.repository.SelfCareRepository
 import com.averycorp.averytask.data.repository.TagRepository
 import com.averycorp.averytask.data.repository.TaskRepository
+import com.averycorp.averytask.ui.components.QuickRescheduleFormatter
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -309,6 +310,40 @@ class TodayViewModel @Inject constructor(
                 }
             } catch (e: Exception) {
                 Log.e("TodayVM", "Failed to delete task", e)
+            }
+        }
+    }
+
+    fun onRescheduleTask(taskId: Long, newDueDate: Long?) {
+        viewModelScope.launch {
+            try {
+                val previous = taskRepository.getTaskByIdOnce(taskId)?.dueDate
+                taskRepository.rescheduleTask(taskId, newDueDate)
+                val label = QuickRescheduleFormatter.describe(newDueDate)
+                val result = snackbarHostState.showSnackbar(
+                    message = "Rescheduled to $label",
+                    actionLabel = "UNDO",
+                    duration = SnackbarDuration.Short
+                )
+                if (result == SnackbarResult.ActionPerformed) {
+                    taskRepository.rescheduleTask(taskId, previous)
+                }
+            } catch (e: Exception) {
+                Log.e("TodayVM", "Failed to reschedule", e)
+            }
+        }
+    }
+
+    fun onPlanTaskForToday(taskId: Long) {
+        viewModelScope.launch {
+            try {
+                taskRepository.planTaskForToday(taskId)
+                snackbarHostState.showSnackbar(
+                    message = "Planned for today",
+                    duration = SnackbarDuration.Short
+                )
+            } catch (e: Exception) {
+                Log.e("TodayVM", "Failed to plan for today", e)
             }
         }
     }

@@ -114,6 +114,7 @@ import com.averycorp.averytask.domain.model.TaskFilter
 import com.averycorp.averytask.ui.components.EmptyState
 import com.averycorp.averytask.ui.components.FilterPanel
 import com.averycorp.averytask.ui.components.QuickAddBar
+import com.averycorp.averytask.ui.components.QuickReschedulePopup
 import com.averycorp.averytask.ui.components.SubtaskSection
 import com.averycorp.averytask.ui.navigation.AveryTaskRoute
 import com.averycorp.averytask.ui.screens.addedittask.AddEditTaskSheetHost
@@ -165,6 +166,7 @@ fun TaskListScreen(
     var showPasteDialog by remember { mutableStateOf(false) }
     var pasteContent by remember { mutableStateOf("") }
     var editorSheet by remember { mutableStateOf<TaskEditorSheetState?>(null) }
+    var reschedulePopupTask by remember { mutableStateOf<TaskEntity?>(null) }
     val filterSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
 
@@ -645,6 +647,7 @@ fun TaskListScreen(
                                     expandedTaskIds = expandedTaskIds,
                                     focusSubtaskForId = focusSubtaskForId,
                                     onTaskClick = { id -> editorSheet = TaskEditorSheetState(taskId = id) },
+                                    onTaskLongPress = { pressed -> reschedulePopupTask = pressed },
                                     viewModel = viewModel,
                                     isMultiSelectMode = isMultiSelectMode,
                                     selectedTaskIds = selectedTaskIds,
@@ -664,6 +667,7 @@ fun TaskListScreen(
                                 expandedTaskIds = expandedTaskIds,
                                 focusSubtaskForId = focusSubtaskForId,
                                 onTaskClick = { id -> editorSheet = TaskEditorSheetState(taskId = id) },
+                                onTaskLongPress = { pressed -> reschedulePopupTask = pressed },
                                 viewModel = viewModel,
                                 isMultiSelectMode = isMultiSelectMode,
                                 selectedTaskIds = selectedTaskIds,
@@ -686,6 +690,19 @@ fun TaskListScreen(
             initialDate = state.initialDate,
             onDismiss = { editorSheet = null },
             onDeleteTask = { id -> viewModel.onDeleteTaskWithUndo(id) }
+        )
+    }
+
+    reschedulePopupTask?.let { task ->
+        QuickReschedulePopup(
+            hasDueDate = task.dueDate != null,
+            onDismiss = { reschedulePopupTask = null },
+            onReschedule = { newDate ->
+                viewModel.onRescheduleTask(task.id, newDate)
+            },
+            onPlanForToday = {
+                viewModel.onPlanForToday(task.id)
+            }
         )
     }
 }
@@ -797,6 +814,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.taskItemWithSubtasks(
     expandedTaskIds: Set<Long>,
     focusSubtaskForId: Long?,
     onTaskClick: (Long) -> Unit,
+    onTaskLongPress: (TaskEntity) -> Unit,
     viewModel: TaskListViewModel,
     isMultiSelectMode: Boolean,
     selectedTaskIds: Set<Long>,
@@ -882,7 +900,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.taskItemWithSubtasks(
                     attachmentCount = attachmentCount,
                     onToggleComplete = { viewModel.onToggleComplete(task.id, task.isCompleted) },
                     onClick = { onTaskClick(task.id) },
-                    onLongClick = { viewModel.onEnterMultiSelect(task.id) },
+                    onLongClick = { onTaskLongPress(task) },
                     onAddSubtaskClick = {
                         onExpandChange(expandedTaskIds + task.id)
                         onFocusChange(task.id)

@@ -6,6 +6,8 @@ import com.averycorp.averytask.data.local.entity.TaskEntity
 import com.averycorp.averytask.data.remote.CalendarSyncService
 import com.averycorp.averytask.data.remote.SyncTracker
 import com.averycorp.averytask.domain.usecase.RecurrenceEngine
+import com.averycorp.averytask.notifications.ReminderScheduler
+import com.averycorp.averytask.util.DayBoundary
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
@@ -17,7 +19,8 @@ import javax.inject.Singleton
 class TaskRepository @Inject constructor(
     private val taskDao: TaskDao,
     private val syncTracker: SyncTracker,
-    private val calendarSyncService: CalendarSyncService
+    private val calendarSyncService: CalendarSyncService,
+    private val reminderScheduler: ReminderScheduler
 ) {
     fun getAllTasks(): Flow<List<TaskEntity>> = taskDao.getAllTasks()
 
@@ -138,6 +141,52 @@ class TaskRepository @Inject constructor(
         taskDao.update(updated)
         syncTracker.trackUpdate(task.id, "task")
         calendarSyncService.syncTaskToCalendar(updated)
+    }
+
+    /**
+     * Changes a task's due date without touching any other field. Used by the
+     * quick-reschedule popup. Also cancels/reschedules any existing reminder
+     * so it tracks the new due date, and pushes the change to Google Calendar
+     * via [CalendarSyncService] which handles the event mapping internally.
+     */
+    suspend fun rescheduleTask(taskId: Long, newDueDate: Long?) {
+        val task = taskDao.getTaskByIdOnce(taskId) ?: return
+        val updated = task.copy(
+            dueDate = newDueDate,
+            updatedAt = System.currentTimeMillis()
+        )
+        taskDao.update(updated)
+        syncTracker.trackUpdate(taskId, "task")
+
+        // Reschedule (or cancel) the reminder to track the new due date. Any
+        // previously scheduled alarm with the same requestCode is overwritten
+        // by PendingIntent.FLAG_UPDATE_CURRENT in the scheduler.
+        val offset = updated.reminderOffset
+        if (offset != null && newDueDate != null) {
+            reminderScheduler.scheduleReminder(
+                taskId = updated.id,
+                taskTitle = updated.title,
+                taskDescription = updated.description,
+                dueDate = newDueDate,
+                reminderOffset = offset
+            )
+        } else {
+            reminderScheduler.cancelReminder(taskId)
+        }
+
+        // CalendarSyncService handles both create/update/remove based on
+        // whether dueDate is null and whether a mapping already exists.
+        calendarSyncService.syncTaskToCalendar(updated)
+    }
+
+    /**
+     * Pins a task to today's dashboard without changing its dueDate. Mirrors
+     * the existing [TaskDao.setPlanDate] shortcut used by TodayViewModel.
+     */
+    suspend fun planTaskForToday(taskId: Long) {
+        val startOfToday = DayBoundary.startOfCurrentDay(0)
+        taskDao.setPlanDate(taskId, startOfToday)
+        syncTracker.trackUpdate(taskId, "task")
     }
 
     suspend fun completeTask(id: Long) {

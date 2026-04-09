@@ -1,10 +1,16 @@
 package com.averycorp.averytask.ui.screens.monthview
 
+import android.util.Log
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.averycorp.averytask.data.local.dao.TaskDao
 import com.averycorp.averytask.data.local.entity.TaskEntity
 import com.averycorp.averytask.data.preferences.SortPreferences
+import com.averycorp.averytask.data.repository.TaskRepository
+import com.averycorp.averytask.ui.components.QuickRescheduleFormatter
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -32,8 +38,11 @@ data class DayInfo(
 @HiltViewModel
 class MonthViewModel @Inject constructor(
     private val taskDao: TaskDao,
+    private val taskRepository: TaskRepository,
     private val sortPreferences: SortPreferences
 ) : ViewModel() {
+
+    val snackbarHostState = SnackbarHostState()
 
     private val zone = ZoneId.systemDefault()
 
@@ -118,4 +127,35 @@ class MonthViewModel @Inject constructor(
         _selectedDate.value = LocalDate.now()
     }
     fun onSelectDate(date: LocalDate) { _selectedDate.value = date }
+
+    fun onRescheduleTask(taskId: Long, newDueDate: Long?) {
+        viewModelScope.launch {
+            try {
+                val previous = taskRepository.getTaskByIdOnce(taskId)?.dueDate
+                taskRepository.rescheduleTask(taskId, newDueDate)
+                val label = QuickRescheduleFormatter.describe(newDueDate)
+                val result = snackbarHostState.showSnackbar(
+                    message = "Rescheduled to $label",
+                    actionLabel = "UNDO",
+                    duration = SnackbarDuration.Short
+                )
+                if (result == SnackbarResult.ActionPerformed) {
+                    taskRepository.rescheduleTask(taskId, previous)
+                }
+            } catch (e: Exception) {
+                Log.e("MonthViewVM", "Failed to reschedule", e)
+            }
+        }
+    }
+
+    fun onPlanTaskForToday(taskId: Long) {
+        viewModelScope.launch {
+            try {
+                taskRepository.planTaskForToday(taskId)
+                snackbarHostState.showSnackbar("Planned for today", duration = SnackbarDuration.Short)
+            } catch (e: Exception) {
+                Log.e("MonthViewVM", "Failed to plan for today", e)
+            }
+        }
+    }
 }

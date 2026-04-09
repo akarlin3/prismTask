@@ -19,6 +19,7 @@ import com.averycorp.averytask.data.repository.ProjectRepository
 import com.averycorp.averytask.data.repository.TagRepository
 import com.averycorp.averytask.data.repository.TaskRepository
 import com.averycorp.averytask.domain.model.TagFilterMode
+import com.averycorp.averytask.ui.components.QuickRescheduleFormatter
 import com.averycorp.averytask.domain.model.TaskFilter
 import com.averycorp.averytask.domain.usecase.ParsedTodoItem
 import com.averycorp.averytask.domain.usecase.TodoListParser
@@ -562,6 +563,42 @@ class TaskListViewModel @Inject constructor(
                 }
             } catch (e: Exception) {
                 Log.e("TaskListVM", "Failed to delete task", e)
+                snackbarHostState.showSnackbar("Something went wrong")
+            }
+        }
+    }
+
+    fun onRescheduleTask(taskId: Long, newDueDate: Long?) {
+        viewModelScope.launch {
+            try {
+                val previous = taskRepository.getTaskByIdOnce(taskId)?.dueDate
+                taskRepository.rescheduleTask(taskId, newDueDate)
+                val label = QuickRescheduleFormatter.describe(newDueDate)
+                val result = snackbarHostState.showSnackbar(
+                    message = "Rescheduled to $label",
+                    actionLabel = "UNDO",
+                    duration = SnackbarDuration.Short
+                )
+                if (result == SnackbarResult.ActionPerformed) {
+                    taskRepository.rescheduleTask(taskId, previous)
+                }
+            } catch (e: Exception) {
+                Log.e("TaskListVM", "Failed to reschedule", e)
+                snackbarHostState.showSnackbar("Something went wrong")
+            }
+        }
+    }
+
+    fun onPlanForToday(taskId: Long) {
+        viewModelScope.launch {
+            try {
+                taskRepository.planTaskForToday(taskId)
+                snackbarHostState.showSnackbar(
+                    message = "Planned for today",
+                    duration = SnackbarDuration.Short
+                )
+            } catch (e: Exception) {
+                Log.e("TaskListVM", "Failed to plan for today", e)
                 snackbarHostState.showSnackbar("Something went wrong")
             }
         }

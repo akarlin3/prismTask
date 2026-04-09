@@ -3,9 +3,11 @@ package com.averycorp.averytask.ui.screens.monthview
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -39,6 +41,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -61,6 +64,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.averycorp.averytask.data.local.entity.TaskEntity
+import com.averycorp.averytask.ui.components.QuickReschedulePopup
 import com.averycorp.averytask.ui.screens.addedittask.AddEditTaskSheetHost
 import com.averycorp.averytask.ui.theme.LocalPriorityColors
 import java.time.DayOfWeek
@@ -90,8 +94,10 @@ fun MonthViewScreen(
     val today = LocalDate.now()
 
     var editorState by remember { mutableStateOf<MonthTaskEditorState?>(null) }
+    var reschedulePopupTask by remember { mutableStateOf<TaskEntity?>(null) }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(hostState = viewModel.snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
@@ -206,6 +212,9 @@ fun MonthViewScreen(
                         onTaskClick = { taskId ->
                             editorState = MonthTaskEditorState(taskId = taskId)
                         },
+                        onTaskLongPress = { task ->
+                            reschedulePopupTask = task
+                        },
                         onAddTask = {
                             val dayStartMillis = date.atStartOfDay(ZoneId.systemDefault())
                                 .toInstant()
@@ -224,6 +233,15 @@ fun MonthViewScreen(
             projectId = null,
             initialDate = state.initialDate,
             onDismiss = { editorState = null }
+        )
+    }
+
+    reschedulePopupTask?.let { task ->
+        QuickReschedulePopup(
+            hasDueDate = task.dueDate != null,
+            onDismiss = { reschedulePopupTask = null },
+            onReschedule = { newDate -> viewModel.onRescheduleTask(task.id, newDate) },
+            onPlanForToday = { viewModel.onPlanTaskForToday(task.id) }
         )
     }
 }
@@ -314,11 +332,13 @@ private fun DayCell(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun DayDetail(
     date: LocalDate,
     tasks: List<TaskEntity>,
     onTaskClick: (Long) -> Unit,
+    onTaskLongPress: (TaskEntity) -> Unit,
     onAddTask: () -> Unit
 ) {
     Card(
@@ -363,7 +383,10 @@ private fun DayDetail(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable { onTaskClick(task.id) }
+                                .combinedClickable(
+                                    onClick = { onTaskClick(task.id) },
+                                    onLongClick = { onTaskLongPress(task) }
+                                )
                                 .padding(vertical = 4.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {

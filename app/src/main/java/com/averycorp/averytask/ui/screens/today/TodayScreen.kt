@@ -91,6 +91,7 @@ import com.averycorp.averytask.data.local.entity.TagEntity
 import com.averycorp.averytask.data.local.entity.TaskEntity
 import com.averycorp.averytask.data.repository.HabitWithStatus
 import com.averycorp.averytask.ui.components.QuickAddBar
+import com.averycorp.averytask.ui.components.QuickReschedulePopup
 import com.averycorp.averytask.ui.navigation.AveryTaskRoute
 import com.averycorp.averytask.ui.screens.addedittask.AddEditTaskSheetHost
 import com.averycorp.averytask.ui.theme.LocalPriorityColors
@@ -137,6 +138,7 @@ fun TodayScreen(
 
     var editorSheetTaskId by remember { mutableStateOf<Long?>(null) }
     var showEditorSheet by remember { mutableStateOf(false) }
+    var reschedulePopupTask by remember { mutableStateOf<TaskEntity?>(null) }
 
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = viewModel.snackbarHostState) },
@@ -200,7 +202,8 @@ fun TodayScreen(
                                     onClick = {
                                         editorSheetTaskId = task.id
                                         showEditorSheet = true
-                                    }
+                                    },
+                                    onLongPress = { reschedulePopupTask = task }
                                 )
                             }
                         }
@@ -229,7 +232,8 @@ fun TodayScreen(
                                     onClick = {
                                         editorSheetTaskId = task.id
                                         showEditorSheet = true
-                                    }
+                                    },
+                                    onLongPress = { reschedulePopupTask = task }
                                 )
                             }
                         }
@@ -284,7 +288,8 @@ fun TodayScreen(
                                     onClick = {
                                         editorSheetTaskId = task.id
                                         showEditorSheet = true
-                                    }
+                                    },
+                                    onLongPress = { reschedulePopupTask = task }
                                 )
                             }
                         }
@@ -358,6 +363,15 @@ fun TodayScreen(
             initialDate = if (editorSheetTaskId == null) startOfToday else null,
             onDismiss = { showEditorSheet = false },
             onDeleteTask = { id -> viewModel.onDeleteTaskWithUndo(id) }
+        )
+    }
+
+    reschedulePopupTask?.let { task ->
+        QuickReschedulePopup(
+            hasDueDate = task.dueDate != null,
+            onDismiss = { reschedulePopupTask = null },
+            onReschedule = { newDate -> viewModel.onRescheduleTask(task.id, newDate) },
+            onPlanForToday = { viewModel.onPlanTaskForToday(task.id) }
         )
     }
 }
@@ -840,7 +854,7 @@ private fun FloatingQuickAddBar() {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 private fun SwipeableTaskItem(
     task: TaskEntity,
@@ -848,7 +862,8 @@ private fun SwipeableTaskItem(
     isOverdue: Boolean = false,
     isPlanned: Boolean = false,
     onComplete: () -> Unit,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onLongPress: () -> Unit = {}
 ) {
     val dismissState = rememberSwipeToDismissBoxState(
         confirmValueChange = { value ->
@@ -878,7 +893,10 @@ private fun SwipeableTaskItem(
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable { onClick() },
+                .combinedClickable(
+                    onClick = onClick,
+                    onLongClick = onLongPress
+                ),
             shape = RoundedCornerShape(12.dp),
             colors = CardDefaults.cardColors(
                 containerColor = if (isOverdue)
