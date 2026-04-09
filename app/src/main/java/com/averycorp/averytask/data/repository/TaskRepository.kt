@@ -362,6 +362,33 @@ class TaskRepository @Inject constructor(
     }
 
     /**
+     * Moves a single task into [projectId] (null removes any project
+     * association). When [cascadeSubtasks] is true every direct subtask of
+     * the task is moved in the same atomic batch so the project chip on the
+     * parent and its subtasks stays consistent; otherwise only the parent
+     * task is updated and subtasks keep their existing project.
+     *
+     * Callers typically use the cascade form only after the user confirms a
+     * "Move Subtasks Too?" prompt; the drag-to-move flow in the grouped-by-
+     * project view passes cascade = false to keep the interaction snappy.
+     *
+     * Returns the list of task ids that were moved so UI code can build an
+     * Undo payload that restores the previous project assignment exactly.
+     */
+    suspend fun moveToProject(
+        taskId: Long,
+        projectId: Long?,
+        cascadeSubtasks: Boolean = false
+    ): List<Long> {
+        val task = taskDao.getTaskByIdOnce(taskId) ?: return emptyList()
+        val subtasks = if (cascadeSubtasks) taskDao.getSubtasksOnce(taskId) else emptyList()
+        val idsToMove = buildMoveTargetIds(task, subtasks, cascadeSubtasks)
+        taskDao.batchMoveToProject(idsToMove, projectId)
+        idsToMove.forEach { syncTracker.trackUpdate(it, "task") }
+        return idsToMove
+    }
+
+    /**
      * Adds [tagId] to every task in [taskIds] atomically. Safe to call when
      * some tasks already carry the tag — existing cross-refs are replaced
      * via INSERT OR REPLACE, so the final state is "every selected task has
@@ -489,6 +516,50 @@ class TaskRepository @Inject constructor(
          */
         fun buildTagCrossRefs(tagIds: List<Long>, newTaskId: Long): List<TaskTagCrossRef> {
             return tagIds.map { tagId -> TaskTagCrossRef(taskId = newTaskId, tagId = tagId) }
+        }
+
+        /**
+         * Pure transformation: build the list of task ids to update when
+         * moving [task] into a new project. When [cascadeSubtasks] is true
+         * the ids of every provided subtask are appended so the repository
+         * can push the move through a single batch DAO call.
+         */
+        fun buildMoveTargetIds(
+            task: TaskEntity,
+            subtasks: List<TaskEntity>,
+            cascadeSubtasks: Boolean
+        ): List<Long> {
+            return if (cascadeSubtasks) {
+                listOf(task.id) + subtasks.map { it.id }
+            } else {
+                listOf(task.id)
+            }
+        }
+
+        /**
+         * Pure transformation: return the list of [TaskEntity] rows that
+         * would result from moving [task] (and, when [cascadeSubtasks] is
+         * true, every provided subtask) into [newProjectId]. Does not touch
+         * the database — tests rely on this to verify the move semantics
+         * without wiring up a fake DAO. Null [newProjectId] clears the
+         * project association; passing the same id the task already has is
+         * a no-op beyond bumping updatedAt.
+         */
+        fun applyProjectMove(
+            task: TaskEntity,
+            subtasks: List<TaskEntity>,
+            newProjectId: Long?,
+            cascadeSubtasks: Boolean,
+            now: Long
+        ): List<TaskEntity> {
+            val updatedParent = task.copy(projectId = newProjectId, updatedAt = now)
+            return if (cascadeSubtasks) {
+                listOf(updatedParent) + subtasks.map {
+                    it.copy(projectId = newProjectId, updatedAt = now)
+                }
+            } else {
+                listOf(updatedParent)
+            }
         }
     }
 }

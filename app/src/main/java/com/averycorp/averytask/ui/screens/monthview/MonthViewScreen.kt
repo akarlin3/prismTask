@@ -63,8 +63,12 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import androidx.compose.material3.AlertDialog
+import androidx.compose.runtime.LaunchedEffect
 import com.averycorp.averytask.data.local.entity.TaskEntity
+import com.averycorp.averytask.ui.components.MoveToProjectSheet
 import com.averycorp.averytask.ui.components.QuickReschedulePopup
+import com.averycorp.averytask.ui.components.TaskContextMenuSheet
 import com.averycorp.averytask.ui.screens.addedittask.AddEditTaskSheetHost
 import com.averycorp.averytask.ui.theme.LocalPriorityColors
 import java.time.DayOfWeek
@@ -95,6 +99,11 @@ fun MonthViewScreen(
 
     var editorState by remember { mutableStateOf<MonthTaskEditorState?>(null) }
     var reschedulePopupTask by remember { mutableStateOf<TaskEntity?>(null) }
+    var contextMenuTask by remember { mutableStateOf<TaskEntity?>(null) }
+    var moveToProjectSheetTask by remember { mutableStateOf<TaskEntity?>(null) }
+    var cascadeConfirmState by remember { mutableStateOf<Pair<TaskEntity, Long?>?>(null) }
+    val projects by viewModel.projects.collectAsStateWithLifecycle()
+    val taskCountByProject by viewModel.taskCountByProject.collectAsStateWithLifecycle()
 
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = viewModel.snackbarHostState) },
@@ -213,7 +222,7 @@ fun MonthViewScreen(
                             editorState = MonthTaskEditorState(taskId = taskId)
                         },
                         onTaskLongPress = { task ->
-                            reschedulePopupTask = task
+                            contextMenuTask = task
                         },
                         onAddTask = {
                             val dayStartMillis = date.atStartOfDay(ZoneId.systemDefault())
@@ -242,6 +251,64 @@ fun MonthViewScreen(
             onDismiss = { reschedulePopupTask = null },
             onReschedule = { newDate -> viewModel.onRescheduleTask(task.id, newDate) },
             onPlanForToday = { viewModel.onPlanTaskForToday(task.id) }
+        )
+    }
+
+    contextMenuTask?.let { task ->
+        TaskContextMenuSheet(
+            taskTitle = task.title,
+            onDismiss = { contextMenuTask = null },
+            onReschedule = {
+                contextMenuTask = null
+                reschedulePopupTask = task
+            },
+            onMoveToProject = {
+                contextMenuTask = null
+                moveToProjectSheetTask = task
+            }
+        )
+    }
+
+    moveToProjectSheetTask?.let { task ->
+        var subtaskCount by remember(task.id) { mutableStateOf(0) }
+        LaunchedEffect(task.id) { subtaskCount = viewModel.getSubtaskCount(task.id) }
+        MoveToProjectSheet(
+            projects = projects,
+            taskCountByProject = taskCountByProject,
+            currentProjectId = task.projectId,
+            onDismiss = { moveToProjectSheetTask = null },
+            onMove = { newProjectId ->
+                moveToProjectSheetTask = null
+                if (subtaskCount > 0) {
+                    cascadeConfirmState = task to newProjectId
+                } else {
+                    viewModel.onMoveToProject(task.id, newProjectId)
+                }
+            },
+            onCreateAndMove = { name ->
+                moveToProjectSheetTask = null
+                viewModel.onCreateProjectAndMoveTask(task.id, name, cascadeSubtasks = subtaskCount > 0)
+            }
+        )
+    }
+
+    cascadeConfirmState?.let { (task, newProjectId) ->
+        AlertDialog(
+            onDismissRequest = { cascadeConfirmState = null },
+            title = { Text("Move Subtasks Too?") },
+            text = { Text("'${task.title}' has subtasks. Should they move to the same project?") },
+            confirmButton = {
+                TextButton(onClick = {
+                    cascadeConfirmState = null
+                    viewModel.onMoveToProject(task.id, newProjectId, cascadeSubtasks = true)
+                }) { Text("Yes, Move All") }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    cascadeConfirmState = null
+                    viewModel.onMoveToProject(task.id, newProjectId, cascadeSubtasks = false)
+                }) { Text("No, Just This") }
+            }
         )
     }
 }

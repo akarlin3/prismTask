@@ -348,6 +348,92 @@ class TodayViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Reactive task-count map (projectId -> root-task count) that backs the
+     * move-to-project sheet on the Today screen. Uses all tasks currently
+     * on screen (overdue + today + planned) so the counts reflect the
+     * scope the user is actually interacting with.
+     */
+    val taskCountByProject: StateFlow<Map<Long, Int>> = allDisplayTasks
+        .map { tasks ->
+            tasks.groupingBy { it.projectId }
+                .eachCount()
+                .mapNotNull { (id, count) -> id?.let { it to count } }
+                .toMap()
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
+
+    /**
+     * Moves a single task into [newProjectId] (or null to clear the
+     * project). Mirrors the task-list version with a per-task undo
+     * snackbar. [cascadeSubtasks] propagates to subtasks when true.
+     */
+    fun onMoveToProject(
+        taskId: Long,
+        newProjectId: Long?,
+        cascadeSubtasks: Boolean = false
+    ) {
+        viewModelScope.launch {
+            try {
+                val task = taskRepository.getTaskByIdOnce(taskId) ?: return@launch
+                val previousParentProjectId = task.projectId
+                val previousSubtaskProjects: Map<Long, Long?> = if (cascadeSubtasks) {
+                    taskRepository.getSubtasks(taskId).first().associate { it.id to it.projectId }
+                } else emptyMap()
+
+                taskRepository.moveToProject(taskId, newProjectId, cascadeSubtasks)
+
+                val projectName = newProjectId?.let { id ->
+                    projects.value.find { it.id == id }?.name
+                } ?: "No Project"
+                val result = snackbarHostState.showSnackbar(
+                    message = "Moved '${task.title}' to $projectName",
+                    actionLabel = "UNDO",
+                    duration = SnackbarDuration.Short
+                )
+                if (result == SnackbarResult.ActionPerformed) {
+                    taskRepository.moveToProject(taskId, previousParentProjectId, false)
+                    previousSubtaskProjects
+                        .entries
+                        .groupBy { it.value }
+                        .forEach { (origProjectId, entries) ->
+                            taskRepository.batchMoveToProject(
+                                entries.map { it.key },
+                                origProjectId
+                            )
+                        }
+                }
+            } catch (e: Exception) {
+                Log.e("TodayVM", "Failed to move task to project", e)
+                snackbarHostState.showSnackbar("Something went wrong")
+            }
+        }
+    }
+
+    /**
+     * Creates a new project on-the-fly from the move sheet and then moves
+     * the given task into it.
+     */
+    fun onCreateProjectAndMoveTask(
+        taskId: Long,
+        name: String,
+        cascadeSubtasks: Boolean = false
+    ) {
+        if (name.isBlank()) return
+        viewModelScope.launch {
+            try {
+                val newId = projectRepository.addProject(name.trim())
+                onMoveToProject(taskId, newId, cascadeSubtasks)
+            } catch (e: Exception) {
+                Log.e("TodayVM", "Failed to create project", e)
+                snackbarHostState.showSnackbar("Something went wrong")
+            }
+        }
+    }
+
+    suspend fun getSubtaskCount(taskId: Long): Int =
+        taskRepository.getSubtasks(taskId).first().size
+
     // Rollover
     fun onRolloverToTomorrow(taskIds: List<Long>) {
         viewModelScope.launch {

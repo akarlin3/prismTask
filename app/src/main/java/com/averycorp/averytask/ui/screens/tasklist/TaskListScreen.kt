@@ -1,12 +1,19 @@
 package com.averycorp.averytask.ui.screens.tasklist
 
+import android.content.ClipData
+import android.content.ClipDescription
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.draganddrop.dragAndDropSource
+import androidx.compose.foundation.draganddrop.dragAndDropTarget
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -92,11 +99,17 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draganddrop.DragAndDropEvent
+import androidx.compose.ui.draganddrop.DragAndDropTarget
+import androidx.compose.ui.draganddrop.DragAndDropTransferData
+import androidx.compose.ui.draganddrop.mimeTypes
+import androidx.compose.ui.draganddrop.toAndroidDragEvent
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -116,9 +129,11 @@ import com.averycorp.averytask.ui.components.BatchMoveToProjectDialog
 import com.averycorp.averytask.ui.components.BatchTagsDialog
 import com.averycorp.averytask.ui.components.EmptyState
 import com.averycorp.averytask.ui.components.FilterPanel
+import com.averycorp.averytask.ui.components.MoveToProjectSheet
 import com.averycorp.averytask.ui.components.QuickAddBar
 import com.averycorp.averytask.ui.components.QuickReschedulePopup
 import com.averycorp.averytask.ui.components.SubtaskSection
+import com.averycorp.averytask.ui.components.TaskContextMenuSheet
 import com.averycorp.averytask.ui.components.computeInitialTagStates
 import com.averycorp.averytask.ui.navigation.AveryTaskRoute
 import com.averycorp.averytask.ui.screens.addedittask.AddEditTaskSheetHost
@@ -149,7 +164,9 @@ fun TaskListScreen(
 ) {
     val filteredTasks by viewModel.filteredTasks.collectAsStateWithLifecycle()
     val groupedTasks by viewModel.groupedTasks.collectAsStateWithLifecycle()
+    val tasksByProject by viewModel.tasksByProject.collectAsStateWithLifecycle()
     val projects by viewModel.projects.collectAsStateWithLifecycle()
+    val taskCountByProject by viewModel.taskCountByProject.collectAsStateWithLifecycle()
     val selectedProjectId by viewModel.selectedProjectId.collectAsStateWithLifecycle()
     val subtasksMap by viewModel.subtasksMap.collectAsStateWithLifecycle()
     val taskTagsMap by viewModel.taskTagsMap.collectAsStateWithLifecycle()
@@ -173,6 +190,15 @@ fun TaskListScreen(
     var pasteContent by remember { mutableStateOf("") }
     var editorSheet by remember { mutableStateOf<TaskEditorSheetState?>(null) }
     var reschedulePopupTask by remember { mutableStateOf<TaskEntity?>(null) }
+    // Long-press context menu + move-to-project sheet. The context menu is
+    // opened by a long-press on any task card and, when the user picks "Move
+    // To Project", hands off to moveToProjectSheetTask which drives the
+    // bottom sheet. Confirmation for cascading subtasks is kept separate.
+    var contextMenuTask by remember { mutableStateOf<TaskEntity?>(null) }
+    var moveToProjectSheetTask by remember { mutableStateOf<TaskEntity?>(null) }
+    var cascadeConfirmState by remember {
+        mutableStateOf<Pair<TaskEntity, Long?>?>(null)
+    }
 
     // Open the editor sheet when the view model emits an event (e.g. after the
     // user taps "View" on the Task Duplicated snackbar).
@@ -434,6 +460,11 @@ fun TaskListScreen(
                                     trailingIcon = if (viewMode == ViewMode.LIST) { { Icon(Icons.Default.Check, null, Modifier.size(18.dp)) } } else null
                                 )
                                 DropdownMenuItem(
+                                    text = { Text("By Project") },
+                                    onClick = { viewModel.onChangeViewMode(ViewMode.BY_PROJECT); showViewMenu = false },
+                                    trailingIcon = if (viewMode == ViewMode.BY_PROJECT) { { Icon(Icons.Default.Check, null, Modifier.size(18.dp)) } } else null
+                                )
+                                DropdownMenuItem(
                                     text = { Text("Week") },
                                     onClick = { showViewMenu = false; navController.navigate(AveryTaskRoute.WeekView.route) }
                                 )
@@ -574,16 +605,20 @@ fun TaskListScreen(
             }
 
             val isCustomSort = currentSort == SortOption.CUSTOM
+            val isByProjectView = !isCustomSort && viewMode == ViewMode.BY_PROJECT
             // Custom sort always renders as a flat list (grouping by date
             // doesn't make sense when the user has manually ordered things),
             // regardless of the current view mode toggle.
             val allTasks = when {
                 isCustomSort -> filteredTasks
                 viewMode == ViewMode.UPCOMING -> groupedTasks.values.flatten()
+                isByProjectView -> tasksByProject.values.flatten()
                 else -> filteredTasks
             }
-
-            if (allTasks.isEmpty()) {
+            // By-project view always renders its project headers even when
+            // every group is empty, so users can still see and drop tasks
+            // onto project sections. Skip the empty-state screen in that case.
+            if (allTasks.isEmpty() && !isByProjectView) {
                 if (currentFilter.isActive()) {
                     EmptyState(
                         icon = Icons.Default.FilterList,
@@ -658,6 +693,54 @@ fun TaskListScreen(
                                 }
                             )
                         }
+                    } else if (isByProjectView) {
+                        // Grouped-by-project view. Each project section is a
+                        // drop target so users can drag a task card from one
+                        // project header to another to reassign it.
+                        tasksByProject.forEach { (projectId, tasks) ->
+                            val project = projects.find { it.id == projectId }
+                            val headerKey = "project_header_${projectId ?: -1L}"
+                            item(key = headerKey) {
+                                ProjectGroupHeader(
+                                    project = project,
+                                    taskCount = tasks.size,
+                                    onDropTask = { droppedTaskId ->
+                                        viewModel.onMoveToProject(droppedTaskId, projectId)
+                                    }
+                                )
+                            }
+                            tasks.forEach { task ->
+                                draggableTaskItemWithSubtasks(
+                                    task = task,
+                                    projects = projects,
+                                    subtasksMap = subtasksMap,
+                                    taskTagsMap = taskTagsMap,
+                                    attachmentCountMap = attachmentCountMap,
+                                    expandedTaskIds = expandedTaskIds,
+                                    focusSubtaskForId = focusSubtaskForId,
+                                    onTaskClick = { id -> editorSheet = TaskEditorSheetState(taskId = id) },
+                                    onTaskLongPress = { pressed -> contextMenuTask = pressed },
+                                    onDropTask = { droppedTaskId ->
+                                        viewModel.onMoveToProject(droppedTaskId, projectId)
+                                    },
+                                    viewModel = viewModel,
+                                    isMultiSelectMode = isMultiSelectMode,
+                                    selectedTaskIds = selectedTaskIds,
+                                    onExpandChange = { expandedTaskIds = it },
+                                    onFocusChange = { focusSubtaskForId = it }
+                                )
+                            }
+                            if (tasks.isEmpty()) {
+                                item(key = "empty_project_${projectId ?: -1L}") {
+                                    Text(
+                                        text = "No Tasks",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                                        modifier = Modifier.padding(start = 20.dp, top = 2.dp, bottom = 8.dp)
+                                    )
+                                }
+                            }
+                        }
                     } else if (viewMode == ViewMode.UPCOMING) {
                         groupedTasks.forEach { (group, tasks) ->
                             item(key = "header_$group") {
@@ -673,7 +756,7 @@ fun TaskListScreen(
                                     expandedTaskIds = expandedTaskIds,
                                     focusSubtaskForId = focusSubtaskForId,
                                     onTaskClick = { id -> editorSheet = TaskEditorSheetState(taskId = id) },
-                                    onTaskLongPress = { pressed -> reschedulePopupTask = pressed },
+                                    onTaskLongPress = { pressed -> contextMenuTask = pressed },
                                     viewModel = viewModel,
                                     isMultiSelectMode = isMultiSelectMode,
                                     selectedTaskIds = selectedTaskIds,
@@ -693,7 +776,7 @@ fun TaskListScreen(
                                 expandedTaskIds = expandedTaskIds,
                                 focusSubtaskForId = focusSubtaskForId,
                                 onTaskClick = { id -> editorSheet = TaskEditorSheetState(taskId = id) },
-                                onTaskLongPress = { pressed -> reschedulePopupTask = pressed },
+                                onTaskLongPress = { pressed -> contextMenuTask = pressed },
                                 viewModel = viewModel,
                                 isMultiSelectMode = isMultiSelectMode,
                                 selectedTaskIds = selectedTaskIds,
@@ -728,6 +811,65 @@ fun TaskListScreen(
             },
             onPlanForToday = {
                 viewModel.onPlanForToday(task.id)
+            }
+        )
+    }
+
+    contextMenuTask?.let { task ->
+        TaskContextMenuSheet(
+            taskTitle = task.title,
+            onDismiss = { contextMenuTask = null },
+            onReschedule = {
+                contextMenuTask = null
+                reschedulePopupTask = task
+            },
+            onMoveToProject = {
+                contextMenuTask = null
+                moveToProjectSheetTask = task
+            }
+        )
+    }
+
+    moveToProjectSheetTask?.let { task ->
+        val subtaskCount = subtasksMap[task.id]?.size ?: 0
+        MoveToProjectSheet(
+            projects = projects,
+            taskCountByProject = taskCountByProject,
+            currentProjectId = task.projectId,
+            onDismiss = { moveToProjectSheetTask = null },
+            onMove = { newProjectId ->
+                moveToProjectSheetTask = null
+                if (subtaskCount > 0) {
+                    cascadeConfirmState = task to newProjectId
+                } else {
+                    viewModel.onMoveToProject(task.id, newProjectId)
+                }
+            },
+            onCreateAndMove = { name ->
+                moveToProjectSheetTask = null
+                viewModel.onCreateProjectAndMoveTask(task.id, name, cascadeSubtasks = subtaskCount > 0)
+            }
+        )
+    }
+
+    cascadeConfirmState?.let { (task, newProjectId) ->
+        AlertDialog(
+            onDismissRequest = { cascadeConfirmState = null },
+            title = { Text("Move Subtasks Too?") },
+            text = {
+                Text("'${task.title}' has subtasks. Should they move to the same project?")
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    cascadeConfirmState = null
+                    viewModel.onMoveToProject(task.id, newProjectId, cascadeSubtasks = true)
+                }) { Text("Yes, Move All") }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    cascadeConfirmState = null
+                    viewModel.onMoveToProject(task.id, newProjectId, cascadeSubtasks = false)
+                }) { Text("No, Just This") }
             }
         )
     }
@@ -990,6 +1132,270 @@ private fun GroupHeader(group: String, count: Int) {
             style = MaterialTheme.typography.labelMedium,
             color = color.copy(alpha = 0.7f)
         )
+    }
+}
+
+/**
+ * Header row for a project section in the By Project view. Shows the
+ * project's colored dot + name + task count, and acts as a drop target
+ * for the cross-project drag-to-move interaction: any task card dropped
+ * onto the header is reassigned to this project (or "No Project" when
+ * [project] is null).
+ *
+ * While a drag is hovering over the header the row scales up slightly
+ * and draws an accent border so the drop target is unambiguous. The
+ * drag payload is a plain-text ClipData carrying the task id as a long.
+ */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun ProjectGroupHeader(
+    project: ProjectEntity?,
+    taskCount: Int,
+    onDropTask: (Long) -> Unit
+) {
+    val accent = if (project != null) {
+        try {
+            Color(android.graphics.Color.parseColor(project.color))
+        } catch (_: Exception) {
+            MaterialTheme.colorScheme.primary
+        }
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    var isHovered by remember { mutableStateOf(false) }
+    val scale by animateFloatAsState(
+        targetValue = if (isHovered) 1.04f else 1f,
+        label = "projectHeaderScale"
+    )
+
+    val target = remember(project?.id) {
+        object : DragAndDropTarget {
+            override fun onEntered(event: DragAndDropEvent) { isHovered = true }
+            override fun onExited(event: DragAndDropEvent) { isHovered = false }
+            override fun onEnded(event: DragAndDropEvent) { isHovered = false }
+            override fun onDrop(event: DragAndDropEvent): Boolean {
+                val clipItem = event.toAndroidDragEvent().clipData
+                    ?.takeIf { it.itemCount > 0 }
+                    ?.getItemAt(0)
+                val droppedId = clipItem?.text?.toString()?.toLongOrNull()
+                isHovered = false
+                return if (droppedId != null) {
+                    onDropTask(droppedId)
+                    true
+                } else {
+                    false
+                }
+            }
+        }
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 10.dp, bottom = 4.dp)
+            .scale(scale)
+            .clip(RoundedCornerShape(10.dp))
+            .then(
+                if (isHovered) Modifier.border(
+                    width = 2.dp,
+                    color = accent,
+                    shape = RoundedCornerShape(10.dp)
+                ) else Modifier
+            )
+            .background(
+                if (isHovered) accent.copy(alpha = 0.12f) else Color.Transparent,
+                shape = RoundedCornerShape(10.dp)
+            )
+            .dragAndDropTarget(
+                shouldStartDragAndDrop = { event ->
+                    event.mimeTypes().contains(ClipDescription.MIMETYPE_TEXT_PLAIN)
+                },
+                target = target
+            )
+            .padding(horizontal = 8.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(12.dp)
+                .clip(CircleShape)
+                .background(accent)
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(
+            text = project?.name ?: "No Project",
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(
+            text = "$taskCount",
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+/**
+ * Variant of [taskItemWithSubtasks] used inside the By Project view. The
+ * card is a drag-and-drop source: long-press starts a native drag whose
+ * ClipData carries this task's id, and the card itself acts as a drop
+ * target so dropping another task on top of it moves that task into this
+ * card's project. Long-press still opens the context menu via the normal
+ * combinedClickable path — only the actual drag gesture (long-press +
+ * move) triggers [dragAndDropSource].
+ */
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+private fun androidx.compose.foundation.lazy.LazyListScope.draggableTaskItemWithSubtasks(
+    task: TaskEntity,
+    projects: List<ProjectEntity>,
+    subtasksMap: Map<Long, List<TaskEntity>>,
+    taskTagsMap: Map<Long, List<TagEntity>>,
+    attachmentCountMap: Map<Long, Int>,
+    expandedTaskIds: Set<Long>,
+    focusSubtaskForId: Long?,
+    onTaskClick: (Long) -> Unit,
+    onTaskLongPress: (TaskEntity) -> Unit,
+    onDropTask: (Long) -> Unit,
+    viewModel: TaskListViewModel,
+    isMultiSelectMode: Boolean,
+    selectedTaskIds: Set<Long>,
+    onExpandChange: (Set<Long>) -> Unit,
+    onFocusChange: (Long?) -> Unit
+) {
+    val subtasks = subtasksMap[task.id].orEmpty()
+    val tags = taskTagsMap[task.id].orEmpty()
+    val attachmentCount = attachmentCountMap[task.id] ?: 0
+    val project = projects.find { it.id == task.projectId }
+    item(key = "proj_task_${task.id}") {
+        var isHovered by remember { mutableStateOf(false) }
+        val scale by animateFloatAsState(
+            targetValue = if (isHovered) 1.02f else 1f,
+            label = "taskDragScale"
+        )
+
+        val dropTarget = remember(task.id, task.projectId) {
+            object : DragAndDropTarget {
+                override fun onEntered(event: DragAndDropEvent) { isHovered = true }
+                override fun onExited(event: DragAndDropEvent) { isHovered = false }
+                override fun onEnded(event: DragAndDropEvent) { isHovered = false }
+                override fun onDrop(event: DragAndDropEvent): Boolean {
+                    val clipItem = event.toAndroidDragEvent().clipData
+                        ?.takeIf { it.itemCount > 0 }
+                        ?.getItemAt(0)
+                    val droppedId = clipItem?.text?.toString()?.toLongOrNull()
+                    isHovered = false
+                    if (droppedId == null || droppedId == task.id) return false
+                    onDropTask(droppedId)
+                    return true
+                }
+            }
+        }
+
+        // Drag is initiated via the explicit drag handle so that the task
+        // card's long-press gesture remains free to open the shared
+        // context menu. The whole card stays a drop target so users can
+        // release a dragged card on top of any task in the destination
+        // project — not just on the project header. The drag shadow is
+        // a small semi-transparent rounded rect so the user sees that a
+        // drag is in progress — native Android handles the actual
+        // follow-the-pointer movement on top of that decoration.
+        val dragShadowColor = MaterialTheme.colorScheme.primary
+        val dragHandleDragModifier = Modifier.dragAndDropSource(
+            drawDragDecoration = {
+                drawRoundRect(
+                    color = dragShadowColor,
+                    alpha = 0.5f,
+                    cornerRadius = CornerRadius(8.dp.toPx(), 8.dp.toPx())
+                )
+            }
+        ) {
+            detectTapGestures(
+                onLongPress = {
+                    startTransfer(
+                        DragAndDropTransferData(
+                            clipData = ClipData.newPlainText(
+                                "task_id",
+                                task.id.toString()
+                            )
+                        )
+                    )
+                }
+            )
+        }
+
+        val dragModifier = Modifier
+            .dragAndDropTarget(
+                shouldStartDragAndDrop = { event ->
+                    event.mimeTypes().contains(ClipDescription.MIMETYPE_TEXT_PLAIN)
+                },
+                target = dropTarget
+            )
+            .shadow(if (isHovered) 6.dp else 0.dp, RoundedCornerShape(12.dp))
+            .scale(scale)
+
+        if (isMultiSelectMode) {
+            TaskItem(
+                task = task,
+                project = project,
+                subtasks = subtasks,
+                tags = tags,
+                attachmentCount = attachmentCount,
+                isSelected = task.id in selectedTaskIds,
+                isMultiSelectMode = true,
+                onToggleComplete = { viewModel.onToggleTaskSelection(task.id) },
+                onClick = { viewModel.onToggleTaskSelection(task.id) },
+                onAddSubtaskClick = {},
+                showDragHandle = true,
+                dragHandleModifier = dragHandleDragModifier,
+                modifier = dragModifier
+            )
+        } else {
+            TaskItem(
+                task = task,
+                project = project,
+                subtasks = subtasks,
+                tags = tags,
+                attachmentCount = attachmentCount,
+                onToggleComplete = { viewModel.onToggleComplete(task.id, task.isCompleted) },
+                onClick = { onTaskClick(task.id) },
+                onLongClick = { onTaskLongPress(task) },
+                onAddSubtaskClick = {
+                    onExpandChange(expandedTaskIds + task.id)
+                    onFocusChange(task.id)
+                },
+                onDuplicate = { viewModel.onDuplicateTask(task.id) },
+                showDragHandle = true,
+                dragHandleModifier = dragHandleDragModifier,
+                modifier = dragModifier
+            )
+        }
+    }
+    if (subtasks.isNotEmpty() || expandedTaskIds.contains(task.id)) {
+        item(key = "proj_subtasks_${task.id}") {
+            SubtaskSection(
+                parentTaskId = task.id,
+                subtasks = subtasks,
+                onToggleComplete = viewModel::onToggleSubtaskComplete,
+                onAddSubtask = { title, parentId, priority ->
+                    viewModel.onAddSubtask(title, parentId, priority)
+                },
+                onDeleteSubtask = viewModel::onDeleteSubtaskWithUndo,
+                onReorderSubtasks = viewModel::onReorderSubtasks,
+                expanded = expandedTaskIds.contains(task.id),
+                onToggleExpand = {
+                    onExpandChange(
+                        if (expandedTaskIds.contains(task.id))
+                            expandedTaskIds - task.id
+                        else
+                            expandedTaskIds + task.id
+                    )
+                },
+                requestFocus = focusSubtaskForId == task.id,
+                onFocusHandled = { onFocusChange(null) }
+            )
+        }
     }
 }
 

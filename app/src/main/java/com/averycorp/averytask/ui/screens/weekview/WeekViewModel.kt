@@ -7,10 +7,13 @@ import androidx.compose.material3.SnackbarResult
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.averycorp.averytask.data.local.dao.TaskDao
+import com.averycorp.averytask.data.local.entity.ProjectEntity
 import com.averycorp.averytask.data.local.entity.TaskEntity
 import com.averycorp.averytask.data.preferences.SortPreferences
+import com.averycorp.averytask.data.repository.ProjectRepository
 import com.averycorp.averytask.data.repository.TaskRepository
 import com.averycorp.averytask.ui.components.QuickRescheduleFormatter
+import kotlinx.coroutines.flow.first
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -32,8 +35,21 @@ import javax.inject.Inject
 class WeekViewModel @Inject constructor(
     private val taskDao: TaskDao,
     private val taskRepository: TaskRepository,
+    private val projectRepository: ProjectRepository,
     private val sortPreferences: SortPreferences
 ) : ViewModel() {
+
+    val projects: StateFlow<List<ProjectEntity>> = projectRepository.getAllProjects()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val taskCountByProject: StateFlow<Map<Long, Int>> = taskDao.getIncompleteRootTasks()
+        .map { tasks ->
+            tasks.groupingBy { it.projectId }
+                .eachCount()
+                .mapNotNull { (id, count) -> id?.let { it to count } }
+                .toMap()
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
     val snackbarHostState = SnackbarHostState()
 
@@ -140,4 +156,58 @@ class WeekViewModel @Inject constructor(
             }
         }
     }
+
+    fun onMoveToProject(
+        taskId: Long,
+        newProjectId: Long?,
+        cascadeSubtasks: Boolean = false
+    ) {
+        viewModelScope.launch {
+            try {
+                val task = taskRepository.getTaskByIdOnce(taskId) ?: return@launch
+                val previousParentProjectId = task.projectId
+                val previousSubtaskProjects: Map<Long, Long?> = if (cascadeSubtasks) {
+                    taskRepository.getSubtasks(taskId).first().associate { it.id to it.projectId }
+                } else emptyMap()
+
+                taskRepository.moveToProject(taskId, newProjectId, cascadeSubtasks)
+                val projectName = newProjectId?.let { id ->
+                    projects.value.find { it.id == id }?.name
+                } ?: "No Project"
+                val result = snackbarHostState.showSnackbar(
+                    message = "Moved '${task.title}' to $projectName",
+                    actionLabel = "UNDO",
+                    duration = SnackbarDuration.Short
+                )
+                if (result == SnackbarResult.ActionPerformed) {
+                    taskRepository.moveToProject(taskId, previousParentProjectId, false)
+                    previousSubtaskProjects.entries.groupBy { it.value }
+                        .forEach { (origProjectId, entries) ->
+                            taskRepository.batchMoveToProject(entries.map { it.key }, origProjectId)
+                        }
+                }
+            } catch (e: Exception) {
+                Log.e("WeekViewVM", "Failed to move task to project", e)
+            }
+        }
+    }
+
+    fun onCreateProjectAndMoveTask(
+        taskId: Long,
+        name: String,
+        cascadeSubtasks: Boolean = false
+    ) {
+        if (name.isBlank()) return
+        viewModelScope.launch {
+            try {
+                val newId = projectRepository.addProject(name.trim())
+                onMoveToProject(taskId, newId, cascadeSubtasks)
+            } catch (e: Exception) {
+                Log.e("WeekViewVM", "Failed to create project", e)
+            }
+        }
+    }
+
+    suspend fun getSubtaskCount(taskId: Long): Int =
+        taskRepository.getSubtasks(taskId).first().size
 }

@@ -59,6 +59,7 @@ enum class SortOption(val label: String, val token: String) {
 enum class ViewMode(val label: String) {
     UPCOMING("Upcoming"),
     LIST("List"),
+    BY_PROJECT("By Project"),
     WEEK("Week"),
     MONTH("Month")
 }
@@ -121,6 +122,20 @@ class TaskListViewModel @Inject constructor(
     val projects: StateFlow<List<ProjectEntity>> = projectRepository.getAllProjects()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    /**
+     * Reactive task-count map (projectId -> active root-task count) backing
+     * the move-to-project sheet. Counts only incomplete root tasks so the
+     * number matches what the user actually sees in the project filter row.
+     */
+    val taskCountByProject: StateFlow<Map<Long, Int>> = taskRepository.getIncompleteRootTasks()
+        .map { tasks ->
+            tasks.groupingBy { it.projectId }
+                .eachCount()
+                .mapNotNull { (id, count) -> id?.let { it to count } }
+                .toMap()
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
+
     val allTags: StateFlow<List<TagEntity>> = tagRepository.getAllTags()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
@@ -163,6 +178,33 @@ class TaskListViewModel @Inject constructor(
         combine(allRootTasks, _currentFilter, _currentSort, taskTagsMap) { taskList, filter, sort, tagsMap ->
             val filtered = applyFilter(taskList, filter, tagsMap)
             groupByDate(filtered, sort)
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
+
+    /**
+     * Filtered tasks grouped by projectId (null for "No Project"). Backs
+     * the By Project view mode — the UI renders one section per project
+     * with the tasks sorted using the currently-selected SortOption inside
+     * each group. Projects with zero matching tasks still appear so they
+     * can act as drop targets for cross-project drag.
+     */
+    val tasksByProject: StateFlow<Map<Long?, List<TaskEntity>>> =
+        combine(
+            allRootTasks,
+            _currentFilter,
+            _currentSort,
+            taskTagsMap,
+            projects
+        ) { taskList, filter, sort, tagsMap, allProjects ->
+            val filtered = applyFilter(taskList, filter, tagsMap)
+            val grouped = linkedMapOf<Long?, MutableList<TaskEntity>>()
+            // Seed every known project so empty projects still render as
+            // drop targets in the UI.
+            allProjects.forEach { proj -> grouped[proj.id] = mutableListOf() }
+            grouped[null] = mutableListOf()
+            for (task in filtered) {
+                grouped.getOrPut(task.projectId) { mutableListOf() }.add(task)
+            }
+            grouped.mapValues { (_, list) -> sortTasks(list, sort) }
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
     private val dayStartFlow: StateFlow<Long> = taskBehaviorPreferences.getDayStartHour()
@@ -326,6 +368,78 @@ class TaskListViewModel @Inject constructor(
                 }
             } catch (e: Exception) {
                 Log.e("TaskListVM", "Failed to bulk reschedule", e)
+                snackbarHostState.showSnackbar("Something went wrong")
+            }
+        }
+    }
+
+    /**
+     * Moves a single task into [newProjectId] (or null to remove the
+     * project association) and surfaces an Undo snackbar that restores
+     * the previous project. When [cascadeSubtasks] is true, subtasks are
+     * moved too and the undo also restores their original projects.
+     *
+     * Called from the long-press context menu and the drag-to-move-
+     * between-projects interaction in the grouped-by-project view.
+     */
+    fun onMoveToProject(
+        taskId: Long,
+        newProjectId: Long?,
+        cascadeSubtasks: Boolean = false
+    ) {
+        viewModelScope.launch {
+            try {
+                val task = taskRepository.getTaskByIdOnce(taskId) ?: return@launch
+                val previousParentProjectId = task.projectId
+                val previousSubtaskProjects = if (cascadeSubtasks) {
+                    subtasksMap.value[taskId].orEmpty().associate { it.id to it.projectId }
+                } else emptyMap()
+
+                taskRepository.moveToProject(taskId, newProjectId, cascadeSubtasks)
+
+                val projectName = newProjectId?.let { id ->
+                    projects.value.find { it.id == id }?.name
+                } ?: "No Project"
+                val result = snackbarHostState.showSnackbar(
+                    message = "Moved '${task.title}' to $projectName",
+                    actionLabel = "UNDO",
+                    duration = SnackbarDuration.Short
+                )
+                if (result == SnackbarResult.ActionPerformed) {
+                    // Restore the parent task first.
+                    taskRepository.moveToProject(taskId, previousParentProjectId, false)
+                    // Then restore each subtask's original project assignment
+                    // in one batch per original project id so we don't issue
+                    // N UPDATE statements.
+                    previousSubtaskProjects
+                        .entries
+                        .groupBy { it.value }
+                        .forEach { (origProjectId, entries) ->
+                            taskRepository.batchMoveToProject(
+                                entries.map { it.key },
+                                origProjectId
+                            )
+                        }
+                }
+            } catch (e: Exception) {
+                Log.e("TaskListVM", "Failed to move task to project", e)
+                snackbarHostState.showSnackbar("Something went wrong")
+            }
+        }
+    }
+
+    /**
+     * Creates a new project on-the-fly from the single-task move sheet
+     * and then moves the given task into it.
+     */
+    fun onCreateProjectAndMoveTask(taskId: Long, name: String, cascadeSubtasks: Boolean = false) {
+        if (name.isBlank()) return
+        viewModelScope.launch {
+            try {
+                val newId = projectRepository.addProject(name.trim())
+                onMoveToProject(taskId, newId, cascadeSubtasks)
+            } catch (e: Exception) {
+                Log.e("TaskListVM", "Failed to create project", e)
                 snackbarHostState.showSnackbar("Something went wrong")
             }
         }

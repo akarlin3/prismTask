@@ -60,7 +60,9 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.averycorp.averytask.data.local.entity.TaskEntity
+import com.averycorp.averytask.ui.components.MoveToProjectSheet
 import com.averycorp.averytask.ui.components.QuickReschedulePopup
+import com.averycorp.averytask.ui.components.TaskContextMenuSheet
 import com.averycorp.averytask.ui.screens.addedittask.AddEditTaskSheetHost
 import com.averycorp.averytask.ui.theme.LocalPriorityColors
 import java.time.LocalDate
@@ -90,6 +92,11 @@ fun TimelineScreen(
     var editorSheetTaskId by remember { mutableStateOf<Long?>(null) }
     var showEditorSheet by remember { mutableStateOf(false) }
     var reschedulePopupTask by remember { mutableStateOf<TaskEntity?>(null) }
+    var contextMenuTask by remember { mutableStateOf<TaskEntity?>(null) }
+    var moveToProjectSheetTask by remember { mutableStateOf<TaskEntity?>(null) }
+    var cascadeConfirmState by remember { mutableStateOf<Pair<TaskEntity, Long?>?>(null) }
+    val projects by viewModel.projects.collectAsStateWithLifecycle()
+    val taskCountByProject by viewModel.taskCountByProject.collectAsStateWithLifecycle()
 
     // Scroll to current hour on first load
     LaunchedEffect(Unit) {
@@ -230,7 +237,7 @@ fun TimelineScreen(
                                 onLongClick = {
                                     block.taskId?.let { id ->
                                         viewModel.loadTaskForPopup(id) { task ->
-                                            reschedulePopupTask = task
+                                            contextMenuTask = task
                                         }
                                     }
                                 }
@@ -281,7 +288,7 @@ fun TimelineScreen(
                                 .fillMaxWidth()
                                 .combinedClickable(
                                     onClick = { scheduleDialogTask = task },
-                                    onLongClick = { reschedulePopupTask = task }
+                                    onLongClick = { contextMenuTask = task }
                                 ),
                             shape = RoundedCornerShape(8.dp),
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
@@ -364,6 +371,64 @@ fun TimelineScreen(
             onDismiss = { reschedulePopupTask = null },
             onReschedule = { newDate -> viewModel.onRescheduleTask(task.id, newDate) },
             onPlanForToday = { viewModel.onPlanTaskForToday(task.id) }
+        )
+    }
+
+    contextMenuTask?.let { task ->
+        TaskContextMenuSheet(
+            taskTitle = task.title,
+            onDismiss = { contextMenuTask = null },
+            onReschedule = {
+                contextMenuTask = null
+                reschedulePopupTask = task
+            },
+            onMoveToProject = {
+                contextMenuTask = null
+                moveToProjectSheetTask = task
+            }
+        )
+    }
+
+    moveToProjectSheetTask?.let { task ->
+        var subtaskCount by remember(task.id) { mutableStateOf(0) }
+        LaunchedEffect(task.id) { subtaskCount = viewModel.getSubtaskCount(task.id) }
+        MoveToProjectSheet(
+            projects = projects,
+            taskCountByProject = taskCountByProject,
+            currentProjectId = task.projectId,
+            onDismiss = { moveToProjectSheetTask = null },
+            onMove = { newProjectId ->
+                moveToProjectSheetTask = null
+                if (subtaskCount > 0) {
+                    cascadeConfirmState = task to newProjectId
+                } else {
+                    viewModel.onMoveToProject(task.id, newProjectId)
+                }
+            },
+            onCreateAndMove = { name ->
+                moveToProjectSheetTask = null
+                viewModel.onCreateProjectAndMoveTask(task.id, name, cascadeSubtasks = subtaskCount > 0)
+            }
+        )
+    }
+
+    cascadeConfirmState?.let { (task, newProjectId) ->
+        AlertDialog(
+            onDismissRequest = { cascadeConfirmState = null },
+            title = { Text("Move Subtasks Too?") },
+            text = { Text("'${task.title}' has subtasks. Should they move to the same project?") },
+            confirmButton = {
+                TextButton(onClick = {
+                    cascadeConfirmState = null
+                    viewModel.onMoveToProject(task.id, newProjectId, cascadeSubtasks = true)
+                }) { Text("Yes, Move All") }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    cascadeConfirmState = null
+                    viewModel.onMoveToProject(task.id, newProjectId, cascadeSubtasks = false)
+                }) { Text("No, Just This") }
+            }
         )
     }
 }
