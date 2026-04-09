@@ -272,17 +272,154 @@ class TaskListViewModel @Inject constructor(
 
     fun onBulkSetPriority(priority: Int) {
         val ids = _selectedTaskIds.value.toList()
+        if (ids.isEmpty()) return
         viewModelScope.launch {
             try {
-                ids.forEach { id ->
-                    val task = taskRepository.getTaskByIdOnce(id)
-                    if (task != null) {
-                        taskRepository.updateTask(task.copy(priority = priority))
+                // Snapshot previous priorities for undo.
+                val previous = ids.mapNotNull { id ->
+                    taskRepository.getTaskByIdOnce(id)?.let { it.id to it.priority }
+                }
+                taskRepository.batchUpdatePriority(ids, priority)
+                onExitMultiSelect()
+                val result = snackbarHostState.showSnackbar(
+                    message = "Updated Priority for ${ids.size} Tasks",
+                    actionLabel = "UNDO",
+                    duration = SnackbarDuration.Short
+                )
+                if (result == SnackbarResult.ActionPerformed) {
+                    // Restore each task's original priority. Grouping by
+                    // priority value keeps the number of UPDATE statements
+                    // small for the common case where most tasks started
+                    // with the same priority.
+                    previous.groupBy { it.second }.forEach { (prio, group) ->
+                        taskRepository.batchUpdatePriority(group.map { it.first }, prio)
                     }
                 }
-                onExitMultiSelect()
             } catch (e: Exception) {
                 Log.e("TaskListVM", "Failed to bulk set priority", e)
+                snackbarHostState.showSnackbar("Something went wrong")
+            }
+        }
+    }
+
+    fun onBulkReschedule(newDueDate: Long?) {
+        val ids = _selectedTaskIds.value.toList()
+        if (ids.isEmpty()) return
+        viewModelScope.launch {
+            try {
+                // Snapshot previous due dates for undo.
+                val previous = ids.mapNotNull { id ->
+                    taskRepository.getTaskByIdOnce(id)?.let { it.id to it.dueDate }
+                }
+                taskRepository.batchReschedule(ids, newDueDate)
+                onExitMultiSelect()
+                val label = QuickRescheduleFormatter.describe(newDueDate)
+                val result = snackbarHostState.showSnackbar(
+                    message = "Rescheduled ${ids.size} Tasks to $label",
+                    actionLabel = "UNDO",
+                    duration = SnackbarDuration.Short
+                )
+                if (result == SnackbarResult.ActionPerformed) {
+                    previous.groupBy { it.second }.forEach { (dueDate, group) ->
+                        taskRepository.batchReschedule(group.map { it.first }, dueDate)
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("TaskListVM", "Failed to bulk reschedule", e)
+                snackbarHostState.showSnackbar("Something went wrong")
+            }
+        }
+    }
+
+    fun onBulkMoveToProject(newProjectId: Long?) {
+        val ids = _selectedTaskIds.value.toList()
+        if (ids.isEmpty()) return
+        viewModelScope.launch {
+            try {
+                val previous = ids.mapNotNull { id ->
+                    taskRepository.getTaskByIdOnce(id)?.let { it.id to it.projectId }
+                }
+                taskRepository.batchMoveToProject(ids, newProjectId)
+                onExitMultiSelect()
+                val projectName = newProjectId?.let { id ->
+                    projects.value.find { it.id == id }?.name
+                } ?: "No Project"
+                val result = snackbarHostState.showSnackbar(
+                    message = "Moved ${ids.size} Tasks to $projectName",
+                    actionLabel = "UNDO",
+                    duration = SnackbarDuration.Short
+                )
+                if (result == SnackbarResult.ActionPerformed) {
+                    previous.groupBy { it.second }.forEach { (projectId, group) ->
+                        taskRepository.batchMoveToProject(group.map { it.first }, projectId)
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("TaskListVM", "Failed to bulk move", e)
+                snackbarHostState.showSnackbar("Something went wrong")
+            }
+        }
+    }
+
+    /**
+     * Applies tag changes from the bulk-tags dialog. [addIds] are tag ids
+     * that should be present on every selected task after the operation;
+     * [removeIds] are tag ids that should be absent from every selected
+     * task. Captures the previous tag set per task so Undo can restore the
+     * original assignments in a single pass.
+     */
+    fun onBulkApplyTags(addIds: Set<Long>, removeIds: Set<Long>) {
+        val ids = _selectedTaskIds.value.toList()
+        if (ids.isEmpty() || (addIds.isEmpty() && removeIds.isEmpty())) return
+        viewModelScope.launch {
+            try {
+                // Snapshot the previous per-task tag sets for undo. We read
+                // the currently-cached taskTagsMap which is kept up-to-date
+                // by the screen's flows.
+                val snapshot: Map<Long, Set<Long>> = ids.associateWith { id ->
+                    taskTagsMap.value[id].orEmpty().map { it.id }.toSet()
+                }
+                addIds.forEach { tagId -> taskRepository.batchAddTag(ids, tagId) }
+                removeIds.forEach { tagId -> taskRepository.batchRemoveTag(ids, tagId) }
+                onExitMultiSelect()
+                val result = snackbarHostState.showSnackbar(
+                    message = "Updated Tags for ${ids.size} Tasks",
+                    actionLabel = "UNDO",
+                    duration = SnackbarDuration.Short
+                )
+                if (result == SnackbarResult.ActionPerformed) {
+                    // Restore: for each task, re-establish its original tag
+                    // set. Roll back the added tags first (remove them from
+                    // tasks that didn't originally have them), then re-add
+                    // the removed tags to tasks that did.
+                    for (tagId in addIds) {
+                        val toRemove = snapshot.filterValues { tagId !in it }.keys.toList()
+                        if (toRemove.isNotEmpty()) taskRepository.batchRemoveTag(toRemove, tagId)
+                    }
+                    for (tagId in removeIds) {
+                        val toAdd = snapshot.filterValues { tagId in it }.keys.toList()
+                        if (toAdd.isNotEmpty()) taskRepository.batchAddTag(toAdd, tagId)
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("TaskListVM", "Failed to bulk apply tags", e)
+                snackbarHostState.showSnackbar("Something went wrong")
+            }
+        }
+    }
+
+    /**
+     * Creates a new project on-the-fly from the bulk move dialog and then
+     * moves every currently-selected task into it.
+     */
+    fun onBulkCreateProjectAndMove(name: String) {
+        if (name.isBlank()) return
+        viewModelScope.launch {
+            try {
+                val newId = projectRepository.addProject(name.trim())
+                onBulkMoveToProject(newId)
+            } catch (e: Exception) {
+                Log.e("TaskListVM", "Failed to create project", e)
                 snackbarHostState.showSnackbar("Something went wrong")
             }
         }

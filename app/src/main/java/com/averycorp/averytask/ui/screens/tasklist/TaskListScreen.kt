@@ -73,7 +73,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.SwipeToDismissBox
@@ -112,11 +111,15 @@ import com.averycorp.averytask.data.local.entity.ProjectEntity
 import com.averycorp.averytask.data.local.entity.TagEntity
 import com.averycorp.averytask.data.local.entity.TaskEntity
 import com.averycorp.averytask.domain.model.TaskFilter
+import com.averycorp.averytask.ui.components.BatchEditBar
+import com.averycorp.averytask.ui.components.BatchMoveToProjectDialog
+import com.averycorp.averytask.ui.components.BatchTagsDialog
 import com.averycorp.averytask.ui.components.EmptyState
 import com.averycorp.averytask.ui.components.FilterPanel
 import com.averycorp.averytask.ui.components.QuickAddBar
 import com.averycorp.averytask.ui.components.QuickReschedulePopup
 import com.averycorp.averytask.ui.components.SubtaskSection
+import com.averycorp.averytask.ui.components.computeInitialTagStates
 import com.averycorp.averytask.ui.navigation.AveryTaskRoute
 import com.averycorp.averytask.ui.screens.addedittask.AddEditTaskSheetHost
 import com.averycorp.averytask.ui.theme.LocalPriorityColors
@@ -163,7 +166,9 @@ fun TaskListScreen(
     var focusSubtaskForId by remember { mutableStateOf<Long?>(null) }
     var showSortMenu by remember { mutableStateOf(false) }
     var showFilterSheet by remember { mutableStateOf(false) }
-    var showPriorityDialog by remember { mutableStateOf(false) }
+    var showBatchReschedulePopup by remember { mutableStateOf(false) }
+    var showBatchTagsDialog by remember { mutableStateOf(false) }
+    var showBatchMoveDialog by remember { mutableStateOf(false) }
     var showPasteDialog by remember { mutableStateOf(false) }
     var pasteContent by remember { mutableStateOf("") }
     var editorSheet by remember { mutableStateOf<TaskEditorSheetState?>(null) }
@@ -260,40 +265,62 @@ fun TaskListScreen(
         }
     }
 
-    // Priority picker dialog for multi-select
-    if (showPriorityDialog) {
-        var selectedPriority by remember { mutableStateOf(0) }
-        AlertDialog(
-            onDismissRequest = { showPriorityDialog = false },
-            confirmButton = {
-                TextButton(onClick = {
-                    viewModel.onBulkSetPriority(selectedPriority)
-                    showPriorityDialog = false
-                }) { Text("Set") }
+    // Bulk tags dialog for multi-select
+    if (showBatchTagsDialog) {
+        val initialStates = remember(selectedTaskIds, taskTagsMap) {
+            computeInitialTagStates(selectedTaskIds, taskTagsMap)
+        }
+        BatchTagsDialog(
+            allTags = allTags,
+            initialStates = initialStates,
+            onDismiss = { showBatchTagsDialog = false },
+            onConfirm = { addIds, removeIds ->
+                viewModel.onBulkApplyTags(addIds, removeIds)
+                showBatchTagsDialog = false
+            }
+        )
+    }
+
+    // Bulk move-to-project dialog for multi-select
+    if (showBatchMoveDialog) {
+        val selectedTasks = filteredTasks.filter { it.id in selectedTaskIds }
+        // Pre-select the current project id only if every selected task
+        // already shares the same project; otherwise default to "None".
+        val initialProject = selectedTasks
+            .map { it.projectId }
+            .distinct()
+            .singleOrNull()
+        BatchMoveToProjectDialog(
+            projects = projects,
+            currentProjectId = initialProject,
+            onDismiss = { showBatchMoveDialog = false },
+            onMove = { projectId ->
+                viewModel.onBulkMoveToProject(projectId)
+                showBatchMoveDialog = false
             },
-            dismissButton = {
-                TextButton(onClick = { showPriorityDialog = false }) { Text("Cancel") }
+            onCreateAndMove = { name ->
+                viewModel.onBulkCreateProjectAndMove(name)
+                showBatchMoveDialog = false
+            }
+        )
+    }
+
+    // Bulk reschedule popup for multi-select — reuses the same
+    // QuickReschedulePopup component as the long-press flow.
+    if (showBatchReschedulePopup) {
+        QuickReschedulePopup(
+            hasDueDate = true,
+            onDismiss = { showBatchReschedulePopup = false },
+            onReschedule = { newDate ->
+                viewModel.onBulkReschedule(newDate)
+                showBatchReschedulePopup = false
             },
-            title = { Text("Set Priority") },
-            text = {
-                Column {
-                    listOf(0 to "None", 1 to "Low", 2 to "Medium", 3 to "High", 4 to "Urgent").forEach { (value, label) ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { selectedPriority = value }
-                                .padding(vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            RadioButton(
-                                selected = selectedPriority == value,
-                                onClick = { selectedPriority = value }
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(label, style = MaterialTheme.typography.bodyLarge)
-                        }
-                    }
-                }
+            onPlanForToday = {
+                // Plan-for-today doesn't map to a bulk operation; treat
+                // it as rescheduling to today to keep the popup signature.
+                val today = com.averycorp.averytask.domain.usecase.DateShortcuts.today(System.currentTimeMillis())
+                viewModel.onBulkReschedule(today)
+                showBatchReschedulePopup = false
             }
         )
     }
@@ -302,45 +329,21 @@ fun TaskListScreen(
         snackbarHost = { SnackbarHost(hostState = viewModel.snackbarHostState) },
         topBar = {
             if (isMultiSelectMode) {
-                var showMultiSelectMenu by remember { mutableStateOf(false) }
                 TopAppBar(
                     title = {
                         Text(
-                            text = "${selectedTaskIds.size} selected",
+                            text = "${selectedTaskIds.size} Selected",
                             fontWeight = FontWeight.Bold
                         )
                     },
                     navigationIcon = {
                         IconButton(onClick = { viewModel.onExitMultiSelect() }) {
-                            Icon(Icons.Default.Close, contentDescription = "Exit multi-select")
+                            Icon(Icons.Default.Close, contentDescription = "Exit Multi-Select")
                         }
                     },
                     actions = {
                         IconButton(onClick = { viewModel.onSelectAll() }) {
-                            Icon(Icons.Default.SelectAll, contentDescription = "Select all")
-                        }
-                        IconButton(onClick = { viewModel.onBulkComplete() }) {
-                            Icon(Icons.Default.Check, contentDescription = "Complete selected")
-                        }
-                        IconButton(onClick = { viewModel.onBulkDelete() }) {
-                            Icon(Icons.Default.Delete, contentDescription = "Delete selected")
-                        }
-                        Box {
-                            IconButton(onClick = { showMultiSelectMenu = true }) {
-                                Icon(Icons.Default.MoreVert, contentDescription = "More")
-                            }
-                            DropdownMenu(
-                                expanded = showMultiSelectMenu,
-                                onDismissRequest = { showMultiSelectMenu = false }
-                            ) {
-                                DropdownMenuItem(
-                                    text = { Text("Set Priority") },
-                                    onClick = {
-                                        showMultiSelectMenu = false
-                                        showPriorityDialog = true
-                                    }
-                                )
-                            }
+                            Icon(Icons.Default.SelectAll, contentDescription = "Select All")
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
@@ -492,6 +495,20 @@ fun TaskListScreen(
                         containerColor = MaterialTheme.colorScheme.surface,
                         titleContentColor = MaterialTheme.colorScheme.onSurface
                     )
+                )
+            }
+        },
+        bottomBar = {
+            if (isMultiSelectMode) {
+                BatchEditBar(
+                    selectedCount = selectedTaskIds.size,
+                    onDeselectAll = { viewModel.onExitMultiSelect() },
+                    onComplete = { viewModel.onBulkComplete() },
+                    onReschedule = { showBatchReschedulePopup = true },
+                    onEditTags = { showBatchTagsDialog = true },
+                    onSetPriority = { level -> viewModel.onBulkSetPriority(level) },
+                    onMoveToProject = { showBatchMoveDialog = true },
+                    onDelete = { viewModel.onBulkDelete() }
                 )
             }
         },
