@@ -8,17 +8,27 @@ import com.averycorp.averytask.data.local.entity.CourseCompletionEntity
 import com.averycorp.averytask.data.local.entity.CourseEntity
 import com.averycorp.averytask.data.local.entity.HabitCompletionEntity
 import com.averycorp.averytask.data.local.entity.HabitEntity
+import com.averycorp.averytask.data.preferences.TaskBehaviorPreferences
+import com.averycorp.averytask.util.DayBoundary
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
-import java.util.Calendar
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
 import javax.inject.Inject
 import javax.inject.Singleton
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @Singleton
 class SchoolworkRepository @Inject constructor(
     private val dao: SchoolworkDao,
     private val habitDao: HabitDao,
-    private val habitCompletionDao: HabitCompletionDao
+    private val habitCompletionDao: HabitCompletionDao,
+    private val taskBehaviorPreferences: TaskBehaviorPreferences
 ) {
+
+    private suspend fun startOfToday(): Long =
+        DayBoundary.startOfCurrentDay(taskBehaviorPreferences.getDayStartHour().first())
+
     // --- Courses ---
 
     fun getActiveCourses(): Flow<List<CourseEntity>> = dao.getActiveCourses()
@@ -55,10 +65,12 @@ class SchoolworkRepository @Inject constructor(
     // --- Course Completions (daily habit) ---
 
     fun getTodayCompletions(): Flow<List<CourseCompletionEntity>> =
-        dao.getCompletionsForDate(todayMidnight())
+        taskBehaviorPreferences.getDayStartHour().flatMapLatest { hour ->
+            dao.getCompletionsForDate(DayBoundary.startOfCurrentDay(hour))
+        }
 
     suspend fun toggleCourseCompletion(courseId: Long) {
-        val today = todayMidnight()
+        val today = startOfToday()
         val existing = dao.getCompletionOnce(today, courseId)
         if (existing != null) {
             if (existing.completed) {
@@ -81,7 +93,7 @@ class SchoolworkRepository @Inject constructor(
     }
 
     suspend fun resetToday() {
-        dao.deleteCompletionsForDate(todayMidnight())
+        dao.deleteCompletionsForDate(startOfToday())
         syncHabitCompletion()
     }
 
@@ -110,7 +122,7 @@ class SchoolworkRepository @Inject constructor(
 
     private suspend fun syncHabitCompletion() {
         val habit = getOrCreateSchoolHabit()
-        val today = todayMidnight()
+        val today = startOfToday()
         val completions = dao.getCompletionsForDateOnce(today)
         // Need to know how many active courses there are
         // Use a one-shot query approach
@@ -134,14 +146,5 @@ class SchoolworkRepository @Inject constructor(
 
     companion object {
         const val SCHOOL_HABIT_NAME = "School"
-
-        fun todayMidnight(): Long {
-            val cal = Calendar.getInstance()
-            cal.set(Calendar.HOUR_OF_DAY, 0)
-            cal.set(Calendar.MINUTE, 0)
-            cal.set(Calendar.SECOND, 0)
-            cal.set(Calendar.MILLISECOND, 0)
-            return cal.timeInMillis
-        }
     }
 }

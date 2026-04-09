@@ -13,16 +13,20 @@ import com.averycorp.averytask.data.local.entity.HabitEntity
 import com.averycorp.averytask.data.local.entity.SelfCareLogEntity
 import com.averycorp.averytask.data.local.entity.SelfCareStepEntity
 import com.averycorp.averytask.data.preferences.MedicationPreferences
+import com.averycorp.averytask.data.preferences.TaskBehaviorPreferences
 import com.averycorp.averytask.domain.model.RoutineStep
 import com.averycorp.averytask.domain.model.SelfCareRoutines
 import com.averycorp.averytask.notifications.MedStepReminderReceiver
+import com.averycorp.averytask.util.DayBoundary
 import com.google.gson.Gson
 import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import com.google.gson.reflect.TypeToken
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
-import java.util.Calendar
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -39,6 +43,7 @@ data class MedStepLog(
     val timeOfDay: String = ""
 )
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @Singleton
 class SelfCareRepository @Inject constructor(
     @param:ApplicationContext private val context: Context,
@@ -46,11 +51,17 @@ class SelfCareRepository @Inject constructor(
     private val habitDao: HabitDao,
     private val habitCompletionDao: HabitCompletionDao,
     private val medicationPreferences: MedicationPreferences,
+    private val taskBehaviorPreferences: TaskBehaviorPreferences,
     private val gson: Gson
 ) {
 
+    private suspend fun startOfToday(): Long =
+        DayBoundary.startOfCurrentDay(taskBehaviorPreferences.getDayStartHour().first())
+
     fun getTodayLog(routineType: String): Flow<SelfCareLogEntity?> =
-        selfCareDao.getLogForDate(routineType, todayMidnight())
+        taskBehaviorPreferences.getDayStartHour().flatMapLatest { hour ->
+            selfCareDao.getLogForDate(routineType, DayBoundary.startOfCurrentDay(hour))
+        }
 
     fun getLogsForRoutine(routineType: String): Flow<List<SelfCareLogEntity>> =
         selfCareDao.getLogsForRoutine(routineType)
@@ -209,7 +220,7 @@ class SelfCareRepository @Inject constructor(
     }
 
     suspend fun setTier(routineType: String, tier: String) {
-        val today = todayMidnight()
+        val today = startOfToday()
         val existing = selfCareDao.getLogForDateOnce(routineType, today)
         if (existing != null) {
             if (routineType == "medication") {
@@ -244,7 +255,7 @@ class SelfCareRepository @Inject constructor(
 
     suspend fun logTier(tier: String, note: String) {
         val routineType = "medication"
-        val today = todayMidnight()
+        val today = startOfToday()
         var existing = selfCareDao.getLogForDateOnce(routineType, today)
         if (existing == null) {
             selfCareDao.insertLog(
@@ -293,7 +304,7 @@ class SelfCareRepository @Inject constructor(
 
     suspend fun unlogTier(tier: String) {
         val routineType = "medication"
-        val today = todayMidnight()
+        val today = startOfToday()
         val existing = selfCareDao.getLogForDateOnce(routineType, today) ?: return
 
         val logs = parseMedStepLogs(existing.completedSteps).toMutableList()
@@ -324,7 +335,7 @@ class SelfCareRepository @Inject constructor(
         note: String? = null,
         timeOfDay: String = ""
     ) {
-        val today = todayMidnight()
+        val today = startOfToday()
         var existing = selfCareDao.getLogForDateOnce(routineType, today)
         if (existing == null) {
             selfCareDao.insertLog(
@@ -420,7 +431,7 @@ class SelfCareRepository @Inject constructor(
     }
 
     suspend fun resetToday(routineType: String) {
-        val today = todayMidnight()
+        val today = startOfToday()
         val existing = selfCareDao.getLogForDateOnce(routineType, today) ?: return
         if (routineType == "medication") {
             cancelMedicationReminder()
@@ -525,7 +536,7 @@ class SelfCareRepository @Inject constructor(
      */
     suspend fun setTierForTime(timeOfDay: String, tier: String?) {
         val routineType = "medication"
-        val today = todayMidnight()
+        val today = startOfToday()
         var existing = selfCareDao.getLogForDateOnce(routineType, today)
         if (existing == null) {
             selfCareDao.insertLog(
@@ -767,7 +778,7 @@ class SelfCareRepository @Inject constructor(
 
     private suspend fun syncHabitCompletion(routineType: String, allDone: Boolean) {
         val habit = getOrCreateHabit(routineType)
-        val today = todayMidnight()
+        val today = startOfToday()
         val alreadyCompleted = habitCompletionDao.isCompletedOnDateOnce(habit.id, today)
 
         if (allDone && !alreadyCompleted) {
@@ -812,15 +823,6 @@ class SelfCareRepository @Inject constructor(
         const val MEDICATION_HABIT_NAME = "Medication"
         const val HOUSEWORK_HABIT_NAME = "Housework"
         private const val GLOBAL_MED_REMINDER_REQUEST_CODE = 500_000
-
-        fun todayMidnight(): Long {
-            val cal = Calendar.getInstance()
-            cal.set(Calendar.HOUR_OF_DAY, 0)
-            cal.set(Calendar.MINUTE, 0)
-            cal.set(Calendar.SECOND, 0)
-            cal.set(Calendar.MILLISECOND, 0)
-            return cal.timeInMillis
-        }
 
         private fun parseDurationSeconds(duration: String): Int {
             val cleaned = duration.replace("~", "").replace("+", "").trim().lowercase()

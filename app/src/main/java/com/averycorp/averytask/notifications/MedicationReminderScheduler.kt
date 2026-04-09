@@ -8,7 +8,10 @@ import com.averycorp.averytask.data.local.dao.HabitCompletionDao
 import com.averycorp.averytask.data.local.dao.HabitDao
 import com.averycorp.averytask.data.preferences.MedicationPreferences
 import com.averycorp.averytask.data.preferences.MedicationScheduleMode
+import com.averycorp.averytask.data.preferences.TaskBehaviorPreferences
+import com.averycorp.averytask.util.DayBoundary
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.flow.first
 import java.util.Calendar
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -18,7 +21,8 @@ class MedicationReminderScheduler @Inject constructor(
     @ApplicationContext private val context: Context,
     private val habitDao: HabitDao,
     private val completionDao: HabitCompletionDao,
-    private val medicationPreferences: MedicationPreferences
+    private val medicationPreferences: MedicationPreferences,
+    private val taskBehaviorPreferences: TaskBehaviorPreferences
 ) {
 
     private val alarmManager: AlarmManager
@@ -134,7 +138,7 @@ class MedicationReminderScheduler @Inject constructor(
         }
 
         val habits = habitDao.getHabitsWithIntervalReminder()
-        val today = com.averycorp.averytask.data.repository.HabitRepository.normalizeToMidnight(System.currentTimeMillis())
+        val today = DayBoundary.startOfCurrentDay(taskBehaviorPreferences.getDayStartHour().first())
         for (habit in habits) {
             val interval = habit.reminderIntervalMillis ?: continue
             val timesPerDay = habit.reminderTimesPerDay

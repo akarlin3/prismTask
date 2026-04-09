@@ -6,22 +6,34 @@ import com.averycorp.averytask.data.local.dao.LeisureDao
 import com.averycorp.averytask.data.local.entity.HabitCompletionEntity
 import com.averycorp.averytask.data.local.entity.HabitEntity
 import com.averycorp.averytask.data.local.entity.LeisureLogEntity
+import com.averycorp.averytask.data.preferences.TaskBehaviorPreferences
+import com.averycorp.averytask.util.DayBoundary
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
-import java.util.Calendar
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
 import javax.inject.Inject
 import javax.inject.Singleton
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @Singleton
 class LeisureRepository @Inject constructor(
     private val leisureDao: LeisureDao,
     private val habitDao: HabitDao,
-    private val habitCompletionDao: HabitCompletionDao
+    private val habitCompletionDao: HabitCompletionDao,
+    private val taskBehaviorPreferences: TaskBehaviorPreferences
 ) {
 
-    fun getTodayLog(): Flow<LeisureLogEntity?> = leisureDao.getLogForDate(todayMidnight())
+    private suspend fun startOfToday(): Long =
+        DayBoundary.startOfCurrentDay(taskBehaviorPreferences.getDayStartHour().first())
+
+    fun getTodayLog(): Flow<LeisureLogEntity?> =
+        taskBehaviorPreferences.getDayStartHour().flatMapLatest { hour ->
+            leisureDao.getLogForDate(DayBoundary.startOfCurrentDay(hour))
+        }
 
     suspend fun setMusicPick(activityId: String) {
-        val today = todayMidnight()
+        val today = startOfToday()
         val existing = leisureDao.getLogForDateOnce(today)
         if (existing != null) {
             leisureDao.updateLog(
@@ -44,7 +56,7 @@ class LeisureRepository @Inject constructor(
     }
 
     suspend fun setFlexPick(activityId: String) {
-        val today = todayMidnight()
+        val today = startOfToday()
         val existing = leisureDao.getLogForDateOnce(today)
         if (existing != null) {
             leisureDao.updateLog(
@@ -67,35 +79,35 @@ class LeisureRepository @Inject constructor(
     }
 
     suspend fun toggleMusicDone(done: Boolean) {
-        val existing = leisureDao.getLogForDateOnce(todayMidnight()) ?: return
+        val existing = leisureDao.getLogForDateOnce(startOfToday()) ?: return
         val updated = existing.copy(musicDone = done)
         leisureDao.updateLog(updated)
         syncHabitCompletion(updated)
     }
 
     suspend fun toggleFlexDone(done: Boolean) {
-        val existing = leisureDao.getLogForDateOnce(todayMidnight()) ?: return
+        val existing = leisureDao.getLogForDateOnce(startOfToday()) ?: return
         val updated = existing.copy(flexDone = done)
         leisureDao.updateLog(updated)
         syncHabitCompletion(updated)
     }
 
     suspend fun clearMusicPick() {
-        val existing = leisureDao.getLogForDateOnce(todayMidnight()) ?: return
+        val existing = leisureDao.getLogForDateOnce(startOfToday()) ?: return
         val updated = existing.copy(musicPick = null, musicDone = false)
         leisureDao.updateLog(updated)
         syncHabitCompletion(updated)
     }
 
     suspend fun clearFlexPick() {
-        val existing = leisureDao.getLogForDateOnce(todayMidnight()) ?: return
+        val existing = leisureDao.getLogForDateOnce(startOfToday()) ?: return
         val updated = existing.copy(flexPick = null, flexDone = false)
         leisureDao.updateLog(updated)
         syncHabitCompletion(updated)
     }
 
     suspend fun resetToday() {
-        val existing = leisureDao.getLogForDateOnce(todayMidnight()) ?: return
+        val existing = leisureDao.getLogForDateOnce(startOfToday()) ?: return
         val updated = existing.copy(
             musicPick = null,
             musicDone = false,
@@ -130,7 +142,7 @@ class LeisureRepository @Inject constructor(
 
     private suspend fun syncHabitCompletion(log: LeisureLogEntity) {
         val habit = getOrCreateLeisureHabit()
-        val today = todayMidnight()
+        val today = startOfToday()
         val allDone = log.musicDone && log.flexDone
         val alreadyCompleted = habitCompletionDao.isCompletedOnDateOnce(habit.id, today)
 
@@ -149,14 +161,5 @@ class LeisureRepository @Inject constructor(
 
     companion object {
         const val LEISURE_HABIT_NAME = "Leisure"
-
-        fun todayMidnight(): Long {
-            val cal = Calendar.getInstance()
-            cal.set(Calendar.HOUR_OF_DAY, 0)
-            cal.set(Calendar.MINUTE, 0)
-            cal.set(Calendar.SECOND, 0)
-            cal.set(Calendar.MILLISECOND, 0)
-            return cal.timeInMillis
-        }
     }
 }
