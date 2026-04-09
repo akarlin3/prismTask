@@ -52,11 +52,13 @@ import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.DragIndicator
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.NotificationsNone
 import androidx.compose.material.icons.filled.ExpandLess
@@ -64,6 +66,8 @@ import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -77,6 +81,8 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
@@ -179,6 +185,10 @@ fun AddEditTaskSheet(
     val scope = rememberCoroutineScope()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var showDiscardConfirm by remember { mutableStateOf(false) }
+    var showOverflowMenu by remember { mutableStateOf(false) }
+    var showDuplicateDialog by remember { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
+    val subtaskCount by viewModel.subtaskCount.collectAsStateWithLifecycle()
     val pagerState = rememberPagerState(
         initialPage = initialTab.coerceIn(0, 2),
         pageCount = { 3 }
@@ -198,8 +208,9 @@ fun AddEditTaskSheet(
         sheetState = sheetState,
         dragHandle = { BottomSheetDefaults.DragHandle() }
     ) {
+        Box(modifier = Modifier.fillMaxHeight(0.9f)) {
         Column(
-            modifier = Modifier.fillMaxHeight(0.9f)
+            modifier = Modifier.fillMaxSize()
         ) {
             // Sticky header: close / screen title / save
             Row(
@@ -230,6 +241,36 @@ fun AddEditTaskSheet(
                         color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.SemiBold
                     )
+                }
+                // Header overflow menu (edit mode only). Currently hosts the
+                // Duplicate action; add future task-wide actions here.
+                if (viewModel.isEditMode) {
+                    Box {
+                        IconButton(onClick = { showOverflowMenu = true }) {
+                            Icon(
+                                Icons.Default.MoreVert,
+                                contentDescription = "More Actions"
+                            )
+                        }
+                        DropdownMenu(
+                            expanded = showOverflowMenu,
+                            onDismissRequest = { showOverflowMenu = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Duplicate") },
+                                leadingIcon = {
+                                    Icon(
+                                        Icons.Default.ContentCopy,
+                                        contentDescription = null
+                                    )
+                                },
+                                onClick = {
+                                    showOverflowMenu = false
+                                    showDuplicateDialog = true
+                                }
+                            )
+                        }
+                    }
                 }
             }
 
@@ -315,6 +356,14 @@ fun AddEditTaskSheet(
                 }
             }
         }
+        // Ephemeral snackbar overlay used for in-sheet confirmations (e.g.
+        // "Task Duplicated"). Scoped to the sheet so it dismisses cleanly
+        // when the sheet closes.
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier.align(Alignment.BottomCenter)
+        )
+        }
     }
 
     // Auto-focus the title field when creating a new task.
@@ -327,6 +376,59 @@ fun AddEditTaskSheet(
     // Back button / gesture: route through attemptDismiss so unsaved changes
     // prompt for confirmation before closing.
     BackHandler { attemptDismiss() }
+
+    // Duplicate confirmation dialog. Shown from the header overflow menu in
+    // edit mode. When confirmed, the VM creates a copy of the current task
+    // and re-seeds the form with the new one, and the sheet surfaces a
+    // "Task Duplicated" snackbar.
+    if (showDuplicateDialog) {
+        var includeSubtasks by remember { mutableStateOf(false) }
+        AlertDialog(
+            onDismissRequest = { showDuplicateDialog = false },
+            title = { Text("Duplicate Task") },
+            text = {
+                Column {
+                    Text(
+                        text = "A copy will be created with \"Copy of \" prefixed to the title.",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    if (subtaskCount > 0) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { includeSubtasks = !includeSubtasks }
+                                .padding(vertical = 4.dp)
+                        ) {
+                            Checkbox(
+                                checked = includeSubtasks,
+                                onCheckedChange = { includeSubtasks = it }
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Include Subtasks ($subtaskCount)")
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showDuplicateDialog = false
+                        scope.launch {
+                            val newId = viewModel.duplicateCurrentTask(includeSubtasks)
+                            if (newId != null) {
+                                snackbarHostState.showSnackbar("Task Duplicated")
+                            }
+                        }
+                    }
+                ) { Text("Duplicate") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDuplicateDialog = false }) { Text("Cancel") }
+            }
+        )
+    }
 
     // Discard confirmation dialog
     if (showDiscardConfirm) {

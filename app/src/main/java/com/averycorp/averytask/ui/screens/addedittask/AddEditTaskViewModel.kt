@@ -34,6 +34,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -116,6 +117,16 @@ class AddEditTaskViewModel @Inject constructor(
             else flowOf(emptyList())
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    // Count of persisted subtasks for the task being edited. Drives the
+    // "Include Subtasks (N)" checkbox on the duplicate dialog.
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val subtaskCount: StateFlow<Int> = _taskIdFlow
+        .flatMapLatest { id ->
+            if (id != null) taskRepository.getSubtasks(id).map { it.size }
+            else flowOf(0)
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
     init {
         // Backward compat: when opened via the navigation route, SavedStateHandle
@@ -408,6 +419,34 @@ class AddEditTaskViewModel @Inject constructor(
         } catch (e: Exception) {
             Log.e("AddEditTaskVM", "Failed to delete task", e)
             _errorMessages.emit("Something went wrong")
+        }
+    }
+
+    /**
+     * Duplicates the task currently open in the editor. On success, re-seeds
+     * the form with the new copy so the sheet immediately shows the
+     * duplicated task without the host having to dismiss-and-reopen. Returns
+     * the id of the new task, or null if duplication failed (e.g. we were in
+     * create mode or the original had already been deleted).
+     */
+    suspend fun duplicateCurrentTask(includeSubtasks: Boolean): Long? {
+        val id = currentTaskId ?: return null
+        return try {
+            val newId = taskRepository.duplicateTask(id, includeSubtasks)
+            if (newId <= 0L) {
+                _errorMessages.emit("Something went wrong")
+                null
+            } else {
+                // Reseed the form from the new copy. projectId / initialDate
+                // are not needed since initialize() will load them from the
+                // new task's persisted state.
+                initialize(taskId = newId, projectId = null, initialDate = null)
+                newId
+            }
+        } catch (e: Exception) {
+            Log.e("AddEditTaskVM", "Failed to duplicate task", e)
+            _errorMessages.emit("Something went wrong")
+            null
         }
     }
 }

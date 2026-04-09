@@ -84,6 +84,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -167,6 +168,14 @@ fun TaskListScreen(
     var pasteContent by remember { mutableStateOf("") }
     var editorSheet by remember { mutableStateOf<TaskEditorSheetState?>(null) }
     var reschedulePopupTask by remember { mutableStateOf<TaskEntity?>(null) }
+
+    // Open the editor sheet when the view model emits an event (e.g. after the
+    // user taps "View" on the Task Duplicated snackbar).
+    LaunchedEffect(Unit) {
+        viewModel.openTaskEditorEvents.collect { taskId ->
+            editorSheet = TaskEditorSheetState(taskId = taskId)
+        }
+    }
     val filterSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
 
@@ -762,6 +771,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.reorderableTaskItemWi
                         onExpandChange(expandedTaskIds + task.id)
                         onFocusChange(task.id)
                     },
+                    onDuplicate = { viewModel.onDuplicateTask(task.id) },
                     showDragHandle = true,
                     dragHandleModifier = Modifier.longPressDraggableHandle(
                         onDragStopped = { onDragEnd() }
@@ -904,7 +914,8 @@ private fun androidx.compose.foundation.lazy.LazyListScope.taskItemWithSubtasks(
                     onAddSubtaskClick = {
                         onExpandChange(expandedTaskIds + task.id)
                         onFocusChange(task.id)
-                    }
+                    },
+                    onDuplicate = { viewModel.onDuplicateTask(task.id) }
                 )
             }
         }
@@ -1052,10 +1063,12 @@ private fun TaskItem(
     onClick: () -> Unit,
     onLongClick: (() -> Unit)? = null,
     onAddSubtaskClick: () -> Unit,
+    onDuplicate: (() -> Unit)? = null,
     showDragHandle: Boolean = false,
     dragHandleModifier: Modifier = Modifier,
     modifier: Modifier = Modifier
 ) {
+    var showOverflowMenu by remember { mutableStateOf(false) }
     val isOverdue = isTaskOverdue(task)
     val borderColor = if (isOverdue) OverdueRed else Color.Transparent
 
@@ -1212,6 +1225,34 @@ private fun TaskItem(
                     modifier = Modifier.size(18.dp),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                 )
+            }
+
+            if (onDuplicate != null) {
+                Box {
+                    IconButton(
+                        onClick = { showOverflowMenu = true },
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.MoreVert,
+                            contentDescription = "More Actions",
+                            modifier = Modifier.size(18.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                        )
+                    }
+                    DropdownMenu(
+                        expanded = showOverflowMenu,
+                        onDismissRequest = { showOverflowMenu = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("\uD83D\uDCCB  Duplicate") },
+                            onClick = {
+                                showOverflowMenu = false
+                                onDuplicate()
+                            }
+                        )
+                    }
+                }
             }
 
             PriorityDot(task.priority)
