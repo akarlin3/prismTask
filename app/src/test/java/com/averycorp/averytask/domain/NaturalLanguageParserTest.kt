@@ -1,6 +1,7 @@
 package com.averycorp.averytask.domain
 
 import com.averycorp.averytask.data.remote.api.AveryTaskApi
+import com.averycorp.averytask.data.remote.api.ImportResponse
 import com.averycorp.averytask.data.remote.api.LoginRequest
 import com.averycorp.averytask.data.remote.api.ParseRequest
 import com.averycorp.averytask.data.remote.api.ParsedTaskResponse
@@ -12,6 +13,8 @@ import com.averycorp.averytask.data.remote.sync.SyncPullResponse
 import com.averycorp.averytask.data.remote.sync.SyncPushRequest
 import com.averycorp.averytask.data.remote.sync.SyncPushResponse
 import com.averycorp.averytask.domain.usecase.NaturalLanguageParser
+import okhttp3.MultipartBody
+import okhttp3.ResponseBody
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
@@ -41,6 +44,10 @@ class NaturalLanguageParserTest {
         override suspend fun syncPush(request: SyncPushRequest): SyncPushResponse =
             error("not used in offline parser tests")
         override suspend fun syncPull(since: Long): SyncPullResponse =
+            error("not used in offline parser tests")
+        override suspend fun exportJson(): ResponseBody =
+            error("not used in offline parser tests")
+        override suspend fun importJson(file: MultipartBody.Part, mode: String): ImportResponse =
             error("not used in offline parser tests")
     }
 
