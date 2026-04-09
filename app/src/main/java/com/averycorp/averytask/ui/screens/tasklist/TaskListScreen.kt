@@ -111,6 +111,7 @@ import com.averycorp.averytask.ui.components.FilterPanel
 import com.averycorp.averytask.ui.components.QuickAddBar
 import com.averycorp.averytask.ui.components.SubtaskSection
 import com.averycorp.averytask.ui.navigation.AveryTaskRoute
+import com.averycorp.averytask.ui.screens.addedittask.AddEditTaskSheetHost
 import com.averycorp.averytask.ui.theme.LocalPriorityColors
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -120,6 +121,12 @@ import java.util.Locale
 
 private val OverdueRed = Color(0xFFD93025)
 private val TodayOrange = Color(0xFFE8872A)
+
+private data class TaskEditorSheetState(
+    val taskId: Long? = null,
+    val projectId: Long? = null,
+    val initialDate: Long? = null,
+)
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class, ExperimentalFoundationApi::class)
 @Composable
@@ -149,6 +156,7 @@ fun TaskListScreen(
     var showPriorityDialog by remember { mutableStateOf(false) }
     var showPasteDialog by remember { mutableStateOf(false) }
     var pasteContent by remember { mutableStateOf("") }
+    var editorSheet by remember { mutableStateOf<TaskEditorSheetState?>(null) }
     val filterSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
 
@@ -487,7 +495,7 @@ fun TaskListScreen(
                         Icon(Icons.Default.UploadFile, contentDescription = "Import File", modifier = Modifier.size(20.dp))
                     }
                     FloatingActionButton(
-                        onClick = { navController.navigate(AveryTaskRoute.AddEditTask.createRoute()) },
+                        onClick = { editorSheet = TaskEditorSheetState() },
                         containerColor = MaterialTheme.colorScheme.primary
                     ) {
                         Icon(
@@ -576,7 +584,7 @@ fun TaskListScreen(
                                     attachmentCountMap = attachmentCountMap,
                                     expandedTaskIds = expandedTaskIds,
                                     focusSubtaskForId = focusSubtaskForId,
-                                    navController = navController,
+                                    onTaskClick = { id -> editorSheet = TaskEditorSheetState(taskId = id) },
                                     viewModel = viewModel,
                                     isMultiSelectMode = isMultiSelectMode,
                                     selectedTaskIds = selectedTaskIds,
@@ -595,7 +603,7 @@ fun TaskListScreen(
                                 attachmentCountMap = attachmentCountMap,
                                 expandedTaskIds = expandedTaskIds,
                                 focusSubtaskForId = focusSubtaskForId,
-                                navController = navController,
+                                onTaskClick = { id -> editorSheet = TaskEditorSheetState(taskId = id) },
                                 viewModel = viewModel,
                                 isMultiSelectMode = isMultiSelectMode,
                                 selectedTaskIds = selectedTaskIds,
@@ -610,6 +618,15 @@ fun TaskListScreen(
             }
         }
     }
+
+    editorSheet?.let { state ->
+        AddEditTaskSheetHost(
+            taskId = state.taskId,
+            projectId = state.projectId,
+            initialDate = state.initialDate,
+            onDismiss = { editorSheet = null }
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
@@ -621,7 +638,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.taskItemWithSubtasks(
     attachmentCountMap: Map<Long, Int>,
     expandedTaskIds: Set<Long>,
     focusSubtaskForId: Long?,
-    navController: NavController,
+    onTaskClick: (Long) -> Unit,
     viewModel: TaskListViewModel,
     isMultiSelectMode: Boolean,
     selectedTaskIds: Set<Long>,
@@ -706,7 +723,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.taskItemWithSubtasks(
                     tags = tags,
                     attachmentCount = attachmentCount,
                     onToggleComplete = { viewModel.onToggleComplete(task.id, task.isCompleted) },
-                    onClick = { navController.navigate(AveryTaskRoute.AddEditTask.createRoute(task.id)) },
+                    onClick = { onTaskClick(task.id) },
                     onLongClick = { viewModel.onEnterMultiSelect(task.id) },
                     onAddSubtaskClick = {
                         onExpandChange(expandedTaskIds + task.id)

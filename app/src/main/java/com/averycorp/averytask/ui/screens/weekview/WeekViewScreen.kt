@@ -35,6 +35,9 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -47,12 +50,18 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.averycorp.averytask.data.local.entity.TaskEntity
-import com.averycorp.averytask.ui.navigation.AveryTaskRoute
+import com.averycorp.averytask.ui.screens.addedittask.AddEditTaskSheetHost
 import com.averycorp.averytask.ui.theme.LocalPriorityColors
 import java.time.LocalDate
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.util.Locale
+
+private data class WeekTaskEditorState(
+    val taskId: Long? = null,
+    val initialDate: Long? = null,
+)
 
 private val OverdueRed = Color(0xFFD93025)
 
@@ -66,6 +75,8 @@ fun WeekViewScreen(
     val weekDays by viewModel.weekDays.collectAsStateWithLifecycle()
     val weekTasks by viewModel.weekTasks.collectAsStateWithLifecycle()
     val today = LocalDate.now()
+
+    var editorState by remember { mutableStateOf<WeekTaskEditorState?>(null) }
 
     val weekEnd = weekStart.plusDays(6)
     val headerFormatter = DateTimeFormatter.ofPattern("MMM d")
@@ -179,7 +190,7 @@ fun WeekViewScreen(
                             WeekTaskCard(
                                 task = task,
                                 isOverdue = isPast && !task.isCompleted,
-                                onClick = { navController.navigate(AveryTaskRoute.AddEditTask.createRoute(task.id)) }
+                                onClick = { editorState = WeekTaskEditorState(taskId = task.id) }
                             )
                         }
                         if (tasks.size > 4) {
@@ -197,7 +208,10 @@ fun WeekViewScreen(
                     // Add button
                     IconButton(
                         onClick = {
-                            navController.navigate(AveryTaskRoute.AddEditTask.createRoute())
+                            val dayStartMillis = date.atStartOfDay(ZoneId.systemDefault())
+                                .toInstant()
+                                .toEpochMilli()
+                            editorState = WeekTaskEditorState(initialDate = dayStartMillis)
                         },
                         modifier = Modifier.size(24.dp)
                     ) {
@@ -211,6 +225,15 @@ fun WeekViewScreen(
                 }
             }
         }
+    }
+
+    editorState?.let { state ->
+        AddEditTaskSheetHost(
+            taskId = state.taskId,
+            projectId = null,
+            initialDate = state.initialDate,
+            onDismiss = { editorState = null }
+        )
     }
 }
 

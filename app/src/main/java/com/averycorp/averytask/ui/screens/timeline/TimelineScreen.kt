@@ -57,7 +57,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.averycorp.averytask.data.local.entity.TaskEntity
-import com.averycorp.averytask.ui.navigation.AveryTaskRoute
+import com.averycorp.averytask.ui.screens.addedittask.AddEditTaskSheetHost
 import com.averycorp.averytask.ui.theme.LocalPriorityColors
 import java.time.LocalDate
 import java.time.LocalTime
@@ -83,6 +83,8 @@ fun TimelineScreen(
     val dateFormatter = DateTimeFormatter.ofPattern("EEE, MMM d")
 
     var scheduleDialogTask by remember { mutableStateOf<TaskEntity?>(null) }
+    var editorSheetTaskId by remember { mutableStateOf<Long?>(null) }
+    var showEditorSheet by remember { mutableStateOf(false) }
 
     // Scroll to current hour on first load
     LaunchedEffect(Unit) {
@@ -213,7 +215,10 @@ fun TimelineScreen(
                             .fillMaxWidth()
                             .height(blockHeight)
                             .clickable {
-                                block.taskId?.let { navController.navigate(AveryTaskRoute.AddEditTask.createRoute(it)) }
+                                block.taskId?.let {
+                                    editorSheetTaskId = it
+                                    showEditorSheet = true
+                                }
                             },
                         shape = RoundedCornerShape(6.dp),
                         colors = CardDefaults.cardColors(
@@ -320,6 +325,15 @@ fun TimelineScreen(
             },
             title = { Text("Schedule: ${task.title}") },
             text = { TimePicker(state = timePickerState) }
+        )
+    }
+
+    if (showEditorSheet) {
+        AddEditTaskSheetHost(
+            taskId = editorSheetTaskId,
+            projectId = null,
+            initialDate = null,
+            onDismiss = { showEditorSheet = false }
         )
     }
 }

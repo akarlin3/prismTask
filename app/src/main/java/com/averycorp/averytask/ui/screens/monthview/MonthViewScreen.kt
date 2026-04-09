@@ -45,6 +45,9 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -58,15 +61,21 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.averycorp.averytask.data.local.entity.TaskEntity
-import com.averycorp.averytask.ui.navigation.AveryTaskRoute
+import com.averycorp.averytask.ui.screens.addedittask.AddEditTaskSheetHost
 import com.averycorp.averytask.ui.theme.LocalPriorityColors
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.YearMonth
+import java.time.ZoneId
 import java.time.format.TextStyle
 import java.util.Locale
 
 private val OverdueRed = Color(0xFFD93025)
+
+private data class MonthTaskEditorState(
+    val taskId: Long? = null,
+    val initialDate: Long? = null,
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -79,6 +88,8 @@ fun MonthViewScreen(
     val selectedDate by viewModel.selectedDate.collectAsStateWithLifecycle()
     val selectedDateTasks by viewModel.selectedDateTasks.collectAsStateWithLifecycle()
     val today = LocalDate.now()
+
+    var editorState by remember { mutableStateOf<MonthTaskEditorState?>(null) }
 
     Scaffold(
         topBar = {
@@ -193,15 +204,27 @@ fun MonthViewScreen(
                         date = date,
                         tasks = selectedDateTasks,
                         onTaskClick = { taskId ->
-                            navController.navigate(AveryTaskRoute.AddEditTask.createRoute(taskId))
+                            editorState = MonthTaskEditorState(taskId = taskId)
                         },
                         onAddTask = {
-                            navController.navigate(AveryTaskRoute.AddEditTask.createRoute())
+                            val dayStartMillis = date.atStartOfDay(ZoneId.systemDefault())
+                                .toInstant()
+                                .toEpochMilli()
+                            editorState = MonthTaskEditorState(initialDate = dayStartMillis)
                         }
                     )
                 }
             }
         }
+    }
+
+    editorState?.let { state ->
+        AddEditTaskSheetHost(
+            taskId = state.taskId,
+            projectId = null,
+            initialDate = state.initialDate,
+            onDismiss = { editorState = null }
+        )
     }
 }
 

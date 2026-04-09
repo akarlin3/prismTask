@@ -92,6 +92,7 @@ import com.averycorp.averytask.data.local.entity.TaskEntity
 import com.averycorp.averytask.data.repository.HabitWithStatus
 import com.averycorp.averytask.ui.components.QuickAddBar
 import com.averycorp.averytask.ui.navigation.AveryTaskRoute
+import com.averycorp.averytask.ui.screens.addedittask.AddEditTaskSheetHost
 import com.averycorp.averytask.ui.theme.LocalPriorityColors
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
@@ -134,6 +135,9 @@ fun TodayScreen(
         overdueTasks.isEmpty() && todayTasks.isEmpty() && plannedTasks.isEmpty() && completedToday.isNotEmpty()
     }
 
+    var editorSheetTaskId by remember { mutableStateOf<Long?>(null) }
+    var showEditorSheet by remember { mutableStateOf(false) }
+
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = viewModel.snackbarHostState) },
         topBar = {
@@ -148,7 +152,10 @@ fun TodayScreen(
         },
         floatingActionButton = {
             FloatingActionButton(
-                onClick = { navController.navigate(AveryTaskRoute.AddEditTask.createRoute()) },
+                onClick = {
+                    editorSheetTaskId = null
+                    showEditorSheet = true
+                },
                 containerColor = MaterialTheme.colorScheme.primaryContainer,
                 contentColor = MaterialTheme.colorScheme.onPrimaryContainer
             ) {
@@ -190,7 +197,10 @@ fun TodayScreen(
                                     tags = taskTagsMap[task.id].orEmpty(),
                                     isOverdue = true,
                                     onComplete = { viewModel.onCompleteWithUndo(task.id) },
-                                    onClick = { navController.navigate(AveryTaskRoute.AddEditTask.createRoute(task.id)) }
+                                    onClick = {
+                                        editorSheetTaskId = task.id
+                                        showEditorSheet = true
+                                    }
                                 )
                             }
                         }
@@ -216,7 +226,10 @@ fun TodayScreen(
                                     task = task,
                                     tags = taskTagsMap[task.id].orEmpty(),
                                     onComplete = { viewModel.onCompleteWithUndo(task.id) },
-                                    onClick = { navController.navigate(AveryTaskRoute.AddEditTask.createRoute(task.id)) }
+                                    onClick = {
+                                        editorSheetTaskId = task.id
+                                        showEditorSheet = true
+                                    }
                                 )
                             }
                         }
@@ -268,7 +281,10 @@ fun TodayScreen(
                                     tags = taskTagsMap[task.id].orEmpty(),
                                     isPlanned = true,
                                     onComplete = { viewModel.onCompleteWithUndo(task.id) },
-                                    onClick = { navController.navigate(AveryTaskRoute.AddEditTask.createRoute(task.id)) }
+                                    onClick = {
+                                        editorSheetTaskId = task.id
+                                        showEditorSheet = true
+                                    }
                                 )
                             }
                         }
@@ -332,6 +348,15 @@ fun TodayScreen(
             onPlanAllOverdue = { viewModel.onPlanAllOverdue() },
             onUnplan = { viewModel.onRemoveFromToday(it) },
             onDismiss = { viewModel.onDismissPlanSheet() }
+        )
+    }
+
+    if (showEditorSheet) {
+        AddEditTaskSheetHost(
+            taskId = editorSheetTaskId,
+            projectId = null,
+            initialDate = null,
+            onDismiss = { showEditorSheet = false }
         )
     }
 }

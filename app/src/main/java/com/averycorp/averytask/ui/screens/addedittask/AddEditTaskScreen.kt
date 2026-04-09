@@ -12,6 +12,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
@@ -101,22 +102,6 @@ fun AddEditTaskScreen(
     viewModel: AddEditTaskViewModel = hiltViewModel()
 ) {
     val scope = rememberCoroutineScope()
-    val context = LocalContext.current
-    val projects by viewModel.projects.collectAsStateWithLifecycle()
-    val allTags by viewModel.allTags.collectAsStateWithLifecycle()
-    val attachments by viewModel.attachments.collectAsStateWithLifecycle()
-
-    var showDatePicker by remember { mutableStateOf(false) }
-    var showTimePicker by remember { mutableStateOf(false) }
-    var showReminderDialog by remember { mutableStateOf(false) }
-    var notesExpanded by remember { mutableStateOf(viewModel.notes.isNotBlank()) }
-    var showAddLinkDialog by remember { mutableStateOf(false) }
-
-    val imagePickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickVisualMedia()
-    ) { uri: Uri? ->
-        uri?.let { viewModel.onAddImageAttachment(context, it) }
-    }
 
     Scaffold(
         topBar = {
@@ -154,17 +139,72 @@ fun AddEditTaskScreen(
             )
         }
     ) { padding ->
-        Column(
+        AddEditTaskFormFields(
+            viewModel = viewModel,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
                 .padding(horizontal = 16.dp)
                 .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            Spacer(modifier = Modifier.height(4.dp))
+            trailingContent = {
+                Spacer(modifier = Modifier.height(8.dp))
 
-            // Title
+                // Save
+                Button(
+                    onClick = {
+                        scope.launch {
+                            if (viewModel.saveTask()) navController.popBackStack()
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text(
+                        text = if (viewModel.isEditMode) "Update Task" else "Save Task",
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@Composable
+internal fun AddEditTaskFormFields(
+    viewModel: AddEditTaskViewModel,
+    modifier: Modifier = Modifier,
+    trailingContent: @Composable ColumnScope.() -> Unit = {}
+) {
+    val context = LocalContext.current
+    val projects by viewModel.projects.collectAsStateWithLifecycle()
+    val allTags by viewModel.allTags.collectAsStateWithLifecycle()
+    val attachments by viewModel.attachments.collectAsStateWithLifecycle()
+
+    var showDatePicker by remember { mutableStateOf(false) }
+    var showTimePicker by remember { mutableStateOf(false) }
+    var showReminderDialog by remember { mutableStateOf(false) }
+    var notesExpanded by remember { mutableStateOf(viewModel.notes.isNotBlank()) }
+    var showAddLinkDialog by remember { mutableStateOf(false) }
+
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri: Uri? ->
+        uri?.let { viewModel.onAddImageAttachment(context, it) }
+    }
+
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Spacer(modifier = Modifier.height(4.dp))
+
+        // Title
             OutlinedTextField(
                 value = viewModel.title,
                 onValueChange = viewModel::onTitleChange,
@@ -407,29 +447,7 @@ fun AddEditTaskScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Save
-            Button(
-                onClick = {
-                    scope.launch {
-                        if (viewModel.saveTask()) navController.popBackStack()
-                    }
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(50.dp),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Text(
-                    text = if (viewModel.isEditMode) "Update Task" else "Save Task",
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.SemiBold
-                )
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-        }
+        trailingContent()
     }
 
     // Date picker dialog

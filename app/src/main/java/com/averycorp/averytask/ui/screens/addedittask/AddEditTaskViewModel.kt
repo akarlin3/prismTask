@@ -23,6 +23,8 @@ import com.averycorp.averytask.data.repository.TaskRepository
 import com.averycorp.averytask.domain.model.RecurrenceRule
 import com.averycorp.averytask.notifications.ReminderScheduler
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -30,6 +32,8 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -47,10 +51,12 @@ class AddEditTaskViewModel @Inject constructor(
     private val _errorMessages = MutableSharedFlow<String>()
     val errorMessages: SharedFlow<String> = _errorMessages.asSharedFlow()
 
-    private val taskId: Long? = savedStateHandle.get<Long>("taskId")?.takeIf { it != -1L }
-    val isEditMode: Boolean = taskId != null
+    private var currentTaskId: Long? by mutableStateOf(null)
+    private val _taskIdFlow = MutableStateFlow<Long?>(null)
+    val isEditMode: Boolean get() = currentTaskId != null
 
     private var existingTask: TaskEntity? = null
+    private var loadJob: Job? = null
 
     var title by mutableStateOf("")
         private set
@@ -77,41 +83,151 @@ class AddEditTaskViewModel @Inject constructor(
     var selectedTagIds by mutableStateOf(setOf<Long>())
         private set
 
+    // Snapshot of initial values for unsaved-changes detection.
+    private var hasInitialized: Boolean = false
+    private var initialTitle: String = ""
+    private var initialDescription: String = ""
+    private var initialDueDate: Long? = null
+    private var initialDueTime: Long? = null
+    private var initialPriority: Int = 0
+    private var initialProjectId: Long? = null
+    private var initialParentTaskId: Long? = null
+    private var initialRecurrenceRule: RecurrenceRule? = null
+    private var initialReminderOffset: Long? = null
+    private var initialNotes: String = ""
+    private var initialSelectedTagIds: Set<Long> = emptySet()
+
     val projects: StateFlow<List<ProjectEntity>> = projectRepository.getAllProjects()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val allTags: StateFlow<List<TagEntity>> = tagRepository.getAllTags()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val attachments: StateFlow<List<AttachmentEntity>> = if (taskId != null) {
-        attachmentRepository.getAttachments(taskId)
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-    } else {
-        MutableStateFlow(emptyList())
-    }
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val attachments: StateFlow<List<AttachmentEntity>> = _taskIdFlow
+        .flatMapLatest { id ->
+            if (id != null) attachmentRepository.getAttachments(id)
+            else flowOf(emptyList())
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     init {
+        // Backward compat: when opened via the navigation route, SavedStateHandle
+        // contains the taskId nav arg. Sheet-based invocation leaves this null and
+        // calls initialize() explicitly from the host composable.
+        val routeTaskId = savedStateHandle.get<Long>("taskId")
+        if (routeTaskId != null) {
+            initialize(
+                taskId = routeTaskId.takeIf { it != -1L },
+                projectId = null,
+                initialDate = null
+            )
+        }
+    }
+
+    /**
+     * Prepare the form for a new invocation. Resets all fields, then either
+     * loads an existing task (edit mode) or applies the given defaults (create mode).
+     * Safe to call multiple times — each call re-seeds the form and cancels any
+     * in-flight load from a previous call.
+     */
+    fun initialize(taskId: Long?, projectId: Long?, initialDate: Long?) {
+        loadJob?.cancel()
+
+        // Reset all fields to defaults / supplied create-mode seeds.
+        currentTaskId = taskId
+        _taskIdFlow.value = taskId
+        existingTask = null
+        title = ""
+        description = ""
+        dueDate = initialDate
+        dueTime = null
+        priority = 0
+        this.projectId = projectId
+        parentTaskId = null
+        recurrenceRule = null
+        reminderOffset = null
+        notes = ""
+        selectedTagIds = emptySet()
+        titleError = false
+
         if (taskId != null) {
-            viewModelScope.launch {
-                taskRepository.getTaskById(taskId).firstOrNull()?.let { task ->
+            // Snapshot with defaults until the real task loads — the load
+            // will replace the snapshot with the true initial values.
+            hasInitialized = false
+            loadJob = viewModelScope.launch {
+                val task = taskRepository.getTaskById(taskId).firstOrNull()
+                val tagIds = tagRepository.getTagsForTask(taskId).firstOrNull()
+                    ?.map { it.id }
+                    ?.toSet()
+                    ?: emptySet()
+                if (task != null) {
                     existingTask = task
                     title = task.title
                     description = task.description.orEmpty()
                     dueDate = task.dueDate
                     dueTime = task.dueTime
                     priority = task.priority
-                    projectId = task.projectId
+                    this@AddEditTaskViewModel.projectId = task.projectId
                     parentTaskId = task.parentTaskId
                     recurrenceRule = task.recurrenceRule?.let { RecurrenceConverter.fromJson(it) }
                     reminderOffset = task.reminderOffset
                     notes = task.notes.orEmpty()
+                    selectedTagIds = tagIds
+                    snapshotInitialValuesFromTask(task, tagIds)
+                } else {
+                    snapshotInitialValuesForCreate(projectId, initialDate)
                 }
-                tagRepository.getTagsForTask(taskId).firstOrNull()?.let { tags ->
-                    selectedTagIds = tags.map { it.id }.toSet()
-                }
+                hasInitialized = true
             }
+        } else {
+            snapshotInitialValuesForCreate(projectId, initialDate)
+            hasInitialized = true
         }
     }
+
+    private fun snapshotInitialValuesFromTask(task: TaskEntity, tagIds: Set<Long>) {
+        initialTitle = task.title
+        initialDescription = task.description.orEmpty()
+        initialDueDate = task.dueDate
+        initialDueTime = task.dueTime
+        initialPriority = task.priority
+        initialProjectId = task.projectId
+        initialParentTaskId = task.parentTaskId
+        initialRecurrenceRule = task.recurrenceRule?.let { RecurrenceConverter.fromJson(it) }
+        initialReminderOffset = task.reminderOffset
+        initialNotes = task.notes.orEmpty()
+        initialSelectedTagIds = tagIds
+    }
+
+    private fun snapshotInitialValuesForCreate(projectId: Long?, initialDate: Long?) {
+        initialTitle = ""
+        initialDescription = ""
+        initialDueDate = initialDate
+        initialDueTime = null
+        initialPriority = 0
+        initialProjectId = projectId
+        initialParentTaskId = null
+        initialRecurrenceRule = null
+        initialReminderOffset = null
+        initialNotes = ""
+        initialSelectedTagIds = emptySet()
+    }
+
+    val hasUnsavedChanges: Boolean
+        get() = hasInitialized && (
+            title != initialTitle ||
+                description != initialDescription ||
+                dueDate != initialDueDate ||
+                dueTime != initialDueTime ||
+                priority != initialPriority ||
+                projectId != initialProjectId ||
+                parentTaskId != initialParentTaskId ||
+                recurrenceRule != initialRecurrenceRule ||
+                reminderOffset != initialReminderOffset ||
+                notes != initialNotes ||
+                selectedTagIds != initialSelectedTagIds
+            )
 
     fun onTitleChange(value: String) {
         title = value
@@ -129,7 +245,7 @@ class AddEditTaskViewModel @Inject constructor(
     fun onSelectedTagIdsChange(value: Set<Long>) { selectedTagIds = value }
 
     fun onAddImageAttachment(context: Context, uri: Uri) {
-        val id = taskId ?: return
+        val id = currentTaskId ?: return
         viewModelScope.launch {
             try {
                 attachmentRepository.addImageAttachment(context, id, uri)
@@ -141,7 +257,7 @@ class AddEditTaskViewModel @Inject constructor(
     }
 
     fun onAddLinkAttachment(url: String) {
-        val id = taskId ?: return
+        val id = currentTaskId ?: return
         viewModelScope.launch {
             try {
                 attachmentRepository.addLinkAttachment(id, url)
@@ -235,7 +351,7 @@ class AddEditTaskViewModel @Inject constructor(
 
     suspend fun deleteTask() {
         try {
-            taskId?.let { taskRepository.deleteTask(it) }
+            currentTaskId?.let { taskRepository.deleteTask(it) }
         } catch (e: Exception) {
             Log.e("AddEditTaskVM", "Failed to delete task", e)
             _errorMessages.emit("Something went wrong")
