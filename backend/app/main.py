@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.routers import app_update, auth, dashboard, export, goals, habits, projects, search, sync, tags, tasks
+from app.routers import app_update, auth, dashboard, export, goals, habits, projects, search, sync, tags, tasks, templates
 
 app = FastAPI(
     title="AveryTask API",
@@ -29,6 +29,7 @@ app.include_router(projects.router, prefix="/api/v1")
 app.include_router(tasks.router, prefix="/api/v1")
 app.include_router(tags.router, prefix="/api/v1")
 app.include_router(habits.router, prefix="/api/v1")
+app.include_router(templates.router, prefix="/api/v1/templates", tags=["templates"])
 app.include_router(dashboard.router, prefix="/api/v1")
 app.include_router(search.router, prefix="/api/v1")
 app.include_router(sync.router, prefix="/api/v1")

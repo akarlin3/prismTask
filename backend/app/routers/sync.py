@@ -17,6 +17,7 @@ from app.models import (
     Tag,
     Task,
     TaskStatus,
+    TaskTemplate,
     User,
 )
 from app.schemas.sync import (
@@ -36,6 +37,7 @@ ENTITY_MAP = {
     "tag": Tag,
     "habit": Habit,
     "habit_completion": HabitCompletion,
+    "template": TaskTemplate,
 }
 
 STATUS_ENUM_MAP = {

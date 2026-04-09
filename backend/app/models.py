@@ -74,6 +74,7 @@ class User(Base):
     goals = relationship("Goal", back_populates="user", cascade="all, delete-orphan")
     tags = relationship("Tag", back_populates="user", cascade="all, delete-orphan")
     habits = relationship("Habit", back_populates="user", cascade="all, delete-orphan")
+    templates = relationship("TaskTemplate", back_populates="user", cascade="all, delete-orphan")
 
 
 class Goal(Base):
@@ -221,6 +222,37 @@ class HabitCompletion(Base):
     created_at = Column(DateTime, server_default=func.now())
 
     habit = relationship("Habit", back_populates="completions")
+
+
+class TaskTemplate(Base):
+    __tablename__ = "task_templates"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    icon = Column(String(10), nullable=True)
+    category = Column(String(100), nullable=True)
+
+    # Template field values (what gets pre-filled when using the template)
+    template_title = Column(String(255), nullable=True)
+    template_description = Column(Text, nullable=True)
+    template_priority = Column(Integer, nullable=True)
+    template_project_id = Column(Integer, ForeignKey("projects.id", ondelete="SET NULL"), nullable=True)
+    template_tags_json = Column(Text, nullable=True)
+    template_recurrence_json = Column(Text, nullable=True)
+    template_duration = Column(Integer, nullable=True)
+    template_subtasks_json = Column(Text, nullable=True)
+
+    is_built_in = Column(Boolean, default=False)
+    usage_count = Column(Integer, default=0)
+    last_used_at = Column(DateTime, nullable=True)
+
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    user = relationship("User", back_populates="templates")
+    project = relationship("Project", foreign_keys=[template_project_id])
 
 
 class AppRelease(Base):
