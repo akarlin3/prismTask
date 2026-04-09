@@ -540,7 +540,7 @@ internal fun AddEditTaskFormFields(
 }
 
 @Composable
-private fun AttachmentRow(
+internal fun AttachmentRow(
     attachment: AttachmentEntity,
     onDelete: () -> Unit
 ) {
@@ -587,7 +587,7 @@ private fun AttachmentRow(
 }
 
 @Composable
-private fun SectionLabel(text: String) {
+internal fun SectionLabel(text: String) {
     Text(
         text = text,
         style = MaterialTheme.typography.labelLarge,
@@ -642,7 +642,7 @@ private fun PriorityChip(label: String, color: Color, selected: Boolean, onClick
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ProjectDropdown(
+internal fun ProjectDropdown(
     selectedProjectId: Long?,
     projects: List<com.averycorp.averytask.data.local.entity.ProjectEntity>,
     onSelect: (Long?) -> Unit
@@ -682,7 +682,7 @@ private fun ProjectDropdown(
 }
 
 @Composable
-private fun TimePickerDialog(
+internal fun TimePickerDialog(
     onDismiss: () -> Unit,
     onConfirm: () -> Unit,
     content: @Composable () -> Unit
@@ -695,14 +695,14 @@ private fun TimePickerDialog(
     )
 }
 
-private fun todayMillis(): Long = Calendar.getInstance().apply {
+internal fun todayMillis(): Long = Calendar.getInstance().apply {
     set(Calendar.HOUR_OF_DAY, 0)
     set(Calendar.MINUTE, 0)
     set(Calendar.SECOND, 0)
     set(Calendar.MILLISECOND, 0)
 }.timeInMillis
 
-private fun tomorrowMillis(): Long = Calendar.getInstance().apply {
+internal fun tomorrowMillis(): Long = Calendar.getInstance().apply {
     set(Calendar.HOUR_OF_DAY, 0)
     set(Calendar.MINUTE, 0)
     set(Calendar.SECOND, 0)
@@ -710,7 +710,7 @@ private fun tomorrowMillis(): Long = Calendar.getInstance().apply {
     add(Calendar.DAY_OF_YEAR, 1)
 }.timeInMillis
 
-private fun weekFromNowMillis(): Long = Calendar.getInstance().apply {
+internal fun weekFromNowMillis(): Long = Calendar.getInstance().apply {
     set(Calendar.HOUR_OF_DAY, 0)
     set(Calendar.MINUTE, 0)
     set(Calendar.SECOND, 0)
@@ -720,7 +720,7 @@ private fun weekFromNowMillis(): Long = Calendar.getInstance().apply {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun DateQuickChip(label: String, currentDate: Long?, targetDate: Long, onClick: () -> Unit) {
+internal fun DateQuickChip(label: String, currentDate: Long?, targetDate: Long, onClick: () -> Unit) {
     FilterChip(
         selected = currentDate == targetDate,
         onClick = onClick,
@@ -732,7 +732,7 @@ private fun DateQuickChip(label: String, currentDate: Long?, targetDate: Long, o
     )
 }
 
-private fun formatDateSmart(epochMillis: Long): String {
+internal fun formatDateSmart(epochMillis: Long): String {
     val today = todayMillis()
     val tomorrow = tomorrowMillis()
     val dayAfter = Calendar.getInstance().apply {
@@ -750,12 +750,12 @@ private fun formatDateSmart(epochMillis: Long): String {
     }
 }
 
-private fun formatTime(epochMillis: Long): String {
+internal fun formatTime(epochMillis: Long): String {
     val fmt = SimpleDateFormat("h:mm a", Locale.getDefault())
     return fmt.format(Date(epochMillis))
 }
 
-private fun reminderOffsetLabel(offset: Long?): String = when (offset) {
+internal fun reminderOffsetLabel(offset: Long?): String = when (offset) {
     null -> "No reminder"
     0L -> "At due time"
     900_000L -> "15 minutes before"
@@ -777,7 +777,7 @@ private val reminderOptions = listOf(
 )
 
 @Composable
-private fun ReminderPickerDialog(
+internal fun ReminderPickerDialog(
     currentOffset: Long?,
     onSelect: (Long?) -> Unit,
     onDismiss: () -> Unit
