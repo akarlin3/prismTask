@@ -124,6 +124,7 @@ class AddEditHabitViewModel @Inject constructor(
         targetFrequency = value.coerceIn(1, max)
     }
     fun onFrequencyPeriodChange(value: String) {
+        val wasRecurring = frequencyPeriod != "daily"
         frequencyPeriod = value
         val max = when (value) {
             "weekly" -> 7
@@ -134,6 +135,14 @@ class AddEditHabitViewModel @Inject constructor(
             else -> 10
         }
         targetFrequency = targetFrequency.coerceIn(1, max)
+
+        // For new habits, default logging / booking / previous-period tracking ON
+        // when switching to a recurring (non-daily) frequency for the first time.
+        if (!isEditMode && value != "daily" && !wasRecurring) {
+            hasLogging = true
+            trackBooking = true
+            trackPreviousPeriod = true
+        }
     }
     fun onToggleActiveDay(day: Int) {
         activeDays = if (day in activeDays) activeDays - day else activeDays + day
