@@ -33,6 +33,50 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
+      - name: Auto-increment version on merge to main
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        id: version_bump
+        run: |
+          set -euo pipefail
+          BUILD_FILE="app/build.gradle.kts"
+
+          CURRENT_CODE=$(grep -oP 'versionCode\s*=\s*\K[0-9]+' "$BUILD_FILE" | head -1)
+          CURRENT_NAME=$(grep -oP 'versionName\s*=\s*"\K[^"]+' "$BUILD_FILE" | head -1)
+
+          if [ -z "$CURRENT_CODE" ] || [ -z "$CURRENT_NAME" ]; then
+            echo "::error::Could not extract current versionCode/versionName from $BUILD_FILE"
+            exit 1
+          fi
+
+          echo "Current versionCode: $CURRENT_CODE"
+          echo "Current versionName: $CURRENT_NAME"
+
+          NEW_CODE=$((CURRENT_CODE + 1))
+
+          if [[ "$CURRENT_NAME" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+            MAJOR="${BASH_REMATCH[1]}"
+            MINOR="${BASH_REMATCH[2]}"
+            PATCH="${BASH_REMATCH[3]}"
+            NEW_PATCH=$((PATCH + 1))
+            NEW_NAME="${MAJOR}.${MINOR}.${NEW_PATCH}"
+          else
+            echo "::error::versionName '$CURRENT_NAME' does not match MAJOR.MINOR.PATCH; cannot auto-bump"
+            exit 1
+          fi
+
+          echo "New versionCode: $NEW_CODE"
+          echo "New versionName: $NEW_NAME"
+
+          sed -i -E "s/(versionCode\s*=\s*)[0-9]+/\1${NEW_CODE}/" "$BUILD_FILE"
+          sed -i -E "s/(versionName\s*=\s*\")[^\"]+(\")/\1${NEW_NAME}\2/" "$BUILD_FILE"
+
+          # Sanity-check the rewrite
+          grep -E 'versionCode|versionName' "$BUILD_FILE" | head -5
+
+          echo "bumped=true" >> "$GITHUB_OUTPUT"
+          echo "new_version_code=$NEW_CODE" >> "$GITHUB_OUTPUT"
+          echo "new_version_name=$NEW_NAME" >> "$GITHUB_OUTPUT"
+
       - name: Build debug APK and run unit tests
         run: ./gradlew assembleDebug testDebugUnitTest --build-cache --parallel -x lint -x lintVitalRelease
 
@@ -176,7 +220,7 @@ jobs:
             --release-notes "v${{ steps.version_check.outputs.version_name }} (build ${{ steps.version_check.outputs.version_code }}) from commit ${{ github.sha }}" \
             --token "${{ secrets.FIREBASE_TOKEN }}"
 
-      - name: Commit debug APK to repo root
+      - name: Commit version bump and debug APK to repo root
         if: github.event_name == 'push' && github.ref == 'refs/heads/main' && (steps.version_check.outputs.version_bumped == 'true' || steps.version_check.outputs.version_code_bumped == 'true')
         run: |
           APK_PATH=$(find app/build/outputs/apk/debug -name '*.apk' | head -1)
@@ -188,7 +232,7 @@ jobs:
           cp "$APK_PATH" app-debug.apk
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add app-debug.apk
-          git diff --cached --quiet || git commit -m "Update debug APK (v${{ steps.version_check.outputs.version_name }} build ${{ steps.version_check.outputs.version_code }}) [skip ci]"
+          git add app-debug.apk app/build.gradle.kts
+          git diff --cached --quiet || git commit -m "chore: bump to v${{ steps.version_check.outputs.version_name }} (build ${{ steps.version_check.outputs.version_code }}) [skip ci]"
           git pull --rebase origin main || true
           git push
