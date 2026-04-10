@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Privacy Policy - AveryTask</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            line-height: 1.7;
+            color: #1a1a1a;
+            background: #fafafa;
+            padding: 0 16px;
+        }
+        .container { max-width: 720px; margin: 0 auto; padding: 40px 0 80px; }
+        .header {
+            text-align: center;
+            padding: 32px 0;
+            border-bottom: 2px solid #e0e0e0;
+            margin-bottom: 32px;
+        }
+        .header h1 { font-size: 28px; color: #1a1a1a; margin-bottom: 4px; }
+        .header .app-name { font-size: 16px; color: #6750A4; font-weight: 600; margin-bottom: 4px; }
+        .header .developer { font-size: 14px; color: #666; }
+        .meta { font-size: 14px; color: #666; margin-bottom: 32px; }
+        h2 { font-size: 22px; color: #1a1a1a; margin: 32px 0 12px; padding-top: 16px; border-top: 1px solid #eee; }
+        h2:first-of-type { border-top: none; }
+        h3 { font-size: 17px; color: #333; margin: 20px 0 8px; }
+        p { margin-bottom: 12px; }
+        ul { margin: 8px 0 16px 24px; }
+        li { margin-bottom: 6px; }
+        strong { color: #1a1a1a; }
+        a { color: #6750A4; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        .contact { background: #f0f0f0; padding: 16px 20px; border-radius: 8px; margin-top: 24px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="app-name">AveryTask</div>
+            <h1>Privacy Policy</h1>
+            <div class="developer">AveryCorp (Avery Karlin)</div>
+        </div>
+
+        <p class="meta"><strong>Effective Date:</strong> [INSERT_DATE] &nbsp;|&nbsp; <strong>Contact:</strong> [INSERT_EMAIL]</p>
+
+        <h2>Introduction</h2>
+        <p>This Privacy Policy describes how AveryCorp ("we," "us," or "our") collects, uses, and protects your information when you use the AveryTask mobile application ("the App"). We are committed to protecting your privacy and being transparent about our data practices.</p>
+
+        <h2>Information We Collect</h2>
+
+        <h3>Account Data</h3>
+        <p>When you sign in with Google, we collect:</p>
+        <ul>
+            <li><strong>Email address</strong> &mdash; used for authentication, cloud sync, and collaboration features</li>
+            <li><strong>Display name</strong> &mdash; used for identification in shared projects and collaboration</li>
+        </ul>
+        <p>Account creation is optional. You can use the App fully offline without creating an account.</p>
+
+        <h3>Task Data</h3>
+        <ul>
+            <li><strong>Tasks, projects, tags, subtasks, habits, and templates</strong> &mdash; the content you create within the App</li>
+            <li>This data is stored locally on your device by default</li>
+            <li>If you enable cloud sync (Pro feature), this data is also stored on our servers</li>
+        </ul>
+
+        <h3>Usage Data</h3>
+        <ul>
+            <li><strong>App usage patterns</strong> &mdash; used locally for smart suggestions (tag and project recommendations based on your habits)</li>
+            <li><strong>AI feature interactions</strong> &mdash; when you use AI features (Pro), task titles, descriptions, and metadata are sent to our AI provider for processing</li>
+        </ul>
+
+        <h3>Calendar Data</h3>
+        <ul>
+            <li><strong>Google Calendar events</strong> &mdash; read and written with your explicit permission via the Google Calendar API, used for calendar sync functionality</li>
+        </ul>
+
+        <h2>How We Store Your Data</h2>
+
+        <h3>Local Storage</h3>
+        <ul>
+            <li>All task data is stored in a local Room database on your device</li>
+            <li>This is the primary storage method and works fully offline</li>
+            <li>Local data is encrypted via Android's default device encryption</li>
+        </ul>
+
+        <h3>Cloud Storage (Pro Feature)</h3>
+        <ul>
+            <li><strong>Firebase Firestore</strong> &mdash; used for cross-device sync when you enable cloud sync</li>
+            <li><strong>Firebase Authentication</strong> &mdash; used for secure account management</li>
+            <li><strong>Google Drive</strong> &mdash; used for backup/restore when you initiate it (Pro feature)</li>
+        </ul>
+
+        <h3>Backend Server</h3>
+        <ul>
+            <li><strong>FastAPI server hosted on Railway</strong> &mdash; used for AI features (task parsing, Eisenhower categorization, Pomodoro planning), collaboration, and template sync</li>
+            <li>Only accessed when you use Pro features that require server communication</li>
+        </ul>
+
+        <h2>Third-Party Services</h2>
+
+        <h3>Firebase (Google)</h3>
+        <p>Authentication and cloud sync. Subject to <a href="https://policies.google.com/privacy">Google's Privacy Policy</a>.</p>
+
+        <h3>Anthropic (Claude AI)</h3>
+        <ul>
+            <li>Task parsing, Eisenhower categorization, and Pomodoro planning (Pro features)</li>
+            <li>Task titles, descriptions, and metadata are sent to Anthropic's API for AI processing</li>
+            <li>Subject to <a href="https://www.anthropic.com/privacy">Anthropic's Privacy Policy</a></li>
+            <li>Anthropic's data retention policy applies to data processed through their API</li>
+        </ul>
+
+        <h3>Google Calendar API</h3>
+        <p>Two-way calendar event sync with your explicit permission. Subject to <a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data Policy</a>.</p>
+
+        <h3>Railway</h3>
+        <p>Backend server hosting for AI features and collaboration. Subject to <a href="https://railway.app/legal/privacy">Railway's Privacy Policy</a>.</p>
+
+        <h2>Data Sharing</h2>
+        <ul>
+            <li><strong>Collaboration:</strong> Task data in shared projects is visible to project members you invite</li>
+            <li><strong>AI processing:</strong> Task metadata is sent to Anthropic for AI features (Pro only)</li>
+            <li>We do not sell your data to third parties</li>
+            <li>We do not use your data for advertising</li>
+            <li>We do not share your data with third parties for their marketing purposes</li>
+        </ul>
+
+        <h2>Your Rights</h2>
+        <ul>
+            <li><strong>Export your data</strong> &mdash; use the built-in JSON/CSV export feature to download all your data at any time</li>
+            <li><strong>Delete your account</strong> &mdash; delete your account and all associated cloud data from within the App</li>
+            <li><strong>Revoke Google Calendar access</strong> &mdash; remove calendar permissions at any time through your Google Account settings</li>
+            <li><strong>Use offline</strong> &mdash; use the App fully offline without any data leaving your device</li>
+            <li><strong>Opt out of AI features</strong> &mdash; AI features are optional; your data is only sent to Anthropic when you actively use AI features</li>
+        </ul>
+
+        <h2>Children's Privacy</h2>
+        <p>AveryTask is not directed at children under the age of 13. We do not knowingly collect personal information from children under 13. If we become aware that we have collected personal information from a child under 13, we will take steps to delete that information promptly. If you believe we have collected information from a child under 13, please contact us at [INSERT_EMAIL].</p>
+
+        <h2>Data Security</h2>
+        <ul>
+            <li><strong>JWT authentication</strong> for secure API access</li>
+            <li><strong>HTTPS</strong> for all network communication</li>
+            <li><strong>Local data encryption</strong> via Android's default device encryption</li>
+            <li><strong>Firebase security rules</strong> to protect cloud-stored data</li>
+        </ul>
+
+        <h2>Data Retention</h2>
+        <ul>
+            <li><strong>Local data</strong> is retained on your device until you delete it or uninstall the App</li>
+            <li><strong>Cloud data</strong> is retained until you delete your account or request deletion</li>
+            <li><strong>AI processing data</strong> is subject to Anthropic's data retention policy</li>
+        </ul>
+
+        <h2>Changes to This Policy</h2>
+        <p>We may update this Privacy Policy from time to time. We will notify you of any material changes by posting the new Privacy Policy within the App or via email. Your continued use of the App after changes are posted constitutes your acceptance of the updated policy.</p>
+
+        <h2>Governing Law</h2>
+        <p>This Privacy Policy is governed by the laws of the State of New York, United States, without regard to its conflict of law provisions.</p>
+
+        <h2>Contact Us</h2>
+        <div class="contact">
+            <p>If you have questions or concerns about this Privacy Policy, please contact us at:</p>
+            <p><strong>Email:</strong> [INSERT_EMAIL]<br>
+            <strong>Developer:</strong> AveryCorp (Avery Karlin)</p>
+        </div>
+    </div>
+</body>
+</html>
