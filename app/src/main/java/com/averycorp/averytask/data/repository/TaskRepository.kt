@@ -278,7 +278,11 @@ class TaskRepository @Inject constructor(
      * @return the id of the newly created task, or -1 if the original doesn't
      *   exist.
      */
-    suspend fun duplicateTask(taskId: Long, includeSubtasks: Boolean = false): Long {
+    suspend fun duplicateTask(
+        taskId: Long,
+        includeSubtasks: Boolean = false,
+        copyDueDate: Boolean = false
+    ): Long {
         val original = taskDao.getTaskByIdOnce(taskId) ?: return -1L
         val now = System.currentTimeMillis()
 
@@ -288,7 +292,7 @@ class TaskRepository @Inject constructor(
             taskDao.getMaxRootSortOrder() + 1
         }
 
-        val duplicate = buildDuplicateEntity(original, nextSortOrder, now)
+        val duplicate = buildDuplicateEntity(original, nextSortOrder, now, copyDueDate)
         val newId = taskDao.insert(duplicate)
         syncTracker.trackCreate(newId, "task")
 
@@ -462,19 +466,20 @@ class TaskRepository @Inject constructor(
         fun buildDuplicateEntity(
             original: TaskEntity,
             nextSortOrder: Int,
-            now: Long
+            now: Long,
+            copyDueDate: Boolean = false
         ): TaskEntity {
             return original.copy(
                 id = 0,
                 title = "Copy of ${original.title}",
-                dueDate = null,
-                dueTime = null,
+                dueDate = if (copyDueDate) original.dueDate else null,
+                dueTime = if (copyDueDate) original.dueTime else null,
                 plannedDate = null,
                 isCompleted = false,
                 completedAt = null,
                 createdAt = now,
                 updatedAt = now,
-                reminderOffset = null,
+                reminderOffset = if (copyDueDate) original.reminderOffset else null,
                 archivedAt = null,
                 scheduledStartTime = null,
                 sortOrder = nextSortOrder

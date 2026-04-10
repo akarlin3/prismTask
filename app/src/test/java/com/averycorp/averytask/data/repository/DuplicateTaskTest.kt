@@ -94,6 +94,40 @@ class DuplicateTaskTest {
     }
 
     @Test
+    fun buildDuplicate_copiesDueDateWhenCopyDueDateIsTrue() {
+        val original = sampleTask()
+        val now = 1_800_000_000_000L
+
+        val duplicate = TaskRepository.buildDuplicateEntity(
+            original, nextSortOrder = 10, now = now, copyDueDate = true
+        )
+
+        assertEquals("dueDate should be copied", original.dueDate, duplicate.dueDate)
+        assertEquals("dueTime should be copied", original.dueTime, duplicate.dueTime)
+        assertEquals("reminderOffset should be copied", original.reminderOffset, duplicate.reminderOffset)
+        // Other scheduling/completion fields should still be reset.
+        assertNull("plannedDate should reset", duplicate.plannedDate)
+        assertNull("completedAt should reset", duplicate.completedAt)
+        assertNull("archivedAt should reset", duplicate.archivedAt)
+        assertNull("scheduledStartTime should reset", duplicate.scheduledStartTime)
+        assertFalse("isCompleted should reset", duplicate.isCompleted)
+    }
+
+    @Test
+    fun buildDuplicate_resetsDueDateWhenCopyDueDateIsFalse() {
+        val original = sampleTask()
+        val now = 1_800_000_000_000L
+
+        val duplicate = TaskRepository.buildDuplicateEntity(
+            original, nextSortOrder = 10, now = now, copyDueDate = false
+        )
+
+        assertNull("dueDate should reset", duplicate.dueDate)
+        assertNull("dueTime should reset", duplicate.dueTime)
+        assertNull("reminderOffset should reset", duplicate.reminderOffset)
+    }
+
+    @Test
     fun buildDuplicate_usesProvidedSortOrderAndTimestamp() {
         val original = sampleTask()
         val now = 1_800_000_000_000L
