@@ -15,7 +15,7 @@ A native Android task manager with a Python API backend featuring AI-powered nat
 ## Download
 
 <!-- TODO: Replace with actual Play Store link once published -->
-[<img src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" alt="Get it on Google Play" height="80">](https://play.google.com/store/apps/details?id=com.averykarlin.averytask)
+[<img src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" alt="Get it on Google Play" height="80">](https://play.google.com/store/apps/details?id=com.averycorp.prismtask)
 
 ## Free vs Pro
 

@@ -1,0 +1,54 @@
+package com.averycorp.prismtask.data.local.dao
+
+import androidx.room.Dao
+import androidx.room.Delete
+import androidx.room.Insert
+import androidx.room.OnConflictStrategy
+import androidx.room.Query
+import androidx.room.Update
+import com.averycorp.prismtask.data.local.entity.TagEntity
+import com.averycorp.prismtask.data.local.entity.TaskTagCrossRef
+import kotlinx.coroutines.flow.Flow
+
+@Dao
+interface TagDao {
+
+    @Query("SELECT * FROM tags ORDER BY name ASC")
+    fun getAllTags(): Flow<List<TagEntity>>
+
+    @Query("SELECT * FROM tags WHERE id = :id")
+    fun getTagById(id: Long): Flow<TagEntity?>
+
+    @Query("SELECT t.* FROM tags t INNER JOIN task_tags tt ON t.id = tt.tagId WHERE tt.taskId = :taskId")
+    fun getTagsForTask(taskId: Long): Flow<List<TagEntity>>
+
+    @Query("SELECT * FROM tags")
+    suspend fun getAllTagsOnce(): List<TagEntity>
+
+    @Query("SELECT * FROM tags WHERE id = :id")
+    suspend fun getTagByIdOnce(id: Long): TagEntity?
+
+    @Query("SELECT tagId FROM task_tags WHERE taskId = :taskId")
+    suspend fun getTagIdsForTaskOnce(taskId: Long): List<Long>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insert(tag: TagEntity): Long
+
+    @Update
+    suspend fun update(tag: TagEntity)
+
+    @Delete
+    suspend fun delete(tag: TagEntity)
+
+    @Query("SELECT * FROM tags WHERE name LIKE '%' || :query || '%'")
+    fun searchTags(query: String): Flow<List<TagEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun addTagToTask(crossRef: TaskTagCrossRef)
+
+    @Query("DELETE FROM task_tags WHERE taskId = :taskId AND tagId = :tagId")
+    suspend fun removeTagFromTask(taskId: Long, tagId: Long)
+
+    @Query("DELETE FROM task_tags WHERE taskId = :taskId")
+    suspend fun removeAllTagsFromTask(taskId: Long)
+}

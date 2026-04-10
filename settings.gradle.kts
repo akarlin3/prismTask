@@ -18,5 +18,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "AveryTask"
+rootProject.name = "PrismTask"
 include(":app")

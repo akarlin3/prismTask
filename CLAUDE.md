@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-**AveryTask** (`com.averycorp.averytask`) is a native Android todo list app built with Kotlin and Jetpack Compose. v1.1.0 includes full task management, projects, subtasks, tags, recurrence, reminders, notifications, NLP quick-add, Today focus screen (compact header, collapsible sections), tabbed task editor (Details/Schedule/Organize), week/month/timeline views, urgency scoring, smart suggestions, drag-to-reorder with custom sort, quick reschedule, duplicate task, bulk edit (priority/date/tags/project), task templates with 6 built-ins and NLP shortcuts, Firebase cloud sync, Google Sign-In, JSON/CSV data export/import, Google Drive backup/restore, habit tracking with streaks/analytics, home screen widgets, app self-update, and a FastAPI web backend with Claude Haiku-powered NLP parsing.
+**AveryTask** (`com.averycorp.prismtask`) is a native Android todo list app built with Kotlin and Jetpack Compose. v1.1.0 includes full task management, projects, subtasks, tags, recurrence, reminders, notifications, NLP quick-add, Today focus screen (compact header, collapsible sections), tabbed task editor (Details/Schedule/Organize), week/month/timeline views, urgency scoring, smart suggestions, drag-to-reorder with custom sort, quick reschedule, duplicate task, bulk edit (priority/date/tags/project), task templates with 6 built-ins and NLP shortcuts, Firebase cloud sync, Google Sign-In, JSON/CSV data export/import, Google Drive backup/restore, habit tracking with streaks/analytics, home screen widgets, app self-update, and a FastAPI web backend with Claude Haiku-powered NLP parsing.
 
 ## Tech Stack
 
@@ -22,7 +22,7 @@
 ## Project Structure
 
 ```
-app/src/main/java/com/averycorp/averytask/
+app/src/main/java/com/averycorp/prismtask/
 ├── MainActivity.kt                     # Single-activity entry point, notification permission
 ├── AveryTaskApplication.kt             # @HiltAndroidApp
 ├── data/

@@ -10,17 +10,17 @@ plugins {
 }
 
 android {
-    namespace = "com.averycorp.averytask"
+    namespace = "com.averycorp.prismtask"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.averykarlin.averytask"
+        applicationId = "com.averycorp.prismtask"
         minSdk = 26
         targetSdk = 35
         versionCode = 78
         versionName = "1.1.0"
 
-        testInstrumentationRunner = "com.averycorp.averytask.HiltTestRunner"
+        testInstrumentationRunner = "com.averycorp.prismtask.HiltTestRunner"
         vectorDrawables { useSupportLibrary = true }
 
         buildConfigField(
