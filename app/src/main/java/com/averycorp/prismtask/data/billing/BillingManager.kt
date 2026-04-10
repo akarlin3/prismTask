@@ -10,6 +10,8 @@ import com.android.billingclient.api.BillingResult
 import com.android.billingclient.api.PendingPurchasesParams
 import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.Purchase
+import com.android.billingclient.api.ProductDetailsResponseListener
+import com.android.billingclient.api.PurchasesResponseListener
 import com.android.billingclient.api.PurchasesUpdatedListener
 import com.android.billingclient.api.QueryProductDetailsParams
 import com.android.billingclient.api.QueryPurchasesParams
@@ -142,9 +144,11 @@ class BillingManager @Inject constructor(
             .setProductType(BillingClient.ProductType.SUBS)
             .build()
 
-        val purchasesResult = billingClient.queryPurchasesAsync(params)
-        val billingResult = purchasesResult.billingResult
-        val purchasesList = purchasesResult.purchasesList
+        val (billingResult, purchasesList) = suspendCancellableCoroutine { cont ->
+            billingClient.queryPurchasesAsync(params, PurchasesResponseListener { result, purchases ->
+                cont.resume(Pair(result, purchases))
+            })
+        }
 
         if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
             if (purchasesList.isNotEmpty()) {
@@ -189,7 +193,11 @@ class BillingManager @Inject constructor(
             .setPurchaseToken(purchase.purchaseToken)
             .build()
 
-        billingClient.acknowledgePurchase(params)
+        suspendCancellableCoroutine { cont ->
+            billingClient.acknowledgePurchase(params) { billingResult ->
+                cont.resume(billingResult)
+            }
+        }
     }
 
     private suspend fun queryProductDetails(): ProductDetails? {
@@ -204,10 +212,14 @@ class BillingManager @Inject constructor(
             .setProductList(productList)
             .build()
 
-        val result = billingClient.queryProductDetailsAsync(params)
+        val (billingResult, productDetailsList) = suspendCancellableCoroutine { cont ->
+            billingClient.queryProductDetailsAsync(params, ProductDetailsResponseListener { result, detailsList ->
+                cont.resume(Pair(result, detailsList))
+            })
+        }
 
-        return if (result.billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
-            result.productDetailsList?.firstOrNull()
+        return if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
+            productDetailsList.firstOrNull()
         } else {
             null
         }
