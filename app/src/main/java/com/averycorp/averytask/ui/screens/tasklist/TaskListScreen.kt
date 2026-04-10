@@ -1022,13 +1022,10 @@ private fun androidx.compose.foundation.lazy.LazyListScope.reorderableTaskItemWi
                         )
                     },
                     showDragHandle = true,
-                    dragHandleModifier = Modifier.longPressDraggableHandle(
+                    dragHandleModifier = Modifier.draggableHandle(
                         onDragStopped = { onDragEnd() }
                     ),
                     modifier = Modifier
-                        .longPressDraggableHandle(
-                            onDragStopped = { onDragEnd() }
-                        )
                         .shadow(elevation, RoundedCornerShape(12.dp))
                         .scale(scale)
                         .alpha(alpha)
