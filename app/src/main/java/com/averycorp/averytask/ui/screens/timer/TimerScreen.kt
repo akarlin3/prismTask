@@ -33,6 +33,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -247,23 +250,23 @@ private fun TimerContent(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ModeSelector(
     uiState: TimerUiState,
     onSetMode: (TimerMode) -> Unit
 ) {
     val options = listOf(TimerMode.WORK to "Work", TimerMode.BREAK to "Break")
-    androidx.compose.material3.SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
         options.forEachIndexed { index, (mode, label) ->
-            androidx.compose.material3.SegmentedButton(
+            SegmentedButton(
                 selected = uiState.mode == mode,
                 onClick = { onSetMode(mode) },
-                shape = androidx.compose.material3.SegmentedButtonDefaults.itemShape(
+                shape = SegmentedButtonDefaults.itemShape(
                     index = index,
                     count = options.size
-                ),
-                label = { Text(label) }
-            )
+                )
+            ) { Text(label) }
         }
     }
 }
