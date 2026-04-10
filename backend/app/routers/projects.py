@@ -5,7 +5,7 @@ from sqlalchemy.orm import selectinload
 
 from app.database import get_db
 from app.middleware.auth import get_current_user
-from app.models import Goal, Project, ProjectStatus, User
+from app.models import Goal, Project, ProjectMember, ProjectStatus, User
 from app.schemas.project import (
     ProjectCreate,
     ProjectDetailResponse,
@@ -75,6 +75,16 @@ async def create_project(
     db.add(project)
     await db.flush()
     await db.refresh(project)
+
+    # Auto-create owner membership for the project creator
+    owner_member = ProjectMember(
+        project_id=project.id,
+        user_id=current_user.id,
+        role="owner",
+    )
+    db.add(owner_member)
+    await db.flush()
+
     return _project_response(project)
 
 

@@ -1,4 +1,5 @@
 import enum
+import secrets
 
 from sqlalchemy import (
     Boolean,
@@ -68,13 +69,17 @@ class User(Base):
     email = Column(String(255), unique=True, nullable=False, index=True)
     hashed_password = Column(String(255), nullable=False)
     name = Column(String(255), nullable=False)
+    display_name = Column(String(255), nullable=True)
+    avatar_url = Column(String(500), nullable=True)
     firebase_uid = Column(String(255), unique=True, nullable=True)
     created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
     goals = relationship("Goal", back_populates="user", cascade="all, delete-orphan")
     tags = relationship("Tag", back_populates="user", cascade="all, delete-orphan")
     habits = relationship("Habit", back_populates="user", cascade="all, delete-orphan")
     templates = relationship("TaskTemplate", back_populates="user", cascade="all, delete-orphan")
+    project_memberships = relationship("ProjectMember", back_populates="user")
 
 
 class Goal(Base):
@@ -112,6 +117,7 @@ class Project(Base):
     goal = relationship("Goal", back_populates="projects")
     user = relationship("User")
     tasks = relationship("Task", back_populates="project", cascade="all, delete-orphan")
+    members = relationship("ProjectMember", back_populates="project", cascade="all, delete-orphan")
 
 
 class Tag(Base):
@@ -159,6 +165,7 @@ class Task(Base):
     subtasks = relationship("Task", back_populates="parent", cascade="all, delete-orphan")
     task_tags = relationship("TaskTag", back_populates="task", cascade="all, delete-orphan")
     attachments = relationship("Attachment", back_populates="task", cascade="all, delete-orphan")
+    comments = relationship("TaskComment", back_populates="task", cascade="all, delete-orphan")
 
 
 class TaskTag(Base):
@@ -253,6 +260,74 @@ class TaskTemplate(Base):
 
     user = relationship("User", back_populates="templates")
     project = relationship("Project", foreign_keys=[template_project_id])
+
+
+class ProjectMember(Base):
+    __tablename__ = "project_members"
+    __table_args__ = (
+        UniqueConstraint("project_id", "user_id", name="uq_project_user"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    role = Column(String(20), nullable=False, default="editor")  # "owner", "editor", "viewer"
+    joined_at = Column(DateTime, server_default=func.now())
+
+    project = relationship("Project", back_populates="members")
+    user = relationship("User", back_populates="project_memberships")
+
+
+class ProjectInvite(Base):
+    __tablename__ = "project_invites"
+
+    id = Column(Integer, primary_key=True, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
+    inviter_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    invitee_email = Column(String(255), nullable=False)
+    role = Column(String(20), nullable=False, default="editor")
+    token = Column(String(64), unique=True, nullable=False, index=True)
+    status = Column(String(20), nullable=False, default="pending")  # pending, accepted, declined, expired
+    created_at = Column(DateTime, server_default=func.now())
+    expires_at = Column(DateTime, nullable=False)
+
+    project = relationship("Project")
+    inviter = relationship("User", foreign_keys=[inviter_id])
+
+    @staticmethod
+    def generate_token() -> str:
+        return secrets.token_urlsafe(48)
+
+
+class ActivityLog(Base):
+    __tablename__ = "activity_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    action = Column(String(50), nullable=False)
+    entity_type = Column(String(20), nullable=True)  # "task", "member", "comment"
+    entity_id = Column(Integer, nullable=True)
+    entity_title = Column(String(255), nullable=True)
+    metadata_json = Column(Text, nullable=True)
+    created_at = Column(DateTime, server_default=func.now(), index=True)
+
+    project = relationship("Project")
+    user = relationship("User")
+
+
+class TaskComment(Base):
+    __tablename__ = "task_comments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    task_id = Column(Integer, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    content = Column(Text, nullable=False)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    task = relationship("Task", back_populates="comments")
+    user = relationship("User")
 
 
 class AppRelease(Base):
