@@ -206,6 +206,9 @@ dependencies {
     implementation("com.google.apis:google-api-services-calendar:v3-rev20241101-2.0.0")
     implementation("com.google.http-client:google-http-client-gson:1.45.3")
 
+    // Google Play Billing
+    implementation("com.android.billingclient:billing-ktx:7.1.1")
+
     // Testing
     testImplementation("junit:junit:4.13.2")
     testImplementation("androidx.room:room-testing:2.8.4")

@@ -20,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.averycorp.averytask.data.billing.BillingManager
 import com.averycorp.averytask.data.preferences.TabPreferences
 import com.averycorp.averytask.data.preferences.ThemePreferences
 import com.averycorp.averytask.data.remote.SyncService
@@ -45,6 +46,9 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var syncService: SyncService
 
+    @Inject
+    lateinit var billingManager: BillingManager
+
     companion object {
         /** Intent extra key set by the QuickAdd widget to route deep-links. */
         const val EXTRA_LAUNCH_ACTION = "com.averycorp.averytask.LAUNCH_ACTION"
@@ -57,6 +61,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         NotificationHelper.createNotificationChannel(this)
         syncService.startAutoSync()
+        billingManager.initialize(this)
         val launchAction = intent?.getStringExtra(EXTRA_LAUNCH_ACTION)
         setContent {
             var updateInfo by remember { mutableStateOf<VersionInfo?>(null) }
