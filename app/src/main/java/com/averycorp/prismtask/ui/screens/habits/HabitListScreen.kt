@@ -71,7 +71,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.averycorp.prismtask.data.local.entity.HabitCompletionEntity
 import com.averycorp.prismtask.data.repository.HabitWithStatus
-import com.averycorp.prismtask.ui.components.EmptyState
+import com.averycorp.prismtask.ui.components.RichEmptyState
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -160,10 +160,12 @@ fun HabitListScreen(
                     .padding(padding),
                 contentAlignment = Alignment.Center
             ) {
-                EmptyState(
-                    icon = Icons.Default.FitnessCenter,
-                    title = if (selectedTab == 0) "Build Better Habits!" else "No Recurring Habits Yet",
-                    subtitle = if (selectedTab == 0) "Tap + to start tracking." else "Tap + to add a weekly, fortnightly, monthly, bimonthly, or quarterly habit.",
+                RichEmptyState(
+                    icon = "\uD83D\uDD25",
+                    title = "Start Building Habits",
+                    description = "Track daily routines and watch your streaks grow.",
+                    actionLabel = "Create Habit",
+                    onAction = { navController.navigate(PrismTaskRoute.AddEditHabit.createRoute()) },
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 32.dp)

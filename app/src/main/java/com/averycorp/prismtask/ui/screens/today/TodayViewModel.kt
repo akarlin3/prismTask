@@ -103,9 +103,17 @@ class TodayViewModel @Inject constructor(
     private suspend fun currentStartOfToday(): Long =
         DayBoundary.startOfCurrentDay(taskBehaviorPreferences.getDayStartHour().first())
 
+    private val _isLoading = MutableStateFlow(true)
+    val isLoading: StateFlow<Boolean> = _isLoading
+
     init {
         viewModelScope.launch {
             taskDao.clearExpiredPlans(currentStartOfToday())
+        }
+        viewModelScope.launch {
+            // Wait for first emission from a key data flow, then mark loading done
+            dayStart.flatMapLatest { start -> taskDao.getTodayTasks(start, start + DayBoundary.DAY_MILLIS) }.first()
+            _isLoading.value = false
         }
     }
 

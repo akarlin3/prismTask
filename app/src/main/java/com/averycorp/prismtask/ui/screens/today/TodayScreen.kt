@@ -3,7 +3,15 @@ package com.averycorp.prismtask.ui.screens.today
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
+import androidx.compose.ui.draw.scale
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
@@ -97,6 +105,10 @@ import com.averycorp.prismtask.data.local.entity.TaskEntity
 import com.averycorp.prismtask.data.repository.HabitWithStatus
 import androidx.compose.material3.AlertDialog
 import com.averycorp.prismtask.ui.components.MoveToProjectSheet
+import com.averycorp.prismtask.ui.components.HabitChipRowSkeleton
+import com.averycorp.prismtask.ui.components.ProgressHeaderSkeleton
+import com.averycorp.prismtask.ui.components.RichEmptyState
+import com.averycorp.prismtask.ui.components.TaskListSkeleton
 import com.averycorp.prismtask.ui.components.QuickAddBar
 import com.averycorp.prismtask.ui.components.QuickReschedulePopup
 import com.averycorp.prismtask.ui.navigation.PrismTaskRoute
@@ -123,6 +135,7 @@ fun TodayScreen(
     navController: NavController,
     viewModel: TodayViewModel = hiltViewModel()
 ) {
+    val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
     val overdueTasks by viewModel.overdueTasks.collectAsStateWithLifecycle()
     val todayTasks by viewModel.todayTasks.collectAsStateWithLifecycle()
     val plannedTasks by viewModel.plannedTasks.collectAsStateWithLifecycle()
@@ -146,6 +159,9 @@ fun TodayScreen(
     val totalForHeader = combinedTotal
     val allTodayDone = remember(overdueTasks, todayTasks, plannedTasks, completedToday, allHabitsCompleted) {
         overdueTasks.isEmpty() && todayTasks.isEmpty() && plannedTasks.isEmpty() && completedToday.isNotEmpty() && allHabitsCompleted
+    }
+    val nothingToday = remember(overdueTasks, todayTasks, plannedTasks, completedToday) {
+        overdueTasks.isEmpty() && todayTasks.isEmpty() && plannedTasks.isEmpty() && completedToday.isEmpty()
     }
 
     var editorSheetTaskId by remember { mutableStateOf<Long?>(null) }
@@ -182,6 +198,16 @@ fun TodayScreen(
         },
         floatingActionButtonPosition = FabPosition.End
     ) { padding ->
+        androidx.compose.animation.Crossfade(targetState = isLoading, label = "today_loading") { loading ->
+        if (loading) {
+            Column(modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp)) {
+                ProgressHeaderSkeleton()
+                Spacer(modifier = Modifier.height(16.dp))
+                TaskListSkeleton(count = 3)
+                Spacer(modifier = Modifier.height(16.dp))
+                HabitChipRowSkeleton(count = 4)
+            }
+        } else {
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
@@ -189,6 +215,24 @@ fun TodayScreen(
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
+            // "Your Day Is Clear" when there are absolutely no tasks
+            if (nothingToday && !allTodayDone) {
+                item(key = "day_clear") {
+                    RichEmptyState(
+                        icon = "\u2600\uFE0F",
+                        title = "Your Day Is Clear",
+                        description = "No tasks scheduled for today. Plan ahead or enjoy the free time!",
+                        actionLabel = "Plan Your Day",
+                        onAction = { viewModel.onShowPlanSheet() },
+                        secondaryActionLabel = "Create a Task",
+                        onSecondaryAction = {
+                            editorSheetTaskId = null
+                            showEditorSheet = true
+                        }
+                    )
+                }
+            }
+
             // All-Caught-Up celebration when there's nothing left to do (but at least one task done today)
             if (allTodayDone) {
                 item(key = "all_caught_up") {
@@ -379,6 +423,8 @@ fun TodayScreen(
                 Spacer(modifier = Modifier.height(120.dp))
             }
         }
+        } // else (not loading)
+        } // Crossfade
     }
 
     // Plan for Today bottom sheet
@@ -793,9 +839,20 @@ private fun SectionHeaderRow(
         when (badgeStyle) {
             BadgeStyle.RED_CIRCLE -> {
                 val prominent = prominentWhenCollapsed && !expanded && count > 0
+                val pulseTransition = rememberInfiniteTransition(label = "overdue_pulse")
+                val pulseScale by pulseTransition.animateFloat(
+                    initialValue = 1f,
+                    targetValue = 1.08f,
+                    animationSpec = infiniteRepeatable(
+                        animation = tween(1000, easing = FastOutSlowInEasing),
+                        repeatMode = RepeatMode.Reverse
+                    ),
+                    label = "badge_pulse"
+                )
                 Box(
                     modifier = Modifier
                         .size(if (prominent) 24.dp else 20.dp)
+                        .scale(if (count > 0) pulseScale else 1f)
                         .clip(CircleShape)
                         .background(OverdueRed),
                     contentAlignment = Alignment.Center
@@ -889,10 +946,23 @@ private fun HabitChip(
     } else {
         MaterialTheme.colorScheme.surfaceContainerHigh
     }
+    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
+    var tapped by remember { mutableStateOf(false) }
+    val chipScale by animateFloatAsState(
+        targetValue = if (tapped) 1.1f else 1f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessHigh),
+        label = "habit_scale",
+        finishedListener = { tapped = false }
+    )
     Card(
         modifier = Modifier
             .width(118.dp)
-            .clickable { onTap() },
+            .scale(chipScale)
+            .clickable {
+                tapped = true
+                haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                onTap()
+            },
         shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(containerColor = containerColor)
     ) {
@@ -1015,13 +1085,22 @@ private fun SwipeableTaskItem(
     onDelete: () -> Unit = {}
 ) {
     var showOverflowMenu by remember { mutableStateOf(false) }
+    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
     val dismissState = rememberSwipeToDismissBoxState(
         confirmValueChange = { value ->
             if (value == SwipeToDismissBoxValue.StartToEnd) {
+                haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
                 onComplete()
                 true
             } else false
         }
+    )
+
+    val isSwiping = dismissState.dismissDirection != SwipeToDismissBoxValue.Settled
+    val iconScale by animateFloatAsState(
+        targetValue = if (isSwiping) 1.2f else 0.8f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
+        label = "swipe_icon_scale"
     )
 
     SwipeToDismissBox(
@@ -1035,7 +1114,12 @@ private fun SwipeableTaskItem(
                     .padding(horizontal = 20.dp),
                 contentAlignment = Alignment.CenterStart
             ) {
-                Icon(Icons.Default.Check, contentDescription = null, tint = Color.White)
+                Icon(
+                    Icons.Default.Check,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.scale(iconScale)
+                )
             }
         },
         enableDismissFromEndToStart = false

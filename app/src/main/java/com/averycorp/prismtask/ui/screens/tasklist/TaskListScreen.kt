@@ -127,7 +127,8 @@ import com.averycorp.prismtask.domain.model.TaskFilter
 import com.averycorp.prismtask.ui.components.BatchEditBar
 import com.averycorp.prismtask.ui.components.BatchMoveToProjectDialog
 import com.averycorp.prismtask.ui.components.BatchTagsDialog
-import com.averycorp.prismtask.ui.components.EmptyState
+import com.averycorp.prismtask.ui.components.RichEmptyState
+import com.averycorp.prismtask.ui.components.TaskListSkeleton
 import com.averycorp.prismtask.ui.components.FilterPanel
 import com.averycorp.prismtask.ui.components.MoveToProjectSheet
 import com.averycorp.prismtask.ui.components.QuickAddBar
@@ -167,6 +168,7 @@ fun TaskListScreen(
     navController: NavController,
     viewModel: TaskListViewModel = hiltViewModel()
 ) {
+    val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
     val filteredTasks by viewModel.filteredTasks.collectAsStateWithLifecycle()
     val groupedTasks by viewModel.groupedTasks.collectAsStateWithLifecycle()
     val tasksByProject by viewModel.tasksByProject.collectAsStateWithLifecycle()
@@ -664,6 +666,10 @@ fun TaskListScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
+            if (isLoading) {
+                TaskListSkeleton(count = 8)
+                return@Column
+            }
             ProjectFilterRow(
                 projects = projects,
                 selectedProjectId = selectedProjectId,
@@ -699,25 +705,28 @@ fun TaskListScreen(
             // every group is empty, so users can still see and drop tasks
             // onto project sections. Skip the empty-state screen in that case.
             if (allTasks.isEmpty() && !isByProjectView) {
-                if (currentFilter.isActive()) {
-                    EmptyState(
-                        icon = Icons.Default.FilterList,
-                        title = "No Tasks Match Your Filters",
-                        subtitle = "Try adjusting or clearing your filters",
-                        modifier = Modifier.weight(1f)
-                    )
-                } else if (selectedProjectId != null) {
-                    EmptyState(
-                        icon = Icons.Default.Search,
-                        title = "No Tasks Match Your Filters",
-                        subtitle = "Try selecting a different project",
+                if (currentFilter.isActive() || selectedProjectId != null) {
+                    RichEmptyState(
+                        icon = "\uD83D\uDD0D",
+                        title = "No Matching Tasks",
+                        description = "Try adjusting your filters or search terms.",
+                        actionLabel = "Clear Filters",
+                        onAction = { viewModel.onClearFilters() },
                         modifier = Modifier.weight(1f)
                     )
                 } else {
-                    EmptyState(
-                        icon = Icons.Default.CheckBoxOutlineBlank,
+                    RichEmptyState(
+                        icon = "\uD83D\uDCDD",
                         title = "No Tasks Yet",
-                        subtitle = "Tap + to add your first task",
+                        description = "Create your first task to get started. Try typing naturally!",
+                        actionLabel = "Create Task",
+                        onAction = {
+                            editorSheet = TaskEditorSheetState()
+                        },
+                        secondaryActionLabel = "Use a Template",
+                        onSecondaryAction = {
+                            navController.navigate(PrismTaskRoute.TemplateList.route)
+                        },
                         modifier = Modifier.weight(1f)
                     )
                 }
@@ -1098,20 +1107,29 @@ private fun androidx.compose.foundation.lazy.LazyListScope.taskItemWithSubtasks(
                 onAddSubtaskClick = {}
             )
         } else {
+            val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
             val dismissState = rememberSwipeToDismissBoxState(
                 confirmValueChange = { value ->
                     when (value) {
                         SwipeToDismissBoxValue.StartToEnd -> {
+                            haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
                             viewModel.onCompleteTaskWithUndo(task.id)
                             true
                         }
                         SwipeToDismissBoxValue.EndToStart -> {
+                            haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
                             viewModel.onDeleteTaskWithUndo(task.id)
                             true
                         }
                         SwipeToDismissBoxValue.Settled -> false
                     }
                 }
+            )
+
+            val swipeIconScale by androidx.compose.animation.core.animateFloatAsState(
+                targetValue = if (dismissState.dismissDirection != SwipeToDismissBoxValue.Settled) 1.2f else 0.8f,
+                animationSpec = androidx.compose.animation.core.spring(dampingRatio = androidx.compose.animation.core.Spring.DampingRatioMediumBouncy),
+                label = "swipe_icon_scale"
             )
 
             SwipeToDismissBox(
@@ -1144,7 +1162,8 @@ private fun androidx.compose.foundation.lazy.LazyListScope.taskItemWithSubtasks(
                         Icon(
                             imageVector = icon,
                             contentDescription = null,
-                            tint = Color.White
+                            tint = Color.White,
+                            modifier = Modifier.scale(swipeIconScale)
                         )
                     }
                 }

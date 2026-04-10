@@ -5,6 +5,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -21,6 +22,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.averycorp.prismtask.data.billing.BillingManager
+import com.averycorp.prismtask.data.preferences.OnboardingPreferences
 import com.averycorp.prismtask.data.preferences.TabPreferences
 import com.averycorp.prismtask.data.preferences.ThemePreferences
 import com.averycorp.prismtask.data.remote.SyncService
@@ -47,6 +49,9 @@ class MainActivity : ComponentActivity() {
     lateinit var syncService: SyncService
 
     @Inject
+    lateinit var onboardingPreferences: OnboardingPreferences
+
+    @Inject
     lateinit var billingManager: BillingManager
 
     companion object {
@@ -57,6 +62,7 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        installSplashScreen()
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         NotificationHelper.createNotificationChannel(this)
@@ -106,6 +112,9 @@ class MainActivity : ComponentActivity() {
             val priorityUrgent by themePreferences.getPriorityColorUrgent()
                 .collectAsStateWithLifecycle(initialValue = "")
 
+            val hasCompletedOnboarding by onboardingPreferences.hasCompletedOnboarding()
+                .collectAsStateWithLifecycle(initialValue = true)
+
             val tabOrder by tabPreferences.getTabOrder()
                 .collectAsStateWithLifecycle(initialValue = TabPreferences.DEFAULT_ORDER)
             val hiddenTabs by tabPreferences.getHiddenTabs()
@@ -148,7 +157,8 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     tabOrder = tabOrder,
                     hiddenTabs = hiddenTabs,
-                    initialLaunchAction = launchAction
+                    initialLaunchAction = launchAction,
+                    hasCompletedOnboarding = hasCompletedOnboarding
                 )
             }
         }

@@ -20,6 +20,7 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Timer
 import androidx.compose.material.icons.outlined.Today
+import androidx.compose.ui.draw.scale
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -41,6 +42,8 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.averycorp.prismtask.ui.screens.auth.AuthScreen
 import com.averycorp.prismtask.ui.screens.auth.AuthViewModel
+import com.averycorp.prismtask.ui.screens.onboarding.OnboardingScreen
+import com.averycorp.prismtask.ui.screens.onboarding.OnboardingViewModel
 import com.averycorp.prismtask.ui.screens.addedittask.AddEditTaskScreen
 import com.averycorp.prismtask.ui.screens.archive.ArchiveScreen
 import com.averycorp.prismtask.ui.screens.habits.AddEditHabitScreen
@@ -117,6 +120,7 @@ sealed class PrismTaskRoute(val route: String) {
             if (templateId != null) "templates/edit?templateId=$templateId" else "templates/edit"
     }
     data object MainTabs : PrismTaskRoute("main_tabs")
+    data object Onboarding : PrismTaskRoute("onboarding")
 }
 
 data class BottomNavItem(
@@ -142,7 +146,8 @@ fun PrismTaskNavGraph(
     navController: NavHostController = rememberNavController(),
     tabOrder: List<String> = ALL_BOTTOM_NAV_ITEMS.map { it.route },
     hiddenTabs: Set<String> = emptySet(),
-    initialLaunchAction: String? = null
+    initialLaunchAction: String? = null,
+    hasCompletedOnboarding: Boolean = true
 ) {
     // Handle deep-link intents from the QuickAdd widget: "open_templates"
     // routes straight to the Template List screen. Other launch actions
@@ -182,23 +187,51 @@ fun PrismTaskNavGraph(
                                 }
                             },
                             icon = {
+                                val iconScale by androidx.compose.animation.core.animateFloatAsState(
+                                    targetValue = if (selected) 1.1f else 1f,
+                                    animationSpec = androidx.compose.animation.core.spring(
+                                        dampingRatio = androidx.compose.animation.core.Spring.DampingRatioMediumBouncy
+                                    ),
+                                    label = "nav_icon_scale"
+                                )
                                 Icon(
                                     imageVector = if (selected) item.selectedIcon else item.unselectedIcon,
-                                    contentDescription = item.label
+                                    contentDescription = item.label,
+                                    modifier = Modifier.scale(iconScale)
                                 )
                             },
-                            label = { Text(item.label) }
+                            label = { Text(item.label) },
+                            alwaysShowLabel = true
                         )
                     }
                 }
             }
         }
     ) { innerPadding ->
+        val startDest = if (hasCompletedOnboarding) PrismTaskRoute.MainTabs.route else PrismTaskRoute.Onboarding.route
+
         NavHost(
             navController = navController,
-            startDestination = PrismTaskRoute.MainTabs.route,
+            startDestination = startDest,
             modifier = Modifier.padding(innerPadding)
         ) {
+            // Onboarding screen
+            composable(
+                route = PrismTaskRoute.Onboarding.route,
+                enterTransition = { fadeIn(animationSpec = tween(NAV_ANIM_DURATION)) },
+                exitTransition = { fadeOut(animationSpec = tween(NAV_ANIM_DURATION)) }
+            ) {
+                val onboardingViewModel: OnboardingViewModel = hiltViewModel()
+                OnboardingScreen(
+                    viewModel = onboardingViewModel,
+                    onComplete = {
+                        navController.navigate(PrismTaskRoute.MainTabs.route) {
+                            popUpTo(PrismTaskRoute.Onboarding.route) { inclusive = true }
+                        }
+                    }
+                )
+            }
+
             // Main tab screens — swipeable via HorizontalPager
             composable(
                 route = PrismTaskRoute.MainTabs.route,
@@ -230,11 +263,11 @@ fun PrismTaskNavGraph(
                             fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
                 },
                 exitTransition = {
-                    slideOutHorizontally(targetOffsetX = { -it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                    slideOutHorizontally(targetOffsetX = { -it / 3 }, animationSpec = tween(NAV_ANIM_DURATION)) +
                             fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
                 },
                 popEnterTransition = {
-                    slideInHorizontally(initialOffsetX = { -it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                    slideInHorizontally(initialOffsetX = { -it / 3 }, animationSpec = tween(NAV_ANIM_DURATION)) +
                             fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
                 },
                 popExitTransition = {
@@ -279,11 +312,11 @@ fun PrismTaskNavGraph(
                             fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
                 },
                 exitTransition = {
-                    slideOutHorizontally(targetOffsetX = { -it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                    slideOutHorizontally(targetOffsetX = { -it / 3 }, animationSpec = tween(NAV_ANIM_DURATION)) +
                             fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
                 },
                 popEnterTransition = {
-                    slideInHorizontally(initialOffsetX = { -it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                    slideInHorizontally(initialOffsetX = { -it / 3 }, animationSpec = tween(NAV_ANIM_DURATION)) +
                             fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
                 },
                 popExitTransition = {
@@ -307,11 +340,11 @@ fun PrismTaskNavGraph(
                             fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
                 },
                 exitTransition = {
-                    slideOutHorizontally(targetOffsetX = { -it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                    slideOutHorizontally(targetOffsetX = { -it / 3 }, animationSpec = tween(NAV_ANIM_DURATION)) +
                             fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
                 },
                 popEnterTransition = {
-                    slideInHorizontally(initialOffsetX = { -it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                    slideInHorizontally(initialOffsetX = { -it / 3 }, animationSpec = tween(NAV_ANIM_DURATION)) +
                             fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
                 },
                 popExitTransition = {
@@ -329,11 +362,11 @@ fun PrismTaskNavGraph(
                             fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
                 },
                 exitTransition = {
-                    slideOutHorizontally(targetOffsetX = { -it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                    slideOutHorizontally(targetOffsetX = { -it / 3 }, animationSpec = tween(NAV_ANIM_DURATION)) +
                             fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
                 },
                 popEnterTransition = {
-                    slideInHorizontally(initialOffsetX = { -it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                    slideInHorizontally(initialOffsetX = { -it / 3 }, animationSpec = tween(NAV_ANIM_DURATION)) +
                             fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
                 },
                 popExitTransition = {
@@ -351,11 +384,11 @@ fun PrismTaskNavGraph(
                             fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
                 },
                 exitTransition = {
-                    slideOutHorizontally(targetOffsetX = { -it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                    slideOutHorizontally(targetOffsetX = { -it / 3 }, animationSpec = tween(NAV_ANIM_DURATION)) +
                             fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
                 },
                 popEnterTransition = {
-                    slideInHorizontally(initialOffsetX = { -it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                    slideInHorizontally(initialOffsetX = { -it / 3 }, animationSpec = tween(NAV_ANIM_DURATION)) +
                             fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
                 },
                 popExitTransition = {
@@ -373,11 +406,11 @@ fun PrismTaskNavGraph(
                             fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
                 },
                 exitTransition = {
-                    slideOutHorizontally(targetOffsetX = { -it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                    slideOutHorizontally(targetOffsetX = { -it / 3 }, animationSpec = tween(NAV_ANIM_DURATION)) +
                             fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
                 },
                 popEnterTransition = {
-                    slideInHorizontally(initialOffsetX = { -it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                    slideInHorizontally(initialOffsetX = { -it / 3 }, animationSpec = tween(NAV_ANIM_DURATION)) +
                             fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
                 },
                 popExitTransition = {
@@ -395,11 +428,11 @@ fun PrismTaskNavGraph(
                             fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
                 },
                 exitTransition = {
-                    slideOutHorizontally(targetOffsetX = { -it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                    slideOutHorizontally(targetOffsetX = { -it / 3 }, animationSpec = tween(NAV_ANIM_DURATION)) +
                             fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
                 },
                 popEnterTransition = {
-                    slideInHorizontally(initialOffsetX = { -it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                    slideInHorizontally(initialOffsetX = { -it / 3 }, animationSpec = tween(NAV_ANIM_DURATION)) +
                             fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
                 },
                 popExitTransition = {
@@ -417,11 +450,11 @@ fun PrismTaskNavGraph(
                             fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
                 },
                 exitTransition = {
-                    slideOutHorizontally(targetOffsetX = { -it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                    slideOutHorizontally(targetOffsetX = { -it / 3 }, animationSpec = tween(NAV_ANIM_DURATION)) +
                             fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
                 },
                 popEnterTransition = {
-                    slideInHorizontally(initialOffsetX = { -it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                    slideInHorizontally(initialOffsetX = { -it / 3 }, animationSpec = tween(NAV_ANIM_DURATION)) +
                             fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
                 },
                 popExitTransition = {
@@ -439,11 +472,11 @@ fun PrismTaskNavGraph(
                             fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
                 },
                 exitTransition = {
-                    slideOutHorizontally(targetOffsetX = { -it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                    slideOutHorizontally(targetOffsetX = { -it / 3 }, animationSpec = tween(NAV_ANIM_DURATION)) +
                             fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
                 },
                 popEnterTransition = {
-                    slideInHorizontally(initialOffsetX = { -it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                    slideInHorizontally(initialOffsetX = { -it / 3 }, animationSpec = tween(NAV_ANIM_DURATION)) +
                             fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
                 },
                 popExitTransition = {
@@ -467,11 +500,11 @@ fun PrismTaskNavGraph(
                             fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
                 },
                 exitTransition = {
-                    slideOutHorizontally(targetOffsetX = { -it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                    slideOutHorizontally(targetOffsetX = { -it / 3 }, animationSpec = tween(NAV_ANIM_DURATION)) +
                             fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
                 },
                 popEnterTransition = {
-                    slideInHorizontally(initialOffsetX = { -it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                    slideInHorizontally(initialOffsetX = { -it / 3 }, animationSpec = tween(NAV_ANIM_DURATION)) +
                             fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
                 },
                 popExitTransition = {
@@ -489,11 +522,11 @@ fun PrismTaskNavGraph(
                             fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
                 },
                 exitTransition = {
-                    slideOutHorizontally(targetOffsetX = { -it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                    slideOutHorizontally(targetOffsetX = { -it / 3 }, animationSpec = tween(NAV_ANIM_DURATION)) +
                             fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
                 },
                 popEnterTransition = {
-                    slideInHorizontally(initialOffsetX = { -it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                    slideInHorizontally(initialOffsetX = { -it / 3 }, animationSpec = tween(NAV_ANIM_DURATION)) +
                             fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
                 },
                 popExitTransition = {
@@ -521,11 +554,11 @@ fun PrismTaskNavGraph(
                             fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
                 },
                 exitTransition = {
-                    slideOutHorizontally(targetOffsetX = { -it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                    slideOutHorizontally(targetOffsetX = { -it / 3 }, animationSpec = tween(NAV_ANIM_DURATION)) +
                             fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
                 },
                 popEnterTransition = {
-                    slideInHorizontally(initialOffsetX = { -it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                    slideInHorizontally(initialOffsetX = { -it / 3 }, animationSpec = tween(NAV_ANIM_DURATION)) +
                             fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
                 },
                 popExitTransition = {
@@ -549,11 +582,11 @@ fun PrismTaskNavGraph(
                             fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
                 },
                 exitTransition = {
-                    slideOutHorizontally(targetOffsetX = { -it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                    slideOutHorizontally(targetOffsetX = { -it / 3 }, animationSpec = tween(NAV_ANIM_DURATION)) +
                             fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
                 },
                 popEnterTransition = {
-                    slideInHorizontally(initialOffsetX = { -it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                    slideInHorizontally(initialOffsetX = { -it / 3 }, animationSpec = tween(NAV_ANIM_DURATION)) +
                             fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
                 },
                 popExitTransition = {
@@ -571,11 +604,11 @@ fun PrismTaskNavGraph(
                             fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
                 },
                 exitTransition = {
-                    slideOutHorizontally(targetOffsetX = { -it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                    slideOutHorizontally(targetOffsetX = { -it / 3 }, animationSpec = tween(NAV_ANIM_DURATION)) +
                             fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
                 },
                 popEnterTransition = {
-                    slideInHorizontally(initialOffsetX = { -it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                    slideInHorizontally(initialOffsetX = { -it / 3 }, animationSpec = tween(NAV_ANIM_DURATION)) +
                             fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
                 },
                 popExitTransition = {
@@ -593,11 +626,11 @@ fun PrismTaskNavGraph(
                             fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
                 },
                 exitTransition = {
-                    slideOutHorizontally(targetOffsetX = { -it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                    slideOutHorizontally(targetOffsetX = { -it / 3 }, animationSpec = tween(NAV_ANIM_DURATION)) +
                             fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
                 },
                 popEnterTransition = {
-                    slideInHorizontally(initialOffsetX = { -it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                    slideInHorizontally(initialOffsetX = { -it / 3 }, animationSpec = tween(NAV_ANIM_DURATION)) +
                             fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
                 },
                 popExitTransition = {
@@ -621,11 +654,11 @@ fun PrismTaskNavGraph(
                             fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
                 },
                 exitTransition = {
-                    slideOutHorizontally(targetOffsetX = { -it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                    slideOutHorizontally(targetOffsetX = { -it / 3 }, animationSpec = tween(NAV_ANIM_DURATION)) +
                             fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
                 },
                 popEnterTransition = {
-                    slideInHorizontally(initialOffsetX = { -it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                    slideInHorizontally(initialOffsetX = { -it / 3 }, animationSpec = tween(NAV_ANIM_DURATION)) +
                             fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
                 },
                 popExitTransition = {
@@ -643,11 +676,11 @@ fun PrismTaskNavGraph(
                             fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
                 },
                 exitTransition = {
-                    slideOutHorizontally(targetOffsetX = { -it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                    slideOutHorizontally(targetOffsetX = { -it / 3 }, animationSpec = tween(NAV_ANIM_DURATION)) +
                             fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
                 },
                 popEnterTransition = {
-                    slideInHorizontally(initialOffsetX = { -it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                    slideInHorizontally(initialOffsetX = { -it / 3 }, animationSpec = tween(NAV_ANIM_DURATION)) +
                             fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
                 },
                 popExitTransition = {
@@ -665,11 +698,11 @@ fun PrismTaskNavGraph(
                             fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
                 },
                 exitTransition = {
-                    slideOutHorizontally(targetOffsetX = { -it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                    slideOutHorizontally(targetOffsetX = { -it / 3 }, animationSpec = tween(NAV_ANIM_DURATION)) +
                             fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
                 },
                 popEnterTransition = {
-                    slideInHorizontally(initialOffsetX = { -it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                    slideInHorizontally(initialOffsetX = { -it / 3 }, animationSpec = tween(NAV_ANIM_DURATION)) +
                             fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
                 },
                 popExitTransition = {
@@ -687,11 +720,11 @@ fun PrismTaskNavGraph(
                             fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
                 },
                 exitTransition = {
-                    slideOutHorizontally(targetOffsetX = { -it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                    slideOutHorizontally(targetOffsetX = { -it / 3 }, animationSpec = tween(NAV_ANIM_DURATION)) +
                             fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
                 },
                 popEnterTransition = {
-                    slideInHorizontally(initialOffsetX = { -it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                    slideInHorizontally(initialOffsetX = { -it / 3 }, animationSpec = tween(NAV_ANIM_DURATION)) +
                             fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
                 },
                 popExitTransition = {

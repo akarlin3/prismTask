@@ -65,7 +65,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.averycorp.prismtask.data.local.dao.ProjectWithCount
 import com.averycorp.prismtask.data.local.entity.ProjectEntity
-import com.averycorp.prismtask.ui.components.EmptyState
+import com.averycorp.prismtask.ui.components.RichEmptyState
 import com.averycorp.prismtask.ui.navigation.PrismTaskRoute
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -181,10 +181,12 @@ fun ProjectListScreen(
         }
     ) { padding ->
         if (projects.isEmpty()) {
-            EmptyState(
-                icon = Icons.Default.Folder,
+            RichEmptyState(
+                icon = "\uD83D\uDCC1",
                 title = "No Projects Yet",
-                subtitle = "Tap + to create one",
+                description = "Projects help you organize related tasks together.",
+                actionLabel = "Create Project",
+                onAction = { navController.navigate(PrismTaskRoute.AddEditProject.createRoute()) },
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding)

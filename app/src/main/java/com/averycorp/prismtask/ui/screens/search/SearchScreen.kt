@@ -1,5 +1,6 @@
 package com.averycorp.prismtask.ui.screens.search
 
+import com.averycorp.prismtask.ui.components.RichEmptyState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -116,39 +117,20 @@ fun SearchScreen(
             )
 
             if (query.isBlank()) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(
-                            Icons.Default.Search,
-                            contentDescription = null,
-                            modifier = Modifier.size(48.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "Search tasks, tags, and projects",
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                        )
-                    }
-                }
+                RichEmptyState(
+                    icon = "\uD83D\uDD0D",
+                    title = "Search",
+                    description = "Search tasks, tags, and projects"
+                )
             } else {
                 val hasResults = taskResults.isNotEmpty() || tagResults.isNotEmpty() || projectResults.isNotEmpty()
 
                 if (!hasResults) {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "No results for '$query'",
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
+                    RichEmptyState(
+                        icon = "\uD83D\uDD0D",
+                        title = "No Results",
+                        description = "Try different keywords or check your spelling."
+                    )
                 } else {
                     LazyColumn(
                         modifier = Modifier

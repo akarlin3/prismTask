@@ -83,6 +83,9 @@ class TaskListViewModel @Inject constructor(
     private val _openTaskEditorEvents = MutableSharedFlow<Long>(extraBufferCapacity = 1)
     val openTaskEditorEvents: SharedFlow<Long> = _openTaskEditorEvents.asSharedFlow()
 
+    private val _isLoading = MutableStateFlow(true)
+    val isLoading: StateFlow<Boolean> = _isLoading
+
     private val _urgencyWeights = MutableStateFlow(UrgencyWeights())
 
     init {
@@ -113,6 +116,13 @@ class TaskListViewModel @Inject constructor(
 
     private val rootTasks: StateFlow<List<TaskEntity>> = taskRepository.getIncompleteRootTasks()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    init {
+        viewModelScope.launch {
+            taskRepository.getIncompleteRootTasks().first()
+            _isLoading.value = false
+        }
+    }
 
     // For filter: get ALL root tasks (including completed/archived) so filters can show them
     private val allRootTasks: StateFlow<List<TaskEntity>> = taskRepository.getAllTasks()

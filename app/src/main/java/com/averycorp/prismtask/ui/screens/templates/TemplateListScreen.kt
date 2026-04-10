@@ -71,7 +71,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.averycorp.prismtask.data.local.entity.TaskTemplateEntity
-import com.averycorp.prismtask.ui.components.EmptyState
+import com.averycorp.prismtask.ui.components.RichEmptyState
 import com.averycorp.prismtask.ui.navigation.PrismTaskRoute
 import com.averycorp.prismtask.ui.screens.addedittask.AddEditTaskSheetHost
 import kotlinx.coroutines.delay
@@ -565,46 +565,26 @@ private fun TemplatesEmptyState(
     hasAnyFilter: Boolean,
     onCreate: () -> Unit
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        if (hasAnyFilter) {
-            EmptyState(
-                icon = Icons.Default.ContentCopy,
-                title = "No Matching Templates",
-                subtitle = "Try a different category or search term.",
-                modifier = Modifier.fillMaxWidth()
-            )
-        } else {
-            Icon(
-                imageVector = Icons.Default.ContentCopy,
-                contentDescription = null,
-                modifier = Modifier.size(72.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                text = "No Templates Yet",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = "Create Templates to Quickly Add Tasks You Repeat Often.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(modifier = Modifier.height(24.dp))
-            Button(onClick = onCreate) {
-                Icon(Icons.Default.Add, contentDescription = null)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Create Template")
-            }
-        }
+    if (hasAnyFilter) {
+        RichEmptyState(
+            icon = "\uD83D\uDD0D",
+            title = "No Matching Templates",
+            description = "Try a different category or search term.",
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(32.dp)
+        )
+    } else {
+        RichEmptyState(
+            icon = "\uD83D\uDCCB",
+            title = "No Templates",
+            description = "Save reusable task blueprints for things you do often.",
+            actionLabel = "Create Template",
+            onAction = onCreate,
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(32.dp)
+        )
     }
 }
 
