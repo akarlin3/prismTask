@@ -5,13 +5,8 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
@@ -21,11 +16,11 @@ import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Today
 import androidx.compose.material.icons.automirrored.outlined.FormatListBulleted
 import androidx.compose.material.icons.outlined.FitnessCenter
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Timer
 import androidx.compose.material.icons.outlined.Today
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
@@ -34,9 +29,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
@@ -138,6 +131,7 @@ val ALL_BOTTOM_NAV_ITEMS = listOf(
     BottomNavItem(AveryTaskRoute.TaskList.route, "Tasks", Icons.AutoMirrored.Filled.FormatListBulleted, Icons.AutoMirrored.Outlined.FormatListBulleted),
     BottomNavItem(AveryTaskRoute.HabitList.route, "Habits", Icons.Filled.FitnessCenter, Icons.Outlined.FitnessCenter),
     BottomNavItem(AveryTaskRoute.Timer.route, "Timer", Icons.Filled.Timer, Icons.Outlined.Timer),
+    BottomNavItem(AveryTaskRoute.Settings.route, "Settings", Icons.Filled.Settings, Icons.Outlined.Settings),
 )
 
 private const val NAV_ANIM_DURATION = 300
@@ -174,33 +168,6 @@ fun AveryTaskNavGraph(
 
     Scaffold(
         modifier = modifier,
-        topBar = {
-            if (showBottomBar) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .statusBarsPadding()
-                        .padding(end = 4.dp),
-                    horizontalArrangement = Arrangement.End,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    IconButton(
-                        onClick = {
-                            navController.navigate(AveryTaskRoute.Settings.route) {
-                                launchSingleTop = true
-                            }
-                        },
-                        modifier = Modifier.size(36.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Settings,
-                            contentDescription = "Settings",
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                }
-            }
-        },
         bottomBar = {
             if (showBottomBar) {
                 NavigationBar {
@@ -251,6 +218,7 @@ fun AveryTaskNavGraph(
                         AveryTaskRoute.TaskList.route -> TaskListScreen(navController)
                         AveryTaskRoute.HabitList.route -> HabitListScreen(navController)
                         AveryTaskRoute.Timer.route -> TimerScreen(navController)
+                        AveryTaskRoute.Settings.route -> SettingsScreen(navController)
                     }
                 }
             }
@@ -295,28 +263,6 @@ fun AveryTaskNavGraph(
                 popExitTransition = { slideOutHorizontally(targetOffsetX = { it }, animationSpec = tween(NAV_ANIM_DURATION)) }
             ) {
                 SchoolworkScreen(navController)
-            }
-
-            composable(
-                route = AveryTaskRoute.Settings.route,
-                enterTransition = {
-                    slideInHorizontally(initialOffsetX = { it }, animationSpec = tween(NAV_ANIM_DURATION)) +
-                            fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
-                },
-                exitTransition = {
-                    slideOutHorizontally(targetOffsetX = { -it }, animationSpec = tween(NAV_ANIM_DURATION)) +
-                            fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
-                },
-                popEnterTransition = {
-                    slideInHorizontally(initialOffsetX = { -it }, animationSpec = tween(NAV_ANIM_DURATION)) +
-                            fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
-                },
-                popExitTransition = {
-                    slideOutHorizontally(targetOffsetX = { it }, animationSpec = tween(NAV_ANIM_DURATION)) +
-                            fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
-                }
-            ) {
-                SettingsScreen(navController)
             }
 
             // Detail screens — remain native Compose, slide transitions
