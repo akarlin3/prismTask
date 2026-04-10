@@ -200,6 +200,13 @@ class TodayViewModel @Inject constructor(
         habits.count { it.isCompletedToday }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
+    val habitTotalCount: StateFlow<Int> = todayHabits.map { it.size }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+    val allHabitsCompletedToday: StateFlow<Boolean> = todayHabits.map { habits ->
+        habits.isEmpty() || habits.all { it.isCompletedToday }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
     // Combined progress (tasks + habits)
     val combinedTotal: StateFlow<Int> = combine(totalTodayCount, todayHabits) { taskTotal, habits ->
         taskTotal + habits.size
