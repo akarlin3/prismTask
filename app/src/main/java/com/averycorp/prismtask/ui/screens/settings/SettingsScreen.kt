@@ -1657,6 +1657,24 @@ fun SettingsScreen(
                 onClick = { navController.navigate(PrismTaskRoute.SmartPomodoro.route) }
             )
 
+            SettingsRowWithSubtitle(
+                title = "Daily Briefing",
+                subtitle = "Morning summary with top priorities and suggested task order",
+                onClick = { navController.navigate(PrismTaskRoute.DailyBriefing.route) }
+            )
+
+            SettingsRowWithSubtitle(
+                title = "Weekly Planner",
+                subtitle = "AI-generated week plan distributing tasks across days",
+                onClick = { navController.navigate(PrismTaskRoute.WeeklyPlanner.route) }
+            )
+
+            SettingsRowWithSubtitle(
+                title = "Time Blocking",
+                subtitle = "Auto-schedule your day with AI-optimized time blocks",
+                onClick = { navController.navigate(PrismTaskRoute.Timeline.route) }
+            )
+
             HorizontalDivider()
 
             // ========== DEBUGGING ==========

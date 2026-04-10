@@ -66,7 +66,9 @@ import com.averycorp.prismtask.ui.screens.medication.MedicationLogScreen
 import com.averycorp.prismtask.ui.screens.medication.MedicationScreen
 import com.averycorp.prismtask.ui.screens.selfcare.SelfCareScreen
 import com.averycorp.prismtask.ui.screens.settings.SettingsScreen
+import com.averycorp.prismtask.ui.screens.briefing.DailyBriefingScreen
 import com.averycorp.prismtask.ui.screens.eisenhower.EisenhowerScreen
+import com.averycorp.prismtask.ui.screens.planner.WeeklyPlannerScreen
 import com.averycorp.prismtask.ui.screens.pomodoro.SmartPomodoroScreen
 import com.averycorp.prismtask.ui.screens.templates.AddEditTemplateScreen
 import com.averycorp.prismtask.ui.screens.templates.TemplateListScreen
@@ -118,6 +120,8 @@ sealed class PrismTaskRoute(val route: String) {
     }
     data object EisenhowerMatrix : PrismTaskRoute("eisenhower_matrix")
     data object SmartPomodoro : PrismTaskRoute("smart_pomodoro")
+    data object DailyBriefing : PrismTaskRoute("daily_briefing")
+    data object WeeklyPlanner : PrismTaskRoute("weekly_planner")
     data object TemplateList : PrismTaskRoute("templates")
     data object AddEditTemplate : PrismTaskRoute("templates/edit?templateId={templateId}") {
         fun createRoute(templateId: Long? = null): String =
@@ -743,6 +747,50 @@ fun PrismTaskNavGraph(
                 }
             ) {
                 SmartPomodoroScreen(navController)
+            }
+
+            composable(
+                route = PrismTaskRoute.DailyBriefing.route,
+                enterTransition = {
+                    slideInHorizontally(initialOffsetX = { it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
+                },
+                exitTransition = {
+                    slideOutHorizontally(targetOffsetX = { -it / 3 }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
+                },
+                popEnterTransition = {
+                    slideInHorizontally(initialOffsetX = { -it / 3 }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
+                },
+                popExitTransition = {
+                    slideOutHorizontally(targetOffsetX = { it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
+                }
+            ) {
+                DailyBriefingScreen(navController)
+            }
+
+            composable(
+                route = PrismTaskRoute.WeeklyPlanner.route,
+                enterTransition = {
+                    slideInHorizontally(initialOffsetX = { it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
+                },
+                exitTransition = {
+                    slideOutHorizontally(targetOffsetX = { -it / 3 }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
+                },
+                popEnterTransition = {
+                    slideInHorizontally(initialOffsetX = { -it / 3 }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
+                },
+                popExitTransition = {
+                    slideOutHorizontally(targetOffsetX = { it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
+                }
+            ) {
+                WeeklyPlannerScreen(navController)
             }
 
             composable(

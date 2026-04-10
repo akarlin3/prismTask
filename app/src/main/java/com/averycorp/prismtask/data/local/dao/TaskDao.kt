@@ -38,6 +38,9 @@ interface TaskDao {
     @Query("UPDATE tasks SET sort_order = :sortOrder, updated_at = :now WHERE id = :id")
     suspend fun updateSortOrder(id: Long, sortOrder: Int, now: Long = System.currentTimeMillis())
 
+    @Query("UPDATE tasks SET planned_date = :plannedDate, sort_order = :sortOrder, updated_at = :now WHERE id = :id")
+    suspend fun updatePlannedDateAndSortOrder(id: Long, plannedDate: Long, sortOrder: Int, now: Long = System.currentTimeMillis())
+
     @Query("SELECT COALESCE(MAX(sort_order), -1) FROM tasks WHERE parent_task_id IS NULL")
     suspend fun getMaxRootSortOrder(): Int
 

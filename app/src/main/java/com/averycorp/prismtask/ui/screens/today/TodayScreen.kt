@@ -39,6 +39,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.MoreVert
@@ -247,16 +249,34 @@ fun TodayScreen(
                 }
             }
 
-            // Quick action: Focus session
-            item(key = "focus_action") {
-                AssistChip(
-                    onClick = { navController.navigate(PrismTaskRoute.SmartPomodoro.route) },
-                    label = { Text("Focus") },
-                    leadingIcon = {
-                        Icon(Icons.Default.Timer, contentDescription = null, modifier = Modifier.size(16.dp))
-                    },
+            // Quick actions: Briefing + Focus
+            item(key = "quick_actions") {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.padding(vertical = 2.dp)
-                )
+                ) {
+                    AssistChip(
+                        onClick = { navController.navigate(PrismTaskRoute.DailyBriefing.route) },
+                        label = { Text("Briefing") },
+                        leadingIcon = {
+                            Icon(Icons.Default.AutoAwesome, contentDescription = null, modifier = Modifier.size(16.dp))
+                        }
+                    )
+                    AssistChip(
+                        onClick = { navController.navigate(PrismTaskRoute.SmartPomodoro.route) },
+                        label = { Text("Focus") },
+                        leadingIcon = {
+                            Icon(Icons.Default.Timer, contentDescription = null, modifier = Modifier.size(16.dp))
+                        }
+                    )
+                    AssistChip(
+                        onClick = { navController.navigate(PrismTaskRoute.WeeklyPlanner.route) },
+                        label = { Text("Plan Week") },
+                        leadingIcon = {
+                            Icon(Icons.Default.CalendarMonth, contentDescription = null, modifier = Modifier.size(16.dp))
+                        }
+                    )
+                }
             }
 
             // Overdue (special urgent treatment)

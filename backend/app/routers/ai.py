@@ -1,4 +1,4 @@
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import select
@@ -7,19 +7,30 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.middleware.auth import get_current_user
 from app.middleware.rate_limit import RateLimiter
-from app.models import Task, TaskStatus, User
+from app.models import Habit, Task, TaskStatus, User
 from app.schemas.ai import (
+    DailyBriefingRequest,
+    DailyBriefingResponse,
     EisenhowerRequest,
     EisenhowerResponse,
     EisenhowerSummary,
     PomodoroRequest,
     PomodoroResponse,
+    TimeBlockRequest,
+    TimeBlockResponse,
+    WeeklyPlanRequest,
+    WeeklyPlanResponse,
 )
 
 router = APIRouter(prefix="/ai", tags=["ai"])
 
 # Rate limiter: max 1 call per 5 minutes (300 seconds) per IP
 ai_rate_limiter = RateLimiter(max_requests=1, window_seconds=300)
+
+# Rate limiters for new AI endpoints
+briefing_rate_limiter = RateLimiter(max_requests=1, window_seconds=3600)  # 1 per hour
+weekly_plan_rate_limiter = RateLimiter(max_requests=1, window_seconds=1800)  # 1 per 30 min
+time_block_rate_limiter = RateLimiter(max_requests=1, window_seconds=900)  # 1 per 15 min
 
 
 async def _fetch_incomplete_tasks(
@@ -145,3 +156,242 @@ async def plan_pomodoro(
         raise HTTPException(status_code=500, detail="AI returned an invalid response")
 
     return PomodoroResponse(**plan)
+
+
+def _task_to_briefing_dict(task: Task) -> dict:
+    return {
+        "task_id": task.id,
+        "title": task.title,
+        "description": task.description,
+        "due_date": task.due_date.isoformat() if task.due_date else None,
+        "due_time": task.due_time.isoformat() if task.due_time else None,
+        "planned_date": task.planned_date.isoformat() if task.planned_date else None,
+        "priority": task.priority,
+        "project_id": task.project_id,
+        "eisenhower_quadrant": task.eisenhower_quadrant,
+        "urgency_score": task.urgency_score,
+        "sort_order": task.sort_order,
+    }
+
+
+@router.post("/daily-briefing", response_model=DailyBriefingResponse)
+async def daily_briefing(
+    data: DailyBriefingRequest,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    briefing_rate_limiter.check(request)
+
+    target_date = date.fromisoformat(data.date) if data.date else date.today()
+
+    # Fetch overdue tasks (past due, not completed)
+    overdue_query = select(Task).where(
+        Task.user_id == current_user.id,
+        Task.status != TaskStatus.DONE,
+        Task.status != TaskStatus.CANCELLED,
+        Task.due_date < target_date,
+    )
+    overdue_result = await db.execute(overdue_query)
+    overdue_tasks = [_task_to_briefing_dict(t) for t in overdue_result.scalars().all()]
+
+    # Fetch tasks due today
+    today_query = select(Task).where(
+        Task.user_id == current_user.id,
+        Task.status != TaskStatus.DONE,
+        Task.status != TaskStatus.CANCELLED,
+        Task.due_date == target_date,
+    )
+    today_result = await db.execute(today_query)
+    today_tasks = [_task_to_briefing_dict(t) for t in today_result.scalars().all()]
+
+    # Fetch tasks planned for today
+    planned_query = select(Task).where(
+        Task.user_id == current_user.id,
+        Task.status != TaskStatus.DONE,
+        Task.status != TaskStatus.CANCELLED,
+        Task.planned_date == target_date,
+    )
+    planned_result = await db.execute(planned_query)
+    planned_tasks = [_task_to_briefing_dict(t) for t in planned_result.scalars().all()]
+
+    # Fetch active habits
+    habits_query = select(Habit).where(
+        Habit.user_id == current_user.id,
+        Habit.is_active == True,  # noqa: E712
+    )
+    habits_result = await db.execute(habits_query)
+    habits = [{"name": h.name, "frequency": h.frequency.value} for h in habits_result.scalars().all()]
+
+    # Fetch recently completed tasks (last 24 hours)
+    yesterday = datetime.now(timezone.utc) - timedelta(hours=24)
+    completed_query = select(Task).where(
+        Task.user_id == current_user.id,
+        Task.status == TaskStatus.DONE,
+        Task.completed_at >= yesterday,
+    )
+    completed_result = await db.execute(completed_query)
+    completed_tasks = [{"task_id": t.id, "title": t.title} for t in completed_result.scalars().all()]
+
+    # Return empty briefing if no data
+    all_tasks = overdue_tasks + today_tasks + planned_tasks
+    if not all_tasks and not habits:
+        return DailyBriefingResponse(
+            greeting="Good morning! You have a clear day ahead.",
+            top_priorities=[],
+            heads_up=[],
+            suggested_order=[],
+            habit_reminders=[],
+            day_type="light",
+        )
+
+    try:
+        from app.services.ai_productivity import generate_daily_briefing as ai_briefing
+
+        result = ai_briefing(
+            today=target_date,
+            overdue_tasks=overdue_tasks,
+            today_tasks=today_tasks,
+            planned_tasks=planned_tasks,
+            habits=habits,
+            completed_tasks=completed_tasks,
+        )
+    except RuntimeError:
+        raise HTTPException(status_code=503, detail="AI service temporarily unavailable")
+    except ValueError:
+        raise HTTPException(status_code=500, detail="AI returned an invalid response")
+
+    return DailyBriefingResponse(**result)
+
+
+@router.post("/weekly-plan", response_model=WeeklyPlanResponse)
+async def weekly_plan(
+    data: WeeklyPlanRequest,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    weekly_plan_rate_limiter.check(request)
+
+    if data.week_start:
+        week_start = date.fromisoformat(data.week_start)
+    else:
+        # Default to next Monday
+        today = date.today()
+        days_until_monday = (7 - today.weekday()) % 7
+        if days_until_monday == 0:
+            days_until_monday = 7
+        week_start = today + timedelta(days=days_until_monday)
+
+    week_end = week_start + timedelta(days=6)
+
+    # Fetch all incomplete tasks
+    tasks_query = select(Task).where(
+        Task.user_id == current_user.id,
+        Task.status != TaskStatus.DONE,
+        Task.status != TaskStatus.CANCELLED,
+    ).order_by(Task.sort_order, Task.created_at)
+    tasks_result = await db.execute(tasks_query)
+    all_tasks = [_task_to_briefing_dict(t) for t in tasks_result.scalars().all()]
+
+    # Fetch recurring tasks
+    recurring_query = select(Task).where(
+        Task.user_id == current_user.id,
+        Task.status != TaskStatus.DONE,
+        Task.status != TaskStatus.CANCELLED,
+        Task.recurrence_json.isnot(None),
+    )
+    recurring_result = await db.execute(recurring_query)
+    recurring_tasks = [_task_to_briefing_dict(t) for t in recurring_result.scalars().all()]
+
+    if not all_tasks:
+        return WeeklyPlanResponse(
+            plan={},
+            unscheduled=[],
+            week_summary="No tasks to plan for this week.",
+            tips=[],
+        )
+
+    try:
+        from app.services.ai_productivity import generate_weekly_plan as ai_plan
+
+        result = ai_plan(
+            week_start=week_start,
+            week_end=week_end,
+            work_days=data.preferences.work_days,
+            focus_hours_per_day=data.preferences.focus_hours_per_day,
+            prefer_front_loading=data.preferences.prefer_front_loading,
+            tasks=all_tasks,
+            recurring_tasks=recurring_tasks,
+        )
+    except RuntimeError:
+        raise HTTPException(status_code=503, detail="AI service temporarily unavailable")
+    except ValueError:
+        raise HTTPException(status_code=500, detail="AI returned an invalid response")
+
+    return WeeklyPlanResponse(**result)
+
+
+@router.post("/time-block", response_model=TimeBlockResponse)
+async def time_block(
+    data: TimeBlockRequest,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    time_block_rate_limiter.check(request)
+
+    target_date = date.fromisoformat(data.date) if data.date else date.today()
+
+    # Fetch tasks for the date: due today, planned today, or overdue
+    tasks_query = select(Task).where(
+        Task.user_id == current_user.id,
+        Task.status != TaskStatus.DONE,
+        Task.status != TaskStatus.CANCELLED,
+    ).where(
+        (Task.due_date == target_date)
+        | (Task.planned_date == target_date)
+        | (Task.due_date < target_date)
+    ).order_by(Task.sort_order, Task.created_at)
+    tasks_result = await db.execute(tasks_query)
+    tasks = [_task_to_briefing_dict(t) for t in tasks_result.scalars().all()]
+
+    if not tasks:
+        from app.schemas.ai import TimeBlockStats
+
+        return TimeBlockResponse(
+            schedule=[],
+            unscheduled_tasks=[],
+            stats=TimeBlockStats(
+                total_work_minutes=0,
+                total_break_minutes=0,
+                total_free_minutes=0,
+                tasks_scheduled=0,
+                tasks_deferred=0,
+            ),
+        )
+
+    # Calendar events are not stored in the backend DB currently,
+    # so pass an empty list (can be extended when calendar sync is added)
+    calendar_events: list[dict] = []
+
+    try:
+        from app.services.ai_productivity import generate_time_blocks as ai_time_block
+
+        result = ai_time_block(
+            target_date=target_date,
+            day_start=data.day_start,
+            day_end=data.day_end,
+            block_size_minutes=data.block_size_minutes,
+            include_breaks=data.include_breaks,
+            break_frequency_minutes=data.break_frequency_minutes,
+            break_duration_minutes=data.break_duration_minutes,
+            tasks=tasks,
+            calendar_events=calendar_events,
+        )
+    except RuntimeError:
+        raise HTTPException(status_code=503, detail="AI service temporarily unavailable")
+    except ValueError:
+        raise HTTPException(status_code=500, detail="AI returned an invalid response")
+
+    return TimeBlockResponse(**result)

@@ -1,0 +1,136 @@
+package com.averycorp.prismtask.ui.screens.briefing
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.averycorp.prismtask.data.local.dao.TaskDao
+import com.averycorp.prismtask.data.remote.api.DailyBriefingRequest
+import com.averycorp.prismtask.data.remote.api.PrismTaskApi
+import com.averycorp.prismtask.domain.usecase.ProFeatureGate
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import javax.inject.Inject
+
+data class BriefingPriority(
+    val taskId: Long,
+    val title: String,
+    val reason: String
+)
+
+data class SuggestedTask(
+    val taskId: Long,
+    val title: String,
+    val suggestedTime: String,
+    val reason: String
+)
+
+data class DailyBriefing(
+    val greeting: String,
+    val dayType: String,
+    val topPriorities: List<BriefingPriority>,
+    val headsUp: List<String>,
+    val suggestedOrder: List<SuggestedTask>,
+    val habitReminders: List<String>
+)
+
+@HiltViewModel
+class DailyBriefingViewModel @Inject constructor(
+    private val api: PrismTaskApi,
+    private val taskDao: TaskDao,
+    private val proFeatureGate: ProFeatureGate
+) : ViewModel() {
+
+    val isPro: StateFlow<Boolean> = proFeatureGate.isPro
+
+    private val _briefing = MutableStateFlow<DailyBriefing?>(null)
+    val briefing: StateFlow<DailyBriefing?> = _briefing
+
+    private val _isLoading = MutableStateFlow(false)
+    val isLoading: StateFlow<Boolean> = _isLoading
+
+    private val _error = MutableStateFlow<String?>(null)
+    val error: StateFlow<String?> = _error
+
+    private val _showUpgradePrompt = MutableStateFlow(false)
+    val showUpgradePrompt: StateFlow<Boolean> = _showUpgradePrompt
+
+    private val _orderApplied = MutableStateFlow(false)
+    val orderApplied: StateFlow<Boolean> = _orderApplied
+
+    private var cachedDate: String? = null
+
+    fun dismissUpgradePrompt() {
+        _showUpgradePrompt.value = false
+    }
+
+    fun generateBriefing(date: String? = null) {
+        if (!proFeatureGate.requirePro(ProFeatureGate.AI_BRIEFING)) {
+            _showUpgradePrompt.value = true
+            return
+        }
+
+        val targetDate = date ?: LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE)
+
+        // Use cache if available for the same date
+        if (cachedDate == targetDate && _briefing.value != null) {
+            return
+        }
+
+        viewModelScope.launch {
+            _isLoading.value = true
+            _error.value = null
+            _orderApplied.value = false
+            try {
+                val response = api.getDailyBriefing(DailyBriefingRequest(date = targetDate))
+                _briefing.value = DailyBriefing(
+                    greeting = response.greeting,
+                    dayType = response.dayType,
+                    topPriorities = response.topPriorities.map { p ->
+                        BriefingPriority(p.taskId, p.title, p.reason)
+                    },
+                    headsUp = response.headsUp,
+                    suggestedOrder = response.suggestedOrder.map { s ->
+                        SuggestedTask(s.taskId, s.title, s.suggestedTime, s.reason)
+                    },
+                    habitReminders = response.habitReminders
+                )
+                cachedDate = targetDate
+            } catch (e: Exception) {
+                _error.value = e.message ?: "Failed to generate briefing"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    fun refreshBriefing() {
+        cachedDate = null
+        _briefing.value = null
+        generateBriefing()
+    }
+
+    fun applyOrder() {
+        val briefing = _briefing.value ?: return
+        viewModelScope.launch {
+            try {
+                val today = System.currentTimeMillis()
+                val updates = briefing.suggestedOrder.mapIndexed { index, task ->
+                    Pair(task.taskId, index)
+                }
+                for ((taskId, sortOrder) in updates) {
+                    taskDao.updatePlannedDateAndSortOrder(taskId, today, sortOrder)
+                }
+                _orderApplied.value = true
+            } catch (e: Exception) {
+                _error.value = e.message ?: "Failed to apply order"
+            }
+        }
+    }
+
+    fun clearError() {
+        _error.value = null
+    }
+}

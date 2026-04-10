@@ -126,6 +126,117 @@ data class PomodoroResponse(
 
 // endregion
 
+// region AI Daily Briefing
+
+data class DailyBriefingRequest(
+    val date: String? = null
+)
+
+data class BriefingPriorityResponse(
+    @SerializedName("task_id") val taskId: Long,
+    val title: String,
+    val reason: String
+)
+
+data class SuggestedTaskResponse(
+    @SerializedName("task_id") val taskId: Long,
+    val title: String,
+    @SerializedName("suggested_time") val suggestedTime: String,
+    val reason: String
+)
+
+data class DailyBriefingResponse(
+    val greeting: String,
+    @SerializedName("top_priorities") val topPriorities: List<BriefingPriorityResponse>,
+    @SerializedName("heads_up") val headsUp: List<String> = emptyList(),
+    @SerializedName("suggested_order") val suggestedOrder: List<SuggestedTaskResponse>,
+    @SerializedName("habit_reminders") val habitReminders: List<String> = emptyList(),
+    @SerializedName("day_type") val dayType: String
+)
+
+// endregion
+
+// region AI Weekly Plan
+
+data class WeeklyPlanPreferencesRequest(
+    @SerializedName("work_days") val workDays: List<String> = listOf("MO", "TU", "WE", "TH", "FR"),
+    @SerializedName("focus_hours_per_day") val focusHoursPerDay: Int = 6,
+    @SerializedName("prefer_front_loading") val preferFrontLoading: Boolean = true
+)
+
+data class WeeklyPlanRequest(
+    @SerializedName("week_start") val weekStart: String? = null,
+    val preferences: WeeklyPlanPreferencesRequest = WeeklyPlanPreferencesRequest()
+)
+
+data class PlannedTaskResponse(
+    @SerializedName("task_id") val taskId: Long,
+    val title: String,
+    @SerializedName("suggested_time") val suggestedTime: String,
+    @SerializedName("duration_minutes") val durationMinutes: Int,
+    val reason: String
+)
+
+data class DayPlanResponse(
+    val date: String,
+    val tasks: List<PlannedTaskResponse>,
+    @SerializedName("total_hours") val totalHours: Double,
+    @SerializedName("calendar_events") val calendarEvents: List<String> = emptyList(),
+    val habits: List<String> = emptyList()
+)
+
+data class UnscheduledTaskResponse(
+    @SerializedName("task_id") val taskId: Long,
+    val title: String,
+    val reason: String
+)
+
+data class WeeklyPlanResponse(
+    val plan: Map<String, DayPlanResponse>,
+    val unscheduled: List<UnscheduledTaskResponse> = emptyList(),
+    @SerializedName("week_summary") val weekSummary: String,
+    val tips: List<String> = emptyList()
+)
+
+// endregion
+
+// region AI Time Block
+
+data class TimeBlockRequest(
+    val date: String? = null,
+    @SerializedName("day_start") val dayStart: String = "09:00",
+    @SerializedName("day_end") val dayEnd: String = "18:00",
+    @SerializedName("block_size_minutes") val blockSizeMinutes: Int = 30,
+    @SerializedName("include_breaks") val includeBreaks: Boolean = true,
+    @SerializedName("break_frequency_minutes") val breakFrequencyMinutes: Int = 90,
+    @SerializedName("break_duration_minutes") val breakDurationMinutes: Int = 15
+)
+
+data class ScheduleBlockResponse(
+    val start: String,
+    val end: String,
+    val type: String,
+    @SerializedName("task_id") val taskId: Long?,
+    val title: String,
+    val reason: String
+)
+
+data class TimeBlockStatsResponse(
+    @SerializedName("total_work_minutes") val totalWorkMinutes: Int,
+    @SerializedName("total_break_minutes") val totalBreakMinutes: Int,
+    @SerializedName("total_free_minutes") val totalFreeMinutes: Int,
+    @SerializedName("tasks_scheduled") val tasksScheduled: Int,
+    @SerializedName("tasks_deferred") val tasksDeferred: Int
+)
+
+data class TimeBlockResponse(
+    val schedule: List<ScheduleBlockResponse>,
+    @SerializedName("unscheduled_tasks") val unscheduledTasks: List<UnscheduledTaskResponse> = emptyList(),
+    val stats: TimeBlockStatsResponse
+)
+
+// endregion
+
 // region Export / Import
 
 data class ImportResponse(

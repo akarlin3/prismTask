@@ -10,8 +10,11 @@ import com.averycorp.prismtask.data.local.dao.TaskDao
 import com.averycorp.prismtask.data.local.entity.ProjectEntity
 import com.averycorp.prismtask.data.local.entity.TaskEntity
 import com.averycorp.prismtask.data.preferences.SortPreferences
+import com.averycorp.prismtask.data.remote.api.PrismTaskApi
+import com.averycorp.prismtask.data.remote.api.TimeBlockRequest
 import com.averycorp.prismtask.data.repository.ProjectRepository
 import com.averycorp.prismtask.data.repository.TaskRepository
+import com.averycorp.prismtask.domain.usecase.ProFeatureGate
 import com.averycorp.prismtask.ui.components.QuickRescheduleFormatter
 import kotlinx.coroutines.flow.first
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -26,6 +29,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import javax.inject.Inject
 
 data class TimeBlock(
@@ -38,14 +42,68 @@ data class TimeBlock(
     val color: String
 )
 
+data class TimeBlockConfig(
+    val dayStart: String = "09:00",
+    val dayEnd: String = "18:00",
+    val blockSizeMinutes: Int = 30,
+    val includeBreaks: Boolean = true,
+    val breakFrequencyMinutes: Int = 90,
+    val breakDurationMinutes: Int = 15
+)
+
+data class AiScheduleBlock(
+    val start: String,
+    val end: String,
+    val type: String,
+    val taskId: Long?,
+    val title: String,
+    val reason: String
+)
+
+data class AiTimeBlockStats(
+    val totalWorkMinutes: Int,
+    val totalBreakMinutes: Int,
+    val totalFreeMinutes: Int,
+    val tasksScheduled: Int,
+    val tasksDeferred: Int
+)
+
+data class AiSchedule(
+    val blocks: List<AiScheduleBlock>,
+    val unscheduledTasks: List<Pair<Long, String>>,
+    val stats: AiTimeBlockStats
+)
+
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class TimelineViewModel @Inject constructor(
     private val taskDao: TaskDao,
     private val taskRepository: TaskRepository,
     private val projectRepository: ProjectRepository,
-    private val sortPreferences: SortPreferences
+    private val sortPreferences: SortPreferences,
+    private val api: PrismTaskApi,
+    private val proFeatureGate: ProFeatureGate
 ) : ViewModel() {
+
+    val isPro: StateFlow<Boolean> = proFeatureGate.isPro
+
+    private val _timeBlockConfig = MutableStateFlow(TimeBlockConfig())
+    val timeBlockConfig: StateFlow<TimeBlockConfig> = _timeBlockConfig
+
+    private val _aiSchedule = MutableStateFlow<AiSchedule?>(null)
+    val aiSchedule: StateFlow<AiSchedule?> = _aiSchedule
+
+    private val _isGeneratingSchedule = MutableStateFlow(false)
+    val isGeneratingSchedule: StateFlow<Boolean> = _isGeneratingSchedule
+
+    private val _showTimeBlockSheet = MutableStateFlow(false)
+    val showTimeBlockSheet: StateFlow<Boolean> = _showTimeBlockSheet
+
+    private val _showUpgradePrompt = MutableStateFlow(false)
+    val showUpgradePrompt: StateFlow<Boolean> = _showUpgradePrompt
+
+    private val _scheduleError = MutableStateFlow<String?>(null)
+    val scheduleError: StateFlow<String?> = _scheduleError
 
     val snackbarHostState = SnackbarHostState()
 
@@ -264,4 +322,115 @@ class TimelineViewModel @Inject constructor(
 
     suspend fun getSubtaskCount(taskId: Long): Int =
         taskRepository.getSubtasks(taskId).first().size
+
+    // Time blocking methods
+
+    fun showAutoScheduleSheet() {
+        if (!proFeatureGate.requirePro(ProFeatureGate.AI_TIME_BLOCK)) {
+            _showUpgradePrompt.value = true
+            return
+        }
+        _showTimeBlockSheet.value = true
+    }
+
+    fun dismissTimeBlockSheet() {
+        _showTimeBlockSheet.value = false
+    }
+
+    fun dismissUpgradePrompt() {
+        _showUpgradePrompt.value = false
+    }
+
+    fun updateTimeBlockConfig(config: TimeBlockConfig) {
+        _timeBlockConfig.value = config
+    }
+
+    fun generateTimeBlocks() {
+        viewModelScope.launch {
+            _isGeneratingSchedule.value = true
+            _scheduleError.value = null
+            _showTimeBlockSheet.value = false
+            try {
+                val cfg = _timeBlockConfig.value
+                val dateStr = _currentDate.value.format(DateTimeFormatter.ISO_LOCAL_DATE)
+                val response = api.getTimeBlock(
+                    TimeBlockRequest(
+                        date = dateStr,
+                        dayStart = cfg.dayStart,
+                        dayEnd = cfg.dayEnd,
+                        blockSizeMinutes = cfg.blockSizeMinutes,
+                        includeBreaks = cfg.includeBreaks,
+                        breakFrequencyMinutes = cfg.breakFrequencyMinutes,
+                        breakDurationMinutes = cfg.breakDurationMinutes
+                    )
+                )
+                _aiSchedule.value = AiSchedule(
+                    blocks = response.schedule.map { block ->
+                        AiScheduleBlock(
+                            start = block.start,
+                            end = block.end,
+                            type = block.type,
+                            taskId = block.taskId,
+                            title = block.title,
+                            reason = block.reason
+                        )
+                    },
+                    unscheduledTasks = response.unscheduledTasks.map { it.taskId to it.title },
+                    stats = AiTimeBlockStats(
+                        totalWorkMinutes = response.stats.totalWorkMinutes,
+                        totalBreakMinutes = response.stats.totalBreakMinutes,
+                        totalFreeMinutes = response.stats.totalFreeMinutes,
+                        tasksScheduled = response.stats.tasksScheduled,
+                        tasksDeferred = response.stats.tasksDeferred
+                    )
+                )
+            } catch (e: Exception) {
+                _scheduleError.value = e.message ?: "Failed to generate schedule"
+            } finally {
+                _isGeneratingSchedule.value = false
+            }
+        }
+    }
+
+    fun applyAiSchedule() {
+        val schedule = _aiSchedule.value ?: return
+        viewModelScope.launch {
+            try {
+                val date = _currentDate.value
+                val dayStartMillis = date.atStartOfDay(zone).toInstant().toEpochMilli()
+
+                for (block in schedule.blocks) {
+                    if (block.type == "task" && block.taskId != null) {
+                        val startParts = block.start.split(":")
+                        val startMinutes = startParts[0].toInt() * 60 + startParts[1].toInt()
+                        val startMillis = dayStartMillis + startMinutes * 60 * 1000L
+
+                        val endParts = block.end.split(":")
+                        val endMinutes = endParts[0].toInt() * 60 + endParts[1].toInt()
+                        val durationMin = endMinutes - startMinutes
+
+                        val task = taskDao.getTaskByIdOnce(block.taskId) ?: continue
+                        taskDao.update(
+                            task.copy(
+                                scheduledStartTime = startMillis,
+                                estimatedDuration = durationMin,
+                                updatedAt = System.currentTimeMillis()
+                            )
+                        )
+                    }
+                }
+                snackbarHostState.showSnackbar("Schedule applied!", duration = SnackbarDuration.Short)
+            } catch (e: Exception) {
+                _scheduleError.value = e.message ?: "Failed to apply schedule"
+            }
+        }
+    }
+
+    fun resetAiSchedule() {
+        _aiSchedule.value = null
+    }
+
+    fun clearScheduleError() {
+        _scheduleError.value = null
+    }
 }

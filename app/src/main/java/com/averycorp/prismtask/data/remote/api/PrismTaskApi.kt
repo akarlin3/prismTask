@@ -46,6 +46,15 @@ interface PrismTaskApi {
     @POST("api/v1/ai/pomodoro-plan")
     suspend fun planPomodoro(@Body request: PomodoroRequest): PomodoroResponse
 
+    @POST("api/v1/ai/daily-briefing")
+    suspend fun getDailyBriefing(@Body request: DailyBriefingRequest): DailyBriefingResponse
+
+    @POST("api/v1/ai/weekly-plan")
+    suspend fun getWeeklyPlan(@Body request: WeeklyPlanRequest): WeeklyPlanResponse
+
+    @POST("api/v1/ai/time-block")
+    suspend fun getTimeBlock(@Body request: TimeBlockRequest): TimeBlockResponse
+
     @GET("api/v1/export/json")
     suspend fun exportJson(): ResponseBody
 

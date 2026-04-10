@@ -23,6 +23,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Today
@@ -96,6 +97,9 @@ fun TimelineScreen(
     var showEditorSheet by remember { mutableStateOf(false) }
     var reschedulePopupTask by remember { mutableStateOf<TaskEntity?>(null) }
     var moveToProjectSheetTask by remember { mutableStateOf<TaskEntity?>(null) }
+    val aiSchedule by viewModel.aiSchedule.collectAsStateWithLifecycle()
+    val isGeneratingSchedule by viewModel.isGeneratingSchedule.collectAsStateWithLifecycle()
+    val showUpgradePrompt by viewModel.showUpgradePrompt.collectAsStateWithLifecycle()
     var cascadeConfirmState by remember { mutableStateOf<Pair<TaskEntity, Long?>?>(null) }
     val projects by viewModel.projects.collectAsStateWithLifecycle()
     val taskCountByProject by viewModel.taskCountByProject.collectAsStateWithLifecycle()
@@ -127,6 +131,16 @@ fun TimelineScreen(
                     }
                 },
                 actions = {
+                    if (isGeneratingSchedule) {
+                        androidx.compose.material3.CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp).padding(end = 4.dp),
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        IconButton(onClick = { viewModel.showAutoScheduleSheet() }) {
+                            Icon(Icons.Default.AutoAwesome, "Auto-Schedule")
+                        }
+                    }
                     IconButton(onClick = { viewModel.onGoToToday() }) {
                         Icon(Icons.Default.Today, "Go to today")
                     }
@@ -144,11 +158,43 @@ fun TimelineScreen(
             val scheduledMinutes = scheduledBlocks.sumOf { ((it.endTime - it.startTime) / 60000).toInt() }
             val scheduledHours = scheduledMinutes / 60f
             Text(
-                text = "${scheduledBlocks.size} scheduled · ${String.format("%.1f", scheduledHours)} hrs",
+                text = "${scheduledBlocks.size} scheduled \u00B7 ${String.format("%.1f", scheduledHours)} hrs",
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
             )
+
+            // AI schedule stats (when generated)
+            if (aiSchedule != null) {
+                val stats = aiSchedule!!.stats
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f))
+                        .padding(horizontal = 16.dp, vertical = 6.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = "${stats.tasksScheduled} tasks \u00B7 ${stats.totalWorkMinutes / 60}h work \u00B7 ${stats.totalBreakMinutes}m breaks \u00B7 ${stats.totalFreeMinutes}m free",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        TextButton(
+                            onClick = { viewModel.applyAiSchedule() },
+                            modifier = Modifier.height(28.dp)
+                        ) {
+                            Text("Apply", style = MaterialTheme.typography.labelSmall)
+                        }
+                        TextButton(
+                            onClick = { viewModel.resetAiSchedule() },
+                            modifier = Modifier.height(28.dp)
+                        ) {
+                            Text("Reset", style = MaterialTheme.typography.labelSmall)
+                        }
+                    }
+                }
+            }
 
             // Timeline area
             Box(
@@ -507,5 +553,141 @@ fun TimelineScreen(
                 }) { Text("No, Just This") }
             }
         )
+    }
+
+    val showTimeBlockSheet by viewModel.showTimeBlockSheet.collectAsStateWithLifecycle()
+    if (showTimeBlockSheet) {
+        TimeBlockConfigSheet(
+            config = viewModel.timeBlockConfig.collectAsStateWithLifecycle().value,
+            onConfigChanged = { viewModel.updateTimeBlockConfig(it) },
+            onGenerate = { viewModel.generateTimeBlocks() },
+            onDismiss = { viewModel.dismissTimeBlockSheet() }
+        )
+    }
+
+    if (showUpgradePrompt) {
+        AlertDialog(
+            onDismissRequest = { viewModel.dismissUpgradePrompt() },
+            title = { Text("Pro Feature") },
+            text = { Text("AI time blocking is a Pro feature. Upgrade to unlock AI-powered scheduling.") },
+            confirmButton = {
+                TextButton(onClick = { viewModel.dismissUpgradePrompt() }) {
+                    Text("OK")
+                }
+            }
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TimeBlockConfigSheet(
+    config: TimeBlockConfig,
+    onConfigChanged: (TimeBlockConfig) -> Unit,
+    onGenerate: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val sheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    androidx.compose.material3.ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp, vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Text(
+                text = "Auto-Schedule",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+
+            // Day start/end
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column {
+                    Text("Day Start", style = MaterialTheme.typography.labelMedium)
+                    Text(config.dayStart, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                }
+                Column {
+                    Text("Day End", style = MaterialTheme.typography.labelMedium)
+                    Text(config.dayEnd, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                }
+            }
+
+            // Block size
+            Text("Block Size", style = MaterialTheme.typography.labelMedium)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf(15, 30, 45, 60).forEach { size ->
+                    androidx.compose.material3.FilterChip(
+                        selected = config.blockSizeMinutes == size,
+                        onClick = { onConfigChanged(config.copy(blockSizeMinutes = size)) },
+                        label = { Text("${size}m") }
+                    )
+                }
+            }
+
+            // Breaks toggle
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("Include Breaks", style = MaterialTheme.typography.labelMedium)
+                androidx.compose.material3.Switch(
+                    checked = config.includeBreaks,
+                    onCheckedChange = { onConfigChanged(config.copy(includeBreaks = it)) }
+                )
+            }
+
+            if (config.includeBreaks) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column {
+                        Text("Break Every", style = MaterialTheme.typography.labelSmall)
+                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            listOf(60, 90, 120).forEach { freq ->
+                                androidx.compose.material3.FilterChip(
+                                    selected = config.breakFrequencyMinutes == freq,
+                                    onClick = { onConfigChanged(config.copy(breakFrequencyMinutes = freq)) },
+                                    label = { Text("${freq}m", style = MaterialTheme.typography.labelSmall) }
+                                )
+                            }
+                        }
+                    }
+                    Column {
+                        Text("Break Length", style = MaterialTheme.typography.labelSmall)
+                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            listOf(5, 10, 15).forEach { dur ->
+                                androidx.compose.material3.FilterChip(
+                                    selected = config.breakDurationMinutes == dur,
+                                    onClick = { onConfigChanged(config.copy(breakDurationMinutes = dur)) },
+                                    label = { Text("${dur}m", style = MaterialTheme.typography.labelSmall) }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(8.dp))
+
+            androidx.compose.material3.Button(
+                onClick = onGenerate,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(Icons.Default.AutoAwesome, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("Generate Schedule")
+            }
+
+            Spacer(Modifier.height(16.dp))
+        }
     }
 }
