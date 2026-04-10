@@ -2,6 +2,7 @@ package com.averycorp.prismtask.data.remote.mapper
 
 import com.averycorp.prismtask.data.local.entity.HabitCompletionEntity
 import com.averycorp.prismtask.data.local.entity.HabitEntity
+import com.averycorp.prismtask.data.local.entity.HabitLogEntity
 import com.averycorp.prismtask.data.local.entity.ProjectEntity
 import com.averycorp.prismtask.data.local.entity.TagEntity
 import com.averycorp.prismtask.data.local.entity.TaskEntity
@@ -113,6 +114,10 @@ object SyncMapper {
         "hasLogging" to habit.hasLogging,
         "trackBooking" to habit.trackBooking,
         "trackPreviousPeriod" to habit.trackPreviousPeriod,
+        "isBookable" to habit.isBookable,
+        "isBooked" to habit.isBooked,
+        "bookedDate" to habit.bookedDate,
+        "bookedNote" to habit.bookedNote,
         "createdAt" to habit.createdAt,
         "updatedAt" to habit.updatedAt
     )
@@ -136,6 +141,10 @@ object SyncMapper {
         hasLogging = data["hasLogging"] as? Boolean ?: false,
         trackBooking = data["trackBooking"] as? Boolean ?: false,
         trackPreviousPeriod = data["trackPreviousPeriod"] as? Boolean ?: false,
+        isBookable = data["isBookable"] as? Boolean ?: false,
+        isBooked = data["isBooked"] as? Boolean ?: false,
+        bookedDate = (data["bookedDate"] as? Number)?.toLong(),
+        bookedNote = data["bookedNote"] as? String,
         createdAt = (data["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
         updatedAt = (data["updatedAt"] as? Number)?.toLong() ?: System.currentTimeMillis()
     )
@@ -155,6 +164,23 @@ object SyncMapper {
             completedDate = (data["completedDate"] as? Number)?.toLong() ?: 0,
             completedAt = (data["completedAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
             notes = data["notes"] as? String
+        )
+
+    fun habitLogToMap(log: HabitLogEntity, habitCloudId: String): Map<String, Any?> = mapOf(
+        "localId" to log.id,
+        "habitCloudId" to habitCloudId,
+        "date" to log.date,
+        "notes" to log.notes,
+        "createdAt" to log.createdAt
+    )
+
+    fun mapToHabitLog(data: Map<String, Any?>, localId: Long = 0, habitLocalId: Long = 0): HabitLogEntity =
+        HabitLogEntity(
+            id = localId,
+            habitId = habitLocalId,
+            date = (data["date"] as? Number)?.toLong() ?: 0,
+            notes = data["notes"] as? String,
+            createdAt = (data["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis()
         )
 
     fun taskTemplateToMap(template: TaskTemplateEntity): Map<String, Any?> = mapOf(

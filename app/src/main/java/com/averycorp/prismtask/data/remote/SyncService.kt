@@ -3,6 +3,7 @@ package com.averycorp.prismtask.data.remote
 import android.util.Log
 import com.averycorp.prismtask.data.local.dao.HabitCompletionDao
 import com.averycorp.prismtask.data.local.dao.HabitDao
+import com.averycorp.prismtask.data.local.dao.HabitLogDao
 import com.averycorp.prismtask.data.local.dao.SyncMetadataDao
 import com.averycorp.prismtask.data.local.dao.TagDao
 import com.averycorp.prismtask.data.local.dao.TaskDao
@@ -31,6 +32,7 @@ class SyncService @Inject constructor(
     private val syncMetadataDao: SyncMetadataDao,
     private val habitDao: HabitDao,
     private val habitCompletionDao: HabitCompletionDao,
+    private val habitLogDao: HabitLogDao,
     private val taskTemplateDao: TaskTemplateDao,
     private val proFeatureGate: ProFeatureGate
 ) {
@@ -92,6 +94,20 @@ class SyncService @Inject constructor(
             }
         }
 
+        // Upload habit logs
+        for (habit in habits) {
+            val logs = habitLogDao.getAllLogsOnce().filter { it.habitId == habit.id }
+            val habitCloudId = syncMetadataDao.getCloudId(habit.id, "habit") ?: continue
+            for (log in logs) {
+                val docRef = userCollection("habit_logs")?.document() ?: continue
+                docRef.set(SyncMapper.habitLogToMap(log, habitCloudId)).await()
+                syncMetadataDao.upsert(SyncMetadataEntity(
+                    localId = log.id, entityType = "habit_log",
+                    cloudId = docRef.id, lastSyncedAt = System.currentTimeMillis()
+                ))
+            }
+        }
+
         // Upload tasks with tag references
         val tasks = taskDao.getAllTasksOnce()
         for (task in tasks) {
@@ -140,6 +156,7 @@ class SyncService @Inject constructor(
 
     private fun collectionNameFor(entityType: String): String = when (entityType) {
         "habit_completion" -> "habit_completions"
+        "habit_log" -> "habit_logs"
         "task_template" -> "task_templates"
         else -> entityType + "s"
     }
@@ -169,6 +186,12 @@ class SyncService @Inject constructor(
                 val completion = habitCompletionDao.getCompletionsForHabitOnce(meta.localId).firstOrNull() ?: return
                 val habitCloudId = syncMetadataDao.getCloudId(completion.habitId, "habit") ?: return
                 SyncMapper.habitCompletionToMap(completion, habitCloudId)
+            }
+            "habit_log" -> {
+                val logs = habitLogDao.getAllLogsOnce()
+                val log = logs.find { it.id == meta.localId } ?: return
+                val habitCloudId = syncMetadataDao.getCloudId(log.habitId, "habit") ?: return
+                SyncMapper.habitLogToMap(log, habitCloudId)
             }
             "task_template" -> {
                 val template = taskTemplateDao.getTemplateById(meta.localId) ?: return
@@ -287,6 +310,18 @@ class SyncService @Inject constructor(
                 val completion = SyncMapper.mapToHabitCompletion(data, habitLocalId = habitLocalId)
                 val newId = habitCompletionDao.insert(completion)
                 syncMetadataDao.upsert(SyncMetadataEntity(localId = newId, entityType = "habit_completion", cloudId = cloudId, lastSyncedAt = System.currentTimeMillis()))
+            }
+        }
+
+        // Pull habit logs
+        pullCollection("habit_logs") { data, cloudId ->
+            val localId = syncMetadataDao.getLocalId(cloudId, "habit_log")
+            val habitCloudId = data["habitCloudId"] as? String ?: return@pullCollection
+            val habitLocalId = syncMetadataDao.getLocalId(habitCloudId, "habit") ?: return@pullCollection
+            if (localId == null) {
+                val log = SyncMapper.mapToHabitLog(data, habitLocalId = habitLocalId)
+                val newId = habitLogDao.insertLog(log)
+                syncMetadataDao.upsert(SyncMetadataEntity(localId = newId, entityType = "habit_log", cloudId = cloudId, lastSyncedAt = System.currentTimeMillis()))
             }
         }
 

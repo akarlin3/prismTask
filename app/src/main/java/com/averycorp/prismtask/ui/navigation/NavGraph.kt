@@ -48,6 +48,7 @@ import com.averycorp.prismtask.ui.screens.addedittask.AddEditTaskScreen
 import com.averycorp.prismtask.ui.screens.archive.ArchiveScreen
 import com.averycorp.prismtask.ui.screens.habits.AddEditHabitScreen
 import com.averycorp.prismtask.ui.screens.habits.HabitAnalyticsScreen
+import com.averycorp.prismtask.ui.screens.habits.HabitDetailScreen
 import com.averycorp.prismtask.ui.screens.projects.AddEditProjectScreen
 import com.averycorp.prismtask.ui.screens.search.SearchScreen
 import com.averycorp.prismtask.ui.screens.tags.TagManagementScreen
@@ -100,6 +101,9 @@ sealed class PrismTaskRoute(val route: String) {
     }
     data object HabitAnalytics : PrismTaskRoute("habit_analytics?habitId={habitId}") {
         fun createRoute(habitId: Long): String = "habit_analytics?habitId=$habitId"
+    }
+    data object HabitDetail : PrismTaskRoute("habit_detail?habitId={habitId}") {
+        fun createRoute(habitId: Long): String = "habit_detail?habitId=$habitId"
     }
     data object SelfCare : PrismTaskRoute("self_care?routineType={routineType}") {
         fun createRoute(routineType: String = "morning"): String = "self_care?routineType=$routineType"
@@ -567,6 +571,34 @@ fun PrismTaskNavGraph(
                 }
             ) {
                 HabitAnalyticsScreen(navController)
+            }
+
+            composable(
+                route = PrismTaskRoute.HabitDetail.route,
+                arguments = listOf(
+                    navArgument("habitId") {
+                        type = NavType.LongType
+                        defaultValue = -1L
+                    }
+                ),
+                enterTransition = {
+                    slideInHorizontally(initialOffsetX = { it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
+                },
+                exitTransition = {
+                    slideOutHorizontally(targetOffsetX = { -it / 3 }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
+                },
+                popEnterTransition = {
+                    slideInHorizontally(initialOffsetX = { -it / 3 }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
+                },
+                popExitTransition = {
+                    slideOutHorizontally(targetOffsetX = { it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
+                }
+            ) {
+                HabitDetailScreen(navController)
             }
 
             composable(

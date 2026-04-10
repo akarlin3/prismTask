@@ -555,6 +555,27 @@ fun AddEditHabitScreen(
                         onCheckedChange = viewModel::onTrackPreviousPeriodChange
                     )
                 }
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "This Is a Bookable Activity",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Text(
+                            text = "For things like haircuts, dentist visits, and oil changes",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = viewModel.isBookable,
+                        onCheckedChange = viewModel::onIsBookableChange
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(8.dp))

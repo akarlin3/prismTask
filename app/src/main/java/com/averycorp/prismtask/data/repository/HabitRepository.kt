@@ -2,9 +2,11 @@ package com.averycorp.prismtask.data.repository
 
 import com.averycorp.prismtask.data.local.dao.HabitCompletionDao
 import com.averycorp.prismtask.data.local.dao.HabitDao
+import com.averycorp.prismtask.data.local.dao.HabitLogDao
 import com.averycorp.prismtask.data.local.dao.TaskDao
 import com.averycorp.prismtask.data.local.entity.HabitCompletionEntity
 import com.averycorp.prismtask.data.local.entity.HabitEntity
+import com.averycorp.prismtask.data.local.entity.HabitLogEntity
 import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
 import com.averycorp.prismtask.data.remote.SyncTracker
 import com.averycorp.prismtask.domain.usecase.StreakCalculator
@@ -29,13 +31,16 @@ data class HabitWithStatus(
     val isBookedThisPeriod: Boolean = false,
     val bookedTasksThisPeriod: Int = 0,
     val previousPeriodCompletions: Int = 0,
-    val previousPeriodMet: Boolean = false
+    val previousPeriodMet: Boolean = false,
+    val lastLogDate: Long? = null,
+    val logCount: Int = 0
 )
 
 @Singleton
 class HabitRepository @Inject constructor(
     private val habitDao: HabitDao,
     private val completionDao: HabitCompletionDao,
+    private val habitLogDao: HabitLogDao,
     private val taskDao: TaskDao,
     private val syncTracker: SyncTracker,
     private val medicationReminderScheduler: MedicationReminderScheduler,
@@ -162,6 +167,57 @@ class HabitRepository @Inject constructor(
         habitDao.updateAll(habits)
     }
 
+    // --- Bookable habit log methods ---
+
+    fun getLogsForHabit(habitId: Long): Flow<List<HabitLogEntity>> =
+        habitLogDao.getLogsForHabit(habitId)
+
+    suspend fun logActivity(habitId: Long, date: Long, notes: String?): Long {
+        val log = HabitLogEntity(
+            habitId = habitId,
+            date = date,
+            notes = notes?.trim()?.ifEmpty { null }
+        )
+        val logId = habitLogDao.insertLog(log)
+        syncTracker.trackCreate(logId, "habit_log")
+
+        // Fulfilling the booking — reset booking fields
+        val habit = habitDao.getHabitByIdOnce(habitId)
+        if (habit != null && habit.isBooked) {
+            habitDao.update(
+                habit.copy(
+                    isBooked = false,
+                    bookedDate = null,
+                    bookedNote = null,
+                    updatedAt = System.currentTimeMillis()
+                )
+            )
+            syncTracker.trackUpdate(habitId, "habit")
+        }
+        return logId
+    }
+
+    suspend fun setBooked(habitId: Long, isBooked: Boolean, bookedDate: Long?, bookedNote: String?) {
+        val habit = habitDao.getHabitByIdOnce(habitId) ?: return
+        habitDao.update(
+            habit.copy(
+                isBooked = isBooked,
+                bookedDate = if (isBooked) bookedDate else null,
+                bookedNote = if (isBooked) bookedNote?.trim()?.ifEmpty { null } else null,
+                updatedAt = System.currentTimeMillis()
+            )
+        )
+        syncTracker.trackUpdate(habitId, "habit")
+    }
+
+    suspend fun getLastLogDate(habitId: Long): Long? =
+        habitLogDao.getLastLog(habitId)?.date
+
+    suspend fun deleteLog(log: HabitLogEntity) {
+        syncTracker.trackDelete(log.id, "habit_log")
+        habitLogDao.deleteLog(log)
+    }
+
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     fun getHabitsWithTodayStatus(): Flow<List<HabitWithStatus>> {
         return taskBehaviorPreferences.getDayStartHour().flatMapLatest { dayStartHour ->
@@ -263,6 +319,12 @@ class HabitRepository @Inject constructor(
                 } else 0
                 val isBooked = habit.trackBooking && bookedTasks > 0
 
+                // Bookable habit: fetch last log date and count
+                val lastLog = if (habit.isBookable) habitLogDao.getLastLog(habit.id) else null
+                val logTotal = if (habit.isBookable) {
+                    habitLogDao.getLogsForHabit(habit.id).first().size
+                } else 0
+
                 HabitWithStatus(
                     habit = habit,
                     isCompletedToday = isCompleted,
@@ -273,7 +335,9 @@ class HabitRepository @Inject constructor(
                     isBookedThisPeriod = isBooked,
                     bookedTasksThisPeriod = bookedTasks,
                     previousPeriodCompletions = previousCount,
-                    previousPeriodMet = previousMet
+                    previousPeriodMet = previousMet,
+                    lastLogDate = lastLog?.date,
+                    logCount = logTotal
                 )
             }
             }
