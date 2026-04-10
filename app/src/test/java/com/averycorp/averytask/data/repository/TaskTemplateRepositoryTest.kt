@@ -261,6 +261,64 @@ class TaskTemplateRepositoryTest {
     }
 
     @Test
+    fun createTaskFromTemplate_quickUseDefaultsToTodayDueDate() = runBlocking {
+        val templateDao = FakeTemplateDao()
+        val taskDao = FakeTaskDao()
+        val tagDao = FakeTagDao()
+        val repo = TaskTemplateRepository(templateDao, taskDao, tagDao)
+
+        val templateId = templateDao.insertTemplate(
+            sampleTemplate(templateTitle = "Quick Task")
+        )
+
+        val newTaskId = repo.createTaskFromTemplate(templateId, quickUse = true)
+        val task = taskDao.tasks.first { it.id == newTaskId }
+
+        // Quick-use with no dueDateOverride should default to start of today
+        val startOfToday = com.averycorp.averytask.domain.usecase.DateShortcuts.today()
+        assertEquals(startOfToday, task.dueDate)
+    }
+
+    @Test
+    fun createTaskFromTemplate_quickUseFalseLeavesDueDateNull() = runBlocking {
+        val templateDao = FakeTemplateDao()
+        val taskDao = FakeTaskDao()
+        val tagDao = FakeTagDao()
+        val repo = TaskTemplateRepository(templateDao, taskDao, tagDao)
+
+        val templateId = templateDao.insertTemplate(
+            sampleTemplate(templateTitle = "Editor Task")
+        )
+
+        val newTaskId = repo.createTaskFromTemplate(templateId, quickUse = false)
+        val task = taskDao.tasks.first { it.id == newTaskId }
+
+        // Non-quick-use with no dueDateOverride should leave dueDate null
+        assertEquals(null, task.dueDate)
+    }
+
+    @Test
+    fun createTaskFromTemplate_quickUseWithOverrideUsesOverride() = runBlocking {
+        val templateDao = FakeTemplateDao()
+        val taskDao = FakeTaskDao()
+        val tagDao = FakeTagDao()
+        val repo = TaskTemplateRepository(templateDao, taskDao, tagDao)
+
+        val templateId = templateDao.insertTemplate(
+            sampleTemplate(templateTitle = "Scheduled Task")
+        )
+
+        val customDate = 1_700_000_000_000L
+        val newTaskId = repo.createTaskFromTemplate(
+            templateId, dueDateOverride = customDate, quickUse = true
+        )
+        val task = taskDao.tasks.first { it.id == newTaskId }
+
+        // Explicit override should take precedence over quick-use default
+        assertEquals(customDate, task.dueDate)
+    }
+
+    @Test
     fun createTemplateFromTask_capturesAllTaskFields() = runBlocking {
         val templateDao = FakeTemplateDao()
         val taskDao = FakeTaskDao()

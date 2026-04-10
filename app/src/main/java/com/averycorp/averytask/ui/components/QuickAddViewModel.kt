@@ -212,7 +212,8 @@ class QuickAddViewModel @Inject constructor(
         try {
             val newTaskId = templateRepository.createTaskFromTemplate(
                 templateId = templateId,
-                dueDateOverride = plannedDateOverride
+                dueDateOverride = plannedDateOverride,
+                quickUse = true
             )
             if (plannedDateOverride != null) {
                 taskRepository.planTaskForToday(newTaskId)
