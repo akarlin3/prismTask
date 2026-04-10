@@ -20,7 +20,7 @@ android {
         versionCode = 73
         versionName = "1.0.9"
 
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        testInstrumentationRunner = "com.averycorp.averytask.HiltTestRunner"
         vectorDrawables { useSupportLibrary = true }
 
         buildConfigField(
@@ -217,6 +217,8 @@ dependencies {
     androidTestImplementation("androidx.room:room-testing:2.8.4")
     androidTestImplementation("androidx.arch.core:core-testing:2.2.0")
     androidTestImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
+    androidTestImplementation("com.google.dagger:hilt-android-testing:2.59.2")
+    kspAndroidTest("com.google.dagger:hilt-compiler:2.59.2")
 
     // Debug
     debugImplementation("androidx.compose.ui:ui-tooling")
