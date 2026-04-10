@@ -59,7 +59,7 @@ async def download_apk(version_code: int, db: AsyncSession = Depends(get_db)):
 
     if not VERSION_NAME_PATTERN.match(rel.version_name):
         raise HTTPException(400, "Invalid version name")
-    apk_path = os.path.join(RELEASES_DIR, f"averytask-{rel.version_name}.apk")
+    apk_path = os.path.join(RELEASES_DIR, f"prismtask-{rel.version_name}.apk")
     apk_path = os.path.realpath(apk_path)
     if not apk_path.startswith(os.path.realpath(RELEASES_DIR)):
         raise HTTPException(400, "Invalid file path")
@@ -69,7 +69,7 @@ async def download_apk(version_code: int, db: AsyncSession = Depends(get_db)):
     return FileResponse(
         apk_path,
         media_type="application/vnd.android.package-archive",
-        filename=f"AveryTask-{rel.version_name}.apk",
+        filename=f"PrismTask-{rel.version_name}.apk",
     )
 
 
@@ -88,7 +88,7 @@ async def create_release(
         raise HTTPException(400, "Invalid version_name: only alphanumeric, dots, hyphens, underscores allowed")
 
     os.makedirs(RELEASES_DIR, exist_ok=True)
-    apk_path = os.path.join(RELEASES_DIR, f"averytask-{version_name}.apk")
+    apk_path = os.path.join(RELEASES_DIR, f"prismtask-{version_name}.apk")
     apk_path = os.path.realpath(apk_path)
     if not apk_path.startswith(os.path.realpath(RELEASES_DIR)):
         raise HTTPException(400, "Invalid file path")

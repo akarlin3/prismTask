@@ -11,7 +11,7 @@
 - **Size:** 1024x500 PNG
 - **Purpose:** Displayed at top of Play Store listing
 - **Content:** App name + key screens + tagline
-- **Design notes:** Should show the AveryTask brand, a device mockup with the app, and the tagline "Smart tasks, habits & AI focus planning"
+- **Design notes:** Should show the PrismTask brand, a device mockup with the app, and the tagline "Smart tasks, habits & AI focus planning"
 
 ### Screenshots
 - **Minimum:** 4 screenshots

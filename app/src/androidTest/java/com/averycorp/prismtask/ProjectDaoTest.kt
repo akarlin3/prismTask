@@ -6,7 +6,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.averycorp.prismtask.data.local.dao.ProjectDao
 import com.averycorp.prismtask.data.local.dao.TaskDao
-import com.averycorp.prismtask.data.local.database.AveryTaskDatabase
+import com.averycorp.prismtask.data.local.database.PrismTaskDatabase
 import com.averycorp.prismtask.data.local.entity.ProjectEntity
 import com.averycorp.prismtask.data.local.entity.TaskEntity
 import kotlinx.coroutines.flow.first
@@ -25,14 +25,14 @@ class ProjectDaoTest {
     @get:Rule
     val instantTaskExecutorRule = InstantTaskExecutorRule()
 
-    private lateinit var database: AveryTaskDatabase
+    private lateinit var database: PrismTaskDatabase
     private lateinit var projectDao: ProjectDao
     private lateinit var taskDao: TaskDao
 
     @Before
     fun setup() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
-        database = Room.inMemoryDatabaseBuilder(context, AveryTaskDatabase::class.java)
+        database = Room.inMemoryDatabaseBuilder(context, PrismTaskDatabase::class.java)
             .allowMainThreadQueries()
             .build()
         projectDao = database.projectDao()

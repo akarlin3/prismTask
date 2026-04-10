@@ -1,7 +1,7 @@
-AveryTask is a powerful, beautifully designed task manager and habit tracker that adapts to how you work.
+PrismTask is a powerful, beautifully designed task manager and habit tracker that adapts to how you work.
 
 SMART TASK MANAGEMENT
-Create tasks with natural language — just type "Buy groceries tomorrow !high #errands" and AveryTask parses it instantly. Organize with projects, tags, subtasks, and priorities. Drag to reorder, bulk edit, and quick-reschedule with a long-press.
+Create tasks with natural language — just type "Buy groceries tomorrow !high #errands" and PrismTask parses it instantly. Organize with projects, tags, subtasks, and priorities. Drag to reorder, bulk edit, and quick-reschedule with a long-press.
 
 TASK TEMPLATES
 Save reusable blueprints for recurring workflows. Start with 6 built-in templates (Morning Routine, Weekly Review, Meeting Prep, and more) or create your own. One tap to create a fully structured task with subtasks.
@@ -28,7 +28,7 @@ COLLABORATION (PRO)
 Share projects with teammates or family. Assign tasks, leave comments, and track activity — all in real-time.
 
 GOOGLE CALENDAR SYNC
-Two-way sync between AveryTask and Google Calendar. See your calendar events alongside your tasks in every view.
+Two-way sync between PrismTask and Google Calendar. See your calendar events alongside your tasks in every view.
 
 HOME SCREEN WIDGETS
 Today overview, habit streaks, and quick-add widgets for your home screen.

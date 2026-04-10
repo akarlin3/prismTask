@@ -52,7 +52,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.averycorp.prismtask.ui.components.ContributionGrid
 import com.averycorp.prismtask.ui.components.StreakBadge
-import com.averycorp.prismtask.ui.navigation.AveryTaskRoute
+import com.averycorp.prismtask.ui.navigation.PrismTaskRoute
 import java.time.DayOfWeek
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -184,7 +184,7 @@ fun HabitAnalyticsScreen(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 OutlinedButton(
-                    onClick = { navController.navigate(AveryTaskRoute.AddEditHabit.createRoute(habit.id)) },
+                    onClick = { navController.navigate(PrismTaskRoute.AddEditHabit.createRoute(habit.id)) },
                     modifier = Modifier.weight(1f)
                 ) {
                     Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(18.dp))

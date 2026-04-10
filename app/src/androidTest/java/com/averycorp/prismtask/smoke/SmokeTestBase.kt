@@ -4,7 +4,7 @@ import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import com.averycorp.prismtask.MainActivity
-import com.averycorp.prismtask.data.local.database.AveryTaskDatabase
+import com.averycorp.prismtask.data.local.database.PrismTaskDatabase
 import dagger.hilt.android.testing.HiltAndroidRule
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -32,7 +32,7 @@ abstract class SmokeTestBase {
     val composeRule = createAndroidComposeRule<MainActivity>()
 
     @Inject
-    lateinit var database: AveryTaskDatabase
+    lateinit var database: PrismTaskDatabase
 
     protected lateinit var seededIds: TestDataSeeder.SeededIds
 

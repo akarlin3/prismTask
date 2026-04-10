@@ -1,6 +1,6 @@
 package com.averycorp.prismtask.domain.usecase
 
-import com.averycorp.prismtask.data.remote.api.AveryTaskApi
+import com.averycorp.prismtask.data.remote.api.PrismTaskApi
 import com.averycorp.prismtask.data.remote.api.ParseRequest
 import com.averycorp.prismtask.data.remote.api.ParsedTaskResponse
 import kotlinx.coroutines.Dispatchers
@@ -38,7 +38,7 @@ data class ParsedTask(
 
 @Singleton
 class NaturalLanguageParser @Inject constructor(
-    private val api: AveryTaskApi
+    private val api: PrismTaskApi
 ) {
 
     private val zone: ZoneId = ZoneId.systemDefault()

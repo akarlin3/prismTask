@@ -38,10 +38,10 @@ class AppUpdater @Inject constructor(
 ) {
     companion object {
         private const val TAG = "AppUpdater"
-        private const val REPO = "akarlin3/averytask"
+        private const val REPO = "akarlin3/prismTask"
         private const val LATEST_RELEASE_API_URL =
             "https://api.github.com/repos/$REPO/releases/latest"
-        private const val APK_ASSET_NAME = "averyTask-debug.apk"
+        private const val APK_ASSET_NAME = "prismTask-debug.apk"
 
         /**
          * Parses a release tag like "v0.7.13" or "v0.7.13-build.2" into a

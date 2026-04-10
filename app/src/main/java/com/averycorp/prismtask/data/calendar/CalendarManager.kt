@@ -109,7 +109,7 @@ class CalendarManager @Inject constructor(
             GsonFactory.getDefaultInstance(),
             credential
         )
-            .setApplicationName("AveryTask")
+            .setApplicationName("PrismTask")
             .build()
     }
 

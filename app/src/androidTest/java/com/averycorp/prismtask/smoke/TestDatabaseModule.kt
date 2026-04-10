@@ -2,7 +2,7 @@ package com.averycorp.prismtask.smoke
 
 import android.content.Context
 import androidx.room.Room
-import com.averycorp.prismtask.data.local.database.AveryTaskDatabase
+import com.averycorp.prismtask.data.local.database.PrismTaskDatabase
 import com.averycorp.prismtask.di.DatabaseModule
 import dagger.Module
 import dagger.Provides
@@ -20,49 +20,49 @@ object TestDatabaseModule {
 
     @Provides
     @Singleton
-    fun provideTestDatabase(@ApplicationContext context: Context): AveryTaskDatabase =
-        Room.inMemoryDatabaseBuilder(context, AveryTaskDatabase::class.java)
+    fun provideTestDatabase(@ApplicationContext context: Context): PrismTaskDatabase =
+        Room.inMemoryDatabaseBuilder(context, PrismTaskDatabase::class.java)
             .allowMainThreadQueries()
             .build()
 
     @Provides
-    fun provideTaskDao(database: AveryTaskDatabase) = database.taskDao()
+    fun provideTaskDao(database: PrismTaskDatabase) = database.taskDao()
 
     @Provides
-    fun provideProjectDao(database: AveryTaskDatabase) = database.projectDao()
+    fun provideProjectDao(database: PrismTaskDatabase) = database.projectDao()
 
     @Provides
-    fun provideTagDao(database: AveryTaskDatabase) = database.tagDao()
+    fun provideTagDao(database: PrismTaskDatabase) = database.tagDao()
 
     @Provides
-    fun provideAttachmentDao(database: AveryTaskDatabase) = database.attachmentDao()
+    fun provideAttachmentDao(database: PrismTaskDatabase) = database.attachmentDao()
 
     @Provides
-    fun provideUsageLogDao(database: AveryTaskDatabase) = database.usageLogDao()
+    fun provideUsageLogDao(database: PrismTaskDatabase) = database.usageLogDao()
 
     @Provides
-    fun provideSyncMetadataDao(database: AveryTaskDatabase) = database.syncMetadataDao()
+    fun provideSyncMetadataDao(database: PrismTaskDatabase) = database.syncMetadataDao()
 
     @Provides
-    fun provideCalendarSyncDao(database: AveryTaskDatabase) = database.calendarSyncDao()
+    fun provideCalendarSyncDao(database: PrismTaskDatabase) = database.calendarSyncDao()
 
     @Provides
-    fun provideHabitDao(database: AveryTaskDatabase) = database.habitDao()
+    fun provideHabitDao(database: PrismTaskDatabase) = database.habitDao()
 
     @Provides
-    fun provideHabitCompletionDao(database: AveryTaskDatabase) = database.habitCompletionDao()
+    fun provideHabitCompletionDao(database: PrismTaskDatabase) = database.habitCompletionDao()
 
     @Provides
-    fun provideLeisureDao(database: AveryTaskDatabase) = database.leisureDao()
+    fun provideLeisureDao(database: PrismTaskDatabase) = database.leisureDao()
 
     @Provides
-    fun provideSchoolworkDao(database: AveryTaskDatabase) = database.schoolworkDao()
+    fun provideSchoolworkDao(database: PrismTaskDatabase) = database.schoolworkDao()
 
     @Provides
-    fun provideSelfCareDao(database: AveryTaskDatabase) = database.selfCareDao()
+    fun provideSelfCareDao(database: PrismTaskDatabase) = database.selfCareDao()
 
     @Provides
-    fun provideTaskTemplateDao(database: AveryTaskDatabase) = database.taskTemplateDao()
+    fun provideTaskTemplateDao(database: PrismTaskDatabase) = database.taskTemplateDao()
 
     @Provides
     @Singleton

@@ -73,7 +73,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
-import com.averycorp.prismtask.ui.navigation.AveryTaskRoute
+import com.averycorp.prismtask.ui.navigation.PrismTaskRoute
 import androidx.compose.material3.ButtonDefaults
 import com.averycorp.prismtask.BuildConfig
 import com.averycorp.prismtask.data.preferences.DashboardPreferences
@@ -252,11 +252,11 @@ fun SettingsScreen(
     }
 
     LaunchedEffect(pendingJson) {
-        if (pendingJson != null) createJsonLauncher.launch("averytask_backup.json")
+        if (pendingJson != null) createJsonLauncher.launch("prismtask_backup.json")
     }
 
     LaunchedEffect(pendingCsv) {
-        if (pendingCsv != null) createCsvLauncher.launch("averytask_tasks.csv")
+        if (pendingCsv != null) createCsvLauncher.launch("prismtask_tasks.csv")
     }
 
     if (showBackendAuthDialog) {
@@ -437,7 +437,7 @@ fun SettingsScreen(
             SectionHeader("Subscription")
             if (isPro) {
                 Text(
-                    text = "AveryTask Pro",
+                    text = "PrismTask Pro",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary,
@@ -461,7 +461,7 @@ fun SettingsScreen(
                 }
             } else {
                 Text(
-                    text = "AveryTask Free",
+                    text = "PrismTask Free",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(bottom = 4.dp)
@@ -1646,13 +1646,13 @@ fun SettingsScreen(
             SettingsRowWithSubtitle(
                 title = "Eisenhower Matrix",
                 subtitle = "AI-powered task categorization into urgency/importance quadrants",
-                onClick = { navController.navigate(AveryTaskRoute.EisenhowerMatrix.route) }
+                onClick = { navController.navigate(PrismTaskRoute.EisenhowerMatrix.route) }
             )
 
             SettingsRowWithSubtitle(
                 title = "Smart Focus Sessions",
                 subtitle = "AI-planned Pomodoro sessions based on your tasks",
-                onClick = { navController.navigate(AveryTaskRoute.SmartPomodoro.route) }
+                onClick = { navController.navigate(PrismTaskRoute.SmartPomodoro.route) }
             )
 
             HorizontalDivider()

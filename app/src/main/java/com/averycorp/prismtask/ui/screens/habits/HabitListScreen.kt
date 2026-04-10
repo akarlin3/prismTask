@@ -77,7 +77,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import com.averycorp.prismtask.ui.components.StreakBadge
-import com.averycorp.prismtask.ui.navigation.AveryTaskRoute
+import com.averycorp.prismtask.ui.navigation.PrismTaskRoute
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 
@@ -133,7 +133,7 @@ fun HabitListScreen(
         },
         floatingActionButton = {
             FloatingActionButton(
-                onClick = { navController.navigate(AveryTaskRoute.AddEditHabit.createRoute()) },
+                onClick = { navController.navigate(PrismTaskRoute.AddEditHabit.createRoute()) },
                 containerColor = MaterialTheme.colorScheme.primary
             ) {
                 Icon(
@@ -206,13 +206,13 @@ fun HabitListScreen(
                                             loggingHabit = listItem.habitWithStatus
                                         } else {
                                             navController.navigate(
-                                                AveryTaskRoute.HabitAnalytics.createRoute(listItem.habitWithStatus.habit.id)
+                                                PrismTaskRoute.HabitAnalytics.createRoute(listItem.habitWithStatus.habit.id)
                                             )
                                         }
                                     },
                                     onEdit = {
                                         navController.navigate(
-                                            AveryTaskRoute.AddEditHabit.createRoute(listItem.habitWithStatus.habit.id)
+                                            PrismTaskRoute.AddEditHabit.createRoute(listItem.habitWithStatus.habit.id)
                                         )
                                     },
                                     onDelete = { habitToDelete = listItem.habitWithStatus },
@@ -227,9 +227,9 @@ fun HabitListScreen(
                                     cardData = listItem.cardData,
                                     onClick = {
                                         when (listItem.routineType) {
-                                            "medication" -> navController.navigate(AveryTaskRoute.Medication.route)
+                                            "medication" -> navController.navigate(PrismTaskRoute.Medication.route)
                                             else -> navController.navigate(
-                                                AveryTaskRoute.SelfCare.createRoute(listItem.routineType)
+                                                PrismTaskRoute.SelfCare.createRoute(listItem.routineType)
                                             )
                                         }
                                     },
@@ -244,8 +244,8 @@ fun HabitListScreen(
                                     habitWithStatus = listItem.habitWithStatus,
                                     onClick = {
                                         when (listItem.type) {
-                                            "school" -> navController.navigate(AveryTaskRoute.Schoolwork.route)
-                                            "leisure" -> navController.navigate(AveryTaskRoute.Leisure.route)
+                                            "school" -> navController.navigate(PrismTaskRoute.Schoolwork.route)
+                                            "leisure" -> navController.navigate(PrismTaskRoute.Leisure.route)
                                         }
                                     },
                                     modifier = Modifier

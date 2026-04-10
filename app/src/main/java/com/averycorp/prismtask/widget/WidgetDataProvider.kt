@@ -5,7 +5,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import androidx.room.Room
-import com.averycorp.prismtask.data.local.database.AveryTaskDatabase
+import com.averycorp.prismtask.data.local.database.PrismTaskDatabase
 import com.averycorp.prismtask.util.DayBoundary
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -38,12 +38,12 @@ data class HabitWidgetItem(
 
 object WidgetDataProvider {
 
-    private fun getDb(context: Context): AveryTaskDatabase =
-        Room.databaseBuilder(context, AveryTaskDatabase::class.java, "averytask.db")
+    private fun getDb(context: Context): PrismTaskDatabase =
+        Room.databaseBuilder(context, PrismTaskDatabase::class.java, "averytask.db")
             .addMigrations(
-                AveryTaskDatabase.MIGRATION_1_2, AveryTaskDatabase.MIGRATION_2_3,
-                AveryTaskDatabase.MIGRATION_3_4, AveryTaskDatabase.MIGRATION_4_5,
-                AveryTaskDatabase.MIGRATION_5_6, AveryTaskDatabase.MIGRATION_6_7
+                PrismTaskDatabase.MIGRATION_1_2, PrismTaskDatabase.MIGRATION_2_3,
+                PrismTaskDatabase.MIGRATION_3_4, PrismTaskDatabase.MIGRATION_4_5,
+                PrismTaskDatabase.MIGRATION_5_6, PrismTaskDatabase.MIGRATION_6_7
             )
             .build()
 

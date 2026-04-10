@@ -78,7 +78,7 @@ import com.averycorp.prismtask.data.local.entity.SelfCareStepEntity
 import com.averycorp.prismtask.data.preferences.MedicationScheduleMode
 import com.averycorp.prismtask.data.repository.MedStepLog
 import com.averycorp.prismtask.domain.model.SelfCareRoutines
-import com.averycorp.prismtask.ui.navigation.AveryTaskRoute
+import com.averycorp.prismtask.ui.navigation.PrismTaskRoute
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -128,7 +128,7 @@ fun MedicationScreen(
                 actions = {
                     if (!editMode) {
                         IconButton(onClick = {
-                            navController.navigate(AveryTaskRoute.MedicationLog.route)
+                            navController.navigate(PrismTaskRoute.MedicationLog.route)
                         }) {
                             Icon(Icons.Default.History, contentDescription = "Medication log")
                         }

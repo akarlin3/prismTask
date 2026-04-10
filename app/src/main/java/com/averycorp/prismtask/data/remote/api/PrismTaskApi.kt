@@ -13,11 +13,11 @@ import retrofit2.http.Part
 import retrofit2.http.Query
 
 /**
- * Retrofit interface for the AveryTask FastAPI backend.
+ * Retrofit interface for the PrismTask FastAPI backend.
  *
  * Base URL is provided by Hilt via [ApiClient] from `BuildConfig.API_BASE_URL`.
  */
-interface AveryTaskApi {
+interface PrismTaskApi {
 
     @POST("api/v1/auth/register")
     suspend fun register(@Body request: RegisterRequest): TokenResponse

@@ -2,7 +2,7 @@ package com.averycorp.prismtask.di
 
 import com.averycorp.prismtask.BuildConfig
 import com.averycorp.prismtask.data.remote.api.AuthInterceptor
-import com.averycorp.prismtask.data.remote.api.AveryTaskApi
+import com.averycorp.prismtask.data.remote.api.PrismTaskApi
 import com.averycorp.prismtask.data.remote.api.TokenAuthenticator
 import com.google.gson.Gson
 import dagger.Module
@@ -19,7 +19,7 @@ import javax.inject.Singleton
 /**
  * Hilt module that provides the singletons needed to talk to the FastAPI
  * backend: OkHttp client (with logging + auth + 401-refresh), Retrofit, and
- * the [AveryTaskApi] interface.
+ * the [PrismTaskApi] interface.
  *
  * Base URL comes from `BuildConfig.API_BASE_URL`:
  *   - debug:   https://averytask-production.up.railway.app   (override with
@@ -81,8 +81,8 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideAveryTaskApi(retrofit: Retrofit): AveryTaskApi =
-        retrofit.create(AveryTaskApi::class.java)
+    fun providePrismTaskApi(retrofit: Retrofit): PrismTaskApi =
+        retrofit.create(PrismTaskApi::class.java)
 
     private fun normalizeBaseUrl(url: String): String =
         if (url.endsWith("/")) url else "$url/"

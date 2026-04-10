@@ -1,4 +1,4 @@
-# Contributing to AveryTask
+# Contributing to PrismTask
 
 Thank you for your interest in contributing. This document covers development setup, code conventions, and the pull request process.
 
@@ -6,8 +6,8 @@ Thank you for your interest in contributing. This document covers development se
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/akarlin3/averyTask.git
-   cd averyTask
+   git clone https://github.com/akarlin3/prismTask.git
+   cd prismTask
    ```
 
 2. Open the project in Android Studio Ladybug (2024.2.1) or later.
@@ -34,7 +34,7 @@ Thank you for your interest in contributing. This document covers development se
 
 - All UI is Jetpack Compose. Do not introduce XML layouts.
 - Keep composable functions stateless where possible; hoist state up.
-- Use `AveryTaskTheme` as the root wrapper in all previews and the main content.
+- Use `PrismTaskTheme` as the root wrapper in all previews and the main content.
 - Extract reusable composables into dedicated files under `ui/components/`.
 
 ### Dependencies
@@ -78,7 +78,7 @@ Thank you for your interest in contributing. This document covers development se
 
 ## Reporting Issues
 
-Use [GitHub Issues](https://github.com/akarlin3/averyTask/issues) to report bugs or request features. Include:
+Use [GitHub Issues](https://github.com/akarlin3/prismTask/issues) to report bugs or request features. Include:
 
 - Steps to reproduce (for bugs)
 - Device/emulator info and Android version

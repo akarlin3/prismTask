@@ -16,7 +16,7 @@ import com.averycorp.prismtask.data.local.entity.TaskTemplateEntity
 import com.averycorp.prismtask.data.preferences.AuthTokenPreferences
 import com.averycorp.prismtask.data.preferences.BackendSyncPreferences
 import com.averycorp.prismtask.data.preferences.TemplatePreferences
-import com.averycorp.prismtask.data.remote.api.AveryTaskApi
+import com.averycorp.prismtask.data.remote.api.PrismTaskApi
 import com.google.gson.JsonObject
 import java.time.Instant
 import java.time.OffsetDateTime
@@ -39,7 +39,7 @@ import javax.inject.Singleton
  */
 @Singleton
 class BackendSyncService @Inject constructor(
-    private val api: AveryTaskApi,
+    private val api: PrismTaskApi,
     private val taskDao: TaskDao,
     private val projectDao: ProjectDao,
     private val tagDao: TagDao,

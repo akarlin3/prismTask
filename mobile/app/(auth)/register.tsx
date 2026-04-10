@@ -66,7 +66,7 @@ export default function RegisterScreen() {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
       <View style={styles.content}>
-        <Text style={[styles.title, { color: colors.text }]}>AveryTask</Text>
+        <Text style={[styles.title, { color: colors.text }]}>PrismTask</Text>
         <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
           Create your account
         </Text>

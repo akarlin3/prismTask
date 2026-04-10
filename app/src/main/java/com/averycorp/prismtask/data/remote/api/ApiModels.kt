@@ -3,7 +3,7 @@ package com.averycorp.prismtask.data.remote.api
 import com.google.gson.annotations.SerializedName
 
 /**
- * Data models exchanged with the AveryTask FastAPI backend.
+ * Data models exchanged with the PrismTask FastAPI backend.
  *
  * Field names use snake_case to match the backend JSON contract; Kotlin
  * property names use camelCase via [SerializedName].

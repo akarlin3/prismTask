@@ -56,7 +56,7 @@ export default function LoginScreen() {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
       <View style={styles.content}>
-        <Text style={[styles.title, { color: colors.text }]}>AveryTask</Text>
+        <Text style={[styles.title, { color: colors.text }]}>PrismTask</Text>
         <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
           Sign in to your account
         </Text>

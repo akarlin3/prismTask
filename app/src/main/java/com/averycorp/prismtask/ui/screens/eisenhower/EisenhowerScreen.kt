@@ -61,7 +61,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.averycorp.prismtask.data.local.entity.TaskEntity
-import com.averycorp.prismtask.ui.navigation.AveryTaskRoute
+import com.averycorp.prismtask.ui.navigation.PrismTaskRoute
 
 private val Q1_COLOR = Color(0xFFEF4444) // Red
 private val Q2_COLOR = Color(0xFF3B82F6) // Blue
@@ -142,7 +142,7 @@ fun EisenhowerScreen(
                 tasks = tasks,
                 onBack = { viewModel.expandQuadrant(null) },
                 onTaskClick = { taskId ->
-                    navController.navigate(AveryTaskRoute.AddEditTask.createRoute(taskId))
+                    navController.navigate(PrismTaskRoute.AddEditTask.createRoute(taskId))
                 },
                 onCompleteTask = { viewModel.completeTask(it) },
                 onMoveTask = { taskId, quadrant -> viewModel.moveTaskToQuadrant(taskId, quadrant) },
@@ -169,7 +169,7 @@ fun EisenhowerScreen(
                         isLoading = isLoading,
                         onHeaderClick = { viewModel.expandQuadrant("Q1") },
                         onTaskClick = { taskId ->
-                            navController.navigate(AveryTaskRoute.AddEditTask.createRoute(taskId))
+                            navController.navigate(PrismTaskRoute.AddEditTask.createRoute(taskId))
                         },
                         onCompleteTask = { viewModel.completeTask(it) },
                         onMoveTask = { taskId, quadrant -> viewModel.moveTaskToQuadrant(taskId, quadrant) },
@@ -181,7 +181,7 @@ fun EisenhowerScreen(
                         isLoading = isLoading,
                         onHeaderClick = { viewModel.expandQuadrant("Q2") },
                         onTaskClick = { taskId ->
-                            navController.navigate(AveryTaskRoute.AddEditTask.createRoute(taskId))
+                            navController.navigate(PrismTaskRoute.AddEditTask.createRoute(taskId))
                         },
                         onCompleteTask = { viewModel.completeTask(it) },
                         onMoveTask = { taskId, quadrant -> viewModel.moveTaskToQuadrant(taskId, quadrant) },
@@ -204,7 +204,7 @@ fun EisenhowerScreen(
                         isLoading = isLoading,
                         onHeaderClick = { viewModel.expandQuadrant("Q3") },
                         onTaskClick = { taskId ->
-                            navController.navigate(AveryTaskRoute.AddEditTask.createRoute(taskId))
+                            navController.navigate(PrismTaskRoute.AddEditTask.createRoute(taskId))
                         },
                         onCompleteTask = { viewModel.completeTask(it) },
                         onMoveTask = { taskId, quadrant -> viewModel.moveTaskToQuadrant(taskId, quadrant) },
@@ -216,7 +216,7 @@ fun EisenhowerScreen(
                         isLoading = isLoading,
                         onHeaderClick = { viewModel.expandQuadrant("Q4") },
                         onTaskClick = { taskId ->
-                            navController.navigate(AveryTaskRoute.AddEditTask.createRoute(taskId))
+                            navController.navigate(PrismTaskRoute.AddEditTask.createRoute(taskId))
                         },
                         onCompleteTask = { viewModel.completeTask(it) },
                         onMoveTask = { taskId, quadrant -> viewModel.moveTaskToQuadrant(taskId, quadrant) },

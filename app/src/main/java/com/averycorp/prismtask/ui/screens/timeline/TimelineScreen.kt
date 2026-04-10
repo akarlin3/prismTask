@@ -65,7 +65,7 @@ import androidx.navigation.NavController
 import com.averycorp.prismtask.data.local.entity.TaskEntity
 import com.averycorp.prismtask.ui.components.MoveToProjectSheet
 import com.averycorp.prismtask.ui.components.QuickReschedulePopup
-import com.averycorp.prismtask.ui.navigation.AveryTaskRoute
+import com.averycorp.prismtask.ui.navigation.PrismTaskRoute
 import com.averycorp.prismtask.ui.screens.addedittask.AddEditTaskSheetHost
 import com.averycorp.prismtask.ui.theme.LocalPriorityColors
 import java.time.LocalDate
@@ -452,7 +452,7 @@ fun TimelineScreen(
             onDismiss = { showEditorSheet = false },
             onManageTemplates = {
                 showEditorSheet = false
-                navController.navigate(AveryTaskRoute.TemplateList.route)
+                navController.navigate(PrismTaskRoute.TemplateList.route)
             }
         )
     }

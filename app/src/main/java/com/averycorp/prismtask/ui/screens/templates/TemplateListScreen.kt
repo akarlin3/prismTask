@@ -72,7 +72,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.averycorp.prismtask.data.local.entity.TaskTemplateEntity
 import com.averycorp.prismtask.ui.components.EmptyState
-import com.averycorp.prismtask.ui.navigation.AveryTaskRoute
+import com.averycorp.prismtask.ui.navigation.PrismTaskRoute
 import com.averycorp.prismtask.ui.screens.addedittask.AddEditTaskSheetHost
 import kotlinx.coroutines.delay
 import java.text.DateFormat
@@ -190,7 +190,7 @@ fun TemplateListScreen(
         floatingActionButton = {
             FloatingActionButton(
                 onClick = {
-                    navController.navigate(AveryTaskRoute.AddEditTemplate.createRoute())
+                    navController.navigate(PrismTaskRoute.AddEditTemplate.createRoute())
                 },
                 containerColor = MaterialTheme.colorScheme.primary
             ) {
@@ -212,7 +212,7 @@ fun TemplateListScreen(
                     TemplatesEmptyState(
                         hasAnyFilter = selectedCategory != null || searchQuery.isNotEmpty(),
                         onCreate = {
-                            navController.navigate(AveryTaskRoute.AddEditTemplate.createRoute())
+                            navController.navigate(PrismTaskRoute.AddEditTemplate.createRoute())
                         }
                     )
                 }
@@ -231,7 +231,7 @@ fun TemplateListScreen(
                             onQuickUse = { viewModel.quickUseTemplate(template.id) },
                             onEdit = {
                                 navController.navigate(
-                                    AveryTaskRoute.AddEditTemplate.createRoute(template.id)
+                                    PrismTaskRoute.AddEditTemplate.createRoute(template.id)
                                 )
                             },
                             onDelete = { templateToDelete = template }

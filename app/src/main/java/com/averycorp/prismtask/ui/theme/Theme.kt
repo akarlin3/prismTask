@@ -17,7 +17,7 @@ private fun parseColorOrNull(hex: String): Color? {
 }
 
 @Composable
-fun AveryTaskTheme(
+fun PrismTaskTheme(
     themeMode: String = "system",
     accentColor: String = "#2563EB",
     backgroundColorOverride: String = "",

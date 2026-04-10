@@ -1,4 +1,4 @@
-# AveryTask
+# PrismTask
 
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE)
 [![Android](https://img.shields.io/badge/Platform-Android-green.svg)](https://developer.android.com)
@@ -7,8 +7,8 @@
 [![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-Material%203-4285F4.svg)](https://developer.android.com/jetpack/compose)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688.svg)](https://fastapi.tiangolo.com)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791.svg)](https://postgresql.org)
-[![Android CI](https://github.com/akarlin3/averyTask/actions/workflows/android-ci.yml/badge.svg)](https://github.com/akarlin3/averyTask/actions/workflows/android-ci.yml)
-[![Backend CI](https://github.com/akarlin3/averyTask/actions/workflows/ci.yml/badge.svg)](https://github.com/akarlin3/averyTask/actions/workflows/ci.yml)
+[![Android CI](https://github.com/akarlin3/prismTask/actions/workflows/android-ci.yml/badge.svg)](https://github.com/akarlin3/prismTask/actions/workflows/android-ci.yml)
+[![Backend CI](https://github.com/akarlin3/prismTask/actions/workflows/ci.yml/badge.svg)](https://github.com/akarlin3/prismTask/actions/workflows/ci.yml)
 
 A native Android task manager with a Python API backend featuring AI-powered natural language processing. Built with Kotlin/Jetpack Compose for the client and FastAPI/PostgreSQL for the server.
 
@@ -215,8 +215,8 @@ The FastAPI backend provides REST endpoints for cross-device sync, AI-powered ta
 
 ```bash
 # Clone the repository
-git clone https://github.com/akarlin3/averyTask.git
-cd averyTask
+git clone https://github.com/akarlin3/prismTask.git
+cd prismTask
 
 # Build debug APK
 ./gradlew assembleDebug
@@ -345,11 +345,11 @@ Migrations: 1→24 covering tags, notes/attachments, planned date, usage logs, d
 ## Project Structure
 
 ```
-averyTask/
+prismTask/
 ├── app/                                    # Android app (Kotlin / Jetpack Compose)
-│   └── src/main/java/com/averycorp/averytask/
+│   └── src/main/java/com/averycorp/prismtask/
 │       ├── MainActivity.kt                 # Single-activity entry point
-│       ├── AveryTaskApplication.kt         # @HiltAndroidApp
+│       ├── PrismTaskApplication.kt         # @HiltAndroidApp
 │       ├── data/
 │       │   ├── local/                      # Room entities (18), DAOs (13), database, converters
 │       │   ├── remote/                     # Firebase auth, sync service, entity mappers
@@ -401,13 +401,13 @@ This project is licensed under the [GNU Affero General Public License v3.0](LICE
 
 ---
 
-## AveryTask Web Backend + React Native App
+## PrismTask Web Backend + React Native App
 
-In addition to the native Android app, AveryTask includes a full-stack web backend and cross-platform React Native mobile app.
+In addition to the native Android app, PrismTask includes a full-stack web backend and cross-platform React Native mobile app.
 
 ### Why I Built This
 
-I wanted a hierarchical task management system that maps how I actually think about work — career goals broken into projects, projects broken into tasks. Most task apps are flat lists. AveryTask gives me Goal → Project → Task hierarchy with an NLP parser powered by Claude that lets me create tasks from natural language.
+I wanted a hierarchical task management system that maps how I actually think about work — career goals broken into projects, projects broken into tasks. Most task apps are flat lists. PrismTask gives me Goal → Project → Task hierarchy with an NLP parser powered by Claude that lets me create tasks from natural language.
 
 ### Web Stack
 

@@ -86,7 +86,7 @@ async def export_json(
     return StreamingResponse(
         io.BytesIO(content.encode()),
         media_type="application/json",
-        headers={"Content-Disposition": "attachment; filename=averytask_export.json"},
+        headers={"Content-Disposition": "attachment; filename=prismtask_export.json"},
     )
 
 
@@ -119,7 +119,7 @@ async def export_csv(
     return StreamingResponse(
         io.BytesIO(content.encode()),
         media_type="text/csv",
-        headers={"Content-Disposition": "attachment; filename=averytask_tasks.csv"},
+        headers={"Content-Disposition": "attachment; filename=prismtask_tasks.csv"},
     )
 
 

@@ -1,6 +1,6 @@
 # Privacy Policy
 
-**AveryTask**
+**PrismTask**
 **Developer:** AveryCorp (Avery Karlin)
 **Contact:** [INSERT_EMAIL]
 **Effective Date:** [INSERT_DATE]
@@ -9,7 +9,7 @@
 
 ## Introduction
 
-This Privacy Policy describes how AveryCorp ("we," "us," or "our") collects, uses, and protects your information when you use the AveryTask mobile application ("the App"). We are committed to protecting your privacy and being transparent about our data practices.
+This Privacy Policy describes how AveryCorp ("we," "us," or "our") collects, uses, and protects your information when you use the PrismTask mobile application ("the App"). We are committed to protecting your privacy and being transparent about our data practices.
 
 ## Information We Collect
 
@@ -102,7 +102,7 @@ You have the following rights regarding your data:
 
 ## Children's Privacy
 
-AveryTask is not directed at children under the age of 13. We do not knowingly collect personal information from children under 13. If we become aware that we have collected personal information from a child under 13, we will take steps to delete that information promptly. If you believe we have collected information from a child under 13, please contact us at [INSERT_EMAIL].
+PrismTask is not directed at children under the age of 13. We do not knowingly collect personal information from children under 13. If we become aware that we have collected personal information from a child under 13, we will take steps to delete that information promptly. If you believe we have collected information from a child under 13, please contact us at [INSERT_EMAIL].
 
 ## Data Security
 

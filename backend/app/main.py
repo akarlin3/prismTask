@@ -5,7 +5,7 @@ from app.config import settings
 from app.routers import ai, app_update, auth, dashboard, export, goals, habits, projects, search, sync, tags, tasks, templates
 
 app = FastAPI(
-    title="AveryTask API",
+    title="PrismTask API",
     description="Hierarchical task management API with AI-powered NLP",
     version="0.2.0",
     debug=settings.debug,
@@ -39,4 +39,4 @@ app.include_router(export.router, prefix="/api/v1")
 
 @app.get("/")
 async def health_check():
-    return {"status": "healthy", "service": "AveryTask API", "version": "0.2.0"}
+    return {"status": "healthy", "service": "PrismTask API", "version": "0.2.0"}

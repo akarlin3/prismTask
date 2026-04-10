@@ -4,7 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.averycorp.prismtask.data.local.dao.TaskDao
 import com.averycorp.prismtask.data.local.entity.TaskEntity
-import com.averycorp.prismtask.data.remote.api.AveryTaskApi
+import com.averycorp.prismtask.data.remote.api.PrismTaskApi
 import com.averycorp.prismtask.data.remote.api.EisenhowerRequest
 import com.averycorp.prismtask.domain.usecase.ProFeatureGate
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -19,7 +19,7 @@ import javax.inject.Inject
 @HiltViewModel
 class EisenhowerViewModel @Inject constructor(
     private val taskDao: TaskDao,
-    private val api: AveryTaskApi,
+    private val api: PrismTaskApi,
     private val proFeatureGate: ProFeatureGate
 ) : ViewModel() {
 

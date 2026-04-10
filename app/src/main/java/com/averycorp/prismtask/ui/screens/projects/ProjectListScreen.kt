@@ -66,7 +66,7 @@ import androidx.navigation.NavController
 import com.averycorp.prismtask.data.local.dao.ProjectWithCount
 import com.averycorp.prismtask.data.local.entity.ProjectEntity
 import com.averycorp.prismtask.ui.components.EmptyState
-import com.averycorp.prismtask.ui.navigation.AveryTaskRoute
+import com.averycorp.prismtask.ui.navigation.PrismTaskRoute
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -168,7 +168,7 @@ fun ProjectListScreen(
                     Icon(Icons.Default.UploadFile, contentDescription = "Import File", modifier = Modifier.size(20.dp))
                 }
                 FloatingActionButton(
-                    onClick = { navController.navigate(AveryTaskRoute.AddEditProject.createRoute()) },
+                    onClick = { navController.navigate(PrismTaskRoute.AddEditProject.createRoute()) },
                     containerColor = MaterialTheme.colorScheme.primary
                 ) {
                     Icon(
@@ -202,10 +202,10 @@ fun ProjectListScreen(
                     ProjectItem(
                         project = project,
                         onClick = {
-                            navController.navigate(AveryTaskRoute.AddEditProject.createRoute(project.id))
+                            navController.navigate(PrismTaskRoute.AddEditProject.createRoute(project.id))
                         },
                         onEdit = {
-                            navController.navigate(AveryTaskRoute.AddEditProject.createRoute(project.id))
+                            navController.navigate(PrismTaskRoute.AddEditProject.createRoute(project.id))
                         },
                         onDelete = { projectToDelete = project }
                     )

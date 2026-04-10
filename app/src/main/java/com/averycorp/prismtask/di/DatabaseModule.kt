@@ -15,7 +15,7 @@ import com.averycorp.prismtask.data.local.dao.TagDao
 import com.averycorp.prismtask.data.local.dao.TaskDao
 import com.averycorp.prismtask.data.local.dao.TaskTemplateDao
 import com.averycorp.prismtask.data.local.dao.UsageLogDao
-import com.averycorp.prismtask.data.local.database.AveryTaskDatabase
+import com.averycorp.prismtask.data.local.database.PrismTaskDatabase
 import com.averycorp.prismtask.data.seed.TemplatePreferencesSeededFlagStore
 import com.averycorp.prismtask.data.seed.TemplateSeeder
 import dagger.Binds
@@ -37,53 +37,53 @@ object DatabaseModule {
 
     @Provides
     @Singleton
-    fun provideDatabase(@ApplicationContext context: Context): AveryTaskDatabase =
+    fun provideDatabase(@ApplicationContext context: Context): PrismTaskDatabase =
         Room.databaseBuilder(
             context,
-            AveryTaskDatabase::class.java,
+            PrismTaskDatabase::class.java,
             "averytask.db"
         )
-            .addMigrations(AveryTaskDatabase.MIGRATION_1_2, AveryTaskDatabase.MIGRATION_2_3, AveryTaskDatabase.MIGRATION_3_4, AveryTaskDatabase.MIGRATION_4_5, AveryTaskDatabase.MIGRATION_5_6, AveryTaskDatabase.MIGRATION_6_7, AveryTaskDatabase.MIGRATION_7_8, AveryTaskDatabase.MIGRATION_8_9, AveryTaskDatabase.MIGRATION_9_10, AveryTaskDatabase.MIGRATION_10_11, AveryTaskDatabase.MIGRATION_11_12, AveryTaskDatabase.MIGRATION_12_13, AveryTaskDatabase.MIGRATION_13_14, AveryTaskDatabase.MIGRATION_14_15, AveryTaskDatabase.MIGRATION_15_16, AveryTaskDatabase.MIGRATION_16_17, AveryTaskDatabase.MIGRATION_17_18, AveryTaskDatabase.MIGRATION_18_19, AveryTaskDatabase.MIGRATION_19_20, AveryTaskDatabase.MIGRATION_20_21, AveryTaskDatabase.MIGRATION_21_22, AveryTaskDatabase.MIGRATION_22_23, AveryTaskDatabase.MIGRATION_23_24, AveryTaskDatabase.MIGRATION_24_25)
+            .addMigrations(PrismTaskDatabase.MIGRATION_1_2, PrismTaskDatabase.MIGRATION_2_3, PrismTaskDatabase.MIGRATION_3_4, PrismTaskDatabase.MIGRATION_4_5, PrismTaskDatabase.MIGRATION_5_6, PrismTaskDatabase.MIGRATION_6_7, PrismTaskDatabase.MIGRATION_7_8, PrismTaskDatabase.MIGRATION_8_9, PrismTaskDatabase.MIGRATION_9_10, PrismTaskDatabase.MIGRATION_10_11, PrismTaskDatabase.MIGRATION_11_12, PrismTaskDatabase.MIGRATION_12_13, PrismTaskDatabase.MIGRATION_13_14, PrismTaskDatabase.MIGRATION_14_15, PrismTaskDatabase.MIGRATION_15_16, PrismTaskDatabase.MIGRATION_16_17, PrismTaskDatabase.MIGRATION_17_18, PrismTaskDatabase.MIGRATION_18_19, PrismTaskDatabase.MIGRATION_19_20, PrismTaskDatabase.MIGRATION_20_21, PrismTaskDatabase.MIGRATION_21_22, PrismTaskDatabase.MIGRATION_22_23, PrismTaskDatabase.MIGRATION_23_24, PrismTaskDatabase.MIGRATION_24_25)
             .build()
 
     @Provides
-    fun provideTaskDao(database: AveryTaskDatabase): TaskDao = database.taskDao()
+    fun provideTaskDao(database: PrismTaskDatabase): TaskDao = database.taskDao()
 
     @Provides
-    fun provideProjectDao(database: AveryTaskDatabase): ProjectDao = database.projectDao()
+    fun provideProjectDao(database: PrismTaskDatabase): ProjectDao = database.projectDao()
 
     @Provides
-    fun provideTagDao(database: AveryTaskDatabase): TagDao = database.tagDao()
+    fun provideTagDao(database: PrismTaskDatabase): TagDao = database.tagDao()
 
     @Provides
-    fun provideAttachmentDao(database: AveryTaskDatabase): AttachmentDao = database.attachmentDao()
+    fun provideAttachmentDao(database: PrismTaskDatabase): AttachmentDao = database.attachmentDao()
 
     @Provides
-    fun provideUsageLogDao(database: AveryTaskDatabase): UsageLogDao = database.usageLogDao()
+    fun provideUsageLogDao(database: PrismTaskDatabase): UsageLogDao = database.usageLogDao()
 
     @Provides
-    fun provideSyncMetadataDao(database: AveryTaskDatabase): SyncMetadataDao = database.syncMetadataDao()
+    fun provideSyncMetadataDao(database: PrismTaskDatabase): SyncMetadataDao = database.syncMetadataDao()
 
     @Provides
-    fun provideCalendarSyncDao(database: AveryTaskDatabase): CalendarSyncDao = database.calendarSyncDao()
+    fun provideCalendarSyncDao(database: PrismTaskDatabase): CalendarSyncDao = database.calendarSyncDao()
 
     @Provides
-    fun provideHabitDao(database: AveryTaskDatabase): HabitDao = database.habitDao()
+    fun provideHabitDao(database: PrismTaskDatabase): HabitDao = database.habitDao()
 
     @Provides
-    fun provideHabitCompletionDao(database: AveryTaskDatabase): HabitCompletionDao = database.habitCompletionDao()
+    fun provideHabitCompletionDao(database: PrismTaskDatabase): HabitCompletionDao = database.habitCompletionDao()
 
     @Provides
-    fun provideLeisureDao(database: AveryTaskDatabase): LeisureDao = database.leisureDao()
+    fun provideLeisureDao(database: PrismTaskDatabase): LeisureDao = database.leisureDao()
 
     @Provides
-    fun provideSchoolworkDao(database: AveryTaskDatabase): SchoolworkDao = database.schoolworkDao()
+    fun provideSchoolworkDao(database: PrismTaskDatabase): SchoolworkDao = database.schoolworkDao()
 
     @Provides
-    fun provideSelfCareDao(database: AveryTaskDatabase): SelfCareDao = database.selfCareDao()
+    fun provideSelfCareDao(database: PrismTaskDatabase): SelfCareDao = database.selfCareDao()
 
     @Provides
-    fun provideTaskTemplateDao(database: AveryTaskDatabase): TaskTemplateDao = database.taskTemplateDao()
+    fun provideTaskTemplateDao(database: PrismTaskDatabase): TaskTemplateDao = database.taskTemplateDao()
 }
 
 /**

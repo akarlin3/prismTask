@@ -134,7 +134,7 @@ import com.averycorp.prismtask.ui.components.QuickAddBar
 import com.averycorp.prismtask.ui.components.QuickReschedulePopup
 import com.averycorp.prismtask.ui.components.SubtaskSection
 import com.averycorp.prismtask.ui.components.computeInitialTagStates
-import com.averycorp.prismtask.ui.navigation.AveryTaskRoute
+import com.averycorp.prismtask.ui.navigation.PrismTaskRoute
 import com.averycorp.prismtask.ui.screens.addedittask.AddEditTaskSheetHost
 import com.averycorp.prismtask.ui.theme.LocalPriorityColors
 import kotlinx.coroutines.launch
@@ -482,7 +482,7 @@ fun TaskListScreen(
                         }
                     },
                     actions = {
-                        IconButton(onClick = { navController.navigate(AveryTaskRoute.Search.route) }) {
+                        IconButton(onClick = { navController.navigate(PrismTaskRoute.Search.route) }) {
                             Icon(
                                 imageVector = Icons.Default.Search,
                                 contentDescription = "Search"
@@ -542,29 +542,29 @@ fun TaskListScreen(
                                 )
                                 DropdownMenuItem(
                                     text = { Text("Week") },
-                                    onClick = { showViewMenu = false; navController.navigate(AveryTaskRoute.WeekView.route) }
+                                    onClick = { showViewMenu = false; navController.navigate(PrismTaskRoute.WeekView.route) }
                                 )
                                 DropdownMenuItem(
                                     text = { Text("Month") },
-                                    onClick = { showViewMenu = false; navController.navigate(AveryTaskRoute.MonthView.route) }
+                                    onClick = { showViewMenu = false; navController.navigate(PrismTaskRoute.MonthView.route) }
                                 )
                                 DropdownMenuItem(
                                     text = { Text("Timeline") },
-                                    onClick = { showViewMenu = false; navController.navigate(AveryTaskRoute.Timeline.route) }
+                                    onClick = { showViewMenu = false; navController.navigate(PrismTaskRoute.Timeline.route) }
                                 )
                                 DropdownMenuItem(
                                     text = { Text("Eisenhower Matrix") },
-                                    onClick = { showViewMenu = false; navController.navigate(AveryTaskRoute.EisenhowerMatrix.route) }
+                                    onClick = { showViewMenu = false; navController.navigate(PrismTaskRoute.EisenhowerMatrix.route) }
                                 )
                             }
                         }
-                        IconButton(onClick = { navController.navigate(AveryTaskRoute.TagManagement.route) }) {
+                        IconButton(onClick = { navController.navigate(PrismTaskRoute.TagManagement.route) }) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.Label,
                                 contentDescription = "Tags"
                             )
                         }
-                        IconButton(onClick = { navController.navigate(AveryTaskRoute.Archive.route) }) {
+                        IconButton(onClick = { navController.navigate(PrismTaskRoute.Archive.route) }) {
                             Icon(
                                 imageVector = Icons.Default.Inventory2,
                                 contentDescription = "Archive"
@@ -668,7 +668,7 @@ fun TaskListScreen(
                 projects = projects,
                 selectedProjectId = selectedProjectId,
                 onSelectProject = viewModel::onSelectProject,
-                onManageProjects = { navController.navigate(AveryTaskRoute.ProjectList.route) }
+                onManageProjects = { navController.navigate(PrismTaskRoute.ProjectList.route) }
             )
 
             // Quick add bar
@@ -890,7 +890,7 @@ fun TaskListScreen(
             onDeleteTask = { id -> viewModel.onDeleteTaskWithUndo(id) },
             onManageTemplates = {
                 editorSheet = null
-                navController.navigate(AveryTaskRoute.TemplateList.route)
+                navController.navigate(PrismTaskRoute.TemplateList.route)
             }
         )
     }

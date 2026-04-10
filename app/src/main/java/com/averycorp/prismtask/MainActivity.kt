@@ -28,8 +28,8 @@ import com.averycorp.prismtask.data.remote.UpdateChecker
 import com.averycorp.prismtask.data.remote.VersionInfo
 import com.averycorp.prismtask.notifications.NotificationHelper
 import com.averycorp.prismtask.ui.components.UpdateDialog
-import com.averycorp.prismtask.ui.navigation.AveryTaskNavGraph
-import com.averycorp.prismtask.ui.theme.AveryTaskTheme
+import com.averycorp.prismtask.ui.navigation.PrismTaskNavGraph
+import com.averycorp.prismtask.ui.theme.PrismTaskTheme
 import com.averycorp.prismtask.ui.theme.PriorityColors
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
@@ -135,7 +135,7 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            AveryTaskTheme(
+            PrismTaskTheme(
                 themeMode = themeMode,
                 accentColor = accentColor,
                 backgroundColorOverride = backgroundColorOverride,
@@ -144,7 +144,7 @@ class MainActivity : ComponentActivity() {
                 fontScale = fontScale,
                 priorityColors = priorityColors
             ) {
-                AveryTaskNavGraph(
+                PrismTaskNavGraph(
                     modifier = Modifier.fillMaxSize(),
                     tabOrder = tabOrder,
                     hiddenTabs = hiddenTabs,

@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "AveryTask",
-    "slug": "averytask",
+    "name": "PrismTask",
+    "slug": "prismtask",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "scheme": "averytask",
+    "scheme": "prismtask",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
@@ -26,7 +26,7 @@
     },
     "extra": {
       "eas": {
-        "projectId": "averytask"
+        "projectId": "prismtask"
       }
     }
   }

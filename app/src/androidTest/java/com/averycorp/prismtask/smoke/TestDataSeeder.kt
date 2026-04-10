@@ -1,6 +1,6 @@
 package com.averycorp.prismtask.smoke
 
-import com.averycorp.prismtask.data.local.database.AveryTaskDatabase
+import com.averycorp.prismtask.data.local.database.PrismTaskDatabase
 import com.averycorp.prismtask.data.local.entity.HabitEntity
 import com.averycorp.prismtask.data.local.entity.ProjectEntity
 import com.averycorp.prismtask.data.local.entity.TagEntity
@@ -44,7 +44,7 @@ object TestDataSeeder {
         val templateMeetingId: Long
     )
 
-    suspend fun seed(database: AveryTaskDatabase): SeededIds {
+    suspend fun seed(database: PrismTaskDatabase): SeededIds {
         val taskDao = database.taskDao()
         val projectDao = database.projectDao()
         val tagDao = database.tagDao()
@@ -227,7 +227,7 @@ object TestDataSeeder {
         )
     }
 
-    suspend fun clear(database: AveryTaskDatabase) {
+    suspend fun clear(database: PrismTaskDatabase) {
         database.clearAllTables()
     }
 }

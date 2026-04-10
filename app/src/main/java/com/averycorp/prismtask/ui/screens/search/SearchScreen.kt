@@ -53,7 +53,7 @@ import com.averycorp.prismtask.data.local.entity.ProjectEntity
 import com.averycorp.prismtask.data.local.entity.TagEntity
 import com.averycorp.prismtask.data.local.entity.TaskEntity
 import com.averycorp.prismtask.ui.components.HighlightedText
-import com.averycorp.prismtask.ui.navigation.AveryTaskRoute
+import com.averycorp.prismtask.ui.navigation.PrismTaskRoute
 import com.averycorp.prismtask.ui.theme.LocalPriorityColors
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -166,7 +166,7 @@ fun SearchScreen(
                                     query = query,
                                     onClick = {
                                         navController.navigate(
-                                            AveryTaskRoute.AddEditTask.createRoute(task.id)
+                                            PrismTaskRoute.AddEditTask.createRoute(task.id)
                                         )
                                     }
                                 )
@@ -182,7 +182,7 @@ fun SearchScreen(
                                     tag = tag,
                                     query = query,
                                     onClick = {
-                                        navController.navigate(AveryTaskRoute.TagManagement.route)
+                                        navController.navigate(PrismTaskRoute.TagManagement.route)
                                     }
                                 )
                             }
@@ -197,7 +197,7 @@ fun SearchScreen(
                                     project = project,
                                     query = query,
                                     onClick = {
-                                        navController.navigate(AveryTaskRoute.ProjectList.route)
+                                        navController.navigate(PrismTaskRoute.ProjectList.route)
                                     }
                                 )
                             }

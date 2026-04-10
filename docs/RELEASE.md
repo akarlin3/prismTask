@@ -6,7 +6,7 @@ Generate a release keystore (do this once, keep it safe forever):
 
 ```bash
 keytool -genkey -v -keystore release-keystore.jks \
-  -keyalg RSA -keysize 2048 -validity 10000 -alias averytask
+  -keyalg RSA -keysize 2048 -validity 10000 -alias prismtask
 ```
 
 **IMPORTANT:** Back up `release-keystore.jks` securely. Losing this keystore means you can never update the app on the Play Store.
@@ -23,10 +23,10 @@ keytool -genkey -v -keystore release-keystore.jks \
 - [ ] Environment variables set:
   - `KEYSTORE_PATH` — path to the release keystore file
   - `KEYSTORE_PASSWORD` — keystore password
-  - `KEY_ALIAS` — key alias (default: `averytask`)
+  - `KEY_ALIAS` — key alias (default: `prismtask`)
   - `KEY_PASSWORD` — key password
 - [ ] Google Play Console: app created, store listing complete
-- [ ] Google Play Console: `averytask_pro_monthly` subscription product created
+- [ ] Google Play Console: `prismtask_pro_monthly` subscription product created
 
 ## Build
 
@@ -64,7 +64,7 @@ keytool -genkey -v -keystore release-keystore.jks \
 ```bash
 export KEYSTORE_PATH=./release-keystore.jks
 export KEYSTORE_PASSWORD=your_password
-export KEY_ALIAS=averytask
+export KEY_ALIAS=prismtask
 export KEY_PASSWORD=your_password
 ./gradlew bundleRelease
 ```

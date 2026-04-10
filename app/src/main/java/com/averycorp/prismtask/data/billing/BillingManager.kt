@@ -41,7 +41,7 @@ class BillingManager @Inject constructor(
     private val proStatusPreferences: ProStatusPreferences
 ) {
     companion object {
-        const val PRODUCT_ID = "averytask_pro_monthly"
+        const val PRODUCT_ID = "prismtask_pro_monthly"
     }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)

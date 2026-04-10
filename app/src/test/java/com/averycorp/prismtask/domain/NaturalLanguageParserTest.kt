@@ -1,6 +1,6 @@
 package com.averycorp.prismtask.domain
 
-import com.averycorp.prismtask.data.remote.api.AveryTaskApi
+import com.averycorp.prismtask.data.remote.api.PrismTaskApi
 import com.averycorp.prismtask.data.remote.api.EisenhowerRequest
 import com.averycorp.prismtask.data.remote.api.EisenhowerResponse
 import com.averycorp.prismtask.data.remote.api.ImportResponse
@@ -34,7 +34,7 @@ class NaturalLanguageParserTest {
     private val today = LocalDate.now()
 
     /** Stub Retrofit API — these tests only exercise the offline regex parser. */
-    private val stubApi = object : AveryTaskApi {
+    private val stubApi = object : PrismTaskApi {
         override suspend fun register(request: RegisterRequest): TokenResponse =
             error("not used in offline parser tests")
         override suspend fun login(request: LoginRequest): TokenResponse =
@@ -97,9 +97,9 @@ class NaturalLanguageParserTest {
 
     @Test
     fun test_titleWithProject() {
-        val result = parser.parse("Fix bug @AveryTask")
+        val result = parser.parse("Fix bug @PrismTask")
         assertEquals("Fix bug", result.title)
-        assertEquals("AveryTask", result.projectName)
+        assertEquals("PrismTask", result.projectName)
     }
 
     @Test

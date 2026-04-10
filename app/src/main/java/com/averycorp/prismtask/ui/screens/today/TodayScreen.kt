@@ -99,7 +99,7 @@ import androidx.compose.material3.AlertDialog
 import com.averycorp.prismtask.ui.components.MoveToProjectSheet
 import com.averycorp.prismtask.ui.components.QuickAddBar
 import com.averycorp.prismtask.ui.components.QuickReschedulePopup
-import com.averycorp.prismtask.ui.navigation.AveryTaskRoute
+import com.averycorp.prismtask.ui.navigation.PrismTaskRoute
 import com.averycorp.prismtask.ui.screens.addedittask.AddEditTaskSheetHost
 import com.averycorp.prismtask.ui.theme.LocalPriorityColors
 import kotlinx.coroutines.delay
@@ -204,7 +204,7 @@ fun TodayScreen(
             // Quick action: Focus session
             item(key = "focus_action") {
                 AssistChip(
-                    onClick = { navController.navigate(AveryTaskRoute.SmartPomodoro.route) },
+                    onClick = { navController.navigate(PrismTaskRoute.SmartPomodoro.route) },
                     label = { Text("Focus") },
                     leadingIcon = {
                         Icon(Icons.Default.Timer, contentDescription = null, modifier = Modifier.size(16.dp))
@@ -296,7 +296,7 @@ fun TodayScreen(
                             onToggle = { hws ->
                                 viewModel.onToggleHabitCompletion(hws.habit.id, hws.isCompletedToday)
                             },
-                            onSeeAll = { navController.navigate(AveryTaskRoute.HabitList.route) }
+                            onSeeAll = { navController.navigate(PrismTaskRoute.HabitList.route) }
                         )
                     }
                 }
@@ -398,7 +398,7 @@ fun TodayScreen(
             onUseTemplate = { viewModel.onCreateTaskFromTemplateForToday(it) },
             onOpenManageTemplates = {
                 viewModel.onDismissPlanSheet()
-                navController.navigate(AveryTaskRoute.TemplateList.route)
+                navController.navigate(PrismTaskRoute.TemplateList.route)
             },
             onDismiss = { viewModel.onDismissPlanSheet() }
         )
@@ -413,7 +413,7 @@ fun TodayScreen(
             onDeleteTask = { id -> viewModel.onDeleteTaskWithUndo(id) },
             onManageTemplates = {
                 showEditorSheet = false
-                navController.navigate(AveryTaskRoute.TemplateList.route)
+                navController.navigate(PrismTaskRoute.TemplateList.route)
             }
         )
     }

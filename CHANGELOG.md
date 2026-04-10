@@ -5,7 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## v1.1.0 — AI Productivity, Freemium & Play Store Launch (April 2026)
+## v1.1.0 — PrismTask Rebrand, AI Productivity, Freemium & Play Store (April 2026)
+
+### Changed — Rebrand
+- App renamed from AveryTask to PrismTask
+- Package renamed from com.averycorp.averytask to com.averycorp.prismtask
+- All UI strings, documentation, and metadata updated
 
 ### Added — AI Productivity
 - Eisenhower Matrix view: 2x2 grid with AI auto-categorization via Claude Haiku
@@ -285,10 +290,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Kotlin 2.2.10, Compose BOM 2024.12.01, Gradle 8.13
 - Min SDK 26 (Android 8.0), Target SDK 35 (Android 15)
 
-[0.7.0]: https://github.com/akarlin3/averyTask/releases/tag/v0.7.0
-[0.6.0]: https://github.com/akarlin3/averyTask/releases/tag/v0.6.0
-[0.5.0]: https://github.com/akarlin3/averyTask/releases/tag/v0.5.0
-[0.4.0]: https://github.com/akarlin3/averyTask/releases/tag/v0.4.0
-[0.3.0]: https://github.com/akarlin3/averyTask/releases/tag/v0.3.0
-[0.2.0]: https://github.com/akarlin3/averyTask/releases/tag/v0.2.0
-[0.1.0]: https://github.com/akarlin3/averyTask/releases/tag/v0.1.0-mvp
+[0.7.0]: https://github.com/akarlin3/prismTask/releases/tag/v0.7.0
+[0.6.0]: https://github.com/akarlin3/prismTask/releases/tag/v0.6.0
+[0.5.0]: https://github.com/akarlin3/prismTask/releases/tag/v0.5.0
+[0.4.0]: https://github.com/akarlin3/prismTask/releases/tag/v0.4.0
+[0.3.0]: https://github.com/akarlin3/prismTask/releases/tag/v0.3.0
+[0.2.0]: https://github.com/akarlin3/prismTask/releases/tag/v0.2.0
+[0.1.0]: https://github.com/akarlin3/prismTask/releases/tag/v0.1.0-mvp

@@ -49,7 +49,7 @@ android {
             create("release") {
                 storeFile = file(keystorePath!!)
                 storePassword = System.getenv("KEYSTORE_PASSWORD") ?: ""
-                keyAlias = System.getenv("KEY_ALIAS") ?: "averytask"
+                keyAlias = System.getenv("KEY_ALIAS") ?: "prismtask"
                 keyPassword = System.getenv("KEY_PASSWORD") ?: ""
             }
         }

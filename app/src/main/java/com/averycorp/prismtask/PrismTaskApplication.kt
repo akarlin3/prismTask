@@ -23,7 +23,7 @@ import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
 @HiltAndroidApp
-class AveryTaskApplication : Application(), Configuration.Provider {
+class PrismTaskApplication : Application(), Configuration.Provider {
 
     @Inject
     lateinit var workerFactory: HiltWorkerFactory
@@ -77,7 +77,7 @@ class AveryTaskApplication : Application(), Configuration.Provider {
     private fun scheduleDailyReset() {
         appScope.launch {
             taskBehaviorPreferences.getDayStartHour().collectLatest { hour ->
-                DailyResetWorker.schedule(this@AveryTaskApplication, hour)
+                DailyResetWorker.schedule(this@PrismTaskApplication, hour)
             }
         }
     }

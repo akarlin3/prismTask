@@ -1,4 +1,4 @@
-# AveryTask — Architecture & Data Model
+# PrismTask — Architecture & Data Model
 
 ## 1. System Overview
 
@@ -412,7 +412,7 @@ Input: "{user_input}"
 ## 6. Project Structure
 
 ```
-averytask/
+prismTask/
 ├── backend/
 │   ├── app/
 │   │   ├── __init__.py

@@ -8,7 +8,7 @@
 
 ## Overview
 
-AveryTask is a local-only Android todo list app. In its current state, the app does not request any permissions, does not make network requests, and does not store sensitive data.
+PrismTask is a local-only Android todo list app. In its current state, the app does not request any permissions, does not make network requests, and does not store sensitive data.
 
 ## Data Storage
 

@@ -7,7 +7,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.averycorp.prismtask.data.local.dao.ProjectDao
 import com.averycorp.prismtask.data.local.dao.TagDao
 import com.averycorp.prismtask.data.local.dao.TaskDao
-import com.averycorp.prismtask.data.local.database.AveryTaskDatabase
+import com.averycorp.prismtask.data.local.database.PrismTaskDatabase
 import com.averycorp.prismtask.data.local.entity.ProjectEntity
 import com.averycorp.prismtask.data.local.entity.TagEntity
 import com.averycorp.prismtask.data.local.entity.TaskEntity
@@ -31,7 +31,7 @@ class TaskDaoTest {
     @get:Rule
     val instantTaskExecutorRule = InstantTaskExecutorRule()
 
-    private lateinit var database: AveryTaskDatabase
+    private lateinit var database: PrismTaskDatabase
     private lateinit var taskDao: TaskDao
     private lateinit var projectDao: ProjectDao
     private lateinit var tagDao: TagDao
@@ -39,7 +39,7 @@ class TaskDaoTest {
     @Before
     fun setup() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
-        database = Room.inMemoryDatabaseBuilder(context, AveryTaskDatabase::class.java)
+        database = Room.inMemoryDatabaseBuilder(context, PrismTaskDatabase::class.java)
             .allowMainThreadQueries()
             .build()
         taskDao = database.taskDao()

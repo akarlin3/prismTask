@@ -69,54 +69,54 @@ import com.averycorp.prismtask.ui.screens.templates.TemplateListScreen
 import com.averycorp.prismtask.ui.screens.timer.TimerScreen
 import kotlinx.coroutines.launch
 
-sealed class AveryTaskRoute(val route: String) {
-    data object Today : AveryTaskRoute("today")
-    data object TaskList : AveryTaskRoute("task_list")
-    data object AddEditTask : AveryTaskRoute("add_edit_task?taskId={taskId}") {
+sealed class PrismTaskRoute(val route: String) {
+    data object Today : PrismTaskRoute("today")
+    data object TaskList : PrismTaskRoute("task_list")
+    data object AddEditTask : PrismTaskRoute("add_edit_task?taskId={taskId}") {
         fun createRoute(taskId: Long? = null): String =
             if (taskId != null) "add_edit_task?taskId=$taskId" else "add_edit_task"
     }
-    data object ProjectList : AveryTaskRoute("project_list")
-    data object AddEditProject : AveryTaskRoute("add_edit_project?projectId={projectId}") {
+    data object ProjectList : PrismTaskRoute("project_list")
+    data object AddEditProject : PrismTaskRoute("add_edit_project?projectId={projectId}") {
         fun createRoute(projectId: Long? = null): String =
             if (projectId != null) "add_edit_project?projectId=$projectId" else "add_edit_project"
     }
-    data object Settings : AveryTaskRoute("settings")
-    data object TagManagement : AveryTaskRoute("tag_management")
-    data object Search : AveryTaskRoute("search")
-    data object Archive : AveryTaskRoute("archive")
-    data object Auth : AveryTaskRoute("auth")
-    data object WeekView : AveryTaskRoute("week_view")
-    data object MonthView : AveryTaskRoute("month_view")
-    data object Timeline : AveryTaskRoute("timeline")
-    data object HabitList : AveryTaskRoute("habit_list")
-    data object Timer : AveryTaskRoute("timer")
-    data object AddEditHabit : AveryTaskRoute("add_edit_habit?habitId={habitId}") {
+    data object Settings : PrismTaskRoute("settings")
+    data object TagManagement : PrismTaskRoute("tag_management")
+    data object Search : PrismTaskRoute("search")
+    data object Archive : PrismTaskRoute("archive")
+    data object Auth : PrismTaskRoute("auth")
+    data object WeekView : PrismTaskRoute("week_view")
+    data object MonthView : PrismTaskRoute("month_view")
+    data object Timeline : PrismTaskRoute("timeline")
+    data object HabitList : PrismTaskRoute("habit_list")
+    data object Timer : PrismTaskRoute("timer")
+    data object AddEditHabit : PrismTaskRoute("add_edit_habit?habitId={habitId}") {
         fun createRoute(habitId: Long? = null): String =
             if (habitId != null) "add_edit_habit?habitId=$habitId" else "add_edit_habit"
     }
-    data object HabitAnalytics : AveryTaskRoute("habit_analytics?habitId={habitId}") {
+    data object HabitAnalytics : PrismTaskRoute("habit_analytics?habitId={habitId}") {
         fun createRoute(habitId: Long): String = "habit_analytics?habitId=$habitId"
     }
-    data object SelfCare : AveryTaskRoute("self_care?routineType={routineType}") {
+    data object SelfCare : PrismTaskRoute("self_care?routineType={routineType}") {
         fun createRoute(routineType: String = "morning"): String = "self_care?routineType=$routineType"
     }
-    data object Medication : AveryTaskRoute("medication")
-    data object MedicationLog : AveryTaskRoute("medication_log")
-    data object Leisure : AveryTaskRoute("leisure")
-    data object Schoolwork : AveryTaskRoute("schoolwork")
-    data object AddEditCourse : AveryTaskRoute("add_edit_course?courseId={courseId}") {
+    data object Medication : PrismTaskRoute("medication")
+    data object MedicationLog : PrismTaskRoute("medication_log")
+    data object Leisure : PrismTaskRoute("leisure")
+    data object Schoolwork : PrismTaskRoute("schoolwork")
+    data object AddEditCourse : PrismTaskRoute("add_edit_course?courseId={courseId}") {
         fun createRoute(courseId: Long? = null): String =
             if (courseId != null) "add_edit_course?courseId=$courseId" else "add_edit_course"
     }
-    data object EisenhowerMatrix : AveryTaskRoute("eisenhower_matrix")
-    data object SmartPomodoro : AveryTaskRoute("smart_pomodoro")
-    data object TemplateList : AveryTaskRoute("templates")
-    data object AddEditTemplate : AveryTaskRoute("templates/edit?templateId={templateId}") {
+    data object EisenhowerMatrix : PrismTaskRoute("eisenhower_matrix")
+    data object SmartPomodoro : PrismTaskRoute("smart_pomodoro")
+    data object TemplateList : PrismTaskRoute("templates")
+    data object AddEditTemplate : PrismTaskRoute("templates/edit?templateId={templateId}") {
         fun createRoute(templateId: Long? = null): String =
             if (templateId != null) "templates/edit?templateId=$templateId" else "templates/edit"
     }
-    data object MainTabs : AveryTaskRoute("main_tabs")
+    data object MainTabs : PrismTaskRoute("main_tabs")
 }
 
 data class BottomNavItem(
@@ -127,17 +127,17 @@ data class BottomNavItem(
 )
 
 val ALL_BOTTOM_NAV_ITEMS = listOf(
-    BottomNavItem(AveryTaskRoute.Today.route, "Today", Icons.Filled.Today, Icons.Outlined.Today),
-    BottomNavItem(AveryTaskRoute.TaskList.route, "Tasks", Icons.AutoMirrored.Filled.FormatListBulleted, Icons.AutoMirrored.Outlined.FormatListBulleted),
-    BottomNavItem(AveryTaskRoute.HabitList.route, "Habits", Icons.Filled.FitnessCenter, Icons.Outlined.FitnessCenter),
-    BottomNavItem(AveryTaskRoute.Timer.route, "Timer", Icons.Filled.Timer, Icons.Outlined.Timer),
-    BottomNavItem(AveryTaskRoute.Settings.route, "Settings", Icons.Filled.Settings, Icons.Outlined.Settings),
+    BottomNavItem(PrismTaskRoute.Today.route, "Today", Icons.Filled.Today, Icons.Outlined.Today),
+    BottomNavItem(PrismTaskRoute.TaskList.route, "Tasks", Icons.AutoMirrored.Filled.FormatListBulleted, Icons.AutoMirrored.Outlined.FormatListBulleted),
+    BottomNavItem(PrismTaskRoute.HabitList.route, "Habits", Icons.Filled.FitnessCenter, Icons.Outlined.FitnessCenter),
+    BottomNavItem(PrismTaskRoute.Timer.route, "Timer", Icons.Filled.Timer, Icons.Outlined.Timer),
+    BottomNavItem(PrismTaskRoute.Settings.route, "Settings", Icons.Filled.Settings, Icons.Outlined.Settings),
 )
 
 private const val NAV_ANIM_DURATION = 300
 
 @Composable
-fun AveryTaskNavGraph(
+fun PrismTaskNavGraph(
     modifier: Modifier = Modifier,
     navController: NavHostController = rememberNavController(),
     tabOrder: List<String> = ALL_BOTTOM_NAV_ITEMS.map { it.route },
@@ -149,7 +149,7 @@ fun AveryTaskNavGraph(
     // fall through to the default start destination.
     LaunchedEffect(initialLaunchAction) {
         if (initialLaunchAction == com.averycorp.prismtask.MainActivity.ACTION_OPEN_TEMPLATES) {
-            navController.navigate(AveryTaskRoute.TemplateList.route)
+            navController.navigate(PrismTaskRoute.TemplateList.route)
         }
     }
     // Append any tabs that aren't yet in the saved order (e.g. new tabs added in an update).
@@ -164,7 +164,7 @@ fun AveryTaskNavGraph(
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
-    val showBottomBar = currentRoute == null || currentRoute == AveryTaskRoute.MainTabs.route
+    val showBottomBar = currentRoute == null || currentRoute == PrismTaskRoute.MainTabs.route
 
     Scaffold(
         modifier = modifier,
@@ -196,12 +196,12 @@ fun AveryTaskNavGraph(
     ) { innerPadding ->
         NavHost(
             navController = navController,
-            startDestination = AveryTaskRoute.MainTabs.route,
+            startDestination = PrismTaskRoute.MainTabs.route,
             modifier = Modifier.padding(innerPadding)
         ) {
             // Main tab screens — swipeable via HorizontalPager
             composable(
-                route = AveryTaskRoute.MainTabs.route,
+                route = PrismTaskRoute.MainTabs.route,
                 enterTransition = { fadeIn(animationSpec = tween(NAV_ANIM_DURATION)) },
                 exitTransition = { fadeOut(animationSpec = tween(NAV_ANIM_DURATION)) },
                 popEnterTransition = { fadeIn(animationSpec = tween(NAV_ANIM_DURATION)) },
@@ -214,17 +214,17 @@ fun AveryTaskNavGraph(
                     modifier = Modifier.fillMaxSize()
                 ) { page ->
                     when (bottomNavItems[page].route) {
-                        AveryTaskRoute.Today.route -> TodayScreen(navController)
-                        AveryTaskRoute.TaskList.route -> TaskListScreen(navController)
-                        AveryTaskRoute.HabitList.route -> HabitListScreen(navController)
-                        AveryTaskRoute.Timer.route -> TimerScreen(navController)
-                        AveryTaskRoute.Settings.route -> SettingsScreen(navController)
+                        PrismTaskRoute.Today.route -> TodayScreen(navController)
+                        PrismTaskRoute.TaskList.route -> TaskListScreen(navController)
+                        PrismTaskRoute.HabitList.route -> HabitListScreen(navController)
+                        PrismTaskRoute.Timer.route -> TimerScreen(navController)
+                        PrismTaskRoute.Settings.route -> SettingsScreen(navController)
                     }
                 }
             }
 
             composable(
-                route = AveryTaskRoute.ProjectList.route,
+                route = PrismTaskRoute.ProjectList.route,
                 enterTransition = {
                     slideInHorizontally(initialOffsetX = { it }, animationSpec = tween(NAV_ANIM_DURATION)) +
                             fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
@@ -246,7 +246,7 @@ fun AveryTaskNavGraph(
             }
 
             composable(
-                route = AveryTaskRoute.Leisure.route,
+                route = PrismTaskRoute.Leisure.route,
                 enterTransition = { slideInHorizontally(initialOffsetX = { it }, animationSpec = tween(NAV_ANIM_DURATION)) },
                 exitTransition = { slideOutHorizontally(targetOffsetX = { it }, animationSpec = tween(NAV_ANIM_DURATION)) },
                 popEnterTransition = { slideInHorizontally(initialOffsetX = { -it }, animationSpec = tween(NAV_ANIM_DURATION)) },
@@ -256,7 +256,7 @@ fun AveryTaskNavGraph(
             }
 
             composable(
-                route = AveryTaskRoute.Schoolwork.route,
+                route = PrismTaskRoute.Schoolwork.route,
                 enterTransition = { slideInHorizontally(initialOffsetX = { it }, animationSpec = tween(NAV_ANIM_DURATION)) },
                 exitTransition = { slideOutHorizontally(targetOffsetX = { it }, animationSpec = tween(NAV_ANIM_DURATION)) },
                 popEnterTransition = { slideInHorizontally(initialOffsetX = { -it }, animationSpec = tween(NAV_ANIM_DURATION)) },
@@ -267,7 +267,7 @@ fun AveryTaskNavGraph(
 
             // Detail screens — remain native Compose, slide transitions
             composable(
-                route = AveryTaskRoute.AddEditTask.route,
+                route = PrismTaskRoute.AddEditTask.route,
                 arguments = listOf(
                     navArgument("taskId") {
                         type = NavType.LongType
@@ -295,7 +295,7 @@ fun AveryTaskNavGraph(
             }
 
             composable(
-                route = AveryTaskRoute.AddEditProject.route,
+                route = PrismTaskRoute.AddEditProject.route,
                 arguments = listOf(
                     navArgument("projectId") {
                         type = NavType.LongType
@@ -323,7 +323,7 @@ fun AveryTaskNavGraph(
             }
 
             composable(
-                route = AveryTaskRoute.TagManagement.route,
+                route = PrismTaskRoute.TagManagement.route,
                 enterTransition = {
                     slideInHorizontally(initialOffsetX = { it }, animationSpec = tween(NAV_ANIM_DURATION)) +
                             fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
@@ -345,7 +345,7 @@ fun AveryTaskNavGraph(
             }
 
             composable(
-                route = AveryTaskRoute.Search.route,
+                route = PrismTaskRoute.Search.route,
                 enterTransition = {
                     slideInHorizontally(initialOffsetX = { it }, animationSpec = tween(NAV_ANIM_DURATION)) +
                             fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
@@ -367,7 +367,7 @@ fun AveryTaskNavGraph(
             }
 
             composable(
-                route = AveryTaskRoute.WeekView.route,
+                route = PrismTaskRoute.WeekView.route,
                 enterTransition = {
                     slideInHorizontally(initialOffsetX = { it }, animationSpec = tween(NAV_ANIM_DURATION)) +
                             fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
@@ -389,7 +389,7 @@ fun AveryTaskNavGraph(
             }
 
             composable(
-                route = AveryTaskRoute.MonthView.route,
+                route = PrismTaskRoute.MonthView.route,
                 enterTransition = {
                     slideInHorizontally(initialOffsetX = { it }, animationSpec = tween(NAV_ANIM_DURATION)) +
                             fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
@@ -411,7 +411,7 @@ fun AveryTaskNavGraph(
             }
 
             composable(
-                route = AveryTaskRoute.Timeline.route,
+                route = PrismTaskRoute.Timeline.route,
                 enterTransition = {
                     slideInHorizontally(initialOffsetX = { it }, animationSpec = tween(NAV_ANIM_DURATION)) +
                             fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
@@ -433,7 +433,7 @@ fun AveryTaskNavGraph(
             }
 
             composable(
-                route = AveryTaskRoute.Archive.route,
+                route = PrismTaskRoute.Archive.route,
                 enterTransition = {
                     slideInHorizontally(initialOffsetX = { it }, animationSpec = tween(NAV_ANIM_DURATION)) +
                             fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
@@ -455,7 +455,7 @@ fun AveryTaskNavGraph(
             }
 
             composable(
-                route = AveryTaskRoute.AddEditHabit.route,
+                route = PrismTaskRoute.AddEditHabit.route,
                 arguments = listOf(
                     navArgument("habitId") {
                         type = NavType.LongType
@@ -483,7 +483,7 @@ fun AveryTaskNavGraph(
             }
 
             composable(
-                route = AveryTaskRoute.Auth.route,
+                route = PrismTaskRoute.Auth.route,
                 enterTransition = {
                     slideInHorizontally(initialOffsetX = { it }, animationSpec = tween(NAV_ANIM_DURATION)) +
                             fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
@@ -509,7 +509,7 @@ fun AveryTaskNavGraph(
             }
 
             composable(
-                route = AveryTaskRoute.HabitAnalytics.route,
+                route = PrismTaskRoute.HabitAnalytics.route,
                 arguments = listOf(
                     navArgument("habitId") {
                         type = NavType.LongType
@@ -537,7 +537,7 @@ fun AveryTaskNavGraph(
             }
 
             composable(
-                route = AveryTaskRoute.SelfCare.route,
+                route = PrismTaskRoute.SelfCare.route,
                 arguments = listOf(
                     navArgument("routineType") {
                         type = NavType.StringType
@@ -565,7 +565,7 @@ fun AveryTaskNavGraph(
             }
 
             composable(
-                route = AveryTaskRoute.Medication.route,
+                route = PrismTaskRoute.Medication.route,
                 enterTransition = {
                     slideInHorizontally(initialOffsetX = { it }, animationSpec = tween(NAV_ANIM_DURATION)) +
                             fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
@@ -587,7 +587,7 @@ fun AveryTaskNavGraph(
             }
 
             composable(
-                route = AveryTaskRoute.MedicationLog.route,
+                route = PrismTaskRoute.MedicationLog.route,
                 enterTransition = {
                     slideInHorizontally(initialOffsetX = { it }, animationSpec = tween(NAV_ANIM_DURATION)) +
                             fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
@@ -609,7 +609,7 @@ fun AveryTaskNavGraph(
             }
 
             composable(
-                route = AveryTaskRoute.AddEditCourse.route,
+                route = PrismTaskRoute.AddEditCourse.route,
                 arguments = listOf(
                     navArgument("courseId") {
                         type = NavType.LongType
@@ -637,7 +637,7 @@ fun AveryTaskNavGraph(
             }
 
             composable(
-                route = AveryTaskRoute.EisenhowerMatrix.route,
+                route = PrismTaskRoute.EisenhowerMatrix.route,
                 enterTransition = {
                     slideInHorizontally(initialOffsetX = { it }, animationSpec = tween(NAV_ANIM_DURATION)) +
                             fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
@@ -659,7 +659,7 @@ fun AveryTaskNavGraph(
             }
 
             composable(
-                route = AveryTaskRoute.SmartPomodoro.route,
+                route = PrismTaskRoute.SmartPomodoro.route,
                 enterTransition = {
                     slideInHorizontally(initialOffsetX = { it }, animationSpec = tween(NAV_ANIM_DURATION)) +
                             fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
@@ -681,7 +681,7 @@ fun AveryTaskNavGraph(
             }
 
             composable(
-                route = AveryTaskRoute.TemplateList.route,
+                route = PrismTaskRoute.TemplateList.route,
                 enterTransition = {
                     slideInHorizontally(initialOffsetX = { it }, animationSpec = tween(NAV_ANIM_DURATION)) +
                             fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
@@ -703,7 +703,7 @@ fun AveryTaskNavGraph(
             }
 
             composable(
-                route = AveryTaskRoute.AddEditTemplate.route,
+                route = PrismTaskRoute.AddEditTemplate.route,
                 arguments = listOf(
                     navArgument("templateId") {
                         type = NavType.LongType

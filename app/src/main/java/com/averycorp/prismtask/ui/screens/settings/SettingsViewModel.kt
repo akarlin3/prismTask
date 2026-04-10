@@ -34,7 +34,7 @@ import com.averycorp.prismtask.data.preferences.TimerPreferences
 import com.averycorp.prismtask.ui.navigation.ALL_BOTTOM_NAV_ITEMS
 import com.averycorp.prismtask.data.preferences.ThemePreferences
 import com.averycorp.prismtask.data.preferences.UrgencyWeights
-import com.averycorp.prismtask.data.local.database.AveryTaskDatabase
+import com.averycorp.prismtask.data.local.database.PrismTaskDatabase
 import com.averycorp.prismtask.data.preferences.HabitListPreferences
 import com.averycorp.prismtask.data.preferences.LeisurePreferences
 import com.averycorp.prismtask.data.remote.AppUpdater
@@ -43,7 +43,7 @@ import com.averycorp.prismtask.data.remote.CalendarSyncService
 import com.averycorp.prismtask.data.remote.DeviceCalendar
 import com.averycorp.prismtask.data.remote.GoogleDriveService
 import com.averycorp.prismtask.data.remote.SyncService
-import com.averycorp.prismtask.data.remote.api.AveryTaskApi
+import com.averycorp.prismtask.data.remote.api.PrismTaskApi
 import com.averycorp.prismtask.data.remote.api.ImportResponse
 import com.averycorp.prismtask.data.remote.api.LoginRequest
 import com.averycorp.prismtask.data.remote.api.RegisterRequest
@@ -80,7 +80,7 @@ class SettingsViewModel @Inject constructor(
     private val calendarPreferences: CalendarPreferences,
     private val leisurePreferences: LeisurePreferences,
     private val habitListPreferences: HabitListPreferences,
-    private val database: AveryTaskDatabase,
+    private val database: PrismTaskDatabase,
     private val dataExporter: DataExporter,
     private val dataImporter: DataImporter,
     private val authManager: AuthManager,
@@ -92,7 +92,7 @@ class SettingsViewModel @Inject constructor(
     private val backendSyncPreferences: BackendSyncPreferences,
     private val templatePreferences: TemplatePreferences,
     private val authTokenPreferences: AuthTokenPreferences,
-    private val averyTaskApi: AveryTaskApi,
+    private val prismTaskApi: PrismTaskApi,
     val appUpdater: AppUpdater,
     private val calendarManager: CalendarManager,
     private val calendarSyncPreferences: CalendarSyncPreferences,
@@ -695,7 +695,7 @@ class SettingsViewModel @Inject constructor(
             if (_isBackendAuthenticating.value) return@launch
             _isBackendAuthenticating.value = true
             try {
-                val tokens = averyTaskApi.login(LoginRequest(email = email, password = password))
+                val tokens = prismTaskApi.login(LoginRequest(email = email, password = password))
                 authTokenPreferences.saveTokens(tokens.accessToken, tokens.refreshToken)
                 _messages.emit("Connected to backend")
                 onComplete(true)
@@ -714,7 +714,7 @@ class SettingsViewModel @Inject constructor(
             if (_isBackendAuthenticating.value) return@launch
             _isBackendAuthenticating.value = true
             try {
-                val tokens = averyTaskApi.register(
+                val tokens = prismTaskApi.register(
                     RegisterRequest(email = email, password = password, name = name)
                 )
                 authTokenPreferences.saveTokens(tokens.accessToken, tokens.refreshToken)
@@ -748,13 +748,13 @@ class SettingsViewModel @Inject constructor(
             if (_isCloudExporting.value) return@launch
             _isCloudExporting.value = true
             try {
-                val responseBody = withContext(Dispatchers.IO) { averyTaskApi.exportJson() }
+                val responseBody = withContext(Dispatchers.IO) { prismTaskApi.exportJson() }
                 val bytes = withContext(Dispatchers.IO) { responseBody.bytes() }
                 val timestamp = java.text.SimpleDateFormat(
                     "yyyyMMdd_HHmmss",
                     java.util.Locale.US
                 ).format(java.util.Date())
-                val filename = "averytask_cloud_$timestamp.json"
+                val filename = "prismtask_cloud_$timestamp.json"
                 val savedName = withContext(Dispatchers.IO) {
                     saveToDownloads(filename, bytes)
                 }
@@ -780,7 +780,7 @@ class SettingsViewModel @Inject constructor(
                     body = jsonBytes.toRequestBody(mediaType)
                 )
                 val result: ImportResponse = withContext(Dispatchers.IO) {
-                    averyTaskApi.importJson(part, mode = "merge")
+                    prismTaskApi.importJson(part, mode = "merge")
                 }
                 val parts = mutableListOf<String>()
                 if (result.tasksImported > 0) parts.add("${result.tasksImported} tasks")

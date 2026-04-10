@@ -4,7 +4,7 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.averycorp.prismtask.data.local.converter.RecurrenceConverter
-import com.averycorp.prismtask.data.local.database.AveryTaskDatabase
+import com.averycorp.prismtask.data.local.database.PrismTaskDatabase
 import com.averycorp.prismtask.data.local.entity.TaskEntity
 import com.averycorp.prismtask.data.repository.TaskRepository
 import com.averycorp.prismtask.domain.model.RecurrenceRule
@@ -22,7 +22,7 @@ import java.time.ZoneId
 @RunWith(AndroidJUnit4::class)
 class RecurrenceIntegrationTest {
 
-    private lateinit var database: AveryTaskDatabase
+    private lateinit var database: PrismTaskDatabase
     private lateinit var repository: TaskRepository
 
     private fun LocalDate.toMillis(): Long =
@@ -32,7 +32,7 @@ class RecurrenceIntegrationTest {
     fun setup() {
         database = Room.inMemoryDatabaseBuilder(
             ApplicationProvider.getApplicationContext(),
-            AveryTaskDatabase::class.java
+            PrismTaskDatabase::class.java
         ).allowMainThreadQueries().build()
 
         repository = TaskRepository(database.taskDao())

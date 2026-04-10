@@ -3,7 +3,7 @@ package com.averycorp.prismtask.ui.screens.pomodoro
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.averycorp.prismtask.data.local.dao.TaskDao
-import com.averycorp.prismtask.data.remote.api.AveryTaskApi
+import com.averycorp.prismtask.data.remote.api.PrismTaskApi
 import com.averycorp.prismtask.data.remote.api.PomodoroRequest
 import com.averycorp.prismtask.data.remote.api.PomodoroResponse
 import com.averycorp.prismtask.domain.usecase.ProFeatureGate
@@ -63,7 +63,7 @@ data class FocusStats(
 @HiltViewModel
 class SmartPomodoroViewModel @Inject constructor(
     private val taskDao: TaskDao,
-    private val api: AveryTaskApi,
+    private val api: PrismTaskApi,
     private val proFeatureGate: ProFeatureGate
 ) : ViewModel() {
 

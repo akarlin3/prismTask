@@ -74,7 +74,7 @@ export default function SettingsScreen() {
       </TouchableOpacity>
 
       <Text style={[s.version, { color: colors.textSecondary }]}>
-        AveryTask v1.0.0
+        PrismTask v1.0.0
       </Text>
     </View>
   );

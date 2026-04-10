@@ -76,7 +76,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.averycorp.prismtask.data.local.entity.AssignmentEntity
 import com.averycorp.prismtask.data.local.entity.CourseEntity
-import com.averycorp.prismtask.ui.navigation.AveryTaskRoute
+import com.averycorp.prismtask.ui.navigation.PrismTaskRoute
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -213,7 +213,7 @@ fun SchoolworkScreen(
                     Icon(Icons.Default.UploadFile, contentDescription = "Import File", modifier = Modifier.size(20.dp))
                 }
                 FloatingActionButton(
-                    onClick = { navController.navigate(AveryTaskRoute.AddEditCourse.createRoute()) },
+                    onClick = { navController.navigate(PrismTaskRoute.AddEditCourse.createRoute()) },
                     containerColor = accentColor
                 ) {
                     Icon(Icons.Default.Add, contentDescription = "Add Course", tint = Color.Black)
@@ -304,7 +304,7 @@ fun SchoolworkScreen(
                         },
                         onDeleteAssignment = { viewModel.deleteAssignment(it) },
                         onEditCourse = {
-                            navController.navigate(AveryTaskRoute.AddEditCourse.createRoute(course.id))
+                            navController.navigate(PrismTaskRoute.AddEditCourse.createRoute(course.id))
                         },
                         onDeleteCourse = { viewModel.deleteCourse(course.id) }
                     )

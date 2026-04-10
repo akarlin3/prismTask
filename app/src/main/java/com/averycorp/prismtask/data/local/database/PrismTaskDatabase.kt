@@ -41,7 +41,7 @@ import com.averycorp.prismtask.data.local.entity.UsageLogEntity
     version = 25,
     exportSchema = false
 )
-abstract class AveryTaskDatabase : RoomDatabase() {
+abstract class PrismTaskDatabase : RoomDatabase() {
     abstract fun taskDao(): TaskDao
     abstract fun projectDao(): ProjectDao
     abstract fun tagDao(): TagDao
