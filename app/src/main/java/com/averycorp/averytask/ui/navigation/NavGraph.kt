@@ -7,10 +7,13 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.FormatListBulleted
 import androidx.compose.material.icons.filled.FitnessCenter
@@ -28,14 +31,14 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.navigation.NavDestination.Companion.hierarchy
-import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -69,6 +72,7 @@ import com.averycorp.averytask.ui.screens.settings.SettingsScreen
 import com.averycorp.averytask.ui.screens.templates.AddEditTemplateScreen
 import com.averycorp.averytask.ui.screens.templates.TemplateListScreen
 import com.averycorp.averytask.ui.screens.timer.TimerScreen
+import kotlinx.coroutines.launch
 
 sealed class AveryTaskRoute(val route: String) {
     data object Today : AveryTaskRoute("today")
@@ -115,6 +119,7 @@ sealed class AveryTaskRoute(val route: String) {
         fun createRoute(templateId: Long? = null): String =
             if (templateId != null) "templates/edit?templateId=$templateId" else "templates/edit"
     }
+    data object MainTabs : AveryTaskRoute("main_tabs")
 }
 
 data class BottomNavItem(
@@ -144,7 +149,7 @@ fun AveryTaskNavGraph(
     // Handle deep-link intents from the QuickAdd widget: "open_templates"
     // routes straight to the Template List screen. Other launch actions
     // fall through to the default start destination.
-    androidx.compose.runtime.LaunchedEffect(initialLaunchAction) {
+    LaunchedEffect(initialLaunchAction) {
         if (initialLaunchAction == com.averycorp.averytask.MainActivity.ACTION_OPEN_TEMPLATES) {
             navController.navigate(AveryTaskRoute.TemplateList.route)
         }
@@ -155,12 +160,13 @@ fun AveryTaskNavGraph(
         .mapNotNull { route -> ALL_BOTTOM_NAV_ITEMS.find { it.route == route } }
         .filter { it.route !in hiddenTabs }
         .ifEmpty { ALL_BOTTOM_NAV_ITEMS.take(2) }
-    val mainRoutes = bottomNavItems.map { it.route }.toSet()
-    val startRoute = bottomNavItems.firstOrNull()?.route ?: AveryTaskRoute.Today.route
+
+    val pagerState = rememberPagerState(pageCount = { bottomNavItems.size })
+    val coroutineScope = rememberCoroutineScope()
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
-    val showBottomBar = currentRoute in mainRoutes
+    val showBottomBar = currentRoute == null || currentRoute == AveryTaskRoute.MainTabs.route
 
     Scaffold(
         modifier = modifier,
@@ -194,19 +200,14 @@ fun AveryTaskNavGraph(
         bottomBar = {
             if (showBottomBar) {
                 NavigationBar {
-                    bottomNavItems.forEach { item ->
-                        val selected = navBackStackEntry?.destination?.hierarchy
-                            ?.any { it.route == item.route } == true
+                    bottomNavItems.forEachIndexed { index, item ->
+                        val selected = pagerState.currentPage == index
 
                         NavigationBarItem(
                             selected = selected,
                             onClick = {
-                                navController.navigate(item.route) {
-                                    popUpTo(navController.graph.findStartDestination().id) {
-                                        saveState = true
-                                    }
-                                    launchSingleTop = true
-                                    restoreState = true
+                                coroutineScope.launch {
+                                    pagerState.animateScrollToPage(index)
                                 }
                             },
                             icon = {
@@ -224,28 +225,30 @@ fun AveryTaskNavGraph(
     ) { innerPadding ->
         NavHost(
             navController = navController,
-            startDestination = startRoute,
+            startDestination = AveryTaskRoute.MainTabs.route,
             modifier = Modifier.padding(innerPadding)
         ) {
-            // Main tab screens — native Compose
+            // Main tab screens — swipeable via HorizontalPager
             composable(
-                route = AveryTaskRoute.Today.route,
+                route = AveryTaskRoute.MainTabs.route,
                 enterTransition = { fadeIn(animationSpec = tween(NAV_ANIM_DURATION)) },
                 exitTransition = { fadeOut(animationSpec = tween(NAV_ANIM_DURATION)) },
                 popEnterTransition = { fadeIn(animationSpec = tween(NAV_ANIM_DURATION)) },
                 popExitTransition = { fadeOut(animationSpec = tween(NAV_ANIM_DURATION)) }
             ) {
-                TodayScreen(navController)
-            }
-
-            composable(
-                route = AveryTaskRoute.TaskList.route,
-                enterTransition = { fadeIn(animationSpec = tween(NAV_ANIM_DURATION)) },
-                exitTransition = { fadeOut(animationSpec = tween(NAV_ANIM_DURATION)) },
-                popEnterTransition = { fadeIn(animationSpec = tween(NAV_ANIM_DURATION)) },
-                popExitTransition = { fadeOut(animationSpec = tween(NAV_ANIM_DURATION)) }
-            ) {
-                TaskListScreen(navController)
+                HorizontalPager(
+                    state = pagerState,
+                    beyondViewportPageCount = 1,
+                    key = { bottomNavItems[it].route },
+                    modifier = Modifier.fillMaxSize()
+                ) { page ->
+                    when (bottomNavItems[page].route) {
+                        AveryTaskRoute.Today.route -> TodayScreen(navController)
+                        AveryTaskRoute.TaskList.route -> TaskListScreen(navController)
+                        AveryTaskRoute.HabitList.route -> HabitListScreen(navController)
+                        AveryTaskRoute.Timer.route -> TimerScreen(navController)
+                    }
+                }
             }
 
             composable(
@@ -268,26 +271,6 @@ fun AveryTaskNavGraph(
                 }
             ) {
                 ProjectListScreen(navController)
-            }
-
-            composable(
-                route = AveryTaskRoute.HabitList.route,
-                enterTransition = { fadeIn(animationSpec = tween(NAV_ANIM_DURATION)) },
-                exitTransition = { fadeOut(animationSpec = tween(NAV_ANIM_DURATION)) },
-                popEnterTransition = { fadeIn(animationSpec = tween(NAV_ANIM_DURATION)) },
-                popExitTransition = { fadeOut(animationSpec = tween(NAV_ANIM_DURATION)) }
-            ) {
-                HabitListScreen(navController)
-            }
-
-            composable(
-                route = AveryTaskRoute.Timer.route,
-                enterTransition = { fadeIn(animationSpec = tween(NAV_ANIM_DURATION)) },
-                exitTransition = { fadeOut(animationSpec = tween(NAV_ANIM_DURATION)) },
-                popEnterTransition = { fadeIn(animationSpec = tween(NAV_ANIM_DURATION)) },
-                popExitTransition = { fadeOut(animationSpec = tween(NAV_ANIM_DURATION)) }
-            ) {
-                TimerScreen(navController)
             }
 
             composable(
