@@ -6,6 +6,7 @@ import com.averycorp.averytask.data.local.dao.TaskTemplateDao
 import com.averycorp.averytask.data.local.entity.TaskEntity
 import com.averycorp.averytask.data.local.entity.TaskTagCrossRef
 import com.averycorp.averytask.data.local.entity.TaskTemplateEntity
+import com.averycorp.averytask.domain.usecase.DateShortcuts
 import com.google.gson.Gson
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
@@ -84,13 +85,15 @@ class TaskTemplateRepository @Inject constructor(
     suspend fun createTaskFromTemplate(
         templateId: Long,
         dueDateOverride: Long? = null,
-        projectIdOverride: Long? = null
+        projectIdOverride: Long? = null,
+        quickUse: Boolean = false
     ): Long {
         val template = templateDao.getTemplateById(templateId)
             ?: throw IllegalArgumentException("Template not found")
 
         val now = System.currentTimeMillis()
-        val task = buildTaskFromTemplate(template, dueDateOverride, projectIdOverride, now)
+        val effectiveDueDate = dueDateOverride ?: if (quickUse) DateShortcuts.today(now) else null
+        val task = buildTaskFromTemplate(template, effectiveDueDate, projectIdOverride, now)
         val taskId = taskDao.insert(task)
 
         // Create subtasks if template has them

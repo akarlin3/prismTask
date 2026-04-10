@@ -482,7 +482,8 @@ class TodayViewModel @Inject constructor(
                 val today = currentStartOfToday()
                 val newTaskId = templateRepository.createTaskFromTemplate(
                     templateId = templateId,
-                    dueDateOverride = today
+                    dueDateOverride = today,
+                    quickUse = true
                 )
                 // Pin to today's dashboard via planDate too — if the template
                 // has no due date, dueDateOverride still sets it, so this is

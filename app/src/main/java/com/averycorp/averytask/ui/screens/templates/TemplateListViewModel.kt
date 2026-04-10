@@ -122,7 +122,7 @@ class TemplateListViewModel @Inject constructor(
     fun quickUseTemplate(templateId: Long) {
         viewModelScope.launch {
             try {
-                val newTaskId = templateRepository.createTaskFromTemplate(templateId)
+                val newTaskId = templateRepository.createTaskFromTemplate(templateId, quickUse = true)
                 val createdTask = taskRepository.getTaskByIdOnce(newTaskId)
                 val title = createdTask?.title.orEmpty().ifBlank { "task" }
                 _quickUseBanner.value = QuickUseBanner(
