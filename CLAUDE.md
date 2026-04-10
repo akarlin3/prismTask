@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-**AveryTask** (`com.averycorp.averytask`) is a native Android todo list app built with Kotlin and Jetpack Compose. v1.0.0 includes full task management, projects, subtasks, tags, recurrence, reminders, notifications, NLP quick-add, Today focus screen (compact header, collapsible sections), tabbed task editor (Details/Schedule/Organize), week/month/timeline views, urgency scoring, smart suggestions, drag-to-reorder with custom sort, quick reschedule, duplicate task, bulk edit (priority/date/tags/project), task templates with 6 built-ins and NLP shortcuts, Firebase cloud sync, Google Sign-In, JSON/CSV data export/import, Google Drive backup/restore, habit tracking with streaks/analytics, home screen widgets, app self-update, and a FastAPI web backend with Claude Haiku-powered NLP parsing.
+**AveryTask** (`com.averycorp.averytask`) is a native Android todo list app built with Kotlin and Jetpack Compose. v1.1.0 includes full task management, projects, subtasks, tags, recurrence, reminders, notifications, NLP quick-add, Today focus screen (compact header, collapsible sections), tabbed task editor (Details/Schedule/Organize), week/month/timeline views, urgency scoring, smart suggestions, drag-to-reorder with custom sort, quick reschedule, duplicate task, bulk edit (priority/date/tags/project), task templates with 6 built-ins and NLP shortcuts, Firebase cloud sync, Google Sign-In, JSON/CSV data export/import, Google Drive backup/restore, habit tracking with streaks/analytics, home screen widgets, app self-update, and a FastAPI web backend with Claude Haiku-powered NLP parsing.
 
 ## Tech Stack
 
@@ -62,6 +62,8 @@ app/src/main/java/com/averycorp/averytask/
 │   ├── export/
 │   │   ├── DataExporter.kt           # Full JSON export (tasks, habits, self-care, leisure, schoolwork, config) + CSV
 │   │   └── DataImporter.kt           # Full JSON import with merge/replace (all data types + config restore)
+│   ├── billing/
+│   │   └── BillingManager.kt          # Google Play Billing: purchase flow, restore, status caching
 │   ├── repository/
 │   │   ├── TaskRepository.kt          # Task CRUD, recurrence completion, date grouping
 │   │   ├── ProjectRepository.kt       # Project CRUD
@@ -73,9 +75,11 @@ app/src/main/java/com/averycorp/averytask/
 │       ├── ThemePreferences.kt        # Theme mode + accent color DataStore
 │       ├── ArchivePreferences.kt      # Auto-archive settings
 │       ├── SortPreferences.kt         # Per-screen sort mode memory (DataStore-persisted)
-│       └── DashboardPreferences.kt    # Dashboard section order + visibility
+│       ├── DashboardPreferences.kt    # Dashboard section order + visibility
+│       └── ProStatusPreferences.kt    # Pro subscription status cache for offline access
 ├── di/
-│   └── DatabaseModule.kt              # Hilt module: Room DB, DAOs (incl. Habit DAOs)
+│   ├── DatabaseModule.kt              # Hilt module: Room DB, DAOs (incl. Habit DAOs)
+│   └── BillingModule.kt               # Hilt module: Google Play Billing
 ├── domain/
 │   ├── model/
 │   │   ├── RecurrenceRule.kt          # RecurrenceRule data class + RecurrenceType enum
@@ -86,7 +90,8 @@ app/src/main/java/com/averycorp/averytask/
 │       ├── ParsedTaskResolver.kt      # Resolves parsed NLP data against existing entities
 │       ├── UrgencyScorer.kt           # Urgency scoring (0-1) based on due date, priority, age
 │       ├── SuggestionEngine.kt        # Smart tag/project suggestions based on usage patterns
-│       └── StreakCalculator.kt        # Habit streak calculation (current, longest, rates, by-day)
+│       ├── StreakCalculator.kt        # Habit streak calculation (current, longest, rates, by-day)
+│       └── ProFeatureGate.kt         # Pro subscription feature access control
 ├── notifications/
 │   ├── NotificationHelper.kt          # Channel creation, notification builder
 │   ├── ReminderScheduler.kt           # AlarmManager scheduling
@@ -111,6 +116,8 @@ app/src/main/java/com/averycorp/averytask/
     │   ├── TagSelector.kt            # Tag selection component
     │   ├── QuickAddBar.kt            # NLP-powered quick task creation bar
     │   ├── QuickAddViewModel.kt      # Quick-add logic: parse → resolve → create
+    │   ├── ProBadge.kt               # "PRO" badge for gated features
+    │   ├── ProUpgradePrompt.kt       # Upgrade prompt card for Pro features
     │   ├── StreakBadge.kt            # Fire emoji streak badge with pulse animation
     │   ├── ContributionGrid.kt       # GitHub-style 12-week completion grid
     │   ├── WeeklyProgressDots.kt     # 7-dot Mon-Sun weekly progress indicator
@@ -201,6 +208,8 @@ app/src/main/java/com/averycorp/averytask/
 - **Tabbed Editor**: Bottom sheet with Details/Schedule/Organize tabs
 - **Sort Memory**: Per-screen sort preferences via DataStore
 - **Drag-to-Reorder**: Custom sort mode with persistent task order
+- **Freemium**: ProFeatureGate checks BillingManager.isProUser StateFlow; free users get core features, Pro unlocks AI, cloud sync, collaboration
+- **Billing**: Google Play Billing via BillingManager singleton; Pro status cached in DataStore for offline access
 
 ## Build Commands
 
@@ -242,5 +251,5 @@ app/src/main/java/com/averycorp/averytask/
 - `app/proguard-rules.pro` — Keep rules for Room, Gson, domain models
 - `app/src/main/AndroidManifest.xml` — Activity, receivers, permissions
 - `app/google-services.json` — Firebase config (placeholder — replace with actual)
-- `app/src/test/` — 216 unit tests: NaturalLanguageParser (38), AppUpdater (24), StreakCalculator (21), RecurrenceEngine (18), TaskFilter (13), SyncMapper (13), TaskTemplateRepository (11), UrgencyScorer (10), EntityJsonMerger (9), SuggestionEngine (8), RecurrenceConverter (8), DateShortcuts (7), DuplicateTask (7), HabitRepositoryHelpers (7), DataExporter (7), SortPreferences (6), MoveToProject (5), TemplateSeeder (4)
+- `app/src/test/` — 225 unit tests: NaturalLanguageParser (38), AppUpdater (24), StreakCalculator (21), RecurrenceEngine (18), TaskFilter (13), SyncMapper (13), TaskTemplateRepository (11), UrgencyScorer (10), EntityJsonMerger (9), SuggestionEngine (8), RecurrenceConverter (8), DateShortcuts (7), DuplicateTask (7), HabitRepositoryHelpers (7), DataExporter (7), SortPreferences (6), ProFeatureGate (5), MoveToProject (5), TemplateSeeder (4), ProStatusCache (4)
 - `app/src/androidTest/` — DAO + recurrence integration tests

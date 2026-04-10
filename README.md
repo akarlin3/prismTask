@@ -12,6 +12,31 @@
 
 A native Android task manager with a Python API backend featuring AI-powered natural language processing. Built with Kotlin/Jetpack Compose for the client and FastAPI/PostgreSQL for the server.
 
+## Download
+
+<!-- TODO: Replace with actual Play Store link once published -->
+[<img src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" alt="Get it on Google Play" height="80">](https://play.google.com/store/apps/details?id=com.averykarlin.averytask)
+
+## Free vs Pro
+
+| Feature | Free | Pro ($3.99/mo) |
+|---------|------|----------------|
+| Task management, projects, tags, subtasks | Yes | Yes |
+| Habit tracking with streaks & analytics | Yes | Yes |
+| Task templates (6 built-in + custom) | Yes | Yes |
+| Google Calendar sync | Yes | Yes |
+| Home screen widgets | Yes | Yes |
+| NLP quick-add (local parser) | Yes | Yes |
+| All views (Today, Tasks, Week, Month, Timeline, Eisenhower) | Yes | Yes |
+| Drag-to-reorder, bulk edit, quick reschedule | Yes | Yes |
+| JSON/CSV export/import | Yes | Yes |
+| AI Eisenhower auto-categorization | -- | Yes |
+| AI Smart Pomodoro focus planning | -- | Yes |
+| AI NLP task parsing (backend) | -- | Yes |
+| Cloud sync across devices | -- | Yes |
+| Collaboration (shared projects) | -- | Yes |
+| Google Drive backup/restore | -- | Yes |
+
 ## Screenshots
 
 <p align="center">
@@ -84,6 +109,11 @@ A native Android task manager with a Python API backend featuring AI-powered nat
 - Quick-use from template list or NLP shortcut (`/templatename`)
 - Save any existing task as a template from editor overflow menu
 - Template categories, search, and usage tracking (count and last used date)
+
+### AI Productivity (Pro)
+- **Eisenhower Matrix** -- AI auto-categorization of tasks into Urgent/Important quadrants via Claude Haiku
+- **Smart Pomodoro** -- AI-planned focus sessions based on deadlines, priorities, and work style preferences (Deep Work, Quick Wins, Balanced, Deadline-Driven)
+- **Backend NLP** -- Enhanced natural language parsing via backend Claude Haiku API (free users use local regex parser)
 
 ### Cloud Sync
 - Firebase Authentication with Google Sign-In via Credential Manager
@@ -215,7 +245,7 @@ docker compose up -d
 # Release build (R8 minification + resource shrinking)
 ./gradlew assembleRelease
 
-# Run unit tests (216 tests)
+# Run unit tests (225 tests)
 ./gradlew testDebugUnitTest
 
 # Run instrumentation tests (requires device/emulator)
@@ -252,7 +282,7 @@ SQLite    Firestore
 
 ## Test Coverage
 
-**216 unit tests** across 18 test files:
+**225 unit tests** across 20 test files:
 
 | Test File | Tests | Covers |
 |-----------|-------|--------|
@@ -273,7 +303,9 @@ SQLite    Firestore
 | DataExporterTest | 7 | CSV escaping: commas, quotes, newlines, combined, empty |
 | SortPreferencesTest | 6 | Per-screen sort mode persistence, defaults, screen isolation |
 | MoveToProjectTest | 5 | Move task between projects, null project, batch move |
+| ProFeatureGateTest | 5 | Pro status gating, feature constants, billing state flow |
 | TemplateSeederTest | 4 | Built-in template seeding, idempotency, field validation |
+| ProStatusCacheTest | 4 | Subscription states, cache expiration, offline Pro status |
 
 **15 instrumentation tests** across 3 test files:
 

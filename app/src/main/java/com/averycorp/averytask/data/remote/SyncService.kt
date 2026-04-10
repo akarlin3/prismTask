@@ -11,6 +11,7 @@ import com.averycorp.averytask.data.local.dao.ProjectDao
 import com.averycorp.averytask.data.local.entity.SyncMetadataEntity
 import com.averycorp.averytask.data.local.entity.TaskTagCrossRef
 import com.averycorp.averytask.data.remote.mapper.SyncMapper
+import com.averycorp.averytask.domain.usecase.ProFeatureGate
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import kotlinx.coroutines.CoroutineScope
@@ -30,7 +31,8 @@ class SyncService @Inject constructor(
     private val syncMetadataDao: SyncMetadataDao,
     private val habitDao: HabitDao,
     private val habitCompletionDao: HabitCompletionDao,
-    private val taskTemplateDao: TaskTemplateDao
+    private val taskTemplateDao: TaskTemplateDao,
+    private val proFeatureGate: ProFeatureGate
 ) {
     private val firestore = FirebaseFirestore.getInstance()
     private val listeners = mutableListOf<ListenerRegistration>()
@@ -312,6 +314,7 @@ class SyncService @Inject constructor(
     }
 
     suspend fun fullSync() {
+        if (!proFeatureGate.requirePro(ProFeatureGate.CLOUD_SYNC)) return
         if (isSyncing) return
         isSyncing = true
         try {
@@ -324,6 +327,7 @@ class SyncService @Inject constructor(
 
     fun startAutoSync() {
         if (authManager.userId == null) return
+        if (!proFeatureGate.requirePro(ProFeatureGate.CLOUD_SYNC)) return
         startRealtimeListeners()
         scope.launch {
             try { fullSync() } catch (e: Exception) {

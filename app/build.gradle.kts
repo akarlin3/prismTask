@@ -17,8 +17,8 @@ android {
         applicationId = "com.averykarlin.averytask"
         minSdk = 26
         targetSdk = 35
-        versionCode = 77
-        versionName = "1.0.13"
+        versionCode = 78
+        versionName = "1.1.0"
 
         testInstrumentationRunner = "com.averycorp.averytask.HiltTestRunner"
         vectorDrawables { useSupportLibrary = true }
@@ -205,6 +205,9 @@ dependencies {
     // Google Calendar API
     implementation("com.google.apis:google-api-services-calendar:v3-rev20241101-2.0.0")
     implementation("com.google.http-client:google-http-client-gson:1.45.3")
+
+    // Google Play Billing
+    implementation("com.android.billingclient:billing-ktx:7.1.1")
 
     // Testing
     testImplementation("junit:junit:4.13.2")

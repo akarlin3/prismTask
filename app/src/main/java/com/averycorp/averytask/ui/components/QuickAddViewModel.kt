@@ -15,6 +15,7 @@ import com.averycorp.averytask.data.repository.TaskTemplateRepository
 import com.averycorp.averytask.domain.usecase.NaturalLanguageParser
 import com.averycorp.averytask.domain.usecase.ParsedTask
 import com.averycorp.averytask.domain.usecase.ParsedTaskResolver
+import com.averycorp.averytask.domain.usecase.ProFeatureGate
 import com.averycorp.averytask.domain.usecase.extractKeywords
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.FlowPreview
@@ -38,7 +39,8 @@ class QuickAddViewModel @Inject constructor(
     private val tagRepository: TagRepository,
     private val projectRepository: ProjectRepository,
     private val templateRepository: TaskTemplateRepository,
-    private val usageLogDao: UsageLogDao
+    private val usageLogDao: UsageLogDao,
+    private val proFeatureGate: ProFeatureGate
 ) : ViewModel() {
 
     /**
@@ -98,7 +100,12 @@ class QuickAddViewModel @Inject constructor(
         viewModelScope.launch {
             _isSubmitting.value = true
             try {
-                val parsed = parser.parseRemote(text)
+                // Use backend NLP for Pro users, local regex parser for free users
+                val parsed = if (proFeatureGate.requirePro(ProFeatureGate.AI_NLP)) {
+                    parser.parseRemote(text)
+                } else {
+                    parser.parse(text)
+                }
                 val resolved = resolver.resolve(parsed)
 
                 // Auto-create unmatched tags

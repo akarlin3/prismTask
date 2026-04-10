@@ -47,6 +47,16 @@
 -dontwarn com.google.api.client.**
 -dontwarn com.google.api.services.**
 
+# ── Google Play Billing ──
+-keep class com.android.vending.billing.** { *; }
+-keep class com.android.billingclient.** { *; }
+
+# ── Google Calendar API ──
+-keep class com.google.api.services.calendar.** { *; }
+
+# ── Billing data classes ──
+-keep class com.averycorp.averytask.data.billing.** { *; }
+
 # ── Gson ──
 -keepattributes Signature
 -keepattributes *Annotation*

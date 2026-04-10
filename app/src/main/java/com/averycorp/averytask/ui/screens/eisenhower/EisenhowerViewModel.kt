@@ -6,6 +6,7 @@ import com.averycorp.averytask.data.local.dao.TaskDao
 import com.averycorp.averytask.data.local.entity.TaskEntity
 import com.averycorp.averytask.data.remote.api.AveryTaskApi
 import com.averycorp.averytask.data.remote.api.EisenhowerRequest
+import com.averycorp.averytask.domain.usecase.ProFeatureGate
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -18,8 +19,11 @@ import javax.inject.Inject
 @HiltViewModel
 class EisenhowerViewModel @Inject constructor(
     private val taskDao: TaskDao,
-    private val api: AveryTaskApi
+    private val api: AveryTaskApi,
+    private val proFeatureGate: ProFeatureGate
 ) : ViewModel() {
+
+    val isPro: StateFlow<Boolean> = proFeatureGate.isPro
 
     private val _allIncompleteTasks = taskDao.getIncompleteRootTasks()
 
@@ -57,7 +61,18 @@ class EisenhowerViewModel @Inject constructor(
         }
     }
 
+    private val _showUpgradePrompt = MutableStateFlow(false)
+    val showUpgradePrompt: StateFlow<Boolean> = _showUpgradePrompt
+
+    fun dismissUpgradePrompt() {
+        _showUpgradePrompt.value = false
+    }
+
     fun categorize() {
+        if (!proFeatureGate.requirePro(ProFeatureGate.AI_EISENHOWER)) {
+            _showUpgradePrompt.value = true
+            return
+        }
         viewModelScope.launch {
             _isLoading.value = true
             _error.value = null

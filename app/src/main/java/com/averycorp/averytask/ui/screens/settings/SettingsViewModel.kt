@@ -11,6 +11,8 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
 import java.io.FileOutputStream
+import com.averycorp.averytask.data.billing.BillingManager
+import com.averycorp.averytask.data.billing.SubscriptionState
 import com.averycorp.averytask.data.export.DataExporter
 import com.averycorp.averytask.data.export.DataImporter
 import com.averycorp.averytask.data.export.ImportMode
@@ -93,8 +95,13 @@ class SettingsViewModel @Inject constructor(
     private val averyTaskApi: AveryTaskApi,
     val appUpdater: AppUpdater,
     private val calendarManager: CalendarManager,
-    private val calendarSyncPreferences: CalendarSyncPreferences
+    private val calendarSyncPreferences: CalendarSyncPreferences,
+    private val billingManager: BillingManager
 ) : ViewModel() {
+
+    // --- Subscription ---
+    val isPro: StateFlow<Boolean> = billingManager.isProUser
+    val subscriptionState: StateFlow<SubscriptionState> = billingManager.proSubscriptionState
 
     // --- Theme ---
     val themeMode: StateFlow<String> = themePreferences.getThemeMode()
@@ -882,6 +889,27 @@ class SettingsViewModel @Inject constructor(
                 _messages.emit("Reset failed: ${e.message}")
             } finally {
                 _isResetting.value = false
+            }
+        }
+    }
+
+    fun launchUpgrade(activity: android.app.Activity) {
+        viewModelScope.launch {
+            try {
+                billingManager.launchPurchaseFlow(activity)
+            } catch (e: Exception) {
+                _messages.emit("Could not start purchase: ${e.message}")
+            }
+        }
+    }
+
+    fun restorePurchases() {
+        viewModelScope.launch {
+            try {
+                billingManager.restorePurchases()
+                _messages.emit("Purchases restored")
+            } catch (e: Exception) {
+                _messages.emit("Could not restore purchases: ${e.message}")
             }
         }
     }

@@ -6,6 +6,7 @@ import com.averycorp.averytask.data.local.dao.TaskDao
 import com.averycorp.averytask.data.remote.api.AveryTaskApi
 import com.averycorp.averytask.data.remote.api.PomodoroRequest
 import com.averycorp.averytask.data.remote.api.PomodoroResponse
+import com.averycorp.averytask.domain.usecase.ProFeatureGate
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -62,8 +63,11 @@ data class FocusStats(
 @HiltViewModel
 class SmartPomodoroViewModel @Inject constructor(
     private val taskDao: TaskDao,
-    private val api: AveryTaskApi
+    private val api: AveryTaskApi,
+    private val proFeatureGate: ProFeatureGate
 ) : ViewModel() {
+
+    val isPro: StateFlow<Boolean> = proFeatureGate.isPro
 
     private val _screenState = MutableStateFlow(PomodoroState.PLANNING)
     val screenState: StateFlow<PomodoroState> = _screenState
@@ -128,7 +132,18 @@ class SmartPomodoroViewModel @Inject constructor(
         _config.value = _config.value.copy(focusPreference = pref)
     }
 
+    private val _showUpgradePrompt = MutableStateFlow(false)
+    val showUpgradePrompt: StateFlow<Boolean> = _showUpgradePrompt
+
+    fun dismissUpgradePrompt() {
+        _showUpgradePrompt.value = false
+    }
+
     fun generatePlan() {
+        if (!proFeatureGate.requirePro(ProFeatureGate.AI_POMODORO)) {
+            _showUpgradePrompt.value = true
+            return
+        }
         viewModelScope.launch {
             _isLoading.value = true
             _error.value = null

@@ -75,6 +75,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.averycorp.averytask.ui.navigation.AveryTaskRoute
+import androidx.compose.material3.ButtonDefaults
 import com.averycorp.averytask.BuildConfig
 import com.averycorp.averytask.data.preferences.DashboardPreferences
 import com.averycorp.averytask.data.preferences.TabPreferences
@@ -124,6 +125,7 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
+    val isPro by viewModel.isPro.collectAsStateWithLifecycle()
     val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
     val accentColor by viewModel.accentColor.collectAsStateWithLifecycle()
     val backgroundColor by viewModel.backgroundColor.collectAsStateWithLifecycle()
@@ -432,6 +434,67 @@ fun SettingsScreen(
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 16.dp)
             ) {
+            // ========== SUBSCRIPTION ==========
+            SectionHeader("Subscription")
+            if (isPro) {
+                Text(
+                    text = "AveryTask Pro",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(bottom = 4.dp)
+                )
+                Text(
+                    text = "You have access to all Pro features",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+                OutlinedButton(
+                    onClick = {
+                        val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
+                            data = android.net.Uri.parse("https://play.google.com/store/account/subscriptions")
+                        }
+                        context.startActivity(intent)
+                    }
+                ) {
+                    Text("Manage Subscription")
+                }
+            } else {
+                Text(
+                    text = "AveryTask Free",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(bottom = 4.dp)
+                )
+                Text(
+                    text = "Upgrade to Pro for AI features, cloud sync, and collaboration",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 4.dp)
+                )
+                Text(
+                    text = "$3.99/month - 7-day free trial",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+                Button(
+                    onClick = {
+                        val activity = context as? android.app.Activity ?: return@Button
+                        viewModel.launchUpgrade(activity)
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Upgrade to Pro")
+                }
+                TextButton(onClick = { viewModel.restorePurchases() }) {
+                    Text("Restore Purchases")
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
             // ========== APPEARANCE ==========
             SectionHeader("Appearance")
 

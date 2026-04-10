@@ -1,0 +1,53 @@
+AveryTask is a powerful, beautifully designed task manager and habit tracker that adapts to how you work.
+
+SMART TASK MANAGEMENT
+Create tasks with natural language — just type "Buy groceries tomorrow !high #errands" and AveryTask parses it instantly. Organize with projects, tags, subtasks, and priorities. Drag to reorder, bulk edit, and quick-reschedule with a long-press.
+
+TASK TEMPLATES
+Save reusable blueprints for recurring workflows. Start with 6 built-in templates (Morning Routine, Weekly Review, Meeting Prep, and more) or create your own. One tap to create a fully structured task with subtasks.
+
+RECURRING TASKS & REMINDERS
+Daily, weekly, monthly, yearly — with custom intervals, day selection, and end conditions. Never miss a deadline with smart reminders delivered right on time.
+
+HABIT TRACKING
+Build lasting habits with streak tracking, analytics, and a GitHub-style contribution grid. See your 7/30/90-day completion rates and identify your most productive days.
+
+MULTIPLE VIEWS
+Today focus screen, task list, week view, month calendar, daily timeline, and Eisenhower Matrix. See your work the way that suits you best.
+
+SMART FOCUS (PRO)
+AI plans your Pomodoro sessions based on deadlines, priorities, and your preferred work style. Choose Deep Work, Quick Wins, Balanced, or Deadline-Driven focus modes.
+
+AI EISENHOWER MATRIX (PRO)
+AI automatically categorizes your tasks into Urgent/Important quadrants. Spend time on what matters, not on deciding what matters.
+
+CLOUD SYNC (PRO)
+Sync tasks across devices. Never lose your data with automatic cloud backup.
+
+COLLABORATION (PRO)
+Share projects with teammates or family. Assign tasks, leave comments, and track activity — all in real-time.
+
+GOOGLE CALENDAR SYNC
+Two-way sync between AveryTask and Google Calendar. See your calendar events alongside your tasks in every view.
+
+HOME SCREEN WIDGETS
+Today overview, habit streaks, and quick-add widgets for your home screen.
+
+BEAUTIFUL & CUSTOMIZABLE
+Material 3 design with dynamic colors, 12 accent color choices, and light/dark themes.
+
+FREE:
+• Full task management with projects, tags, subtasks
+• Habit tracking with streaks and analytics
+• Task templates (6 built-in + custom)
+• Google Calendar sync
+• All views and widgets
+• NLP quick-add
+• Export/import
+
+PRO ($3.99/month with 7-day free trial):
+• AI Eisenhower auto-categorization
+• AI Smart Pomodoro focus planning
+• Cloud sync across devices
+• Shared projects and collaboration
+• Google Drive backup
