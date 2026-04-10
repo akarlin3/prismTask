@@ -50,6 +50,7 @@ data class ImportResult(
     val tagsImported: Int = 0,
     val habitsImported: Int = 0,
     val habitCompletionsImported: Int = 0,
+    val habitLogsImported: Int = 0,
     val leisureLogsImported: Int = 0,
     val selfCareLogsImported: Int = 0,
     val selfCareStepsImported: Int = 0,
@@ -84,6 +85,7 @@ class DataImporter @Inject constructor(
     private val tagDao: TagDao,
     private val habitDao: HabitDao,
     private val habitCompletionDao: HabitCompletionDao,
+    private val habitLogDao: com.averycorp.prismtask.data.local.dao.HabitLogDao,
     private val leisureDao: LeisureDao,
     private val selfCareDao: SelfCareDao,
     private val schoolworkDao: SchoolworkDao,
@@ -106,6 +108,7 @@ class DataImporter @Inject constructor(
         var tagsImported = 0
         var habitsImported = 0
         var habitCompletionsImported = 0
+        var habitLogsImported = 0
         var leisureLogsImported = 0
         var selfCareLogsImported = 0
         var selfCareStepsImported = 0
@@ -272,6 +275,33 @@ class DataImporter @Inject constructor(
                     habitCompletionsImported++
                 } catch (e: Exception) {
                     errors.add("Failed to import habit completion: ${e.message}")
+                }
+            }
+
+            // Import habit logs (dedupe by habitId + date)
+            val existingHabitLogKeys = habitLogDao.getAllLogsOnce()
+                .map { it.habitId to it.date }.toMutableSet()
+            root.getAsJsonArray("habitLogs")?.forEach { elem ->
+                try {
+                    val obj = elem.asJsonObject
+                    val habitName = obj.get("_habitName")?.takeIf { !it.isJsonNull }?.asString
+                        ?: obj.get("habitName")?.takeIf { !it.isJsonNull }?.asString
+                    val habitId = if (habitName != null) habitNameToId[habitName.lowercase()] else null
+                    if (habitId == null) return@forEach
+                    val date = obj.get("date")?.takeIf { !it.isJsonNull }?.asLong ?: return@forEach
+                    val key = habitId to date
+                    if (key in existingHabitLogKeys) {
+                        duplicatesSkipped++
+                        return@forEach
+                    }
+                    val default = com.averycorp.prismtask.data.local.entity.HabitLogEntity(habitId = habitId, date = date)
+                    val merged = mergeEntityWithDefaults(default, obj)
+                    val log = merged.copy(id = 0, habitId = habitId)
+                    habitLogDao.insertLog(log)
+                    existingHabitLogKeys.add(key)
+                    habitLogsImported++
+                } catch (e: Exception) {
+                    errors.add("Failed to import habit log: ${e.message}")
                 }
             }
 
@@ -575,6 +605,7 @@ class DataImporter @Inject constructor(
             tagsImported = tagsImported,
             habitsImported = habitsImported,
             habitCompletionsImported = habitCompletionsImported,
+            habitLogsImported = habitLogsImported,
             leisureLogsImported = leisureLogsImported,
             selfCareLogsImported = selfCareLogsImported,
             selfCareStepsImported = selfCareStepsImported,

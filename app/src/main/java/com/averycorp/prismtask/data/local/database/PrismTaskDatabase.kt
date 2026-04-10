@@ -8,6 +8,7 @@ import com.averycorp.prismtask.data.local.dao.AttachmentDao
 import com.averycorp.prismtask.data.local.dao.CalendarSyncDao
 import com.averycorp.prismtask.data.local.dao.HabitCompletionDao
 import com.averycorp.prismtask.data.local.dao.HabitDao
+import com.averycorp.prismtask.data.local.dao.HabitLogDao
 import com.averycorp.prismtask.data.local.dao.LeisureDao
 import com.averycorp.prismtask.data.local.dao.ProjectDao
 import com.averycorp.prismtask.data.local.dao.SchoolworkDao
@@ -22,6 +23,7 @@ import com.averycorp.prismtask.data.local.entity.CalendarSyncEntity
 import com.averycorp.prismtask.data.local.entity.CourseCompletionEntity
 import com.averycorp.prismtask.data.local.entity.HabitCompletionEntity
 import com.averycorp.prismtask.data.local.entity.HabitEntity
+import com.averycorp.prismtask.data.local.entity.HabitLogEntity
 import com.averycorp.prismtask.data.local.entity.AssignmentEntity
 import com.averycorp.prismtask.data.local.entity.CourseEntity
 import com.averycorp.prismtask.data.local.entity.LeisureLogEntity
@@ -37,8 +39,8 @@ import com.averycorp.prismtask.data.local.entity.TaskTemplateEntity
 import com.averycorp.prismtask.data.local.entity.UsageLogEntity
 
 @Database(
-    entities = [TaskEntity::class, ProjectEntity::class, TagEntity::class, TaskTagCrossRef::class, AttachmentEntity::class, UsageLogEntity::class, SyncMetadataEntity::class, CalendarSyncEntity::class, HabitEntity::class, HabitCompletionEntity::class, LeisureLogEntity::class, CourseEntity::class, AssignmentEntity::class, StudyLogEntity::class, CourseCompletionEntity::class, SelfCareLogEntity::class, SelfCareStepEntity::class, TaskTemplateEntity::class],
-    version = 25,
+    entities = [TaskEntity::class, ProjectEntity::class, TagEntity::class, TaskTagCrossRef::class, AttachmentEntity::class, UsageLogEntity::class, SyncMetadataEntity::class, CalendarSyncEntity::class, HabitEntity::class, HabitCompletionEntity::class, HabitLogEntity::class, LeisureLogEntity::class, CourseEntity::class, AssignmentEntity::class, StudyLogEntity::class, CourseCompletionEntity::class, SelfCareLogEntity::class, SelfCareStepEntity::class, TaskTemplateEntity::class],
+    version = 26,
     exportSchema = false
 )
 abstract class PrismTaskDatabase : RoomDatabase() {
@@ -51,6 +53,7 @@ abstract class PrismTaskDatabase : RoomDatabase() {
     abstract fun calendarSyncDao(): CalendarSyncDao
     abstract fun habitDao(): HabitDao
     abstract fun habitCompletionDao(): HabitCompletionDao
+    abstract fun habitLogDao(): HabitLogDao
     abstract fun leisureDao(): LeisureDao
     abstract fun schoolworkDao(): SchoolworkDao
     abstract fun selfCareDao(): SelfCareDao
@@ -399,6 +402,27 @@ abstract class PrismTaskDatabase : RoomDatabase() {
                 db.execSQL("ALTER TABLE tasks ADD COLUMN eisenhower_quadrant TEXT")
                 db.execSQL("ALTER TABLE tasks ADD COLUMN eisenhower_updated_at INTEGER")
                 db.execSQL("ALTER TABLE tasks ADD COLUMN eisenhower_reason TEXT")
+            }
+        }
+
+        val MIGRATION_25_26 = object : Migration(25, 26) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE habits ADD COLUMN is_bookable INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE habits ADD COLUMN is_booked INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE habits ADD COLUMN booked_date INTEGER")
+                db.execSQL("ALTER TABLE habits ADD COLUMN booked_note TEXT")
+                db.execSQL(
+                    """CREATE TABLE IF NOT EXISTS `habit_logs` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `habit_id` INTEGER NOT NULL,
+                        `date` INTEGER NOT NULL,
+                        `notes` TEXT,
+                        `created_at` INTEGER NOT NULL,
+                        FOREIGN KEY(`habit_id`) REFERENCES `habits`(`id`) ON DELETE CASCADE
+                    )"""
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_habit_logs_habit_id` ON `habit_logs` (`habit_id`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_habit_logs_date` ON `habit_logs` (`date`)")
             }
         }
 

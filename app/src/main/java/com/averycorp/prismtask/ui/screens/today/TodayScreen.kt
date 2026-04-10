@@ -146,6 +146,8 @@ fun TodayScreen(
     val projects by viewModel.projects.collectAsStateWithLifecycle()
     val startOfToday by viewModel.startOfToday.collectAsStateWithLifecycle()
     val todayHabits by viewModel.todayHabits.collectAsStateWithLifecycle()
+    val scheduledTodayHabits by viewModel.scheduledTodayHabits.collectAsStateWithLifecycle()
+    val overdueBookableHabits by viewModel.overdueBookableHabits.collectAsStateWithLifecycle()
     val combinedTotal by viewModel.combinedTotal.collectAsStateWithLifecycle()
     val combinedCompleted by viewModel.combinedCompleted.collectAsStateWithLifecycle()
     val combinedProgress by viewModel.combinedProgress.collectAsStateWithLifecycle()
@@ -342,6 +344,76 @@ fun TodayScreen(
                             },
                             onSeeAll = { navController.navigate(PrismTaskRoute.HabitList.route) }
                         )
+                    }
+                }
+            }
+
+            // Scheduled today — bookable habits booked for today
+            if (scheduledTodayHabits.isNotEmpty()) {
+                item(key = "section_scheduled_habits") {
+                    CollapsibleSection(
+                        emoji = "\uD83D\uDCC5",
+                        title = "Scheduled Today",
+                        count = scheduledTodayHabits.size,
+                        accentColor = Color(0xFF10B981),
+                        expanded = true,
+                        onToggle = {}
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            scheduledTodayHabits.forEach { hws ->
+                                BookableHabitReminderCard(
+                                    habitWithStatus = hws,
+                                    onClick = {
+                                        navController.navigate(
+                                            PrismTaskRoute.HabitDetail.createRoute(hws.habit.id)
+                                        )
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Overdue bookable habits
+            if (overdueBookableHabits.isNotEmpty()) {
+                items(overdueBookableHabits, key = { "overdue_bookable_${it.habit.id}" }) { hws ->
+                    val daysAgo = if (hws.lastLogDate != null) {
+                        java.util.concurrent.TimeUnit.MILLISECONDS.toDays(
+                            System.currentTimeMillis() - hws.lastLogDate
+                        )
+                    } else null
+                    val label = if (daysAgo != null) "last done $daysAgo days ago" else "never done"
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                navController.navigate(
+                                    PrismTaskRoute.HabitDetail.createRoute(hws.habit.id)
+                                )
+                            },
+                        shape = RoundedCornerShape(8.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "\uD83D\uDCCB",
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "${hws.habit.name} \u2014 $label",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                 }
             }
@@ -919,6 +991,56 @@ private fun HabitChipRow(
         }
         item(key = "habit_see_all") {
             SeeAllChip(onClick = onSeeAll)
+        }
+    }
+}
+
+@Composable
+private fun BookableHabitReminderCard(
+    habitWithStatus: HabitWithStatus,
+    onClick: () -> Unit
+) {
+    val habit = habitWithStatus.habit
+    val habitColor = remember(habit.color) {
+        try {
+            Color(android.graphics.Color.parseColor(habit.color))
+        } catch (_: Exception) {
+            Color(0xFF4A90D9)
+        }
+    }
+    val dateFormat = remember { java.text.SimpleDateFormat("MMM d", java.util.Locale.getDefault()) }
+    val noteStr = habit.bookedNote?.let { " \u2014 $it" } ?: ""
+    val dateStr = habit.bookedDate?.let { dateFormat.format(java.util.Date(it)) } ?: ""
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(8.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = habitColor.copy(alpha = 0.1f)
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(text = habit.icon, style = MaterialTheme.typography.bodyLarge)
+            Spacer(modifier = Modifier.width(8.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = habit.name,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    text = "\uD83D\uDCC5 $dateStr$noteStr",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color(0xFF10B981)
+                )
+            }
         }
     }
 }

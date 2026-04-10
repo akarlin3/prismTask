@@ -6,6 +6,7 @@ import com.averycorp.prismtask.data.local.dao.AttachmentDao
 import com.averycorp.prismtask.data.local.dao.CalendarSyncDao
 import com.averycorp.prismtask.data.local.dao.HabitCompletionDao
 import com.averycorp.prismtask.data.local.dao.HabitDao
+import com.averycorp.prismtask.data.local.dao.HabitLogDao
 import com.averycorp.prismtask.data.local.dao.LeisureDao
 import com.averycorp.prismtask.data.local.dao.ProjectDao
 import com.averycorp.prismtask.data.local.dao.SchoolworkDao
@@ -43,7 +44,7 @@ object DatabaseModule {
             PrismTaskDatabase::class.java,
             "averytask.db"
         )
-            .addMigrations(PrismTaskDatabase.MIGRATION_1_2, PrismTaskDatabase.MIGRATION_2_3, PrismTaskDatabase.MIGRATION_3_4, PrismTaskDatabase.MIGRATION_4_5, PrismTaskDatabase.MIGRATION_5_6, PrismTaskDatabase.MIGRATION_6_7, PrismTaskDatabase.MIGRATION_7_8, PrismTaskDatabase.MIGRATION_8_9, PrismTaskDatabase.MIGRATION_9_10, PrismTaskDatabase.MIGRATION_10_11, PrismTaskDatabase.MIGRATION_11_12, PrismTaskDatabase.MIGRATION_12_13, PrismTaskDatabase.MIGRATION_13_14, PrismTaskDatabase.MIGRATION_14_15, PrismTaskDatabase.MIGRATION_15_16, PrismTaskDatabase.MIGRATION_16_17, PrismTaskDatabase.MIGRATION_17_18, PrismTaskDatabase.MIGRATION_18_19, PrismTaskDatabase.MIGRATION_19_20, PrismTaskDatabase.MIGRATION_20_21, PrismTaskDatabase.MIGRATION_21_22, PrismTaskDatabase.MIGRATION_22_23, PrismTaskDatabase.MIGRATION_23_24, PrismTaskDatabase.MIGRATION_24_25)
+            .addMigrations(PrismTaskDatabase.MIGRATION_1_2, PrismTaskDatabase.MIGRATION_2_3, PrismTaskDatabase.MIGRATION_3_4, PrismTaskDatabase.MIGRATION_4_5, PrismTaskDatabase.MIGRATION_5_6, PrismTaskDatabase.MIGRATION_6_7, PrismTaskDatabase.MIGRATION_7_8, PrismTaskDatabase.MIGRATION_8_9, PrismTaskDatabase.MIGRATION_9_10, PrismTaskDatabase.MIGRATION_10_11, PrismTaskDatabase.MIGRATION_11_12, PrismTaskDatabase.MIGRATION_12_13, PrismTaskDatabase.MIGRATION_13_14, PrismTaskDatabase.MIGRATION_14_15, PrismTaskDatabase.MIGRATION_15_16, PrismTaskDatabase.MIGRATION_16_17, PrismTaskDatabase.MIGRATION_17_18, PrismTaskDatabase.MIGRATION_18_19, PrismTaskDatabase.MIGRATION_19_20, PrismTaskDatabase.MIGRATION_20_21, PrismTaskDatabase.MIGRATION_21_22, PrismTaskDatabase.MIGRATION_22_23, PrismTaskDatabase.MIGRATION_23_24, PrismTaskDatabase.MIGRATION_24_25, PrismTaskDatabase.MIGRATION_25_26)
             .build()
 
     @Provides
@@ -72,6 +73,9 @@ object DatabaseModule {
 
     @Provides
     fun provideHabitCompletionDao(database: PrismTaskDatabase): HabitCompletionDao = database.habitCompletionDao()
+
+    @Provides
+    fun provideHabitLogDao(database: PrismTaskDatabase): HabitLogDao = database.habitLogDao()
 
     @Provides
     fun provideLeisureDao(database: PrismTaskDatabase): LeisureDao = database.leisureDao()

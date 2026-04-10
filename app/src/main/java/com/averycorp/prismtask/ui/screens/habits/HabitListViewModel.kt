@@ -281,6 +281,26 @@ class HabitListViewModel @Inject constructor(
         }
     }
 
+    fun onSetBooked(habitId: Long, isBooked: Boolean, bookedDate: Long?, bookedNote: String?) {
+        viewModelScope.launch {
+            try {
+                habitRepository.setBooked(habitId, isBooked, bookedDate, bookedNote)
+            } catch (e: Exception) {
+                android.util.Log.e("HabitListVM", "Failed to set booking", e)
+            }
+        }
+    }
+
+    fun onLogActivity(habitId: Long, date: Long, notes: String?) {
+        viewModelScope.launch {
+            try {
+                habitRepository.logActivity(habitId, date, notes)
+            } catch (e: Exception) {
+                android.util.Log.e("HabitListVM", "Failed to log activity", e)
+            }
+        }
+    }
+
     fun onReorderItems(fromIndex: Int, toIndex: Int) {
         val currentList = items.value.toMutableList()
         if (fromIndex !in currentList.indices || toIndex !in currentList.indices) return

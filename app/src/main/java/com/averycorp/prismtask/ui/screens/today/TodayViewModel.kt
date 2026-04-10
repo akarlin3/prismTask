@@ -179,7 +179,7 @@ class TodayViewModel @Inject constructor(
     private val houseworkEnabled: StateFlow<Boolean> = habitListPreferences.isHouseworkEnabled()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
 
-    val todayHabits: StateFlow<List<HabitWithStatus>> = combine(
+    private val allTodayHabits: StateFlow<List<HabitWithStatus>> = combine(
         habitRepository.getHabitsWithTodayStatus(),
         selfCareEnabled, medicationEnabled, schoolEnabled, leisureEnabled, houseworkEnabled
     ) { values ->
@@ -203,6 +203,45 @@ class TodayViewModel @Inject constructor(
             .filter { it.habit.name !in disabledNames }
             .sortedBy { it.habit.sortOrder }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    // Daily habit chips — exclude bookable habits (they have their own sections)
+    val todayHabits: StateFlow<List<HabitWithStatus>> = allTodayHabits
+        .map { list -> list.filter { !it.habit.isBookable } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    // Bookable habits booked for today
+    val scheduledTodayHabits: StateFlow<List<HabitWithStatus>> = combine(
+        habitRepository.getHabitsWithFullStatus(), dayStart
+    ) { habits, start ->
+        val endOfDay = start + com.averycorp.prismtask.util.DayBoundary.DAY_MILLIS
+        habits.filter { hws ->
+            hws.habit.isBookable && hws.habit.isBooked &&
+                hws.habit.bookedDate != null &&
+                hws.habit.bookedDate in start until endOfDay
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    // Bookable habits that are overdue (last log > expected interval)
+    val overdueBookableHabits: StateFlow<List<HabitWithStatus>> = habitRepository.getHabitsWithFullStatus()
+        .map { habits ->
+            habits.filter { hws ->
+                if (!hws.habit.isBookable) return@filter false
+                val lastDone = hws.lastLogDate ?: return@filter true
+                val periodDays = when (hws.habit.frequencyPeriod) {
+                    "weekly" -> 7L
+                    "fortnightly" -> 14L
+                    "monthly" -> 30L
+                    "bimonthly" -> 60L
+                    "quarterly" -> 90L
+                    else -> return@filter false
+                }
+                val elapsed = java.util.concurrent.TimeUnit.MILLISECONDS.toDays(
+                    System.currentTimeMillis() - lastDone
+                )
+                elapsed > periodDays
+            }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val habitCompletedCount: StateFlow<Int> = todayHabits.map { habits ->
         habits.count { it.isCompletedToday }

@@ -55,6 +55,7 @@ class DataExporter @Inject constructor(
     private val tagDao: TagDao,
     private val habitDao: HabitDao,
     private val habitCompletionDao: HabitCompletionDao,
+    private val habitLogDao: com.averycorp.prismtask.data.local.dao.HabitLogDao,
     private val leisureDao: LeisureDao,
     private val selfCareDao: SelfCareDao,
     private val schoolworkDao: SchoolworkDao,
@@ -111,6 +112,16 @@ class DataExporter @Inject constructor(
             completionsArr.add(obj)
         }
         root.add("habitCompletions", completionsArr)
+
+        // === Habit Logs ===
+        val habitLogs = habitLogDao.getAllLogsOnce()
+        val logsArr = JsonArray()
+        for (log in habitLogs) {
+            val obj = gson.toJsonTree(log).asJsonObject
+            obj.addProperty("_habitName", habitNameById[log.habitId])
+            logsArr.add(obj)
+        }
+        root.add("habitLogs", logsArr)
 
         // === Leisure Logs ===
         root.add("leisureLogs", gson.toJsonTree(leisureDao.getAllLogsOnce()))
