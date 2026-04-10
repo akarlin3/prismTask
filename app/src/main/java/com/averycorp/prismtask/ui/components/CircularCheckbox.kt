@@ -1,0 +1,87 @@
+package com.averycorp.prismtask.ui.components
+
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+
+/**
+ * A circular checkbox that follows Android/Material Design aesthetics.
+ *
+ * When unchecked: shows an empty circle outline.
+ * When checked: shows a filled circle with a check mark.
+ */
+@Composable
+fun CircularCheckbox(
+    checked: Boolean,
+    onCheckedChange: ((Boolean) -> Unit)?,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    checkedColor: Color = MaterialTheme.colorScheme.primary,
+    uncheckedColor: Color = MaterialTheme.colorScheme.outline,
+    checkmarkColor: Color = Color.White,
+    size: Dp = 24.dp
+) {
+    val backgroundColor by animateColorAsState(
+        targetValue = if (checked) checkedColor else Color.Transparent,
+        animationSpec = tween(durationMillis = 150),
+        label = "checkboxBg"
+    )
+    val borderColor by animateColorAsState(
+        targetValue = when {
+            !enabled -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+            checked -> checkedColor
+            else -> uncheckedColor
+        },
+        animationSpec = tween(durationMillis = 150),
+        label = "checkboxBorder"
+    )
+
+    Box(
+        modifier = modifier
+            .size(size)
+            .clip(CircleShape)
+            .background(backgroundColor)
+            .border(2.dp, borderColor, CircleShape)
+            .then(
+                if (onCheckedChange != null && enabled) {
+                    Modifier.clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        role = Role.Checkbox
+                    ) { onCheckedChange(!checked) }
+                } else {
+                    Modifier
+                }
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        if (checked) {
+            Icon(
+                imageVector = Icons.Default.Check,
+                contentDescription = if (checked) "Checked" else "Unchecked",
+                tint = if (enabled) checkmarkColor else MaterialTheme.colorScheme.surface,
+                modifier = Modifier.size(size * 0.67f)
+            )
+        }
+    }
+}

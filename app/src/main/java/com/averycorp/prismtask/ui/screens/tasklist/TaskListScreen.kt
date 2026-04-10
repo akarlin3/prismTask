@@ -66,7 +66,7 @@ import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Checkbox
+import com.averycorp.prismtask.ui.components.CircularCheckbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -247,7 +247,7 @@ fun TaskListScreen(
                                 .clickable { copyDueDate = !copyDueDate }
                                 .padding(vertical = 4.dp)
                         ) {
-                            Checkbox(
+                            CircularCheckbox(
                                 checked = copyDueDate,
                                 onCheckedChange = { copyDueDate = it }
                             )
@@ -269,7 +269,7 @@ fun TaskListScreen(
                                 .clickable { includeSubtasks = !includeSubtasks }
                                 .padding(vertical = 4.dp)
                         ) {
-                            Checkbox(
+                            CircularCheckbox(
                                 checked = includeSubtasks,
                                 onCheckedChange = { includeSubtasks = it }
                             )
@@ -1661,11 +1661,11 @@ private fun TaskItem(
                     modifier = dragHandleModifier.size(24.dp)
                 )
             }
-            Checkbox(
+            CircularCheckbox(
                 checked = if (isMultiSelectMode) isSelected else task.isCompleted,
                 onCheckedChange = { onToggleComplete() }
             )
-
+            Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = task.title,

@@ -71,7 +71,7 @@ fun AuthScreen(
         verticalArrangement = Arrangement.Center
     ) {
         Icon(
-            imageVector = Icons.Default.CheckBox,
+            imageVector = Icons.Default.CheckCircle,
             contentDescription = null,
             modifier = Modifier.size(72.dp),
             tint = MaterialTheme.colorScheme.primary

@@ -55,7 +55,7 @@ import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Checkbox
+import com.averycorp.prismtask.ui.components.CircularCheckbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FabPosition
@@ -1264,10 +1264,11 @@ private fun SwipeableTaskItem(
                     .padding(horizontal = 12.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Checkbox(
+                CircularCheckbox(
                     checked = false,
                     onCheckedChange = { onComplete() }
                 )
+                Spacer(modifier = Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = task.title,
@@ -1392,7 +1393,8 @@ private fun CompletedTaskItem(task: TaskEntity, onUncomplete: () -> Unit) {
                 .padding(horizontal = 12.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Checkbox(checked = true, onCheckedChange = { onUncomplete() })
+            CircularCheckbox(checked = true, onCheckedChange = { onUncomplete() })
+            Spacer(modifier = Modifier.width(12.dp))
             Text(
                 text = task.title,
                 style = MaterialTheme.typography.bodyMedium,
@@ -1963,10 +1965,10 @@ private fun SheetTaskCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
             if (multiSelectMode) {
-                Checkbox(
+                CircularCheckbox(
                     checked = isSelected,
                     onCheckedChange = { onTap() },
-                    modifier = Modifier.size(20.dp)
+                    size = 20.dp
                 )
                 Spacer(modifier = Modifier.width(8.dp))
             }

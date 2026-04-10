@@ -31,7 +31,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Checkbox
+import com.averycorp.prismtask.ui.components.CircularCheckbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -532,10 +532,11 @@ private fun ActiveSessionView(
                         .padding(12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Checkbox(
+                    CircularCheckbox(
                         checked = isCompleted,
                         onCheckedChange = { if (!isCompleted) onCompleteTask(task.taskId) }
                     )
+                    Spacer(modifier = Modifier.width(12.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             task.title,

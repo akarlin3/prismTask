@@ -34,7 +34,7 @@ import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.Checkbox
+import com.averycorp.prismtask.ui.components.CircularCheckbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -653,10 +653,11 @@ fun SettingsScreen(
                         .padding(vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Checkbox(checked = !isHidden, onCheckedChange = {
+                    CircularCheckbox(checked = !isHidden, onCheckedChange = {
                         val newHidden = if (isHidden) hiddenSections - key else hiddenSections + key
                         viewModel.setHiddenSections(newHidden)
                     })
+                    Spacer(modifier = Modifier.width(8.dp))
                     Text(label, style = MaterialTheme.typography.bodyLarge)
                 }
             }
@@ -735,14 +736,15 @@ fun SettingsScreen(
                         .padding(vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Checkbox(
+                    CircularCheckbox(
                         checked = !isHidden,
                         onCheckedChange = {
-                            if (!isHidden && visibleTabCount <= 2) return@Checkbox
+                            if (!isHidden && visibleTabCount <= 2) return@CircularCheckbox
                             val newHidden = if (isHidden) hiddenTabs - item.route else hiddenTabs + item.route
                             viewModel.setHiddenTabs(newHidden)
                         }
                     )
+                    Spacer(modifier = Modifier.width(8.dp))
                     Text(item.label, style = MaterialTheme.typography.bodyLarge)
                 }
             }

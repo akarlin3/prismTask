@@ -15,7 +15,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
-import androidx.compose.material3.Checkbox
+import com.averycorp.prismtask.ui.components.CircularCheckbox
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.MaterialTheme
@@ -237,17 +237,19 @@ fun FilterPanel(
         Spacer(modifier = Modifier.height(4.dp))
 
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Checkbox(
+            CircularCheckbox(
                 checked = workingFilter.showCompleted,
                 onCheckedChange = { workingFilter = workingFilter.copy(showCompleted = it) }
             )
+            Spacer(modifier = Modifier.width(8.dp))
             Text("Show Completed")
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Checkbox(
+            CircularCheckbox(
                 checked = workingFilter.showArchived,
                 onCheckedChange = { workingFilter = workingFilter.copy(showArchived = it) }
             )
+            Spacer(modifier = Modifier.width(8.dp))
             Text("Show Archived")
         }
 

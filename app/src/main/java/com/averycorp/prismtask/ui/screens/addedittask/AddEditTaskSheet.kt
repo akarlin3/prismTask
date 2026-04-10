@@ -66,7 +66,7 @@ import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.NotificationsNone
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.BottomSheetDefaults
-import androidx.compose.material3.Checkbox
+import com.averycorp.prismtask.ui.components.CircularCheckbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.DatePicker
@@ -466,7 +466,7 @@ fun AddEditTaskSheet(
                                 .clickable { copyDueDate = !copyDueDate }
                                 .padding(vertical = 4.dp)
                         ) {
-                            Checkbox(
+                            CircularCheckbox(
                                 checked = copyDueDate,
                                 onCheckedChange = { copyDueDate = it }
                             )
@@ -483,7 +483,7 @@ fun AddEditTaskSheet(
                                 .clickable { includeSubtasks = !includeSubtasks }
                                 .padding(vertical = 4.dp)
                         ) {
-                            Checkbox(
+                            CircularCheckbox(
                                 checked = includeSubtasks,
                                 onCheckedChange = { includeSubtasks = it }
                             )
@@ -919,10 +919,11 @@ private fun LocalSubtaskRow(
             modifier = Modifier.size(18.dp)
         )
         Spacer(modifier = Modifier.width(4.dp))
-        Checkbox(
+        CircularCheckbox(
             checked = subtask.isCompleted,
             onCheckedChange = { onToggle() }
         )
+        Spacer(modifier = Modifier.width(8.dp))
         Text(
             text = subtask.title,
             style = MaterialTheme.typography.bodyMedium,

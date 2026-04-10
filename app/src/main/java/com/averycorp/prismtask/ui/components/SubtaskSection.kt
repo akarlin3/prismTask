@@ -26,7 +26,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DragIndicator
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material3.Checkbox
+import com.averycorp.prismtask.ui.components.CircularCheckbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -281,11 +281,12 @@ private fun SubtaskRow(
             modifier = dragHandleModifier
                 .size(24.dp)
         )
-        Checkbox(
+        CircularCheckbox(
             checked = subtask.isCompleted,
             onCheckedChange = { onToggleComplete() },
-            modifier = Modifier.size(36.dp)
+            size = 22.dp
         )
+        Spacer(modifier = Modifier.width(8.dp))
         Text(
             text = subtask.title,
             style = MaterialTheme.typography.bodyMedium,

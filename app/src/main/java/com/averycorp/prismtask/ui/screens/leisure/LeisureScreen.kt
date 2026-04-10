@@ -21,6 +21,7 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -680,12 +681,12 @@ private fun SelectedItem(
             Box(
                 modifier = Modifier
                     .size(24.dp)
-                    .clip(RoundedCornerShape(6.dp))
+                    .clip(CircleShape)
                     .background(if (done) accentColor else Color.Transparent)
                     .border(
                         2.dp,
                         if (done) accentColor else MaterialTheme.colorScheme.outline,
-                        RoundedCornerShape(6.dp)
+                        CircleShape
                     ),
                 contentAlignment = Alignment.Center
             ) {

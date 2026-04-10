@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -807,10 +808,10 @@ private fun StepItem(
         Box(
             modifier = Modifier
                 .size(22.dp)
-                .clip(RoundedCornerShape(6.dp))
+                .clip(CircleShape)
                 .then(
                     if (isDone) Modifier.background(tierColor)
-                    else Modifier.border(2.dp, MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f), RoundedCornerShape(6.dp))
+                    else Modifier.border(2.dp, MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f), CircleShape)
                 ),
             contentAlignment = Alignment.Center
         ) {
