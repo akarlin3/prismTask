@@ -40,6 +40,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.MoreVert
@@ -264,6 +265,13 @@ fun TodayScreen(
                         label = { Text("Focus") },
                         leadingIcon = {
                             Icon(Icons.Default.Timer, contentDescription = null, modifier = Modifier.size(16.dp))
+                        }
+                    )
+                    AssistChip(
+                        onClick = { navController.navigate(PrismTaskRoute.WeeklyPlanner.route) },
+                        label = { Text("Plan Week") },
+                        leadingIcon = {
+                            Icon(Icons.Default.CalendarMonth, contentDescription = null, modifier = Modifier.size(16.dp))
                         }
                     )
                 }
