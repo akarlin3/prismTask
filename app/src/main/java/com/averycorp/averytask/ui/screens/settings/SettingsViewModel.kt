@@ -176,12 +176,19 @@ class SettingsViewModel @Inject constructor(
     val timerBreakDurationSeconds: StateFlow<Int> = timerPreferences.getBreakDurationSeconds()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), TimerPreferences.DEFAULT_BREAK_SECONDS)
 
+    val timerLongBreakDurationSeconds: StateFlow<Int> = timerPreferences.getLongBreakDurationSeconds()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), TimerPreferences.DEFAULT_LONG_BREAK_SECONDS)
+
     fun setTimerWorkDurationMinutes(minutes: Int) {
         viewModelScope.launch { timerPreferences.setWorkDurationSeconds(minutes * 60) }
     }
 
     fun setTimerBreakDurationMinutes(minutes: Int) {
         viewModelScope.launch { timerPreferences.setBreakDurationSeconds(minutes * 60) }
+    }
+
+    fun setTimerLongBreakDurationMinutes(minutes: Int) {
+        viewModelScope.launch { timerPreferences.setLongBreakDurationSeconds(minutes * 60) }
     }
 
     // --- Modes ---

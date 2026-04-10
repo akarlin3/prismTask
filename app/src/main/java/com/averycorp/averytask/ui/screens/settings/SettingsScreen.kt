@@ -164,6 +164,7 @@ fun SettingsScreen(
     val dayStartHour by viewModel.dayStartHour.collectAsStateWithLifecycle()
     val timerWorkSeconds by viewModel.timerWorkDurationSeconds.collectAsStateWithLifecycle()
     val timerBreakSeconds by viewModel.timerBreakDurationSeconds.collectAsStateWithLifecycle()
+    val timerLongBreakSeconds by viewModel.timerLongBreakDurationSeconds.collectAsStateWithLifecycle()
     val calendarSyncEnabled by viewModel.calendarSyncEnabled.collectAsStateWithLifecycle()
     val calendarName by viewModel.calendarName.collectAsStateWithLifecycle()
     val availableCalendars by viewModel.availableCalendars.collectAsStateWithLifecycle()
@@ -185,6 +186,7 @@ fun SettingsScreen(
     var showAutoArchiveDialog by remember { mutableStateOf(false) }
     var showTimerWorkDialog by remember { mutableStateOf(false) }
     var showTimerBreakDialog by remember { mutableStateOf(false) }
+    var showTimerLongBreakDialog by remember { mutableStateOf(false) }
     var showResetConfirmDialog by remember { mutableStateOf(false) }
     var showAppearanceAdvanced by remember { mutableStateOf(false) }
     var showDashboardAdvanced by remember { mutableStateOf(false) }
@@ -346,13 +348,25 @@ fun SettingsScreen(
 
     if (showTimerBreakDialog) {
         DurationPickerDialog(
-            title = "Break Duration",
+            title = "Short Break Duration",
             currentMinutes = timerBreakSeconds / 60,
             onConfirm = {
                 viewModel.setTimerBreakDurationMinutes(it)
                 showTimerBreakDialog = false
             },
             onDismiss = { showTimerBreakDialog = false }
+        )
+    }
+
+    if (showTimerLongBreakDialog) {
+        DurationPickerDialog(
+            title = "Long Break Duration",
+            currentMinutes = timerLongBreakSeconds / 60,
+            onConfirm = {
+                viewModel.setTimerLongBreakDurationMinutes(it)
+                showTimerLongBreakDialog = false
+            },
+            onDismiss = { showTimerLongBreakDialog = false }
         )
     }
 
@@ -800,9 +814,14 @@ fun SettingsScreen(
                 onClick = { showTimerWorkDialog = true }
             )
             SettingsRowWithSubtitle(
-                title = "Break Duration",
+                title = "Short Break Duration",
                 subtitle = "${timerBreakSeconds / 60} min",
                 onClick = { showTimerBreakDialog = true }
+            )
+            SettingsRowWithSubtitle(
+                title = "Long Break Duration",
+                subtitle = "${timerLongBreakSeconds / 60} min",
+                onClick = { showTimerLongBreakDialog = true }
             )
 
             HorizontalDivider()
