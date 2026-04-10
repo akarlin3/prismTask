@@ -181,17 +181,22 @@ class HabitRepository @Inject constructor(
         val logId = habitLogDao.insertLog(log)
         syncTracker.trackCreate(logId, "habit_log")
 
-        // Fulfilling the booking — reset booking fields
         val habit = habitDao.getHabitByIdOnce(habitId)
-        if (habit != null && habit.isBooked) {
-            habitDao.update(
-                habit.copy(
-                    isBooked = false,
-                    bookedDate = null,
-                    bookedNote = null,
-                    updatedAt = System.currentTimeMillis()
+        if (habit != null) {
+            if (habit.isBooked) {
+                // Fulfilling the booking — reset booking fields
+                habitDao.update(
+                    habit.copy(
+                        isBooked = false,
+                        bookedDate = null,
+                        bookedNote = null,
+                        updatedAt = System.currentTimeMillis()
+                    )
                 )
-            )
+            } else {
+                // Touch updatedAt so the active-habits flow re-emits and lastLogDate refreshes
+                habitDao.update(habit.copy(updatedAt = System.currentTimeMillis()))
+            }
             syncTracker.trackUpdate(habitId, "habit")
         }
         return logId

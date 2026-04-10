@@ -32,6 +32,8 @@ import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
@@ -47,6 +49,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
@@ -855,6 +858,7 @@ private fun BookableHabitItem(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun BookingDialog(
     habitWithStatus: HabitWithStatus,
@@ -873,6 +877,20 @@ internal fun BookingDialog(
     var bookedDate by remember { mutableStateOf(habitWithStatus.habit.bookedDate ?: today) }
     var bookedNote by remember { mutableStateOf(habitWithStatus.habit.bookedNote ?: "") }
     val dateFormat = remember { SimpleDateFormat("MMM d, yyyy", Locale.getDefault()) }
+    var showDatePicker by remember { mutableStateOf(false) }
+    val tomorrow = remember {
+        val cal = Calendar.getInstance()
+        cal.timeInMillis = today
+        cal.add(Calendar.DAY_OF_YEAR, 1)
+        cal.timeInMillis
+    }
+    val nextWeek = remember {
+        val cal = Calendar.getInstance()
+        cal.timeInMillis = today
+        cal.add(Calendar.WEEK_OF_YEAR, 1)
+        cal.timeInMillis
+    }
+    val presetDates = remember { setOf(today, tomorrow, nextWeek) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -892,17 +910,6 @@ internal fun BookingDialog(
                 // Date selector buttons
                 Text("Date", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    val cal = Calendar.getInstance()
-                    val tomorrow = run {
-                        cal.timeInMillis = today
-                        cal.add(Calendar.DAY_OF_YEAR, 1)
-                        cal.timeInMillis
-                    }
-                    val nextWeek = run {
-                        cal.timeInMillis = today
-                        cal.add(Calendar.WEEK_OF_YEAR, 1)
-                        cal.timeInMillis
-                    }
                     listOf("Today" to today, "Tomorrow" to tomorrow, "Next Week" to nextWeek).forEach { (label, date) ->
                         FilterChip(
                             selected = bookedDate == date,
@@ -911,6 +918,11 @@ internal fun BookingDialog(
                         )
                     }
                 }
+                FilterChip(
+                    selected = bookedDate !in presetDates,
+                    onClick = { showDatePicker = true },
+                    label = { Text("Pick Date\u2026", style = MaterialTheme.typography.labelSmall) }
+                )
                 Text(
                     text = "Selected: ${dateFormat.format(Date(bookedDate))}",
                     style = MaterialTheme.typography.bodySmall,
@@ -943,8 +955,27 @@ internal fun BookingDialog(
             }
         }
     )
+
+    if (showDatePicker) {
+        val datePickerState = rememberDatePickerState(initialSelectedDateMillis = bookedDate)
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    datePickerState.selectedDateMillis?.let { bookedDate = it }
+                    showDatePicker = false
+                }) { Text("OK") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }) { Text("Cancel") }
+            }
+        ) {
+            DatePicker(state = datePickerState)
+        }
+    }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun ActivityLogDialog(
     habitWithStatus: HabitWithStatus,
@@ -962,6 +993,14 @@ internal fun ActivityLogDialog(
     var logDate by remember { mutableStateOf(today) }
     var logNotes by remember { mutableStateOf("") }
     val dateFormat = remember { SimpleDateFormat("MMM d, yyyy", Locale.getDefault()) }
+    var showDatePicker by remember { mutableStateOf(false) }
+    val yesterday = remember {
+        val cal = Calendar.getInstance()
+        cal.timeInMillis = today
+        cal.add(Calendar.DAY_OF_YEAR, -1)
+        cal.timeInMillis
+    }
+    val presetDates = remember { setOf(today, yesterday) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -980,12 +1019,6 @@ internal fun ActivityLogDialog(
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text("Date", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    val cal = Calendar.getInstance()
-                    val yesterday = run {
-                        cal.timeInMillis = today
-                        cal.add(Calendar.DAY_OF_YEAR, -1)
-                        cal.timeInMillis
-                    }
                     listOf("Today" to today, "Yesterday" to yesterday).forEach { (label, date) ->
                         FilterChip(
                             selected = logDate == date,
@@ -993,6 +1026,11 @@ internal fun ActivityLogDialog(
                             label = { Text(label, style = MaterialTheme.typography.labelSmall) }
                         )
                     }
+                    FilterChip(
+                        selected = logDate !in presetDates,
+                        onClick = { showDatePicker = true },
+                        label = { Text("Pick Date\u2026", style = MaterialTheme.typography.labelSmall) }
+                    )
                 }
                 Text(
                     text = "Selected: ${dateFormat.format(Date(logDate))}",
@@ -1020,6 +1058,24 @@ internal fun ActivityLogDialog(
             TextButton(onClick = onDismiss) { Text("Cancel") }
         }
     )
+
+    if (showDatePicker) {
+        val datePickerState = rememberDatePickerState(initialSelectedDateMillis = logDate)
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    datePickerState.selectedDateMillis?.let { logDate = it }
+                    showDatePicker = false
+                }) { Text("OK") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }) { Text("Cancel") }
+            }
+        ) {
+            DatePicker(state = datePickerState)
+        }
+    }
 }
 
 @Composable
