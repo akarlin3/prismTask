@@ -858,10 +858,14 @@ class TaskListViewModel @Inject constructor(
      * editor sheet dialog) should call [TaskRepository.duplicateTask] directly
      * with includeSubtasks = true.
      */
-    fun onDuplicateTask(taskId: Long, includeSubtasks: Boolean = false) {
+    fun onDuplicateTask(
+        taskId: Long,
+        includeSubtasks: Boolean = false,
+        copyDueDate: Boolean = false
+    ) {
         viewModelScope.launch {
             try {
-                val newId = taskRepository.duplicateTask(taskId, includeSubtasks)
+                val newId = taskRepository.duplicateTask(taskId, includeSubtasks, copyDueDate)
                 if (newId <= 0L) {
                     snackbarHostState.showSnackbar("Something went wrong")
                     return@launch

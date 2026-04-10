@@ -567,10 +567,13 @@ class AddEditTaskViewModel @Inject constructor(
      * the id of the new task, or null if duplication failed (e.g. we were in
      * create mode or the original had already been deleted).
      */
-    suspend fun duplicateCurrentTask(includeSubtasks: Boolean): Long? {
+    suspend fun duplicateCurrentTask(
+        includeSubtasks: Boolean,
+        copyDueDate: Boolean = false
+    ): Long? {
         val id = currentTaskId ?: return null
         return try {
-            val newId = taskRepository.duplicateTask(id, includeSubtasks)
+            val newId = taskRepository.duplicateTask(id, includeSubtasks, copyDueDate)
             if (newId <= 0L) {
                 _errorMessages.emit("Something went wrong")
                 null

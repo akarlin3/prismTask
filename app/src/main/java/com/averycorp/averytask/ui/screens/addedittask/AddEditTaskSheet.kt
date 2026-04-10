@@ -445,6 +445,8 @@ fun AddEditTaskSheet(
     // and re-seeds the form with the new one, and the sheet surfaces a
     // "Task Duplicated" snackbar.
     if (showDuplicateDialog) {
+        val taskDueDate = viewModel.dueDate
+        var copyDueDate by remember { mutableStateOf(true) }
         var includeSubtasks by remember { mutableStateOf(false) }
         AlertDialog(
             onDismissRequest = { showDuplicateDialog = false },
@@ -455,8 +457,25 @@ fun AddEditTaskSheet(
                         text = "A copy will be created with \"Copy of \" prefixed to the title.",
                         style = MaterialTheme.typography.bodyMedium
                     )
-                    if (subtaskCount > 0) {
+                    if (taskDueDate != null) {
                         Spacer(modifier = Modifier.height(12.dp))
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { copyDueDate = !copyDueDate }
+                                .padding(vertical = 4.dp)
+                        ) {
+                            Checkbox(
+                                checked = copyDueDate,
+                                onCheckedChange = { copyDueDate = it }
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Copy Due Date (${formatShortDate(taskDueDate)})")
+                        }
+                    }
+                    if (subtaskCount > 0) {
+                        Spacer(modifier = Modifier.height(if (taskDueDate != null) 4.dp else 12.dp))
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier
@@ -479,7 +498,10 @@ fun AddEditTaskSheet(
                     onClick = {
                         showDuplicateDialog = false
                         scope.launch {
-                            val newId = viewModel.duplicateCurrentTask(includeSubtasks)
+                            val newId = viewModel.duplicateCurrentTask(
+                                includeSubtasks,
+                                copyDueDate = taskDueDate != null && copyDueDate
+                            )
                             if (newId != null) {
                                 snackbarHostState.showSnackbar("Task Duplicated")
                             }
