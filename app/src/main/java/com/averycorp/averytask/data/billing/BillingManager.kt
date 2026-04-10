@@ -8,7 +8,7 @@ import com.android.billingclient.api.BillingClientStateListener
 import com.android.billingclient.api.BillingFlowParams
 import com.android.billingclient.api.BillingResult
 import com.android.billingclient.api.PendingPurchasesParams
-import com.android.billingclient.api.ProductDetailsResult
+import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.Purchase
 import com.android.billingclient.api.PurchasesUpdatedListener
 import com.android.billingclient.api.QueryProductDetailsParams
@@ -21,7 +21,6 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import javax.inject.Inject
@@ -143,12 +142,15 @@ class BillingManager @Inject constructor(
             .setProductType(BillingClient.ProductType.SUBS)
             .build()
 
-        val purchasesResult = billingClient.queryPurchasesAsync(params)
+        val (billingResult, purchasesList) = suspendCancellableCoroutine<Pair<BillingResult, List<Purchase>>> { cont ->
+            billingClient.queryPurchasesAsync(params) { result, purchases ->
+                cont.resume(Pair(result, purchases))
+            }
+        }
 
-        if (purchasesResult.billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
-            val activePurchases = purchasesResult.purchasesList
-            if (activePurchases.isNotEmpty()) {
-                handlePurchaseUpdate(activePurchases)
+        if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
+            if (purchasesList.isNotEmpty()) {
+                handlePurchaseUpdate(purchasesList)
             } else {
                 updateProStatus(false, SubscriptionState.NOT_SUBSCRIBED)
             }
@@ -189,7 +191,11 @@ class BillingManager @Inject constructor(
             .setPurchaseToken(purchase.purchaseToken)
             .build()
 
-        billingClient.acknowledgePurchase(params)
+        suspendCancellableCoroutine { cont ->
+            billingClient.acknowledgePurchase(params) { billingResult ->
+                cont.resume(billingResult)
+            }
+        }
     }
 
     private suspend fun queryProductDetails(): com.android.billingclient.api.ProductDetails? {
@@ -204,10 +210,14 @@ class BillingManager @Inject constructor(
             .setProductList(productList)
             .build()
 
-        val result: ProductDetailsResult = billingClient.queryProductDetails(params)
+        val (billingResult, productDetailsList) = suspendCancellableCoroutine<Pair<BillingResult, List<ProductDetails>?>> { cont ->
+            billingClient.queryProductDetailsAsync(params) { result, detailsList ->
+                cont.resume(Pair(result, detailsList))
+            }
+        }
 
-        return if (result.billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
-            result.productDetailsList?.firstOrNull()
+        return if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
+            productDetailsList?.firstOrNull()
         } else {
             null
         }
