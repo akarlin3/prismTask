@@ -208,8 +208,8 @@ class TodayViewModel @Inject constructor(
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
 
     // Combined progress (tasks + habits)
-    val combinedTotal: StateFlow<Int> = combine(totalTodayCount, todayHabits) { taskTotal, habits ->
-        taskTotal + habits.size
+    val combinedTotal: StateFlow<Int> = combine(totalTodayCount, completedTodayCount, todayHabits) { taskTotal, taskDone, habits ->
+        taskTotal + taskDone + habits.size
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
     val combinedCompleted: StateFlow<Int> = combine(completedTodayCount, habitCompletedCount) { taskDone, habitDone ->
@@ -217,7 +217,7 @@ class TodayViewModel @Inject constructor(
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
     val combinedProgress: StateFlow<Float> = combine(combinedTotal, combinedCompleted) { total, completed ->
-        if (total + completed == 0) 0f else completed.toFloat() / (total + completed).toFloat()
+        if (total == 0) 0f else completed.toFloat() / total.toFloat()
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0f)
 
     fun onToggleHabitCompletion(habitId: Long, isCurrentlyCompleted: Boolean) {

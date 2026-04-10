@@ -139,7 +139,7 @@ fun TodayScreen(
     val habitCompletedCount by viewModel.habitCompletedCount.collectAsStateWithLifecycle()
     val habitTotalCount by viewModel.habitTotalCount.collectAsStateWithLifecycle()
 
-    val totalForHeader = combinedTotal + combinedCompleted
+    val totalForHeader = combinedTotal
     val allTodayDone = remember(overdueTasks, todayTasks, plannedTasks, completedToday, allHabitsCompleted) {
         overdueTasks.isEmpty() && todayTasks.isEmpty() && plannedTasks.isEmpty() && completedToday.isNotEmpty() && allHabitsCompleted
     }
