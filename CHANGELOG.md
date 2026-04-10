@@ -5,6 +5,38 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v1.1.0 — AI Productivity, Freemium & Play Store Launch (April 2026)
+
+### Added — AI Productivity
+- Eisenhower Matrix view: 2x2 grid with AI auto-categorization via Claude Haiku
+- Smart Pomodoro: AI-planned focus sessions with configurable work style
+- AI settings: auto-categorize toggle, default focus style, Eisenhower badges
+- Eisenhower quadrant badges on task cards
+- Focus quick-start button on Today screen
+
+### Added — Play Store & Freemium
+- Google Play Billing integration for Pro subscription ($3.99/month)
+- Freemium feature gating: AI, cloud sync, and collaboration are Pro
+- Pro upgrade prompts with feature descriptions and free trial
+- Subscription management in Settings
+- Privacy Policy and Terms of Service
+- Play Store listing metadata and asset specifications
+- Release signing configuration and App Bundle support
+- Release checklist documentation
+
+### Added — Testing
+- 28 automated Android UI smoke tests (Compose testing)
+- 28 backend API integration tests
+- Test data seeding infrastructure
+
+### Infrastructure
+- Google Play Billing library integration
+- BillingManager singleton with purchase flow and status caching
+- ProFeatureGate for consistent feature access control
+- ProGuard rules for Play Billing, Calendar API, and AI models
+- Release build with R8 optimization and resource shrinking
+- GitHub Actions release workflow for AAB builds
+
 ## v1.0.0 — Stable Release (April 2026)
 
 - Bump version to 1.0.0 stable release
