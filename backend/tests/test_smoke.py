@@ -335,7 +335,7 @@ async def test_smoke_create_template_from_task(client: AsyncClient, auth_headers
 
     resp = await client.post(
         f"/api/v1/templates/from-task/{task_id}",
-        json={"name": "From Task Template", "icon": "\uD83D\uDD25"},
+        json={"name": "From Task Template", "icon": "\U0001F525"},
         headers=auth_headers,
     )
     assert resp.status_code == 201
@@ -384,7 +384,7 @@ async def test_smoke_template_usage_count_increments(
 async def test_smoke_create_and_complete_habit(client: AsyncClient, auth_headers: dict):
     create = await client.post(
         "/api/v1/habits",
-        json={"name": "Smoke Habit", "frequency": "daily", "icon": "\uD83D\uDCAA"},
+        json={"name": "Smoke Habit", "frequency": "daily", "icon": "\U0001F4AA"},
         headers=auth_headers,
     )
     assert create.status_code == 201
@@ -608,6 +608,6 @@ async def test_smoke_invite_token_uniqueness():
 
 @pytest.mark.asyncio
 async def test_smoke_export_json(client: AsyncClient, auth_headers: dict):
-    resp = await client.post("/api/v1/export/json", headers=auth_headers)
+    resp = await client.get("/api/v1/export/json", headers=auth_headers)
     # Export should succeed (status 200) and return JSON or file content
     assert resp.status_code == 200
