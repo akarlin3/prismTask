@@ -1,10 +1,14 @@
 package com.averycorp.averytask.domain
 
 import com.averycorp.averytask.data.remote.api.AveryTaskApi
+import com.averycorp.averytask.data.remote.api.EisenhowerRequest
+import com.averycorp.averytask.data.remote.api.EisenhowerResponse
 import com.averycorp.averytask.data.remote.api.ImportResponse
 import com.averycorp.averytask.data.remote.api.LoginRequest
 import com.averycorp.averytask.data.remote.api.ParseRequest
 import com.averycorp.averytask.data.remote.api.ParsedTaskResponse
+import com.averycorp.averytask.data.remote.api.PomodoroRequest
+import com.averycorp.averytask.data.remote.api.PomodoroResponse
 import com.averycorp.averytask.data.remote.api.RefreshRequest
 import com.averycorp.averytask.data.remote.api.RegisterRequest
 import com.averycorp.averytask.data.remote.api.TokenResponse
@@ -48,6 +52,10 @@ class NaturalLanguageParserTest {
         override suspend fun exportJson(): ResponseBody =
             error("not used in offline parser tests")
         override suspend fun importJson(file: MultipartBody.Part, mode: String): ImportResponse =
+            error("not used in offline parser tests")
+        override suspend fun categorizeEisenhower(request: EisenhowerRequest): EisenhowerResponse =
+            error("not used in offline parser tests")
+        override suspend fun planPomodoro(request: PomodoroRequest): PomodoroResponse =
             error("not used in offline parser tests")
     }
 
