@@ -133,10 +133,13 @@ fun TodayScreen(
     val combinedProgress by viewModel.combinedProgress.collectAsStateWithLifecycle()
     val hiddenSections by viewModel.hiddenSections.collectAsStateWithLifecycle()
     val collapsedSections by viewModel.collapsedSections.collectAsStateWithLifecycle()
+    val allHabitsCompleted by viewModel.allHabitsCompletedToday.collectAsStateWithLifecycle()
+    val habitCompletedCount by viewModel.habitCompletedCount.collectAsStateWithLifecycle()
+    val habitTotalCount by viewModel.habitTotalCount.collectAsStateWithLifecycle()
 
     val totalForHeader = combinedTotal + combinedCompleted
-    val allTodayDone = remember(overdueTasks, todayTasks, plannedTasks, completedToday) {
-        overdueTasks.isEmpty() && todayTasks.isEmpty() && plannedTasks.isEmpty() && completedToday.isNotEmpty()
+    val allTodayDone = remember(overdueTasks, todayTasks, plannedTasks, completedToday, allHabitsCompleted) {
+        overdueTasks.isEmpty() && todayTasks.isEmpty() && plannedTasks.isEmpty() && completedToday.isNotEmpty() && allHabitsCompleted
     }
 
     var editorSheetTaskId by remember { mutableStateOf<Long?>(null) }
@@ -184,7 +187,9 @@ fun TodayScreen(
             if (allTodayDone) {
                 item(key = "all_caught_up") {
                     AllCaughtUpCard(
-                        completedCount = combinedCompleted,
+                        taskCount = completedToday.size,
+                        habitCount = habitCompletedCount,
+                        habitTotal = habitTotalCount,
                         onPlanTomorrow = { viewModel.onShowPlanSheet() }
                     )
                 }
@@ -553,13 +558,20 @@ private fun CompactProgressHeader(
 
 /**
  * Centered "all caught up" celebration shown when there are no remaining
- * overdue/today/planned tasks but at least one task was completed today.
+ * overdue/today/planned tasks AND all habits are completed for the day.
  */
 @Composable
 private fun AllCaughtUpCard(
-    completedCount: Int,
+    taskCount: Int,
+    habitCount: Int,
+    habitTotal: Int,
     onPlanTomorrow: () -> Unit
 ) {
+    val subtitle = if (habitTotal > 0) {
+        "You completed $taskCount task${if (taskCount != 1) "s" else ""} and $habitCount habit${if (habitCount != 1) "s" else ""} today"
+    } else {
+        "You completed $taskCount task${if (taskCount != 1) "s" else ""} today"
+    }
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -588,7 +600,7 @@ private fun AllCaughtUpCard(
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "You completed $completedCount task${if (completedCount != 1) "s" else ""} today",
+                text = subtitle,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
