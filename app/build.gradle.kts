@@ -202,6 +202,10 @@ dependencies {
     implementation("com.google.api-client:google-api-client-android:2.7.2")
     implementation("com.google.apis:google-api-services-drive:v3-rev20241206-2.0.0")
 
+    // Google Calendar API
+    implementation("com.google.apis:google-api-services-calendar:v3-rev20241101-2.0.0")
+    implementation("com.google.http-client:google-http-client-gson:1.45.3")
+
     // Testing
     testImplementation("junit:junit:4.13.2")
     testImplementation("androidx.room:room-testing:2.8.4")

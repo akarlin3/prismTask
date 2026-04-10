@@ -167,6 +167,17 @@ fun SettingsScreen(
     val calendarSyncEnabled by viewModel.calendarSyncEnabled.collectAsStateWithLifecycle()
     val calendarName by viewModel.calendarName.collectAsStateWithLifecycle()
     val availableCalendars by viewModel.availableCalendars.collectAsStateWithLifecycle()
+    val isGCalConnected by viewModel.isGCalConnected.collectAsStateWithLifecycle()
+    val gCalAccountEmail by viewModel.gCalAccountEmail.collectAsStateWithLifecycle()
+    val gCalSyncEnabled by viewModel.gCalSyncEnabled.collectAsStateWithLifecycle()
+    val gCalSyncCalendarId by viewModel.gCalSyncCalendarId.collectAsStateWithLifecycle()
+    val gCalSyncDirection by viewModel.gCalSyncDirection.collectAsStateWithLifecycle()
+    val gCalShowEvents by viewModel.gCalShowEvents.collectAsStateWithLifecycle()
+    val gCalSyncCompletedTasks by viewModel.gCalSyncCompletedTasks.collectAsStateWithLifecycle()
+    val gCalSyncFrequency by viewModel.gCalSyncFrequency.collectAsStateWithLifecycle()
+    val gCalLastSyncTimestamp by viewModel.gCalLastSyncTimestamp.collectAsStateWithLifecycle()
+    val gCalAvailableCalendars by viewModel.gCalAvailableCalendars.collectAsStateWithLifecycle()
+    val isGCalSyncing by viewModel.isGCalSyncing.collectAsStateWithLifecycle()
     val updateStatus by viewModel.appUpdater.status.collectAsStateWithLifecycle()
     val updateError by viewModel.appUpdater.errorMessage.collectAsStateWithLifecycle()
     val latestReleaseTag by viewModel.appUpdater.latestReleaseTag.collectAsStateWithLifecycle()
@@ -1073,8 +1084,8 @@ fun SettingsScreen(
 
             HorizontalDivider()
 
-            // ========== GOOGLE CALENDAR ==========
-            SectionHeader("Google Calendar")
+            // ========== DEVICE CALENDAR ==========
+            SectionHeader("Device Calendar")
 
             var showCalendarPicker by remember { mutableStateOf(false) }
             val calendarPermissionLauncher = rememberLauncherForActivityResult(
@@ -1095,7 +1106,7 @@ fun SettingsScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Sync Tasks to Calendar", style = MaterialTheme.typography.bodyLarge)
+                    Text("Sync Tasks to Device Calendar", style = MaterialTheme.typography.bodyLarge)
                     if (calendarSyncEnabled && calendarName.isNotBlank()) {
                         Text(
                             text = calendarName,
@@ -1110,7 +1121,6 @@ fun SettingsScreen(
                         if (enabled) {
                             val calId = viewModel.calendarName.value
                             if (calId.isBlank()) {
-                                // Need to pick a calendar first
                                 calendarPermissionLauncher.launch(
                                     arrayOf(
                                         android.Manifest.permission.READ_CALENDAR,
@@ -1177,6 +1187,297 @@ fun SettingsScreen(
                     },
                     confirmButton = {
                         TextButton(onClick = { showCalendarPicker = false }) {
+                            Text("Cancel")
+                        }
+                    }
+                )
+            }
+
+            HorizontalDivider()
+
+            // ========== GOOGLE CALENDAR API ==========
+            SectionHeader("Google Calendar")
+
+            var showGCalCalendarPicker by remember { mutableStateOf(false) }
+            var showGCalFrequencyPicker by remember { mutableStateOf(false) }
+
+            if (!isGCalConnected) {
+                // Not connected state
+                Text(
+                    text = "Sync tasks with your Google Calendar",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(vertical = 4.dp)
+                )
+                Button(
+                    onClick = { viewModel.connectGoogleCalendar() },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp)
+                ) {
+                    Text("Connect Google Calendar")
+                }
+            } else {
+                // Connected state - account email + disconnect
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = gCalAccountEmail ?: "Connected",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                    TextButton(onClick = { viewModel.disconnectGoogleCalendar() }) {
+                        Text("Disconnect", color = MaterialTheme.colorScheme.error)
+                    }
+                }
+
+                // Master sync toggle
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Sync Tasks to Calendar", style = MaterialTheme.typography.bodyLarge)
+                    androidx.compose.material3.Switch(
+                        checked = gCalSyncEnabled,
+                        onCheckedChange = { viewModel.setGCalSyncEnabled(it) }
+                    )
+                }
+
+                AnimatedVisibility(visible = gCalSyncEnabled) {
+                    Column {
+                        // Calendar picker
+                        val selectedCalendar = gCalAvailableCalendars.find { it.id == gCalSyncCalendarId }
+                        OutlinedButton(
+                            onClick = {
+                                viewModel.loadGCalCalendars()
+                                showGCalCalendarPicker = true
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp)
+                        ) {
+                            if (selectedCalendar != null) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(8.dp)
+                                        .clip(CircleShape)
+                                        .background(parseColorSafe(selectedCalendar.color))
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Calendar: ${selectedCalendar.name}")
+                            } else {
+                                Text("Calendar: ${gCalSyncCalendarId.ifEmpty { "Primary" }}")
+                            }
+                        }
+
+                        // Sync direction
+                        Text(
+                            "Sync Direction",
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            listOf("push" to "Push Only", "pull" to "Pull Only", "both" to "Both").forEach { (value, label) ->
+                                FilterChip(
+                                    selected = gCalSyncDirection == value,
+                                    onClick = { viewModel.setGCalSyncDirection(value) },
+                                    label = { Text(label, style = MaterialTheme.typography.bodySmall) }
+                                )
+                            }
+                        }
+
+                        // Show calendar events toggle
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 8.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("Show Calendar Events in App", style = MaterialTheme.typography.bodyMedium)
+                            androidx.compose.material3.Switch(
+                                checked = gCalShowEvents,
+                                onCheckedChange = { viewModel.setGCalShowEvents(it) }
+                            )
+                        }
+
+                        // Sync completed tasks toggle
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 8.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("Sync Completed Tasks", style = MaterialTheme.typography.bodyMedium)
+                            androidx.compose.material3.Switch(
+                                checked = gCalSyncCompletedTasks,
+                                onCheckedChange = { viewModel.setGCalSyncCompletedTasks(it) }
+                            )
+                        }
+
+                        // Sync frequency
+                        val frequencyLabels = mapOf(
+                            "realtime" to "Real-Time",
+                            "15min" to "Every 15 Min",
+                            "hourly" to "Hourly",
+                            "manual" to "Manual Only"
+                        )
+                        OutlinedButton(
+                            onClick = { showGCalFrequencyPicker = true },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp)
+                        ) {
+                            Text("Sync Frequency: ${frequencyLabels[gCalSyncFrequency] ?: gCalSyncFrequency}")
+                        }
+
+                        // Last synced
+                        if (gCalLastSyncTimestamp > 0) {
+                            val lastSyncText = formatLastSync(gCalLastSyncTimestamp)
+                            Text(
+                                text = "Last Synced: $lastSyncText",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(vertical = 4.dp)
+                            )
+                        }
+
+                        // Sync now button
+                        OutlinedButton(
+                            onClick = { viewModel.syncGCalNow() },
+                            enabled = !isGCalSyncing,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp)
+                        ) {
+                            if (isGCalSyncing) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(16.dp),
+                                    strokeWidth = 2.dp
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Syncing...")
+                            } else {
+                                Icon(
+                                    imageVector = Icons.Default.Sync,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Sync Now")
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Google Calendar picker dialog
+            if (showGCalCalendarPicker && gCalAvailableCalendars.isNotEmpty()) {
+                AlertDialog(
+                    onDismissRequest = { showGCalCalendarPicker = false },
+                    title = { Text("Select Calendar") },
+                    text = {
+                        Column {
+                            gCalAvailableCalendars.forEach { cal ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            viewModel.setGCalSyncCalendarId(cal.id)
+                                            showGCalCalendarPicker = false
+                                        }
+                                        .padding(vertical = 12.dp, horizontal = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(12.dp)
+                                            .clip(CircleShape)
+                                            .background(parseColorSafe(cal.color))
+                                    )
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Column {
+                                        Text(cal.name, style = MaterialTheme.typography.bodyLarge)
+                                        if (cal.isPrimary) {
+                                            Text(
+                                                "Primary",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.primary
+                                            )
+                                        }
+                                    }
+                                    if (cal.id == gCalSyncCalendarId) {
+                                        Spacer(modifier = Modifier.weight(1f))
+                                        Icon(
+                                            imageVector = Icons.Default.Check,
+                                            contentDescription = "Selected",
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    confirmButton = {
+                        TextButton(onClick = { showGCalCalendarPicker = false }) {
+                            Text("Cancel")
+                        }
+                    }
+                )
+            }
+
+            // Frequency picker dialog
+            if (showGCalFrequencyPicker) {
+                AlertDialog(
+                    onDismissRequest = { showGCalFrequencyPicker = false },
+                    title = { Text("Sync Frequency") },
+                    text = {
+                        Column {
+                            listOf(
+                                "realtime" to "Real-Time",
+                                "15min" to "Every 15 Minutes",
+                                "hourly" to "Hourly",
+                                "manual" to "Manual Only"
+                            ).forEach { (value, label) ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            viewModel.setGCalSyncFrequency(value)
+                                            showGCalFrequencyPicker = false
+                                        }
+                                        .padding(vertical = 12.dp, horizontal = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    RadioButton(
+                                        selected = gCalSyncFrequency == value,
+                                        onClick = {
+                                            viewModel.setGCalSyncFrequency(value)
+                                            showGCalFrequencyPicker = false
+                                        }
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(label, style = MaterialTheme.typography.bodyLarge)
+                                }
+                            }
+                        }
+                    },
+                    confirmButton = {
+                        TextButton(onClick = { showGCalFrequencyPicker = false }) {
                             Text("Cancel")
                         }
                     }
@@ -1667,6 +1968,14 @@ private fun DurationPickerDialog(
             TextButton(onClick = onDismiss) { Text("Cancel") }
         }
     )
+}
+
+private fun parseColorSafe(hex: String): Color {
+    return try {
+        Color(android.graphics.Color.parseColor(hex))
+    } catch (_: Exception) {
+        Color(0xFF4285F4) // Google Blue default
+    }
 }
 
 private fun formatLastSync(timestamp: Long): String {

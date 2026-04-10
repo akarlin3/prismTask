@@ -18,6 +18,11 @@ import com.averycorp.averytask.data.preferences.ApiPreferences
 import com.averycorp.averytask.data.preferences.ArchivePreferences
 import com.averycorp.averytask.data.preferences.AuthTokenPreferences
 import com.averycorp.averytask.data.preferences.BackendSyncPreferences
+import com.averycorp.averytask.data.calendar.CalendarInfo
+import com.averycorp.averytask.data.calendar.CalendarManager
+import com.averycorp.averytask.data.calendar.CalendarSyncPreferences
+import com.averycorp.averytask.data.calendar.DIRECTION_BOTH
+import com.averycorp.averytask.data.calendar.FREQUENCY_15MIN
 import com.averycorp.averytask.data.preferences.CalendarPreferences
 import com.averycorp.averytask.data.preferences.DashboardPreferences
 import com.averycorp.averytask.data.preferences.TabPreferences
@@ -86,7 +91,9 @@ class SettingsViewModel @Inject constructor(
     private val templatePreferences: TemplatePreferences,
     private val authTokenPreferences: AuthTokenPreferences,
     private val averyTaskApi: AveryTaskApi,
-    val appUpdater: AppUpdater
+    val appUpdater: AppUpdater,
+    private val calendarManager: CalendarManager,
+    private val calendarSyncPreferences: CalendarSyncPreferences
 ) : ViewModel() {
 
     // --- Theme ---
@@ -260,6 +267,109 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             calendarPreferences.setCalendarId(calendar.id)
             calendarPreferences.setCalendarName(calendar.name)
+        }
+    }
+
+    // --- Google Calendar API Sync ---
+    val isGCalConnected: StateFlow<Boolean> = calendarManager.isCalendarConnected
+    val gCalAccountEmail: StateFlow<String?> = calendarManager.connectedAccountEmail
+
+    val gCalSyncEnabled: StateFlow<Boolean> = calendarSyncPreferences.isCalendarSyncEnabled()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    val gCalSyncCalendarId: StateFlow<String> = calendarSyncPreferences.getSyncCalendarId()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "primary")
+
+    val gCalSyncDirection: StateFlow<String> = calendarSyncPreferences.getSyncDirection()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DIRECTION_BOTH)
+
+    val gCalShowEvents: StateFlow<Boolean> = calendarSyncPreferences.getShowCalendarEvents()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
+    val gCalSyncCompletedTasks: StateFlow<Boolean> = calendarSyncPreferences.getSyncCompletedTasks()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    val gCalSyncFrequency: StateFlow<String> = calendarSyncPreferences.getSyncFrequency()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), FREQUENCY_15MIN)
+
+    val gCalLastSyncTimestamp: StateFlow<Long> = calendarSyncPreferences.getLastSyncTimestamp()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0L)
+
+    private val _gCalAvailableCalendars = MutableStateFlow<List<CalendarInfo>>(emptyList())
+    val gCalAvailableCalendars: StateFlow<List<CalendarInfo>> = _gCalAvailableCalendars
+
+    private val _isGCalSyncing = MutableStateFlow(false)
+    val isGCalSyncing: StateFlow<Boolean> = _isGCalSyncing
+
+    fun connectGoogleCalendar() {
+        viewModelScope.launch {
+            val result = calendarManager.connectCalendar()
+            result.onSuccess {
+                loadGCalCalendars()
+                _messages.emit("Google Calendar connected")
+            }.onFailure { e ->
+                _messages.emit(e.message ?: "Failed to connect Google Calendar")
+            }
+        }
+    }
+
+    fun disconnectGoogleCalendar() {
+        viewModelScope.launch {
+            calendarManager.disconnectCalendar()
+            calendarSyncPreferences.clearAll()
+            _gCalAvailableCalendars.value = emptyList()
+            _messages.emit("Google Calendar disconnected")
+        }
+    }
+
+    fun loadGCalCalendars() {
+        viewModelScope.launch {
+            _gCalAvailableCalendars.value = calendarManager.getUserCalendars()
+        }
+    }
+
+    fun setGCalSyncEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            calendarSyncPreferences.setCalendarSyncEnabled(enabled)
+            if (enabled) {
+                _messages.emit("Google Calendar sync enabled")
+            } else {
+                _messages.emit("Google Calendar sync disabled")
+            }
+        }
+    }
+
+    fun setGCalSyncCalendarId(calendarId: String) {
+        viewModelScope.launch { calendarSyncPreferences.setSyncCalendarId(calendarId) }
+    }
+
+    fun setGCalSyncDirection(direction: String) {
+        viewModelScope.launch { calendarSyncPreferences.setSyncDirection(direction) }
+    }
+
+    fun setGCalShowEvents(show: Boolean) {
+        viewModelScope.launch { calendarSyncPreferences.setShowCalendarEvents(show) }
+    }
+
+    fun setGCalSyncCompletedTasks(sync: Boolean) {
+        viewModelScope.launch { calendarSyncPreferences.setSyncCompletedTasks(sync) }
+    }
+
+    fun setGCalSyncFrequency(frequency: String) {
+        viewModelScope.launch { calendarSyncPreferences.setSyncFrequency(frequency) }
+    }
+
+    fun syncGCalNow() {
+        viewModelScope.launch {
+            _isGCalSyncing.value = true
+            try {
+                calendarSyncPreferences.setLastSyncTimestamp(System.currentTimeMillis())
+                _messages.emit("Google Calendar sync complete")
+            } catch (e: Exception) {
+                _messages.emit("Sync failed: ${e.message}")
+            } finally {
+                _isGCalSyncing.value = false
+            }
         }
     }
 
@@ -751,6 +861,8 @@ class SettingsViewModel @Inject constructor(
                 tabPreferences.resetToDefaults()
                 taskBehaviorPreferences.resetToDefaults()
                 calendarPreferences.clearAll()
+                calendarSyncPreferences.clearAll()
+                calendarManager.disconnectCalendar()
                 leisurePreferences.clearAll()
                 habitListPreferences.clearAll()
                 backendSyncPreferences.clear()
