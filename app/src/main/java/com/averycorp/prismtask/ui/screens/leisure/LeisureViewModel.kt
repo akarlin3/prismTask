@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.averycorp.prismtask.data.local.entity.LeisureLogEntity
 import com.averycorp.prismtask.data.preferences.LeisurePreferences
 import com.averycorp.prismtask.data.repository.LeisureRepository
+import com.averycorp.prismtask.ui.screens.leisure.components.LeisureOption
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
