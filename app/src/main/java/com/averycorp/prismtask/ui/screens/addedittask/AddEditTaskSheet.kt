@@ -455,6 +455,37 @@ fun AddEditTaskSheet(
     // prompt for confirmation before closing.
     BackHandler { attemptDismiss() }
 
+    // Boundary block dialog (v1.4.0 V3). Shown when saveTask() bounced off
+    // an active BLOCK_CATEGORY rule. User can force-create anyway or reschedule
+    // the task to tomorrow so it falls outside the current window.
+    val boundaryBlock = viewModel.pendingBoundaryBlock
+    if (boundaryBlock != null) {
+        AlertDialog(
+            onDismissRequest = { viewModel.dismissBoundaryBlock() },
+            title = { Text("Outside '${boundaryBlock.rule.name}'") },
+            text = { Text(boundaryBlock.reason) },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.dismissBoundaryBlock()
+                    scope.launch {
+                        if (viewModel.saveTask(ignoreBoundaries = true)) onDismiss()
+                    }
+                }) {
+                    Text("Create Anyway")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    viewModel.dismissBoundaryBlock()
+                    val tomorrow = System.currentTimeMillis() + 24L * 60 * 60 * 1000
+                    viewModel.onDueDateChange(tomorrow)
+                }) {
+                    Text("Reschedule To Tomorrow")
+                }
+            }
+        )
+    }
+
     // Duplicate confirmation dialog. Shown from the header overflow menu in
     // edit mode. When confirmed, the VM creates a copy of the current task
     // and re-seeds the form with the new one, and the sheet surfaces a

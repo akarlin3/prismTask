@@ -97,6 +97,7 @@ class SettingsViewModel @Inject constructor(
     private val voicePreferences: VoicePreferences,
     private val a11yPreferences: A11yPreferences,
     private val userPreferencesDataStore: com.averycorp.prismtask.data.preferences.UserPreferencesDataStore,
+    private val boundaryRuleRepository: com.averycorp.prismtask.data.repository.BoundaryRuleRepository,
     private val onboardingPreferences: OnboardingPreferences
 ) : ViewModel() {
 
@@ -124,6 +125,32 @@ class SettingsViewModel @Inject constructor(
 
     fun setWorkLifeBalancePrefs(prefs: com.averycorp.prismtask.data.preferences.WorkLifeBalancePrefs) {
         viewModelScope.launch { userPreferencesDataStore.setWorkLifeBalance(prefs) }
+    }
+
+    /** Boundary rules (v1.4.0 V3). */
+    val boundaryRules: StateFlow<List<com.averycorp.prismtask.domain.model.BoundaryRule>> =
+        boundaryRuleRepository.observeRules()
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    init {
+        viewModelScope.launch { boundaryRuleRepository.seedBuiltInIfEmpty() }
+    }
+
+    fun toggleBoundaryRule(rule: com.averycorp.prismtask.domain.model.BoundaryRule, enabled: Boolean) {
+        viewModelScope.launch {
+            boundaryRuleRepository.update(rule.copy(isEnabled = enabled))
+        }
+    }
+
+    fun deleteBoundaryRule(rule: com.averycorp.prismtask.domain.model.BoundaryRule) {
+        viewModelScope.launch { boundaryRuleRepository.delete(rule.id) }
+    }
+
+    fun addBoundaryRuleFromNlp(text: String): Boolean {
+        val parsed = com.averycorp.prismtask.domain.usecase.BoundaryRuleParser.parse(text)
+            ?: return false
+        viewModelScope.launch { boundaryRuleRepository.insert(parsed) }
+        return true
     }
 
     /** Forgiveness-first streak preferences (v1.4.0 V5). */

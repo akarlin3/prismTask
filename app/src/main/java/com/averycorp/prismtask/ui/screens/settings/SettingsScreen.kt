@@ -60,6 +60,7 @@ import com.averycorp.prismtask.ui.screens.settings.sections.SwipeActionsSection
 import com.averycorp.prismtask.ui.screens.settings.sections.TaskDefaultsSection
 import com.averycorp.prismtask.ui.screens.settings.sections.TimerSection
 import com.averycorp.prismtask.ui.screens.settings.sections.VoiceInputSection
+import com.averycorp.prismtask.ui.screens.settings.sections.BoundariesSection
 import com.averycorp.prismtask.ui.screens.settings.sections.ForgivenessStreakSection
 import com.averycorp.prismtask.ui.screens.settings.sections.WorkLifeBalanceSection
 
@@ -98,6 +99,10 @@ fun SettingsScreen(
 
     // Forgiveness-first streaks (v1.4.0 V5)
     val forgivenessPrefs by viewModel.forgivenessPrefs.collectAsStateWithLifecycle()
+
+    // Boundary rules (v1.4.0 V3)
+    val boundaryRules by viewModel.boundaryRules.collectAsStateWithLifecycle()
+    var showAddBoundaryDialog by remember { mutableStateOf(false) }
 
     // Data
     val autoArchiveDays by viewModel.autoArchiveDays.collectAsStateWithLifecycle()
@@ -247,6 +252,50 @@ fun SettingsScreen(
         if (pendingCsv != null) createCsvLauncher.launch("prismtask_tasks.csv")
     }
 
+    if (showAddBoundaryDialog) {
+        var text by remember { mutableStateOf("") }
+        var error by remember { mutableStateOf(false) }
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { showAddBoundaryDialog = false },
+            title = { Text("Add Boundary Rule") },
+            text = {
+                Column {
+                    Text(
+                        "Describe a rule in plain English, e.g. 'No work after 7pm on weekdays'.",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    androidx.compose.material3.OutlinedTextField(
+                        value = text,
+                        onValueChange = { text = it; error = false },
+                        isError = error,
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    if (error) {
+                        Text(
+                            "Couldn't parse that. Try 'No work after 8pm'.",
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.labelSmall
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = {
+                    if (viewModel.addBoundaryRuleFromNlp(text)) {
+                        showAddBoundaryDialog = false
+                    } else {
+                        error = true
+                    }
+                }) { Text("Add") }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = { showAddBoundaryDialog = false }) { Text("Cancel") }
+            }
+        )
+    }
+
     if (showBackendAuthDialog) {
         BackendAuthDialog(
             isAuthenticating = isBackendAuthenticating,
@@ -372,6 +421,13 @@ fun SettingsScreen(
                 ForgivenessStreakSection(
                     prefs = forgivenessPrefs,
                     onPrefsChange = viewModel::setForgivenessPrefs
+                )
+
+                BoundariesSection(
+                    rules = boundaryRules,
+                    onToggle = { rule, enabled -> viewModel.toggleBoundaryRule(rule, enabled) },
+                    onDelete = viewModel::deleteBoundaryRule,
+                    onAdd = { showAddBoundaryDialog = true }
                 )
 
                 TaskDefaultsSection(

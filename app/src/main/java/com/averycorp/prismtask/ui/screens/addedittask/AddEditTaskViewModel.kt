@@ -22,9 +22,12 @@ import com.averycorp.prismtask.data.repository.AttachmentRepository
 import com.averycorp.prismtask.data.repository.ProjectRepository
 import com.averycorp.prismtask.data.repository.TagRepository
 import com.averycorp.prismtask.data.repository.TaskRepository
+import com.averycorp.prismtask.data.repository.BoundaryRuleRepository
 import com.averycorp.prismtask.data.repository.TaskTemplateRepository
 import com.averycorp.prismtask.domain.model.LifeCategory
 import com.averycorp.prismtask.domain.model.RecurrenceRule
+import com.averycorp.prismtask.domain.usecase.BoundaryDecision
+import com.averycorp.prismtask.domain.usecase.BoundaryEnforcer
 import com.averycorp.prismtask.domain.usecase.LifeCategoryClassifier
 import com.averycorp.prismtask.notifications.ReminderScheduler
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -64,8 +67,11 @@ class AddEditTaskViewModel @Inject constructor(
     private val attachmentRepository: AttachmentRepository,
     private val templateRepository: TaskTemplateRepository,
     private val reminderScheduler: ReminderScheduler,
+    private val boundaryRuleRepository: BoundaryRuleRepository,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
+
+    private val boundaryEnforcer = BoundaryEnforcer()
 
     private val _errorMessages = MutableSharedFlow<String>()
     val errorMessages: SharedFlow<String> = _errorMessages.asSharedFlow()
@@ -120,6 +126,45 @@ class AddEditTaskViewModel @Inject constructor(
         private set
 
     private val lifeCategoryClassifier = LifeCategoryClassifier()
+
+    /**
+     * Boundary-rule decision for the task currently being edited. The save
+     * path checks this and bubbles a [BoundaryDecision.Block] up to the UI
+     * via [pendingBoundaryBlock]; [BoundaryDecision.Suggest] pre-fills the
+     * life category field.
+     */
+    var pendingBoundaryBlock by mutableStateOf<BoundaryDecision.Block?>(null)
+        private set
+
+    fun dismissBoundaryBlock() { pendingBoundaryBlock = null }
+
+    /**
+     * Evaluate boundary rules against the current draft. Returns `true` if
+     * the save should proceed, `false` if the UI should show the block dialog.
+     * A SUGGEST decision silently pre-fills [lifeCategory] unless the user
+     * already set one manually.
+     */
+    private suspend fun evaluateBoundaryRules(): Boolean {
+        val draftCategory = lifeCategory
+            ?: lifeCategoryClassifier.classify(title, description.ifBlank { null })
+                .takeIf { it != LifeCategory.UNCATEGORIZED }
+            ?: return true
+        val rules = boundaryRuleRepository.getRulesOnce()
+        if (rules.isEmpty()) return true
+        return when (val decision = boundaryEnforcer.evaluate(rules, draftCategory)) {
+            is BoundaryDecision.Allow -> true
+            is BoundaryDecision.Block -> {
+                pendingBoundaryBlock = decision
+                false
+            }
+            is BoundaryDecision.Suggest -> {
+                if (!lifeCategoryManuallySet) {
+                    lifeCategory = decision.category
+                }
+                true
+            }
+        }
+    }
 
     /**
      * Unpersisted subtasks for the task currently being composed. Populated
@@ -512,9 +557,18 @@ class AddEditTaskViewModel @Inject constructor(
         }
     }
 
-    suspend fun saveTask(): Boolean {
+    /**
+     * Save the current draft. Callers that want to bypass boundary rules
+     * (e.g. the user tapped "Create Anyway" in the block dialog) can pass
+     * [ignoreBoundaries] = true.
+     */
+    suspend fun saveTask(ignoreBoundaries: Boolean = false): Boolean {
         if (title.isBlank()) {
             titleError = true
+            return false
+        }
+
+        if (!ignoreBoundaries && !evaluateBoundaryRules()) {
             return false
         }
 
