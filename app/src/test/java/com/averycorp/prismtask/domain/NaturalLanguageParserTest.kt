@@ -1,11 +1,19 @@
 package com.averycorp.prismtask.domain
 
 import com.averycorp.prismtask.data.remote.api.PrismTaskApi
+import com.averycorp.prismtask.data.remote.api.ChatRequest
+import com.averycorp.prismtask.data.remote.api.ChatResponse
+import com.averycorp.prismtask.data.remote.api.CoachingRequest
+import com.averycorp.prismtask.data.remote.api.CoachingResponse
 import com.averycorp.prismtask.data.remote.api.DailyBriefingRequest
 import com.averycorp.prismtask.data.remote.api.DailyBriefingResponse
 import com.averycorp.prismtask.data.remote.api.EisenhowerRequest
 import com.averycorp.prismtask.data.remote.api.EisenhowerResponse
+import com.averycorp.prismtask.data.remote.api.EveningSummaryRequest
+import com.averycorp.prismtask.data.remote.api.EveningSummaryResponse
 import com.averycorp.prismtask.data.remote.api.ImportResponse
+import com.averycorp.prismtask.data.remote.api.ReengagementRequest
+import com.averycorp.prismtask.data.remote.api.ReengagementResponse
 import com.averycorp.prismtask.data.remote.api.LoginRequest
 import com.averycorp.prismtask.data.remote.api.ParseRequest
 import com.averycorp.prismtask.data.remote.api.ParsedTaskResponse
@@ -68,6 +76,14 @@ class NaturalLanguageParserTest {
         override suspend fun getWeeklyPlan(request: WeeklyPlanRequest): WeeklyPlanResponse =
             error("not used in offline parser tests")
         override suspend fun getTimeBlock(request: TimeBlockRequest): TimeBlockResponse =
+            error("not used in offline parser tests")
+        override suspend fun aiChat(request: ChatRequest): ChatResponse =
+            error("not used in offline parser tests")
+        override suspend fun getEveningSummary(request: EveningSummaryRequest): EveningSummaryResponse =
+            error("not used in offline parser tests")
+        override suspend fun getReengagementNudge(request: ReengagementRequest): ReengagementResponse =
+            error("not used in offline parser tests")
+        override suspend fun getCoaching(request: CoachingRequest): CoachingResponse =
             error("not used in offline parser tests")
     }
 

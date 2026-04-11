@@ -540,6 +540,10 @@ class TaskTemplateRepositoryTest {
         override suspend fun updateEisenhowerQuadrant(id: Long, quadrant: String?, reason: String?, updatedAt: Long) = unsupported()
         override fun getCategorizedTasks(): Flow<List<TaskEntity>> = unsupported()
         override suspend fun updatePlannedDateAndSortOrder(id: Long, plannedDate: Long, sortOrder: Int, now: Long) = unsupported()
+        override suspend fun getCompletedTasksInRange(startOfDay: Long, endOfDay: Long): List<TaskEntity> = unsupported()
+        override suspend fun getIncompleteTodayCount(endOfDay: Long): Int = unsupported()
+        override suspend fun getLastCompletedTask(): TaskEntity? = unsupported()
+        override suspend fun getIncompleteTaskCount(): Int = unsupported()
     }
 
     /** In-memory fake of [TagDao]. Records all cross-ref inserts so tests can assert on them. */

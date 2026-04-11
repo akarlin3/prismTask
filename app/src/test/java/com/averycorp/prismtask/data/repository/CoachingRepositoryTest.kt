@@ -24,7 +24,7 @@ class CoachingRepositoryTest {
     @Test
     fun `shouldShowPerfectionismCard returns true when editCount at least 3`() {
         assertTrue(
-            CoachingRepository.shouldShowPerfectionismCardStatic(
+            shouldShowPerfectionismCardStatic(
                 editCount = 3, rescheduleCount = 0, subtasksAdded = 0, subtasksCompleted = 0
             )
         )
@@ -33,7 +33,7 @@ class CoachingRepositoryTest {
     @Test
     fun `shouldShowPerfectionismCard returns true when rescheduleCount at least 2`() {
         assertTrue(
-            CoachingRepository.shouldShowPerfectionismCardStatic(
+            shouldShowPerfectionismCardStatic(
                 editCount = 0, rescheduleCount = 2, subtasksAdded = 0, subtasksCompleted = 0
             )
         )
@@ -42,7 +42,7 @@ class CoachingRepositoryTest {
     @Test
     fun `shouldShowPerfectionismCard returns true when subtasks added but none completed`() {
         assertTrue(
-            CoachingRepository.shouldShowPerfectionismCardStatic(
+            shouldShowPerfectionismCardStatic(
                 editCount = 0, rescheduleCount = 0, subtasksAdded = 2, subtasksCompleted = 0
             )
         )
@@ -51,7 +51,7 @@ class CoachingRepositoryTest {
     @Test
     fun `shouldShowPerfectionismCard returns false when subtasks are partially completed`() {
         assertFalse(
-            CoachingRepository.shouldShowPerfectionismCardStatic(
+            shouldShowPerfectionismCardStatic(
                 editCount = 0, rescheduleCount = 0, subtasksAdded = 3, subtasksCompleted = 1
             )
         )
@@ -60,7 +60,7 @@ class CoachingRepositoryTest {
     @Test
     fun `shouldShowPerfectionismCard returns false when all counts below threshold`() {
         assertFalse(
-            CoachingRepository.shouldShowPerfectionismCardStatic(
+            shouldShowPerfectionismCardStatic(
                 editCount = 2, rescheduleCount = 1, subtasksAdded = 1, subtasksCompleted = 0
             )
         )
@@ -69,7 +69,7 @@ class CoachingRepositoryTest {
     @Test
     fun `shouldShowPerfectionismCard returns true when multiple conditions met`() {
         assertTrue(
-            CoachingRepository.shouldShowPerfectionismCardStatic(
+            shouldShowPerfectionismCardStatic(
                 editCount = 5, rescheduleCount = 3, subtasksAdded = 4, subtasksCompleted = 0
             )
         )
