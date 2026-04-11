@@ -38,7 +38,8 @@ class ProFeatureGateTest {
                 ProFeatureGate.AI_NLP -> isPro()
 
                 ProFeatureGate.AI_BRIEFING, ProFeatureGate.AI_WEEKLY_PLAN,
-                ProFeatureGate.AI_TIME_BLOCK, ProFeatureGate.COLLABORATION,
+                ProFeatureGate.AI_TIME_BLOCK, ProFeatureGate.AI_CONVERSATIONAL,
+                ProFeatureGate.COLLABORATION,
                 ProFeatureGate.INTEGRATIONS, ProFeatureGate.ANALYTICS_FULL,
                 ProFeatureGate.ANALYTICS_CORRELATIONS,
                 ProFeatureGate.DRIVE_BACKUP -> isPremium()
@@ -150,7 +151,8 @@ class ProFeatureGateTest {
         // Premium-tier features
         val premiumFeatures = listOf(
             ProFeatureGate.AI_BRIEFING, ProFeatureGate.AI_WEEKLY_PLAN,
-            ProFeatureGate.AI_TIME_BLOCK, ProFeatureGate.COLLABORATION,
+            ProFeatureGate.AI_TIME_BLOCK, ProFeatureGate.AI_CONVERSATIONAL,
+            ProFeatureGate.COLLABORATION,
             ProFeatureGate.INTEGRATIONS, ProFeatureGate.ANALYTICS_FULL,
             ProFeatureGate.ANALYTICS_CORRELATIONS, ProFeatureGate.DRIVE_BACKUP
         )
@@ -169,11 +171,12 @@ class ProFeatureGateTest {
             ProFeatureGate.AI_NLP, ProFeatureGate.ANALYTICS_BASIC,
             ProFeatureGate.TIME_TRACKING, ProFeatureGate.AI_BRIEFING,
             ProFeatureGate.AI_WEEKLY_PLAN, ProFeatureGate.AI_TIME_BLOCK,
+            ProFeatureGate.AI_CONVERSATIONAL,
             ProFeatureGate.COLLABORATION, ProFeatureGate.INTEGRATIONS,
             ProFeatureGate.ANALYTICS_FULL, ProFeatureGate.ANALYTICS_CORRELATIONS,
             ProFeatureGate.DRIVE_BACKUP
         )
-        assertEquals("All 15 feature constants should be unique", 15, constants.size)
+        assertEquals("All 16 feature constants should be unique", 16, constants.size)
     }
 
     // --- Tier upgrade restores highest ---

@@ -38,6 +38,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CalendarMonth
@@ -64,6 +65,7 @@ import androidx.compose.material3.FabPosition
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -189,15 +191,36 @@ fun TodayScreen(
             FloatingQuickAddBar()
         },
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = {
-                    editorSheetTaskId = null
-                    showEditorSheet = true
-                },
-                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+            Column(
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Icon(Icons.Default.Add, contentDescription = "New Task")
+                // Chat FAB - premium only
+                if (viewModel.isPremium) {
+                    SmallFloatingActionButton(
+                        onClick = {
+                            navController.navigate(PrismTaskRoute.AiChat.createRoute())
+                        },
+                        containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onTertiaryContainer
+                    ) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.Chat,
+                            contentDescription = "AI Coach",
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+                FloatingActionButton(
+                    onClick = {
+                        editorSheetTaskId = null
+                        showEditorSheet = true
+                    },
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = "New Task")
+                }
             }
         },
         floatingActionButtonPosition = FabPosition.End

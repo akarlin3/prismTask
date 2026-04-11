@@ -237,6 +237,41 @@ data class TimeBlockResponse(
 
 // endregion
 
+// region AI Chat
+
+data class ChatRequest(
+    val message: String,
+    @SerializedName("conversation_id") val conversationId: String,
+    @SerializedName("task_context_id") val taskContextId: Long? = null,
+    val tier: String = "PREMIUM"
+)
+
+data class ChatActionResponse(
+    val type: String,
+    @SerializedName("task_id") val taskId: String? = null,
+    @SerializedName("task_ids") val taskIds: List<String>? = null,
+    val to: String? = null,
+    val subtasks: List<String>? = null,
+    val minutes: Int? = null,
+    val title: String? = null,
+    val due: String? = null,
+    val priority: String? = null
+)
+
+data class ChatTokensUsed(
+    val input: Int,
+    val output: Int
+)
+
+data class ChatResponse(
+    val message: String,
+    val actions: List<ChatActionResponse> = emptyList(),
+    @SerializedName("conversation_id") val conversationId: String,
+    @SerializedName("tokens_used") val tokensUsed: ChatTokensUsed? = null
+)
+
+// endregion
+
 // region Export / Import
 
 data class ImportResponse(

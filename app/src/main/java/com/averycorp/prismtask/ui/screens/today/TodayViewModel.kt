@@ -52,8 +52,12 @@ class TodayViewModel @Inject constructor(
     private val dashboardPreferences: DashboardPreferences,
     private val habitListPreferences: HabitListPreferences,
     private val taskBehaviorPreferences: TaskBehaviorPreferences,
-    private val sortPreferences: SortPreferences
+    private val sortPreferences: SortPreferences,
+    private val proFeatureGate: com.averycorp.prismtask.domain.usecase.ProFeatureGate
 ) : ViewModel() {
+
+    val isPremium: Boolean
+        get() = proFeatureGate.isPremium()
 
     /**
      * Persisted sort mode for the Today screen. Screens that don't yet have

@@ -71,6 +71,7 @@ import com.averycorp.prismtask.ui.screens.eisenhower.EisenhowerScreen
 import com.averycorp.prismtask.ui.screens.planner.WeeklyPlannerScreen
 import com.averycorp.prismtask.ui.screens.pomodoro.SmartPomodoroScreen
 import com.averycorp.prismtask.ui.screens.templates.AddEditTemplateScreen
+import com.averycorp.prismtask.ui.screens.chat.ChatScreen
 import com.averycorp.prismtask.ui.screens.templates.TemplateListScreen
 import com.averycorp.prismtask.ui.screens.timer.TimerScreen
 import kotlinx.coroutines.launch
@@ -126,6 +127,10 @@ sealed class PrismTaskRoute(val route: String) {
     data object AddEditTemplate : PrismTaskRoute("templates/edit?templateId={templateId}") {
         fun createRoute(templateId: Long? = null): String =
             if (templateId != null) "templates/edit?templateId=$templateId" else "templates/edit"
+    }
+    data object AiChat : PrismTaskRoute("ai_chat?taskId={taskId}") {
+        fun createRoute(taskId: Long? = null): String =
+            if (taskId != null) "ai_chat?taskId=$taskId" else "ai_chat"
     }
     data object MainTabs : PrismTaskRoute("main_tabs")
     data object Onboarding : PrismTaskRoute("onboarding")
@@ -829,6 +834,34 @@ fun PrismTaskNavGraph(
                 popExitTransition = { fadeOut(animationSpec = tween(NAV_ANIM_DURATION)) }
             ) {
                 AddEditTemplateScreen(navController)
+            }
+
+            composable(
+                route = PrismTaskRoute.AiChat.route,
+                arguments = listOf(
+                    navArgument("taskId") {
+                        type = NavType.LongType
+                        defaultValue = -1L
+                    }
+                ),
+                enterTransition = {
+                    slideInHorizontally(initialOffsetX = { it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
+                },
+                exitTransition = {
+                    slideOutHorizontally(targetOffsetX = { -it / 3 }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
+                },
+                popEnterTransition = {
+                    slideInHorizontally(initialOffsetX = { -it / 3 }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
+                },
+                popExitTransition = {
+                    slideOutHorizontally(targetOffsetX = { it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
+                }
+            ) {
+                ChatScreen(navController)
             }
         }
     }
