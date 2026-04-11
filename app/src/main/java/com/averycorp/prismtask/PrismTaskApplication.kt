@@ -11,6 +11,7 @@ import com.averycorp.prismtask.data.repository.LeisureRepository
 import com.averycorp.prismtask.data.repository.SchoolworkRepository
 import com.averycorp.prismtask.data.repository.SelfCareRepository
 import com.averycorp.prismtask.data.seed.TemplateSeeder
+import com.averycorp.prismtask.notifications.OverloadCheckWorker
 import com.averycorp.prismtask.workers.AutoArchiveWorker
 import com.averycorp.prismtask.workers.DailyResetWorker
 import dagger.hilt.android.HiltAndroidApp
@@ -54,8 +55,27 @@ class PrismTaskApplication : Application(), Configuration.Provider {
         super.onCreate()
         scheduleAutoArchive()
         scheduleDailyReset()
+        scheduleOverloadCheck()
         seedBuiltInHabits()
         seedBuiltInTemplates()
+    }
+
+    /**
+     * Schedules the v1.4.0 V2 daily overload check worker. Fires once per
+     * 24h window; if the user's balance state is still overloaded at the
+     * time the worker runs, a "work-life balance is skewing" notification
+     * is posted. Uses KEEP policy so the schedule is stable across app
+     * restarts and config changes.
+     */
+    private fun scheduleOverloadCheck() {
+        val workRequest = PeriodicWorkRequestBuilder<OverloadCheckWorker>(
+            24, TimeUnit.HOURS
+        ).build()
+        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+            OverloadCheckWorker.UNIQUE_WORK_NAME,
+            ExistingPeriodicWorkPolicy.KEEP,
+            workRequest
+        )
     }
 
     /**

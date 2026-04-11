@@ -73,8 +73,11 @@ import com.averycorp.prismtask.ui.screens.today.components.CompletedTaskItem
 import com.averycorp.prismtask.ui.screens.today.components.FloatingQuickAddBar
 import com.averycorp.prismtask.ui.screens.today.components.HabitChipRow
 import com.averycorp.prismtask.ui.screens.today.components.NeutralGray
+import com.averycorp.prismtask.ui.screens.today.components.OverloadBanner
+import com.averycorp.prismtask.ui.screens.today.components.SelfCareNudgeCard
 import com.averycorp.prismtask.ui.screens.today.components.PlanForTodaySheet
 import com.averycorp.prismtask.ui.screens.today.components.SwipeableTaskItem
+import com.averycorp.prismtask.ui.screens.today.components.TodayBalanceSection
 
 private const val SECTION_OVERDUE = "overdue"
 private const val SECTION_TODAY_TASKS = "today_tasks"
@@ -115,6 +118,12 @@ fun TodayScreen(
     val allHabitsCompleted by viewModel.allHabitsCompletedToday.collectAsStateWithLifecycle()
     val habitCompletedCount by viewModel.habitCompletedCount.collectAsStateWithLifecycle()
     val habitTotalCount by viewModel.habitTotalCount.collectAsStateWithLifecycle()
+    val balanceState by viewModel.balanceState.collectAsStateWithLifecycle()
+    val workLifeBalancePrefs by viewModel.workLifeBalancePrefs.collectAsStateWithLifecycle()
+    val burnoutResult by viewModel.burnoutResult.collectAsStateWithLifecycle()
+    val showCheckInPrompt by viewModel.showCheckInPrompt.collectAsStateWithLifecycle()
+    val currentNudge by viewModel.currentNudge.collectAsStateWithLifecycle()
+    var overloadBannerDismissed by remember { mutableStateOf(false) }
 
     val coachingUserTier by coachingViewModel.userTier.collectAsStateWithLifecycle()
     val showEnergyCheckIn by coachingViewModel.showEnergyCheckIn.collectAsStateWithLifecycle()
@@ -281,6 +290,90 @@ fun TodayScreen(
                         onUpgrade = { tier ->
                             navController.navigate(PrismTaskRoute.Settings.route)
                         }
+                    )
+                }
+            }
+
+            if (workLifeBalancePrefs.showBalanceBar) {
+                item(key = "balance_bar") {
+                    TodayBalanceSection(
+                        state = balanceState,
+                        burnout = burnoutResult,
+                        onClick = { navController.navigate(PrismTaskRoute.WeeklyBalanceReport.route) }
+                    )
+                }
+            }
+
+            if (showCheckInPrompt) {
+                item(key = "checkin_prompt") {
+                    androidx.compose.material3.Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
+                        colors = androidx.compose.material3.CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer
+                        )
+                    ) {
+                        androidx.compose.foundation.layout.Row(
+                            modifier = Modifier.padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            androidx.compose.material3.Text(
+                                text = "\u2600\uFE0F",
+                                style = MaterialTheme.typography.titleLarge
+                            )
+                            androidx.compose.foundation.layout.Spacer(modifier = Modifier.size(12.dp))
+                            androidx.compose.foundation.layout.Column(modifier = Modifier.weight(1f)) {
+                                androidx.compose.material3.Text(
+                                    text = "Start your morning check-in?",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                                androidx.compose.material3.Text(
+                                    text = "Meds, top tasks, habits, and balance in under two minutes.",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            }
+                            androidx.compose.material3.TextButton(onClick = {
+                                viewModel.dismissCheckInPrompt()
+                                navController.navigate(PrismTaskRoute.MorningCheckIn.route)
+                            }) { androidx.compose.material3.Text("Let's Go") }
+                            androidx.compose.material3.TextButton(onClick = {
+                                viewModel.dismissCheckInPrompt()
+                            }) { androidx.compose.material3.Text("Skip") }
+                        }
+                    }
+                }
+            }
+
+            // Self-care nudge card (v1.4.0 V2). Only shows when the nudge
+            // engine picks one based on balance state + burnout score.
+            currentNudge?.let { nudge ->
+                item(key = "self_care_nudge") {
+                    SelfCareNudgeCard(
+                        nudge = nudge,
+                        onDidIt = { viewModel.nudgeDidIt() },
+                        onSnooze = { viewModel.snoozeNudge() },
+                        onDismiss = { viewModel.dismissNudge() }
+                    )
+                }
+            }
+
+            // Overload alert banner: shows once per day when the user's
+            // work ratio blows past their target + configured threshold
+            // (v1.4.0 V2). Dismiss is local to this screen session.
+            if (balanceState.isOverloaded && !overloadBannerDismissed) {
+                item(key = "overload_banner") {
+                    val workPctNow = ((balanceState.currentRatios[
+                        com.averycorp.prismtask.domain.model.LifeCategory.WORK
+                    ] ?: 0f) * 100f).toInt()
+                    OverloadBanner(
+                        workPct = workPctNow,
+                        targetPct = workLifeBalancePrefs.workTarget,
+                        onDismiss = { overloadBannerDismissed = true }
                     )
                 }
             }

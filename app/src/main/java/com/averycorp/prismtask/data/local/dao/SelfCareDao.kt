@@ -61,4 +61,13 @@ interface SelfCareDao {
 
     @Query("SELECT * FROM self_care_steps ORDER BY sort_order ASC")
     suspend fun getAllStepsOnce(): List<SelfCareStepEntity>
+
+    /**
+     * v1.4.0 V10 follow-up: find any self-care step linked to a
+     * specific medication by exact name. Used when the user records a
+     * dose in the medication routine so the paired refill row gets
+     * decremented.
+     */
+    @Query("SELECT * FROM self_care_steps WHERE medication_name = :name LIMIT 1")
+    suspend fun getStepByMedicationName(name: String): SelfCareStepEntity?
 }

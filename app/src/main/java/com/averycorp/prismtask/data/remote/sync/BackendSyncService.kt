@@ -252,7 +252,8 @@ class BackendSyncService @Inject constructor(
                 plannedDate = data.optLong("planned_date"),
                 estimatedDuration = data.optInt("estimated_duration"),
                 scheduledStartTime = data.optLong("scheduled_start_time"),
-                sourceHabitId = data.optLong("source_habit_id")
+                sourceHabitId = data.optLong("source_habit_id"),
+                lifeCategory = data.optString("life_category")
             )
             taskDao.insert(task)
             applied++

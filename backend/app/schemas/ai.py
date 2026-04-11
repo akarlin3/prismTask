@@ -170,3 +170,49 @@ class TimeBlockResponse(BaseModel):
     schedule: list[ScheduleBlock]
     unscheduled_tasks: list[UnscheduledTask] = []
     stats: TimeBlockStats
+
+
+# --- Weekly Review (v1.4.0 V6) ---
+
+
+class WeeklyReviewRequest(BaseModel):
+    """Anonymized aggregate stats for the AI weekly review.
+
+    Individual task titles are never sent — the server only sees counts and
+    category ratios. See the v1.4.0 V6 privacy requirement.
+    """
+    week_start: str  # ISO date
+    week_end: str  # ISO date
+    completed: int = Field(ge=0)
+    slipped: int = Field(ge=0)
+    rescheduled: int = Field(default=0, ge=0)
+    category_counts: dict[str, int] = Field(default_factory=dict)
+    burnout_score: int = Field(default=0, ge=0, le=100)
+    medication_adherence: Optional[float] = Field(default=None, ge=0.0, le=1.0)
+
+
+class WeeklyReviewResponse(BaseModel):
+    wins: list[str]
+    slips: list[str]
+    suggestions: list[str]
+    tone: str = "gentle"
+
+
+# --- Task Extraction (v1.4.0 V9) ---
+
+
+class ExtractFromTextRequest(BaseModel):
+    text: str = Field(min_length=1, max_length=10_000)
+    source: Optional[str] = None
+
+
+class ExtractedTaskCandidate(BaseModel):
+    title: str
+    suggested_due_date: Optional[str] = None
+    suggested_priority: int = 0
+    suggested_project: Optional[str] = None
+    confidence: float = Field(ge=0.0, le=1.0)
+
+
+class ExtractFromTextResponse(BaseModel):
+    tasks: list[ExtractedTaskCandidate]

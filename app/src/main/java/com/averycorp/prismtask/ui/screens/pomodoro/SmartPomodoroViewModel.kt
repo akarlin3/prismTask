@@ -8,6 +8,10 @@ import com.averycorp.prismtask.data.remote.api.PrismTaskApi
 import com.averycorp.prismtask.data.remote.api.PomodoroRequest
 import com.averycorp.prismtask.data.remote.api.PomodoroResponse
 import com.averycorp.prismtask.data.billing.UserTier
+import com.averycorp.prismtask.data.repository.MoodEnergyRepository
+import com.averycorp.prismtask.domain.usecase.DefaultPomodoroConfig
+import com.averycorp.prismtask.domain.usecase.EnergyAwarePomodoro
+import com.averycorp.prismtask.domain.usecase.PomodoroSessionConfig
 import com.averycorp.prismtask.domain.usecase.ProFeatureGate
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
@@ -70,8 +74,38 @@ class SmartPomodoroViewModel @Inject constructor(
     private val taskDao: TaskDao,
     private val api: PrismTaskApi,
     private val proFeatureGate: ProFeatureGate,
-    private val timerPreferences: TimerPreferences
+    private val moodEnergyRepository: MoodEnergyRepository
 ) : ViewModel() {
+
+    private val energyAwarePomodoro = EnergyAwarePomodoro()
+
+    private val _energyAwareConfig = MutableStateFlow<PomodoroSessionConfig?>(null)
+    val energyAwareConfig: StateFlow<PomodoroSessionConfig?> = _energyAwareConfig
+
+    /**
+     * True when a Pomodoro session has just completed and we should prompt
+     * the user for a quick energy self-report. v1.4.0 V11: this passively
+     * builds an energy-by-hour profile without requiring an explicit
+     * check-in.
+     */
+    private val _showPostSessionEnergyPrompt = MutableStateFlow(false)
+    val showPostSessionEnergyPrompt: StateFlow<Boolean> = _showPostSessionEnergyPrompt
+
+    fun dismissPostSessionEnergyPrompt() { _showPostSessionEnergyPrompt.value = false }
+
+    fun logPostSessionEnergy(energy: Int) {
+        viewModelScope.launch {
+            val now = System.currentTimeMillis()
+            moodEnergyRepository.upsertForDate(
+                date = now - (now % (24L * 60 * 60 * 1000)),
+                mood = 3,
+                energy = energy,
+                notes = "post-pomodoro",
+                timeOfDay = "afternoon"
+            )
+            _showPostSessionEnergyPrompt.value = false
+        }
+    }
 
     val userTier: StateFlow<UserTier> = proFeatureGate.userTier
 
@@ -129,6 +163,28 @@ class SmartPomodoroViewModel @Inject constructor(
             taskDao.getIncompleteRootTasks().collect { tasks ->
                 _incompleteTaskCount.value = tasks.size
             }
+        }
+        // v1.4.0 V11: on first load, look at today's mood/energy logs and
+        // pre-fill the planner's session/break lengths with an energy-aware
+        // config. Users who haven't opted into mood tracking get the
+        // classic 25/5 defaults so the feature is invisible to them.
+        viewModelScope.launch {
+            val todayStart = System.currentTimeMillis() - 12L * 60 * 60 * 1000
+            val logs = moodEnergyRepository.getRange(todayStart, System.currentTimeMillis())
+            val planned = energyAwarePomodoro.planFromLogs(
+                logs,
+                DefaultPomodoroConfig(
+                    workMinutes = _config.value.sessionLength,
+                    breakMinutes = _config.value.breakLength,
+                    longBreakMinutes = _config.value.longBreakLength
+                )
+            )
+            _energyAwareConfig.value = planned
+            _config.value = _config.value.copy(
+                sessionLength = planned.workMinutes,
+                breakLength = planned.breakMinutes,
+                longBreakLength = planned.longBreakMinutes
+            )
         }
     }
 
@@ -276,6 +332,10 @@ class SmartPomodoroViewModel @Inject constructor(
             sessionsCompleted = sessionIndex + 1,
             totalFocusSeconds = _stats.value.totalFocusSeconds + config.value.sessionLength * 60
         )
+
+        // v1.4.0 V11: trigger the post-session energy prompt so the
+        // planner can learn what hours are actually productive.
+        _showPostSessionEnergyPrompt.value = true
 
         // Check if there are more sessions
         if (sessionIndex + 1 >= plan.sessions.size) {

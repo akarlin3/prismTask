@@ -128,6 +128,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.averycorp.prismtask.data.billing.UserTier
 import com.averycorp.prismtask.data.local.entity.ProjectEntity
 import com.averycorp.prismtask.data.local.entity.TagEntity
+import com.averycorp.prismtask.domain.model.LifeCategory
 import com.averycorp.prismtask.ui.components.BreakdownResultCard
 import com.averycorp.prismtask.ui.components.CoachingCard
 import com.averycorp.prismtask.ui.components.RecurrenceSelector
@@ -137,6 +138,7 @@ import com.averycorp.prismtask.domain.model.RecurrenceRule
 import com.averycorp.prismtask.domain.model.RecurrenceType
 import com.averycorp.prismtask.ui.components.RecurrenceDialog
 import com.averycorp.prismtask.ui.components.TagSelector
+import com.averycorp.prismtask.ui.theme.LifeCategoryColor
 import com.averycorp.prismtask.ui.screens.coaching.CoachingViewModel
 import com.averycorp.prismtask.ui.screens.templates.TemplatePickerSheet
 import com.averycorp.prismtask.ui.theme.LocalPriorityColors
@@ -203,6 +205,14 @@ internal fun OrganizeTabContent(
             }
         )
     }
+
+    // ---- Life Category section (Work-Life Balance Engine v1.4.0 V1) ----
+    SectionLabel("Life Category")
+    LifeCategorySelector(
+        selected = viewModel.lifeCategory,
+        manuallySet = viewModel.lifeCategoryManuallySet,
+        onSelect = { viewModel.onLifeCategoryChange(it) }
+    )
 
     // ---- Parent task section ----
     // TODO: Add searchable parent-task picker so tasks can be nested as subtasks
@@ -840,6 +850,87 @@ internal fun ParentTaskIndicator(
 // ---------------------------------------------------------------------------
 // Organize tab: Shared helpers
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Organize tab: Life Category selector (Work-Life Balance Engine)
+// ---------------------------------------------------------------------------
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+internal fun LifeCategorySelector(
+    selected: LifeCategory?,
+    manuallySet: Boolean,
+    onSelect: (LifeCategory?) -> Unit
+) {
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        // "Auto" chip — lets the classifier pick.
+        LifeCategoryChip(
+            label = "Auto",
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            selected = !manuallySet,
+            onClick = { onSelect(null) }
+        )
+        LifeCategoryChip(
+            label = LifeCategory.label(LifeCategory.WORK),
+            color = LifeCategoryColor.WORK,
+            selected = selected == LifeCategory.WORK,
+            onClick = { onSelect(LifeCategory.WORK) }
+        )
+        LifeCategoryChip(
+            label = LifeCategory.label(LifeCategory.PERSONAL),
+            color = LifeCategoryColor.PERSONAL,
+            selected = selected == LifeCategory.PERSONAL,
+            onClick = { onSelect(LifeCategory.PERSONAL) }
+        )
+        LifeCategoryChip(
+            label = LifeCategory.label(LifeCategory.SELF_CARE),
+            color = LifeCategoryColor.SELF_CARE,
+            selected = selected == LifeCategory.SELF_CARE,
+            onClick = { onSelect(LifeCategory.SELF_CARE) }
+        )
+        LifeCategoryChip(
+            label = LifeCategory.label(LifeCategory.HEALTH),
+            color = LifeCategoryColor.HEALTH,
+            selected = selected == LifeCategory.HEALTH,
+            onClick = { onSelect(LifeCategory.HEALTH) }
+        )
+    }
+}
+
+@Composable
+private fun LifeCategoryChip(
+    label: String,
+    color: Color,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    val bg = if (selected) color else Color.Transparent
+    val textColor = if (selected) Color.White else color
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(16.dp))
+            .background(bg)
+            .border(
+                width = 1.5.dp,
+                color = color,
+                shape = RoundedCornerShape(16.dp)
+            )
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelLarge,
+            color = textColor,
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium
+        )
+    }
+}
 
 @Composable
 internal fun ColorDot(

@@ -67,8 +67,14 @@ import androidx.compose.ui.unit.sp
 import com.averycorp.prismtask.data.local.entity.TagEntity
 import com.averycorp.prismtask.data.local.entity.TaskEntity
 import com.averycorp.prismtask.data.repository.HabitWithStatus
+import com.averycorp.prismtask.domain.model.LifeCategory
+import com.averycorp.prismtask.domain.usecase.BalanceState
+import com.averycorp.prismtask.domain.usecase.BurnoutBand
+import com.averycorp.prismtask.domain.usecase.BurnoutResult
+import com.averycorp.prismtask.domain.usecase.SelfCareNudge
 import com.averycorp.prismtask.ui.components.CircularCheckbox
 import com.averycorp.prismtask.ui.components.QuickAddBar
+import com.averycorp.prismtask.ui.theme.LifeCategoryColor
 import com.averycorp.prismtask.ui.theme.LocalPriorityColors
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
@@ -207,6 +213,228 @@ internal fun CompactProgressHeader(
                 fontWeight = FontWeight.SemiBold,
                 color = if (progress >= 1f) CompletedGreen else MaterialTheme.colorScheme.onSurface
             )
+        }
+    }
+}
+
+/**
+ * Compact Work-Life Balance bar shown beneath the Today progress header.
+ *
+ * Renders the four tracked categories (Work / Personal / Self-Care / Health)
+ * as a horizontal stacked bar. Each segment's width is proportional to the
+ * category's share of the user's last 7 days of tracked tasks. A small
+ * warning icon appears when the balance is overloaded toward work.
+ *
+ * When no tasks have been categorized yet, the bar shows an "Add categories
+ * to see your balance" hint instead of an empty bar.
+ */
+@Composable
+internal fun TodayBalanceSection(
+    state: BalanceState,
+    burnout: BurnoutResult = BurnoutResult.EMPTY,
+    onClick: () -> Unit = {}
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick)
+            .padding(vertical = 8.dp, horizontal = 12.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Balance",
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.weight(1f))
+            // Burnout gauge chip when we have data to score against.
+            if (state.totalTracked > 0 && burnout.score > 0) {
+                BurnoutBadge(burnout)
+                Spacer(modifier = Modifier.width(8.dp))
+            }
+            if (state.isOverloaded) {
+                Text(
+                    text = "\u26A0 Work high",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = LifeCategoryColor.HEALTH
+                )
+            } else if (state.totalTracked > 0) {
+                val dominantLabel = LifeCategory.label(state.dominantCategory)
+                Text(
+                    text = dominantLabel,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+        Spacer(modifier = Modifier.height(6.dp))
+        if (state.totalTracked == 0) {
+            Text(
+                text = "Add categories to see your balance",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        } else {
+            BalanceStackedBar(ratios = state.currentRatios)
+        }
+    }
+}
+
+@Composable
+private fun BurnoutBadge(result: BurnoutResult) {
+    val color = when (result.band) {
+        BurnoutBand.BALANCED -> CompletedGreen
+        BurnoutBand.MONITOR -> Color(0xFFE6B800)     // yellow
+        BurnoutBand.CAUTION -> Color(0xFFE68A00)     // orange
+        BurnoutBand.HIGH_RISK -> LifeCategoryColor.HEALTH
+    }
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .clip(RoundedCornerShape(10.dp))
+            .background(color.copy(alpha = 0.15f))
+            .padding(horizontal = 8.dp, vertical = 2.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(8.dp)
+                .clip(CircleShape)
+                .background(color)
+        )
+        Spacer(modifier = Modifier.width(6.dp))
+        Text(
+            text = "${result.score}",
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.SemiBold,
+            color = color
+        )
+    }
+}
+
+/**
+ * Gentle self-care nudge card (v1.4.0 V2). Shown beneath the balance bar
+ * when [SelfCareNudgeEngine] picks a nudge for the current moment. The
+ * user can tap "Did It" to log a quick self-care completion, "Snooze" to
+ * hide for an hour, or "Not Now" to dismiss for the day.
+ */
+@Composable
+internal fun SelfCareNudgeCard(
+    nudge: SelfCareNudge,
+    onDidIt: () -> Unit,
+    onSnooze: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = LifeCategoryColor.SELF_CARE.copy(alpha = 0.12f)
+        )
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = "\uD83D\uDCA1",
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = nudge.message,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+            Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
+                androidx.compose.material3.TextButton(onClick = onDismiss) { Text("Not Now") }
+                androidx.compose.material3.TextButton(onClick = onSnooze) { Text("Snooze") }
+                androidx.compose.material3.TextButton(onClick = onDidIt) { Text("Did It \u2713") }
+            }
+        }
+    }
+}
+
+/**
+ * Full-width banner shown on the Today screen when the user's work ratio
+ * blows past their configured target by more than the overload threshold.
+ * Tapping the "Dismiss" button hides the banner for the rest of the day
+ * (state held by the caller). v1.4.0 V2.
+ */
+@Composable
+internal fun OverloadBanner(
+    workPct: Int,
+    targetPct: Int,
+    onDismiss: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = LifeCategoryColor.HEALTH.copy(alpha = 0.12f)
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "\u26A0",
+                fontSize = 20.sp
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Work is $workPct% of your week",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = "That's above your $targetPct% target. Consider blocking time for self-care.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            androidx.compose.material3.TextButton(onClick = onDismiss) {
+                Text("Dismiss")
+            }
+        }
+    }
+}
+
+@Composable
+private fun BalanceStackedBar(ratios: Map<LifeCategory, Float>) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(10.dp)
+            .clip(RoundedCornerShape(6.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+    ) {
+        LifeCategory.TRACKED.forEach { category ->
+            val ratio = (ratios[category] ?: 0f).coerceIn(0f, 1f)
+            if (ratio > 0f) {
+                Box(
+                    modifier = Modifier
+                        .weight(ratio)
+                        .fillMaxSize()
+                        .background(LifeCategoryColor.forCategory(category))
+                )
+            }
         }
     }
 }

@@ -393,6 +393,13 @@ class TaskListViewModel @Inject constructor(
                 return@filter false
             }
 
+            // Life category filter (v1.4.0 V1)
+            if (filter.selectedLifeCategories.isNotEmpty()) {
+                val taskCategory = com.averycorp.prismtask.domain.model.LifeCategory
+                    .fromStorage(task.lifeCategory)
+                if (taskCategory !in filter.selectedLifeCategories) return@filter false
+            }
+
             // Tag filter
             if (filter.selectedTagIds.isNotEmpty()) {
                 val taskTags = tagsMap[task.id]?.map { it.id } ?: emptyList()

@@ -14,12 +14,17 @@ from app.schemas.ai import (
     EisenhowerRequest,
     EisenhowerResponse,
     EisenhowerSummary,
+    ExtractFromTextRequest,
+    ExtractFromTextResponse,
+    ExtractedTaskCandidate,
     PomodoroRequest,
     PomodoroResponse,
     TimeBlockRequest,
     TimeBlockResponse,
     WeeklyPlanRequest,
     WeeklyPlanResponse,
+    WeeklyReviewRequest,
+    WeeklyReviewResponse,
 )
 
 router = APIRouter(prefix="/ai", tags=["ai"])
@@ -31,6 +36,11 @@ ai_rate_limiter = RateLimiter(max_requests=1, window_seconds=300)
 briefing_rate_limiter = RateLimiter(max_requests=1, window_seconds=3600)  # 1 per hour
 weekly_plan_rate_limiter = RateLimiter(max_requests=1, window_seconds=1800)  # 1 per 30 min
 time_block_rate_limiter = RateLimiter(max_requests=1, window_seconds=900)  # 1 per 15 min
+# v1.4.0 V6: weekly review — 1 per hour is plenty, the client caches history.
+weekly_review_rate_limiter = RateLimiter(max_requests=1, window_seconds=3600)
+# v1.4.0 V9: paste-to-extract — 10 per minute to cover rapid iteration
+# (user fixing titles and re-extracting).
+extract_rate_limiter = RateLimiter(max_requests=10, window_seconds=60)
 
 
 async def _fetch_incomplete_tasks(
@@ -395,3 +405,98 @@ async def time_block(
         raise HTTPException(status_code=500, detail="AI returned an invalid response")
 
     return TimeBlockResponse(**result)
+
+
+# ---------------------------------------------------------------------------
+# v1.4.0 V6 — AI weekly review
+# ---------------------------------------------------------------------------
+
+
+@router.post("/weekly-review", response_model=WeeklyReviewResponse)
+async def weekly_review(
+    data: WeeklyReviewRequest,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Generate an ADHD-friendly weekly review narrative from anonymized
+    aggregate stats. No individual task titles are sent — the Android
+    client computes counts + category ratios + burnout score locally
+    and forwards only those numbers.
+
+    The response has three short bullet lists (wins, slips, suggestions)
+    plus a tone marker. The Android WeeklyReviewScreen replaces its
+    rule-based narrative with this output when the user is on Premium
+    and the request succeeds; the rule-based fallback stays for Free
+    users and network failures.
+    """
+    weekly_review_rate_limiter.check(request)
+
+    try:
+        from app.services.ai_productivity import generate_weekly_review as ai_review
+        result = ai_review(
+            week_start=data.week_start,
+            week_end=data.week_end,
+            completed=data.completed,
+            slipped=data.slipped,
+            rescheduled=data.rescheduled,
+            category_counts=data.category_counts,
+            burnout_score=data.burnout_score,
+            medication_adherence=data.medication_adherence,
+        )
+    except RuntimeError:
+        raise HTTPException(status_code=503, detail="AI service temporarily unavailable")
+    except ValueError:
+        raise HTTPException(status_code=500, detail="AI returned an invalid response")
+
+    return WeeklyReviewResponse(
+        wins=result.get("wins", []),
+        slips=result.get("slips", []),
+        suggestions=result.get("suggestions", []),
+        tone=result.get("tone", "gentle"),
+    )
+
+
+# ---------------------------------------------------------------------------
+# v1.4.0 V9 — paste-to-tasks extraction
+# ---------------------------------------------------------------------------
+
+
+@router.post("/tasks/extract-from-text", response_model=ExtractFromTextResponse)
+async def extract_from_text(
+    data: ExtractFromTextRequest,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Extract structured task candidates from pasted conversation text via
+    Claude Haiku. The Android client (ConversationTaskExtractor) falls
+    back to regex-based extraction when this endpoint is unavailable.
+
+    Input is capped at 10,000 chars by the schema. The Android paste
+    screen enforces the same cap client-side.
+    """
+    extract_rate_limiter.check(request)
+
+    try:
+        from app.services.ai_productivity import extract_tasks_from_text as ai_extract
+        raw_tasks = ai_extract(data.text, data.source)
+    except RuntimeError:
+        raise HTTPException(status_code=503, detail="AI service temporarily unavailable")
+    except ValueError:
+        raise HTTPException(status_code=500, detail="AI returned an invalid response")
+
+    candidates = []
+    for t in raw_tasks:
+        candidates.append(
+            ExtractedTaskCandidate(
+                title=str(t.get("title", "")).strip(),
+                suggested_due_date=t.get("suggested_due_date"),
+                suggested_priority=int(t.get("suggested_priority") or 0),
+                suggested_project=t.get("suggested_project"),
+                confidence=float(t.get("confidence") or 0.5),
+            )
+        )
+    # Drop anything with an empty title — defensive.
+    candidates = [c for c in candidates if c.title]
+    return ExtractFromTextResponse(tasks=candidates)

@@ -19,10 +19,20 @@ import androidx.compose.ui.unit.dp
 
 private val milestones = setOf(7, 14, 21, 30, 60, 90, 100, 365)
 
+/**
+ * Streak badge (🔥 N).
+ *
+ * Callers pass [streak] as the resilient streak when v1.4.0 V5 forgiveness
+ * is enabled — if any absorbed misses are in the rolling grace window they
+ * can also pass [graceDaysUsed] > 0 to surface a subtle "1 grace day used"
+ * caption so the user understands why their number is higher than the strict
+ * count.
+ */
 @Composable
 fun StreakBadge(
     streak: Int,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    graceDaysUsed: Int = 0
 ) {
     if (streak <= 0) return
 
@@ -58,5 +68,13 @@ fun StreakBadge(
             style = MaterialTheme.typography.labelLarge,
             fontWeight = FontWeight.Bold
         )
+        if (graceDaysUsed > 0) {
+            Text(
+                text = "  (${graceDaysUsed} grace day${if (graceDaysUsed == 1) "" else "s"} used)",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = 4.dp)
+            )
+        }
     }
 }

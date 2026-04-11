@@ -484,3 +484,164 @@ Respond ONLY with valid JSON — no markdown, no preamble:
             raise
 
     raise ValueError(f"Failed to parse AI response: {last_error}")
+
+
+# ---------------------------------------------------------------------------
+# v1.4.0 V6 — AI weekly review
+# ---------------------------------------------------------------------------
+
+def generate_weekly_review(
+    week_start: str,
+    week_end: str,
+    completed: int,
+    slipped: int,
+    rescheduled: int,
+    category_counts: dict[str, int],
+    burnout_score: int,
+    medication_adherence: float | None = None,
+) -> dict:
+    """Generate a forgiveness-first weekly review narrative via Claude Haiku.
+
+    Inputs are anonymized aggregate stats — no individual task titles or
+    content are sent, per the v1.4.0 V6 privacy requirement. The prompt
+    explicitly requests an ADHD-friendly, non-punishing tone.
+    """
+    client = _get_client()
+
+    prompt = f"""You are a compassionate productivity coach writing a weekly review for
+someone with ADHD. Use a forgiveness-first, supportive tone — never shaming.
+
+Week: {week_start} to {week_end}
+Completed tasks: {completed}
+Slipped / not done: {slipped}
+Rescheduled: {rescheduled}
+Task category breakdown: {json.dumps(category_counts)}
+Burnout composite score (0–100, higher = more burnout risk): {burnout_score}
+{"Medication adherence: " + str(int((medication_adherence or 0) * 100)) + "%" if medication_adherence is not None else ""}
+
+Write a brief weekly review with three short sections. Use gentle, ADHD-friendly framing —
+reschedules are "okay, priorities shift", not "failures". Celebrate showing up.
+
+Respond ONLY with valid JSON — no markdown, no preamble:
+{{
+  "wins": [
+    "You completed X tasks this week — that's real progress.",
+    "..."
+  ],
+  "slips": [
+    "A few tasks got rescheduled — that's okay, priorities shift.",
+    "..."
+  ],
+  "suggestions": [
+    "Try blocking Tuesday morning for deep work next week.",
+    "..."
+  ],
+  "tone": "gentle"
+}}
+
+Keep each list to 2–3 bullets max."""
+
+    last_error_wr = None
+    for attempt in range(2):
+        try:
+            message = client.messages.create(
+                model=MODEL,
+                max_tokens=1024,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            content = message.content[0].text
+            result = _parse_ai_json(content)
+            if not isinstance(result, dict):
+                raise ValueError("Expected a JSON object")
+            return result
+        except (json.JSONDecodeError, KeyError, TypeError, IndexError, ValueError) as e:
+            last_error_wr = e
+            logger.error(f"Failed to parse weekly review response (attempt {attempt + 1}): {e}")
+            if attempt == 0:
+                continue
+            raise ValueError(f"Failed to parse AI response after retry: {e}") from e
+        except Exception as e:
+            logger.error(f"Weekly review AI error: {type(e).__name__}: {e}")
+            raise
+
+    raise ValueError(f"Failed to parse AI response: {last_error_wr}")
+
+
+# ---------------------------------------------------------------------------
+# v1.4.0 V9 — conversation → tasks extraction
+# ---------------------------------------------------------------------------
+
+def extract_tasks_from_text(text: str, source: str | None = None) -> list[dict]:
+    """Extract structured task candidates from pasted conversation text.
+
+    Sends the text to Claude Haiku with a structured extraction prompt.
+    Returns a list of dicts with title / suggested_due_date /
+    suggested_priority / suggested_project / confidence. The Android client
+    falls back to a regex-based extractor when this endpoint is unavailable
+    (see ConversationTaskExtractor).
+    """
+    if not text or not text.strip():
+        return []
+    if len(text) > 10_000:
+        text = text[:10_000]
+
+    client = _get_client()
+
+    source_label = f" (source: {source})" if source else ""
+    prompt = f"""You are an assistant that extracts action items from a block of
+conversation text{source_label}. The text could be from a chat with another AI,
+an email thread, meeting notes, or similar. Identify every actionable TODO and
+return it in a structured form.
+
+Text:
+---
+{text}
+---
+
+For each action item, return:
+- title: a short imperative phrase (Title case, under 12 words).
+- suggested_due_date: ISO date if explicitly mentioned, null otherwise.
+- suggested_priority: 0–4 (4 = urgent), infer from language cues like "ASAP".
+- suggested_project: one-word project name if contextually obvious, null otherwise.
+- confidence: float 0–1 (0.95 for explicit TODO/Action Item markers, lower for implicit cues).
+
+Only extract clear action items. Ignore general discussion, opinions, and
+background context.
+
+Respond ONLY with valid JSON — no markdown, no preamble:
+[
+  {{
+    "title": "Send the design mocks to Alice",
+    "suggested_due_date": null,
+    "suggested_priority": 2,
+    "suggested_project": null,
+    "confidence": 0.9
+  }}
+]
+
+Return an empty array if no action items are found."""
+
+    last_error_ex = None
+    for attempt in range(2):
+        try:
+            message = client.messages.create(
+                model=MODEL,
+                max_tokens=2048,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            content = message.content[0].text
+            result = _parse_ai_json(content)
+            if not isinstance(result, list):
+                raise ValueError("Expected a JSON array")
+            return result
+        except (json.JSONDecodeError, KeyError, TypeError, IndexError, ValueError) as e:
+            last_error_ex = e
+            logger.error(f"Failed to parse task extraction response (attempt {attempt + 1}): {e}")
+            if attempt == 0:
+                continue
+            raise ValueError(f"Failed to parse AI response after retry: {e}") from e
+        except Exception as e:
+            logger.error(f"Task extraction AI error: {type(e).__name__}: {e}")
+            raise
+
+    raise ValueError(f"Failed to parse AI response: {last_error_ex}")

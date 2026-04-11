@@ -5,6 +5,290 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased — v1.4.0 Vision Deck Rollout
+
+### Added — Work-Life Balance Engine (V1)
+- New `LifeCategory` enum (WORK / PERSONAL / SELF_CARE / HEALTH / UNCATEGORIZED)
+  with a `life_category` column on `tasks` (migration 32 → 33).
+- `LifeCategoryClassifier` — fast, offline keyword-based classifier with
+  configurable word lists per category, used as the default auto-classification
+  path for new tasks.
+- `BalanceTracker` — computes current week + 4-week rolling category ratios,
+  overload detection, and dominant category from a task pool.
+- `WorkLifeBalancePrefs` in `UserPreferencesDataStore` — target ratios, auto-
+  classify toggle, balance bar toggle, overload threshold (5–25%).
+- Organize tab: "Life Category" chip selector with Auto + 4 colored category
+  chips. Editing a task now persists the life category to Room + Firestore
+  sync + JSON export/import.
+- Today screen: new compact `TodayBalanceSection` stacked bar above the task
+  list showing the week's distribution with an overload warning badge when
+  work exceeds target.
+- Settings: new "Work-Life Balance" section with auto-classify toggle, balance
+  bar toggle, per-category target sliders (with live sum validation), and
+  overload threshold slider.
+- NLP quick-add: `#work`, `#personal`, `#health`, `#self-care` (and
+  `#selfcare`) set `lifeCategory` in addition to being added as regular tags.
+  The hyphenated `#self-care` form is handled explicitly so the dash isn't
+  dropped.
+- QuickAddViewModel now falls back to `LifeCategoryClassifier` for tasks
+  created without a manual category tag, so Today's balance bar stays live
+  without extra user effort.
+- Filter panel: "Life Category" multi-select filter with colored chips; the
+  `TaskFilter` model and task-list filtering pipeline both respect it.
+- Added 26 unit tests: `LifeCategoryClassifierTest` (11), `BalanceTrackerTest`
+  (10), `NaturalLanguageParserTest` life-category additions (5).
+
+### Added — Morning Check-In Resolver (V4 phase 1)
+- `MorningCheckInResolver` domain planner that decides whether to
+  prompt the user for the morning check-in and which steps to show.
+- `CheckInStep` enum (MOOD_ENERGY, MEDICATIONS, TOP_TASKS, HABITS,
+  BALANCE, CALENDAR) so the HorizontalPager screen renders steps in
+  the vision deck's default order.
+- `MorningCheckInConfig` captures the prompt-before-hour threshold
+  and per-step visibility toggles. Defaults match the vision deck:
+  11am threshold, all steps visible.
+- `CheckInPlan` carries the resolved prompt decision, the ordered
+  step list, the top 3 highest-urgency tasks for the day, and
+  today's habits so the pager can render without re-querying.
+- Top task selection: filters out completed + archived + tasks not
+  due today, sorts by priority descending then due date ascending,
+  takes 3. Priority 4 (Urgent) naturally floats to the top.
+- Prompt logic: suppresses the prompt after the configured hour,
+  after the user has already completed a check-in today, or when
+  the feature is disabled in Settings.
+- Habits step is hidden when the user has no habits so the flow
+  doesn't show an empty page.
+- 9 new unit tests covering the prompt decision truth table, top
+  task selection (priority and completion filtering), hiding
+  habits when empty, disabling medications via config, and the
+  full enabled-step ordering.
+
+Scoped for follow-up:
+- CheckInLogEntity Room table + DAO + repository to record the
+  "last completed date" the resolver consumes.
+- Full MorningCheckInScreen HorizontalPager UI with the six step
+  composables.
+- Today screen integration: the "Start Your Morning Check-In?"
+  banner card.
+- Check-in streak analytics ("7-day check-in streak 🔥").
+
+### Added — Boundary Rules (V3 phase 1)
+- `BoundaryRule` runtime model with rule type (BLOCK_CATEGORY,
+  SUGGEST_CATEGORY, REMIND), target `LifeCategory`, start/end times,
+  active days, and enabled flag. Windows can straddle midnight
+  (22:00 → 06:00 is a valid night-shift rule).
+- `BoundaryEnforcer` evaluates a rule list against a (category, now)
+  pair and returns `BoundaryDecision.Allow`, `Block(rule, reason)`,
+  or `Suggest(rule, category)`. BLOCK rules win over SUGGEST rules
+  so the user's explicit "no" overrides a soft category nudge.
+- Two built-in rules seeded on first use: Evening Wind-Down
+  (block WORK 20:00 weekdays) and Weekend Rest (suggest SELF_CARE
+  all-day Sat/Sun).
+- `BoundaryRuleParser.parse` — small regex-based NLP for phrases
+  like "No work after 7pm on weekdays", "Block work after 20:00",
+  and "No self-care after 10pm every day". Returns null for
+  anything that doesn't match so the UI falls back to the manual
+  rule editor.
+- 11 new unit tests covering BLOCK during/outside window, category
+  mismatch, disabled rules, SUGGEST path, BLOCK precedence over
+  SUGGEST, the midnight-straddle window, and all three parser
+  forms plus the no-match case.
+
+The shared `WeeklyReviewAggregator` added in the V6 commit above
+already delivers the V3 weekly-balance-report data layer. The full
+WeeklyBalanceReportScreen UI + boundary_rules Room table (with DAO,
+repository, and seeded migration) are scoped for a follow-up commit
+so this change stays focused on the enforcement algorithm.
+
+### Added — Clinical Report Generator (V8 phase 1)
+- New `ClinicalReportGenerator` use case that produces a structured
+  `ClinicalReport` with six toggleable sections (Overview, Medication,
+  Mood & Energy, Task Completion, Life Balance, Burnout Score Trend)
+  plus a plain-text rendering suitable for pasting into a patient
+  portal message or sharing via email.
+- `ClinicalReportInputs` accepts all sections as optional — any
+  missing source (mood tracking disabled, no medication logging)
+  renders as "No data for this period" so feature flags never block
+  report generation.
+- `ClinicalReportSection` enum with toggle support so the config
+  dialog can include/exclude individual sections.
+- Medication section formats pill count + adherence percentage +
+  last refill date per medication, sourced from V10's
+  `MedicationRefillEntity`.
+- Mood & energy section surfaces averages plus low-mood and
+  high-mood day counts.
+- Life balance section uses V1's `LifeCategory` to compute
+  percentages of completed tasks by category.
+- Burnout section (from V2 scores) emits average, peak, and trough.
+- Privacy footer: "Generated by PrismTask. Not a medical document."
+- 8 new unit tests covering empty inputs, per-section aggregation,
+  section filtering, and the plain-text renderer.
+
+Scoped for follow-up: the on-device PDF writer using
+`android.graphics.pdf.PdfDocument` that walks the same section
+blocks, the "Export Health Report" Settings entry with the date-range
+and section-toggle dialog, and the Android share intent.
+
+### Added — Weekly Review Aggregator (V6 + V3 shared core)
+- New `WeeklyReviewAggregator` use case: pure-function weekly stats
+  rollup shared by the Weekly Balance Report (V3) and the AI Weekly
+  Review (V6) so the two features can never drift.
+- `WeeklyReviewStats` data class: `weekStart`, `weekEnd`, `completed`,
+  `slipped`, `rescheduled`, `byCategory` map, `carryForward` task list,
+  plus derived `total` and `completionRate` properties.
+- Configurable week-start day (Monday default per ISO-8601, Sunday
+  supported for US convention) so it plugs into the existing
+  `StartOfWeek` user preference without extra translation.
+- Categorizes completions by `LifeCategory` (V1) so the AI Weekly
+  Review prompt can say "Work dominated Tue–Thu" from raw stats.
+- Approximates rescheduled tasks via `updatedAt > createdAt` with a
+  due date pushed past the week's end. Exact tracking would need a
+  separate reschedule log — noted as a follow-up.
+- 10 new unit tests covering empty input, in-window vs out-of-window
+  completions, open-but-due-this-week slippage, archived exclusion,
+  reschedule detection, completion rate math, Monday start-of-week
+  normalization, 7-day end offset, and uncategorized-task handling.
+
+Scoped for follow-up: the actual `WeeklyBalanceReportScreen` UI with
+the donut chart and 4-week sparklines (V3), the AI Weekly Review
+screen with Claude-generated wins/misses/suggestions (V6), the
+Sunday evening notification, and the `weekly_reviews` Room table
+for historical review storage.
+
+### Added — Conversation → Tasks Extractor (V9 phase 1)
+- New `ConversationTaskExtractor` domain use case: offline regex-based
+  action-item extraction for pasted Claude/ChatGPT/email/meeting text.
+  Detects TODO/Action item markers, "I'll", "I will", "I should",
+  "I need to", "I have to", "Let's", "Can you", "Could you", and
+  imperative markdown bullet lines. Ordered by confidence 0.50–0.95.
+- `ExtractedTask` data class with title + confidence + optional
+  source label / suggested priority / due date / project — the
+  Premium AI path can fill in the latter three fields, the offline
+  regex path only sets the title.
+- Input guards: max 10,000 chars, title range 3–120 chars. Duplicates
+  are deduped by lowercase comparison so "TODO: fix the bug" and
+  "I should fix the bug" collapse into one candidate.
+- Title post-processing: trim trailing punctuation, title-case the
+  first letter, preserve internal casing.
+- 14 new unit tests covering empty/oversized input, each major
+  pattern, dedup semantics, multi-pattern ordering by confidence,
+  short-title rejection, no-match handling, and source propagation.
+
+Scoped for follow-up: the Paste Conversation screen, Android share
+intent receiver, Claude Haiku backend `/api/v1/tasks/extract-from-text`
+endpoint, and the review-before-create UI.
+
+### Added — Energy-Aware Pomodoro Planner (V11 phase 1)
+- New `EnergyAwarePomodoro` use case that adapts the classic Pomodoro
+  work/break lengths based on the user's logged energy level (1–5):
+  low energy gets 15-min sessions with 10-min breaks, medium gets the
+  classic 25/5, and high energy gets 35–45 min deep-work sprints.
+- `PomodoroSessionConfig` carries the chosen lengths plus a rationale
+  string for the UI ("Classic Pomodoro — you're in the groove", etc.).
+- `DefaultPomodoroConfig` fallback for users with no mood/energy
+  tracking — the planner returns the classic defaults unchanged so the
+  feature rolls out safely without disrupting existing users.
+- `planFromLogs` convenience wrapper picks the latest
+  `MoodEnergyLogEntity` row and forwards to `plan`.
+- 11 new unit tests covering all five energy buckets, null-energy
+  fallback, out-of-range clamping, latest-log selection, empty-list
+  handling, and rationale presence.
+
+Scoped for follow-up: wiring the planner into `SmartPomodoroScreen`'s
+start-session flow, an energy heatmap overlay on the weekly planner,
+and the post-session "How's your energy now?" quick-prompt.
+
+### Added — Medication Refill Tracking (V10 phase 1)
+- New `medication_refills` Room table (migration 34 → 35) storing per-
+  medication pill counts, dosage, pharmacy info, and reminder lead time.
+- `MedicationRefillEntity`, `MedicationRefillDao` with upsert/observe/
+  get-by-name queries.
+- `RefillCalculator` pure-function helper with `forecast`, `applyDailyDose`,
+  `applyRefill`, and `adherenceRate`. Forecasts produce a `RefillForecast`
+  with `daysRemaining`, `refillDateMillis`, `reminderDateMillis`, and a
+  `RefillUrgency` bucket (HEALTHY / UPCOMING / URGENT / OUT_OF_STOCK).
+- 16 new unit tests covering: 30 pills @ 1/day, 60 pills @ 2/day, 60 pills
+  @ 2-per-dose, refill-date anchoring, 3-day reminder offset, all four
+  urgency buckets, daily dose decrement (including multi-dose and the
+  zero floor), refill reset semantics, and adherence math.
+
+Scoped for follow-up: UI surface in MedicationScreen for entering
+pill counts, pharmacy fields, NLP "refill X in N days" parsing, the
+adherence analytics screen, and wiring the refill reminder into
+MedicationReminderScheduler.
+
+### Added — Mood & Energy Tracking Foundation (V7 phase 1)
+- New `mood_energy_logs` table (Room migration 33 → 34) with
+  `(date, time_of_day)` unique index so morning and evening check-ins
+  can coexist on the same calendar date.
+- `MoodEnergyLogEntity`, `MoodEnergyLogDao`, and `MoodEnergyRepository`
+  including an `upsertForDate` helper that replaces an existing entry
+  for the same slot instead of creating duplicates.
+- `MoodCorrelationEngine` computes Pearson correlation between mood or
+  energy and six supported factors (total tasks, work tasks, self-care,
+  habit rate, medication adherence, burnout score). Requires at least
+  7 daily observations before reporting; below that, returns empty so
+  the UI can show a "not enough data" state.
+- `CorrelationFactor`, `CorrelationResult`, and `CorrelationStrength`
+  domain types plus a `plainEnglish()` helper for the UI.
+- `averageByDay` helper folds morning + evening entries into one
+  numeric tuple per day so correlation input stays clean.
+- 11 new unit tests in `MoodCorrelationEngineTest` (empty data, 7-day
+  floor, perfect +/- correlations, flat series zero, sort order,
+  day-averaging, strength buckets).
+
+Scoped for follow-up: mood/energy check-in UI (widget + today prompt),
+analytics screen with trend lines, morning check-in integration, and
+burnout-scorer mood factor.
+
+### Added — Burnout Score & Overload Alert (V2 phase 1)
+- New `BurnoutScorer` use case that computes a 0–100 composite score from
+  six weighted inputs (work-ratio overshoot, overdue tasks, skipped
+  self-care, medication gap, streak breaks, 2-day rest deficit) and maps
+  it to a `BurnoutBand` (BALANCED / MONITOR / CAUTION / HIGH_RISK).
+- `BurnoutInputs` and `BurnoutResult` data classes with per-component
+  contributions so the UI can explain *why* a band was assigned.
+- `BurnoutScorer.computeFromTasks` convenience wrapper that derives the
+  overdue count, skipped-self-care ratio, and rest deficit directly from
+  a TaskEntity list so TodayViewModel can wire it with a single combine.
+- `TodayViewModel.burnoutResult` StateFlow exposes the live score to the
+  Today screen and feeds `TodayBalanceSection`'s new burnout badge chip.
+- `TodayBalanceSection` gains a colored burnout badge next to the
+  "Balance" header showing the numeric score in the band's color.
+- `OverloadBanner` composable: full-width dismissible card that appears
+  on the Today screen when the user's work ratio exceeds their target by
+  the configured threshold. Tapping Dismiss hides it for the session.
+- 12 new unit tests in `BurnoutScorerTest` covering component ceilings,
+  band boundary mapping, all-zero and all-max inputs, and the score
+  clamping invariant.
+
+Note: self-care nudge rotation and the daily overload notification
+(WorkManager worker) are scoped for a follow-up commit.
+
+### Added — Forgiveness-First Streak System (V5)
+- `ForgivenessConfig` + `StreakResult` data classes exposing `strictStreak`,
+  `resilientStreak`, `missesInWindow`, `gracePeriodRemaining`, and the list
+  of dates that were forgiven so the UI can render them as partial hits.
+- `StreakCalculator.calculateResilientDailyStreak` walks backwards from
+  today (or yesterday if today isn't complete yet), tolerating up to
+  `allowedMisses` misses inside a rolling `gracePeriodDays` window. A run
+  of consecutive misses that starts today + yesterday is treated as a
+  hard reset. The walk also stops at the earliest known completion so
+  pre-habit history doesn't unfairly count as misses.
+- `StreakCalculator.calculateResilientStreak` dispatches by frequency:
+  daily habits get the full forgiving walk, other frequencies (weekly,
+  monthly, bimonthly, quarterly, fortnightly) fall back to strict streaks
+  as a follow-up pass.
+- `ForgivenessPrefs` in `UserPreferencesDataStore` — enable/disable the
+  system, grace period (1–30 days), allowed misses (0–5).
+- Settings screen: new "Forgiveness-First Streaks" section with a
+  primary toggle plus grace-window and allowed-misses sliders that reveal
+  only when the toggle is on.
+- 10 new unit tests in `ForgivenessStreakTest` covering the spec's core
+  cases (5-on 1-miss 3-on, grace exhausted, classic mode, yesterday-only
+  completion, empty history, pre-history truncation, non-daily fallback,
+  zero allowance).
+
 ## v1.3.0 — Voice, Widgets, Accessibility, Analytics, Integrations & Three-Tier Pricing (April 2026)
 
 Skips the v1.2.0 tag and ships everything developed since v1.1.0 together.

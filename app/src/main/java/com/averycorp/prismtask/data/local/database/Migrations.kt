@@ -513,6 +513,108 @@ val MIGRATION_23_24 = object : Migration(23, 24) {
     }
 }
 
+// v1.4.0 V1: add life_category column to tasks (Work-Life Balance Engine)
+val MIGRATION_32_33 = object : Migration(32, 33) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE tasks ADD COLUMN life_category TEXT")
+    }
+}
+
+// v1.4.0 V10 follow-up: add medication_name to self_care_steps so the
+// existing medication self-care routine can link to MedicationRefillEntity
+// rows by exact name match.
+val MIGRATION_36_37 = object : Migration(36, 37) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE self_care_steps ADD COLUMN medication_name TEXT")
+    }
+}
+
+// v1.4.0 V3/V4/V6: add boundary_rules, check_in_logs, weekly_reviews
+val MIGRATION_35_36 = object : Migration(35, 36) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        // V3 — boundary_rules
+        db.execSQL(
+            """CREATE TABLE IF NOT EXISTS `boundary_rules` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `name` TEXT NOT NULL,
+                `rule_type` TEXT NOT NULL,
+                `category` TEXT NOT NULL,
+                `start_time` TEXT NOT NULL,
+                `end_time` TEXT NOT NULL,
+                `active_days_csv` TEXT NOT NULL,
+                `is_enabled` INTEGER NOT NULL DEFAULT 1,
+                `is_built_in` INTEGER NOT NULL DEFAULT 0,
+                `created_at` INTEGER NOT NULL
+            )"""
+        )
+        // V4 — check_in_logs
+        db.execSQL(
+            """CREATE TABLE IF NOT EXISTS `check_in_logs` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `date` INTEGER NOT NULL,
+                `steps_completed_csv` TEXT NOT NULL,
+                `medications_confirmed` INTEGER NOT NULL DEFAULT 0,
+                `tasks_reviewed` INTEGER NOT NULL DEFAULT 0,
+                `habits_completed` INTEGER NOT NULL DEFAULT 0,
+                `created_at` INTEGER NOT NULL
+            )"""
+        )
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_check_in_logs_date` ON `check_in_logs` (`date`)")
+        // V6 — weekly_reviews
+        db.execSQL(
+            """CREATE TABLE IF NOT EXISTS `weekly_reviews` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `week_start_date` INTEGER NOT NULL,
+                `metrics_json` TEXT NOT NULL,
+                `ai_insights_json` TEXT,
+                `created_at` INTEGER NOT NULL
+            )"""
+        )
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_weekly_reviews_week_start_date` ON `weekly_reviews` (`week_start_date`)")
+    }
+}
+
+// v1.4.0 V10: add medication_refills table (pill count + refill tracking)
+val MIGRATION_34_35 = object : Migration(34, 35) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """CREATE TABLE IF NOT EXISTS `medication_refills` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `medication_name` TEXT NOT NULL,
+                `pill_count` INTEGER NOT NULL,
+                `pills_per_dose` INTEGER NOT NULL DEFAULT 1,
+                `doses_per_day` INTEGER NOT NULL DEFAULT 1,
+                `last_refill_date` INTEGER,
+                `pharmacy_name` TEXT,
+                `pharmacy_phone` TEXT,
+                `reminder_days_before` INTEGER NOT NULL DEFAULT 3,
+                `created_at` INTEGER NOT NULL,
+                `updated_at` INTEGER NOT NULL
+            )"""
+        )
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_medication_refills_medication_name` ON `medication_refills` (`medication_name`)")
+    }
+}
+
+// v1.4.0 V7: add mood_energy_logs table (mood + energy daily check-ins)
+val MIGRATION_33_34 = object : Migration(33, 34) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """CREATE TABLE IF NOT EXISTS `mood_energy_logs` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `date` INTEGER NOT NULL,
+                `mood` INTEGER NOT NULL,
+                `energy` INTEGER NOT NULL,
+                `notes` TEXT,
+                `time_of_day` TEXT NOT NULL DEFAULT 'morning',
+                `created_at` INTEGER NOT NULL
+            )"""
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_mood_energy_logs_date` ON `mood_energy_logs` (`date`)")
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_mood_energy_logs_date_time_of_day` ON `mood_energy_logs` (`date`, `time_of_day`)")
+    }
+}
+
 val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_1_2,
     MIGRATION_2_3,
@@ -545,4 +647,9 @@ val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_29_30,
     MIGRATION_30_31,
     MIGRATION_31_32,
+    MIGRATION_32_33,
+    MIGRATION_33_34,
+    MIGRATION_34_35,
+    MIGRATION_35_36,
+    MIGRATION_36_37,
 )

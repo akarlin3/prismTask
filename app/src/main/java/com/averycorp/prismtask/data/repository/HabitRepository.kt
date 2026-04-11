@@ -78,6 +78,26 @@ class HabitRepository @Inject constructor(
         habitDao.deleteById(id)
     }
 
+    /**
+     * Forgiveness-aware streak result for a single habit (v1.4.0 V5).
+     *
+     * Returns [com.averycorp.prismtask.domain.usecase.StreakResult] so the
+     * caller gets both the strict count and the resilient count with the
+     * configured grace window. Daily habits use the forgiving walk;
+     * other frequencies fall back to strict (see
+     * [com.averycorp.prismtask.domain.usecase.StreakCalculator.calculateResilientStreak]).
+     */
+    suspend fun getResilientStreak(
+        habitId: Long,
+        config: com.averycorp.prismtask.domain.usecase.ForgivenessConfig =
+            com.averycorp.prismtask.domain.usecase.ForgivenessConfig.DEFAULT
+    ): com.averycorp.prismtask.domain.usecase.StreakResult? {
+        val habit = habitDao.getHabitByIdOnce(habitId) ?: return null
+        val completions = completionDao.getCompletionsForHabitOnce(habitId)
+        return com.averycorp.prismtask.domain.usecase.StreakCalculator
+            .calculateResilientStreak(completions, habit, config = config)
+    }
+
     suspend fun archiveHabit(id: Long) {
         val habit = habitDao.getHabitByIdOnce(id) ?: return
         medicationReminderScheduler.cancel(id)

@@ -143,6 +143,12 @@ sealed class PrismTaskRoute(val route: String) {
     }
     data object MainTabs : PrismTaskRoute("main_tabs")
     data object Onboarding : PrismTaskRoute("onboarding")
+    data object MorningCheckIn : PrismTaskRoute("morning_check_in")
+    data object MoodAnalytics : PrismTaskRoute("mood_analytics")
+    data object WeeklyBalanceReport : PrismTaskRoute("weekly_balance_report")
+    data object PasteConversation : PrismTaskRoute("paste_conversation")
+    data object WeeklyReview : PrismTaskRoute("weekly_review")
+    data object MedicationRefill : PrismTaskRoute("medication_refill")
 }
 
 data class BottomNavItem(
@@ -170,6 +176,7 @@ fun PrismTaskNavGraph(
     tabOrder: List<String> = ALL_BOTTOM_NAV_ITEMS.map { it.route },
     hiddenTabs: Set<String> = emptySet(),
     initialLaunchAction: String? = null,
+    initialSharedText: String? = null,
     hasCompletedOnboarding: Boolean = true
 ) {
     // Handle deep-link intents from the QuickAdd widget: "open_templates"
@@ -183,6 +190,21 @@ fun PrismTaskNavGraph(
     LaunchedEffect(initialLaunchAction) {
         if (initialLaunchAction == com.averycorp.prismtask.MainActivity.ACTION_OPEN_TEMPLATES) {
             navController.navigate(PrismTaskRoute.TemplateList.route)
+        }
+    }
+    // v1.4.0 V9: route incoming shared text into the Paste Conversation
+    // screen with a pre-filled input. The screen observes its
+    // SavedStateHandle for the "shared_text" arg and forwards it to
+    // PasteConversationViewModel on first composition.
+    // Track the shared text in mutable state so the NavHost can clear it
+    // after the destination consumes it. Null when there's nothing to
+    // forward.
+    var pendingSharedText by androidx.compose.runtime.remember(initialSharedText) {
+        androidx.compose.runtime.mutableStateOf(initialSharedText)
+    }
+    LaunchedEffect(initialSharedText) {
+        if (!initialSharedText.isNullOrBlank()) {
+            navController.navigate(PrismTaskRoute.PasteConversation.route)
         }
     }
     // Append any tabs that aren't yet in the saved order (e.g. new tabs added in an update).
@@ -348,7 +370,7 @@ fun PrismTaskNavGraph(
                 }
             }
 
-            featureRoutes(navController)
+            featureRoutes(navController, initialSharedText = pendingSharedText)
         }
     }
 }

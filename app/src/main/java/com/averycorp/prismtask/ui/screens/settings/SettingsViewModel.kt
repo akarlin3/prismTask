@@ -97,8 +97,64 @@ class SettingsViewModel @Inject constructor(
     private val voicePreferences: VoicePreferences,
     private val a11yPreferences: A11yPreferences,
     private val userPreferencesDataStore: com.averycorp.prismtask.data.preferences.UserPreferencesDataStore,
+    private val boundaryRuleRepository: com.averycorp.prismtask.data.repository.BoundaryRuleRepository,
+    private val moodEnergyRepository: com.averycorp.prismtask.data.repository.MoodEnergyRepository,
+    private val medicationRefillRepository: com.averycorp.prismtask.data.repository.MedicationRefillRepository,
+    private val checkInLogRepository: com.averycorp.prismtask.data.repository.CheckInLogRepository,
+    private val clinicalReportPdfWriter: com.averycorp.prismtask.data.export.ClinicalReportPdfWriter,
+    @dagger.hilt.android.qualifiers.ApplicationContext private val appContext: android.content.Context,
     private val onboardingPreferences: OnboardingPreferences
 ) : ViewModel() {
+
+    private val _checkInStreak = kotlinx.coroutines.flow.MutableStateFlow(0)
+    val checkInStreak: StateFlow<Int> = _checkInStreak
+
+    init {
+        viewModelScope.launch {
+            val todayStart = java.util.Calendar.getInstance().apply {
+                set(java.util.Calendar.HOUR_OF_DAY, 0)
+                set(java.util.Calendar.MINUTE, 0)
+                set(java.util.Calendar.SECOND, 0)
+                set(java.util.Calendar.MILLISECOND, 0)
+            }.timeInMillis
+            _checkInStreak.value = checkInLogRepository.currentStreak(todayStart)
+        }
+    }
+
+    private val _isExportingClinicalReport = kotlinx.coroutines.flow.MutableStateFlow(false)
+    val isExportingClinicalReport: StateFlow<Boolean> = _isExportingClinicalReport
+
+    private val _clinicalReportUri = kotlinx.coroutines.flow.MutableStateFlow<android.net.Uri?>(null)
+    val clinicalReportUri: StateFlow<android.net.Uri?> = _clinicalReportUri
+
+    fun clearClinicalReportUri() {
+        _clinicalReportUri.value = null
+    }
+
+    fun exportClinicalReport() {
+        if (_isExportingClinicalReport.value) return
+        _isExportingClinicalReport.value = true
+        viewModelScope.launch {
+            try {
+                val end = System.currentTimeMillis()
+                val start = end - 30L * 24 * 60 * 60 * 1000
+                val generator = com.averycorp.prismtask.domain.usecase.ClinicalReportGenerator()
+                val inputs = com.averycorp.prismtask.domain.usecase.ClinicalReportInputs(
+                    userName = null,
+                    dateRangeStart = start,
+                    dateRangeEnd = end,
+                    tasks = taskRepository.getAllTasksOnce(),
+                    moodEnergyLogs = moodEnergyRepository.getRange(start, end),
+                    medications = medicationRefillRepository.getAll()
+                )
+                val report = generator.generate(inputs)
+                val uri = clinicalReportPdfWriter.write(appContext, report)
+                _clinicalReportUri.value = uri
+            } finally {
+                _isExportingClinicalReport.value = false
+            }
+        }
+    }
 
     // --- v1.3.0 User Preferences ---
     val appearancePrefs: StateFlow<com.averycorp.prismtask.data.preferences.AppearancePrefs> =
@@ -116,6 +172,50 @@ class SettingsViewModel @Inject constructor(
     val quickAddPrefs: StateFlow<com.averycorp.prismtask.data.preferences.QuickAddPrefs> =
         userPreferencesDataStore.quickAddFlow
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), com.averycorp.prismtask.data.preferences.QuickAddPrefs())
+
+    /** Work-Life Balance preferences (v1.4.0 V1). */
+    val workLifeBalancePrefs: StateFlow<com.averycorp.prismtask.data.preferences.WorkLifeBalancePrefs> =
+        userPreferencesDataStore.workLifeBalanceFlow
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), com.averycorp.prismtask.data.preferences.WorkLifeBalancePrefs())
+
+    fun setWorkLifeBalancePrefs(prefs: com.averycorp.prismtask.data.preferences.WorkLifeBalancePrefs) {
+        viewModelScope.launch { userPreferencesDataStore.setWorkLifeBalance(prefs) }
+    }
+
+    /** Boundary rules (v1.4.0 V3). */
+    val boundaryRules: StateFlow<List<com.averycorp.prismtask.domain.model.BoundaryRule>> =
+        boundaryRuleRepository.observeRules()
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    init {
+        viewModelScope.launch { boundaryRuleRepository.seedBuiltInIfEmpty() }
+    }
+
+    fun toggleBoundaryRule(rule: com.averycorp.prismtask.domain.model.BoundaryRule, enabled: Boolean) {
+        viewModelScope.launch {
+            boundaryRuleRepository.update(rule.copy(isEnabled = enabled))
+        }
+    }
+
+    fun deleteBoundaryRule(rule: com.averycorp.prismtask.domain.model.BoundaryRule) {
+        viewModelScope.launch { boundaryRuleRepository.delete(rule.id) }
+    }
+
+    fun addBoundaryRuleFromNlp(text: String): Boolean {
+        val parsed = com.averycorp.prismtask.domain.usecase.BoundaryRuleParser.parse(text)
+            ?: return false
+        viewModelScope.launch { boundaryRuleRepository.insert(parsed) }
+        return true
+    }
+
+    /** Forgiveness-first streak preferences (v1.4.0 V5). */
+    val forgivenessPrefs: StateFlow<com.averycorp.prismtask.data.preferences.ForgivenessPrefs> =
+        userPreferencesDataStore.forgivenessFlow
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), com.averycorp.prismtask.data.preferences.ForgivenessPrefs())
+
+    fun setForgivenessPrefs(prefs: com.averycorp.prismtask.data.preferences.ForgivenessPrefs) {
+        viewModelScope.launch { userPreferencesDataStore.setForgivenessPrefs(prefs) }
+    }
 
     fun setCompactMode(enabled: Boolean) {
         viewModelScope.launch { userPreferencesDataStore.setCompactMode(enabled) }

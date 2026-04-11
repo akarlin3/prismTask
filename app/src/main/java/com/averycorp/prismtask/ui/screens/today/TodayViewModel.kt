@@ -14,6 +14,15 @@ import com.averycorp.prismtask.data.preferences.DashboardPreferences
 import com.averycorp.prismtask.data.preferences.HabitListPreferences
 import com.averycorp.prismtask.data.preferences.SortPreferences
 import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
+import com.averycorp.prismtask.data.preferences.UserPreferencesDataStore
+import com.averycorp.prismtask.data.preferences.WorkLifeBalancePrefs
+import com.averycorp.prismtask.domain.usecase.BalanceConfig
+import com.averycorp.prismtask.domain.usecase.BalanceState
+import com.averycorp.prismtask.domain.usecase.BalanceTracker
+import com.averycorp.prismtask.domain.usecase.BurnoutResult
+import com.averycorp.prismtask.domain.usecase.BurnoutScorer
+import com.averycorp.prismtask.domain.usecase.SelfCareNudge
+import com.averycorp.prismtask.domain.usecase.SelfCareNudgeEngine
 import com.averycorp.prismtask.data.repository.HabitRepository
 import com.averycorp.prismtask.util.DayBoundary
 import com.averycorp.prismtask.data.repository.HabitWithStatus
@@ -53,8 +62,123 @@ class TodayViewModel @Inject constructor(
     private val habitListPreferences: HabitListPreferences,
     private val taskBehaviorPreferences: TaskBehaviorPreferences,
     private val sortPreferences: SortPreferences,
-    private val proFeatureGate: com.averycorp.prismtask.domain.usecase.ProFeatureGate
+    private val proFeatureGate: com.averycorp.prismtask.domain.usecase.ProFeatureGate,
+    private val userPreferencesDataStore: UserPreferencesDataStore,
+    private val checkInLogRepository: com.averycorp.prismtask.data.repository.CheckInLogRepository
 ) : ViewModel() {
+
+    private val _showCheckInPrompt = MutableStateFlow(false)
+    val showCheckInPrompt: StateFlow<Boolean> = _showCheckInPrompt
+
+    fun dismissCheckInPrompt() { _showCheckInPrompt.value = false }
+
+    init {
+        viewModelScope.launch {
+            val dayStartHour = taskBehaviorPreferences.getDayStartHour().first()
+            val todayStartLocal = DayBoundary.startOfCurrentDay(dayStartHour)
+            val mostRecent = checkInLogRepository.getMostRecentDate()
+            val alreadyToday = mostRecent != null && mostRecent >= todayStartLocal
+            val hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
+            _showCheckInPrompt.value = !alreadyToday && hour < 11
+        }
+    }
+
+    private val balanceTracker: BalanceTracker = BalanceTracker()
+    private val burnoutScorer: BurnoutScorer = BurnoutScorer()
+    private val nudgeEngine: SelfCareNudgeEngine = SelfCareNudgeEngine()
+
+    private val _currentNudge = MutableStateFlow<SelfCareNudge?>(null)
+    val currentNudge: StateFlow<SelfCareNudge?> = _currentNudge
+    private var lastShownNudgeId: String? = null
+    private val dismissedNudgesToday = mutableSetOf<String>()
+
+    fun dismissNudge() {
+        _currentNudge.value?.let { dismissedNudgesToday.add(it.id) }
+        _currentNudge.value = null
+    }
+
+    fun snoozeNudge() {
+        _currentNudge.value = null
+    }
+
+    fun nudgeDidIt() {
+        viewModelScope.launch {
+            taskRepository.addTask(
+                title = "Self-care break",
+                lifeCategory = com.averycorp.prismtask.domain.model.LifeCategory.SELF_CARE.name
+            )
+            _currentNudge.value?.let { dismissedNudgesToday.add(it.id) }
+            _currentNudge.value = null
+        }
+    }
+
+    private fun refreshNudge(balance: BalanceState, burnout: BurnoutResult) {
+        val selfCareRatio = balance.currentRatios[
+            com.averycorp.prismtask.domain.model.LifeCategory.SELF_CARE
+        ] ?: 0f
+        val selfCareTarget = (workLifeBalancePrefs.value.selfCareTarget / 100f)
+        val hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
+        val next = nudgeEngine.select(
+            burnoutScore = burnout.score,
+            selfCareRatio = selfCareRatio,
+            selfCareTarget = selfCareTarget,
+            hourOfDay = hour,
+            lastShownId = lastShownNudgeId
+        )
+        if (next != null && next.id !in dismissedNudgesToday) {
+            _currentNudge.value = next
+            lastShownNudgeId = next.id
+        }
+    }
+
+    /**
+     * Work-Life Balance preferences: target ratios, toggles, overload threshold.
+     * Exposed to the UI so it can read `showBalanceBar` before rendering the section.
+     */
+    val workLifeBalancePrefs: StateFlow<WorkLifeBalancePrefs> =
+        userPreferencesDataStore.workLifeBalanceFlow
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), WorkLifeBalancePrefs())
+
+    /**
+     * Live [BalanceState] derived from the user's full task pool and current
+     * WLB configuration. The Today screen balance bar, overload banner, and
+     * future burnout scorer (V2) all subscribe to this.
+     */
+    val balanceState: StateFlow<BalanceState> =
+        combine(
+            taskRepository.getAllTasks(),
+            workLifeBalancePrefs
+        ) { allTasks, prefs ->
+            val config = BalanceConfig(
+                workTarget = prefs.workTarget / 100f,
+                personalTarget = prefs.personalTarget / 100f,
+                selfCareTarget = prefs.selfCareTarget / 100f,
+                healthTarget = prefs.healthTarget / 100f,
+                overloadThreshold = prefs.overloadThresholdPct / 100f
+            )
+            balanceTracker.compute(allTasks, config)
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), BalanceState.EMPTY)
+
+    /**
+     * Composite burnout score (v1.4.0 V2). Derived from the same task pool +
+     * WLB prefs as the balance state so the UI can render both side-by-side
+     * without a second query.
+     */
+    val burnoutResult: StateFlow<BurnoutResult> =
+        combine(
+            taskRepository.getAllTasks(),
+            workLifeBalancePrefs,
+            balanceState
+        ) { allTasks, prefs, balance ->
+            val workRatio = balance.currentRatios[com.averycorp.prismtask.domain.model.LifeCategory.WORK] ?: 0f
+            val result = burnoutScorer.computeFromTasks(
+                tasks = allTasks,
+                workRatio = workRatio,
+                workTarget = prefs.workTarget / 100f
+            )
+            refreshNudge(balance, result)
+            result
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), BurnoutResult.EMPTY)
 
     val isPremium: Boolean
         get() = proFeatureGate.isPremium()

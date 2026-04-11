@@ -113,7 +113,8 @@ class TaskRepository @Inject constructor(
         dueTime: Long? = null,
         priority: Int = 0,
         projectId: Long? = null,
-        parentTaskId: Long? = null
+        parentTaskId: Long? = null,
+        lifeCategory: String? = null
     ): Long {
         val now = System.currentTimeMillis()
         // New root tasks go to the end of any custom-ordered list. Subtasks
@@ -130,6 +131,7 @@ class TaskRepository @Inject constructor(
             projectId = projectId,
             parentTaskId = parentTaskId,
             sortOrder = nextSortOrder,
+            lifeCategory = lifeCategory,
             createdAt = now,
             updatedAt = now
         )

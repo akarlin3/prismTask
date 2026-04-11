@@ -61,6 +61,11 @@ import com.averycorp.prismtask.ui.screens.settings.sections.SwipeActionsSection
 import com.averycorp.prismtask.ui.screens.settings.sections.TaskDefaultsSection
 import com.averycorp.prismtask.ui.screens.settings.sections.TimerSection
 import com.averycorp.prismtask.ui.screens.settings.sections.VoiceInputSection
+import com.averycorp.prismtask.ui.screens.settings.sections.BoundariesSection
+import com.averycorp.prismtask.ui.screens.settings.sections.CheckInStreakSection
+import com.averycorp.prismtask.ui.screens.settings.sections.ClinicalReportSection
+import com.averycorp.prismtask.ui.screens.settings.sections.ForgivenessStreakSection
+import com.averycorp.prismtask.ui.screens.settings.sections.WorkLifeBalanceSection
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -91,6 +96,31 @@ fun SettingsScreen(
     // Display + Swipe
     val appearancePrefs by viewModel.appearancePrefs.collectAsStateWithLifecycle()
     val swipePrefs by viewModel.swipePrefs.collectAsStateWithLifecycle()
+
+    // Work-Life Balance (v1.4.0 V1)
+    val workLifeBalancePrefs by viewModel.workLifeBalancePrefs.collectAsStateWithLifecycle()
+
+    // Forgiveness-first streaks (v1.4.0 V5)
+    val forgivenessPrefs by viewModel.forgivenessPrefs.collectAsStateWithLifecycle()
+
+    // Boundary rules (v1.4.0 V3)
+    val boundaryRules by viewModel.boundaryRules.collectAsStateWithLifecycle()
+    var showAddBoundaryDialog by remember { mutableStateOf(false) }
+
+    // Clinical report export (v1.4.0 V8)
+    val isExportingClinicalReport by viewModel.isExportingClinicalReport.collectAsStateWithLifecycle()
+    val clinicalReportUri by viewModel.clinicalReportUri.collectAsStateWithLifecycle()
+
+    // Check-in streak (v1.4.0 V4)
+    val checkInStreak by viewModel.checkInStreak.collectAsStateWithLifecycle()
+
+    LaunchedEffect(clinicalReportUri) {
+        val uri = clinicalReportUri
+        if (uri != null) {
+            snackbarHostState.showSnackbar("Health report saved to Downloads")
+            viewModel.clearClinicalReportUri()
+        }
+    }
 
     // Data
     val autoArchiveDays by viewModel.autoArchiveDays.collectAsStateWithLifecycle()
@@ -245,6 +275,50 @@ fun SettingsScreen(
         if (pendingCsv != null) createCsvLauncher.launch("prismtask_tasks.csv")
     }
 
+    if (showAddBoundaryDialog) {
+        var text by remember { mutableStateOf("") }
+        var error by remember { mutableStateOf(false) }
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { showAddBoundaryDialog = false },
+            title = { Text("Add Boundary Rule") },
+            text = {
+                Column {
+                    Text(
+                        "Describe a rule in plain English, e.g. 'No work after 7pm on weekdays'.",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    androidx.compose.material3.OutlinedTextField(
+                        value = text,
+                        onValueChange = { text = it; error = false },
+                        isError = error,
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    if (error) {
+                        Text(
+                            "Couldn't parse that. Try 'No work after 8pm'.",
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.labelSmall
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = {
+                    if (viewModel.addBoundaryRuleFromNlp(text)) {
+                        showAddBoundaryDialog = false
+                    } else {
+                        error = true
+                    }
+                }) { Text("Add") }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = { showAddBoundaryDialog = false }) { Text("Cancel") }
+            }
+        )
+    }
+
     if (showBackendAuthDialog) {
         BackendAuthDialog(
             isAuthenticating = isBackendAuthenticating,
@@ -360,6 +434,30 @@ fun SettingsScreen(
                     onHiddenTabsChange = viewModel::setHiddenTabs,
                     onTabOrderChange = viewModel::setTabOrder,
                     onResetTabDefaults = viewModel::resetTabDefaults
+                )
+
+                WorkLifeBalanceSection(
+                    prefs = workLifeBalancePrefs,
+                    onPrefsChange = viewModel::setWorkLifeBalancePrefs
+                )
+
+                ForgivenessStreakSection(
+                    prefs = forgivenessPrefs,
+                    onPrefsChange = viewModel::setForgivenessPrefs
+                )
+
+                BoundariesSection(
+                    rules = boundaryRules,
+                    onToggle = { rule, enabled -> viewModel.toggleBoundaryRule(rule, enabled) },
+                    onDelete = viewModel::deleteBoundaryRule,
+                    onAdd = { showAddBoundaryDialog = true }
+                )
+
+                CheckInStreakSection(streak = checkInStreak)
+
+                ClinicalReportSection(
+                    isExporting = isExportingClinicalReport,
+                    onExportReport = { viewModel.exportClinicalReport() }
                 )
 
                 TaskDefaultsSection(

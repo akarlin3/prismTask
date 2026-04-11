@@ -17,7 +17,9 @@ data class ResolvedTask(
     val priority: Int,
     val recurrenceRule: RecurrenceRule?,
     val unmatchedTags: List<String>,
-    val unmatchedProject: String?
+    val unmatchedProject: String?,
+    /** Work-Life Balance category carried over from NLP parsing. */
+    val lifeCategory: String? = null
 )
 
 @Singleton
@@ -68,7 +70,8 @@ class ParsedTaskResolver @Inject constructor(
             priority = parsed.priority,
             recurrenceRule = recurrenceRule,
             unmatchedTags = unmatchedTags,
-            unmatchedProject = unmatchedProject
+            unmatchedProject = unmatchedProject,
+            lifeCategory = parsed.lifeCategory
         )
     }
 }
