@@ -40,12 +40,16 @@ class HabitListPreferences @Inject constructor(
         private val SCHOOL_ENABLED = booleanPreferencesKey("school_enabled")
         private val LEISURE_ENABLED = booleanPreferencesKey("leisure_enabled")
         private val HOUSEWORK_ENABLED = booleanPreferencesKey("housework_enabled")
+        private val STREAK_MAX_MISSED_DAYS = intPreferencesKey("streak_max_missed_days")
         const val DEFAULT_MORNING_ORDER = -6
         const val DEFAULT_BEDTIME_ORDER = -5
         const val DEFAULT_MEDICATION_ORDER = -4
         const val DEFAULT_HOUSEWORK_ORDER = -3
         const val DEFAULT_SCHOOL_ORDER = -2
         const val DEFAULT_LEISURE_ORDER = -1
+        const val DEFAULT_STREAK_MAX_MISSED_DAYS = 1
+        const val MIN_STREAK_MAX_MISSED_DAYS = 1
+        const val MAX_STREAK_MAX_MISSED_DAYS = 7
     }
 
     fun getAutoHabitSortOrders(): Flow<Triple<Int, Int, Int>> = context.habitListDataStore.data.map { prefs ->
@@ -124,6 +128,16 @@ class HabitListPreferences @Inject constructor(
 
     suspend fun setHouseworkEnabled(enabled: Boolean) {
         context.habitListDataStore.edit { prefs -> prefs[HOUSEWORK_ENABLED] = enabled }
+    }
+
+    fun getStreakMaxMissedDays(): Flow<Int> = context.habitListDataStore.data.map { prefs ->
+        prefs[STREAK_MAX_MISSED_DAYS] ?: DEFAULT_STREAK_MAX_MISSED_DAYS
+    }
+
+    suspend fun setStreakMaxMissedDays(days: Int) {
+        context.habitListDataStore.edit { prefs ->
+            prefs[STREAK_MAX_MISSED_DAYS] = days.coerceIn(MIN_STREAK_MAX_MISSED_DAYS, MAX_STREAK_MAX_MISSED_DAYS)
+        }
     }
 
     suspend fun clearAll() {

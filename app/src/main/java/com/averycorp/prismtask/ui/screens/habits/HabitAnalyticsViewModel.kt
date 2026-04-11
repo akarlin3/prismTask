@@ -5,12 +5,14 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.averycorp.prismtask.data.local.entity.HabitCompletionEntity
 import com.averycorp.prismtask.data.local.entity.HabitEntity
+import com.averycorp.prismtask.data.preferences.HabitListPreferences
 import com.averycorp.prismtask.data.repository.HabitRepository
 import com.averycorp.prismtask.domain.usecase.StreakCalculator
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.DayOfWeek
@@ -36,6 +38,7 @@ data class HabitAnalyticsState(
 @HiltViewModel
 class HabitAnalyticsViewModel @Inject constructor(
     private val habitRepository: HabitRepository,
+    private val habitListPreferences: HabitListPreferences,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -48,6 +51,7 @@ class HabitAnalyticsViewModel @Inject constructor(
         viewModelScope.launch {
             val habit = habitRepository.getHabitByIdOnce(habitId) ?: return@launch
             val completions = habitRepository.getCompletionsForHabitOnce(habitId)
+            val streakMaxMissedDays = habitListPreferences.getStreakMaxMissedDays().first()
             val today = LocalDate.now()
             val gridStart = today.minusWeeks(11).with(DayOfWeek.MONDAY)
 
@@ -77,8 +81,8 @@ class HabitAnalyticsViewModel @Inject constructor(
             _state.value = HabitAnalyticsState(
                 habit = habit,
                 completions = completions,
-                currentStreak = StreakCalculator.calculateCurrentStreak(completions, habit, today),
-                longestStreak = StreakCalculator.calculateLongestStreak(completions, habit, today),
+                currentStreak = StreakCalculator.calculateCurrentStreak(completions, habit, today, streakMaxMissedDays),
+                longestStreak = StreakCalculator.calculateLongestStreak(completions, habit, today, streakMaxMissedDays),
                 totalCompletions = completions.size,
                 rate7d = StreakCalculator.calculateCompletionRate(completions, habit, 7, today),
                 rate30d = StreakCalculator.calculateCompletionRate(completions, habit, 30, today),

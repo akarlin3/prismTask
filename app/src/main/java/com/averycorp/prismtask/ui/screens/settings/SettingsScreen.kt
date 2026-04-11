@@ -53,6 +53,7 @@ import com.averycorp.prismtask.ui.screens.settings.sections.DebugTierSection
 import com.averycorp.prismtask.ui.screens.settings.sections.DeviceCalendarSection
 import com.averycorp.prismtask.ui.screens.settings.sections.DisplaySection
 import com.averycorp.prismtask.ui.screens.settings.sections.GoogleCalendarSection
+import com.averycorp.prismtask.ui.screens.settings.sections.HabitsSection
 import com.averycorp.prismtask.ui.screens.settings.sections.ModesSection
 import com.averycorp.prismtask.ui.screens.settings.sections.NavigationSection
 import com.averycorp.prismtask.ui.screens.settings.sections.SubscriptionSection
@@ -165,10 +166,15 @@ fun SettingsScreen(
     val highContrastEnabled by viewModel.highContrastEnabled.collectAsStateWithLifecycle()
     val largeTouchTargetsEnabled by viewModel.largeTouchTargetsEnabled.collectAsStateWithLifecycle()
 
-    // Timer
+    // Timer / Pomodoro
     val timerWorkSeconds by viewModel.timerWorkDurationSeconds.collectAsStateWithLifecycle()
     val timerBreakSeconds by viewModel.timerBreakDurationSeconds.collectAsStateWithLifecycle()
     val timerLongBreakSeconds by viewModel.timerLongBreakDurationSeconds.collectAsStateWithLifecycle()
+    val pomodoroAvailableMinutes by viewModel.pomodoroAvailableMinutes.collectAsStateWithLifecycle()
+    val pomodoroFocusPreference by viewModel.pomodoroFocusPreference.collectAsStateWithLifecycle()
+
+    // Habits
+    val streakMaxMissedDays by viewModel.streakMaxMissedDays.collectAsStateWithLifecycle()
 
     // Calendar (device)
     val calendarSyncEnabled by viewModel.calendarSyncEnabled.collectAsStateWithLifecycle()
@@ -472,9 +478,18 @@ fun SettingsScreen(
                     timerWorkSeconds = timerWorkSeconds,
                     timerBreakSeconds = timerBreakSeconds,
                     timerLongBreakSeconds = timerLongBreakSeconds,
+                    pomodoroAvailableMinutes = pomodoroAvailableMinutes,
+                    pomodoroFocusPreference = pomodoroFocusPreference,
                     onTimerWorkMinutesChange = viewModel::setTimerWorkDurationMinutes,
                     onTimerBreakMinutesChange = viewModel::setTimerBreakDurationMinutes,
-                    onTimerLongBreakMinutesChange = viewModel::setTimerLongBreakDurationMinutes
+                    onTimerLongBreakMinutesChange = viewModel::setTimerLongBreakDurationMinutes,
+                    onPomodoroAvailableMinutesChange = viewModel::setPomodoroAvailableMinutes,
+                    onPomodoroFocusPreferenceChange = viewModel::setPomodoroFocusPreference
+                )
+
+                HabitsSection(
+                    streakMaxMissedDays = streakMaxMissedDays,
+                    onStreakMaxMissedDaysChange = viewModel::setStreakMaxMissedDays
                 )
 
                 DataSection(

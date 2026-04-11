@@ -2,6 +2,7 @@ package com.averycorp.prismtask.ui.screens.pomodoro
 
 import com.averycorp.prismtask.data.billing.UserTier
 import com.averycorp.prismtask.data.local.dao.TaskDao
+import com.averycorp.prismtask.data.preferences.TimerPreferences
 import com.averycorp.prismtask.data.remote.api.PomodoroResponse
 import com.averycorp.prismtask.data.remote.api.PomodoroSessionResponse
 import com.averycorp.prismtask.data.remote.api.PrismTaskApi
@@ -14,6 +15,8 @@ import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -41,6 +44,7 @@ class SmartPomodoroViewModelTest {
     private lateinit var taskDao: TaskDao
     private lateinit var api: PrismTaskApi
     private lateinit var proFeatureGate: ProFeatureGate
+    private lateinit var timerPreferences: TimerPreferences
 
     @Before
     fun setUp() {
@@ -49,6 +53,12 @@ class SmartPomodoroViewModelTest {
         api = mockk(relaxed = true)
         proFeatureGate = mockk(relaxed = true)
         every { proFeatureGate.userTier } returns MutableStateFlow(UserTier.PRO)
+        timerPreferences = mockk(relaxed = true)
+        every { timerPreferences.getPomodoroAvailableMinutes() } returns flowOf(120)
+        every { timerPreferences.getWorkDurationSeconds() } returns flowOf(25 * 60)
+        every { timerPreferences.getBreakDurationSeconds() } returns flowOf(5 * 60)
+        every { timerPreferences.getLongBreakDurationSeconds() } returns flowOf(15 * 60)
+        every { timerPreferences.getPomodoroFocusPreference() } returns flowOf("balanced")
     }
 
     @After
@@ -56,7 +66,7 @@ class SmartPomodoroViewModelTest {
         Dispatchers.resetMain()
     }
 
-    private fun newViewModel() = SmartPomodoroViewModel(taskDao, api, proFeatureGate)
+    private fun newViewModel() = SmartPomodoroViewModel(taskDao, api, proFeatureGate, timerPreferences)
 
     @Test
     fun initialState_isPlanning() {
@@ -65,24 +75,21 @@ class SmartPomodoroViewModelTest {
     }
 
     @Test
-    fun updateAvailableMinutes_mutatesConfig() {
+    fun config_reflectsTimerPreferences() = runTest(dispatcher) {
+        every { timerPreferences.getPomodoroAvailableMinutes() } returns flowOf(90)
+        every { timerPreferences.getWorkDurationSeconds() } returns flowOf(45 * 60)
+        every { timerPreferences.getPomodoroFocusPreference() } returns flowOf("deep_work")
+
         val vm = newViewModel()
-        vm.updateAvailableMinutes(90)
+        // Start a subscriber so the WhileSubscribed upstream activates.
+        val job = launch { vm.config.collect {} }
+        advanceUntilIdle()
+
         assertEquals(90, vm.config.value.availableMinutes)
-    }
-
-    @Test
-    fun updateSessionLength_mutatesConfig() {
-        val vm = newViewModel()
-        vm.updateSessionLength(45)
         assertEquals(45, vm.config.value.sessionLength)
-    }
-
-    @Test
-    fun updateFocusPreference_mutatesConfig() {
-        val vm = newViewModel()
-        vm.updateFocusPreference("deep_work")
         assertEquals("deep_work", vm.config.value.focusPreference)
+
+        job.cancel()
     }
 
     @Test
@@ -140,9 +147,9 @@ class SmartPomodoroViewModelTest {
     }
 
     @Test
-    fun startSession_transitionsToActiveStateWithFullTimer() {
+    fun startSession_transitionsToActiveStateWithFullTimer() = runTest(dispatcher) {
         val vm = newViewModel()
-        vm.updateSessionLength(25)
+        advanceUntilIdle()
         vm.startSession()
 
         assertEquals(PomodoroState.SESSION_ACTIVE, vm.screenState.value)

@@ -208,7 +208,8 @@ object StreakCalculator {
     fun calculateCurrentStreak(
         completions: List<HabitCompletionEntity>,
         habit: HabitEntity,
-        today: LocalDate = LocalDate.now()
+        today: LocalDate = LocalDate.now(),
+        maxMissedDays: Int = 1
     ): Int {
         if (completions.isEmpty()) return 0
 
@@ -218,14 +219,15 @@ object StreakCalculator {
             "monthly" -> calculateMonthlyStreak(completions, habit, today, longest = false)
             "bimonthly" -> calculateBimonthlyStreak(completions, habit, today, longest = false)
             "quarterly" -> calculateQuarterlyStreak(completions, habit, today, longest = false)
-            else -> calculateDailyStreak(completions, habit, today, longest = false)
+            else -> calculateDailyStreak(completions, habit, today, longest = false, maxMissedDays)
         }
     }
 
     fun calculateLongestStreak(
         completions: List<HabitCompletionEntity>,
         habit: HabitEntity,
-        today: LocalDate = LocalDate.now()
+        today: LocalDate = LocalDate.now(),
+        maxMissedDays: Int = 1
     ): Int {
         if (completions.isEmpty()) return 0
 
@@ -235,7 +237,7 @@ object StreakCalculator {
             "monthly" -> calculateMonthlyStreak(completions, habit, today, longest = true)
             "bimonthly" -> calculateBimonthlyStreak(completions, habit, today, longest = true)
             "quarterly" -> calculateQuarterlyStreak(completions, habit, today, longest = true)
-            else -> calculateDailyStreak(completions, habit, today, longest = true)
+            else -> calculateDailyStreak(completions, habit, today, longest = true, maxMissedDays)
         }
     }
 
@@ -299,9 +301,11 @@ object StreakCalculator {
         completions: List<HabitCompletionEntity>,
         habit: HabitEntity,
         today: LocalDate,
-        longest: Boolean
+        longest: Boolean,
+        maxMissedDays: Int = 1
     ): Int {
         val target = habit.targetFrequency
+        val graceLimit = maxMissedDays.coerceAtLeast(1)
         val completionsByDate = completions.groupBy { it.completedDate.toLocalDate() }
             .mapValues { it.value.size }
 
@@ -309,42 +313,50 @@ object StreakCalculator {
             val dates = completionsByDate.keys.sorted()
             if (dates.isEmpty()) return 0
 
+            // Walk every day from the earliest completion to today, tracking the current run.
+            // A run continues so long as we never miss [graceLimit] days in a row. Missed days
+            // within the allowance don't add to the streak count but also don't end it.
             var maxStreak = 0
             var currentStreak = 0
-            var expectedDate = dates.first()
-
-            for (date in dates) {
-                while (expectedDate.isBefore(date)) {
-                    if ((completionsByDate[expectedDate] ?: 0) >= target) {
-                        currentStreak++
-                    } else {
-                        maxStreak = maxOf(maxStreak, currentStreak)
-                        currentStreak = 0
-                    }
-                    expectedDate = expectedDate.plusDays(1)
-                }
+            var consecutiveMissed = 0
+            var date = dates.first()
+            while (!date.isAfter(today)) {
                 if ((completionsByDate[date] ?: 0) >= target) {
                     currentStreak++
+                    consecutiveMissed = 0
                 } else {
-                    maxStreak = maxOf(maxStreak, currentStreak)
-                    currentStreak = 0
+                    consecutiveMissed++
+                    if (consecutiveMissed >= graceLimit) {
+                        maxStreak = maxOf(maxStreak, currentStreak)
+                        currentStreak = 0
+                        consecutiveMissed = 0
+                    }
                 }
-                expectedDate = date.plusDays(1)
+                date = date.plusDays(1)
             }
             return maxOf(maxStreak, currentStreak)
         }
 
-        // Current streak: count backward from today/yesterday
+        // Current streak: count backward from today/yesterday.
+        // A missed day is tolerated as long as it is not part of a run of
+        // [graceLimit] consecutive missed days.
         var streak = 0
         var checkDate = today
 
-        // If today isn't completed yet, start from yesterday
+        // If today isn't completed yet, start from yesterday so users have all day to log.
         if ((completionsByDate[today] ?: 0) < target) {
             checkDate = today.minusDays(1)
         }
 
-        while ((completionsByDate[checkDate] ?: 0) >= target) {
-            streak++
+        var consecutiveMissed = 0
+        while (true) {
+            if ((completionsByDate[checkDate] ?: 0) >= target) {
+                streak++
+                consecutiveMissed = 0
+            } else {
+                consecutiveMissed++
+                if (consecutiveMissed >= graceLimit) break
+            }
             checkDate = checkDate.minusDays(1)
         }
 

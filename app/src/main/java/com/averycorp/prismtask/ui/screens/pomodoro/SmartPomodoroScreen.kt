@@ -4,8 +4,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -21,11 +19,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -35,7 +31,6 @@ import com.averycorp.prismtask.ui.components.CircularCheckbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -64,7 +59,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SmartPomodoroScreen(
     navController: NavController,
@@ -180,17 +175,12 @@ fun SmartPomodoroScreen(
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun PlanningView(
     config: PomodoroConfig,
     plan: PomodoroPlan?,
     isLoading: Boolean,
     incompleteTaskCount: Int,
-    onUpdateAvailableMinutes: (Int) -> Unit,
-    onUpdateSessionLength: (Int) -> Unit,
-    onUpdateBreakLength: (Int) -> Unit,
-    onUpdateFocusPreference: (String) -> Unit,
     onGeneratePlan: () -> Unit,
     onStartSession: () -> Unit,
     modifier: Modifier = Modifier
@@ -204,90 +194,38 @@ private fun PlanningView(
         item {
             Spacer(Modifier.height(8.dp))
 
-            // Available Time
+            // Current Pomodoro Configuration (read-only summary — adjust in Settings)
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text("Available Time", style = MaterialTheme.typography.titleSmall)
+                    Text("Pomodoro Configuration", style = MaterialTheme.typography.titleSmall)
                     Spacer(Modifier.height(8.dp))
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        IconButton(
-                            onClick = { if (config.availableMinutes > 30) onUpdateAvailableMinutes(config.availableMinutes - 15) }
-                        ) {
-                            Icon(Icons.Default.Remove, "Decrease")
-                        }
-                        Text(
-                            "${config.availableMinutes / 60}h ${config.availableMinutes % 60}m",
-                            style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.Bold
-                        )
-                        IconButton(
-                            onClick = { if (config.availableMinutes < 240) onUpdateAvailableMinutes(config.availableMinutes + 15) }
-                        ) {
-                            Icon(Icons.Default.Add, "Increase")
-                        }
+                    val hours = config.availableMinutes / 60
+                    val mins = config.availableMinutes % 60
+                    val availableText = when {
+                        hours == 0 -> "${mins}m"
+                        mins == 0 -> "${hours}h"
+                        else -> "${hours}h ${mins}m"
                     }
-                }
-            }
-        }
-
-        item {
-            // Session Length
-            Text("Session Length", style = MaterialTheme.typography.titleSmall)
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf(15, 25, 30, 45).forEach { min ->
-                    FilterChip(
-                        selected = config.sessionLength == min,
-                        onClick = { onUpdateSessionLength(min) },
-                        label = { Text("${min}m") }
+                    ConfigRow(label = "Available Time", value = availableText)
+                    ConfigRow(label = "Session Length", value = "${config.sessionLength} min")
+                    ConfigRow(label = "Short Break", value = "${config.breakLength} min")
+                    ConfigRow(label = "Long Break", value = "${config.longBreakLength} min")
+                    val focusLabel = when (config.focusPreference) {
+                        "deep_work" -> "Deep Work"
+                        "quick_wins" -> "Quick Wins"
+                        "balanced" -> "Balanced"
+                        "deadline_driven" -> "Deadline Driven"
+                        else -> config.focusPreference
+                    }
+                    ConfigRow(label = "Focus Style", value = focusLabel)
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        "Adjust these in Settings \u203A Pomodoro.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
-        }
-
-        item {
-            // Break Length
-            Text("Break Length", style = MaterialTheme.typography.titleSmall)
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf(3, 5, 10).forEach { min ->
-                    FilterChip(
-                        selected = config.breakLength == min,
-                        onClick = { onUpdateBreakLength(min) },
-                        label = { Text("${min}m") }
-                    )
-                }
-            }
-        }
-
-        item {
-            // Focus Style
-            Text("Focus Style", style = MaterialTheme.typography.titleSmall)
-            val styles = listOf(
-                "deep_work" to "Deep Work",
-                "quick_wins" to "Quick Wins",
-                "balanced" to "Balanced",
-                "deadline_driven" to "Deadline Driven"
-            )
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                styles.forEach { (key, label) ->
-                    FilterChip(
-                        selected = config.focusPreference == key,
-                        onClick = { onUpdateFocusPreference(key) },
-                        label = { Text(label) }
-                    )
-                }
-            }
-            val desc = when (config.focusPreference) {
-                "deep_work" -> "Complex tasks, batch similar work"
-                "quick_wins" -> "Short tasks first, build momentum"
-                "balanced" -> "Mix of quick wins and deep work"
-                "deadline_driven" -> "Most urgent deadlines first"
-                else -> ""
-            }
-            Text(desc, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
 
         item {
@@ -391,6 +329,19 @@ private fun PlanningView(
                 Spacer(Modifier.height(16.dp))
             }
         }
+    }
+}
+
+@Composable
+private fun ConfigRow(label: String, value: String) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 2.dp),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(value, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
     }
 }
 

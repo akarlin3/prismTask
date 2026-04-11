@@ -3,6 +3,7 @@ package com.averycorp.prismtask.ui.screens.pomodoro
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.averycorp.prismtask.data.local.dao.TaskDao
+import com.averycorp.prismtask.data.preferences.TimerPreferences
 import com.averycorp.prismtask.data.remote.api.PrismTaskApi
 import com.averycorp.prismtask.data.remote.api.PomodoroRequest
 import com.averycorp.prismtask.data.remote.api.PomodoroResponse
@@ -16,7 +17,10 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -108,8 +112,22 @@ class SmartPomodoroViewModel @Inject constructor(
     private val _screenState = MutableStateFlow(PomodoroState.PLANNING)
     val screenState: StateFlow<PomodoroState> = _screenState
 
-    private val _config = MutableStateFlow(PomodoroConfig())
-    val config: StateFlow<PomodoroConfig> = _config
+    // Pomodoro config is now sourced entirely from persisted user settings.
+    val config: StateFlow<PomodoroConfig> = combine(
+        timerPreferences.getPomodoroAvailableMinutes(),
+        timerPreferences.getWorkDurationSeconds(),
+        timerPreferences.getBreakDurationSeconds(),
+        timerPreferences.getLongBreakDurationSeconds(),
+        timerPreferences.getPomodoroFocusPreference()
+    ) { available, workSec, breakSec, longBreakSec, focus ->
+        PomodoroConfig(
+            availableMinutes = available,
+            sessionLength = workSec / 60,
+            breakLength = breakSec / 60,
+            longBreakLength = longBreakSec / 60,
+            focusPreference = focus
+        )
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), PomodoroConfig())
 
     private val _plan = MutableStateFlow<PomodoroPlan?>(null)
     val plan: StateFlow<PomodoroPlan?> = _plan
@@ -170,26 +188,6 @@ class SmartPomodoroViewModel @Inject constructor(
         }
     }
 
-    fun updateConfig(config: PomodoroConfig) {
-        _config.value = config
-    }
-
-    fun updateAvailableMinutes(minutes: Int) {
-        _config.value = _config.value.copy(availableMinutes = minutes)
-    }
-
-    fun updateSessionLength(minutes: Int) {
-        _config.value = _config.value.copy(sessionLength = minutes)
-    }
-
-    fun updateBreakLength(minutes: Int) {
-        _config.value = _config.value.copy(breakLength = minutes)
-    }
-
-    fun updateFocusPreference(pref: String) {
-        _config.value = _config.value.copy(focusPreference = pref)
-    }
-
     private val _showUpgradePrompt = MutableStateFlow(false)
     val showUpgradePrompt: StateFlow<Boolean> = _showUpgradePrompt
 
@@ -206,7 +204,7 @@ class SmartPomodoroViewModel @Inject constructor(
             _isLoading.value = true
             _error.value = null
             try {
-                val cfg = _config.value
+                val cfg = config.value
                 val response = api.planPomodoro(
                     PomodoroRequest(
                         availableMinutes = cfg.availableMinutes,
@@ -241,7 +239,7 @@ class SmartPomodoroViewModel @Inject constructor(
     fun startSession() {
         _screenState.value = PomodoroState.SESSION_ACTIVE
         _currentSessionIndex.value = 0
-        _timerSecondsRemaining.value = _config.value.sessionLength * 60
+        _timerSecondsRemaining.value = config.value.sessionLength * 60
         startTimer()
     }
 
@@ -270,7 +268,7 @@ class SmartPomodoroViewModel @Inject constructor(
         timerJob?.cancel()
         _isTimerRunning.value = false
         _screenState.value = PomodoroState.COMPLETE
-        val totalSeconds = _config.value.sessionLength * 60 * (_currentSessionIndex.value + 1) -
+        val totalSeconds = config.value.sessionLength * 60 * (_currentSessionIndex.value + 1) -
                 _timerSecondsRemaining.value
         _stats.value = _stats.value.copy(
             sessionsCompleted = _currentSessionIndex.value + 1,
@@ -292,7 +290,7 @@ class SmartPomodoroViewModel @Inject constructor(
         }
         _currentSessionIndex.value = nextIndex
         _screenState.value = PomodoroState.SESSION_ACTIVE
-        _timerSecondsRemaining.value = _config.value.sessionLength * 60
+        _timerSecondsRemaining.value = config.value.sessionLength * 60
         startTimer()
     }
 
@@ -332,7 +330,7 @@ class SmartPomodoroViewModel @Inject constructor(
         val sessionIndex = _currentSessionIndex.value
         _stats.value = _stats.value.copy(
             sessionsCompleted = sessionIndex + 1,
-            totalFocusSeconds = _stats.value.totalFocusSeconds + _config.value.sessionLength * 60
+            totalFocusSeconds = _stats.value.totalFocusSeconds + config.value.sessionLength * 60
         )
 
         // v1.4.0 V11: trigger the post-session energy prompt so the
@@ -347,8 +345,8 @@ class SmartPomodoroViewModel @Inject constructor(
             _screenState.value = PomodoroState.ON_BREAK
             val isLongBreak = (sessionIndex + 1) % 4 == 0
             _timerSecondsRemaining.value =
-                if (isLongBreak) _config.value.longBreakLength * 60
-                else _config.value.breakLength * 60
+                if (isLongBreak) config.value.longBreakLength * 60
+                else config.value.breakLength * 60
             startTimer()
         }
     }

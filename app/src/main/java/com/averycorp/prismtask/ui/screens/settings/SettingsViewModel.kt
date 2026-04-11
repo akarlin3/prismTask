@@ -389,7 +389,7 @@ class SettingsViewModel @Inject constructor(
     val dayStartHour: StateFlow<Int> = taskBehaviorPreferences.getDayStartHour()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
-    // --- Timer ---
+    // --- Timer / Pomodoro ---
     val timerWorkDurationSeconds: StateFlow<Int> = timerPreferences.getWorkDurationSeconds()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), TimerPreferences.DEFAULT_WORK_SECONDS)
 
@@ -398,6 +398,12 @@ class SettingsViewModel @Inject constructor(
 
     val timerLongBreakDurationSeconds: StateFlow<Int> = timerPreferences.getLongBreakDurationSeconds()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), TimerPreferences.DEFAULT_LONG_BREAK_SECONDS)
+
+    val pomodoroAvailableMinutes: StateFlow<Int> = timerPreferences.getPomodoroAvailableMinutes()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), TimerPreferences.DEFAULT_AVAILABLE_MINUTES)
+
+    val pomodoroFocusPreference: StateFlow<String> = timerPreferences.getPomodoroFocusPreference()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), TimerPreferences.DEFAULT_FOCUS_PREFERENCE)
 
     fun setTimerWorkDurationMinutes(minutes: Int) {
         viewModelScope.launch { timerPreferences.setWorkDurationSeconds(minutes * 60) }
@@ -409,6 +415,22 @@ class SettingsViewModel @Inject constructor(
 
     fun setTimerLongBreakDurationMinutes(minutes: Int) {
         viewModelScope.launch { timerPreferences.setLongBreakDurationSeconds(minutes * 60) }
+    }
+
+    fun setPomodoroAvailableMinutes(minutes: Int) {
+        viewModelScope.launch { timerPreferences.setPomodoroAvailableMinutes(minutes) }
+    }
+
+    fun setPomodoroFocusPreference(preference: String) {
+        viewModelScope.launch { timerPreferences.setPomodoroFocusPreference(preference) }
+    }
+
+    // --- Habits / Streaks ---
+    val streakMaxMissedDays: StateFlow<Int> = habitListPreferences.getStreakMaxMissedDays()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), HabitListPreferences.DEFAULT_STREAK_MAX_MISSED_DAYS)
+
+    fun setStreakMaxMissedDays(days: Int) {
+        viewModelScope.launch { habitListPreferences.setStreakMaxMissedDays(days) }
     }
 
     // --- Modes ---

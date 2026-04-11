@@ -5,6 +5,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
@@ -26,6 +27,8 @@ class TimerPreferences @Inject constructor(
         private val SESSIONS_UNTIL_LONG_BREAK = intPreferencesKey("sessions_until_long_break")
         private val AUTO_START_BREAKS = intPreferencesKey("auto_start_breaks")
         private val AUTO_START_WORK = intPreferencesKey("auto_start_work")
+        private val POMODORO_AVAILABLE_MINUTES = intPreferencesKey("pomodoro_available_minutes")
+        private val POMODORO_FOCUS_PREFERENCE = stringPreferencesKey("pomodoro_focus_preference")
 
         const val DEFAULT_WORK_SECONDS = 25 * 60
         const val DEFAULT_BREAK_SECONDS = 5 * 60
@@ -33,6 +36,13 @@ class TimerPreferences @Inject constructor(
         const val DEFAULT_SESSIONS_UNTIL_LONG_BREAK = 4
         const val MIN_SECONDS = 60
         const val MAX_SECONDS = 180 * 60
+
+        const val DEFAULT_AVAILABLE_MINUTES = 120
+        const val MIN_AVAILABLE_MINUTES = 30
+        const val MAX_AVAILABLE_MINUTES = 480
+
+        const val DEFAULT_FOCUS_PREFERENCE = "balanced"
+        val VALID_FOCUS_PREFERENCES = setOf("deep_work", "quick_wins", "balanced", "deadline_driven")
     }
 
     fun getWorkDurationSeconds(): Flow<Int> = context.timerDataStore.data.map { prefs ->
@@ -102,6 +112,27 @@ class TimerPreferences @Inject constructor(
     suspend fun setAutoStartWork(enabled: Boolean) {
         context.timerDataStore.edit { prefs ->
             prefs[AUTO_START_WORK] = if (enabled) 1 else 0
+        }
+    }
+
+    fun getPomodoroAvailableMinutes(): Flow<Int> = context.timerDataStore.data.map { prefs ->
+        prefs[POMODORO_AVAILABLE_MINUTES] ?: DEFAULT_AVAILABLE_MINUTES
+    }
+
+    suspend fun setPomodoroAvailableMinutes(minutes: Int) {
+        context.timerDataStore.edit { prefs ->
+            prefs[POMODORO_AVAILABLE_MINUTES] = minutes.coerceIn(MIN_AVAILABLE_MINUTES, MAX_AVAILABLE_MINUTES)
+        }
+    }
+
+    fun getPomodoroFocusPreference(): Flow<String> = context.timerDataStore.data.map { prefs ->
+        prefs[POMODORO_FOCUS_PREFERENCE] ?: DEFAULT_FOCUS_PREFERENCE
+    }
+
+    suspend fun setPomodoroFocusPreference(preference: String) {
+        val sanitized = if (preference in VALID_FOCUS_PREFERENCES) preference else DEFAULT_FOCUS_PREFERENCE
+        context.timerDataStore.edit { prefs ->
+            prefs[POMODORO_FOCUS_PREFERENCE] = sanitized
         }
     }
 }

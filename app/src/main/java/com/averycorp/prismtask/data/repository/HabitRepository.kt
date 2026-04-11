@@ -7,6 +7,7 @@ import com.averycorp.prismtask.data.local.dao.TaskDao
 import com.averycorp.prismtask.data.local.entity.HabitCompletionEntity
 import com.averycorp.prismtask.data.local.entity.HabitEntity
 import com.averycorp.prismtask.data.local.entity.HabitLogEntity
+import com.averycorp.prismtask.data.preferences.HabitListPreferences
 import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
 import com.averycorp.prismtask.data.remote.SyncTracker
 import com.averycorp.prismtask.domain.usecase.StreakCalculator
@@ -44,7 +45,8 @@ class HabitRepository @Inject constructor(
     private val taskDao: TaskDao,
     private val syncTracker: SyncTracker,
     private val medicationReminderScheduler: MedicationReminderScheduler,
-    private val taskBehaviorPreferences: TaskBehaviorPreferences
+    private val taskBehaviorPreferences: TaskBehaviorPreferences,
+    private val habitListPreferences: HabitListPreferences
 ) {
     private suspend fun currentDayStartHour(): Int = taskBehaviorPreferences.getDayStartHour().first()
 
@@ -283,8 +285,9 @@ class HabitRepository @Inject constructor(
             combine(
                 habitDao.getActiveHabits(),
                 completionDao.getCompletionsForDate(today),
-                habitLogDao.getAllLogs()
-            ) { habits, todayCompletions, allLogs ->
+                habitLogDao.getAllLogs(),
+                habitListPreferences.getStreakMaxMissedDays()
+            ) { habits, todayCompletions, allLogs, streakMaxMissedDays ->
             val countByHabit = todayCompletions.groupBy { it.habitId }.mapValues { it.value.size }
             val logsByHabit = allLogs.groupBy { it.habitId }
             habits.map { habit ->
@@ -355,7 +358,7 @@ class HabitRepository @Inject constructor(
                 HabitWithStatus(
                     habit = habit,
                     isCompletedToday = isCompleted,
-                    currentStreak = StreakCalculator.calculateCurrentStreak(completions, habit, todayLocal),
+                    currentStreak = StreakCalculator.calculateCurrentStreak(completions, habit, todayLocal, streakMaxMissedDays),
                     completionsThisWeek = periodCompletions,
                     completionsToday = count,
                     dailyTarget = target,

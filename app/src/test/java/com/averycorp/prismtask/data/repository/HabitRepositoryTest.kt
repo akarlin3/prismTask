@@ -7,6 +7,7 @@ import com.averycorp.prismtask.data.local.dao.TaskDao
 import com.averycorp.prismtask.data.local.entity.HabitCompletionEntity
 import com.averycorp.prismtask.data.local.entity.HabitEntity
 import com.averycorp.prismtask.data.local.entity.HabitLogEntity
+import com.averycorp.prismtask.data.preferences.HabitListPreferences
 import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
 import com.averycorp.prismtask.data.remote.SyncTracker
 import com.averycorp.prismtask.notifications.MedicationReminderScheduler
@@ -42,6 +43,7 @@ class HabitRepositoryTest {
     private lateinit var syncTracker: SyncTracker
     private lateinit var medicationReminderScheduler: MedicationReminderScheduler
     private lateinit var taskBehaviorPreferences: TaskBehaviorPreferences
+    private lateinit var habitListPreferences: HabitListPreferences
     private lateinit var repo: HabitRepository
 
     @Before
@@ -53,7 +55,9 @@ class HabitRepositoryTest {
         syncTracker = mockk(relaxed = true)
         medicationReminderScheduler = mockk(relaxed = true)
         taskBehaviorPreferences = mockk(relaxed = true)
+        habitListPreferences = mockk(relaxed = true)
         every { taskBehaviorPreferences.getDayStartHour() } returns flowOf(0)
+        every { habitListPreferences.getStreakMaxMissedDays() } returns flowOf(1)
 
         repo = HabitRepository(
             habitDao,
@@ -62,7 +66,8 @@ class HabitRepositoryTest {
             taskDao,
             syncTracker,
             medicationReminderScheduler,
-            taskBehaviorPreferences
+            taskBehaviorPreferences,
+            habitListPreferences
         )
     }
 

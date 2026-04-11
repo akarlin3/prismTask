@@ -266,4 +266,73 @@ class StreakCalculatorTest {
         val streak = StreakCalculator.calculateCurrentStreak(completions, dailyHabit(target = 2), today)
         assertEquals(2, streak)
     }
+
+    // --- Streak Grace Period (maxMissedDays) ---
+
+    @Test
+    fun test_currentStreak_graceOfTwo_survivesSingleMissedDay() {
+        val today = LocalDate.of(2025, 6, 10)
+        // Missed yesterday, but done today, day-before-yesterday, and back 3 more days.
+        val completions = listOf(
+            completion(date = today),
+            completion(date = today.minusDays(2)),
+            completion(date = today.minusDays(3)),
+            completion(date = today.minusDays(4))
+        )
+        // Grace of 2 means a single missed day is forgiven.
+        val streak = StreakCalculator.calculateCurrentStreak(
+            completions, dailyHabit(), today, maxMissedDays = 2
+        )
+        assertEquals(4, streak)
+    }
+
+    @Test
+    fun test_currentStreak_graceOfTwo_brokenByTwoConsecutiveMisses() {
+        val today = LocalDate.of(2025, 6, 10)
+        // Missed both yesterday and the day before — streak should end at today.
+        val completions = listOf(
+            completion(date = today),
+            completion(date = today.minusDays(3)),
+            completion(date = today.minusDays(4))
+        )
+        val streak = StreakCalculator.calculateCurrentStreak(
+            completions, dailyHabit(), today, maxMissedDays = 2
+        )
+        assertEquals(1, streak)
+    }
+
+    @Test
+    fun test_currentStreak_graceOfOne_matchesOriginalBehavior() {
+        // Grace of 1 is the original semantics: any miss breaks the streak.
+        val today = LocalDate.of(2025, 6, 10)
+        val completions = listOf(
+            completion(date = today),
+            completion(date = today.minusDays(2))
+        )
+        val streak = StreakCalculator.calculateCurrentStreak(
+            completions, dailyHabit(), today, maxMissedDays = 1
+        )
+        assertEquals(1, streak)
+    }
+
+    @Test
+    fun test_longestStreak_graceOfTwo_spansSingleGap() {
+        val today = LocalDate.of(2025, 6, 10)
+        // 3 completions, a single miss, then 4 more completions.
+        val completions = listOf(
+            completion(date = today.minusDays(8)),
+            completion(date = today.minusDays(7)),
+            completion(date = today.minusDays(6)),
+            // missed day 5
+            completion(date = today.minusDays(4)),
+            completion(date = today.minusDays(3)),
+            completion(date = today.minusDays(2)),
+            completion(date = today.minusDays(1))
+        )
+        val longest = StreakCalculator.calculateLongestStreak(
+            completions, dailyHabit(), today, maxMissedDays = 2
+        )
+        // With one forgiven gap, the run should stitch together into 7 completions.
+        assertEquals(7, longest)
+    }
 }
