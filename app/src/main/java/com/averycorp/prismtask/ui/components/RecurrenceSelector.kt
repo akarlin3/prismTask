@@ -59,6 +59,10 @@ fun RecurrenceSelector(
         RecurrenceType.MONTHLY -> "Monthly"
         RecurrenceType.YEARLY -> "Yearly"
         RecurrenceType.CUSTOM -> "Custom"
+        RecurrenceType.WEEKDAY -> "Weekdays"
+        RecurrenceType.BIWEEKLY -> "Biweekly"
+        RecurrenceType.CUSTOM_DAYS -> "Custom Days"
+        RecurrenceType.AFTER_COMPLETION -> "After Completion"
         null -> "None"
     }
 

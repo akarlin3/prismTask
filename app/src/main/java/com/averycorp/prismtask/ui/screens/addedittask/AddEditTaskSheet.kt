@@ -1508,6 +1508,21 @@ private fun formatRecurrenceSummary(rule: RecurrenceRule): String {
         }
         RecurrenceType.YEARLY -> if (interval == 1) "Every Year" else "Every $interval Years"
         RecurrenceType.CUSTOM -> "Custom"
+        RecurrenceType.WEEKDAY -> "Every Weekday"
+        RecurrenceType.BIWEEKLY -> "Every 2 Weeks"
+        RecurrenceType.CUSTOM_DAYS -> {
+            val days = rule.monthDays?.takeIf { it.isNotEmpty() }
+                ?.sorted()
+                ?.joinToString(", ")
+            if (days != null) "Monthly on $days" else "Custom Days"
+        }
+        RecurrenceType.AFTER_COMPLETION -> {
+            val n = rule.afterCompletionInterval ?: 1
+            val unit = rule.afterCompletionUnit ?: "days"
+            val unitLabel = if (n == 1) unit.trimEnd('s').replaceFirstChar { it.uppercase() }
+            else unit.replaceFirstChar { it.uppercase() }
+            "$n $unitLabel After Completion"
+        }
     }
     return base
 }

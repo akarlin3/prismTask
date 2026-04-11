@@ -838,7 +838,8 @@ fun TaskListScreen(
                                     selectedTaskIds = selectedTaskIds,
                                     onExpandChange = { expandedTaskIds = it },
                                     onFocusChange = { focusSubtaskForId = it },
-                                    onDuplicate = { duplicateDialogState = it }
+                                    onDuplicate = { duplicateDialogState = it },
+                                    swipePrefs = swipePrefs
                                 )
                             }
                         }
@@ -860,7 +861,8 @@ fun TaskListScreen(
                                 selectedTaskIds = selectedTaskIds,
                                 onExpandChange = { expandedTaskIds = it },
                                 onFocusChange = { focusSubtaskForId = it },
-                                onDuplicate = { duplicateDialogState = it }
+                                onDuplicate = { duplicateDialogState = it },
+                                swipePrefs = swipePrefs
                             )
                         }
                     }
@@ -1065,7 +1067,8 @@ private fun androidx.compose.foundation.lazy.LazyListScope.taskItemWithSubtasks(
     selectedTaskIds: Set<Long>,
     onExpandChange: (Set<Long>) -> Unit,
     onFocusChange: (Long?) -> Unit,
-    onDuplicate: (DuplicateDialogState) -> Unit
+    onDuplicate: (DuplicateDialogState) -> Unit,
+    swipePrefs: com.averycorp.prismtask.data.preferences.SwipePrefs
 ) {
     val subtasks = subtasksMap[task.id].orEmpty()
     val tags = taskTagsMap[task.id].orEmpty()
