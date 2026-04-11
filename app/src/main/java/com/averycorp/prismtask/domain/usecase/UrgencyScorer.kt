@@ -13,6 +13,13 @@ object UrgencyScorer {
         subtaskCompleted: Int = 0,
         weights: UrgencyWeights = UrgencyWeights()
     ): Float {
+        // Fall back to the defaults if every weight is zero, so the scorer never
+        // returns a flat 0 for every task just because the user slid every
+        // slider to the bottom.
+        val effective = if (weights.dueDate == 0f && weights.priority == 0f &&
+            weights.age == 0f && weights.subtasks == 0f
+        ) UrgencyWeights() else weights
+
         val now = System.currentTimeMillis()
 
         // 1. Due date proximity (weight 0.40)
@@ -59,7 +66,7 @@ object UrgencyScorer {
             else -> 0.0f
         }
 
-        return (dueDateScore * weights.dueDate + priorityScore * weights.priority + ageScore * weights.age + subtaskScore * weights.subtasks)
+        return (dueDateScore * effective.dueDate + priorityScore * effective.priority + ageScore * effective.age + subtaskScore * effective.subtasks)
             .coerceIn(0f, 1f)
     }
 

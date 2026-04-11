@@ -1172,9 +1172,30 @@ fun SettingsScreen(
                     WeightSlider("Task Age", localAge) { localAge = it; normalizeAndSave() }
                     WeightSlider("Subtasks", localSubtasks) { localSubtasks = it; normalizeAndSave() }
 
+                    // Live preview: three sample tasks with scores that update as sliders move
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = "Preview",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(bottom = 4.dp)
+                    )
+                    val previewWeights = com.averycorp.prismtask.data.preferences.UrgencyWeights(
+                        dueDate = localDueDate,
+                        priority = localPriority,
+                        age = localAge,
+                        subtasks = localSubtasks
+                    )
+                    UrgencyPreviewSamples(weights = previewWeights)
+
                     Spacer(modifier = Modifier.height(8.dp))
+                    TextButton(onClick = {
+                        viewModel.setUrgencyWeights(com.averycorp.prismtask.data.preferences.UrgencyWeights())
+                    }) {
+                        Text("Reset Urgency Weights to Defaults", color = MaterialTheme.colorScheme.error)
+                    }
                     TextButton(onClick = { viewModel.resetTaskBehaviorDefaults() }) {
-                        Text("Reset Task Defaults", color = MaterialTheme.colorScheme.error)
+                        Text("Reset All Task Defaults", color = MaterialTheme.colorScheme.error)
                     }
                 }
             }
@@ -2524,6 +2545,75 @@ private fun ModeToggleRow(label: String, enabled: Boolean, onToggle: (Boolean) -
             checked = enabled,
             onCheckedChange = onToggle
         )
+    }
+}
+
+@Composable
+private fun UrgencyPreviewSamples(weights: com.averycorp.prismtask.data.preferences.UrgencyWeights) {
+    val now = System.currentTimeMillis()
+    val day = 24L * 60 * 60 * 1000
+    val samples = listOf(
+        Triple(
+            "Overdue report",
+            com.averycorp.prismtask.data.local.entity.TaskEntity(
+                id = 1, title = "Overdue report", priority = 3,
+                dueDate = now - day, createdAt = now - 3 * day
+            ),
+            0 to 0
+        ),
+        Triple(
+            "New idea",
+            com.averycorp.prismtask.data.local.entity.TaskEntity(
+                id = 2, title = "New idea", priority = 1,
+                dueDate = now + 7 * day, createdAt = now
+            ),
+            0 to 0
+        ),
+        Triple(
+            "Big project",
+            com.averycorp.prismtask.data.local.entity.TaskEntity(
+                id = 3, title = "Big project", priority = 2,
+                dueDate = now + 2 * day, createdAt = now - 14 * day
+            ),
+            5 to 2
+        )
+    )
+    Column {
+        samples.forEach { (label, task, subtasks) ->
+            val score = com.averycorp.prismtask.domain.usecase.UrgencyScorer.calculateScore(
+                task = task,
+                subtaskCount = subtasks.first,
+                subtaskCompleted = subtasks.second,
+                weights = weights
+            )
+            val level = com.averycorp.prismtask.domain.usecase.UrgencyScorer.getUrgencyLevel(score)
+            val indicatorColor = when (level) {
+                com.averycorp.prismtask.domain.usecase.UrgencyLevel.CRITICAL -> Color(0xFFE53935)
+                com.averycorp.prismtask.domain.usecase.UrgencyLevel.HIGH -> Color(0xFFFB8C00)
+                com.averycorp.prismtask.domain.usecase.UrgencyLevel.MEDIUM -> Color(0xFFFDD835)
+                com.averycorp.prismtask.domain.usecase.UrgencyLevel.LOW -> Color(0xFF43A047)
+            }
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(10.dp)
+                        .clip(CircleShape)
+                        .background(indicatorColor)
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(label, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
+                Text(
+                    String.format("%.2f", score),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
     }
 }
 
