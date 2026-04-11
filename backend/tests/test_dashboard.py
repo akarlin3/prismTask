@@ -104,7 +104,7 @@ async def test_tasks_overdue_excludes_completed_tasks(
     client: AsyncClient, auth_headers: dict, project_id: int
 ):
     overdue_due = _iso(datetime.now(timezone.utc) - timedelta(days=3))
-    overdue_resp = await client.post(
+    await client.post(
         f"/api/v1/projects/{project_id}/tasks",
         json={"title": "Still overdue", "due_date": overdue_due},
         headers=auth_headers,
