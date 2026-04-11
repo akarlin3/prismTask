@@ -144,6 +144,11 @@ sealed class PrismTaskRoute(val route: String) {
     data object MainTabs : PrismTaskRoute("main_tabs")
     data object Onboarding : PrismTaskRoute("onboarding")
     data object MorningCheckIn : PrismTaskRoute("morning_check_in")
+    data object MoodAnalytics : PrismTaskRoute("mood_analytics")
+    data object WeeklyBalanceReport : PrismTaskRoute("weekly_balance_report")
+    data object PasteConversation : PrismTaskRoute("paste_conversation")
+    data object WeeklyReview : PrismTaskRoute("weekly_review")
+    data object MedicationRefill : PrismTaskRoute("medication_refill")
 }
 
 data class BottomNavItem(
