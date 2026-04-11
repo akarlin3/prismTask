@@ -59,6 +59,20 @@ class HabitFrequency(str, enum.Enum):
     WEEKLY = "weekly"
 
 
+class IntegrationSource(str, enum.Enum):
+    GMAIL = "gmail"
+    SLACK = "slack"
+    CALENDAR = "calendar"
+    WEBHOOK = "webhook"
+
+
+class SuggestionStatus(str, enum.Enum):
+    PENDING = "pending"
+    ACCEPTED = "accepted"
+    REJECTED = "rejected"
+    IGNORED = "ignored"
+
+
 # --- Models ---
 
 
@@ -347,3 +361,57 @@ class AppRelease(Base):
     min_sdk = Column(Integer, default=26)
     created_at = Column(DateTime, server_default=func.now())
     is_mandatory = Column(Boolean, default=False)
+
+
+class SuggestedTask(Base):
+    __tablename__ = "suggested_tasks"
+    __table_args__ = (
+        UniqueConstraint("user_id", "source", "source_id", name="uq_user_source_source_id"),
+    )
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    source = Column(
+        Enum(IntegrationSource, values_callable=lambda x: [e.value for e in x]),
+        nullable=False,
+    )
+    source_id = Column(String(255), nullable=False)
+    source_title = Column(String(500), nullable=False)
+    source_url = Column(Text, nullable=True)
+    suggested_title = Column(String(500), nullable=False)
+    suggested_description = Column(Text, nullable=True)
+    suggested_due_date = Column(Date, nullable=True)
+    suggested_priority = Column(Integer, nullable=True)
+    suggested_project = Column(String(255), nullable=True)
+    suggested_tags_json = Column(Text, nullable=True)
+    confidence = Column(Float, nullable=False, default=0.0)
+    status = Column(
+        Enum(SuggestionStatus, values_callable=lambda x: [e.value for e in x]),
+        default=SuggestionStatus.PENDING,
+        nullable=False,
+    )
+    extracted_at = Column(DateTime, server_default=func.now())
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    user = relationship("User")
+
+
+class IntegrationConfig(Base):
+    __tablename__ = "integration_configs"
+    __table_args__ = (
+        UniqueConstraint("user_id", "source", name="uq_user_integration_source"),
+    )
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    source = Column(String(20), nullable=False)
+    is_enabled = Column(Boolean, default=False)
+    config_json = Column(Text, nullable=True)
+    last_scan_at = Column(DateTime, nullable=True)
+    scan_frequency_minutes = Column(Integer, default=120)
+    webhook_token = Column(String(64), nullable=True, unique=True)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    user = relationship("User")
