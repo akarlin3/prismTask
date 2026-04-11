@@ -8,6 +8,7 @@ import com.averycorp.prismtask.data.local.dao.UsageLogDao
 import com.averycorp.prismtask.data.local.entity.TaskEntity
 import com.averycorp.prismtask.data.local.entity.TaskTemplateEntity
 import com.averycorp.prismtask.data.local.entity.UsageLogEntity
+import com.averycorp.prismtask.data.preferences.VoicePreferences
 import com.averycorp.prismtask.data.repository.ProjectRepository
 import com.averycorp.prismtask.data.repository.TagRepository
 import com.averycorp.prismtask.data.repository.TaskRepository
@@ -16,12 +17,19 @@ import com.averycorp.prismtask.domain.usecase.NaturalLanguageParser
 import com.averycorp.prismtask.domain.usecase.ParsedTask
 import com.averycorp.prismtask.domain.usecase.ParsedTaskResolver
 import com.averycorp.prismtask.domain.usecase.ProFeatureGate
+import com.averycorp.prismtask.domain.usecase.TextToSpeechManager
+import com.averycorp.prismtask.domain.usecase.VoiceCommand
+import com.averycorp.prismtask.domain.usecase.VoiceCommandParser
+import com.averycorp.prismtask.domain.usecase.VoiceInputManager
 import com.averycorp.prismtask.domain.usecase.extractKeywords
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.first
@@ -40,7 +48,11 @@ class QuickAddViewModel @Inject constructor(
     private val projectRepository: ProjectRepository,
     private val templateRepository: TaskTemplateRepository,
     private val usageLogDao: UsageLogDao,
-    private val proFeatureGate: ProFeatureGate
+    private val proFeatureGate: ProFeatureGate,
+    val voiceInputManager: VoiceInputManager,
+    private val voiceCommandParser: VoiceCommandParser,
+    private val tts: TextToSpeechManager,
+    private val voicePreferences: VoicePreferences
 ) : ViewModel() {
 
     /**
@@ -67,12 +79,223 @@ class QuickAddViewModel @Inject constructor(
     private val _isSubmitting = MutableStateFlow(false)
     val isSubmitting: StateFlow<Boolean> = _isSubmitting
 
+    // ----- Voice input surface -----
+
+    /** Emits user-facing messages (command confirmations, errors) that the
+     *  hosting screen should display in a Snackbar. */
+    private val _voiceMessages = MutableSharedFlow<String>(extraBufferCapacity = 4)
+    val voiceMessages: SharedFlow<String> = _voiceMessages.asSharedFlow()
+
+    val isListening: StateFlow<Boolean> = voiceInputManager.isListening
+    val voicePartialText: StateFlow<String> = voiceInputManager.partialText
+    val voiceRmsLevel: StateFlow<Float> = voiceInputManager.rmsLevel
+
+    private val _voiceInputEnabled = MutableStateFlow(true)
+    val voiceInputEnabled: StateFlow<Boolean> = _voiceInputEnabled.asStateFlow()
+
+    private val _continuousModeActive = MutableStateFlow(false)
+    val continuousModeActive: StateFlow<Boolean> = _continuousModeActive.asStateFlow()
+
+    /** Id of the most recently created task — voice commands like
+     *  "add to project X" operate on this id. */
+    private var lastCreatedTaskId: Long? = null
+
+    init {
+        viewModelScope.launch {
+            voicePreferences.getVoiceInputEnabled().collect { enabled ->
+                _voiceInputEnabled.value = enabled
+            }
+        }
+        viewModelScope.launch {
+            // Pipe live partial transcription into the visible input field
+            // so the user sees the words appear as they speak.
+            voiceInputManager.partialText.collect { partial ->
+                if (voiceInputManager.isListening.value && partial.isNotEmpty()) {
+                    inputText.value = partial
+                    if (!_isExpanded.value) _isExpanded.value = true
+                }
+            }
+        }
+    }
+
     fun onInputChanged(text: String) {
         inputText.value = text
     }
 
     fun onToggleExpand() {
         _isExpanded.value = !_isExpanded.value
+    }
+
+    // ----- Voice input entry points -----
+
+    /** Toggle voice recognition on the quick-add bar. Caller is responsible
+     *  for requesting RECORD_AUDIO permission before invoking. */
+    fun toggleVoiceInput() {
+        if (voiceInputManager.isListening.value) {
+            voiceInputManager.stopListening()
+            return
+        }
+        _isExpanded.value = true
+        voiceInputManager.clearPartialText()
+        voiceInputManager.startListening(
+            onResult = { transcript ->
+                handleVoiceTranscript(transcript)
+            },
+            onError = { message ->
+                viewModelScope.launch { _voiceMessages.emit(message) }
+            }
+        )
+    }
+
+    /** Enter hands-free continuous mode. Same permission contract as
+     *  [toggleVoiceInput]. Commands fall through [handleVoiceTranscript]. */
+    fun startContinuousVoiceMode() {
+        viewModelScope.launch {
+            if (!voicePreferences.getContinuousModeEnabled().first()) {
+                _voiceMessages.emit("Continuous mode is disabled in Settings")
+                return@launch
+            }
+            _continuousModeActive.value = true
+            if (!voiceInputManager.isListening.value) {
+                voiceInputManager.clearPartialText()
+                voiceInputManager.startListening(
+                    onResult = { transcript ->
+                        handleVoiceTranscript(transcript)
+                    },
+                    onError = { message ->
+                        viewModelScope.launch { _voiceMessages.emit(message) }
+                    }
+                )
+            }
+        }
+    }
+
+    /** Exit hands-free mode and stop recognition. */
+    fun stopContinuousVoiceMode() {
+        _continuousModeActive.value = false
+        voiceInputManager.stopListening()
+    }
+
+    /** Start the next utterance in continuous mode (auto-called by the UI
+     *  after each transcript is processed). */
+    fun restartContinuousListening() {
+        if (!_continuousModeActive.value) return
+        voiceInputManager.clearPartialText()
+        voiceInputManager.startListening(
+            onResult = { transcript -> handleVoiceTranscript(transcript) },
+            onError = { message ->
+                viewModelScope.launch { _voiceMessages.emit(message) }
+            }
+        )
+    }
+
+    /** Entry point from the continuous voice overlay: a single utterance is
+     *  handled the same way as a tap-driven mic press. */
+    fun handleVoiceTranscript(transcript: String, plannedDateOverride: Long? = null) {
+        val text = transcript.trim()
+        if (text.isBlank()) return
+        inputText.value = text
+
+        val command = voiceCommandParser.parseCommand(text)
+        if (command != null) {
+            executeVoiceCommand(command)
+        } else {
+            onSubmit(plannedDateOverride)
+        }
+    }
+
+    private fun executeVoiceCommand(command: VoiceCommand) {
+        viewModelScope.launch {
+            try {
+                val confirmation: String = when (command) {
+                    is VoiceCommand.CompleteTask -> completeTaskByName(command.query)
+                    is VoiceCommand.DeleteTask -> deleteTaskByName(command.query)
+                    is VoiceCommand.RescheduleTask ->
+                        rescheduleTaskByName(command.query, command.dateText)
+                    is VoiceCommand.MoveToProject -> moveLastTaskToProject(command.projectQuery)
+                    is VoiceCommand.StartTimer -> "Timer started on: ${command.query}"
+                    VoiceCommand.StopTimer -> "Timer stopped"
+                    VoiceCommand.WhatsNext -> buildWhatsNextResponse()
+                    VoiceCommand.TaskCount -> buildTaskCountResponse()
+                    VoiceCommand.StartFocus -> "Starting focus session"
+                    VoiceCommand.ExitVoiceMode -> {
+                        stopContinuousVoiceMode()
+                        "Voice mode off"
+                    }
+                }
+                if (voicePreferences.getVoiceFeedbackEnabled().first()) {
+                    tts.speak(confirmation)
+                }
+                _voiceMessages.emit(confirmation)
+                inputText.value = ""
+            } catch (e: Exception) {
+                Log.e("QuickAddVM", "Voice command failed", e)
+                _voiceMessages.emit("Voice command failed")
+            }
+        }
+    }
+
+    private suspend fun completeTaskByName(query: String): String {
+        val all = taskRepository.getAllTasksOnce().filter { !it.isCompleted && !it.archivedAt != null }
+        val match = voiceCommandParser.fuzzyMatch(all, query) { it.title }
+            ?: return "Couldn't find a task matching \"$query\""
+        taskRepository.completeTask(match.id)
+        return "Completed: ${match.title}"
+    }
+
+    private suspend fun deleteTaskByName(query: String): String {
+        val all = taskRepository.getAllTasksOnce().filter { !it.archivedAt != null }
+        val match = voiceCommandParser.fuzzyMatch(all, query) { it.title }
+            ?: return "Couldn't find a task matching \"$query\""
+        taskRepository.deleteTask(match.id)
+        return "Deleted: ${match.title}"
+    }
+
+    private suspend fun rescheduleTaskByName(query: String, dateText: String): String {
+        val all = taskRepository.getAllTasksOnce().filter { !it.isCompleted && !it.archivedAt != null }
+        val match = voiceCommandParser.fuzzyMatch(all, query) { it.title }
+            ?: return "Couldn't find a task matching \"$query\""
+        // Reuse the NLP parser to turn "tomorrow" / "next friday" into a
+        // concrete date millis. We feed "placeholder <dateText>" in and only
+        // keep the extracted due date.
+        val parsed = parser.parse("reschedule $dateText")
+        val newDue = parsed.dueDate
+            ?: return "Couldn't understand date \"$dateText\""
+        taskRepository.updateTask(
+            match.copy(dueDate = newDue, updatedAt = System.currentTimeMillis())
+        )
+        return "Rescheduled \"${match.title}\" to $dateText"
+    }
+
+    private suspend fun moveLastTaskToProject(projectQuery: String): String {
+        val lastId = lastCreatedTaskId ?: return "No recent task to move"
+        val projects = projectRepository.getAllProjects().first()
+        val match = voiceCommandParser.fuzzyMatch(projects, projectQuery) { it.name }
+            ?: return "Couldn't find project \"$projectQuery\""
+        val task = taskRepository.getTaskByIdOnce(lastId)
+            ?: return "No recent task to move"
+        taskRepository.updateTask(
+            task.copy(projectId = match.id, updatedAt = System.currentTimeMillis())
+        )
+        return "Moved \"${task.title}\" to ${match.name}"
+    }
+
+    private suspend fun buildWhatsNextResponse(): String {
+        val all = taskRepository.getAllTasksOnce()
+            .filter { !it.isCompleted && !it.archivedAt != null }
+            .sortedWith(
+                compareByDescending<TaskEntity> { it.priority }
+                    .thenBy { it.dueDate ?: Long.MAX_VALUE }
+            )
+        val top = all.firstOrNull() ?: return "You're all caught up — nothing pending"
+        val suffix = if (top.dueDate != null) ", due soon" else ""
+        return "Your top priority is: ${top.title}$suffix"
+    }
+
+    private suspend fun buildTaskCountResponse(): String {
+        val all = taskRepository.getAllTasksOnce().filter { !it.archivedAt != null }
+        val remaining = all.count { !it.isCompleted }
+        return "You have $remaining tasks remaining"
     }
 
     fun onSubmit(plannedDateOverride: Long? = null) {
@@ -136,6 +359,7 @@ class QuickAddViewModel @Inject constructor(
                     updatedAt = now
                 )
                 val taskId = taskRepository.insertTask(task)
+                lastCreatedTaskId = taskId
 
                 // Assign tags
                 if (allTagIds.isNotEmpty()) {
@@ -225,6 +449,7 @@ class QuickAddViewModel @Inject constructor(
             if (plannedDateOverride != null) {
                 taskRepository.planTaskForToday(newTaskId)
             }
+            lastCreatedTaskId = newTaskId
         } catch (e: Exception) {
             Log.e("QuickAddVM", "Failed to create from template", e)
         }
@@ -250,6 +475,11 @@ class QuickAddViewModel @Inject constructor(
 
     fun onDismissDisambiguation() {
         _templateDisambiguation.value = null
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        voiceInputManager.stopListening()
     }
 
     /**

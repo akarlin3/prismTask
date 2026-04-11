@@ -20,6 +20,12 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Timer
 import androidx.compose.material.icons.outlined.Today
+import androidx.compose.foundation.focusable
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.key.isCtrlPressed
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.draw.scale
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
@@ -163,8 +169,13 @@ fun PrismTaskNavGraph(
     hasCompletedOnboarding: Boolean = true
 ) {
     // Handle deep-link intents from the QuickAdd widget: "open_templates"
-    // routes straight to the Template List screen. Other launch actions
-    // fall through to the default start destination.
+    // routes straight to the Template List screen. "voice_input" keeps the
+    // user on Today and auto-starts speech recognition.
+    val autoStartVoice = androidx.compose.runtime.remember(initialLaunchAction) {
+        androidx.compose.runtime.mutableStateOf(
+            initialLaunchAction == com.averycorp.prismtask.MainActivity.ACTION_VOICE_INPUT
+        )
+    }
     LaunchedEffect(initialLaunchAction) {
         if (initialLaunchAction == com.averycorp.prismtask.MainActivity.ACTION_OPEN_TEMPLATES) {
             navController.navigate(PrismTaskRoute.TemplateList.route)
@@ -184,8 +195,57 @@ fun PrismTaskNavGraph(
     val currentRoute = navBackStackEntry?.destination?.route
     val showBottomBar = currentRoute == null || currentRoute == PrismTaskRoute.MainTabs.route
 
+    // Keyboard shortcuts: Ctrl+1..4 switches tabs, Ctrl+N opens quick add,
+    // Ctrl+F focuses search, Escape pops the backstack. These are best-effort
+    // — the hosting Activity decides whether a hardware keyboard is present.
+    val focusRequester = androidx.compose.runtime.remember { androidx.compose.ui.focus.FocusRequester() }
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        try { focusRequester.requestFocus() } catch (_: Exception) {}
+    }
+    val shortcutModifier = modifier
+        .focusRequester(focusRequester)
+        .focusable()
+        .onPreviewKeyEvent { event ->
+            if (event.type != androidx.compose.ui.input.key.KeyEventType.KeyDown) return@onPreviewKeyEvent false
+            if (!event.isCtrlPressed && event.key != androidx.compose.ui.input.key.Key.Escape) {
+                return@onPreviewKeyEvent false
+            }
+            when (event.key) {
+                androidx.compose.ui.input.key.Key.N -> {
+                    navController.navigate(PrismTaskRoute.AddEditTask.createRoute())
+                    true
+                }
+                androidx.compose.ui.input.key.Key.F -> {
+                    navController.navigate(PrismTaskRoute.Search.route)
+                    true
+                }
+                androidx.compose.ui.input.key.Key.One -> {
+                    coroutineScope.launch { pagerState.animateScrollToPage(0) }; true
+                }
+                androidx.compose.ui.input.key.Key.Two -> {
+                    if (bottomNavItems.size > 1)
+                        coroutineScope.launch { pagerState.animateScrollToPage(1) }
+                    true
+                }
+                androidx.compose.ui.input.key.Key.Three -> {
+                    if (bottomNavItems.size > 2)
+                        coroutineScope.launch { pagerState.animateScrollToPage(2) }
+                    true
+                }
+                androidx.compose.ui.input.key.Key.Four -> {
+                    if (bottomNavItems.size > 3)
+                        coroutineScope.launch { pagerState.animateScrollToPage(3) }
+                    true
+                }
+                androidx.compose.ui.input.key.Key.Escape -> {
+                    navController.popBackStack(); true
+                }
+                else -> false
+            }
+        }
+
     Scaffold(
-        modifier = modifier,
+        modifier = shortcutModifier,
         bottomBar = {
             if (showBottomBar) {
                 NavigationBar {
@@ -260,7 +320,11 @@ fun PrismTaskNavGraph(
                     modifier = Modifier.fillMaxSize()
                 ) { page ->
                     when (bottomNavItems[page].route) {
-                        PrismTaskRoute.Today.route -> TodayScreen(navController)
+                        PrismTaskRoute.Today.route -> TodayScreen(
+                            navController = navController,
+                            autoStartVoice = autoStartVoice.value,
+                            onVoiceAutoStartConsumed = { autoStartVoice.value = false }
+                        )
                         PrismTaskRoute.TaskList.route -> TaskListScreen(navController)
                         PrismTaskRoute.HabitList.route -> HabitListScreen(navController)
                         PrismTaskRoute.Timer.route -> TimerScreen(navController)

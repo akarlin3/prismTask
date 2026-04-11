@@ -4,4 +4,8 @@
     <string name="today_widget_description">Today\'s tasks and habits progress</string>
     <string name="habit_widget_description">Habit streak tracker</string>
     <string name="quick_add_widget_description">Quick add a new task</string>
+    <string name="productivity_widget_description">See your daily productivity score at a glance</string>
+    <string name="upcoming_widget_description">Preview your next 3 days of tasks</string>
+    <string name="timer_widget_description">Track time and Pomodoro sessions from your home screen</string>
+    <string name="calendar_widget_description">Today\'s schedule with tasks and calendar events</string>
 </resources>

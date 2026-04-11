@@ -136,7 +136,9 @@ private const val SECTION_COMPLETED = "completed"
 fun TodayScreen(
     navController: NavController,
     viewModel: TodayViewModel = hiltViewModel(),
-    coachingViewModel: CoachingViewModel = hiltViewModel()
+    coachingViewModel: CoachingViewModel = hiltViewModel(),
+    autoStartVoice: Boolean = false,
+    onVoiceAutoStartConsumed: () -> Unit = {}
 ) {
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
     val overdueTasks by viewModel.overdueTasks.collectAsStateWithLifecycle()
@@ -210,7 +212,10 @@ fun TodayScreen(
             )
         },
         bottomBar = {
-            FloatingQuickAddBar()
+            FloatingQuickAddBar(
+                autoStartVoice = autoStartVoice,
+                onVoiceAutoStartConsumed = onVoiceAutoStartConsumed
+            )
         },
         floatingActionButton = {
             Column(
@@ -1234,7 +1239,10 @@ private fun SeeAllChip(onClick: () -> Unit) {
  * Uses a semi-transparent surface so content faintly shows through.
  */
 @Composable
-private fun FloatingQuickAddBar() {
+private fun FloatingQuickAddBar(
+    autoStartVoice: Boolean = false,
+    onVoiceAutoStartConsumed: () -> Unit = {}
+) {
     Surface(
         color = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f),
         tonalElevation = 4.dp,
@@ -1245,7 +1253,13 @@ private fun FloatingQuickAddBar() {
                 .fillMaxWidth()
                 .padding(vertical = 6.dp)
         ) {
-            QuickAddBar()
+            QuickAddBar(
+                autoStartVoice = autoStartVoice,
+                onVoiceMessage = { /* surfaced via its own snackbar inside QuickAddBar */ }
+            )
+            androidx.compose.runtime.LaunchedEffect(autoStartVoice) {
+                if (autoStartVoice) onVoiceAutoStartConsumed()
+            }
         }
     }
 }

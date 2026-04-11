@@ -54,11 +54,15 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var billingManager: BillingManager
 
+    @Inject
+    lateinit var a11yPreferences: com.averycorp.prismtask.data.preferences.A11yPreferences
+
     companion object {
         /** Intent extra key set by the QuickAdd widget to route deep-links. */
         const val EXTRA_LAUNCH_ACTION = "com.averycorp.prismtask.LAUNCH_ACTION"
         const val ACTION_QUICK_ADD = "quick_add"
         const val ACTION_OPEN_TEMPLATES = "open_templates"
+        const val ACTION_VOICE_INPUT = "voice_input"
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -115,6 +119,13 @@ class MainActivity : ComponentActivity() {
             val hasCompletedOnboarding by onboardingPreferences.hasCompletedOnboarding()
                 .collectAsStateWithLifecycle(initialValue = true)
 
+            val reduceMotion by a11yPreferences.getReduceMotion()
+                .collectAsStateWithLifecycle(initialValue = false)
+            val highContrast by a11yPreferences.getHighContrast()
+                .collectAsStateWithLifecycle(initialValue = false)
+            val largeTouchTargets by a11yPreferences.getLargeTouchTargets()
+                .collectAsStateWithLifecycle(initialValue = false)
+
             val tabOrder by tabPreferences.getTabOrder()
                 .collectAsStateWithLifecycle(initialValue = TabPreferences.DEFAULT_ORDER)
             val hiddenTabs by tabPreferences.getHiddenTabs()
@@ -151,7 +162,10 @@ class MainActivity : ComponentActivity() {
                 surfaceColorOverride = surfaceColorOverride,
                 errorColorOverride = errorColorOverride,
                 fontScale = fontScale,
-                priorityColors = priorityColors
+                priorityColors = priorityColors,
+                reduceMotion = reduceMotion,
+                highContrast = highContrast,
+                largeTouchTargets = largeTouchTargets
             ) {
                 PrismTaskNavGraph(
                     modifier = Modifier.fillMaxSize(),

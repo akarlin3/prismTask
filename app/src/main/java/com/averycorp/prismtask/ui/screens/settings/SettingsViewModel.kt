@@ -32,6 +32,8 @@ import com.averycorp.prismtask.data.preferences.TabPreferences
 import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
 import com.averycorp.prismtask.data.preferences.TemplatePreferences
 import com.averycorp.prismtask.data.preferences.TimerPreferences
+import com.averycorp.prismtask.data.preferences.VoicePreferences
+import com.averycorp.prismtask.data.preferences.A11yPreferences
 import com.averycorp.prismtask.ui.navigation.ALL_BOTTOM_NAV_ITEMS
 import com.averycorp.prismtask.data.preferences.ThemePreferences
 import com.averycorp.prismtask.data.preferences.UrgencyWeights
@@ -97,8 +99,46 @@ class SettingsViewModel @Inject constructor(
     val appUpdater: AppUpdater,
     private val calendarManager: CalendarManager,
     private val calendarSyncPreferences: CalendarSyncPreferences,
-    private val billingManager: BillingManager
+    private val billingManager: BillingManager,
+    private val voicePreferences: VoicePreferences,
+    private val a11yPreferences: A11yPreferences
 ) : ViewModel() {
+
+    // --- Voice Input ---
+    val voiceInputEnabled: StateFlow<Boolean> = voicePreferences.getVoiceInputEnabled()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+    val voiceFeedbackEnabled: StateFlow<Boolean> = voicePreferences.getVoiceFeedbackEnabled()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+    val continuousModeEnabled: StateFlow<Boolean> = voicePreferences.getContinuousModeEnabled()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
+    fun setVoiceInputEnabled(enabled: Boolean) {
+        viewModelScope.launch { voicePreferences.setVoiceInputEnabled(enabled) }
+    }
+    fun setVoiceFeedbackEnabled(enabled: Boolean) {
+        viewModelScope.launch { voicePreferences.setVoiceFeedbackEnabled(enabled) }
+    }
+    fun setContinuousModeEnabled(enabled: Boolean) {
+        viewModelScope.launch { voicePreferences.setContinuousModeEnabled(enabled) }
+    }
+
+    // --- Accessibility ---
+    val reduceMotionEnabled: StateFlow<Boolean> = a11yPreferences.getReduceMotion()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+    val highContrastEnabled: StateFlow<Boolean> = a11yPreferences.getHighContrast()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+    val largeTouchTargetsEnabled: StateFlow<Boolean> = a11yPreferences.getLargeTouchTargets()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    fun setReduceMotion(enabled: Boolean) {
+        viewModelScope.launch { a11yPreferences.setReduceMotion(enabled) }
+    }
+    fun setHighContrast(enabled: Boolean) {
+        viewModelScope.launch { a11yPreferences.setHighContrast(enabled) }
+    }
+    fun setLargeTouchTargets(enabled: Boolean) {
+        viewModelScope.launch { a11yPreferences.setLargeTouchTargets(enabled) }
+    }
 
     // --- Subscription ---
     val userTier: StateFlow<UserTier> = billingManager.userTier

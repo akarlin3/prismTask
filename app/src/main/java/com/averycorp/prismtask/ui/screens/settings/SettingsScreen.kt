@@ -168,6 +168,12 @@ fun SettingsScreen(
     val urgencyWeights by viewModel.urgencyWeights.collectAsStateWithLifecycle()
     val firstDayOfWeek by viewModel.firstDayOfWeek.collectAsStateWithLifecycle()
     val dayStartHour by viewModel.dayStartHour.collectAsStateWithLifecycle()
+    val voiceInputEnabled by viewModel.voiceInputEnabled.collectAsStateWithLifecycle()
+    val voiceFeedbackEnabled by viewModel.voiceFeedbackEnabled.collectAsStateWithLifecycle()
+    val continuousModeEnabled by viewModel.continuousModeEnabled.collectAsStateWithLifecycle()
+    val reduceMotionEnabled by viewModel.reduceMotionEnabled.collectAsStateWithLifecycle()
+    val highContrastEnabled by viewModel.highContrastEnabled.collectAsStateWithLifecycle()
+    val largeTouchTargetsEnabled by viewModel.largeTouchTargetsEnabled.collectAsStateWithLifecycle()
     val timerWorkSeconds by viewModel.timerWorkDurationSeconds.collectAsStateWithLifecycle()
     val timerBreakSeconds by viewModel.timerBreakDurationSeconds.collectAsStateWithLifecycle()
     val timerLongBreakSeconds by viewModel.timerLongBreakDurationSeconds.collectAsStateWithLifecycle()
@@ -1808,6 +1814,60 @@ fun SettingsScreen(
                     modifier = Modifier.padding(top = 6.dp)
                 )
             }
+
+            HorizontalDivider()
+
+            // ========== VOICE INPUT ==========
+            SectionHeader("Voice Input")
+
+            SettingsToggleRow(
+                title = "Enable Voice Input",
+                subtitle = "Show the microphone button on the quick-add bar",
+                checked = voiceInputEnabled,
+                onCheckedChange = { viewModel.setVoiceInputEnabled(it) }
+            )
+            SettingsToggleRow(
+                title = "Voice Feedback",
+                subtitle = "Read voice command responses aloud",
+                checked = voiceFeedbackEnabled,
+                onCheckedChange = { viewModel.setVoiceFeedbackEnabled(it) }
+            )
+            SettingsToggleRow(
+                title = "Continuous Mode",
+                subtitle = "Long-press the mic for hands-free voice control",
+                checked = continuousModeEnabled,
+                onCheckedChange = { viewModel.setContinuousModeEnabled(it) }
+            )
+
+            HorizontalDivider()
+
+            // ========== ACCESSIBILITY ==========
+            SectionHeader("Accessibility")
+
+            SettingsToggleRow(
+                title = "Reduce Motion",
+                subtitle = "Disable non-essential animations",
+                checked = reduceMotionEnabled,
+                onCheckedChange = { viewModel.setReduceMotion(it) }
+            )
+            SettingsToggleRow(
+                title = "High Contrast Mode",
+                subtitle = "Stronger borders and bolder priority colors",
+                checked = highContrastEnabled,
+                onCheckedChange = { viewModel.setHighContrast(it) }
+            )
+            SettingsToggleRow(
+                title = "Large Touch Targets",
+                subtitle = "Increase minimum interactive element size",
+                checked = largeTouchTargetsEnabled,
+                onCheckedChange = { viewModel.setLargeTouchTargets(it) }
+            )
+            Text(
+                text = "PrismTask supports TalkBack, Switch Access, and keyboard navigation.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(vertical = 8.dp)
+            )
 
             HorizontalDivider()
 

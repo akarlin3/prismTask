@@ -25,6 +25,9 @@ fun PrismTaskTheme(
     errorColorOverride: String = "",
     fontScale: Float = 1.0f,
     priorityColors: PriorityColors = PriorityColors(),
+    reduceMotion: Boolean = false,
+    highContrast: Boolean = false,
+    largeTouchTargets: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val useDark = when (themeMode) {
@@ -53,9 +56,26 @@ fun PrismTaskTheme(
         scaledTypography(Typography, fontScale)
     }
 
-    CompositionLocalProvider(LocalPriorityColors provides priorityColors) {
+    // High-contrast mode: darken surfaces and boost text contrast by pinning
+    // onSurface/onBackground to fully opaque tones and tightening the error
+    // color. This is intentionally conservative so the existing accent color
+    // continues to read correctly.
+    val effectiveScheme = if (highContrast) {
+        colorScheme.copy(
+            onSurface = if (useDark) Color.White else Color.Black,
+            onBackground = if (useDark) Color.White else Color.Black,
+            outline = if (useDark) Color(0xFFCCCCCC) else Color(0xFF333333)
+        )
+    } else colorScheme
+
+    CompositionLocalProvider(
+        LocalPriorityColors provides priorityColors,
+        com.averycorp.prismtask.ui.a11y.LocalReducedMotion provides reduceMotion,
+        com.averycorp.prismtask.ui.a11y.LocalHighContrast provides highContrast,
+        com.averycorp.prismtask.ui.a11y.LocalLargeTouchTargets provides largeTouchTargets
+    ) {
         MaterialTheme(
-            colorScheme = colorScheme,
+            colorScheme = effectiveScheme,
             typography = scaledTypography,
             content = content
         )

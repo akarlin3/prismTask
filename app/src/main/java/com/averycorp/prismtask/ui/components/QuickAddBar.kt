@@ -1,5 +1,9 @@
 package com.averycorp.prismtask.ui.components
 
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
@@ -17,7 +21,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -26,10 +29,7 @@ import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ExpandLess
-import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -37,13 +37,17 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.averycorp.prismtask.domain.usecase.ParsedTask
@@ -60,13 +64,55 @@ fun QuickAddBar(
     modifier: Modifier = Modifier,
     plannedDateOverride: Long? = null,
     alwaysExpanded: Boolean = false,
-    placeholder: String = "Add task... (try: Buy milk tomorrow #groceries !high)"
+    placeholder: String = "Add task... (try: Buy milk tomorrow #groceries !high)",
+    autoStartVoice: Boolean = false,
+    onVoiceMessage: (String) -> Unit = {}
 ) {
     val inputText by viewModel.inputText.collectAsStateWithLifecycle()
     val parsedPreview by viewModel.parsedPreview.collectAsStateWithLifecycle()
     val isExpanded by viewModel.isExpanded.collectAsStateWithLifecycle()
     val isSubmitting by viewModel.isSubmitting.collectAsStateWithLifecycle()
     val disambiguation by viewModel.templateDisambiguation.collectAsStateWithLifecycle()
+    val isListening by viewModel.isListening.collectAsStateWithLifecycle()
+    val rmsLevel by viewModel.voiceRmsLevel.collectAsStateWithLifecycle()
+    val voiceEnabled by viewModel.voiceInputEnabled.collectAsStateWithLifecycle()
+    val continuousActive by viewModel.continuousModeActive.collectAsStateWithLifecycle()
+    val partialTranscript by viewModel.voicePartialText.collectAsStateWithLifecycle()
+
+    val context = LocalContext.current
+    val voiceAvailable = remember { viewModel.voiceInputManager.isAvailable() }
+
+    val micPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) {
+            viewModel.toggleVoiceInput()
+        } else {
+            onVoiceMessage("Microphone permission needed for voice input")
+        }
+    }
+
+    // Forward VoiceMessages (command confirmations, errors) to the host screen
+    // so they can be shown in a snackbar alongside the other feedback.
+    LaunchedEffect(viewModel) {
+        viewModel.voiceMessages.collect { msg -> onVoiceMessage(msg) }
+    }
+
+    LaunchedEffect(autoStartVoice) {
+        if (autoStartVoice && voiceAvailable && voiceEnabled) {
+            val granted = ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.RECORD_AUDIO
+            ) == PackageManager.PERMISSION_GRANTED
+            if (granted) {
+                viewModel.toggleVoiceInput()
+            } else {
+                micPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+            }
+        }
+    }
+
+    val showMic = voiceAvailable && voiceEnabled
 
     // Disambiguation popup — shown when a "/query" shortcut matches more
     // than one template and the user needs to pick.
@@ -94,7 +140,7 @@ fun QuickAddBar(
                                     onTaskCreated()
                                 }
                                 .padding(vertical = 10.dp),
-                            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
                                 text = template.icon ?: "\uD83D\uDCCB",
@@ -129,13 +175,46 @@ fun QuickAddBar(
     val expandedState = alwaysExpanded || isExpanded
     Column(modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
         if (!expandedState) {
-            TextButton(
-                onClick = { viewModel.onToggleExpand() },
-                modifier = Modifier.fillMaxWidth()
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(modifier = Modifier.width(4.dp))
-                Text("Quick Add")
+                TextButton(
+                    onClick = { viewModel.onToggleExpand() },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Quick Add")
+                }
+                if (showMic) {
+                    VoiceInputButton(
+                        listening = isListening,
+                        rmsLevel = rmsLevel,
+                        onClick = {
+                            val granted = ContextCompat.checkSelfPermission(
+                                context,
+                                Manifest.permission.RECORD_AUDIO
+                            ) == PackageManager.PERMISSION_GRANTED
+                            if (granted) {
+                                viewModel.toggleVoiceInput()
+                            } else {
+                                micPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                            }
+                        },
+                        onLongClick = {
+                            val granted = ContextCompat.checkSelfPermission(
+                                context,
+                                Manifest.permission.RECORD_AUDIO
+                            ) == PackageManager.PERMISSION_GRANTED
+                            if (granted) {
+                                viewModel.startContinuousVoiceMode()
+                            } else {
+                                micPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                            }
+                        }
+                    )
+                }
             }
         } else {
             if (!alwaysExpanded) {
@@ -158,36 +237,74 @@ fun QuickAddBar(
                 }
             }
 
-            OutlinedTextField(
-                value = inputText,
-                onValueChange = { viewModel.onInputChanged(it) },
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text(placeholder) },
-                leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(20.dp)) },
-                trailingIcon = {
-                    IconButton(
-                        onClick = {
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                OutlinedTextField(
+                    value = inputText,
+                    onValueChange = { viewModel.onInputChanged(it) },
+                    modifier = Modifier.weight(1f),
+                    placeholder = {
+                        Text(
+                            if (isListening) "Listening…" else placeholder
+                        )
+                    },
+                    leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(20.dp)) },
+                    trailingIcon = {
+                        IconButton(
+                            onClick = {
+                                viewModel.onSubmit(plannedDateOverride)
+                                onTaskCreated()
+                            },
+                            enabled = inputText.isNotBlank() && !isSubmitting
+                        ) {
+                            Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Submit task")
+                        }
+                    },
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = {
+                        if (inputText.isNotBlank()) {
                             viewModel.onSubmit(plannedDateOverride)
                             onTaskCreated()
+                        }
+                    }),
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp)
+                )
+                if (showMic) {
+                    Spacer(modifier = Modifier.width(4.dp))
+                    VoiceInputButton(
+                        listening = isListening,
+                        rmsLevel = rmsLevel,
+                        onClick = {
+                            val granted = ContextCompat.checkSelfPermission(
+                                context,
+                                Manifest.permission.RECORD_AUDIO
+                            ) == PackageManager.PERMISSION_GRANTED
+                            if (granted) {
+                                viewModel.toggleVoiceInput()
+                            } else {
+                                micPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                            }
                         },
-                        enabled = inputText.isNotBlank() && !isSubmitting
-                    ) {
-                        Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Submit")
-                    }
-                },
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                keyboardActions = KeyboardActions(onDone = {
-                    if (inputText.isNotBlank()) {
-                        viewModel.onSubmit(plannedDateOverride)
-                        onTaskCreated()
-                    }
-                }),
-                singleLine = true,
-                shape = RoundedCornerShape(12.dp)
-            )
+                        onLongClick = {
+                            val granted = ContextCompat.checkSelfPermission(
+                                context,
+                                Manifest.permission.RECORD_AUDIO
+                            ) == PackageManager.PERMISSION_GRANTED
+                            if (granted) {
+                                viewModel.startContinuousVoiceMode()
+                            } else {
+                                micPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                            }
+                        }
+                    )
+                }
+            }
 
             AnimatedVisibility(
-                visible = parsedPreview != null && inputText.isNotBlank(),
+                visible = parsedPreview != null && inputText.isNotBlank() && !isListening,
                 enter = expandVertically(),
                 exit = shrinkVertically()
             ) {
@@ -199,6 +316,15 @@ fun QuickAddBar(
             Spacer(modifier = Modifier.height(8.dp))
         }
     }
+
+    VoiceModeHost(
+        showOverlay = continuousActive,
+        listening = isListening,
+        transcript = partialTranscript,
+        rmsLevel = rmsLevel,
+        onStopContinuous = { viewModel.stopContinuousVoiceMode() },
+        onRestartListening = { viewModel.restartContinuousListening() }
+    )
 }
 
 @OptIn(ExperimentalLayoutApi::class)
