@@ -103,6 +103,7 @@ class SettingsViewModel @Inject constructor(
     // --- Subscription ---
     val userTier: StateFlow<UserTier> = billingManager.userTier
     val subscriptionState: StateFlow<SubscriptionState> = billingManager.proSubscriptionState
+    val debugTierOverride: StateFlow<UserTier?> = billingManager.debugTierOverride
 
     // --- AI Notification Settings ---
     private val _eveningSummaryEnabled = MutableStateFlow(false)
@@ -938,5 +939,15 @@ class SettingsViewModel @Inject constructor(
                 _messages.emit("Could not restore purchases: ${e.message}")
             }
         }
+    }
+
+    /** Debug-only: set an in-memory tier override for testing gated features. */
+    fun setDebugTier(tier: UserTier) {
+        billingManager.setDebugTier(tier)
+    }
+
+    /** Debug-only: clear the tier override and revert to the real billing state. */
+    fun clearDebugTier() {
+        billingManager.clearDebugTier()
     }
 }

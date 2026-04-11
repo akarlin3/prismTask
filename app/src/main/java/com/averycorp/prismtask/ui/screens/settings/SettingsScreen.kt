@@ -128,6 +128,7 @@ fun SettingsScreen(
 ) {
     val context = LocalContext.current
     val userTier by viewModel.userTier.collectAsStateWithLifecycle()
+    val debugTierOverride by viewModel.debugTierOverride.collectAsStateWithLifecycle()
     val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
     val accentColor by viewModel.accentColor.collectAsStateWithLifecycle()
     val backgroundColor by viewModel.backgroundColor.collectAsStateWithLifecycle()
@@ -1831,6 +1832,78 @@ fun SettingsScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
+            // ========== DEBUG (Debug Builds Only) ==========
+            if (BuildConfig.DEBUG) {
+                Spacer(modifier = Modifier.height(24.dp))
+                HorizontalDivider()
+                SectionHeader("\uD83D\uDEE0 Debug")
+
+                Text(
+                    text = "Debug only — not visible in release builds",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(bottom = 12.dp)
+                )
+
+                Text(
+                    text = "Override Tier:",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    listOf(
+                        UserTier.FREE to "Free",
+                        UserTier.PRO to "Pro",
+                        UserTier.PREMIUM to "Premium"
+                    ).forEach { (tier, label) ->
+                        val selected = debugTierOverride == tier
+                        FilterChip(
+                            selected = selected,
+                            onClick = { viewModel.setDebugTier(tier) },
+                            label = { Text(label) },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+
+                if (debugTierOverride != null) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(MaterialTheme.colorScheme.primary)
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = "OVERRIDE: ${debugTierOverride?.name}",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onPrimary
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedButton(
+                        onClick = { viewModel.clearDebugTier() },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Reset Override")
+                    }
+                } else {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "No override active — using real billing state",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
 
             Spacer(modifier = Modifier.height(32.dp))
             }

@@ -15,6 +15,7 @@ import com.android.billingclient.api.PurchasesResponseListener
 import com.android.billingclient.api.PurchasesUpdatedListener
 import com.android.billingclient.api.QueryProductDetailsParams
 import com.android.billingclient.api.QueryPurchasesParams
+import com.averycorp.prismtask.BuildConfig
 import com.averycorp.prismtask.data.preferences.ProStatusPreferences
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
@@ -59,6 +60,15 @@ class BillingManager @Inject constructor(
     private val _proSubscriptionState = MutableStateFlow(SubscriptionState.NOT_SUBSCRIBED)
     val proSubscriptionState: StateFlow<SubscriptionState> = _proSubscriptionState.asStateFlow()
 
+    // Debug-only in-memory tier override (resets on app restart).
+    // When non-null, overrides the real billing state for the exposed StateFlows.
+    private val _debugTierOverride = MutableStateFlow<UserTier?>(null)
+    val debugTierOverride: StateFlow<UserTier?> = _debugTierOverride.asStateFlow()
+
+    // Tracks the real (non-debug) tier/state so we can restore it when the override is cleared.
+    private var realTier: UserTier = UserTier.FREE
+    private var realState: SubscriptionState = SubscriptionState.NOT_SUBSCRIBED
+
     private val purchasesUpdatedListener = PurchasesUpdatedListener { billingResult, purchases ->
         if (billingResult.responseCode == BillingClient.BillingResponseCode.OK && purchases != null) {
             scope.launch { handlePurchaseUpdate(purchases) }
@@ -78,12 +88,17 @@ class BillingManager @Inject constructor(
             val cachedTier = proStatusPreferences.getCachedTier()
             val expiresAt = proStatusPreferences.tierExpiresAt()
             if (cachedTier != "FREE" && expiresAt > System.currentTimeMillis()) {
-                _userTier.value = try {
+                val parsed = try {
                     UserTier.valueOf(cachedTier)
                 } catch (_: IllegalArgumentException) {
                     UserTier.FREE
                 }
-                _proSubscriptionState.value = SubscriptionState.SUBSCRIBED
+                realTier = parsed
+                realState = SubscriptionState.SUBSCRIBED
+                if (_debugTierOverride.value == null) {
+                    _userTier.value = parsed
+                    _proSubscriptionState.value = SubscriptionState.SUBSCRIBED
+                }
             }
 
             // Connect to Google Play and verify
@@ -258,8 +273,14 @@ class BillingManager @Inject constructor(
     }
 
     private suspend fun updateTierStatus(tier: UserTier, state: SubscriptionState) {
-        _userTier.value = tier
-        _proSubscriptionState.value = state
+        realTier = tier
+        realState = state
+        // Respect the debug override if one is active — the real state is tracked
+        // separately but must not leak to the exposed flows while the override is set.
+        if (_debugTierOverride.value == null) {
+            _userTier.value = tier
+            _proSubscriptionState.value = state
+        }
         proStatusPreferences.setCachedTier(tier.name)
         if (tier != UserTier.FREE) {
             // Cache for 30 days for offline access
@@ -270,5 +291,31 @@ class BillingManager @Inject constructor(
             proStatusPreferences.setTierExpiresAt(0)
         }
         proStatusPreferences.setLastVerifiedAt(System.currentTimeMillis())
+    }
+
+    /**
+     * Debug-only: overrides the effective tier without going through Google Play.
+     * No-op in release builds. Not persisted — resets on app restart.
+     */
+    fun setDebugTier(tier: UserTier) {
+        if (!BuildConfig.DEBUG) return
+        _debugTierOverride.value = tier
+        _userTier.value = tier
+        _proSubscriptionState.value = if (tier == UserTier.FREE) {
+            SubscriptionState.NOT_SUBSCRIBED
+        } else {
+            SubscriptionState.SUBSCRIBED
+        }
+    }
+
+    /**
+     * Debug-only: clears any active tier override and restores the real billing state.
+     * No-op in release builds.
+     */
+    fun clearDebugTier() {
+        if (!BuildConfig.DEBUG) return
+        _debugTierOverride.value = null
+        _userTier.value = realTier
+        _proSubscriptionState.value = realState
     }
 }
