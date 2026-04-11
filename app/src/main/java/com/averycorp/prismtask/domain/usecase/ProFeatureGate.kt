@@ -75,5 +75,10 @@ class ProFeatureGate @Inject constructor(
         const val ANALYTICS_FULL = "analytics_full"
         const val ANALYTICS_CORRELATIONS = "analytics_correlations"
         const val DRIVE_BACKUP = "drive_backup"
+
+        // Premium tier — AI coaching
+        const val AI_DAILY_PLANNING = "ai_daily_planning"     // Trigger 3 (energy-adaptive)
+        const val AI_REENGAGEMENT = "ai_reengagement"         // Trigger 4 (welcome back)
+        const val AI_WEEKLY_INSIGHTS = "ai_weekly_insights"   // Future: weekly pattern analysis
     }
 }

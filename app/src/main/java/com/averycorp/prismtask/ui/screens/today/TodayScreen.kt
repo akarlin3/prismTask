@@ -98,6 +98,8 @@ import com.averycorp.prismtask.data.local.entity.TagEntity
 import com.averycorp.prismtask.data.local.entity.TaskEntity
 import com.averycorp.prismtask.data.repository.HabitWithStatus
 import androidx.compose.material3.AlertDialog
+import com.averycorp.prismtask.data.billing.UserTier
+import com.averycorp.prismtask.ui.components.EnergyCheckInCard
 import com.averycorp.prismtask.ui.components.MoveToProjectSheet
 import com.averycorp.prismtask.ui.components.HabitChipRowSkeleton
 import com.averycorp.prismtask.ui.components.ProgressHeaderSkeleton
@@ -105,8 +107,11 @@ import com.averycorp.prismtask.ui.components.RichEmptyState
 import com.averycorp.prismtask.ui.components.TaskListSkeleton
 import com.averycorp.prismtask.ui.components.QuickAddBar
 import com.averycorp.prismtask.ui.components.QuickReschedulePopup
+import com.averycorp.prismtask.ui.components.UpgradePrompt
+import com.averycorp.prismtask.ui.components.WelcomeBackDialog
 import com.averycorp.prismtask.ui.navigation.PrismTaskRoute
 import com.averycorp.prismtask.ui.screens.addedittask.AddEditTaskSheetHost
+import com.averycorp.prismtask.ui.screens.coaching.CoachingViewModel
 import com.averycorp.prismtask.ui.theme.LocalPriorityColors
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
@@ -127,7 +132,8 @@ private const val SECTION_COMPLETED = "completed"
 @Composable
 fun TodayScreen(
     navController: NavController,
-    viewModel: TodayViewModel = hiltViewModel()
+    viewModel: TodayViewModel = hiltViewModel(),
+    coachingViewModel: CoachingViewModel = hiltViewModel()
 ) {
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
     val overdueTasks by viewModel.overdueTasks.collectAsStateWithLifecycle()
@@ -150,6 +156,29 @@ fun TodayScreen(
     val allHabitsCompleted by viewModel.allHabitsCompletedToday.collectAsStateWithLifecycle()
     val habitCompletedCount by viewModel.habitCompletedCount.collectAsStateWithLifecycle()
     val habitTotalCount by viewModel.habitTotalCount.collectAsStateWithLifecycle()
+
+    // AI Coaching state
+    val coachingUserTier by coachingViewModel.userTier.collectAsStateWithLifecycle()
+    val showEnergyCheckIn by coachingViewModel.showEnergyCheckIn.collectAsStateWithLifecycle()
+    val selectedEnergy by coachingViewModel.selectedEnergy.collectAsStateWithLifecycle()
+    val energyPlanMessage by coachingViewModel.energyPlanMessage.collectAsStateWithLifecycle()
+    val energyPlanLoading by coachingViewModel.energyPlanLoading.collectAsStateWithLifecycle()
+    val showWelcomeBack by coachingViewModel.showWelcomeBack.collectAsStateWithLifecycle()
+    val welcomeBackMessage by coachingViewModel.welcomeBackMessage.collectAsStateWithLifecycle()
+    val welcomeBackLoading by coachingViewModel.welcomeBackLoading.collectAsStateWithLifecycle()
+    val coachingUpgradePrompt by coachingViewModel.showUpgradePrompt.collectAsStateWithLifecycle()
+
+    // Trigger coaching checks once loading is done
+    LaunchedEffect(isLoading) {
+        if (!isLoading) {
+            val todayCount = todayTasks.size + plannedTasks.size
+            coachingViewModel.checkEnergyCheckIn(todayCount)
+            coachingViewModel.checkWelcomeBack(
+                overdueCount = overdueTasks.size,
+                recentCompletions = completedToday.size
+            )
+        }
+    }
 
     val progressStyle by viewModel.progressStyle.collectAsStateWithLifecycle()
     val totalForHeader = combinedTotal
@@ -237,6 +266,33 @@ fun TodayScreen(
                         habitCount = habitCompletedCount,
                         habitTotal = habitTotalCount,
                         onPlanTomorrow = { viewModel.onShowPlanSheet() }
+                    )
+                }
+            }
+
+            // AI Energy check-in card (Premium: functional, Pro: upgrade prompt)
+            if (showEnergyCheckIn) {
+                item(key = "energy_checkin") {
+                    EnergyCheckInCard(
+                        visible = true,
+                        isLoading = energyPlanLoading,
+                        selectedEnergy = selectedEnergy,
+                        planMessage = energyPlanMessage,
+                        userTier = coachingUserTier,
+                        onSelectEnergy = { level ->
+                            coachingViewModel.onSelectEnergy(
+                                level = level,
+                                todayTasks = todayTasks + plannedTasks,
+                                overdueCount = overdueTasks.size,
+                                yesterdayCompleted = completedToday.size,
+                                yesterdayTotal = combinedTotal
+                            )
+                        },
+                        onDismiss = { coachingViewModel.dismissEnergyCheckIn() },
+                        onUpgrade = { tier ->
+                            // Navigate to billing / upgrade
+                            navController.navigate(PrismTaskRoute.Settings.route)
+                        }
                     )
                 }
             }
@@ -621,6 +677,41 @@ fun TodayScreen(
                 }) { Text("No, Just This") }
             }
         )
+    }
+
+    // AI Welcome-back dialog (Premium only, after 3+ day absence)
+    if (showWelcomeBack) {
+        WelcomeBackDialog(
+            isLoading = welcomeBackLoading,
+            message = welcomeBackMessage,
+            onDismiss = { coachingViewModel.dismissWelcomeBack() },
+            onStartFresh = {
+                coachingViewModel.dismissWelcomeBack()
+                viewModel.onPlanAllOverdue()
+            }
+        )
+    }
+
+    // AI Coaching upgrade prompt
+    coachingUpgradePrompt?.let { requiredTier ->
+        AlertDialog(
+            onDismissRequest = { coachingViewModel.dismissUpgradePrompt() }
+        ) {
+            UpgradePrompt(
+                currentTier = coachingUserTier,
+                requiredTier = requiredTier,
+                feature = if (requiredTier == UserTier.PREMIUM) "AI Daily Planning" else "AI Coaching",
+                description = if (requiredTier == UserTier.PREMIUM)
+                    "AI-powered daily planning that adapts to your energy"
+                else
+                    "Get personalized help when you're stuck on a task",
+                onUpgrade = { tier ->
+                    coachingViewModel.dismissUpgradePrompt()
+                    navController.navigate(PrismTaskRoute.Settings.route)
+                },
+                onDismiss = { coachingViewModel.dismissUpgradePrompt() }
+            )
+        }
     }
 }
 
