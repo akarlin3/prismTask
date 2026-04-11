@@ -169,6 +169,7 @@ fun TaskListScreen(
     viewModel: TaskListViewModel = hiltViewModel()
 ) {
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
+    val swipePrefs by viewModel.swipePrefs.collectAsStateWithLifecycle()
     val filteredTasks by viewModel.filteredTasks.collectAsStateWithLifecycle()
     val groupedTasks by viewModel.groupedTasks.collectAsStateWithLifecycle()
     val tasksByProject by viewModel.tasksByProject.collectAsStateWithLifecycle()
@@ -1091,19 +1092,23 @@ private fun androidx.compose.foundation.lazy.LazyListScope.taskItemWithSubtasks(
             val tomorrowBlue = Color(0xFF5C8CC7)
             val dismissState = rememberSwipeToDismissBoxState(
                 confirmValueChange = { value ->
-                    when (value) {
-                        SwipeToDismissBoxValue.StartToEnd -> {
-                            haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
-                            viewModel.onCompleteTaskWithUndo(task.id)
-                            true
-                        }
-                        SwipeToDismissBoxValue.EndToStart -> {
-                            haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
-                            viewModel.onMoveToTomorrow(task.id)
-                            true
-                        }
-                        SwipeToDismissBoxValue.Settled -> false
+                    val action = when (value) {
+                        SwipeToDismissBoxValue.StartToEnd -> swipePrefs.right
+                        SwipeToDismissBoxValue.EndToStart -> swipePrefs.left
+                        SwipeToDismissBoxValue.Settled -> com.averycorp.prismtask.domain.model.SwipeAction.NONE
                     }
+                    if (action == com.averycorp.prismtask.domain.model.SwipeAction.NONE) return@rememberSwipeToDismissBoxState false
+                    haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                    com.averycorp.prismtask.ui.components.dispatchSwipeAction(
+                        action = action,
+                        taskId = task.id,
+                        onComplete = { viewModel.onCompleteTaskWithUndo(it) },
+                        onDelete = { viewModel.onDeleteTaskWithUndo(it) },
+                        onReschedule = { viewModel.onMoveToTomorrow(it) },
+                        onArchive = { viewModel.onArchiveTask(it) },
+                        onMoveToProject = { /* project picker is a larger lift — fall through to move-to-tomorrow for now */ viewModel.onMoveToTomorrow(it) },
+                        onToggleFlag = { viewModel.onToggleFlag(it) }
+                    )
                 }
             )
 
@@ -1117,16 +1122,14 @@ private fun androidx.compose.foundation.lazy.LazyListScope.taskItemWithSubtasks(
                 state = dismissState,
                 backgroundContent = {
                     val direction = dismissState.dismissDirection
-                    val backgroundColor = when (direction) {
-                        SwipeToDismissBoxValue.StartToEnd -> Color(0xFF4CAF50)
-                        SwipeToDismissBoxValue.EndToStart -> tomorrowBlue
-                        else -> Color.Transparent
+                    val action = when (direction) {
+                        SwipeToDismissBoxValue.StartToEnd -> swipePrefs.right
+                        SwipeToDismissBoxValue.EndToStart -> swipePrefs.left
+                        else -> com.averycorp.prismtask.domain.model.SwipeAction.NONE
                     }
-                    val icon = when (direction) {
-                        SwipeToDismissBoxValue.StartToEnd -> Icons.Default.Check
-                        SwipeToDismissBoxValue.EndToStart -> Icons.AutoMirrored.Filled.ArrowForward
-                        else -> Icons.Default.Check
-                    }
+                    val style = com.averycorp.prismtask.ui.components.swipeActionStyle(action)
+                    val backgroundColor = style.backgroundColor
+                    val icon = style.icon ?: Icons.Default.Check
                     val alignment = when (direction) {
                         SwipeToDismissBoxValue.StartToEnd -> Alignment.CenterStart
                         else -> Alignment.CenterEnd
@@ -1140,10 +1143,10 @@ private fun androidx.compose.foundation.lazy.LazyListScope.taskItemWithSubtasks(
                             .padding(horizontal = 20.dp),
                         contentAlignment = alignment
                     ) {
-                        if (direction == SwipeToDismissBoxValue.EndToStart) {
+                        if (direction == SwipeToDismissBoxValue.EndToStart && style.label.isNotEmpty()) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
-                                    text = "Tomorrow",
+                                    text = style.label,
                                     color = Color.White,
                                     style = MaterialTheme.typography.labelMedium,
                                     fontWeight = FontWeight.SemiBold

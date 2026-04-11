@@ -98,5 +98,8 @@ data class TaskEntity(
     val eisenhowerReason: String? = null,
 
     @ColumnInfo(name = "sort_order")
-    val sortOrder: Int = 0
+    val sortOrder: Int = 0,
+
+    @ColumnInfo(name = "is_flagged", defaultValue = "0")
+    val isFlagged: Boolean = false
 )

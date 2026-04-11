@@ -8,14 +8,17 @@ data class TaskFilter(
     val dateRange: DateRange? = null,
     val showCompleted: Boolean = false,
     val showArchived: Boolean = false,
-    val searchQuery: String = ""
+    val searchQuery: String = "",
+    val showFlaggedOnly: Boolean = false
 ) {
     fun isActive(): Boolean = selectedTagIds.isNotEmpty() || selectedPriorities.isNotEmpty() ||
-        selectedProjectIds.isNotEmpty() || dateRange != null || showCompleted || showArchived || searchQuery.isNotBlank()
+        selectedProjectIds.isNotEmpty() || dateRange != null || showCompleted || showArchived ||
+        searchQuery.isNotBlank() || showFlaggedOnly
 
     fun activeFilterCount(): Int = listOf(
         selectedTagIds.isNotEmpty(), selectedPriorities.isNotEmpty(),
-        selectedProjectIds.isNotEmpty(), dateRange != null, showCompleted, showArchived, searchQuery.isNotBlank()
+        selectedProjectIds.isNotEmpty(), dateRange != null, showCompleted, showArchived,
+        searchQuery.isNotBlank(), showFlaggedOnly
     ).count { it }
 }
 

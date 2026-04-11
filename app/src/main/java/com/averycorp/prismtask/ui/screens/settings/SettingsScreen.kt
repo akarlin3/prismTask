@@ -38,6 +38,8 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import com.averycorp.prismtask.ui.components.CircularCheckbox
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
@@ -140,6 +142,10 @@ fun SettingsScreen(
     val priorityColorMedium by viewModel.priorityColorMedium.collectAsStateWithLifecycle()
     val priorityColorHigh by viewModel.priorityColorHigh.collectAsStateWithLifecycle()
     val priorityColorUrgent by viewModel.priorityColorUrgent.collectAsStateWithLifecycle()
+    val appearancePrefs by viewModel.appearancePrefs.collectAsStateWithLifecycle()
+    val swipePrefs by viewModel.swipePrefs.collectAsStateWithLifecycle()
+    val recentCustomColors by viewModel.recentCustomColors.collectAsStateWithLifecycle()
+    var showCustomAccentPicker by remember { mutableStateOf(false) }
     val autoArchiveDays by viewModel.autoArchiveDays.collectAsStateWithLifecycle()
     val claudeApiKey by viewModel.claudeApiKey.collectAsStateWithLifecycle()
     val archivedCount by viewModel.archivedCount.collectAsStateWithLifecycle()
@@ -609,6 +615,81 @@ fun SettingsScreen(
                         }
                     }
                 }
+                // "Custom" rainbow-gradient circle that opens the picker
+                val isCustomSelected = !accentColors.any { accentColor.equals(it, ignoreCase = true) }
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(
+                            brush = androidx.compose.ui.graphics.Brush.sweepGradient(
+                                listOf(
+                                    Color(0xFFFF0000), Color(0xFFFFFF00), Color(0xFF00FF00),
+                                    Color(0xFF00FFFF), Color(0xFF0000FF), Color(0xFFFF00FF),
+                                    Color(0xFFFF0000)
+                                )
+                            )
+                        )
+                        .then(
+                            if (isCustomSelected) Modifier.border(2.dp, MaterialTheme.colorScheme.onSurface, CircleShape)
+                            else Modifier
+                        )
+                        .clickable { showCustomAccentPicker = true },
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (isCustomSelected) {
+                        Icon(
+                            Icons.Default.Check,
+                            contentDescription = "Custom color selected",
+                            tint = Color.White,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+            }
+
+            // Recent custom colors row
+            if (recentCustomColors.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = "Recent Custom Colors",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 4.dp)
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    recentCustomColors.forEach { hex ->
+                        val color = try { Color(android.graphics.Color.parseColor(hex)) } catch (_: Exception) { Color.Gray }
+                        val isSelected = accentColor.equals(hex, ignoreCase = true)
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(CircleShape)
+                                .background(color)
+                                .then(
+                                    if (isSelected) Modifier.border(2.dp, MaterialTheme.colorScheme.onSurface, CircleShape)
+                                    else Modifier
+                                )
+                                .clickable { viewModel.setCustomAccentColor(hex) }
+                        )
+                    }
+                }
+            }
+
+            if (showCustomAccentPicker) {
+                ColorPickerDialog(
+                    title = "Custom Accent Color",
+                    currentHex = if (accentColors.any { accentColor.equals(it, ignoreCase = true) }) "" else accentColor,
+                    onSelect = { hex ->
+                        viewModel.setCustomAccentColor(hex)
+                        showCustomAccentPicker = false
+                    },
+                    onClear = {
+                        viewModel.setAccentColor("#2563EB")
+                        showCustomAccentPicker = false
+                    },
+                    onDismiss = { showCustomAccentPicker = false }
+                )
             }
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -660,6 +741,181 @@ fun SettingsScreen(
                     Spacer(modifier = Modifier.height(8.dp))
                     TextButton(onClick = { viewModel.resetColorOverrides() }) {
                         Text("Reset All Color Overrides", color = MaterialTheme.colorScheme.error)
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+            HorizontalDivider()
+
+            // ========== DISPLAY ==========
+            SectionHeader("Display")
+
+            SettingsToggleRow(
+                title = "Compact Mode",
+                subtitle = "Reduce vertical padding throughout the app",
+                checked = appearancePrefs.compactMode,
+                onCheckedChange = { viewModel.setCompactMode(it) }
+            )
+
+            SettingsToggleRow(
+                title = "Card Borders",
+                subtitle = "Show outlines around task and project cards",
+                checked = appearancePrefs.showTaskCardBorders,
+                onCheckedChange = { viewModel.setShowCardBorders(it) }
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "Card Corner Radius: ${appearancePrefs.cardCornerRadius}dp",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.padding(horizontal = 16.dp)
+            )
+            Slider(
+                value = appearancePrefs.cardCornerRadius.toFloat(),
+                onValueChange = { viewModel.setCardCornerRadius(it.toInt()) },
+                valueRange = 0f..24f,
+                steps = 23,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+            )
+
+            // Live preview card
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                shape = RoundedCornerShape(appearancePrefs.cardCornerRadius.dp),
+                border = if (appearancePrefs.showTaskCardBorders)
+                    androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
+                else null
+            ) {
+                Column(
+                    modifier = Modifier.padding(
+                        horizontal = 16.dp,
+                        vertical = if (appearancePrefs.compactMode) 8.dp else 16.dp
+                    )
+                ) {
+                    Text(
+                        "Sample Task",
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    if (!appearancePrefs.compactMode) {
+                        Spacer(Modifier.height(4.dp))
+                    }
+                    Text(
+                        "Preview of your card styling",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+            HorizontalDivider()
+
+            // ========== SWIPE ACTIONS ==========
+            SectionHeader("Swipe Actions")
+
+            Text(
+                text = "Customize what happens when you swipe a task card.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(bottom = 12.dp)
+            )
+
+            val swipeActionOptions = listOf(
+                com.averycorp.prismtask.domain.model.SwipeAction.COMPLETE to "Complete",
+                com.averycorp.prismtask.domain.model.SwipeAction.DELETE to "Delete",
+                com.averycorp.prismtask.domain.model.SwipeAction.RESCHEDULE to "Reschedule",
+                com.averycorp.prismtask.domain.model.SwipeAction.ARCHIVE to "Archive",
+                com.averycorp.prismtask.domain.model.SwipeAction.MOVE_TO_PROJECT to "Move to Project",
+                com.averycorp.prismtask.domain.model.SwipeAction.FLAG to "Flag",
+                com.averycorp.prismtask.domain.model.SwipeAction.NONE to "None (disabled)"
+            )
+
+            var swipeRightExpanded by remember { mutableStateOf(false) }
+            var swipeLeftExpanded by remember { mutableStateOf(false) }
+
+            Box(modifier = Modifier.fillMaxWidth()) {
+                OutlinedButton(
+                    onClick = { swipeRightExpanded = true },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    val style = com.averycorp.prismtask.ui.components.swipeActionStyle(swipePrefs.right)
+                    Box(
+                        modifier = Modifier
+                            .size(16.dp)
+                            .clip(CircleShape)
+                            .background(style.backgroundColor)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text("Swipe Right: ${swipeActionOptions.first { it.first == swipePrefs.right }.second}")
+                }
+                DropdownMenu(
+                    expanded = swipeRightExpanded,
+                    onDismissRequest = { swipeRightExpanded = false }
+                ) {
+                    swipeActionOptions.forEach { (action, label) ->
+                        DropdownMenuItem(
+                            text = { Text(label) },
+                            leadingIcon = {
+                                Box(
+                                    modifier = Modifier
+                                        .size(16.dp)
+                                        .clip(CircleShape)
+                                        .background(com.averycorp.prismtask.ui.components.swipeActionStyle(action).backgroundColor)
+                                )
+                            },
+                            onClick = {
+                                viewModel.setSwipeRight(action)
+                                swipeRightExpanded = false
+                            }
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Box(modifier = Modifier.fillMaxWidth()) {
+                OutlinedButton(
+                    onClick = { swipeLeftExpanded = true },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    val style = com.averycorp.prismtask.ui.components.swipeActionStyle(swipePrefs.left)
+                    Box(
+                        modifier = Modifier
+                            .size(16.dp)
+                            .clip(CircleShape)
+                            .background(style.backgroundColor)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text("Swipe Left: ${swipeActionOptions.first { it.first == swipePrefs.left }.second}")
+                }
+                DropdownMenu(
+                    expanded = swipeLeftExpanded,
+                    onDismissRequest = { swipeLeftExpanded = false }
+                ) {
+                    swipeActionOptions.forEach { (action, label) ->
+                        DropdownMenuItem(
+                            text = { Text(label) },
+                            leadingIcon = {
+                                Box(
+                                    modifier = Modifier
+                                        .size(16.dp)
+                                        .clip(CircleShape)
+                                        .background(com.averycorp.prismtask.ui.components.swipeActionStyle(action).backgroundColor)
+                                )
+                            },
+                            onClick = {
+                                viewModel.setSwipeLeft(action)
+                                swipeLeftExpanded = false
+                            }
+                        )
                     }
                 }
             }
@@ -916,9 +1172,30 @@ fun SettingsScreen(
                     WeightSlider("Task Age", localAge) { localAge = it; normalizeAndSave() }
                     WeightSlider("Subtasks", localSubtasks) { localSubtasks = it; normalizeAndSave() }
 
+                    // Live preview: three sample tasks with scores that update as sliders move
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = "Preview",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(bottom = 4.dp)
+                    )
+                    val previewWeights = com.averycorp.prismtask.data.preferences.UrgencyWeights(
+                        dueDate = localDueDate,
+                        priority = localPriority,
+                        age = localAge,
+                        subtasks = localSubtasks
+                    )
+                    UrgencyPreviewSamples(weights = previewWeights)
+
                     Spacer(modifier = Modifier.height(8.dp))
+                    TextButton(onClick = {
+                        viewModel.setUrgencyWeights(com.averycorp.prismtask.data.preferences.UrgencyWeights())
+                    }) {
+                        Text("Reset Urgency Weights to Defaults", color = MaterialTheme.colorScheme.error)
+                    }
                     TextButton(onClick = { viewModel.resetTaskBehaviorDefaults() }) {
-                        Text("Reset Task Defaults", color = MaterialTheme.colorScheme.error)
+                        Text("Reset All Task Defaults", color = MaterialTheme.colorScheme.error)
                     }
                 }
             }
@@ -2268,6 +2545,75 @@ private fun ModeToggleRow(label: String, enabled: Boolean, onToggle: (Boolean) -
             checked = enabled,
             onCheckedChange = onToggle
         )
+    }
+}
+
+@Composable
+private fun UrgencyPreviewSamples(weights: com.averycorp.prismtask.data.preferences.UrgencyWeights) {
+    val now = System.currentTimeMillis()
+    val day = 24L * 60 * 60 * 1000
+    val samples = listOf(
+        Triple(
+            "Overdue report",
+            com.averycorp.prismtask.data.local.entity.TaskEntity(
+                id = 1, title = "Overdue report", priority = 3,
+                dueDate = now - day, createdAt = now - 3 * day
+            ),
+            0 to 0
+        ),
+        Triple(
+            "New idea",
+            com.averycorp.prismtask.data.local.entity.TaskEntity(
+                id = 2, title = "New idea", priority = 1,
+                dueDate = now + 7 * day, createdAt = now
+            ),
+            0 to 0
+        ),
+        Triple(
+            "Big project",
+            com.averycorp.prismtask.data.local.entity.TaskEntity(
+                id = 3, title = "Big project", priority = 2,
+                dueDate = now + 2 * day, createdAt = now - 14 * day
+            ),
+            5 to 2
+        )
+    )
+    Column {
+        samples.forEach { (label, task, subtasks) ->
+            val score = com.averycorp.prismtask.domain.usecase.UrgencyScorer.calculateScore(
+                task = task,
+                subtaskCount = subtasks.first,
+                subtaskCompleted = subtasks.second,
+                weights = weights
+            )
+            val level = com.averycorp.prismtask.domain.usecase.UrgencyScorer.getUrgencyLevel(score)
+            val indicatorColor = when (level) {
+                com.averycorp.prismtask.domain.usecase.UrgencyLevel.CRITICAL -> Color(0xFFE53935)
+                com.averycorp.prismtask.domain.usecase.UrgencyLevel.HIGH -> Color(0xFFFB8C00)
+                com.averycorp.prismtask.domain.usecase.UrgencyLevel.MEDIUM -> Color(0xFFFDD835)
+                com.averycorp.prismtask.domain.usecase.UrgencyLevel.LOW -> Color(0xFF43A047)
+            }
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(10.dp)
+                        .clip(CircleShape)
+                        .background(indicatorColor)
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(label, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
+                Text(
+                    String.format("%.2f", score),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
     }
 }
 

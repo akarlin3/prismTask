@@ -254,6 +254,25 @@ class TaskRepository @Inject constructor(
         taskDao.permanentlyDelete(id)
     }
 
+    /**
+     * Toggles the flagged state of a task. Returns the new flagged state, or null
+     * if the task could not be found.
+     */
+    suspend fun toggleFlag(id: Long): Boolean? {
+        val task = taskDao.getTaskByIdOnce(id) ?: return null
+        val updated = task.copy(isFlagged = !task.isFlagged, updatedAt = System.currentTimeMillis())
+        taskDao.update(updated)
+        syncTracker.trackUpdate(id, "task")
+        return updated.isFlagged
+    }
+
+    suspend fun setFlag(id: Long, flagged: Boolean) {
+        val task = taskDao.getTaskByIdOnce(id) ?: return
+        if (task.isFlagged == flagged) return
+        taskDao.update(task.copy(isFlagged = flagged, updatedAt = System.currentTimeMillis()))
+        syncTracker.trackUpdate(id, "task")
+    }
+
     fun searchArchivedTasks(query: String): Flow<List<TaskEntity>> =
         taskDao.searchArchivedTasks(query)
 

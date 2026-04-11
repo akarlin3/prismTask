@@ -21,6 +21,16 @@ class TaskFilterTest {
     }
 
     @Test
+    fun withFlaggedOnly_isActive() {
+        assertTrue(TaskFilter(showFlaggedOnly = true).isActive())
+    }
+
+    @Test
+    fun withFlaggedOnly_contributesToActiveFilterCount() {
+        assertEquals(1, TaskFilter(showFlaggedOnly = true).activeFilterCount())
+    }
+
+    @Test
     fun withTags_isActive() {
         assertTrue(TaskFilter(selectedTagIds = listOf(1L)).isActive())
     }

@@ -73,8 +73,21 @@ class TaskListViewModel @Inject constructor(
     private val attachmentRepository: AttachmentRepository,
     private val todoListParser: TodoListParser,
     private val taskBehaviorPreferences: TaskBehaviorPreferences,
-    private val sortPreferences: SortPreferences
+    private val sortPreferences: SortPreferences,
+    private val userPreferencesDataStore: com.averycorp.prismtask.data.preferences.UserPreferencesDataStore
 ) : ViewModel() {
+
+    val swipePrefs: StateFlow<com.averycorp.prismtask.data.preferences.SwipePrefs> =
+        userPreferencesDataStore.swipeFlow
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), com.averycorp.prismtask.data.preferences.SwipePrefs())
+
+    fun onToggleFlag(taskId: Long) {
+        viewModelScope.launch { taskRepository.toggleFlag(taskId) }
+    }
+
+    fun onArchiveTask(taskId: Long) {
+        viewModelScope.launch { taskRepository.archiveTask(taskId) }
+    }
 
     val snackbarHostState = SnackbarHostState()
 
@@ -608,6 +621,9 @@ class TaskListViewModel @Inject constructor(
                 val descMatch = task.description?.lowercase()?.contains(q) == true
                 if (!titleMatch && !descMatch) return@filter false
             }
+
+            // Flagged-only filter (v1.3.0 P4)
+            if (filter.showFlaggedOnly && !task.isFlagged) return@filter false
 
             true
         }

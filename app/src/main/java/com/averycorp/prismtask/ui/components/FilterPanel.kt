@@ -252,6 +252,14 @@ fun FilterPanel(
             Spacer(modifier = Modifier.width(8.dp))
             Text("Show Archived")
         }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            CircularCheckbox(
+                checked = workingFilter.showFlaggedOnly,
+                onCheckedChange = { workingFilter = workingFilter.copy(showFlaggedOnly = it) }
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("Flagged Only")
+        }
 
         Spacer(modifier = Modifier.height(16.dp))
 

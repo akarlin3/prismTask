@@ -101,8 +101,58 @@ class SettingsViewModel @Inject constructor(
     private val calendarSyncPreferences: CalendarSyncPreferences,
     private val billingManager: BillingManager,
     private val voicePreferences: VoicePreferences,
-    private val a11yPreferences: A11yPreferences
+    private val a11yPreferences: A11yPreferences,
+    private val userPreferencesDataStore: com.averycorp.prismtask.data.preferences.UserPreferencesDataStore
 ) : ViewModel() {
+
+    // --- v1.3.0 User Preferences ---
+    val appearancePrefs: StateFlow<com.averycorp.prismtask.data.preferences.AppearancePrefs> =
+        userPreferencesDataStore.appearanceFlow
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), com.averycorp.prismtask.data.preferences.AppearancePrefs())
+
+    val swipePrefs: StateFlow<com.averycorp.prismtask.data.preferences.SwipePrefs> =
+        userPreferencesDataStore.swipeFlow
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), com.averycorp.prismtask.data.preferences.SwipePrefs())
+
+    val taskDefaultPrefs: StateFlow<com.averycorp.prismtask.data.preferences.TaskDefaults> =
+        userPreferencesDataStore.taskDefaultsFlow
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), com.averycorp.prismtask.data.preferences.TaskDefaults())
+
+    val quickAddPrefs: StateFlow<com.averycorp.prismtask.data.preferences.QuickAddPrefs> =
+        userPreferencesDataStore.quickAddFlow
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), com.averycorp.prismtask.data.preferences.QuickAddPrefs())
+
+    fun setCompactMode(enabled: Boolean) {
+        viewModelScope.launch { userPreferencesDataStore.setCompactMode(enabled) }
+    }
+
+    fun setShowCardBorders(enabled: Boolean) {
+        viewModelScope.launch { userPreferencesDataStore.setShowCardBorders(enabled) }
+    }
+
+    fun setCardCornerRadius(radius: Int) {
+        viewModelScope.launch { userPreferencesDataStore.setCardCornerRadius(radius) }
+    }
+
+    fun setSwipeRight(action: com.averycorp.prismtask.domain.model.SwipeAction) {
+        viewModelScope.launch { userPreferencesDataStore.setSwipeRight(action) }
+    }
+
+    fun setSwipeLeft(action: com.averycorp.prismtask.domain.model.SwipeAction) {
+        viewModelScope.launch { userPreferencesDataStore.setSwipeLeft(action) }
+    }
+
+    fun setTaskDefaults(defaults: com.averycorp.prismtask.data.preferences.TaskDefaults) {
+        viewModelScope.launch { userPreferencesDataStore.setTaskDefaults(defaults) }
+    }
+
+    fun setSmartDefaultsEnabled(enabled: Boolean) {
+        viewModelScope.launch { userPreferencesDataStore.setSmartDefaultsEnabled(enabled) }
+    }
+
+    fun setQuickAddPrefs(prefs: com.averycorp.prismtask.data.preferences.QuickAddPrefs) {
+        viewModelScope.launch { userPreferencesDataStore.setQuickAdd(prefs) }
+    }
 
     // --- Voice Input ---
     val voiceInputEnabled: StateFlow<Boolean> = voicePreferences.getVoiceInputEnabled()
@@ -176,6 +226,9 @@ class SettingsViewModel @Inject constructor(
 
     val accentColor: StateFlow<String> = themePreferences.getAccentColor()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "#2563EB")
+
+    val recentCustomColors: StateFlow<List<String>> = themePreferences.getRecentCustomColors()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val backgroundColor: StateFlow<String> = themePreferences.getBackgroundColor()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "")
@@ -509,6 +562,19 @@ class SettingsViewModel @Inject constructor(
 
     fun setAccentColor(hex: String) {
         viewModelScope.launch { themePreferences.setAccentColor(hex) }
+    }
+
+    /**
+     * Sets the accent color to [hex] and records it in the recent-custom-colors list.
+     * Intended for custom picks (not preset taps).
+     */
+    fun setCustomAccentColor(hex: String) {
+        viewModelScope.launch {
+            if (ThemePreferences.isValidHex(hex)) {
+                themePreferences.setAccentColor(hex)
+                themePreferences.addRecentCustomColor(hex)
+            }
+        }
     }
 
     fun setBackgroundColor(hex: String) {

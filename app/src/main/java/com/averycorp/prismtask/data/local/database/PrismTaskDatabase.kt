@@ -9,6 +9,11 @@ import com.averycorp.prismtask.data.local.dao.CalendarSyncDao
 import com.averycorp.prismtask.data.local.dao.HabitCompletionDao
 import com.averycorp.prismtask.data.local.dao.HabitDao
 import com.averycorp.prismtask.data.local.dao.HabitLogDao
+import com.averycorp.prismtask.data.local.dao.HabitTemplateDao
+import com.averycorp.prismtask.data.local.dao.NlpShortcutDao
+import com.averycorp.prismtask.data.local.dao.ProjectTemplateDao
+import com.averycorp.prismtask.data.local.dao.ReminderProfileDao
+import com.averycorp.prismtask.data.local.dao.SavedFilterDao
 import com.averycorp.prismtask.data.local.dao.LeisureDao
 import com.averycorp.prismtask.data.local.dao.ProjectDao
 import com.averycorp.prismtask.data.local.dao.SchoolworkDao
@@ -24,9 +29,14 @@ import com.averycorp.prismtask.data.local.entity.CourseCompletionEntity
 import com.averycorp.prismtask.data.local.entity.HabitCompletionEntity
 import com.averycorp.prismtask.data.local.entity.HabitEntity
 import com.averycorp.prismtask.data.local.entity.HabitLogEntity
+import com.averycorp.prismtask.data.local.entity.HabitTemplateEntity
+import com.averycorp.prismtask.data.local.entity.ProjectTemplateEntity
 import com.averycorp.prismtask.data.local.entity.AssignmentEntity
 import com.averycorp.prismtask.data.local.entity.CourseEntity
 import com.averycorp.prismtask.data.local.entity.LeisureLogEntity
+import com.averycorp.prismtask.data.local.entity.NlpShortcutEntity
+import com.averycorp.prismtask.data.local.entity.ReminderProfileEntity
+import com.averycorp.prismtask.data.local.entity.SavedFilterEntity
 import com.averycorp.prismtask.data.local.entity.ProjectEntity
 import com.averycorp.prismtask.data.local.entity.SelfCareLogEntity
 import com.averycorp.prismtask.data.local.entity.SelfCareStepEntity
@@ -39,8 +49,8 @@ import com.averycorp.prismtask.data.local.entity.TaskTemplateEntity
 import com.averycorp.prismtask.data.local.entity.UsageLogEntity
 
 @Database(
-    entities = [TaskEntity::class, ProjectEntity::class, TagEntity::class, TaskTagCrossRef::class, AttachmentEntity::class, UsageLogEntity::class, SyncMetadataEntity::class, CalendarSyncEntity::class, HabitEntity::class, HabitCompletionEntity::class, HabitLogEntity::class, LeisureLogEntity::class, CourseEntity::class, AssignmentEntity::class, StudyLogEntity::class, CourseCompletionEntity::class, SelfCareLogEntity::class, SelfCareStepEntity::class, TaskTemplateEntity::class],
-    version = 27,
+    entities = [TaskEntity::class, ProjectEntity::class, TagEntity::class, TaskTagCrossRef::class, AttachmentEntity::class, UsageLogEntity::class, SyncMetadataEntity::class, CalendarSyncEntity::class, HabitEntity::class, HabitCompletionEntity::class, HabitLogEntity::class, LeisureLogEntity::class, CourseEntity::class, AssignmentEntity::class, StudyLogEntity::class, CourseCompletionEntity::class, SelfCareLogEntity::class, SelfCareStepEntity::class, TaskTemplateEntity::class, NlpShortcutEntity::class, SavedFilterEntity::class, ReminderProfileEntity::class, ProjectTemplateEntity::class, HabitTemplateEntity::class],
+    version = 32,
     exportSchema = false
 )
 abstract class PrismTaskDatabase : RoomDatabase() {
@@ -58,6 +68,11 @@ abstract class PrismTaskDatabase : RoomDatabase() {
     abstract fun schoolworkDao(): SchoolworkDao
     abstract fun selfCareDao(): SelfCareDao
     abstract fun taskTemplateDao(): TaskTemplateDao
+    abstract fun nlpShortcutDao(): NlpShortcutDao
+    abstract fun savedFilterDao(): SavedFilterDao
+    abstract fun reminderProfileDao(): ReminderProfileDao
+    abstract fun projectTemplateDao(): ProjectTemplateDao
+    abstract fun habitTemplateDao(): HabitTemplateDao
 
     companion object {
         val MIGRATION_1_2 = object : Migration(1, 2) {
@@ -429,6 +444,100 @@ abstract class PrismTaskDatabase : RoomDatabase() {
         val MIGRATION_26_27 = object : Migration(26, 27) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE habits ADD COLUMN show_streak INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
+        // v1.3.0 P4: add is_flagged column to tasks (default 0)
+        val MIGRATION_27_28 = object : Migration(27, 28) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE tasks ADD COLUMN is_flagged INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
+        // v1.3.0 P7: add nlp_shortcuts table
+        val MIGRATION_28_29 = object : Migration(28, 29) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """CREATE TABLE IF NOT EXISTS `nlp_shortcuts` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `trigger` TEXT NOT NULL,
+                        `expansion` TEXT NOT NULL,
+                        `sort_order` INTEGER NOT NULL DEFAULT 0,
+                        `created_at` INTEGER NOT NULL
+                    )"""
+                )
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_nlp_shortcuts_trigger` ON `nlp_shortcuts` (`trigger`)")
+            }
+        }
+
+        // v1.3.0 P8: add saved_filters table
+        val MIGRATION_29_30 = object : Migration(29, 30) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """CREATE TABLE IF NOT EXISTS `saved_filters` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `name` TEXT NOT NULL,
+                        `filter_json` TEXT NOT NULL,
+                        `icon_emoji` TEXT,
+                        `sort_order` INTEGER NOT NULL DEFAULT 0,
+                        `created_at` INTEGER NOT NULL
+                    )"""
+                )
+            }
+        }
+
+        // v1.3.0 P14: add reminder_profiles table
+        val MIGRATION_30_31 = object : Migration(30, 31) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """CREATE TABLE IF NOT EXISTS `reminder_profiles` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `name` TEXT NOT NULL,
+                        `offsets_csv` TEXT NOT NULL,
+                        `escalation` INTEGER NOT NULL DEFAULT 0,
+                        `escalation_interval_minutes` INTEGER,
+                        `is_built_in` INTEGER NOT NULL DEFAULT 0,
+                        `created_at` INTEGER NOT NULL
+                    )"""
+                )
+            }
+        }
+
+        // v1.3.0 P15: add project_templates + habit_templates tables
+        val MIGRATION_31_32 = object : Migration(31, 32) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """CREATE TABLE IF NOT EXISTS `project_templates` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `name` TEXT NOT NULL,
+                        `description` TEXT,
+                        `color` TEXT,
+                        `icon_emoji` TEXT,
+                        `category` TEXT,
+                        `task_templates_json` TEXT NOT NULL,
+                        `is_built_in` INTEGER NOT NULL DEFAULT 0,
+                        `usage_count` INTEGER NOT NULL DEFAULT 0,
+                        `last_used_at` INTEGER,
+                        `created_at` INTEGER NOT NULL
+                    )"""
+                )
+                db.execSQL(
+                    """CREATE TABLE IF NOT EXISTS `habit_templates` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `name` TEXT NOT NULL,
+                        `description` TEXT,
+                        `icon_emoji` TEXT,
+                        `color` TEXT,
+                        `category` TEXT,
+                        `frequency` TEXT NOT NULL,
+                        `target_count` INTEGER NOT NULL DEFAULT 1,
+                        `active_days_csv` TEXT NOT NULL,
+                        `is_built_in` INTEGER NOT NULL DEFAULT 0,
+                        `usage_count` INTEGER NOT NULL DEFAULT 0,
+                        `last_used_at` INTEGER,
+                        `created_at` INTEGER NOT NULL
+                    )"""
+                )
             }
         }
 

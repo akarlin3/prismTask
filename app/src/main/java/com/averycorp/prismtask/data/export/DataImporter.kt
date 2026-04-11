@@ -97,7 +97,8 @@ class DataImporter @Inject constructor(
     private val calendarPreferences: CalendarPreferences,
     private val habitListPreferences: HabitListPreferences,
     private val leisurePreferences: LeisurePreferences,
-    private val medicationPreferences: MedicationPreferences
+    private val medicationPreferences: MedicationPreferences,
+    private val userPreferencesDataStore: com.averycorp.prismtask.data.preferences.UserPreferencesDataStore
 ) {
     private val gson = Gson()
 
@@ -587,6 +588,59 @@ class DataImporter @Inject constructor(
                         cal.get("enabled")?.takeIf { !it.isJsonNull }?.asBoolean?.let { calendarPreferences.setEnabled(it) }
                         cal.get("calendarId")?.takeIf { !it.isJsonNull }?.asLong?.let { calendarPreferences.setCalendarId(it) }
                         cal.get("calendarName")?.takeIf { !it.isJsonNull }?.asString?.let { calendarPreferences.setCalendarName(it) }
+                    }
+
+                    // User Preferences (v1.3.0 customizability)
+                    config.getAsJsonObject("userPreferences")?.let { userPrefs ->
+                        userPrefs.getAsJsonObject("appearance")?.let { a ->
+                            val current = userPreferencesDataStore.appearanceFlow.first()
+                            userPreferencesDataStore.setAppearance(
+                                com.averycorp.prismtask.data.preferences.AppearancePrefs(
+                                    compactMode = a.get("compactMode")?.takeIf { !it.isJsonNull }?.asBoolean ?: current.compactMode,
+                                    showTaskCardBorders = a.get("showTaskCardBorders")?.takeIf { !it.isJsonNull }?.asBoolean ?: current.showTaskCardBorders,
+                                    cardCornerRadius = a.get("cardCornerRadius")?.takeIf { !it.isJsonNull }?.asInt ?: current.cardCornerRadius
+                                )
+                            )
+                        }
+                        userPrefs.getAsJsonObject("swipe")?.let { s ->
+                            userPreferencesDataStore.setSwipe(
+                                com.averycorp.prismtask.data.preferences.SwipePrefs(
+                                    right = com.averycorp.prismtask.domain.model.SwipeAction.fromName(
+                                        s.get("right")?.takeIf { !it.isJsonNull }?.asString
+                                    ),
+                                    left = com.averycorp.prismtask.domain.model.SwipeAction.fromName(
+                                        s.get("left")?.takeIf { !it.isJsonNull }?.asString
+                                            ?: com.averycorp.prismtask.domain.model.SwipeAction.DELETE.name
+                                    )
+                                )
+                            )
+                        }
+                        userPrefs.getAsJsonObject("taskDefaults")?.let { d ->
+                            val current = userPreferencesDataStore.taskDefaultsFlow.first()
+                            userPreferencesDataStore.setTaskDefaults(
+                                com.averycorp.prismtask.data.preferences.TaskDefaults(
+                                    defaultPriority = d.get("defaultPriority")?.takeIf { !it.isJsonNull }?.asInt ?: current.defaultPriority,
+                                    defaultReminderOffset = d.get("defaultReminderOffset")?.takeIf { !it.isJsonNull }?.asLong ?: current.defaultReminderOffset,
+                                    defaultProjectId = d.get("defaultProjectId")?.takeIf { !it.isJsonNull }?.asLong ?: current.defaultProjectId,
+                                    startOfWeek = com.averycorp.prismtask.domain.model.StartOfWeek.fromName(
+                                        d.get("startOfWeek")?.takeIf { !it.isJsonNull }?.asString
+                                    ),
+                                    defaultDuration = d.get("defaultDuration")?.takeIf { !it.isJsonNull }?.asInt ?: current.defaultDuration,
+                                    autoSetDueDate = com.averycorp.prismtask.domain.model.AutoDueDate.fromName(
+                                        d.get("autoSetDueDate")?.takeIf { !it.isJsonNull }?.asString
+                                    ),
+                                    smartDefaultsEnabled = d.get("smartDefaultsEnabled")?.takeIf { !it.isJsonNull }?.asBoolean ?: current.smartDefaultsEnabled
+                                )
+                            )
+                        }
+                        userPrefs.getAsJsonObject("quickAdd")?.let { q ->
+                            userPreferencesDataStore.setQuickAdd(
+                                com.averycorp.prismtask.data.preferences.QuickAddPrefs(
+                                    showConfirmation = q.get("showConfirmation")?.takeIf { !it.isJsonNull }?.asBoolean ?: true,
+                                    autoAssignProject = q.get("autoAssignProject")?.takeIf { !it.isJsonNull }?.asBoolean ?: false
+                                )
+                            )
+                        }
                     }
 
                     configImported = true

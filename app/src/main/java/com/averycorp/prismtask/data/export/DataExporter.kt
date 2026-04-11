@@ -17,6 +17,7 @@ import com.averycorp.prismtask.data.preferences.MedicationPreferences
 import com.averycorp.prismtask.data.preferences.TabPreferences
 import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
 import com.averycorp.prismtask.data.preferences.ThemePreferences
+import com.averycorp.prismtask.data.preferences.UserPreferencesDataStore
 import com.google.gson.GsonBuilder
 import com.google.gson.JsonArray
 import com.google.gson.JsonObject
@@ -67,7 +68,8 @@ class DataExporter @Inject constructor(
     private val calendarPreferences: CalendarPreferences,
     private val habitListPreferences: HabitListPreferences,
     private val leisurePreferences: LeisurePreferences,
-    private val medicationPreferences: MedicationPreferences
+    private val medicationPreferences: MedicationPreferences,
+    private val userPreferencesDataStore: UserPreferencesDataStore
 ) {
     private val gson = GsonBuilder().serializeNulls().setPrettyPrinting().create()
 
@@ -238,6 +240,37 @@ class DataExporter @Inject constructor(
         calendar.addProperty("calendarId", calendarPreferences.getCalendarId().first())
         calendar.addProperty("calendarName", calendarPreferences.getCalendarName().first())
         config.add("calendar", calendar)
+
+        // User Preferences (v1.3.0 customizability)
+        val userPrefs = JsonObject()
+        val snapshot = userPreferencesDataStore.allFlow.first()
+        val appearance = JsonObject()
+        appearance.addProperty("compactMode", snapshot.appearance.compactMode)
+        appearance.addProperty("showTaskCardBorders", snapshot.appearance.showTaskCardBorders)
+        appearance.addProperty("cardCornerRadius", snapshot.appearance.cardCornerRadius)
+        userPrefs.add("appearance", appearance)
+        val swipe = JsonObject()
+        swipe.addProperty("right", snapshot.swipe.right.name)
+        swipe.addProperty("left", snapshot.swipe.left.name)
+        userPrefs.add("swipe", swipe)
+        val defaults = JsonObject()
+        defaults.addProperty("defaultPriority", snapshot.taskDefaults.defaultPriority)
+        defaults.addProperty("defaultReminderOffset", snapshot.taskDefaults.defaultReminderOffset)
+        if (snapshot.taskDefaults.defaultProjectId != null) {
+            defaults.addProperty("defaultProjectId", snapshot.taskDefaults.defaultProjectId)
+        }
+        defaults.addProperty("startOfWeek", snapshot.taskDefaults.startOfWeek.name)
+        if (snapshot.taskDefaults.defaultDuration != null) {
+            defaults.addProperty("defaultDuration", snapshot.taskDefaults.defaultDuration)
+        }
+        defaults.addProperty("autoSetDueDate", snapshot.taskDefaults.autoSetDueDate.name)
+        defaults.addProperty("smartDefaultsEnabled", snapshot.taskDefaults.smartDefaultsEnabled)
+        userPrefs.add("taskDefaults", defaults)
+        val quickAdd = JsonObject()
+        quickAdd.addProperty("showConfirmation", snapshot.quickAdd.showConfirmation)
+        quickAdd.addProperty("autoAssignProject", snapshot.quickAdd.autoAssignProject)
+        userPrefs.add("quickAdd", quickAdd)
+        config.add("userPreferences", userPrefs)
 
         root.add("config", config)
 

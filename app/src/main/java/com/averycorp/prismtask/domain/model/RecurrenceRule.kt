@@ -8,7 +8,29 @@ data class RecurrenceRule(
     val endDate: Long? = null,
     val maxOccurrences: Int? = null,
     val occurrenceCount: Int = 0,
-    val skipWeekends: Boolean = false
+    val skipWeekends: Boolean = false,
+
+    // v1.3.0 P13: advanced recurrence fields (all nullable for backward compat)
+
+    /** CUSTOM_DAYS: specific days of the month (1-31), e.g. [1, 15] for 1st & 15th. */
+    val monthDays: List<Int>? = null,
+
+    /** AFTER_COMPLETION: how many units after the task is marked complete. */
+    val afterCompletionInterval: Int? = null,
+
+    /** AFTER_COMPLETION: "days" or "weeks". */
+    val afterCompletionUnit: String? = null
 )
 
-enum class RecurrenceType { DAILY, WEEKLY, MONTHLY, YEARLY, CUSTOM }
+enum class RecurrenceType {
+    DAILY,
+    WEEKLY,
+    MONTHLY,
+    YEARLY,
+    CUSTOM,
+    // v1.3.0 P13
+    WEEKDAY,
+    BIWEEKLY,
+    CUSTOM_DAYS,
+    AFTER_COMPLETION
+}

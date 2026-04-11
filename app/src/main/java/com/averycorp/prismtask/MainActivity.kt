@@ -22,9 +22,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.averycorp.prismtask.data.billing.BillingManager
+import com.averycorp.prismtask.data.preferences.AppearancePrefs
 import com.averycorp.prismtask.data.preferences.OnboardingPreferences
 import com.averycorp.prismtask.data.preferences.TabPreferences
 import com.averycorp.prismtask.data.preferences.ThemePreferences
+import com.averycorp.prismtask.data.preferences.UserPreferencesDataStore
 import com.averycorp.prismtask.data.remote.SyncService
 import com.averycorp.prismtask.data.remote.UpdateChecker
 import com.averycorp.prismtask.data.remote.VersionInfo
@@ -56,6 +58,9 @@ class MainActivity : ComponentActivity() {
 
     @Inject
     lateinit var a11yPreferences: com.averycorp.prismtask.data.preferences.A11yPreferences
+
+    @Inject
+    lateinit var userPreferencesDataStore: UserPreferencesDataStore
 
     companion object {
         /** Intent extra key set by the QuickAdd widget to route deep-links. */
@@ -131,6 +136,9 @@ class MainActivity : ComponentActivity() {
             val hiddenTabs by tabPreferences.getHiddenTabs()
                 .collectAsStateWithLifecycle(initialValue = emptySet())
 
+            val appearance by userPreferencesDataStore.appearanceFlow
+                .collectAsStateWithLifecycle(initialValue = AppearancePrefs())
+
             val priorityColors = PriorityColors(
                 none = parseColorOrDefault(priorityNone, PriorityColors().none),
                 low = parseColorOrDefault(priorityLow, PriorityColors().low),
@@ -165,7 +173,10 @@ class MainActivity : ComponentActivity() {
                 priorityColors = priorityColors,
                 reduceMotion = reduceMotion,
                 highContrast = highContrast,
-                largeTouchTargets = largeTouchTargets
+                largeTouchTargets = largeTouchTargets,
+                compactMode = appearance.compactMode,
+                cardCornerRadius = appearance.cardCornerRadius,
+                showCardBorders = appearance.showTaskCardBorders
             ) {
                 PrismTaskNavGraph(
                     modifier = Modifier.fillMaxSize(),

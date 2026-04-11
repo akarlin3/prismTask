@@ -16,7 +16,14 @@ object RecurrenceEngine {
         return true
     }
 
-    fun calculateNextDueDate(currentDueDate: Long, rule: RecurrenceRule): Long? {
+    fun calculateNextDueDate(currentDueDate: Long, rule: RecurrenceRule): Long? =
+        calculateNextDueDate(currentDueDate, rule, completedAt = null)
+
+    /**
+     * @param completedAt milliseconds at which the task was marked complete.
+     *        Required for [RecurrenceType.AFTER_COMPLETION]; ignored otherwise.
+     */
+    fun calculateNextDueDate(currentDueDate: Long, rule: RecurrenceRule, completedAt: Long?): Long? {
         if (!shouldRecur(rule)) return null
 
         val current = Instant.ofEpochMilli(currentDueDate)
@@ -28,6 +35,18 @@ object RecurrenceEngine {
             RecurrenceType.WEEKLY -> calculateWeekly(current, rule)
             RecurrenceType.MONTHLY -> calculateMonthly(current, rule)
             RecurrenceType.YEARLY -> calculateYearly(current, rule)
+            RecurrenceType.WEEKDAY -> calculateWeekday(current)
+            RecurrenceType.BIWEEKLY -> current.plusWeeks(2)
+            RecurrenceType.CUSTOM_DAYS -> calculateCustomDays(current, rule)
+            RecurrenceType.AFTER_COMPLETION -> {
+                val basis = completedAt ?: currentDueDate
+                val base = Instant.ofEpochMilli(basis).atZone(ZoneId.systemDefault()).toLocalDate()
+                val interval = rule.afterCompletionInterval ?: 1
+                when (rule.afterCompletionUnit?.lowercase()) {
+                    "weeks" -> base.plusWeeks(interval.toLong())
+                    else -> base.plusDays(interval.toLong())
+                }
+            }
         }
 
         val nextMillis = next.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
@@ -35,6 +54,38 @@ object RecurrenceEngine {
         if (rule.endDate != null && nextMillis > rule.endDate) return null
 
         return nextMillis
+    }
+
+    private fun calculateWeekday(current: LocalDate): LocalDate {
+        var next = current.plusDays(1)
+        while (next.dayOfWeek == DayOfWeek.SATURDAY || next.dayOfWeek == DayOfWeek.SUNDAY) {
+            next = next.plusDays(1)
+        }
+        return next
+    }
+
+    private fun calculateCustomDays(current: LocalDate, rule: RecurrenceRule): LocalDate {
+        val days = rule.monthDays?.filter { it in 1..31 }?.sorted().orEmpty()
+        if (days.isEmpty()) return current.plusMonths(1)
+
+        // Find the next valid day in the current month after today, or advance to the
+        // first valid day in the next month (and keep advancing if that month doesn't
+        // have the requested day, e.g. day 31 in February).
+        val currentDay = current.dayOfMonth
+        val nextInThisMonth = days.firstOrNull { it > currentDay && it <= current.lengthOfMonth() }
+        if (nextInThisMonth != null) {
+            return current.withDayOfMonth(nextInThisMonth)
+        }
+        var candidate = current.plusMonths(1).withDayOfMonth(1)
+        var safety = 0
+        while (safety < 12) {
+            val firstValid = days.firstOrNull { it <= candidate.lengthOfMonth() }
+            if (firstValid != null) return candidate.withDayOfMonth(firstValid)
+            candidate = candidate.plusMonths(1)
+            safety++
+        }
+        // Should never happen, but fall back gracefully.
+        return current.plusMonths(1)
     }
 
     private fun calculateDaily(current: LocalDate, rule: RecurrenceRule): LocalDate {

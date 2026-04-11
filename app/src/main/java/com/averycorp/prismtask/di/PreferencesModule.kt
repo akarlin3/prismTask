@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStore
 import com.averycorp.prismtask.data.calendar.CalendarSyncPreferences
 import com.averycorp.prismtask.data.preferences.SortPreferences
+import com.averycorp.prismtask.data.preferences.UserPreferencesDataStore
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -15,6 +16,7 @@ import javax.inject.Singleton
 
 private val Context.sortDataStore: DataStore<Preferences> by preferencesDataStore(name = "sort_prefs")
 private val Context.calendarSyncDataStore: DataStore<Preferences> by preferencesDataStore(name = "gcal_sync_prefs")
+private val Context.userPrefsDataStore: DataStore<Preferences> by preferencesDataStore(name = "user_prefs")
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -29,4 +31,9 @@ object PreferencesModule {
     @Singleton
     fun provideCalendarSyncPreferences(@ApplicationContext context: Context): CalendarSyncPreferences =
         CalendarSyncPreferences(context.calendarSyncDataStore)
+
+    @Provides
+    @Singleton
+    fun provideUserPreferencesDataStore(@ApplicationContext context: Context): UserPreferencesDataStore =
+        UserPreferencesDataStore(context.userPrefsDataStore)
 }

@@ -6,6 +6,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
 
 private fun parseColorOrNull(hex: String): Color? {
     if (hex.isBlank()) return null
@@ -28,6 +29,9 @@ fun PrismTaskTheme(
     reduceMotion: Boolean = false,
     highContrast: Boolean = false,
     largeTouchTargets: Boolean = false,
+    compactMode: Boolean = false,
+    cardCornerRadius: Int = 12,
+    showCardBorders: Boolean = true,
     content: @Composable () -> Unit
 ) {
     val useDark = when (themeMode) {
@@ -72,7 +76,10 @@ fun PrismTaskTheme(
         LocalPriorityColors provides priorityColors,
         com.averycorp.prismtask.ui.a11y.LocalReducedMotion provides reduceMotion,
         com.averycorp.prismtask.ui.a11y.LocalHighContrast provides highContrast,
-        com.averycorp.prismtask.ui.a11y.LocalLargeTouchTargets provides largeTouchTargets
+        com.averycorp.prismtask.ui.a11y.LocalLargeTouchTargets provides largeTouchTargets,
+        LocalCompactMode provides compactMode,
+        LocalCardCornerRadius provides cardCornerRadius.coerceIn(0, 24).dp,
+        LocalShowCardBorders provides showCardBorders
     ) {
         MaterialTheme(
             colorScheme = effectiveScheme,
