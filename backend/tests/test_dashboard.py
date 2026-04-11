@@ -23,7 +23,9 @@ async def project_id(client: AsyncClient, auth_headers: dict) -> int:
 
 
 def _iso(dt: datetime) -> str:
-    return dt.astimezone(timezone.utc).isoformat()
+    # The task API stores due_date as a plain calendar date, so we serialise
+    # to YYYY-MM-DD rather than a full ISO datetime string.
+    return dt.astimezone(timezone.utc).date().isoformat()
 
 
 @pytest.mark.asyncio
@@ -55,7 +57,7 @@ async def test_summary_counts_tasks_after_creation(
     )
     await client.patch(
         f"/api/v1/tasks/{completed.json()['id']}",
-        json={"status": "completed"},
+        json={"status": "done"},
         headers=auth_headers,
     )
 
@@ -116,7 +118,7 @@ async def test_tasks_overdue_excludes_completed_tasks(
     )
     await client.patch(
         f"/api/v1/tasks/{done_resp.json()['id']}",
-        json={"status": "completed"},
+        json={"status": "done"},
         headers=auth_headers,
     )
 

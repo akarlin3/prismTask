@@ -47,8 +47,9 @@ def compute_urgency(
     else:
         score += 0.05 * 0.4  # No due date: low urgency
 
-    # Priority factor (30% weight): 1=Urgent, 2=High, 3=Medium, 4=Low
-    priority_map = {1: 1.0, 2: 0.75, 3: 0.5, 4: 0.25}
+    # Priority factor (30% weight): matches Android UrgencyScorer
+    # (0=None, 1=Low, 2=Medium, 3=High, 4=Urgent)
+    priority_map = {0: 0.0, 1: 0.2, 2: 0.5, 3: 0.8, 4: 1.0}
     priority_factor = priority_map.get(priority, 0.5)
     score += priority_factor * 0.3
 

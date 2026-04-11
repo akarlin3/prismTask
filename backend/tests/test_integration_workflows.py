@@ -45,7 +45,7 @@ async def test_goal_project_task_hierarchy(client: AsyncClient, auth_headers: di
     for tid in task_ids:
         r = await client.patch(
             f"/api/v1/tasks/{tid}",
-            json={"status": "completed"},
+            json={"status": "done"},
             headers=auth_headers,
         )
         assert r.status_code == 200
