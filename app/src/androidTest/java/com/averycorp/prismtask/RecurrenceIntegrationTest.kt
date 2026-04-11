@@ -6,9 +6,13 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.averycorp.prismtask.data.local.converter.RecurrenceConverter
 import com.averycorp.prismtask.data.local.database.PrismTaskDatabase
 import com.averycorp.prismtask.data.local.entity.TaskEntity
+import com.averycorp.prismtask.data.remote.CalendarSyncService
+import com.averycorp.prismtask.data.remote.SyncTracker
 import com.averycorp.prismtask.data.repository.TaskRepository
 import com.averycorp.prismtask.domain.model.RecurrenceRule
 import com.averycorp.prismtask.domain.model.RecurrenceType
+import com.averycorp.prismtask.notifications.ReminderScheduler
+import io.mockk.mockk
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -35,7 +39,13 @@ class RecurrenceIntegrationTest {
             PrismTaskDatabase::class.java
         ).allowMainThreadQueries().build()
 
-        repository = TaskRepository(database.taskDao())
+        repository = TaskRepository(
+            taskDao = database.taskDao(),
+            tagDao = database.tagDao(),
+            syncTracker = mockk(relaxed = true),
+            calendarSyncService = mockk(relaxed = true),
+            reminderScheduler = mockk(relaxed = true)
+        )
     }
 
     @After

@@ -66,4 +66,22 @@ class ReminderScheduler @Inject constructor(
             scheduleReminder(task.id, task.title, task.description, dueDate, offset)
         }
     }
+
+    companion object {
+        /**
+         * Pure helper: compute the wall-clock time at which a reminder should
+         * fire given a task's due date and how far in advance the user wants
+         * to be nudged. Returned timestamp may be in the past — callers should
+         * use [isInFuture] to decide whether to actually schedule an alarm.
+         */
+        fun computeTriggerTime(dueDate: Long, reminderOffset: Long): Long =
+            dueDate - reminderOffset
+
+        /**
+         * Pure helper: the alarm should only be registered when the computed
+         * trigger time is strictly in the future. Mirrors the guard clause in
+         * [scheduleReminder].
+         */
+        fun isInFuture(triggerTime: Long, now: Long): Boolean = triggerTime > now
+    }
 }
