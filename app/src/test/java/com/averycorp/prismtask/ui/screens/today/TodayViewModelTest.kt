@@ -1,0 +1,179 @@
+package com.averycorp.prismtask.ui.screens.today
+
+import com.averycorp.prismtask.data.local.dao.TaskDao
+import com.averycorp.prismtask.data.preferences.DashboardPreferences
+import com.averycorp.prismtask.data.preferences.HabitListPreferences
+import com.averycorp.prismtask.data.preferences.SortPreferences
+import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
+import com.averycorp.prismtask.data.repository.HabitRepository
+import com.averycorp.prismtask.data.repository.ProjectRepository
+import com.averycorp.prismtask.data.repository.TagRepository
+import com.averycorp.prismtask.data.repository.TaskRepository
+import com.averycorp.prismtask.data.repository.TaskTemplateRepository
+import com.averycorp.prismtask.domain.usecase.ProFeatureGate
+import io.mockk.coEvery
+import io.mockk.coVerify
+import io.mockk.mockk
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
+import org.junit.After
+import org.junit.Before
+import org.junit.Test
+
+/**
+ * Focused unit tests for [TodayViewModel]. TodayViewModel is a ViewModel-coordinator
+ * that stitches together many flows; full-state coverage would require wiring up
+ * a small universe of fakes. These tests exercise the action methods that delegate
+ * to the repository/preference layer — which is where behavioral regressions have
+ * historically landed — while stubbing the flows used in the init block so the VM
+ * constructs cleanly.
+ */
+@OptIn(ExperimentalCoroutinesApi::class)
+class TodayViewModelTest {
+
+    private val dispatcher = StandardTestDispatcher()
+
+    private lateinit var taskRepository: TaskRepository
+    private lateinit var tagRepository: TagRepository
+    private lateinit var taskDao: TaskDao
+    private lateinit var habitRepository: HabitRepository
+    private lateinit var projectRepository: ProjectRepository
+    private lateinit var templateRepository: TaskTemplateRepository
+    private lateinit var dashboardPreferences: DashboardPreferences
+    private lateinit var habitListPreferences: HabitListPreferences
+    private lateinit var taskBehaviorPreferences: TaskBehaviorPreferences
+    private lateinit var sortPreferences: SortPreferences
+    private lateinit var proFeatureGate: ProFeatureGate
+
+    @Before
+    fun setUp() {
+        Dispatchers.setMain(dispatcher)
+        taskRepository = mockk(relaxed = true)
+        tagRepository = mockk(relaxed = true)
+        taskDao = mockk(relaxed = true)
+        habitRepository = mockk(relaxed = true)
+        projectRepository = mockk(relaxed = true)
+        templateRepository = mockk(relaxed = true)
+        dashboardPreferences = mockk(relaxed = true)
+        habitListPreferences = mockk(relaxed = true)
+        taskBehaviorPreferences = mockk(relaxed = true)
+        sortPreferences = mockk(relaxed = true)
+        proFeatureGate = mockk(relaxed = true)
+
+        coEvery { taskBehaviorPreferences.getDayStartHour() } returns flowOf(0)
+        coEvery { dashboardPreferences.getSectionOrder() } returns flowOf(DashboardPreferences.DEFAULT_ORDER)
+        coEvery { dashboardPreferences.getHiddenSections() } returns flowOf(emptySet())
+        coEvery { dashboardPreferences.getCollapsedSections() } returns flowOf(setOf("planned"))
+        coEvery { dashboardPreferences.getProgressStyle() } returns flowOf("ring")
+        coEvery { sortPreferences.observeSortMode(any()) } returns flowOf(SortPreferences.SortModes.DEFAULT)
+        coEvery { habitListPreferences.isSelfCareEnabled() } returns flowOf(true)
+        coEvery { habitListPreferences.isMedicationEnabled() } returns flowOf(true)
+        coEvery { habitListPreferences.isSchoolEnabled() } returns flowOf(true)
+        coEvery { habitListPreferences.isLeisureEnabled() } returns flowOf(true)
+        coEvery { habitListPreferences.isHouseworkEnabled() } returns flowOf(true)
+        coEvery { projectRepository.getAllProjects() } returns flowOf(emptyList())
+        coEvery { habitRepository.getHabitsWithTodayStatus() } returns flowOf(emptyList())
+        coEvery { habitRepository.getHabitsWithFullStatus() } returns flowOf(emptyList())
+        coEvery { taskDao.getOverdueRootTasks(any()) } returns flowOf(emptyList())
+        coEvery { taskDao.getTodayTasks(any(), any()) } returns flowOf(emptyList())
+        coEvery { taskDao.getPlannedForToday(any(), any()) } returns flowOf(emptyList())
+        coEvery { taskDao.getCompletedToday(any()) } returns flowOf(emptyList())
+        coEvery { taskDao.getTasksNotInToday(any(), any()) } returns flowOf(emptyList())
+    }
+
+    @After
+    fun tearDown() {
+        Dispatchers.resetMain()
+    }
+
+    private fun newViewModel() = TodayViewModel(
+        taskRepository,
+        tagRepository,
+        taskDao,
+        habitRepository,
+        projectRepository,
+        templateRepository,
+        dashboardPreferences,
+        habitListPreferences,
+        taskBehaviorPreferences,
+        sortPreferences,
+        proFeatureGate
+    )
+
+    @Test
+    fun viewModel_constructsWithoutCrashing() = runTest(dispatcher) {
+        newViewModel()
+        advanceUntilIdle()
+    }
+
+    @Test
+    fun onChangeSort_writesToSortPreferences() = runTest(dispatcher) {
+        val vm = newViewModel()
+        vm.onChangeSort(SortPreferences.SortModes.PRIORITY)
+        advanceUntilIdle()
+        coVerify {
+            sortPreferences.setSortMode(
+                SortPreferences.ScreenKeys.TODAY,
+                SortPreferences.SortModes.PRIORITY
+            )
+        }
+    }
+
+    @Test
+    fun onToggleSectionCollapsed_flipsCollapseState() = runTest(dispatcher) {
+        // Section starts collapsed per the seed above ("planned" is in the set).
+        // Toggling should ask to expand it.
+        val vm = newViewModel()
+        advanceUntilIdle()
+        vm.onToggleSectionCollapsed("planned")
+        advanceUntilIdle()
+        coVerify {
+            dashboardPreferences.setSectionCollapsed(sectionKey = "planned", collapsed = false)
+        }
+    }
+
+    @Test
+    fun onToggleHabitCompletion_routesBetweenCompleteAndUncomplete() = runTest(dispatcher) {
+        val vm = newViewModel()
+        advanceUntilIdle()
+
+        vm.onToggleHabitCompletion(habitId = 7L, isCurrentlyCompleted = false)
+        advanceUntilIdle()
+        coVerify { habitRepository.completeHabit(7L, any(), any()) }
+
+        vm.onToggleHabitCompletion(habitId = 7L, isCurrentlyCompleted = true)
+        advanceUntilIdle()
+        coVerify { habitRepository.uncompleteHabit(7L, any()) }
+    }
+
+    @Test
+    fun onShowAndDismissPlanSheet_togglesStateFlow() = runTest(dispatcher) {
+        val vm = newViewModel()
+        advanceUntilIdle()
+
+        vm.onShowPlanSheet()
+        assert(vm.showPlanSheet.value)
+
+        vm.onDismissPlanSheet()
+        assert(!vm.showPlanSheet.value)
+    }
+
+    @Test
+    fun onPlanForToday_setsPlannedDateOnEachTask() = runTest(dispatcher) {
+        val vm = newViewModel()
+        advanceUntilIdle()
+
+        vm.onPlanForToday(listOf(1L, 2L, 3L))
+        advanceUntilIdle()
+
+        coVerify { taskDao.setPlanDate(1L, any(), any()) }
+        coVerify { taskDao.setPlanDate(2L, any(), any()) }
+        coVerify { taskDao.setPlanDate(3L, any(), any()) }
+    }
+}

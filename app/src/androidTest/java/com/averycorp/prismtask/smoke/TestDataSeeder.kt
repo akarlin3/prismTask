@@ -166,11 +166,11 @@ object TestDataSeeder {
         )
 
         // Tag assignments
-        tagDao.insertTaskTag(TaskTagCrossRef(overdueTaskId, tagUrgentId))
-        tagDao.insertTaskTag(TaskTagCrossRef(todayTask1Id, tagCodeId))
-        tagDao.insertTaskTag(TaskTagCrossRef(todayTask2Id, tagEmailId))
-        tagDao.insertTaskTag(TaskTagCrossRef(parentTaskId, tagUrgentId))
-        tagDao.insertTaskTag(TaskTagCrossRef(parentTaskId, tagCodeId))
+        tagDao.addTagToTask(TaskTagCrossRef(overdueTaskId, tagUrgentId))
+        tagDao.addTagToTask(TaskTagCrossRef(todayTask1Id, tagCodeId))
+        tagDao.addTagToTask(TaskTagCrossRef(todayTask2Id, tagEmailId))
+        tagDao.addTagToTask(TaskTagCrossRef(parentTaskId, tagUrgentId))
+        tagDao.addTagToTask(TaskTagCrossRef(parentTaskId, tagCodeId))
 
         // Habits
         val habitExerciseId = habitDao.insert(
