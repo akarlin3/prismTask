@@ -236,7 +236,7 @@ class QuickAddViewModel @Inject constructor(
     }
 
     private suspend fun completeTaskByName(query: String): String {
-        val all = taskRepository.getAllTasksOnce().filter { !it.isCompleted && !it.archivedAt != null }
+        val all = taskRepository.getAllTasksOnce().filter { !it.isCompleted && it.archivedAt == null }
         val match = voiceCommandParser.fuzzyMatch(all, query) { it.title }
             ?: return "Couldn't find a task matching \"$query\""
         taskRepository.completeTask(match.id)
@@ -244,7 +244,7 @@ class QuickAddViewModel @Inject constructor(
     }
 
     private suspend fun deleteTaskByName(query: String): String {
-        val all = taskRepository.getAllTasksOnce().filter { !it.archivedAt != null }
+        val all = taskRepository.getAllTasksOnce().filter { it.archivedAt == null }
         val match = voiceCommandParser.fuzzyMatch(all, query) { it.title }
             ?: return "Couldn't find a task matching \"$query\""
         taskRepository.deleteTask(match.id)
@@ -252,7 +252,7 @@ class QuickAddViewModel @Inject constructor(
     }
 
     private suspend fun rescheduleTaskByName(query: String, dateText: String): String {
-        val all = taskRepository.getAllTasksOnce().filter { !it.isCompleted && !it.archivedAt != null }
+        val all = taskRepository.getAllTasksOnce().filter { !it.isCompleted && it.archivedAt == null }
         val match = voiceCommandParser.fuzzyMatch(all, query) { it.title }
             ?: return "Couldn't find a task matching \"$query\""
         // Reuse the NLP parser to turn "tomorrow" / "next friday" into a
@@ -282,7 +282,7 @@ class QuickAddViewModel @Inject constructor(
 
     private suspend fun buildWhatsNextResponse(): String {
         val all = taskRepository.getAllTasksOnce()
-            .filter { !it.isCompleted && !it.archivedAt != null }
+            .filter { !it.isCompleted && it.archivedAt == null }
             .sortedWith(
                 compareByDescending<TaskEntity> { it.priority }
                     .thenBy { it.dueDate ?: Long.MAX_VALUE }
@@ -293,7 +293,7 @@ class QuickAddViewModel @Inject constructor(
     }
 
     private suspend fun buildTaskCountResponse(): String {
-        val all = taskRepository.getAllTasksOnce().filter { !it.archivedAt != null }
+        val all = taskRepository.getAllTasksOnce().filter { it.archivedAt == null }
         val remaining = all.count { !it.isCompleted }
         return "You have $remaining tasks remaining"
     }
