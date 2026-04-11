@@ -33,6 +33,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
@@ -1303,7 +1304,7 @@ private fun SwipeableTaskItem(
             }
             val icon = when (direction) {
                 SwipeToDismissBoxValue.StartToEnd -> Icons.Default.Check
-                SwipeToDismissBoxValue.EndToStart -> Icons.Default.ArrowForward
+                SwipeToDismissBoxValue.EndToStart -> Icons.AutoMirrored.Filled.ArrowForward
                 else -> Icons.Default.Check
             }
             val alignment = when (direction) {

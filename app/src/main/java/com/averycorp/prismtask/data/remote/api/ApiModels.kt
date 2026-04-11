@@ -301,6 +301,68 @@ data class ReengagementResponse(
 
 // endregion
 
+// region AI Coaching
+
+data class CoachingTaskSummary(
+    @SerializedName("task_id") val taskId: Long,
+    val title: String,
+    val priority: Int,
+    @SerializedName("estimated_minutes") val estimatedMinutes: Int? = null
+)
+
+data class CoachingContext(
+    // Task-scoped fields
+    @SerializedName("task_title") val taskTitle: String? = null,
+    @SerializedName("task_description") val taskDescription: String? = null,
+    @SerializedName("days_since_creation") val daysSinceCreation: Int? = null,
+    @SerializedName("due_date") val dueDate: String? = null,
+    val priority: Int? = null,
+    @SerializedName("subtask_count") val subtaskCount: Int? = null,
+    @SerializedName("completed_subtasks") val completedSubtasks: Int? = null,
+
+    // Perfectionism-scoped fields
+    @SerializedName("edit_count") val editCount: Int? = null,
+    @SerializedName("reschedule_count") val rescheduleCount: Int? = null,
+    @SerializedName("subtasks_added") val subtasksAdded: Int? = null,
+    @SerializedName("subtasks_completed") val subtasksCompleted: Int? = null,
+    val reason: String? = null,
+
+    // Energy plan fields
+    @SerializedName("energy_level") val energyLevel: String? = null,
+    @SerializedName("tasks_due_today") val tasksDueToday: List<CoachingTaskSummary>? = null,
+    @SerializedName("overdue_count") val overdueCount: Int? = null,
+    @SerializedName("yesterday_completed") val yesterdayCompleted: Int? = null,
+    @SerializedName("yesterday_total") val yesterdayTotal: Int? = null,
+
+    // Welcome back fields
+    @SerializedName("days_absent") val daysAbsent: Int? = null,
+    @SerializedName("recent_completions") val recentCompletions: Int? = null,
+
+    // Celebration fields
+    @SerializedName("completed_subtask_count") val completedSubtaskCount: Int? = null,
+    @SerializedName("total_subtask_count") val totalSubtaskCount: Int? = null,
+    @SerializedName("days_overdue") val daysOverdue: Int? = null,
+    @SerializedName("first_after_gap") val firstAfterGap: Boolean? = null,
+
+    // Breakdown fields
+    @SerializedName("duration_minutes") val durationMinutes: Int? = null,
+    @SerializedName("project_name") val projectName: String? = null
+)
+
+data class CoachingRequest(
+    val trigger: String,
+    @SerializedName("task_id") val taskId: Long? = null,
+    val context: CoachingContext,
+    val tier: String
+)
+
+data class CoachingResponse(
+    val message: String? = null,
+    val subtasks: List<String>? = null
+)
+
+// endregion
+
 // region Export / Import
 
 data class ImportResponse(

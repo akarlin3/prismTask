@@ -63,6 +63,9 @@ interface PrismTaskApi {
     @POST("api/v1/ai/reengagement-nudge")
     suspend fun getReengagementNudge(@Body request: ReengagementRequest): ReengagementResponse
 
+    @POST("api/v1/ai/coaching")
+    suspend fun getCoaching(@Body request: CoachingRequest): CoachingResponse
+
     @GET("api/v1/export/json")
     suspend fun exportJson(): ResponseBody
 

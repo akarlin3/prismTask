@@ -21,14 +21,15 @@ class ProFeatureGate @Inject constructor(
             // Pro features (Pro + Premium)
             CLOUD_SYNC, TEMPLATE_SYNC, AI_EISENHOWER, AI_POMODORO,
             ANALYTICS_BASIC, TIME_TRACKING, AI_NLP,
-            AI_EVENING_SUMMARY -> isPro()
+            AI_EVENING_SUMMARY, AI_COACHING, AI_TASK_BREAKDOWN -> isPro()
 
             // Premium features (Premium only)
             AI_BRIEFING, AI_WEEKLY_PLAN, AI_TIME_BLOCK,
             AI_CONVERSATIONAL,
             COLLABORATION, INTEGRATIONS, ANALYTICS_FULL,
             ANALYTICS_CORRELATIONS, DRIVE_BACKUP,
-            AI_REENGAGEMENT -> isPremium()
+            AI_REENGAGEMENT, AI_DAILY_PLANNING,
+            AI_WEEKLY_INSIGHTS -> isPremium()
 
             // Free features
             else -> true
@@ -42,13 +43,14 @@ class ProFeatureGate @Inject constructor(
         return when (feature) {
             CLOUD_SYNC, TEMPLATE_SYNC, AI_EISENHOWER, AI_POMODORO,
             ANALYTICS_BASIC, TIME_TRACKING, AI_NLP,
-            AI_EVENING_SUMMARY -> UserTier.PRO
+            AI_EVENING_SUMMARY, AI_COACHING, AI_TASK_BREAKDOWN -> UserTier.PRO
 
             AI_BRIEFING, AI_WEEKLY_PLAN, AI_TIME_BLOCK,
             AI_CONVERSATIONAL,
             COLLABORATION, INTEGRATIONS, ANALYTICS_FULL,
             ANALYTICS_CORRELATIONS, DRIVE_BACKUP,
-            AI_REENGAGEMENT -> UserTier.PREMIUM
+            AI_REENGAGEMENT, AI_DAILY_PLANNING,
+            AI_WEEKLY_INSIGHTS -> UserTier.PREMIUM
 
             else -> UserTier.FREE
         }
@@ -66,9 +68,10 @@ class ProFeatureGate @Inject constructor(
 
         // Pro tier (AI coaching)
         const val AI_EVENING_SUMMARY = "ai_evening_summary"
+        const val AI_COACHING = "ai_coaching"                 // Triggers 1, 2, 5 (stuck, perfectionism, celebration)
+        const val AI_TASK_BREAKDOWN = "ai_task_breakdown"     // Trigger 6 (unlimited task breakdown)
 
         // Premium tier
-        const val AI_REENGAGEMENT = "ai_reengagement"
         const val AI_BRIEFING = "ai_briefing"
         const val AI_WEEKLY_PLAN = "ai_weekly_plan"
         const val AI_TIME_BLOCK = "ai_time_block"

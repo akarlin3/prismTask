@@ -49,6 +49,7 @@ import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.Label
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.FormatListBulleted
@@ -1123,7 +1124,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.taskItemWithSubtasks(
                     }
                     val icon = when (direction) {
                         SwipeToDismissBoxValue.StartToEnd -> Icons.Default.Check
-                        SwipeToDismissBoxValue.EndToStart -> Icons.Default.ArrowForward
+                        SwipeToDismissBoxValue.EndToStart -> Icons.AutoMirrored.Filled.ArrowForward
                         else -> Icons.Default.Check
                     }
                     val alignment = when (direction) {
