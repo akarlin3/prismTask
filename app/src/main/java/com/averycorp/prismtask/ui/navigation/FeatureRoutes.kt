@@ -46,6 +46,7 @@ import com.averycorp.prismtask.ui.screens.checkin.MorningCheckInScreen
 import com.averycorp.prismtask.ui.screens.extract.PasteConversationScreen
 import com.averycorp.prismtask.ui.screens.medication.MedicationRefillScreen
 import com.averycorp.prismtask.ui.screens.mood.MoodAnalyticsScreen
+import com.averycorp.prismtask.ui.screens.review.WeeklyReviewScreen
 import com.averycorp.prismtask.ui.screens.eisenhower.EisenhowerScreen
 import com.averycorp.prismtask.ui.screens.planner.WeeklyPlannerScreen
 import com.averycorp.prismtask.ui.screens.pomodoro.SmartPomodoroScreen
@@ -605,6 +606,10 @@ internal fun NavGraphBuilder.featureRoutes(navController: NavHostController) {
 
             composable(route = PrismTaskRoute.MedicationRefill.route) {
                 MedicationRefillScreen(navController)
+            }
+
+            composable(route = PrismTaskRoute.WeeklyReview.route) {
+                WeeklyReviewScreen(navController)
             }
 
             composable(
