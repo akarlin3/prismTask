@@ -103,7 +103,7 @@ private val TEMPLATE_ICONS = listOf(
     "\u2B50"         // ⭐
 )
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
 internal fun TemplateInfoSection(viewModel: AddEditTemplateViewModel) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
