@@ -38,6 +38,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added 26 unit tests: `LifeCategoryClassifierTest` (11), `BalanceTrackerTest`
   (10), `NaturalLanguageParserTest` life-category additions (5).
 
+### Added — Energy-Aware Pomodoro Planner (V11 phase 1)
+- New `EnergyAwarePomodoro` use case that adapts the classic Pomodoro
+  work/break lengths based on the user's logged energy level (1–5):
+  low energy gets 15-min sessions with 10-min breaks, medium gets the
+  classic 25/5, and high energy gets 35–45 min deep-work sprints.
+- `PomodoroSessionConfig` carries the chosen lengths plus a rationale
+  string for the UI ("Classic Pomodoro — you're in the groove", etc.).
+- `DefaultPomodoroConfig` fallback for users with no mood/energy
+  tracking — the planner returns the classic defaults unchanged so the
+  feature rolls out safely without disrupting existing users.
+- `planFromLogs` convenience wrapper picks the latest
+  `MoodEnergyLogEntity` row and forwards to `plan`.
+- 11 new unit tests covering all five energy buckets, null-energy
+  fallback, out-of-range clamping, latest-log selection, empty-list
+  handling, and rationale presence.
+
+Scoped for follow-up: wiring the planner into `SmartPomodoroScreen`'s
+start-session flow, an energy heatmap overlay on the weekly planner,
+and the post-session "How's your energy now?" quick-prompt.
+
 ### Added — Medication Refill Tracking (V10 phase 1)
 - New `medication_refills` Room table (migration 34 → 35) storing per-
   medication pill counts, dosage, pharmacy info, and reminder lead time.
