@@ -49,7 +49,7 @@ object DatabaseModule {
             PrismTaskDatabase::class.java,
             "averytask.db"
         )
-            .addMigrations(PrismTaskDatabase.MIGRATION_1_2, PrismTaskDatabase.MIGRATION_2_3, PrismTaskDatabase.MIGRATION_3_4, PrismTaskDatabase.MIGRATION_4_5, PrismTaskDatabase.MIGRATION_5_6, PrismTaskDatabase.MIGRATION_6_7, PrismTaskDatabase.MIGRATION_7_8, PrismTaskDatabase.MIGRATION_8_9, PrismTaskDatabase.MIGRATION_9_10, PrismTaskDatabase.MIGRATION_10_11, PrismTaskDatabase.MIGRATION_11_12, PrismTaskDatabase.MIGRATION_12_13, PrismTaskDatabase.MIGRATION_13_14, PrismTaskDatabase.MIGRATION_14_15, PrismTaskDatabase.MIGRATION_15_16, PrismTaskDatabase.MIGRATION_16_17, PrismTaskDatabase.MIGRATION_17_18, PrismTaskDatabase.MIGRATION_18_19, PrismTaskDatabase.MIGRATION_19_20, PrismTaskDatabase.MIGRATION_20_21, PrismTaskDatabase.MIGRATION_21_22, PrismTaskDatabase.MIGRATION_22_23, PrismTaskDatabase.MIGRATION_23_24, PrismTaskDatabase.MIGRATION_24_25, PrismTaskDatabase.MIGRATION_25_26, PrismTaskDatabase.MIGRATION_26_27, PrismTaskDatabase.MIGRATION_27_28, PrismTaskDatabase.MIGRATION_28_29, PrismTaskDatabase.MIGRATION_29_30, PrismTaskDatabase.MIGRATION_30_31, PrismTaskDatabase.MIGRATION_31_32)
+            .addMigrations(*com.averycorp.prismtask.data.local.database.ALL_MIGRATIONS)
             .build()
 
     @Provides
