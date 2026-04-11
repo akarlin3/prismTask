@@ -123,7 +123,9 @@ fun HabitAnalyticsScreen(
                         Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
-                StreakBadge(streak = state.currentStreak)
+                if (habit.showStreak) {
+                    StreakBadge(streak = state.currentStreak)
+                }
             }
 
             // Stats cards
@@ -131,8 +133,10 @@ fun HabitAnalyticsScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                StatCard("Current", "\uD83D\uDD25 ${state.currentStreak}", habitColor, Modifier.weight(1f))
-                StatCard("Longest", "\uD83C\uDFC6 ${state.longestStreak}", habitColor, Modifier.weight(1f))
+                if (habit.showStreak) {
+                    StatCard("Current", "\uD83D\uDD25 ${state.currentStreak}", habitColor, Modifier.weight(1f))
+                    StatCard("Longest Run", "\uD83C\uDFC6 ${state.longestStreak}", habitColor, Modifier.weight(1f))
+                }
                 StatCard("Total", "\u2705 ${state.totalCompletions}", habitColor, Modifier.weight(1f))
             }
 

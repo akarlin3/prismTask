@@ -40,7 +40,7 @@ import com.averycorp.prismtask.data.local.entity.UsageLogEntity
 
 @Database(
     entities = [TaskEntity::class, ProjectEntity::class, TagEntity::class, TaskTagCrossRef::class, AttachmentEntity::class, UsageLogEntity::class, SyncMetadataEntity::class, CalendarSyncEntity::class, HabitEntity::class, HabitCompletionEntity::class, HabitLogEntity::class, LeisureLogEntity::class, CourseEntity::class, AssignmentEntity::class, StudyLogEntity::class, CourseCompletionEntity::class, SelfCareLogEntity::class, SelfCareStepEntity::class, TaskTemplateEntity::class],
-    version = 26,
+    version = 27,
     exportSchema = false
 )
 abstract class PrismTaskDatabase : RoomDatabase() {
@@ -423,6 +423,12 @@ abstract class PrismTaskDatabase : RoomDatabase() {
                 )
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_habit_logs_habit_id` ON `habit_logs` (`habit_id`)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_habit_logs_date` ON `habit_logs` (`date`)")
+            }
+        }
+
+        val MIGRATION_26_27 = object : Migration(26, 27) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE habits ADD COLUMN show_streak INTEGER NOT NULL DEFAULT 0")
             }
         }
 

@@ -104,6 +104,31 @@ class SettingsViewModel @Inject constructor(
     val userTier: StateFlow<UserTier> = billingManager.userTier
     val subscriptionState: StateFlow<SubscriptionState> = billingManager.proSubscriptionState
 
+    // --- AI Notification Settings ---
+    private val _eveningSummaryEnabled = MutableStateFlow(false)
+    val eveningSummaryEnabled: Boolean get() = _eveningSummaryEnabled.value
+
+    private val _reengagementEnabled = MutableStateFlow(true)
+    val reengagementEnabled: Boolean get() = _reengagementEnabled.value
+
+    fun onEveningSummaryToggle(enabled: Boolean) {
+        _eveningSummaryEnabled.value = enabled
+        if (enabled) {
+            com.averycorp.prismtask.notifications.EveningSummaryWorker.schedule(appContext)
+        } else {
+            com.averycorp.prismtask.notifications.EveningSummaryWorker.cancel(appContext)
+        }
+    }
+
+    fun onReengagementToggle(enabled: Boolean) {
+        _reengagementEnabled.value = enabled
+        if (enabled) {
+            com.averycorp.prismtask.notifications.ReengagementWorker.schedule(appContext)
+        } else {
+            com.averycorp.prismtask.notifications.ReengagementWorker.cancel(appContext)
+        }
+    }
+
     // --- Theme ---
     val themeMode: StateFlow<String> = themePreferences.getThemeMode()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "system")

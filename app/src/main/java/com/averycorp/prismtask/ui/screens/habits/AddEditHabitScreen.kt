@@ -481,6 +481,28 @@ fun AddEditHabitScreen(
                 }
             }
 
+            // Show streak
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Show Streak",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Text(
+                        text = "Display streak count on this habit",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Switch(
+                    checked = viewModel.showStreak,
+                    onCheckedChange = viewModel::onShowStreakChange
+                )
+            }
+
             // Enable logging
             Row(
                 verticalAlignment = Alignment.CenterVertically,

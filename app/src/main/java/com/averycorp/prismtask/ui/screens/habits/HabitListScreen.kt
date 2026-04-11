@@ -169,9 +169,9 @@ fun HabitListScreen(
                 contentAlignment = Alignment.Center
             ) {
                 RichEmptyState(
-                    icon = "\uD83D\uDD25",
+                    icon = "\u2728",
                     title = "Start Building Habits",
-                    description = "Track daily routines and watch your streaks grow.",
+                    description = "Track daily routines at your own pace.",
                     actionLabel = "Create Habit",
                     onAction = { navController.navigate(PrismTaskRoute.AddEditHabit.createRoute()) },
                     modifier = Modifier
@@ -432,41 +432,27 @@ private fun HabitItem(
                         "quarterly" -> "this quarter"
                         else -> "this week"
                     }
-                    val streakUnit = when (habit.frequencyPeriod) {
-                        "weekly" -> "week streak"
-                        "fortnightly" -> "fortnight streak"
-                        "monthly" -> "month streak"
-                        "bimonthly" -> "bimonth streak"
-                        "quarterly" -> "quarter streak"
-                        else -> "day streak"
-                    }
                     if (habit.frequencyPeriod == "daily" && habitWithStatus.dailyTarget > 1) {
                         Text(
                             text = "${habitWithStatus.completionsToday}/${habitWithStatus.dailyTarget} today",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        if (habitWithStatus.currentStreak > 0) {
+                        if (habit.showStreak && habitWithStatus.currentStreak > 0) {
                             Spacer(modifier = Modifier.width(8.dp))
                             StreakBadge(streak = habitWithStatus.currentStreak)
                         }
-                    } else if (habitWithStatus.currentStreak > 0) {
+                    } else if (habit.showStreak && habitWithStatus.currentStreak > 0) {
                         StreakBadge(streak = habitWithStatus.currentStreak)
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = streakUnit,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    } else if (habit.frequencyPeriod != "daily") {
-                        Text(
-                            text = "${habitWithStatus.completionsThisWeek}/${habit.targetFrequency} $periodLabel",
+                            text = "${habitWithStatus.completionsThisWeek} days this week",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     } else {
                         Text(
-                            text = "${habitWithStatus.completionsThisWeek}/${habit.targetFrequency} $periodLabel",
+                            text = "${habitWithStatus.completionsThisWeek} done $periodLabel",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -1294,7 +1280,7 @@ private fun BuiltInHabitCard(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                if (habitWithStatus.currentStreak > 0) {
+                if (habitWithStatus.habit.showStreak && habitWithStatus.currentStreak > 0) {
                     StreakBadge(streak = habitWithStatus.currentStreak)
                 }
             }

@@ -67,6 +67,9 @@ data class HabitEntity(
     @ColumnInfo(name = "booked_note")
     val bookedNote: String? = null,
 
+    @ColumnInfo(name = "show_streak", defaultValue = "0")
+    val showStreak: Boolean = false,
+
     @ColumnInfo(name = "created_at")
     val createdAt: Long = System.currentTimeMillis(),
 

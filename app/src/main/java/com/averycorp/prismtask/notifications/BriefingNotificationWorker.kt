@@ -72,8 +72,8 @@ class BriefingNotificationWorker @AssistedInject constructor(
 
         val notification = NotificationCompat.Builder(context, channelId)
             .setSmallIcon(R.drawable.ic_launcher_foreground)
-            .setContentTitle("Your Daily Briefing Is Ready")
-            .setContentText("$dayType day with $taskCount tasks")
+            .setContentTitle("Good Morning")
+            .setContentText(if (taskCount <= 1) "You've got one thing today. Start whenever you're ready." else "You've got a few things today. Start with just one.")
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)

@@ -59,8 +59,8 @@ object NotificationHelper {
 
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
-            .setContentTitle(taskTitle)
-            .setContentText(taskDescription ?: "Task Reminder")
+            .setContentTitle("$taskTitle is coming up")
+            .setContentText(taskDescription ?: "Ready when you are.")
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
             .setAutoCancel(true)
@@ -120,7 +120,7 @@ object NotificationHelper {
         )
 
         val intervalText = formatInterval(intervalMillis)
-        val contentText = habitDescription ?: "Time to take your medication"
+        val contentText = habitDescription ?: "$habitName \u2014 whenever you're ready."
 
         val doseInfo = if (totalDoses > 1 && doseNumber > 0) " (dose $doseNumber of $totalDoses)" else ""
         val title = "$habitName$doseInfo"
@@ -171,11 +171,11 @@ object NotificationHelper {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val contentText = if (medNote.isNotEmpty()) medNote else "Time for your next dose"
+        val contentText = if (medNote.isNotEmpty()) medNote else "$medName \u2014 whenever you're ready."
 
         val notification = NotificationCompat.Builder(context, MED_CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
-            .setContentTitle("$medName \u2014 Reminder")
+            .setContentTitle("$medName \u2014 Heads Up")
             .setContentText(contentText)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)

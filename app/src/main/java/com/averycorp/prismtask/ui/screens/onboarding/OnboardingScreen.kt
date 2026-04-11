@@ -393,7 +393,7 @@ private fun HabitsPage() {
                 Text("\uD83D\uDD25", fontSize = 36.sp)
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "$streakCount day streak",
+                    text = "$streakCount days this week",
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary

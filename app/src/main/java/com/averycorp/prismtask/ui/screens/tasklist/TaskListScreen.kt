@@ -147,7 +147,6 @@ import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
-private val OverdueRed = Color(0xFFD93025)
 private val TodayOrange = Color(0xFFE8872A)
 
 private data class TaskEditorSheetState(
@@ -458,30 +457,10 @@ fun TaskListScreen(
             } else {
                 TopAppBar(
                     title = {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = "Tasks",
-                                fontWeight = FontWeight.Bold
-                            )
-                            if (overdueCount > 0) {
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(10.dp))
-                                        .background(OverdueRed)
-                                        .padding(horizontal = 6.dp, vertical = 2.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        text = "$overdueCount",
-                                        color = Color.White,
-                                        style = MaterialTheme.typography.labelSmall,
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 11.sp
-                                    )
-                                }
-                            }
-                        }
+                        Text(
+                            text = "Tasks",
+                            fontWeight = FontWeight.Bold
+                        )
                     },
                     actions = {
                         IconButton(onClick = { navController.navigate(PrismTaskRoute.Search.route) }) {
@@ -716,9 +695,9 @@ fun TaskListScreen(
                     )
                 } else {
                     RichEmptyState(
-                        icon = "\uD83D\uDCDD",
-                        title = "No Tasks Yet",
-                        description = "Create your first task to get started. Try typing naturally!",
+                        icon = "\u2728",
+                        title = "Clean Slate",
+                        description = "Add something when you're ready.",
                         actionLabel = "Create Task",
                         onAction = {
                             editorSheet = TaskEditorSheetState()
@@ -1108,6 +1087,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.taskItemWithSubtasks(
             )
         } else {
             val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
+            val tomorrowBlue = Color(0xFF5C8CC7)
             val dismissState = rememberSwipeToDismissBoxState(
                 confirmValueChange = { value ->
                     when (value) {
@@ -1118,7 +1098,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.taskItemWithSubtasks(
                         }
                         SwipeToDismissBoxValue.EndToStart -> {
                             haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
-                            viewModel.onDeleteTaskWithUndo(task.id)
+                            viewModel.onMoveToTomorrow(task.id)
                             true
                         }
                         SwipeToDismissBoxValue.Settled -> false
@@ -1138,12 +1118,12 @@ private fun androidx.compose.foundation.lazy.LazyListScope.taskItemWithSubtasks(
                     val direction = dismissState.dismissDirection
                     val backgroundColor = when (direction) {
                         SwipeToDismissBoxValue.StartToEnd -> Color(0xFF4CAF50)
-                        SwipeToDismissBoxValue.EndToStart -> Color(0xFFE53935)
+                        SwipeToDismissBoxValue.EndToStart -> tomorrowBlue
                         else -> Color.Transparent
                     }
                     val icon = when (direction) {
                         SwipeToDismissBoxValue.StartToEnd -> Icons.Default.Check
-                        SwipeToDismissBoxValue.EndToStart -> Icons.Default.Delete
+                        SwipeToDismissBoxValue.EndToStart -> Icons.Default.ArrowForward
                         else -> Icons.Default.Check
                     }
                     val alignment = when (direction) {
@@ -1159,12 +1139,30 @@ private fun androidx.compose.foundation.lazy.LazyListScope.taskItemWithSubtasks(
                             .padding(horizontal = 20.dp),
                         contentAlignment = alignment
                     ) {
-                        Icon(
-                            imageVector = icon,
-                            contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.scale(swipeIconScale)
-                        )
+                        if (direction == SwipeToDismissBoxValue.EndToStart) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = "Tomorrow",
+                                    color = Color.White,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Icon(
+                                    imageVector = icon,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.scale(swipeIconScale)
+                                )
+                            }
+                        } else {
+                            Icon(
+                                imageVector = icon,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.scale(swipeIconScale)
+                            )
+                        }
                     }
                 }
             ) {
@@ -1221,8 +1219,8 @@ private fun androidx.compose.foundation.lazy.LazyListScope.taskItemWithSubtasks(
 
 @Composable
 private fun GroupHeader(group: String, count: Int) {
+    val displayGroup = if (group == "Overdue") "From Earlier" else group
     val color = when (group) {
-        "Overdue" -> OverdueRed
         "Today" -> TodayOrange
         else -> MaterialTheme.colorScheme.onSurface
     }
@@ -1234,7 +1232,7 @@ private fun GroupHeader(group: String, count: Int) {
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
-            text = group,
+            text = displayGroup,
             style = MaterialTheme.typography.titleSmall,
             fontWeight = FontWeight.Bold,
             color = color
@@ -1617,8 +1615,6 @@ private fun TaskItem(
     modifier: Modifier = Modifier
 ) {
     var showOverflowMenu by remember { mutableStateOf(false) }
-    val isOverdue = isTaskOverdue(task)
-    val borderColor = if (isOverdue) OverdueRed else Color.Transparent
     val hasOverflowActions = !isMultiSelectMode && (onReschedule != null || onMoveToProject != null || onDuplicate != null || onDelete != null)
 
     Card(
@@ -1632,7 +1628,6 @@ private fun TaskItem(
         colors = CardDefaults.cardColors(
             containerColor = when {
                 isSelected -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
-                isOverdue -> OverdueRed.copy(alpha = 0.06f)
                 else -> MaterialTheme.colorScheme.surfaceContainerLow
             }
         )
@@ -1640,17 +1635,7 @@ private fun TaskItem(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .drawBehind {
-                    if (isOverdue) {
-                        drawLine(
-                            color = borderColor,
-                            start = Offset(0f, 0f),
-                            end = Offset(0f, size.height),
-                            strokeWidth = 4.dp.toPx()
-                        )
-                    }
-                }
-                .padding(start = if (isOverdue) 6.dp else 4.dp, end = 4.dp, top = 8.dp, bottom = 8.dp),
+                .padding(start = 4.dp, end = 4.dp, top = 8.dp, bottom = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             if (showDragHandle) {
@@ -1970,7 +1955,7 @@ private fun formatDueDate(epochMillis: Long): DueDateLabel {
     return when {
         epochMillis < startOfToday -> {
             val formatted = dateFmt.format(Date(epochMillis))
-            DueDateLabel("Overdue \u00B7 $formatted", OverdueRed)
+            DueDateLabel(formatted, normal)
         }
         epochMillis < startOfTomorrow -> DueDateLabel("Today", TodayOrange)
         epochMillis < startOfDayAfter -> DueDateLabel("Tomorrow", normal)

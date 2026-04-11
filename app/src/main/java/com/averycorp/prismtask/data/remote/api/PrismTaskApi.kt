@@ -55,6 +55,12 @@ interface PrismTaskApi {
     @POST("api/v1/ai/time-block")
     suspend fun getTimeBlock(@Body request: TimeBlockRequest): TimeBlockResponse
 
+    @POST("api/v1/ai/evening-summary")
+    suspend fun getEveningSummary(@Body request: EveningSummaryRequest): EveningSummaryResponse
+
+    @POST("api/v1/ai/reengagement-nudge")
+    suspend fun getReengagementNudge(@Body request: ReengagementRequest): ReengagementResponse
+
     @GET("api/v1/export/json")
     suspend fun exportJson(): ResponseBody
 
