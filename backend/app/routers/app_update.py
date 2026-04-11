@@ -2,7 +2,7 @@ import hashlib
 import os
 import re
 
-from fastapi import APIRouter, Depends, Form, Header, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, Form, HTTPException, Request, UploadFile, File
 from fastapi.responses import FileResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,9 +20,18 @@ VERSION_NAME_PATTERN = re.compile(r"^[a-zA-Z0-9.\-_]+$")
 router = APIRouter(prefix="/app", tags=["App Updates"])
 
 
-async def verify_deploy_key(authorization: str = Header(...)):
+async def verify_deploy_key(request: Request):
+    # Read the Authorization header directly from the Request instead of
+    # declaring it as a required ``Header(...)`` parameter. Using ``Header(...)``
+    # causes FastAPI to surface a 422 validation error when the header is
+    # missing, which collides with Form body validation errors on this
+    # endpoint and masks the auth rejection. Reading it via Request lets us
+    # return explicit 401/403/503 responses before body parsing runs.
     if not settings.DEPLOY_API_KEY:
         raise HTTPException(503, "Deploy key not configured")
+    authorization = request.headers.get("authorization")
+    if not authorization:
+        raise HTTPException(401, "Missing deploy key")
     if authorization != f"Bearer {settings.DEPLOY_API_KEY}":
         raise HTTPException(403, "Invalid deploy key")
 
@@ -73,14 +82,17 @@ async def download_apk(version_code: int, db: AsyncSession = Depends(get_db)):
     )
 
 
-@router.post("/releases", response_model=ReleaseCreateResponse)
+@router.post(
+    "/releases",
+    response_model=ReleaseCreateResponse,
+    dependencies=[Depends(verify_deploy_key)],
+)
 async def create_release(
     version_code: int = Form(...),
     version_name: str = Form(...),
     release_notes: str = Form(""),
     is_mandatory: bool = Form(False),
     apk: UploadFile = File(...),
-    _: None = Depends(verify_deploy_key),
     db: AsyncSession = Depends(get_db),
 ):
     """Upload new release. Called by GitHub Actions with a deploy key."""
