@@ -102,7 +102,6 @@ class SettingsViewModel @Inject constructor(
     private val medicationRefillRepository: com.averycorp.prismtask.data.repository.MedicationRefillRepository,
     private val checkInLogRepository: com.averycorp.prismtask.data.repository.CheckInLogRepository,
     private val clinicalReportPdfWriter: com.averycorp.prismtask.data.export.ClinicalReportPdfWriter,
-    @dagger.hilt.android.qualifiers.ApplicationContext private val appContext: android.content.Context,
     private val onboardingPreferences: OnboardingPreferences
 ) : ViewModel() {
 

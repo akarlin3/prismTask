@@ -7,6 +7,7 @@ import com.averycorp.prismtask.data.remote.api.PomodoroResponse
 import com.averycorp.prismtask.data.remote.api.PomodoroSessionResponse
 import com.averycorp.prismtask.data.remote.api.PrismTaskApi
 import com.averycorp.prismtask.data.remote.api.SessionTaskResponse
+import com.averycorp.prismtask.data.repository.MoodEnergyRepository
 import com.averycorp.prismtask.domain.usecase.ProFeatureGate
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -45,6 +46,7 @@ class SmartPomodoroViewModelTest {
     private lateinit var api: PrismTaskApi
     private lateinit var proFeatureGate: ProFeatureGate
     private lateinit var timerPreferences: TimerPreferences
+    private lateinit var moodEnergyRepository: MoodEnergyRepository
 
     @Before
     fun setUp() {
@@ -59,6 +61,8 @@ class SmartPomodoroViewModelTest {
         every { timerPreferences.getBreakDurationSeconds() } returns flowOf(5 * 60)
         every { timerPreferences.getLongBreakDurationSeconds() } returns flowOf(15 * 60)
         every { timerPreferences.getPomodoroFocusPreference() } returns flowOf("balanced")
+        moodEnergyRepository = mockk(relaxed = true)
+        coEvery { moodEnergyRepository.getRange(any(), any()) } returns emptyList()
     }
 
     @After
@@ -66,7 +70,7 @@ class SmartPomodoroViewModelTest {
         Dispatchers.resetMain()
     }
 
-    private fun newViewModel() = SmartPomodoroViewModel(taskDao, api, proFeatureGate, timerPreferences)
+    private fun newViewModel() = SmartPomodoroViewModel(taskDao, api, proFeatureGate, moodEnergyRepository, timerPreferences)
 
     @Test
     fun initialState_isPlanning() {

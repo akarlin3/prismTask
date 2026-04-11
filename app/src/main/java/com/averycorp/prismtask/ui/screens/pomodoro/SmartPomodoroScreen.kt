@@ -131,10 +131,6 @@ fun SmartPomodoroScreen(
                     plan = plan,
                     isLoading = isLoading,
                     incompleteTaskCount = incompleteTaskCount,
-                    onUpdateAvailableMinutes = { viewModel.updateAvailableMinutes(it) },
-                    onUpdateSessionLength = { viewModel.updateSessionLength(it) },
-                    onUpdateBreakLength = { viewModel.updateBreakLength(it) },
-                    onUpdateFocusPreference = { viewModel.updateFocusPreference(it) },
                     onGeneratePlan = { viewModel.generatePlan() },
                     onStartSession = { viewModel.startSession() },
                     modifier = Modifier

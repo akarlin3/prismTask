@@ -114,6 +114,8 @@ fun SettingsScreen(
     // Check-in streak (v1.4.0 V4)
     val checkInStreak by viewModel.checkInStreak.collectAsStateWithLifecycle()
 
+    val snackbarHostState = remember { SnackbarHostState() }
+
     LaunchedEffect(clinicalReportUri) {
         val uri = clinicalReportUri
         if (uri != null) {
@@ -208,8 +210,6 @@ fun SettingsScreen(
 
     // Dialogs owned by orchestrator
     var showBackendAuthDialog by remember { mutableStateOf(false) }
-
-    val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(Unit) {
         viewModel.messages.collect { message ->

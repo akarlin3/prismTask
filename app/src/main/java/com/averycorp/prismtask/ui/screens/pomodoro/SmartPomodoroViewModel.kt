@@ -74,7 +74,8 @@ class SmartPomodoroViewModel @Inject constructor(
     private val taskDao: TaskDao,
     private val api: PrismTaskApi,
     private val proFeatureGate: ProFeatureGate,
-    private val moodEnergyRepository: MoodEnergyRepository
+    private val moodEnergyRepository: MoodEnergyRepository,
+    private val timerPreferences: TimerPreferences
 ) : ViewModel() {
 
     private val energyAwarePomodoro = EnergyAwarePomodoro()
@@ -171,20 +172,16 @@ class SmartPomodoroViewModel @Inject constructor(
         viewModelScope.launch {
             val todayStart = System.currentTimeMillis() - 12L * 60 * 60 * 1000
             val logs = moodEnergyRepository.getRange(todayStart, System.currentTimeMillis())
+            val current = config.value
             val planned = energyAwarePomodoro.planFromLogs(
                 logs,
                 DefaultPomodoroConfig(
-                    workMinutes = _config.value.sessionLength,
-                    breakMinutes = _config.value.breakLength,
-                    longBreakMinutes = _config.value.longBreakLength
+                    workMinutes = current.sessionLength,
+                    breakMinutes = current.breakLength,
+                    longBreakMinutes = current.longBreakLength
                 )
             )
             _energyAwareConfig.value = planned
-            _config.value = _config.value.copy(
-                sessionLength = planned.workMinutes,
-                breakLength = planned.breakMinutes,
-                longBreakLength = planned.longBreakMinutes
-            )
         }
     }
 
