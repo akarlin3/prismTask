@@ -117,6 +117,15 @@ class SettingsViewModel @Inject constructor(
         userPreferencesDataStore.quickAddFlow
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), com.averycorp.prismtask.data.preferences.QuickAddPrefs())
 
+    /** Work-Life Balance preferences (v1.4.0 V1). */
+    val workLifeBalancePrefs: StateFlow<com.averycorp.prismtask.data.preferences.WorkLifeBalancePrefs> =
+        userPreferencesDataStore.workLifeBalanceFlow
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), com.averycorp.prismtask.data.preferences.WorkLifeBalancePrefs())
+
+    fun setWorkLifeBalancePrefs(prefs: com.averycorp.prismtask.data.preferences.WorkLifeBalancePrefs) {
+        viewModelScope.launch { userPreferencesDataStore.setWorkLifeBalance(prefs) }
+    }
+
     fun setCompactMode(enabled: Boolean) {
         viewModelScope.launch { userPreferencesDataStore.setCompactMode(enabled) }
     }

@@ -23,7 +23,9 @@ import com.averycorp.prismtask.data.repository.ProjectRepository
 import com.averycorp.prismtask.data.repository.TagRepository
 import com.averycorp.prismtask.data.repository.TaskRepository
 import com.averycorp.prismtask.data.repository.TaskTemplateRepository
+import com.averycorp.prismtask.domain.model.LifeCategory
 import com.averycorp.prismtask.domain.model.RecurrenceRule
+import com.averycorp.prismtask.domain.usecase.LifeCategoryClassifier
 import com.averycorp.prismtask.notifications.ReminderScheduler
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -106,6 +108,20 @@ class AddEditTaskViewModel @Inject constructor(
         private set
 
     /**
+     * Work-Life Balance category for this task. `null` means "Auto" —
+     * the save path will run [LifeCategoryClassifier] to guess one before
+     * persisting (see [saveTask]).
+     */
+    var lifeCategory by mutableStateOf<LifeCategory?>(null)
+        private set
+
+    /** True if the user has explicitly picked a category via the Organize tab chips. */
+    var lifeCategoryManuallySet by mutableStateOf(false)
+        private set
+
+    private val lifeCategoryClassifier = LifeCategoryClassifier()
+
+    /**
      * Unpersisted subtasks for the task currently being composed. Populated
      * either by the user typing into the Details tab's subtask field or by
      * applying a template (which dumps its blueprint subtask titles here).
@@ -128,6 +144,7 @@ class AddEditTaskViewModel @Inject constructor(
     private var initialEstimatedDuration: Int? = null
     private var initialNotes: String = ""
     private var initialSelectedTagIds: Set<Long> = emptySet()
+    private var initialLifeCategory: LifeCategory? = null
 
     val projects: StateFlow<List<ProjectEntity>> = projectRepository.getAllProjects()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -192,6 +209,8 @@ class AddEditTaskViewModel @Inject constructor(
         estimatedDuration = null
         notes = ""
         selectedTagIds = emptySet()
+        lifeCategory = null
+        lifeCategoryManuallySet = false
         titleError = false
         pendingSubtasks.clear()
         nextPendingSubtaskId = 1L
@@ -220,6 +239,9 @@ class AddEditTaskViewModel @Inject constructor(
                     estimatedDuration = task.estimatedDuration
                     notes = task.notes.orEmpty()
                     selectedTagIds = tagIds
+                    val loadedCategory = LifeCategory.fromStorage(task.lifeCategory)
+                    lifeCategory = loadedCategory.takeIf { it != LifeCategory.UNCATEGORIZED }
+                    lifeCategoryManuallySet = lifeCategory != null
                     snapshotInitialValuesFromTask(task, tagIds)
                 } else {
                     snapshotInitialValuesForCreate(projectId, initialDate)
@@ -245,6 +267,9 @@ class AddEditTaskViewModel @Inject constructor(
         initialEstimatedDuration = task.estimatedDuration
         initialNotes = task.notes.orEmpty()
         initialSelectedTagIds = tagIds
+        initialLifeCategory = LifeCategory.fromStorage(task.lifeCategory).takeIf {
+            it != LifeCategory.UNCATEGORIZED
+        }
     }
 
     private fun snapshotInitialValuesForCreate(projectId: Long?, initialDate: Long?) {
@@ -260,6 +285,7 @@ class AddEditTaskViewModel @Inject constructor(
         initialEstimatedDuration = null
         initialNotes = ""
         initialSelectedTagIds = emptySet()
+        initialLifeCategory = null
     }
 
     val hasUnsavedChanges: Boolean
@@ -275,7 +301,8 @@ class AddEditTaskViewModel @Inject constructor(
                 reminderOffset != initialReminderOffset ||
                 estimatedDuration != initialEstimatedDuration ||
                 notes != initialNotes ||
-                selectedTagIds != initialSelectedTagIds
+                selectedTagIds != initialSelectedTagIds ||
+                lifeCategory != initialLifeCategory
             )
 
     fun onTitleChange(value: String) {
@@ -294,6 +321,30 @@ class AddEditTaskViewModel @Inject constructor(
     fun onEstimatedDurationChange(value: Int?) { estimatedDuration = value }
     fun onSelectedTagIdsChange(value: Set<Long>) { selectedTagIds = value }
     fun onParentTaskIdChange(value: Long?) { parentTaskId = value }
+
+    /**
+     * Set the [LifeCategory] chip. Passing `null` switches back to "Auto"
+     * mode — the classifier will run at save time to guess one.
+     */
+    fun onLifeCategoryChange(value: LifeCategory?) {
+        lifeCategory = value
+        lifeCategoryManuallySet = value != null
+    }
+
+    /**
+     * Resolve the final life_category value to persist:
+     *  - If the user picked one, use it.
+     *  - Otherwise run the keyword classifier on title + description.
+     *  - UNCATEGORIZED maps to `null` so old exports stay round-trippable.
+     */
+    internal fun resolveLifeCategoryForSave(autoClassifyEnabled: Boolean = true): String? {
+        if (lifeCategoryManuallySet && lifeCategory != null) {
+            return lifeCategory?.name
+        }
+        if (!autoClassifyEnabled) return null
+        val guess = lifeCategoryClassifier.classify(title, description.ifBlank { null })
+        return if (guess == LifeCategory.UNCATEGORIZED) null else guess.name
+    }
 
     /**
      * Appends a new pending subtask with the supplied [title] and returns
@@ -472,6 +523,7 @@ class AddEditTaskViewModel @Inject constructor(
             val trimmedDesc = description.trim().ifEmpty { null }
             val trimmedNotes = notes.trim().ifEmpty { null }
             val recurrenceJson = recurrenceRule?.let { RecurrenceConverter.toJson(it) }
+            val resolvedLifeCategory = resolveLifeCategoryForSave()
             val existing = existingTask
             val savedId: Long
             if (existing != null) {
@@ -487,7 +539,8 @@ class AddEditTaskViewModel @Inject constructor(
                         reminderOffset = reminderOffset,
                         recurrenceRule = recurrenceJson,
                         estimatedDuration = estimatedDuration,
-                        notes = trimmedNotes
+                        notes = trimmedNotes,
+                        lifeCategory = resolvedLifeCategory
                     )
                 )
                 savedId = existing.id
@@ -499,7 +552,8 @@ class AddEditTaskViewModel @Inject constructor(
                     dueTime = dueTime,
                     priority = priority,
                     projectId = projectId,
-                    parentTaskId = parentTaskId
+                    parentTaskId = parentTaskId,
+                    lifeCategory = resolvedLifeCategory
                 )
                 // Update reminder offset, recurrence, and estimated duration on the newly created task
                 if (reminderOffset != null || recurrenceJson != null || estimatedDuration != null) {

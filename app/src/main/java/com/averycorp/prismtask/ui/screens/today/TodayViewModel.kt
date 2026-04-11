@@ -14,6 +14,11 @@ import com.averycorp.prismtask.data.preferences.DashboardPreferences
 import com.averycorp.prismtask.data.preferences.HabitListPreferences
 import com.averycorp.prismtask.data.preferences.SortPreferences
 import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
+import com.averycorp.prismtask.data.preferences.UserPreferencesDataStore
+import com.averycorp.prismtask.data.preferences.WorkLifeBalancePrefs
+import com.averycorp.prismtask.domain.usecase.BalanceConfig
+import com.averycorp.prismtask.domain.usecase.BalanceState
+import com.averycorp.prismtask.domain.usecase.BalanceTracker
 import com.averycorp.prismtask.data.repository.HabitRepository
 import com.averycorp.prismtask.util.DayBoundary
 import com.averycorp.prismtask.data.repository.HabitWithStatus
@@ -53,8 +58,39 @@ class TodayViewModel @Inject constructor(
     private val habitListPreferences: HabitListPreferences,
     private val taskBehaviorPreferences: TaskBehaviorPreferences,
     private val sortPreferences: SortPreferences,
-    private val proFeatureGate: com.averycorp.prismtask.domain.usecase.ProFeatureGate
+    private val proFeatureGate: com.averycorp.prismtask.domain.usecase.ProFeatureGate,
+    private val userPreferencesDataStore: UserPreferencesDataStore
 ) : ViewModel() {
+
+    private val balanceTracker: BalanceTracker = BalanceTracker()
+
+    /**
+     * Work-Life Balance preferences: target ratios, toggles, overload threshold.
+     * Exposed to the UI so it can read `showBalanceBar` before rendering the section.
+     */
+    val workLifeBalancePrefs: StateFlow<WorkLifeBalancePrefs> =
+        userPreferencesDataStore.workLifeBalanceFlow
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), WorkLifeBalancePrefs())
+
+    /**
+     * Live [BalanceState] derived from the user's full task pool and current
+     * WLB configuration. The Today screen balance bar, overload banner, and
+     * future burnout scorer (V2) all subscribe to this.
+     */
+    val balanceState: StateFlow<BalanceState> =
+        combine(
+            taskRepository.getAllTasks(),
+            workLifeBalancePrefs
+        ) { allTasks, prefs ->
+            val config = BalanceConfig(
+                workTarget = prefs.workTarget / 100f,
+                personalTarget = prefs.personalTarget / 100f,
+                selfCareTarget = prefs.selfCareTarget / 100f,
+                healthTarget = prefs.healthTarget / 100f,
+                overloadThreshold = prefs.overloadThresholdPct / 100f
+            )
+            balanceTracker.compute(allTasks, config)
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), BalanceState.EMPTY)
 
     val isPremium: Boolean
         get() = proFeatureGate.isPremium()

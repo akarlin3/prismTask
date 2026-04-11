@@ -34,8 +34,10 @@ import androidx.compose.ui.unit.dp
 import com.averycorp.prismtask.data.local.entity.ProjectEntity
 import com.averycorp.prismtask.data.local.entity.TagEntity
 import com.averycorp.prismtask.domain.model.DateRange
+import com.averycorp.prismtask.domain.model.LifeCategory
 import com.averycorp.prismtask.domain.model.TagFilterMode
 import com.averycorp.prismtask.domain.model.TaskFilter
+import com.averycorp.prismtask.ui.theme.LifeCategoryColor
 import com.averycorp.prismtask.ui.theme.LocalPriorityColors
 import java.util.Calendar
 
@@ -185,6 +187,41 @@ fun FilterPanel(
                     colors = FilterChipDefaults.filterChipColors(
                         selectedContainerColor = LocalPriorityColors.current.forLevel(level).copy(alpha = 0.2f),
                         selectedLabelColor = LocalPriorityColors.current.forLevel(level)
+                    )
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Life Category section (Work-Life Balance Engine v1.4.0 V1)
+        Text(
+            text = "Life Category",
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.SemiBold
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            LifeCategory.TRACKED.forEach { category ->
+                val isSelected = category in workingFilter.selectedLifeCategories
+                val color = LifeCategoryColor.forCategory(category)
+                FilterChip(
+                    selected = isSelected,
+                    onClick = {
+                        val newList = if (isSelected) {
+                            workingFilter.selectedLifeCategories - category
+                        } else {
+                            workingFilter.selectedLifeCategories + category
+                        }
+                        workingFilter = workingFilter.copy(selectedLifeCategories = newList)
+                    },
+                    label = { Text(LifeCategory.label(category)) },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = color.copy(alpha = 0.2f),
+                        selectedLabelColor = color
                     )
                 )
             }

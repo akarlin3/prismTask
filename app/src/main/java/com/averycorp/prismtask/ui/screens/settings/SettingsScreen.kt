@@ -60,6 +60,7 @@ import com.averycorp.prismtask.ui.screens.settings.sections.SwipeActionsSection
 import com.averycorp.prismtask.ui.screens.settings.sections.TaskDefaultsSection
 import com.averycorp.prismtask.ui.screens.settings.sections.TimerSection
 import com.averycorp.prismtask.ui.screens.settings.sections.VoiceInputSection
+import com.averycorp.prismtask.ui.screens.settings.sections.WorkLifeBalanceSection
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -90,6 +91,9 @@ fun SettingsScreen(
     // Display + Swipe
     val appearancePrefs by viewModel.appearancePrefs.collectAsStateWithLifecycle()
     val swipePrefs by viewModel.swipePrefs.collectAsStateWithLifecycle()
+
+    // Work-Life Balance (v1.4.0 V1)
+    val workLifeBalancePrefs by viewModel.workLifeBalancePrefs.collectAsStateWithLifecycle()
 
     // Data
     val autoArchiveDays by viewModel.autoArchiveDays.collectAsStateWithLifecycle()
@@ -354,6 +358,11 @@ fun SettingsScreen(
                     onHiddenTabsChange = viewModel::setHiddenTabs,
                     onTabOrderChange = viewModel::setTabOrder,
                     onResetTabDefaults = viewModel::resetTabDefaults
+                )
+
+                WorkLifeBalanceSection(
+                    prefs = workLifeBalancePrefs,
+                    onPrefsChange = viewModel::setWorkLifeBalancePrefs
                 )
 
                 TaskDefaultsSection(

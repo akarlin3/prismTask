@@ -641,6 +641,21 @@ class DataImporter @Inject constructor(
                                 )
                             )
                         }
+                        // Work-Life Balance (v1.4.0 V1)
+                        userPrefs.getAsJsonObject("workLifeBalance")?.let { w ->
+                            val current = userPreferencesDataStore.workLifeBalanceFlow.first()
+                            userPreferencesDataStore.setWorkLifeBalance(
+                                com.averycorp.prismtask.data.preferences.WorkLifeBalancePrefs(
+                                    workTarget = w.get("workTarget")?.takeIf { !it.isJsonNull }?.asInt ?: current.workTarget,
+                                    personalTarget = w.get("personalTarget")?.takeIf { !it.isJsonNull }?.asInt ?: current.personalTarget,
+                                    selfCareTarget = w.get("selfCareTarget")?.takeIf { !it.isJsonNull }?.asInt ?: current.selfCareTarget,
+                                    healthTarget = w.get("healthTarget")?.takeIf { !it.isJsonNull }?.asInt ?: current.healthTarget,
+                                    autoClassifyEnabled = w.get("autoClassifyEnabled")?.takeIf { !it.isJsonNull }?.asBoolean ?: current.autoClassifyEnabled,
+                                    showBalanceBar = w.get("showBalanceBar")?.takeIf { !it.isJsonNull }?.asBoolean ?: current.showBalanceBar,
+                                    overloadThresholdPct = w.get("overloadThresholdPct")?.takeIf { !it.isJsonNull }?.asInt ?: current.overloadThresholdPct
+                                )
+                            )
+                        }
                     }
 
                     configImported = true

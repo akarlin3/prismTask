@@ -75,6 +75,7 @@ import com.averycorp.prismtask.ui.screens.today.components.HabitChipRow
 import com.averycorp.prismtask.ui.screens.today.components.NeutralGray
 import com.averycorp.prismtask.ui.screens.today.components.PlanForTodaySheet
 import com.averycorp.prismtask.ui.screens.today.components.SwipeableTaskItem
+import com.averycorp.prismtask.ui.screens.today.components.TodayBalanceSection
 
 private const val SECTION_OVERDUE = "overdue"
 private const val SECTION_TODAY_TASKS = "today_tasks"
@@ -115,6 +116,8 @@ fun TodayScreen(
     val allHabitsCompleted by viewModel.allHabitsCompletedToday.collectAsStateWithLifecycle()
     val habitCompletedCount by viewModel.habitCompletedCount.collectAsStateWithLifecycle()
     val habitTotalCount by viewModel.habitTotalCount.collectAsStateWithLifecycle()
+    val balanceState by viewModel.balanceState.collectAsStateWithLifecycle()
+    val workLifeBalancePrefs by viewModel.workLifeBalancePrefs.collectAsStateWithLifecycle()
 
     val coachingUserTier by coachingViewModel.userTier.collectAsStateWithLifecycle()
     val showEnergyCheckIn by coachingViewModel.showEnergyCheckIn.collectAsStateWithLifecycle()
@@ -282,6 +285,12 @@ fun TodayScreen(
                             navController.navigate(PrismTaskRoute.Settings.route)
                         }
                     )
+                }
+            }
+
+            if (workLifeBalancePrefs.showBalanceBar) {
+                item(key = "balance_bar") {
+                    TodayBalanceSection(state = balanceState)
                 }
             }
 

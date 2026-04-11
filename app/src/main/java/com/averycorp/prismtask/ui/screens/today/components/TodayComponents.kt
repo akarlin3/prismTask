@@ -67,8 +67,11 @@ import androidx.compose.ui.unit.sp
 import com.averycorp.prismtask.data.local.entity.TagEntity
 import com.averycorp.prismtask.data.local.entity.TaskEntity
 import com.averycorp.prismtask.data.repository.HabitWithStatus
+import com.averycorp.prismtask.domain.model.LifeCategory
+import com.averycorp.prismtask.domain.usecase.BalanceState
 import com.averycorp.prismtask.ui.components.CircularCheckbox
 import com.averycorp.prismtask.ui.components.QuickAddBar
+import com.averycorp.prismtask.ui.theme.LifeCategoryColor
 import com.averycorp.prismtask.ui.theme.LocalPriorityColors
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
@@ -207,6 +210,93 @@ internal fun CompactProgressHeader(
                 fontWeight = FontWeight.SemiBold,
                 color = if (progress >= 1f) CompletedGreen else MaterialTheme.colorScheme.onSurface
             )
+        }
+    }
+}
+
+/**
+ * Compact Work-Life Balance bar shown beneath the Today progress header.
+ *
+ * Renders the four tracked categories (Work / Personal / Self-Care / Health)
+ * as a horizontal stacked bar. Each segment's width is proportional to the
+ * category's share of the user's last 7 days of tracked tasks. A small
+ * warning icon appears when the balance is overloaded toward work.
+ *
+ * When no tasks have been categorized yet, the bar shows an "Add categories
+ * to see your balance" hint instead of an empty bar.
+ */
+@Composable
+internal fun TodayBalanceSection(
+    state: BalanceState,
+    onClick: () -> Unit = {}
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick)
+            .padding(vertical = 8.dp, horizontal = 12.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Balance",
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.weight(1f))
+            if (state.isOverloaded) {
+                Text(
+                    text = "\u26A0 Work high",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = LifeCategoryColor.HEALTH
+                )
+            } else if (state.totalTracked > 0) {
+                val dominantLabel = LifeCategory.label(state.dominantCategory)
+                Text(
+                    text = dominantLabel,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+        Spacer(modifier = Modifier.height(6.dp))
+        if (state.totalTracked == 0) {
+            Text(
+                text = "Add categories to see your balance",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        } else {
+            BalanceStackedBar(ratios = state.currentRatios)
+        }
+    }
+}
+
+@Composable
+private fun BalanceStackedBar(ratios: Map<LifeCategory, Float>) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(10.dp)
+            .clip(RoundedCornerShape(6.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+    ) {
+        LifeCategory.TRACKED.forEach { category ->
+            val ratio = (ratios[category] ?: 0f).coerceIn(0f, 1f)
+            if (ratio > 0f) {
+                Box(
+                    modifier = Modifier
+                        .weight(ratio)
+                        .fillMaxSize()
+                        .background(LifeCategoryColor.forCategory(category))
+                )
+            }
         }
     }
 }

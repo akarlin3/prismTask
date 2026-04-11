@@ -47,6 +47,7 @@ internal fun taskToOperation(task: TaskEntity): SyncOperation {
         if (task.estimatedDuration != null) addProperty("estimated_duration", task.estimatedDuration)
         if (task.scheduledStartTime != null) addProperty("scheduled_start_time", task.scheduledStartTime)
         if (task.sourceHabitId != null) addProperty("source_habit_id", task.sourceHabitId)
+        if (task.lifeCategory != null) addProperty("life_category", task.lifeCategory)
     }
     return SyncOperation(
         entityType = "task",

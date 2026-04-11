@@ -386,4 +386,42 @@ class NaturalLanguageParserTest {
         assertEquals("Pay rent", result.title)
         assertEquals("monthly", result.recurrenceHint)
     }
+
+    // Life Category tags (v1.4.0 V1)
+
+    @Test
+    fun test_workTagSetsLifeCategory() {
+        val result = parser.parse("Prep slides #work")
+        assertEquals("Prep slides", result.title)
+        assertEquals(listOf("work"), result.tags)
+        assertEquals("WORK", result.lifeCategory)
+    }
+
+    @Test
+    fun test_personalTagSetsLifeCategory() {
+        val result = parser.parse("Grocery run #personal")
+        assertEquals("Grocery run", result.title)
+        assertEquals("PERSONAL", result.lifeCategory)
+    }
+
+    @Test
+    fun test_selfCareHyphenatedTagSetsLifeCategory() {
+        val result = parser.parse("Meditate #self-care")
+        assertEquals("Meditate", result.title)
+        assertEquals("SELF_CARE", result.lifeCategory)
+        assertTrue(result.tags.contains("self-care"))
+    }
+
+    @Test
+    fun test_healthTagSetsLifeCategory() {
+        val result = parser.parse("Pharmacy run #health")
+        assertEquals("Pharmacy run", result.title)
+        assertEquals("HEALTH", result.lifeCategory)
+    }
+
+    @Test
+    fun test_noCategoryTagLeavesLifeCategoryNull() {
+        val result = parser.parse("Buy milk #groceries")
+        assertNull(result.lifeCategory)
+    }
 }

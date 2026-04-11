@@ -513,6 +513,13 @@ val MIGRATION_23_24 = object : Migration(23, 24) {
     }
 }
 
+// v1.4.0 V1: add life_category column to tasks (Work-Life Balance Engine)
+val MIGRATION_32_33 = object : Migration(32, 33) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE tasks ADD COLUMN life_category TEXT")
+    }
+}
+
 val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_1_2,
     MIGRATION_2_3,
@@ -545,4 +552,5 @@ val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_29_30,
     MIGRATION_30_31,
     MIGRATION_31_32,
+    MIGRATION_32_33,
 )

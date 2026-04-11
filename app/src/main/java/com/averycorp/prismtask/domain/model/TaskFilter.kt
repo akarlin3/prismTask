@@ -9,16 +9,18 @@ data class TaskFilter(
     val showCompleted: Boolean = false,
     val showArchived: Boolean = false,
     val searchQuery: String = "",
-    val showFlaggedOnly: Boolean = false
+    val showFlaggedOnly: Boolean = false,
+    /** Work-Life Balance categories to filter by (empty = no category filter). */
+    val selectedLifeCategories: List<LifeCategory> = emptyList()
 ) {
     fun isActive(): Boolean = selectedTagIds.isNotEmpty() || selectedPriorities.isNotEmpty() ||
         selectedProjectIds.isNotEmpty() || dateRange != null || showCompleted || showArchived ||
-        searchQuery.isNotBlank() || showFlaggedOnly
+        searchQuery.isNotBlank() || showFlaggedOnly || selectedLifeCategories.isNotEmpty()
 
     fun activeFilterCount(): Int = listOf(
         selectedTagIds.isNotEmpty(), selectedPriorities.isNotEmpty(),
         selectedProjectIds.isNotEmpty(), dateRange != null, showCompleted, showArchived,
-        searchQuery.isNotBlank(), showFlaggedOnly
+        searchQuery.isNotBlank(), showFlaggedOnly, selectedLifeCategories.isNotEmpty()
     ).count { it }
 }
 

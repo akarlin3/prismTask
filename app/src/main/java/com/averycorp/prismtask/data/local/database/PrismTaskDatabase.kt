@@ -50,7 +50,7 @@ import com.averycorp.prismtask.data.local.entity.UsageLogEntity
 
 @Database(
     entities = [TaskEntity::class, ProjectEntity::class, TagEntity::class, TaskTagCrossRef::class, AttachmentEntity::class, UsageLogEntity::class, SyncMetadataEntity::class, CalendarSyncEntity::class, HabitEntity::class, HabitCompletionEntity::class, HabitLogEntity::class, LeisureLogEntity::class, CourseEntity::class, AssignmentEntity::class, StudyLogEntity::class, CourseCompletionEntity::class, SelfCareLogEntity::class, SelfCareStepEntity::class, TaskTemplateEntity::class, NlpShortcutEntity::class, SavedFilterEntity::class, ReminderProfileEntity::class, ProjectTemplateEntity::class, HabitTemplateEntity::class],
-    version = 32,
+    version = 33,
     exportSchema = false
 )
 abstract class PrismTaskDatabase : RoomDatabase() {

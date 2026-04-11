@@ -53,6 +53,30 @@ data class QuickAddPrefs(
 )
 
 /**
+ * Work-Life Balance Engine preferences (v1.4.0 V1).
+ *
+ * Target ratios are stored as Int percentages (0..100) and should sum to 100.
+ * [autoClassifyEnabled] controls whether the [com.averycorp.prismtask.domain.usecase.LifeCategoryClassifier]
+ * runs on task creation when the user hasn't picked a category manually.
+ * [showBalanceBar] toggles the Today screen balance bar visibility.
+ */
+data class WorkLifeBalancePrefs(
+    val workTarget: Int = 40,
+    val personalTarget: Int = 25,
+    val selfCareTarget: Int = 20,
+    val healthTarget: Int = 15,
+    val autoClassifyEnabled: Boolean = true,
+    val showBalanceBar: Boolean = true,
+    val overloadThresholdPct: Int = 10
+) {
+    /** Whether the four target percentages sum to 100 (allowing ±1 for rounding). */
+    fun isValid(): Boolean {
+        val sum = workTarget + personalTarget + selfCareTarget + healthTarget
+        return sum in 99..101
+    }
+}
+
+/**
  * Aggregated snapshot of all user preferences for a single point in time.
  * Used primarily by DataExporter/DataImporter and by the Settings screen.
  */
@@ -60,7 +84,8 @@ data class UserPreferencesSnapshot(
     val appearance: AppearancePrefs = AppearancePrefs(),
     val swipe: SwipePrefs = SwipePrefs(),
     val taskDefaults: TaskDefaults = TaskDefaults(),
-    val quickAdd: QuickAddPrefs = QuickAddPrefs()
+    val quickAdd: QuickAddPrefs = QuickAddPrefs(),
+    val workLifeBalance: WorkLifeBalancePrefs = WorkLifeBalancePrefs()
 )
 
 /**
@@ -103,6 +128,15 @@ class UserPreferencesDataStore(
 
         // Task card display config (JSON-encoded)
         val KEY_TASK_CARD_DISPLAY = stringPreferencesKey("task_card_display_json")
+
+        // Work-Life Balance (v1.4.0 V1)
+        val KEY_WLB_WORK_TARGET = intPreferencesKey("wlb_work_target")
+        val KEY_WLB_PERSONAL_TARGET = intPreferencesKey("wlb_personal_target")
+        val KEY_WLB_SELFCARE_TARGET = intPreferencesKey("wlb_selfcare_target")
+        val KEY_WLB_HEALTH_TARGET = intPreferencesKey("wlb_health_target")
+        val KEY_WLB_AUTO_CLASSIFY = booleanPreferencesKey("wlb_auto_classify")
+        val KEY_WLB_SHOW_BAR = booleanPreferencesKey("wlb_show_bar")
+        val KEY_WLB_OVERLOAD_THRESHOLD = intPreferencesKey("wlb_overload_threshold")
 
         private const val DEFAULT_PROJECT_NULL_SENTINEL: Long = -1L
     }
@@ -191,11 +225,23 @@ class UserPreferencesDataStore(
         dataStore.edit { it[KEY_TASK_CARD_DISPLAY] = json }
     }
 
+    val workLifeBalanceFlow: Flow<WorkLifeBalancePrefs> = dataStore.data.map { prefs ->
+        WorkLifeBalancePrefs(
+            workTarget = (prefs[KEY_WLB_WORK_TARGET] ?: 40).coerceIn(0, 100),
+            personalTarget = (prefs[KEY_WLB_PERSONAL_TARGET] ?: 25).coerceIn(0, 100),
+            selfCareTarget = (prefs[KEY_WLB_SELFCARE_TARGET] ?: 20).coerceIn(0, 100),
+            healthTarget = (prefs[KEY_WLB_HEALTH_TARGET] ?: 15).coerceIn(0, 100),
+            autoClassifyEnabled = prefs[KEY_WLB_AUTO_CLASSIFY] ?: true,
+            showBalanceBar = prefs[KEY_WLB_SHOW_BAR] ?: true,
+            overloadThresholdPct = (prefs[KEY_WLB_OVERLOAD_THRESHOLD] ?: 10).coerceIn(5, 25)
+        )
+    }
+
     /** Combined flow emitting the full preferences bundle. */
     val allFlow: Flow<UserPreferencesSnapshot> = combine(
-        appearanceFlow, swipeFlow, taskDefaultsFlow, quickAddFlow
-    ) { appearance, swipe, defaults, quickAdd ->
-        UserPreferencesSnapshot(appearance, swipe, defaults, quickAdd)
+        appearanceFlow, swipeFlow, taskDefaultsFlow, quickAddFlow, workLifeBalanceFlow
+    ) { appearance, swipe, defaults, quickAdd, wlb ->
+        UserPreferencesSnapshot(appearance, swipe, defaults, quickAdd, wlb)
     }
 
     // endregion
@@ -258,6 +304,31 @@ class UserPreferencesDataStore(
             it[KEY_QUICK_ADD_CONFIRM] = prefs.showConfirmation
             it[KEY_QUICK_ADD_AUTO_PROJECT] = prefs.autoAssignProject
         }
+    }
+
+    /**
+     * Save a new Work-Life Balance configuration. Values that don't sum to 100
+     * are stored as-is; the UI is responsible for validation. The overload
+     * threshold is clamped to a sane range.
+     */
+    suspend fun setWorkLifeBalance(prefs: WorkLifeBalancePrefs) {
+        dataStore.edit {
+            it[KEY_WLB_WORK_TARGET] = prefs.workTarget.coerceIn(0, 100)
+            it[KEY_WLB_PERSONAL_TARGET] = prefs.personalTarget.coerceIn(0, 100)
+            it[KEY_WLB_SELFCARE_TARGET] = prefs.selfCareTarget.coerceIn(0, 100)
+            it[KEY_WLB_HEALTH_TARGET] = prefs.healthTarget.coerceIn(0, 100)
+            it[KEY_WLB_AUTO_CLASSIFY] = prefs.autoClassifyEnabled
+            it[KEY_WLB_SHOW_BAR] = prefs.showBalanceBar
+            it[KEY_WLB_OVERLOAD_THRESHOLD] = prefs.overloadThresholdPct.coerceIn(5, 25)
+        }
+    }
+
+    suspend fun setAutoClassifyEnabled(enabled: Boolean) {
+        dataStore.edit { it[KEY_WLB_AUTO_CLASSIFY] = enabled }
+    }
+
+    suspend fun setShowBalanceBar(enabled: Boolean) {
+        dataStore.edit { it[KEY_WLB_SHOW_BAR] = enabled }
     }
 
     suspend fun clearAll() {

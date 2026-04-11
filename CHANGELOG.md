@@ -5,6 +5,39 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased — v1.4.0 Vision Deck Rollout
+
+### Added — Work-Life Balance Engine (V1)
+- New `LifeCategory` enum (WORK / PERSONAL / SELF_CARE / HEALTH / UNCATEGORIZED)
+  with a `life_category` column on `tasks` (migration 32 → 33).
+- `LifeCategoryClassifier` — fast, offline keyword-based classifier with
+  configurable word lists per category, used as the default auto-classification
+  path for new tasks.
+- `BalanceTracker` — computes current week + 4-week rolling category ratios,
+  overload detection, and dominant category from a task pool.
+- `WorkLifeBalancePrefs` in `UserPreferencesDataStore` — target ratios, auto-
+  classify toggle, balance bar toggle, overload threshold (5–25%).
+- Organize tab: "Life Category" chip selector with Auto + 4 colored category
+  chips. Editing a task now persists the life category to Room + Firestore
+  sync + JSON export/import.
+- Today screen: new compact `TodayBalanceSection` stacked bar above the task
+  list showing the week's distribution with an overload warning badge when
+  work exceeds target.
+- Settings: new "Work-Life Balance" section with auto-classify toggle, balance
+  bar toggle, per-category target sliders (with live sum validation), and
+  overload threshold slider.
+- NLP quick-add: `#work`, `#personal`, `#health`, `#self-care` (and
+  `#selfcare`) set `lifeCategory` in addition to being added as regular tags.
+  The hyphenated `#self-care` form is handled explicitly so the dash isn't
+  dropped.
+- QuickAddViewModel now falls back to `LifeCategoryClassifier` for tasks
+  created without a manual category tag, so Today's balance bar stays live
+  without extra user effort.
+- Filter panel: "Life Category" multi-select filter with colored chips; the
+  `TaskFilter` model and task-list filtering pipeline both respect it.
+- Added 26 unit tests: `LifeCategoryClassifierTest` (11), `BalanceTrackerTest`
+  (10), `NaturalLanguageParserTest` life-category additions (5).
+
 ## v1.3.0 — Voice, Widgets, Accessibility, Analytics, Integrations & Three-Tier Pricing (April 2026)
 
 Skips the v1.2.0 tag and ships everything developed since v1.1.0 together.

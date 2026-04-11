@@ -101,5 +101,13 @@ data class TaskEntity(
     val sortOrder: Int = 0,
 
     @ColumnInfo(name = "is_flagged", defaultValue = "0")
-    val isFlagged: Boolean = false
+    val isFlagged: Boolean = false,
+
+    /**
+     * Work-Life Balance category. Stored as the [com.averycorp.prismtask.domain.model.LifeCategory]
+     * enum name (e.g. "WORK", "SELF_CARE"). Null or unknown values are treated as
+     * [com.averycorp.prismtask.domain.model.LifeCategory.UNCATEGORIZED].
+     */
+    @ColumnInfo(name = "life_category")
+    val lifeCategory: String? = null
 )

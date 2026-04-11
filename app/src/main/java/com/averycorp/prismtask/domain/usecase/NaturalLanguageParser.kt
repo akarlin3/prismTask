@@ -33,7 +33,14 @@ data class ParsedTask(
      * library and either creates the task directly or surfaces a
      * disambiguation popup.
      */
-    val templateQuery: String? = null
+    val templateQuery: String? = null,
+    /**
+     * Work-Life Balance category extracted from category tags like `#work`,
+     * `#self-care`, `#personal`, `#health`. Stored as the [com.averycorp.prismtask.domain.model.LifeCategory]
+     * enum name so ViewModels can route it to TaskEntity.lifeCategory. Null
+     * when no category tag was present (or the classifier will take over).
+     */
+    val lifeCategory: String? = null
 )
 
 @Singleton
@@ -129,11 +136,48 @@ class NaturalLanguageParser @Inject constructor(
         var text = input
         val today = LocalDate.now()
 
+        var lifeCategory: String? = null
+
+        // 1a. Hyphenated life-category tag (v1.4.0 V1): #self-care / #self care.
+        // Handled before the standard tag regex because the dash is not part of
+        // \w+ so the generic regex would only capture "self" and leave "-care"
+        // in the title. We also push "self-care" into the regular tag list so
+        // the existing tag-filtering UI keeps working.
+        val selfCareRegex = Regex("""(?i)(?:^|(?<=\s))#(self[-_]?care)(?=\s|$)""")
+        val selfCareMatch = selfCareRegex.find(text)
+        val hyphenatedSelfCare = selfCareMatch != null
+        if (hyphenatedSelfCare) {
+            lifeCategory = "SELF_CARE"
+            text = selfCareRegex.replace(text, "")
+        }
+
         // 1. Tags — #word but not C# (must be preceded by space or at start)
         val tags = mutableListOf<String>()
         val tagRegex = Regex("""(?:^|(?<=\s))#(\w+)""")
         tags.addAll(tagRegex.findAll(text).map { it.groupValues[1] })
         text = tagRegex.replace(text, "")
+        if (hyphenatedSelfCare) tags.add("self-care")
+
+        // 1b. Category tags that also live in the regular tag list
+        // (#work, #personal, #health, #selfcare). These remain as tags so the
+        // existing tag-filter UI still works — we only *additionally* set
+        // [lifeCategory]. If the user already chose SELF_CARE via the
+        // hyphenated form above we leave the first winner alone.
+        if (lifeCategory == null) {
+            for (tag in tags) {
+                val mapped = when (tag.lowercase(Locale.ROOT)) {
+                    "work" -> "WORK"
+                    "personal" -> "PERSONAL"
+                    "health" -> "HEALTH"
+                    "selfcare" -> "SELF_CARE"
+                    else -> null
+                }
+                if (mapped != null) {
+                    lifeCategory = mapped
+                    break
+                }
+            }
+        }
 
         // 2. Projects — @word but not emails (@ must be preceded by space or at start)
         var projectName: String? = null
@@ -383,7 +427,8 @@ class NaturalLanguageParser @Inject constructor(
             tags = tags,
             projectName = projectName,
             priority = priority,
-            recurrenceHint = recurrenceHint
+            recurrenceHint = recurrenceHint,
+            lifeCategory = lifeCategory
         )
     }
 

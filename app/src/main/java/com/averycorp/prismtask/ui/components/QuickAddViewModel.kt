@@ -13,6 +13,8 @@ import com.averycorp.prismtask.data.repository.ProjectRepository
 import com.averycorp.prismtask.data.repository.TagRepository
 import com.averycorp.prismtask.data.repository.TaskRepository
 import com.averycorp.prismtask.data.repository.TaskTemplateRepository
+import com.averycorp.prismtask.domain.model.LifeCategory
+import com.averycorp.prismtask.domain.usecase.LifeCategoryClassifier
 import com.averycorp.prismtask.domain.usecase.NaturalLanguageParser
 import com.averycorp.prismtask.domain.usecase.ParsedTask
 import com.averycorp.prismtask.domain.usecase.ParsedTaskResolver
@@ -63,6 +65,8 @@ class QuickAddViewModel @Inject constructor(
     private val _templateDisambiguation = MutableStateFlow<List<TaskTemplateEntity>?>(null)
     val templateDisambiguation: StateFlow<List<TaskTemplateEntity>?> =
         _templateDisambiguation.asStateFlow()
+
+    private val lifeCategoryClassifier = LifeCategoryClassifier()
 
     val inputText = MutableStateFlow("")
 
@@ -347,6 +351,12 @@ class QuickAddViewModel @Inject constructor(
                 val recurrenceJson = resolved.recurrenceRule?.let { RecurrenceConverter.toJson(it) }
 
                 val now = System.currentTimeMillis()
+                // If NLP didn't pick up a category tag, fall back to the
+                // keyword classifier so Today's balance bar still gets data.
+                val resolvedCategory = resolved.lifeCategory ?: run {
+                    val guess = lifeCategoryClassifier.classify(resolved.title)
+                    if (guess == LifeCategory.UNCATEGORIZED) null else guess.name
+                }
                 val task = TaskEntity(
                     title = resolved.title,
                     dueDate = resolved.dueDate,
@@ -355,6 +365,7 @@ class QuickAddViewModel @Inject constructor(
                     projectId = projectId,
                     recurrenceRule = recurrenceJson,
                     plannedDate = plannedDateOverride,
+                    lifeCategory = resolvedCategory,
                     createdAt = now,
                     updatedAt = now
                 )
