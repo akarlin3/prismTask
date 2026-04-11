@@ -120,6 +120,7 @@ fun TodayScreen(
     val balanceState by viewModel.balanceState.collectAsStateWithLifecycle()
     val workLifeBalancePrefs by viewModel.workLifeBalancePrefs.collectAsStateWithLifecycle()
     val burnoutResult by viewModel.burnoutResult.collectAsStateWithLifecycle()
+    val showCheckInPrompt by viewModel.showCheckInPrompt.collectAsStateWithLifecycle()
     var overloadBannerDismissed by remember { mutableStateOf(false) }
 
     val coachingUserTier by coachingViewModel.userTier.collectAsStateWithLifecycle()
@@ -294,6 +295,51 @@ fun TodayScreen(
             if (workLifeBalancePrefs.showBalanceBar) {
                 item(key = "balance_bar") {
                     TodayBalanceSection(state = balanceState, burnout = burnoutResult)
+                }
+            }
+
+            if (showCheckInPrompt) {
+                item(key = "checkin_prompt") {
+                    androidx.compose.material3.Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
+                        colors = androidx.compose.material3.CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer
+                        )
+                    ) {
+                        androidx.compose.foundation.layout.Row(
+                            modifier = Modifier.padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            androidx.compose.material3.Text(
+                                text = "\u2600\uFE0F",
+                                style = MaterialTheme.typography.titleLarge
+                            )
+                            androidx.compose.foundation.layout.Spacer(modifier = Modifier.size(12.dp))
+                            androidx.compose.foundation.layout.Column(modifier = Modifier.weight(1f)) {
+                                androidx.compose.material3.Text(
+                                    text = "Start your morning check-in?",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                                androidx.compose.material3.Text(
+                                    text = "Meds, top tasks, habits, and balance in under two minutes.",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            }
+                            androidx.compose.material3.TextButton(onClick = {
+                                viewModel.dismissCheckInPrompt()
+                                navController.navigate(PrismTaskRoute.MorningCheckIn.route)
+                            }) { androidx.compose.material3.Text("Let's Go") }
+                            androidx.compose.material3.TextButton(onClick = {
+                                viewModel.dismissCheckInPrompt()
+                            }) { androidx.compose.material3.Text("Skip") }
+                        }
+                    }
                 }
             }
 

@@ -143,6 +143,7 @@ sealed class PrismTaskRoute(val route: String) {
     }
     data object MainTabs : PrismTaskRoute("main_tabs")
     data object Onboarding : PrismTaskRoute("onboarding")
+    data object MorningCheckIn : PrismTaskRoute("morning_check_in")
 }
 
 data class BottomNavItem(

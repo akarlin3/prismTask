@@ -41,6 +41,7 @@ import com.averycorp.prismtask.ui.screens.medication.MedicationScreen
 import com.averycorp.prismtask.ui.screens.selfcare.SelfCareScreen
 import com.averycorp.prismtask.ui.screens.settings.SettingsScreen
 import com.averycorp.prismtask.ui.screens.briefing.DailyBriefingScreen
+import com.averycorp.prismtask.ui.screens.checkin.MorningCheckInScreen
 import com.averycorp.prismtask.ui.screens.eisenhower.EisenhowerScreen
 import com.averycorp.prismtask.ui.screens.planner.WeeklyPlannerScreen
 import com.averycorp.prismtask.ui.screens.pomodoro.SmartPomodoroScreen
@@ -562,6 +563,28 @@ internal fun NavGraphBuilder.featureRoutes(navController: NavHostController) {
                 }
             ) {
                 DailyBriefingScreen(navController)
+            }
+
+            composable(
+                route = PrismTaskRoute.MorningCheckIn.route,
+                enterTransition = {
+                    slideInHorizontally(initialOffsetX = { it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
+                },
+                exitTransition = {
+                    slideOutHorizontally(targetOffsetX = { -it / 3 }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
+                },
+                popEnterTransition = {
+                    slideInHorizontally(initialOffsetX = { -it / 3 }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
+                },
+                popExitTransition = {
+                    slideOutHorizontally(targetOffsetX = { it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
+                }
+            ) {
+                MorningCheckInScreen(navController)
             }
 
             composable(

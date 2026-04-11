@@ -61,8 +61,25 @@ class TodayViewModel @Inject constructor(
     private val taskBehaviorPreferences: TaskBehaviorPreferences,
     private val sortPreferences: SortPreferences,
     private val proFeatureGate: com.averycorp.prismtask.domain.usecase.ProFeatureGate,
-    private val userPreferencesDataStore: UserPreferencesDataStore
+    private val userPreferencesDataStore: UserPreferencesDataStore,
+    private val checkInLogRepository: com.averycorp.prismtask.data.repository.CheckInLogRepository
 ) : ViewModel() {
+
+    private val _showCheckInPrompt = MutableStateFlow(false)
+    val showCheckInPrompt: StateFlow<Boolean> = _showCheckInPrompt
+
+    fun dismissCheckInPrompt() { _showCheckInPrompt.value = false }
+
+    init {
+        viewModelScope.launch {
+            val dayStartHour = taskBehaviorPreferences.getDayStartHour().first()
+            val todayStartLocal = DayBoundary.startOfCurrentDay(dayStartHour)
+            val mostRecent = checkInLogRepository.getMostRecentDate()
+            val alreadyToday = mostRecent != null && mostRecent >= todayStartLocal
+            val hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
+            _showCheckInPrompt.value = !alreadyToday && hour < 11
+        }
+    }
 
     private val balanceTracker: BalanceTracker = BalanceTracker()
     private val burnoutScorer: BurnoutScorer = BurnoutScorer()
