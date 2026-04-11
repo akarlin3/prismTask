@@ -845,7 +845,8 @@ fun TaskListScreen(
                                     selectedTaskIds = selectedTaskIds,
                                     onExpandChange = { expandedTaskIds = it },
                                     onFocusChange = { focusSubtaskForId = it },
-                                    onDuplicate = { duplicateDialogState = it }
+                                    onDuplicate = { duplicateDialogState = it },
+                                    swipePrefs = swipePrefs
                                 )
                             }
                         }
@@ -867,7 +868,8 @@ fun TaskListScreen(
                                 selectedTaskIds = selectedTaskIds,
                                 onExpandChange = { expandedTaskIds = it },
                                 onFocusChange = { focusSubtaskForId = it },
-                                onDuplicate = { duplicateDialogState = it }
+                                onDuplicate = { duplicateDialogState = it },
+                                swipePrefs = swipePrefs
                             )
                         }
                     }

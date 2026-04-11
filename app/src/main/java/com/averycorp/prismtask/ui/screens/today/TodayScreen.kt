@@ -393,8 +393,37 @@ fun TodayScreen(
                     ) {
                         HabitChipRow(
                             habits = todayHabits,
-                            onToggle = { hws ->
-                                viewModel.onToggleHabitCompletion(hws.habit.id, hws.isCompletedToday)
+                            onTap = { hws ->
+                                // Mode-task habits (Medication, Morning / Bedtime
+                                // Self-Care, Housework, School, Leisure) each
+                                // own a dedicated detail screen — open that
+                                // instead of toggling, since tapping the chip
+                                // can't express the per-section state those
+                                // flows require. Everything else still toggles
+                                // directly from the chip.
+                                val route = when (hws.habit.name) {
+                                    SelfCareRepository.MEDICATION_HABIT_NAME ->
+                                        PrismTaskRoute.Medication.route
+                                    SelfCareRepository.MORNING_HABIT_NAME ->
+                                        PrismTaskRoute.SelfCare.createRoute("morning")
+                                    SelfCareRepository.BEDTIME_HABIT_NAME ->
+                                        PrismTaskRoute.SelfCare.createRoute("bedtime")
+                                    SelfCareRepository.HOUSEWORK_HABIT_NAME ->
+                                        PrismTaskRoute.SelfCare.createRoute("housework")
+                                    SchoolworkRepository.SCHOOL_HABIT_NAME ->
+                                        PrismTaskRoute.Schoolwork.route
+                                    LeisureRepository.LEISURE_HABIT_NAME ->
+                                        PrismTaskRoute.Leisure.route
+                                    else -> null
+                                }
+                                if (route != null) {
+                                    navController.navigate(route)
+                                } else {
+                                    viewModel.onToggleHabitCompletion(
+                                        hws.habit.id,
+                                        hws.isCompletedToday
+                                    )
+                                }
                             },
                             onSeeAll = onNavigateToHabits
                         )

@@ -43,6 +43,105 @@ data class MedStepLog(
     val timeOfDay: String = ""
 )
 
+/**
+ * Pure helper that reconciles medication logs after a tier-for-time change.
+ *
+ * Given the full tiers-by-time map (already updated to reflect the tap),
+ * the block the user just touched, and the existing log list, this returns
+ * the new log list. Pulled out of [SelfCareRepository.setTierForTime] so
+ * the logic can be unit-tested without DAO/Alarm dependencies.
+ *
+ * Behavior:
+ * - Blocks listed in `tiersByTime` are "managed"; the touched block is also
+ *   considered managed even when its tier is being cleared (so deselecting
+ *   correctly drops its explicit logs).
+ * - Explicit (non-blank) logs in unmanaged blocks are preserved (they may
+ *   represent manual toggles in other sections the user hasn't edited).
+ * - Legacy logs with a blank time-of-day are preserved as-is when *none* of
+ *   the step's scheduled blocks overlap any managed block. When there IS
+ *   overlap, the legacy log is resolved into explicit per-block logs only
+ *   for the blocks that are actually target-pairs for the current tier
+ *   selection — never for unrelated blocks (this prevents the "logging
+ *   night also marks evening as done" bug).
+ */
+internal fun reconcileMedLogsForTierChange(
+    steps: List<SelfCareStepEntity>,
+    existingLogs: List<MedStepLog>,
+    tiersByTime: Map<String, String>,
+    touchedTod: String,
+    now: Long
+): List<MedStepLog> {
+    val routineType = "medication"
+    val tierOrder = SelfCareRoutines.getTierOrder(routineType)
+
+    // Compute (stepId, timeOfDay) pairs that should be logged based on the
+    // full tiers-by-time map. Each pair represents one medication-in-block.
+    val targetPairs = mutableSetOf<Pair<String, String>>()
+    for ((tod, t) in tiersByTime) {
+        val visibleForTier = steps.filter {
+            SelfCareRoutines.tierIncludes(tierOrder, t, it.tier)
+        }
+        for (step in visibleForTier) {
+            if (tod in SelfCareRoutines.parseTimeOfDay(step.timeOfDay)) {
+                targetPairs.add(step.stepId to tod)
+            }
+        }
+    }
+
+    // The block being touched is always considered "managed" for this call,
+    // even if the tier is being cleared — otherwise deselecting a tier would
+    // orphan its explicit logs.
+    val managedTods = tiersByTime.keys + touchedTod
+    val resultLogs = mutableListOf<MedStepLog>()
+
+    for (log in existingLogs) {
+        val step = steps.firstOrNull { it.stepId == log.id }
+        if (step == null) {
+            resultLogs.add(log)
+            continue
+        }
+        val stepTods = SelfCareRoutines.parseTimeOfDay(step.timeOfDay)
+        val logBlock = log.timeOfDay
+        if (logBlock.isBlank()) {
+            // Legacy log (no explicit time-of-day). If none of this step's
+            // blocks overlap the currently-managed blocks, leave the legacy
+            // log untouched so its implicit "done" state is preserved for
+            // views the user isn't currently editing. Otherwise, resolve the
+            // legacy log into explicit entries ONLY for blocks in
+            // targetPairs — do not materialize logs for blocks the user
+            // didn't pick, which would falsely mark unrelated times as done.
+            val anyTodManaged = stepTods.any { it in managedTods }
+            if (!anyTodManaged) {
+                resultLogs.add(log)
+            } else {
+                for (tod in stepTods) {
+                    if ((log.id to tod) in targetPairs) {
+                        resultLogs.add(log.copy(timeOfDay = tod))
+                    }
+                }
+            }
+        } else {
+            if ((log.id to logBlock) in targetPairs) {
+                resultLogs.add(log)
+            } else if (logBlock !in managedTods) {
+                // Manual toggle on an unmanaged block — leave alone.
+                resultLogs.add(log)
+            }
+        }
+    }
+
+    // Add newly-targeted pairs that aren't already present.
+    val presentPairs = resultLogs.map { it.id to it.timeOfDay }.toMutableSet()
+    for (pair in targetPairs) {
+        if (pair !in presentPairs) {
+            resultLogs.add(MedStepLog(id = pair.first, note = "", at = now, timeOfDay = pair.second))
+            presentPairs.add(pair)
+        }
+    }
+
+    return resultLogs
+}
+
 @OptIn(ExperimentalCoroutinesApi::class)
 @Singleton
 class SelfCareRepository @Inject constructor(
@@ -557,72 +656,28 @@ class SelfCareRepository @Inject constructor(
         }
 
         val dbSteps = selfCareDao.getStepsForRoutineOnce(routineType)
-
-        // Compute (stepId, timeOfDay) pairs that should be logged based on the
-        // full tiers-by-time map. Each pair represents one medication-in-block.
-        val targetPairs = mutableSetOf<Pair<String, String>>()
-        for ((tod, t) in tiersByTime) {
-            val visibleForTier = getVisibleStepsFromEntities(dbSteps, t, routineType)
-            for (step in visibleForTier) {
-                if (tod in SelfCareRoutines.parseTimeOfDay(step.timeOfDay)) {
-                    targetPairs.add(step.stepId to tod)
-                }
-            }
-        }
-
-        val managedTods = tiersByTime.keys
         val existingLogs = parseMedStepLogs(existing.completedSteps)
-        val resultLogs = mutableListOf<MedStepLog>()
-
-        // Keep logs that still match target pairs, or that belong to meds
-        // whose time-of-days are entirely outside any managed block (manual
-        // toggles on other blocks should be preserved).
-        for (log in existingLogs) {
-            val step = dbSteps.firstOrNull { it.stepId == log.id }
-            if (step == null) {
-                resultLogs.add(log)
-                continue
-            }
-            val stepTods = SelfCareRoutines.parseTimeOfDay(step.timeOfDay)
-            val logBlock = log.timeOfDay
-            if (logBlock.isBlank()) {
-                // Legacy log: expand into explicit per-block logs so we can
-                // decide each block independently below.
-                val expanded = if (stepTods.isEmpty()) listOf(log) else stepTods.map { tod ->
-                    log.copy(timeOfDay = tod)
-                }
-                for (e in expanded) {
-                    val eBlock = e.timeOfDay
-                    if ((log.id to eBlock) in targetPairs) {
-                        resultLogs.add(e)
-                    } else if (eBlock.isNotBlank() && eBlock !in managedTods) {
-                        resultLogs.add(e)
-                    } else if (stepTods.none { it in managedTods } && eBlock.isBlank()) {
-                        resultLogs.add(e)
-                    }
-                }
-            } else {
-                if ((log.id to logBlock) in targetPairs) {
-                    resultLogs.add(log)
-                } else if (logBlock !in managedTods) {
-                    // Manual toggle on an unmanaged block — leave alone.
-                    resultLogs.add(log)
-                }
-            }
-        }
-
-        // Add newly-targeted pairs that aren't already present.
         val now = System.currentTimeMillis()
-        val presentPairs = resultLogs.map { it.id to it.timeOfDay }.toMutableSet()
-        for (pair in targetPairs) {
-            if (pair !in presentPairs) {
-                resultLogs.add(MedStepLog(id = pair.first, note = "", at = now, timeOfDay = pair.second))
-                presentPairs.add(pair)
-            }
-        }
 
-        val activeVisible = getVisibleStepsFromEntities(dbSteps, existing.selectedTier, routineType)
-        val allDone = allMedsFullyLogged(resultLogs, activeVisible)
+        val resultLogs = reconcileMedLogsForTierChange(
+            steps = dbSteps,
+            existingLogs = existingLogs,
+            tiersByTime = tiersByTime,
+            touchedTod = timeOfDay,
+            now = now
+        )
+
+        // "Done" mirrors the MedicationScreen: every time-of-day block that has
+        // any meds scheduled must have a tier selected. Using the per-block
+        // tier selection here keeps the Today chip, the medication screen
+        // header, and the habit completion in lockstep — otherwise the habit
+        // could be logged as "not done" even though the user had checked off
+        // every block in the UI.
+        val timeGroupsWithMeds = SelfCareRoutines.timesOfDay
+            .map { it.id }
+            .filter { tod -> dbSteps.any { step -> tod in SelfCareRoutines.parseTimeOfDay(step.timeOfDay) } }
+        val allDone = timeGroupsWithMeds.isNotEmpty() &&
+            timeGroupsWithMeds.all { it in tiersByTime.keys }
 
         selfCareDao.updateLog(
             existing.copy(

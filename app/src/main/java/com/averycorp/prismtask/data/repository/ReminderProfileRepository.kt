@@ -53,11 +53,6 @@ class ReminderProfileRepository @Inject constructor(
             Quadruple("Minimal", listOf(0L), false, null)
         )
 
-        data class Quadruple<A, B, C, D>(val a: A, val b: B, val c: C, val d: D) {
-            operator fun component1() = a
-            operator fun component2() = b
-            operator fun component3() = c
-            operator fun component4() = d
-        }
+        data class Quadruple<A, B, C, D>(val first: A, val second: B, val third: C, val fourth: D)
     }
 }
