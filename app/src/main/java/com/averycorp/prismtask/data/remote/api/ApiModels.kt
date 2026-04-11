@@ -268,6 +268,8 @@ data class ChatResponse(
     val actions: List<ChatActionResponse> = emptyList(),
     @SerializedName("conversation_id") val conversationId: String,
     @SerializedName("tokens_used") val tokensUsed: ChatTokensUsed? = null
+)
+
 // region AI Evening Summary
 
 data class EveningSummaryRequest(
