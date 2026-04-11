@@ -48,6 +48,7 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AddLink
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.AddPhotoAlternate
 import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.Bookmark
@@ -118,13 +119,19 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.averycorp.prismtask.data.billing.UserTier
 import com.averycorp.prismtask.data.local.entity.ProjectEntity
 import com.averycorp.prismtask.data.local.entity.TagEntity
+import com.averycorp.prismtask.ui.components.BreakdownResultCard
+import com.averycorp.prismtask.ui.components.CoachingCard
 import com.averycorp.prismtask.ui.components.RecurrenceSelector
+import com.averycorp.prismtask.ui.components.TierBadge
+import com.averycorp.prismtask.ui.components.UpgradePrompt
 import com.averycorp.prismtask.domain.model.RecurrenceRule
 import com.averycorp.prismtask.domain.model.RecurrenceType
 import com.averycorp.prismtask.ui.components.RecurrenceDialog
 import com.averycorp.prismtask.ui.components.TagSelector
+import com.averycorp.prismtask.ui.screens.coaching.CoachingViewModel
 import com.averycorp.prismtask.ui.screens.templates.TemplatePickerSheet
 import com.averycorp.prismtask.ui.theme.LocalPriorityColors
 import kotlin.math.abs
@@ -163,6 +170,7 @@ fun AddEditTaskSheetHost(
     onManageTemplates: (() -> Unit)? = null,
 ) {
     val viewModel: AddEditTaskViewModel = hiltViewModel(key = "addedit_task_sheet")
+    val coachingViewModel: CoachingViewModel = hiltViewModel()
 
     LaunchedEffect(taskId, projectId, initialDate) {
         viewModel.initialize(taskId = taskId, projectId = projectId, initialDate = initialDate)
@@ -170,6 +178,7 @@ fun AddEditTaskSheetHost(
 
     AddEditTaskSheet(
         viewModel = viewModel,
+        coachingViewModel = coachingViewModel,
         initialTab = initialTab,
         onDismiss = onDismiss,
         onDeleteTask = onDeleteTask,
@@ -185,6 +194,7 @@ fun AddEditTaskSheetHost(
 @Composable
 fun AddEditTaskSheet(
     viewModel: AddEditTaskViewModel,
+    coachingViewModel: CoachingViewModel = hiltViewModel(),
     initialTab: Int = 0,
     onDismiss: () -> Unit,
     onDeleteTask: ((Long) -> Unit)? = null,
@@ -407,7 +417,7 @@ fun AddEditTaskSheet(
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     when (page) {
-                        0 -> DetailsTabContent(viewModel)
+                        0 -> DetailsTabContent(viewModel, coachingViewModel)
                         1 -> ScheduleTabContent(viewModel)
                         2 -> OrganizeTabContent(
                             viewModel = viewModel,
@@ -652,17 +662,115 @@ private fun PriorityCircle(
 // ---------------------------------------------------------------------------
 
 @Composable
-private fun DetailsTabContent(viewModel: AddEditTaskViewModel) {
+private fun DetailsTabContent(
+    viewModel: AddEditTaskViewModel,
+    coachingViewModel: CoachingViewModel = hiltViewModel()
+) {
     val context = LocalContext.current
     val attachments by viewModel.attachments.collectAsStateWithLifecycle()
 
     var showAddLinkDialog by remember { mutableStateOf(false) }
     var attachmentsRevealed by remember { mutableStateOf(false) }
 
+    // AI Coaching state
+    val coachingUserTier by coachingViewModel.userTier.collectAsStateWithLifecycle()
+    val stuckMessage by coachingViewModel.stuckMessage.collectAsStateWithLifecycle()
+    val stuckLoading by coachingViewModel.stuckLoading.collectAsStateWithLifecycle()
+    val breakdownSubtasks by coachingViewModel.breakdownSubtasks.collectAsStateWithLifecycle()
+    val breakdownLoading by coachingViewModel.breakdownLoading.collectAsStateWithLifecycle()
+    val remainingBreakdowns by coachingViewModel.remainingBreakdowns.collectAsStateWithLifecycle()
+    val perfectionismMessage by coachingViewModel.perfectionismMessage.collectAsStateWithLifecycle()
+    val perfectionismLoading by coachingViewModel.perfectionismLoading.collectAsStateWithLifecycle()
+    val coachingUpgradePrompt by coachingViewModel.showUpgradePrompt.collectAsStateWithLifecycle()
+
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { uri: Uri? ->
         uri?.let { viewModel.onAddImageAttachment(context, it) }
+    }
+
+    // --- AI Coaching: "Help Me Start" button + stuck coaching card (edit mode) ---
+    if (viewModel.isEditMode) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            androidx.compose.material3.FilledTonalButton(
+                onClick = {
+                    viewModel.currentEditingTaskId?.let { coachingViewModel.getStuckHelp(it) }
+                }
+            ) {
+                Icon(
+                    imageVector = Icons.Default.AutoAwesome,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("Help Me Start")
+                if (coachingUserTier == UserTier.FREE) {
+                    Spacer(modifier = Modifier.width(4.dp))
+                    TierBadge(requiredTier = UserTier.PRO)
+                }
+            }
+            androidx.compose.material3.FilledTonalButton(
+                onClick = {
+                    viewModel.currentEditingTaskId?.let { coachingViewModel.getTaskBreakdown(it) }
+                }
+            ) {
+                Text("Break It Down")
+            }
+        }
+
+        // Stuck coaching response card
+        CoachingCard(
+            message = stuckMessage,
+            isLoading = stuckLoading,
+            onDismiss = { coachingViewModel.dismissStuckMessage() },
+            title = "AI Coach"
+        )
+
+        // Perfectionism detection card
+        CoachingCard(
+            message = perfectionismMessage,
+            isLoading = perfectionismLoading,
+            onDismiss = { coachingViewModel.dismissPerfectionism() },
+            title = "Pattern Detected"
+        )
+    }
+
+    // --- AI Task Breakdown results ---
+    if (breakdownSubtasks.isNotEmpty()) {
+        BreakdownResultCard(
+            subtasks = breakdownSubtasks,
+            remainingUses = remainingBreakdowns,
+            onApply = {
+                breakdownSubtasks.forEach { title ->
+                    viewModel.addPendingSubtask(title)
+                }
+                coachingViewModel.dismissBreakdown()
+            },
+            onDismiss = { coachingViewModel.dismissBreakdown() }
+        )
+    }
+
+    // Coaching upgrade prompt (inline)
+    coachingUpgradePrompt?.let { requiredTier ->
+        UpgradePrompt(
+            currentTier = coachingUserTier,
+            requiredTier = requiredTier,
+            feature = when (requiredTier) {
+                UserTier.PRO -> "AI Coaching"
+                UserTier.PREMIUM -> "AI Daily Planning"
+                else -> "AI Features"
+            },
+            description = when (requiredTier) {
+                UserTier.PRO -> "Unlimited AI task coaching and breakdown"
+                UserTier.PREMIUM -> "AI-powered daily planning that adapts to your energy"
+                else -> "AI-powered productivity features"
+            },
+            onUpgrade = { coachingViewModel.dismissUpgradePrompt() },
+            onDismiss = { coachingViewModel.dismissUpgradePrompt() }
+        )
     }
 
     // --- Description ---

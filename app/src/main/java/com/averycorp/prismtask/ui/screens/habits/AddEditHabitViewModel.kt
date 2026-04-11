@@ -69,6 +69,8 @@ class AddEditHabitViewModel @Inject constructor(
         private set
     var isBookable by mutableStateOf(false)
         private set
+    var showStreak by mutableStateOf(false)
+        private set
     var nameError by mutableStateOf(false)
         private set
     var customCategories by mutableStateOf<List<String>>(emptyList())
@@ -94,6 +96,7 @@ class AddEditHabitViewModel @Inject constructor(
                     trackBooking = habit.trackBooking
                     trackPreviousPeriod = habit.trackPreviousPeriod
                     isBookable = habit.isBookable
+                    showStreak = habit.showStreak
                     if (habit.reminderTime != null) {
                         reminderEnabled = true
                         reminderHour = (habit.reminderTime / (60 * 60 * 1000)).toInt()
@@ -163,6 +166,7 @@ class AddEditHabitViewModel @Inject constructor(
     fun onTrackBookingChange(value: Boolean) { trackBooking = value }
     fun onTrackPreviousPeriodChange(value: Boolean) { trackPreviousPeriod = value }
     fun onIsBookableChange(value: Boolean) { isBookable = value }
+    fun onShowStreakChange(value: Boolean) { showStreak = value }
 
     suspend fun saveHabit(): Boolean {
         if (name.isBlank()) {
@@ -209,7 +213,8 @@ class AddEditHabitViewModel @Inject constructor(
                         hasLogging = hasLogging,
                         trackBooking = effectiveTrackBooking,
                         trackPreviousPeriod = effectiveTrackPreviousPeriod,
-                        isBookable = effectiveIsBookable
+                        isBookable = effectiveIsBookable,
+                        showStreak = showStreak
                     )
                 )
                 // Cancel or reschedule medication reminder on edit
@@ -235,7 +240,8 @@ class AddEditHabitViewModel @Inject constructor(
                         hasLogging = hasLogging,
                         trackBooking = effectiveTrackBooking,
                         trackPreviousPeriod = effectiveTrackPreviousPeriod,
-                        isBookable = effectiveIsBookable
+                        isBookable = effectiveIsBookable,
+                        showStreak = showStreak
                     )
                 )
             }

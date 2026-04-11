@@ -243,4 +243,18 @@ interface TaskDao {
         batchDeleteTaskTagsQuery(taskIds, tagId)
         batchTouchTasksQuery(taskIds, now)
     }
+
+    // --- Anti-shame notification queries ---
+
+    @Query("SELECT * FROM tasks WHERE is_completed = 1 AND updated_at >= :startOfDay AND updated_at < :endOfDay AND parent_task_id IS NULL ORDER BY updated_at DESC")
+    suspend fun getCompletedTasksInRange(startOfDay: Long, endOfDay: Long): List<TaskEntity>
+
+    @Query("SELECT COUNT(*) FROM tasks WHERE is_completed = 0 AND archived_at IS NULL AND parent_task_id IS NULL AND due_date IS NOT NULL AND due_date < :endOfDay")
+    suspend fun getIncompleteTodayCount(endOfDay: Long): Int
+
+    @Query("SELECT * FROM tasks WHERE is_completed = 1 AND parent_task_id IS NULL ORDER BY updated_at DESC LIMIT 1")
+    suspend fun getLastCompletedTask(): TaskEntity?
+
+    @Query("SELECT COUNT(*) FROM tasks WHERE is_completed = 0 AND archived_at IS NULL AND parent_task_id IS NULL")
+    suspend fun getIncompleteTaskCount(): Int
 }

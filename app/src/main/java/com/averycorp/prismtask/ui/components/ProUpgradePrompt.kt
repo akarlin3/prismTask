@@ -185,4 +185,8 @@ enum class ProFeature(val label: String, val description: String) {
     AI_WEEKLY_PLAN("AI Weekly Planner", "Let AI plan your week for optimal productivity"),
     AI_TIME_BLOCK("AI Time Blocking", "AI-powered automatic schedule optimization"),
     AI_CHAT("AI Coach", "Get personalized coaching and task help through natural conversation")
+    AI_COACHING("AI Coaching", "Get personalized help when you're stuck on a task"),
+    AI_TASK_BREAKDOWN("AI Task Breakdown", "Unlimited AI-powered task breakdown into subtasks"),
+    AI_DAILY_PLANNING("AI Daily Planning", "AI-powered daily planning that adapts to your energy"),
+    AI_REENGAGEMENT("AI Welcome Back", "Personalized re-engagement after time away")
 }

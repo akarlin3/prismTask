@@ -268,6 +268,33 @@ data class ChatResponse(
     val actions: List<ChatActionResponse> = emptyList(),
     @SerializedName("conversation_id") val conversationId: String,
     @SerializedName("tokens_used") val tokensUsed: ChatTokensUsed? = null
+// region AI Evening Summary
+
+data class EveningSummaryRequest(
+    @SerializedName("completed_tasks") val completedTasks: List<String>,
+    @SerializedName("remaining_count") val remainingCount: Int,
+    @SerializedName("habits_done") val habitsDone: Int,
+    @SerializedName("habits_total") val habitsTotal: Int,
+    @SerializedName("completed_overdue") val completedOverdue: Boolean,
+    @SerializedName("completed_stalled") val completedStalled: Boolean
+)
+
+data class EveningSummaryResponse(
+    val summary: String
+)
+
+// endregion
+
+// region AI Re-engagement Nudge
+
+data class ReengagementRequest(
+    @SerializedName("days_absent") val daysAbsent: Int,
+    @SerializedName("last_task_title") val lastTaskTitle: String?,
+    @SerializedName("total_pending") val totalPending: Int
+)
+
+data class ReengagementResponse(
+    val nudge: String
 )
 
 // endregion

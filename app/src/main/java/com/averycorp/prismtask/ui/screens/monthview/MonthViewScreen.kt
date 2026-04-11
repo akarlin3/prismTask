@@ -79,7 +79,7 @@ import java.time.ZoneId
 import java.time.format.TextStyle
 import java.util.Locale
 
-private val OverdueRed = Color(0xFFD93025)
+private val NeutralGray = Color(0xFF9E9E9E)
 
 private data class MonthTaskEditorState(
     val taskId: Long? = null,
@@ -319,7 +319,7 @@ private fun DayCell(
             .then(
                 when {
                     isSelected -> Modifier.border(2.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(6.dp))
-                    info?.hasOverdue == true -> Modifier.background(OverdueRed.copy(alpha = 0.06f))
+                    info?.hasOverdue == true -> Modifier.background(NeutralGray.copy(alpha = 0.06f))
                     else -> Modifier
                 }
             )
@@ -382,7 +382,7 @@ private fun DayCell(
                     modifier = Modifier
                         .size(4.dp)
                         .clip(CircleShape)
-                        .background(OverdueRed)
+                        .background(NeutralGray)
                 )
             }
         }

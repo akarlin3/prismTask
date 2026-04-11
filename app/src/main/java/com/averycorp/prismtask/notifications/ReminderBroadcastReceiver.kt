@@ -10,7 +10,7 @@ class ReminderBroadcastReceiver : BroadcastReceiver() {
         val taskId = intent.getLongExtra("taskId", -1L)
         if (taskId == -1L) return
 
-        val title = intent.getStringExtra("taskTitle") ?: "Task Reminder"
+        val title = intent.getStringExtra("taskTitle") ?: "Gentle Nudge"
         val description = intent.getStringExtra("taskDescription")
 
         NotificationHelper.showTaskReminder(context, taskId, title, description)

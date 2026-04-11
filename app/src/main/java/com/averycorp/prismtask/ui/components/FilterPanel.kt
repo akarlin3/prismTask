@@ -208,7 +208,7 @@ fun FilterPanel(
             val dateOptions = listOf(
                 DateOption("Today", DateRange(startOfToday, endOfToday)),
                 DateOption("This Week", DateRange(startOfToday, endOfWeek)),
-                DateOption("Overdue", DateRange(0L, startOfToday)),
+                DateOption("From Earlier", DateRange(0L, startOfToday)),
                 DateOption("No Date", DateRange(null, null))
             )
 

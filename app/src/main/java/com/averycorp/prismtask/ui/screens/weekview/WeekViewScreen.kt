@@ -74,7 +74,7 @@ private data class WeekTaskEditorState(
     val initialDate: Long? = null,
 )
 
-private val OverdueRed = Color(0xFFD93025)
+private val NeutralGray = Color(0xFF9E9E9E)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -335,10 +335,7 @@ private fun WeekTaskCard(
             ),
         shape = RoundedCornerShape(6.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (isOverdue)
-                OverdueRed.copy(alpha = 0.08f)
-            else
-                MaterialTheme.colorScheme.surfaceContainerLow
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
         )
     ) {
         Box {

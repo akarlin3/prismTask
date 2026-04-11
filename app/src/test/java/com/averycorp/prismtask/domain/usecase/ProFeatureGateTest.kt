@@ -35,14 +35,17 @@ class ProFeatureGateTest {
                 ProFeatureGate.CLOUD_SYNC, ProFeatureGate.TEMPLATE_SYNC,
                 ProFeatureGate.AI_EISENHOWER, ProFeatureGate.AI_POMODORO,
                 ProFeatureGate.ANALYTICS_BASIC, ProFeatureGate.TIME_TRACKING,
-                ProFeatureGate.AI_NLP -> isPro()
+                ProFeatureGate.AI_NLP,
+                ProFeatureGate.AI_COACHING, ProFeatureGate.AI_TASK_BREAKDOWN -> isPro()
 
                 ProFeatureGate.AI_BRIEFING, ProFeatureGate.AI_WEEKLY_PLAN,
                 ProFeatureGate.AI_TIME_BLOCK, ProFeatureGate.AI_CONVERSATIONAL,
                 ProFeatureGate.COLLABORATION,
                 ProFeatureGate.INTEGRATIONS, ProFeatureGate.ANALYTICS_FULL,
                 ProFeatureGate.ANALYTICS_CORRELATIONS,
-                ProFeatureGate.DRIVE_BACKUP -> isPremium()
+                ProFeatureGate.DRIVE_BACKUP,
+                ProFeatureGate.AI_DAILY_PLANNING, ProFeatureGate.AI_REENGAGEMENT,
+                ProFeatureGate.AI_WEEKLY_INSIGHTS -> isPremium()
 
                 else -> true
             }
@@ -72,6 +75,8 @@ class ProFeatureGateTest {
         assertFalse(gate.hasAccess(ProFeatureGate.ANALYTICS_BASIC))
         assertFalse(gate.hasAccess(ProFeatureGate.TIME_TRACKING))
         assertFalse(gate.hasAccess(ProFeatureGate.AI_NLP))
+        assertFalse(gate.hasAccess(ProFeatureGate.AI_COACHING))
+        assertFalse(gate.hasAccess(ProFeatureGate.AI_TASK_BREAKDOWN))
 
         // Premium features blocked
         assertFalse(gate.hasAccess(ProFeatureGate.AI_BRIEFING))
@@ -80,6 +85,9 @@ class ProFeatureGateTest {
         assertFalse(gate.hasAccess(ProFeatureGate.COLLABORATION))
         assertFalse(gate.hasAccess(ProFeatureGate.INTEGRATIONS))
         assertFalse(gate.hasAccess(ProFeatureGate.DRIVE_BACKUP))
+        assertFalse(gate.hasAccess(ProFeatureGate.AI_DAILY_PLANNING))
+        assertFalse(gate.hasAccess(ProFeatureGate.AI_REENGAGEMENT))
+        assertFalse(gate.hasAccess(ProFeatureGate.AI_WEEKLY_INSIGHTS))
 
         // Free features allowed
         assertTrue(gate.hasAccess("some_free_feature"))
@@ -98,6 +106,8 @@ class ProFeatureGateTest {
         assertTrue(gate.hasAccess(ProFeatureGate.TEMPLATE_SYNC))
         assertTrue(gate.hasAccess(ProFeatureGate.ANALYTICS_BASIC))
         assertTrue(gate.hasAccess(ProFeatureGate.TIME_TRACKING))
+        assertTrue(gate.hasAccess(ProFeatureGate.AI_COACHING))
+        assertTrue(gate.hasAccess(ProFeatureGate.AI_TASK_BREAKDOWN))
 
         // Premium features blocked
         assertFalse(gate.hasAccess(ProFeatureGate.AI_BRIEFING))
@@ -106,6 +116,9 @@ class ProFeatureGateTest {
         assertFalse(gate.hasAccess(ProFeatureGate.COLLABORATION))
         assertFalse(gate.hasAccess(ProFeatureGate.INTEGRATIONS))
         assertFalse(gate.hasAccess(ProFeatureGate.DRIVE_BACKUP))
+        assertFalse(gate.hasAccess(ProFeatureGate.AI_DAILY_PLANNING))
+        assertFalse(gate.hasAccess(ProFeatureGate.AI_REENGAGEMENT))
+        assertFalse(gate.hasAccess(ProFeatureGate.AI_WEEKLY_INSIGHTS))
     }
 
     // --- PREMIUM user access ---
@@ -118,6 +131,8 @@ class ProFeatureGateTest {
         assertTrue(gate.hasAccess(ProFeatureGate.CLOUD_SYNC))
         assertTrue(gate.hasAccess(ProFeatureGate.AI_EISENHOWER))
         assertTrue(gate.hasAccess(ProFeatureGate.AI_POMODORO))
+        assertTrue(gate.hasAccess(ProFeatureGate.AI_COACHING))
+        assertTrue(gate.hasAccess(ProFeatureGate.AI_TASK_BREAKDOWN))
 
         // Premium features allowed
         assertTrue(gate.hasAccess(ProFeatureGate.AI_BRIEFING))
@@ -126,6 +141,9 @@ class ProFeatureGateTest {
         assertTrue(gate.hasAccess(ProFeatureGate.COLLABORATION))
         assertTrue(gate.hasAccess(ProFeatureGate.INTEGRATIONS))
         assertTrue(gate.hasAccess(ProFeatureGate.DRIVE_BACKUP))
+        assertTrue(gate.hasAccess(ProFeatureGate.AI_DAILY_PLANNING))
+        assertTrue(gate.hasAccess(ProFeatureGate.AI_REENGAGEMENT))
+        assertTrue(gate.hasAccess(ProFeatureGate.AI_WEEKLY_INSIGHTS))
 
         // Free features allowed
         assertTrue(gate.hasAccess("some_free_feature"))
@@ -142,7 +160,8 @@ class ProFeatureGateTest {
             ProFeatureGate.CLOUD_SYNC, ProFeatureGate.TEMPLATE_SYNC,
             ProFeatureGate.AI_EISENHOWER, ProFeatureGate.AI_POMODORO,
             ProFeatureGate.ANALYTICS_BASIC, ProFeatureGate.TIME_TRACKING,
-            ProFeatureGate.AI_NLP
+            ProFeatureGate.AI_NLP,
+            ProFeatureGate.AI_COACHING, ProFeatureGate.AI_TASK_BREAKDOWN
         )
         proFeatures.forEach { feature ->
             assertTrue("PRO should access $feature", gate.hasAccess(feature))
@@ -154,7 +173,9 @@ class ProFeatureGateTest {
             ProFeatureGate.AI_TIME_BLOCK, ProFeatureGate.AI_CONVERSATIONAL,
             ProFeatureGate.COLLABORATION,
             ProFeatureGate.INTEGRATIONS, ProFeatureGate.ANALYTICS_FULL,
-            ProFeatureGate.ANALYTICS_CORRELATIONS, ProFeatureGate.DRIVE_BACKUP
+            ProFeatureGate.ANALYTICS_CORRELATIONS, ProFeatureGate.DRIVE_BACKUP,
+            ProFeatureGate.AI_DAILY_PLANNING, ProFeatureGate.AI_REENGAGEMENT,
+            ProFeatureGate.AI_WEEKLY_INSIGHTS
         )
         premiumFeatures.forEach { feature ->
             assertFalse("PRO should NOT access $feature", gate.hasAccess(feature))
@@ -174,9 +195,13 @@ class ProFeatureGateTest {
             ProFeatureGate.AI_CONVERSATIONAL,
             ProFeatureGate.COLLABORATION, ProFeatureGate.INTEGRATIONS,
             ProFeatureGate.ANALYTICS_FULL, ProFeatureGate.ANALYTICS_CORRELATIONS,
-            ProFeatureGate.DRIVE_BACKUP
+            ProFeatureGate.DRIVE_BACKUP,
+            ProFeatureGate.AI_COACHING, ProFeatureGate.AI_TASK_BREAKDOWN,
+            ProFeatureGate.AI_DAILY_PLANNING, ProFeatureGate.AI_REENGAGEMENT,
+            ProFeatureGate.AI_WEEKLY_INSIGHTS
         )
         assertEquals("All 16 feature constants should be unique", 16, constants.size)
+        assertEquals("All 20 feature constants should be unique", 20, constants.size)
     }
 
     // --- Tier upgrade restores highest ---

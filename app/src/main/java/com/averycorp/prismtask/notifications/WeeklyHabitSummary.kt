@@ -90,15 +90,14 @@ class WeeklyHabitSummary @Inject constructor(
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val ratePercent = (data.completionRate * 100).toInt()
         val body = buildString {
-            append("${data.totalCompletions} completions across ${data.totalHabits} habits ($ratePercent%)")
-            data.bestHabit?.let { append("\nBest: $it") }
+            append("This week you finished ${data.totalCompletions} things.")
+            data.bestHabit?.let { append(" Here's what went well: $it.") }
         }
 
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_menu_my_calendar)
-            .setContentTitle("Weekly Habit Summary")
+            .setContentTitle("Your Week in Review")
             .setContentText(body)
             .setStyle(NotificationCompat.BigTextStyle().bigText(body))
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)

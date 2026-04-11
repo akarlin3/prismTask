@@ -510,6 +510,19 @@ class TodayViewModel @Inject constructor(
         }
     }
 
+    fun showSnackbar(message: String, actionLabel: String? = null, onAction: (() -> Unit)? = null) {
+        viewModelScope.launch {
+            val result = snackbarHostState.showSnackbar(
+                message = message,
+                actionLabel = actionLabel,
+                duration = SnackbarDuration.Short
+            )
+            if (result == SnackbarResult.ActionPerformed) {
+                onAction?.invoke()
+            }
+        }
+    }
+
     suspend fun getSubtaskCount(taskId: Long): Int =
         taskRepository.getSubtasks(taskId).first().size
 

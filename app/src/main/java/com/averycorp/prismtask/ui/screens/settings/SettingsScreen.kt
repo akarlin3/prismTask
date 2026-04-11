@@ -98,7 +98,7 @@ private val accentColors = listOf(
 private val sectionLabels = mapOf(
     "progress" to "Progress Card",
     "habits" to "Habits",
-    "overdue" to "Overdue",
+    "overdue" to "From Earlier",
     "today_tasks" to "Today Tasks",
     "plan_more" to "Plan More",
     "completed" to "Completed"
@@ -1725,6 +1725,32 @@ fun SettingsScreen(
 
             HorizontalDivider()
 
+            // ========== AI NOTIFICATIONS ==========
+            SectionHeader("AI Notifications")
+
+            Text(
+                "Gentle, non-judgmental notifications powered by AI.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+            )
+
+            SettingsToggleRow(
+                title = "Evening Summary",
+                subtitle = "A one-sentence summary of what you accomplished today (Pro)",
+                checked = viewModel.eveningSummaryEnabled,
+                onCheckedChange = { viewModel.onEveningSummaryToggle(it) }
+            )
+
+            SettingsToggleRow(
+                title = "Re-engagement Nudges",
+                subtitle = "A gentle nudge if you haven't opened PrismTask in a while (Premium)",
+                checked = viewModel.reengagementEnabled,
+                onCheckedChange = { viewModel.onReengagementToggle(it) }
+            )
+
+            HorizontalDivider()
+
             // ========== DEBUGGING ==========
             SectionHeader("Debugging")
 
@@ -1945,6 +1971,28 @@ private fun SettingsRowWithSubtitle(title: String, subtitle: String, onClick: ()
             Text(text = subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Icon(Icons.Default.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
+    }
+}
+
+@Composable
+private fun SettingsToggleRow(
+    title: String,
+    subtitle: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 12.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(text = title, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
+            Text(text = subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        androidx.compose.material3.Switch(checked = checked, onCheckedChange = onCheckedChange)
     }
 }
 

@@ -839,6 +839,27 @@ class TaskListViewModel @Inject constructor(
         }
     }
 
+    fun onMoveToTomorrow(taskId: Long) {
+        viewModelScope.launch {
+            try {
+                val previous = taskRepository.getTaskByIdOnce(taskId)?.dueDate
+                val tomorrow = com.averycorp.prismtask.domain.usecase.DateShortcuts.tomorrow(System.currentTimeMillis())
+                taskRepository.rescheduleTask(taskId, tomorrow)
+                val result = snackbarHostState.showSnackbar(
+                    message = "Moved to tomorrow",
+                    actionLabel = "UNDO",
+                    duration = SnackbarDuration.Short
+                )
+                if (result == SnackbarResult.ActionPerformed) {
+                    taskRepository.rescheduleTask(taskId, previous)
+                }
+            } catch (e: Exception) {
+                Log.e("TaskListVM", "Failed to move to tomorrow", e)
+                snackbarHostState.showSnackbar("Something went wrong")
+            }
+        }
+    }
+
     fun onRescheduleTask(taskId: Long, newDueDate: Long?) {
         viewModelScope.launch {
             try {

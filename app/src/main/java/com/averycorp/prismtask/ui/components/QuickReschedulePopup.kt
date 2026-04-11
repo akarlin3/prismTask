@@ -106,20 +106,20 @@ fun QuickReschedulePopup(
                 modifier = Modifier.padding(vertical = 6.dp)
             ) {
                 RescheduleRow(
-                    emoji = "\uD83D\uDCC5",
-                    label = "Today",
-                    trailing = formatShortDate(today),
+                    emoji = "\u27A1\uFE0F",
+                    label = "Move to Tomorrow",
+                    trailing = formatShortDate(tomorrow),
                     onClick = {
-                        onReschedule(today)
+                        onReschedule(tomorrow)
                         onDismiss()
                     }
                 )
                 RescheduleRow(
                     emoji = "\uD83D\uDCC5",
-                    label = "Tomorrow",
-                    trailing = formatShortDate(tomorrow),
+                    label = "Today",
+                    trailing = formatShortDate(today),
                     onClick = {
-                        onReschedule(tomorrow)
+                        onReschedule(today)
                         onDismiss()
                     }
                 )

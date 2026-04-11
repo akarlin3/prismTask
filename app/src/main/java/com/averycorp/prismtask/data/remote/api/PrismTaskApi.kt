@@ -57,6 +57,11 @@ interface PrismTaskApi {
 
     @POST("api/v1/ai/chat")
     suspend fun aiChat(@Body request: ChatRequest): ChatResponse
+    @POST("api/v1/ai/evening-summary")
+    suspend fun getEveningSummary(@Body request: EveningSummaryRequest): EveningSummaryResponse
+
+    @POST("api/v1/ai/reengagement-nudge")
+    suspend fun getReengagementNudge(@Body request: ReengagementRequest): ReengagementResponse
 
     @GET("api/v1/export/json")
     suspend fun exportJson(): ResponseBody
