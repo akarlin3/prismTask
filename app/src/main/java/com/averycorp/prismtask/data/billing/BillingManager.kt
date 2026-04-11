@@ -29,6 +29,10 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.coroutines.resume
 
+enum class UserTier {
+    FREE, PRO, PREMIUM
+}
+
 enum class SubscriptionState {
     NOT_SUBSCRIBED,
     SUBSCRIBED,
@@ -43,13 +47,14 @@ class BillingManager @Inject constructor(
     private val proStatusPreferences: ProStatusPreferences
 ) {
     companion object {
-        const val PRODUCT_ID = "prismtask_pro_monthly"
+        const val PRODUCT_ID_PRO = "prismtask_pro_monthly"
+        const val PRODUCT_ID_PREMIUM = "prismtask_premium_monthly"
     }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
-    private val _isProUser = MutableStateFlow(false)
-    val isProUser: StateFlow<Boolean> = _isProUser.asStateFlow()
+    private val _userTier = MutableStateFlow(UserTier.FREE)
+    val userTier: StateFlow<UserTier> = _userTier.asStateFlow()
 
     private val _proSubscriptionState = MutableStateFlow(SubscriptionState.NOT_SUBSCRIBED)
     val proSubscriptionState: StateFlow<SubscriptionState> = _proSubscriptionState.asStateFlow()
@@ -69,11 +74,15 @@ class BillingManager @Inject constructor(
 
     fun initialize(activity: Activity) {
         scope.launch {
-            // Load cached Pro status immediately for offline access
-            val cached = proStatusPreferences.isProCached()
-            val expiresAt = proStatusPreferences.proExpiresAt()
-            if (cached && expiresAt > System.currentTimeMillis()) {
-                _isProUser.value = true
+            // Load cached tier immediately for offline access
+            val cachedTier = proStatusPreferences.getCachedTier()
+            val expiresAt = proStatusPreferences.tierExpiresAt()
+            if (cachedTier != "FREE" && expiresAt > System.currentTimeMillis()) {
+                _userTier.value = try {
+                    UserTier.valueOf(cachedTier)
+                } catch (_: IllegalArgumentException) {
+                    UserTier.FREE
+                }
                 _proSubscriptionState.value = SubscriptionState.SUBSCRIBED
             }
 
@@ -103,13 +112,19 @@ class BillingManager @Inject constructor(
         })
     }
 
-    suspend fun launchPurchaseFlow(activity: Activity): Result<Unit> {
+    suspend fun launchPurchaseFlow(activity: Activity, tier: UserTier): Result<Unit> {
         if (!billingClient.isReady) {
             val connected = connectBillingClient()
             if (!connected) return Result.failure(Exception("Could not connect to Google Play"))
         }
 
-        val productDetails = queryProductDetails()
+        val productId = when (tier) {
+            UserTier.PRO -> PRODUCT_ID_PRO
+            UserTier.PREMIUM -> PRODUCT_ID_PREMIUM
+            UserTier.FREE -> return Result.failure(Exception("Cannot purchase Free tier"))
+        }
+
+        val productDetails = queryProductDetails(productId)
             ?: return Result.failure(Exception("Could not load subscription details"))
 
         val offerToken = productDetails.subscriptionOfferDetails?.firstOrNull()?.offerToken
@@ -154,7 +169,7 @@ class BillingManager @Inject constructor(
             if (purchasesList.isNotEmpty()) {
                 handlePurchaseUpdate(purchasesList)
             } else {
-                updateProStatus(false, SubscriptionState.NOT_SUBSCRIBED)
+                updateTierStatus(UserTier.FREE, SubscriptionState.NOT_SUBSCRIBED)
             }
             return Result.success(Unit)
         }
@@ -163,23 +178,40 @@ class BillingManager @Inject constructor(
     }
 
     suspend fun handlePurchaseUpdate(purchases: List<Purchase>) {
+        // Determine the highest active tier from all purchases
+        var highestTier = UserTier.FREE
+        var hasActivePurchase = false
+
         for (purchase in purchases) {
-            if (purchase.products.contains(PRODUCT_ID)) {
-                when (purchase.purchaseState) {
-                    Purchase.PurchaseState.PURCHASED -> {
-                        if (!purchase.isAcknowledged) {
-                            acknowledgePurchase(purchase)
-                        }
-                        updateProStatus(true, SubscriptionState.SUBSCRIBED)
+            val tier = when {
+                purchase.products.contains(PRODUCT_ID_PREMIUM) -> UserTier.PREMIUM
+                purchase.products.contains(PRODUCT_ID_PRO) -> UserTier.PRO
+                else -> continue
+            }
+
+            when (purchase.purchaseState) {
+                Purchase.PurchaseState.PURCHASED -> {
+                    if (!purchase.isAcknowledged) {
+                        acknowledgePurchase(purchase)
                     }
-                    Purchase.PurchaseState.PENDING -> {
-                        // Pending purchase — don't grant Pro yet
+                    if (tier > highestTier) {
+                        highestTier = tier
                     }
-                    else -> {
-                        updateProStatus(false, SubscriptionState.EXPIRED)
-                    }
+                    hasActivePurchase = true
+                }
+                Purchase.PurchaseState.PENDING -> {
+                    // Pending purchase — don't grant tier yet
+                }
+                else -> {
+                    // Expired or other state
                 }
             }
+        }
+
+        if (hasActivePurchase) {
+            updateTierStatus(highestTier, SubscriptionState.SUBSCRIBED)
+        } else {
+            updateTierStatus(UserTier.FREE, SubscriptionState.EXPIRED)
         }
     }
 
@@ -200,10 +232,10 @@ class BillingManager @Inject constructor(
         }
     }
 
-    private suspend fun queryProductDetails(): ProductDetails? {
+    private suspend fun queryProductDetails(productId: String): ProductDetails? {
         val productList = listOf(
             QueryProductDetailsParams.Product.newBuilder()
-                .setProductId(PRODUCT_ID)
+                .setProductId(productId)
                 .setProductType(BillingClient.ProductType.SUBS)
                 .build()
         )
@@ -225,17 +257,17 @@ class BillingManager @Inject constructor(
         }
     }
 
-    private suspend fun updateProStatus(isPro: Boolean, state: SubscriptionState) {
-        _isProUser.value = isPro
+    private suspend fun updateTierStatus(tier: UserTier, state: SubscriptionState) {
+        _userTier.value = tier
         _proSubscriptionState.value = state
-        proStatusPreferences.setProCached(isPro)
-        if (isPro) {
+        proStatusPreferences.setCachedTier(tier.name)
+        if (tier != UserTier.FREE) {
             // Cache for 30 days for offline access
-            proStatusPreferences.setProExpiresAt(
+            proStatusPreferences.setTierExpiresAt(
                 System.currentTimeMillis() + 30L * 24 * 60 * 60 * 1000
             )
         } else {
-            proStatusPreferences.setProExpiresAt(0)
+            proStatusPreferences.setTierExpiresAt(0)
         }
         proStatusPreferences.setLastVerifiedAt(System.currentTimeMillis())
     }

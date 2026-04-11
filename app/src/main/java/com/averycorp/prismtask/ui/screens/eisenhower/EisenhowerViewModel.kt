@@ -6,6 +6,7 @@ import com.averycorp.prismtask.data.local.dao.TaskDao
 import com.averycorp.prismtask.data.local.entity.TaskEntity
 import com.averycorp.prismtask.data.remote.api.PrismTaskApi
 import com.averycorp.prismtask.data.remote.api.EisenhowerRequest
+import com.averycorp.prismtask.data.billing.UserTier
 import com.averycorp.prismtask.domain.usecase.ProFeatureGate
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,7 +24,7 @@ class EisenhowerViewModel @Inject constructor(
     private val proFeatureGate: ProFeatureGate
 ) : ViewModel() {
 
-    val isPro: StateFlow<Boolean> = proFeatureGate.isPro
+    val userTier: StateFlow<UserTier> = proFeatureGate.userTier
 
     private val _allIncompleteTasks = taskDao.getIncompleteRootTasks()
 
@@ -69,7 +70,7 @@ class EisenhowerViewModel @Inject constructor(
     }
 
     fun categorize() {
-        if (!proFeatureGate.requirePro(ProFeatureGate.AI_EISENHOWER)) {
+        if (!proFeatureGate.hasAccess(ProFeatureGate.AI_EISENHOWER)) {
             _showUpgradePrompt.value = true
             return
         }

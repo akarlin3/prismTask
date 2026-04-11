@@ -9,7 +9,7 @@
 
 ## 1. Service Description
 
-PrismTask is a task management and habit tracking application available for Android. The App offers a free tier with core functionality and an optional paid Pro subscription with additional features.
+PrismTask is a task management and habit tracking application available for Android. The App offers a free tier with core functionality and two optional paid subscription tiers — Pro and Premium — with additional features.
 
 ## 2. Acceptance of Terms
 
@@ -39,32 +39,41 @@ The free tier of PrismTask includes:
 - Dark and light themes with accent color customization
 - Sort preferences
 
-## 5. Pro Subscription
+## 5. Paid Subscriptions
 
-### Features
+### Pro Subscription ($3.99/month)
 
-The Pro subscription ($3.99/month) unlocks:
+The Pro subscription unlocks:
 
+- Cloud sync across devices
 - AI Eisenhower auto-categorization (powered by Claude AI)
 - AI Smart Pomodoro focus session planning
 - AI natural language task parsing via backend
-- Cloud sync across devices
 - Template sync via backend
+- Analytics and time tracking
+
+### Premium Subscription ($7.99/month)
+
+The Premium subscription includes everything in Pro, plus:
+
+- AI daily briefing and task prioritization
+- AI weekly planner and time blocking
 - Collaboration: shared projects, invites, task comments, and activity feed
+- Integrations
 - Google Drive backup and restore
 
 ### Billing
 
-- Pro subscriptions are managed through Google Play Billing
+- Subscriptions are managed through Google Play Billing
 - Your subscription renews automatically each month unless canceled
 - You can cancel your subscription at any time through the Google Play Store
-- Cancellation takes effect at the end of the current billing period; you retain Pro access until then
+- Cancellation takes effect at the end of the current billing period; you retain access until then
 - Refunds are handled according to Google Play's standard refund policy
 - Prices may change with advance notice; continued use after a price change constitutes acceptance
 
 ### Free Trial
 
-- New Pro subscribers may be eligible for a 7-day free trial
+- New subscribers may be eligible for a 7-day free trial
 - The free trial converts to a paid subscription at the end of the trial period unless canceled
 - Free trial availability is determined by Google Play
 

@@ -24,7 +24,10 @@ AI automatically categorizes your tasks into Urgent/Important quadrants. Spend t
 CLOUD SYNC (PRO)
 Sync tasks across devices. Never lose your data with automatic cloud backup.
 
-COLLABORATION (PRO)
+AI BRIEFING & PLANNER (PREMIUM)
+Get AI-powered daily briefings and weekly plans. AI time blocking automatically schedules your day for optimal productivity.
+
+COLLABORATION (PREMIUM)
 Share projects with teammates or family. Assign tasks, leave comments, and track activity — all in real-time.
 
 GOOGLE CALENDAR SYNC
@@ -46,8 +49,16 @@ FREE:
 • Export/import
 
 PRO ($3.99/month with 7-day free trial):
+• Cloud sync across devices
 • AI Eisenhower auto-categorization
 • AI Smart Pomodoro focus planning
-• Cloud sync across devices
+• Analytics and time tracking
+• Template sync
+
+PREMIUM ($7.99/month with 7-day free trial):
+• Everything in Pro, plus:
+• AI daily briefing and task prioritization
+• AI weekly planner and time blocking
 • Shared projects and collaboration
+• Integrations
 • Google Drive backup

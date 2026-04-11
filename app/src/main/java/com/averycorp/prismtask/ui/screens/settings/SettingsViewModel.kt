@@ -13,6 +13,7 @@ import java.io.File
 import java.io.FileOutputStream
 import com.averycorp.prismtask.data.billing.BillingManager
 import com.averycorp.prismtask.data.billing.SubscriptionState
+import com.averycorp.prismtask.data.billing.UserTier
 import com.averycorp.prismtask.data.export.DataExporter
 import com.averycorp.prismtask.data.export.DataImporter
 import com.averycorp.prismtask.data.export.ImportMode
@@ -100,7 +101,7 @@ class SettingsViewModel @Inject constructor(
 ) : ViewModel() {
 
     // --- Subscription ---
-    val isPro: StateFlow<Boolean> = billingManager.isProUser
+    val userTier: StateFlow<UserTier> = billingManager.userTier
     val subscriptionState: StateFlow<SubscriptionState> = billingManager.proSubscriptionState
 
     // --- Theme ---
@@ -893,10 +894,10 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun launchUpgrade(activity: android.app.Activity) {
+    fun launchUpgrade(activity: android.app.Activity, tier: UserTier = UserTier.PRO) {
         viewModelScope.launch {
             try {
-                billingManager.launchPurchaseFlow(activity)
+                billingManager.launchPurchaseFlow(activity, tier)
             } catch (e: Exception) {
                 _messages.emit("Could not start purchase: ${e.message}")
             }

@@ -59,6 +59,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.averycorp.prismtask.data.billing.UserTier
 import com.averycorp.prismtask.ui.components.ProFeature
 import com.averycorp.prismtask.ui.components.ProUpgradePrompt
 import com.averycorp.prismtask.ui.components.shimmer
@@ -82,6 +83,7 @@ fun WeeklyPlannerScreen(
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
     val showUpgradePrompt by viewModel.showUpgradePrompt.collectAsState()
+    val userTier by viewModel.userTier.collectAsState()
     val weekStart by viewModel.weekStart.collectAsState()
     val planApplied by viewModel.planApplied.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -118,7 +120,9 @@ fun WeeklyPlannerScreen(
                 contentAlignment = Alignment.Center
             ) {
                 ProUpgradePrompt(
-                    feature = ProFeature.AI,
+                    feature = ProFeature.AI_WEEKLY_PLAN,
+                    currentTier = userTier,
+                    requiredTier = UserTier.PREMIUM,
                     onUpgrade = { },
                     onDismiss = {
                         viewModel.dismissUpgradePrompt()

@@ -31,7 +31,7 @@ class BriefingNotificationWorker @AssistedInject constructor(
 ) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result {
-        if (!proFeatureGate.isPro.value) return Result.success()
+        if (!proFeatureGate.hasAccess(ProFeatureGate.AI_BRIEFING)) return Result.success()
 
         return try {
             val response = api.getDailyBriefing(DailyBriefingRequest())

@@ -101,7 +101,7 @@ class QuickAddViewModel @Inject constructor(
             _isSubmitting.value = true
             try {
                 // Use backend NLP for Pro users, local regex parser for free users
-                val parsed = if (proFeatureGate.requirePro(ProFeatureGate.AI_NLP)) {
+                val parsed = if (proFeatureGate.hasAccess(ProFeatureGate.AI_NLP)) {
                     parser.parseRemote(text)
                 } else {
                     parser.parse(text)

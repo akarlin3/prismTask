@@ -349,7 +349,7 @@ class SyncService @Inject constructor(
     }
 
     suspend fun fullSync() {
-        if (!proFeatureGate.requirePro(ProFeatureGate.CLOUD_SYNC)) return
+        if (!proFeatureGate.hasAccess(ProFeatureGate.CLOUD_SYNC)) return
         if (isSyncing) return
         isSyncing = true
         try {
@@ -362,7 +362,7 @@ class SyncService @Inject constructor(
 
     fun startAutoSync() {
         if (authManager.userId == null) return
-        if (!proFeatureGate.requirePro(ProFeatureGate.CLOUD_SYNC)) return
+        if (!proFeatureGate.hasAccess(ProFeatureGate.CLOUD_SYNC)) return
         startRealtimeListeners()
         scope.launch {
             try { fullSync() } catch (e: Exception) {

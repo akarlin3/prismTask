@@ -6,6 +6,7 @@ import com.averycorp.prismtask.data.local.dao.TaskDao
 import com.averycorp.prismtask.data.remote.api.PrismTaskApi
 import com.averycorp.prismtask.data.remote.api.PomodoroRequest
 import com.averycorp.prismtask.data.remote.api.PomodoroResponse
+import com.averycorp.prismtask.data.billing.UserTier
 import com.averycorp.prismtask.domain.usecase.ProFeatureGate
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
@@ -67,7 +68,7 @@ class SmartPomodoroViewModel @Inject constructor(
     private val proFeatureGate: ProFeatureGate
 ) : ViewModel() {
 
-    val isPro: StateFlow<Boolean> = proFeatureGate.isPro
+    val userTier: StateFlow<UserTier> = proFeatureGate.userTier
 
     private val _screenState = MutableStateFlow(PomodoroState.PLANNING)
     val screenState: StateFlow<PomodoroState> = _screenState
@@ -140,7 +141,7 @@ class SmartPomodoroViewModel @Inject constructor(
     }
 
     fun generatePlan() {
-        if (!proFeatureGate.requirePro(ProFeatureGate.AI_POMODORO)) {
+        if (!proFeatureGate.hasAccess(ProFeatureGate.AI_POMODORO)) {
             _showUpgradePrompt.value = true
             return
         }

@@ -8,20 +8,36 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.averycorp.prismtask.data.billing.UserTier
 
 @Composable
 fun ProBadge(modifier: Modifier = Modifier) {
+    TierBadge(requiredTier = UserTier.PRO, modifier = modifier)
+}
+
+@Composable
+fun TierBadge(
+    requiredTier: UserTier,
+    modifier: Modifier = Modifier
+) {
+    val (label, backgroundColor) = when (requiredTier) {
+        UserTier.PREMIUM -> "PREMIUM" to Color(0xFFD97706) // Amber
+        UserTier.PRO -> "PRO" to MaterialTheme.colorScheme.primary
+        UserTier.FREE -> return // No badge for free features
+    }
+
     Text(
-        text = "PRO",
+        text = label,
         fontSize = 10.sp,
         fontWeight = FontWeight.Bold,
-        color = MaterialTheme.colorScheme.onPrimary,
+        color = Color.White,
         modifier = modifier
             .clip(RoundedCornerShape(4.dp))
-            .background(MaterialTheme.colorScheme.primary)
+            .background(backgroundColor)
             .padding(horizontal = 6.dp, vertical = 2.dp)
     )
 }

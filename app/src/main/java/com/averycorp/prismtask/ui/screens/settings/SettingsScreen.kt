@@ -34,6 +34,8 @@ import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import com.averycorp.prismtask.ui.components.CircularCheckbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -84,6 +86,7 @@ import com.averycorp.prismtask.data.remote.UpdateStatus
 import java.time.DayOfWeek
 import java.time.format.TextStyle
 import java.util.Locale
+import com.averycorp.prismtask.data.billing.UserTier
 import com.averycorp.prismtask.ui.navigation.ALL_BOTTOM_NAV_ITEMS
 import com.averycorp.prismtask.ui.theme.PriorityColors
 
@@ -124,7 +127,7 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
-    val isPro by viewModel.isPro.collectAsStateWithLifecycle()
+    val userTier by viewModel.userTier.collectAsStateWithLifecycle()
     val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
     val accentColor by viewModel.accentColor.collectAsStateWithLifecycle()
     val backgroundColor by viewModel.backgroundColor.collectAsStateWithLifecycle()
@@ -435,60 +438,105 @@ fun SettingsScreen(
             ) {
             // ========== SUBSCRIPTION ==========
             SectionHeader("Subscription")
-            if (isPro) {
-                Text(
-                    text = "PrismTask Pro",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(bottom = 4.dp)
-                )
-                Text(
-                    text = "You have access to all Pro features",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(bottom = 8.dp)
-                )
-                OutlinedButton(
-                    onClick = {
-                        val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
-                            data = android.net.Uri.parse("https://play.google.com/store/account/subscriptions")
+            when (userTier) {
+                UserTier.PREMIUM -> {
+                    Text(
+                        text = "PrismTask Premium",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFFD97706),
+                        modifier = Modifier.padding(bottom = 4.dp)
+                    )
+                    Text(
+                        text = "You have access to all features",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                    OutlinedButton(
+                        onClick = {
+                            val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
+                                data = android.net.Uri.parse("https://play.google.com/store/account/subscriptions")
+                            }
+                            context.startActivity(intent)
                         }
-                        context.startActivity(intent)
+                    ) {
+                        Text("Manage Subscription")
                     }
-                ) {
-                    Text("Manage Subscription")
                 }
-            } else {
-                Text(
-                    text = "PrismTask Free",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(bottom = 4.dp)
-                )
-                Text(
-                    text = "Upgrade to Pro for AI features, cloud sync, and collaboration",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(bottom = 4.dp)
-                )
-                Text(
-                    text = "$3.99/month - 7-day free trial",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(bottom = 8.dp)
-                )
-                Button(
-                    onClick = {
-                        val activity = context as? android.app.Activity ?: return@Button
-                        viewModel.launchUpgrade(activity)
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Upgrade to Pro")
+                UserTier.PRO -> {
+                    Text(
+                        text = "PrismTask Pro",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(bottom = 4.dp)
+                    )
+                    Text(
+                        text = "Upgrade to Premium for AI briefing, planner, collaboration, and more",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                    Button(
+                        onClick = {
+                            val activity = context as? android.app.Activity ?: return@Button
+                            viewModel.launchUpgrade(activity, UserTier.PREMIUM)
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFFD97706)
+                        )
+                    ) {
+                        Text("Upgrade to Premium \u2014 \$7.99/month")
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
+                    OutlinedButton(
+                        onClick = {
+                            val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
+                                data = android.net.Uri.parse("https://play.google.com/store/account/subscriptions")
+                            }
+                            context.startActivity(intent)
+                        }
+                    ) {
+                        Text("Manage Subscription")
+                    }
                 }
-                TextButton(onClick = { viewModel.restorePurchases() }) {
-                    Text("Restore Purchases")
+                UserTier.FREE -> {
+                    Text(
+                        text = "PrismTask Free",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(bottom = 4.dp)
+                    )
+                    // Tier comparison
+                    SubscriptionComparisonCard()
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Button(
+                        onClick = {
+                            val activity = context as? android.app.Activity ?: return@Button
+                            viewModel.launchUpgrade(activity, UserTier.PRO)
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Start Pro \u2014 \$3.99/month")
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Button(
+                        onClick = {
+                            val activity = context as? android.app.Activity ?: return@Button
+                            viewModel.launchUpgrade(activity, UserTier.PREMIUM)
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFFD97706)
+                        )
+                    ) {
+                        Text("Start Premium \u2014 \$7.99/month")
+                    }
+                    TextButton(onClick = { viewModel.restorePurchases() }) {
+                        Text("Restore Purchases")
+                    }
                 }
             }
 
@@ -1762,6 +1810,98 @@ fun SettingsScreen(
             }
         }
     }
+}
+
+@Composable
+private fun SubscriptionComparisonCard() {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        )
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            // Header row
+            Row(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = "",
+                    modifier = Modifier.weight(1.4f),
+                    style = MaterialTheme.typography.bodySmall
+                )
+                Text(
+                    text = "Free",
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+                Text(
+                    text = "Pro\n\$3.99",
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+                Text(
+                    text = "Premium\n\$7.99",
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFFD97706),
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            HorizontalDivider()
+            ComparisonRow("Core Tasks & Habits", free = true, pro = true, premium = true)
+            ComparisonRow("Calendar Sync", free = true, pro = true, premium = true)
+            ComparisonRow("Templates (Local)", free = true, pro = true, premium = true)
+            ComparisonRow("Cloud Sync", free = false, pro = true, premium = true)
+            ComparisonRow("AI Eisenhower & Pomodoro", free = false, pro = true, premium = true)
+            ComparisonRow("Analytics & Time Tracking", free = false, pro = true, premium = true)
+            ComparisonRow("AI Briefing & Planner", free = false, pro = false, premium = true)
+            ComparisonRow("Collaboration", free = false, pro = false, premium = true)
+            ComparisonRow("Integrations", free = false, pro = false, premium = true)
+        }
+    }
+}
+
+@Composable
+private fun ComparisonRow(
+    feature: String,
+    free: Boolean,
+    pro: Boolean,
+    premium: Boolean
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = feature,
+            modifier = Modifier.weight(1.4f),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        TierCheck(enabled = free, modifier = Modifier.weight(1f))
+        TierCheck(enabled = pro, modifier = Modifier.weight(1f))
+        TierCheck(enabled = premium, modifier = Modifier.weight(1f))
+    }
+}
+
+@Composable
+private fun TierCheck(enabled: Boolean, modifier: Modifier = Modifier) {
+    Text(
+        text = if (enabled) "\u2705" else "\u2014",
+        modifier = modifier,
+        style = MaterialTheme.typography.bodySmall,
+        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+        color = if (enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+    )
 }
 
 @Composable

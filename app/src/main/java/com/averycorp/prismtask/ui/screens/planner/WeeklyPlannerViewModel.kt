@@ -6,6 +6,7 @@ import com.averycorp.prismtask.data.local.dao.TaskDao
 import com.averycorp.prismtask.data.remote.api.PrismTaskApi
 import com.averycorp.prismtask.data.remote.api.WeeklyPlanPreferencesRequest
 import com.averycorp.prismtask.data.remote.api.WeeklyPlanRequest
+import com.averycorp.prismtask.data.billing.UserTier
 import com.averycorp.prismtask.domain.usecase.ProFeatureGate
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -60,7 +61,7 @@ class WeeklyPlannerViewModel @Inject constructor(
     private val proFeatureGate: ProFeatureGate
 ) : ViewModel() {
 
-    val isPro: StateFlow<Boolean> = proFeatureGate.isPro
+    val userTier: StateFlow<UserTier> = proFeatureGate.userTier
 
     private val _config = MutableStateFlow(WeeklyPlanConfig())
     val config: StateFlow<WeeklyPlanConfig> = _config
@@ -119,7 +120,7 @@ class WeeklyPlannerViewModel @Inject constructor(
     }
 
     fun generatePlan() {
-        if (!proFeatureGate.requirePro(ProFeatureGate.AI_WEEKLY_PLAN)) {
+        if (!proFeatureGate.hasAccess(ProFeatureGate.AI_WEEKLY_PLAN)) {
             _showUpgradePrompt.value = true
             return
         }

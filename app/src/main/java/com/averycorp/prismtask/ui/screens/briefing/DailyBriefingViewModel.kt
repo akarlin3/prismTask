@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.averycorp.prismtask.data.local.dao.TaskDao
 import com.averycorp.prismtask.data.remote.api.DailyBriefingRequest
 import com.averycorp.prismtask.data.remote.api.PrismTaskApi
+import com.averycorp.prismtask.data.billing.UserTier
 import com.averycorp.prismtask.domain.usecase.ProFeatureGate
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -43,7 +44,7 @@ class DailyBriefingViewModel @Inject constructor(
     private val proFeatureGate: ProFeatureGate
 ) : ViewModel() {
 
-    val isPro: StateFlow<Boolean> = proFeatureGate.isPro
+    val userTier: StateFlow<UserTier> = proFeatureGate.userTier
 
     private val _briefing = MutableStateFlow<DailyBriefing?>(null)
     val briefing: StateFlow<DailyBriefing?> = _briefing
@@ -67,7 +68,7 @@ class DailyBriefingViewModel @Inject constructor(
     }
 
     fun generateBriefing(date: String? = null) {
-        if (!proFeatureGate.requirePro(ProFeatureGate.AI_BRIEFING)) {
+        if (!proFeatureGate.hasAccess(ProFeatureGate.AI_BRIEFING)) {
             _showUpgradePrompt.value = true
             return
         }

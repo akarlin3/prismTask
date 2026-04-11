@@ -14,6 +14,7 @@ import com.averycorp.prismtask.data.remote.api.PrismTaskApi
 import com.averycorp.prismtask.data.remote.api.TimeBlockRequest
 import com.averycorp.prismtask.data.repository.ProjectRepository
 import com.averycorp.prismtask.data.repository.TaskRepository
+import com.averycorp.prismtask.data.billing.UserTier
 import com.averycorp.prismtask.domain.usecase.ProFeatureGate
 import com.averycorp.prismtask.ui.components.QuickRescheduleFormatter
 import kotlinx.coroutines.flow.first
@@ -85,7 +86,7 @@ class TimelineViewModel @Inject constructor(
     private val proFeatureGate: ProFeatureGate
 ) : ViewModel() {
 
-    val isPro: StateFlow<Boolean> = proFeatureGate.isPro
+    val userTier: StateFlow<UserTier> = proFeatureGate.userTier
 
     private val _timeBlockConfig = MutableStateFlow(TimeBlockConfig())
     val timeBlockConfig: StateFlow<TimeBlockConfig> = _timeBlockConfig
@@ -326,7 +327,7 @@ class TimelineViewModel @Inject constructor(
     // Time blocking methods
 
     fun showAutoScheduleSheet() {
-        if (!proFeatureGate.requirePro(ProFeatureGate.AI_TIME_BLOCK)) {
+        if (!proFeatureGate.hasAccess(ProFeatureGate.AI_TIME_BLOCK)) {
             _showUpgradePrompt.value = true
             return
         }
