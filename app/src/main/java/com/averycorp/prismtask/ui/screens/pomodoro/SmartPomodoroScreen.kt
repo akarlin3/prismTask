@@ -72,6 +72,7 @@ fun SmartPomodoroScreen(
 ) {
     val screenState by viewModel.screenState.collectAsState()
     val config by viewModel.config.collectAsState()
+    val energyAwareConfig by viewModel.energyAwareConfig.collectAsState()
     val plan by viewModel.plan.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
@@ -104,19 +105,46 @@ fun SmartPomodoroScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { padding ->
         when (screenState) {
-            PomodoroState.PLANNING -> PlanningView(
-                config = config,
-                plan = plan,
-                isLoading = isLoading,
-                incompleteTaskCount = incompleteTaskCount,
-                onUpdateAvailableMinutes = { viewModel.updateAvailableMinutes(it) },
-                onUpdateSessionLength = { viewModel.updateSessionLength(it) },
-                onUpdateBreakLength = { viewModel.updateBreakLength(it) },
-                onUpdateFocusPreference = { viewModel.updateFocusPreference(it) },
-                onGeneratePlan = { viewModel.generatePlan() },
-                onStartSession = { viewModel.startSession() },
-                modifier = Modifier.padding(padding)
-            )
+            PomodoroState.PLANNING -> Column(modifier = Modifier.padding(padding)) {
+                energyAwareConfig?.let { energyConfig ->
+                    if (energyConfig.rationale != "Using your classic Pomodoro defaults") {
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.tertiaryContainer
+                            )
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("\u26A1", style = MaterialTheme.typography.titleMedium)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = energyConfig.rationale,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onTertiaryContainer
+                                )
+                            }
+                        }
+                    }
+                }
+                PlanningView(
+                    config = config,
+                    plan = plan,
+                    isLoading = isLoading,
+                    incompleteTaskCount = incompleteTaskCount,
+                    onUpdateAvailableMinutes = { viewModel.updateAvailableMinutes(it) },
+                    onUpdateSessionLength = { viewModel.updateSessionLength(it) },
+                    onUpdateBreakLength = { viewModel.updateBreakLength(it) },
+                    onUpdateFocusPreference = { viewModel.updateFocusPreference(it) },
+                    onGeneratePlan = { viewModel.generatePlan() },
+                    onStartSession = { viewModel.startSession() },
+                    modifier = Modifier
+                )
+            }
 
             PomodoroState.SESSION_ACTIVE -> ActiveSessionView(
                 plan = plan!!,
