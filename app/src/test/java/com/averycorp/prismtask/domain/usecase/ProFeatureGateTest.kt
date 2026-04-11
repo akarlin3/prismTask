@@ -200,8 +200,7 @@ class ProFeatureGateTest {
             ProFeatureGate.AI_DAILY_PLANNING, ProFeatureGate.AI_REENGAGEMENT,
             ProFeatureGate.AI_WEEKLY_INSIGHTS
         )
-        assertEquals("All 16 feature constants should be unique", 16, constants.size)
-        assertEquals("All 20 feature constants should be unique", 20, constants.size)
+        assertEquals("All 21 feature constants should be unique", 21, constants.size)
     }
 
     // --- Tier upgrade restores highest ---
