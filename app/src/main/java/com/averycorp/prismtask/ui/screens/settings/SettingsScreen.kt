@@ -142,6 +142,8 @@ fun SettingsScreen(
     val priorityColorUrgent by viewModel.priorityColorUrgent.collectAsStateWithLifecycle()
     val appearancePrefs by viewModel.appearancePrefs.collectAsStateWithLifecycle()
     val swipePrefs by viewModel.swipePrefs.collectAsStateWithLifecycle()
+    val recentCustomColors by viewModel.recentCustomColors.collectAsStateWithLifecycle()
+    var showCustomAccentPicker by remember { mutableStateOf(false) }
     val autoArchiveDays by viewModel.autoArchiveDays.collectAsStateWithLifecycle()
     val claudeApiKey by viewModel.claudeApiKey.collectAsStateWithLifecycle()
     val archivedCount by viewModel.archivedCount.collectAsStateWithLifecycle()
@@ -611,6 +613,81 @@ fun SettingsScreen(
                         }
                     }
                 }
+                // "Custom" rainbow-gradient circle that opens the picker
+                val isCustomSelected = !accentColors.any { accentColor.equals(it, ignoreCase = true) }
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(
+                            brush = androidx.compose.ui.graphics.Brush.sweepGradient(
+                                listOf(
+                                    Color(0xFFFF0000), Color(0xFFFFFF00), Color(0xFF00FF00),
+                                    Color(0xFF00FFFF), Color(0xFF0000FF), Color(0xFFFF00FF),
+                                    Color(0xFFFF0000)
+                                )
+                            )
+                        )
+                        .then(
+                            if (isCustomSelected) Modifier.border(2.dp, MaterialTheme.colorScheme.onSurface, CircleShape)
+                            else Modifier
+                        )
+                        .clickable { showCustomAccentPicker = true },
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (isCustomSelected) {
+                        Icon(
+                            Icons.Default.Check,
+                            contentDescription = "Custom color selected",
+                            tint = Color.White,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+            }
+
+            // Recent custom colors row
+            if (recentCustomColors.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = "Recent Custom Colors",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 4.dp)
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    recentCustomColors.forEach { hex ->
+                        val color = try { Color(android.graphics.Color.parseColor(hex)) } catch (_: Exception) { Color.Gray }
+                        val isSelected = accentColor.equals(hex, ignoreCase = true)
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(CircleShape)
+                                .background(color)
+                                .then(
+                                    if (isSelected) Modifier.border(2.dp, MaterialTheme.colorScheme.onSurface, CircleShape)
+                                    else Modifier
+                                )
+                                .clickable { viewModel.setCustomAccentColor(hex) }
+                        )
+                    }
+                }
+            }
+
+            if (showCustomAccentPicker) {
+                ColorPickerDialog(
+                    title = "Custom Accent Color",
+                    currentHex = if (accentColors.any { accentColor.equals(it, ignoreCase = true) }) "" else accentColor,
+                    onSelect = { hex ->
+                        viewModel.setCustomAccentColor(hex)
+                        showCustomAccentPicker = false
+                    },
+                    onClear = {
+                        viewModel.setAccentColor("#2563EB")
+                        showCustomAccentPicker = false
+                    },
+                    onDismiss = { showCustomAccentPicker = false }
+                )
             }
 
             Spacer(modifier = Modifier.height(12.dp))

@@ -227,6 +227,9 @@ class SettingsViewModel @Inject constructor(
     val accentColor: StateFlow<String> = themePreferences.getAccentColor()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "#2563EB")
 
+    val recentCustomColors: StateFlow<List<String>> = themePreferences.getRecentCustomColors()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     val backgroundColor: StateFlow<String> = themePreferences.getBackgroundColor()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "")
 
@@ -559,6 +562,19 @@ class SettingsViewModel @Inject constructor(
 
     fun setAccentColor(hex: String) {
         viewModelScope.launch { themePreferences.setAccentColor(hex) }
+    }
+
+    /**
+     * Sets the accent color to [hex] and records it in the recent-custom-colors list.
+     * Intended for custom picks (not preset taps).
+     */
+    fun setCustomAccentColor(hex: String) {
+        viewModelScope.launch {
+            if (ThemePreferences.isValidHex(hex)) {
+                themePreferences.setAccentColor(hex)
+                themePreferences.addRecentCustomColor(hex)
+            }
+        }
     }
 
     fun setBackgroundColor(hex: String) {

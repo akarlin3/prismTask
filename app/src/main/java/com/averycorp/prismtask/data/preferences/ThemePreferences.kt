@@ -31,6 +31,25 @@ class ThemePreferences @Inject constructor(
         private val PRIORITY_COLOR_MEDIUM_KEY = stringPreferencesKey("priority_color_medium")
         private val PRIORITY_COLOR_HIGH_KEY = stringPreferencesKey("priority_color_high")
         private val PRIORITY_COLOR_URGENT_KEY = stringPreferencesKey("priority_color_urgent")
+        private val RECENT_CUSTOM_COLORS_KEY = stringPreferencesKey("recent_custom_colors")
+
+        private const val MAX_RECENT_CUSTOM_COLORS = 5
+
+        /** Returns true iff [hex] is a valid 6- or 8-digit hex color string. */
+        fun isValidHex(hex: String): Boolean {
+            val trimmed = hex.trim()
+            if (!trimmed.startsWith("#")) return false
+            val body = trimmed.drop(1)
+            if (body.length != 6 && body.length != 8) return false
+            return body.all { it.isDigit() || it.lowercaseChar() in 'a'..'f' }
+        }
+
+        /** Inserts [hex] at the head of [existing], capped at [MAX_RECENT_CUSTOM_COLORS]. */
+        fun addToRecentColors(existing: List<String>, hex: String): List<String> {
+            val upper = hex.uppercase()
+            val dedup = existing.filterNot { it.equals(upper, ignoreCase = true) }
+            return (listOf(upper) + dedup).take(MAX_RECENT_CUSTOM_COLORS)
+        }
     }
 
     fun getThemeMode(): Flow<String> = context.dataStore.data.map { prefs ->
@@ -111,6 +130,27 @@ class ThemePreferences @Inject constructor(
             else -> return
         }
         context.dataStore.edit { prefs -> prefs[key] = hex }
+    }
+
+    fun getRecentCustomColors(): Flow<List<String>> = context.dataStore.data.map { prefs ->
+        prefs[RECENT_CUSTOM_COLORS_KEY]
+            ?.split(",")
+            ?.map { it.trim() }
+            ?.filter { it.isNotEmpty() && isValidHex(it) }
+            ?: emptyList()
+    }
+
+    suspend fun addRecentCustomColor(hex: String) {
+        if (!isValidHex(hex)) return
+        context.dataStore.edit { prefs ->
+            val current = prefs[RECENT_CUSTOM_COLORS_KEY]
+                ?.split(",")
+                ?.map { it.trim() }
+                ?.filter { it.isNotEmpty() }
+                ?: emptyList()
+            val updated = addToRecentColors(current, hex)
+            prefs[RECENT_CUSTOM_COLORS_KEY] = updated.joinToString(",")
+        }
     }
 
     suspend fun resetColorOverrides() {
