@@ -1,7 +1,6 @@
-import json
 import sys
 import types
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, timedelta
 from unittest.mock import MagicMock, patch
 
 import pytest

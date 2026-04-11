@@ -184,8 +184,6 @@ async def habit_correlations(
     daily_data = []
     current = start
     while current <= today:
-        next_day = current + timedelta(days=1)
-
         due_result = await db.execute(
             select(func.count()).select_from(Task).where(
                 Task.user_id == current_user.id,

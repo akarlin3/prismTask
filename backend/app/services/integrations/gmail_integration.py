@@ -127,7 +127,6 @@ def _fetch_emails_via_api(
     service = google_build("gmail", "v1", credentials=creds)
 
     # Build query for recent emails
-    import math
     from datetime import timedelta
 
     after_epoch = int(

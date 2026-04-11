@@ -3,13 +3,12 @@
 from datetime import date, timedelta
 from typing import Optional
 
-from sqlalchemy import and_, case, func, select
+from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import (
     Habit,
     HabitCompletion,
-    HabitFrequency,
     Project,
     Task,
     TaskStatus,
@@ -381,12 +380,7 @@ async def compute_project_burndown(
     # Build day-by-day burndown
     burndown = []
     current = start_date
-    cumulative_completed = 0
-    prev_remaining = 0
-
     while current <= end_date:
-        next_day = current + timedelta(days=1)
-
         # Count tasks that existed by end of this day (created_at <= end of day)
         tasks_existing = sum(
             1 for t in all_tasks
@@ -414,7 +408,6 @@ async def compute_project_burndown(
             "added": added_today,
         })
 
-        prev_remaining = remaining
         current += timedelta(days=1)
 
     # Calculate velocity (tasks completed per day over the range)
@@ -552,7 +545,6 @@ async def compute_summary(
     # Walk backwards from today counting consecutive productive days
     current_streak = 0
     longest_streak = 0
-    check = today
     streak_start = today - timedelta(days=90)  # look back max 90 days
 
     all_scores = await compute_daily_productivity_scores(db, user_id, streak_start, today)
