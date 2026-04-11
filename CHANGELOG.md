@@ -38,6 +38,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added 26 unit tests: `LifeCategoryClassifierTest` (11), `BalanceTrackerTest`
   (10), `NaturalLanguageParserTest` life-category additions (5).
 
+### Added — Morning Check-In Resolver (V4 phase 1)
+- `MorningCheckInResolver` domain planner that decides whether to
+  prompt the user for the morning check-in and which steps to show.
+- `CheckInStep` enum (MOOD_ENERGY, MEDICATIONS, TOP_TASKS, HABITS,
+  BALANCE, CALENDAR) so the HorizontalPager screen renders steps in
+  the vision deck's default order.
+- `MorningCheckInConfig` captures the prompt-before-hour threshold
+  and per-step visibility toggles. Defaults match the vision deck:
+  11am threshold, all steps visible.
+- `CheckInPlan` carries the resolved prompt decision, the ordered
+  step list, the top 3 highest-urgency tasks for the day, and
+  today's habits so the pager can render without re-querying.
+- Top task selection: filters out completed + archived + tasks not
+  due today, sorts by priority descending then due date ascending,
+  takes 3. Priority 4 (Urgent) naturally floats to the top.
+- Prompt logic: suppresses the prompt after the configured hour,
+  after the user has already completed a check-in today, or when
+  the feature is disabled in Settings.
+- Habits step is hidden when the user has no habits so the flow
+  doesn't show an empty page.
+- 9 new unit tests covering the prompt decision truth table, top
+  task selection (priority and completion filtering), hiding
+  habits when empty, disabling medications via config, and the
+  full enabled-step ordering.
+
+Scoped for follow-up:
+- CheckInLogEntity Room table + DAO + repository to record the
+  "last completed date" the resolver consumes.
+- Full MorningCheckInScreen HorizontalPager UI with the six step
+  composables.
+- Today screen integration: the "Start Your Morning Check-In?"
+  banner card.
+- Check-in streak analytics ("7-day check-in streak 🔥").
+
 ### Added — Boundary Rules (V3 phase 1)
 - `BoundaryRule` runtime model with rule type (BLOCK_CATEGORY,
   SUGGEST_CATEGORY, REMIND), target `LifeCategory`, start/end times,
