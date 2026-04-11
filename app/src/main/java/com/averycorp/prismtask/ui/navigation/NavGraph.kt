@@ -12,10 +12,12 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.FormatListBulleted
 import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Today
 import androidx.compose.material.icons.automirrored.outlined.FormatListBulleted
 import androidx.compose.material.icons.outlined.FitnessCenter
+import androidx.compose.material.icons.outlined.Repeat
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Timer
@@ -103,6 +105,7 @@ sealed class PrismTaskRoute(val route: String) {
     data object MonthView : PrismTaskRoute("month_view")
     data object Timeline : PrismTaskRoute("timeline")
     data object HabitList : PrismTaskRoute("habit_list")
+    data object HabitsRecurring : PrismTaskRoute("habits_recurring")
     data object Timer : PrismTaskRoute("timer")
     data object AddEditHabit : PrismTaskRoute("add_edit_habit?habitId={habitId}") {
         fun createRoute(habitId: Long? = null): String =
@@ -152,7 +155,8 @@ data class BottomNavItem(
 val ALL_BOTTOM_NAV_ITEMS = listOf(
     BottomNavItem(PrismTaskRoute.Today.route, "Today", Icons.Filled.Today, Icons.Outlined.Today),
     BottomNavItem(PrismTaskRoute.TaskList.route, "Tasks", Icons.AutoMirrored.Filled.FormatListBulleted, Icons.AutoMirrored.Outlined.FormatListBulleted),
-    BottomNavItem(PrismTaskRoute.HabitList.route, "Habits", Icons.Filled.FitnessCenter, Icons.Outlined.FitnessCenter),
+    BottomNavItem(PrismTaskRoute.HabitList.route, "Daily", Icons.Filled.FitnessCenter, Icons.Outlined.FitnessCenter),
+    BottomNavItem(PrismTaskRoute.HabitsRecurring.route, "Recurring", Icons.Filled.Repeat, Icons.Outlined.Repeat),
     BottomNavItem(PrismTaskRoute.Timer.route, "Timer", Icons.Filled.Timer, Icons.Outlined.Timer),
     BottomNavItem(PrismTaskRoute.Settings.route, "Settings", Icons.Filled.Settings, Icons.Outlined.Settings),
 )
@@ -336,7 +340,8 @@ fun PrismTaskNavGraph(
                             }
                         )
                         PrismTaskRoute.TaskList.route -> TaskListScreen(navController)
-                        PrismTaskRoute.HabitList.route -> HabitListScreen(navController)
+                        PrismTaskRoute.HabitList.route -> HabitListScreen(navController, filter = "daily")
+                        PrismTaskRoute.HabitsRecurring.route -> HabitListScreen(navController, filter = "recurring")
                         PrismTaskRoute.Timer.route -> TimerScreen(navController)
                         PrismTaskRoute.Settings.route -> SettingsScreen(navController)
                     }

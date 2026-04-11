@@ -42,9 +42,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -55,10 +53,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -76,7 +72,6 @@ import androidx.navigation.NavController
 import com.averycorp.prismtask.data.local.entity.HabitCompletionEntity
 import com.averycorp.prismtask.data.repository.HabitWithStatus
 import com.averycorp.prismtask.ui.components.RichEmptyState
-import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -91,6 +86,7 @@ import sh.calvin.reorderable.rememberReorderableLazyListState
 @Composable
 fun HabitListScreen(
     navController: NavController,
+    filter: String = "daily",
     viewModel: HabitListViewModel = hiltViewModel()
 ) {
     val items by viewModel.items.collectAsStateWithLifecycle()
@@ -98,13 +94,9 @@ fun HabitListScreen(
     var loggingHabit by remember { mutableStateOf<HabitWithStatus?>(null) }
     var bookingHabit by remember { mutableStateOf<HabitWithStatus?>(null) }
     var activityLogHabit by remember { mutableStateOf<HabitWithStatus?>(null) }
-    val scope = rememberCoroutineScope()
-    var selectedTab by remember { mutableIntStateOf(0) }
-    val tabTitles = listOf("Daily", "Recurring")
-
     val recurringPeriods = setOf("weekly", "fortnightly", "monthly", "bimonthly", "quarterly")
-    val filteredItems = remember(items, selectedTab) {
-        if (selectedTab == 0) {
+    val filteredItems = remember(items, filter) {
+        if (filter == "daily") {
             items.filter { item ->
                 when (item) {
                     is HabitListItem.HabitItem -> item.habitWithStatus.habit.frequencyPeriod == "daily"
@@ -119,25 +111,16 @@ fun HabitListScreen(
         }
     }
 
+    val screenTitle = if (filter == "daily") "Daily Habits" else "Recurring Habits"
+
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Habits", fontWeight = FontWeight.Bold) },
+                title = { Text(screenTitle, fontWeight = FontWeight.Bold) },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface
                 )
             )
-        },
-        bottomBar = {
-            PrimaryTabRow(selectedTabIndex = selectedTab) {
-                tabTitles.forEachIndexed { index, title ->
-                    Tab(
-                        selected = selectedTab == index,
-                        onClick = { selectedTab = index },
-                        text = { Text(title) }
-                    )
-                }
-            }
         },
         floatingActionButton = {
             FloatingActionButton(
