@@ -520,6 +520,51 @@ val MIGRATION_32_33 = object : Migration(32, 33) {
     }
 }
 
+// v1.4.0 V3/V4/V6: add boundary_rules, check_in_logs, weekly_reviews
+val MIGRATION_35_36 = object : Migration(35, 36) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        // V3 — boundary_rules
+        db.execSQL(
+            """CREATE TABLE IF NOT EXISTS `boundary_rules` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `name` TEXT NOT NULL,
+                `rule_type` TEXT NOT NULL,
+                `category` TEXT NOT NULL,
+                `start_time` TEXT NOT NULL,
+                `end_time` TEXT NOT NULL,
+                `active_days_csv` TEXT NOT NULL,
+                `is_enabled` INTEGER NOT NULL DEFAULT 1,
+                `is_built_in` INTEGER NOT NULL DEFAULT 0,
+                `created_at` INTEGER NOT NULL
+            )"""
+        )
+        // V4 — check_in_logs
+        db.execSQL(
+            """CREATE TABLE IF NOT EXISTS `check_in_logs` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `date` INTEGER NOT NULL,
+                `steps_completed_csv` TEXT NOT NULL,
+                `medications_confirmed` INTEGER NOT NULL DEFAULT 0,
+                `tasks_reviewed` INTEGER NOT NULL DEFAULT 0,
+                `habits_completed` INTEGER NOT NULL DEFAULT 0,
+                `created_at` INTEGER NOT NULL
+            )"""
+        )
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_check_in_logs_date` ON `check_in_logs` (`date`)")
+        // V6 — weekly_reviews
+        db.execSQL(
+            """CREATE TABLE IF NOT EXISTS `weekly_reviews` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `week_start_date` INTEGER NOT NULL,
+                `metrics_json` TEXT NOT NULL,
+                `ai_insights_json` TEXT,
+                `created_at` INTEGER NOT NULL
+            )"""
+        )
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_weekly_reviews_week_start_date` ON `weekly_reviews` (`week_start_date`)")
+    }
+}
+
 // v1.4.0 V10: add medication_refills table (pill count + refill tracking)
 val MIGRATION_34_35 = object : Migration(34, 35) {
     override fun migrate(db: SupportSQLiteDatabase) {
@@ -596,4 +641,5 @@ val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_32_33,
     MIGRATION_33_34,
     MIGRATION_34_35,
+    MIGRATION_35_36,
 )

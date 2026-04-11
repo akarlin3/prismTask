@@ -3,7 +3,9 @@ package com.averycorp.prismtask.di
 import android.content.Context
 import androidx.room.Room
 import com.averycorp.prismtask.data.local.dao.AttachmentDao
+import com.averycorp.prismtask.data.local.dao.BoundaryRuleDao
 import com.averycorp.prismtask.data.local.dao.CalendarSyncDao
+import com.averycorp.prismtask.data.local.dao.CheckInLogDao
 import com.averycorp.prismtask.data.local.dao.HabitCompletionDao
 import com.averycorp.prismtask.data.local.dao.HabitDao
 import com.averycorp.prismtask.data.local.dao.HabitLogDao
@@ -23,6 +25,7 @@ import com.averycorp.prismtask.data.local.dao.TagDao
 import com.averycorp.prismtask.data.local.dao.TaskDao
 import com.averycorp.prismtask.data.local.dao.TaskTemplateDao
 import com.averycorp.prismtask.data.local.dao.UsageLogDao
+import com.averycorp.prismtask.data.local.dao.WeeklyReviewDao
 import com.averycorp.prismtask.data.local.database.PrismTaskDatabase
 import com.averycorp.prismtask.data.seed.TemplatePreferencesSeededFlagStore
 import com.averycorp.prismtask.data.seed.TemplateSeeder
@@ -116,6 +119,15 @@ object DatabaseModule {
 
     @Provides
     fun provideMedicationRefillDao(database: PrismTaskDatabase): MedicationRefillDao = database.medicationRefillDao()
+
+    @Provides
+    fun provideBoundaryRuleDao(database: PrismTaskDatabase): BoundaryRuleDao = database.boundaryRuleDao()
+
+    @Provides
+    fun provideCheckInLogDao(database: PrismTaskDatabase): CheckInLogDao = database.checkInLogDao()
+
+    @Provides
+    fun provideWeeklyReviewDao(database: PrismTaskDatabase): WeeklyReviewDao = database.weeklyReviewDao()
 }
 
 /**
