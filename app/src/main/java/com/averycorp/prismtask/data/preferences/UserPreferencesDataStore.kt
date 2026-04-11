@@ -53,6 +53,20 @@ data class QuickAddPrefs(
 )
 
 /**
+ * Forgiveness-first streak preferences (v1.4.0 V5).
+ *
+ * When [enabled], [StreakCalculator.calculateResilientStreak] tolerates up to
+ * [allowedMisses] missed days within a rolling [gracePeriodDays] window before
+ * resetting the streak. When disabled, streak calculation reverts to classic
+ * strict behavior (a single miss hard-resets the run).
+ */
+data class ForgivenessPrefs(
+    val enabled: Boolean = true,
+    val gracePeriodDays: Int = 7,
+    val allowedMisses: Int = 1
+)
+
+/**
  * Work-Life Balance Engine preferences (v1.4.0 V1).
  *
  * Target ratios are stored as Int percentages (0..100) and should sum to 100.
@@ -128,6 +142,11 @@ class UserPreferencesDataStore(
 
         // Task card display config (JSON-encoded)
         val KEY_TASK_CARD_DISPLAY = stringPreferencesKey("task_card_display_json")
+
+        // Forgiveness-first streaks (v1.4.0 V5)
+        val KEY_FORGIVENESS_ENABLED = booleanPreferencesKey("forgiveness_enabled")
+        val KEY_FORGIVENESS_GRACE_DAYS = intPreferencesKey("forgiveness_grace_days")
+        val KEY_FORGIVENESS_ALLOWED_MISSES = intPreferencesKey("forgiveness_allowed_misses")
 
         // Work-Life Balance (v1.4.0 V1)
         val KEY_WLB_WORK_TARGET = intPreferencesKey("wlb_work_target")
@@ -223,6 +242,22 @@ class UserPreferencesDataStore(
         val clamped = config.withClampedTagLimit()
         val json = com.google.gson.Gson().toJson(clamped)
         dataStore.edit { it[KEY_TASK_CARD_DISPLAY] = json }
+    }
+
+    val forgivenessFlow: Flow<ForgivenessPrefs> = dataStore.data.map { prefs ->
+        ForgivenessPrefs(
+            enabled = prefs[KEY_FORGIVENESS_ENABLED] ?: true,
+            gracePeriodDays = (prefs[KEY_FORGIVENESS_GRACE_DAYS] ?: 7).coerceIn(1, 30),
+            allowedMisses = (prefs[KEY_FORGIVENESS_ALLOWED_MISSES] ?: 1).coerceIn(0, 5)
+        )
+    }
+
+    suspend fun setForgivenessPrefs(prefs: ForgivenessPrefs) {
+        dataStore.edit {
+            it[KEY_FORGIVENESS_ENABLED] = prefs.enabled
+            it[KEY_FORGIVENESS_GRACE_DAYS] = prefs.gracePeriodDays.coerceIn(1, 30)
+            it[KEY_FORGIVENESS_ALLOWED_MISSES] = prefs.allowedMisses.coerceIn(0, 5)
+        }
     }
 
     val workLifeBalanceFlow: Flow<WorkLifeBalancePrefs> = dataStore.data.map { prefs ->

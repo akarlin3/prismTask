@@ -126,6 +126,15 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch { userPreferencesDataStore.setWorkLifeBalance(prefs) }
     }
 
+    /** Forgiveness-first streak preferences (v1.4.0 V5). */
+    val forgivenessPrefs: StateFlow<com.averycorp.prismtask.data.preferences.ForgivenessPrefs> =
+        userPreferencesDataStore.forgivenessFlow
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), com.averycorp.prismtask.data.preferences.ForgivenessPrefs())
+
+    fun setForgivenessPrefs(prefs: com.averycorp.prismtask.data.preferences.ForgivenessPrefs) {
+        viewModelScope.launch { userPreferencesDataStore.setForgivenessPrefs(prefs) }
+    }
+
     fun setCompactMode(enabled: Boolean) {
         viewModelScope.launch { userPreferencesDataStore.setCompactMode(enabled) }
     }

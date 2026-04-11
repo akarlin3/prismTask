@@ -38,6 +38,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added 26 unit tests: `LifeCategoryClassifierTest` (11), `BalanceTrackerTest`
   (10), `NaturalLanguageParserTest` life-category additions (5).
 
+### Added — Forgiveness-First Streak System (V5)
+- `ForgivenessConfig` + `StreakResult` data classes exposing `strictStreak`,
+  `resilientStreak`, `missesInWindow`, `gracePeriodRemaining`, and the list
+  of dates that were forgiven so the UI can render them as partial hits.
+- `StreakCalculator.calculateResilientDailyStreak` walks backwards from
+  today (or yesterday if today isn't complete yet), tolerating up to
+  `allowedMisses` misses inside a rolling `gracePeriodDays` window. A run
+  of consecutive misses that starts today + yesterday is treated as a
+  hard reset. The walk also stops at the earliest known completion so
+  pre-habit history doesn't unfairly count as misses.
+- `StreakCalculator.calculateResilientStreak` dispatches by frequency:
+  daily habits get the full forgiving walk, other frequencies (weekly,
+  monthly, bimonthly, quarterly, fortnightly) fall back to strict streaks
+  as a follow-up pass.
+- `ForgivenessPrefs` in `UserPreferencesDataStore` — enable/disable the
+  system, grace period (1–30 days), allowed misses (0–5).
+- Settings screen: new "Forgiveness-First Streaks" section with a
+  primary toggle plus grace-window and allowed-misses sliders that reveal
+  only when the toggle is on.
+- 10 new unit tests in `ForgivenessStreakTest` covering the spec's core
+  cases (5-on 1-miss 3-on, grace exhausted, classic mode, yesterday-only
+  completion, empty history, pre-history truncation, non-daily fallback,
+  zero allowance).
+
 ## v1.3.0 — Voice, Widgets, Accessibility, Analytics, Integrations & Three-Tier Pricing (April 2026)
 
 Skips the v1.2.0 tag and ships everything developed since v1.1.0 together.
