@@ -1,22 +1,15 @@
 package com.averycorp.prismtask.ui.screens.settings
 
-import android.content.ContentValues
 import android.content.Context
-import android.os.Build
-import android.os.Environment
-import android.provider.MediaStore
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.qualifiers.ApplicationContext
-import java.io.File
-import java.io.FileOutputStream
 import com.averycorp.prismtask.data.billing.BillingManager
 import com.averycorp.prismtask.data.billing.SubscriptionState
 import com.averycorp.prismtask.data.billing.UserTier
 import com.averycorp.prismtask.data.export.DataExporter
 import com.averycorp.prismtask.data.export.DataImporter
-import com.averycorp.prismtask.data.export.ImportMode
 import com.averycorp.prismtask.data.preferences.ApiPreferences
 import com.averycorp.prismtask.data.preferences.ArchivePreferences
 import com.averycorp.prismtask.data.preferences.AuthTokenPreferences
@@ -47,12 +40,6 @@ import com.averycorp.prismtask.data.remote.DeviceCalendar
 import com.averycorp.prismtask.data.remote.GoogleDriveService
 import com.averycorp.prismtask.data.remote.SyncService
 import com.averycorp.prismtask.data.remote.api.PrismTaskApi
-import com.averycorp.prismtask.data.remote.api.ImportResponse
-import com.averycorp.prismtask.data.remote.api.LoginRequest
-import com.averycorp.prismtask.data.remote.api.RegisterRequest
-import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.MultipartBody
-import okhttp3.RequestBody.Companion.toRequestBody
 import com.averycorp.prismtask.data.remote.sync.BackendSyncService
 import com.averycorp.prismtask.data.repository.TaskRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -70,9 +57,15 @@ import kotlinx.coroutines.withContext
 import java.time.DayOfWeek
 import javax.inject.Inject
 
+/**
+ * The Settings screen ViewModel. Long-running action handlers for
+ * Export/Import and Backend sync have been moved to companion extension
+ * files ([SettingsViewModelExportImport], [SettingsViewModelBackendSync])
+ * to keep this file focused on state exposure and simple setters.
+ */
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
-    @ApplicationContext private val appContext: Context,
+    @ApplicationContext internal val appContext: Context,
     private val themePreferences: ThemePreferences,
     private val archivePreferences: ArchivePreferences,
     private val apiPreferences: ApiPreferences,
@@ -84,18 +77,18 @@ class SettingsViewModel @Inject constructor(
     private val leisurePreferences: LeisurePreferences,
     private val habitListPreferences: HabitListPreferences,
     private val database: PrismTaskDatabase,
-    private val dataExporter: DataExporter,
-    private val dataImporter: DataImporter,
+    internal val dataExporter: DataExporter,
+    internal val dataImporter: DataImporter,
     private val authManager: AuthManager,
     private val syncService: SyncService,
     private val calendarSyncService: CalendarSyncService,
     private val taskRepository: TaskRepository,
-    private val googleDriveService: GoogleDriveService,
-    private val backendSyncService: BackendSyncService,
-    private val backendSyncPreferences: BackendSyncPreferences,
-    private val templatePreferences: TemplatePreferences,
-    private val authTokenPreferences: AuthTokenPreferences,
-    private val prismTaskApi: PrismTaskApi,
+    internal val googleDriveService: GoogleDriveService,
+    internal val backendSyncService: BackendSyncService,
+    internal val backendSyncPreferences: BackendSyncPreferences,
+    internal val templatePreferences: TemplatePreferences,
+    internal val authTokenPreferences: AuthTokenPreferences,
+    internal val prismTaskApi: PrismTaskApi,
     val appUpdater: AppUpdater,
     private val calendarManager: CalendarManager,
     private val calendarSyncPreferences: CalendarSyncPreferences,
@@ -268,8 +261,6 @@ class SettingsViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "ring")
 
     // --- Navigation ---
-    // Append any tabs not yet in the saved order (e.g. new tabs added in an app update),
-    // so users who upgraded see the new tabs in the reorder list.
     val tabOrder: StateFlow<List<String>> = tabPreferences.getTabOrder()
         .map { order -> order + ALL_BOTTOM_NAV_ITEMS.map { it.route }.filter { it !in order } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), TabPreferences.DEFAULT_ORDER)
@@ -382,7 +373,6 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             calendarPreferences.setEnabled(enabled)
             if (enabled) {
-                // Sync all existing tasks with due dates
                 try {
                     val tasks = taskRepository.getAllTasksOnce()
                     calendarSyncService.fullCalendarSync(tasks)
@@ -507,17 +497,18 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    // --- Auth + Shared State ---
     val isSignedIn: StateFlow<Boolean> = authManager.isSignedIn
 
     val userEmail: String? get() = authManager.currentUser.value?.email
 
-    private val _messages = MutableSharedFlow<String>()
+    internal val _messages = MutableSharedFlow<String>()
     val messages: SharedFlow<String> = _messages.asSharedFlow()
 
-    private val _pendingJsonExport = MutableStateFlow<String?>(null)
+    internal val _pendingJsonExport = MutableStateFlow<String?>(null)
     val pendingJsonExport: StateFlow<String?> = _pendingJsonExport
 
-    private val _pendingCsvExport = MutableStateFlow<String?>(null)
+    internal val _pendingCsvExport = MutableStateFlow<String?>(null)
     val pendingCsvExport: StateFlow<String?> = _pendingCsvExport
 
     private val _isSyncing = MutableStateFlow(false)
@@ -531,28 +522,28 @@ class SettingsViewModel @Inject constructor(
         .map { !it.isNullOrBlank() }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
-    private val _isBackendSyncing = MutableStateFlow(false)
+    internal val _isBackendSyncing = MutableStateFlow(false)
     val isBackendSyncing: StateFlow<Boolean> = _isBackendSyncing
 
-    private val _isBackendAuthenticating = MutableStateFlow(false)
+    internal val _isBackendAuthenticating = MutableStateFlow(false)
     val isBackendAuthenticating: StateFlow<Boolean> = _isBackendAuthenticating
 
-    private val _isImporting = MutableStateFlow(false)
+    internal val _isImporting = MutableStateFlow(false)
     val isImporting: StateFlow<Boolean> = _isImporting
 
-    private val _isExporting = MutableStateFlow(false)
+    internal val _isExporting = MutableStateFlow(false)
     val isExporting: StateFlow<Boolean> = _isExporting
 
-    private val _isDriveExporting = MutableStateFlow(false)
+    internal val _isDriveExporting = MutableStateFlow(false)
     val isDriveExporting: StateFlow<Boolean> = _isDriveExporting
 
-    private val _isDriveImporting = MutableStateFlow(false)
+    internal val _isDriveImporting = MutableStateFlow(false)
     val isDriveImporting: StateFlow<Boolean> = _isDriveImporting
 
-    private val _isCloudExporting = MutableStateFlow(false)
+    internal val _isCloudExporting = MutableStateFlow(false)
     val isCloudExporting: StateFlow<Boolean> = _isCloudExporting
 
-    private val _isCloudImporting = MutableStateFlow(false)
+    internal val _isCloudImporting = MutableStateFlow(false)
     val isCloudImporting: StateFlow<Boolean> = _isCloudImporting
 
     // --- Theme setters ---
@@ -564,10 +555,6 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch { themePreferences.setAccentColor(hex) }
     }
 
-    /**
-     * Sets the accent color to [hex] and records it in the recent-custom-colors list.
-     * Intended for custom picks (not preset taps).
-     */
     fun setCustomAccentColor(hex: String) {
         viewModelScope.launch {
             if (ThemePreferences.isValidHex(hex)) {
@@ -673,118 +660,7 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch { apiPreferences.clearClaudeApiKey() }
     }
 
-    fun onExportJson() {
-        viewModelScope.launch {
-            _isExporting.value = true
-            try {
-                _pendingJsonExport.value = dataExporter.exportToJson()
-            } catch (e: Exception) {
-                Log.e("SettingsVM", "JSON export failed", e)
-                _messages.emit("Export failed: ${e.message}")
-            } finally {
-                _isExporting.value = false
-            }
-        }
-    }
-
-    fun onExportCsv() {
-        viewModelScope.launch {
-            _isExporting.value = true
-            try {
-                _pendingCsvExport.value = dataExporter.exportToCsv()
-            } catch (e: Exception) {
-                Log.e("SettingsVM", "CSV export failed", e)
-                _messages.emit("Export failed: ${e.message}")
-            } finally {
-                _isExporting.value = false
-            }
-        }
-    }
-
-    fun clearPendingExports() {
-        _pendingJsonExport.value = null
-        _pendingCsvExport.value = null
-    }
-
-    fun onImportJson(jsonString: String) {
-        viewModelScope.launch {
-            _isImporting.value = true
-            try {
-                val result = dataImporter.importFromJson(jsonString, ImportMode.MERGE)
-                val parts = mutableListOf<String>()
-                if (result.tasksImported > 0) parts.add("${result.tasksImported} tasks")
-                if (result.projectsImported > 0) parts.add("${result.projectsImported} projects")
-                if (result.tagsImported > 0) parts.add("${result.tagsImported} tags")
-                if (result.habitsImported > 0) parts.add("${result.habitsImported} habits")
-                if (result.habitCompletionsImported > 0) parts.add("${result.habitCompletionsImported} habit completions")
-                if (result.leisureLogsImported > 0) parts.add("${result.leisureLogsImported} leisure logs")
-                if (result.selfCareLogsImported > 0) parts.add("${result.selfCareLogsImported} self-care logs")
-                if (result.selfCareStepsImported > 0) parts.add("${result.selfCareStepsImported} self-care steps")
-                if (result.coursesImported > 0) parts.add("${result.coursesImported} courses")
-                if (result.assignmentsImported > 0) parts.add("${result.assignmentsImported} assignments")
-                if (result.courseCompletionsImported > 0) parts.add("${result.courseCompletionsImported} course completions")
-                if (result.configImported) parts.add("config")
-                val summary = if (parts.isEmpty()) "Nothing new to import" else "Imported ${parts.joinToString(", ")}"
-                val dupInfo = if (result.duplicatesSkipped > 0) " (${result.duplicatesSkipped} duplicates skipped)" else ""
-                _messages.emit("$summary$dupInfo")
-            } catch (e: Exception) {
-                Log.e("SettingsVM", "Import failed", e)
-                _messages.emit("Import failed: ${e.message}")
-            } finally {
-                _isImporting.value = false
-            }
-        }
-    }
-
-    fun onExportToDrive() {
-        viewModelScope.launch {
-            _isDriveExporting.value = true
-            try {
-                val jsonData = dataExporter.exportToJson()
-                val result = googleDriveService.exportToDrive(jsonData)
-                result.fold(
-                    onSuccess = { _messages.emit(it) },
-                    onFailure = { _messages.emit("Drive export failed: ${it.message}") }
-                )
-            } catch (e: Exception) {
-                Log.e("SettingsVM", "Drive export failed", e)
-                _messages.emit("Drive export failed: ${e.message}")
-            } finally {
-                _isDriveExporting.value = false
-            }
-        }
-    }
-
-    fun onImportFromDrive() {
-        viewModelScope.launch {
-            _isDriveImporting.value = true
-            try {
-                val result = googleDriveService.importFromDrive()
-                result.fold(
-                    onSuccess = { jsonData ->
-                        val importResult = dataImporter.importFromJson(jsonData, ImportMode.MERGE)
-                        val parts = mutableListOf<String>()
-                        if (importResult.tasksImported > 0) parts.add("${importResult.tasksImported} tasks")
-                        if (importResult.projectsImported > 0) parts.add("${importResult.projectsImported} projects")
-                        if (importResult.tagsImported > 0) parts.add("${importResult.tagsImported} tags")
-                        if (importResult.habitsImported > 0) parts.add("${importResult.habitsImported} habits")
-                        if (importResult.habitCompletionsImported > 0) parts.add("${importResult.habitCompletionsImported} completions")
-                        if (importResult.configImported) parts.add("config")
-                        val summary = if (parts.isEmpty()) "Nothing new to import" else "Restored ${parts.joinToString(", ")}"
-                        val dupInfo = if (importResult.duplicatesSkipped > 0) " (${importResult.duplicatesSkipped} duplicates skipped)" else ""
-                        _messages.emit("$summary from Google Drive$dupInfo")
-                    },
-                    onFailure = { _messages.emit("Drive import failed: ${it.message}") }
-                )
-            } catch (e: Exception) {
-                Log.e("SettingsVM", "Drive import failed", e)
-                _messages.emit("Drive import failed: ${e.message}")
-            } finally {
-                _isDriveImporting.value = false
-            }
-        }
-    }
-
+    // Firebase sync
     fun onSync() {
         viewModelScope.launch {
             _isSyncing.value = true
@@ -797,166 +673,6 @@ class SettingsViewModel @Inject constructor(
             } finally {
                 _isSyncing.value = false
             }
-        }
-    }
-
-    fun onBackendSync() {
-        viewModelScope.launch {
-            if (_isBackendSyncing.value) return@launch
-            _isBackendSyncing.value = true
-            try {
-                val result = backendSyncService.fullSync()
-                result.fold(
-                    onSuccess = { summary ->
-                        _messages.emit(
-                            "Backend sync complete — pushed ${summary.pushed}, pulled ${summary.pulled}"
-                        )
-                    },
-                    onFailure = { e ->
-                        Log.e("SettingsVM", "Backend sync failed", e)
-                        _messages.emit("Backend sync failed: ${e.message ?: "unknown error"}")
-                    }
-                )
-            } finally {
-                _isBackendSyncing.value = false
-            }
-        }
-    }
-
-    fun onBackendLogin(email: String, password: String, onComplete: (Boolean) -> Unit) {
-        viewModelScope.launch {
-            if (_isBackendAuthenticating.value) return@launch
-            _isBackendAuthenticating.value = true
-            try {
-                val tokens = prismTaskApi.login(LoginRequest(email = email, password = password))
-                authTokenPreferences.saveTokens(tokens.accessToken, tokens.refreshToken)
-                _messages.emit("Connected to backend")
-                onComplete(true)
-            } catch (e: Exception) {
-                Log.e("SettingsVM", "Backend login failed", e)
-                _messages.emit("Login failed: ${e.message ?: "unknown error"}")
-                onComplete(false)
-            } finally {
-                _isBackendAuthenticating.value = false
-            }
-        }
-    }
-
-    fun onBackendRegister(email: String, password: String, name: String, onComplete: (Boolean) -> Unit) {
-        viewModelScope.launch {
-            if (_isBackendAuthenticating.value) return@launch
-            _isBackendAuthenticating.value = true
-            try {
-                val tokens = prismTaskApi.register(
-                    RegisterRequest(email = email, password = password, name = name)
-                )
-                authTokenPreferences.saveTokens(tokens.accessToken, tokens.refreshToken)
-                _messages.emit("Backend account created")
-                onComplete(true)
-            } catch (e: Exception) {
-                Log.e("SettingsVM", "Backend register failed", e)
-                _messages.emit("Registration failed: ${e.message ?: "unknown error"}")
-                onComplete(false)
-            } finally {
-                _isBackendAuthenticating.value = false
-            }
-        }
-    }
-
-    fun onBackendDisconnect() {
-        viewModelScope.launch {
-            authTokenPreferences.clearTokens()
-            backendSyncPreferences.clear()
-            // Reset the templates-first-sync flag so the next account the
-            // user connects to gets a fresh first-connect push. The seeded
-            // flag is intentionally preserved — we don't want to re-insert
-            // the built-ins just because the user disconnected.
-            templatePreferences.setFirstSyncDone(false)
-            _messages.emit("Disconnected from backend")
-        }
-    }
-
-    fun onExportToCloud() {
-        viewModelScope.launch {
-            if (_isCloudExporting.value) return@launch
-            _isCloudExporting.value = true
-            try {
-                val responseBody = withContext(Dispatchers.IO) { prismTaskApi.exportJson() }
-                val bytes = withContext(Dispatchers.IO) { responseBody.bytes() }
-                val timestamp = java.text.SimpleDateFormat(
-                    "yyyyMMdd_HHmmss",
-                    java.util.Locale.US
-                ).format(java.util.Date())
-                val filename = "prismtask_cloud_$timestamp.json"
-                val savedName = withContext(Dispatchers.IO) {
-                    saveToDownloads(filename, bytes)
-                }
-                _messages.emit("Saved $savedName to Downloads")
-            } catch (e: Exception) {
-                Log.e("SettingsVM", "Cloud export failed", e)
-                _messages.emit("Cloud export failed: ${e.message ?: "unknown error"}")
-            } finally {
-                _isCloudExporting.value = false
-            }
-        }
-    }
-
-    fun onImportFromCloud(jsonBytes: ByteArray, filename: String) {
-        viewModelScope.launch {
-            if (_isCloudImporting.value) return@launch
-            _isCloudImporting.value = true
-            try {
-                val mediaType = "application/json".toMediaType()
-                val part = MultipartBody.Part.createFormData(
-                    name = "file",
-                    filename = filename,
-                    body = jsonBytes.toRequestBody(mediaType)
-                )
-                val result: ImportResponse = withContext(Dispatchers.IO) {
-                    prismTaskApi.importJson(part, mode = "merge")
-                }
-                val parts = mutableListOf<String>()
-                if (result.tasksImported > 0) parts.add("${result.tasksImported} tasks")
-                if (result.projectsImported > 0) parts.add("${result.projectsImported} projects")
-                if (result.tagsImported > 0) parts.add("${result.tagsImported} tags")
-                if (result.habitsImported > 0) parts.add("${result.habitsImported} habits")
-                val summary = if (parts.isEmpty()) "Nothing imported" else "Imported ${parts.joinToString(", ")}"
-                _messages.emit(summary)
-            } catch (e: Exception) {
-                Log.e("SettingsVM", "Cloud import failed", e)
-                _messages.emit("Cloud import failed: ${e.message ?: "unknown error"}")
-            } finally {
-                _isCloudImporting.value = false
-            }
-        }
-    }
-
-    private fun saveToDownloads(filename: String, bytes: ByteArray): String {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            val resolver = appContext.contentResolver
-            val values = ContentValues().apply {
-                put(MediaStore.Downloads.DISPLAY_NAME, filename)
-                put(MediaStore.Downloads.MIME_TYPE, "application/json")
-                put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
-                put(MediaStore.Downloads.IS_PENDING, 1)
-            }
-            val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
-                ?: error("Unable to create Downloads entry")
-            resolver.openOutputStream(uri)?.use { it.write(bytes) }
-                ?: error("Unable to open output stream")
-            values.clear()
-            values.put(MediaStore.Downloads.IS_PENDING, 0)
-            resolver.update(uri, values, null, null)
-            return filename
-        } else {
-            // Pre-Q fallback: write to the app's external files Download dir,
-            // which doesn't require WRITE_EXTERNAL_STORAGE permission.
-            val dir = appContext.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
-                ?: error("External storage unavailable")
-            if (!dir.exists()) dir.mkdirs()
-            val file = File(dir, filename)
-            FileOutputStream(file).use { it.write(bytes) }
-            return file.absolutePath
         }
     }
 
