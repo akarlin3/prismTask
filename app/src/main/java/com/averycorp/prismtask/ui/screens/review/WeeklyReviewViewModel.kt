@@ -3,9 +3,11 @@ package com.averycorp.prismtask.ui.screens.review
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.averycorp.prismtask.data.repository.TaskRepository
+import com.averycorp.prismtask.data.repository.WeeklyReviewRepository
 import com.averycorp.prismtask.domain.model.LifeCategory
 import com.averycorp.prismtask.domain.usecase.WeeklyReviewAggregator
 import com.averycorp.prismtask.domain.usecase.WeeklyReviewStats
+import com.google.gson.Gson
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -24,10 +26,12 @@ import javax.inject.Inject
  */
 @HiltViewModel
 class WeeklyReviewViewModel @Inject constructor(
-    private val taskRepository: TaskRepository
+    private val taskRepository: TaskRepository,
+    private val weeklyReviewRepository: WeeklyReviewRepository
 ) : ViewModel() {
 
     private val aggregator = WeeklyReviewAggregator()
+    private val gson = Gson()
 
     private val _state = MutableStateFlow(WeeklyReviewState())
     val state: StateFlow<WeeklyReviewState> = _state.asStateFlow()
@@ -47,8 +51,42 @@ class WeeklyReviewViewModel @Inject constructor(
                 lastWeek = lastWeek,
                 narrative = narrative
             )
+            // Persist the completed review so future weeks can scroll back
+            // through history. The metrics + narrative are serialized as
+            // separate JSON blobs so the stored schema doesn't depend on
+            // the aggregator's data class layout.
+            val metricsJson = gson.toJson(
+                SerializedMetrics(
+                    weekStart = thisWeek.weekStart,
+                    weekEnd = thisWeek.weekEnd,
+                    completed = thisWeek.completed,
+                    slipped = thisWeek.slipped,
+                    rescheduled = thisWeek.rescheduled,
+                    byCategory = thisWeek.byCategory.mapKeys { it.key.name }
+                )
+            )
+            val narrativeJson = gson.toJson(narrative)
+            weeklyReviewRepository.save(
+                weekStart = thisWeek.weekStart,
+                metricsJson = metricsJson,
+                aiInsightsJson = narrativeJson
+            )
         }
     }
+
+    /**
+     * Local-only serialization shape for the weekly_reviews row. Decoupled
+     * from [WeeklyReviewStats] so future field additions don't require a
+     * Room migration.
+     */
+    private data class SerializedMetrics(
+        val weekStart: Long,
+        val weekEnd: Long,
+        val completed: Int,
+        val slipped: Int,
+        val rescheduled: Int,
+        val byCategory: Map<String, Int>
+    )
 
     private fun buildNarrative(
         thisWeek: WeeklyReviewStats,

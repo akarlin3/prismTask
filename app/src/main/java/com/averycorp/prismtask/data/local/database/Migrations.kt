@@ -520,6 +520,15 @@ val MIGRATION_32_33 = object : Migration(32, 33) {
     }
 }
 
+// v1.4.0 V10 follow-up: add medication_name to self_care_steps so the
+// existing medication self-care routine can link to MedicationRefillEntity
+// rows by exact name match.
+val MIGRATION_36_37 = object : Migration(36, 37) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE self_care_steps ADD COLUMN medication_name TEXT")
+    }
+}
+
 // v1.4.0 V3/V4/V6: add boundary_rules, check_in_logs, weekly_reviews
 val MIGRATION_35_36 = object : Migration(35, 36) {
     override fun migrate(db: SupportSQLiteDatabase) {
@@ -642,4 +651,5 @@ val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_33_34,
     MIGRATION_34_35,
     MIGRATION_35_36,
+    MIGRATION_36_37,
 )

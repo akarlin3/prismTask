@@ -16,5 +16,14 @@ data class SelfCareStepEntity(
     val phase: String,
     @ColumnInfo(name = "sort_order") val sortOrder: Int = 0,
     @ColumnInfo(name = "reminder_delay_millis") val reminderDelayMillis: Long? = null,
-    @ColumnInfo(name = "time_of_day") val timeOfDay: String = "morning"
+    @ColumnInfo(name = "time_of_day") val timeOfDay: String = "morning",
+    /**
+     * Optional link to a [MedicationRefillEntity] by exact name match
+     * (v1.4.0 V10 follow-up). When non-null, the medication self-care
+     * routine can surface "X days of pills left" next to this step and
+     * a successful step completion can decrement the refill pill count
+     * via [com.averycorp.prismtask.domain.usecase.RefillCalculator.applyDailyDose].
+     */
+    @ColumnInfo(name = "medication_name")
+    val medicationName: String? = null
 )

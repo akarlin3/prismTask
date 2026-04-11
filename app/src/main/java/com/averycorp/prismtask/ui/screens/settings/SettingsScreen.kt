@@ -61,6 +61,7 @@ import com.averycorp.prismtask.ui.screens.settings.sections.TaskDefaultsSection
 import com.averycorp.prismtask.ui.screens.settings.sections.TimerSection
 import com.averycorp.prismtask.ui.screens.settings.sections.VoiceInputSection
 import com.averycorp.prismtask.ui.screens.settings.sections.BoundariesSection
+import com.averycorp.prismtask.ui.screens.settings.sections.CheckInStreakSection
 import com.averycorp.prismtask.ui.screens.settings.sections.ClinicalReportSection
 import com.averycorp.prismtask.ui.screens.settings.sections.ForgivenessStreakSection
 import com.averycorp.prismtask.ui.screens.settings.sections.WorkLifeBalanceSection
@@ -108,6 +109,9 @@ fun SettingsScreen(
     // Clinical report export (v1.4.0 V8)
     val isExportingClinicalReport by viewModel.isExportingClinicalReport.collectAsStateWithLifecycle()
     val clinicalReportUri by viewModel.clinicalReportUri.collectAsStateWithLifecycle()
+
+    // Check-in streak (v1.4.0 V4)
+    val checkInStreak by viewModel.checkInStreak.collectAsStateWithLifecycle()
 
     LaunchedEffect(clinicalReportUri) {
         val uri = clinicalReportUri
@@ -442,6 +446,8 @@ fun SettingsScreen(
                     onDelete = viewModel::deleteBoundaryRule,
                     onAdd = { showAddBoundaryDialog = true }
                 )
+
+                CheckInStreakSection(streak = checkInStreak)
 
                 ClinicalReportSection(
                     isExporting = isExportingClinicalReport,

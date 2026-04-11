@@ -100,10 +100,26 @@ class SettingsViewModel @Inject constructor(
     private val boundaryRuleRepository: com.averycorp.prismtask.data.repository.BoundaryRuleRepository,
     private val moodEnergyRepository: com.averycorp.prismtask.data.repository.MoodEnergyRepository,
     private val medicationRefillRepository: com.averycorp.prismtask.data.repository.MedicationRefillRepository,
+    private val checkInLogRepository: com.averycorp.prismtask.data.repository.CheckInLogRepository,
     private val clinicalReportPdfWriter: com.averycorp.prismtask.data.export.ClinicalReportPdfWriter,
     @dagger.hilt.android.qualifiers.ApplicationContext private val appContext: android.content.Context,
     private val onboardingPreferences: OnboardingPreferences
 ) : ViewModel() {
+
+    private val _checkInStreak = kotlinx.coroutines.flow.MutableStateFlow(0)
+    val checkInStreak: StateFlow<Int> = _checkInStreak
+
+    init {
+        viewModelScope.launch {
+            val todayStart = java.util.Calendar.getInstance().apply {
+                set(java.util.Calendar.HOUR_OF_DAY, 0)
+                set(java.util.Calendar.MINUTE, 0)
+                set(java.util.Calendar.SECOND, 0)
+                set(java.util.Calendar.MILLISECOND, 0)
+            }.timeInMillis
+            _checkInStreak.value = checkInLogRepository.currentStreak(todayStart)
+        }
+    }
 
     private val _isExportingClinicalReport = kotlinx.coroutines.flow.MutableStateFlow(false)
     val isExportingClinicalReport: StateFlow<Boolean> = _isExportingClinicalReport
