@@ -4,133 +4,75 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.ExpandLess
-import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material.icons.filled.Sync
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import com.averycorp.prismtask.ui.components.CircularCheckbox
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Slider
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
-import com.averycorp.prismtask.ui.navigation.PrismTaskRoute
-import androidx.compose.material3.ButtonDefaults
 import com.averycorp.prismtask.BuildConfig
-import com.averycorp.prismtask.data.preferences.DashboardPreferences
-import com.averycorp.prismtask.data.preferences.TabPreferences
-import com.averycorp.prismtask.data.preferences.TimerPreferences
-import com.averycorp.prismtask.data.preferences.UrgencyWeights
-import com.averycorp.prismtask.data.remote.UpdateStatus
-import java.time.DayOfWeek
-import java.time.format.TextStyle
-import java.util.Locale
-import com.averycorp.prismtask.data.billing.UserTier
-import com.averycorp.prismtask.ui.navigation.ALL_BOTTOM_NAV_ITEMS
-import com.averycorp.prismtask.ui.theme.PriorityColors
+import com.averycorp.prismtask.ui.components.settings.BackendAuthDialog
+import com.averycorp.prismtask.ui.navigation.PrismTaskRoute
+import com.averycorp.prismtask.ui.screens.settings.sections.AboutSection
+import com.averycorp.prismtask.ui.screens.settings.sections.AccessibilitySection
+import com.averycorp.prismtask.ui.screens.settings.sections.AccountSyncSection
+import com.averycorp.prismtask.ui.screens.settings.sections.AiNotificationsSection
+import com.averycorp.prismtask.ui.screens.settings.sections.AiSection
+import com.averycorp.prismtask.ui.screens.settings.sections.AppUpdateSection
+import com.averycorp.prismtask.ui.screens.settings.sections.AppearanceSection
+import com.averycorp.prismtask.ui.screens.settings.sections.BackendSyncSection
+import com.averycorp.prismtask.ui.screens.settings.sections.BackupExportSection
+import com.averycorp.prismtask.ui.screens.settings.sections.DashboardSection
+import com.averycorp.prismtask.ui.screens.settings.sections.DataSection
+import com.averycorp.prismtask.ui.screens.settings.sections.DebugTierSection
+import com.averycorp.prismtask.ui.screens.settings.sections.DeviceCalendarSection
+import com.averycorp.prismtask.ui.screens.settings.sections.DisplaySection
+import com.averycorp.prismtask.ui.screens.settings.sections.GoogleCalendarSection
+import com.averycorp.prismtask.ui.screens.settings.sections.ModesSection
+import com.averycorp.prismtask.ui.screens.settings.sections.NavigationSection
+import com.averycorp.prismtask.ui.screens.settings.sections.SubscriptionSection
+import com.averycorp.prismtask.ui.screens.settings.sections.SwipeActionsSection
+import com.averycorp.prismtask.ui.screens.settings.sections.TaskDefaultsSection
+import com.averycorp.prismtask.ui.screens.settings.sections.TimerSection
+import com.averycorp.prismtask.ui.screens.settings.sections.VoiceInputSection
 
-private val accentColors = listOf(
-    "#2563EB", "#7C3AED", "#DB2777", "#DC2626", "#EA580C", "#D97706",
-    "#65A30D", "#059669", "#0891B2", "#6366F1", "#8B5CF6", "#EC4899"
-)
-
-private val sectionLabels = mapOf(
-    "progress" to "Progress Card",
-    "habits" to "Habits",
-    "overdue" to "From Earlier",
-    "today_tasks" to "Today Tasks",
-    "plan_more" to "Plan More",
-    "completed" to "Completed"
-)
-
-private val sortLabels = mapOf(
-    "DUE_DATE" to "Due Date",
-    "PRIORITY" to "Priority",
-    "URGENCY" to "Urgency",
-    "CREATED" to "Date Created",
-    "ALPHABETICAL" to "Alphabetical",
-    "CUSTOM" to "Custom"
-)
-
-private val viewModeLabels = mapOf(
-    "UPCOMING" to "Upcoming",
-    "LIST" to "List",
-    "WEEK" to "Week",
-    "MONTH" to "Month"
-)
-
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     navController: NavController,
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
+
+    // Subscription
     val userTier by viewModel.userTier.collectAsStateWithLifecycle()
     val debugTierOverride by viewModel.debugTierOverride.collectAsStateWithLifecycle()
+
+    // Appearance
     val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
     val accentColor by viewModel.accentColor.collectAsStateWithLifecycle()
     val backgroundColor by viewModel.backgroundColor.collectAsStateWithLifecycle()
@@ -142,13 +84,19 @@ fun SettingsScreen(
     val priorityColorMedium by viewModel.priorityColorMedium.collectAsStateWithLifecycle()
     val priorityColorHigh by viewModel.priorityColorHigh.collectAsStateWithLifecycle()
     val priorityColorUrgent by viewModel.priorityColorUrgent.collectAsStateWithLifecycle()
+    val recentCustomColors by viewModel.recentCustomColors.collectAsStateWithLifecycle()
+
+    // Display + Swipe
     val appearancePrefs by viewModel.appearancePrefs.collectAsStateWithLifecycle()
     val swipePrefs by viewModel.swipePrefs.collectAsStateWithLifecycle()
-    val recentCustomColors by viewModel.recentCustomColors.collectAsStateWithLifecycle()
-    var showCustomAccentPicker by remember { mutableStateOf(false) }
+
+    // Data
     val autoArchiveDays by viewModel.autoArchiveDays.collectAsStateWithLifecycle()
     val claudeApiKey by viewModel.claudeApiKey.collectAsStateWithLifecycle()
     val archivedCount by viewModel.archivedCount.collectAsStateWithLifecycle()
+    val isResetting by viewModel.isResetting.collectAsStateWithLifecycle()
+
+    // Sync
     val isSignedIn by viewModel.isSignedIn.collectAsStateWithLifecycle()
     val isSyncing by viewModel.isSyncing.collectAsStateWithLifecycle()
     val backendConnected by viewModel.backendConnected.collectAsStateWithLifecycle()
@@ -157,35 +105,46 @@ fun SettingsScreen(
     val isBackendAuthenticating by viewModel.isBackendAuthenticating.collectAsStateWithLifecycle()
     val isImporting by viewModel.isImporting.collectAsStateWithLifecycle()
     val isExporting by viewModel.isExporting.collectAsStateWithLifecycle()
-    val isResetting by viewModel.isResetting.collectAsStateWithLifecycle()
     val isDriveExporting by viewModel.isDriveExporting.collectAsStateWithLifecycle()
     val isDriveImporting by viewModel.isDriveImporting.collectAsStateWithLifecycle()
     val isCloudExporting by viewModel.isCloudExporting.collectAsStateWithLifecycle()
     val isCloudImporting by viewModel.isCloudImporting.collectAsStateWithLifecycle()
     val pendingJson by viewModel.pendingJsonExport.collectAsStateWithLifecycle()
     val pendingCsv by viewModel.pendingCsvExport.collectAsStateWithLifecycle()
+
+    // Dashboard / Tabs
     val sectionOrder by viewModel.sectionOrder.collectAsStateWithLifecycle()
     val hiddenSections by viewModel.hiddenSections.collectAsStateWithLifecycle()
     val progressStyle by viewModel.progressStyle.collectAsStateWithLifecycle()
     val tabOrder by viewModel.tabOrder.collectAsStateWithLifecycle()
     val hiddenTabs by viewModel.hiddenTabs.collectAsStateWithLifecycle()
+
+    // Task defaults
     val defaultSort by viewModel.defaultSort.collectAsStateWithLifecycle()
     val defaultViewMode by viewModel.defaultViewMode.collectAsStateWithLifecycle()
     val urgencyWeights by viewModel.urgencyWeights.collectAsStateWithLifecycle()
     val firstDayOfWeek by viewModel.firstDayOfWeek.collectAsStateWithLifecycle()
     val dayStartHour by viewModel.dayStartHour.collectAsStateWithLifecycle()
+
+    // Voice / Accessibility
     val voiceInputEnabled by viewModel.voiceInputEnabled.collectAsStateWithLifecycle()
     val voiceFeedbackEnabled by viewModel.voiceFeedbackEnabled.collectAsStateWithLifecycle()
     val continuousModeEnabled by viewModel.continuousModeEnabled.collectAsStateWithLifecycle()
     val reduceMotionEnabled by viewModel.reduceMotionEnabled.collectAsStateWithLifecycle()
     val highContrastEnabled by viewModel.highContrastEnabled.collectAsStateWithLifecycle()
     val largeTouchTargetsEnabled by viewModel.largeTouchTargetsEnabled.collectAsStateWithLifecycle()
+
+    // Timer
     val timerWorkSeconds by viewModel.timerWorkDurationSeconds.collectAsStateWithLifecycle()
     val timerBreakSeconds by viewModel.timerBreakDurationSeconds.collectAsStateWithLifecycle()
     val timerLongBreakSeconds by viewModel.timerLongBreakDurationSeconds.collectAsStateWithLifecycle()
+
+    // Calendar (device)
     val calendarSyncEnabled by viewModel.calendarSyncEnabled.collectAsStateWithLifecycle()
     val calendarName by viewModel.calendarName.collectAsStateWithLifecycle()
     val availableCalendars by viewModel.availableCalendars.collectAsStateWithLifecycle()
+
+    // Google Calendar
     val isGCalConnected by viewModel.isGCalConnected.collectAsStateWithLifecycle()
     val gCalAccountEmail by viewModel.gCalAccountEmail.collectAsStateWithLifecycle()
     val gCalSyncEnabled by viewModel.gCalSyncEnabled.collectAsStateWithLifecycle()
@@ -197,19 +156,22 @@ fun SettingsScreen(
     val gCalLastSyncTimestamp by viewModel.gCalLastSyncTimestamp.collectAsStateWithLifecycle()
     val gCalAvailableCalendars by viewModel.gCalAvailableCalendars.collectAsStateWithLifecycle()
     val isGCalSyncing by viewModel.isGCalSyncing.collectAsStateWithLifecycle()
+
+    // Modes
+    val selfCareEnabled by viewModel.selfCareEnabled.collectAsStateWithLifecycle()
+    val medicationEnabled by viewModel.medicationEnabled.collectAsStateWithLifecycle()
+    val schoolEnabled by viewModel.schoolEnabled.collectAsStateWithLifecycle()
+    val leisureEnabled by viewModel.leisureEnabled.collectAsStateWithLifecycle()
+    val houseworkEnabled by viewModel.houseworkEnabled.collectAsStateWithLifecycle()
+
+    // App update
     val updateStatus by viewModel.appUpdater.status.collectAsStateWithLifecycle()
     val updateError by viewModel.appUpdater.errorMessage.collectAsStateWithLifecycle()
     val latestReleaseTag by viewModel.appUpdater.latestReleaseTag.collectAsStateWithLifecycle()
+
+    // Dialogs owned by orchestrator
     var showBackendAuthDialog by remember { mutableStateOf(false) }
-    var showAutoArchiveDialog by remember { mutableStateOf(false) }
-    var showTimerWorkDialog by remember { mutableStateOf(false) }
-    var showTimerBreakDialog by remember { mutableStateOf(false) }
-    var showTimerLongBreakDialog by remember { mutableStateOf(false) }
-    var showResetConfirmDialog by remember { mutableStateOf(false) }
-    var showAppearanceAdvanced by remember { mutableStateOf(false) }
-    var showDashboardAdvanced by remember { mutableStateOf(false) }
-    var showTaskAdvanced by remember { mutableStateOf(false) }
-    var showColorPicker by remember { mutableStateOf<Pair<String, String>?>(null) }
+
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(Unit) {
@@ -218,6 +180,7 @@ fun SettingsScreen(
         }
     }
 
+    // Activity result launchers for export/import
     val createJsonLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/json")
     ) { uri: Uri? ->
@@ -292,137 +255,6 @@ fun SettingsScreen(
         )
     }
 
-    if (showResetConfirmDialog) {
-        AlertDialog(
-            onDismissRequest = { showResetConfirmDialog = false },
-            title = { Text("Reset App") },
-            text = {
-                Text("This will permanently delete all tasks, projects, tags, habits, and settings, and sign you out. This cannot be undone.")
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        showResetConfirmDialog = false
-                        viewModel.resetApp()
-                    }
-                ) {
-                    Text("Reset Everything", color = MaterialTheme.colorScheme.error)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showResetConfirmDialog = false }) { Text("Cancel") }
-            }
-        )
-    }
-
-    if (showAutoArchiveDialog) {
-        val options = listOf(3 to "3 days", 7 to "7 days", 14 to "14 days", 30 to "30 days", 0 to "Never")
-        AlertDialog(
-            onDismissRequest = { showAutoArchiveDialog = false },
-            confirmButton = {
-                TextButton(onClick = { showAutoArchiveDialog = false }) { Text("Close") }
-            },
-            title = { Text("Auto-Archive Completed Tasks") },
-            text = {
-                Column {
-                    options.forEach { (days, label) ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    viewModel.setAutoArchiveDays(days)
-                                    showAutoArchiveDialog = false
-                                }
-                                .padding(vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            RadioButton(
-                                selected = autoArchiveDays == days,
-                                onClick = {
-                                    viewModel.setAutoArchiveDays(days)
-                                    showAutoArchiveDialog = false
-                                }
-                            )
-                            Spacer(modifier = Modifier.size(8.dp))
-                            Text(label, style = MaterialTheme.typography.bodyLarge)
-                        }
-                    }
-                }
-            }
-        )
-    }
-
-    if (showTimerWorkDialog) {
-        DurationPickerDialog(
-            title = "Work Duration",
-            currentMinutes = timerWorkSeconds / 60,
-            onConfirm = {
-                viewModel.setTimerWorkDurationMinutes(it)
-                showTimerWorkDialog = false
-            },
-            onDismiss = { showTimerWorkDialog = false }
-        )
-    }
-
-    if (showTimerBreakDialog) {
-        DurationPickerDialog(
-            title = "Short Break Duration",
-            currentMinutes = timerBreakSeconds / 60,
-            onConfirm = {
-                viewModel.setTimerBreakDurationMinutes(it)
-                showTimerBreakDialog = false
-            },
-            onDismiss = { showTimerBreakDialog = false }
-        )
-    }
-
-    if (showTimerLongBreakDialog) {
-        DurationPickerDialog(
-            title = "Long Break Duration",
-            currentMinutes = timerLongBreakSeconds / 60,
-            onConfirm = {
-                viewModel.setTimerLongBreakDurationMinutes(it)
-                showTimerLongBreakDialog = false
-            },
-            onDismiss = { showTimerLongBreakDialog = false }
-        )
-    }
-
-    // Color picker dialog
-    showColorPicker?.let { (title, currentHex) ->
-        ColorPickerDialog(
-            title = title,
-            currentHex = currentHex,
-            onSelect = { hex ->
-                when (title) {
-                    "Background" -> viewModel.setBackgroundColor(hex)
-                    "Surface" -> viewModel.setSurfaceColor(hex)
-                    "Error" -> viewModel.setErrorColor(hex)
-                    "None Priority" -> viewModel.setPriorityColor(0, hex)
-                    "Low Priority" -> viewModel.setPriorityColor(1, hex)
-                    "Medium Priority" -> viewModel.setPriorityColor(2, hex)
-                    "High Priority" -> viewModel.setPriorityColor(3, hex)
-                    "Urgent Priority" -> viewModel.setPriorityColor(4, hex)
-                }
-                showColorPicker = null
-            },
-            onClear = {
-                when (title) {
-                    "Background" -> viewModel.setBackgroundColor("")
-                    "Surface" -> viewModel.setSurfaceColor("")
-                    "Error" -> viewModel.setErrorColor("")
-                    "None Priority" -> viewModel.setPriorityColor(0, "")
-                    "Low Priority" -> viewModel.setPriorityColor(1, "")
-                    "Medium Priority" -> viewModel.setPriorityColor(2, "")
-                    "High Priority" -> viewModel.setPriorityColor(3, "")
-                    "Urgent Priority" -> viewModel.setPriorityColor(4, "")
-                }
-                showColorPicker = null
-            },
-            onDismiss = { showColorPicker = null }
-        )
-    }
-
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         topBar = {
@@ -449,2440 +281,236 @@ fun SettingsScreen(
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 16.dp)
             ) {
-            // ========== SUBSCRIPTION ==========
-            SectionHeader("Subscription")
-            when (userTier) {
-                UserTier.PREMIUM -> {
-                    Text(
-                        text = "PrismTask Premium",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFFD97706),
-                        modifier = Modifier.padding(bottom = 4.dp)
-                    )
-                    Text(
-                        text = "You have access to all features",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(bottom = 8.dp)
-                    )
-                    OutlinedButton(
-                        onClick = {
-                            val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
-                                data = android.net.Uri.parse("https://play.google.com/store/account/subscriptions")
-                            }
-                            context.startActivity(intent)
-                        }
-                    ) {
-                        Text("Manage Subscription")
-                    }
-                }
-                UserTier.PRO -> {
-                    Text(
-                        text = "PrismTask Pro",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(bottom = 4.dp)
-                    )
-                    Text(
-                        text = "Upgrade to Premium for AI briefing, planner, collaboration, and more",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(bottom = 8.dp)
-                    )
-                    Button(
-                        onClick = {
-                            val activity = context as? android.app.Activity ?: return@Button
-                            viewModel.launchUpgrade(activity, UserTier.PREMIUM)
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFFD97706)
-                        )
-                    ) {
-                        Text("Upgrade to Premium \u2014 \$7.99/month")
-                    }
-                    Spacer(modifier = Modifier.height(4.dp))
-                    OutlinedButton(
-                        onClick = {
-                            val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
-                                data = android.net.Uri.parse("https://play.google.com/store/account/subscriptions")
-                            }
-                            context.startActivity(intent)
-                        }
-                    ) {
-                        Text("Manage Subscription")
-                    }
-                }
-                UserTier.FREE -> {
-                    Text(
-                        text = "PrismTask Free",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(bottom = 4.dp)
-                    )
-                    // Tier comparison
-                    SubscriptionComparisonCard()
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Button(
-                        onClick = {
-                            val activity = context as? android.app.Activity ?: return@Button
-                            viewModel.launchUpgrade(activity, UserTier.PRO)
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text("Start Pro \u2014 \$3.99/month")
-                    }
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Button(
-                        onClick = {
-                            val activity = context as? android.app.Activity ?: return@Button
-                            viewModel.launchUpgrade(activity, UserTier.PREMIUM)
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFFD97706)
-                        )
-                    ) {
-                        Text("Start Premium \u2014 \$7.99/month")
-                    }
-                    TextButton(onClick = { viewModel.restorePurchases() }) {
-                        Text("Restore Purchases")
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // ========== APPEARANCE ==========
-            SectionHeader("Appearance")
-
-            Text(
-                text = "Theme",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf("light" to "Light", "dark" to "Dark", "system" to "System").forEach { (value, label) ->
-                    FilterChip(
-                        selected = themeMode == value,
-                        onClick = { viewModel.setThemeMode(value) },
-                        label = { Text(label) },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                            selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Text(
-                text = "Accent Color",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                accentColors.forEach { hex ->
-                    val color = Color(android.graphics.Color.parseColor(hex))
-                    val isSelected = accentColor.equals(hex, ignoreCase = true)
-                    Box(
-                        modifier = Modifier
-                            .size(40.dp)
-                            .clip(CircleShape)
-                            .background(color)
-                            .then(
-                                if (isSelected) Modifier.border(2.dp, MaterialTheme.colorScheme.onSurface, CircleShape)
-                                else Modifier
-                            )
-                            .clickable { viewModel.setAccentColor(hex) },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        if (isSelected) {
-                            Icon(
-                                Icons.Default.Check,
-                                contentDescription = "Selected",
-                                tint = Color.White,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                    }
-                }
-                // "Custom" rainbow-gradient circle that opens the picker
-                val isCustomSelected = !accentColors.any { accentColor.equals(it, ignoreCase = true) }
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape)
-                        .background(
-                            brush = androidx.compose.ui.graphics.Brush.sweepGradient(
-                                listOf(
-                                    Color(0xFFFF0000), Color(0xFFFFFF00), Color(0xFF00FF00),
-                                    Color(0xFF00FFFF), Color(0xFF0000FF), Color(0xFFFF00FF),
-                                    Color(0xFFFF0000)
-                                )
-                            )
-                        )
-                        .then(
-                            if (isCustomSelected) Modifier.border(2.dp, MaterialTheme.colorScheme.onSurface, CircleShape)
-                            else Modifier
-                        )
-                        .clickable { showCustomAccentPicker = true },
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (isCustomSelected) {
-                        Icon(
-                            Icons.Default.Check,
-                            contentDescription = "Custom color selected",
-                            tint = Color.White,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                }
-            }
-
-            // Recent custom colors row
-            if (recentCustomColors.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(12.dp))
-                Text(
-                    text = "Recent Custom Colors",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(bottom = 4.dp)
-                )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    recentCustomColors.forEach { hex ->
-                        val color = try { Color(android.graphics.Color.parseColor(hex)) } catch (_: Exception) { Color.Gray }
-                        val isSelected = accentColor.equals(hex, ignoreCase = true)
-                        Box(
-                            modifier = Modifier
-                                .size(32.dp)
-                                .clip(CircleShape)
-                                .background(color)
-                                .then(
-                                    if (isSelected) Modifier.border(2.dp, MaterialTheme.colorScheme.onSurface, CircleShape)
-                                    else Modifier
-                                )
-                                .clickable { viewModel.setCustomAccentColor(hex) }
-                        )
-                    }
-                }
-            }
-
-            if (showCustomAccentPicker) {
-                ColorPickerDialog(
-                    title = "Custom Accent Color",
-                    currentHex = if (accentColors.any { accentColor.equals(it, ignoreCase = true) }) "" else accentColor,
-                    onSelect = { hex ->
-                        viewModel.setCustomAccentColor(hex)
-                        showCustomAccentPicker = false
-                    },
-                    onClear = {
-                        viewModel.setAccentColor("#2563EB")
-                        showCustomAccentPicker = false
-                    },
-                    onDismiss = { showCustomAccentPicker = false }
-                )
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Font Scale
-            Text(
-                text = "Font Size: ${String.format("%.0f%%", fontScale * 100)}",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Slider(
-                value = fontScale,
-                onValueChange = { viewModel.setFontScale(it) },
-                valueRange = 0.8f..1.4f,
-                steps = 5,
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            // Advanced appearance
-            AdvancedToggle(expanded = showAppearanceAdvanced, onToggle = { showAppearanceAdvanced = !showAppearanceAdvanced })
-            AnimatedVisibility(visible = showAppearanceAdvanced) {
-                Column {
-                    Text(
-                        text = "Color Overrides",
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.padding(bottom = 8.dp)
-                    )
-
-                    ColorOverrideRow("Background", backgroundColor) { showColorPicker = "Background" to backgroundColor }
-                    ColorOverrideRow("Surface", surfaceColor) { showColorPicker = "Surface" to surfaceColor }
-                    ColorOverrideRow("Error", errorColor) { showColorPicker = "Error" to errorColor }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Text(
-                        text = "Priority Colors",
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.padding(bottom = 8.dp)
-                    )
-
-                    val defaults = PriorityColors()
-                    PriorityColorRow("None", priorityColorNone, defaults.none) { showColorPicker = "None Priority" to priorityColorNone }
-                    PriorityColorRow("Low", priorityColorLow, defaults.low) { showColorPicker = "Low Priority" to priorityColorLow }
-                    PriorityColorRow("Medium", priorityColorMedium, defaults.medium) { showColorPicker = "Medium Priority" to priorityColorMedium }
-                    PriorityColorRow("High", priorityColorHigh, defaults.high) { showColorPicker = "High Priority" to priorityColorHigh }
-                    PriorityColorRow("Urgent", priorityColorUrgent, defaults.urgent) { showColorPicker = "Urgent Priority" to priorityColorUrgent }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-                    TextButton(onClick = { viewModel.resetColorOverrides() }) {
-                        Text("Reset All Color Overrides", color = MaterialTheme.colorScheme.error)
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-            HorizontalDivider()
-
-            // ========== DISPLAY ==========
-            SectionHeader("Display")
-
-            SettingsToggleRow(
-                title = "Compact Mode",
-                subtitle = "Reduce vertical padding throughout the app",
-                checked = appearancePrefs.compactMode,
-                onCheckedChange = { viewModel.setCompactMode(it) }
-            )
-
-            SettingsToggleRow(
-                title = "Card Borders",
-                subtitle = "Show outlines around task and project cards",
-                checked = appearancePrefs.showTaskCardBorders,
-                onCheckedChange = { viewModel.setShowCardBorders(it) }
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = "Card Corner Radius: ${appearancePrefs.cardCornerRadius}dp",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.padding(horizontal = 16.dp)
-            )
-            Slider(
-                value = appearancePrefs.cardCornerRadius.toFloat(),
-                onValueChange = { viewModel.setCardCornerRadius(it.toInt()) },
-                valueRange = 0f..24f,
-                steps = 23,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-            )
-
-            // Live preview card
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                shape = RoundedCornerShape(appearancePrefs.cardCornerRadius.dp),
-                border = if (appearancePrefs.showTaskCardBorders)
-                    androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
-                else null
-            ) {
-                Column(
-                    modifier = Modifier.padding(
-                        horizontal = 16.dp,
-                        vertical = if (appearancePrefs.compactMode) 8.dp else 16.dp
-                    )
-                ) {
-                    Text(
-                        "Sample Task",
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    if (!appearancePrefs.compactMode) {
-                        Spacer(Modifier.height(4.dp))
-                    }
-                    Text(
-                        "Preview of your card styling",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-            HorizontalDivider()
-
-            // ========== SWIPE ACTIONS ==========
-            SectionHeader("Swipe Actions")
-
-            Text(
-                text = "Customize what happens when you swipe a task card.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(bottom = 12.dp)
-            )
-
-            val swipeActionOptions = listOf(
-                com.averycorp.prismtask.domain.model.SwipeAction.COMPLETE to "Complete",
-                com.averycorp.prismtask.domain.model.SwipeAction.DELETE to "Delete",
-                com.averycorp.prismtask.domain.model.SwipeAction.RESCHEDULE to "Reschedule",
-                com.averycorp.prismtask.domain.model.SwipeAction.ARCHIVE to "Archive",
-                com.averycorp.prismtask.domain.model.SwipeAction.MOVE_TO_PROJECT to "Move to Project",
-                com.averycorp.prismtask.domain.model.SwipeAction.FLAG to "Flag",
-                com.averycorp.prismtask.domain.model.SwipeAction.NONE to "None (disabled)"
-            )
-
-            var swipeRightExpanded by remember { mutableStateOf(false) }
-            var swipeLeftExpanded by remember { mutableStateOf(false) }
-
-            Box(modifier = Modifier.fillMaxWidth()) {
-                OutlinedButton(
-                    onClick = { swipeRightExpanded = true },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    val style = com.averycorp.prismtask.ui.components.swipeActionStyle(swipePrefs.right)
-                    Box(
-                        modifier = Modifier
-                            .size(16.dp)
-                            .clip(CircleShape)
-                            .background(style.backgroundColor)
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text("Swipe Right: ${swipeActionOptions.first { it.first == swipePrefs.right }.second}")
-                }
-                DropdownMenu(
-                    expanded = swipeRightExpanded,
-                    onDismissRequest = { swipeRightExpanded = false }
-                ) {
-                    swipeActionOptions.forEach { (action, label) ->
-                        DropdownMenuItem(
-                            text = { Text(label) },
-                            leadingIcon = {
-                                Box(
-                                    modifier = Modifier
-                                        .size(16.dp)
-                                        .clip(CircleShape)
-                                        .background(com.averycorp.prismtask.ui.components.swipeActionStyle(action).backgroundColor)
-                                )
-                            },
-                            onClick = {
-                                viewModel.setSwipeRight(action)
-                                swipeRightExpanded = false
-                            }
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Box(modifier = Modifier.fillMaxWidth()) {
-                OutlinedButton(
-                    onClick = { swipeLeftExpanded = true },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    val style = com.averycorp.prismtask.ui.components.swipeActionStyle(swipePrefs.left)
-                    Box(
-                        modifier = Modifier
-                            .size(16.dp)
-                            .clip(CircleShape)
-                            .background(style.backgroundColor)
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text("Swipe Left: ${swipeActionOptions.first { it.first == swipePrefs.left }.second}")
-                }
-                DropdownMenu(
-                    expanded = swipeLeftExpanded,
-                    onDismissRequest = { swipeLeftExpanded = false }
-                ) {
-                    swipeActionOptions.forEach { (action, label) ->
-                        DropdownMenuItem(
-                            text = { Text(label) },
-                            leadingIcon = {
-                                Box(
-                                    modifier = Modifier
-                                        .size(16.dp)
-                                        .clip(CircleShape)
-                                        .background(com.averycorp.prismtask.ui.components.swipeActionStyle(action).backgroundColor)
-                                )
-                            },
-                            onClick = {
-                                viewModel.setSwipeLeft(action)
-                                swipeLeftExpanded = false
-                            }
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-            HorizontalDivider()
-
-            // ========== DASHBOARD ==========
-            SectionHeader("Dashboard")
-
-            Text(
-                text = "Progress Style",
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf("ring" to "Ring", "bar" to "Bar", "percentage" to "Percentage").forEach { (value, label) ->
-                    FilterChip(
-                        selected = progressStyle == value,
-                        onClick = { viewModel.setProgressStyle(value) },
-                        label = { Text(label) },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                            selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-            Text(
-                text = "Visible Sections",
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.padding(bottom = 4.dp)
-            )
-            DashboardPreferences.DEFAULT_ORDER.forEach { key ->
-                val label = sectionLabels[key] ?: key
-                val isHidden = key in hiddenSections
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable {
-                            val newHidden = if (isHidden) hiddenSections - key else hiddenSections + key
-                            viewModel.setHiddenSections(newHidden)
-                        }
-                        .padding(vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    CircularCheckbox(checked = !isHidden, onCheckedChange = {
-                        val newHidden = if (isHidden) hiddenSections - key else hiddenSections + key
-                        viewModel.setHiddenSections(newHidden)
-                    })
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(label, style = MaterialTheme.typography.bodyLarge)
-                }
-            }
-
-            AdvancedToggle(expanded = showDashboardAdvanced, onToggle = { showDashboardAdvanced = !showDashboardAdvanced })
-            AnimatedVisibility(visible = showDashboardAdvanced) {
-                Column {
-                    Text(
-                        text = "Section Order",
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.padding(bottom = 4.dp)
-                    )
-                    sectionOrder.forEachIndexed { index, key ->
-                        ReorderableRow(
-                            label = sectionLabels[key] ?: key,
-                            canMoveUp = index > 0,
-                            canMoveDown = index < sectionOrder.size - 1,
-                            onMoveUp = {
-                                val mutable = sectionOrder.toMutableList()
-                                mutable[index] = mutable[index - 1].also { mutable[index - 1] = mutable[index] }
-                                viewModel.setSectionOrder(mutable)
-                            },
-                            onMoveDown = {
-                                val mutable = sectionOrder.toMutableList()
-                                mutable[index] = mutable[index + 1].also { mutable[index + 1] = mutable[index] }
-                                viewModel.setSectionOrder(mutable)
-                            }
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(4.dp))
-                    TextButton(onClick = { viewModel.resetDashboardDefaults() }) {
-                        Text("Reset Dashboard", color = MaterialTheme.colorScheme.error)
-                    }
-                }
-            }
-
-            HorizontalDivider()
-
-            // ========== MODES ==========
-            SectionHeader("Modes")
-
-            val selfCareEnabled by viewModel.selfCareEnabled.collectAsStateWithLifecycle()
-            val medicationEnabled by viewModel.medicationEnabled.collectAsStateWithLifecycle()
-            val schoolEnabled by viewModel.schoolEnabled.collectAsStateWithLifecycle()
-            val leisureEnabled by viewModel.leisureEnabled.collectAsStateWithLifecycle()
-            val houseworkEnabled by viewModel.houseworkEnabled.collectAsStateWithLifecycle()
-
-            ModeToggleRow("Self Care", selfCareEnabled) { viewModel.setSelfCareEnabled(it) }
-            ModeToggleRow("Medication", medicationEnabled) { viewModel.setMedicationEnabled(it) }
-            ModeToggleRow("Housework", houseworkEnabled) { viewModel.setHouseworkEnabled(it) }
-            ModeToggleRow("Schoolwork", schoolEnabled) { viewModel.setSchoolEnabled(it) }
-            ModeToggleRow("Leisure", leisureEnabled) { viewModel.setLeisureEnabled(it) }
-
-            HorizontalDivider()
-
-            // ========== NAVIGATION ==========
-            SectionHeader("Navigation")
-
-            Text(
-                text = "Visible Tabs",
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.padding(bottom = 4.dp)
-            )
-            val visibleTabCount = ALL_BOTTOM_NAV_ITEMS.count { it.route !in hiddenTabs }
-            ALL_BOTTOM_NAV_ITEMS.forEach { item ->
-                val isHidden = item.route in hiddenTabs
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable {
-                            if (!isHidden && visibleTabCount <= 2) return@clickable
-                            val newHidden = if (isHidden) hiddenTabs - item.route else hiddenTabs + item.route
-                            viewModel.setHiddenTabs(newHidden)
-                        }
-                        .padding(vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    CircularCheckbox(
-                        checked = !isHidden,
-                        onCheckedChange = {
-                            if (!isHidden && visibleTabCount <= 2) return@CircularCheckbox
-                            val newHidden = if (isHidden) hiddenTabs - item.route else hiddenTabs + item.route
-                            viewModel.setHiddenTabs(newHidden)
-                        }
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(item.label, style = MaterialTheme.typography.bodyLarge)
-                }
-            }
-
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = "Tab Order",
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.padding(bottom = 4.dp)
-            )
-            tabOrder.forEachIndexed { index, route ->
-                val item = ALL_BOTTOM_NAV_ITEMS.find { it.route == route }
-                ReorderableRow(
-                    label = item?.label ?: route,
-                    canMoveUp = index > 0,
-                    canMoveDown = index < tabOrder.size - 1,
-                    onMoveUp = {
-                        val mutable = tabOrder.toMutableList()
-                        mutable[index] = mutable[index - 1].also { mutable[index - 1] = mutable[index] }
-                        viewModel.setTabOrder(mutable)
-                    },
-                    onMoveDown = {
-                        val mutable = tabOrder.toMutableList()
-                        mutable[index] = mutable[index + 1].also { mutable[index + 1] = mutable[index] }
-                        viewModel.setTabOrder(mutable)
-                    }
-                )
-            }
-            TextButton(onClick = { viewModel.resetTabDefaults() }) {
-                Text("Reset Navigation", color = MaterialTheme.colorScheme.error)
-            }
-
-            HorizontalDivider()
-
-            // ========== TASK DEFAULTS ==========
-            SectionHeader("Task Defaults")
-
-            SettingsRowWithSubtitle(
-                title = "Default Sort",
-                subtitle = sortLabels[defaultSort] ?: defaultSort,
-                onClick = {
-                    // cycle through sort options
-                    val keys = sortLabels.keys.toList()
-                    val next = keys[(keys.indexOf(defaultSort) + 1) % keys.size]
-                    viewModel.setDefaultSort(next)
-                }
-            )
-            SettingsRowWithSubtitle(
-                title = "Default View",
-                subtitle = viewModeLabels[defaultViewMode] ?: defaultViewMode,
-                onClick = {
-                    val keys = viewModeLabels.keys.toList()
-                    val next = keys[(keys.indexOf(defaultViewMode) + 1) % keys.size]
-                    viewModel.setDefaultViewMode(next)
-                }
-            )
-            SettingsRowWithSubtitle(
-                title = "First Day of Week",
-                subtitle = firstDayOfWeek.getDisplayName(TextStyle.FULL, Locale.getDefault()),
-                onClick = {
-                    val days = DayOfWeek.entries
-                    val next = days[(firstDayOfWeek.ordinal + 1) % days.size]
-                    viewModel.setFirstDayOfWeek(next)
-                }
-            )
-            SettingsRowWithSubtitle(
-                title = "Day Start Hour",
-                subtitle = if (dayStartHour == 0) "Midnight" else String.format("%d:00 %s", if (dayStartHour > 12) dayStartHour - 12 else if (dayStartHour == 0) 12 else dayStartHour, if (dayStartHour < 12) "AM" else "PM"),
-                onClick = {
-                    val next = (dayStartHour + 1) % 24
-                    viewModel.setDayStartHour(next)
-                }
-            )
-
-            AdvancedToggle(expanded = showTaskAdvanced, onToggle = { showTaskAdvanced = !showTaskAdvanced })
-            AnimatedVisibility(visible = showTaskAdvanced) {
-                Column {
-                    Text(
-                        text = "Urgency Scoring Weights",
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.padding(bottom = 8.dp)
-                    )
-                    Text(
-                        text = "Weights auto-normalize to sum to 100%",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(bottom = 8.dp)
-                    )
-
-                    var localDueDate by remember(urgencyWeights) { mutableFloatStateOf(urgencyWeights.dueDate) }
-                    var localPriority by remember(urgencyWeights) { mutableFloatStateOf(urgencyWeights.priority) }
-                    var localAge by remember(urgencyWeights) { mutableFloatStateOf(urgencyWeights.age) }
-                    var localSubtasks by remember(urgencyWeights) { mutableFloatStateOf(urgencyWeights.subtasks) }
-
-                    fun normalizeAndSave() {
-                        val total = localDueDate + localPriority + localAge + localSubtasks
-                        if (total > 0) {
-                            val w = UrgencyWeights(
-                                localDueDate / total, localPriority / total,
-                                localAge / total, localSubtasks / total
-                            )
-                            localDueDate = w.dueDate
-                            localPriority = w.priority
-                            localAge = w.age
-                            localSubtasks = w.subtasks
-                            viewModel.setUrgencyWeights(w)
-                        }
-                    }
-
-                    WeightSlider("Due Date", localDueDate) { localDueDate = it; normalizeAndSave() }
-                    WeightSlider("Priority", localPriority) { localPriority = it; normalizeAndSave() }
-                    WeightSlider("Task Age", localAge) { localAge = it; normalizeAndSave() }
-                    WeightSlider("Subtasks", localSubtasks) { localSubtasks = it; normalizeAndSave() }
-
-                    // Live preview: three sample tasks with scores that update as sliders move
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Text(
-                        text = "Preview",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(bottom = 4.dp)
-                    )
-                    val previewWeights = com.averycorp.prismtask.data.preferences.UrgencyWeights(
-                        dueDate = localDueDate,
-                        priority = localPriority,
-                        age = localAge,
-                        subtasks = localSubtasks
-                    )
-                    UrgencyPreviewSamples(weights = previewWeights)
-
-                    Spacer(modifier = Modifier.height(8.dp))
-                    TextButton(onClick = {
-                        viewModel.setUrgencyWeights(com.averycorp.prismtask.data.preferences.UrgencyWeights())
-                    }) {
-                        Text("Reset Urgency Weights to Defaults", color = MaterialTheme.colorScheme.error)
-                    }
-                    TextButton(onClick = { viewModel.resetTaskBehaviorDefaults() }) {
-                        Text("Reset All Task Defaults", color = MaterialTheme.colorScheme.error)
-                    }
-                }
-            }
-
-            HorizontalDivider()
-
-            // ========== TIMER ==========
-            SectionHeader("Timer")
-
-            SettingsRowWithSubtitle(
-                title = "Work Duration",
-                subtitle = "${timerWorkSeconds / 60} min",
-                onClick = { showTimerWorkDialog = true }
-            )
-            SettingsRowWithSubtitle(
-                title = "Short Break Duration",
-                subtitle = "${timerBreakSeconds / 60} min",
-                onClick = { showTimerBreakDialog = true }
-            )
-            SettingsRowWithSubtitle(
-                title = "Long Break Duration",
-                subtitle = "${timerLongBreakSeconds / 60} min",
-                onClick = { showTimerLongBreakDialog = true }
-            )
-
-            HorizontalDivider()
-
-            // ========== DATA ==========
-            SectionHeader("Data")
-
-            SettingsRow(
-                title = "Manage Tags",
-                onClick = { navController.navigate("tag_management") }
-            )
-            SettingsRow(
-                title = "Manage Projects",
-                onClick = { navController.navigate("project_list") }
-            )
-            SettingsRow(
-                title = "Templates",
-                onClick = { navController.navigate("templates") }
-            )
-            SettingsRowWithSubtitle(
-                title = "Auto-archive",
-                subtitle = if (autoArchiveDays == 0) "Never" else "After $autoArchiveDays days",
-                onClick = { showAutoArchiveDialog = true }
-            )
-            SettingsRowWithSubtitle(
-                title = "Archive",
-                subtitle = "$archivedCount archived tasks",
-                onClick = { navController.navigate("archive") }
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            OutlinedButton(
-                onClick = { showResetConfirmDialog = true },
-                enabled = !isResetting,
-                modifier = Modifier.fillMaxWidth(),
-                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.error)
-            ) {
-                if (isResetting) {
-                    CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.error)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Resetting...", color = MaterialTheme.colorScheme.error)
-                } else {
-                    Text("Reset App", color = MaterialTheme.colorScheme.error)
-                }
-            }
-
-            HorizontalDivider()
-
-            // ========== BACKUP & EXPORT ==========
-            SectionHeader("Backup & Export")
-
-            SettingsRow(title = "Export as JSON", onClick = { viewModel.onExportJson() })
-            SettingsRow(title = "Export as CSV", onClick = { viewModel.onExportCsv() })
-            SettingsRow(title = "Import from JSON", onClick = { importLauncher.launch(arrayOf("application/json", "*/*")) })
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Text(
-                text = "Google Drive",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(bottom = 4.dp)
-            )
-
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 4.dp)
-            ) {
-                OutlinedButton(
-                    onClick = { viewModel.onExportToDrive() },
-                    enabled = !isDriveExporting && !isDriveImporting,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    if (isDriveExporting) {
-                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Saving...")
-                    } else {
-                        Text("Backup to Drive")
-                    }
-                }
-                OutlinedButton(
-                    onClick = { viewModel.onImportFromDrive() },
-                    enabled = !isDriveImporting && !isDriveExporting,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    if (isDriveImporting) {
-                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Restoring...")
-                    } else {
-                        Text("Restore from Drive")
-                    }
-                }
-            }
-
-            HorizontalDivider()
-
-            // ========== ACCOUNT & SYNC ==========
-            SectionHeader("Account & Sync")
-
-            if (isSignedIn) {
-                val email = viewModel.userEmail
-                if (email != null) {
-                    Text(
-                        text = email,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.padding(vertical = 4.dp)
-                    )
-                }
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 8.dp)
-                ) {
-                    OutlinedButton(
-                        onClick = { viewModel.onSync() },
-                        enabled = !isSyncing,
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        if (isSyncing) {
-                            CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Syncing...")
-                        } else {
-                            Icon(Icons.Default.Sync, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("Sync Now")
-                        }
-                    }
-                    OutlinedButton(
-                        onClick = { viewModel.onSignOut() },
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text("Sign Out")
-                    }
-                }
-            } else {
-                Text(
-                    text = "Sign in to sync across devices",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(vertical = 4.dp)
-                )
-                Button(
-                    onClick = { navController.navigate("auth") },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 8.dp)
-                ) {
-                    Text("Sign In with Google")
-                }
-            }
-
-            HorizontalDivider()
-
-            // ========== BACKEND SYNC (FastAPI) ==========
-            SectionHeader("Backend Sync")
-
-            Text(
-                text = "Sync your data with the PrismTask backend. This is separate from Firebase sync — use either or both.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
-
-            if (backendConnected) {
-                Text(
-                    text = if (backendLastSyncAt > 0L) {
-                        "Last Sync: ${formatLastSync(backendLastSyncAt)}"
-                    } else {
-                        "Last Sync: Never"
-                    },
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.padding(vertical = 4.dp)
-                )
-                AnimatedVisibility(visible = isBackendSyncing) {
-                    LinearProgressIndicator(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 4.dp)
-                    )
-                }
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 8.dp)
-                ) {
-                    Button(
-                        onClick = { viewModel.onBackendSync() },
-                        enabled = !isBackendSyncing,
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        if (isBackendSyncing) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(18.dp),
-                                strokeWidth = 2.dp,
-                                color = MaterialTheme.colorScheme.onPrimary
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Syncing...")
-                        } else {
-                            Icon(Icons.Default.Sync, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("Sync with Backend")
-                        }
-                    }
-                    OutlinedButton(
-                        onClick = { viewModel.onBackendDisconnect() },
-                        enabled = !isBackendSyncing
-                    ) {
-                        Text("Disconnect")
-                    }
-                }
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 4.dp)
-                ) {
-                    OutlinedButton(
-                        onClick = { viewModel.onExportToCloud() },
-                        enabled = !isCloudExporting && !isCloudImporting,
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        if (isCloudExporting) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(18.dp),
-                                strokeWidth = 2.dp
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Exporting...")
-                        } else {
-                            Text("Export to Cloud")
-                        }
-                    }
-                    OutlinedButton(
-                        onClick = {
-                            cloudImportLauncher.launch(arrayOf("application/json", "*/*"))
-                        },
-                        enabled = !isCloudImporting && !isCloudExporting,
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        if (isCloudImporting) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(18.dp),
-                                strokeWidth = 2.dp
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Importing...")
-                        } else {
-                            Text("Import from Cloud")
-                        }
-                    }
-                }
-            } else {
-                Text(
-                    text = "Not connected",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(vertical = 4.dp)
-                )
-                Button(
-                    onClick = { showBackendAuthDialog = true },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 8.dp)
-                ) {
-                    Text("Connect to Backend")
-                }
-            }
-
-            HorizontalDivider()
-
-            // ========== DEVICE CALENDAR ==========
-            SectionHeader("Device Calendar")
-
-            var showCalendarPicker by remember { mutableStateOf(false) }
-            val calendarPermissionLauncher = rememberLauncherForActivityResult(
-                ActivityResultContracts.RequestMultiplePermissions()
-            ) { permissions ->
-                val granted = permissions.values.all { it }
-                if (granted) {
-                    viewModel.loadCalendars()
-                    showCalendarPicker = true
-                }
-            }
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text("Sync Tasks to Device Calendar", style = MaterialTheme.typography.bodyLarge)
-                    if (calendarSyncEnabled && calendarName.isNotBlank()) {
-                        Text(
-                            text = calendarName,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-                androidx.compose.material3.Switch(
-                    checked = calendarSyncEnabled,
-                    onCheckedChange = { enabled ->
-                        if (enabled) {
-                            val calId = viewModel.calendarName.value
-                            if (calId.isBlank()) {
-                                calendarPermissionLauncher.launch(
-                                    arrayOf(
-                                        android.Manifest.permission.READ_CALENDAR,
-                                        android.Manifest.permission.WRITE_CALENDAR
-                                    )
-                                )
-                            } else {
-                                viewModel.setCalendarSyncEnabled(true)
-                            }
-                        } else {
-                            viewModel.setCalendarSyncEnabled(false)
-                        }
-                    }
-                )
-            }
-
-            if (calendarSyncEnabled) {
-                OutlinedButton(
-                    onClick = {
-                        calendarPermissionLauncher.launch(
-                            arrayOf(
-                                android.Manifest.permission.READ_CALENDAR,
-                                android.Manifest.permission.WRITE_CALENDAR
-                            )
-                        )
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 4.dp)
-                ) {
-                    Text(if (calendarName.isNotBlank()) "Change Calendar ($calendarName)" else "Select Calendar")
-                }
-            }
-
-            if (showCalendarPicker && availableCalendars.isNotEmpty()) {
-                AlertDialog(
-                    onDismissRequest = { showCalendarPicker = false },
-                    title = { Text("Select Calendar") },
-                    text = {
-                        Column {
-                            availableCalendars.forEach { cal ->
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clickable {
-                                            viewModel.selectCalendar(cal)
-                                            viewModel.setCalendarSyncEnabled(true)
-                                            showCalendarPicker = false
-                                        }
-                                        .padding(vertical = 12.dp, horizontal = 8.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Column {
-                                        Text(cal.name, style = MaterialTheme.typography.bodyLarge)
-                                        Text(
-                                            cal.accountName,
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    },
-                    confirmButton = {
-                        TextButton(onClick = { showCalendarPicker = false }) {
-                            Text("Cancel")
-                        }
-                    }
-                )
-            }
-
-            HorizontalDivider()
-
-            // ========== GOOGLE CALENDAR API ==========
-            SectionHeader("Google Calendar")
-
-            var showGCalCalendarPicker by remember { mutableStateOf(false) }
-            var showGCalFrequencyPicker by remember { mutableStateOf(false) }
-
-            if (!isGCalConnected) {
-                // Not connected state
-                Text(
-                    text = "Sync tasks with your Google Calendar",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(vertical = 4.dp)
-                )
-                Button(
-                    onClick = { viewModel.connectGoogleCalendar() },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 8.dp)
-                ) {
-                    Text("Connect Google Calendar")
-                }
-            } else {
-                // Connected state - account email + disconnect
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = gCalAccountEmail ?: "Connected",
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                    }
-                    TextButton(onClick = { viewModel.disconnectGoogleCalendar() }) {
-                        Text("Disconnect", color = MaterialTheme.colorScheme.error)
-                    }
-                }
-
-                // Master sync toggle
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text("Sync Tasks to Calendar", style = MaterialTheme.typography.bodyLarge)
-                    androidx.compose.material3.Switch(
-                        checked = gCalSyncEnabled,
-                        onCheckedChange = { viewModel.setGCalSyncEnabled(it) }
-                    )
-                }
-
-                AnimatedVisibility(visible = gCalSyncEnabled) {
-                    Column {
-                        // Calendar picker
-                        val selectedCalendar = gCalAvailableCalendars.find { it.id == gCalSyncCalendarId }
-                        OutlinedButton(
-                            onClick = {
-                                viewModel.loadGCalCalendars()
-                                showGCalCalendarPicker = true
-                            },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 4.dp)
-                        ) {
-                            if (selectedCalendar != null) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(8.dp)
-                                        .clip(CircleShape)
-                                        .background(parseColorSafe(selectedCalendar.color))
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("Calendar: ${selectedCalendar.name}")
-                            } else {
-                                Text("Calendar: ${gCalSyncCalendarId.ifEmpty { "Primary" }}")
-                            }
-                        }
-
-                        // Sync direction
-                        Text(
-                            "Sync Direction",
-                            style = MaterialTheme.typography.bodyMedium,
-                            modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
-                        )
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            listOf("push" to "Push Only", "pull" to "Pull Only", "both" to "Both").forEach { (value, label) ->
-                                FilterChip(
-                                    selected = gCalSyncDirection == value,
-                                    onClick = { viewModel.setGCalSyncDirection(value) },
-                                    label = { Text(label, style = MaterialTheme.typography.bodySmall) }
-                                )
-                            }
-                        }
-
-                        // Show calendar events toggle
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 8.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text("Show Calendar Events in App", style = MaterialTheme.typography.bodyMedium)
-                            androidx.compose.material3.Switch(
-                                checked = gCalShowEvents,
-                                onCheckedChange = { viewModel.setGCalShowEvents(it) }
-                            )
-                        }
-
-                        // Sync completed tasks toggle
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 8.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text("Sync Completed Tasks", style = MaterialTheme.typography.bodyMedium)
-                            androidx.compose.material3.Switch(
-                                checked = gCalSyncCompletedTasks,
-                                onCheckedChange = { viewModel.setGCalSyncCompletedTasks(it) }
-                            )
-                        }
-
-                        // Sync frequency
-                        val frequencyLabels = mapOf(
-                            "realtime" to "Real-Time",
-                            "15min" to "Every 15 Min",
-                            "hourly" to "Hourly",
-                            "manual" to "Manual Only"
-                        )
-                        OutlinedButton(
-                            onClick = { showGCalFrequencyPicker = true },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 4.dp)
-                        ) {
-                            Text("Sync Frequency: ${frequencyLabels[gCalSyncFrequency] ?: gCalSyncFrequency}")
-                        }
-
-                        // Last synced
-                        if (gCalLastSyncTimestamp > 0) {
-                            val lastSyncText = formatLastSync(gCalLastSyncTimestamp)
-                            Text(
-                                text = "Last Synced: $lastSyncText",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(vertical = 4.dp)
-                            )
-                        }
-
-                        // Sync now button
-                        OutlinedButton(
-                            onClick = { viewModel.syncGCalNow() },
-                            enabled = !isGCalSyncing,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 4.dp)
-                        ) {
-                            if (isGCalSyncing) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(16.dp),
-                                    strokeWidth = 2.dp
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("Syncing...")
-                            } else {
-                                Icon(
-                                    imageVector = Icons.Default.Sync,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("Sync Now")
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Google Calendar picker dialog
-            if (showGCalCalendarPicker && gCalAvailableCalendars.isNotEmpty()) {
-                AlertDialog(
-                    onDismissRequest = { showGCalCalendarPicker = false },
-                    title = { Text("Select Calendar") },
-                    text = {
-                        Column {
-                            gCalAvailableCalendars.forEach { cal ->
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clickable {
-                                            viewModel.setGCalSyncCalendarId(cal.id)
-                                            showGCalCalendarPicker = false
-                                        }
-                                        .padding(vertical = 12.dp, horizontal = 8.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(12.dp)
-                                            .clip(CircleShape)
-                                            .background(parseColorSafe(cal.color))
-                                    )
-                                    Spacer(modifier = Modifier.width(12.dp))
-                                    Column {
-                                        Text(cal.name, style = MaterialTheme.typography.bodyLarge)
-                                        if (cal.isPrimary) {
-                                            Text(
-                                                "Primary",
-                                                style = MaterialTheme.typography.bodySmall,
-                                                color = MaterialTheme.colorScheme.primary
-                                            )
-                                        }
-                                    }
-                                    if (cal.id == gCalSyncCalendarId) {
-                                        Spacer(modifier = Modifier.weight(1f))
-                                        Icon(
-                                            imageVector = Icons.Default.Check,
-                                            contentDescription = "Selected",
-                                            tint = MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier.size(20.dp)
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    },
-                    confirmButton = {
-                        TextButton(onClick = { showGCalCalendarPicker = false }) {
-                            Text("Cancel")
-                        }
-                    }
-                )
-            }
-
-            // Frequency picker dialog
-            if (showGCalFrequencyPicker) {
-                AlertDialog(
-                    onDismissRequest = { showGCalFrequencyPicker = false },
-                    title = { Text("Sync Frequency") },
-                    text = {
-                        Column {
-                            listOf(
-                                "realtime" to "Real-Time",
-                                "15min" to "Every 15 Minutes",
-                                "hourly" to "Hourly",
-                                "manual" to "Manual Only"
-                            ).forEach { (value, label) ->
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clickable {
-                                            viewModel.setGCalSyncFrequency(value)
-                                            showGCalFrequencyPicker = false
-                                        }
-                                        .padding(vertical = 12.dp, horizontal = 8.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    RadioButton(
-                                        selected = gCalSyncFrequency == value,
-                                        onClick = {
-                                            viewModel.setGCalSyncFrequency(value)
-                                            showGCalFrequencyPicker = false
-                                        }
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(label, style = MaterialTheme.typography.bodyLarge)
-                                }
-                            }
-                        }
-                    },
-                    confirmButton = {
-                        TextButton(onClick = { showGCalFrequencyPicker = false }) {
-                            Text("Cancel")
-                        }
-                    }
-                )
-            }
-
-            HorizontalDivider()
-
-            // ========== AI ==========
-            SectionHeader("AI")
-
-            var showApiKeyDialog by remember { mutableStateOf(false) }
-            var apiKeyInput by remember { mutableStateOf("") }
-
-            val apiKeySubtitle = if (claudeApiKey.isNotBlank()) {
-                "Configured (\u2022\u2022\u2022\u2022${claudeApiKey.takeLast(4)})"
-            } else {
-                "Not configured"
-            }
-
-            SettingsRowWithSubtitle(
-                title = "Claude API Key",
-                subtitle = apiKeySubtitle,
-                onClick = {
-                    apiKeyInput = ""
-                    showApiKeyDialog = true
-                }
-            )
-
-            if (showApiKeyDialog) {
-                AlertDialog(
-                    onDismissRequest = { showApiKeyDialog = false },
-                    title = { Text("Claude API Key") },
-                    text = {
-                        Column {
-                            Text(
-                                "Used for AI-powered import parsing. Get a key from console.anthropic.com",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(bottom = 12.dp)
-                            )
-                            OutlinedTextField(
-                                value = apiKeyInput,
-                                onValueChange = { apiKeyInput = it },
-                                placeholder = { Text("sk-ant-...") },
-                                singleLine = true,
-                                visualTransformation = PasswordVisualTransformation(),
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                        }
-                    },
-                    confirmButton = {
-                        TextButton(
-                            onClick = {
-                                if (apiKeyInput.isNotBlank()) viewModel.setClaudeApiKey(apiKeyInput.trim())
-                                showApiKeyDialog = false
-                            },
-                            enabled = apiKeyInput.isNotBlank()
-                        ) { Text("Save") }
-                    },
-                    dismissButton = {
-                        Row {
-                            if (claudeApiKey.isNotBlank()) {
-                                TextButton(onClick = {
-                                    viewModel.clearClaudeApiKey()
-                                    showApiKeyDialog = false
-                                }) { Text("Clear", color = MaterialTheme.colorScheme.error) }
-                            }
-                            TextButton(onClick = { showApiKeyDialog = false }) { Text("Cancel") }
-                        }
-                    }
-                )
-            }
-
-            SectionHeader("AI Features")
-
-            Text(
-                "AI features use Claude to analyze your tasks. Requires internet connection.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
-            )
-
-            SettingsRowWithSubtitle(
-                title = "Eisenhower Matrix",
-                subtitle = "AI-powered task categorization into urgency/importance quadrants",
-                onClick = { navController.navigate(PrismTaskRoute.EisenhowerMatrix.route) }
-            )
-
-            SettingsRowWithSubtitle(
-                title = "Smart Focus Sessions",
-                subtitle = "AI-planned Pomodoro sessions based on your tasks",
-                onClick = { navController.navigate(PrismTaskRoute.SmartPomodoro.route) }
-            )
-
-            SettingsRowWithSubtitle(
-                title = "Daily Briefing",
-                subtitle = "Morning summary with top priorities and suggested task order",
-                onClick = { navController.navigate(PrismTaskRoute.DailyBriefing.route) }
-            )
-
-            SettingsRowWithSubtitle(
-                title = "Weekly Planner",
-                subtitle = "AI-generated week plan distributing tasks across days",
-                onClick = { navController.navigate(PrismTaskRoute.WeeklyPlanner.route) }
-            )
-
-            SettingsRowWithSubtitle(
-                title = "Time Blocking",
-                subtitle = "Auto-schedule your day with AI-optimized time blocks",
-                onClick = { navController.navigate(PrismTaskRoute.Timeline.route) }
-            )
-
-            HorizontalDivider()
-
-            // ========== AI NOTIFICATIONS ==========
-            SectionHeader("AI Notifications")
-
-            Text(
-                "Gentle, non-judgmental notifications powered by AI.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
-            )
-
-            SettingsToggleRow(
-                title = "Evening Summary",
-                subtitle = "A one-sentence summary of what you accomplished today (Pro)",
-                checked = viewModel.eveningSummaryEnabled,
-                onCheckedChange = { viewModel.onEveningSummaryToggle(it) }
-            )
-
-            SettingsToggleRow(
-                title = "Re-engagement Nudges",
-                subtitle = "A gentle nudge if you haven't opened PrismTask in a while (Premium)",
-                checked = viewModel.reengagementEnabled,
-                onCheckedChange = { viewModel.onReengagementToggle(it) }
-            )
-
-            HorizontalDivider()
-
-            // ========== DEBUGGING ==========
-            SectionHeader("Debugging")
-
-            val isCheckingUpdate = updateStatus == UpdateStatus.CHECKING
-            val isDownloadingUpdate = updateStatus == UpdateStatus.DOWNLOADING
-            val isUpdateBusy = isCheckingUpdate || isDownloadingUpdate
-
-            Button(
-                onClick = {
-                    when (updateStatus) {
-                        UpdateStatus.UPDATE_AVAILABLE -> viewModel.downloadAndInstallUpdate()
-                        else -> viewModel.checkForUpdate()
-                    }
-                },
-                enabled = !isUpdateBusy,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                if (isUpdateBusy) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(18.dp),
-                        strokeWidth = 2.dp,
-                        color = MaterialTheme.colorScheme.onPrimary
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                }
-                Text(
-                    text = when (updateStatus) {
-                        UpdateStatus.CHECKING -> "Checking..."
-                        UpdateStatus.DOWNLOADING -> "Downloading..."
-                        UpdateStatus.UPDATE_AVAILABLE -> "Download & Install Update"
-                        UpdateStatus.READY_TO_INSTALL -> "Install Update"
-                        else -> "Check for Update"
-                    }
-                )
-            }
-
-            val statusText = when (updateStatus) {
-                UpdateStatus.IDLE -> null
-                UpdateStatus.CHECKING -> "Checking for updates..."
-                UpdateStatus.UPDATE_AVAILABLE -> latestReleaseTag?.let { "Update available ($it)" } ?: "Update available"
-                UpdateStatus.NO_UPDATE -> "You're on the latest build (v${BuildConfig.VERSION_NAME})"
-                UpdateStatus.DOWNLOADING -> "Downloading APK..."
-                UpdateStatus.READY_TO_INSTALL -> "Ready to install"
-                UpdateStatus.ERROR -> updateError?.let { "Error: $it" } ?: "Update failed"
-            }
-            if (statusText != null) {
-                Text(
-                    text = statusText,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = if (updateStatus == UpdateStatus.ERROR)
-                        MaterialTheme.colorScheme.error
-                    else
-                        MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 6.dp)
-                )
-            }
-
-            HorizontalDivider()
-
-            // ========== VOICE INPUT ==========
-            SectionHeader("Voice Input")
-
-            SettingsToggleRow(
-                title = "Enable Voice Input",
-                subtitle = "Show the microphone button on the quick-add bar",
-                checked = voiceInputEnabled,
-                onCheckedChange = { viewModel.setVoiceInputEnabled(it) }
-            )
-            SettingsToggleRow(
-                title = "Voice Feedback",
-                subtitle = "Read voice command responses aloud",
-                checked = voiceFeedbackEnabled,
-                onCheckedChange = { viewModel.setVoiceFeedbackEnabled(it) }
-            )
-            SettingsToggleRow(
-                title = "Continuous Mode",
-                subtitle = "Long-press the mic for hands-free voice control",
-                checked = continuousModeEnabled,
-                onCheckedChange = { viewModel.setContinuousModeEnabled(it) }
-            )
-
-            HorizontalDivider()
-
-            // ========== ACCESSIBILITY ==========
-            SectionHeader("Accessibility")
-
-            SettingsToggleRow(
-                title = "Reduce Motion",
-                subtitle = "Disable non-essential animations",
-                checked = reduceMotionEnabled,
-                onCheckedChange = { viewModel.setReduceMotion(it) }
-            )
-            SettingsToggleRow(
-                title = "High Contrast Mode",
-                subtitle = "Stronger borders and bolder priority colors",
-                checked = highContrastEnabled,
-                onCheckedChange = { viewModel.setHighContrast(it) }
-            )
-            SettingsToggleRow(
-                title = "Large Touch Targets",
-                subtitle = "Increase minimum interactive element size",
-                checked = largeTouchTargetsEnabled,
-                onCheckedChange = { viewModel.setLargeTouchTargets(it) }
-            )
-            Text(
-                text = "PrismTask supports TalkBack, Switch Access, and keyboard navigation.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(vertical = 8.dp)
-            )
-
-            HorizontalDivider()
-
-            // ========== ABOUT ==========
-            SectionHeader("About")
-
-            Text(
-                text = "PrismTask v${BuildConfig.VERSION_NAME}",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.padding(vertical = 4.dp)
-            )
-            Text(
-                text = "Latest GitHub Release: ${latestReleaseTag ?: "Loading..."}",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(bottom = 4.dp)
-            )
-            Text(
-                text = "Made by Avery Karlin",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            // ========== DEBUG (Debug Builds Only) ==========
-            if (BuildConfig.DEBUG) {
-                Spacer(modifier = Modifier.height(24.dp))
-                HorizontalDivider()
-                SectionHeader("\uD83D\uDEE0 Debug")
-
-                Text(
-                    text = "Debug only — not visible in release builds",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.padding(bottom = 12.dp)
+                SubscriptionSection(
+                    userTier = userTier,
+                    onLaunchUpgrade = { activity, tier -> viewModel.launchUpgrade(activity, tier) },
+                    onRestorePurchases = { viewModel.restorePurchases() }
                 )
 
-                Text(
-                    text = "Override Tier:",
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Medium,
-                    modifier = Modifier.padding(bottom = 8.dp)
+                AppearanceSection(
+                    themeMode = themeMode,
+                    accentColor = accentColor,
+                    recentCustomColors = recentCustomColors,
+                    backgroundColor = backgroundColor,
+                    surfaceColor = surfaceColor,
+                    errorColor = errorColor,
+                    priorityColorNone = priorityColorNone,
+                    priorityColorLow = priorityColorLow,
+                    priorityColorMedium = priorityColorMedium,
+                    priorityColorHigh = priorityColorHigh,
+                    priorityColorUrgent = priorityColorUrgent,
+                    fontScale = fontScale,
+                    onThemeModeChange = viewModel::setThemeMode,
+                    onAccentColorChange = viewModel::setAccentColor,
+                    onCustomAccentColorChange = viewModel::setCustomAccentColor,
+                    onFontScaleChange = viewModel::setFontScale,
+                    onBackgroundColorChange = viewModel::setBackgroundColor,
+                    onSurfaceColorChange = viewModel::setSurfaceColor,
+                    onErrorColorChange = viewModel::setErrorColor,
+                    onPriorityColorChange = viewModel::setPriorityColor,
+                    onResetColorOverrides = viewModel::resetColorOverrides
                 )
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    listOf(
-                        UserTier.FREE to "Free",
-                        UserTier.PRO to "Pro",
-                        UserTier.PREMIUM to "Premium"
-                    ).forEach { (tier, label) ->
-                        val selected = debugTierOverride == tier
-                        FilterChip(
-                            selected = selected,
-                            onClick = { viewModel.setDebugTier(tier) },
-                            label = { Text(label) },
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-                }
+                DisplaySection(
+                    appearancePrefs = appearancePrefs,
+                    onCompactModeChange = viewModel::setCompactMode,
+                    onShowCardBordersChange = viewModel::setShowCardBorders,
+                    onCardCornerRadiusChange = viewModel::setCardCornerRadius
+                )
 
-                if (debugTierOverride != null) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(4.dp))
-                                .background(MaterialTheme.colorScheme.primary)
-                                .padding(horizontal = 6.dp, vertical = 2.dp)
-                        ) {
-                            Text(
-                                text = "OVERRIDE: ${debugTierOverride?.name}",
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onPrimary
-                            )
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    OutlinedButton(
-                        onClick = { viewModel.clearDebugTier() },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text("Reset Override")
-                    }
-                } else {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "No override active — using real billing state",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                SwipeActionsSection(
+                    swipePrefs = swipePrefs,
+                    onSwipeRightChange = viewModel::setSwipeRight,
+                    onSwipeLeftChange = viewModel::setSwipeLeft
+                )
+
+                DashboardSection(
+                    progressStyle = progressStyle,
+                    sectionOrder = sectionOrder,
+                    hiddenSections = hiddenSections,
+                    onProgressStyleChange = viewModel::setProgressStyle,
+                    onHiddenSectionsChange = viewModel::setHiddenSections,
+                    onSectionOrderChange = viewModel::setSectionOrder,
+                    onResetDashboardDefaults = viewModel::resetDashboardDefaults
+                )
+
+                ModesSection(
+                    selfCareEnabled = selfCareEnabled,
+                    medicationEnabled = medicationEnabled,
+                    houseworkEnabled = houseworkEnabled,
+                    schoolEnabled = schoolEnabled,
+                    leisureEnabled = leisureEnabled,
+                    onSelfCareChange = viewModel::setSelfCareEnabled,
+                    onMedicationChange = viewModel::setMedicationEnabled,
+                    onHouseworkChange = viewModel::setHouseworkEnabled,
+                    onSchoolChange = viewModel::setSchoolEnabled,
+                    onLeisureChange = viewModel::setLeisureEnabled
+                )
+
+                NavigationSection(
+                    tabOrder = tabOrder,
+                    hiddenTabs = hiddenTabs,
+                    onHiddenTabsChange = viewModel::setHiddenTabs,
+                    onTabOrderChange = viewModel::setTabOrder,
+                    onResetTabDefaults = viewModel::resetTabDefaults
+                )
+
+                TaskDefaultsSection(
+                    defaultSort = defaultSort,
+                    defaultViewMode = defaultViewMode,
+                    firstDayOfWeek = firstDayOfWeek,
+                    dayStartHour = dayStartHour,
+                    urgencyWeights = urgencyWeights,
+                    onDefaultSortChange = viewModel::setDefaultSort,
+                    onDefaultViewModeChange = viewModel::setDefaultViewMode,
+                    onFirstDayOfWeekChange = viewModel::setFirstDayOfWeek,
+                    onDayStartHourChange = viewModel::setDayStartHour,
+                    onUrgencyWeightsChange = viewModel::setUrgencyWeights,
+                    onResetTaskBehaviorDefaults = viewModel::resetTaskBehaviorDefaults
+                )
+
+                TimerSection(
+                    timerWorkSeconds = timerWorkSeconds,
+                    timerBreakSeconds = timerBreakSeconds,
+                    timerLongBreakSeconds = timerLongBreakSeconds,
+                    onTimerWorkMinutesChange = viewModel::setTimerWorkDurationMinutes,
+                    onTimerBreakMinutesChange = viewModel::setTimerBreakDurationMinutes,
+                    onTimerLongBreakMinutesChange = viewModel::setTimerLongBreakDurationMinutes
+                )
+
+                DataSection(
+                    autoArchiveDays = autoArchiveDays,
+                    archivedCount = archivedCount,
+                    isResetting = isResetting,
+                    onAutoArchiveDaysChange = viewModel::setAutoArchiveDays,
+                    onResetApp = viewModel::resetApp,
+                    onNavigateToTags = { navController.navigate("tag_management") },
+                    onNavigateToProjects = { navController.navigate("project_list") },
+                    onNavigateToTemplates = { navController.navigate("templates") },
+                    onNavigateToArchive = { navController.navigate("archive") }
+                )
+
+                BackupExportSection(
+                    isDriveExporting = isDriveExporting,
+                    isDriveImporting = isDriveImporting,
+                    onExportJson = viewModel::onExportJson,
+                    onExportCsv = viewModel::onExportCsv,
+                    onImportJson = { importLauncher.launch(arrayOf("application/json", "*/*")) },
+                    onExportToDrive = viewModel::onExportToDrive,
+                    onImportFromDrive = viewModel::onImportFromDrive
+                )
+
+                AccountSyncSection(
+                    isSignedIn = isSignedIn,
+                    userEmail = viewModel.userEmail,
+                    isSyncing = isSyncing,
+                    onSync = viewModel::onSync,
+                    onSignOut = viewModel::onSignOut,
+                    onSignIn = { navController.navigate("auth") }
+                )
+
+                BackendSyncSection(
+                    backendConnected = backendConnected,
+                    backendLastSyncAt = backendLastSyncAt,
+                    isBackendSyncing = isBackendSyncing,
+                    isCloudExporting = isCloudExporting,
+                    isCloudImporting = isCloudImporting,
+                    onBackendSync = viewModel::onBackendSync,
+                    onBackendDisconnect = viewModel::onBackendDisconnect,
+                    onExportToCloud = viewModel::onExportToCloud,
+                    onImportFromCloud = { cloudImportLauncher.launch(arrayOf("application/json", "*/*")) },
+                    onOpenAuthDialog = { showBackendAuthDialog = true }
+                )
+
+                DeviceCalendarSection(
+                    calendarSyncEnabled = calendarSyncEnabled,
+                    calendarName = calendarName,
+                    availableCalendars = availableCalendars,
+                    onLoadCalendars = viewModel::loadCalendars,
+                    onSelectCalendar = viewModel::selectCalendar,
+                    onSetCalendarSyncEnabled = viewModel::setCalendarSyncEnabled
+                )
+
+                GoogleCalendarSection(
+                    isGCalConnected = isGCalConnected,
+                    gCalAccountEmail = gCalAccountEmail,
+                    gCalSyncEnabled = gCalSyncEnabled,
+                    gCalSyncCalendarId = gCalSyncCalendarId,
+                    gCalAvailableCalendars = gCalAvailableCalendars,
+                    gCalSyncDirection = gCalSyncDirection,
+                    gCalShowEvents = gCalShowEvents,
+                    gCalSyncCompletedTasks = gCalSyncCompletedTasks,
+                    gCalSyncFrequency = gCalSyncFrequency,
+                    gCalLastSyncTimestamp = gCalLastSyncTimestamp,
+                    isGCalSyncing = isGCalSyncing,
+                    onConnectGoogleCalendar = viewModel::connectGoogleCalendar,
+                    onDisconnectGoogleCalendar = viewModel::disconnectGoogleCalendar,
+                    onSetGCalSyncEnabled = viewModel::setGCalSyncEnabled,
+                    onLoadGCalCalendars = viewModel::loadGCalCalendars,
+                    onSetGCalSyncCalendarId = viewModel::setGCalSyncCalendarId,
+                    onSetGCalSyncDirection = viewModel::setGCalSyncDirection,
+                    onSetGCalShowEvents = viewModel::setGCalShowEvents,
+                    onSetGCalSyncCompletedTasks = viewModel::setGCalSyncCompletedTasks,
+                    onSetGCalSyncFrequency = viewModel::setGCalSyncFrequency,
+                    onSyncGCalNow = viewModel::syncGCalNow
+                )
+
+                AiSection(
+                    claudeApiKey = claudeApiKey,
+                    onSetClaudeApiKey = viewModel::setClaudeApiKey,
+                    onClearClaudeApiKey = viewModel::clearClaudeApiKey,
+                    onNavigateToEisenhower = { navController.navigate(PrismTaskRoute.EisenhowerMatrix.route) },
+                    onNavigateToSmartPomodoro = { navController.navigate(PrismTaskRoute.SmartPomodoro.route) },
+                    onNavigateToDailyBriefing = { navController.navigate(PrismTaskRoute.DailyBriefing.route) },
+                    onNavigateToWeeklyPlanner = { navController.navigate(PrismTaskRoute.WeeklyPlanner.route) },
+                    onNavigateToTimeline = { navController.navigate(PrismTaskRoute.Timeline.route) }
+                )
+
+                AiNotificationsSection(
+                    eveningSummaryEnabled = viewModel.eveningSummaryEnabled,
+                    reengagementEnabled = viewModel.reengagementEnabled,
+                    onEveningSummaryToggle = viewModel::onEveningSummaryToggle,
+                    onReengagementToggle = viewModel::onReengagementToggle
+                )
+
+                AppUpdateSection(
+                    updateStatus = updateStatus,
+                    updateError = updateError,
+                    latestReleaseTag = latestReleaseTag,
+                    onCheckForUpdate = viewModel::checkForUpdate,
+                    onDownloadAndInstallUpdate = viewModel::downloadAndInstallUpdate
+                )
+
+                VoiceInputSection(
+                    voiceInputEnabled = voiceInputEnabled,
+                    voiceFeedbackEnabled = voiceFeedbackEnabled,
+                    continuousModeEnabled = continuousModeEnabled,
+                    onVoiceInputEnabledChange = viewModel::setVoiceInputEnabled,
+                    onVoiceFeedbackEnabledChange = viewModel::setVoiceFeedbackEnabled,
+                    onContinuousModeEnabledChange = viewModel::setContinuousModeEnabled
+                )
+
+                AccessibilitySection(
+                    reduceMotionEnabled = reduceMotionEnabled,
+                    highContrastEnabled = highContrastEnabled,
+                    largeTouchTargetsEnabled = largeTouchTargetsEnabled,
+                    onReduceMotionChange = viewModel::setReduceMotion,
+                    onHighContrastChange = viewModel::setHighContrast,
+                    onLargeTouchTargetsChange = viewModel::setLargeTouchTargets
+                )
+
+                AboutSection(latestReleaseTag = latestReleaseTag)
+
+                if (BuildConfig.DEBUG) {
+                    DebugTierSection(
+                        debugTierOverride = debugTierOverride,
+                        onSetDebugTier = viewModel::setDebugTier,
+                        onClearDebugTier = viewModel::clearDebugTier
                     )
                 }
-            }
 
-            Spacer(modifier = Modifier.height(32.dp))
+                Spacer(modifier = Modifier.height(32.dp))
             }
         }
     }
-}
-
-@Composable
-private fun SubscriptionComparisonCard() {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
-        )
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            // Header row
-            Row(modifier = Modifier.fillMaxWidth()) {
-                Text(
-                    text = "",
-                    modifier = Modifier.weight(1.4f),
-                    style = MaterialTheme.typography.bodySmall
-                )
-                Text(
-                    text = "Free",
-                    modifier = Modifier.weight(1f),
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.Bold,
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                )
-                Text(
-                    text = "Pro\n\$3.99",
-                    modifier = Modifier.weight(1f),
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary,
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                )
-                Text(
-                    text = "Premium\n\$7.99",
-                    modifier = Modifier.weight(1f),
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFFD97706),
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                )
-            }
-            Spacer(modifier = Modifier.height(8.dp))
-            HorizontalDivider()
-            ComparisonRow("Core Tasks & Habits", free = true, pro = true, premium = true)
-            ComparisonRow("Calendar Sync", free = true, pro = true, premium = true)
-            ComparisonRow("Templates (Local)", free = true, pro = true, premium = true)
-            ComparisonRow("Cloud Sync", free = false, pro = true, premium = true)
-            ComparisonRow("AI Eisenhower & Pomodoro", free = false, pro = true, premium = true)
-            ComparisonRow("Analytics & Time Tracking", free = false, pro = true, premium = true)
-            ComparisonRow("AI Briefing & Planner", free = false, pro = false, premium = true)
-            ComparisonRow("Collaboration", free = false, pro = false, premium = true)
-            ComparisonRow("Integrations", free = false, pro = false, premium = true)
-        }
-    }
-}
-
-@Composable
-private fun ComparisonRow(
-    feature: String,
-    free: Boolean,
-    pro: Boolean,
-    premium: Boolean
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = feature,
-            modifier = Modifier.weight(1.4f),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        TierCheck(enabled = free, modifier = Modifier.weight(1f))
-        TierCheck(enabled = pro, modifier = Modifier.weight(1f))
-        TierCheck(enabled = premium, modifier = Modifier.weight(1f))
-    }
-}
-
-@Composable
-private fun TierCheck(enabled: Boolean, modifier: Modifier = Modifier) {
-    Text(
-        text = if (enabled) "\u2705" else "\u2014",
-        modifier = modifier,
-        style = MaterialTheme.typography.bodySmall,
-        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-        color = if (enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-    )
-}
-
-@Composable
-private fun SectionHeader(title: String) {
-    Text(
-        text = title,
-        style = MaterialTheme.typography.titleSmall,
-        fontWeight = FontWeight.Bold,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)
-    )
-}
-
-@Composable
-private fun SettingsRow(title: String, onClick: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(vertical = 14.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(text = title, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
-        Icon(Icons.Default.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
-    }
-}
-
-@Composable
-private fun SettingsRowWithSubtitle(title: String, subtitle: String, onClick: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(vertical = 14.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column {
-            Text(text = title, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
-            Text(text = subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-        Icon(Icons.Default.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
-    }
-}
-
-@Composable
-private fun SettingsToggleRow(
-    title: String,
-    subtitle: String,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 12.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(text = title, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
-            Text(text = subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-        androidx.compose.material3.Switch(checked = checked, onCheckedChange = onCheckedChange)
-    }
-}
-
-@Composable
-private fun AdvancedToggle(expanded: Boolean, onToggle: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onToggle)
-            .padding(vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = "Advanced",
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Spacer(modifier = Modifier.width(4.dp))
-        Icon(
-            imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-            contentDescription = if (expanded) "Collapse" else "Expand",
-            modifier = Modifier.size(18.dp),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-    }
-}
-
-@Composable
-private fun ReorderableRow(
-    label: String,
-    canMoveUp: Boolean,
-    canMoveDown: Boolean,
-    onMoveUp: () -> Unit,
-    onMoveDown: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 2.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodyLarge,
-            modifier = Modifier.weight(1f)
-        )
-        IconButton(onClick = onMoveUp, enabled = canMoveUp, modifier = Modifier.size(32.dp)) {
-            Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Move up", modifier = Modifier.size(20.dp))
-        }
-        IconButton(onClick = onMoveDown, enabled = canMoveDown, modifier = Modifier.size(32.dp)) {
-            Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Move down", modifier = Modifier.size(20.dp))
-        }
-    }
-}
-
-@Composable
-private fun ColorOverrideRow(label: String, currentHex: String, onClick: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        if (currentHex.isNotBlank()) {
-            val color = try { Color(android.graphics.Color.parseColor(currentHex)) } catch (_: Exception) { Color.Gray }
-            Box(
-                modifier = Modifier
-                    .size(24.dp)
-                    .clip(CircleShape)
-                    .background(color)
-                    .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
-            )
-        } else {
-            Box(
-                modifier = Modifier
-                    .size(24.dp)
-                    .clip(CircleShape)
-                    .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("--", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        }
-        Spacer(modifier = Modifier.width(12.dp))
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.weight(1f)
-        )
-        Text(
-            text = if (currentHex.isNotBlank()) currentHex else "Default",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-    }
-}
-
-@Composable
-private fun PriorityColorRow(label: String, currentHex: String, defaultColor: Color, onClick: () -> Unit) {
-    val displayColor = if (currentHex.isNotBlank()) {
-        try { Color(android.graphics.Color.parseColor(currentHex)) } catch (_: Exception) { defaultColor }
-    } else defaultColor
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(
-            modifier = Modifier
-                .size(24.dp)
-                .clip(CircleShape)
-                .background(displayColor)
-                .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
-        )
-        Spacer(modifier = Modifier.width(12.dp))
-        Text(text = label, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
-        Text(
-            text = if (currentHex.isNotBlank()) currentHex else "Default",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-    }
-}
-
-@Composable
-private fun ModeToggleRow(label: String, enabled: Boolean, onToggle: (Boolean) -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(label, style = MaterialTheme.typography.bodyLarge)
-        androidx.compose.material3.Switch(
-            checked = enabled,
-            onCheckedChange = onToggle
-        )
-    }
-}
-
-@Composable
-private fun UrgencyPreviewSamples(weights: com.averycorp.prismtask.data.preferences.UrgencyWeights) {
-    val now = System.currentTimeMillis()
-    val day = 24L * 60 * 60 * 1000
-    val samples = listOf(
-        Triple(
-            "Overdue report",
-            com.averycorp.prismtask.data.local.entity.TaskEntity(
-                id = 1, title = "Overdue report", priority = 3,
-                dueDate = now - day, createdAt = now - 3 * day
-            ),
-            0 to 0
-        ),
-        Triple(
-            "New idea",
-            com.averycorp.prismtask.data.local.entity.TaskEntity(
-                id = 2, title = "New idea", priority = 1,
-                dueDate = now + 7 * day, createdAt = now
-            ),
-            0 to 0
-        ),
-        Triple(
-            "Big project",
-            com.averycorp.prismtask.data.local.entity.TaskEntity(
-                id = 3, title = "Big project", priority = 2,
-                dueDate = now + 2 * day, createdAt = now - 14 * day
-            ),
-            5 to 2
-        )
-    )
-    Column {
-        samples.forEach { (label, task, subtasks) ->
-            val score = com.averycorp.prismtask.domain.usecase.UrgencyScorer.calculateScore(
-                task = task,
-                subtaskCount = subtasks.first,
-                subtaskCompleted = subtasks.second,
-                weights = weights
-            )
-            val level = com.averycorp.prismtask.domain.usecase.UrgencyScorer.getUrgencyLevel(score)
-            val indicatorColor = when (level) {
-                com.averycorp.prismtask.domain.usecase.UrgencyLevel.CRITICAL -> Color(0xFFE53935)
-                com.averycorp.prismtask.domain.usecase.UrgencyLevel.HIGH -> Color(0xFFFB8C00)
-                com.averycorp.prismtask.domain.usecase.UrgencyLevel.MEDIUM -> Color(0xFFFDD835)
-                com.averycorp.prismtask.domain.usecase.UrgencyLevel.LOW -> Color(0xFF43A047)
-            }
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 4.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(10.dp)
-                        .clip(CircleShape)
-                        .background(indicatorColor)
-                )
-                Spacer(Modifier.width(8.dp))
-                Text(label, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
-                Text(
-                    String.format("%.2f", score),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun WeightSlider(label: String, value: Float, onValueChange: (Float) -> Unit) {
-    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodySmall,
-            modifier = Modifier.width(80.dp)
-        )
-        Slider(
-            value = value,
-            onValueChange = onValueChange,
-            valueRange = 0.05f..0.7f,
-            modifier = Modifier.weight(1f)
-        )
-        Text(
-            text = "${(value * 100).toInt()}%",
-            style = MaterialTheme.typography.labelSmall,
-            modifier = Modifier.width(36.dp)
-        )
-    }
-}
-
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun ColorPickerDialog(
-    title: String,
-    currentHex: String,
-    onSelect: (String) -> Unit,
-    onClear: () -> Unit,
-    onDismiss: () -> Unit
-) {
-    var hexInput by remember(currentHex) { mutableStateOf(currentHex) }
-
-    val presetColors = listOf(
-        "#F44336", "#E91E63", "#9C27B0", "#673AB7", "#3F51B5", "#2196F3",
-        "#03A9F4", "#00BCD4", "#009688", "#4CAF50", "#8BC34A", "#CDDC39",
-        "#FFEB3B", "#FFC107", "#FF9800", "#FF5722", "#795548", "#607D8B",
-        "#9E9E9E", "#000000"
-    )
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(title) },
-        text = {
-            Column {
-                OutlinedTextField(
-                    value = hexInput,
-                    onValueChange = { hexInput = it },
-                    label = { Text("Hex Color") },
-                    placeholder = { Text("#FF0000") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    presetColors.forEach { hex ->
-                        val color = try { Color(android.graphics.Color.parseColor(hex)) } catch (_: Exception) { Color.Gray }
-                        Box(
-                            modifier = Modifier
-                                .size(32.dp)
-                                .clip(CircleShape)
-                                .background(color)
-                                .then(
-                                    if (hexInput.equals(hex, ignoreCase = true))
-                                        Modifier.border(2.dp, MaterialTheme.colorScheme.onSurface, CircleShape)
-                                    else Modifier
-                                )
-                                .clickable { hexInput = hex }
-                        )
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = { onSelect(hexInput) },
-                enabled = hexInput.isNotBlank()
-            ) { Text("Apply") }
-        },
-        dismissButton = {
-            Row {
-                TextButton(onClick = onClear) {
-                    Text("Reset to Default", color = MaterialTheme.colorScheme.error)
-                }
-                TextButton(onClick = onDismiss) { Text("Cancel") }
-            }
-        }
-    )
-}
-
-@Composable
-private fun DurationPickerDialog(
-    title: String,
-    currentMinutes: Int,
-    onConfirm: (Int) -> Unit,
-    onDismiss: () -> Unit
-) {
-    val minMinutes = TimerPreferences.MIN_SECONDS / 60
-    val maxMinutes = TimerPreferences.MAX_SECONDS / 60
-    var minutes by remember(currentMinutes) {
-        mutableStateOf(currentMinutes.coerceIn(minMinutes, maxMinutes))
-    }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(title) },
-        text = {
-            Column {
-                Text(
-                    text = "$minutes min",
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 8.dp)
-                )
-                Slider(
-                    value = minutes.toFloat(),
-                    onValueChange = { minutes = it.toInt().coerceIn(minMinutes, maxMinutes) },
-                    valueRange = minMinutes.toFloat()..maxMinutes.toFloat()
-                )
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text("$minMinutes min", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text("$maxMinutes min", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = { onConfirm(minutes) }) { Text("Save") }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
-        }
-    )
-}
-
-private fun parseColorSafe(hex: String): Color {
-    return try {
-        Color(android.graphics.Color.parseColor(hex))
-    } catch (_: Exception) {
-        Color(0xFF4285F4) // Google Blue default
-    }
-}
-
-private fun formatLastSync(timestamp: Long): String {
-    if (timestamp <= 0L) return "Never"
-    val now = System.currentTimeMillis()
-    val diff = now - timestamp
-    return when {
-        diff < 60_000L -> "Just now"
-        diff < 3_600_000L -> "${diff / 60_000L} min ago"
-        diff < 86_400_000L -> "${diff / 3_600_000L} hr ago"
-        else -> {
-            val date = java.util.Date(timestamp)
-            val format = java.text.SimpleDateFormat("MMM d, h:mm a", java.util.Locale.getDefault())
-            format.format(date)
-        }
-    }
-}
-
-@Composable
-private fun BackendAuthDialog(
-    isAuthenticating: Boolean,
-    onLogin: (email: String, password: String) -> Unit,
-    onRegister: (email: String, password: String, name: String) -> Unit,
-    onDismiss: () -> Unit
-) {
-    var isRegisterMode by remember { mutableStateOf(false) }
-    var email by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
-    var name by remember { mutableStateOf("") }
-
-    AlertDialog(
-        onDismissRequest = { if (!isAuthenticating) onDismiss() },
-        title = { Text(if (isRegisterMode) "Create Backend Account" else "Connect to Backend") },
-        text = {
-            Column {
-                Text(
-                    text = if (isRegisterMode) {
-                        "Create a new account to sync with the PrismTask backend."
-                    } else {
-                        "Sign in to sync with the PrismTask backend."
-                    },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(bottom = 12.dp)
-                )
-                if (isRegisterMode) {
-                    OutlinedTextField(
-                        value = name,
-                        onValueChange = { name = it },
-                        label = { Text("Name") },
-                        singleLine = true,
-                        enabled = !isAuthenticating,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 8.dp)
-                    )
-                }
-                OutlinedTextField(
-                    value = email,
-                    onValueChange = { email = it },
-                    label = { Text("Email") },
-                    singleLine = true,
-                    enabled = !isAuthenticating,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 8.dp)
-                )
-                OutlinedTextField(
-                    value = password,
-                    onValueChange = { password = it },
-                    label = { Text("Password") },
-                    singleLine = true,
-                    enabled = !isAuthenticating,
-                    visualTransformation = PasswordVisualTransformation(),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 8.dp)
-                )
-                TextButton(
-                    onClick = { isRegisterMode = !isRegisterMode },
-                    enabled = !isAuthenticating
-                ) {
-                    Text(
-                        text = if (isRegisterMode) {
-                            "Already have an account? Sign in"
-                        } else {
-                            "New user? Create an account"
-                        }
-                    )
-                }
-                if (isAuthenticating) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = {
-                    if (isRegisterMode) {
-                        onRegister(email.trim(), password, name.trim())
-                    } else {
-                        onLogin(email.trim(), password)
-                    }
-                },
-                enabled = !isAuthenticating &&
-                        email.isNotBlank() &&
-                        password.isNotBlank() &&
-                        (!isRegisterMode || name.isNotBlank())
-            ) {
-                Text(if (isRegisterMode) "Register" else "Sign In")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss, enabled = !isAuthenticating) {
-                Text("Cancel")
-            }
-        }
-    )
 }
