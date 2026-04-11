@@ -225,8 +225,3 @@ fun AddEditTemplateScreen(
     }
 }
 
-// ---------------------------------------------------------------------------
-// Template info section (name, icon, category)
-// ---------------------------------------------------------------------------
-
-@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)

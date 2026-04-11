@@ -75,6 +75,7 @@ import com.averycorp.prismtask.data.local.entity.TagEntity
 import com.averycorp.prismtask.domain.model.RecurrenceRule
 import com.averycorp.prismtask.domain.model.RecurrenceType
 import com.averycorp.prismtask.ui.components.RecurrenceDialog
+import com.averycorp.prismtask.ui.screens.templates.AddEditTemplateViewModel
 import com.averycorp.prismtask.ui.theme.LocalPriorityColors
 import kotlinx.coroutines.launch
 
@@ -793,5 +794,16 @@ internal fun formatRecurrenceSummary(rule: RecurrenceRule): String {
         RecurrenceType.YEARLY ->
             if (interval == 1) "Every Year" else "Every $interval Years"
         RecurrenceType.CUSTOM -> "Custom"
+        RecurrenceType.WEEKDAY -> "Every Weekday"
+        RecurrenceType.BIWEEKLY -> "Every Other Week"
+        RecurrenceType.CUSTOM_DAYS -> {
+            val days = rule.monthDays?.takeIf { it.isNotEmpty() }?.sorted()?.joinToString(", ")
+            if (days != null) "Monthly on Days $days" else "Custom Days"
+        }
+        RecurrenceType.AFTER_COMPLETION -> {
+            val n = rule.afterCompletionInterval ?: 1
+            val unit = rule.afterCompletionUnit ?: "days"
+            "$n $unit After Completion"
+        }
     }
 }

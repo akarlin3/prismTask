@@ -148,6 +148,7 @@ import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 import com.averycorp.prismtask.ui.screens.tasklist.components.ActiveFilterPills
+import com.averycorp.prismtask.ui.screens.tasklist.components.DuplicateDialogState
 import com.averycorp.prismtask.ui.screens.tasklist.components.GroupHeader
 import com.averycorp.prismtask.ui.screens.tasklist.components.ProjectFilterRow
 import com.averycorp.prismtask.ui.screens.tasklist.components.ProjectGroupHeader
@@ -161,12 +162,6 @@ private data class TaskEditorSheetState(
     val taskId: Long? = null,
     val projectId: Long? = null,
     val initialDate: Long? = null,
-)
-
-private data class DuplicateDialogState(
-    val taskId: Long,
-    val dueDate: Long?,
-    val subtaskCount: Int
 )
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class, ExperimentalFoundationApi::class)

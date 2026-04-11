@@ -1,5 +1,7 @@
 package com.averycorp.prismtask.ui.screens.habits.components
 
+import com.averycorp.prismtask.ui.screens.habits.HabitListViewModel
+import com.averycorp.prismtask.ui.screens.habits.SelfCareCardData
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background

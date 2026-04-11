@@ -138,6 +138,8 @@ import com.averycorp.prismtask.ui.components.SubtaskSection
 import com.averycorp.prismtask.ui.components.computeInitialTagStates
 import com.averycorp.prismtask.ui.navigation.PrismTaskRoute
 import com.averycorp.prismtask.ui.screens.addedittask.AddEditTaskSheetHost
+import com.averycorp.prismtask.ui.screens.tasklist.TaskListViewModel
+import com.averycorp.prismtask.data.preferences.SwipePrefs
 import com.averycorp.prismtask.ui.theme.LocalPriorityColors
 import kotlinx.coroutines.launch
 import sh.calvin.reorderable.ReorderableItem
@@ -156,7 +158,7 @@ private data class TaskEditorSheetState(
     val initialDate: Long? = null,
 )
 
-private data class DuplicateDialogState(
+internal data class DuplicateDialogState(
     val taskId: Long,
     val dueDate: Long?,
     val subtaskCount: Int
@@ -283,7 +285,8 @@ internal fun androidx.compose.foundation.lazy.LazyListScope.taskItemWithSubtasks
     selectedTaskIds: Set<Long>,
     onExpandChange: (Set<Long>) -> Unit,
     onFocusChange: (Long?) -> Unit,
-    onDuplicate: (DuplicateDialogState) -> Unit
+    onDuplicate: (DuplicateDialogState) -> Unit,
+    swipePrefs: SwipePrefs
 ) {
     val subtasks = subtasksMap[task.id].orEmpty()
     val tags = taskTagsMap[task.id].orEmpty()
@@ -1154,7 +1157,7 @@ internal fun ProjectChip(project: ProjectEntity) {
     }
 }
 
-private data class DueDateLabel(val text: String, val color: Color)
+internal data class DueDateLabel(val text: String, val color: Color)
 
 @Composable
 internal fun formatDueDate(epochMillis: Long): DueDateLabel {

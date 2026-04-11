@@ -1,5 +1,7 @@
 package com.averycorp.prismtask.ui.screens.habits
 
+import com.averycorp.prismtask.ui.screens.habits.components.ActivityLogDialog
+import com.averycorp.prismtask.ui.screens.habits.components.BookingDialog
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box

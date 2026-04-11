@@ -1,7 +1,14 @@
 package com.averycorp.prismtask.ui.screens.addedittask.tabs
 
 import com.averycorp.prismtask.ui.screens.addedittask.AddEditTaskViewModel
+import com.averycorp.prismtask.ui.screens.addedittask.ReminderPickerDialog
+import com.averycorp.prismtask.ui.screens.addedittask.SectionLabel
+import com.averycorp.prismtask.ui.screens.addedittask.TimePickerDialog
+import com.averycorp.prismtask.ui.screens.addedittask.formatTime
 import com.averycorp.prismtask.ui.screens.addedittask.parseColorOr
+import com.averycorp.prismtask.ui.screens.addedittask.todayMillis
+import com.averycorp.prismtask.ui.screens.addedittask.tomorrowMillis
+import com.averycorp.prismtask.ui.screens.addedittask.weekFromNowMillis
 import com.averycorp.prismtask.ui.screens.addedittask.PROJECT_COLORS
 import com.averycorp.prismtask.ui.screens.addedittask.TAG_COLORS
 
@@ -595,6 +602,17 @@ internal fun formatRecurrenceSummary(rule: RecurrenceRule): String {
         }
         RecurrenceType.YEARLY -> if (interval == 1) "Every Year" else "Every $interval Years"
         RecurrenceType.CUSTOM -> "Custom"
+        RecurrenceType.WEEKDAY -> "Every Weekday"
+        RecurrenceType.BIWEEKLY -> "Every Other Week"
+        RecurrenceType.CUSTOM_DAYS -> {
+            val days = rule.monthDays?.takeIf { it.isNotEmpty() }?.sorted()?.joinToString(", ")
+            if (days != null) "Monthly on Days $days" else "Custom Days"
+        }
+        RecurrenceType.AFTER_COMPLETION -> {
+            val n = rule.afterCompletionInterval ?: 1
+            val unit = rule.afterCompletionUnit ?: "days"
+            "$n $unit After Completion"
+        }
     }
     return base
 }

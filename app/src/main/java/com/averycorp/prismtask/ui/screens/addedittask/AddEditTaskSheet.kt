@@ -135,6 +135,7 @@ import com.averycorp.prismtask.ui.screens.addedittask.tabs.DetailsTabContent
 import com.averycorp.prismtask.ui.screens.addedittask.tabs.OrganizeTabContent
 import com.averycorp.prismtask.ui.screens.addedittask.tabs.PriorityCircleRow
 import com.averycorp.prismtask.ui.screens.addedittask.tabs.ScheduleTabContent
+import com.averycorp.prismtask.ui.screens.addedittask.tabs.formatShortDate
 import com.averycorp.prismtask.ui.screens.coaching.CoachingViewModel
 import com.averycorp.prismtask.ui.screens.templates.TemplatePickerSheet
 import com.averycorp.prismtask.ui.theme.LocalPriorityColors

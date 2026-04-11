@@ -67,6 +67,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.averycorp.prismtask.ui.screens.leisure.components.ActivitySection
 import com.averycorp.prismtask.ui.screens.leisure.components.AddActivityDialog
 import com.averycorp.prismtask.ui.screens.leisure.components.AddOptionCard
+import com.averycorp.prismtask.ui.screens.leisure.components.LeisureOption
 import com.averycorp.prismtask.ui.screens.leisure.components.OptionCard
 import com.averycorp.prismtask.ui.screens.leisure.components.ProgressCard
 import com.averycorp.prismtask.ui.screens.leisure.components.SectionHeader
@@ -74,8 +75,6 @@ import com.averycorp.prismtask.ui.screens.leisure.components.SectionTimer
 import com.averycorp.prismtask.ui.screens.leisure.components.SelectedItem
 import androidx.navigation.NavController
 import kotlinx.coroutines.delay
-
-data class LeisureOption(val id: String, val label: String, val icon: String)
 
 private val musicColor = Color(0xFF8B5CF6)
 private val successColor = Color(0xFF10B981)
