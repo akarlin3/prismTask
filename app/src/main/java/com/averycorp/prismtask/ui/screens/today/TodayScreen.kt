@@ -138,7 +138,8 @@ fun TodayScreen(
     viewModel: TodayViewModel = hiltViewModel(),
     coachingViewModel: CoachingViewModel = hiltViewModel(),
     autoStartVoice: Boolean = false,
-    onVoiceAutoStartConsumed: () -> Unit = {}
+    onVoiceAutoStartConsumed: () -> Unit = {},
+    onNavigateToHabits: () -> Unit = {}
 ) {
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
     val overdueTasks by viewModel.overdueTasks.collectAsStateWithLifecycle()
@@ -454,7 +455,7 @@ fun TodayScreen(
                             onToggle = { hws ->
                                 viewModel.onToggleHabitCompletion(hws.habit.id, hws.isCompletedToday)
                             },
-                            onSeeAll = { navController.navigate(PrismTaskRoute.HabitList.route) }
+                            onSeeAll = onNavigateToHabits
                         )
                     }
                 }
