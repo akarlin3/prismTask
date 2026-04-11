@@ -62,7 +62,10 @@ private const val NAV_ANIM_DURATION = 300
  * Every destination here closes only over [navController]; no other
  * NavGraph-local state is required.
  */
-internal fun NavGraphBuilder.featureRoutes(navController: NavHostController) {
+internal fun NavGraphBuilder.featureRoutes(
+    navController: NavHostController,
+    initialSharedText: String? = null
+) {
             composable(
                 route = PrismTaskRoute.ProjectList.route,
                 enterTransition = {
@@ -601,7 +604,10 @@ internal fun NavGraphBuilder.featureRoutes(navController: NavHostController) {
             }
 
             composable(route = PrismTaskRoute.PasteConversation.route) {
-                PasteConversationScreen(navController)
+                PasteConversationScreen(
+                    navController = navController,
+                    sharedText = initialSharedText
+                )
             }
 
             composable(route = PrismTaskRoute.MedicationRefill.route) {

@@ -1,6 +1,7 @@
 package com.averycorp.prismtask
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -78,6 +79,16 @@ class MainActivity : ComponentActivity() {
         syncService.startAutoSync()
         billingManager.initialize(this)
         val launchAction = intent?.getStringExtra(EXTRA_LAUNCH_ACTION)
+        // v1.4.0 V9: support Android share-intent entry into the Paste
+        // Conversation screen. When another app sends text to PrismTask
+        // (ACTION_SEND, text/plain) the text is forwarded to the nav
+        // graph which navigates to PasteConversation with a pre-filled
+        // input. Non-share launches leave this null.
+        val initialSharedText: String? = when {
+            intent?.action == Intent.ACTION_SEND && intent?.type == "text/plain" ->
+                intent?.getStringExtra(Intent.EXTRA_TEXT)
+            else -> null
+        }
         setContent {
             var updateInfo by remember { mutableStateOf<VersionInfo?>(null) }
 
@@ -183,6 +194,7 @@ class MainActivity : ComponentActivity() {
                     tabOrder = tabOrder,
                     hiddenTabs = hiddenTabs,
                     initialLaunchAction = launchAction,
+                    initialSharedText = initialSharedText,
                     hasCompletedOnboarding = hasCompletedOnboarding
                 )
             }

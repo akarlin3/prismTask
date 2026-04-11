@@ -37,6 +37,16 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- v1.4.0 V9: accept shared text from other apps (Claude,
+                 ChatGPT, email, messaging) so users can extract tasks
+                 straight from a conversation via the Android share
+                 sheet. MainActivity forwards the EXTRA_TEXT to the
+                 PasteConversation screen. -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
         </activity>
 
         <provider
