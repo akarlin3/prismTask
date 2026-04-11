@@ -61,6 +61,7 @@ import com.averycorp.prismtask.ui.screens.settings.sections.TaskDefaultsSection
 import com.averycorp.prismtask.ui.screens.settings.sections.TimerSection
 import com.averycorp.prismtask.ui.screens.settings.sections.VoiceInputSection
 import com.averycorp.prismtask.ui.screens.settings.sections.BoundariesSection
+import com.averycorp.prismtask.ui.screens.settings.sections.ClinicalReportSection
 import com.averycorp.prismtask.ui.screens.settings.sections.ForgivenessStreakSection
 import com.averycorp.prismtask.ui.screens.settings.sections.WorkLifeBalanceSection
 
@@ -103,6 +104,18 @@ fun SettingsScreen(
     // Boundary rules (v1.4.0 V3)
     val boundaryRules by viewModel.boundaryRules.collectAsStateWithLifecycle()
     var showAddBoundaryDialog by remember { mutableStateOf(false) }
+
+    // Clinical report export (v1.4.0 V8)
+    val isExportingClinicalReport by viewModel.isExportingClinicalReport.collectAsStateWithLifecycle()
+    val clinicalReportUri by viewModel.clinicalReportUri.collectAsStateWithLifecycle()
+
+    LaunchedEffect(clinicalReportUri) {
+        val uri = clinicalReportUri
+        if (uri != null) {
+            snackbarHostState.showSnackbar("Health report saved to Downloads")
+            viewModel.clearClinicalReportUri()
+        }
+    }
 
     // Data
     val autoArchiveDays by viewModel.autoArchiveDays.collectAsStateWithLifecycle()
@@ -428,6 +441,11 @@ fun SettingsScreen(
                     onToggle = { rule, enabled -> viewModel.toggleBoundaryRule(rule, enabled) },
                     onDelete = viewModel::deleteBoundaryRule,
                     onAdd = { showAddBoundaryDialog = true }
+                )
+
+                ClinicalReportSection(
+                    isExporting = isExportingClinicalReport,
+                    onExportReport = { viewModel.exportClinicalReport() }
                 )
 
                 TaskDefaultsSection(

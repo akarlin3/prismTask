@@ -98,8 +98,47 @@ class SettingsViewModel @Inject constructor(
     private val a11yPreferences: A11yPreferences,
     private val userPreferencesDataStore: com.averycorp.prismtask.data.preferences.UserPreferencesDataStore,
     private val boundaryRuleRepository: com.averycorp.prismtask.data.repository.BoundaryRuleRepository,
+    private val moodEnergyRepository: com.averycorp.prismtask.data.repository.MoodEnergyRepository,
+    private val medicationRefillRepository: com.averycorp.prismtask.data.repository.MedicationRefillRepository,
+    private val clinicalReportPdfWriter: com.averycorp.prismtask.data.export.ClinicalReportPdfWriter,
+    @dagger.hilt.android.qualifiers.ApplicationContext private val appContext: android.content.Context,
     private val onboardingPreferences: OnboardingPreferences
 ) : ViewModel() {
+
+    private val _isExportingClinicalReport = kotlinx.coroutines.flow.MutableStateFlow(false)
+    val isExportingClinicalReport: StateFlow<Boolean> = _isExportingClinicalReport
+
+    private val _clinicalReportUri = kotlinx.coroutines.flow.MutableStateFlow<android.net.Uri?>(null)
+    val clinicalReportUri: StateFlow<android.net.Uri?> = _clinicalReportUri
+
+    fun clearClinicalReportUri() {
+        _clinicalReportUri.value = null
+    }
+
+    fun exportClinicalReport() {
+        if (_isExportingClinicalReport.value) return
+        _isExportingClinicalReport.value = true
+        viewModelScope.launch {
+            try {
+                val end = System.currentTimeMillis()
+                val start = end - 30L * 24 * 60 * 60 * 1000
+                val generator = com.averycorp.prismtask.domain.usecase.ClinicalReportGenerator()
+                val inputs = com.averycorp.prismtask.domain.usecase.ClinicalReportInputs(
+                    userName = null,
+                    dateRangeStart = start,
+                    dateRangeEnd = end,
+                    tasks = taskRepository.getAllTasksOnce(),
+                    moodEnergyLogs = moodEnergyRepository.getRange(start, end),
+                    medications = medicationRefillRepository.getAll()
+                )
+                val report = generator.generate(inputs)
+                val uri = clinicalReportPdfWriter.write(appContext, report)
+                _clinicalReportUri.value = uri
+            } finally {
+                _isExportingClinicalReport.value = false
+            }
+        }
+    }
 
     // --- v1.3.0 User Preferences ---
     val appearancePrefs: StateFlow<com.averycorp.prismtask.data.preferences.AppearancePrefs> =
