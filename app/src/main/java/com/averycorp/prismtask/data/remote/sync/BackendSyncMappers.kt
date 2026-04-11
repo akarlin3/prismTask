@@ -1,0 +1,217 @@
+package com.averycorp.prismtask.data.remote.sync
+
+import android.util.Log
+import com.averycorp.prismtask.data.local.dao.HabitCompletionDao
+import com.averycorp.prismtask.data.local.dao.HabitDao
+import com.averycorp.prismtask.data.local.dao.ProjectDao
+import com.averycorp.prismtask.data.local.dao.TagDao
+import com.averycorp.prismtask.data.local.dao.TaskDao
+import com.averycorp.prismtask.data.local.dao.TaskTemplateDao
+import com.averycorp.prismtask.data.local.entity.HabitCompletionEntity
+import com.averycorp.prismtask.data.local.entity.HabitEntity
+import com.averycorp.prismtask.data.local.entity.ProjectEntity
+import com.averycorp.prismtask.data.local.entity.TagEntity
+import com.averycorp.prismtask.data.local.entity.TaskEntity
+import com.averycorp.prismtask.data.local.entity.TaskTemplateEntity
+import com.averycorp.prismtask.data.preferences.AuthTokenPreferences
+import com.averycorp.prismtask.data.preferences.BackendSyncPreferences
+import com.averycorp.prismtask.data.preferences.TemplatePreferences
+import com.averycorp.prismtask.data.remote.api.PrismTaskApi
+import com.google.gson.JsonObject
+import java.time.Instant
+import java.time.OffsetDateTime
+import javax.inject.Inject
+import javax.inject.Singleton
+
+// Entity-to-operation mappers + JSON helpers extracted from BackendSyncService.
+
+internal fun taskToOperation(task: TaskEntity): SyncOperation {
+    val data = JsonObject().apply {
+        addProperty("id", task.id)
+        addProperty("title", task.title)
+        if (task.description != null) addProperty("description", task.description)
+        if (task.dueDate != null) addProperty("due_date", task.dueDate)
+        if (task.dueTime != null) addProperty("due_time", task.dueTime)
+        addProperty("priority", task.priority)
+        addProperty("is_completed", task.isCompleted)
+        if (task.projectId != null) addProperty("project_id", task.projectId)
+        if (task.parentTaskId != null) addProperty("parent_task_id", task.parentTaskId)
+        if (task.recurrenceRule != null) addProperty("recurrence_rule", task.recurrenceRule)
+        if (task.reminderOffset != null) addProperty("reminder_offset", task.reminderOffset)
+        addProperty("created_at", task.createdAt)
+        addProperty("updated_at", task.updatedAt)
+        if (task.completedAt != null) addProperty("completed_at", task.completedAt)
+        if (task.archivedAt != null) addProperty("archived_at", task.archivedAt)
+        if (task.notes != null) addProperty("notes", task.notes)
+        if (task.plannedDate != null) addProperty("planned_date", task.plannedDate)
+        if (task.estimatedDuration != null) addProperty("estimated_duration", task.estimatedDuration)
+        if (task.scheduledStartTime != null) addProperty("scheduled_start_time", task.scheduledStartTime)
+        if (task.sourceHabitId != null) addProperty("source_habit_id", task.sourceHabitId)
+    }
+    return SyncOperation(
+        entityType = "task",
+        operation = "update",
+        entityId = task.id,
+        data = data,
+        clientTimestamp = millisToIso(task.updatedAt)
+    )
+}
+
+internal fun projectToOperation(project: ProjectEntity): SyncOperation {
+    val data = JsonObject().apply {
+        addProperty("id", project.id)
+        addProperty("name", project.name)
+        addProperty("color", project.color)
+        addProperty("icon", project.icon)
+        addProperty("created_at", project.createdAt)
+        addProperty("updated_at", project.updatedAt)
+    }
+    return SyncOperation(
+        entityType = "project",
+        operation = "update",
+        entityId = project.id,
+        data = data,
+        clientTimestamp = millisToIso(project.updatedAt)
+    )
+}
+
+internal fun tagToOperation(tag: TagEntity): SyncOperation {
+    val data = JsonObject().apply {
+        addProperty("id", tag.id)
+        addProperty("name", tag.name)
+        addProperty("color", tag.color)
+        addProperty("created_at", tag.createdAt)
+    }
+    return SyncOperation(
+        entityType = "tag",
+        operation = "update",
+        entityId = tag.id,
+        data = data,
+        clientTimestamp = millisToIso(tag.createdAt)
+    )
+}
+
+internal fun habitToOperation(habit: HabitEntity): SyncOperation {
+    val data = JsonObject().apply {
+        addProperty("id", habit.id)
+        addProperty("name", habit.name)
+        if (habit.description != null) addProperty("description", habit.description)
+        addProperty("target_frequency", habit.targetFrequency)
+        addProperty("frequency_period", habit.frequencyPeriod)
+        if (habit.activeDays != null) addProperty("active_days", habit.activeDays)
+        addProperty("color", habit.color)
+        addProperty("icon", habit.icon)
+        if (habit.reminderTime != null) addProperty("reminder_time", habit.reminderTime)
+        addProperty("sort_order", habit.sortOrder)
+        addProperty("is_archived", habit.isArchived)
+        if (habit.category != null) addProperty("category", habit.category)
+        addProperty("create_daily_task", habit.createDailyTask)
+        if (habit.reminderIntervalMillis != null) addProperty("reminder_interval_millis", habit.reminderIntervalMillis)
+        addProperty("reminder_times_per_day", habit.reminderTimesPerDay)
+        addProperty("has_logging", habit.hasLogging)
+        addProperty("track_booking", habit.trackBooking)
+        addProperty("track_previous_period", habit.trackPreviousPeriod)
+        addProperty("created_at", habit.createdAt)
+        addProperty("updated_at", habit.updatedAt)
+    }
+    return SyncOperation(
+        entityType = "habit",
+        operation = "update",
+        entityId = habit.id,
+        data = data,
+        clientTimestamp = millisToIso(habit.updatedAt)
+    )
+}
+
+internal fun habitCompletionToOperation(completion: HabitCompletionEntity): SyncOperation {
+    val data = JsonObject().apply {
+        addProperty("id", completion.id)
+        addProperty("habit_id", completion.habitId)
+        addProperty("completed_date", completion.completedDate)
+        addProperty("completed_at", completion.completedAt)
+        if (completion.notes != null) addProperty("notes", completion.notes)
+    }
+    return SyncOperation(
+        entityType = "habit_completion",
+        operation = "update",
+        entityId = completion.id,
+        data = data,
+        clientTimestamp = millisToIso(completion.completedAt)
+    )
+}
+
+internal fun taskTemplateToOperation(template: TaskTemplateEntity): SyncOperation {
+    val data = JsonObject().apply {
+        addProperty("id", template.id)
+        addProperty("name", template.name)
+        if (template.description != null) addProperty("description", template.description)
+        if (template.icon != null) addProperty("icon", template.icon)
+        if (template.category != null) addProperty("category", template.category)
+        if (template.templateTitle != null) addProperty("template_title", template.templateTitle)
+        if (template.templateDescription != null)
+            addProperty("template_description", template.templateDescription)
+        if (template.templatePriority != null)
+            addProperty("template_priority", template.templatePriority)
+        if (template.templateProjectId != null)
+            addProperty("template_project_id", template.templateProjectId)
+        if (template.templateTagsJson != null)
+            addProperty("template_tags_json", template.templateTagsJson)
+        if (template.templateRecurrenceJson != null)
+            addProperty("template_recurrence_json", template.templateRecurrenceJson)
+        if (template.templateDuration != null)
+            addProperty("template_duration", template.templateDuration)
+        if (template.templateSubtasksJson != null)
+            addProperty("template_subtasks_json", template.templateSubtasksJson)
+        addProperty("is_built_in", template.isBuiltIn)
+        addProperty("usage_count", template.usageCount)
+        if (template.lastUsedAt != null) addProperty("last_used_at", template.lastUsedAt)
+        addProperty("created_at", template.createdAt)
+        addProperty("updated_at", template.updatedAt)
+    }
+    return SyncOperation(
+        entityType = "task_template",
+        operation = "update",
+        entityId = template.id,
+        data = data,
+        clientTimestamp = millisToIso(template.updatedAt)
+    )
+}
+
+internal fun JsonObject.optString(key: String): String? =
+    get(key)?.takeIf { !it.isJsonNull }?.asString
+
+internal fun JsonObject.optLong(key: String): Long? =
+    get(key)?.takeIf { !it.isJsonNull }?.asLong
+
+internal fun JsonObject.optInt(key: String): Int? =
+    get(key)?.takeIf { !it.isJsonNull }?.asInt
+
+internal fun JsonObject.optBool(key: String): Boolean? =
+    get(key)?.takeIf { !it.isJsonNull }?.asBoolean
+
+// endregion
+
+// region Timestamp helpers
+
+/**
+ * Convert epoch milliseconds to an ISO 8601 UTC string that Pydantic's
+ * `datetime` type accepts (e.g. "2026-04-09T12:34:56.789Z").
+ */
+internal fun millisToIso(millis: Long): String =
+    Instant.ofEpochMilli(millis).toString()
+
+/**
+ * Parse an ISO 8601 datetime string (with or without timezone offset) into
+ * epoch milliseconds. Returns null if the string can't be parsed.
+ */
+internal fun isoToMillisOrNull(iso: String): Long? = try {
+    OffsetDateTime.parse(iso).toInstant().toEpochMilli()
+} catch (_: Exception) {
+    try {
+        Instant.parse(iso).toEpochMilli()
+    } catch (_: Exception) {
+        null
+    }
+}
+
+// endregion
