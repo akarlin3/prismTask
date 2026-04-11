@@ -74,6 +74,7 @@ import com.averycorp.prismtask.ui.screens.today.components.FloatingQuickAddBar
 import com.averycorp.prismtask.ui.screens.today.components.HabitChipRow
 import com.averycorp.prismtask.ui.screens.today.components.NeutralGray
 import com.averycorp.prismtask.ui.screens.today.components.OverloadBanner
+import com.averycorp.prismtask.ui.screens.today.components.SelfCareNudgeCard
 import com.averycorp.prismtask.ui.screens.today.components.PlanForTodaySheet
 import com.averycorp.prismtask.ui.screens.today.components.SwipeableTaskItem
 import com.averycorp.prismtask.ui.screens.today.components.TodayBalanceSection
@@ -121,6 +122,7 @@ fun TodayScreen(
     val workLifeBalancePrefs by viewModel.workLifeBalancePrefs.collectAsStateWithLifecycle()
     val burnoutResult by viewModel.burnoutResult.collectAsStateWithLifecycle()
     val showCheckInPrompt by viewModel.showCheckInPrompt.collectAsStateWithLifecycle()
+    val currentNudge by viewModel.currentNudge.collectAsStateWithLifecycle()
     var overloadBannerDismissed by remember { mutableStateOf(false) }
 
     val coachingUserTier by coachingViewModel.userTier.collectAsStateWithLifecycle()
@@ -344,6 +346,19 @@ fun TodayScreen(
                             }) { androidx.compose.material3.Text("Skip") }
                         }
                     }
+                }
+            }
+
+            // Self-care nudge card (v1.4.0 V2). Only shows when the nudge
+            // engine picks one based on balance state + burnout score.
+            currentNudge?.let { nudge ->
+                item(key = "self_care_nudge") {
+                    SelfCareNudgeCard(
+                        nudge = nudge,
+                        onDidIt = { viewModel.nudgeDidIt() },
+                        onSnooze = { viewModel.snoozeNudge() },
+                        onDismiss = { viewModel.dismissNudge() }
+                    )
                 }
             }
 

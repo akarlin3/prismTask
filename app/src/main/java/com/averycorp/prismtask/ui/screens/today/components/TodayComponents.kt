@@ -71,6 +71,7 @@ import com.averycorp.prismtask.domain.model.LifeCategory
 import com.averycorp.prismtask.domain.usecase.BalanceState
 import com.averycorp.prismtask.domain.usecase.BurnoutBand
 import com.averycorp.prismtask.domain.usecase.BurnoutResult
+import com.averycorp.prismtask.domain.usecase.SelfCareNudge
 import com.averycorp.prismtask.ui.components.CircularCheckbox
 import com.averycorp.prismtask.ui.components.QuickAddBar
 import com.averycorp.prismtask.ui.theme.LifeCategoryColor
@@ -314,6 +315,52 @@ private fun BurnoutBadge(result: BurnoutResult) {
             fontWeight = FontWeight.SemiBold,
             color = color
         )
+    }
+}
+
+/**
+ * Gentle self-care nudge card (v1.4.0 V2). Shown beneath the balance bar
+ * when [SelfCareNudgeEngine] picks a nudge for the current moment. The
+ * user can tap "Did It" to log a quick self-care completion, "Snooze" to
+ * hide for an hour, or "Not Now" to dismiss for the day.
+ */
+@Composable
+internal fun SelfCareNudgeCard(
+    nudge: SelfCareNudge,
+    onDidIt: () -> Unit,
+    onSnooze: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = LifeCategoryColor.SELF_CARE.copy(alpha = 0.12f)
+        )
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = "\uD83D\uDCA1",
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = nudge.message,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+            Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
+                androidx.compose.material3.TextButton(onClick = onDismiss) { Text("Not Now") }
+                androidx.compose.material3.TextButton(onClick = onSnooze) { Text("Snooze") }
+                androidx.compose.material3.TextButton(onClick = onDidIt) { Text("Did It \u2713") }
+            }
+        }
     }
 }
 

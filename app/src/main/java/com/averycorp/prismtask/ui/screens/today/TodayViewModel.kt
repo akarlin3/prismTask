@@ -21,6 +21,8 @@ import com.averycorp.prismtask.domain.usecase.BalanceState
 import com.averycorp.prismtask.domain.usecase.BalanceTracker
 import com.averycorp.prismtask.domain.usecase.BurnoutResult
 import com.averycorp.prismtask.domain.usecase.BurnoutScorer
+import com.averycorp.prismtask.domain.usecase.SelfCareNudge
+import com.averycorp.prismtask.domain.usecase.SelfCareNudgeEngine
 import com.averycorp.prismtask.data.repository.HabitRepository
 import com.averycorp.prismtask.util.DayBoundary
 import com.averycorp.prismtask.data.repository.HabitWithStatus
@@ -83,6 +85,51 @@ class TodayViewModel @Inject constructor(
 
     private val balanceTracker: BalanceTracker = BalanceTracker()
     private val burnoutScorer: BurnoutScorer = BurnoutScorer()
+    private val nudgeEngine: SelfCareNudgeEngine = SelfCareNudgeEngine()
+
+    private val _currentNudge = MutableStateFlow<SelfCareNudge?>(null)
+    val currentNudge: StateFlow<SelfCareNudge?> = _currentNudge
+    private var lastShownNudgeId: String? = null
+    private val dismissedNudgesToday = mutableSetOf<String>()
+
+    fun dismissNudge() {
+        _currentNudge.value?.let { dismissedNudgesToday.add(it.id) }
+        _currentNudge.value = null
+    }
+
+    fun snoozeNudge() {
+        _currentNudge.value = null
+    }
+
+    fun nudgeDidIt() {
+        viewModelScope.launch {
+            taskRepository.addTask(
+                title = "Self-care break",
+                lifeCategory = com.averycorp.prismtask.domain.model.LifeCategory.SELF_CARE.name
+            )
+            _currentNudge.value?.let { dismissedNudgesToday.add(it.id) }
+            _currentNudge.value = null
+        }
+    }
+
+    private fun refreshNudge(balance: BalanceState, burnout: BurnoutResult) {
+        val selfCareRatio = balance.currentRatios[
+            com.averycorp.prismtask.domain.model.LifeCategory.SELF_CARE
+        ] ?: 0f
+        val selfCareTarget = (workLifeBalancePrefs.value.selfCareTarget / 100f)
+        val hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
+        val next = nudgeEngine.select(
+            burnoutScore = burnout.score,
+            selfCareRatio = selfCareRatio,
+            selfCareTarget = selfCareTarget,
+            hourOfDay = hour,
+            lastShownId = lastShownNudgeId
+        )
+        if (next != null && next.id !in dismissedNudgesToday) {
+            _currentNudge.value = next
+            lastShownNudgeId = next.id
+        }
+    }
 
     /**
      * Work-Life Balance preferences: target ratios, toggles, overload threshold.
@@ -124,11 +171,13 @@ class TodayViewModel @Inject constructor(
             balanceState
         ) { allTasks, prefs, balance ->
             val workRatio = balance.currentRatios[com.averycorp.prismtask.domain.model.LifeCategory.WORK] ?: 0f
-            burnoutScorer.computeFromTasks(
+            val result = burnoutScorer.computeFromTasks(
                 tasks = allTasks,
                 workRatio = workRatio,
                 workTarget = prefs.workTarget / 100f
             )
+            refreshNudge(balance, result)
+            result
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), BurnoutResult.EMPTY)
 
     val isPremium: Boolean
