@@ -1,9 +1,11 @@
 package com.averycorp.prismtask.domain
 
+import android.app.Application
 import android.content.Context
 import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorManager
+import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.averycorp.prismtask.domain.usecase.ShakeDetector
 import io.mockk.every
 import io.mockk.mockk
@@ -15,7 +17,11 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.annotation.Config
 
+@RunWith(AndroidJUnit4::class)
+@Config(manifest = Config.NONE, sdk = [33], application = Application::class)
 class ShakeDetectorTest {
 
     private lateinit var shakeDetector: ShakeDetector
@@ -31,7 +37,9 @@ class ShakeDetectorTest {
     }
 
     private fun createSensorEvent(x: Float, y: Float, z: Float): SensorEvent {
-        // SensorEvent doesn't have a public constructor, so we use reflection
+        // SensorEvent doesn't have a public constructor, so we use reflection.
+        // Robolectric provides the real framework class with the package-private
+        // SensorEvent(int) constructor that android.jar stubs omit.
         val constructor = SensorEvent::class.java.getDeclaredConstructor(Int::class.java)
         constructor.isAccessible = true
         val event = constructor.newInstance(3)
