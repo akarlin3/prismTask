@@ -6,10 +6,25 @@
 ┌─────────────────────────────────────────────────────┐
 │                  Android Device                      │
 │  ┌───────────────────────────────────────────────┐  │
-│  │           React Native (Expo)                  │  │
+│  │        Kotlin / Jetpack Compose                │  │
+│  │  ┌─────────┐ ┌──────────┐ ┌───────────────┐  │  │
+│  │  │ Screens │ │ ViewModels│ │    Room DB    │  │  │
+│  │  │ & Nav   │ │ (StateFlow)│ │  (SQLite)    │  │  │
+│  │  └─────────┘ └──────────┘ └───────────────┘  │  │
+│  │  ┌───────────────────────────────────────────┐│  │
+│  │  │  Firebase Auth + Firestore Sync + Hilt DI ││  │
+│  │  └───────────────────┬───────────────────────┘│  │
+│  └──────────────────────┼────────────────────────┘  │
+└─────────────────────────┼───────────────────────────┘
+                          │ HTTPS
+                          ▼
+┌─────────────────────────────────────────────────────┐
+│                     Browser                          │
+│  ┌───────────────────────────────────────────────┐  │
+│  │       React + TypeScript + Vite                │  │
 │  │  ┌─────────┐ ┌──────────┐ ┌───────────────┐  │  │
 │  │  │ Screens │ │  State   │ │  API Client   │  │  │
-│  │  │ & Nav   │ │ (Zustand)│ │  (Axios)      │  │  │
+│  │  │ (Router)│ │ (Zustand)│ │  (Axios)      │  │  │
 │  │  └─────────┘ └──────────┘ └───────┬───────┘  │  │
 │  └────────────────────────────────────┼──────────┘  │
 └───────────────────────────────────────┼─────────────┘
@@ -39,9 +54,11 @@
 
 | Layer        | Technology             | Why                                                    |
 |--------------|------------------------|--------------------------------------------------------|
-| Mobile       | React Native (Expo)    | Cross-platform, React skills transfer to web, portfolio signal |
-| State Mgmt   | Zustand                | Lightweight, no boilerplate (Redux is overkill for MVP) |
-| HTTP Client  | Axios                  | Interceptors for auth tokens, clean error handling      |
+| Android      | Kotlin + Jetpack Compose | Native performance, Material 3, offline-first with Room |
+| Web          | React 19 + TypeScript + Vite | Fast iteration, shared API, responsive SPA             |
+| Web Styling  | TailwindCSS 4          | Utility-first, rapid prototyping, consistent design     |
+| Web State    | Zustand 5              | Lightweight, no boilerplate (Redux is overkill for MVP) |
+| HTTP Client  | Axios (web) / Retrofit (Android) | Interceptors for auth tokens, clean error handling |
 | Backend      | FastAPI (Python 3.11+) | Auto-docs, async, type hints — reinforces Python resume |
 | ORM          | SQLAlchemy 2.0         | Industry standard, pairs with Alembic for migrations    |
 | Migrations   | Alembic                | Schema versioning — shows production discipline         |
@@ -49,6 +66,7 @@
 | Auth         | JWT (python-jose)      | Stateless, simple, well-understood                      |
 | NLP Feature  | Anthropic API (Haiku)  | Fast, cheap, high-quality parsing                       |
 | Deployment   | Docker + Railway       | Simple, free/cheap tier, auto-deploy from GitHub        |
+| Web Tests    | Vitest + Playwright    | Unit tests and E2E browser automation                   |
 | CI           | GitHub Actions         | Auto-test on push, free for public repos                |
 
 ---
@@ -395,7 +413,7 @@ Input: "{user_input}"
 2. Password hashed with bcrypt
 3. Login returns JWT access token (15 min) + refresh token (7 days)
 4. Access token sent in header for all API calls
-5. Refresh token stored securely on device (expo-secure-store)
+5. Refresh token stored securely (Android Keystore on mobile, httpOnly cookie or localStorage on web)
 6. On 401, client auto-refreshes and retries
 
 ### JWT Payload
@@ -448,35 +466,37 @@ prismTask/
 │   ├── requirements.txt
 │   └── alembic.ini
 │
-├── mobile/
-│   ├── app/                     # Expo Router (file-based routing)
-│   │   ├── (auth)/              # Auth screens group
-│   │   │   ├── login.tsx
-│   │   │   └── register.tsx
-│   │   ├── (tabs)/              # Main tab navigation
-│   │   │   ├── index.tsx        # Dashboard / Today view
-│   │   │   ├── goals.tsx        # Goals list
-│   │   │   └── settings.tsx     # Settings
-│   │   ├── goal/[id].tsx        # Goal detail → projects
-│   │   ├── project/[id].tsx     # Project detail → tasks
-│   │   └── _layout.tsx          # Root layout
-│   ├── components/
-│   │   ├── TaskCard.tsx
-│   │   ├── GoalCard.tsx
-│   │   ├── NLPInput.tsx         # Natural language input bar
-│   │   ├── PriorityBadge.tsx
-│   │   └── ProgressBar.tsx
-│   ├── services/
-│   │   ├── api.ts               # Axios instance + interceptors
-│   │   └── auth.ts              # Token storage + refresh
-│   ├── store/
-│   │   └── useStore.ts          # Zustand global state
+├── app/                             # Android app module (Kotlin / Jetpack Compose)
+│   ├── src/main/java/com/averycorp/prismtask/
+│   │   ├── data/                    # Room DB, DAOs, entities, repositories
+│   │   ├── domain/                  # Use cases and business logic
+│   │   ├── ui/                      # Compose screens and components
+│   │   ├── di/                      # Hilt DI modules
+│   │   ├── notifications/           # Reminders, workers, receivers
+│   │   └── widget/                  # Glance home-screen widgets
+│   └── src/test/                    # ~490 unit tests
+│
+├── web/                             # Web client (React + TypeScript + Vite)
+│   ├── src/
+│   │   ├── api/                     # Axios API client modules
+│   │   ├── components/              # Layout, shared, and UI primitives
+│   │   ├── features/                # Feature screens (auth, today, tasks,
+│   │   │                            #   projects, habits, calendar, etc.)
+│   │   ├── hooks/                   # Custom React hooks
+│   │   ├── routes/                  # React Router definitions
+│   │   ├── stores/                  # Zustand state stores
+│   │   ├── types/                   # TypeScript type definitions
+│   │   └── utils/                   # Helpers and utility tests
 │   ├── package.json
-│   └── app.json                 # Expo config
+│   ├── vite.config.ts
+│   └── playwright.config.ts        # E2E test config
 │
 ├── .github/
 │   └── workflows/
-│       └── ci.yml               # Test + lint on push
+│       ├── android-ci.yml       # Android build + unit tests
+│       ├── ci.yml               # Backend pytest + lint
+│       ├── web-ci.yml           # Web lint + Vitest + Playwright
+│       └── release.yml          # Release AAB build
 │
 ├── docker-compose.yml           # Local dev (backend + postgres)
 ├── README.md
@@ -491,14 +511,20 @@ prismTask/
 ```
 docker-compose up
 # Starts: FastAPI (hot reload) + PostgreSQL
-# Expo dev server runs separately: cd mobile && npx expo start
+
+# Web dev server (separate terminal):
+cd web && npm run dev
+# Opens at http://localhost:5173, proxies /api to backend
+
+# Android: open in Android Studio and run on device/emulator
 ```
 
 ### Production
 - **Backend:** Docker container on Railway (free tier: 500 hrs/month, more than enough)
 - **Database:** Railway PostgreSQL (free tier: 1GB, plenty for single-user)
-- **Mobile:** Built with EAS Build (Expo), installed via APK or internal testing track
-- **CI:** GitHub Actions runs pytest + linting on every push
+- **Android:** Built via Gradle, distributed through Google Play Store
+- **Web:** Static build (`npm run build`) deployable to any CDN/hosting
+- **CI:** GitHub Actions runs three pipelines — Android CI, Backend CI (pytest + lint), Web CI (Vitest + Playwright)
 
 ### Environment Variables
 ```env
@@ -562,11 +588,15 @@ ANTHROPIC_API_KEY=<your-key>
 
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
+| Android UI | Jetpack Compose (Kotlin) | Native performance, Material 3, offline-first with Room |
+| Web UI | React + TypeScript + Vite | Fast iteration, large ecosystem, shared backend API |
+| Web styling | TailwindCSS | Utility-first, rapid prototyping, small CSS bundles |
+| Web state | Zustand | Minimal boilerplate, hooks-native, sufficient for SPA |
 | ORM vs raw SQL | SQLAlchemy | Portfolio signal, migration support, type safety |
-| State management | Zustand | Minimal boilerplate, hooks-native, sufficient for MVP |
-| Expo vs bare RN | Expo | Faster dev, EAS Build for APK, managed workflow |
-| JWT vs session auth | JWT | Stateless, standard for mobile APIs, simpler to implement |
+| JWT vs session auth | JWT | Stateless, standard for mobile + web APIs |
 | PostgreSQL vs SQLite (server) | PostgreSQL | Production-grade, shows DB skills, free on Railway |
 | Monorepo vs separate repos | Monorepo | Single GitHub link for portfolio, easier to review |
 | REST vs GraphQL | REST | Simpler, FastAPI auto-docs, sufficient for this data model |
 | Subtask depth limit | Max 1 | Prevents UI complexity explosion, matches most task apps |
+| Web bundler | Vite | Fast HMR, native ESM, optimized production builds |
+| Web E2E testing | Playwright | Cross-browser support, reliable CI execution |
