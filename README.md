@@ -9,8 +9,9 @@
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791.svg)](https://postgresql.org)
 [![Android CI](https://github.com/akarlin3/prismTask/actions/workflows/android-ci.yml/badge.svg)](https://github.com/akarlin3/prismTask/actions/workflows/android-ci.yml)
 [![Backend CI](https://github.com/akarlin3/prismTask/actions/workflows/ci.yml/badge.svg)](https://github.com/akarlin3/prismTask/actions/workflows/ci.yml)
+[![Web CI](https://github.com/akarlin3/prismTask/actions/workflows/web-ci.yml/badge.svg)](https://github.com/akarlin3/prismTask/actions/workflows/web-ci.yml)
 
-A native Android task manager with a Python API backend featuring AI-powered natural language processing, voice input, full accessibility support, deep customization, productivity analytics, and first-class integrations with Gmail, Slack, and Google Calendar. Built with Kotlin/Jetpack Compose for the client and FastAPI/PostgreSQL for the server.
+A cross-platform task manager with a Python API backend featuring AI-powered natural language processing, voice input, full accessibility support, deep customization, productivity analytics, and first-class integrations with Gmail, Slack, and Google Calendar. Available as a native Android app (Kotlin/Jetpack Compose) and a web app (React/TypeScript/Vite), both powered by a shared FastAPI/PostgreSQL backend.
 
 ## Download
 
@@ -36,3 +37,17 @@ PrismTask v1.4.0 introduces a four-tier pricing model.
 
 Ultra uses Claude Sonnet instead of Haiku for all AI features.
 Debug builds expose a tier override in Settings for local development.
+
+## Platforms
+
+### Android
+
+Native app built with Kotlin and Jetpack Compose. See the [Download](#download) section above for Play Store links.
+
+### Web
+
+React + TypeScript + Vite web client with TailwindCSS. Connects to the same FastAPI backend as the Android app. See [`web/README.md`](web/README.md) for setup instructions.
+
+### Backend
+
+FastAPI server with PostgreSQL, JWT authentication, and Claude-powered NLP parsing. Deployed on Railway. See [`ARCHITECTURE.md`](ARCHITECTURE.md) for API docs and data model.

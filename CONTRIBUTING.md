@@ -10,6 +10,8 @@ Thank you for your interest in contributing. This document covers development se
    cd prismTask
    ```
 
+### Android
+
 2. Open the project in Android Studio Ladybug (2024.2.1) or later.
 
 3. Ensure you have JDK 17 and Android SDK 35 installed.
@@ -19,6 +21,34 @@ Thank you for your interest in contributing. This document covers development se
    ./gradlew assembleDebug
    ./gradlew installDebug
    ```
+
+### Web
+
+2. Ensure you have Node.js 22+ installed.
+
+3. Install dependencies and start the dev server:
+   ```bash
+   cd web
+   npm install
+   cp .env.example .env.local   # edit API URL if needed
+   npm run dev
+   ```
+
+4. Open [http://localhost:5173](http://localhost:5173) in your browser.
+
+### Backend
+
+2. Ensure you have Python 3.11+ installed.
+
+3. Install dependencies and start the server:
+   ```bash
+   cd backend
+   pip install -r requirements.txt
+   cp .env.example .env          # configure DATABASE_URL, JWT_SECRET_KEY, etc.
+   uvicorn app.main:app --reload
+   ```
+
+4. API docs are available at [http://localhost:8000/docs](http://localhost:8000/docs).
 
 ## Code Style
 
@@ -37,11 +67,19 @@ Thank you for your interest in contributing. This document covers development se
 - Use `PrismTaskTheme` as the root wrapper in all previews and the main content.
 - Extract reusable composables into dedicated files under `ui/components/`.
 
+### TypeScript / React (Web)
+
+- Use functional components with hooks — no class components.
+- Colocate feature code under `web/src/features/<feature>/`.
+- Shared components go in `web/src/components/` (ui/ for primitives, shared/ for domain components).
+- Use Zustand stores for global state; keep component-local state with `useState`/`useReducer`.
+- Style with TailwindCSS utility classes. Avoid inline style objects.
+- Use path aliases (`@/components/...`) configured in `vite.config.ts`.
+
 ### Dependencies
 
-- Add new dependencies to `app/build.gradle.kts`.
-- Use the Compose BOM for all Compose library versions — do not pin individual Compose artifact versions.
-- If a new dependency uses reflection or annotation processing, update `app/proguard-rules.pro` with the appropriate keep rules.
+- **Android:** Add new dependencies to `app/build.gradle.kts`. Use the Compose BOM for all Compose library versions — do not pin individual Compose artifact versions. If a new dependency uses reflection or annotation processing, update `app/proguard-rules.pro` with the appropriate keep rules.
+- **Web:** Add new dependencies via `npm install` in the `web/` directory. Keep dev dependencies separate (`npm install -D`).
 
 ## Making Changes
 
@@ -50,10 +88,17 @@ Thank you for your interest in contributing. This document covers development se
    git checkout -b feature/my-change
    ```
 2. Keep commits focused and atomic — one logical change per commit.
-3. Test your changes on a device or emulator running Android 8.0+ (API 26).
+3. Test your changes:
+   - **Android:** Device or emulator running Android 8.0+ (API 26).
+   - **Web:** Run `npm run lint && npm run test:run` in `web/`.
+   - **Backend:** Run `pytest` in `backend/`.
 4. Verify the build succeeds:
    ```bash
+   # Android
    ./gradlew assembleDebug
+
+   # Web
+   cd web && npm run build
    ```
 
 ## Pull Requests
@@ -70,7 +115,7 @@ Thank you for your interest in contributing. This document covers development se
 - What this PR does and why.
 
 ## Testing
-- How you verified the change (device, emulator, API level).
+- How you verified the change (device/emulator/browser, API level if Android).
 
 ## Screenshots
 <!-- If applicable -->
