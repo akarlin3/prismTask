@@ -34,6 +34,8 @@ __pycache__/
 .pytest_cache/
 test.db
 
+.keystores/
+
 # Signing keys and credentials
 *.keystore
 *.jks
