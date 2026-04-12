@@ -107,7 +107,7 @@ async def test_smoke_refresh_token(client: AsyncClient):
 @pytest.mark.asyncio
 async def test_smoke_protected_endpoint_without_token(client: AsyncClient):
     resp = await client.get("/api/v1/auth/me")
-    assert resp.status_code == 403
+    assert resp.status_code == 401
 
 
 @pytest.mark.asyncio
