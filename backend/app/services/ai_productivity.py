@@ -15,6 +15,12 @@ logger = logging.getLogger(__name__)
 MODEL_HAIKU = "claude-haiku-4-5-20251001"
 MODEL_SONNET = "claude-sonnet-4-20250514"
 
+def get_model(tier: str) -> str:
+    """Return the appropriate model ID for the given subscription tier."""
+    if tier == "ULTRA":
+        return MODEL_SONNET
+    return MODEL_HAIKU
+
 # Sonnet pricing (~$3/M input, ~$15/M output) vs Haiku (~$0.25/M, ~$1.25/M)
 # At ~500 tokens per AI call, ~20 AI calls/day per active Ultra user:
 # Haiku: ~$0.01/day/user -> $0.30/month/user
@@ -52,6 +58,7 @@ def _parse_ai_json(content: str) -> dict | list:
 def categorize_eisenhower(tasks: list[dict], today: date, tier: str = "FREE") -> list[dict]:
     """Call Claude to categorize tasks into Eisenhower quadrants."""
     client = _get_client()
+    model = get_model(tier)
     tasks_json = json.dumps(tasks, default=str, indent=2)
     prompt = f"""You are a productivity assistant. Categorize each task into an Eisenhower Matrix quadrant.
 
