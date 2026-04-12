@@ -6,8 +6,6 @@ and that AI service functions pass the selected model to the Anthropic API.
 
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 
 def test_get_model_free_returns_haiku():
     from app.services.ai_productivity import get_model, MODEL_HAIKU
