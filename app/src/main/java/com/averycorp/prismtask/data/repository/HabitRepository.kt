@@ -13,6 +13,7 @@ import com.averycorp.prismtask.data.remote.SyncTracker
 import com.averycorp.prismtask.domain.usecase.StreakCalculator
 import com.averycorp.prismtask.notifications.MedicationReminderScheduler
 import com.averycorp.prismtask.util.DayBoundary
+import com.averycorp.prismtask.widget.WidgetUpdateManager
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
@@ -46,7 +47,8 @@ class HabitRepository @Inject constructor(
     private val syncTracker: SyncTracker,
     private val medicationReminderScheduler: MedicationReminderScheduler,
     private val taskBehaviorPreferences: TaskBehaviorPreferences,
-    private val habitListPreferences: HabitListPreferences
+    private val habitListPreferences: HabitListPreferences,
+    private val widgetUpdateManager: WidgetUpdateManager
 ) {
     private suspend fun currentDayStartHour(): Int = taskBehaviorPreferences.getDayStartHour().first()
 
@@ -64,18 +66,21 @@ class HabitRepository @Inject constructor(
         val now = System.currentTimeMillis()
         val id = habitDao.insert(habit.copy(createdAt = now, updatedAt = now))
         syncTracker.trackCreate(id, "habit")
+        widgetUpdateManager.updateHabitWidgets()
         return id
     }
 
     suspend fun updateHabit(habit: HabitEntity) {
         habitDao.update(habit.copy(updatedAt = System.currentTimeMillis()))
         syncTracker.trackUpdate(habit.id, "habit")
+        widgetUpdateManager.updateHabitWidgets()
     }
 
     suspend fun deleteHabit(id: Long) {
         medicationReminderScheduler.cancel(id)
         syncTracker.trackDelete(id, "habit")
         habitDao.deleteById(id)
+        widgetUpdateManager.updateHabitWidgets()
     }
 
     /**
@@ -136,6 +141,7 @@ class HabitRepository @Inject constructor(
             )
         )
         syncTracker.trackCreate(id, "habit_completion")
+        widgetUpdateManager.updateHabitWidgets()
 
         if (habit != null && habit.reminderIntervalMillis != null) {
             val newCount = currentCount + 1
@@ -155,6 +161,7 @@ class HabitRepository @Inject constructor(
             syncTracker.trackDelete(completion.id, "habit_completion")
         }
         completionDao.deleteLatestByHabitAndDate(habitId, normalizedDate)
+        widgetUpdateManager.updateHabitWidgets()
 
         // Reschedule from previous completion or cancel if none remain
         val habit = habitDao.getHabitByIdOnce(habitId)
