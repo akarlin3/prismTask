@@ -34,7 +34,6 @@ import com.averycorp.prismtask.data.local.database.PrismTaskDatabase
 import com.averycorp.prismtask.data.preferences.HabitListPreferences
 import com.averycorp.prismtask.data.preferences.LeisurePreferences
 import com.averycorp.prismtask.data.preferences.OnboardingPreferences
-import com.averycorp.prismtask.data.remote.AppUpdater
 import com.averycorp.prismtask.data.remote.AuthManager
 import com.averycorp.prismtask.data.remote.CalendarSyncService
 import com.averycorp.prismtask.data.remote.DeviceCalendar
@@ -90,7 +89,6 @@ class SettingsViewModel @Inject constructor(
     internal val templatePreferences: TemplatePreferences,
     internal val authTokenPreferences: AuthTokenPreferences,
     internal val prismTaskApi: PrismTaskApi,
-    val appUpdater: AppUpdater,
     private val calendarManager: CalendarManager,
     private val calendarSyncPreferences: CalendarSyncPreferences,
     private val billingManager: BillingManager,
@@ -809,31 +807,6 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             authManager.signOut()
             _messages.emit("Signed out")
-        }
-    }
-
-    // --- App Update ---
-    init {
-        viewModelScope.launch {
-            appUpdater.fetchLatestReleaseTag()
-        }
-    }
-
-    fun checkForUpdate() {
-        viewModelScope.launch {
-            appUpdater.checkForUpdate()
-        }
-    }
-
-    fun downloadAndInstallUpdate() {
-        viewModelScope.launch {
-            appUpdater.downloadAndInstall()
-        }
-    }
-
-    fun refreshLatestReleaseTag() {
-        viewModelScope.launch {
-            appUpdater.fetchLatestReleaseTag()
         }
     }
 

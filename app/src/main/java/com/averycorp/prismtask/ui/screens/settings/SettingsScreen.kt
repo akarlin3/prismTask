@@ -42,7 +42,6 @@ import com.averycorp.prismtask.ui.screens.settings.sections.AccessibilitySection
 import com.averycorp.prismtask.ui.screens.settings.sections.AccountSyncSection
 import com.averycorp.prismtask.ui.screens.settings.sections.AiNotificationsSection
 import com.averycorp.prismtask.ui.screens.settings.sections.AiSection
-import com.averycorp.prismtask.ui.screens.settings.sections.AppUpdateSection
 import com.averycorp.prismtask.ui.screens.settings.sections.AppearanceSection
 import com.averycorp.prismtask.ui.screens.settings.sections.BackendSyncSection
 import com.averycorp.prismtask.ui.screens.settings.sections.BackupExportSection
@@ -202,11 +201,6 @@ fun SettingsScreen(
     val schoolEnabled by viewModel.schoolEnabled.collectAsStateWithLifecycle()
     val leisureEnabled by viewModel.leisureEnabled.collectAsStateWithLifecycle()
     val houseworkEnabled by viewModel.houseworkEnabled.collectAsStateWithLifecycle()
-
-    // App update
-    val updateStatus by viewModel.appUpdater.status.collectAsStateWithLifecycle()
-    val updateError by viewModel.appUpdater.errorMessage.collectAsStateWithLifecycle()
-    val latestReleaseTag by viewModel.appUpdater.latestReleaseTag.collectAsStateWithLifecycle()
 
     // Dialogs owned by orchestrator
     var showBackendAuthDialog by remember { mutableStateOf(false) }
@@ -585,14 +579,6 @@ fun SettingsScreen(
                     reengagementEnabled = viewModel.reengagementEnabled,
                     onEveningSummaryToggle = viewModel::onEveningSummaryToggle,
                     onReengagementToggle = viewModel::onReengagementToggle
-                )
-
-                AppUpdateSection(
-                    updateStatus = updateStatus,
-                    updateError = updateError,
-                    latestReleaseTag = latestReleaseTag,
-                    onCheckForUpdate = viewModel::checkForUpdate,
-                    onDownloadAndInstallUpdate = viewModel::downloadAndInstallUpdate
                 )
 
                 VoiceInputSection(
