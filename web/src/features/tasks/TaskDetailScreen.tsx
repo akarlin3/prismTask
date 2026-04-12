@@ -10,10 +10,14 @@ export function TaskDetailScreen() {
   const navigate = useNavigate();
   const { fetchTask, setSelectedTask } = useTaskStore();
   const [loading, setLoading] = useState(true);
+  const [prevId, setPrevId] = useState(id);
+  if (id !== prevId) {
+    setPrevId(id);
+    setLoading(true);
+  }
 
   useEffect(() => {
     if (!id) return;
-    setLoading(true);
     fetchTask(Number(id))
       .then(() => setLoading(false))
       .catch(() => {

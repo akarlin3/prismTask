@@ -59,7 +59,7 @@ export function Select(props: SelectProps) {
     return (props as SingleSelectProps).value === optionValue;
   };
 
-  const handleSelect = (optionValue: string) => {
+  const handleSelect = useCallback((optionValue: string) => {
     if (multi) {
       const multiProps = props as MultiSelectProps;
       const current = multiProps.value;
@@ -73,7 +73,7 @@ export function Select(props: SelectProps) {
       setIsOpen(false);
     }
     setSearch('');
-  };
+  }, [multi, props]);
 
   const removeChip = (optionValue: string) => {
     if (multi) {

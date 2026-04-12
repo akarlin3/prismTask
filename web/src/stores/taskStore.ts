@@ -233,7 +233,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     }));
   },
 
-  bulkMove: async (ids, projectId) => {
+  bulkMove: async (ids, _projectId) => {
     // Note: backend doesn't support project_id in TaskUpdate directly,
     // so we rely on the existing PATCH endpoint which may need extension.
     // For now, clear selection as a placeholder.

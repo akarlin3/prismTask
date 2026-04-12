@@ -25,7 +25,7 @@ import type { TaskTemplate } from '@/types/template';
 import type { TaskPriority } from '@/types/task';
 
 export function TemplateListScreen() {
-  const { templates, isLoading, fetch, use, remove } = useTemplateStore();
+  const { templates, isLoading, fetch, use: applyTemplate, remove } = useTemplateStore();
   const { fetchAllProjects } = useProjectStore();
   const { fetchTags } = useTagStore();
   const { setSelectedTask } = useTaskStore();
@@ -62,7 +62,7 @@ export function TemplateListScreen() {
   const handleUse = async (template: TaskTemplate) => {
     setUsingTemplate(template.id);
     try {
-      const result = await use(template.id);
+      const result = await applyTemplate(template.id);
       toast.success(result.message || 'Task created from template');
       // Open the created task for editing
       const { fetchTask } = useTaskStore.getState();

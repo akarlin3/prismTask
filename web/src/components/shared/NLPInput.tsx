@@ -91,7 +91,7 @@ export function NLPInput({ onTaskCreate, onTemplateUse, className = '' }: NLPInp
     [templates],
   );
 
-  const handleTemplateSelect = async (template: TaskTemplate) => {
+  const handleTemplateSelect = useCallback(async (template: TaskTemplate) => {
     setTemplateSuggestions([]);
     setValue('');
     if (onTemplateUse) {
@@ -104,7 +104,7 @@ export function NLPInput({ onTaskCreate, onTemplateUse, className = '' }: NLPInp
         toast.error('Failed to use template');
       }
     }
-  };
+  }, [onTemplateUse, applyTemplate]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (templateSuggestions.length > 0) {

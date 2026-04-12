@@ -19,7 +19,6 @@ import {
   startOfMonth,
   endOfMonth,
   subMonths,
-  isSameMonth,
   isSameDay,
 } from 'date-fns';
 import {
@@ -40,19 +39,10 @@ import { Button } from '@/components/ui/Button';
 import { Spinner } from '@/components/ui/Spinner';
 import { Tooltip } from '@/components/ui/Tooltip';
 import { HabitModal } from './HabitModal';
-import type { Habit, HabitCompletion } from '@/types/habit';
+import type { HabitCompletion } from '@/types/habit';
 import type { StreakData } from '@/utils/streaks';
 
 const DAY_NAMES_SHORT = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-const DAY_NAMES_FULL = [
-  'Sunday',
-  'Monday',
-  'Tuesday',
-  'Wednesday',
-  'Thursday',
-  'Friday',
-  'Saturday',
-];
 
 export function HabitAnalyticsScreen() {
   const { id } = useParams<{ id: string }>();
@@ -517,7 +507,6 @@ function DayOfWeekChart({
     return reordered;
   }, [completions]);
 
-  const maxVal = Math.max(...data.map((d) => d.completions), 1);
   const bestDayName = streakData?.bestDay;
   const worstDayName = streakData?.worstDay;
 
@@ -626,9 +615,10 @@ function CompletionCalendar({
   }, [completions]);
 
   const months = useMemo(() => {
+    const now = new Date();
     const result: Date[] = [];
     for (let i = 2; i >= 0; i--) {
-      result.push(subMonths(today, i));
+      result.push(subMonths(now, i));
     }
     return result;
   }, []);

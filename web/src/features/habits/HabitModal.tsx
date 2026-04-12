@@ -1,10 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { toast } from 'sonner';
 import { useHabitStore } from '@/stores/habitStore';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { Toggle } from '@/components/ui/Toggle';
 import type { Habit, HabitFrequency } from '@/types/habit';
 
 const EMOJI_OPTIONS = [

@@ -109,8 +109,9 @@ export function TodayScreen() {
 
   // Cleanup undo timers on unmount
   useEffect(() => {
+    const timers = undoTimerRef.current;
     return () => {
-      undoTimerRef.current.forEach((timer) => clearTimeout(timer));
+      timers.forEach((timer) => clearTimeout(timer));
     };
   }, []);
 
