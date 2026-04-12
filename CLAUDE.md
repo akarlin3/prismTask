@@ -49,6 +49,7 @@ app/src/main/java/com/averycorp/prismtask/
 │   │   │   ├── HabitTemplateDao.kt, TaskTemplateDao.kt, ProjectTemplateDao.kt
 │   │   │   ├── NlpShortcutDao.kt, SavedFilterDao.kt, ReminderProfileDao.kt
 │   │   │   ├── SelfCareDao.kt, LeisureDao.kt, SchoolworkDao.kt
+│   │   │   ├── TaskCompletionDao.kt        # Task completion history queries
 │   │   ├── database/
 │   │   │   ├── PrismTaskDatabase.kt    # Room DB with migrations
 │   │   │   └── Migrations.kt           # Grouped migration definitions
@@ -60,6 +61,7 @@ app/src/main/java/com/averycorp/prismtask/
 │   │       ├── HabitTemplateEntity.kt, TaskTemplateEntity.kt, ProjectTemplateEntity.kt
 │   │       ├── NlpShortcutEntity.kt, SavedFilterEntity.kt, ReminderProfileEntity.kt
 │   │       ├── SelfCareLogEntity.kt, SelfCareStepEntity.kt, StudyLogEntity.kt
+│   │       ├── TaskCompletionEntity.kt     # Task completion history record
 │   │       ├── LeisureLogEntity.kt, CourseEntity.kt, AssignmentEntity.kt, CourseCompletionEntity.kt
 │   ├── preferences/                    # DataStore preferences
 │   │   ├── UserPreferencesDataStore.kt # Centralized customization settings
@@ -85,6 +87,7 @@ app/src/main/java/com/averycorp/prismtask/
 │   │       ├── BackendSyncService.kt, BackendSyncMappers.kt, SyncModels.kt
 │   ├── repository/                     # All repositories
 │   │   ├── TaskRepository.kt, ProjectRepository.kt, TagRepository.kt, AttachmentRepository.kt
+│   │   ├── TaskCompletionRepository.kt     # Task completion recording + analytics stats
 │   │   ├── HabitRepository.kt, HabitTemplateRepository.kt, TaskTemplateRepository.kt
 │   │   ├── ProjectTemplateRepository.kt, SavedFilterRepository.kt, NlpShortcutRepository.kt
 │   │   ├── ReminderProfileRepository.kt, ChatRepository.kt, CoachingRepository.kt
@@ -144,6 +147,7 @@ app/src/main/java/com/averycorp/prismtask/
     │   ├── medication/, medication/components/
     │   ├── schoolwork/, briefing/, chat/, coaching/
     │   ├── eisenhower/, pomodoro/, planner/, timer/, onboarding/
+    │   ├── analytics/                  # TaskAnalyticsScreen + TaskAnalyticsViewModel
     └── theme/
         ├── Color.kt, Theme.kt, Type.kt, PriorityColors.kt
 ```
@@ -181,6 +185,7 @@ app/src/main/java/com/averycorp/prismtask/
 - **Customization**: `UserPreferencesDataStore` centralizes configurable swipe actions, urgency weights, task card fields, accent colors, card corner radius, compact mode, NLP shortcuts, saved filters, context menu ordering, and Today-screen layout
 - **Notification Profiles**: `ReminderProfileRepository` supports multi-reminder bundles with escalation; `QuietHoursDeferrer` defers notifications during quiet hours; daily digest notification
 - **Analytics**: Productivity dashboard with daily/weekly/monthly views, burndown charts, habit-productivity correlation, heatmap visualization, per-task time tracking
+- **Task Analytics**: Contribution grid, streak tracking, day-of-week/hour-of-day distributions, completion rate, on-time rate, and per-project filtering for completed tasks via `TaskCompletionEntity` history table (Room migration 37→38 with backfill)
 - **Integrations**: Gmail starred-email sync, Slack message-to-task, Google Calendar prep-task generation, webhook/Zapier endpoint; a suggestion inbox reviews auto-created tasks
 - **Bookable Habits**: Habit logs carry booking state via `HabitLogEntity` for activity history
 
@@ -224,7 +229,7 @@ app/src/main/java/com/averycorp/prismtask/
 - `app/proguard-rules.pro` — Keep rules for Room, Gson, domain models
 - `app/src/main/AndroidManifest.xml` — Activity, receivers, permissions
 - `app/google-services.json` — Firebase config (placeholder — replace with actual)
-- `app/src/test/` — ~490 unit tests spanning NaturalLanguageParser, AppUpdater, StreakCalculator, RecurrenceEngine, TaskFilter, SyncMapper, TaskTemplateRepository, UrgencyScorer (+ weights), EntityJsonMerger, SuggestionEngine, RecurrenceConverter, DateShortcuts, DuplicateTask, HabitRepositoryHelpers, DataExporter, DataImporter, SortPreferences, ProFeatureGate, MoveToProject, TemplateSeeder, ProStatusCache, repository tests (Task, Habit, Project, Tag, Coaching, ReminderProfile, SavedFilter, MedLogReconcile), use case tests (ParsedTaskResolver, ChecklistParser, TodoListParser, VoiceCommandParser, SmartDefaults, NlpShortcutExpander, QuietHoursDeferrer, AdvancedRecurrence, TimeBlock, WeeklyPlanner, DailyBriefing, Eisenhower, SmartPomodoro, BookableHabit), DataStore preferences tests (ThemePreferences, ThemePreferencesRecentColors, UserPreferencesDataStore, DashboardPreferences, ArchivePreferences, SortPreferences), notification/reminder scheduling tests, ViewModel tests (Today, AddEditTask, TaskList, HabitList, Eisenhower, Onboarding, SmartPomodoro), TaskCardDisplayConfig/TaskMenuAction/TodayLayoutResolver model tests, widget data and config-defaults tests, accessibility and theme tests, calendar manager + sync preferences tests
+- `app/src/test/` — ~490 unit tests spanning NaturalLanguageParser, AppUpdater, StreakCalculator, RecurrenceEngine, TaskFilter, SyncMapper, TaskTemplateRepository, UrgencyScorer (+ weights), EntityJsonMerger, SuggestionEngine, RecurrenceConverter, DateShortcuts, DuplicateTask, HabitRepositoryHelpers, DataExporter, DataImporter, SortPreferences, ProFeatureGate, MoveToProject, TemplateSeeder, ProStatusCache, repository tests (Task, Habit, Project, Tag, Coaching, ReminderProfile, SavedFilter, MedLogReconcile), use case tests (ParsedTaskResolver, ChecklistParser, TodoListParser, VoiceCommandParser, SmartDefaults, NlpShortcutExpander, QuietHoursDeferrer, AdvancedRecurrence, TimeBlock, WeeklyPlanner, DailyBriefing, Eisenhower, SmartPomodoro, BookableHabit), DataStore preferences tests (ThemePreferences, ThemePreferencesRecentColors, UserPreferencesDataStore, DashboardPreferences, ArchivePreferences, SortPreferences), notification/reminder scheduling tests, ViewModel tests (Today, AddEditTask, TaskList, HabitList, Eisenhower, Onboarding, SmartPomodoro), TaskCardDisplayConfig/TaskMenuAction/TodayLayoutResolver model tests, widget data and config-defaults tests, accessibility and theme tests, calendar manager + sync preferences tests, TaskCompletionAnalytics (streaks, stats, recording)
 - `app/src/androidTest/` — ~100 instrumentation tests: Task/Project/Habit/Tag DAO tests, recurrence integration, and smoke suites for Navigation, QoL features, Task editor, Templates, Today screen, Data export/import, Views, Search/archive, Tags/projects, Settings, Recurrence, Multi-select/bulk edit, Habits, and Offline edge cases
 - `backend/tests/` — ~60+ pytest suites for dashboard, export, search, app_update, projects routers; recurrence/urgency/NLP edge-case services; and end-to-end integration workflows and stress tests
-- **Total:** ~654 tests across the repo
+- **Total:** ~674 tests across the repo

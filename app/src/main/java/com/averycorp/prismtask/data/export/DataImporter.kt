@@ -18,6 +18,7 @@ import com.averycorp.prismtask.data.local.entity.ProjectEntity
 import com.averycorp.prismtask.data.local.entity.SelfCareLogEntity
 import com.averycorp.prismtask.data.local.entity.SelfCareStepEntity
 import com.averycorp.prismtask.data.local.entity.TagEntity
+import com.averycorp.prismtask.data.local.entity.TaskCompletionEntity
 import com.averycorp.prismtask.data.local.entity.TaskEntity
 import com.averycorp.prismtask.data.local.entity.TaskTagCrossRef
 import com.averycorp.prismtask.data.preferences.ArchivePreferences
@@ -49,6 +50,7 @@ data class ImportResult(
     val tasksImported: Int = 0,
     val projectsImported: Int = 0,
     val tagsImported: Int = 0,
+    val taskCompletionsImported: Int = 0,
     val habitsImported: Int = 0,
     val habitCompletionsImported: Int = 0,
     val habitLogsImported: Int = 0,
@@ -86,6 +88,7 @@ class DataImporter @Inject constructor(
     private val tagDao: TagDao,
     private val habitDao: HabitDao,
     private val habitCompletionDao: HabitCompletionDao,
+    private val taskCompletionDao: com.averycorp.prismtask.data.local.dao.TaskCompletionDao,
     private val habitLogDao: com.averycorp.prismtask.data.local.dao.HabitLogDao,
     private val leisureDao: LeisureDao,
     private val selfCareDao: SelfCareDao,
@@ -109,6 +112,7 @@ class DataImporter @Inject constructor(
         var tasksImported = 0
         var projectsImported = 0
         var tagsImported = 0
+        var taskCompletionsImported = 0
         var habitsImported = 0
         var habitCompletionsImported = 0
         var habitLogsImported = 0
@@ -125,6 +129,7 @@ class DataImporter @Inject constructor(
             tasksImported = tasksImported,
             projectsImported = projectsImported,
             tagsImported = tagsImported,
+            taskCompletionsImported = taskCompletionsImported,
             habitsImported = habitsImported,
             habitCompletionsImported = habitCompletionsImported,
             habitLogsImported = habitLogsImported,
@@ -154,6 +159,9 @@ class DataImporter @Inject constructor(
                     habitCompletionDao.deleteByHabitAndDate(it.habitId, it.completedDate)
                 }
                 habitDao.getAllHabitsOnce().forEach { habitDao.delete(it) }
+                taskCompletionDao.getAllCompletionsOnce().forEach {
+                    taskCompletionDao.deleteByTaskId(it.taskId ?: -1)
+                }
             }
 
             val existingProjects = projectDao.getAllProjectsOnce()
@@ -163,6 +171,7 @@ class DataImporter @Inject constructor(
             val projectNameToId = importProjects(ctx, root, mode, existingProjects)
             val tagNameToId = importTags(ctx, root, mode, existingTags)
             importTasks(ctx, root, mode, existingTasks, projectNameToId, tagNameToId)
+            importTaskCompletions(ctx, root, mode)
 
             val habitNameToId = importHabits(ctx, root, mode)
             importHabitCompletions(ctx, root, habitNameToId)
@@ -319,6 +328,27 @@ class DataImporter @Inject constructor(
             }
         }
         return habitNameToId
+    }
+
+    private suspend fun importTaskCompletions(
+        ctx: ImportContext,
+        root: JsonObject,
+        mode: ImportMode
+    ) {
+        root.getAsJsonArray("taskCompletions")?.forEach { elem ->
+            try {
+                val obj = elem.asJsonObject
+                val completedDate = obj.get("completedDate")?.takeIf { !it.isJsonNull }?.asLong
+                    ?: return@forEach
+                val default = TaskCompletionEntity(completedDate = completedDate)
+                val merged = mergeEntityWithDefaults(default, obj)
+                val completion = merged.copy(id = 0)
+                taskCompletionDao.insert(completion)
+                ctx.taskCompletionsImported++
+            } catch (e: Exception) {
+                ctx.errors.add("Failed to import task completion: ${e.message}")
+            }
+        }
     }
 
     private suspend fun importHabitCompletions(

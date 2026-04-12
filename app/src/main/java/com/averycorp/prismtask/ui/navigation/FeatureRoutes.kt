@@ -21,6 +21,7 @@ import com.averycorp.prismtask.ui.screens.onboarding.OnboardingViewModel
 import com.averycorp.prismtask.ui.screens.addedittask.AddEditTaskScreen
 import com.averycorp.prismtask.ui.screens.archive.ArchiveScreen
 import com.averycorp.prismtask.ui.screens.habits.AddEditHabitScreen
+import com.averycorp.prismtask.ui.screens.analytics.TaskAnalyticsScreen
 import com.averycorp.prismtask.ui.screens.habits.HabitAnalyticsScreen
 import com.averycorp.prismtask.ui.screens.habits.HabitDetailScreen
 import com.averycorp.prismtask.ui.screens.projects.AddEditProjectScreen
@@ -380,6 +381,34 @@ internal fun NavGraphBuilder.featureRoutes(
                 }
             ) {
                 HabitAnalyticsScreen(navController)
+            }
+
+            composable(
+                route = PrismTaskRoute.TaskAnalytics.route,
+                arguments = listOf(
+                    navArgument("projectId") {
+                        type = NavType.LongType
+                        defaultValue = -1L
+                    }
+                ),
+                enterTransition = {
+                    slideInHorizontally(initialOffsetX = { it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
+                },
+                exitTransition = {
+                    slideOutHorizontally(targetOffsetX = { -it / 3 }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
+                },
+                popEnterTransition = {
+                    slideInHorizontally(initialOffsetX = { -it / 3 }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
+                },
+                popExitTransition = {
+                    slideOutHorizontally(targetOffsetX = { it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
+                }
+            ) {
+                TaskAnalyticsScreen(navController)
             }
 
             composable(

@@ -25,6 +25,7 @@ import com.averycorp.prismtask.data.local.dao.TagDao
 import com.averycorp.prismtask.data.local.dao.TaskDao
 import com.averycorp.prismtask.data.local.dao.TaskTemplateDao
 import com.averycorp.prismtask.data.local.dao.UsageLogDao
+import com.averycorp.prismtask.data.local.dao.TaskCompletionDao
 import com.averycorp.prismtask.data.local.dao.WeeklyReviewDao
 import com.averycorp.prismtask.data.local.database.PrismTaskDatabase
 import com.averycorp.prismtask.data.seed.TemplatePreferencesSeededFlagStore
@@ -128,6 +129,9 @@ object DatabaseModule {
 
     @Provides
     fun provideWeeklyReviewDao(database: PrismTaskDatabase): WeeklyReviewDao = database.weeklyReviewDao()
+
+    @Provides
+    fun provideTaskCompletionDao(database: PrismTaskDatabase): TaskCompletionDao = database.taskCompletionDao()
 }
 
 /**

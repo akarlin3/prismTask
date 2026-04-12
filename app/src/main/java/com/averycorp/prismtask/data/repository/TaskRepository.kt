@@ -12,6 +12,7 @@ import com.averycorp.prismtask.notifications.ReminderScheduler
 import com.averycorp.prismtask.util.DayBoundary
 import com.averycorp.prismtask.widget.WidgetUpdateManager
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import java.util.Calendar
@@ -25,7 +26,8 @@ class TaskRepository @Inject constructor(
     private val syncTracker: SyncTracker,
     private val calendarSyncService: CalendarSyncService,
     private val reminderScheduler: ReminderScheduler,
-    private val widgetUpdateManager: WidgetUpdateManager
+    private val widgetUpdateManager: WidgetUpdateManager,
+    private val taskCompletionRepository: TaskCompletionRepository
 ) {
     fun getAllTasks(): Flow<List<TaskEntity>> = taskDao.getAllTasks()
     fun getTasksByProject(projectId: Long): Flow<List<TaskEntity>> = taskDao.getTasksByProject(projectId)
@@ -108,6 +110,10 @@ class TaskRepository @Inject constructor(
     suspend fun completeTask(id: Long) {
         val now = System.currentTimeMillis()
         val task = taskDao.getTaskById(id).firstOrNull()
+        if (task != null) {
+            val tags = tagDao.getTagsForTask(id).first()
+            taskCompletionRepository.recordCompletion(task, tags)
+        }
         if (task?.recurrenceRule != null && task.dueDate != null) {
             val rule = RecurrenceConverter.fromJson(task.recurrenceRule)
             if (rule != null) {

@@ -209,7 +209,10 @@ fun ProjectListScreen(
                         onEdit = {
                             navController.navigate(PrismTaskRoute.AddEditProject.createRoute(project.id))
                         },
-                        onDelete = { projectToDelete = project }
+                        onDelete = { projectToDelete = project },
+                        onAnalytics = {
+                            navController.navigate(PrismTaskRoute.TaskAnalytics.createRoute(project.id))
+                        }
                     )
                 }
                 item { Spacer(modifier = Modifier.height(80.dp)) }
@@ -282,7 +285,8 @@ private fun ProjectItem(
     project: ProjectWithCount,
     onClick: () -> Unit,
     onEdit: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onAnalytics: () -> Unit = {}
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
 
@@ -354,6 +358,13 @@ private fun ProjectItem(
                         onClick = {
                             menuExpanded = false
                             onEdit()
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Analytics") },
+                        onClick = {
+                            menuExpanded = false
+                            onAnalytics()
                         }
                     )
                     DropdownMenuItem(

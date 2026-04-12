@@ -64,6 +64,7 @@ class DataImporterTest {
     private lateinit var leisurePreferences: LeisurePreferences
     private lateinit var medicationPreferences: MedicationPreferences
     private lateinit var userPreferencesDataStore: UserPreferencesDataStore
+    private lateinit var taskCompletionDao: com.averycorp.prismtask.data.local.dao.TaskCompletionDao
     private lateinit var importer: DataImporter
 
     @Before
@@ -77,6 +78,7 @@ class DataImporterTest {
         leisureDao = mockk(relaxed = true)
         selfCareDao = mockk(relaxed = true)
         schoolworkDao = mockk(relaxed = true)
+        taskCompletionDao = mockk(relaxed = true)
         themePreferences = mockk(relaxed = true)
         archivePreferences = mockk(relaxed = true)
         dashboardPreferences = mockk(relaxed = true)
@@ -93,7 +95,8 @@ class DataImporterTest {
 
         importer = DataImporter(
             taskDao, projectDao, tagDao,
-            habitDao, habitCompletionDao, habitLogDao,
+            habitDao, habitCompletionDao, taskCompletionDao,
+            habitLogDao,
             leisureDao, selfCareDao, schoolworkDao,
             themePreferences, archivePreferences, dashboardPreferences,
             tabPreferences, taskBehaviorPreferences, calendarPreferences,
@@ -108,6 +111,7 @@ class DataImporterTest {
         coEvery { tagDao.getAllTagsOnce() } returns emptyList()
         coEvery { habitDao.getAllHabitsOnce() } returns emptyList()
         coEvery { habitCompletionDao.getAllCompletionsOnce() } returns emptyList()
+        coEvery { taskCompletionDao.getAllCompletionsOnce() } returns emptyList()
         coEvery { habitLogDao.getAllLogsOnce() } returns emptyList()
         coEvery { leisureDao.getAllLogsOnce() } returns emptyList()
         coEvery { selfCareDao.getAllLogsOnce() } returns emptyList()

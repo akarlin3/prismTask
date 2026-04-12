@@ -181,7 +181,8 @@ fun TodayScreen(
                 completed = combinedCompleted,
                 total = totalForHeader,
                 progress = combinedProgress,
-                progressStyle = progressStyle
+                progressStyle = progressStyle,
+                onAnalyticsClick = { navController.navigate(PrismTaskRoute.TaskAnalytics.createRoute()) }
             )
         },
         bottomBar = {

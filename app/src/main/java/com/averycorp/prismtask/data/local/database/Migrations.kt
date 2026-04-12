@@ -615,6 +615,49 @@ val MIGRATION_33_34 = object : Migration(33, 34) {
     }
 }
 
+// Task Analytics: task_completions table + backfill from existing completed tasks
+val MIGRATION_37_38 = object : Migration(37, 38) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        // Create the task_completions table
+        db.execSQL(
+            """CREATE TABLE IF NOT EXISTS `task_completions` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `task_id` INTEGER,
+                `project_id` INTEGER,
+                `completed_date` INTEGER NOT NULL,
+                `completed_at_time` INTEGER NOT NULL,
+                `priority` INTEGER NOT NULL DEFAULT 0,
+                `was_overdue` INTEGER NOT NULL DEFAULT 0,
+                `days_to_complete` INTEGER,
+                `tags` TEXT,
+                FOREIGN KEY(`task_id`) REFERENCES `tasks`(`id`) ON DELETE SET NULL,
+                FOREIGN KEY(`project_id`) REFERENCES `projects`(`id`) ON DELETE SET NULL
+            )"""
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_task_completions_completed_date` ON `task_completions` (`completed_date`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_task_completions_project_id` ON `task_completions` (`project_id`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_task_completions_task_id` ON `task_completions` (`task_id`)")
+
+        // Backfill from existing completed tasks
+        db.execSQL(
+            """INSERT INTO `task_completions` (`task_id`, `project_id`, `completed_date`, `completed_at_time`, `priority`, `was_overdue`, `days_to_complete`, `tags`)
+               SELECT
+                   t.`id`,
+                   t.`project_id`,
+                   t.`completed_at`,
+                   t.`completed_at`,
+                   t.`priority`,
+                   CASE WHEN t.`due_date` IS NOT NULL AND t.`due_date` < t.`completed_at` THEN 1 ELSE 0 END,
+                   CASE WHEN t.`created_at` > 0 AND t.`completed_at` > t.`created_at`
+                        THEN CAST((t.`completed_at` - t.`created_at`) / 86400000 AS INTEGER)
+                        ELSE NULL END,
+                   (SELECT GROUP_CONCAT(tg.`name`, ',') FROM `task_tags` tt INNER JOIN `tags` tg ON tt.`tagId` = tg.`id` WHERE tt.`taskId` = t.`id`)
+               FROM `tasks` t
+               WHERE t.`is_completed` = 1 AND t.`completed_at` IS NOT NULL"""
+        )
+    }
+}
+
 val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_1_2,
     MIGRATION_2_3,
@@ -652,4 +695,5 @@ val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_34_35,
     MIGRATION_35_36,
     MIGRATION_36_37,
+    MIGRATION_37_38,
 )
