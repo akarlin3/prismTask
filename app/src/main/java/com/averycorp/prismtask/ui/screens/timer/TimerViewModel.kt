@@ -1,9 +1,14 @@
 package com.averycorp.prismtask.ui.screens.timer
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.averycorp.prismtask.data.preferences.TimerPreferences
+import com.averycorp.prismtask.widget.TimerStateDataStore
+import com.averycorp.prismtask.widget.TimerWidgetState
+import com.averycorp.prismtask.widget.WidgetUpdateManager
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -31,7 +36,9 @@ data class TimerUiState(
 
 @HiltViewModel
 class TimerViewModel @Inject constructor(
-    private val timerPreferences: TimerPreferences
+    @ApplicationContext private val appContext: Context,
+    private val timerPreferences: TimerPreferences,
+    private val widgetUpdateManager: WidgetUpdateManager
 ) : ViewModel() {
 
     private val workDurationSeconds: StateFlow<Int> = timerPreferences.getWorkDurationSeconds()
@@ -126,19 +133,31 @@ class TimerViewModel @Inject constructor(
         val state = _uiState.value
         if (state.remainingSeconds <= 0) return
         _uiState.value = state.copy(isRunning = true)
+        syncWidgetState()
         tickJob?.cancel()
+        var ticksSinceWidgetUpdate = 0
         tickJob = viewModelScope.launch {
+            widgetUpdateManager.updateTimerWidget()
             while (true) {
                 delay(1000L)
                 val current = _uiState.value
                 if (!current.isRunning) break
                 val next = current.remainingSeconds - 1
+                ticksSinceWidgetUpdate++
                 if (next <= 0) {
                     _uiState.value = current.copy(remainingSeconds = 0, isRunning = false)
+                    syncWidgetState()
+                    widgetUpdateManager.updateTimerWidget()
                     onTimerCompleted()
                     break
                 } else {
                     _uiState.value = current.copy(remainingSeconds = next)
+                    // Update widget every 30 seconds for sub-minute accuracy
+                    if (ticksSinceWidgetUpdate >= 30) {
+                        ticksSinceWidgetUpdate = 0
+                        syncWidgetState()
+                        widgetUpdateManager.updateTimerWidget()
+                    }
                 }
             }
         }
@@ -220,6 +239,8 @@ class TimerViewModel @Inject constructor(
         tickJob?.cancel()
         tickJob = null
         _uiState.value = _uiState.value.copy(isRunning = false)
+        syncWidgetState()
+        viewModelScope.launch { widgetUpdateManager.updateTimerWidget() }
     }
 
     fun reset() {
@@ -236,6 +257,8 @@ class TimerViewModel @Inject constructor(
             totalSeconds = total,
             isRunning = false
         )
+        syncWidgetState()
+        viewModelScope.launch { widgetUpdateManager.updateTimerWidget() }
     }
 
     fun resetPomodoro() {
@@ -291,8 +314,32 @@ class TimerViewModel @Inject constructor(
         }
     }
 
+    /** Syncs the current timer UI state to the widget DataStore. */
+    private fun syncWidgetState() {
+        val s = _uiState.value
+        viewModelScope.launch {
+            TimerStateDataStore.write(appContext, TimerWidgetState(
+                isRunning = s.isRunning,
+                isPaused = !s.isRunning && s.remainingSeconds < s.totalSeconds && s.remainingSeconds > 0,
+                remainingSeconds = s.remainingSeconds,
+                totalSeconds = s.totalSeconds,
+                sessionType = if (s.mode == TimerMode.WORK) "work" else "break",
+                currentSession = s.completedSessions + if (s.mode == TimerMode.WORK) 1 else 0,
+                totalSessions = s.sessionsUntilLongBreak
+            ))
+        }
+    }
+
     override fun onCleared() {
         super.onCleared()
         tickJob?.cancel()
+        // Clear widget state when the timer screen is closed
+        viewModelScope.launch {
+            val s = _uiState.value
+            if (!s.isRunning) {
+                TimerStateDataStore.clear(appContext)
+                widgetUpdateManager.updateTimerWidget()
+            }
+        }
     }
 }
