@@ -175,7 +175,7 @@ export async function getCompletions(
   startDate?: string,
   endDate?: string,
 ): Promise<HabitCompletion[]> {
-  let q = query(
+  const q = query(
     completionsCol(uid),
     where('habitCloudId', '==', habitId),
   );
