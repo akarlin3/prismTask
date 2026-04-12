@@ -37,7 +37,7 @@ class DiagnosticLogger @Inject constructor() {
 
     private fun updateCrashlyticsContext() {
         try {
-            val recent = buffer.takeLast(10).joinToString("\n") {
+            val recent = buffer.toList().takeLast(10).joinToString("\n") {
                 "[${it.level}] [${it.tag}] ${it.message}"
             }
             FirebaseCrashlytics.getInstance().setCustomKey("recent_events", recent)

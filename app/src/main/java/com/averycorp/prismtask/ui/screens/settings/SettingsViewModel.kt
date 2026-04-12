@@ -121,6 +121,8 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    val latestReleaseTag: StateFlow<String?> = MutableStateFlow(null)
+
     private val _isExportingClinicalReport = kotlinx.coroutines.flow.MutableStateFlow(false)
     val isExportingClinicalReport: StateFlow<Boolean> = _isExportingClinicalReport
 

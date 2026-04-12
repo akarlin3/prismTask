@@ -114,6 +114,9 @@ fun SettingsScreen(
     // Check-in streak (v1.4.0 V4)
     val checkInStreak by viewModel.checkInStreak.collectAsStateWithLifecycle()
 
+    // About
+    val latestReleaseTag by viewModel.latestReleaseTag.collectAsStateWithLifecycle()
+
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(clinicalReportUri) {
