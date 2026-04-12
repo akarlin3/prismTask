@@ -102,7 +102,8 @@ class SettingsViewModel @Inject constructor(
     private val medicationRefillRepository: com.averycorp.prismtask.data.repository.MedicationRefillRepository,
     private val checkInLogRepository: com.averycorp.prismtask.data.repository.CheckInLogRepository,
     private val clinicalReportPdfWriter: com.averycorp.prismtask.data.export.ClinicalReportPdfWriter,
-    private val onboardingPreferences: OnboardingPreferences
+    private val onboardingPreferences: OnboardingPreferences,
+    private val widgetUpdateManager: com.averycorp.prismtask.widget.WidgetUpdateManager
 ) : ViewModel() {
 
     private val _checkInStreak = kotlinx.coroutines.flow.MutableStateFlow(0)
@@ -282,6 +283,11 @@ class SettingsViewModel @Inject constructor(
     }
     fun setLargeTouchTargets(enabled: Boolean) {
         viewModelScope.launch { a11yPreferences.setLargeTouchTargets(enabled) }
+    }
+
+    // --- Widgets ---
+    fun refreshWidgets() {
+        viewModelScope.launch { widgetUpdateManager.updateAllWidgets() }
     }
 
     // --- Subscription ---
@@ -905,7 +911,7 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 onboardingPreferences.resetOnboarding()
-                _messages.emit("Tutorial Reset \u2014 Showing Now")
+                _messages.emit("Tutorial Reset — Showing Now")
                 onDone()
             } catch (e: Exception) {
                 _messages.emit("Could not reset tutorial: ${e.message}")
