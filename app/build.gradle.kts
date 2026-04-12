@@ -18,8 +18,8 @@ android {
         applicationId = "com.averycorp.prismtask"
         minSdk = 26
         targetSdk = 35
-        versionCode = 103
-        versionName = "1.3.12"
+        versionCode = 104
+        versionName = "1.3.13"
 
         testInstrumentationRunner = "com.averycorp.prismtask.HiltTestRunner"
         vectorDrawables { useSupportLibrary = true }
