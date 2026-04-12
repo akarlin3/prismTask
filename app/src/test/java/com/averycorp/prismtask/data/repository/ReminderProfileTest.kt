@@ -27,7 +27,7 @@ class ReminderProfileTest {
     @Test
     fun `built in profiles have three entries`() {
         assertEquals(3, ReminderProfileRepository.BUILT_INS.size)
-        val names = ReminderProfileRepository.BUILT_INS.map { it.a }
+        val names = ReminderProfileRepository.BUILT_INS.map { it.first }
         assertTrue("Gentle" in names)
         assertTrue("Aggressive" in names)
         assertTrue("Minimal" in names)
@@ -35,21 +35,21 @@ class ReminderProfileTest {
 
     @Test
     fun `aggressive has escalation enabled`() {
-        val aggr = ReminderProfileRepository.BUILT_INS.first { it.a == "Aggressive" }
-        assertTrue(aggr.c)
-        assertEquals(15, aggr.d)
+        val aggr = ReminderProfileRepository.BUILT_INS.first { it.first == "Aggressive" }
+        assertTrue(aggr.third)
+        assertEquals(15, aggr.fourth)
     }
 
     @Test
     fun `gentle has no escalation`() {
-        val gentle = ReminderProfileRepository.BUILT_INS.first { it.a == "Gentle" }
-        assertTrue(!gentle.c)
-        assertEquals(null, gentle.d)
+        val gentle = ReminderProfileRepository.BUILT_INS.first { it.first == "Gentle" }
+        assertTrue(!gentle.third)
+        assertEquals(null, gentle.fourth)
     }
 
     @Test
     fun `minimal has a single zero offset`() {
-        val min = ReminderProfileRepository.BUILT_INS.first { it.a == "Minimal" }
-        assertEquals(listOf(0L), min.b)
+        val min = ReminderProfileRepository.BUILT_INS.first { it.first == "Minimal" }
+        assertEquals(listOf(0L), min.second)
     }
 }

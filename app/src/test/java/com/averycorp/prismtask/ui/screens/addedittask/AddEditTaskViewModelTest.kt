@@ -5,6 +5,7 @@ import com.averycorp.prismtask.data.local.entity.TaskEntity
 import com.averycorp.prismtask.data.repository.AttachmentRepository
 import com.averycorp.prismtask.data.repository.ProjectRepository
 import com.averycorp.prismtask.data.repository.TagRepository
+import com.averycorp.prismtask.data.repository.BoundaryRuleRepository
 import com.averycorp.prismtask.data.repository.TaskRepository
 import com.averycorp.prismtask.data.repository.TaskTemplateRepository
 import com.averycorp.prismtask.notifications.ReminderScheduler
@@ -43,6 +44,7 @@ class AddEditTaskViewModelTest {
     private lateinit var attachmentRepository: AttachmentRepository
     private lateinit var templateRepository: TaskTemplateRepository
     private lateinit var reminderScheduler: ReminderScheduler
+    private lateinit var boundaryRuleRepository: BoundaryRuleRepository
     private lateinit var savedStateHandle: SavedStateHandle
 
     @Before
@@ -54,6 +56,7 @@ class AddEditTaskViewModelTest {
         attachmentRepository = mockk(relaxed = true)
         templateRepository = mockk(relaxed = true)
         reminderScheduler = mockk(relaxed = true)
+        boundaryRuleRepository = mockk(relaxed = true)
         savedStateHandle = SavedStateHandle()
 
         // Default StateFlow seeds so the VM init doesn't crash on relaxed mocks.
@@ -73,6 +76,7 @@ class AddEditTaskViewModelTest {
         attachmentRepository,
         templateRepository,
         reminderScheduler,
+        boundaryRuleRepository,
         savedStateHandle
     )
 
