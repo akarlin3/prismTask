@@ -30,11 +30,6 @@ def get_model(tier: str) -> str:
 # for Ultra to prevent abuse.
 
 
-def get_model(tier: str) -> str:
-    """Select AI model based on user's subscription tier."""
-    return MODEL_SONNET if tier == "ULTRA" else MODEL_HAIKU
-
-
 def _get_client():
     api_key = os.environ.get("ANTHROPIC_API_KEY") or settings.ANTHROPIC_API_KEY
     if not api_key:
@@ -80,7 +75,6 @@ Today's date: {today.isoformat()}
 Respond ONLY with valid JSON:
 [{{"task_id": 1, "quadrant": "Q1", "reason": "Due tomorrow, high priority"}}]"""
 
-    model = get_model(tier)
     last_error = None
     for attempt in range(2):
         try:
