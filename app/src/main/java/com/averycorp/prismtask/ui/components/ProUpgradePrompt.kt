@@ -44,6 +44,36 @@ fun UpgradePrompt(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             when {
+                // Feature requires ULTRA
+                requiredTier == UserTier.ULTRA -> {
+                    Text(
+                        text = "Ultra Feature",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF7C3AED)
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = description,
+                        style = MaterialTheme.typography.bodyMedium,
+                        textAlign = TextAlign.Center,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Button(
+                        onClick = { onUpgrade(UserTier.ULTRA) },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF7C3AED)
+                        )
+                    ) {
+                        Text("Upgrade to Ultra \u2014 \$9.99/month")
+                    }
+                    TextButton(onClick = onDismiss) {
+                        Text("Maybe Later")
+                    }
+                }
+
                 // FREE user, feature requires PRO
                 currentTier == UserTier.FREE && requiredTier == UserTier.PRO -> {
                     Text(
