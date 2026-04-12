@@ -51,7 +51,8 @@ class TimerWidget : GlanceAppWidget() {
 private fun TimerWidgetContent(context: Context, state: TimerWidgetState, size: DpSize) {
     val isLarge = size.width >= 200.dp; val isActive = state.isRunning || state.isPaused; val isWork = state.sessionType == "work"
     val accentColor = if (isWork) ColorProvider(Color(0xFFF57C00)) else ColorProvider(Color(0xFF00897B))
-    Column(modifier = GlanceModifier.fillMaxSize().cornerRadius(16.dp).background(GlanceTheme.colors.surface).padding(12.dp).clickable(actionStartActivity<MainActivity>()), verticalAlignment = Alignment.CenterVertically, horizontalAlignment = Alignment.CenterHorizontally) {
+    val launchIntent = Intent(context, MainActivity::class.java).apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP }
+    Column(modifier = GlanceModifier.fillMaxSize().cornerRadius(16.dp).background(GlanceTheme.colors.surface).padding(12.dp).clickable(actionStartActivity(launchIntent)), verticalAlignment = Alignment.CenterVertically, horizontalAlignment = Alignment.CenterHorizontally) {
         if (!isActive) {
             Text(text = "\u23F1\uFE0F Timer", style = TextStyle(fontWeight = FontWeight.Bold, fontSize = 14.sp, color = GlanceTheme.colors.onSurface))
             Spacer(modifier = GlanceModifier.height(8.dp))

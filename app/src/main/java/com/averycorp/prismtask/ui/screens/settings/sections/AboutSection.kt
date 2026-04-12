@@ -48,3 +48,4 @@ fun AboutSection(
             Text("Refresh Widgets")
         }
     }
+}
