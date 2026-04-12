@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import android.app.Application
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -19,7 +20,7 @@ import org.robolectric.annotation.Config
  * that the Robolectric runner reclaims between tests.
  */
 @RunWith(AndroidJUnit4::class)
-@Config(manifest = Config.NONE, sdk = [33])
+@Config(manifest = Config.NONE, sdk = [33], application = Application::class)
 class ThemePreferencesTest {
 
     private lateinit var prefs: ThemePreferences

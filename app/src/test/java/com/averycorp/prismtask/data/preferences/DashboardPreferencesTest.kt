@@ -9,11 +9,12 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import android.app.Application
 import org.junit.runner.RunWith
 import org.robolectric.annotation.Config
 
 @RunWith(AndroidJUnit4::class)
-@Config(manifest = Config.NONE, sdk = [33])
+@Config(manifest = Config.NONE, sdk = [33], application = Application::class)
 class DashboardPreferencesTest {
 
     private lateinit var prefs: DashboardPreferences

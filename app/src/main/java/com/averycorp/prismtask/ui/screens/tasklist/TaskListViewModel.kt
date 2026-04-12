@@ -102,8 +102,10 @@ class TaskListViewModel @Inject constructor(
     private val _urgencyWeights = MutableStateFlow(UrgencyWeights())
 
     init {
-        com.google.firebase.crashlytics.FirebaseCrashlytics.getInstance()
-            .setCustomKey("screen", "TaskListScreen")
+        try {
+            com.google.firebase.crashlytics.FirebaseCrashlytics.getInstance()
+                .setCustomKey("screen", "TaskListScreen")
+        } catch (_: Exception) { }
         // Prefer the per-screen sort saved in SortPreferences. When the user
         // has never picked a sort on this screen, fall back to the app-wide
         // "default sort" setting from TaskBehaviorPreferences so existing
