@@ -127,7 +127,8 @@ class EisenhowerViewModelTest {
             taskDao.updateEisenhowerQuadrant(
                 id = 42L,
                 quadrant = "Q3",
-                reason = "Manually moved"
+                reason = "Manually moved",
+                updatedAt = any()
             )
         }
     }

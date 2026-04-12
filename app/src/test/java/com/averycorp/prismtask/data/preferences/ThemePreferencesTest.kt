@@ -3,6 +3,7 @@ package com.averycorp.prismtask.data.preferences
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Before
@@ -24,8 +25,9 @@ class ThemePreferencesTest {
     private lateinit var prefs: ThemePreferences
 
     @Before
-    fun setUp() {
+    fun setUp() = runBlocking {
         prefs = ThemePreferences(ApplicationProvider.getApplicationContext())
+        prefs.clearAll()
     }
 
     @Test

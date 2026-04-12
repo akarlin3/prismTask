@@ -439,6 +439,7 @@ class HabitRepository @Inject constructor(
 
         fun getWeekStart(today: Long): Long {
             val cal = Calendar.getInstance()
+            cal.firstDayOfWeek = Calendar.MONDAY
             cal.timeInMillis = today
             cal.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
             cal.set(Calendar.HOUR_OF_DAY, 0)
@@ -450,6 +451,7 @@ class HabitRepository @Inject constructor(
 
         fun getWeekEnd(today: Long): Long {
             val cal = Calendar.getInstance()
+            cal.firstDayOfWeek = Calendar.MONDAY
             cal.timeInMillis = today
             cal.set(Calendar.DAY_OF_WEEK, Calendar.SUNDAY)
             cal.set(Calendar.HOUR_OF_DAY, 23)

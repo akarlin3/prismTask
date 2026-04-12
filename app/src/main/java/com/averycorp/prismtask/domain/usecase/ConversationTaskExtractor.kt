@@ -50,7 +50,7 @@ class ConversationTaskExtractor {
         // Explicit TODO / Action item markers — highest confidence.
         Pattern(Regex("""(?im)^(?:\s*)todo:?\s+(.+?)$"""), 0.95f),
         Pattern(Regex("""(?im)^(?:\s*)action\s*item:?\s+(.+?)$"""), 0.95f),
-        Pattern(Regex("""(?im)^(?:\s*)action:?\s+(.+?)$"""), 0.90f),
+        Pattern(Regex("""(?im)^(?:\s*)action:\s+(.+?)$"""), 0.90f),
         // "I'll / I will ..." — usually a commitment.
         Pattern(Regex("""(?im)\bI['']?ll\s+(.+?)(?:[.!?\n]|$)"""), 0.80f),
         Pattern(Regex("""(?im)\bI\s+will\s+(.+?)(?:[.!?\n]|$)"""), 0.80f),

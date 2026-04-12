@@ -48,7 +48,7 @@ object SmartDefaultsEngine {
         val slice = completedTasks.take(MAX_HISTORY)
 
         val priority = slice.map { it.priority }.mode()
-        val projectId = slice.mapNotNull { it.projectId }.mode()
+        val projectId = slice.mapNotNull { it.projectId }.modeIfRepeated()
         val reminderOffset = slice.mapNotNull { it.reminderOffset }.mode()
 
         val averageDuration = slice.mapNotNull { it.estimatedDuration }
@@ -113,5 +113,12 @@ object SmartDefaultsEngine {
     private fun <T : Any> List<T>.mode(): T? {
         if (isEmpty()) return null
         return groupingBy { it }.eachCount().maxByOrNull { it.value }?.key
+    }
+
+    /** Like [mode] but returns null unless the winning value appears more than once. */
+    private fun <T : Any> List<T>.modeIfRepeated(): T? {
+        if (isEmpty()) return null
+        val counts = groupingBy { it }.eachCount()
+        return counts.maxByOrNull { it.value }?.takeIf { it.value > 1 }?.key
     }
 }

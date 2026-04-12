@@ -15,7 +15,7 @@ class WeeklyReviewAggregatorTest {
 
     // Monday 2026-04-06 00:00 UTC = 1_775_779_200_000 + (5 days back from 2026-04-11 Saturday)
     // Use a fixed reference inside the week we care about.
-    private val reference = 1_776_124_800_000L // 2026-04-15 Wednesday 00:00 UTC
+    private val reference = 1_776_211_200_000L // 2026-04-15 Wednesday 00:00 UTC
 
     private fun task(
         id: Long,
