@@ -31,7 +31,7 @@ import javax.inject.Singleton
 import kotlin.coroutines.resume
 
 enum class UserTier {
-    FREE, PRO, PREMIUM
+    FREE, PRO, PREMIUM, ULTRA
 }
 
 enum class SubscriptionState {
@@ -50,6 +50,7 @@ class BillingManager @Inject constructor(
     companion object {
         const val PRODUCT_ID_PRO = "prismtask_pro_monthly"
         const val PRODUCT_ID_PREMIUM = "prismtask_premium_monthly"
+        const val PRODUCT_ID_ULTRA = "prismtask_ultra_monthly"
     }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
@@ -136,6 +137,7 @@ class BillingManager @Inject constructor(
         val productId = when (tier) {
             UserTier.PRO -> PRODUCT_ID_PRO
             UserTier.PREMIUM -> PRODUCT_ID_PREMIUM
+            UserTier.ULTRA -> PRODUCT_ID_ULTRA
             UserTier.FREE -> return Result.failure(Exception("Cannot purchase Free tier"))
         }
 
@@ -199,6 +201,7 @@ class BillingManager @Inject constructor(
 
         for (purchase in purchases) {
             val tier = when {
+                purchase.products.contains(PRODUCT_ID_ULTRA) -> UserTier.ULTRA
                 purchase.products.contains(PRODUCT_ID_PREMIUM) -> UserTier.PREMIUM
                 purchase.products.contains(PRODUCT_ID_PRO) -> UserTier.PRO
                 else -> continue

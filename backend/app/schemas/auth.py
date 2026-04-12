@@ -22,9 +22,14 @@ class TokenRefresh(BaseModel):
     refresh_token: str
 
 
+class UpdateTierRequest(BaseModel):
+    tier: str
+
+
 class UserResponse(BaseModel):
     id: int
     email: str
     name: str
+    tier: str = "FREE"
 
     model_config = {"from_attributes": True}

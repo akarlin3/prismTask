@@ -11,6 +11,7 @@ class ParsedTask(BaseModel):
     priority: Optional[int] = None
     parent_task_suggestion: Optional[str] = None
     confidence: float
+    suggestions: Optional[list[str]] = None  # Sonnet-tier: related task suggestions
 
 
 class ParseRequest(BaseModel):
