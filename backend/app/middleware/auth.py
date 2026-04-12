@@ -8,6 +8,7 @@ from app.models import User
 from app.services.auth import decode_token
 
 security = HTTPBearer()
+optional_security = HTTPBearer(auto_error=False)
 
 
 async def get_current_user(
@@ -46,3 +47,24 @@ async def get_current_user(
         )
 
     return user
+
+
+async def get_optional_user(
+    credentials: HTTPAuthorizationCredentials | None = Depends(optional_security),
+    db: AsyncSession = Depends(get_db),
+) -> User | None:
+    """Returns the authenticated user if a valid token is provided, or None otherwise."""
+    if credentials is None:
+        return None
+
+    token = credentials.credentials
+    payload = decode_token(token)
+    if payload is None or payload.get("type") != "access":
+        return None
+
+    user_id = payload.get("sub")
+    if user_id is None:
+        return None
+
+    result = await db.execute(select(User).where(User.id == int(user_id)))
+    return result.scalar_one_or_none()

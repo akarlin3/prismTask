@@ -108,6 +108,8 @@ class SettingsViewModel @Inject constructor(
     val checkInStreak: StateFlow<Int> = _checkInStreak
 
     init {
+        com.google.firebase.crashlytics.FirebaseCrashlytics.getInstance()
+            .setCustomKey("screen", "SettingsScreen")
         viewModelScope.launch {
             val todayStart = java.util.Calendar.getInstance().apply {
                 set(java.util.Calendar.HOUR_OF_DAY, 0)

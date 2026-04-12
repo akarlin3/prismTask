@@ -112,6 +112,7 @@ class BackendSyncService @Inject constructor(
             templatePreferences.setFirstSyncDone(true)
         } catch (e: Exception) {
             Log.e(TAG, "First-connect template push failed", e)
+            com.google.firebase.crashlytics.FirebaseCrashlytics.getInstance().recordException(e)
             // Leave the flag unset so we retry next sync.
             throw e
         }
@@ -167,6 +168,7 @@ class BackendSyncService @Inject constructor(
             api.syncPush(request)
         } catch (e: Exception) {
             Log.e(TAG, "Push failed", e)
+            com.google.firebase.crashlytics.FirebaseCrashlytics.getInstance().recordException(e)
             throw e
         }
         return operations.size
@@ -184,6 +186,7 @@ class BackendSyncService @Inject constructor(
             api.syncPull(sinceParam)
         } catch (e: Exception) {
             Log.e(TAG, "Pull failed", e)
+            com.google.firebase.crashlytics.FirebaseCrashlytics.getInstance().recordException(e)
             throw e
         }
 

@@ -52,6 +52,9 @@ import com.averycorp.prismtask.ui.screens.planner.WeeklyPlannerScreen
 import com.averycorp.prismtask.ui.screens.pomodoro.SmartPomodoroScreen
 import com.averycorp.prismtask.ui.screens.templates.AddEditTemplateScreen
 import com.averycorp.prismtask.ui.screens.chat.ChatScreen
+import com.averycorp.prismtask.ui.screens.feedback.BugReportScreen
+import com.averycorp.prismtask.ui.screens.feedback.BugReportViewModel
+import com.averycorp.prismtask.ui.screens.feedback.MyReportsScreen
 import com.averycorp.prismtask.ui.screens.templates.TemplateListScreen
 import com.averycorp.prismtask.ui.screens.timer.TimerScreen
 
@@ -704,5 +707,69 @@ internal fun NavGraphBuilder.featureRoutes(
                 }
             ) {
                 ChatScreen(navController)
+            }
+
+            composable(
+                route = PrismTaskRoute.BugReport.route,
+                arguments = listOf(
+                    navArgument("fromScreen") {
+                        type = NavType.StringType
+                        defaultValue = ""
+                    }
+                ),
+                enterTransition = {
+                    slideInVertically(initialOffsetY = { it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
+                },
+                exitTransition = { fadeOut(animationSpec = tween(NAV_ANIM_DURATION)) },
+                popEnterTransition = { fadeIn(animationSpec = tween(NAV_ANIM_DURATION)) },
+                popExitTransition = {
+                    slideOutVertically(targetOffsetY = { it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
+                }
+            ) {
+                BugReportScreen(navController)
+            }
+
+            composable(
+                route = PrismTaskRoute.FeatureRequest.route,
+                enterTransition = {
+                    slideInVertically(initialOffsetY = { it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
+                },
+                exitTransition = { fadeOut(animationSpec = tween(NAV_ANIM_DURATION)) },
+                popEnterTransition = { fadeIn(animationSpec = tween(NAV_ANIM_DURATION)) },
+                popExitTransition = {
+                    slideOutVertically(targetOffsetY = { it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
+                }
+            ) {
+                val viewModel: BugReportViewModel = hiltViewModel()
+                androidx.compose.runtime.LaunchedEffect(Unit) {
+                    viewModel.setIsFeatureRequest(true)
+                }
+                BugReportScreen(navController, viewModel)
+            }
+
+            composable(
+                route = PrismTaskRoute.MyReports.route,
+                enterTransition = {
+                    slideInHorizontally(initialOffsetX = { it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
+                },
+                exitTransition = {
+                    slideOutHorizontally(targetOffsetX = { -it / 3 }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
+                },
+                popEnterTransition = {
+                    slideInHorizontally(initialOffsetX = { -it / 3 }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
+                },
+                popExitTransition = {
+                    slideOutHorizontally(targetOffsetX = { it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
+                }
+            ) {
+                MyReportsScreen(navController)
             }
 }

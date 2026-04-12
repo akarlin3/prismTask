@@ -7,6 +7,7 @@ plugins {
     id("com.google.dagger.hilt.android")
     id("com.google.gms.google-services")
     id("com.google.firebase.appdistribution")
+    id("com.google.firebase.crashlytics")
 }
 
 android {
@@ -91,6 +92,12 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
+    }
+
+    buildTypes.getByName("release") {
+        configure<com.google.firebase.crashlytics.buildtools.gradle.CrashlyticsExtension> {
+            mappingFileUploadEnabled = true
+        }
     }
 
     testOptions {
@@ -198,6 +205,7 @@ dependencies {
     implementation("com.google.firebase:firebase-auth-ktx")
     implementation("com.google.firebase:firebase-firestore-ktx")
     implementation("com.google.firebase:firebase-storage-ktx")
+    implementation("com.google.firebase:firebase-crashlytics-ktx")
 
     // Credential Manager (Google Sign-In)
     implementation("androidx.credentials:credentials:1.3.0")

@@ -5,14 +5,22 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
 import androidx.activity.ComponentActivity
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -23,6 +31,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.averycorp.prismtask.data.billing.BillingManager
+import com.averycorp.prismtask.data.diagnostics.DiagnosticLogger
+import com.averycorp.prismtask.domain.usecase.ScreenshotCapture
+import com.averycorp.prismtask.domain.usecase.ShakeDetector
+import com.averycorp.prismtask.ui.navigation.PrismTaskRoute
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.averycorp.prismtask.data.preferences.AppearancePrefs
 import com.averycorp.prismtask.data.preferences.OnboardingPreferences
 import com.averycorp.prismtask.data.preferences.TabPreferences
@@ -63,6 +77,15 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var userPreferencesDataStore: UserPreferencesDataStore
 
+    @Inject
+    lateinit var shakeDetector: ShakeDetector
+
+    @Inject
+    lateinit var screenshotCapture: ScreenshotCapture
+
+    @Inject
+    lateinit var diagnosticLogger: DiagnosticLogger
+
     companion object {
         /** Intent extra key set by the QuickAdd widget to route deep-links. */
         const val EXTRA_LAUNCH_ACTION = "com.averycorp.prismtask.LAUNCH_ACTION"
@@ -78,6 +101,7 @@ class MainActivity : ComponentActivity() {
         NotificationHelper.createNotificationChannel(this)
         syncService.startAutoSync()
         billingManager.initialize(this)
+        setCrashlyticsUserId()
         val launchAction = intent?.getStringExtra(EXTRA_LAUNCH_ACTION)
         // v1.4.0 V9: support Android share-intent entry into the Paste
         // Conversation screen. When another app sends text to PrismTask
@@ -174,6 +198,21 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
+            // Shake-to-report: collect shake events and show confirmation dialog
+            var showShakeDialog by remember { mutableStateOf(false) }
+            var pendingScreenshotUri by remember { mutableStateOf<android.net.Uri?>(null) }
+
+            LaunchedEffect(Unit) {
+                shakeDetector.shakeEvents.collect {
+                    if (!showShakeDialog) {
+                        triggerHapticFeedback()
+                        val uri = screenshotCapture.capture(this@MainActivity)
+                        pendingScreenshotUri = uri
+                        showShakeDialog = true
+                    }
+                }
+            }
+
             PrismTaskTheme(
                 themeMode = themeMode,
                 accentColor = accentColor,
@@ -189,16 +228,93 @@ class MainActivity : ComponentActivity() {
                 cardCornerRadius = appearance.cardCornerRadius,
                 showCardBorders = appearance.showTaskCardBorders
             ) {
-                PrismTaskNavGraph(
-                    modifier = Modifier.fillMaxSize(),
-                    tabOrder = tabOrder,
-                    hiddenTabs = hiddenTabs,
-                    initialLaunchAction = launchAction,
-                    initialSharedText = initialSharedText,
-                    hasCompletedOnboarding = hasCompletedOnboarding
-                )
+                val navController = androidx.navigation.compose.rememberNavController()
+
+                if (showShakeDialog) {
+                    androidx.compose.material3.AlertDialog(
+                        onDismissRequest = {
+                            showShakeDialog = false
+                            pendingScreenshotUri = null
+                        },
+                        title = { androidx.compose.material3.Text("Report a Bug?") },
+                        text = {
+                            androidx.compose.material3.Text(
+                                "A screenshot has been captured. Would you like to file a bug report?"
+                            )
+                        },
+                        confirmButton = {
+                            androidx.compose.material3.TextButton(onClick = {
+                                showShakeDialog = false
+                                navController.navigate(PrismTaskRoute.BugReport.createRoute("ShakeReport"))
+                            }) {
+                                androidx.compose.material3.Text("Report")
+                            }
+                        },
+                        dismissButton = {
+                            androidx.compose.material3.TextButton(onClick = {
+                                showShakeDialog = false
+                                pendingScreenshotUri = null
+                            }) {
+                                androidx.compose.material3.Text("Cancel")
+                            }
+                        }
+                    )
+                }
+
+                Box(modifier = Modifier.fillMaxSize()) {
+                    PrismTaskNavGraph(
+                        modifier = Modifier.fillMaxSize(),
+                        navController = navController,
+                        tabOrder = tabOrder,
+                        hiddenTabs = hiddenTabs,
+                        initialLaunchAction = launchAction,
+                        initialSharedText = initialSharedText,
+                        hasCompletedOnboarding = hasCompletedOnboarding
+                    )
+
+                    // Floating feedback button for beta/debug builds
+                    if (BuildConfig.DEBUG) {
+                        com.averycorp.prismtask.ui.components.FeedbackButton(
+                            onClick = {
+                                navController.navigate(PrismTaskRoute.BugReport.createRoute("FloatingButton"))
+                            },
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .padding(end = 16.dp, bottom = 80.dp)
+                        )
+                    }
+                }
             }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        shakeDetector.register()
+        screenshotCapture.cleanupOldScreenshots(this)
+    }
+
+    override fun onPause() {
+        super.onPause()
+        shakeDetector.unregister()
+    }
+
+    private fun triggerHapticFeedback() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val vibratorManager = getSystemService(VIBRATOR_MANAGER_SERVICE) as? VibratorManager
+            vibratorManager?.defaultVibrator?.vibrate(
+                VibrationEffect.createOneShot(50, VibrationEffect.DEFAULT_AMPLITUDE)
+            )
+        } else {
+            @Suppress("DEPRECATION")
+            val vibrator = getSystemService(VIBRATOR_SERVICE) as? Vibrator
+            vibrator?.vibrate(VibrationEffect.createOneShot(50, VibrationEffect.DEFAULT_AMPLITUDE))
+        }
+    }
+
+    private fun setCrashlyticsUserId() {
+        val user = FirebaseAuth.getInstance().currentUser
+        FirebaseCrashlytics.getInstance().setUserId(user?.uid ?: "anonymous")
     }
 
     private fun parseColorOrDefault(hex: String, default: Color): Color {

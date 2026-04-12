@@ -1,6 +1,7 @@
 package com.averycorp.prismtask
 
 import android.app.Application
+import com.averycorp.prismtask.BuildConfig
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import androidx.work.ExistingPeriodicWorkPolicy
@@ -14,6 +15,7 @@ import com.averycorp.prismtask.data.seed.TemplateSeeder
 import com.averycorp.prismtask.notifications.OverloadCheckWorker
 import com.averycorp.prismtask.workers.AutoArchiveWorker
 import com.averycorp.prismtask.workers.DailyResetWorker
+import com.google.firebase.crashlytics.FirebaseCrashlytics
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -53,11 +55,17 @@ class PrismTaskApplication : Application(), Configuration.Provider {
 
     override fun onCreate() {
         super.onCreate()
+        configureCrashlytics()
         scheduleAutoArchive()
         scheduleDailyReset()
         scheduleOverloadCheck()
         seedBuiltInHabits()
         seedBuiltInTemplates()
+    }
+
+    private fun configureCrashlytics() {
+        FirebaseCrashlytics.getInstance()
+            .setCrashlyticsCollectionEnabled(!BuildConfig.DEBUG)
     }
 
     /**

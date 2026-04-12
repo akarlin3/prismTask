@@ -73,6 +73,8 @@ class TodayViewModel @Inject constructor(
     fun dismissCheckInPrompt() { _showCheckInPrompt.value = false }
 
     init {
+        com.google.firebase.crashlytics.FirebaseCrashlytics.getInstance()
+            .setCustomKey("screen", "TodayScreen")
         viewModelScope.launch {
             val dayStartHour = taskBehaviorPreferences.getDayStartHour().first()
             val todayStartLocal = DayBoundary.startOfCurrentDay(dayStartHour)

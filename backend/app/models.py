@@ -416,3 +416,46 @@ class IntegrationConfig(Base):
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
     user = relationship("User")
+
+
+class BugReportStatus(str, enum.Enum):
+    SUBMITTED = "SUBMITTED"
+    ACKNOWLEDGED = "ACKNOWLEDGED"
+    FIXED = "FIXED"
+    WONT_FIX = "WONT_FIX"
+
+
+class BugReportModel(Base):
+    __tablename__ = "bug_reports"
+
+    id = Column(Integer, primary_key=True)
+    report_id = Column(String(64), unique=True, nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    category = Column(String(50), nullable=False)
+    description = Column(Text, nullable=False)
+    severity = Column(String(20), nullable=False, default="MINOR")
+    steps = Column(Text, nullable=True)
+    screenshot_uris = Column(Text, nullable=True)
+    device_model = Column(String(255), nullable=True)
+    device_manufacturer = Column(String(255), nullable=True)
+    android_version = Column(Integer, nullable=True)
+    app_version = Column(String(50), nullable=True)
+    app_version_code = Column(Integer, nullable=True)
+    build_type = Column(String(20), nullable=True)
+    user_tier = Column(String(20), nullable=True)
+    current_screen = Column(String(255), nullable=True)
+    task_count = Column(Integer, nullable=True)
+    habit_count = Column(Integer, nullable=True)
+    available_ram_mb = Column(Integer, nullable=True)
+    free_storage_mb = Column(Integer, nullable=True)
+    network_type = Column(String(20), nullable=True)
+    battery_percent = Column(Integer, nullable=True)
+    is_charging = Column(Boolean, nullable=True)
+    status = Column(String(20), nullable=False, default="SUBMITTED")
+    admin_notes = Column(Text, nullable=True)
+    diagnostic_log = Column(Text, nullable=True)
+    submitted_via = Column(String(20), nullable=True, default="backend")
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    user = relationship("User", foreign_keys=[user_id])

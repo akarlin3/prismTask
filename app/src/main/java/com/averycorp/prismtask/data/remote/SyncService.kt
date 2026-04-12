@@ -149,6 +149,7 @@ class SyncService @Inject constructor(
                 syncMetadataDao.clearPendingAction(meta.localId, meta.entityType)
             } catch (e: Exception) {
                 Log.e("SyncService", "Push failed for ${meta.entityType}/${meta.localId}", e)
+                com.google.firebase.crashlytics.FirebaseCrashlytics.getInstance().recordException(e)
                 syncMetadataDao.incrementRetry(meta.localId, meta.entityType)
             }
         }
@@ -367,6 +368,7 @@ class SyncService @Inject constructor(
         scope.launch {
             try { fullSync() } catch (e: Exception) {
                 Log.e("SyncService", "Auto-sync failed", e)
+                com.google.firebase.crashlytics.FirebaseCrashlytics.getInstance().recordException(e)
             }
         }
     }
@@ -385,6 +387,7 @@ class SyncService @Inject constructor(
                         pullRemoteChanges()
                     } catch (e: Exception) {
                         Log.e("SyncService", "Real-time pull failed", e)
+                        com.google.firebase.crashlytics.FirebaseCrashlytics.getInstance().recordException(e)
                     }
                 }
             }
