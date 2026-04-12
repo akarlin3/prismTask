@@ -9,6 +9,7 @@ import com.averycorp.prismtask.data.local.entity.TaskWithTags
 import com.averycorp.prismtask.data.remote.CalendarSyncService
 import com.averycorp.prismtask.data.remote.SyncTracker
 import com.averycorp.prismtask.notifications.ReminderScheduler
+import com.averycorp.prismtask.widget.WidgetUpdateManager
 import io.mockk.coVerify
 import io.mockk.mockk
 import kotlinx.coroutines.flow.Flow
@@ -36,6 +37,7 @@ class TaskRepositoryTest {
     private lateinit var syncTracker: SyncTracker
     private lateinit var calendarSyncService: CalendarSyncService
     private lateinit var reminderScheduler: ReminderScheduler
+    private lateinit var widgetUpdateManager: WidgetUpdateManager
     private lateinit var repo: TaskRepository
 
     @Before
@@ -45,7 +47,8 @@ class TaskRepositoryTest {
         syncTracker = mockk(relaxed = true)
         calendarSyncService = mockk(relaxed = true)
         reminderScheduler = mockk(relaxed = true)
-        repo = TaskRepository(taskDao, tagDao, syncTracker, calendarSyncService, reminderScheduler)
+        widgetUpdateManager = mockk(relaxed = true)
+        repo = TaskRepository(taskDao, tagDao, syncTracker, calendarSyncService, reminderScheduler, widgetUpdateManager)
     }
 
     // ---------------------------------------------------------------------

@@ -11,6 +11,7 @@ import com.averycorp.prismtask.data.preferences.HabitListPreferences
 import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
 import com.averycorp.prismtask.data.remote.SyncTracker
 import com.averycorp.prismtask.notifications.MedicationReminderScheduler
+import com.averycorp.prismtask.widget.WidgetUpdateManager
 import com.averycorp.prismtask.util.DayBoundary
 import io.mockk.every
 import io.mockk.mockk
@@ -44,6 +45,7 @@ class HabitRepositoryTest {
     private lateinit var medicationReminderScheduler: MedicationReminderScheduler
     private lateinit var taskBehaviorPreferences: TaskBehaviorPreferences
     private lateinit var habitListPreferences: HabitListPreferences
+    private lateinit var widgetUpdateManager: WidgetUpdateManager
     private lateinit var repo: HabitRepository
 
     @Before
@@ -56,6 +58,7 @@ class HabitRepositoryTest {
         medicationReminderScheduler = mockk(relaxed = true)
         taskBehaviorPreferences = mockk(relaxed = true)
         habitListPreferences = mockk(relaxed = true)
+        widgetUpdateManager = mockk(relaxed = true)
         every { taskBehaviorPreferences.getDayStartHour() } returns flowOf(0)
         every { habitListPreferences.getStreakMaxMissedDays() } returns flowOf(1)
 
@@ -67,7 +70,8 @@ class HabitRepositoryTest {
             syncTracker,
             medicationReminderScheduler,
             taskBehaviorPreferences,
-            habitListPreferences
+            habitListPreferences,
+            widgetUpdateManager
         )
     }
 
