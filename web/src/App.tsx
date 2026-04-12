@@ -4,6 +4,8 @@ import { Toaster } from 'sonner';
 import { router } from '@/routes';
 import { useAuthStore } from '@/stores/authStore';
 import { useThemeStore } from '@/stores/themeStore';
+import { ErrorBoundary } from '@/components/shared/ErrorBoundary';
+import { OfflineBanner } from '@/components/shared/OfflineBanner';
 
 export default function App() {
   const hydrateFromStorage = useAuthStore((s) => s.hydrateFromStorage);
@@ -32,8 +34,18 @@ export default function App() {
     return () => mediaQuery.removeEventListener('change', handler);
   }, []);
 
+  // Register service worker for PWA
+  useEffect(() => {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(() => {
+        // Service worker registration failed — silent fallback
+      });
+    }
+  }, []);
+
   return (
-    <>
+    <ErrorBoundary>
+      <OfflineBanner />
       <RouterProvider router={router} />
       <Toaster
         position="bottom-right"
@@ -45,6 +57,6 @@ export default function App() {
           },
         }}
       />
-    </>
+    </ErrorBoundary>
   );
 }

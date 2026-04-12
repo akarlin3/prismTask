@@ -21,5 +21,26 @@ export default defineConfig({
   },
   build: {
     sourcemap: true,
+    rollupOptions: {
+      output: {
+        manualChunks(id: string) {
+          if (id.includes('node_modules/react-dom') || id.includes('node_modules/react/') || id.includes('node_modules/react-router')) {
+            return 'react-vendor';
+          }
+          if (id.includes('node_modules/lucide-react') || id.includes('node_modules/sonner') || id.includes('node_modules/recharts')) {
+            return 'ui-vendor';
+          }
+          if (id.includes('node_modules/@dnd-kit')) {
+            return 'dnd-vendor';
+          }
+          if (id.includes('node_modules/date-fns')) {
+            return 'date-vendor';
+          }
+          if (id.includes('node_modules/react-hook-form') || id.includes('node_modules/@hookform') || id.includes('node_modules/zod')) {
+            return 'form-vendor';
+          }
+        },
+      },
+    },
   },
 })

@@ -1,0 +1,14 @@
+User-agent: *
+Allow: /login
+Allow: /register
+Disallow: /tasks
+Disallow: /projects
+Disallow: /habits
+Disallow: /calendar
+Disallow: /eisenhower
+Disallow: /pomodoro
+Disallow: /templates
+Disallow: /archive
+Disallow: /settings
+
+Sitemap: https://app.prismtask.com/sitemap.xml

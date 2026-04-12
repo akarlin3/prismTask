@@ -16,6 +16,8 @@ import {
   Keyboard,
   Loader2,
   Check,
+  Bell,
+  Smartphone,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useThemeStore, ACCENT_COLORS } from '@/stores/themeStore';
@@ -29,6 +31,11 @@ import { KeyboardShortcutsModal } from '@/components/shared/KeyboardShortcutsMod
 import { ProUpgradeModal } from '@/components/shared/ProUpgradeModal';
 import { exportJson, exportCsv } from '@/utils/export';
 import { parseImportFile, importData } from '@/utils/import';
+import {
+  isNotificationSupported,
+  requestNotificationPermission,
+  getNotificationPermission,
+} from '@/utils/notifications';
 import type { ThemeMode } from '@/stores/themeStore';
 import type { ImportPreview } from '@/utils/import';
 
@@ -455,6 +462,83 @@ export function SettingsScreen() {
             </Button>
           </div>
         </div>
+      </SettingsSection>
+
+      {/* Notifications */}
+      <SettingsSection
+        icon={<Bell className="h-5 w-5 text-[var(--color-accent)]" />}
+        title="Notifications"
+      >
+        {isNotificationSupported() ? (
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-[var(--color-text-primary)]">
+                  Browser Notifications
+                </p>
+                <p className="text-xs text-[var(--color-text-secondary)]">
+                  Get reminders for upcoming tasks
+                </p>
+              </div>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={async () => {
+                  const perm = await requestNotificationPermission();
+                  if (perm === 'granted') {
+                    toast.success('Notifications enabled!');
+                  } else if (perm === 'denied') {
+                    toast.error('Notifications blocked. Please enable them in browser settings.');
+                  }
+                }}
+              >
+                {getNotificationPermission() === 'granted' ? (
+                  <>
+                    <Check className="h-3.5 w-3.5" />
+                    Enabled
+                  </>
+                ) : (
+                  'Enable Notifications'
+                )}
+              </Button>
+            </div>
+            <p className="text-xs text-[var(--color-text-secondary)]">
+              Note: Notifications only work while PrismTask is open in a browser tab.
+              For reliable reminders, install PrismTask as an app.
+            </p>
+          </div>
+        ) : (
+          <p className="text-sm text-[var(--color-text-secondary)]">
+            Browser notifications are not supported in this browser.
+          </p>
+        )}
+      </SettingsSection>
+
+      {/* Install App */}
+      <SettingsSection
+        icon={<Smartphone className="h-5 w-5 text-[var(--color-accent)]" />}
+        title="Install App"
+      >
+        <p className="text-sm text-[var(--color-text-secondary)] mb-3">
+          Install PrismTask as a standalone app for a native-like experience with
+          reliable background notifications and offline access.
+        </p>
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={() => {
+            // Trigger PWA install prompt if available
+            const deferredPrompt = (window as unknown as { __pwaInstallPrompt?: { prompt: () => void } }).__pwaInstallPrompt;
+            if (deferredPrompt) {
+              deferredPrompt.prompt();
+            } else {
+              toast('To install, use your browser menu and select "Install App" or "Add to Home Screen".');
+            }
+          }}
+        >
+          <Smartphone className="h-4 w-4" />
+          Install PrismTask
+        </Button>
       </SettingsSection>
 
       {/* Account */}

@@ -39,7 +39,6 @@ html {
 body {
   margin: 0;
   font-family:
-    'Inter',
     system-ui,
     -apple-system,
     BlinkMacSystemFont,
@@ -71,10 +70,23 @@ body {
   background: var(--color-text-secondary);
 }
 
-/* Focus ring */
+/* Focus ring — visible on all interactive elements */
 *:focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
+}
+
+/* Screen-reader only utility */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 /* Animations */
@@ -123,6 +135,25 @@ body {
   animation: pulse-slow 2s ease-in-out infinite;
 }
 
+/* Reduced motion — disable all animations for accessibility */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .animate-slide-up,
+  .animate-loading-bar,
+  .animate-pulse-slow,
+  .animate-pulse {
+    animation: none !important;
+  }
+}
+
 /* Compact mode */
 .compact {
   font-size: 14px;
@@ -148,4 +179,44 @@ body {
 .compact span,
 .compact label {
   line-height: 1.3;
+}
+
+/* Touch targets — ensure minimum 44px on touch devices */
+@media (pointer: coarse) {
+  button,
+  a,
+  [role="button"],
+  input[type="checkbox"],
+  input[type="radio"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+/* High contrast mode support */
+@media (forced-colors: active) {
+  :root {
+    --color-accent: LinkText;
+    --color-border: ButtonBorder;
+    --color-text-primary: CanvasText;
+    --color-text-secondary: GrayText;
+    --color-bg-primary: Canvas;
+    --color-bg-secondary: Canvas;
+    --color-bg-card: Canvas;
+  }
+}
+
+/* Print styles */
+@media print {
+  nav,
+  header,
+  .mobile-nav,
+  button {
+    display: none !important;
+  }
+
+  main {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
 }

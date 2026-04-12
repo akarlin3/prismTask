@@ -38,6 +38,7 @@ export function Sidebar() {
       className={`fixed left-0 top-0 z-30 flex h-screen flex-col border-r border-[var(--color-border)] bg-[var(--color-bg-secondary)] transition-all duration-200 ${
         collapsed ? 'w-16' : 'w-60'
       }`}
+      aria-label="Main navigation"
     >
       {/* Logo */}
       <div className="flex h-14 items-center border-b border-[var(--color-border)] px-3">
@@ -45,13 +46,15 @@ export function Sidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto px-2 py-3">
-        <ul className="flex flex-col gap-1">
+      <nav className="flex-1 overflow-y-auto px-2 py-3" aria-label="App sections">
+        <ul className="flex flex-col gap-1" role="list">
           {NAV_ITEMS.map(({ to, icon: Icon, label }) => (
             <li key={to}>
               <NavLink
                 to={to}
                 end={to === '/'}
+                title={collapsed ? label : undefined}
+                aria-label={collapsed ? label : undefined}
                 className={({ isActive }) =>
                   `flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                     isActive
@@ -60,7 +63,7 @@ export function Sidebar() {
                   }`
                 }
               >
-                <Icon className="h-5 w-5 shrink-0" />
+                <Icon className="h-5 w-5 shrink-0" aria-hidden="true" />
                 {!collapsed && <span>{label}</span>}
               </NavLink>
             </li>
@@ -75,9 +78,9 @@ export function Sidebar() {
         aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
       >
         {collapsed ? (
-          <PanelLeftOpen className="h-5 w-5" />
+          <PanelLeftOpen className="h-5 w-5" aria-hidden="true" />
         ) : (
-          <PanelLeftClose className="h-5 w-5" />
+          <PanelLeftClose className="h-5 w-5" aria-hidden="true" />
         )}
       </button>
     </aside>

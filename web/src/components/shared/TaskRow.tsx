@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, memo } from 'react';
 import { Checkbox } from '@/components/ui/Checkbox';
 import { PriorityBadge } from './PriorityBadge';
 import { DueDateLabel } from './DueDateLabel';
@@ -22,7 +22,7 @@ interface TaskRowProps {
   className?: string;
 }
 
-export function TaskRow({
+export const TaskRow = memo(function TaskRow({
   task,
   selected = false,
   onToggleSelect,
@@ -158,4 +158,4 @@ export function TaskRow({
       )}
     </div>
   );
-}
+});

@@ -51,7 +51,11 @@ export function AppShell() {
         }`}
       >
         <Header />
-        <main className="flex-1 overflow-y-auto p-4 pb-20 lg:pb-4">
+        <main
+          id="main-content"
+          className="flex-1 overflow-y-auto p-4 pb-20 lg:pb-4"
+          role="main"
+        >
           <Outlet />
         </main>
       </div>
@@ -79,6 +83,14 @@ export function AppShell() {
           }}
         />
       )}
+
+      {/* Skip to main content link (screen reader) */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[70] focus:rounded-lg focus:bg-[var(--color-accent)] focus:px-4 focus:py-2 focus:text-white focus:shadow-lg"
+      >
+        Skip To Main Content
+      </a>
     </div>
   );
 }
