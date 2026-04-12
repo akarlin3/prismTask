@@ -179,7 +179,7 @@ export function HabitModal({ habit, onClose }: HabitModalProps) {
                 }`}
                 style={{
                   backgroundColor: c,
-                  ringColor: color === c ? c : undefined,
+                  ...(color === c ? { '--tw-ring-color': c } as React.CSSProperties : {}),
                 }}
               />
             ))}

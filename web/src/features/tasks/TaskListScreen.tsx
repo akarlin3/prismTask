@@ -82,6 +82,7 @@ export function TaskListScreen() {
     uncompleteTask,
     bulkComplete,
     bulkDelete,
+    bulkMove,
     bulkUpdatePriority,
     bulkUpdateDueDate,
     setSelectedTask,
