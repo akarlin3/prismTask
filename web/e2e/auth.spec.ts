@@ -12,7 +12,7 @@ test.describe('Authentication', () => {
     await page.goto('/login');
     await expect(page.getByLabel(/email/i)).toBeVisible();
     await expect(page.getByLabel(/password/i).first()).toBeVisible();
-    await expect(page.getByRole('button', { name: /sign in|log in/i })).toBeVisible();
+    await expect(page.locator('button[type="submit"]').getByText(/sign in|log in/i)).toBeVisible();
   });
 
   test('shows register page with link from login', async ({ page }) => {
@@ -25,6 +25,6 @@ test.describe('Authentication', () => {
     await page.goto('/register');
     await expect(page.getByLabel(/email/i)).toBeVisible();
     await expect(page.getByLabel(/password/i).first()).toBeVisible();
-    await expect(page.getByRole('button', { name: /sign up|register|create/i })).toBeVisible();
+    await expect(page.locator('button[type="submit"]').getByText(/sign up|register|create/i)).toBeVisible();
   });
 });
