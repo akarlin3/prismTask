@@ -49,6 +49,7 @@ keystore_base64.txt
 
 # Build artifacts in repo root
 *.apk
+!app-debug.apk
 *.aab
 apk/*.apk
 apk/*.aab
