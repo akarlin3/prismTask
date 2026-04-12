@@ -12,7 +12,16 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
-MODEL = "claude-haiku-4-5-20251001"
+MODEL_HAIKU = "claude-haiku-4-5-20251001"
+MODEL_SONNET = "claude-sonnet-4-6"
+MODEL = MODEL_HAIKU
+
+
+def get_model(tier: str) -> str:
+    """Return the appropriate model ID for the given subscription tier."""
+    if tier == "ULTRA":
+        return MODEL_SONNET
+    return MODEL_HAIKU
 
 
 def _get_client():
@@ -35,9 +44,10 @@ def _parse_ai_json(content: str) -> dict | list:
     return json.loads(content)
 
 
-def categorize_eisenhower(tasks: list[dict], today: date) -> list[dict]:
+def categorize_eisenhower(tasks: list[dict], today: date, tier: str = "FREE") -> list[dict]:
     """Call Claude Haiku to categorize tasks into Eisenhower quadrants."""
     client = _get_client()
+    model = get_model(tier)
     tasks_json = json.dumps(tasks, default=str, indent=2)
 
     prompt = f"""You are a productivity assistant. Categorize each task into an Eisenhower Matrix quadrant.
@@ -57,7 +67,7 @@ Tasks:
 
 Today's date: {today.isoformat()}
 
-Respond ONLY with valid JSON — no markdown, no preamble:
+Respond ONLY with valid JSON \u2014 no markdown, no preamble:
 [
   {{"task_id": 1, "quadrant": "Q1", "reason": "Due tomorrow, high priority"}},
   {{"task_id": 2, "quadrant": "Q2", "reason": "No deadline but important for career growth"}}
@@ -67,7 +77,7 @@ Respond ONLY with valid JSON — no markdown, no preamble:
     for attempt in range(2):
         try:
             message = client.messages.create(
-                model=MODEL,
+                model=model,
                 max_tokens=2048,
                 messages=[{"role": "user", "content": prompt}],
             )
@@ -124,7 +134,7 @@ Create an ordered plan of which tasks to work on in each session.
 Tasks longer than one session can span multiple sessions.
 Tasks shorter than one session can be batched together.
 
-Respond ONLY with valid JSON — no markdown, no preamble:
+Respond ONLY with valid JSON \u2014 no markdown, no preamble:
 {{
   "sessions": [
     {{
@@ -200,13 +210,13 @@ User's data:
 
 Generate a morning briefing with:
 1. A one-line motivational greeting based on their workload (light/moderate/heavy day)
-2. "Top 3 Priorities" — the 3 most important tasks to focus on today, with brief reasoning
-3. "Heads Up" — any overdue items or potential scheduling conflicts
-4. "Suggested Task Order" — all today's tasks ranked in recommended execution order,
+2. "Top 3 Priorities" \u2014 the 3 most important tasks to focus on today, with brief reasoning
+3. "Heads Up" \u2014 any overdue items or potential scheduling conflicts
+4. "Suggested Task Order" \u2014 all today's tasks ranked in recommended execution order,
    considering: deadlines, energy levels (harder tasks early), dependencies
-5. "Habit Reminders" — which habits to complete today
+5. "Habit Reminders" \u2014 which habits to complete today
 
-Respond ONLY with valid JSON — no markdown, no preamble:
+Respond ONLY with valid JSON \u2014 no markdown, no preamble:
 {{
   "greeting": "Good morning! You have a productive day ahead with 8 tasks.",
   "top_priorities": [
@@ -288,7 +298,7 @@ Create a day-by-day plan distributing tasks across the week. Consider:
 - Project batching (group tasks from the same project when possible)
 - Leave buffer time (don't fill every minute)
 
-Respond ONLY with valid JSON — no markdown, no preamble:
+Respond ONLY with valid JSON \u2014 no markdown, no preamble:
 {{
   "plan": {{
     "Monday": {{
@@ -303,7 +313,7 @@ Respond ONLY with valid JSON — no markdown, no preamble:
     }}
   }},
   "unscheduled": [
-    {{"task_id": 12, "title": "...", "reason": "No deadline, low priority — defer to next week"}}
+    {{"task_id": 12, "title": "...", "reason": "No deadline, low priority \u2014 defer to next week"}}
   ],
   "week_summary": "Moderate week with 23 tasks. Front-loaded: heaviest days are Mon-Wed.",
   "tips": [
@@ -374,16 +384,16 @@ Fixed calendar events (cannot be moved):
 {events_json}
 
 Create a time-blocked schedule. Rules:
-- Calendar events are fixed — schedule tasks around them
+- Calendar events are fixed \u2014 schedule tasks around them
 - Tasks with specific due times should be near those times
 - High-energy tasks (complex, creative) in the morning
 - Low-energy tasks (email, admin) in the afternoon
 - Respect estimated durations; tasks without durations get {block_size_minutes} min default
 {break_instructions}
 - Leave 15 min buffer between context-switching blocks
-- Don't overschedule — leave at least 30 min unscheduled for unexpected work
+- Don't overschedule \u2014 leave at least 30 min unscheduled for unexpected work
 
-Respond ONLY with valid JSON — no markdown, no preamble:
+Respond ONLY with valid JSON \u2014 no markdown, no preamble:
 {{
   "schedule": [
     {{"start": "09:00", "end": "09:30", "type": "task", "task_id": 1,
@@ -394,7 +404,7 @@ Respond ONLY with valid JSON — no markdown, no preamble:
      "title": "Break", "reason": "Recovery after 90 min work"}}
   ],
   "unscheduled_tasks": [
-    {{"task_id": 7, "title": "...", "reason": "Not enough time today — defer to tomorrow"}}
+    {{"task_id": 7, "title": "...", "reason": "Not enough time today \u2014 defer to tomorrow"}}
   ],
   "stats": {{
     "total_work_minutes": 300,
@@ -450,14 +460,14 @@ For each habit, calculate:
 - Whether the correlation is positive, negative, or neutral
 - A brief interpretation
 
-Respond ONLY with valid JSON — no markdown, no preamble:
+Respond ONLY with valid JSON \u2014 no markdown, no preamble:
 {{
   "correlations": [
     {{"habit": "Exercise", "done_productivity": 82, "not_done_productivity": 65,
      "correlation": "positive", "interpretation": "You complete 26% more tasks on days you exercise"}}
   ],
   "top_insight": "Exercise has the strongest positive impact on your productivity",
-  "recommendation": "Try to exercise before starting work — your most productive days start with movement"
+  "recommendation": "Try to exercise before starting work \u2014 your most productive days start with movement"
 }}"""
 
     last_error = None
@@ -487,7 +497,7 @@ Respond ONLY with valid JSON — no markdown, no preamble:
 
 
 # ---------------------------------------------------------------------------
-# v1.4.0 V6 — AI weekly review
+# v1.4.0 V6 \u2014 AI weekly review
 # ---------------------------------------------------------------------------
 
 def generate_weekly_review(
@@ -502,34 +512,34 @@ def generate_weekly_review(
 ) -> dict:
     """Generate a forgiveness-first weekly review narrative via Claude Haiku.
 
-    Inputs are anonymized aggregate stats — no individual task titles or
+    Inputs are anonymized aggregate stats \u2014 no individual task titles or
     content are sent, per the v1.4.0 V6 privacy requirement. The prompt
     explicitly requests an ADHD-friendly, non-punishing tone.
     """
     client = _get_client()
 
     prompt = f"""You are a compassionate productivity coach writing a weekly review for
-someone with ADHD. Use a forgiveness-first, supportive tone — never shaming.
+someone with ADHD. Use a forgiveness-first, supportive tone \u2014 never shaming.
 
 Week: {week_start} to {week_end}
 Completed tasks: {completed}
 Slipped / not done: {slipped}
 Rescheduled: {rescheduled}
 Task category breakdown: {json.dumps(category_counts)}
-Burnout composite score (0–100, higher = more burnout risk): {burnout_score}
+Burnout composite score (0\u2013100, higher = more burnout risk): {burnout_score}
 {"Medication adherence: " + str(int((medication_adherence or 0) * 100)) + "%" if medication_adherence is not None else ""}
 
-Write a brief weekly review with three short sections. Use gentle, ADHD-friendly framing —
+Write a brief weekly review with three short sections. Use gentle, ADHD-friendly framing \u2014
 reschedules are "okay, priorities shift", not "failures". Celebrate showing up.
 
-Respond ONLY with valid JSON — no markdown, no preamble:
+Respond ONLY with valid JSON \u2014 no markdown, no preamble:
 {{
   "wins": [
-    "You completed X tasks this week — that's real progress.",
+    "You completed X tasks this week \u2014 that's real progress.",
     "..."
   ],
   "slips": [
-    "A few tasks got rescheduled — that's okay, priorities shift.",
+    "A few tasks got rescheduled \u2014 that's okay, priorities shift.",
     "..."
   ],
   "suggestions": [
@@ -539,7 +549,7 @@ Respond ONLY with valid JSON — no markdown, no preamble:
   "tone": "gentle"
 }}
 
-Keep each list to 2–3 bullets max."""
+Keep each list to 2\u20133 bullets max."""
 
     last_error_wr = None
     for attempt in range(2):
@@ -568,7 +578,7 @@ Keep each list to 2–3 bullets max."""
 
 
 # ---------------------------------------------------------------------------
-# v1.4.0 V9 — conversation → tasks extraction
+# v1.4.0 V9 \u2014 conversation \u2192 tasks extraction
 # ---------------------------------------------------------------------------
 
 def extract_tasks_from_text(text: str, source: str | None = None) -> list[dict]:
@@ -601,14 +611,14 @@ Text:
 For each action item, return:
 - title: a short imperative phrase (Title case, under 12 words).
 - suggested_due_date: ISO date if explicitly mentioned, null otherwise.
-- suggested_priority: 0–4 (4 = urgent), infer from language cues like "ASAP".
+- suggested_priority: 0\u20134 (4 = urgent), infer from language cues like "ASAP".
 - suggested_project: one-word project name if contextually obvious, null otherwise.
-- confidence: float 0–1 (0.95 for explicit TODO/Action Item markers, lower for implicit cues).
+- confidence: float 0\u20131 (0.95 for explicit TODO/Action Item markers, lower for implicit cues).
 
 Only extract clear action items. Ignore general discussion, opinions, and
 background context.
 
-Respond ONLY with valid JSON — no markdown, no preamble:
+Respond ONLY with valid JSON \u2014 no markdown, no preamble:
 [
   {{
     "title": "Send the design mocks to Alice",
