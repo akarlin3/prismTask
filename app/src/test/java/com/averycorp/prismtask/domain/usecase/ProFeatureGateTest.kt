@@ -28,7 +28,8 @@ class ProFeatureGateTest {
         fun setTier(tier: UserTier) { _userTier.value = tier }
 
         fun isPro(): Boolean = userTier.value >= UserTier.PRO
-        fun isPremium(): Boolean = userTier.value == UserTier.PREMIUM
+        fun isPremium(): Boolean = userTier.value >= UserTier.PREMIUM
+        fun isUltra(): Boolean = userTier.value == UserTier.ULTRA
 
         fun hasAccess(feature: String): Boolean {
             return when (feature) {
@@ -47,6 +48,12 @@ class ProFeatureGateTest {
                 ProFeatureGate.AI_DAILY_PLANNING, ProFeatureGate.AI_REENGAGEMENT,
                 ProFeatureGate.AI_WEEKLY_INSIGHTS -> isPremium()
 
+                ProFeatureGate.AI_SONNET_NLP, ProFeatureGate.AI_SONNET_EISENHOWER,
+                ProFeatureGate.AI_SONNET_POMODORO, ProFeatureGate.AI_SONNET_BRIEFING,
+                ProFeatureGate.AI_SONNET_COACHING, ProFeatureGate.AI_SONNET_WEEKLY,
+                ProFeatureGate.AI_SONNET_PLANNER, ProFeatureGate.AI_SONNET_EXTRACT,
+                ProFeatureGate.AI_PRIORITY_SUPPORT -> isUltra()
+
                 else -> true
             }
         }
@@ -55,10 +62,11 @@ class ProFeatureGateTest {
     // --- Tier comparison ---
 
     @Test
-    fun `tier ordering FREE less than PRO less than PREMIUM`() {
+    fun `tier ordering FREE less than PRO less than PREMIUM less than ULTRA`() {
         assertTrue(UserTier.FREE < UserTier.PRO)
         assertTrue(UserTier.PRO < UserTier.PREMIUM)
-        assertTrue(UserTier.FREE < UserTier.PREMIUM)
+        assertTrue(UserTier.PREMIUM < UserTier.ULTRA)
+        assertTrue(UserTier.FREE < UserTier.ULTRA)
     }
 
     // --- FREE user access ---
@@ -182,27 +190,6 @@ class ProFeatureGateTest {
         }
     }
 
-    // --- Feature constants ---
-
-    @Test
-    fun `all feature constants have unique values`() {
-        val constants = setOf(
-            ProFeatureGate.CLOUD_SYNC, ProFeatureGate.TEMPLATE_SYNC,
-            ProFeatureGate.AI_EISENHOWER, ProFeatureGate.AI_POMODORO,
-            ProFeatureGate.AI_NLP, ProFeatureGate.ANALYTICS_BASIC,
-            ProFeatureGate.TIME_TRACKING, ProFeatureGate.AI_BRIEFING,
-            ProFeatureGate.AI_WEEKLY_PLAN, ProFeatureGate.AI_TIME_BLOCK,
-            ProFeatureGate.AI_CONVERSATIONAL,
-            ProFeatureGate.COLLABORATION, ProFeatureGate.INTEGRATIONS,
-            ProFeatureGate.ANALYTICS_FULL, ProFeatureGate.ANALYTICS_CORRELATIONS,
-            ProFeatureGate.DRIVE_BACKUP,
-            ProFeatureGate.AI_COACHING, ProFeatureGate.AI_TASK_BREAKDOWN,
-            ProFeatureGate.AI_DAILY_PLANNING, ProFeatureGate.AI_REENGAGEMENT,
-            ProFeatureGate.AI_WEEKLY_INSIGHTS
-        )
-        assertEquals("All 21 feature constants should be unique", 21, constants.size)
-    }
-
     // --- Tier upgrade restores highest ---
 
     @Test
@@ -222,6 +209,83 @@ class ProFeatureGateTest {
         assertTrue(gate.isPremium())
     }
 
+    // --- ULTRA user access ---
+
+    @Test
+    fun `ULTRA user has access to everything including Ultra-exclusive features`() {
+        val gate = TestableFeatureGate(UserTier.ULTRA)
+
+        // Pro features allowed
+        assertTrue(gate.hasAccess(ProFeatureGate.CLOUD_SYNC))
+        assertTrue(gate.hasAccess(ProFeatureGate.AI_EISENHOWER))
+        assertTrue(gate.hasAccess(ProFeatureGate.AI_POMODORO))
+        assertTrue(gate.hasAccess(ProFeatureGate.AI_COACHING))
+        assertTrue(gate.hasAccess(ProFeatureGate.AI_TASK_BREAKDOWN))
+
+        // Premium features allowed
+        assertTrue(gate.hasAccess(ProFeatureGate.AI_BRIEFING))
+        assertTrue(gate.hasAccess(ProFeatureGate.AI_WEEKLY_PLAN))
+        assertTrue(gate.hasAccess(ProFeatureGate.AI_TIME_BLOCK))
+        assertTrue(gate.hasAccess(ProFeatureGate.COLLABORATION))
+        assertTrue(gate.hasAccess(ProFeatureGate.INTEGRATIONS))
+        assertTrue(gate.hasAccess(ProFeatureGate.DRIVE_BACKUP))
+        assertTrue(gate.hasAccess(ProFeatureGate.AI_DAILY_PLANNING))
+        assertTrue(gate.hasAccess(ProFeatureGate.AI_REENGAGEMENT))
+        assertTrue(gate.hasAccess(ProFeatureGate.AI_WEEKLY_INSIGHTS))
+
+        // Ultra-exclusive features allowed
+        assertTrue(gate.hasAccess(ProFeatureGate.AI_SONNET_NLP))
+        assertTrue(gate.hasAccess(ProFeatureGate.AI_SONNET_EISENHOWER))
+        assertTrue(gate.hasAccess(ProFeatureGate.AI_SONNET_POMODORO))
+        assertTrue(gate.hasAccess(ProFeatureGate.AI_SONNET_BRIEFING))
+        assertTrue(gate.hasAccess(ProFeatureGate.AI_SONNET_COACHING))
+        assertTrue(gate.hasAccess(ProFeatureGate.AI_SONNET_WEEKLY))
+        assertTrue(gate.hasAccess(ProFeatureGate.AI_SONNET_PLANNER))
+        assertTrue(gate.hasAccess(ProFeatureGate.AI_SONNET_EXTRACT))
+        assertTrue(gate.hasAccess(ProFeatureGate.AI_PRIORITY_SUPPORT))
+
+        // Free features allowed
+        assertTrue(gate.hasAccess("some_free_feature"))
+    }
+
+    @Test
+    fun `PREMIUM user cannot access Ultra-exclusive features`() {
+        val gate = TestableFeatureGate(UserTier.PREMIUM)
+
+        assertFalse(gate.hasAccess(ProFeatureGate.AI_SONNET_NLP))
+        assertFalse(gate.hasAccess(ProFeatureGate.AI_SONNET_EISENHOWER))
+        assertFalse(gate.hasAccess(ProFeatureGate.AI_SONNET_POMODORO))
+        assertFalse(gate.hasAccess(ProFeatureGate.AI_SONNET_BRIEFING))
+        assertFalse(gate.hasAccess(ProFeatureGate.AI_SONNET_COACHING))
+        assertFalse(gate.hasAccess(ProFeatureGate.AI_SONNET_WEEKLY))
+        assertFalse(gate.hasAccess(ProFeatureGate.AI_SONNET_PLANNER))
+        assertFalse(gate.hasAccess(ProFeatureGate.AI_SONNET_EXTRACT))
+        assertFalse(gate.hasAccess(ProFeatureGate.AI_PRIORITY_SUPPORT))
+    }
+
+    @Test
+    fun `isUltra returns true only for ULTRA tier`() {
+        val gate = TestableFeatureGate(UserTier.FREE)
+        assertFalse(gate.isUltra())
+
+        gate.setTier(UserTier.PRO)
+        assertFalse(gate.isUltra())
+
+        gate.setTier(UserTier.PREMIUM)
+        assertFalse(gate.isUltra())
+
+        gate.setTier(UserTier.ULTRA)
+        assertTrue(gate.isUltra())
+    }
+
+    @Test
+    fun `isPro and isPremium return true for ULTRA tier`() {
+        val gate = TestableFeatureGate(UserTier.ULTRA)
+        assertTrue(gate.isPro())
+        assertTrue(gate.isPremium())
+        assertTrue(gate.isUltra())
+    }
+
     // --- Tier flow state changes ---
 
     @Test
@@ -235,7 +299,37 @@ class ProFeatureGateTest {
         gate.setTier(UserTier.PREMIUM)
         assertEquals(UserTier.PREMIUM, gate.userTier.value)
 
+        gate.setTier(UserTier.ULTRA)
+        assertEquals(UserTier.ULTRA, gate.userTier.value)
+
         gate.setTier(UserTier.FREE)
         assertEquals(UserTier.FREE, gate.userTier.value)
+    }
+
+    // --- Feature constant uniqueness ---
+
+    @Test
+    fun `all feature constants including Ultra have unique values`() {
+        val constants = setOf(
+            ProFeatureGate.CLOUD_SYNC, ProFeatureGate.TEMPLATE_SYNC,
+            ProFeatureGate.AI_EISENHOWER, ProFeatureGate.AI_POMODORO,
+            ProFeatureGate.AI_NLP, ProFeatureGate.ANALYTICS_BASIC,
+            ProFeatureGate.TIME_TRACKING, ProFeatureGate.AI_BRIEFING,
+            ProFeatureGate.AI_WEEKLY_PLAN, ProFeatureGate.AI_TIME_BLOCK,
+            ProFeatureGate.AI_CONVERSATIONAL,
+            ProFeatureGate.COLLABORATION, ProFeatureGate.INTEGRATIONS,
+            ProFeatureGate.ANALYTICS_FULL, ProFeatureGate.ANALYTICS_CORRELATIONS,
+            ProFeatureGate.DRIVE_BACKUP,
+            ProFeatureGate.AI_COACHING, ProFeatureGate.AI_TASK_BREAKDOWN,
+            ProFeatureGate.AI_DAILY_PLANNING, ProFeatureGate.AI_REENGAGEMENT,
+            ProFeatureGate.AI_WEEKLY_INSIGHTS,
+            // Ultra constants
+            ProFeatureGate.AI_SONNET_NLP, ProFeatureGate.AI_SONNET_EISENHOWER,
+            ProFeatureGate.AI_SONNET_POMODORO, ProFeatureGate.AI_SONNET_BRIEFING,
+            ProFeatureGate.AI_SONNET_COACHING, ProFeatureGate.AI_SONNET_WEEKLY,
+            ProFeatureGate.AI_SONNET_PLANNER, ProFeatureGate.AI_SONNET_EXTRACT,
+            ProFeatureGate.AI_PRIORITY_SUPPORT
+        )
+        assertEquals("All 30 feature constants should be unique", 30, constants.size)
     }
 }
