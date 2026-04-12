@@ -15,46 +15,19 @@
       },
       "oauth_client": [
         {
-          "client_id": "403186103462-j09m2o9781jgnpb2eqotn65jdcg7qgqj.apps.googleusercontent.com",
-          "client_type": 3
-        }
-      ],
-      "api_key": [
-        {
-          "current_key": "AIzaSyA0pOqMUq5Twv6QHgAaZCVnhE_sYAosEQ4"
+          "client_id": "403186103462-748gqedit51rq9h49n38befc3o4nhpae.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.averycorp.prismtask",
+            "certificate_hash": "278a4430f5433d1ff2510ad37b52a0b7e942de0f"
+          }
         },
-        {
-          "current_key": "AIzaSyCr8PY_DJh00LmpW8nS3_fnsqttlUr__3g"
-        }
-      ],
-      "services": {
-        "appinvite_service": {
-          "other_platform_oauth_client": [
-            {
-              "client_id": "403186103462-j09m2o9781jgnpb2eqotn65jdcg7qgqj.apps.googleusercontent.com",
-              "client_type": 3
-            }
-          ]
-        }
-      }
-    },
-    {
-      "client_info": {
-        "mobilesdk_app_id": "1:403186103462:android:919c46244d4a7f5f47b067",
-        "android_client_info": {
-          "package_name": "com.averykarlin.averytask"
-        }
-      },
-      "oauth_client": [
         {
           "client_id": "403186103462-j09m2o9781jgnpb2eqotn65jdcg7qgqj.apps.googleusercontent.com",
           "client_type": 3
         }
       ],
       "api_key": [
-        {
-          "current_key": "AIzaSyA0pOqMUq5Twv6QHgAaZCVnhE_sYAosEQ4"
-        },
         {
           "current_key": "AIzaSyCr8PY_DJh00LmpW8nS3_fnsqttlUr__3g"
         }
