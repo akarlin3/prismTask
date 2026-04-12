@@ -10,6 +10,7 @@ import {
   Plus,
   GripVertical,
   X,
+  Save,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Drawer } from '@/components/ui/Drawer';
@@ -29,6 +30,16 @@ interface TaskEditorProps {
   onUpdate?: () => void;
   mode?: 'edit' | 'create';
   defaultProjectId?: number;
+  onSaveAsTemplate?: (prefill: {
+    title?: string;
+    description?: string;
+    priority?: number;
+    project_id?: number;
+    tags?: number[];
+    subtasks?: string[];
+    recurrence_json?: string;
+    estimated_duration?: number;
+  }) => void;
 }
 
 const TABS = [
@@ -80,6 +91,7 @@ export default function TaskEditor({
   onUpdate,
   mode = 'edit',
   defaultProjectId,
+  onSaveAsTemplate,
 }: TaskEditorProps) {
   const {
     selectedTask,
@@ -813,6 +825,29 @@ export default function TaskEditor({
                     <Copy className="h-4 w-4" />
                     Duplicate
                   </Button>
+                  {onSaveAsTemplate && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() =>
+                        onSaveAsTemplate({
+                          title: title || undefined,
+                          description: description || undefined,
+                          priority: priority,
+                          project_id: projectId || undefined,
+                          tags: taskTagIds,
+                          subtasks: subtasks.map((s) => s.title),
+                          recurrence_json: recurrenceType
+                            ? JSON.stringify({ type: recurrenceType, interval: recurrenceInterval })
+                            : undefined,
+                          estimated_duration: duration ? parseInt(duration) : undefined,
+                        })
+                      }
+                    >
+                      <Save className="h-4 w-4" />
+                      Save as Template
+                    </Button>
+                  )}
                   <Button
                     variant="danger"
                     size="sm"

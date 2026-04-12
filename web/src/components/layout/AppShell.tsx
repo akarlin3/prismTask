@@ -4,6 +4,7 @@ import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { MobileNav } from './MobileNav';
 import { SearchModal } from '@/components/shared/SearchModal';
+import { KeyboardShortcutsModal } from '@/components/shared/KeyboardShortcutsModal';
 import { useUIStore } from '@/stores/uiStore';
 import { useIsMobile } from '@/hooks/useMediaQuery';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
@@ -17,6 +18,7 @@ export function AppShell() {
 
   const [searchOpen, setSearchOpen] = useState(false);
   const [newTaskOpen, setNewTaskOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
 
   const handleSearch = useCallback(() => {
     setSearchOpen(true);
@@ -27,9 +29,14 @@ export function AppShell() {
     setNewTaskOpen(true);
   }, [setSelectedTask]);
 
+  const handleShowShortcuts = useCallback(() => {
+    setShortcutsOpen(true);
+  }, []);
+
   useKeyboardShortcuts({
     onSearch: handleSearch,
     onNewTask: handleNewTask,
+    onShowShortcuts: handleShowShortcuts,
   });
 
   return (
@@ -54,6 +61,12 @@ export function AppShell() {
 
       {/* Global Search Modal (from Ctrl+K shortcut) */}
       <SearchModal isOpen={searchOpen} onClose={() => setSearchOpen(false)} />
+
+      {/* Global Keyboard Shortcuts Modal (from ? shortcut) */}
+      <KeyboardShortcutsModal
+        isOpen={shortcutsOpen}
+        onClose={() => setShortcutsOpen(false)}
+      />
 
       {/* Global New Task (from `n` shortcut) */}
       {newTaskOpen && (

@@ -1,21 +1,35 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Sparkles, X, Loader2 } from 'lucide-react';
+import { Sparkles, X, Loader2, FileText } from 'lucide-react';
+import { toast } from 'sonner';
 import { parseApi } from '@/api/parse';
 import { Button } from '@/components/ui/Button';
+import { useTemplateStore } from '@/stores/templateStore';
 import type { NLPParseResult } from '@/types/api';
+import type { TaskTemplate } from '@/types/template';
 
 interface NLPInputProps {
   onTaskCreate?: (data: { title: string; due_date?: string; priority?: number; project_suggestion?: string }) => void;
+  onTemplateUse?: (templateId: number) => void;
   className?: string;
 }
 
-export function NLPInput({ onTaskCreate, className = '' }: NLPInputProps) {
+export function NLPInput({ onTaskCreate, onTemplateUse, className = '' }: NLPInputProps) {
   const [value, setValue] = useState('');
   const [loading, setLoading] = useState(false);
   const [parseResult, setParseResult] = useState<NLPParseResult | null>(null);
   const [editedResult, setEditedResult] = useState<Partial<NLPParseResult>>({});
+  const [templateSuggestions, setTemplateSuggestions] = useState<TaskTemplate[]>([]);
+  const [selectedTemplateIdx, setSelectedTemplateIdx] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
+  const templateDropdownRef = useRef<HTMLDivElement>(null);
+
+  const { templates, fetch: fetchTemplates, use: useTemplate } = useTemplateStore();
+
+  // Fetch templates on mount for autocomplete
+  useEffect(() => {
+    fetchTemplates();
+  }, [fetchTemplates]);
 
   // Global `/` shortcut
   useEffect(() => {
@@ -39,21 +53,90 @@ export function NLPInput({ onTaskCreate, className = '' }: NLPInputProps) {
 
   // Close popover on outside click
   useEffect(() => {
-    if (!parseResult) return;
+    if (!parseResult && templateSuggestions.length === 0) return;
     const handler = (e: MouseEvent) => {
-      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
+      if (
+        popoverRef.current && !popoverRef.current.contains(e.target as Node) &&
+        templateDropdownRef.current && !templateDropdownRef.current.contains(e.target as Node)
+      ) {
         setParseResult(null);
         setEditedResult({});
+        setTemplateSuggestions([]);
       }
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
-  }, [parseResult]);
+  }, [parseResult, templateSuggestions]);
+
+  // Template autocomplete when typing /templatename
+  const handleValueChange = useCallback(
+    (newValue: string) => {
+      setValue(newValue);
+
+      // Check for /template shortcut
+      const slashMatch = newValue.match(/^\/(\S*)$/);
+      if (slashMatch) {
+        const query = slashMatch[1].toLowerCase();
+        const matches = templates.filter(
+          (t) =>
+            t.name.toLowerCase().includes(query) ||
+            t.template_title?.toLowerCase().includes(query),
+        );
+        setTemplateSuggestions(matches.slice(0, 6));
+        setSelectedTemplateIdx(0);
+      } else {
+        setTemplateSuggestions([]);
+      }
+    },
+    [templates],
+  );
+
+  const handleTemplateSelect = async (template: TaskTemplate) => {
+    setTemplateSuggestions([]);
+    setValue('');
+    if (onTemplateUse) {
+      onTemplateUse(template.id);
+    } else {
+      try {
+        const result = await useTemplate(template.id);
+        toast.success(result.message || `Task created from "${template.name}"`);
+      } catch {
+        toast.error('Failed to use template');
+      }
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (templateSuggestions.length > 0) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setSelectedTemplateIdx((prev) =>
+          prev < templateSuggestions.length - 1 ? prev + 1 : 0,
+        );
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setSelectedTemplateIdx((prev) =>
+          prev > 0 ? prev - 1 : templateSuggestions.length - 1,
+        );
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        handleTemplateSelect(templateSuggestions[selectedTemplateIdx]);
+      } else if (e.key === 'Escape') {
+        setTemplateSuggestions([]);
+      }
+    }
+  };
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     const text = value.trim();
     if (!text) return;
+
+    // If it's a template shortcut, handle via template
+    if (text.startsWith('/') && templateSuggestions.length > 0) {
+      handleTemplateSelect(templateSuggestions[selectedTemplateIdx]);
+      return;
+    }
 
     setLoading(true);
     try {
@@ -81,7 +164,7 @@ export function NLPInput({ onTaskCreate, className = '' }: NLPInputProps) {
     } finally {
       setLoading(false);
     }
-  }, [value]);
+  }, [value, templateSuggestions, selectedTemplateIdx]);
 
   const handleConfirm = () => {
     onTaskCreate?.({
@@ -112,7 +195,8 @@ export function NLPInput({ onTaskCreate, className = '' }: NLPInputProps) {
             type="text"
             placeholder="Add task... (e.g. 'Buy milk tomorrow !high #shopping')  Press /"
             value={value}
-            onChange={(e) => setValue(e.target.value)}
+            onChange={(e) => handleValueChange(e.target.value)}
+            onKeyDown={handleKeyDown}
             className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-secondary)] py-2 pl-10 pr-4 text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-secondary)] outline-none transition-colors focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)]"
             aria-label="Quick add task"
           />
@@ -121,6 +205,40 @@ export function NLPInput({ onTaskCreate, className = '' }: NLPInputProps) {
           )}
         </div>
       </form>
+
+      {/* Template autocomplete dropdown */}
+      {templateSuggestions.length > 0 && (
+        <div
+          ref={templateDropdownRef}
+          className="absolute left-0 top-full z-50 mt-1 w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-card)] shadow-lg overflow-hidden"
+        >
+          <div className="px-3 py-1.5 text-xs font-medium text-[var(--color-text-secondary)] bg-[var(--color-bg-secondary)]">
+            Templates
+          </div>
+          {templateSuggestions.map((t, i) => (
+            <button
+              key={t.id}
+              onClick={() => handleTemplateSelect(t)}
+              className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors ${
+                i === selectedTemplateIdx
+                  ? 'bg-[var(--color-accent)]/10 text-[var(--color-accent)]'
+                  : 'text-[var(--color-text-primary)] hover:bg-[var(--color-bg-secondary)]'
+              }`}
+            >
+              <span>{t.icon || '📋'}</span>
+              <div className="flex-1 min-w-0">
+                <span className="font-medium">{t.name}</span>
+                {t.description && (
+                  <span className="ml-2 text-xs text-[var(--color-text-secondary)] truncate">
+                    {t.description}
+                  </span>
+                )}
+              </div>
+              <FileText className="h-3.5 w-3.5 shrink-0 text-[var(--color-text-secondary)]" />
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Parse result popover */}
       {parseResult && (

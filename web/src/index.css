@@ -122,3 +122,30 @@ body {
 .animate-pulse-slow {
   animation: pulse-slow 2s ease-in-out infinite;
 }
+
+/* Compact mode */
+.compact {
+  font-size: 14px;
+}
+
+.compact main {
+  padding: 0.5rem;
+}
+
+.compact h1 {
+  font-size: 1.25rem;
+}
+
+.compact h2 {
+  font-size: 1rem;
+}
+
+.compact .rounded-xl {
+  border-radius: 0.5rem;
+}
+
+.compact p,
+.compact span,
+.compact label {
+  line-height: 1.3;
+}

@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 interface ShortcutActions {
   onSearch: () => void;
   onNewTask: () => void;
+  onShowShortcuts?: () => void;
 }
 
 function isInputFocused(): boolean {
@@ -15,7 +16,7 @@ function isInputFocused(): boolean {
   return false;
 }
 
-export function useKeyboardShortcuts({ onSearch, onNewTask }: ShortcutActions) {
+export function useKeyboardShortcuts({ onSearch, onNewTask, onShowShortcuts }: ShortcutActions) {
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -35,6 +36,10 @@ export function useKeyboardShortcuts({ onSearch, onNewTask }: ShortcutActions) {
         case 'n':
           e.preventDefault();
           onNewTask();
+          break;
+        case '?':
+          e.preventDefault();
+          onShowShortcuts?.();
           break;
         case '1':
           e.preventDefault();
@@ -64,5 +69,5 @@ export function useKeyboardShortcuts({ onSearch, onNewTask }: ShortcutActions) {
 
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
-  }, [navigate, onSearch, onNewTask]);
+  }, [navigate, onSearch, onNewTask, onShowShortcuts]);
 }
