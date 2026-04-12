@@ -459,3 +459,36 @@ class BugReportModel(Base):
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
     user = relationship("User", foreign_keys=[user_id])
+
+
+class NdPreferencesModel(Base):
+    __tablename__ = "nd_preferences"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, unique=True, index=True)
+
+    # Top-level mode toggles
+    adhd_mode_enabled = Column(Boolean, nullable=False, default=False)
+    calm_mode_enabled = Column(Boolean, nullable=False, default=False)
+
+    # Calm Mode sub-settings
+    reduce_animations = Column(Boolean, nullable=False, default=False)
+    muted_color_palette = Column(Boolean, nullable=False, default=False)
+    quiet_mode = Column(Boolean, nullable=False, default=False)
+    reduce_haptics = Column(Boolean, nullable=False, default=False)
+    soft_contrast = Column(Boolean, nullable=False, default=False)
+
+    # ADHD Mode sub-settings
+    task_decomposition_enabled = Column(Boolean, nullable=False, default=False)
+    focus_guard_enabled = Column(Boolean, nullable=False, default=False)
+    body_doubling_enabled = Column(Boolean, nullable=False, default=False)
+    check_in_interval_minutes = Column(Integer, nullable=False, default=25)
+    completion_animations = Column(Boolean, nullable=False, default=False)
+    streak_celebrations = Column(Boolean, nullable=False, default=False)
+    show_progress_bars = Column(Boolean, nullable=False, default=False)
+    forgiveness_streaks = Column(Boolean, nullable=False, default=False)
+
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    user = relationship("User")
