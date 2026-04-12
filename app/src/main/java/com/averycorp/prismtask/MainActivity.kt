@@ -280,7 +280,7 @@ class MainActivity : ComponentActivity() {
                             },
                             modifier = Modifier
                                 .align(Alignment.BottomEnd)
-                                .padding(end = 16.dp, bottom = 80.dp)
+                                .padding(end = 16.dp, bottom = 140.dp)
                         )
                     }
                 }
