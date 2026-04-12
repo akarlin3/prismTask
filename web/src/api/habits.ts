@@ -5,6 +5,7 @@ import type {
   HabitUpdate,
   HabitCompletion,
   HabitCompletionCreate,
+  HabitWithCompletions,
   HabitStats,
 } from '@/types/habit';
 
@@ -13,7 +14,7 @@ export const habitsApi = {
     return apiClient.get('/habits').then((r) => r.data);
   },
 
-  get(habitId: number): Promise<Habit> {
+  get(habitId: number): Promise<HabitWithCompletions> {
     return apiClient.get(`/habits/${habitId}`).then((r) => r.data);
   },
 
@@ -29,12 +30,12 @@ export const habitsApi = {
     return apiClient.delete(`/habits/${habitId}`).then(() => undefined);
   },
 
-  addCompletion(
+  toggleCompletion(
     habitId: number,
     data: HabitCompletionCreate,
   ): Promise<HabitCompletion> {
     return apiClient
-      .post(`/habits/${habitId}/completions`, data)
+      .post(`/habits/${habitId}/complete`, data)
       .then((r) => r.data);
   },
 

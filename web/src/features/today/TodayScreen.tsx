@@ -4,11 +4,15 @@ import {
   ChevronDown,
   ChevronRight,
   PartyPopper,
+  Activity,
+  BarChart3,
 } from 'lucide-react';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, startOfWeek, subDays, isMonday, isSunday } from 'date-fns';
 import { toast } from 'sonner';
+import { useNavigate } from 'react-router-dom';
 import { useTaskStore } from '@/stores/taskStore';
 import { useProjectStore } from '@/stores/projectStore';
+import { useHabitStore } from '@/stores/habitStore';
 import { dashboardApi } from '@/api/dashboard';
 import { TaskRow } from '@/components/shared/TaskRow';
 import { Spinner } from '@/components/ui/Spinner';
@@ -31,6 +35,7 @@ function saveCollapseState(state: Record<string, boolean>) {
 }
 
 export function TodayScreen() {
+  const navigate = useNavigate();
   const {
     todayTasks,
     overdueTasks,
@@ -45,6 +50,15 @@ export function TodayScreen() {
   } = useTaskStore();
 
   const { projects, fetchAllProjects } = useProjectStore();
+
+  const {
+    habits,
+    fetchHabits,
+    toggleCompletion,
+    isTodayCompleted,
+    getTodayCount,
+    getTodayProgress,
+  } = useHabitStore();
 
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [loading, setLoading] = useState(true);
@@ -71,12 +85,13 @@ export function TodayScreen() {
         fetchOverdue(),
         fetchUpcoming(7),
         fetchAllProjects(),
+        fetchHabits(),
         dashboardApi.getSummary().then(setSummary).catch(() => {}),
       ]);
     } finally {
       setLoading(false);
     }
-  }, [fetchToday, fetchOverdue, fetchUpcoming, fetchAllProjects]);
+  }, [fetchToday, fetchOverdue, fetchUpcoming, fetchAllProjects, fetchHabits]);
 
   useEffect(() => {
     loadData();
@@ -210,11 +225,14 @@ export function TodayScreen() {
     {},
   );
 
-  // Completed today count
-  const completedToday =
+  // Completed today count (tasks + habits)
+  const completedTasksToday =
     todayTasks.filter((t) => t.status === 'done').length +
     pendingCompletions.size;
-  const totalToday = todayTasks.length + overdueTasks.length;
+  const totalTasksToday = todayTasks.length + overdueTasks.length;
+  const habitProgress = getTodayProgress();
+  const completedToday = completedTasksToday + habitProgress.completed;
+  const totalToday = totalTasksToday + habitProgress.total;
   const progressPct =
     totalToday > 0 ? Math.round((completedToday / totalToday) * 100) : 0;
 
@@ -275,7 +293,12 @@ export function TodayScreen() {
         </div>
         <div className="flex-1">
           <p className="text-sm font-medium text-[var(--color-text-primary)]">
-            {completedToday} of {totalToday} tasks completed today
+            {completedToday} of {totalToday} completed today
+            {habitProgress.total > 0 && (
+              <span className="text-[var(--color-text-secondary)]">
+                {' '}({completedTasksToday} tasks, {habitProgress.completed} habits)
+              </span>
+            )}
           </p>
           <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-[var(--color-bg-secondary)]">
             <div
@@ -313,6 +336,92 @@ export function TodayScreen() {
           </div>
         )}
       </div>
+
+      {/* Habit Chips */}
+      {habits.length > 0 && (
+        <div className="mb-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-card)] p-3">
+          <div className="mb-2 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Activity className="h-4 w-4 text-[var(--color-accent)]" />
+              <span className="text-xs font-semibold text-[var(--color-text-primary)]">
+                Today's Habits
+              </span>
+            </div>
+            <button
+              onClick={() => navigate('/habits')}
+              className="text-xs text-[var(--color-accent)] hover:underline"
+            >
+              View All
+            </button>
+          </div>
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {habits
+              .filter((h) => h.is_active)
+              .map((habit) => {
+                const completed = isTodayCompleted(habit.id);
+                const habitColor = habit.color || 'var(--color-accent)';
+                const count = getTodayCount(habit.id);
+                return (
+                  <button
+                    key={habit.id}
+                    onClick={async () => {
+                      const today = format(new Date(), 'yyyy-MM-dd');
+                      try {
+                        await toggleCompletion(habit.id, today);
+                      } catch {
+                        toast.error('Failed to update habit');
+                      }
+                    }}
+                    className={`flex shrink-0 items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition-all ${
+                      completed
+                        ? 'border-transparent text-white'
+                        : 'border-[var(--color-border)] text-[var(--color-text-primary)] hover:border-[var(--color-accent)]/50'
+                    }`}
+                    style={
+                      completed
+                        ? { backgroundColor: habitColor }
+                        : undefined
+                    }
+                  >
+                    <span>{habit.icon || '🎯'}</span>
+                    <span className="max-w-[100px] truncate">
+                      {habit.name}
+                    </span>
+                    {habit.target_count > 1 && (
+                      <span
+                        className={`rounded-full px-1.5 py-0.5 text-[10px] ${
+                          completed
+                            ? 'bg-white/20'
+                            : 'bg-[var(--color-bg-secondary)]'
+                        }`}
+                      >
+                        {count}/{habit.target_count}
+                      </span>
+                    )}
+                    {completed && habit.target_count <= 1 && (
+                      <svg
+                        className="h-3 w-3"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                        strokeWidth={3}
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M5 13l4 4L19 7"
+                        />
+                      </svg>
+                    )}
+                  </button>
+                );
+              })}
+          </div>
+        </div>
+      )}
+
+      {/* Weekly Habit Summary Banner */}
+      <WeeklyHabitSummary />
 
       {/* Empty state */}
       {isEmpty && (
@@ -437,6 +546,80 @@ export function TodayScreen() {
           onUpdate={() => loadData()}
         />
       )}
+    </div>
+  );
+}
+
+// Weekly Habit Summary Banner (shown on Sunday/Monday)
+function WeeklyHabitSummary() {
+  const navigate = useNavigate();
+  const { habits, completions } = useHabitStore();
+  const today = new Date();
+
+  // Only show on Sunday or Monday
+  if (!isSunday(today) && !isMonday(today)) return null;
+  if (habits.length === 0) return null;
+
+  // Calculate last week's stats
+  const lastWeekStart = startOfWeek(subDays(today, 7), { weekStartsOn: 1 });
+  const lastWeekEnd = subDays(
+    startOfWeek(today, { weekStartsOn: 1 }),
+    1,
+  );
+
+  let totalDue = 0;
+  let totalCompleted = 0;
+
+  for (const habit of habits) {
+    if (!habit.is_active) continue;
+    const habitCompletions = completions[habit.id] || [];
+
+    if (habit.frequency === 'weekly') {
+      totalDue++;
+      let weekCount = 0;
+      for (const c of habitCompletions) {
+        const d = parseISO(c.date);
+        if (d >= lastWeekStart && d <= lastWeekEnd) weekCount += c.count;
+      }
+      if (weekCount >= habit.target_count) totalCompleted++;
+    } else {
+      // Daily: count active days in the week
+      for (let i = 0; i < 7; i++) {
+        const day = new Date(lastWeekStart);
+        day.setDate(lastWeekStart.getDate() + i);
+        const activeDays = habit.active_days_json
+          ? JSON.parse(habit.active_days_json)
+          : null;
+        const jsDay = day.getDay();
+        const isoDay = jsDay === 0 ? 7 : jsDay;
+        if (activeDays && !activeDays.includes(isoDay)) continue;
+        totalDue++;
+        const dateStr = format(day, 'yyyy-MM-dd');
+        const completion = habitCompletions.find((c) => c.date === dateStr);
+        if ((completion?.count || 0) >= habit.target_count) totalCompleted++;
+      }
+    }
+  }
+
+  if (totalDue === 0) return null;
+  const pct = Math.round((totalCompleted / totalDue) * 100);
+
+  return (
+    <div className="mb-4 flex items-center gap-3 rounded-xl border border-[var(--color-accent)]/20 bg-[var(--color-accent)]/5 px-4 py-3">
+      <BarChart3 className="h-5 w-5 shrink-0 text-[var(--color-accent)]" />
+      <p className="flex-1 text-sm text-[var(--color-text-primary)]">
+        Last week: You completed{' '}
+        <span className="font-semibold">
+          {totalCompleted}/{totalDue}
+        </span>{' '}
+        habit check-ins ({pct}%)
+      </p>
+      <button
+        onClick={() => navigate('/habits')}
+        className="shrink-0 text-xs font-medium text-[var(--color-accent)] hover:underline"
+      >
+        View Details
+      </button>
     </div>
   );
 }
