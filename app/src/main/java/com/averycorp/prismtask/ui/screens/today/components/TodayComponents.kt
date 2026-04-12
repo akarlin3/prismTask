@@ -27,6 +27,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -92,7 +93,8 @@ internal fun CompactProgressHeader(
     completed: Int,
     total: Int,
     progress: Float,
-    progressStyle: String = "ring"
+    progressStyle: String = "ring",
+    onAnalyticsClick: (() -> Unit)? = null
 ) {
     val dateLabel = remember {
         SimpleDateFormat("EEEE, MMMM d", Locale.getDefault()).format(Date())
@@ -213,6 +215,21 @@ internal fun CompactProgressHeader(
                 fontWeight = FontWeight.SemiBold,
                 color = if (progress >= 1f) CompletedGreen else MaterialTheme.colorScheme.onSurface
             )
+
+            if (onAnalyticsClick != null) {
+                Spacer(modifier = Modifier.width(4.dp))
+                IconButton(
+                    onClick = onAnalyticsClick,
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.BarChart,
+                        contentDescription = "Task Analytics",
+                        modifier = Modifier.size(20.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
         }
     }
 }

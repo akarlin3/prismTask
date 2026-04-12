@@ -7,6 +7,7 @@ import com.averycorp.prismtask.data.local.dao.ProjectDao
 import com.averycorp.prismtask.data.local.dao.SchoolworkDao
 import com.averycorp.prismtask.data.local.dao.SelfCareDao
 import com.averycorp.prismtask.data.local.dao.TagDao
+import com.averycorp.prismtask.data.local.dao.TaskCompletionDao
 import com.averycorp.prismtask.data.local.dao.TaskDao
 import com.averycorp.prismtask.data.preferences.ArchivePreferences
 import com.averycorp.prismtask.data.preferences.CalendarPreferences
@@ -56,6 +57,7 @@ class DataExporter @Inject constructor(
     private val tagDao: TagDao,
     private val habitDao: HabitDao,
     private val habitCompletionDao: HabitCompletionDao,
+    private val taskCompletionDao: TaskCompletionDao,
     private val habitLogDao: com.averycorp.prismtask.data.local.dao.HabitLogDao,
     private val leisureDao: LeisureDao,
     private val selfCareDao: SelfCareDao,
@@ -99,6 +101,9 @@ class DataExporter @Inject constructor(
 
         root.add("projects", gson.toJsonTree(projects))
         root.add("tags", gson.toJsonTree(tags))
+
+        // === Task Completions ===
+        root.add("taskCompletions", gson.toJsonTree(taskCompletionDao.getAllCompletionsOnce()))
 
         // === Habits ===
         val habits = habitDao.getAllHabitsOnce()

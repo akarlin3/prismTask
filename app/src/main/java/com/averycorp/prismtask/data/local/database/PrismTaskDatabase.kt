@@ -27,6 +27,7 @@ import com.averycorp.prismtask.data.local.dao.TagDao
 import com.averycorp.prismtask.data.local.dao.TaskDao
 import com.averycorp.prismtask.data.local.dao.TaskTemplateDao
 import com.averycorp.prismtask.data.local.dao.UsageLogDao
+import com.averycorp.prismtask.data.local.dao.TaskCompletionDao
 import com.averycorp.prismtask.data.local.dao.WeeklyReviewDao
 import com.averycorp.prismtask.data.local.entity.AttachmentEntity
 import com.averycorp.prismtask.data.local.entity.BoundaryRuleEntity
@@ -56,11 +57,12 @@ import com.averycorp.prismtask.data.local.entity.TaskEntity
 import com.averycorp.prismtask.data.local.entity.TaskTagCrossRef
 import com.averycorp.prismtask.data.local.entity.TaskTemplateEntity
 import com.averycorp.prismtask.data.local.entity.UsageLogEntity
+import com.averycorp.prismtask.data.local.entity.TaskCompletionEntity
 import com.averycorp.prismtask.data.local.entity.WeeklyReviewEntity
 
 @Database(
-    entities = [TaskEntity::class, ProjectEntity::class, TagEntity::class, TaskTagCrossRef::class, AttachmentEntity::class, UsageLogEntity::class, SyncMetadataEntity::class, CalendarSyncEntity::class, HabitEntity::class, HabitCompletionEntity::class, HabitLogEntity::class, LeisureLogEntity::class, CourseEntity::class, AssignmentEntity::class, StudyLogEntity::class, CourseCompletionEntity::class, SelfCareLogEntity::class, SelfCareStepEntity::class, TaskTemplateEntity::class, NlpShortcutEntity::class, SavedFilterEntity::class, ReminderProfileEntity::class, ProjectTemplateEntity::class, HabitTemplateEntity::class, MoodEnergyLogEntity::class, MedicationRefillEntity::class, BoundaryRuleEntity::class, CheckInLogEntity::class, WeeklyReviewEntity::class],
-    version = 37,
+    entities = [TaskEntity::class, ProjectEntity::class, TagEntity::class, TaskTagCrossRef::class, AttachmentEntity::class, UsageLogEntity::class, SyncMetadataEntity::class, CalendarSyncEntity::class, HabitEntity::class, HabitCompletionEntity::class, HabitLogEntity::class, LeisureLogEntity::class, CourseEntity::class, AssignmentEntity::class, StudyLogEntity::class, CourseCompletionEntity::class, SelfCareLogEntity::class, SelfCareStepEntity::class, TaskTemplateEntity::class, NlpShortcutEntity::class, SavedFilterEntity::class, ReminderProfileEntity::class, ProjectTemplateEntity::class, HabitTemplateEntity::class, MoodEnergyLogEntity::class, MedicationRefillEntity::class, BoundaryRuleEntity::class, CheckInLogEntity::class, WeeklyReviewEntity::class, TaskCompletionEntity::class],
+    version = 38,
     exportSchema = false
 )
 abstract class PrismTaskDatabase : RoomDatabase() {
@@ -88,5 +90,6 @@ abstract class PrismTaskDatabase : RoomDatabase() {
     abstract fun boundaryRuleDao(): BoundaryRuleDao
     abstract fun checkInLogDao(): CheckInLogDao
     abstract fun weeklyReviewDao(): WeeklyReviewDao
+    abstract fun taskCompletionDao(): TaskCompletionDao
 
 }

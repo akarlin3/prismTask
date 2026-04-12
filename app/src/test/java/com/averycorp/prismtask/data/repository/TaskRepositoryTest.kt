@@ -38,6 +38,7 @@ class TaskRepositoryTest {
     private lateinit var calendarSyncService: CalendarSyncService
     private lateinit var reminderScheduler: ReminderScheduler
     private lateinit var widgetUpdateManager: WidgetUpdateManager
+    private lateinit var taskCompletionRepository: TaskCompletionRepository
     private lateinit var repo: TaskRepository
 
     @Before
@@ -48,7 +49,8 @@ class TaskRepositoryTest {
         calendarSyncService = mockk(relaxed = true)
         reminderScheduler = mockk(relaxed = true)
         widgetUpdateManager = mockk(relaxed = true)
-        repo = TaskRepository(taskDao, tagDao, syncTracker, calendarSyncService, reminderScheduler, widgetUpdateManager)
+        taskCompletionRepository = mockk(relaxed = true)
+        repo = TaskRepository(taskDao, tagDao, syncTracker, calendarSyncService, reminderScheduler, widgetUpdateManager, taskCompletionRepository)
     }
 
     // ---------------------------------------------------------------------

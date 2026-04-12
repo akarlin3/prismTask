@@ -1,5 +1,6 @@
 package com.averycorp.prismtask.data.remote.mapper
 
+import com.averycorp.prismtask.data.local.entity.TaskCompletionEntity
 import com.averycorp.prismtask.data.local.entity.HabitCompletionEntity
 import com.averycorp.prismtask.data.local.entity.HabitEntity
 import com.averycorp.prismtask.data.local.entity.HabitLogEntity
@@ -209,6 +210,31 @@ object SyncMapper {
         "createdAt" to template.createdAt,
         "updatedAt" to template.updatedAt
     )
+
+    fun taskCompletionToMap(completion: TaskCompletionEntity): Map<String, Any?> = mapOf(
+        "localId" to completion.id,
+        "taskId" to completion.taskId,
+        "projectId" to completion.projectId,
+        "completedDate" to completion.completedDate,
+        "completedAtTime" to completion.completedAtTime,
+        "priority" to completion.priority,
+        "wasOverdue" to completion.wasOverdue,
+        "daysToComplete" to completion.daysToComplete,
+        "tags" to completion.tags
+    )
+
+    fun mapToTaskCompletion(data: Map<String, Any?>, localId: Long = 0): TaskCompletionEntity =
+        TaskCompletionEntity(
+            id = localId,
+            taskId = (data["taskId"] as? Number)?.toLong(),
+            projectId = (data["projectId"] as? Number)?.toLong(),
+            completedDate = (data["completedDate"] as? Number)?.toLong() ?: 0,
+            completedAtTime = (data["completedAtTime"] as? Number)?.toLong() ?: System.currentTimeMillis(),
+            priority = (data["priority"] as? Number)?.toInt() ?: 0,
+            wasOverdue = data["wasOverdue"] as? Boolean ?: false,
+            daysToComplete = (data["daysToComplete"] as? Number)?.toInt(),
+            tags = data["tags"] as? String
+        )
 
     fun mapToTaskTemplate(data: Map<String, Any?>, localId: Long = 0): TaskTemplateEntity = TaskTemplateEntity(
         id = localId,
