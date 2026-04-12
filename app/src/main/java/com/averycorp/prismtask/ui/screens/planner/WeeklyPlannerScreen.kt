@@ -185,7 +185,7 @@ fun WeeklyPlannerScreen(
 
                 // Plan display
                 if (plan != null) {
-                    val currentPlan = plan
+                    val currentPlan = plan!!
 
                     // Day tabs
                     item(key = "day_tabs") {

@@ -147,8 +147,9 @@ fun DailyBriefingScreen(
         } else if (isLoading && briefing == null) {
             BriefingShimmer(modifier = Modifier.padding(padding))
         } else if (briefing != null) {
+            val currentBriefing = briefing!!
             BriefingContent(
-                briefing = briefing,
+                briefing = currentBriefing,
                 orderApplied = orderApplied,
                 onApplyOrder = { viewModel.applyOrder() },
                 onTaskClick = { taskId ->

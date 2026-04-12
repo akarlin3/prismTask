@@ -25,6 +25,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -51,6 +52,7 @@ import com.averycorp.prismtask.ui.navigation.PrismTaskNavGraph
 import com.averycorp.prismtask.ui.theme.PrismTaskTheme
 import com.averycorp.prismtask.ui.theme.PriorityColors
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -183,11 +185,12 @@ class MainActivity : ComponentActivity() {
             )
 
             val notificationSnackbarHostState = remember { androidx.compose.material3.SnackbarHostState() }
+            val notificationSnackbarScope = rememberCoroutineScope()
             val notificationPermissionLauncher = rememberLauncherForActivityResult(
                 ActivityResultContracts.RequestPermission()
             ) { granted ->
                 if (!granted) {
-                    kotlinx.coroutines.MainScope().launch {
+                    notificationSnackbarScope.launch {
                         notificationSnackbarHostState.showSnackbar(
                             message = "Notifications disabled \u2014 reminders won't work. Enable in Settings.",
                             duration = androidx.compose.material3.SnackbarDuration.Long
