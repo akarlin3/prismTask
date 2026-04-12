@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.middleware.auth import get_current_user
-from app.middleware.rate_limit import RateLimiter
+from app.middleware.rate_limit import RateLimiter, daily_ai_rate_limiter
 from app.models import Habit, Task, TaskStatus, User
 from app.schemas.ai import (
     DailyBriefingRequest,
@@ -77,6 +77,8 @@ async def categorize_eisenhower(
     db: AsyncSession = Depends(get_db),
 ):
     ai_rate_limiter.check(request)
+    tier = current_user.tier or "FREE"
+    daily_ai_rate_limiter.check(current_user.id, tier)
 
     tasks = await _fetch_incomplete_tasks(current_user, db, data.task_ids)
     if not tasks:
@@ -90,7 +92,7 @@ async def categorize_eisenhower(
     try:
         from app.services.ai_productivity import categorize_eisenhower as ai_categorize
 
-        categorizations = ai_categorize(task_dicts, date.today())
+        categorizations = ai_categorize(task_dicts, date.today(), tier=tier)
     except RuntimeError:
         raise HTTPException(status_code=503, detail="AI service temporarily unavailable")
     except ValueError:
@@ -135,6 +137,8 @@ async def plan_pomodoro(
     db: AsyncSession = Depends(get_db),
 ):
     ai_rate_limiter.check(request)
+    tier = current_user.tier or "FREE"
+    daily_ai_rate_limiter.check(current_user.id, tier)
 
     tasks = await _fetch_incomplete_tasks(current_user, db)
     if not tasks:
@@ -159,6 +163,7 @@ async def plan_pomodoro(
             long_break_length=data.long_break_length,
             focus_preference=data.focus_preference,
             today=date.today(),
+            tier=tier,
         )
     except RuntimeError:
         raise HTTPException(status_code=503, detail="AI service temporarily unavailable")
@@ -192,6 +197,8 @@ async def daily_briefing(
     db: AsyncSession = Depends(get_db),
 ):
     briefing_rate_limiter.check(request)
+    tier = current_user.tier or "FREE"
+    daily_ai_rate_limiter.check(current_user.id, tier)
 
     target_date = date.fromisoformat(data.date) if data.date else date.today()
 
@@ -265,6 +272,7 @@ async def daily_briefing(
             planned_tasks=planned_tasks,
             habits=habits,
             completed_tasks=completed_tasks,
+            tier=tier,
         )
     except RuntimeError:
         raise HTTPException(status_code=503, detail="AI service temporarily unavailable")
@@ -282,6 +290,8 @@ async def weekly_plan(
     db: AsyncSession = Depends(get_db),
 ):
     weekly_plan_rate_limiter.check(request)
+    tier = current_user.tier or "FREE"
+    daily_ai_rate_limiter.check(current_user.id, tier)
 
     if data.week_start:
         week_start = date.fromisoformat(data.week_start)
@@ -333,6 +343,7 @@ async def weekly_plan(
             prefer_front_loading=data.preferences.prefer_front_loading,
             tasks=all_tasks,
             recurring_tasks=recurring_tasks,
+            tier=tier,
         )
     except RuntimeError:
         raise HTTPException(status_code=503, detail="AI service temporarily unavailable")
@@ -350,6 +361,8 @@ async def time_block(
     db: AsyncSession = Depends(get_db),
 ):
     time_block_rate_limiter.check(request)
+    tier = current_user.tier or "FREE"
+    daily_ai_rate_limiter.check(current_user.id, tier)
 
     target_date = date.fromisoformat(data.date) if data.date else date.today()
 
@@ -398,6 +411,7 @@ async def time_block(
             break_duration_minutes=data.break_duration_minutes,
             tasks=tasks,
             calendar_events=calendar_events,
+            tier=tier,
         )
     except RuntimeError:
         raise HTTPException(status_code=503, detail="AI service temporarily unavailable")
@@ -431,6 +445,8 @@ async def weekly_review(
     users and network failures.
     """
     weekly_review_rate_limiter.check(request)
+    tier = current_user.tier or "FREE"
+    daily_ai_rate_limiter.check(current_user.id, tier)
 
     try:
         from app.services.ai_productivity import generate_weekly_review as ai_review
@@ -443,6 +459,7 @@ async def weekly_review(
             category_counts=data.category_counts,
             burnout_score=data.burnout_score,
             medication_adherence=data.medication_adherence,
+            tier=tier,
         )
     except RuntimeError:
         raise HTTPException(status_code=503, detail="AI service temporarily unavailable")
@@ -477,10 +494,12 @@ async def extract_from_text(
     screen enforces the same cap client-side.
     """
     extract_rate_limiter.check(request)
+    tier = current_user.tier or "FREE"
+    daily_ai_rate_limiter.check(current_user.id, tier)
 
     try:
         from app.services.ai_productivity import extract_tasks_from_text as ai_extract
-        raw_tasks = ai_extract(data.text, data.source)
+        raw_tasks = ai_extract(data.text, data.source, tier=tier)
     except RuntimeError:
         raise HTTPException(status_code=503, detail="AI service temporarily unavailable")
     except ValueError:
