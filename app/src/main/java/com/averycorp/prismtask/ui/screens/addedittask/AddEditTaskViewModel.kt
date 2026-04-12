@@ -216,6 +216,8 @@ class AddEditTaskViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
     init {
+        com.google.firebase.crashlytics.FirebaseCrashlytics.getInstance()
+            .setCustomKey("screen", "AddEditTaskScreen")
         // Backward compat: when opened via the navigation route, SavedStateHandle
         // contains the taskId nav arg. Sheet-based invocation leaves this null and
         // calls initialize() explicitly from the host composable.

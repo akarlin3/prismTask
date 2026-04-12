@@ -57,6 +57,16 @@
 # ── Billing data classes ──
 -keep class com.averycorp.prismtask.data.billing.** { *; }
 
+# ── Firebase Crashlytics ──
+-keepattributes SourceFile,LineNumberTable
+-renamesourcefileattribute SourceFile
+
+# ── Bug report model (serialized with Gson for Firestore) ──
+-keep class com.averycorp.prismtask.domain.model.BugReport { *; }
+-keep class com.averycorp.prismtask.domain.model.BugCategory { *; }
+-keep class com.averycorp.prismtask.domain.model.BugSeverity { *; }
+-keep class com.averycorp.prismtask.domain.model.ReportStatus { *; }
+
 # ── Gson ──
 -keepattributes Signature
 -keepattributes *Annotation*

@@ -64,6 +64,7 @@ import com.averycorp.prismtask.ui.screens.settings.sections.BoundariesSection
 import com.averycorp.prismtask.ui.screens.settings.sections.CheckInStreakSection
 import com.averycorp.prismtask.ui.screens.settings.sections.ClinicalReportSection
 import com.averycorp.prismtask.ui.screens.settings.sections.ForgivenessStreakSection
+import com.averycorp.prismtask.ui.screens.settings.sections.HelpFeedbackSection
 import com.averycorp.prismtask.ui.screens.settings.sections.WorkLifeBalanceSection
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -597,6 +598,24 @@ fun SettingsScreen(
                     onReduceMotionChange = viewModel::setReduceMotion,
                     onHighContrastChange = viewModel::setHighContrast,
                     onLargeTouchTargetsChange = viewModel::setLargeTouchTargets
+                )
+
+                HelpFeedbackSection(
+                    onNavigateToBugReport = {
+                        navController.navigate(
+                            com.averycorp.prismtask.ui.navigation.PrismTaskRoute.BugReport.createRoute("Settings")
+                        )
+                    },
+                    onNavigateToFeatureRequest = {
+                        navController.navigate(
+                            com.averycorp.prismtask.ui.navigation.PrismTaskRoute.FeatureRequest.route
+                        )
+                    },
+                    onNavigateToMyReports = {
+                        navController.navigate(
+                            com.averycorp.prismtask.ui.navigation.PrismTaskRoute.MyReports.route
+                        )
+                    }
                 )
 
                 AboutSection(

@@ -150,6 +150,12 @@ sealed class PrismTaskRoute(val route: String) {
     data object PasteConversation : PrismTaskRoute("paste_conversation")
     data object WeeklyReview : PrismTaskRoute("weekly_review")
     data object MedicationRefill : PrismTaskRoute("medication_refill")
+    data object BugReport : PrismTaskRoute("bug_report?fromScreen={fromScreen}") {
+        fun createRoute(fromScreen: String = ""): String =
+            "bug_report?fromScreen=$fromScreen"
+    }
+    data object FeatureRequest : PrismTaskRoute("feature_request")
+    data object MyReports : PrismTaskRoute("my_reports")
 }
 
 data class BottomNavItem(
