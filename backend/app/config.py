@@ -22,6 +22,7 @@ class Settings(BaseSettings):
         "*",
         "http://localhost:5173",
         "https://web-prismtask-production.up.railway.app",
+        "https://app.prismtask.app",
     ]
 
     @field_validator("CORS_ORIGINS", mode="before")
