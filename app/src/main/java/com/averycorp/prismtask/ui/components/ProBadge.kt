@@ -25,12 +25,11 @@ fun TierBadge(
     modifier: Modifier = Modifier
 ) {
     val (label, backgroundColor) = when (requiredTier) {
-        UserTier.ULTRA -> "ULTRA" to Color(0xFF7C3AED) // Purple
-        UserTier.PREMIUM -> "PREMIUM" to Color(0xFFD97706) // Amber
+        UserTier.ULTRA -> "ULTRA" to Color(0xFF7C3AED)
+        UserTier.PREMIUM -> "PREMIUM" to Color(0xFFD97706)
         UserTier.PRO -> "PRO" to MaterialTheme.colorScheme.primary
-        UserTier.FREE -> return // No badge for free features
+        UserTier.FREE -> return
     }
-
     Text(
         text = label,
         fontSize = 10.sp,
