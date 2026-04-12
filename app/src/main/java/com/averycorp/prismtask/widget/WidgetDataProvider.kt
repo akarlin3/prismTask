@@ -2,6 +2,7 @@ package com.averycorp.prismtask.widget
 
 import android.content.Context
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import androidx.room.Room
 import com.averycorp.prismtask.data.local.database.PrismTaskDatabase
@@ -11,16 +12,22 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
 private val Context.widgetTaskBehaviorPrefs by preferencesDataStore(name = "task_behavior_prefs")
+private val Context.widgetThemePrefs by preferencesDataStore(name = "theme_prefs")
 private val DAY_START_HOUR_KEY = intPreferencesKey("day_start_hour")
+private val ACCENT_COLOR_KEY = stringPreferencesKey("accent_color")
+private val THEME_MODE_KEY = stringPreferencesKey("theme_mode")
 
 private suspend fun Context.readDayStartHour(): Int =
     widgetTaskBehaviorPrefs.data.map { it[DAY_START_HOUR_KEY] ?: 0 }.first()
 
-/**
- * Lightweight task row used by widgets — includes only the fields the
- * Glance UI actually renders. Avoids flowing the full TaskEntity into a
- * composable (which would cost far more in Glance serialisation).
- */
+/** Reads the user's configured accent color hex for use in widgets. */
+suspend fun Context.readAccentColor(): String =
+    widgetThemePrefs.data.map { it[ACCENT_COLOR_KEY] ?: "#2563EB" }.first()
+
+/** Reads the user's theme mode preference (system/light/dark). */
+suspend fun Context.readThemeMode(): String =
+    widgetThemePrefs.data.map { it[THEME_MODE_KEY] ?: "system" }.first()
+
 data class WidgetTaskRow(
     val id: Long,
     val title: String,
@@ -53,7 +60,6 @@ data class HabitWidgetItem(
     val isCompletedToday: Boolean
 )
 
-/** Upcoming widget: grouped 3-day preview. */
 data class UpcomingWidgetData(
     val overdue: List<WidgetTaskRow>,
     val today: List<WidgetTaskRow>,
@@ -63,7 +69,6 @@ data class UpcomingWidgetData(
     val totalCount: Int get() = overdue.size + today.size + tomorrow.size + dayAfter.size
 }
 
-/** Productivity score widget data. */
 data class ProductivityWidgetData(
     val score: Int,
     val completed: Int,
@@ -71,7 +76,6 @@ data class ProductivityWidgetData(
     val trendPoints: Int
 )
 
-/** Template shortcut used by the Quick-Add widget's template tiles. */
 data class TemplateShortcut(
     val id: Long,
     val name: String,
@@ -101,24 +105,20 @@ object WidgetDataProvider {
             val dayStartHour = context.readDayStartHour()
             val startOfDay = DayBoundary.startOfCurrentDay(dayStartHour)
             val endOfDay = startOfDay + DayBoundary.DAY_MILLIS
-
             val taskDao = db.taskDao()
             val todayTasks = taskDao.getTodayTasksOnce(startOfDay, endOfDay)
             val overdueTasks = taskDao.getOverdueRootTasksOnce(startOfDay)
             val allTasks = overdueTasks + todayTasks
             val completedToday = taskDao.getCompletedTodayOnce(startOfDay)
-
             val habitDao = db.habitDao()
             val habits = habitDao.getActiveHabitsOnce()
             val completionDao = db.habitCompletionDao()
             val completedHabits = habits.count { completionDao.isCompletedOnDateOnce(it.id, startOfDay) }
-
             val totalForScore = allTasks.size + completedToday.size + habits.size
             val completedForScore = completedToday.size + completedHabits
             val productivityScore = if (totalForScore > 0) {
                 ((completedForScore * 100f) / totalForScore).toInt().coerceIn(0, 100)
             } else 0
-
             return TodayWidgetData(
                 totalTasks = allTasks.size + completedToday.size,
                 completedTasks = completedToday.size,
@@ -141,25 +141,13 @@ object WidgetDataProvider {
             val habits = habitDao.getActiveHabitsOnce()
             val dayStartHour = context.readDayStartHour()
             val startOfDay = DayBoundary.startOfCurrentDay(dayStartHour)
-
             var longestStreak = 0
             val items = habits.take(12).map { habit ->
                 val isCompleted = completionDao.isCompletedOnDateOnce(habit.id, startOfDay)
-                val streak = computeCurrentStreak(
-                    completionDao = completionDao,
-                    habitId = habit.id,
-                    startOfDay = startOfDay
-                )
+                val streak = computeCurrentStreak(completionDao, habit.id, startOfDay)
                 if (streak > longestStreak) longestStreak = streak
-                HabitWidgetItem(
-                    id = habit.id,
-                    name = habit.name,
-                    icon = habit.icon,
-                    streak = streak,
-                    isCompletedToday = isCompleted
-                )
+                HabitWidgetItem(habit.id, habit.name, habit.icon, streak, isCompleted)
             }
-
             return HabitWidgetData(habits = items, longestStreak = longestStreak)
         } finally {
             db.close()
@@ -168,12 +156,10 @@ object WidgetDataProvider {
 
     private suspend fun computeCurrentStreak(
         completionDao: com.averycorp.prismtask.data.local.dao.HabitCompletionDao,
-        habitId: Long,
-        startOfDay: Long
+        habitId: Long, startOfDay: Long
     ): Int {
         var streak = 0
         var date = startOfDay
-        // Walk backwards from today (or yesterday if today isn't done).
         val todayDone = completionDao.isCompletedOnDateOnce(habitId, date)
         if (!todayDone) date -= DayBoundary.DAY_MILLIS
         while (completionDao.isCompletedOnDateOnce(habitId, date)) {
@@ -190,22 +176,12 @@ object WidgetDataProvider {
             val dayStartHour = context.readDayStartHour()
             val startOfDay = DayBoundary.startOfCurrentDay(dayStartHour)
             val endOfDay = startOfDay + DayBoundary.DAY_MILLIS
-            val tomorrowStart = endOfDay
-            val tomorrowEnd = tomorrowStart + DayBoundary.DAY_MILLIS
-            val dayAfterStart = tomorrowEnd
-            val dayAfterEnd = dayAfterStart + DayBoundary.DAY_MILLIS
-
             val taskDao = db.taskDao()
-            val overdue = taskDao.getOverdueRootTasksOnce(startOfDay)
-            val today = taskDao.getTodayTasksOnce(startOfDay, endOfDay)
-            val tomorrow = taskDao.getTodayTasksOnce(tomorrowStart, tomorrowEnd)
-            val dayAfter = taskDao.getTodayTasksOnce(dayAfterStart, dayAfterEnd)
-
             return UpcomingWidgetData(
-                overdue = overdue.take(3).map { it.toRow(startOfDay) },
-                today = today.take(5).map { it.toRow(startOfDay) },
-                tomorrow = tomorrow.take(5).map { it.toRow(startOfDay) },
-                dayAfter = dayAfter.take(5).map { it.toRow(startOfDay) }
+                overdue = taskDao.getOverdueRootTasksOnce(startOfDay).take(3).map { it.toRow(startOfDay) },
+                today = taskDao.getTodayTasksOnce(startOfDay, endOfDay).take(5).map { it.toRow(startOfDay) },
+                tomorrow = taskDao.getTodayTasksOnce(endOfDay, endOfDay + DayBoundary.DAY_MILLIS).take(5).map { it.toRow(startOfDay) },
+                dayAfter = taskDao.getTodayTasksOnce(endOfDay + DayBoundary.DAY_MILLIS, endOfDay + 2 * DayBoundary.DAY_MILLIS).take(5).map { it.toRow(startOfDay) }
             )
         } finally {
             db.close()
@@ -218,41 +194,22 @@ object WidgetDataProvider {
             val dayStartHour = context.readDayStartHour()
             val startOfDay = DayBoundary.startOfCurrentDay(dayStartHour)
             val endOfDay = startOfDay + DayBoundary.DAY_MILLIS
-
             val taskDao = db.taskDao()
             val todayTasks = taskDao.getTodayTasksOnce(startOfDay, endOfDay)
             val overdue = taskDao.getOverdueRootTasksOnce(startOfDay)
             val completed = taskDao.getCompletedTodayOnce(startOfDay)
             val totalTasks = todayTasks.size + overdue.size + completed.size
-            val completedTasks = completed.size
-
             val habitDao = db.habitDao()
             val completionDao = db.habitCompletionDao()
             val habits = habitDao.getActiveHabitsOnce()
-            val completedHabits = habits.count {
-                completionDao.isCompletedOnDateOnce(it.id, startOfDay)
-            }
-
+            val completedHabits = habits.count { completionDao.isCompletedOnDateOnce(it.id, startOfDay) }
             val total = totalTasks + habits.size
-            val done = completedTasks + completedHabits
-            val score = if (total > 0) {
-                ((done * 100f) / total).toInt().coerceIn(0, 100)
-            } else 0
-
-            // Trend: previous day comparison. If we don't have enough data,
-            // the trend is reported as 0.
+            val done = completed.size + completedHabits
+            val score = if (total > 0) ((done * 100f) / total).toInt().coerceIn(0, 100) else 0
             val yesterdayStart = startOfDay - DayBoundary.DAY_MILLIS
-            val prevCompleted = taskDao.getCompletedTodayOnce(yesterdayStart)
-                .count { (it.completedAt ?: 0) < startOfDay }
+            val prevCompleted = taskDao.getCompletedTodayOnce(yesterdayStart).count { (it.completedAt ?: 0) < startOfDay }
             val prevScore = if (total > 0) ((prevCompleted * 100f) / total).toInt() else 0
-            val trend = score - prevScore
-
-            return ProductivityWidgetData(
-                score = score,
-                completed = done,
-                total = total,
-                trendPoints = trend
-            )
+            return ProductivityWidgetData(score = score, completed = done, total = total, trendPoints = score - prevScore)
         } finally {
             db.close()
         }
@@ -261,13 +218,8 @@ object WidgetDataProvider {
     suspend fun getTopTemplates(context: Context, limit: Int = 3): List<TemplateShortcut> {
         val db = getDb(context)
         try {
-            val templates = db.taskTemplateDao().getAllTemplatesOnce()
-            return templates.take(limit).map {
-                TemplateShortcut(
-                    id = it.id,
-                    name = it.name,
-                    icon = it.icon ?: "\uD83D\uDCCB"
-                )
+            return db.taskTemplateDao().getAllTemplatesOnce().take(limit).map {
+                TemplateShortcut(it.id, it.name, it.icon ?: "\uD83D\uDCCB")
             }
         } finally {
             db.close()
@@ -280,11 +232,7 @@ object WidgetDataProvider {
             val taskDao = db.taskDao()
             val task = taskDao.getTaskByIdOnce(taskId) ?: return
             val now = System.currentTimeMillis()
-            if (task.isCompleted) {
-                taskDao.markIncomplete(taskId, now)
-            } else {
-                taskDao.markCompleted(taskId, now)
-            }
+            if (task.isCompleted) taskDao.markIncomplete(taskId, now) else taskDao.markCompleted(taskId, now)
         } finally {
             db.close()
         }
@@ -296,17 +244,12 @@ object WidgetDataProvider {
             val dayStartHour = context.readDayStartHour()
             val startOfDay = DayBoundary.startOfCurrentDay(dayStartHour)
             val completionDao = db.habitCompletionDao()
-            val isDone = completionDao.isCompletedOnDateOnce(habitId, startOfDay)
-            if (isDone) {
+            if (completionDao.isCompletedOnDateOnce(habitId, startOfDay)) {
                 completionDao.deleteByHabitAndDate(habitId, startOfDay)
             } else {
-                completionDao.insert(
-                    com.averycorp.prismtask.data.local.entity.HabitCompletionEntity(
-                        habitId = habitId,
-                        completedDate = startOfDay,
-                        completedAt = System.currentTimeMillis()
-                    )
-                )
+                completionDao.insert(com.averycorp.prismtask.data.local.entity.HabitCompletionEntity(
+                    habitId = habitId, completedDate = startOfDay, completedAt = System.currentTimeMillis()
+                ))
             }
         } finally {
             db.close()
