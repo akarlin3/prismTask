@@ -46,5 +46,5 @@ async def health_check():
 
 allow_origins=[
     "http://localhost:5173",              # local dev
-    "https://your-web-service.up.railway.app",  # Railway web (update with actual URL)
+    "https://web-prismtask-production.up.railway.app",  # Railway web
 ]

@@ -18,7 +18,11 @@ class Settings(BaseSettings):
     ANTHROPIC_API_KEY: str = ""
     DEPLOY_API_KEY: str = ""
     ENVIRONMENT: str = "dev"
-    CORS_ORIGINS: list[str] = ["*"]
+    CORS_ORIGINS: list[str] = [
+        "*",
+        "http://localhost:5173",
+        "https://web-prismtask-production.up.railway.app",
+    ]
 
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
