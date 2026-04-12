@@ -1,8 +1,8 @@
 export type HabitFrequency = 'daily' | 'weekly';
 
 export interface Habit {
-  id: number;
-  user_id: number;
+  id: string;
+  user_id: string;
   name: string;
   description: string | null;
   icon: string | null;
@@ -40,8 +40,8 @@ export interface HabitUpdate {
 }
 
 export interface HabitCompletion {
-  id: number;
-  habit_id: number;
+  id: string;
+  habit_id: string;
   date: string;
   count: number;
   created_at: string;
@@ -57,7 +57,7 @@ export interface HabitWithCompletions extends Habit {
 }
 
 export interface HabitStats {
-  habit_id: number;
+  habit_id: string;
   current_streak: number;
   longest_streak: number;
   total_completions: number;

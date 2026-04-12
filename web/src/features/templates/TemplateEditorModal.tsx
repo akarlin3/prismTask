@@ -18,8 +18,8 @@ interface TemplateEditorModalProps {
     title?: string;
     description?: string;
     priority?: number;
-    project_id?: number;
-    tags?: number[];
+    project_id?: string;
+    tags?: string[];
     subtasks?: string[];
     recurrence_json?: string;
     estimated_duration?: number;
@@ -58,8 +58,8 @@ export function TemplateEditorModal({
   const [templateTitle, setTemplateTitle] = useState('');
   const [templateDescription, setTemplateDescription] = useState('');
   const [templatePriority, setTemplatePriority] = useState<number | null>(null);
-  const [templateProjectId, setTemplateProjectId] = useState<number | null>(null);
-  const [templateTagIds, setTemplateTagIds] = useState<number[]>([]);
+  const [templateProjectId, setTemplateProjectId] = useState<string | null>(null);
+  const [templateTagIds, setTemplateTagIds] = useState<string[]>([]);
   const [subtasks, setSubtasks] = useState<string[]>([]);
   const [newSubtask, setNewSubtask] = useState('');
   const [recurrenceType, setRecurrenceType] = useState('');
@@ -151,7 +151,7 @@ export function TemplateEditorModal({
     setSubtasks((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const toggleTag = (tagId: number) => {
+  const toggleTag = (tagId: string) => {
     setTemplateTagIds((prev) =>
       prev.includes(tagId) ? prev.filter((id) => id !== tagId) : [...prev, tagId],
     );
@@ -339,7 +339,7 @@ export function TemplateEditorModal({
               </label>
               <select
                 value={templateProjectId ?? ''}
-                onChange={(e) => setTemplateProjectId(e.target.value ? Number(e.target.value) : null)}
+                onChange={(e) => setTemplateProjectId(e.target.value || null)}
                 className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-card)] px-3 py-2 text-sm text-[var(--color-text-primary)] outline-none focus:border-[var(--color-accent)]"
               >
                 <option value="">No Project</option>

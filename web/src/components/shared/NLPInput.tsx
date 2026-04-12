@@ -9,7 +9,7 @@ import type { TaskTemplate } from '@/types/template';
 
 interface NLPInputProps {
   onTaskCreate?: (data: { title: string; due_date?: string; priority?: number; project_suggestion?: string }) => void;
-  onTemplateUse?: (templateId: number) => void;
+  onTemplateUse?: (templateId: string) => void;
   className?: string;
 }
 

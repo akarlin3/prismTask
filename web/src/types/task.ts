@@ -2,10 +2,10 @@ export type TaskStatus = 'todo' | 'in_progress' | 'done' | 'cancelled';
 export type TaskPriority = 1 | 2 | 3 | 4; // 1=urgent, 2=high, 3=medium, 4=low
 
 export interface Task {
-  id: number;
-  project_id: number;
-  user_id: number;
-  parent_id: number | null;
+  id: string;
+  project_id: string;
+  user_id: string;
+  parent_id: string | null;
   title: string;
   description: string | null;
   notes: string | null;

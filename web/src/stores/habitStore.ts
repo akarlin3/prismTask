@@ -7,35 +7,47 @@ import type {
   HabitCompletion,
   HabitStats,
 } from '@/types/habit';
-import { habitsApi } from '@/api/habits';
+import * as firestoreHabits from '@/api/firestore/habits';
 import { calculateStreaks, type StreakData } from '@/utils/streaks';
+import type { Unsubscribe } from 'firebase/firestore';
 
 interface HabitState {
   habits: Habit[];
   /** habitId → completions list */
-  completions: Record<number, HabitCompletion[]>;
+  completions: Record<string, HabitCompletion[]>;
   /** habitId → stats from backend */
-  stats: Record<number, HabitStats>;
+  stats: Record<string, HabitStats>;
   selectedHabit: Habit | null;
   isLoading: boolean;
   error: string | null;
 
   fetchHabits: () => Promise<void>;
-  fetchHabitWithCompletions: (habitId: number) => Promise<void>;
-  fetchHabitStats: (habitId: number) => Promise<HabitStats>;
+  fetchCompletionsForHabit: (habitId: string) => Promise<void>;
+  fetchAllCompletions: () => Promise<void>;
+  fetchHabitStats: (habitId: string) => Promise<HabitStats>;
   createHabit: (data: HabitCreate) => Promise<Habit>;
-  updateHabit: (habitId: number, data: HabitUpdate) => Promise<Habit>;
-  deleteHabit: (habitId: number) => Promise<void>;
-  toggleCompletion: (habitId: number, date: string) => Promise<void>;
+  updateHabit: (habitId: string, data: HabitUpdate) => Promise<Habit>;
+  deleteHabit: (habitId: string) => Promise<void>;
+  toggleCompletion: (habitId: string, date: string) => Promise<void>;
   setSelectedHabit: (habit: Habit | null) => void;
   clearError: () => void;
 
+  // Real-time
+  subscribeToHabits: (uid: string) => Unsubscribe;
+  subscribeToCompletions: (uid: string) => Unsubscribe;
+
   // Computed helpers
-  getStreakData: (habitId: number) => StreakData | null;
-  isTodayCompleted: (habitId: number) => boolean;
-  getTodayCount: (habitId: number) => number;
+  getStreakData: (habitId: string) => StreakData | null;
+  isTodayCompleted: (habitId: string) => boolean;
+  getTodayCount: (habitId: string) => number;
   getTodayProgress: () => { completed: number; total: number };
-  getWeekCompletions: (habitId: number) => boolean[];
+  getWeekCompletions: (habitId: string) => boolean[];
+}
+
+import { getFirebaseUid } from '@/stores/firebaseUid';
+
+function getUid(): string {
+  return getFirebaseUid();
 }
 
 function parseActiveDays(json: string | null): number[] | null {
@@ -63,22 +75,21 @@ export const useHabitStore = create<HabitState>((set, get) => ({
   fetchHabits: async () => {
     set({ isLoading: true, error: null });
     try {
-      const habits = await habitsApi.list();
+      const uid = getUid();
+      const habits = await firestoreHabits.getHabits(uid);
       set({ habits, isLoading: false });
 
-      // Fetch completions for each habit in parallel
-      await Promise.all(
-        habits.map((h) => get().fetchHabitWithCompletions(h.id)),
-      );
+      // Fetch all completions
+      await get().fetchAllCompletions();
     } catch (e) {
       set({ error: (e as Error).message, isLoading: false });
     }
   },
 
-  fetchHabitWithCompletions: async (habitId) => {
+  fetchCompletionsForHabit: async (habitId) => {
     try {
-      const habitData = await habitsApi.get(habitId);
-      const completionsList = habitData.completions || [];
+      const uid = getUid();
+      const completionsList = await firestoreHabits.getCompletions(uid, habitId);
       set((state) => ({
         completions: {
           ...state.completions,
@@ -90,16 +101,43 @@ export const useHabitStore = create<HabitState>((set, get) => ({
     }
   },
 
+  fetchAllCompletions: async () => {
+    try {
+      const uid = getUid();
+      const allCompletions = await firestoreHabits.getAllCompletions(uid);
+      // Group completions by habit_id
+      const grouped: Record<string, HabitCompletion[]> = {};
+      for (const c of allCompletions) {
+        if (!grouped[c.habit_id]) grouped[c.habit_id] = [];
+        grouped[c.habit_id].push(c);
+      }
+      set({ completions: grouped });
+    } catch {
+      // Silently fail
+    }
+  },
+
   fetchHabitStats: async (habitId) => {
-    const statsData = await habitsApi.getStats(habitId);
+    // Compute stats client-side from completions
+    const completions = get().completions[habitId] || [];
+    const streakData = get().getStreakData(habitId);
+    const stats: HabitStats = {
+      habit_id: habitId,
+      current_streak: streakData?.currentStreak ?? 0,
+      longest_streak: streakData?.longestStreak ?? 0,
+      total_completions: completions.reduce((sum, c) => sum + c.count, 0),
+      completion_rate: 0,
+      completions_this_week: 0,
+    };
     set((state) => ({
-      stats: { ...state.stats, [habitId]: statsData },
+      stats: { ...state.stats, [habitId]: stats },
     }));
-    return statsData;
+    return stats;
   },
 
   createHabit: async (data) => {
-    const habit = await habitsApi.create(data);
+    const uid = getUid();
+    const habit = await firestoreHabits.createHabit(uid, data);
     set((state) => ({
       habits: [...state.habits, habit],
       completions: { ...state.completions, [habit.id]: [] },
@@ -108,7 +146,8 @@ export const useHabitStore = create<HabitState>((set, get) => ({
   },
 
   updateHabit: async (habitId, data) => {
-    const updated = await habitsApi.update(habitId, data);
+    const uid = getUid();
+    const updated = await firestoreHabits.updateHabit(uid, habitId, data as Record<string, unknown>);
     set((state) => ({
       habits: state.habits.map((h) => (h.id === habitId ? updated : h)),
     }));
@@ -116,7 +155,8 @@ export const useHabitStore = create<HabitState>((set, get) => ({
   },
 
   deleteHabit: async (habitId) => {
-    await habitsApi.delete(habitId);
+    const uid = getUid();
+    await firestoreHabits.deleteHabit(uid, habitId);
     set((state) => {
       const newCompletions = { ...state.completions };
       delete newCompletions[habitId];
@@ -138,7 +178,6 @@ export const useHabitStore = create<HabitState>((set, get) => ({
 
     // Optimistic update
     if (existing && existing.count > 0) {
-      // Remove completion optimistically
       set((s) => ({
         completions: {
           ...s.completions,
@@ -148,9 +187,8 @@ export const useHabitStore = create<HabitState>((set, get) => ({
         },
       }));
     } else {
-      // Add completion optimistically
       const optimistic: HabitCompletion = {
-        id: -Date.now(),
+        id: `temp_${Date.now()}`,
         habit_id: habitId,
         date,
         count: 1,
@@ -165,14 +203,10 @@ export const useHabitStore = create<HabitState>((set, get) => ({
     }
 
     try {
-      const result = await habitsApi.toggleCompletion(habitId, {
-        date,
-        count: 1,
-      });
+      const uid = getUid();
+      const result = await firestoreHabits.toggleCompletion(uid, habitId, date);
 
-      // Reconcile with server response
-      if (result.count === 0) {
-        // Server confirmed deletion
+      if (result.action === 'removed') {
         set((s) => ({
           completions: {
             ...s.completions,
@@ -181,8 +215,7 @@ export const useHabitStore = create<HabitState>((set, get) => ({
             ),
           },
         }));
-      } else {
-        // Server confirmed creation — replace optimistic entry
+      } else if (result.completion) {
         set((s) => ({
           completions: {
             ...s.completions,
@@ -190,19 +223,36 @@ export const useHabitStore = create<HabitState>((set, get) => ({
               ...(s.completions[habitId] || []).filter(
                 (c) => c.date !== date,
               ),
-              result,
+              result.completion!,
             ],
           },
         }));
       }
     } catch {
       // Revert on error by re-fetching
-      await get().fetchHabitWithCompletions(habitId);
+      await get().fetchCompletionsForHabit(habitId);
     }
   },
 
   setSelectedHabit: (habit) => set({ selectedHabit: habit }),
   clearError: () => set({ error: null }),
+
+  subscribeToHabits: (uid: string) => {
+    return firestoreHabits.subscribeToHabits(uid, (habits) => {
+      set({ habits });
+    });
+  },
+
+  subscribeToCompletions: (uid: string) => {
+    return firestoreHabits.subscribeToCompletions(uid, (allCompletions) => {
+      const grouped: Record<string, HabitCompletion[]> = {};
+      for (const c of allCompletions) {
+        if (!grouped[c.habit_id]) grouped[c.habit_id] = [];
+        grouped[c.habit_id].push(c);
+      }
+      set({ completions: grouped });
+    });
+  },
 
   getStreakData: (habitId) => {
     const state = get();
@@ -244,16 +294,13 @@ export const useHabitStore = create<HabitState>((set, get) => ({
     let completed = 0;
 
     for (const habit of activeHabits) {
-      // Check if today is an active day for this habit
       const activeDays = parseActiveDays(habit.active_days_json);
       if (activeDays && activeDays.length > 0) {
         const jsDay = todayDate.getDay();
         const isoDay = jsDay === 0 ? 7 : jsDay;
         if (!activeDays.includes(isoDay)) continue;
       }
-      // Weekly habits count as "due" only once a week
       if (habit.frequency === 'weekly') {
-        // For weekly, always count it
         total++;
         const weekCompletions = (state.completions[habit.id] || []).reduce(
           (sum, c) => {
@@ -284,8 +331,7 @@ export const useHabitStore = create<HabitState>((set, get) => ({
   getWeekCompletions: (habitId) => {
     const completions = get().completions[habitId] || [];
     const today = new Date();
-    // Build Mon-Sun for the current week
-    const dayOffset = (today.getDay() + 6) % 7; // Monday=0
+    const dayOffset = (today.getDay() + 6) % 7;
     const result: boolean[] = [];
     for (let i = 0; i < 7; i++) {
       const d = new Date(today);

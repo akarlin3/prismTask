@@ -106,7 +106,7 @@ export async function exportCsv(
   onProgress?.('Fetching data...');
   const goals = await goalsApi.list();
   const projects: Project[] = [];
-  const projectNames: Record<number, string> = {};
+  const projectNames: Record<string, string> = {};
   for (const goal of goals) {
     const goalProjects = await projectsApi.getByGoal(goal.id);
     for (const p of goalProjects) {

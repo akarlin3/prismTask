@@ -50,19 +50,19 @@ export function ProjectListScreen() {
 
   // Project modal
   const [projectModalOpen, setProjectModalOpen] = useState(false);
-  const [projectGoalId, setProjectGoalId] = useState<number | null>(null);
+  const [projectGoalId, setProjectGoalId] = useState<string | null>(null);
   const [projectTitle, setProjectTitle] = useState('');
   const [projectDescription, setProjectDescription] = useState('');
 
   // Delete confirm
   const [deleteTarget, setDeleteTarget] = useState<{
     type: 'goal' | 'project';
-    id: number;
+    id: string;
     name: string;
   } | null>(null);
 
   // Collapsed goals
-  const [collapsedGoals, setCollapsedGoals] = useState<Set<number>>(new Set());
+  const [collapsedGoals, setCollapsedGoals] = useState<Set<string>>(new Set());
 
   // Dropdown menus
   const [openMenu, setOpenMenu] = useState<string | null>(null);
@@ -79,7 +79,7 @@ export function ProjectListScreen() {
     loadData();
   }, [loadData]);
 
-  const toggleGoalCollapse = (goalId: number) => {
+  const toggleGoalCollapse = (goalId: string) => {
     setCollapsedGoals((prev) => {
       const next = new Set(prev);
       if (next.has(goalId)) next.delete(goalId);
@@ -155,7 +155,7 @@ export function ProjectListScreen() {
     if (!deleteTarget) return;
     try {
       if (deleteTarget.type === 'goal') {
-        await deleteGoal(deleteTarget.id);
+        await deleteGoal(Number(deleteTarget.id));
         toast.success('Goal deleted');
       } else {
         await deleteProject(deleteTarget.id);
@@ -168,7 +168,7 @@ export function ProjectListScreen() {
     }
   };
 
-  const getProjectsForGoal = (goalId: number) =>
+  const getProjectsForGoal = (goalId: string) =>
     projects.filter((p) => p.goal_id === goalId);
 
   if (loading) {
@@ -218,8 +218,8 @@ export function ProjectListScreen() {
       ) : (
         <div className="flex flex-col gap-4">
           {goals.map((goal) => {
-            const goalProjects = getProjectsForGoal(goal.id);
-            const isCollapsed = collapsedGoals.has(goal.id);
+            const goalProjects = getProjectsForGoal(String(goal.id));
+            const isCollapsed = collapsedGoals.has(String(goal.id));
 
             return (
               <div
@@ -229,7 +229,7 @@ export function ProjectListScreen() {
                 {/* Goal header */}
                 <div className="flex items-center gap-2 px-4 py-3 border-b border-[var(--color-border)]">
                   <button
-                    onClick={() => toggleGoalCollapse(goal.id)}
+                    onClick={() => toggleGoalCollapse(String(goal.id))}
                     className="shrink-0 text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
                   >
                     {isCollapsed ? (
@@ -280,7 +280,7 @@ export function ProjectListScreen() {
                         <div className="absolute right-0 top-full z-50 mt-1 w-44 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-card)] p-1 shadow-lg">
                           <button
                             onClick={() => {
-                              setProjectGoalId(goal.id);
+                              setProjectGoalId(String(goal.id));
                               setProjectModalOpen(true);
                               setOpenMenu(null);
                             }}
@@ -300,7 +300,7 @@ export function ProjectListScreen() {
                             onClick={() => {
                               setDeleteTarget({
                                 type: 'goal',
-                                id: goal.id,
+                                id: String(goal.id),
                                 name: goal.title,
                               });
                               setOpenMenu(null);
@@ -336,7 +336,7 @@ export function ProjectListScreen() {
                     ))}
                     <button
                       onClick={() => {
-                        setProjectGoalId(goal.id);
+                        setProjectGoalId(String(goal.id));
                         setProjectModalOpen(true);
                       }}
                       className="flex min-h-[120px] items-center justify-center rounded-lg border-2 border-dashed border-[var(--color-border)] text-[var(--color-text-secondary)] transition-colors hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"

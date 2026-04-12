@@ -15,10 +15,10 @@ interface TemplateState {
 
   fetch: (category?: string, sortBy?: string) => Promise<void>;
   create: (data: TemplateCreate) => Promise<TaskTemplate>;
-  createFromTask: (taskId: number) => Promise<TaskTemplate>;
-  update: (id: number, data: TemplateUpdate) => Promise<TaskTemplate>;
-  remove: (id: number) => Promise<void>;
-  use: (id: number, data?: TemplateUseRequest) => Promise<TemplateUseResponse>;
+  createFromTask: (taskId: string) => Promise<TaskTemplate>;
+  update: (id: string, data: TemplateUpdate) => Promise<TaskTemplate>;
+  remove: (id: string) => Promise<void>;
+  use: (id: string, data?: TemplateUseRequest) => Promise<TemplateUseResponse>;
   clearError: () => void;
 }
 

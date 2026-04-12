@@ -32,7 +32,7 @@ export function ArchiveScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<SortField>('completed_at');
-  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [deleteTarget, setDeleteTarget] = useState<Task | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
@@ -72,7 +72,7 @@ export function ArchiveScreen() {
   }, [fetchArchived]);
 
   const projectMap = useMemo(() => {
-    const map: Record<number, string> = {};
+    const map: Record<string, string> = {};
     projects.forEach((p) => {
       map[p.id] = p.title;
     });
@@ -111,7 +111,7 @@ export function ArchiveScreen() {
     });
   }, [archivedTasks, searchQuery, sortBy, projectMap]);
 
-  const toggleSelect = (id: number) => {
+  const toggleSelect = (id: string) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);

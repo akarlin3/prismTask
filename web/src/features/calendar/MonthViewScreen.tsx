@@ -67,8 +67,8 @@ function DayDetailPanel({
   tasks: Task[];
   onTaskClick: (task: Task) => void;
   onClose: () => void;
-  onComplete: (taskId: number) => void;
-  onUncomplete: (taskId: number) => void;
+  onComplete: (taskId: string) => void;
+  onUncomplete: (taskId: string) => void;
   onQuickCreate: (dateStr: string) => void;
   quickCreateDate: string | null;
   onQuickCreateDone: () => void;
@@ -218,7 +218,7 @@ export function MonthViewScreen() {
     setSelectedTask(null);
   };
 
-  const handleComplete = async (taskId: number) => {
+  const handleComplete = async (taskId: string) => {
     try {
       await completeTask(taskId);
       refetch();
@@ -227,7 +227,7 @@ export function MonthViewScreen() {
     }
   };
 
-  const handleUncomplete = async (taskId: number) => {
+  const handleUncomplete = async (taskId: string) => {
     try {
       await uncompleteTask(taskId);
       refetch();

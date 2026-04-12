@@ -69,10 +69,10 @@ export function TodayScreen() {
   const refreshTimerRef = useRef<ReturnType<typeof setInterval>>(undefined);
 
   // Track completed tasks for undo
-  const undoTimerRef = useRef<Map<number, ReturnType<typeof setTimeout>>>(
+  const undoTimerRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(
     new Map(),
   );
-  const [pendingCompletions, setPendingCompletions] = useState<Set<number>>(
+  const [pendingCompletions, setPendingCompletions] = useState<Set<string>>(
     new Set(),
   );
 
@@ -124,7 +124,7 @@ export function TodayScreen() {
   };
 
   const handleComplete = useCallback(
-    (taskId: number) => {
+    (taskId: string) => {
       // Optimistic: add to pending completions visually
       setPendingCompletions((prev) => new Set([...prev, taskId]));
 
@@ -165,7 +165,7 @@ export function TodayScreen() {
   );
 
   const handleUncomplete = useCallback(
-    async (taskId: number) => {
+    async (taskId: string) => {
       try {
         await uncompleteTask(taskId);
       } catch {
@@ -176,7 +176,7 @@ export function TodayScreen() {
   );
 
   const handleReschedule = useCallback(
-    async (taskId: number, date: string) => {
+    async (taskId: string, date: string) => {
       try {
         await updateTask(taskId, { due_date: date });
         toast.success('Task rescheduled');

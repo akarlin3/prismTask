@@ -15,7 +15,7 @@ export const templatesApi = {
     return apiClient.get('/templates', { params }).then((r) => r.data);
   },
 
-  get(id: number): Promise<TaskTemplate> {
+  get(id: string): Promise<TaskTemplate> {
     return apiClient.get(`/templates/${id}`).then((r) => r.data);
   },
 
@@ -23,19 +23,19 @@ export const templatesApi = {
     return apiClient.post('/templates', data).then((r) => r.data);
   },
 
-  createFromTask(taskId: number): Promise<TaskTemplate> {
+  createFromTask(taskId: string): Promise<TaskTemplate> {
     return apiClient.post(`/templates/from-task/${taskId}`).then((r) => r.data);
   },
 
-  update(id: number, data: TemplateUpdate): Promise<TaskTemplate> {
+  update(id: string, data: TemplateUpdate): Promise<TaskTemplate> {
     return apiClient.patch(`/templates/${id}`, data).then((r) => r.data);
   },
 
-  delete(id: number): Promise<void> {
+  delete(id: string): Promise<void> {
     return apiClient.delete(`/templates/${id}`).then(() => undefined);
   },
 
-  use(id: number, data?: TemplateUseRequest): Promise<TemplateUseResponse> {
+  use(id: string, data?: TemplateUseRequest): Promise<TemplateUseResponse> {
     return apiClient.post(`/templates/${id}/use`, data || {}).then((r) => r.data);
   },
 };

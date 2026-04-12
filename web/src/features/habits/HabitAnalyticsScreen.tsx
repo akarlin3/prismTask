@@ -47,13 +47,13 @@ const DAY_NAMES_SHORT = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 export function HabitAnalyticsScreen() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const habitId = Number(id);
+  const habitId = id!;
 
   const {
     habits,
     completions,
     fetchHabits,
-    fetchHabitWithCompletions,
+    fetchCompletionsForHabit,
     getStreakData,
   } = useHabitStore();
 
@@ -69,13 +69,13 @@ export function HabitAnalyticsScreen() {
       setLoading(true);
       try {
         if (habits.length === 0) await fetchHabits();
-        await fetchHabitWithCompletions(habitId);
+        await fetchCompletionsForHabit(habitId);
       } finally {
         setLoading(false);
       }
     };
     load();
-  }, [habitId, fetchHabits, fetchHabitWithCompletions, habits.length]);
+  }, [habitId, fetchHabits, fetchCompletionsForHabit, habits.length]);
 
   if (loading) {
     return (

@@ -18,7 +18,7 @@ export function TaskDetailScreen() {
 
   useEffect(() => {
     if (!id) return;
-    fetchTask(Number(id))
+    fetchTask(id)
       .then(() => setLoading(false))
       .catch(() => {
         setLoading(false);
@@ -50,7 +50,7 @@ export function TaskDetailScreen() {
           navigate('/tasks');
         }}
         onUpdate={() => {
-          if (id) fetchTask(Number(id));
+          if (id) fetchTask(id);
         }}
       />
     </div>

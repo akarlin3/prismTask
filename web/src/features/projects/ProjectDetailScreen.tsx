@@ -11,7 +11,8 @@ import {
 import { toast } from 'sonner';
 import { useProjectStore } from '@/stores/projectStore';
 import { useTaskStore } from '@/stores/taskStore';
-import { tasksApi } from '@/api/tasks';
+import * as firestoreTasks from '@/api/firestore/tasks';
+import { getFirebaseUid } from '@/stores/firebaseUid';
 import { TaskRow } from '@/components/shared/TaskRow';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
@@ -25,7 +26,7 @@ import type { Task } from '@/types/task';
 export function ProjectDetailScreen() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const projectId = Number(id);
+  const projectId = id!;
 
   const {
     selectedProject,
@@ -61,7 +62,7 @@ export function ProjectDetailScreen() {
     try {
       const [, projTasks] = await Promise.all([
         fetchProject(projectId),
-        tasksApi.getByProject(projectId),
+        firestoreTasks.getTasksByProject(getFirebaseUid(), projectId),
       ]);
       setTasks(projTasks);
     } catch {
@@ -84,7 +85,7 @@ export function ProjectDetailScreen() {
   }, [project]);
 
   const handleComplete = useCallback(
-    async (taskId: number) => {
+    async (taskId: string) => {
       try {
         await completeTask(taskId);
         setTasks((prev) =>
@@ -101,7 +102,7 @@ export function ProjectDetailScreen() {
   );
 
   const handleUncomplete = useCallback(
-    async (taskId: number) => {
+    async (taskId: string) => {
       try {
         await uncompleteTask(taskId);
         setTasks((prev) =>
@@ -117,7 +118,7 @@ export function ProjectDetailScreen() {
   );
 
   const handleReschedule = useCallback(
-    async (taskId: number, date: string) => {
+    async (taskId: string, date: string) => {
       try {
         await updateTask(taskId, { due_date: date });
         setTasks((prev) =>

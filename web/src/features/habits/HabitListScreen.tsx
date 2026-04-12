@@ -64,7 +64,7 @@ export function HabitListScreen() {
       : 0;
 
   const handleToggle = useCallback(
-    async (habitId: number) => {
+    async (habitId: string) => {
       const today = format(new Date(), 'yyyy-MM-dd');
       try {
         await toggleCompletion(habitId, today);
@@ -238,7 +238,7 @@ function HabitCard({
 }: {
   habit: Habit;
   streakData: ReturnType<typeof useHabitStore.getState>['getStreakData'] extends (
-    id: number,
+    id: string,
   ) => infer R
     ? R
     : never;

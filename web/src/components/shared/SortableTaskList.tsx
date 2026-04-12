@@ -19,21 +19,22 @@ import { GripVertical } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { TaskRow } from './TaskRow';
-import { tasksApi } from '@/api/tasks';
+import * as firestoreTasks from '@/api/firestore/tasks';
+import { getFirebaseUid } from '@/stores/firebaseUid';
 import type { Task } from '@/types/task';
 
 interface SortableTaskListProps {
   tasks: Task[];
   onReorder: (reorderedTasks: Task[]) => void;
-  onComplete: (taskId: number) => void;
-  onUncomplete?: (taskId: number) => void;
+  onComplete: (taskId: string) => void;
+  onUncomplete?: (taskId: string) => void;
   onClick: (task: Task) => void;
-  onReschedule?: (taskId: number, date: string) => void;
+  onReschedule?: (taskId: string, date: string) => void;
   showProject?: boolean;
-  projectMap?: Map<number, { title: string; color?: string }>;
+  projectMap?: Map<string, { title: string; color?: string }>;
   showSelection?: boolean;
-  selectedTaskIds?: Set<number>;
-  onToggleSelect?: (taskId: number) => void;
+  selectedTaskIds?: Set<string>;
+  onToggleSelect?: (taskId: string) => void;
   disabled?: boolean;
 }
 
@@ -45,7 +46,7 @@ function calculateNewSortOrders(
   items: Task[],
   oldIndex: number,
   newIndex: number,
-): { id: number; sort_order: number }[] {
+): { id: string; sort_order: number }[] {
   const reordered = [...items];
   const [moved] = reordered.splice(oldIndex, 1);
   reordered.splice(newIndex, 0, moved);
@@ -86,10 +87,10 @@ function SortableTaskItem({
   dragDisabled,
 }: {
   task: Task;
-  onComplete: (taskId: number) => void;
-  onUncomplete?: (taskId: number) => void;
+  onComplete: (taskId: string) => void;
+  onUncomplete?: (taskId: string) => void;
   onClick: (task: Task) => void;
-  onReschedule?: (taskId: number, date: string) => void;
+  onReschedule?: (taskId: string, date: string) => void;
   showProject?: boolean;
   projectName?: string;
   projectColor?: string;
@@ -209,7 +210,7 @@ export function SortableTaskList({
       try {
         await Promise.all(
           changes.map((c) =>
-            tasksApi.update(c.id, { sort_order: c.sort_order }),
+            firestoreTasks.updateTask(getFirebaseUid(), c.id, { sort_order: c.sort_order }),
           ),
         );
       } catch {

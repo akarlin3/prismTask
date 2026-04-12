@@ -9,6 +9,13 @@ export interface User {
   updated_at: string;
 }
 
+export interface FirebaseUser {
+  uid: string;
+  email: string | null;
+  displayName: string | null;
+  photoURL: string | null;
+}
+
 export interface UserCreate {
   email: string;
   name: string;

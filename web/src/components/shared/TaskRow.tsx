@@ -11,10 +11,10 @@ interface TaskRowProps {
   task: Task;
   selected?: boolean;
   onToggleSelect?: () => void;
-  onComplete: (taskId: number) => void;
-  onUncomplete?: (taskId: number) => void;
+  onComplete: (taskId: string) => void;
+  onUncomplete?: (taskId: string) => void;
   onClick: (task: Task) => void;
-  onReschedule?: (taskId: number, date: string) => void;
+  onReschedule?: (taskId: string, date: string) => void;
   showProject?: boolean;
   projectName?: string;
   projectColor?: string;

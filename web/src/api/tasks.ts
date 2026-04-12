@@ -2,31 +2,31 @@ import apiClient from './client';
 import type { Task, TaskCreate, TaskUpdate, SubtaskCreate } from '@/types/task';
 
 export const tasksApi = {
-  getByProject(projectId: number): Promise<Task[]> {
+  getByProject(projectId: string): Promise<Task[]> {
     return apiClient
       .get(`/projects/${projectId}/tasks`)
       .then((r) => r.data);
   },
 
-  get(taskId: number): Promise<Task> {
+  get(taskId: string): Promise<Task> {
     return apiClient.get(`/tasks/${taskId}`).then((r) => r.data);
   },
 
-  create(projectId: number, data: TaskCreate): Promise<Task> {
+  create(projectId: string, data: TaskCreate): Promise<Task> {
     return apiClient
       .post(`/projects/${projectId}/tasks`, data)
       .then((r) => r.data);
   },
 
-  update(taskId: number, data: TaskUpdate): Promise<Task> {
+  update(taskId: string, data: TaskUpdate): Promise<Task> {
     return apiClient.patch(`/tasks/${taskId}`, data).then((r) => r.data);
   },
 
-  delete(taskId: number): Promise<void> {
+  delete(taskId: string): Promise<void> {
     return apiClient.delete(`/tasks/${taskId}`).then(() => undefined);
   },
 
-  createSubtask(taskId: number, data: SubtaskCreate): Promise<Task> {
+  createSubtask(taskId: string, data: SubtaskCreate): Promise<Task> {
     return apiClient
       .post(`/tasks/${taskId}/subtasks`, data)
       .then((r) => r.data);

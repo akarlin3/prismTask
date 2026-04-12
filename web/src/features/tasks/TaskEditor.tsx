@@ -29,13 +29,13 @@ interface TaskEditorProps {
   onClose: () => void;
   onUpdate?: () => void;
   mode?: 'edit' | 'create';
-  defaultProjectId?: number;
+  defaultProjectId?: string;
   onSaveAsTemplate?: (prefill: {
     title?: string;
     description?: string;
     priority?: number;
-    project_id?: number;
-    tags?: number[];
+    project_id?: string;
+    tags?: string[];
     subtasks?: string[];
     recurrence_json?: string;
     estimated_duration?: number;
@@ -119,7 +119,7 @@ export default function TaskEditor({
   const [status, setStatus] = useState<TaskStatus>('todo');
   const [dueDate, setDueDate] = useState('');
   const [dueTime, setDueTime] = useState('');
-  const [projectId, setProjectId] = useState<number | null>(null);
+  const [projectId, setProjectId] = useState<string | null>(null);
   const [notes, setNotes] = useState('');
   const [duration, setDuration] = useState('');
   const [recurrenceType, setRecurrenceType] = useState('');
@@ -130,7 +130,7 @@ export default function TaskEditor({
   const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
 
   // Tags
-  const [taskTagIds, setTaskTagIds] = useState<number[]>([]);
+  const [taskTagIds, setTaskTagIds] = useState<string[]>([]);
   const [showNewTag, setShowNewTag] = useState(false);
   const [newTagName, setNewTagName] = useState('');
   const [newTagColor, setNewTagColor] = useState(TAG_COLORS[0]);
@@ -346,7 +346,7 @@ export default function TaskEditor({
     }
   };
 
-  const handleDeleteSubtask = async (subtaskId: number) => {
+  const handleDeleteSubtask = async (subtaskId: string) => {
     try {
       await deleteTask(subtaskId);
       setSubtasks((prev) => prev.filter((s) => s.id !== subtaskId));
@@ -370,7 +370,7 @@ export default function TaskEditor({
     }
   };
 
-  const toggleTag = (tagId: number) => {
+  const toggleTag = (tagId: string) => {
     setTaskTagIds((prev) =>
       prev.includes(tagId) ? prev.filter((id) => id !== tagId) : [...prev, tagId],
     );
@@ -706,7 +706,7 @@ export default function TaskEditor({
                   <select
                     value={projectId || ''}
                     onChange={(e) =>
-                      setProjectId(e.target.value ? Number(e.target.value) : null)
+                      setProjectId(e.target.value || null)
                     }
                     className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-secondary)] px-3 py-2 text-sm text-[var(--color-text-primary)] outline-none focus:border-[var(--color-accent)]"
                   >

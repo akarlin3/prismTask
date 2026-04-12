@@ -48,8 +48,8 @@ function timeToOffset(time: string): number {
 }
 
 // Compute overlap columns for overlapping tasks
-function computeColumns(tasks: Task[]): Map<number, { col: number; totalCols: number }> {
-  const result = new Map<number, { col: number; totalCols: number }>();
+function computeColumns(tasks: Task[]): Map<string, { col: number; totalCols: number }> {
+  const result = new Map<string, { col: number; totalCols: number }>();
   if (tasks.length === 0) return result;
 
   // Sort by start time
@@ -60,7 +60,7 @@ function computeColumns(tasks: Task[]): Map<number, { col: number; totalCols: nu
   });
 
   // Track active columns
-  const columns: { taskId: number; endMinute: number }[] = [];
+  const columns: { taskId: string; endMinute: number }[] = [];
 
   for (const task of sorted) {
     const startMin = timeToMinutes(task.due_time!);

@@ -13,7 +13,7 @@ export const projectsApi = {
       .then((r) => r.data);
   },
 
-  get(projectId: number): Promise<ProjectDetail> {
+  get(projectId: string): Promise<ProjectDetail> {
     return apiClient.get(`/projects/${projectId}`).then((r) => r.data);
   },
 
@@ -23,13 +23,13 @@ export const projectsApi = {
       .then((r) => r.data);
   },
 
-  update(projectId: number, data: ProjectUpdate): Promise<Project> {
+  update(projectId: string, data: ProjectUpdate): Promise<Project> {
     return apiClient
       .patch(`/projects/${projectId}`, data)
       .then((r) => r.data);
   },
 
-  delete(projectId: number): Promise<void> {
+  delete(projectId: string): Promise<void> {
     return apiClient.delete(`/projects/${projectId}`).then(() => undefined);
   },
 };

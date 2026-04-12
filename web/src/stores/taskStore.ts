@@ -1,10 +1,11 @@
 import { create } from 'zustand';
 import type { Task, TaskCreate, TaskUpdate, SubtaskCreate } from '@/types/task';
-import { tasksApi } from '@/api/tasks';
+import * as firestoreTasks from '@/api/firestore/tasks';
 import {
   calculateNextOccurrence,
   parseRecurrenceRule,
 } from '@/utils/recurrence';
+import type { Unsubscribe } from 'firebase/firestore';
 
 interface TaskState {
   tasks: Task[];
@@ -16,47 +17,56 @@ interface TaskState {
   error: string | null;
 
   // Selection
-  selectedTaskIds: Set<number>;
-  toggleTaskSelection: (id: number) => void;
+  selectedTaskIds: Set<string>;
+  toggleTaskSelection: (id: string) => void;
   clearSelection: () => void;
-  selectAll: (ids: number[]) => void;
+  selectAll: (ids: string[]) => void;
 
   // Fetch
-  fetchByProject: (projectId: number) => Promise<void>;
+  fetchByProject: (projectId: string) => Promise<void>;
   fetchToday: () => Promise<void>;
   fetchOverdue: () => Promise<void>;
   fetchUpcoming: (days?: number) => Promise<void>;
-  fetchTask: (id: number) => Promise<Task>;
+  fetchTask: (id: string) => Promise<Task>;
 
   // CRUD
-  createTask: (projectId: number, data: TaskCreate) => Promise<Task>;
-  updateTask: (taskId: number, data: TaskUpdate) => Promise<Task>;
-  deleteTask: (taskId: number) => Promise<void>;
-  completeTask: (taskId: number) => Promise<Task>;
-  uncompleteTask: (taskId: number) => Promise<Task>;
+  createTask: (projectId: string, data: TaskCreate) => Promise<Task>;
+  updateTask: (taskId: string, data: TaskUpdate) => Promise<Task>;
+  deleteTask: (taskId: string) => Promise<void>;
+  completeTask: (taskId: string) => Promise<Task>;
+  uncompleteTask: (taskId: string) => Promise<Task>;
 
   // Subtasks
-  createSubtask: (parentId: number, data: SubtaskCreate) => Promise<Task>;
+  createSubtask: (parentId: string, data: SubtaskCreate) => Promise<Task>;
 
   // Bulk
-  bulkComplete: (ids: number[]) => Promise<void>;
-  bulkDelete: (ids: number[]) => Promise<void>;
-  bulkMove: (ids: number[], projectId: number) => Promise<void>;
-  bulkUpdatePriority: (ids: number[], priority: number) => Promise<void>;
-  bulkUpdateDueDate: (ids: number[], dueDate: string) => Promise<void>;
+  bulkComplete: (ids: string[]) => Promise<void>;
+  bulkDelete: (ids: string[]) => Promise<void>;
+  bulkMove: (ids: string[], projectId: string) => Promise<void>;
+  bulkUpdatePriority: (ids: string[], priority: number) => Promise<void>;
+  bulkUpdateDueDate: (ids: string[], dueDate: string) => Promise<void>;
+
+  // Real-time
+  subscribeToTasks: (uid: string) => Unsubscribe;
 
   // Local
   setSelectedTask: (task: Task | null) => void;
   clearError: () => void;
-  removeTaskFromLists: (taskId: number) => void;
+  removeTaskFromLists: (taskId: string) => void;
   updateTaskInLists: (task: Task) => void;
 }
 
-function updateInArray(arr: Task[], id: number, updated: Task): Task[] {
+import { getFirebaseUid } from '@/stores/firebaseUid';
+
+function getUid(): string {
+  return getFirebaseUid();
+}
+
+function updateInArray(arr: Task[], id: string, updated: Task): Task[] {
   return arr.map((t) => (t.id === id ? updated : t));
 }
 
-function removeFromArray(arr: Task[], id: number): Task[] {
+function removeFromArray(arr: Task[], id: string): Task[] {
   return arr.filter((t) => t.id !== id);
 }
 
@@ -85,7 +95,8 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   fetchByProject: async (projectId) => {
     set({ isLoading: true, error: null });
     try {
-      const tasks = await tasksApi.getByProject(projectId);
+      const uid = getUid();
+      const tasks = await firestoreTasks.getTasksByProject(uid, projectId);
       set({ tasks, isLoading: false });
     } catch (e) {
       set({ error: (e as Error).message, isLoading: false });
@@ -94,7 +105,8 @@ export const useTaskStore = create<TaskState>((set, get) => ({
 
   fetchToday: async () => {
     try {
-      const todayTasks = await tasksApi.getToday();
+      const uid = getUid();
+      const todayTasks = await firestoreTasks.getTodayTasks(uid);
       set({ todayTasks });
     } catch (e) {
       set({ error: (e as Error).message });
@@ -103,7 +115,8 @@ export const useTaskStore = create<TaskState>((set, get) => ({
 
   fetchOverdue: async () => {
     try {
-      const overdueTasks = await tasksApi.getOverdue();
+      const uid = getUid();
+      const overdueTasks = await firestoreTasks.getOverdueTasks(uid);
       set({ overdueTasks });
     } catch (e) {
       set({ error: (e as Error).message });
@@ -112,7 +125,8 @@ export const useTaskStore = create<TaskState>((set, get) => ({
 
   fetchUpcoming: async (days = 7) => {
     try {
-      const upcomingTasks = await tasksApi.getUpcoming(days);
+      const uid = getUid();
+      const upcomingTasks = await firestoreTasks.getUpcomingTasks(uid, days);
       set({ upcomingTasks });
     } catch (e) {
       set({ error: (e as Error).message });
@@ -120,29 +134,42 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   },
 
   fetchTask: async (id) => {
-    const task = await tasksApi.get(id);
-    set({ selectedTask: task });
-    return task;
+    const uid = getUid();
+    const task = await firestoreTasks.getTask(uid, id);
+    if (!task) throw new Error('Task not found');
+    // Fetch subtasks
+    const subtasks = await firestoreTasks.getSubtasks(uid, id);
+    const taskWithSubs = { ...task, subtasks };
+    set({ selectedTask: taskWithSubs });
+    return taskWithSubs;
   },
 
   createTask: async (projectId, data) => {
-    const task = await tasksApi.create(projectId, data);
+    const uid = getUid();
+    const task = await firestoreTasks.createTask(uid, {
+      ...data,
+      project_id: projectId,
+    } as Partial<Task> & { title: string });
     set((state) => ({ tasks: [...state.tasks, task] }));
     return task;
   },
 
   updateTask: async (taskId, data) => {
-    const updated = await tasksApi.update(taskId, data);
+    const uid = getUid();
+    const updated = await firestoreTasks.updateTask(uid, taskId, data as Record<string, unknown>);
     get().updateTaskInLists(updated);
     return updated;
   },
 
   deleteTask: async (taskId) => {
-    await tasksApi.delete(taskId);
+    const uid = getUid();
+    await firestoreTasks.deleteTask(uid, taskId);
     get().removeTaskFromLists(taskId);
   },
 
   completeTask: async (taskId) => {
+    const uid = getUid();
+
     // Find the task before completing to check recurrence
     const existingTask =
       get().tasks.find((t) => t.id === taskId) ??
@@ -150,7 +177,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       get().overdueTasks.find((t) => t.id === taskId) ??
       get().upcomingTasks.find((t) => t.id === taskId);
 
-    const updated = await tasksApi.update(taskId, { status: 'done' });
+    const updated = await firestoreTasks.updateTask(uid, taskId, { status: 'done' });
     get().updateTaskInLists(updated);
 
     // Handle recurrence: create next occurrence if applicable
@@ -160,20 +187,18 @@ export const useTaskStore = create<TaskState>((set, get) => ({
         const nextDate = calculateNextOccurrence(existingTask.due_date, rule);
         if (nextDate) {
           try {
-            const nextTask = await tasksApi.create(existingTask.project_id, {
+            const nextTask = await firestoreTasks.createTask(uid, {
               title: existingTask.title,
               description: existingTask.description ?? undefined,
               priority: existingTask.priority,
               due_date: nextDate,
               sort_order: existingTask.sort_order,
               recurrence_json: existingTask.recurrence_json ?? undefined,
-            });
+              project_id: existingTask.project_id,
+            } as Partial<Task> & { title: string });
             set((state) => ({
               tasks: [...state.tasks, nextTask],
-              todayTasks: [...state.todayTasks],
-              upcomingTasks: [...state.upcomingTasks],
             }));
-            // Store the next date info on the returned task for undo snackbar
             (updated as Task & { _nextDate?: string })._nextDate = nextDate;
           } catch {
             // Silently fail — the task is still completed
@@ -186,24 +211,27 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   },
 
   uncompleteTask: async (taskId) => {
-    const updated = await tasksApi.update(taskId, { status: 'todo' });
+    const uid = getUid();
+    const updated = await firestoreTasks.updateTask(uid, taskId, { status: 'todo' });
     get().updateTaskInLists(updated);
     return updated;
   },
 
   createSubtask: async (parentId, data) => {
-    const subtask = await tasksApi.createSubtask(parentId, data);
+    const uid = getUid();
+    const subtask = await firestoreTasks.createTask(uid, {
+      ...data,
+      parent_id: parentId,
+    } as Partial<Task> & { title: string });
     // Re-fetch the parent to get updated subtasks
-    const parent = await tasksApi.get(parentId);
+    const parent = await get().fetchTask(parentId);
     get().updateTaskInLists(parent);
-    if (get().selectedTask?.id === parentId) {
-      set({ selectedTask: parent });
-    }
     return subtask;
   },
 
   bulkComplete: async (ids) => {
-    await Promise.all(ids.map((id) => tasksApi.update(id, { status: 'done' })));
+    const uid = getUid();
+    await Promise.all(ids.map((id) => firestoreTasks.updateTask(uid, id, { status: 'done' })));
     set((state) => ({
       tasks: state.tasks.map((t) =>
         ids.includes(t.id) ? { ...t, status: 'done' as const } : t,
@@ -222,7 +250,8 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   },
 
   bulkDelete: async (ids) => {
-    await Promise.all(ids.map((id) => tasksApi.delete(id)));
+    const uid = getUid();
+    await Promise.all(ids.map((id) => firestoreTasks.deleteTask(uid, id)));
     const filterOut = (arr: Task[]) => arr.filter((t) => !ids.includes(t.id));
     set((state) => ({
       tasks: filterOut(state.tasks),
@@ -233,19 +262,18 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     }));
   },
 
-  bulkMove: async (ids, _projectId) => {
-    // Note: backend doesn't support project_id in TaskUpdate directly,
-    // so we rely on the existing PATCH endpoint which may need extension.
-    // For now, clear selection as a placeholder.
+  bulkMove: async (ids, projectId) => {
+    const uid = getUid();
     await Promise.all(
-      ids.map((id) => tasksApi.update(id, {} as TaskUpdate)),
+      ids.map((id) => firestoreTasks.updateTask(uid, id, { project_id: projectId })),
     );
     set({ selectedTaskIds: new Set() });
   },
 
   bulkUpdatePriority: async (ids, priority) => {
+    const uid = getUid();
     await Promise.all(
-      ids.map((id) => tasksApi.update(id, { priority: priority as 1 | 2 | 3 | 4 })),
+      ids.map((id) => firestoreTasks.updateTask(uid, id, { priority })),
     );
     const updatePriority = (arr: Task[]) =>
       arr.map((t) =>
@@ -263,8 +291,9 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   },
 
   bulkUpdateDueDate: async (ids, dueDate) => {
+    const uid = getUid();
     await Promise.all(
-      ids.map((id) => tasksApi.update(id, { due_date: dueDate })),
+      ids.map((id) => firestoreTasks.updateTask(uid, id, { due_date: dueDate })),
     );
     const updateDue = (arr: Task[]) =>
       arr.map((t) =>
@@ -277,6 +306,31 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       upcomingTasks: updateDue(state.upcomingTasks),
       selectedTaskIds: new Set(),
     }));
+  },
+
+  subscribeToTasks: (uid: string) => {
+    return firestoreTasks.subscribeToTasks(uid, (allTasks) => {
+      // Partition tasks into today/overdue/upcoming based on due date
+      const now = new Date();
+      const todayStr = now.toISOString().slice(0, 10);
+      const todayTasks: Task[] = [];
+      const overdueTasks: Task[] = [];
+      const upcomingTasks: Task[] = [];
+
+      for (const task of allTasks) {
+        if (task.status === 'done') continue;
+        if (!task.due_date) continue;
+        if (task.due_date === todayStr) {
+          todayTasks.push(task);
+        } else if (task.due_date < todayStr) {
+          overdueTasks.push(task);
+        } else {
+          upcomingTasks.push(task);
+        }
+      }
+
+      set({ tasks: allTasks, todayTasks, overdueTasks, upcomingTasks });
+    });
   },
 
   setSelectedTask: (task) => set({ selectedTask: task }),

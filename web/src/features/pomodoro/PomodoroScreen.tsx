@@ -64,7 +64,7 @@ export function PomodoroScreen() {
   // Planning state
   const [allTasks, setAllTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedTaskIds, setSelectedTaskIds] = useState<Set<number>>(new Set());
+  const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
   const [availableMinutes, setAvailableMinutes] = useState(60);
   const [workStyle, setWorkStyle] = useState<WorkStyle>('balanced');
   const [generating, setGenerating] = useState(false);
@@ -78,7 +78,7 @@ export function PomodoroScreen() {
   const [isRunning, setIsRunning] = useState(false);
   const [sessionLength] = useState(25); // minutes
   const [breakLength] = useState(5); // minutes
-  const [completedTaskIds, setCompletedTaskIds] = useState<Set<number>>(new Set());
+  const [completedTaskIds, setCompletedTaskIds] = useState<Set<string>>(new Set());
 
   const timerRef = useRef<ReturnType<typeof setInterval>>(undefined);
 
@@ -150,7 +150,7 @@ export function PomodoroScreen() {
     return () => clearInterval(timerRef.current);
   }, [isRunning, timeLeft, phase, currentSessionIdx, sessions.length, breakLength, sessionLength]);
 
-  const toggleTaskSelection = (taskId: number) => {
+  const toggleTaskSelection = (taskId: string) => {
     setSelectedTaskIds((prev) => {
       const next = new Set(prev);
       if (next.has(taskId)) next.delete(taskId);

@@ -27,7 +27,7 @@ export function useCalendarTasks(startDate: Date, endDate: Date) {
       ]);
 
       // Merge and deduplicate by id
-      const allMap = new Map<number, Task>();
+      const allMap = new Map<string, Task>();
       [...todayTasks, ...overdueTasks, ...upcomingTasks].forEach((t) => {
         allMap.set(t.id, t);
       });

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { Tag, TagCreate, TagUpdate } from '@/types/tag';
-import { tagsApi } from '@/api/tags';
+import * as firestoreTags from '@/api/firestore/tags';
+import type { Unsubscribe } from 'firebase/firestore';
 
 interface TagState {
   tags: Tag[];
@@ -9,9 +10,16 @@ interface TagState {
 
   fetchTags: () => Promise<void>;
   createTag: (data: TagCreate) => Promise<Tag>;
-  updateTag: (tagId: number, data: TagUpdate) => Promise<Tag>;
-  deleteTag: (tagId: number) => Promise<void>;
+  updateTag: (tagId: string, data: TagUpdate) => Promise<Tag>;
+  deleteTag: (tagId: string) => Promise<void>;
+  subscribeToTags: (uid: string) => Unsubscribe;
   clearError: () => void;
+}
+
+import { getFirebaseUid } from '@/stores/firebaseUid';
+
+function getUid(): string {
+  return getFirebaseUid();
 }
 
 export const useTagStore = create<TagState>((set) => ({
@@ -22,7 +30,8 @@ export const useTagStore = create<TagState>((set) => ({
   fetchTags: async () => {
     set({ isLoading: true, error: null });
     try {
-      const tags = await tagsApi.list();
+      const uid = getUid();
+      const tags = await firestoreTags.getTags(uid);
       set({ tags, isLoading: false });
     } catch (e) {
       set({ error: (e as Error).message, isLoading: false });
@@ -30,13 +39,15 @@ export const useTagStore = create<TagState>((set) => ({
   },
 
   createTag: async (data) => {
-    const tag = await tagsApi.create(data);
+    const uid = getUid();
+    const tag = await firestoreTags.createTag(uid, data);
     set((state) => ({ tags: [...state.tags, tag] }));
     return tag;
   },
 
   updateTag: async (tagId, data) => {
-    const updated = await tagsApi.update(tagId, data);
+    const uid = getUid();
+    const updated = await firestoreTags.updateTag(uid, tagId, data);
     set((state) => ({
       tags: state.tags.map((t) => (t.id === tagId ? updated : t)),
     }));
@@ -44,10 +55,17 @@ export const useTagStore = create<TagState>((set) => ({
   },
 
   deleteTag: async (tagId) => {
-    await tagsApi.delete(tagId);
+    const uid = getUid();
+    await firestoreTags.deleteTag(uid, tagId);
     set((state) => ({
       tags: state.tags.filter((t) => t.id !== tagId),
     }));
+  },
+
+  subscribeToTags: (uid: string) => {
+    return firestoreTags.subscribeToTags(uid, (tags) => {
+      set({ tags });
+    });
   },
 
   clearError: () => set({ error: null }),

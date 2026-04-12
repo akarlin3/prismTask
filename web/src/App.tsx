@@ -12,10 +12,14 @@ export default function App() {
   const applyTheme = useThemeStore((s) => s.applyTheme);
   const themeMode = useThemeStore((s) => s.mode);
 
-  // Hydrate auth state from localStorage on mount
+  const initFirebaseAuthListener = useAuthStore((s) => s.initFirebaseAuthListener);
+
+  // Initialize Firebase Auth listener + hydrate JWT tokens on mount
   useEffect(() => {
+    const unsubscribe = initFirebaseAuthListener();
     hydrateFromStorage();
-  }, [hydrateFromStorage]);
+    return unsubscribe;
+  }, [initFirebaseAuthListener, hydrateFromStorage]);
 
   // Apply theme on mount and mode changes
   useEffect(() => {

@@ -7,7 +7,7 @@
  * - For reliable reminders, users should install as PWA
  */
 
-const scheduledTimers = new Map<number, ReturnType<typeof setTimeout>>();
+const scheduledTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
 export function isNotificationSupported(): boolean {
   return 'Notification' in window;
@@ -40,7 +40,7 @@ export function showNotification(
 }
 
 export function scheduleReminder(
-  taskId: number,
+  taskId: string,
   title: string,
   dueDate: string,
   offsetMs: number,
@@ -65,7 +65,7 @@ export function scheduleReminder(
   scheduledTimers.set(taskId, timer);
 }
 
-export function cancelReminder(taskId: number): void {
+export function cancelReminder(taskId: string): void {
   const existing = scheduledTimers.get(taskId);
   if (existing) {
     clearTimeout(existing);

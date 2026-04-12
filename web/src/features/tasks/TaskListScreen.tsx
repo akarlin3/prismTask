@@ -22,9 +22,8 @@ import { useTaskStore } from '@/stores/taskStore';
 import { useProjectStore } from '@/stores/projectStore';
 import { useTagStore } from '@/stores/tagStore';
 import { searchApi } from '@/api/search';
-import { goalsApi } from '@/api/goals';
-import { projectsApi } from '@/api/projects';
-import { tasksApi } from '@/api/tasks';
+import * as firestoreTasks from '@/api/firestore/tasks';
+import { getFirebaseUid } from '@/stores/firebaseUid';
 import { TaskRow } from '@/components/shared/TaskRow';
 import { SortableTaskList } from '@/components/shared/SortableTaskList';
 import { Button } from '@/components/ui/Button';
@@ -104,8 +103,8 @@ export function TaskListScreen() {
   const [filterOpen, setFilterOpen] = useState(false);
   const [priorityFilter, setPriorityFilter] = useState<TaskPriority[]>([]);
   const [statusFilter, setStatusFilter] = useState<TaskStatus[]>([]);
-  const [projectFilter, setProjectFilter] = useState<number[]>([]);
-  const [tagFilter, setTagFilter] = useState<number[]>([]);
+  const [projectFilter, setProjectFilter] = useState<string[]>([]);
+  const [tagFilter, setTagFilter] = useState<string[]>([]);
   const [dueDateStart, setDueDateStart] = useState('');
   const [dueDateEnd, setDueDateEnd] = useState('');
 
@@ -129,7 +128,7 @@ export function TaskListScreen() {
   const [bulkDeleting, setBulkDeleting] = useState(false);
 
   // Collapsed project groups
-  const [collapsedGroups, setCollapsedGroups] = useState<Set<number>>(new Set());
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
 
   const searchTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const projectMap = useMemo(
@@ -143,16 +142,9 @@ export function TaskListScreen() {
     try {
       await fetchAllProjects();
       await fetchTags();
-      // Fetch tasks for all projects
-      const goals = await goalsApi.list();
-      const all: Task[] = [];
-      for (const goal of goals) {
-        const projs = await projectsApi.getByGoal(goal.id);
-        for (const proj of projs) {
-          const projTasks = await tasksApi.getByProject(proj.id);
-          all.push(...projTasks);
-        }
-      }
+      // Fetch all tasks from Firestore
+      const uid = getFirebaseUid();
+      const all = await firestoreTasks.getAllTasks(uid);
       setAllTasks(all);
     } catch {
       toast.error('Failed to load tasks');
@@ -274,7 +266,7 @@ export function TaskListScreen() {
 
   // Group by project for grouped view
   const groupedTasks = useMemo(() => {
-    const groups = new Map<number, Task[]>();
+    const groups = new Map<string, Task[]>();
     for (const task of sortedTasks) {
       const list = groups.get(task.project_id) || [];
       list.push(task);
@@ -284,7 +276,7 @@ export function TaskListScreen() {
   }, [sortedTasks]);
 
   const handleComplete = useCallback(
-    async (taskId: number) => {
+    async (taskId: string) => {
       try {
         await completeTask(taskId);
         setAllTasks((prev) =>
@@ -301,7 +293,7 @@ export function TaskListScreen() {
   );
 
   const handleUncomplete = useCallback(
-    async (taskId: number) => {
+    async (taskId: string) => {
       try {
         await uncompleteTask(taskId);
         setAllTasks((prev) =>
@@ -317,7 +309,7 @@ export function TaskListScreen() {
   );
 
   const handleReschedule = useCallback(
-    async (taskId: number, date: string) => {
+    async (taskId: string, date: string) => {
       try {
         await updateTask(taskId, { due_date: date });
         setAllTasks((prev) =>
@@ -390,7 +382,7 @@ export function TaskListScreen() {
     }
   };
 
-  const handleBulkMove = async (targetProjectId: number) => {
+  const handleBulkMove = async (targetProjectId: string) => {
     try {
       await bulkMove(selectedIds, targetProjectId);
       setAllTasks((prev) =>
@@ -457,7 +449,7 @@ export function TaskListScreen() {
     setDueDateEnd('');
   };
 
-  const toggleGroup = (projectId: number) => {
+  const toggleGroup = (projectId: string) => {
     setCollapsedGroups((prev) => {
       const next = new Set(prev);
       if (next.has(projectId)) next.delete(projectId);
@@ -946,7 +938,7 @@ export function TaskListScreen() {
             onReschedule={handleReschedule}
             showProject
             showSelection
-            projectMap={projectMap as Map<number, { title: string; color?: string }>}
+            projectMap={projectMap as Map<string, { title: string; color?: string }>}
             selectedTaskIds={selectedTaskIds}
             onToggleSelect={toggleTaskSelection}
             disabled={sortKey !== 'sort_order'}

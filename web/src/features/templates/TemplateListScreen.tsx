@@ -36,7 +36,7 @@ export function TemplateListScreen() {
   const [editingTemplate, setEditingTemplate] = useState<TaskTemplate | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<TaskTemplate | null>(null);
   const [deleting, setDeleting] = useState(false);
-  const [usingTemplate, setUsingTemplate] = useState<number | null>(null);
+  const [usingTemplate, setUsingTemplate] = useState<string | null>(null);
   const [taskEditorOpen, setTaskEditorOpen] = useState(false);
 
   useEffect(() => {

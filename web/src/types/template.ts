@@ -1,6 +1,6 @@
 export interface TaskTemplate {
-  id: number;
-  user_id: number;
+  id: string;
+  user_id: string;
   name: string;
   description: string | null;
   icon: string | null;
@@ -8,7 +8,7 @@ export interface TaskTemplate {
   template_title: string | null;
   template_description: string | null;
   template_priority: number | null;
-  template_project_id: number | null;
+  template_project_id: string | null;
   template_tags_json: string | null;
   template_recurrence_json: string | null;
   template_duration: number | null;
@@ -28,7 +28,7 @@ export interface TemplateCreate {
   template_title?: string;
   template_description?: string;
   template_priority?: number;
-  template_project_id?: number;
+  template_project_id?: string;
   template_tags_json?: string;
   template_recurrence_json?: string;
   template_duration?: number;
@@ -43,7 +43,7 @@ export interface TemplateUpdate {
   template_title?: string;
   template_description?: string;
   template_priority?: number;
-  template_project_id?: number;
+  template_project_id?: string;
   template_tags_json?: string;
   template_recurrence_json?: string;
   template_duration?: number;
@@ -52,10 +52,10 @@ export interface TemplateUpdate {
 
 export interface TemplateUseRequest {
   due_date?: string;
-  project_id?: number;
+  project_id?: string;
 }
 
 export interface TemplateUseResponse {
-  task_id: number;
+  task_id: string;
   message: string;
 }

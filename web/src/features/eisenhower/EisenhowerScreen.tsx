@@ -24,10 +24,9 @@ import { toast } from 'sonner';
 import { useTaskStore } from '@/stores/taskStore';
 import { useProjectStore } from '@/stores/projectStore';
 import { useAuthStore } from '@/stores/authStore';
-import { goalsApi } from '@/api/goals';
-import { projectsApi } from '@/api/projects';
-import { tasksApi } from '@/api/tasks';
 import { aiApi } from '@/api/ai';
+import * as firestoreTasks from '@/api/firestore/tasks';
+import { getFirebaseUid } from '@/stores/firebaseUid';
 import { Checkbox } from '@/components/ui/Checkbox';
 import { Button } from '@/components/ui/Button';
 import { Spinner } from '@/components/ui/Spinner';
@@ -149,7 +148,7 @@ function DraggableTaskItem({
   task: Task;
   accentColor: string;
   projectName?: string;
-  onComplete: (taskId: number) => void;
+  onComplete: (taskId: string) => void;
   onClick: (task: Task) => void;
 }) {
   const {
@@ -238,8 +237,8 @@ function QuadrantPanel({
 }: {
   config: QuadrantConfig;
   tasks: Task[];
-  projectMap: Map<number, { title: string }>;
-  onComplete: (taskId: number) => void;
+  projectMap: Map<string, { title: string }>;
+  onComplete: (taskId: string) => void;
   onTaskClick: (task: Task) => void;
   onAddTask: (quadrant: Quadrant) => void;
 }) {
@@ -349,15 +348,8 @@ export function EisenhowerScreen() {
     setLoading(true);
     try {
       await fetchAllProjects();
-      const goals = await goalsApi.list();
-      const all: Task[] = [];
-      for (const goal of goals) {
-        const projs = await projectsApi.getByGoal(goal.id);
-        for (const proj of projs) {
-          const projTasks = await tasksApi.getByProject(proj.id);
-          all.push(...projTasks);
-        }
-      }
+      const uid = getFirebaseUid();
+      const all = await firestoreTasks.getAllTasks(uid);
       // Only show incomplete root-level tasks
       setAllTasks(
         all.filter(
@@ -398,7 +390,7 @@ export function EisenhowerScreen() {
   }, [allTasks]);
 
   const handleComplete = useCallback(
-    async (taskId: number) => {
+    async (taskId: string) => {
       try {
         await completeTask(taskId);
         setAllTasks((prev) => prev.filter((t) => t.id !== taskId));
@@ -480,7 +472,7 @@ export function EisenhowerScreen() {
       const { active, over } = event;
       if (!over) return;
 
-      const taskId = parseInt(active.id as string, 10);
+      const taskId = active.id as string;
       const targetQuadrant = over.id as Quadrant;
 
       // Find which quadrant the task is currently in
@@ -521,7 +513,7 @@ export function EisenhowerScreen() {
   );
 
   const activeTask = activeId
-    ? allTasks.find((t) => t.id === parseInt(activeId, 10))
+    ? allTasks.find((t) => t.id === activeId)
     : null;
 
   if (loading) {

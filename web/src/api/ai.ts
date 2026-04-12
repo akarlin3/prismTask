@@ -10,7 +10,7 @@ export interface PomodoroRequest {
 }
 
 export interface PomodoroSessionTask {
-  task_id: number;
+  task_id: string;
   title: string;
   allocated_minutes: number;
 }
@@ -22,7 +22,7 @@ export interface PomodoroSession {
 }
 
 export interface SkippedTask {
-  task_id: number;
+  task_id: string;
   reason: string;
 }
 
@@ -35,7 +35,7 @@ export interface PomodoroResponse {
 }
 
 export const aiApi = {
-  eisenhowerCategorize(taskIds?: number[]): Promise<EisenhowerResponse> {
+  eisenhowerCategorize(taskIds?: string[]): Promise<EisenhowerResponse> {
     return apiClient
       .post('/ai/eisenhower', { task_ids: taskIds || null })
       .then((r) => r.data);

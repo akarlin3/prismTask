@@ -1,13 +1,15 @@
 export type ProjectStatus = 'active' | 'completed' | 'on_hold' | 'archived';
 
 export interface Project {
-  id: number;
-  goal_id: number;
-  user_id: number;
+  id: string;
+  goal_id: string;
+  user_id: string;
   title: string;
   description: string | null;
   status: ProjectStatus;
   due_date: string | null;
+  color: string;
+  icon: string;
   sort_order: number;
   created_at: string;
   updated_at: string;
@@ -31,7 +33,7 @@ export interface ProjectUpdate {
 
 export interface ProjectDetail extends Project {
   tasks?: Array<{
-    id: number;
+    id: string;
     title: string;
     status: string;
     priority: number;
@@ -43,8 +45,8 @@ export interface ProjectDetail extends Project {
 }
 
 export interface ProjectMember {
-  id: number;
-  user_id: number;
+  id: string;
+  user_id: string;
   display_name: string | null;
   email: string;
   avatar_url: string | null;

@@ -35,7 +35,7 @@ export interface NLPParseResult {
 }
 
 export interface EisenhowerCategorization {
-  task_id: number;
+  task_id: string;
   quadrant: 'Q1' | 'Q2' | 'Q3' | 'Q4';
   reason: string;
 }
