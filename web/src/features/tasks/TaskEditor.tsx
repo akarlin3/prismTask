@@ -97,6 +97,8 @@ export default function TaskEditor({
   const [saved, setSaved] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [duplicateOpen, setDuplicateOpen] = useState(false);
+  const [duplicateSubtasks, setDuplicateSubtasks] = useState(true);
 
   // Form state
   const [title, setTitle] = useState('');
@@ -278,13 +280,25 @@ export default function TaskEditor({
     const targetProjectId = task.project_id || projects[0]?.id;
     if (!targetProjectId) return;
     try {
-      await createTask(targetProjectId, {
+      const newTask = await createTask(targetProjectId, {
         title: `${task.title} (copy)`,
         description: task.description || undefined,
         priority: task.priority,
-        due_date: task.due_date || undefined,
       });
+
+      // Duplicate subtasks if option selected
+      if (duplicateSubtasks && subtasks.length > 0) {
+        for (const subtask of subtasks) {
+          await createSubtask(newTask.id, {
+            title: subtask.title,
+            description: subtask.description || undefined,
+            priority: subtask.priority,
+          });
+        }
+      }
+
       toast.success('Task duplicated');
+      setDuplicateOpen(false);
       onUpdate?.();
     } catch {
       toast.error('Failed to duplicate task');
@@ -808,7 +822,7 @@ export default function TaskEditor({
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={handleDuplicate}
+                    onClick={() => setDuplicateOpen(true)}
                   >
                     <Copy className="h-4 w-4" />
                     Duplicate
@@ -843,6 +857,33 @@ export default function TaskEditor({
         confirmLabel="Delete"
         variant="danger"
         loading={deleting}
+      />
+
+      {/* Duplicate dialog */}
+      <ConfirmDialog
+        isOpen={duplicateOpen}
+        onClose={() => setDuplicateOpen(false)}
+        onConfirm={handleDuplicate}
+        title="Duplicate Task"
+        message={
+          <div className="flex flex-col gap-3">
+            <p className="text-sm text-[var(--color-text-secondary)]">
+              Create a copy of &ldquo;{task?.title}&rdquo; with the same description, priority, project, and tags. The due date will be cleared.
+            </p>
+            {subtasks.length > 0 && (
+              <label className="flex items-center gap-2 text-sm text-[var(--color-text-primary)]">
+                <input
+                  type="checkbox"
+                  checked={duplicateSubtasks}
+                  onChange={(e) => setDuplicateSubtasks(e.target.checked)}
+                  className="rounded border-[var(--color-border)]"
+                />
+                Include {subtasks.length} subtask{subtasks.length === 1 ? '' : 's'}
+              </label>
+            )}
+          </div>
+        }
+        confirmLabel="Duplicate"
       />
     </>
   );

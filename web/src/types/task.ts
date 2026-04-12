@@ -36,6 +36,8 @@ export interface TaskCreate {
   priority?: TaskPriority;
   due_date?: string;
   sort_order?: number;
+  recurrence_json?: string;
+  estimated_duration?: number;
 }
 
 export interface TaskUpdate {
@@ -46,6 +48,8 @@ export interface TaskUpdate {
   due_date?: string;
   sort_order?: number;
   eisenhower_quadrant?: string;
+  recurrence_json?: string;
+  estimated_duration?: number;
 }
 
 export interface SubtaskCreate {
@@ -64,4 +68,7 @@ export interface RecurrenceRule {
   days_of_month?: number[];
   end_date?: string;
   after_completion?: boolean;
+  end_after_count?: number;
+  occurrence_count?: number;
+  skip_weekends?: boolean;
 }

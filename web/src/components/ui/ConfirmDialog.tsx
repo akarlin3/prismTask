@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { Modal } from './Modal';
 import { Button } from './Button';
 
@@ -6,7 +7,7 @@ interface ConfirmDialogProps {
   onClose: () => void;
   onConfirm: () => void;
   title: string;
-  message: string;
+  message: ReactNode;
   confirmLabel?: string;
   cancelLabel?: string;
   variant?: 'default' | 'danger';
@@ -45,7 +46,7 @@ export function ConfirmDialog({
         </div>
       }
     >
-      <p className="text-sm text-[var(--color-text-secondary)]">{message}</p>
+      <div className="text-sm text-[var(--color-text-secondary)]">{message}</div>
     </Modal>
   );
 }

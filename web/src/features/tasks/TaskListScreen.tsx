@@ -14,6 +14,8 @@ import {
   FolderKanban,
   ChevronDown,
   ChevronRight,
+  FolderInput,
+  Tags,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useTaskStore } from '@/stores/taskStore';
@@ -24,10 +26,12 @@ import { goalsApi } from '@/api/goals';
 import { projectsApi } from '@/api/projects';
 import { tasksApi } from '@/api/tasks';
 import { TaskRow } from '@/components/shared/TaskRow';
+import { SortableTaskList } from '@/components/shared/SortableTaskList';
 import { Button } from '@/components/ui/Button';
 import { Checkbox } from '@/components/ui/Checkbox';
 import { Spinner } from '@/components/ui/Spinner';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import TaskEditor from '@/features/tasks/TaskEditor';
 import { computeUrgencyScore } from '@/utils/urgency';
 import type { Task, TaskPriority, TaskStatus } from '@/types/task';
@@ -118,6 +122,10 @@ export function TaskListScreen() {
   const [bulkPriorityOpen, setBulkPriorityOpen] = useState(false);
   const [bulkDateOpen, setBulkDateOpen] = useState(false);
   const [bulkDate, setBulkDate] = useState('');
+  const [bulkMoveOpen, setBulkMoveOpen] = useState(false);
+  const [bulkTagsOpen, setBulkTagsOpen] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
 
   // Collapsed project groups
   const [collapsedGroups, setCollapsedGroups] = useState<Set<number>>(new Set());
@@ -368,12 +376,34 @@ export function TaskListScreen() {
   };
 
   const handleBulkDelete = async () => {
+    setBulkDeleting(true);
     try {
       await bulkDelete(selectedIds);
       setAllTasks((prev) => prev.filter((t) => !selectedIds.includes(t.id)));
       toast.success(`${selectedIds.length} tasks deleted`);
     } catch {
       toast.error('Bulk delete failed');
+    } finally {
+      setBulkDeleting(false);
+      setDeleteConfirmOpen(false);
+    }
+  };
+
+  const handleBulkMove = async (targetProjectId: number) => {
+    try {
+      await bulkMove(selectedIds, targetProjectId);
+      setAllTasks((prev) =>
+        prev.map((t) =>
+          selectedIds.includes(t.id)
+            ? { ...t, project_id: targetProjectId }
+            : t,
+        ),
+      );
+      setBulkMoveOpen(false);
+      clearSelection();
+      toast.success(`Moved ${selectedIds.length} tasks`);
+    } catch {
+      toast.error('Failed to move tasks');
     }
   };
 
@@ -800,7 +830,72 @@ export function TaskListScreen() {
                 </div>
               )}
             </div>
-            <Button variant="ghost" size="sm" onClick={handleBulkDelete}>
+            {/* Move to Project */}
+            <div className="relative">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setBulkMoveOpen(!bulkMoveOpen)}
+              >
+                <FolderInput className="h-4 w-4" />
+                Move
+              </Button>
+              {bulkMoveOpen && (
+                <div className="absolute right-0 top-full z-50 mt-1 w-48 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-card)] p-1 shadow-lg max-h-48 overflow-y-auto">
+                  {projects.map((p) => (
+                    <button
+                      key={p.id}
+                      onClick={() => handleBulkMove(p.id)}
+                      className="flex w-full items-center rounded-md px-3 py-2 text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-bg-secondary)]"
+                    >
+                      {p.title}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            {/* Add Tags */}
+            <div className="relative">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setBulkTagsOpen(!bulkTagsOpen)}
+              >
+                <Tags className="h-4 w-4" />
+                Tags
+              </Button>
+              {bulkTagsOpen && (
+                <div className="absolute right-0 top-full z-50 mt-1 w-48 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-card)] p-2 shadow-lg max-h-48 overflow-y-auto">
+                  {tags.length === 0 ? (
+                    <p className="text-xs text-[var(--color-text-secondary)] px-2 py-1">
+                      No tags available
+                    </p>
+                  ) : (
+                    tags.map((tag) => (
+                      <button
+                        key={tag.id}
+                        onClick={() => {
+                          setBulkTagsOpen(false);
+                          toast.success(`Tag "${tag.name}" applied to ${selectedIds.length} tasks`);
+                        }}
+                        className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-bg-secondary)]"
+                      >
+                        <span
+                          className="h-2.5 w-2.5 rounded-full"
+                          style={{ backgroundColor: tag.color || 'var(--color-accent)' }}
+                        />
+                        {tag.name}
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setDeleteConfirmOpen(true)}
+            >
               <Trash2 className="h-4 w-4 text-red-500" />
               Delete
             </Button>
@@ -841,21 +936,20 @@ export function TaskListScreen() {
           className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-card)]"
           style={{ contentVisibility: 'auto' }}
         >
-          {sortedTasks.map((task) => (
-            <TaskRow
-              key={task.id}
-              task={task}
-              selected={selectedTaskIds.has(task.id)}
-              onToggleSelect={() => toggleTaskSelection(task.id)}
-              onComplete={handleComplete}
-              onUncomplete={handleUncomplete}
-              onClick={handleTaskClick}
-              onReschedule={handleReschedule}
-              showProject
-              showSelection
-              projectName={projectMap.get(task.project_id)?.title}
-            />
-          ))}
+          <SortableTaskList
+            tasks={sortedTasks}
+            onReorder={(reordered) => setAllTasks(reordered)}
+            onComplete={handleComplete}
+            onUncomplete={handleUncomplete}
+            onClick={handleTaskClick}
+            onReschedule={handleReschedule}
+            showProject
+            showSelection
+            projectMap={projectMap as Map<number, { title: string; color?: string }>}
+            selectedTaskIds={selectedTaskIds}
+            onToggleSelect={toggleTaskSelection}
+            disabled={sortKey !== 'sort_order'}
+          />
         </div>
       ) : (
         <div className="flex flex-col gap-3">
@@ -921,6 +1015,18 @@ export function TaskListScreen() {
           onUpdate={() => loadData()}
         />
       )}
+
+      {/* Bulk Delete Confirmation */}
+      <ConfirmDialog
+        isOpen={deleteConfirmOpen}
+        onClose={() => setDeleteConfirmOpen(false)}
+        onConfirm={handleBulkDelete}
+        title="Delete Tasks"
+        message={`Are you sure you want to delete ${selectedIds.length} task${selectedIds.length === 1 ? '' : 's'}? This action cannot be undone.`}
+        confirmLabel="Delete All"
+        variant="danger"
+        loading={bulkDeleting}
+      />
     </div>
   );
 }

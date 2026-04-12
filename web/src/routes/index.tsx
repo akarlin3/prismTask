@@ -22,6 +22,7 @@ import { WeekViewScreen } from '@/features/calendar/WeekViewScreen';
 import { MonthViewScreen } from '@/features/calendar/MonthViewScreen';
 import { TimelineScreen } from '@/features/calendar/TimelineScreen';
 import { EisenhowerScreen } from '@/features/eisenhower/EisenhowerScreen';
+import { PomodoroScreen } from '@/features/pomodoro/PomodoroScreen';
 import { TemplateListScreen } from '@/features/templates/TemplateListScreen';
 import { ArchiveScreen } from '@/features/archive/ArchiveScreen';
 import { SettingsScreen } from '@/features/settings/SettingsScreen';
@@ -50,6 +51,7 @@ const routes: RouteObject[] = [
       { path: 'calendar/month', element: <MonthViewScreen /> },
       { path: 'calendar/timeline', element: <TimelineScreen /> },
       { path: 'eisenhower', element: <EisenhowerScreen /> },
+      { path: 'pomodoro', element: <PomodoroScreen /> },
       { path: 'templates', element: <TemplateListScreen /> },
       { path: 'archive', element: <ArchiveScreen /> },
       { path: 'settings', element: <SettingsScreen /> },
