@@ -37,6 +37,31 @@ fun SubscriptionSection(
     val context = LocalContext.current
     SectionHeader("Subscription")
     when (userTier) {
+        UserTier.ULTRA -> {
+            Text(
+                text = "\u2B50 PrismTask Ultra",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF7C3AED),
+                modifier = Modifier.padding(bottom = 4.dp)
+            )
+            Text(
+                text = "You have access to all features with Claude Sonnet AI",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+            OutlinedButton(
+                onClick = {
+                    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
+                        data = android.net.Uri.parse("https://play.google.com/store/account/subscriptions")
+                    }
+                    context.startActivity(intent)
+                }
+            ) {
+                Text("Manage Subscription")
+            }
+        }
         UserTier.PREMIUM -> {
             Text(
                 text = "PrismTask Premium",
@@ -46,11 +71,24 @@ fun SubscriptionSection(
                 modifier = Modifier.padding(bottom = 4.dp)
             )
             Text(
-                text = "You have access to all features",
+                text = "Upgrade to Ultra for enhanced AI powered by Claude Sonnet",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(bottom = 8.dp)
             )
+            Button(
+                onClick = {
+                    val activity = context as? Activity ?: return@Button
+                    onLaunchUpgrade(activity, UserTier.ULTRA)
+                },
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFF7C3AED)
+                )
+            ) {
+                Text("Upgrade to Ultra \u2014 \$9.99/month")
+            }
+            Spacer(modifier = Modifier.height(4.dp))
             OutlinedButton(
                 onClick = {
                     val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
@@ -87,6 +125,19 @@ fun SubscriptionSection(
                 )
             ) {
                 Text("Upgrade to Premium \u2014 \$7.99/month")
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+            Button(
+                onClick = {
+                    val activity = context as? Activity ?: return@Button
+                    onLaunchUpgrade(activity, UserTier.ULTRA)
+                },
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFF7C3AED)
+                )
+            ) {
+                Text("Upgrade to Ultra \u2014 \$9.99/month")
             }
             Spacer(modifier = Modifier.height(4.dp))
             OutlinedButton(
@@ -131,6 +182,19 @@ fun SubscriptionSection(
             ) {
                 Text("Start Premium \u2014 \$7.99/month")
             }
+            Spacer(modifier = Modifier.height(4.dp))
+            Button(
+                onClick = {
+                    val activity = context as? Activity ?: return@Button
+                    onLaunchUpgrade(activity, UserTier.ULTRA)
+                },
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFF7C3AED)
+                )
+            ) {
+                Text("Start Ultra \u2014 \$9.99/month")
+            }
             TextButton(onClick = onRestorePurchases) {
                 Text("Restore Purchases")
             }
@@ -158,39 +222,48 @@ private fun SubscriptionComparisonCard() {
                 )
                 Text(
                     text = "Free",
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(0.8f),
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
                     textAlign = TextAlign.Center
                 )
                 Text(
                     text = "Pro\n\$3.99",
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(0.8f),
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary,
                     textAlign = TextAlign.Center
                 )
                 Text(
-                    text = "Premium\n\$7.99",
-                    modifier = Modifier.weight(1f),
+                    text = "Prem\n\$7.99",
+                    modifier = Modifier.weight(0.8f),
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFFD97706),
                     textAlign = TextAlign.Center
                 )
+                Text(
+                    text = "Ultra\n\$9.99",
+                    modifier = Modifier.weight(0.8f),
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF7C3AED),
+                    textAlign = TextAlign.Center
+                )
             }
             Spacer(modifier = Modifier.height(8.dp))
             HorizontalDivider()
-            ComparisonRow("Core Tasks & Habits", free = true, pro = true, premium = true)
-            ComparisonRow("Calendar Sync", free = true, pro = true, premium = true)
-            ComparisonRow("Templates (Local)", free = true, pro = true, premium = true)
-            ComparisonRow("Cloud Sync", free = false, pro = true, premium = true)
-            ComparisonRow("AI Eisenhower & Pomodoro", free = false, pro = true, premium = true)
-            ComparisonRow("Analytics & Time Tracking", free = false, pro = true, premium = true)
-            ComparisonRow("AI Briefing & Planner", free = false, pro = false, premium = true)
-            ComparisonRow("Collaboration", free = false, pro = false, premium = true)
-            ComparisonRow("Integrations", free = false, pro = false, premium = true)
+            ComparisonRow("Core Tasks & Habits", free = true, pro = true, premium = true, ultra = true)
+            ComparisonRow("Calendar Sync", free = true, pro = true, premium = true, ultra = true)
+            ComparisonRow("Templates (Local)", free = true, pro = true, premium = true, ultra = true)
+            ComparisonRow("Cloud Sync", free = false, pro = true, premium = true, ultra = true)
+            ComparisonRow("AI Eisenhower & Pomodoro", free = false, pro = true, premium = true, ultra = true)
+            ComparisonRow("Analytics & Time Tracking", free = false, pro = true, premium = true, ultra = true)
+            ComparisonRow("AI Briefing & Planner", free = false, pro = false, premium = true, ultra = true)
+            ComparisonRow("Collaboration", free = false, pro = false, premium = true, ultra = true)
+            ComparisonRow("Integrations", free = false, pro = false, premium = true, ultra = true)
+            ComparisonRow("Claude Sonnet AI", free = false, pro = false, premium = false, ultra = true)
         }
     }
 }
@@ -200,7 +273,8 @@ private fun ComparisonRow(
     feature: String,
     free: Boolean,
     pro: Boolean,
-    premium: Boolean
+    premium: Boolean,
+    ultra: Boolean
 ) {
     Row(
         modifier = Modifier
@@ -214,9 +288,10 @@ private fun ComparisonRow(
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        TierCheck(enabled = free, modifier = Modifier.weight(1f))
-        TierCheck(enabled = pro, modifier = Modifier.weight(1f))
-        TierCheck(enabled = premium, modifier = Modifier.weight(1f))
+        TierCheck(enabled = free, modifier = Modifier.weight(0.8f))
+        TierCheck(enabled = pro, modifier = Modifier.weight(0.8f))
+        TierCheck(enabled = premium, modifier = Modifier.weight(0.8f))
+        TierCheck(enabled = ultra, modifier = Modifier.weight(0.8f))
     }
 }
 
