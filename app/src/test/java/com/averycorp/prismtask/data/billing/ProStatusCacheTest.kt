@@ -41,4 +41,29 @@ class ProStatusCacheTest {
         val isValid = expiresAt > System.currentTimeMillis()
         assert(!isValid)
     }
+
+    @Test
+    fun `UserTier enum includes ULTRA and parses from string`() {
+        val ultra = UserTier.valueOf("ULTRA")
+        assertEquals(UserTier.ULTRA, ultra)
+        assertEquals("ULTRA", ultra.name)
+    }
+
+    @Test
+    fun `ULTRA tier round-trips through name serialization`() {
+        val tier = UserTier.ULTRA
+        val serialized = tier.name
+        val deserialized = UserTier.valueOf(serialized)
+        assertEquals(tier, deserialized)
+    }
+
+    @Test
+    fun `all four tiers cover expected values`() {
+        val tiers = UserTier.entries
+        assertEquals(4, tiers.size)
+        assert(tiers.contains(UserTier.FREE))
+        assert(tiers.contains(UserTier.PRO))
+        assert(tiers.contains(UserTier.PREMIUM))
+        assert(tiers.contains(UserTier.ULTRA))
+    }
 }

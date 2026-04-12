@@ -54,7 +54,8 @@ fun DebugTierSection(
         listOf(
             UserTier.FREE to "Free",
             UserTier.PRO to "Pro",
-            UserTier.PREMIUM to "Premium"
+            UserTier.PREMIUM to "Premium",
+            UserTier.ULTRA to "Ultra"
         ).forEach { (tier, label) ->
             val selected = debugTierOverride == tier
             FilterChip(
