@@ -169,6 +169,17 @@ class SyncService @Inject constructor(
         }
     }
 
+    fun launchInitialUpload() {
+        scope.launch {
+            try {
+                initialUpload()
+                Log.d("SyncService", "Initial upload completed successfully")
+            } catch (e: Exception) {
+                Log.e("SyncService", "Initial upload failed", e)
+            }
+        }
+    }
+
     suspend fun pushLocalChanges() {
         val pending = syncMetadataDao.getPendingActions()
         // Process in order: projects → tags → tasks

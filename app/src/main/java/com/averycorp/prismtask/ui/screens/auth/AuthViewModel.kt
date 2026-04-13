@@ -44,13 +44,9 @@ class AuthViewModel @Inject constructor(
             val result = authManager.signInWithGoogle(idToken)
             if (result.isSuccess) {
                 _authState.value = AuthState.SignedIn
-                // Initial upload on first sign-in
-                try {
-                    syncService.initialUpload()
-                    android.util.Log.d("AuthViewModel", "Initial upload completed successfully")
-                } catch (e: Exception) {
-                    android.util.Log.e("AuthViewModel", "Initial upload FAILED", e)
-                }
+                // Initial upload on first sign-in (launched in SyncService's own scope
+                // so it survives navigation away from AuthScreen)
+                syncService.launchInitialUpload()
                 syncService.startRealtimeListeners()
             } else {
                 // Firebase rejected the token (commonly a stale/revoked
