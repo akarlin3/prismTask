@@ -10,8 +10,7 @@ Covers:
 
 import pytest
 from httpx import AsyncClient
-from sqlalchemy import select, update
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import update
 
 from tests.conftest import TestSessionLocal
 from app.models import User
