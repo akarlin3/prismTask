@@ -20,7 +20,7 @@ class ProFeatureGate @Inject constructor(
 
     fun hasAccess(feature: String): Boolean {
         return when (feature) {
-            CLOUD_SYNC, TEMPLATE_SYNC, AI_EISENHOWER, AI_POMODORO,
+            TEMPLATE_SYNC, AI_EISENHOWER, AI_POMODORO,
             ANALYTICS_BASIC, TIME_TRACKING, AI_NLP,
             AI_EVENING_SUMMARY, AI_COACHING, AI_TASK_BREAKDOWN -> isPro()
 
@@ -36,13 +36,14 @@ class ProFeatureGate @Inject constructor(
             AI_SONNET_PLANNER, AI_SONNET_EXTRACT,
             AI_PRIORITY_SUPPORT -> isUltra()
 
+            CLOUD_SYNC -> true // free tier — cloud sync available to all users
             else -> true
         }
     }
 
     fun requiredTier(feature: String): UserTier {
         return when (feature) {
-            CLOUD_SYNC, TEMPLATE_SYNC, AI_EISENHOWER, AI_POMODORO,
+            TEMPLATE_SYNC, AI_EISENHOWER, AI_POMODORO,
             ANALYTICS_BASIC, TIME_TRACKING, AI_NLP,
             AI_EVENING_SUMMARY, AI_COACHING, AI_TASK_BREAKDOWN -> UserTier.PRO
 
@@ -58,6 +59,7 @@ class ProFeatureGate @Inject constructor(
             AI_SONNET_PLANNER, AI_SONNET_EXTRACT,
             AI_PRIORITY_SUPPORT -> UserTier.ULTRA
 
+            CLOUD_SYNC -> UserTier.FREE // cloud sync available to all users
             else -> UserTier.FREE
         }
     }
