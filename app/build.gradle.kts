@@ -204,16 +204,18 @@ dependencies {
     implementation("androidx.glance:glance-material3:1.1.0")
 
     // Firebase
-    implementation(platform("com.google.firebase:firebase-bom:33.6.0"))
+    implementation(platform("com.google.firebase:firebase-bom:33.12.0"))
     implementation("com.google.firebase:firebase-auth-ktx")
     implementation("com.google.firebase:firebase-firestore-ktx")
     implementation("com.google.firebase:firebase-storage-ktx")
     implementation("com.google.firebase:firebase-crashlytics-ktx")
 
-    // gRPC — Firestore 25.1.1 requires gRPC 1.62.2+ (InternalGlobalInterceptors),
+    // gRPC — Firestore requires gRPC 1.62.2+ for InternalGlobalInterceptors,
     // but google-api-client-android pulls an older version that wins in resolution.
-    implementation("io.grpc:grpc-android:1.62.2")
-    implementation("io.grpc:grpc-okhttp:1.62.2")
+    // Force 1.65.0 to ensure the class exists at runtime.
+    implementation("io.grpc:grpc-api:1.65.0")
+    implementation("io.grpc:grpc-android:1.65.0")
+    implementation("io.grpc:grpc-okhttp:1.65.0")
 
     // Credential Manager (Google Sign-In)
     implementation("androidx.credentials:credentials:1.3.0")
