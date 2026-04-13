@@ -26,6 +26,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.averycorp.prismtask.ui.components.dialogs.ResetAppDataDialog
+import com.averycorp.prismtask.ui.components.dialogs.ResetOptions
 import com.averycorp.prismtask.ui.components.settings.SectionHeader
 import com.averycorp.prismtask.ui.components.settings.SettingsRow
 import com.averycorp.prismtask.ui.components.settings.SettingsRowWithSubtitle
@@ -36,35 +38,23 @@ fun DataSection(
     archivedCount: Int,
     isResetting: Boolean,
     onAutoArchiveDaysChange: (Int) -> Unit,
-    onResetApp: () -> Unit,
+    onResetAppData: (ResetOptions) -> Unit,
     onNavigateToTags: () -> Unit,
     onNavigateToProjects: () -> Unit,
     onNavigateToTemplates: () -> Unit,
     onNavigateToArchive: () -> Unit
 ) {
     var showAutoArchiveDialog by remember { mutableStateOf(false) }
-    var showResetConfirmDialog by remember { mutableStateOf(false) }
+    var showResetDialog by remember { mutableStateOf(false) }
 
-    if (showResetConfirmDialog) {
-        AlertDialog(
-            onDismissRequest = { showResetConfirmDialog = false },
-            title = { Text("Reset App") },
-            text = {
-                Text("This will permanently delete all tasks, projects, tags, habits, and settings, and sign you out. This cannot be undone.")
+    if (showResetDialog) {
+        ResetAppDataDialog(
+            isResetting = isResetting,
+            onReset = { options ->
+                showResetDialog = false
+                onResetAppData(options)
             },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        showResetConfirmDialog = false
-                        onResetApp()
-                    }
-                ) {
-                    Text("Reset Everything", color = MaterialTheme.colorScheme.error)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showResetConfirmDialog = false }) { Text("Cancel") }
-            }
+            onDismiss = { showResetDialog = false }
         )
     }
 
@@ -124,7 +114,7 @@ fun DataSection(
     Spacer(modifier = Modifier.height(8.dp))
 
     OutlinedButton(
-        onClick = { showResetConfirmDialog = true },
+        onClick = { showResetDialog = true },
         enabled = !isResetting,
         modifier = Modifier.fillMaxWidth(),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.error)
@@ -134,7 +124,7 @@ fun DataSection(
             Spacer(modifier = Modifier.width(8.dp))
             Text("Resetting...", color = MaterialTheme.colorScheme.error)
         } else {
-            Text("Reset App", color = MaterialTheme.colorScheme.error)
+            Text("Reset App Data...", color = MaterialTheme.colorScheme.error)
         }
     }
 

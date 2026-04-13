@@ -32,4 +32,7 @@ interface ProjectTemplateDao {
 
     @Query("SELECT COUNT(*) FROM project_templates")
     suspend fun count(): Int
+
+    @Query("DELETE FROM project_templates")
+    suspend fun deleteAll()
 }

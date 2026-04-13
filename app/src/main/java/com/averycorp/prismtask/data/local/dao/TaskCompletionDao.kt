@@ -63,4 +63,7 @@ interface TaskCompletionDao {
 
     @Query("SELECT * FROM task_completions WHERE project_id = :projectId AND completed_date >= :startDate AND completed_date <= :endDate ORDER BY completed_date ASC")
     suspend fun getCompletionsByProjectOnce(projectId: Long, startDate: Long, endDate: Long): List<TaskCompletionEntity>
+
+    @Query("DELETE FROM task_completions")
+    suspend fun deleteAll()
 }

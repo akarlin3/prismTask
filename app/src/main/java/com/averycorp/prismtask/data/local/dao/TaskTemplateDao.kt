@@ -49,4 +49,7 @@ interface TaskTemplateDao {
 
     @Query("SELECT * FROM task_templates WHERE name LIKE '%' || :query || '%' OR template_title LIKE '%' || :query || '%'")
     fun searchTemplates(query: String): Flow<List<TaskTemplateEntity>>
+
+    @Query("DELETE FROM task_templates")
+    suspend fun deleteAll()
 }

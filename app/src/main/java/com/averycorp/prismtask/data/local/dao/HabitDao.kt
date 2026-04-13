@@ -54,4 +54,7 @@ interface HabitDao {
     @Query("SELECT DISTINCT category FROM habits WHERE category IS NOT NULL AND category != '' ORDER BY category ASC")
     suspend fun getAllCategories(): List<String>
 
+    @Query("DELETE FROM habits")
+    suspend fun deleteAll()
+
 }

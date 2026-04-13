@@ -25,4 +25,7 @@ interface AttachmentDao {
 
     @Query("SELECT COUNT(*) FROM attachments WHERE taskId = :taskId")
     fun getAttachmentCountForTask(taskId: Long): Flow<Int>
+
+    @Query("DELETE FROM attachments")
+    suspend fun deleteAll()
 }

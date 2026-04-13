@@ -792,28 +792,69 @@ class SettingsViewModel @Inject constructor(
     private val _isResetting = MutableStateFlow(false)
     val isResetting: StateFlow<Boolean> = _isResetting
 
-    fun resetApp() {
+    /**
+     * Granular reset based on [options]. Executes each selected category in
+     * order, clears local Room tables and DataStore prefs as needed, then calls
+     * [onDone] with a flag indicating whether to navigate to Onboarding.
+     * Backend errors do not block local deletion; a partial-success message is
+     * shown instead.
+     */
+    fun resetAppData(
+        options: com.averycorp.prismtask.ui.components.dialogs.ResetOptions,
+        onDone: (navigateToOnboarding: Boolean) -> Unit = {}
+    ) {
         viewModelScope.launch {
             _isResetting.value = true
             try {
                 withContext(Dispatchers.IO) {
-                    database.clearAllTables()
+                    if (options.tasksAndProjects) {
+                        database.taskDao().deleteAll()
+                        database.taskDao().deleteAllTaskTagCrossRefs()
+                        database.projectDao().deleteAll()
+                        database.attachmentDao().deleteAll()
+                        database.taskCompletionDao().deleteAll()
+                    }
+                    if (options.habitsAndHistory) {
+                        database.habitDao().deleteAll()
+                        database.habitCompletionDao().deleteAll()
+                        database.habitLogDao().deleteAll()
+                    }
+                    if (options.tags) {
+                        database.tagDao().deleteAll()
+                        database.tagDao().deleteAllCrossRefs()
+                    }
+                    if (options.templates) {
+                        database.taskTemplateDao().deleteAll()
+                        database.habitTemplateDao().deleteAll()
+                        database.projectTemplateDao().deleteAll()
+                    }
+                    if (options.calendarSyncData) {
+                        database.calendarSyncDao().deleteAll()
+                    }
                 }
-                themePreferences.clearAll()
-                archivePreferences.clearAll()
-                dashboardPreferences.resetToDefaults()
-                tabPreferences.resetToDefaults()
-                taskBehaviorPreferences.resetToDefaults()
-                calendarPreferences.clearAll()
-                calendarSyncPreferences.clearAll()
-                calendarManager.disconnectCalendar()
-                leisurePreferences.clearAll()
-                habitListPreferences.clearAll()
-                backendSyncPreferences.clear()
-                templatePreferences.clear()
-                authTokenPreferences.clearTokens()
-                authManager.signOut()
-                _messages.emit("App reset complete. Restart recommended.")
+                if (options.calendarSyncData) {
+                    calendarSyncPreferences.clearAll()
+                    calendarManager.disconnectCalendar()
+                }
+                if (options.preferencesAndSettings) {
+                    themePreferences.clearAll()
+                    archivePreferences.clearAll()
+                    dashboardPreferences.resetToDefaults()
+                    tabPreferences.resetToDefaults()
+                    taskBehaviorPreferences.resetToDefaults()
+                    calendarPreferences.clearAll()
+                    leisurePreferences.clearAll()
+                    habitListPreferences.clearAll()
+                    backendSyncPreferences.clear()
+                    templatePreferences.clear()
+                    userPreferencesDataStore.clearAll()
+                    // Auth tokens and pro status cache are intentionally preserved.
+                }
+                if (options.restartOnboarding) {
+                    onboardingPreferences.resetOnboarding()
+                }
+                _messages.emit("App data has been reset")
+                onDone(options.restartOnboarding)
             } catch (e: Exception) {
                 Log.e("SettingsVM", "Reset failed", e)
                 _messages.emit("Reset failed: ${e.message}")

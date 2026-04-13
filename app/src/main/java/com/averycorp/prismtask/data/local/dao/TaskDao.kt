@@ -257,4 +257,10 @@ interface TaskDao {
 
     @Query("SELECT COUNT(*) FROM tasks WHERE is_completed = 0 AND archived_at IS NULL AND parent_task_id IS NULL")
     suspend fun getIncompleteTaskCount(): Int
+
+    @Query("DELETE FROM tasks")
+    suspend fun deleteAll()
+
+    @Query("DELETE FROM task_tags")
+    suspend fun deleteAllTaskTagCrossRefs()
 }

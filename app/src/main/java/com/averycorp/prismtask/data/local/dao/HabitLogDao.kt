@@ -34,4 +34,7 @@ interface HabitLogDao {
 
     @Update
     suspend fun updateLog(log: HabitLogEntity)
+
+    @Query("DELETE FROM habit_logs")
+    suspend fun deleteAll()
 }
