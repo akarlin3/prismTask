@@ -54,4 +54,7 @@ interface HabitCompletionDao {
 
     @Query("SELECT * FROM habit_completions ORDER BY completed_date DESC")
     suspend fun getAllCompletionsOnce(): List<HabitCompletionEntity>
+
+    @Query("DELETE FROM habit_completions")
+    suspend fun deleteAll()
 }

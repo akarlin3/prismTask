@@ -51,4 +51,10 @@ interface TagDao {
 
     @Query("DELETE FROM task_tags WHERE taskId = :taskId")
     suspend fun removeAllTagsFromTask(taskId: Long)
+
+    @Query("DELETE FROM tags")
+    suspend fun deleteAll()
+
+    @Query("DELETE FROM task_tags")
+    suspend fun deleteAllCrossRefs()
 }

@@ -32,4 +32,7 @@ interface HabitTemplateDao {
 
     @Query("SELECT COUNT(*) FROM habit_templates")
     suspend fun count(): Int
+
+    @Query("DELETE FROM habit_templates")
+    suspend fun deleteAll()
 }

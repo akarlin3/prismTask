@@ -453,7 +453,17 @@ fun SettingsScreen(
                     archivedCount = archivedCount,
                     isResetting = isResetting,
                     onAutoArchiveDaysChange = viewModel::setAutoArchiveDays,
-                    onResetApp = viewModel::resetApp,
+                    onResetAppData = { options ->
+                        viewModel.resetAppData(options) { navigateToOnboarding ->
+                            if (navigateToOnboarding) {
+                                navController.navigate(PrismTaskRoute.Onboarding.route) {
+                                    popUpTo(PrismTaskRoute.MainTabs.route) { inclusive = true }
+                                }
+                            } else if (options.preferencesAndSettings) {
+                                (context as? android.app.Activity)?.recreate()
+                            }
+                        }
+                    },
                     onNavigateToTags = { navController.navigate("tag_management") },
                     onNavigateToProjects = { navController.navigate("project_list") },
                     onNavigateToTemplates = { navController.navigate("templates") },
