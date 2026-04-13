@@ -26,6 +26,7 @@ import com.averycorp.prismtask.data.remote.api.WeeklyPlanRequest
 import com.averycorp.prismtask.data.remote.api.WeeklyPlanResponse
 import com.averycorp.prismtask.data.remote.api.RegisterRequest
 import com.averycorp.prismtask.data.remote.api.TokenResponse
+import com.averycorp.prismtask.data.remote.api.UserInfoResponse
 import com.averycorp.prismtask.data.remote.api.VersionResponse
 import com.averycorp.prismtask.data.remote.sync.SyncPullResponse
 import com.averycorp.prismtask.data.remote.sync.SyncPushRequest
@@ -49,6 +50,8 @@ class NaturalLanguageParserTest {
 
     /** Stub Retrofit API — these tests only exercise the offline regex parser. */
     private val stubApi = object : PrismTaskApi {
+        override suspend fun getMe(): UserInfoResponse =
+            error("not used in offline parser tests")
         override suspend fun register(request: RegisterRequest): TokenResponse =
             error("not used in offline parser tests")
         override suspend fun login(request: LoginRequest): TokenResponse =
