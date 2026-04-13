@@ -3,30 +3,29 @@ package com.averycorp.prismtask.widget
 import android.content.Context
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
-import androidx.datastore.preferences.preferencesDataStore
 import androidx.room.Room
 import com.averycorp.prismtask.data.local.database.PrismTaskDatabase
 import com.averycorp.prismtask.data.local.entity.TaskEntity
+import com.averycorp.prismtask.data.preferences.taskBehaviorDataStore
+import com.averycorp.prismtask.data.preferences.themePrefsDataStore
 import com.averycorp.prismtask.util.DayBoundary
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
-private val Context.widgetTaskBehaviorPrefs by preferencesDataStore(name = "task_behavior_prefs")
-private val Context.widgetThemePrefs by preferencesDataStore(name = "theme_prefs")
 private val DAY_START_HOUR_KEY = intPreferencesKey("day_start_hour")
 private val ACCENT_COLOR_KEY = stringPreferencesKey("accent_color")
 private val THEME_MODE_KEY = stringPreferencesKey("theme_mode")
 
 private suspend fun Context.readDayStartHour(): Int =
-    widgetTaskBehaviorPrefs.data.map { it[DAY_START_HOUR_KEY] ?: 0 }.first()
+    taskBehaviorDataStore.data.map { it[DAY_START_HOUR_KEY] ?: 0 }.first()
 
 /** Reads the user's configured accent color hex for use in widgets. */
 suspend fun Context.readAccentColor(): String =
-    widgetThemePrefs.data.map { it[ACCENT_COLOR_KEY] ?: "#2563EB" }.first()
+    themePrefsDataStore.data.map { it[ACCENT_COLOR_KEY] ?: "#2563EB" }.first()
 
 /** Reads the user's theme mode preference (system/light/dark). */
 suspend fun Context.readThemeMode(): String =
-    widgetThemePrefs.data.map { it[THEME_MODE_KEY] ?: "system" }.first()
+    themePrefsDataStore.data.map { it[THEME_MODE_KEY] ?: "system" }.first()
 
 data class WidgetTaskRow(
     val id: Long,

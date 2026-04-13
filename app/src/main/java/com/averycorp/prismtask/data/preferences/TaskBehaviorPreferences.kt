@@ -16,7 +16,7 @@ import java.time.DayOfWeek
 import javax.inject.Inject
 import javax.inject.Singleton
 
-private val Context.taskBehaviorDataStore: DataStore<Preferences> by preferencesDataStore(name = "task_behavior_prefs")
+internal val Context.taskBehaviorDataStore: DataStore<Preferences> by preferencesDataStore(name = "task_behavior_prefs")
 
 data class UrgencyWeights(
     val dueDate: Float = 0.40f,
