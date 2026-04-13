@@ -3,6 +3,7 @@ package com.averycorp.prismtask.startup
 import com.averycorp.prismtask.data.local.database.ALL_MIGRATIONS
 import com.averycorp.prismtask.data.local.database.MIGRATION_1_2
 import com.averycorp.prismtask.data.local.database.MIGRATION_37_38
+import com.averycorp.prismtask.data.local.database.MIGRATION_38_39
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -29,11 +30,11 @@ class StartupCrashDiagnosticTest {
 
     @Test
     fun `ALL_MIGRATIONS covers every version from 1 to latest`() {
-        // The database is currently at version 38 (see PrismTaskDatabase).
+        // The database is currently at version 39 (see PrismTaskDatabase).
         // ALL_MIGRATIONS must have an entry for every consecutive pair.
-        val expectedCount = 37 // versions 1→2, 2→3, …, 37→38
+        val expectedCount = 38 // versions 1→2, 2→3, …, 38→39
         assertEquals(
-            "ALL_MIGRATIONS should contain exactly $expectedCount migrations (v1→v38)",
+            "ALL_MIGRATIONS should contain exactly $expectedCount migrations (v1→v39)",
             expectedCount,
             ALL_MIGRATIONS.size
         )
@@ -75,11 +76,11 @@ class StartupCrashDiagnosticTest {
     }
 
     @Test
-    fun `last migration ends at current database version 38`() {
+    fun `last migration ends at current database version 39`() {
         val maxEnd = ALL_MIGRATIONS.maxOf { it.endVersion }
         assertEquals(
-            "Latest migration should end at the current DB version (38)",
-            38,
+            "Latest migration should end at the current DB version (39)",
+            39,
             maxEnd
         )
     }
@@ -97,6 +98,14 @@ class StartupCrashDiagnosticTest {
         assertTrue(
             "MIGRATION_37_38 must be in ALL_MIGRATIONS",
             ALL_MIGRATIONS.contains(MIGRATION_37_38)
+        )
+    }
+
+    @Test
+    fun `MIGRATION_38_39 is included in ALL_MIGRATIONS`() {
+        assertTrue(
+            "MIGRATION_38_39 must be in ALL_MIGRATIONS",
+            ALL_MIGRATIONS.contains(MIGRATION_38_39)
         )
     }
 
