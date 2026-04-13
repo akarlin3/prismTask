@@ -164,11 +164,11 @@ async def list_debug_logs(
     count_q = select(func.count()).select_from(base_q.subquery())
     total = (await db.execute(count_q)).scalar() or 0
 
-    # Sort
+    # Sort (secondary key on id for deterministic ordering)
     if sort == "oldest":
-        base_q = base_q.order_by(BugReportModel.created_at.asc())
+        base_q = base_q.order_by(BugReportModel.created_at.asc(), BugReportModel.id.asc())
     else:
-        base_q = base_q.order_by(BugReportModel.created_at.desc())
+        base_q = base_q.order_by(BugReportModel.created_at.desc(), BugReportModel.id.desc())
 
     # Paginate
     offset = (page - 1) * per_page

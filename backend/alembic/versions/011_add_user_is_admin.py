@@ -17,7 +17,7 @@ depends_on = None
 def upgrade() -> None:
     op.add_column(
         "users",
-        sa.Column("is_admin", sa.Boolean, nullable=False, server_default="false"),
+        sa.Column("is_admin", sa.Boolean, nullable=False, server_default="0"),
     )
 
 
