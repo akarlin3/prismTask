@@ -13,7 +13,7 @@ import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
 
-private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "theme_prefs")
+internal val Context.themePrefsDataStore: DataStore<Preferences> by preferencesDataStore(name = "theme_prefs")
 
 @Singleton
 class ThemePreferences @Inject constructor(
@@ -52,71 +52,71 @@ class ThemePreferences @Inject constructor(
         }
     }
 
-    fun getThemeMode(): Flow<String> = context.dataStore.data.map { prefs ->
+    fun getThemeMode(): Flow<String> = context.themePrefsDataStore.data.map { prefs ->
         prefs[THEME_MODE_KEY] ?: "system"
     }
 
     suspend fun setThemeMode(mode: String) {
-        context.dataStore.edit { prefs -> prefs[THEME_MODE_KEY] = mode }
+        context.themePrefsDataStore.edit { prefs -> prefs[THEME_MODE_KEY] = mode }
     }
 
-    fun getAccentColor(): Flow<String> = context.dataStore.data.map { prefs ->
+    fun getAccentColor(): Flow<String> = context.themePrefsDataStore.data.map { prefs ->
         prefs[ACCENT_COLOR_KEY] ?: "#2563EB"
     }
 
     suspend fun setAccentColor(hex: String) {
-        context.dataStore.edit { prefs -> prefs[ACCENT_COLOR_KEY] = hex }
+        context.themePrefsDataStore.edit { prefs -> prefs[ACCENT_COLOR_KEY] = hex }
     }
 
-    fun getBackgroundColor(): Flow<String> = context.dataStore.data.map { prefs ->
+    fun getBackgroundColor(): Flow<String> = context.themePrefsDataStore.data.map { prefs ->
         prefs[BACKGROUND_COLOR_KEY] ?: ""
     }
 
     suspend fun setBackgroundColor(hex: String) {
-        context.dataStore.edit { prefs -> prefs[BACKGROUND_COLOR_KEY] = hex }
+        context.themePrefsDataStore.edit { prefs -> prefs[BACKGROUND_COLOR_KEY] = hex }
     }
 
-    fun getSurfaceColor(): Flow<String> = context.dataStore.data.map { prefs ->
+    fun getSurfaceColor(): Flow<String> = context.themePrefsDataStore.data.map { prefs ->
         prefs[SURFACE_COLOR_KEY] ?: ""
     }
 
     suspend fun setSurfaceColor(hex: String) {
-        context.dataStore.edit { prefs -> prefs[SURFACE_COLOR_KEY] = hex }
+        context.themePrefsDataStore.edit { prefs -> prefs[SURFACE_COLOR_KEY] = hex }
     }
 
-    fun getErrorColor(): Flow<String> = context.dataStore.data.map { prefs ->
+    fun getErrorColor(): Flow<String> = context.themePrefsDataStore.data.map { prefs ->
         prefs[ERROR_COLOR_KEY] ?: ""
     }
 
     suspend fun setErrorColor(hex: String) {
-        context.dataStore.edit { prefs -> prefs[ERROR_COLOR_KEY] = hex }
+        context.themePrefsDataStore.edit { prefs -> prefs[ERROR_COLOR_KEY] = hex }
     }
 
-    fun getFontScale(): Flow<Float> = context.dataStore.data.map { prefs ->
+    fun getFontScale(): Flow<Float> = context.themePrefsDataStore.data.map { prefs ->
         prefs[FONT_SCALE_KEY] ?: 1.0f
     }
 
     suspend fun setFontScale(scale: Float) {
-        context.dataStore.edit { prefs -> prefs[FONT_SCALE_KEY] = scale }
+        context.themePrefsDataStore.edit { prefs -> prefs[FONT_SCALE_KEY] = scale }
     }
 
-    fun getPriorityColorNone(): Flow<String> = context.dataStore.data.map { prefs ->
+    fun getPriorityColorNone(): Flow<String> = context.themePrefsDataStore.data.map { prefs ->
         prefs[PRIORITY_COLOR_NONE_KEY] ?: ""
     }
 
-    fun getPriorityColorLow(): Flow<String> = context.dataStore.data.map { prefs ->
+    fun getPriorityColorLow(): Flow<String> = context.themePrefsDataStore.data.map { prefs ->
         prefs[PRIORITY_COLOR_LOW_KEY] ?: ""
     }
 
-    fun getPriorityColorMedium(): Flow<String> = context.dataStore.data.map { prefs ->
+    fun getPriorityColorMedium(): Flow<String> = context.themePrefsDataStore.data.map { prefs ->
         prefs[PRIORITY_COLOR_MEDIUM_KEY] ?: ""
     }
 
-    fun getPriorityColorHigh(): Flow<String> = context.dataStore.data.map { prefs ->
+    fun getPriorityColorHigh(): Flow<String> = context.themePrefsDataStore.data.map { prefs ->
         prefs[PRIORITY_COLOR_HIGH_KEY] ?: ""
     }
 
-    fun getPriorityColorUrgent(): Flow<String> = context.dataStore.data.map { prefs ->
+    fun getPriorityColorUrgent(): Flow<String> = context.themePrefsDataStore.data.map { prefs ->
         prefs[PRIORITY_COLOR_URGENT_KEY] ?: ""
     }
 
@@ -129,10 +129,10 @@ class ThemePreferences @Inject constructor(
             4 -> PRIORITY_COLOR_URGENT_KEY
             else -> return
         }
-        context.dataStore.edit { prefs -> prefs[key] = hex }
+        context.themePrefsDataStore.edit { prefs -> prefs[key] = hex }
     }
 
-    fun getRecentCustomColors(): Flow<List<String>> = context.dataStore.data.map { prefs ->
+    fun getRecentCustomColors(): Flow<List<String>> = context.themePrefsDataStore.data.map { prefs ->
         prefs[RECENT_CUSTOM_COLORS_KEY]
             ?.split(",")
             ?.map { it.trim() }
@@ -142,7 +142,7 @@ class ThemePreferences @Inject constructor(
 
     suspend fun addRecentCustomColor(hex: String) {
         if (!isValidHex(hex)) return
-        context.dataStore.edit { prefs ->
+        context.themePrefsDataStore.edit { prefs ->
             val current = prefs[RECENT_CUSTOM_COLORS_KEY]
                 ?.split(",")
                 ?.map { it.trim() }
@@ -154,7 +154,7 @@ class ThemePreferences @Inject constructor(
     }
 
     suspend fun resetColorOverrides() {
-        context.dataStore.edit { prefs ->
+        context.themePrefsDataStore.edit { prefs ->
             prefs.remove(BACKGROUND_COLOR_KEY)
             prefs.remove(SURFACE_COLOR_KEY)
             prefs.remove(ERROR_COLOR_KEY)
@@ -168,6 +168,6 @@ class ThemePreferences @Inject constructor(
     }
 
     suspend fun clearAll() {
-        context.dataStore.edit { it.clear() }
+        context.themePrefsDataStore.edit { it.clear() }
     }
 }
