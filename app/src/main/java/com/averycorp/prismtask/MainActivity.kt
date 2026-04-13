@@ -101,9 +101,21 @@ class MainActivity : ComponentActivity() {
         installSplashScreen()
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        NotificationHelper.createNotificationChannel(this)
-        syncService.startAutoSync()
-        billingManager.initialize(this)
+        try {
+            NotificationHelper.createNotificationChannel(this)
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Failed to create notification channel", e)
+        }
+        try {
+            syncService.startAutoSync()
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Auto-sync failed to start", e)
+        }
+        try {
+            billingManager.initialize(this)
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Billing init failed", e)
+        }
         setCrashlyticsUserId()
         val launchAction = intent?.getStringExtra(EXTRA_LAUNCH_ACTION)
         // v1.4.0 V9: support Android share-intent entry into the Paste

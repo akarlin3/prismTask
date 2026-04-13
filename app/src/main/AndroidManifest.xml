@@ -30,6 +30,22 @@
         android:theme="@style/Theme.PrismTask"
         tools:targetApi="35">
 
+        <!-- Disable the default WorkManagerInitializer so that
+             PrismTaskApplication (Configuration.Provider) can supply its
+             own HiltWorkerFactory. Without this removal, certain devices
+             race between the default initializer and Hilt injection,
+             causing startup crashes. -->
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            android:exported="false"
+            tools:node="merge">
+            <meta-data
+                android:name="androidx.work.WorkManagerInitializer"
+                android:value="androidx.startup"
+                tools:node="remove" />
+        </provider>
+
         <activity
             android:name=".MainActivity"
             android:exported="true"

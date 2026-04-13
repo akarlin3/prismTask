@@ -36,7 +36,7 @@ class SyncService @Inject constructor(
     private val taskTemplateDao: TaskTemplateDao,
     private val proFeatureGate: ProFeatureGate
 ) {
-    private val firestore = FirebaseFirestore.getInstance()
+    private val firestore by lazy { FirebaseFirestore.getInstance() }
     private val listeners = mutableListOf<ListenerRegistration>()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     @Volatile private var isSyncing = false

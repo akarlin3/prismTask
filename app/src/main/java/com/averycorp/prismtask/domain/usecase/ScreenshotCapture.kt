@@ -55,7 +55,7 @@ class ScreenshotCapture @Inject constructor() {
             }
             FileProvider.getUriForFile(
                 activity,
-                "${activity.packageName}.provider",
+                "${activity.packageName}.fileprovider",
                 file
             )
         } catch (_: Exception) {

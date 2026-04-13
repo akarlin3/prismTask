@@ -56,9 +56,14 @@ class PrismTaskApplication : Application(), Configuration.Provider {
     override fun onCreate() {
         super.onCreate()
         configureCrashlytics()
-        scheduleAutoArchive()
-        scheduleDailyReset()
-        scheduleOverloadCheck()
+        try {
+            scheduleAutoArchive()
+            scheduleDailyReset()
+            scheduleOverloadCheck()
+        } catch (e: Exception) {
+            android.util.Log.e("PrismTaskApp", "Worker scheduling failed", e)
+            FirebaseCrashlytics.getInstance().recordException(e)
+        }
         seedBuiltInHabits()
         seedBuiltInTemplates()
     }
