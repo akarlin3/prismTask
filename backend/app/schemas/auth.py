@@ -31,5 +31,6 @@ class UserResponse(BaseModel):
     email: str
     name: str
     tier: str = "FREE"
+    is_admin: bool = False
 
     model_config = {"from_attributes": True}

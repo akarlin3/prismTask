@@ -10,10 +10,12 @@ import {
   FileText,
   Archive,
   Settings,
+  ShieldCheck,
   PanelLeftClose,
   PanelLeftOpen,
 } from 'lucide-react';
 import { useUIStore } from '@/stores/uiStore';
+import { useAuthStore } from '@/stores/authStore';
 import { PrismLogo } from '@/components/shared/PrismLogo';
 
 const NAV_ITEMS = [
@@ -29,9 +31,14 @@ const NAV_ITEMS = [
   { to: '/settings', icon: Settings, label: 'Settings' },
 ] as const;
 
+const ADMIN_NAV_ITEMS = [
+  { to: '/admin/logs', icon: ShieldCheck, label: 'Admin' },
+] as const;
+
 export function Sidebar() {
   const collapsed = useUIStore((s) => s.sidebarCollapsed);
   const toggleCollapsed = useUIStore((s) => s.toggleSidebarCollapsed);
+  const isAdmin = useAuthStore((s) => s.user?.is_admin);
 
   return (
     <aside
@@ -69,6 +76,34 @@ export function Sidebar() {
             </li>
           ))}
         </ul>
+
+        {/* Admin section — only visible to admins */}
+        {isAdmin && (
+          <>
+            <div className={`my-2 border-t border-[var(--color-border)] ${collapsed ? 'mx-1' : 'mx-2'}`} />
+            <ul className="flex flex-col gap-1" role="list">
+              {ADMIN_NAV_ITEMS.map(({ to, icon: Icon, label }) => (
+                <li key={to}>
+                  <NavLink
+                    to={to}
+                    title={collapsed ? label : undefined}
+                    aria-label={collapsed ? label : undefined}
+                    className={({ isActive }) =>
+                      `flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                        isActive
+                          ? 'bg-[var(--color-accent)]/10 text-[var(--color-accent)]'
+                          : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-primary)] hover:text-[var(--color-text-primary)]'
+                      }`
+                    }
+                  >
+                    <Icon className="h-5 w-5 shrink-0" aria-hidden="true" />
+                    {!collapsed && <span>{label}</span>}
+                  </NavLink>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
       </nav>
 
       {/* Collapse Toggle */}

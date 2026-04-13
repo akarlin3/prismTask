@@ -32,6 +32,7 @@ const PomodoroScreen = lazy(() => import('@/features/pomodoro/PomodoroScreen').t
 const TemplateListScreen = lazy(() => import('@/features/templates/TemplateListScreen').then(m => ({ default: m.TemplateListScreen })));
 const ArchiveScreen = lazy(() => import('@/features/archive/ArchiveScreen').then(m => ({ default: m.ArchiveScreen })));
 const SettingsScreen = lazy(() => import('@/features/settings/SettingsScreen').then(m => ({ default: m.SettingsScreen })));
+const AdminLogsScreen = lazy(() => import('@/features/admin/AdminLogsScreen').then(m => ({ default: m.AdminLogsScreen })));
 
 function LazyRoute({ Component, fallback }: { Component: ComponentType; fallback?: React.ReactNode }) {
   return (
@@ -79,6 +80,7 @@ const routes: RouteObject[] = [
       { path: 'templates', element: <LazyRoute Component={TemplateListScreen} /> },
       { path: 'archive', element: <LazyRoute Component={ArchiveScreen} /> },
       { path: 'settings', element: <LazyRoute Component={SettingsScreen} fallback={<SettingsSkeleton />} /> },
+      { path: 'admin/logs', element: <LazyRoute Component={AdminLogsScreen} /> },
     ],
   },
 

@@ -87,6 +87,7 @@ class User(Base):
     avatar_url = Column(String(500), nullable=True)
     firebase_uid = Column(String(255), unique=True, nullable=True)
     tier = Column(String(20), nullable=False, server_default="FREE")
+    is_admin = Column(Boolean, nullable=False, server_default="false")
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
