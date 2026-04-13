@@ -62,15 +62,21 @@ class PrismTaskApplication : Application(), Configuration.Provider {
             scheduleOverloadCheck()
         } catch (e: Exception) {
             android.util.Log.e("PrismTaskApp", "Worker scheduling failed", e)
-            FirebaseCrashlytics.getInstance().recordException(e)
+            try {
+                FirebaseCrashlytics.getInstance().recordException(e)
+            } catch (_: Exception) { /* Firebase not available */ }
         }
         seedBuiltInHabits()
         seedBuiltInTemplates()
     }
 
     private fun configureCrashlytics() {
-        FirebaseCrashlytics.getInstance()
-            .setCrashlyticsCollectionEnabled(!BuildConfig.DEBUG)
+        try {
+            FirebaseCrashlytics.getInstance()
+                .setCrashlyticsCollectionEnabled(!BuildConfig.DEBUG)
+        } catch (e: Exception) {
+            android.util.Log.e("PrismTaskApp", "Crashlytics init failed — Firebase may not be configured", e)
+        }
     }
 
     /**

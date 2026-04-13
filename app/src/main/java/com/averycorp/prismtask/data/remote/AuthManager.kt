@@ -27,23 +27,34 @@ class AuthManager @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
 
-    private val auth: FirebaseAuth = FirebaseAuth.getInstance()
+    private val auth: FirebaseAuth? = try {
+        FirebaseAuth.getInstance()
+    } catch (e: Exception) {
+        Log.e("AuthManager", "FirebaseAuth init failed — Firebase may not be configured", e)
+        null
+    }
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
-    val currentUser: StateFlow<FirebaseUser?> = callbackFlow {
-        val listener = FirebaseAuth.AuthStateListener { trySend(it.currentUser) }
-        auth.addAuthStateListener(listener)
-        awaitClose { auth.removeAuthStateListener(listener) }
-    }.stateIn(scope, SharingStarted.Eagerly, auth.currentUser)
+    val currentUser: StateFlow<FirebaseUser?> = if (auth != null) {
+        callbackFlow {
+            val listener = FirebaseAuth.AuthStateListener { trySend(it.currentUser) }
+            auth.addAuthStateListener(listener)
+            awaitClose { auth.removeAuthStateListener(listener) }
+        }.stateIn(scope, SharingStarted.Eagerly, auth.currentUser)
+    } else {
+        kotlinx.coroutines.flow.MutableStateFlow<FirebaseUser?>(null)
+    }
 
     val isSignedIn: StateFlow<Boolean> = currentUser.map { it != null }
-        .stateIn(scope, SharingStarted.Eagerly, auth.currentUser != null)
+        .stateIn(scope, SharingStarted.Eagerly, auth?.currentUser != null)
 
-    val userId: String? get() = auth.currentUser?.uid
+    val userId: String? get() = auth?.currentUser?.uid
 
     suspend fun signInWithGoogle(idToken: String): Result<FirebaseUser> = try {
+        val firebaseAuth = auth
+            ?: return Result.failure(IllegalStateException("Firebase Auth not available"))
         val credential = GoogleAuthProvider.getCredential(idToken, null)
-        val result = auth.signInWithCredential(credential).await()
+        val result = firebaseAuth.signInWithCredential(credential).await()
         val user = result.user
             ?: return Result.failure(IllegalStateException("Sign-in succeeded but user is null"))
         Result.success(user)
@@ -52,7 +63,7 @@ class AuthManager @Inject constructor(
     }
 
     suspend fun signOut() {
-        auth.signOut()
+        auth?.signOut()
         clearCredentialState()
     }
 
@@ -71,7 +82,7 @@ class AuthManager @Inject constructor(
     }
 
     suspend fun deleteAccount() {
-        auth.currentUser?.delete()?.await()
+        auth?.currentUser?.delete()?.await()
         clearCredentialState()
     }
 }
