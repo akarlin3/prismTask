@@ -4,5 +4,6 @@ dockerfilePath = "backend/Dockerfile"
 watchPatterns = ["backend/**"]
 
 [deploy]
+startCommand = "alembic upgrade head && gunicorn app.main:app -c gunicorn.conf.py"
 healthcheckPath = "/"
 restartPolicyType = "ON_FAILURE"
