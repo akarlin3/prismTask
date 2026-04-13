@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.routers import ai, analytics, app_update, auth, dashboard, export, feedback, goals, habits, integrations, nd_preferences, projects, search, sync, tags, tasks, templates
+from app.routers.admin import debug_logs as admin_debug_logs
 
 app = FastAPI(
     title="PrismTask API",
@@ -39,6 +40,7 @@ app.include_router(export.router, prefix="/api/v1")
 app.include_router(feedback.router, prefix="/api/v1")
 app.include_router(integrations.router, prefix="/api/v1")
 app.include_router(nd_preferences.router, prefix="/api/v1")
+app.include_router(admin_debug_logs.router, prefix="/api/v1")
 
 
 @app.get("/")

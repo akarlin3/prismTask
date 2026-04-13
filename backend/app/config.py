@@ -17,6 +17,9 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     ANTHROPIC_API_KEY: str = ""
     DEPLOY_API_KEY: str = ""
+    FIREBASE_SERVICE_ACCOUNT_KEY: str = ""
+    FIREBASE_SERVICE_ACCOUNT_KEY_PATH: str = ""
+    FIREBASE_STORAGE_BUCKET: str = "prismtask-app.firebasestorage.app"
     ENVIRONMENT: str = "dev"
     CORS_ORIGINS: list[str] = [
         "*",

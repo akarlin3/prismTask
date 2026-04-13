@@ -6,14 +6,12 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.middleware.auth import get_current_user, get_optional_user
+from app.middleware.admin import require_admin
+from app.middleware.auth import get_optional_user
 from app.models import BugReportModel, User
 from app.schemas.feedback import BugReportCreate, BugReportResponse, BugReportStatusUpdate
 
 router = APIRouter(prefix="/feedback", tags=["feedback"])
-
-# Admin user ID — for now, hardcoded. Replace with a proper role check later.
-ADMIN_USER_ID = 1
 
 
 @router.post("/bug-report", status_code=status.HTTP_201_CREATED)
@@ -66,10 +64,8 @@ async def list_bug_reports(
     page: int = 1,
     limit: int = 20,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    _admin: User = Depends(require_admin),
 ):
-    if current_user.id != ADMIN_USER_ID:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
 
     query = select(BugReportModel).order_by(BugReportModel.created_at.desc())
 
@@ -92,10 +88,8 @@ async def update_bug_report_status(
     report_id: str,
     update: BugReportStatusUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    _admin: User = Depends(require_admin),
 ):
-    if current_user.id != ADMIN_USER_ID:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
 
     result = await db.execute(
         select(BugReportModel).where(BugReportModel.report_id == report_id)

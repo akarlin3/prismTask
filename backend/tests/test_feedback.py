@@ -1,5 +1,9 @@
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import update
+
+from app.models import User
+from tests.conftest import TestSessionLocal
 
 
 @pytest.mark.asyncio
@@ -57,7 +61,14 @@ async def test_create_bug_report_description_too_short(client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_list_bug_reports_admin(client: AsyncClient, auth_headers: dict):
-    """GET bug reports as admin (user_id=1) returns list."""
+    """GET bug reports as admin returns list."""
+    # Grant admin to the test user
+    async with TestSessionLocal() as session:
+        await session.execute(
+            update(User).where(User.email == "test@example.com").values(is_admin=True)
+        )
+        await session.commit()
+
     # First create a report
     await client.post(
         "/api/v1/feedback/bug-report",
@@ -78,12 +89,7 @@ async def test_list_bug_reports_admin(client: AsyncClient, auth_headers: dict):
 @pytest.mark.asyncio
 async def test_list_bug_reports_non_admin(client: AsyncClient):
     """GET bug reports as non-admin returns 403."""
-    # Register admin user first (gets user_id=1)
-    await client.post(
-        "/api/v1/auth/register",
-        json={"email": "admin@example.com", "name": "Admin", "password": "testpass123"},
-    )
-    # Register a second user who is NOT admin (user_id != 1)
+    # Register a user who is NOT admin (is_admin defaults to False)
     reg = await client.post(
         "/api/v1/auth/register",
         json={"email": "nonadmin@example.com", "name": "Non Admin", "password": "testpass123"},
@@ -98,6 +104,13 @@ async def test_list_bug_reports_non_admin(client: AsyncClient):
 @pytest.mark.asyncio
 async def test_update_bug_report_status(client: AsyncClient, auth_headers: dict):
     """PATCH status as admin updates correctly."""
+    # Grant admin to the test user
+    async with TestSessionLocal() as session:
+        await session.execute(
+            update(User).where(User.email == "test@example.com").values(is_admin=True)
+        )
+        await session.commit()
+
     # Create a report
     create_resp = await client.post(
         "/api/v1/feedback/bug-report",
@@ -124,6 +137,13 @@ async def test_update_bug_report_status(client: AsyncClient, auth_headers: dict)
 @pytest.mark.asyncio
 async def test_filter_by_severity(client: AsyncClient, auth_headers: dict):
     """GET reports filtered by severity returns only matching."""
+    # Grant admin to the test user
+    async with TestSessionLocal() as session:
+        await session.execute(
+            update(User).where(User.email == "test@example.com").values(is_admin=True)
+        )
+        await session.commit()
+
     # Create reports with different severities
     await client.post(
         "/api/v1/feedback/bug-report",
