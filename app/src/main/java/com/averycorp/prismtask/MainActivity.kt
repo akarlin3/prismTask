@@ -116,7 +116,11 @@ class MainActivity : ComponentActivity() {
         } catch (e: Exception) {
             Log.e("MainActivity", "Billing init failed", e)
         }
-        setCrashlyticsUserId()
+        try {
+            setCrashlyticsUserId()
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Crashlytics user ID setup failed", e)
+        }
         val launchAction = intent?.getStringExtra(EXTRA_LAUNCH_ACTION)
         // v1.4.0 V9: support Android share-intent entry into the Paste
         // Conversation screen. When another app sends text to PrismTask
