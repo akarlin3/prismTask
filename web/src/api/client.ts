@@ -80,7 +80,9 @@ apiClient.interceptors.response.use(
         // Let the auth store handle the redirect via React state.
         // Dynamic import avoids circular dependency (client → authStore → auth → client).
         const { useAuthStore } = await import('@/stores/authStore');
-        useAuthStore.getState().clearTokens?.() || useAuthStore.setState({ isAuthenticated: false, isLoading: false });
+        if (!useAuthStore.getState().clearTokens?.()) {
+          useAuthStore.setState({ isAuthenticated: false, isLoading: false });
+        }
         return Promise.reject(error);
       }
 
@@ -102,7 +104,9 @@ apiClient.interceptors.response.use(
         // Let the auth store handle the redirect via React state.
         // Dynamic import avoids circular dependency (client → authStore → auth → client).
         const { useAuthStore } = await import('@/stores/authStore');
-        useAuthStore.getState().clearTokens?.() || useAuthStore.setState({ isAuthenticated: false, isLoading: false });
+        if (!useAuthStore.getState().clearTokens?.()) {
+          useAuthStore.setState({ isAuthenticated: false, isLoading: false });
+        }
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;
