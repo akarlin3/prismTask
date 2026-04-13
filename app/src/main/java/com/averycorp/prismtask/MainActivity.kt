@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
+import android.util.Log
 import android.os.Bundle
 import android.os.VibrationEffect
 import android.os.Vibrator
@@ -321,15 +322,19 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun triggerHapticFeedback() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            val vibratorManager = getSystemService(VIBRATOR_MANAGER_SERVICE) as? VibratorManager
-            vibratorManager?.defaultVibrator?.vibrate(
-                VibrationEffect.createOneShot(50, VibrationEffect.DEFAULT_AMPLITUDE)
-            )
-        } else {
-            @Suppress("DEPRECATION")
-            val vibrator = getSystemService(VIBRATOR_SERVICE) as? Vibrator
-            vibrator?.vibrate(VibrationEffect.createOneShot(50, VibrationEffect.DEFAULT_AMPLITUDE))
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                val vibratorManager = getSystemService(VIBRATOR_MANAGER_SERVICE) as? VibratorManager
+                vibratorManager?.defaultVibrator?.vibrate(
+                    VibrationEffect.createOneShot(50, VibrationEffect.DEFAULT_AMPLITUDE)
+                )
+            } else {
+                @Suppress("DEPRECATION")
+                val vibrator = getSystemService(VIBRATOR_SERVICE) as? Vibrator
+                vibrator?.vibrate(VibrationEffect.createOneShot(50, VibrationEffect.DEFAULT_AMPLITUDE))
+            }
+        } catch (e: SecurityException) {
+            Log.w("MainActivity", "Vibrate permission denied", e)
         }
     }
 
