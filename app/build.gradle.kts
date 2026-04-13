@@ -210,6 +210,11 @@ dependencies {
     implementation("com.google.firebase:firebase-storage-ktx")
     implementation("com.google.firebase:firebase-crashlytics-ktx")
 
+    // gRPC — Firestore 25.1.1 requires gRPC 1.62.2+ (InternalGlobalInterceptors),
+    // but google-api-client-android pulls an older version that wins in resolution.
+    implementation("io.grpc:grpc-android:1.62.2")
+    implementation("io.grpc:grpc-okhttp:1.62.2")
+
     // Credential Manager (Google Sign-In)
     implementation("androidx.credentials:credentials:1.3.0")
     implementation("androidx.credentials:credentials-play-services-auth:1.3.0")
