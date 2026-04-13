@@ -49,88 +49,123 @@ class SyncService @Inject constructor(
 
         // Upload projects
         val projects = projectDao.getAllProjectsOnce()
+        Log.d("SyncService", "Uploading ${projects.size} projects...")
         for (project in projects) {
-            val docRef = userCollection("projects")?.document() ?: continue
-            docRef.set(SyncMapper.projectToMap(project)).await()
-            syncMetadataDao.upsert(SyncMetadataEntity(
-                localId = project.id, entityType = "project",
-                cloudId = docRef.id, lastSyncedAt = System.currentTimeMillis()
-            ))
+            try {
+                val docRef = userCollection("projects")?.document() ?: continue
+                docRef.set(SyncMapper.projectToMap(project)).await()
+                syncMetadataDao.upsert(SyncMetadataEntity(
+                    localId = project.id, entityType = "project",
+                    cloudId = docRef.id, lastSyncedAt = System.currentTimeMillis()
+                ))
+            } catch (e: Exception) {
+                Log.e("SyncService", "Failed to upload project ${project.id}: ${project.name}", e)
+            }
         }
 
         // Upload tags
         val tags = tagDao.getAllTagsOnce()
+        Log.d("SyncService", "Uploading ${tags.size} tags...")
         for (tag in tags) {
-            val docRef = userCollection("tags")?.document() ?: continue
-            docRef.set(SyncMapper.tagToMap(tag)).await()
-            syncMetadataDao.upsert(SyncMetadataEntity(
-                localId = tag.id, entityType = "tag",
-                cloudId = docRef.id, lastSyncedAt = System.currentTimeMillis()
-            ))
+            try {
+                val docRef = userCollection("tags")?.document() ?: continue
+                docRef.set(SyncMapper.tagToMap(tag)).await()
+                syncMetadataDao.upsert(SyncMetadataEntity(
+                    localId = tag.id, entityType = "tag",
+                    cloudId = docRef.id, lastSyncedAt = System.currentTimeMillis()
+                ))
+            } catch (e: Exception) {
+                Log.e("SyncService", "Failed to upload tag ${tag.id}: ${tag.name}", e)
+            }
         }
 
         // Upload habits
         val habits = habitDao.getActiveHabitsOnce()
+        Log.d("SyncService", "Uploading ${habits.size} habits...")
         for (habit in habits) {
-            val docRef = userCollection("habits")?.document() ?: continue
-            docRef.set(SyncMapper.habitToMap(habit)).await()
-            syncMetadataDao.upsert(SyncMetadataEntity(
-                localId = habit.id, entityType = "habit",
-                cloudId = docRef.id, lastSyncedAt = System.currentTimeMillis()
-            ))
+            try {
+                val docRef = userCollection("habits")?.document() ?: continue
+                docRef.set(SyncMapper.habitToMap(habit)).await()
+                syncMetadataDao.upsert(SyncMetadataEntity(
+                    localId = habit.id, entityType = "habit",
+                    cloudId = docRef.id, lastSyncedAt = System.currentTimeMillis()
+                ))
+            } catch (e: Exception) {
+                Log.e("SyncService", "Failed to upload habit ${habit.id}: ${habit.name}", e)
+            }
         }
 
         // Upload habit completions
+        Log.d("SyncService", "Uploading habit completions...")
         for (habit in habits) {
             val completions = habitCompletionDao.getCompletionsForHabitOnce(habit.id)
             val habitCloudId = syncMetadataDao.getCloudId(habit.id, "habit") ?: continue
             for (completion in completions) {
-                val docRef = userCollection("habit_completions")?.document() ?: continue
-                docRef.set(SyncMapper.habitCompletionToMap(completion, habitCloudId)).await()
-                syncMetadataDao.upsert(SyncMetadataEntity(
-                    localId = completion.id, entityType = "habit_completion",
-                    cloudId = docRef.id, lastSyncedAt = System.currentTimeMillis()
-                ))
+                try {
+                    val docRef = userCollection("habit_completions")?.document() ?: continue
+                    docRef.set(SyncMapper.habitCompletionToMap(completion, habitCloudId)).await()
+                    syncMetadataDao.upsert(SyncMetadataEntity(
+                        localId = completion.id, entityType = "habit_completion",
+                        cloudId = docRef.id, lastSyncedAt = System.currentTimeMillis()
+                    ))
+                } catch (e: Exception) {
+                    Log.e("SyncService", "Failed to upload habit completion ${completion.id}", e)
+                }
             }
         }
 
         // Upload habit logs
+        Log.d("SyncService", "Uploading habit logs...")
         for (habit in habits) {
             val logs = habitLogDao.getAllLogsOnce().filter { it.habitId == habit.id }
             val habitCloudId = syncMetadataDao.getCloudId(habit.id, "habit") ?: continue
             for (log in logs) {
-                val docRef = userCollection("habit_logs")?.document() ?: continue
-                docRef.set(SyncMapper.habitLogToMap(log, habitCloudId)).await()
-                syncMetadataDao.upsert(SyncMetadataEntity(
-                    localId = log.id, entityType = "habit_log",
-                    cloudId = docRef.id, lastSyncedAt = System.currentTimeMillis()
-                ))
+                try {
+                    val docRef = userCollection("habit_logs")?.document() ?: continue
+                    docRef.set(SyncMapper.habitLogToMap(log, habitCloudId)).await()
+                    syncMetadataDao.upsert(SyncMetadataEntity(
+                        localId = log.id, entityType = "habit_log",
+                        cloudId = docRef.id, lastSyncedAt = System.currentTimeMillis()
+                    ))
+                } catch (e: Exception) {
+                    Log.e("SyncService", "Failed to upload habit log ${log.id}", e)
+                }
             }
         }
 
         // Upload tasks with tag references
         val tasks = taskDao.getAllTasksOnce()
+        Log.d("SyncService", "Uploading ${tasks.size} tasks...")
         for (task in tasks) {
-            val tagIds = tagDao.getTagIdsForTaskOnce(task.id).mapNotNull { tagId ->
-                syncMetadataDao.getCloudId(tagId, "tag")
+            try {
+                val tagIds = tagDao.getTagIdsForTaskOnce(task.id).mapNotNull { tagId ->
+                    syncMetadataDao.getCloudId(tagId, "tag")
+                }
+                val docRef = userCollection("tasks")?.document() ?: continue
+                docRef.set(SyncMapper.taskToMap(task, tagIds)).await()
+                syncMetadataDao.upsert(SyncMetadataEntity(
+                    localId = task.id, entityType = "task",
+                    cloudId = docRef.id, lastSyncedAt = System.currentTimeMillis()
+                ))
+            } catch (e: Exception) {
+                Log.e("SyncService", "Failed to upload task ${task.id}: ${task.title}", e)
             }
-            val docRef = userCollection("tasks")?.document() ?: continue
-            docRef.set(SyncMapper.taskToMap(task, tagIds)).await()
-            syncMetadataDao.upsert(SyncMetadataEntity(
-                localId = task.id, entityType = "task",
-                cloudId = docRef.id, lastSyncedAt = System.currentTimeMillis()
-            ))
         }
 
         // Upload task templates
         val templates = taskTemplateDao.getAllTemplatesOnce()
+        Log.d("SyncService", "Uploading ${templates.size} task templates...")
         for (template in templates) {
-            val docRef = userCollection("task_templates")?.document() ?: continue
-            docRef.set(SyncMapper.taskTemplateToMap(template)).await()
-            syncMetadataDao.upsert(SyncMetadataEntity(
-                localId = template.id, entityType = "task_template",
-                cloudId = docRef.id, lastSyncedAt = System.currentTimeMillis()
-            ))
+            try {
+                val docRef = userCollection("task_templates")?.document() ?: continue
+                docRef.set(SyncMapper.taskTemplateToMap(template)).await()
+                syncMetadataDao.upsert(SyncMetadataEntity(
+                    localId = template.id, entityType = "task_template",
+                    cloudId = docRef.id, lastSyncedAt = System.currentTimeMillis()
+                ))
+            } catch (e: Exception) {
+                Log.e("SyncService", "Failed to upload task template ${template.id}: ${template.name}", e)
+            }
         }
     }
 

@@ -45,7 +45,12 @@ class AuthViewModel @Inject constructor(
             if (result.isSuccess) {
                 _authState.value = AuthState.SignedIn
                 // Initial upload on first sign-in
-                try { syncService.initialUpload() } catch (_: Exception) { }
+                try {
+                    syncService.initialUpload()
+                    android.util.Log.d("AuthViewModel", "Initial upload completed successfully")
+                } catch (e: Exception) {
+                    android.util.Log.e("AuthViewModel", "Initial upload FAILED", e)
+                }
                 syncService.startRealtimeListeners()
             } else {
                 // Firebase rejected the token (commonly a stale/revoked
