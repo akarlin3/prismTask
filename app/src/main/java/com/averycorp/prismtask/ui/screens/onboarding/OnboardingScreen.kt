@@ -11,6 +11,7 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.slideInVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -75,7 +76,7 @@ import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-private const val TOTAL_PAGES = 6
+private const val TOTAL_PAGES = 7
 
 private val accentColors = listOf(
     "#2563EB", "#7C3AED", "#DB2777", "#DC2626", "#EA580C", "#D97706",
@@ -101,7 +102,8 @@ fun OnboardingScreen(
                 2 -> NaturalLanguagePage()
                 3 -> HabitsPage()
                 4 -> ViewsPage()
-                5 -> SetupPage(
+                5 -> BrainModePage(viewModel = viewModel)
+                6 -> SetupPage(
                     viewModel = viewModel,
                     onComplete = {
                         viewModel.completeOnboarding()
@@ -112,10 +114,10 @@ fun OnboardingScreen(
         }
 
         // Skip button (pages 0-4)
-        if (pagerState.currentPage < 5) {
+        if (pagerState.currentPage < 6) {
             TextButton(
                 onClick = {
-                    coroutineScope.launch { pagerState.animateScrollToPage(5) }
+                    coroutineScope.launch { pagerState.animateScrollToPage(6) }
                 },
                 modifier = Modifier
                     .align(Alignment.TopEnd)
@@ -126,7 +128,7 @@ fun OnboardingScreen(
         }
 
         // Bottom controls
-        if (pagerState.currentPage < 5) {
+        if (pagerState.currentPage < 6) {
             Column(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
@@ -474,6 +476,206 @@ private fun ViewsPage() {
                                 fontWeight = FontWeight.Medium
                             )
                         }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun BrainModePage(viewModel: OnboardingViewModel) {
+    var adhdSelected by remember { mutableStateOf(false) }
+    var calmSelected by remember { mutableStateOf(false) }
+    var focusReleaseSelected by remember { mutableStateOf(false) }
+    var expandedCard by remember { mutableIntStateOf(-1) }
+
+    var visible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { visible = true }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(top = 60.dp, start = 24.dp, end = 24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        AnimatedVisibility(
+            visible = visible,
+            enter = fadeIn(tween(400)) + slideInVertically(tween(400)) { 30 }
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = "\uD83E\uDDE0",
+                    fontSize = 48.sp
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "How Does Your Brain Work?",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Select any that apply \u2014 or skip if none fit. You can always change these in Settings.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Card 1: ADHD Mode
+        BrainModeCard(
+            emoji = "\u26A1",
+            title = "I Get Distracted Easily",
+            subtitle = "Hard to start tasks, lose track of time, need momentum to keep going",
+            expandedDescription = "This turns on: task decomposition to break big tasks into small wins, " +
+                    "focus guard timers, body doubling check-ins, completion celebrations, " +
+                    "progress bars, and forgiveness streaks.",
+            isSelected = adhdSelected,
+            isExpanded = expandedCard == 0,
+            onToggle = {
+                adhdSelected = !adhdSelected
+                viewModel.setAdhdMode(!adhdSelected.not()) // toggle already flipped
+                if (expandedCard != 0) expandedCard = 0 else expandedCard = -1
+            },
+            onExpandToggle = { expandedCard = if (expandedCard == 0) -1 else 0 },
+            index = 0
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Card 2: Calm Mode
+        BrainModeCard(
+            emoji = "\uD83C\uDF3F",
+            title = "I Get Overstimulated Easily",
+            subtitle = "Animations, bright colors, and sounds can be too much",
+            expandedDescription = "This turns on: reduced animations, muted color palette, " +
+                    "quiet mode (no sounds), reduced haptics, and soft contrast throughout the app.",
+            isSelected = calmSelected,
+            isExpanded = expandedCard == 1,
+            onToggle = {
+                calmSelected = !calmSelected
+                viewModel.setCalmMode(!calmSelected.not())
+                if (expandedCard != 1) expandedCard = 1 else expandedCard = -1
+            },
+            onExpandToggle = { expandedCard = if (expandedCard == 1) -1 else 1 },
+            index = 1
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Card 3: Focus & Release Mode
+        BrainModeCard(
+            emoji = "\uD83E\uDD32",
+            title = "I Have Trouble Letting Go of Tasks",
+            subtitle = "Spend too long polishing, re-check finished work, struggle to call things done",
+            expandedDescription = "This turns on: \u2018good enough\u2019 timers that gently nudge you to finish, " +
+                    "guards against endlessly re-editing completed work, celebrations for " +
+                    "shipping (not perfecting), and help when you\u2019re stuck choosing.",
+            isSelected = focusReleaseSelected,
+            isExpanded = expandedCard == 2,
+            onToggle = {
+                focusReleaseSelected = !focusReleaseSelected
+                viewModel.setFocusReleaseMode(!focusReleaseSelected.not())
+                if (expandedCard != 2) expandedCard = 2 else expandedCard = -1
+            },
+            onExpandToggle = { expandedCard = if (expandedCard == 2) -1 else 2 },
+            index = 2
+        )
+    }
+}
+
+@Composable
+private fun BrainModeCard(
+    emoji: String,
+    title: String,
+    subtitle: String,
+    expandedDescription: String,
+    isSelected: Boolean,
+    isExpanded: Boolean,
+    onToggle: () -> Unit,
+    onExpandToggle: () -> Unit,
+    index: Int
+) {
+    var animStarted by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        delay(index * 100L)
+        animStarted = true
+    }
+
+    AnimatedVisibility(
+        visible = animStarted,
+        enter = fadeIn(tween(300)) + slideInVertically(tween(300)) { 40 }
+    ) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onToggle),
+            colors = CardDefaults.cardColors(
+                containerColor = if (isSelected)
+                    MaterialTheme.colorScheme.primaryContainer
+                else
+                    MaterialTheme.colorScheme.surfaceVariant
+            ),
+            border = if (isSelected)
+                BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
+            else
+                null
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(emoji, fontSize = 28.sp)
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = title,
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isSelected)
+                                MaterialTheme.colorScheme.onPrimaryContainer
+                            else
+                                MaterialTheme.colorScheme.onSurface
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = subtitle,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (isSelected)
+                                MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                            else
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    if (isSelected) {
+                        Icon(
+                            Icons.Default.Check,
+                            contentDescription = "$title selected",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                }
+
+                // Expandable preview
+                AnimatedVisibility(visible = isExpanded || isSelected) {
+                    Column {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = expandedDescription,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (isSelected)
+                                MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                            else
+                                MaterialTheme.colorScheme.onSurfaceVariant,
+                            lineHeight = 18.sp
+                        )
                     }
                 }
             }

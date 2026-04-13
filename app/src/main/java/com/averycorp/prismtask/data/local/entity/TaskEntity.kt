@@ -109,5 +109,27 @@ data class TaskEntity(
      * [com.averycorp.prismtask.domain.model.LifeCategory.UNCATEGORIZED].
      */
     @ColumnInfo(name = "life_category")
-    val lifeCategory: String? = null
+    val lifeCategory: String? = null,
+
+    // --- Focus & Release Mode per-task overrides ---
+
+    /** Per-task Good Enough Timer override in minutes. Null = use global default. */
+    @ColumnInfo(name = "good_enough_minutes_override")
+    val goodEnoughMinutesOverride: Int? = null,
+
+    /** Per-task max revision limit override. Null = use global default. */
+    @ColumnInfo(name = "max_revisions_override")
+    val maxRevisionsOverride: Int? = null,
+
+    /** How many times this task has been re-opened for editing after completion. */
+    @ColumnInfo(name = "revision_count", defaultValue = "0")
+    val revisionCount: Int = 0,
+
+    /** When true, task cannot be re-opened without explicit unlock. */
+    @ColumnInfo(name = "revision_locked", defaultValue = "0")
+    val revisionLocked: Boolean = false,
+
+    /** Cumulative editing time in minutes (for Good Enough Timer tracking). */
+    @ColumnInfo(name = "cumulative_edit_minutes", defaultValue = "0")
+    val cumulativeEditMinutes: Int = 0
 )

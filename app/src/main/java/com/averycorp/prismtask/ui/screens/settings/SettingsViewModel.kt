@@ -95,7 +95,8 @@ class SettingsViewModel @Inject constructor(
     private val checkInLogRepository: com.averycorp.prismtask.data.repository.CheckInLogRepository,
     private val clinicalReportPdfWriter: com.averycorp.prismtask.data.export.ClinicalReportPdfWriter,
     private val onboardingPreferences: OnboardingPreferences,
-    private val widgetUpdateManager: com.averycorp.prismtask.widget.WidgetUpdateManager
+    private val widgetUpdateManager: com.averycorp.prismtask.widget.WidgetUpdateManager,
+    private val ndPreferencesDataStore: com.averycorp.prismtask.data.preferences.NdPreferencesDataStore
 ) : ViewModel() {
 
     private val _checkInStreak = kotlinx.coroutines.flow.MutableStateFlow(0)
@@ -209,6 +210,30 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch { boundaryRuleRepository.insert(parsed) }
         return true
     }
+
+    // --- Brain Mode / ND preferences ---
+    val ndPrefs: StateFlow<com.averycorp.prismtask.data.preferences.NdPreferences> =
+        ndPreferencesDataStore.ndPreferencesFlow
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), com.averycorp.prismtask.data.preferences.NdPreferences())
+
+    fun setAdhdMode(enabled: Boolean) { viewModelScope.launch { ndPreferencesDataStore.setAdhdMode(enabled) } }
+    fun setCalmMode(enabled: Boolean) { viewModelScope.launch { ndPreferencesDataStore.setCalmMode(enabled) } }
+    fun setFocusReleaseMode(enabled: Boolean) { viewModelScope.launch { ndPreferencesDataStore.setFocusReleaseMode(enabled) } }
+    fun setGoodEnoughTimersEnabled(e: Boolean) { viewModelScope.launch { ndPreferencesDataStore.setGoodEnoughTimersEnabled(e) } }
+    fun setDefaultGoodEnoughMinutes(m: Int) { viewModelScope.launch { ndPreferencesDataStore.setDefaultGoodEnoughMinutes(m) } }
+    fun setGoodEnoughEscalation(e: com.averycorp.prismtask.data.preferences.GoodEnoughEscalation) { viewModelScope.launch { ndPreferencesDataStore.setGoodEnoughEscalation(e) } }
+    fun setAntiReworkEnabled(e: Boolean) { viewModelScope.launch { ndPreferencesDataStore.setAntiReworkEnabled(e) } }
+    fun setSoftWarningEnabled(e: Boolean) { viewModelScope.launch { ndPreferencesDataStore.setSoftWarningEnabled(e) } }
+    fun setCoolingOffEnabled(e: Boolean) { viewModelScope.launch { ndPreferencesDataStore.setCoolingOffEnabled(e) } }
+    fun setCoolingOffMinutes(m: Int) { viewModelScope.launch { ndPreferencesDataStore.setCoolingOffMinutes(m) } }
+    fun setRevisionCounterEnabled(e: Boolean) { viewModelScope.launch { ndPreferencesDataStore.setRevisionCounterEnabled(e) } }
+    fun setMaxRevisions(m: Int) { viewModelScope.launch { ndPreferencesDataStore.setMaxRevisions(m) } }
+    fun setShipItCelebrationsEnabled(e: Boolean) { viewModelScope.launch { ndPreferencesDataStore.setShipItCelebrationsEnabled(e) } }
+    fun setCelebrationIntensity(i: com.averycorp.prismtask.data.preferences.CelebrationIntensity) { viewModelScope.launch { ndPreferencesDataStore.setCelebrationIntensity(i) } }
+    fun setParalysisBreakersEnabled(e: Boolean) { viewModelScope.launch { ndPreferencesDataStore.setParalysisBreakersEnabled(e) } }
+    fun setAutoSuggestEnabled(e: Boolean) { viewModelScope.launch { ndPreferencesDataStore.setAutoSuggestEnabled(e) } }
+    fun setSimplifyChoicesEnabled(e: Boolean) { viewModelScope.launch { ndPreferencesDataStore.setSimplifyChoicesEnabled(e) } }
+    fun setStuckDetectionMinutes(m: Int) { viewModelScope.launch { ndPreferencesDataStore.setStuckDetectionMinutes(m) } }
 
     /** Forgiveness-first streak preferences (v1.4.0 V5). */
     val forgivenessPrefs: StateFlow<com.averycorp.prismtask.data.preferences.ForgivenessPrefs> =

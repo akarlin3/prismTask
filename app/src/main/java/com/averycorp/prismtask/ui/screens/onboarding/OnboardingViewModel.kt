@@ -2,6 +2,7 @@ package com.averycorp.prismtask.ui.screens.onboarding
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.averycorp.prismtask.data.preferences.NdPreferencesDataStore
 import com.averycorp.prismtask.data.preferences.OnboardingPreferences
 import com.averycorp.prismtask.data.preferences.ThemePreferences
 import com.averycorp.prismtask.data.remote.AuthManager
@@ -20,6 +21,7 @@ import javax.inject.Inject
 class OnboardingViewModel @Inject constructor(
     private val onboardingPreferences: OnboardingPreferences,
     private val themePreferences: ThemePreferences,
+    private val ndPreferencesDataStore: NdPreferencesDataStore,
     private val authManager: AuthManager,
     private val syncService: SyncService,
     private val taskRepository: TaskRepository
@@ -74,6 +76,18 @@ class OnboardingViewModel @Inject constructor(
         viewModelScope.launch {
             taskRepository.addTask(title = title)
         }
+    }
+
+    fun setAdhdMode(enabled: Boolean) {
+        viewModelScope.launch { ndPreferencesDataStore.setAdhdMode(enabled) }
+    }
+
+    fun setCalmMode(enabled: Boolean) {
+        viewModelScope.launch { ndPreferencesDataStore.setCalmMode(enabled) }
+    }
+
+    fun setFocusReleaseMode(enabled: Boolean) {
+        viewModelScope.launch { ndPreferencesDataStore.setFocusReleaseMode(enabled) }
     }
 
     fun completeOnboarding() {

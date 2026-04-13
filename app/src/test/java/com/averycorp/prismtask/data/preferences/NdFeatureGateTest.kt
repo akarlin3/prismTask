@@ -12,27 +12,41 @@ class NdFeatureGateTest {
     // region isAnyNdActive
 
     @Test
-    fun `isAnyNdActive returns false when both modes off`() {
-        val prefs = NdPreferences(adhdModeEnabled = false, calmModeEnabled = false)
+    fun `isAnyNdActive returns false when all three modes off`() {
+        val prefs = NdPreferences(adhdModeEnabled = false, calmModeEnabled = false, focusReleaseModeEnabled = false)
         assertFalse(NdFeatureGate.isAnyNdActive(prefs))
     }
 
     @Test
     fun `isAnyNdActive returns true when ADHD mode on only`() {
-        val prefs = NdPreferences(adhdModeEnabled = true, calmModeEnabled = false)
+        val prefs = NdPreferences(adhdModeEnabled = true, calmModeEnabled = false, focusReleaseModeEnabled = false)
         assertTrue(NdFeatureGate.isAnyNdActive(prefs))
     }
 
     @Test
     fun `isAnyNdActive returns true when Calm mode on only`() {
-        val prefs = NdPreferences(adhdModeEnabled = false, calmModeEnabled = true)
+        val prefs = NdPreferences(adhdModeEnabled = false, calmModeEnabled = true, focusReleaseModeEnabled = false)
         assertTrue(NdFeatureGate.isAnyNdActive(prefs))
     }
 
     @Test
-    fun `isAnyNdActive returns true when both modes on`() {
-        val prefs = NdPreferences(adhdModeEnabled = true, calmModeEnabled = true)
+    fun `isAnyNdActive returns true when Focus Release mode on only`() {
+        val prefs = NdPreferences(adhdModeEnabled = false, calmModeEnabled = false, focusReleaseModeEnabled = true)
         assertTrue(NdFeatureGate.isAnyNdActive(prefs))
+    }
+
+    @Test
+    fun `isAnyNdActive returns true when all three modes on`() {
+        val prefs = NdPreferences(adhdModeEnabled = true, calmModeEnabled = true, focusReleaseModeEnabled = true)
+        assertTrue(NdFeatureGate.isAnyNdActive(prefs))
+    }
+
+    @Test
+    fun `requiresPro returns false for FR features (all free)`() {
+        assertFalse(NdFeatureGate.requiresPro("good_enough_timers"))
+        assertFalse(NdFeatureGate.requiresPro("anti_rework_guards"))
+        assertFalse(NdFeatureGate.requiresPro("ship_it_celebrations"))
+        assertFalse(NdFeatureGate.requiresPro("paralysis_breakers"))
     }
 
     // endregion

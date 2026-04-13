@@ -658,6 +658,26 @@ val MIGRATION_37_38 = object : Migration(37, 38) {
     }
 }
 
+// Focus & Release Mode: add per-task override columns + analytics log table
+val MIGRATION_38_39 = object : Migration(38, 39) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE tasks ADD COLUMN good_enough_minutes_override INTEGER")
+        db.execSQL("ALTER TABLE tasks ADD COLUMN max_revisions_override INTEGER")
+        db.execSQL("ALTER TABLE tasks ADD COLUMN revision_count INTEGER NOT NULL DEFAULT 0")
+        db.execSQL("ALTER TABLE tasks ADD COLUMN revision_locked INTEGER NOT NULL DEFAULT 0")
+        db.execSQL("ALTER TABLE tasks ADD COLUMN cumulative_edit_minutes INTEGER NOT NULL DEFAULT 0")
+        db.execSQL(
+            """CREATE TABLE IF NOT EXISTS `focus_release_logs` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `event_type` TEXT NOT NULL,
+                `task_id` INTEGER,
+                `context` TEXT,
+                `created_at` INTEGER NOT NULL
+            )"""
+        )
+    }
+}
+
 val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_1_2,
     MIGRATION_2_3,
@@ -696,4 +716,5 @@ val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_35_36,
     MIGRATION_36_37,
     MIGRATION_37_38,
+    MIGRATION_38_39,
 )

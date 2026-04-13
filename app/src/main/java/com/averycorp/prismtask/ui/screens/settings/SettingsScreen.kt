@@ -57,6 +57,7 @@ import com.averycorp.prismtask.ui.screens.settings.sections.SwipeActionsSection
 import com.averycorp.prismtask.ui.screens.settings.sections.TaskDefaultsSection
 import com.averycorp.prismtask.ui.screens.settings.sections.TimerSection
 import com.averycorp.prismtask.ui.screens.settings.sections.VoiceInputSection
+import com.averycorp.prismtask.ui.screens.settings.sections.BrainModeSection
 import com.averycorp.prismtask.ui.screens.settings.sections.BoundariesSection
 import com.averycorp.prismtask.ui.screens.settings.sections.CheckInStreakSection
 import com.averycorp.prismtask.ui.screens.settings.sections.ClinicalReportSection
@@ -188,6 +189,9 @@ fun SettingsScreen(
     val gCalLastSyncTimestamp by viewModel.gCalLastSyncTimestamp.collectAsStateWithLifecycle()
     val gCalAvailableCalendars by viewModel.gCalAvailableCalendars.collectAsStateWithLifecycle()
     val isGCalSyncing by viewModel.isGCalSyncing.collectAsStateWithLifecycle()
+
+    // Brain Mode (ND preferences)
+    val ndPrefs by viewModel.ndPrefs.collectAsStateWithLifecycle()
 
     // Modes
     val selfCareEnabled by viewModel.selfCareEnabled.collectAsStateWithLifecycle()
@@ -382,6 +386,28 @@ fun SettingsScreen(
                     onHouseworkChange = viewModel::setHouseworkEnabled,
                     onSchoolChange = viewModel::setSchoolEnabled,
                     onLeisureChange = viewModel::setLeisureEnabled
+                )
+
+                BrainModeSection(
+                    ndPrefs = ndPrefs,
+                    onAdhdModeChange = viewModel::setAdhdMode,
+                    onCalmModeChange = viewModel::setCalmMode,
+                    onFocusReleaseModeChange = viewModel::setFocusReleaseMode,
+                    onGoodEnoughTimersChange = viewModel::setGoodEnoughTimersEnabled,
+                    onDefaultGoodEnoughMinutesChange = viewModel::setDefaultGoodEnoughMinutes,
+                    onGoodEnoughEscalationChange = viewModel::setGoodEnoughEscalation,
+                    onAntiReworkChange = viewModel::setAntiReworkEnabled,
+                    onSoftWarningChange = viewModel::setSoftWarningEnabled,
+                    onCoolingOffChange = viewModel::setCoolingOffEnabled,
+                    onCoolingOffMinutesChange = viewModel::setCoolingOffMinutes,
+                    onRevisionCounterChange = viewModel::setRevisionCounterEnabled,
+                    onMaxRevisionsChange = viewModel::setMaxRevisions,
+                    onShipItCelebrationsChange = viewModel::setShipItCelebrationsEnabled,
+                    onCelebrationIntensityChange = viewModel::setCelebrationIntensity,
+                    onParalysisBreakersChange = viewModel::setParalysisBreakersEnabled,
+                    onAutoSuggestChange = viewModel::setAutoSuggestEnabled,
+                    onSimplifyChoicesChange = viewModel::setSimplifyChoicesEnabled,
+                    onStuckDetectionMinutesChange = viewModel::setStuckDetectionMinutes
                 )
 
                 NavigationSection(

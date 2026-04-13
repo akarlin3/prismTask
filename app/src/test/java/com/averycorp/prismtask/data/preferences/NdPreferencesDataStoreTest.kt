@@ -48,10 +48,11 @@ class NdPreferencesDataStoreTest {
     // region Defaults
 
     @Test
-    fun `defaults have both modes off and all sub-settings off`() = runTest {
+    fun `defaults have all three modes off and all sub-settings off`() = runTest {
         val prefs = ndPrefs.ndPreferencesFlow.first()
         assertFalse(prefs.adhdModeEnabled)
         assertFalse(prefs.calmModeEnabled)
+        assertFalse(prefs.focusReleaseModeEnabled)
         assertFalse(prefs.reduceAnimations)
         assertFalse(prefs.mutedColorPalette)
         assertFalse(prefs.quietMode)
