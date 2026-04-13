@@ -19,11 +19,11 @@ import com.averycorp.prismtask.BuildConfig
 import com.averycorp.prismtask.data.diagnostics.DiagnosticLogger
 import com.averycorp.prismtask.data.local.dao.HabitDao
 import com.averycorp.prismtask.data.local.dao.TaskDao
+import com.averycorp.prismtask.data.remote.AuthManager
 import com.averycorp.prismtask.domain.model.BugCategory
 import com.averycorp.prismtask.domain.model.BugReport
 import com.averycorp.prismtask.domain.model.BugSeverity
 import com.averycorp.prismtask.domain.model.ReportStatus
-import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
@@ -48,6 +48,7 @@ class BugReportViewModel @Inject constructor(
     private val taskDao: TaskDao,
     private val habitDao: HabitDao,
     private val diagnosticLogger: DiagnosticLogger,
+    private val authManager: AuthManager,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -93,6 +94,8 @@ class BugReportViewModel @Inject constructor(
 
     private val _diagnosticLogCount = MutableStateFlow(0)
     val diagnosticLogCount: StateFlow<Int> = _diagnosticLogCount.asStateFlow()
+
+    val isSignedIn: StateFlow<Boolean> = authManager.isSignedIn
 
     // Feature request mode
     private val _isFeatureRequest = MutableStateFlow(false)
@@ -156,19 +159,27 @@ class BugReportViewModel @Inject constructor(
 
     fun submit() {
         if (!isValid || _isSubmitting.value) return
+
+        val userId = authManager.userId
+        if (userId == null) {
+            viewModelScope.launch {
+                _messages.emit("Please sign in to submit reports.")
+            }
+            return
+        }
+
         _isSubmitting.value = true
 
         viewModelScope.launch {
             try {
                 val reportId = UUID.randomUUID().toString()
-                val userId = FirebaseAuth.getInstance().currentUser?.uid
 
-                // Upload screenshots to Firebase Storage
+                // Upload screenshots to Firebase Storage (user-scoped path)
                 val screenshotUrls = mutableListOf<String>()
                 for ((index, uri) in _screenshotUris.value.withIndex()) {
                     try {
                         val ref = FirebaseStorage.getInstance().reference
-                            .child("bug_reports/$reportId/screenshot_$index.jpg")
+                            .child("users/$userId/bug_reports/$reportId/screenshot_$index.jpg")
                         ref.putFile(uri).await()
                         val url = ref.downloadUrl.await().toString()
                         screenshotUrls.add(url)
@@ -207,9 +218,10 @@ class BugReportViewModel @Inject constructor(
                     submittedVia = "firestore"
                 )
 
-                // Write to Firestore
+                // Write to Firestore under user-scoped path
                 val data = reportToMap(report)
                 FirebaseFirestore.getInstance()
+                    .collection("users").document(userId)
                     .collection("bug_reports")
                     .document(reportId)
                     .set(data)

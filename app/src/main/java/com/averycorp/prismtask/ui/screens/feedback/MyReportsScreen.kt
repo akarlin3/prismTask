@@ -62,8 +62,8 @@ fun MyReportsScreen(navController: NavController) {
         try {
             val userId = FirebaseAuth.getInstance().currentUser?.uid ?: return@LaunchedEffect
             val docs = FirebaseFirestore.getInstance()
+                .collection("users").document(userId)
                 .collection("bug_reports")
-                .whereEqualTo("userId", userId)
                 .orderBy("timestamp", Query.Direction.DESCENDING)
                 .limit(50)
                 .get()

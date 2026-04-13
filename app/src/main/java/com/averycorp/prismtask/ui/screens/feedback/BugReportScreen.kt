@@ -4,6 +4,7 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -86,6 +87,7 @@ fun BugReportScreen(
     val diagnosticLogCount by viewModel.diagnosticLogCount.collectAsStateWithLifecycle()
     val isFeatureRequest by viewModel.isFeatureRequest.collectAsStateWithLifecycle()
     val importance by viewModel.importance.collectAsStateWithLifecycle()
+    val isSignedIn by viewModel.isSignedIn.collectAsStateWithLifecycle()
 
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -142,6 +144,26 @@ fun BugReportScreen(
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+
+            if (!isSignedIn) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            MaterialTheme.colorScheme.errorContainer,
+                            RoundedCornerShape(8.dp)
+                        )
+                        .padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Sign in from Settings to submit reports.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onErrorContainer
+                    )
+                }
+            }
 
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -405,7 +427,7 @@ fun BugReportScreen(
             Button(
                 onClick = { viewModel.submit() },
                 modifier = Modifier.fillMaxWidth(),
-                enabled = description.length >= 10 && !isSubmitting
+                enabled = description.length >= 10 && !isSubmitting && isSignedIn
             ) {
                 if (isSubmitting) {
                     CircularProgressIndicator(
