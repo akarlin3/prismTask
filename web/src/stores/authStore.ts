@@ -99,6 +99,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       firebaseUser: toFirebaseUser(fbUser),
       firebaseUid: fbUser.uid,
       isAuthenticated: true,
+      isLoading: false,
     });
 
     // Link with FastAPI backend for NLP/AI features
@@ -228,8 +229,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
     }
 
-    // If no Firebase user is signed in yet, mark loading as done.
-    // The Firebase auth listener will update state when it fires.
+    // Wait for Firebase auth to be ready before checking currentUser,
+    // so we don't prematurely set isLoading: false before the persisted
+    // session is resolved (race condition fix).
+    await firebaseAuth.authStateReady();
     if (!firebaseAuth.currentUser) {
       set({ isLoading: false });
     }

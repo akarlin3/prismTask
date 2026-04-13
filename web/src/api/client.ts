@@ -77,7 +77,10 @@ apiClient.interceptors.response.use(
         isRefreshing = false;
         localStorage.removeItem('prismtask_access_token');
         localStorage.removeItem('prismtask_refresh_token');
-        window.location.href = '/login';
+        // Let the auth store handle the redirect via React state.
+        // Dynamic import avoids circular dependency (client → authStore → auth → client).
+        const { useAuthStore } = await import('@/stores/authStore');
+        useAuthStore.getState().clearTokens?.() || useAuthStore.setState({ isAuthenticated: false, isLoading: false });
         return Promise.reject(error);
       }
 
@@ -96,7 +99,10 @@ apiClient.interceptors.response.use(
         processQueue(refreshError);
         localStorage.removeItem('prismtask_access_token');
         localStorage.removeItem('prismtask_refresh_token');
-        window.location.href = '/login';
+        // Let the auth store handle the redirect via React state.
+        // Dynamic import avoids circular dependency (client → authStore → auth → client).
+        const { useAuthStore } = await import('@/stores/authStore');
+        useAuthStore.getState().clearTokens?.() || useAuthStore.setState({ isAuthenticated: false, isLoading: false });
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;
