@@ -58,9 +58,10 @@ class ShakeDetectorTest {
 
     @Test
     fun `acceleration above threshold emits shake event`() = runTest {
-        // Two samples above threshold should trigger
-        val event1 = createSensorEvent(20f, 0f, 0f) // magnitude = 20, above 15
-        val event2 = createSensorEvent(0f, 20f, 0f) // magnitude = 20, above 15
+        // Three samples with magnitude ~22 m/s² (net ~12.2 > SHAKE_THRESHOLD 12.0) should trigger
+        val event1 = createSensorEvent(22f, 0f, 0f) // magnitude = 22, net ≈ 12.2
+        val event2 = createSensorEvent(0f, 22f, 0f)
+        val event3 = createSensorEvent(0f, 0f, 22f)
 
         var eventReceived = false
         val job = launch(UnconfinedTestDispatcher(testScheduler)) {
@@ -70,6 +71,7 @@ class ShakeDetectorTest {
 
         shakeDetector.onSensorChanged(event1)
         shakeDetector.onSensorChanged(event2)
+        shakeDetector.onSensorChanged(event3)
 
         // Wait briefly for event to propagate
         withTimeoutOrNull(500) { job.join() }
@@ -104,14 +106,14 @@ class ShakeDetectorTest {
     }
 
     @Test
-    fun `required samples constant is 2`() {
-        assert(ShakeDetector.REQUIRED_SAMPLES == 2)
+    fun `required samples constant is 3`() {
+        assert(ShakeDetector.REQUIRED_SAMPLES == 3)
     }
 
     @Test
-    fun `shake threshold is 15`() {
-        assert(ShakeDetector.SHAKE_THRESHOLD == 15.0) {
-            "Shake threshold should be 15 m/s^2"
+    fun `shake threshold is 12`() {
+        assert(ShakeDetector.SHAKE_THRESHOLD == 12.0) {
+            "Shake threshold should be 12 m/s^2 net (above gravity)"
         }
     }
 }

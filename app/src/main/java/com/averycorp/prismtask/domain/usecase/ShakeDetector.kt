@@ -49,18 +49,19 @@ class ShakeDetector @Inject constructor(
         val y = event.values[1]
         val z = event.values[2]
 
-        // Remove gravity component (approx 9.8) by computing magnitude and checking excess
+        // Remove gravity component so threshold is measured as net acceleration above gravity
         val magnitude = sqrt((x * x + y * y + z * z).toDouble())
+        val netAcceleration = magnitude - SensorManager.GRAVITY_EARTH
 
         val now = System.currentTimeMillis()
 
-        if (magnitude > SHAKE_THRESHOLD) {
+        if (netAcceleration > SHAKE_THRESHOLD) {
             if (aboveThresholdCount == 0) {
                 firstAboveThresholdTime = now
             }
             aboveThresholdCount++
 
-            // Need 2+ samples above threshold within 500ms window
+            // Need 3+ samples above threshold within 600ms window
             if (aboveThresholdCount >= REQUIRED_SAMPLES &&
                 (now - firstAboveThresholdTime) <= WINDOW_MS
             ) {
@@ -82,9 +83,9 @@ class ShakeDetector @Inject constructor(
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
 
     companion object {
-        const val SHAKE_THRESHOLD = 15.0 // m/s^2
-        const val REQUIRED_SAMPLES = 2
-        const val WINDOW_MS = 500L
+        const val SHAKE_THRESHOLD = 12.0 // m/s^2 net (above gravity)
+        const val REQUIRED_SAMPLES = 3
+        const val WINDOW_MS = 600L
         const val COOLDOWN_MS = 3000L
     }
 }
