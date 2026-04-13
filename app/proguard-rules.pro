@@ -38,8 +38,17 @@
 -keep class com.averycorp.prismtask.data.remote.ClaudeParserService$* { *; }
 
 # ── gRPC (transitive dependency from Firebase/Firestore) ──
--dontwarn io.grpc.internal.**
+# Keep all gRPC classes needed by Firebase Firestore
+-keep class io.grpc.** { *; }
 -dontwarn io.grpc.**
+
+# Keep gRPC service providers loaded via reflection
+-keepnames class io.grpc.internal.DnsNameResolverProvider
+-keepnames class io.grpc.okhttp.OkHttpChannelProvider
+-keep class io.grpc.internal.JndiResourceResolverFactory* { *; }
+
+# Suppress warnings for javax.naming used by gRPC internals
+-dontwarn javax.naming.**
 
 # ── Google Drive API ──
 -keep class com.google.api.services.drive.** { *; }
