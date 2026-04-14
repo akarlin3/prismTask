@@ -305,7 +305,7 @@ private fun PomodoroSettings(
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         Text(
-            text = "Pomodoro",
+            text = "Timer Settings",
             style = MaterialTheme.typography.titleSmall,
             fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.onSurface
@@ -318,21 +318,19 @@ private fun PomodoroSettings(
             onToggle = onTogglePomodoroEnabled
         )
 
-        if (uiState.pomodoroEnabled) {
-            SettingsToggleRow(
-                label = "Auto-Start Breaks",
-                description = "Start break timer automatically after focus",
-                checked = uiState.autoStartBreaks,
-                onToggle = onToggleAutoStartBreaks
-            )
+        SettingsToggleRow(
+            label = "Auto-Start Breaks",
+            description = "Start break timer automatically after focus",
+            checked = uiState.autoStartBreaks,
+            onToggle = onToggleAutoStartBreaks
+        )
 
-            SettingsToggleRow(
-                label = "Auto-Start Focus",
-                description = "Start focus timer automatically after break",
-                checked = uiState.autoStartWork,
-                onToggle = onToggleAutoStartWork
-            )
-        }
+        SettingsToggleRow(
+            label = "Auto-Start Focus",
+            description = "Start focus timer automatically after break",
+            checked = uiState.autoStartWork,
+            onToggle = onToggleAutoStartWork
+        )
     }
 }
 
