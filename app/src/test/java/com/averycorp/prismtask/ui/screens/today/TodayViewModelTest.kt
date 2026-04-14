@@ -3,11 +3,13 @@ package com.averycorp.prismtask.ui.screens.today
 import com.averycorp.prismtask.data.local.dao.TaskDao
 import com.averycorp.prismtask.data.preferences.DashboardPreferences
 import com.averycorp.prismtask.data.preferences.HabitListPreferences
+import com.averycorp.prismtask.data.preferences.MorningCheckInPreferences
 import com.averycorp.prismtask.data.preferences.SortPreferences
 import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
 import com.averycorp.prismtask.data.preferences.UserPreferencesDataStore
 import com.averycorp.prismtask.data.repository.CheckInLogRepository
 import com.averycorp.prismtask.data.repository.HabitRepository
+import com.averycorp.prismtask.data.repository.MedicationRefillRepository
 import com.averycorp.prismtask.data.repository.ProjectRepository
 import com.averycorp.prismtask.data.repository.TagRepository
 import com.averycorp.prismtask.data.repository.TaskRepository
@@ -54,6 +56,8 @@ class TodayViewModelTest {
     private lateinit var proFeatureGate: ProFeatureGate
     private lateinit var userPreferencesDataStore: UserPreferencesDataStore
     private lateinit var checkInLogRepository: CheckInLogRepository
+    private lateinit var medicationRefillRepository: MedicationRefillRepository
+    private lateinit var morningCheckInPreferences: MorningCheckInPreferences
 
     @Before
     fun setUp() {
@@ -71,6 +75,8 @@ class TodayViewModelTest {
         proFeatureGate = mockk(relaxed = true)
         userPreferencesDataStore = mockk(relaxed = true)
         checkInLogRepository = mockk(relaxed = true)
+        medicationRefillRepository = mockk(relaxed = true)
+        morningCheckInPreferences = mockk(relaxed = true)
 
         coEvery { taskBehaviorPreferences.getDayStartHour() } returns flowOf(0)
         coEvery { dashboardPreferences.getSectionOrder() } returns flowOf(DashboardPreferences.DEFAULT_ORDER)
@@ -92,6 +98,10 @@ class TodayViewModelTest {
         coEvery { taskDao.getCompletedToday(any()) } returns flowOf(emptyList())
         coEvery { taskDao.getTasksNotInToday(any(), any()) } returns flowOf(emptyList())
         coEvery { checkInLogRepository.getMostRecentDate() } returns null
+        coEvery { checkInLogRepository.observeAll() } returns flowOf(emptyList())
+        coEvery { medicationRefillRepository.observeAll() } returns flowOf(emptyList())
+        coEvery { morningCheckInPreferences.featureEnabled() } returns flowOf(true)
+        coEvery { morningCheckInPreferences.bannerDismissedDate() } returns flowOf("")
     }
 
     @After
@@ -112,7 +122,9 @@ class TodayViewModelTest {
         sortPreferences,
         proFeatureGate,
         userPreferencesDataStore,
-        checkInLogRepository
+        checkInLogRepository,
+        medicationRefillRepository,
+        morningCheckInPreferences
     )
 
     @Test

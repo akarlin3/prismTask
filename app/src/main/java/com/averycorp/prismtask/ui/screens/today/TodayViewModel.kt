@@ -12,6 +12,7 @@ import com.averycorp.prismtask.data.local.entity.TaskEntity
 import com.averycorp.prismtask.data.local.entity.TaskTemplateEntity
 import com.averycorp.prismtask.data.preferences.DashboardPreferences
 import com.averycorp.prismtask.data.preferences.HabitListPreferences
+import com.averycorp.prismtask.data.preferences.MorningCheckInPreferences
 import com.averycorp.prismtask.data.preferences.SortPreferences
 import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
 import com.averycorp.prismtask.data.preferences.UserPreferencesDataStore
@@ -28,6 +29,7 @@ import com.averycorp.prismtask.util.DayBoundary
 import com.averycorp.prismtask.data.repository.HabitWithStatus
 import com.averycorp.prismtask.data.local.entity.ProjectEntity
 import com.averycorp.prismtask.data.repository.LeisureRepository
+import com.averycorp.prismtask.data.repository.MedicationRefillRepository
 import com.averycorp.prismtask.data.repository.ProjectRepository
 import com.averycorp.prismtask.data.repository.SchoolworkRepository
 import com.averycorp.prismtask.data.repository.SelfCareRepository
@@ -37,10 +39,12 @@ import com.averycorp.prismtask.data.repository.TaskTemplateRepository
 import com.averycorp.prismtask.ui.components.QuickRescheduleFormatter
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
@@ -64,31 +68,126 @@ class TodayViewModel @Inject constructor(
     private val sortPreferences: SortPreferences,
     private val proFeatureGate: com.averycorp.prismtask.domain.usecase.ProFeatureGate,
     private val userPreferencesDataStore: UserPreferencesDataStore,
-    private val checkInLogRepository: com.averycorp.prismtask.data.repository.CheckInLogRepository
+    private val checkInLogRepository: com.averycorp.prismtask.data.repository.CheckInLogRepository,
+    private val medicationRefillRepository: MedicationRefillRepository,
+    private val morningCheckInPreferences: MorningCheckInPreferences
 ) : ViewModel() {
 
+    /**
+     * True when the morning check-in banner should render on the Today
+     * screen. Derived reactively from three signals (so it flips off the
+     * instant any of them changes):
+     *  1. [MorningCheckInPreferences.featureEnabled] — user hasn't turned the feature off.
+     *  2. Banner hasn't been dismissed earlier today (stored per-day in DataStore).
+     *  3. The user hasn't already completed a check-in today and we're still
+     *     before the configured prompt hour.
+     */
     private val _showCheckInPrompt = MutableStateFlow(false)
     val showCheckInPrompt: StateFlow<Boolean> = _showCheckInPrompt
 
-    fun dismissCheckInPrompt() { _showCheckInPrompt.value = false }
+    /** Greeting that flips from "Good morning!" to "Good afternoon!" after noon. */
+    private val _checkInGreeting = MutableStateFlow("Good Morning!")
+    val checkInGreeting: StateFlow<String> = _checkInGreeting
+
+    /**
+     * True for a few seconds after the user finishes a check-in so the
+     * Today screen can render a short "Check-in complete ✓" chip that
+     * fades out on its own.
+     */
+    private val _showCompletionChip = MutableStateFlow(false)
+    val showCompletionChip: StateFlow<Boolean> = _showCompletionChip
+
+    /** Remembers whether a check-in already existed when the VM loaded,
+     *  so we only show the completion chip for a completion done in this
+     *  session (not one the user did yesterday or earlier in the day). */
+    private var wasCheckedInAtLoad: Boolean? = null
+
+    fun dismissCheckInPrompt() {
+        _showCheckInPrompt.value = false
+        viewModelScope.launch {
+            try { morningCheckInPreferences.dismissBannerToday() }
+            catch (e: Exception) { Log.e("TodayVM", "Failed to persist check-in dismissal", e) }
+        }
+    }
+
+    /** Called by the UI after the completion chip animation is done. */
+    fun clearCompletionChip() { _showCompletionChip.value = false }
 
     init {
         try {
             com.google.firebase.crashlytics.FirebaseCrashlytics.getInstance()
                 .setCustomKey("screen", "TodayScreen")
         } catch (_: Exception) { }
+
+        _checkInGreeting.value = computeGreeting()
+
+        // Reactive banner-visibility pipeline. Recomputes whenever the user
+        // dismisses, the feature toggle flips, or a check-in log arrives
+        // for today (e.g. the user just finished MorningCheckInScreen).
         viewModelScope.launch {
             try {
-                val dayStartHour = taskBehaviorPreferences.getDayStartHour().first()
-                val todayStartLocal = DayBoundary.startOfCurrentDay(dayStartHour)
-                val mostRecent = checkInLogRepository.getMostRecentDate()
-                val alreadyToday = mostRecent != null && mostRecent >= todayStartLocal
-                val hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
-                _showCheckInPrompt.value = !alreadyToday && hour < 11
+                combine(
+                    morningCheckInPreferences.featureEnabled(),
+                    morningCheckInPreferences.bannerDismissedDate(),
+                    checkInLogRepository.observeAll()
+                ) { enabled, dismissedDate, logs ->
+                    val dayStartHour = taskBehaviorPreferences.getDayStartHour().first()
+                    val todayStart = DayBoundary.startOfCurrentDay(dayStartHour)
+                    val todayIso = java.time.LocalDate.now()
+                        .format(java.time.format.DateTimeFormatter.ISO_LOCAL_DATE)
+                    val alreadyCheckedInToday = logs.any { it.date >= todayStart }
+                    val hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
+                    val beforePromptHour = hour < 11
+                    val dismissedToday = dismissedDate == todayIso
+
+                    // Track first-seen state so we can distinguish "already
+                    // completed before opening Today" from "completed just
+                    // now in this session".
+                    if (wasCheckedInAtLoad == null) {
+                        wasCheckedInAtLoad = alreadyCheckedInToday
+                    } else if (!wasCheckedInAtLoad!! && alreadyCheckedInToday && !_showCompletionChip.value) {
+                        _showCompletionChip.value = true
+                        launch {
+                            delay(3000L)
+                            _showCompletionChip.value = false
+                        }
+                    }
+
+                    enabled && beforePromptHour && !alreadyCheckedInToday && !dismissedToday
+                }.distinctUntilChanged().collect { shouldShow ->
+                    _showCheckInPrompt.value = shouldShow
+                }
             } catch (e: Exception) {
-                Log.e("TodayVM", "Failed to load check-in prompt", e)
+                Log.e("TodayVM", "Failed to observe check-in banner state", e)
             }
         }
+    }
+
+    private fun computeGreeting(): String {
+        val hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
+        return if (hour < 12) "Good Morning!" else "Good Afternoon!"
+    }
+
+    private fun buildCheckInSummary(
+        taskCount: Int,
+        habitCount: Int,
+        hasMedications: Boolean
+    ): String {
+        val parts = mutableListOf<String>()
+        if (taskCount > 0) {
+            parts += if (taskCount == 1) "1 task" else "$taskCount tasks"
+        }
+        if (habitCount > 0) {
+            parts += if (habitCount == 1) "1 habit" else "$habitCount habits"
+        }
+        if (hasMedications) parts += "medications"
+        val stitched = when (parts.size) {
+            0 -> return "Kick off the day with a quick check-in."
+            1 -> parts[0]
+            2 -> "${parts[0]} and ${parts[1]}"
+            else -> parts.dropLast(1).joinToString(", ") + ", and " + parts.last()
+        }
+        return "You have $stitched to check in on."
     }
 
     private val balanceTracker: BalanceTracker = BalanceTracker()
@@ -354,6 +453,26 @@ class TodayViewModel @Inject constructor(
     val todayHabits: StateFlow<List<HabitWithStatus>> = allTodayHabits
         .map { list -> list.filter { !it.habit.isBookable } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    /**
+     * Count-aware subtitle for the morning check-in banner. Updates live as
+     * the user completes tasks / habits or takes medications, and elides
+     * zero counts so the banner never reads "0 tasks".
+     */
+    val checkInSummaryFlow: StateFlow<String> =
+        combine(
+            combine(todayTasks, plannedTasks) { today, planned ->
+                today.count { !it.isCompleted } + planned.count { !it.isCompleted }
+            },
+            todayHabits.map { list -> list.count { !it.isCompletedToday } },
+            medicationRefillRepository.observeAll().map { it.isNotEmpty() }
+        ) { taskCount, habitCount, hasMeds ->
+            buildCheckInSummary(
+                taskCount = taskCount,
+                habitCount = habitCount,
+                hasMedications = hasMeds
+            )
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "")
 
     // Bookable habits booked for today
     val scheduledTodayHabits: StateFlow<List<HabitWithStatus>> = combine(

@@ -67,11 +67,13 @@ import com.averycorp.prismtask.ui.screens.addedittask.AddEditTaskSheetHost
 import com.averycorp.prismtask.ui.screens.coaching.CoachingViewModel
 import com.averycorp.prismtask.ui.screens.today.components.AllCaughtUpCard
 import com.averycorp.prismtask.ui.screens.today.components.BookableHabitReminderCard
+import com.averycorp.prismtask.ui.screens.today.components.CheckInCompleteChip
 import com.averycorp.prismtask.ui.screens.today.components.CollapsibleSection
 import com.averycorp.prismtask.ui.screens.today.components.CompactProgressHeader
 import com.averycorp.prismtask.ui.screens.today.components.CompletedTaskItem
 import com.averycorp.prismtask.ui.screens.today.components.FloatingQuickAddBar
 import com.averycorp.prismtask.ui.screens.today.components.HabitChipRow
+import com.averycorp.prismtask.ui.screens.today.components.MorningCheckInBanner
 import com.averycorp.prismtask.ui.screens.today.components.NeutralGray
 import com.averycorp.prismtask.ui.screens.today.components.OverloadBanner
 import com.averycorp.prismtask.ui.screens.today.components.SelfCareNudgeCard
@@ -122,6 +124,9 @@ fun TodayScreen(
     val workLifeBalancePrefs by viewModel.workLifeBalancePrefs.collectAsStateWithLifecycle()
     val burnoutResult by viewModel.burnoutResult.collectAsStateWithLifecycle()
     val showCheckInPrompt by viewModel.showCheckInPrompt.collectAsStateWithLifecycle()
+    val checkInGreeting by viewModel.checkInGreeting.collectAsStateWithLifecycle()
+    val checkInSummary by viewModel.checkInSummaryFlow.collectAsStateWithLifecycle()
+    val showCheckInCompleteChip by viewModel.showCompletionChip.collectAsStateWithLifecycle()
     val currentNudge by viewModel.currentNudge.collectAsStateWithLifecycle()
     var overloadBannerDismissed by remember { mutableStateOf(false) }
 
@@ -307,46 +312,21 @@ fun TodayScreen(
 
             if (showCheckInPrompt) {
                 item(key = "checkin_prompt") {
-                    androidx.compose.material3.Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 4.dp),
-                        shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
-                        colors = androidx.compose.material3.CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.primaryContainer
-                        )
-                    ) {
-                        androidx.compose.foundation.layout.Row(
-                            modifier = Modifier.padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            androidx.compose.material3.Text(
-                                text = "\u2600\uFE0F",
-                                style = MaterialTheme.typography.titleLarge
-                            )
-                            androidx.compose.foundation.layout.Spacer(modifier = Modifier.size(12.dp))
-                            androidx.compose.foundation.layout.Column(modifier = Modifier.weight(1f)) {
-                                androidx.compose.material3.Text(
-                                    text = "Start your morning check-in?",
-                                    style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                                )
-                                androidx.compose.material3.Text(
-                                    text = "Meds, top tasks, habits, and balance in under two minutes.",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                                )
-                            }
-                            androidx.compose.material3.TextButton(onClick = {
-                                viewModel.dismissCheckInPrompt()
-                                navController.navigate(PrismTaskRoute.MorningCheckIn.route)
-                            }) { androidx.compose.material3.Text("Let's Go") }
-                            androidx.compose.material3.TextButton(onClick = {
-                                viewModel.dismissCheckInPrompt()
-                            }) { androidx.compose.material3.Text("Skip") }
-                        }
-                    }
+                    MorningCheckInBanner(
+                        greeting = checkInGreeting,
+                        summary = checkInSummary,
+                        onStart = {
+                            navController.navigate(PrismTaskRoute.MorningCheckIn.route)
+                        },
+                        onDismiss = { viewModel.dismissCheckInPrompt() }
+                    )
+                }
+            } else if (showCheckInCompleteChip) {
+                item(key = "checkin_complete_chip") {
+                    CheckInCompleteChip(
+                        visible = true,
+                        onAutoDismiss = { viewModel.clearCompletionChip() }
+                    )
                 }
             }
 
