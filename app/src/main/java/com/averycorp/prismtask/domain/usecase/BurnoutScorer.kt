@@ -110,7 +110,7 @@ class BurnoutScorer {
         val total = (
             workPoints + overduePoints + selfCarePoints + medicationPoints +
                 streakPoints + restDeficitPoints
-        ).coerceIn(0, 100)
+            ).coerceIn(0, 100)
 
         return BurnoutResult(
             score = total,

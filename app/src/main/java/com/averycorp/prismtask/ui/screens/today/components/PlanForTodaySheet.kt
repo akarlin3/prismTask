@@ -134,8 +134,12 @@ internal fun PlanForTodaySheet(
     val thisWeekEnd = startOfToday + 7 * dayMs
     val nextWeekEnd = startOfToday + 14 * dayMs
 
-    val tomorrowTasks = filteredUpcoming.filter { it.dueDate != null && it.dueDate in tomorrowStart until dayAfterTomorrowStart }
-    val thisWeekTasks = filteredUpcoming.filter { it.dueDate != null && it.dueDate in dayAfterTomorrowStart until thisWeekEnd }
+    val tomorrowTasks = filteredUpcoming.filter {
+        it.dueDate != null && it.dueDate in tomorrowStart until dayAfterTomorrowStart
+    }
+    val thisWeekTasks = filteredUpcoming.filter {
+        it.dueDate != null && it.dueDate in dayAfterTomorrowStart until thisWeekEnd
+    }
     val nextWeekTasks = filteredUpcoming.filter { it.dueDate != null && it.dueDate in thisWeekEnd until nextWeekEnd }
     val laterTasks = filteredUpcoming.filter { it.dueDate != null && it.dueDate >= nextWeekEnd }
     val noDateTasks = filteredUpcoming.filter { it.dueDate == null }

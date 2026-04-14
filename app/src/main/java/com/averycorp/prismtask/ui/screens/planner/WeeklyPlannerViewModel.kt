@@ -56,182 +56,182 @@ data class WeeklyPlan(
 
 @HiltViewModel
 class WeeklyPlannerViewModel
-    @Inject
-    constructor(
-        private val api: PrismTaskApi,
-        private val taskDao: TaskDao,
-        private val proFeatureGate: ProFeatureGate
-    ) : ViewModel() {
-        val userTier: StateFlow<UserTier> = proFeatureGate.userTier
+@Inject
+constructor(
+    private val api: PrismTaskApi,
+    private val taskDao: TaskDao,
+    private val proFeatureGate: ProFeatureGate
+) : ViewModel() {
+    val userTier: StateFlow<UserTier> = proFeatureGate.userTier
 
-        private val _config = MutableStateFlow(WeeklyPlanConfig())
-        val config: StateFlow<WeeklyPlanConfig> = _config
+    private val _config = MutableStateFlow(WeeklyPlanConfig())
+    val config: StateFlow<WeeklyPlanConfig> = _config
 
-        private val _plan = MutableStateFlow<WeeklyPlan?>(null)
-        val plan: StateFlow<WeeklyPlan?> = _plan
+    private val _plan = MutableStateFlow<WeeklyPlan?>(null)
+    val plan: StateFlow<WeeklyPlan?> = _plan
 
-        private val _selectedDayIndex = MutableStateFlow(0)
-        val selectedDayIndex: StateFlow<Int> = _selectedDayIndex
+    private val _selectedDayIndex = MutableStateFlow(0)
+    val selectedDayIndex: StateFlow<Int> = _selectedDayIndex
 
-        private val _isLoading = MutableStateFlow(false)
-        val isLoading: StateFlow<Boolean> = _isLoading
+    private val _isLoading = MutableStateFlow(false)
+    val isLoading: StateFlow<Boolean> = _isLoading
 
-        private val _error = MutableStateFlow<String?>(null)
-        val error: StateFlow<String?> = _error
+    private val _error = MutableStateFlow<String?>(null)
+    val error: StateFlow<String?> = _error
 
-        private val _showUpgradePrompt = MutableStateFlow(false)
-        val showUpgradePrompt: StateFlow<Boolean> = _showUpgradePrompt
+    private val _showUpgradePrompt = MutableStateFlow(false)
+    val showUpgradePrompt: StateFlow<Boolean> = _showUpgradePrompt
 
-        private val _weekStart = MutableStateFlow(computeNextMonday())
-        val weekStart: StateFlow<LocalDate> = _weekStart
+    private val _weekStart = MutableStateFlow(computeNextMonday())
+    val weekStart: StateFlow<LocalDate> = _weekStart
 
-        private val _planApplied = MutableStateFlow(false)
-        val planApplied: StateFlow<Boolean> = _planApplied
+    private val _planApplied = MutableStateFlow(false)
+    val planApplied: StateFlow<Boolean> = _planApplied
 
-        private fun computeNextMonday(): LocalDate {
-            val today = LocalDate.now()
-            return if (today.dayOfWeek == DayOfWeek.MONDAY) {
-                today
-            } else {
-                today.with(TemporalAdjusters.next(DayOfWeek.MONDAY))
-            }
-        }
-
-        fun navigateWeek(offset: Int) {
-            _weekStart.value = _weekStart.value.plusWeeks(offset.toLong())
-            _plan.value = null
-            _planApplied.value = false
-        }
-
-        fun updateWorkDays(days: List<String>) {
-            _config.value = _config.value.copy(workDays = days)
-        }
-
-        fun updateFocusHours(hours: Int) {
-            _config.value = _config.value.copy(focusHoursPerDay = hours)
-        }
-
-        fun toggleFrontLoading() {
-            _config.value = _config.value.copy(preferFrontLoading = !_config.value.preferFrontLoading)
-        }
-
-        fun selectDay(index: Int) {
-            _selectedDayIndex.value = index
-        }
-
-        fun dismissUpgradePrompt() {
-            _showUpgradePrompt.value = false
-        }
-
-        fun generatePlan() {
-            if (!proFeatureGate.hasAccess(ProFeatureGate.AI_WEEKLY_PLAN)) {
-                _showUpgradePrompt.value = true
-                return
-            }
-            viewModelScope.launch {
-                _isLoading.value = true
-                _error.value = null
-                _planApplied.value = false
-                try {
-                    val cfg = _config.value
-                    val response = api.getWeeklyPlan(
-                        WeeklyPlanRequest(
-                            weekStart = _weekStart.value.format(DateTimeFormatter.ISO_LOCAL_DATE),
-                            preferences = WeeklyPlanPreferencesRequest(
-                                workDays = cfg.workDays,
-                                focusHoursPerDay = cfg.focusHoursPerDay,
-                                preferFrontLoading = cfg.preferFrontLoading
-                            )
-                        )
-                    )
-
-                    val dayOrder = listOf("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
-                    val days = dayOrder.mapNotNull { dayName ->
-                        response.plan[dayName]?.let { dayPlan ->
-                            DayPlan(
-                                date = dayPlan.date,
-                                dayName = dayName,
-                                tasks = dayPlan.tasks.map { t ->
-                                    PlannedTask(t.taskId, t.title, t.suggestedTime, t.durationMinutes, t.reason)
-                                },
-                                totalHours = dayPlan.totalHours,
-                                calendarEvents = dayPlan.calendarEvents,
-                                habits = dayPlan.habits
-                            )
-                        }
-                    }
-
-                    _plan.value = WeeklyPlan(
-                        days = days,
-                        unscheduled = response.unscheduled.map {
-                            UnscheduledTask(it.taskId, it.title, it.reason)
-                        },
-                        weekSummary = response.weekSummary,
-                        tips = response.tips
-                    )
-                    _selectedDayIndex.value = 0
-                } catch (e: Exception) {
-                    _error.value = e.message ?: "Failed to generate plan"
-                } finally {
-                    _isLoading.value = false
-                }
-            }
-        }
-
-        fun moveTaskToDay(taskId: Long, targetDayIndex: Int) {
-            val currentPlan = _plan.value ?: return
-            val currentDays = currentPlan.days.toMutableList()
-            var movedTask: PlannedTask? = null
-
-            // Remove from current day
-            for (i in currentDays.indices) {
-                val day = currentDays[i]
-                val task = day.tasks.find { it.taskId == taskId }
-                if (task != null) {
-                    movedTask = task
-                    currentDays[i] = day.copy(tasks = day.tasks.filter { it.taskId != taskId })
-                    break
-                }
-            }
-
-            // Also check unscheduled
-            val unscheduled = currentPlan.unscheduled.toMutableList()
-            if (movedTask == null) {
-                val fromUnscheduled = unscheduled.find { it.taskId == taskId }
-                if (fromUnscheduled != null) {
-                    movedTask = PlannedTask(fromUnscheduled.taskId, fromUnscheduled.title, "TBD", 30, "Manually scheduled")
-                    unscheduled.removeAll { it.taskId == taskId }
-                }
-            }
-
-            if (movedTask != null && targetDayIndex in currentDays.indices) {
-                val targetDay = currentDays[targetDayIndex]
-                currentDays[targetDayIndex] = targetDay.copy(tasks = targetDay.tasks + movedTask)
-            }
-
-            _plan.value = currentPlan.copy(days = currentDays, unscheduled = unscheduled)
-        }
-
-        fun applyPlan() {
-            val plan = _plan.value ?: return
-            viewModelScope.launch {
-                try {
-                    val ws = _weekStart.value
-                    for (day in plan.days) {
-                        val dayDate = LocalDate.parse(day.date, DateTimeFormatter.ISO_LOCAL_DATE)
-                        val dayMillis = dayDate.toEpochDay() * 86400000L
-                        for ((index, task) in day.tasks.withIndex()) {
-                            taskDao.updatePlannedDateAndSortOrder(task.taskId, dayMillis, index)
-                        }
-                    }
-                    _planApplied.value = true
-                } catch (e: Exception) {
-                    _error.value = e.message ?: "Failed to apply plan"
-                }
-            }
-        }
-
-        fun clearError() {
-            _error.value = null
+    private fun computeNextMonday(): LocalDate {
+        val today = LocalDate.now()
+        return if (today.dayOfWeek == DayOfWeek.MONDAY) {
+            today
+        } else {
+            today.with(TemporalAdjusters.next(DayOfWeek.MONDAY))
         }
     }
+
+    fun navigateWeek(offset: Int) {
+        _weekStart.value = _weekStart.value.plusWeeks(offset.toLong())
+        _plan.value = null
+        _planApplied.value = false
+    }
+
+    fun updateWorkDays(days: List<String>) {
+        _config.value = _config.value.copy(workDays = days)
+    }
+
+    fun updateFocusHours(hours: Int) {
+        _config.value = _config.value.copy(focusHoursPerDay = hours)
+    }
+
+    fun toggleFrontLoading() {
+        _config.value = _config.value.copy(preferFrontLoading = !_config.value.preferFrontLoading)
+    }
+
+    fun selectDay(index: Int) {
+        _selectedDayIndex.value = index
+    }
+
+    fun dismissUpgradePrompt() {
+        _showUpgradePrompt.value = false
+    }
+
+    fun generatePlan() {
+        if (!proFeatureGate.hasAccess(ProFeatureGate.AI_WEEKLY_PLAN)) {
+            _showUpgradePrompt.value = true
+            return
+        }
+        viewModelScope.launch {
+            _isLoading.value = true
+            _error.value = null
+            _planApplied.value = false
+            try {
+                val cfg = _config.value
+                val response = api.getWeeklyPlan(
+                    WeeklyPlanRequest(
+                        weekStart = _weekStart.value.format(DateTimeFormatter.ISO_LOCAL_DATE),
+                        preferences = WeeklyPlanPreferencesRequest(
+                            workDays = cfg.workDays,
+                            focusHoursPerDay = cfg.focusHoursPerDay,
+                            preferFrontLoading = cfg.preferFrontLoading
+                        )
+                    )
+                )
+
+                val dayOrder = listOf("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
+                val days = dayOrder.mapNotNull { dayName ->
+                    response.plan[dayName]?.let { dayPlan ->
+                        DayPlan(
+                            date = dayPlan.date,
+                            dayName = dayName,
+                            tasks = dayPlan.tasks.map { t ->
+                                PlannedTask(t.taskId, t.title, t.suggestedTime, t.durationMinutes, t.reason)
+                            },
+                            totalHours = dayPlan.totalHours,
+                            calendarEvents = dayPlan.calendarEvents,
+                            habits = dayPlan.habits
+                        )
+                    }
+                }
+
+                _plan.value = WeeklyPlan(
+                    days = days,
+                    unscheduled = response.unscheduled.map {
+                        UnscheduledTask(it.taskId, it.title, it.reason)
+                    },
+                    weekSummary = response.weekSummary,
+                    tips = response.tips
+                )
+                _selectedDayIndex.value = 0
+            } catch (e: Exception) {
+                _error.value = e.message ?: "Failed to generate plan"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    fun moveTaskToDay(taskId: Long, targetDayIndex: Int) {
+        val currentPlan = _plan.value ?: return
+        val currentDays = currentPlan.days.toMutableList()
+        var movedTask: PlannedTask? = null
+
+        // Remove from current day
+        for (i in currentDays.indices) {
+            val day = currentDays[i]
+            val task = day.tasks.find { it.taskId == taskId }
+            if (task != null) {
+                movedTask = task
+                currentDays[i] = day.copy(tasks = day.tasks.filter { it.taskId != taskId })
+                break
+            }
+        }
+
+        // Also check unscheduled
+        val unscheduled = currentPlan.unscheduled.toMutableList()
+        if (movedTask == null) {
+            val fromUnscheduled = unscheduled.find { it.taskId == taskId }
+            if (fromUnscheduled != null) {
+                movedTask = PlannedTask(fromUnscheduled.taskId, fromUnscheduled.title, "TBD", 30, "Manually scheduled")
+                unscheduled.removeAll { it.taskId == taskId }
+            }
+        }
+
+        if (movedTask != null && targetDayIndex in currentDays.indices) {
+            val targetDay = currentDays[targetDayIndex]
+            currentDays[targetDayIndex] = targetDay.copy(tasks = targetDay.tasks + movedTask)
+        }
+
+        _plan.value = currentPlan.copy(days = currentDays, unscheduled = unscheduled)
+    }
+
+    fun applyPlan() {
+        val plan = _plan.value ?: return
+        viewModelScope.launch {
+            try {
+                val ws = _weekStart.value
+                for (day in plan.days) {
+                    val dayDate = LocalDate.parse(day.date, DateTimeFormatter.ISO_LOCAL_DATE)
+                    val dayMillis = dayDate.toEpochDay() * 86400000L
+                    for ((index, task) in day.tasks.withIndex()) {
+                        taskDao.updatePlannedDateAndSortOrder(task.taskId, dayMillis, index)
+                    }
+                }
+                _planApplied.value = true
+            } catch (e: Exception) {
+                _error.value = e.message ?: "Failed to apply plan"
+            }
+        }
+    }
+
+    fun clearError() {
+        _error.value = null
+    }
+}

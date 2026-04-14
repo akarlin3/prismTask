@@ -22,36 +22,36 @@ import javax.inject.Singleton
  */
 @Singleton
 class AuthInterceptor
-    @Inject
-    constructor(
-        private val tokenPreferences: AuthTokenPreferences
-    ) : Interceptor {
-        override fun intercept(chain: Interceptor.Chain): Response {
-            val original = chain.request()
-            if (isAuthEndpoint(original)) {
-                return chain.proceed(original)
-            }
-
-            val token = tokenPreferences.getAccessTokenBlocking()
-            val request = if (token.isNullOrBlank()) {
-                original
-            } else {
-                original
-                    .newBuilder()
-                    .header("Authorization", "Bearer $token")
-                    .build()
-            }
-            return chain.proceed(request)
+@Inject
+constructor(
+    private val tokenPreferences: AuthTokenPreferences
+) : Interceptor {
+    override fun intercept(chain: Interceptor.Chain): Response {
+        val original = chain.request()
+        if (isAuthEndpoint(original)) {
+            return chain.proceed(original)
         }
 
-        private fun isAuthEndpoint(request: Request): Boolean {
-            val path = request.url.encodedPath
-            return path.endsWith("/auth/login") ||
-                path.endsWith("/auth/register") ||
-                path.endsWith("/auth/refresh") ||
-                path.endsWith("/auth/firebase")
+        val token = tokenPreferences.getAccessTokenBlocking()
+        val request = if (token.isNullOrBlank()) {
+            original
+        } else {
+            original
+                .newBuilder()
+                .header("Authorization", "Bearer $token")
+                .build()
         }
+        return chain.proceed(request)
     }
+
+    private fun isAuthEndpoint(request: Request): Boolean {
+        val path = request.url.encodedPath
+        return path.endsWith("/auth/login") ||
+            path.endsWith("/auth/register") ||
+            path.endsWith("/auth/refresh") ||
+            path.endsWith("/auth/firebase")
+    }
+}
 
 /**
  * OkHttp [Authenticator] that handles 401 responses by attempting to refresh
@@ -63,85 +63,85 @@ class AuthInterceptor
  */
 @Singleton
 class TokenAuthenticator
-    @Inject
-    constructor(
-        private val tokenPreferences: AuthTokenPreferences,
-        private val gson: Gson
-    ) : Authenticator {
-        override fun authenticate(route: Route?, response: Response): Request? {
-            // Avoid infinite retry loops: only attempt refresh once.
-            if (responseCount(response) >= 2) return null
+@Inject
+constructor(
+    private val tokenPreferences: AuthTokenPreferences,
+    private val gson: Gson
+) : Authenticator {
+    override fun authenticate(route: Route?, response: Response): Request? {
+        // Avoid infinite retry loops: only attempt refresh once.
+        if (responseCount(response) >= 2) return null
 
-            val refreshToken = tokenPreferences.getRefreshTokenBlocking()
-            if (refreshToken.isNullOrBlank()) return null
+        val refreshToken = tokenPreferences.getRefreshTokenBlocking()
+        if (refreshToken.isNullOrBlank()) return null
 
-            val newTokens = synchronized(this) {
-                // Re-check in case another thread already refreshed.
-                val currentAccess = tokenPreferences.getAccessTokenBlocking()
-                val authHeader = response.request.header("Authorization")
-                if (currentAccess != null && authHeader != "Bearer $currentAccess") {
-                    // Tokens were refreshed by another thread; reuse them.
-                    TokenResponse(
-                        accessToken = currentAccess,
-                        refreshToken = refreshToken,
-                        tokenType = "bearer"
-                    )
-                } else {
-                    refreshTokens(response, refreshToken)
-                }
-            } ?: return null
+        val newTokens = synchronized(this) {
+            // Re-check in case another thread already refreshed.
+            val currentAccess = tokenPreferences.getAccessTokenBlocking()
+            val authHeader = response.request.header("Authorization")
+            if (currentAccess != null && authHeader != "Bearer $currentAccess") {
+                // Tokens were refreshed by another thread; reuse them.
+                TokenResponse(
+                    accessToken = currentAccess,
+                    refreshToken = refreshToken,
+                    tokenType = "bearer"
+                )
+            } else {
+                refreshTokens(response, refreshToken)
+            }
+        } ?: return null
 
-            tokenPreferences.setTokensBlocking(newTokens.accessToken, newTokens.refreshToken)
+        tokenPreferences.setTokensBlocking(newTokens.accessToken, newTokens.refreshToken)
 
-            return response.request
+        return response.request
+            .newBuilder()
+            .header("Authorization", "Bearer ${newTokens.accessToken}")
+            .build()
+    }
+
+    private fun refreshTokens(response: Response, refreshToken: String): TokenResponse? {
+        return try {
+            val refreshUrl = response.request.url
                 .newBuilder()
-                .header("Authorization", "Bearer ${newTokens.accessToken}")
+                .encodedPath("/api/v1/auth/refresh")
+                .query(null)
                 .build()
-        }
 
-        private fun refreshTokens(response: Response, refreshToken: String): TokenResponse? {
-            return try {
-                val refreshUrl = response.request.url
-                    .newBuilder()
-                    .encodedPath("/api/v1/auth/refresh")
-                    .query(null)
-                    .build()
+            val body = gson
+                .toJson(RefreshRequest(refreshToken))
+                .toRequestBody("application/json; charset=utf-8".toMediaType())
 
-                val body = gson
-                    .toJson(RefreshRequest(refreshToken))
-                    .toRequestBody("application/json; charset=utf-8".toMediaType())
+            val request = Request
+                .Builder()
+                .url(refreshUrl)
+                .post(body)
+                .build()
 
-                val request = Request
-                    .Builder()
-                    .url(refreshUrl)
-                    .post(body)
-                    .build()
+            // Use a bare client (no auth interceptor / no authenticator) to
+            // avoid recursing back into this Authenticator.
+            val bareClient = OkHttpClient
+                .Builder()
+                .connectTimeout(30, TimeUnit.SECONDS)
+                .readTimeout(30, TimeUnit.SECONDS)
+                .build()
 
-                // Use a bare client (no auth interceptor / no authenticator) to
-                // avoid recursing back into this Authenticator.
-                val bareClient = OkHttpClient
-                    .Builder()
-                    .connectTimeout(30, TimeUnit.SECONDS)
-                    .readTimeout(30, TimeUnit.SECONDS)
-                    .build()
-
-                bareClient.newCall(request).execute().use { refreshResponse ->
-                    if (!refreshResponse.isSuccessful) return@use null
-                    val responseBody = refreshResponse.body?.string() ?: return@use null
-                    gson.fromJson(responseBody, TokenResponse::class.java)
-                }
-            } catch (_: Exception) {
-                null
+            bareClient.newCall(request).execute().use { refreshResponse ->
+                if (!refreshResponse.isSuccessful) return@use null
+                val responseBody = refreshResponse.body?.string() ?: return@use null
+                gson.fromJson(responseBody, TokenResponse::class.java)
             }
-        }
-
-        private fun responseCount(response: Response): Int {
-            var count = 1
-            var prior = response.priorResponse
-            while (prior != null) {
-                count++
-                prior = prior.priorResponse
-            }
-            return count
+        } catch (_: Exception) {
+            null
         }
     }
+
+    private fun responseCount(response: Response): Int {
+        var count = 1
+        var prior = response.priorResponse
+        while (prior != null) {
+            count++
+            prior = prior.priorResponse
+        }
+        return count
+    }
+}

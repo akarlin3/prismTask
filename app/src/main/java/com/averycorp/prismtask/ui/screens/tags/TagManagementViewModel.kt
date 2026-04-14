@@ -14,42 +14,42 @@ import javax.inject.Inject
 
 @HiltViewModel
 class TagManagementViewModel
-    @Inject
-    constructor(
-        private val tagRepository: TagRepository
-    ) : ViewModel() {
-        val tags: StateFlow<List<TagEntity>> = tagRepository
-            .getAllTags()
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+@Inject
+constructor(
+    private val tagRepository: TagRepository
+) : ViewModel() {
+    val tags: StateFlow<List<TagEntity>> = tagRepository
+        .getAllTags()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-        fun onAddTag(name: String, color: String) {
-            if (name.isBlank()) return
-            viewModelScope.launch {
-                try {
-                    tagRepository.addTag(name.trim(), color)
-                } catch (e: Exception) {
-                    Log.e("TagManagementVM", "Failed to add tag", e)
-                }
-            }
-        }
-
-        fun onUpdateTag(tag: TagEntity) {
-            viewModelScope.launch {
-                try {
-                    tagRepository.updateTag(tag)
-                } catch (e: Exception) {
-                    Log.e("TagManagementVM", "Failed to update tag", e)
-                }
-            }
-        }
-
-        fun onDeleteTag(tag: TagEntity) {
-            viewModelScope.launch {
-                try {
-                    tagRepository.deleteTag(tag)
-                } catch (e: Exception) {
-                    Log.e("TagManagementVM", "Failed to delete tag", e)
-                }
+    fun onAddTag(name: String, color: String) {
+        if (name.isBlank()) return
+        viewModelScope.launch {
+            try {
+                tagRepository.addTag(name.trim(), color)
+            } catch (e: Exception) {
+                Log.e("TagManagementVM", "Failed to add tag", e)
             }
         }
     }
+
+    fun onUpdateTag(tag: TagEntity) {
+        viewModelScope.launch {
+            try {
+                tagRepository.updateTag(tag)
+            } catch (e: Exception) {
+                Log.e("TagManagementVM", "Failed to update tag", e)
+            }
+        }
+    }
+
+    fun onDeleteTag(tag: TagEntity) {
+        viewModelScope.launch {
+            try {
+                tagRepository.deleteTag(tag)
+            } catch (e: Exception) {
+                Log.e("TagManagementVM", "Failed to delete tag", e)
+            }
+        }
+    }
+}

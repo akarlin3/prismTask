@@ -82,7 +82,8 @@ class SyncMapperTest {
 
     @Test
     fun project_roundTrip() {
-        val project = ProjectEntity(id = 1, name = "Work", color = "#FF0000", icon = "\uD83D\uDCC1", createdAt = 100, updatedAt = 200)
+        val project =
+            ProjectEntity(id = 1, name = "Work", color = "#FF0000", icon = "\uD83D\uDCC1", createdAt = 100, updatedAt = 200)
         val map = SyncMapper.projectToMap(project)
         val restored = SyncMapper.mapToProject(map, 1)
         assertEquals("Work", restored.name)
@@ -153,7 +154,8 @@ class SyncMapperTest {
 
     @Test
     fun habit_booleanFields() {
-        val habit = HabitEntity(id = 1, name = "t", isArchived = true, createDailyTask = true, createdAt = 0, updatedAt = 0)
+        val habit =
+            HabitEntity(id = 1, name = "t", isArchived = true, createDailyTask = true, createdAt = 0, updatedAt = 0)
         val map = SyncMapper.habitToMap(habit)
         val restored = SyncMapper.mapToHabit(map, 1)
         assertEquals(true, restored.isArchived)

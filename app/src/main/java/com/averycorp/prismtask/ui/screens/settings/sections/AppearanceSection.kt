@@ -297,9 +297,13 @@ fun AppearanceSection(
             val defaults = PriorityColors()
             PriorityColorRow("None", priorityColorNone, defaults.none) { showColorPicker = "None Priority" to priorityColorNone }
             PriorityColorRow("Low", priorityColorLow, defaults.low) { showColorPicker = "Low Priority" to priorityColorLow }
-            PriorityColorRow("Medium", priorityColorMedium, defaults.medium) { showColorPicker = "Medium Priority" to priorityColorMedium }
+            PriorityColorRow("Medium", priorityColorMedium, defaults.medium) {
+                showColorPicker = "Medium Priority" to priorityColorMedium
+            }
             PriorityColorRow("High", priorityColorHigh, defaults.high) { showColorPicker = "High Priority" to priorityColorHigh }
-            PriorityColorRow("Urgent", priorityColorUrgent, defaults.urgent) { showColorPicker = "Urgent Priority" to priorityColorUrgent }
+            PriorityColorRow("Urgent", priorityColorUrgent, defaults.urgent) {
+                showColorPicker = "Urgent Priority" to priorityColorUrgent
+            }
 
             Spacer(modifier = Modifier.height(8.dp))
             TextButton(onClick = onResetColorOverrides) {

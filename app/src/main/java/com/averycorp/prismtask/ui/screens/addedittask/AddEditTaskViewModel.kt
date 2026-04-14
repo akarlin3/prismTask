@@ -60,602 +60,585 @@ data class PendingSubtask(
 
 @HiltViewModel
 class AddEditTaskViewModel
-    @Inject
-    constructor(
-        private val taskRepository: TaskRepository,
-        private val projectRepository: ProjectRepository,
-        private val tagRepository: TagRepository,
-        private val attachmentRepository: AttachmentRepository,
-        private val templateRepository: TaskTemplateRepository,
-        private val reminderScheduler: ReminderScheduler,
-        private val boundaryRuleRepository: BoundaryRuleRepository,
-        savedStateHandle: SavedStateHandle
-    ) : ViewModel() {
-        private val boundaryEnforcer = BoundaryEnforcer()
+@Inject
+constructor(
+    private val taskRepository: TaskRepository,
+    private val projectRepository: ProjectRepository,
+    private val tagRepository: TagRepository,
+    private val attachmentRepository: AttachmentRepository,
+    private val templateRepository: TaskTemplateRepository,
+    private val reminderScheduler: ReminderScheduler,
+    private val boundaryRuleRepository: BoundaryRuleRepository,
+    savedStateHandle: SavedStateHandle
+) : ViewModel() {
+    private val boundaryEnforcer = BoundaryEnforcer()
 
-        private val _errorMessages = MutableSharedFlow<String>()
-        val errorMessages: SharedFlow<String> = _errorMessages.asSharedFlow()
+    private val _errorMessages = MutableSharedFlow<String>()
+    val errorMessages: SharedFlow<String> = _errorMessages.asSharedFlow()
 
-        private var currentTaskId: Long? by mutableStateOf(null)
-        private val _taskIdFlow = MutableStateFlow<Long?>(null)
-        val isEditMode: Boolean get() = currentTaskId != null
+    private var currentTaskId: Long? by mutableStateOf(null)
+    private val _taskIdFlow = MutableStateFlow<Long?>(null)
+    val isEditMode: Boolean get() = currentTaskId != null
 
-        /** The id of the task currently being edited, or null in create mode. */
-        val currentEditingTaskId: Long? get() = currentTaskId
+    /** The id of the task currently being edited, or null in create mode. */
+    val currentEditingTaskId: Long? get() = currentTaskId
 
-        private var existingTask: TaskEntity? = null
-        private var loadJob: Job? = null
+    private var existingTask: TaskEntity? = null
+    private var loadJob: Job? = null
 
-        var title by mutableStateOf("")
-            private set
-        var description by mutableStateOf("")
-            private set
-        var dueDate by mutableStateOf<Long?>(null)
-            private set
-        var dueTime by mutableStateOf<Long?>(null)
-            private set
-        var priority by mutableIntStateOf(0)
-            private set
-        var projectId by mutableStateOf<Long?>(null)
-            private set
-        var parentTaskId by mutableStateOf<Long?>(null)
-            private set
-        var recurrenceRule by mutableStateOf<RecurrenceRule?>(null)
-            private set
-        var reminderOffset by mutableStateOf<Long?>(null)
-            private set
-        var estimatedDuration by mutableStateOf<Int?>(null)
-            private set
-        var titleError by mutableStateOf(false)
-            private set
-        var notes by mutableStateOf("")
-            private set
-        var selectedTagIds by mutableStateOf(setOf<Long>())
-            private set
+    var title by mutableStateOf("")
+        private set
+    var description by mutableStateOf("")
+        private set
+    var dueDate by mutableStateOf<Long?>(null)
+        private set
+    var dueTime by mutableStateOf<Long?>(null)
+        private set
+    var priority by mutableIntStateOf(0)
+        private set
+    var projectId by mutableStateOf<Long?>(null)
+        private set
+    var parentTaskId by mutableStateOf<Long?>(null)
+        private set
+    var recurrenceRule by mutableStateOf<RecurrenceRule?>(null)
+        private set
+    var reminderOffset by mutableStateOf<Long?>(null)
+        private set
+    var estimatedDuration by mutableStateOf<Int?>(null)
+        private set
+    var titleError by mutableStateOf(false)
+        private set
+    var notes by mutableStateOf("")
+        private set
+    var selectedTagIds by mutableStateOf(setOf<Long>())
+        private set
 
-        /**
-         * Work-Life Balance category for this task. `null` means "Auto" —
-         * the save path will run [LifeCategoryClassifier] to guess one before
-         * persisting (see [saveTask]).
-         */
-        var lifeCategory by mutableStateOf<LifeCategory?>(null)
-            private set
+    /**
+     * Work-Life Balance category for this task. `null` means "Auto" —
+     * the save path will run [LifeCategoryClassifier] to guess one before
+     * persisting (see [saveTask]).
+     */
+    var lifeCategory by mutableStateOf<LifeCategory?>(null)
+        private set
 
-        /** True if the user has explicitly picked a category via the Organize tab chips. */
-        var lifeCategoryManuallySet by mutableStateOf(false)
-            private set
+    /** True if the user has explicitly picked a category via the Organize tab chips. */
+    var lifeCategoryManuallySet by mutableStateOf(false)
+        private set
 
-        private val lifeCategoryClassifier = LifeCategoryClassifier()
+    private val lifeCategoryClassifier = LifeCategoryClassifier()
 
-        /**
-         * Boundary-rule decision for the task currently being edited. The save
-         * path checks this and bubbles a [BoundaryDecision.Block] up to the UI
-         * via [pendingBoundaryBlock]; [BoundaryDecision.Suggest] pre-fills the
-         * life category field.
-         */
-        var pendingBoundaryBlock by mutableStateOf<BoundaryDecision.Block?>(null)
-            private set
+    /**
+     * Boundary-rule decision for the task currently being edited. The save
+     * path checks this and bubbles a [BoundaryDecision.Block] up to the UI
+     * via [pendingBoundaryBlock]; [BoundaryDecision.Suggest] pre-fills the
+     * life category field.
+     */
+    var pendingBoundaryBlock by mutableStateOf<BoundaryDecision.Block?>(null)
+        private set
 
-        fun dismissBoundaryBlock() {
-            pendingBoundaryBlock = null
-        }
+    fun dismissBoundaryBlock() {
+        pendingBoundaryBlock = null
+    }
 
-        /**
-         * Evaluate boundary rules against the current draft. Returns `true` if
-         * the save should proceed, `false` if the UI should show the block dialog.
-         * A SUGGEST decision silently pre-fills [lifeCategory] unless the user
-         * already set one manually.
-         */
-        private suspend fun evaluateBoundaryRules(): Boolean {
-            val draftCategory = lifeCategory
-                ?: lifeCategoryClassifier
-                    .classify(title, description.ifBlank { null })
-                    .takeIf { it != LifeCategory.UNCATEGORIZED }
-                ?: return true
-            val rules = boundaryRuleRepository.getRulesOnce()
-            if (rules.isEmpty()) return true
-            return when (val decision = boundaryEnforcer.evaluate(rules, draftCategory)) {
-                is BoundaryDecision.Allow -> true
-                is BoundaryDecision.Block -> {
-                    pendingBoundaryBlock = decision
-                    false
-                }
-                is BoundaryDecision.Suggest -> {
-                    if (!lifeCategoryManuallySet) {
-                        lifeCategory = decision.category
-                    }
-                    true
-                }
-            }
-        }
-
-        /**
-         * Unpersisted subtasks for the task currently being composed. Populated
-         * either by the user typing into the Details tab's subtask field or by
-         * applying a template (which dumps its blueprint subtask titles here).
-         * Flushed into real [TaskEntity] rows when [saveTask] succeeds.
-         */
-        val pendingSubtasks: SnapshotStateList<PendingSubtask> = mutableStateListOf()
-        private var nextPendingSubtaskId: Long = 1L
-
-        // Snapshot of initial values for unsaved-changes detection.
-        private var hasInitialized: Boolean = false
-        private var initialTitle: String = ""
-        private var initialDescription: String = ""
-        private var initialDueDate: Long? = null
-        private var initialDueTime: Long? = null
-        private var initialPriority: Int = 0
-        private var initialProjectId: Long? = null
-        private var initialParentTaskId: Long? = null
-        private var initialRecurrenceRule: RecurrenceRule? = null
-        private var initialReminderOffset: Long? = null
-        private var initialEstimatedDuration: Int? = null
-        private var initialNotes: String = ""
-        private var initialSelectedTagIds: Set<Long> = emptySet()
-        private var initialLifeCategory: LifeCategory? = null
-
-        val projects: StateFlow<List<ProjectEntity>> = projectRepository
-            .getAllProjects()
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-
-        val allTags: StateFlow<List<TagEntity>> = tagRepository
-            .getAllTags()
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-
-        @OptIn(ExperimentalCoroutinesApi::class)
-        val attachments: StateFlow<List<AttachmentEntity>> = _taskIdFlow
-            .flatMapLatest { id ->
-                if (id != null) {
-                    attachmentRepository.getAttachments(id)
-                } else {
-                    flowOf(emptyList())
-                }
-            }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-
-        // Count of persisted subtasks for the task being edited. Drives the
-        // "Include Subtasks (N)" checkbox on the duplicate dialog.
-        @OptIn(ExperimentalCoroutinesApi::class)
-        val subtaskCount: StateFlow<Int> = _taskIdFlow
-            .flatMapLatest { id ->
-                if (id != null) {
-                    taskRepository.getSubtasks(id).map { it.size }
-                } else {
-                    flowOf(0)
-                }
-            }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
-
-        init {
-            try {
-                com.google.firebase.crashlytics.FirebaseCrashlytics
-                    .getInstance()
-                    .setCustomKey("screen", "AddEditTaskScreen")
-            } catch (_: Exception) {
-            }
-            // Backward compat: when opened via the navigation route, SavedStateHandle
-            // contains the taskId nav arg. Sheet-based invocation leaves this null and
-            // calls initialize() explicitly from the host composable.
-            val routeTaskId = savedStateHandle.get<Long>("taskId")
-            if (routeTaskId != null) {
-                initialize(
-                    taskId = routeTaskId.takeIf { it != -1L },
-                    projectId = null,
-                    initialDate = null
-                )
-            }
-        }
-
-        /**
-         * Prepare the form for a new invocation. Resets all fields, then either
-         * loads an existing task (edit mode) or applies the given defaults (create mode).
-         * Safe to call multiple times — each call re-seeds the form and cancels any
-         * in-flight load from a previous call.
-         */
-        fun initialize(taskId: Long?, projectId: Long?, initialDate: Long?) {
-            loadJob?.cancel()
-
-            // Reset all fields to defaults / supplied create-mode seeds.
-            currentTaskId = taskId
-            _taskIdFlow.value = taskId
-            existingTask = null
-            title = ""
-            description = ""
-            dueDate = initialDate
-            dueTime = null
-            priority = 0
-            this.projectId = projectId
-            parentTaskId = null
-            recurrenceRule = null
-            reminderOffset = null
-            estimatedDuration = null
-            notes = ""
-            selectedTagIds = emptySet()
-            lifeCategory = null
-            lifeCategoryManuallySet = false
-            titleError = false
-            pendingSubtasks.clear()
-            nextPendingSubtaskId = 1L
-
-            if (taskId != null) {
-                // Snapshot with defaults until the real task loads — the load
-                // will replace the snapshot with the true initial values.
-                hasInitialized = false
-                loadJob = viewModelScope.launch {
-                    try {
-                        val task = taskRepository.getTaskById(taskId).firstOrNull()
-                        val tagIds = tagRepository
-                            .getTagsForTask(taskId)
-                            .firstOrNull()
-                            ?.map { it.id }
-                            ?.toSet()
-                            ?: emptySet()
-                        if (task != null) {
-                            existingTask = task
-                            title = task.title
-                            description = task.description.orEmpty()
-                            dueDate = task.dueDate
-                            dueTime = task.dueTime
-                            priority = task.priority
-                            this@AddEditTaskViewModel.projectId = task.projectId
-                            parentTaskId = task.parentTaskId
-                            recurrenceRule = task.recurrenceRule?.let { RecurrenceConverter.fromJson(it) }
-                            reminderOffset = task.reminderOffset
-                            estimatedDuration = task.estimatedDuration
-                            notes = task.notes.orEmpty()
-                            selectedTagIds = tagIds
-                            val loadedCategory = LifeCategory.fromStorage(task.lifeCategory)
-                            lifeCategory = loadedCategory.takeIf { it != LifeCategory.UNCATEGORIZED }
-                            lifeCategoryManuallySet = lifeCategory != null
-                            snapshotInitialValuesFromTask(task, tagIds)
-                        } else {
-                            snapshotInitialValuesForCreate(projectId, initialDate)
-                        }
-                    } catch (e: Exception) {
-                        Log.e("AddEditTaskVM", "Failed to load task", e)
-                        snapshotInitialValuesForCreate(projectId, initialDate)
-                    } finally {
-                        hasInitialized = true
-                    }
-                }
-            } else {
-                snapshotInitialValuesForCreate(projectId, initialDate)
-                hasInitialized = true
-            }
-        }
-
-        private fun snapshotInitialValuesFromTask(task: TaskEntity, tagIds: Set<Long>) {
-            initialTitle = task.title
-            initialDescription = task.description.orEmpty()
-            initialDueDate = task.dueDate
-            initialDueTime = task.dueTime
-            initialPriority = task.priority
-            initialProjectId = task.projectId
-            initialParentTaskId = task.parentTaskId
-            initialRecurrenceRule = task.recurrenceRule?.let { RecurrenceConverter.fromJson(it) }
-            initialReminderOffset = task.reminderOffset
-            initialEstimatedDuration = task.estimatedDuration
-            initialNotes = task.notes.orEmpty()
-            initialSelectedTagIds = tagIds
-            initialLifeCategory = LifeCategory.fromStorage(task.lifeCategory).takeIf {
-                it != LifeCategory.UNCATEGORIZED
-            }
-        }
-
-        private fun snapshotInitialValuesForCreate(projectId: Long?, initialDate: Long?) {
-            initialTitle = ""
-            initialDescription = ""
-            initialDueDate = initialDate
-            initialDueTime = null
-            initialPriority = 0
-            initialProjectId = projectId
-            initialParentTaskId = null
-            initialRecurrenceRule = null
-            initialReminderOffset = null
-            initialEstimatedDuration = null
-            initialNotes = ""
-            initialSelectedTagIds = emptySet()
-            initialLifeCategory = null
-        }
-
-        val hasUnsavedChanges: Boolean
-            get() = hasInitialized &&
-                (
-                    title != initialTitle ||
-                        description != initialDescription ||
-                        dueDate != initialDueDate ||
-                        dueTime != initialDueTime ||
-                        priority != initialPriority ||
-                        projectId != initialProjectId ||
-                        parentTaskId != initialParentTaskId ||
-                        recurrenceRule != initialRecurrenceRule ||
-                        reminderOffset != initialReminderOffset ||
-                        estimatedDuration != initialEstimatedDuration ||
-                        notes != initialNotes ||
-                        selectedTagIds != initialSelectedTagIds ||
-                        lifeCategory != initialLifeCategory
-                )
-
-        fun onTitleChange(value: String) {
-            title = value
-            if (value.isNotBlank()) titleError = false
-        }
-
-        fun onDescriptionChange(value: String) {
-            description = value
-        }
-
-        fun onDueDateChange(value: Long?) {
-            dueDate = value
-        }
-
-        fun onDueTimeChange(value: Long?) {
-            dueTime = value
-        }
-
-        fun onPriorityChange(value: Int) {
-            priority = value
-        }
-
-        fun onProjectIdChange(value: Long?) {
-            projectId = value
-        }
-
-        fun onRecurrenceRuleChange(value: RecurrenceRule?) {
-            recurrenceRule = value
-        }
-
-        fun onNotesChange(value: String) {
-            notes = value
-        }
-
-        fun onReminderOffsetChange(value: Long?) {
-            reminderOffset = value
-        }
-
-        fun onEstimatedDurationChange(value: Int?) {
-            estimatedDuration = value
-        }
-
-        fun onSelectedTagIdsChange(value: Set<Long>) {
-            selectedTagIds = value
-        }
-
-        fun onParentTaskIdChange(value: Long?) {
-            parentTaskId = value
-        }
-
-        /**
-         * Set the [LifeCategory] chip. Passing `null` switches back to "Auto"
-         * mode — the classifier will run at save time to guess one.
-         */
-        fun onLifeCategoryChange(value: LifeCategory?) {
-            lifeCategory = value
-            lifeCategoryManuallySet = value != null
-        }
-
-        /**
-         * Resolve the final life_category value to persist:
-         *  - If the user picked one, use it.
-         *  - Otherwise run the keyword classifier on title + description.
-         *  - UNCATEGORIZED maps to `null` so old exports stay round-trippable.
-         */
-        internal fun resolveLifeCategoryForSave(autoClassifyEnabled: Boolean = true): String? {
-            if (lifeCategoryManuallySet && lifeCategory != null) {
-                return lifeCategory?.name
-            }
-            if (!autoClassifyEnabled) return null
-            val guess = lifeCategoryClassifier.classify(title, description.ifBlank { null })
-            return if (guess == LifeCategory.UNCATEGORIZED) null else guess.name
-        }
-
-        /**
-         * Appends a new pending subtask with the supplied [title] and returns
-         * the generated id. Subtasks are kept in VM state until [saveTask]
-         * flushes them to the database.
-         */
-        fun addPendingSubtask(title: String): Long {
-            val trimmed = title.trim()
-            if (trimmed.isEmpty()) return -1L
-            val id = nextPendingSubtaskId++
-            pendingSubtasks.add(PendingSubtask(id = id, title = trimmed))
-            return id
-        }
-
-        /** Toggles the local completion flag on an in-progress subtask. */
-        fun togglePendingSubtask(id: Long) {
-            val idx = pendingSubtasks.indexOfFirst { it.id == id }
-            if (idx >= 0) {
-                val current = pendingSubtasks[idx]
-                pendingSubtasks[idx] = current.copy(isCompleted = !current.isCompleted)
-            }
-        }
-
-        /** Removes a pending subtask from the list by id. */
-        fun removePendingSubtask(id: Long) {
-            pendingSubtasks.removeAll { it.id == id }
-        }
-
-        /**
-         * Loads the template referenced by [templateId] and pre-fills the
-         * in-progress form with its blueprint fields. Fires only in create mode
-         * — the editor hides its template button in edit mode so callers don't
-         * accidentally stomp an existing task's data. Returns true on success.
-         */
-        suspend fun applyTemplate(templateId: Long): Boolean {
-            return try {
-                val template = templateRepository.getTemplateById(templateId)
-                    ?: run {
-                        _errorMessages.emit("Template not found")
-                        return false
-                    }
-                title = template.templateTitle ?: template.name
-                description = template.templateDescription.orEmpty()
-                priority = template.templatePriority ?: priority
-                projectId = template.templateProjectId ?: projectId
-                recurrenceRule = template.templateRecurrenceJson
-                    ?.let { RecurrenceConverter.fromJson(it) }
-                estimatedDuration = template.templateDuration
-                val templateTagIds = TaskTemplateRepository
-                    .parseTagIds(template.templateTagsJson)
-                    .toSet()
-                if (templateTagIds.isNotEmpty()) {
-                    selectedTagIds = templateTagIds
-                }
-                pendingSubtasks.clear()
-                TaskTemplateRepository
-                    .parseSubtaskTitles(template.templateSubtasksJson)
-                    .forEach { subtaskTitle -> addPendingSubtask(subtaskTitle) }
-                titleError = false
-                true
-            } catch (e: Exception) {
-                Log.e("AddEditTaskVM", "Failed to apply template", e)
-                _errorMessages.emit("Failed to apply template")
+    /**
+     * Evaluate boundary rules against the current draft. Returns `true` if
+     * the save should proceed, `false` if the UI should show the block dialog.
+     * A SUGGEST decision silently pre-fills [lifeCategory] unless the user
+     * already set one manually.
+     */
+    private suspend fun evaluateBoundaryRules(): Boolean {
+        val draftCategory = lifeCategory
+            ?: lifeCategoryClassifier
+                .classify(title, description.ifBlank { null })
+                .takeIf { it != LifeCategory.UNCATEGORIZED }
+            ?: return true
+        val rules = boundaryRuleRepository.getRulesOnce()
+        if (rules.isEmpty()) return true
+        return when (val decision = boundaryEnforcer.evaluate(rules, draftCategory)) {
+            is BoundaryDecision.Allow -> true
+            is BoundaryDecision.Block -> {
+                pendingBoundaryBlock = decision
                 false
             }
+            is BoundaryDecision.Suggest -> {
+                if (!lifeCategoryManuallySet) {
+                    lifeCategory = decision.category
+                }
+                true
+            }
         }
+    }
 
-        /**
-         * Captures the currently-being-edited task as a reusable template.
-         * Only meaningful in edit mode — there is no draft state to persist in
-         * create mode, so this returns null without doing anything there.
-         */
-        suspend fun saveAsTemplate(
-            name: String,
-            icon: String?,
-            category: String?
-        ): Long? {
-            val taskId = currentTaskId ?: return null
-            val trimmedName = name.trim()
-            if (trimmedName.isEmpty()) return null
-            return try {
-                templateRepository.createTemplateFromTask(
-                    taskId = taskId,
-                    name = trimmedName,
-                    icon = icon?.takeIf { it.isNotBlank() },
-                    category = category?.trim()?.takeIf { it.isNotBlank() }
+    /**
+     * Unpersisted subtasks for the task currently being composed. Populated
+     * either by the user typing into the Details tab's subtask field or by
+     * applying a template (which dumps its blueprint subtask titles here).
+     * Flushed into real [TaskEntity] rows when [saveTask] succeeds.
+     */
+    val pendingSubtasks: SnapshotStateList<PendingSubtask> = mutableStateListOf()
+    private var nextPendingSubtaskId: Long = 1L
+
+    // Snapshot of initial values for unsaved-changes detection.
+    private var hasInitialized: Boolean = false
+    private var initialTitle: String = ""
+    private var initialDescription: String = ""
+    private var initialDueDate: Long? = null
+    private var initialDueTime: Long? = null
+    private var initialPriority: Int = 0
+    private var initialProjectId: Long? = null
+    private var initialParentTaskId: Long? = null
+    private var initialRecurrenceRule: RecurrenceRule? = null
+    private var initialReminderOffset: Long? = null
+    private var initialEstimatedDuration: Int? = null
+    private var initialNotes: String = ""
+    private var initialSelectedTagIds: Set<Long> = emptySet()
+    private var initialLifeCategory: LifeCategory? = null
+
+    val projects: StateFlow<List<ProjectEntity>> = projectRepository
+        .getAllProjects()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val allTags: StateFlow<List<TagEntity>> = tagRepository
+        .getAllTags()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val attachments: StateFlow<List<AttachmentEntity>> = _taskIdFlow
+        .flatMapLatest { id ->
+            if (id != null) {
+                attachmentRepository.getAttachments(id)
+            } else {
+                flowOf(emptyList())
+            }
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    // Count of persisted subtasks for the task being edited. Drives the
+    // "Include Subtasks (N)" checkbox on the duplicate dialog.
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val subtaskCount: StateFlow<Int> = _taskIdFlow
+        .flatMapLatest { id ->
+            if (id != null) {
+                taskRepository.getSubtasks(id).map { it.size }
+            } else {
+                flowOf(0)
+            }
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+    init {
+        try {
+            com.google.firebase.crashlytics.FirebaseCrashlytics
+                .getInstance()
+                .setCustomKey("screen", "AddEditTaskScreen")
+        } catch (_: Exception) {
+        }
+        // Backward compat: when opened via the navigation route, SavedStateHandle
+        // contains the taskId nav arg. Sheet-based invocation leaves this null and
+        // calls initialize() explicitly from the host composable.
+        val routeTaskId = savedStateHandle.get<Long>("taskId")
+        if (routeTaskId != null) {
+            initialize(
+                taskId = routeTaskId.takeIf { it != -1L },
+                projectId = null,
+                initialDate = null
+            )
+        }
+    }
+
+    /**
+     * Prepare the form for a new invocation. Resets all fields, then either
+     * loads an existing task (edit mode) or applies the given defaults (create mode).
+     * Safe to call multiple times — each call re-seeds the form and cancels any
+     * in-flight load from a previous call.
+     */
+    fun initialize(taskId: Long?, projectId: Long?, initialDate: Long?) {
+        loadJob?.cancel()
+
+        // Reset all fields to defaults / supplied create-mode seeds.
+        currentTaskId = taskId
+        _taskIdFlow.value = taskId
+        existingTask = null
+        title = ""
+        description = ""
+        dueDate = initialDate
+        dueTime = null
+        priority = 0
+        this.projectId = projectId
+        parentTaskId = null
+        recurrenceRule = null
+        reminderOffset = null
+        estimatedDuration = null
+        notes = ""
+        selectedTagIds = emptySet()
+        lifeCategory = null
+        lifeCategoryManuallySet = false
+        titleError = false
+        pendingSubtasks.clear()
+        nextPendingSubtaskId = 1L
+
+        if (taskId != null) {
+            // Snapshot with defaults until the real task loads — the load
+            // will replace the snapshot with the true initial values.
+            hasInitialized = false
+            loadJob = viewModelScope.launch {
+                try {
+                    val task = taskRepository.getTaskById(taskId).firstOrNull()
+                    val tagIds = tagRepository
+                        .getTagsForTask(taskId)
+                        .firstOrNull()
+                        ?.map { it.id }
+                        ?.toSet()
+                        ?: emptySet()
+                    if (task != null) {
+                        existingTask = task
+                        title = task.title
+                        description = task.description.orEmpty()
+                        dueDate = task.dueDate
+                        dueTime = task.dueTime
+                        priority = task.priority
+                        this@AddEditTaskViewModel.projectId = task.projectId
+                        parentTaskId = task.parentTaskId
+                        recurrenceRule = task.recurrenceRule?.let { RecurrenceConverter.fromJson(it) }
+                        reminderOffset = task.reminderOffset
+                        estimatedDuration = task.estimatedDuration
+                        notes = task.notes.orEmpty()
+                        selectedTagIds = tagIds
+                        val loadedCategory = LifeCategory.fromStorage(task.lifeCategory)
+                        lifeCategory = loadedCategory.takeIf { it != LifeCategory.UNCATEGORIZED }
+                        lifeCategoryManuallySet = lifeCategory != null
+                        snapshotInitialValuesFromTask(task, tagIds)
+                    } else {
+                        snapshotInitialValuesForCreate(projectId, initialDate)
+                    }
+                } catch (e: Exception) {
+                    Log.e("AddEditTaskVM", "Failed to load task", e)
+                    snapshotInitialValuesForCreate(projectId, initialDate)
+                } finally {
+                    hasInitialized = true
+                }
+            }
+        } else {
+            snapshotInitialValuesForCreate(projectId, initialDate)
+            hasInitialized = true
+        }
+    }
+
+    private fun snapshotInitialValuesFromTask(task: TaskEntity, tagIds: Set<Long>) {
+        initialTitle = task.title
+        initialDescription = task.description.orEmpty()
+        initialDueDate = task.dueDate
+        initialDueTime = task.dueTime
+        initialPriority = task.priority
+        initialProjectId = task.projectId
+        initialParentTaskId = task.parentTaskId
+        initialRecurrenceRule = task.recurrenceRule?.let { RecurrenceConverter.fromJson(it) }
+        initialReminderOffset = task.reminderOffset
+        initialEstimatedDuration = task.estimatedDuration
+        initialNotes = task.notes.orEmpty()
+        initialSelectedTagIds = tagIds
+        initialLifeCategory = LifeCategory.fromStorage(task.lifeCategory).takeIf {
+            it != LifeCategory.UNCATEGORIZED
+        }
+    }
+
+    private fun snapshotInitialValuesForCreate(projectId: Long?, initialDate: Long?) {
+        initialTitle = ""
+        initialDescription = ""
+        initialDueDate = initialDate
+        initialDueTime = null
+        initialPriority = 0
+        initialProjectId = projectId
+        initialParentTaskId = null
+        initialRecurrenceRule = null
+        initialReminderOffset = null
+        initialEstimatedDuration = null
+        initialNotes = ""
+        initialSelectedTagIds = emptySet()
+        initialLifeCategory = null
+    }
+
+    val hasUnsavedChanges: Boolean
+        get() = hasInitialized &&
+            (
+                title != initialTitle ||
+                    description != initialDescription ||
+                    dueDate != initialDueDate ||
+                    dueTime != initialDueTime ||
+                    priority != initialPriority ||
+                    projectId != initialProjectId ||
+                    parentTaskId != initialParentTaskId ||
+                    recurrenceRule != initialRecurrenceRule ||
+                    reminderOffset != initialReminderOffset ||
+                    estimatedDuration != initialEstimatedDuration ||
+                    notes != initialNotes ||
+                    selectedTagIds != initialSelectedTagIds ||
+                    lifeCategory != initialLifeCategory
                 )
+
+    fun onTitleChange(value: String) {
+        title = value
+        if (value.isNotBlank()) titleError = false
+    }
+
+    fun onDescriptionChange(value: String) {
+        description = value
+    }
+
+    fun onDueDateChange(value: Long?) {
+        dueDate = value
+    }
+
+    fun onDueTimeChange(value: Long?) {
+        dueTime = value
+    }
+
+    fun onPriorityChange(value: Int) {
+        priority = value
+    }
+
+    fun onProjectIdChange(value: Long?) {
+        projectId = value
+    }
+
+    fun onRecurrenceRuleChange(value: RecurrenceRule?) {
+        recurrenceRule = value
+    }
+
+    fun onNotesChange(value: String) {
+        notes = value
+    }
+
+    fun onReminderOffsetChange(value: Long?) {
+        reminderOffset = value
+    }
+
+    fun onEstimatedDurationChange(value: Int?) {
+        estimatedDuration = value
+    }
+
+    fun onSelectedTagIdsChange(value: Set<Long>) {
+        selectedTagIds = value
+    }
+
+    fun onParentTaskIdChange(value: Long?) {
+        parentTaskId = value
+    }
+
+    /**
+     * Set the [LifeCategory] chip. Passing `null` switches back to "Auto"
+     * mode — the classifier will run at save time to guess one.
+     */
+    fun onLifeCategoryChange(value: LifeCategory?) {
+        lifeCategory = value
+        lifeCategoryManuallySet = value != null
+    }
+
+    /**
+     * Resolve the final life_category value to persist:
+     *  - If the user picked one, use it.
+     *  - Otherwise run the keyword classifier on title + description.
+     *  - UNCATEGORIZED maps to `null` so old exports stay round-trippable.
+     */
+    internal fun resolveLifeCategoryForSave(autoClassifyEnabled: Boolean = true): String? {
+        if (lifeCategoryManuallySet && lifeCategory != null) {
+            return lifeCategory?.name
+        }
+        if (!autoClassifyEnabled) return null
+        val guess = lifeCategoryClassifier.classify(title, description.ifBlank { null })
+        return if (guess == LifeCategory.UNCATEGORIZED) null else guess.name
+    }
+
+    /**
+     * Appends a new pending subtask with the supplied [title] and returns
+     * the generated id. Subtasks are kept in VM state until [saveTask]
+     * flushes them to the database.
+     */
+    fun addPendingSubtask(title: String): Long {
+        val trimmed = title.trim()
+        if (trimmed.isEmpty()) return -1L
+        val id = nextPendingSubtaskId++
+        pendingSubtasks.add(PendingSubtask(id = id, title = trimmed))
+        return id
+    }
+
+    /** Toggles the local completion flag on an in-progress subtask. */
+    fun togglePendingSubtask(id: Long) {
+        val idx = pendingSubtasks.indexOfFirst { it.id == id }
+        if (idx >= 0) {
+            val current = pendingSubtasks[idx]
+            pendingSubtasks[idx] = current.copy(isCompleted = !current.isCompleted)
+        }
+    }
+
+    /** Removes a pending subtask from the list by id. */
+    fun removePendingSubtask(id: Long) {
+        pendingSubtasks.removeAll { it.id == id }
+    }
+
+    /**
+     * Loads the template referenced by [templateId] and pre-fills the
+     * in-progress form with its blueprint fields. Fires only in create mode
+     * — the editor hides its template button in edit mode so callers don't
+     * accidentally stomp an existing task's data. Returns true on success.
+     */
+    suspend fun applyTemplate(templateId: Long): Boolean {
+        return try {
+            val template = templateRepository.getTemplateById(templateId)
+                ?: run {
+                    _errorMessages.emit("Template not found")
+                    return false
+                }
+            title = template.templateTitle ?: template.name
+            description = template.templateDescription.orEmpty()
+            priority = template.templatePriority ?: priority
+            projectId = template.templateProjectId ?: projectId
+            recurrenceRule = template.templateRecurrenceJson
+                ?.let { RecurrenceConverter.fromJson(it) }
+            estimatedDuration = template.templateDuration
+            val templateTagIds = TaskTemplateRepository
+                .parseTagIds(template.templateTagsJson)
+                .toSet()
+            if (templateTagIds.isNotEmpty()) {
+                selectedTagIds = templateTagIds
+            }
+            pendingSubtasks.clear()
+            TaskTemplateRepository
+                .parseSubtaskTitles(template.templateSubtasksJson)
+                .forEach { subtaskTitle -> addPendingSubtask(subtaskTitle) }
+            titleError = false
+            true
+        } catch (e: Exception) {
+            Log.e("AddEditTaskVM", "Failed to apply template", e)
+            _errorMessages.emit("Failed to apply template")
+            false
+        }
+    }
+
+    /**
+     * Captures the currently-being-edited task as a reusable template.
+     * Only meaningful in edit mode — there is no draft state to persist in
+     * create mode, so this returns null without doing anything there.
+     */
+    suspend fun saveAsTemplate(
+        name: String,
+        icon: String?,
+        category: String?
+    ): Long? {
+        val taskId = currentTaskId ?: return null
+        val trimmedName = name.trim()
+        if (trimmedName.isEmpty()) return null
+        return try {
+            templateRepository.createTemplateFromTask(
+                taskId = taskId,
+                name = trimmedName,
+                icon = icon?.takeIf { it.isNotBlank() },
+                category = category?.trim()?.takeIf { it.isNotBlank() }
+            )
+        } catch (e: Exception) {
+            Log.e("AddEditTaskVM", "Failed to save task as template", e)
+            _errorMessages.emit("Failed to save template")
+            null
+        }
+    }
+
+    /**
+     * Inline project creation from the Organize tab. Creates the project via the
+     * repository and then selects it on the in-progress form. Uses the default
+     * project icon so the caller only has to supply name + color.
+     */
+    fun createAndSelectProject(name: String, color: String) {
+        val trimmed = name.trim()
+        if (trimmed.isEmpty()) return
+        viewModelScope.launch {
+            try {
+                val newId = projectRepository.addProject(name = trimmed, color = color)
+                projectId = newId
             } catch (e: Exception) {
-                Log.e("AddEditTaskVM", "Failed to save task as template", e)
-                _errorMessages.emit("Failed to save template")
-                null
+                Log.e("AddEditTaskVM", "Failed to create project", e)
+                _errorMessages.emit("Failed to create project")
             }
         }
+    }
 
-        /**
-         * Inline project creation from the Organize tab. Creates the project via the
-         * repository and then selects it on the in-progress form. Uses the default
-         * project icon so the caller only has to supply name + color.
-         */
-        fun createAndSelectProject(name: String, color: String) {
-            val trimmed = name.trim()
-            if (trimmed.isEmpty()) return
-            viewModelScope.launch {
-                try {
-                    val newId = projectRepository.addProject(name = trimmed, color = color)
-                    projectId = newId
-                } catch (e: Exception) {
-                    Log.e("AddEditTaskVM", "Failed to create project", e)
-                    _errorMessages.emit("Failed to create project")
-                }
+    /**
+     * Inline tag creation from the Organize tab. Creates the tag via the
+     * repository and then adds it to the currently selected tag set so the
+     * new tag is immediately assigned to the task.
+     */
+    fun createAndAssignTag(name: String, color: String) {
+        val trimmed = name.trim()
+        if (trimmed.isEmpty()) return
+        viewModelScope.launch {
+            try {
+                val newId = tagRepository.addTag(name = trimmed, color = color)
+                selectedTagIds = selectedTagIds + newId
+            } catch (e: Exception) {
+                Log.e("AddEditTaskVM", "Failed to create tag", e)
+                _errorMessages.emit("Failed to create tag")
             }
         }
+    }
 
-        /**
-         * Inline tag creation from the Organize tab. Creates the tag via the
-         * repository and then adds it to the currently selected tag set so the
-         * new tag is immediately assigned to the task.
-         */
-        fun createAndAssignTag(name: String, color: String) {
-            val trimmed = name.trim()
-            if (trimmed.isEmpty()) return
-            viewModelScope.launch {
-                try {
-                    val newId = tagRepository.addTag(name = trimmed, color = color)
-                    selectedTagIds = selectedTagIds + newId
-                } catch (e: Exception) {
-                    Log.e("AddEditTaskVM", "Failed to create tag", e)
-                    _errorMessages.emit("Failed to create tag")
-                }
+    fun onAddImageAttachment(context: Context, uri: Uri) {
+        val id = currentTaskId ?: return
+        viewModelScope.launch {
+            try {
+                attachmentRepository.addImageAttachment(context, id, uri)
+            } catch (e: Exception) {
+                Log.e("AddEditTaskVM", "Failed to add image attachment", e)
+                _errorMessages.emit("Failed to add attachment")
             }
         }
+    }
 
-        fun onAddImageAttachment(context: Context, uri: Uri) {
-            val id = currentTaskId ?: return
-            viewModelScope.launch {
-                try {
-                    attachmentRepository.addImageAttachment(context, id, uri)
-                } catch (e: Exception) {
-                    Log.e("AddEditTaskVM", "Failed to add image attachment", e)
-                    _errorMessages.emit("Failed to add attachment")
-                }
+    fun onAddLinkAttachment(url: String) {
+        val id = currentTaskId ?: return
+        viewModelScope.launch {
+            try {
+                attachmentRepository.addLinkAttachment(id, url)
+            } catch (e: Exception) {
+                Log.e("AddEditTaskVM", "Failed to add link attachment", e)
+                _errorMessages.emit("Failed to add attachment")
             }
         }
+    }
 
-        fun onAddLinkAttachment(url: String) {
-            val id = currentTaskId ?: return
-            viewModelScope.launch {
-                try {
-                    attachmentRepository.addLinkAttachment(id, url)
-                } catch (e: Exception) {
-                    Log.e("AddEditTaskVM", "Failed to add link attachment", e)
-                    _errorMessages.emit("Failed to add attachment")
-                }
+    fun onDeleteAttachment(context: Context, attachment: AttachmentEntity) {
+        viewModelScope.launch {
+            try {
+                attachmentRepository.deleteAttachment(context, attachment)
+            } catch (e: Exception) {
+                Log.e("AddEditTaskVM", "Failed to delete attachment", e)
+                _errorMessages.emit("Failed to delete attachment")
             }
         }
+    }
 
-        fun onDeleteAttachment(context: Context, attachment: AttachmentEntity) {
-            viewModelScope.launch {
-                try {
-                    attachmentRepository.deleteAttachment(context, attachment)
-                } catch (e: Exception) {
-                    Log.e("AddEditTaskVM", "Failed to delete attachment", e)
-                    _errorMessages.emit("Failed to delete attachment")
-                }
-            }
+    /**
+     * Save the current draft. Callers that want to bypass boundary rules
+     * (e.g. the user tapped "Create Anyway" in the block dialog) can pass
+     * [ignoreBoundaries] = true.
+     */
+    suspend fun saveTask(ignoreBoundaries: Boolean = false): Boolean {
+        if (title.isBlank()) {
+            titleError = true
+            return false
         }
 
-        /**
-         * Save the current draft. Callers that want to bypass boundary rules
-         * (e.g. the user tapped "Create Anyway" in the block dialog) can pass
-         * [ignoreBoundaries] = true.
-         */
-        suspend fun saveTask(ignoreBoundaries: Boolean = false): Boolean {
-            if (title.isBlank()) {
-                titleError = true
-                return false
-            }
+        if (!ignoreBoundaries && !evaluateBoundaryRules()) {
+            return false
+        }
 
-            if (!ignoreBoundaries && !evaluateBoundaryRules()) {
-                return false
-            }
-
-            return try {
-                val trimmedTitle = title.trim()
-                val trimmedDesc = description.trim().ifEmpty { null }
-                val trimmedNotes = notes.trim().ifEmpty { null }
-                val recurrenceJson = recurrenceRule?.let { RecurrenceConverter.toJson(it) }
-                val resolvedLifeCategory = resolveLifeCategoryForSave()
-                val existing = existingTask
-                val savedId: Long
-                if (existing != null) {
-                    taskRepository.updateTask(
-                        existing.copy(
-                            title = trimmedTitle,
-                            description = trimmedDesc,
-                            dueDate = dueDate,
-                            dueTime = dueTime,
-                            priority = priority,
-                            projectId = projectId,
-                            parentTaskId = parentTaskId,
-                            reminderOffset = reminderOffset,
-                            recurrenceRule = recurrenceJson,
-                            estimatedDuration = estimatedDuration,
-                            notes = trimmedNotes,
-                            lifeCategory = resolvedLifeCategory
-                        )
-                    )
-                    savedId = existing.id
-                } else {
-                    savedId = taskRepository.addTask(
+        return try {
+            val trimmedTitle = title.trim()
+            val trimmedDesc = description.trim().ifEmpty { null }
+            val trimmedNotes = notes.trim().ifEmpty { null }
+            val recurrenceJson = recurrenceRule?.let { RecurrenceConverter.toJson(it) }
+            val resolvedLifeCategory = resolveLifeCategoryForSave()
+            val existing = existingTask
+            val savedId: Long
+            if (existing != null) {
+                taskRepository.updateTask(
+                    existing.copy(
                         title = trimmedTitle,
                         description = trimmedDesc,
                         dueDate = dueDate,
@@ -663,97 +646,114 @@ class AddEditTaskViewModel
                         priority = priority,
                         projectId = projectId,
                         parentTaskId = parentTaskId,
+                        reminderOffset = reminderOffset,
+                        recurrenceRule = recurrenceJson,
+                        estimatedDuration = estimatedDuration,
+                        notes = trimmedNotes,
                         lifeCategory = resolvedLifeCategory
                     )
-                    // Update reminder offset, recurrence, and estimated duration on the newly created task
-                    if (reminderOffset != null || recurrenceJson != null || estimatedDuration != null) {
-                        taskRepository.getTaskById(savedId).firstOrNull()?.let { created ->
-                            taskRepository.updateTask(
-                                created.copy(
-                                    reminderOffset = reminderOffset ?: created.reminderOffset,
-                                    recurrenceRule = recurrenceJson ?: created.recurrenceRule,
-                                    estimatedDuration = estimatedDuration ?: created.estimatedDuration
-                                )
+                )
+                savedId = existing.id
+            } else {
+                savedId = taskRepository.addTask(
+                    title = trimmedTitle,
+                    description = trimmedDesc,
+                    dueDate = dueDate,
+                    dueTime = dueTime,
+                    priority = priority,
+                    projectId = projectId,
+                    parentTaskId = parentTaskId,
+                    lifeCategory = resolvedLifeCategory
+                )
+                // Update reminder offset, recurrence, and estimated duration on the newly created task
+                if (reminderOffset != null || recurrenceJson != null || estimatedDuration != null) {
+                    taskRepository.getTaskById(savedId).firstOrNull()?.let { created ->
+                        taskRepository.updateTask(
+                            created.copy(
+                                reminderOffset = reminderOffset ?: created.reminderOffset,
+                                recurrenceRule = recurrenceJson ?: created.recurrenceRule,
+                                estimatedDuration = estimatedDuration ?: created.estimatedDuration
                             )
-                        }
-                    }
-                }
-
-                // Save tags
-                tagRepository.setTagsForTask(savedId, selectedTagIds.toList())
-
-                // Flush any pending subtasks (e.g. from a template) into real rows.
-                if (pendingSubtasks.isNotEmpty()) {
-                    val now = System.currentTimeMillis()
-                    pendingSubtasks.forEachIndexed { index, sub ->
-                        val subtask = TaskEntity(
-                            title = sub.title,
-                            parentTaskId = savedId,
-                            isCompleted = sub.isCompleted,
-                            completedAt = if (sub.isCompleted) now else null,
-                            sortOrder = index,
-                            createdAt = now,
-                            updatedAt = now
                         )
-                        taskRepository.insertTask(subtask)
                     }
-                    pendingSubtasks.clear()
                 }
+            }
 
-                // Schedule or cancel reminder
-                val effectiveDueDate = dueDate
-                val effectiveOffset = reminderOffset
-                if (effectiveDueDate != null && effectiveOffset != null) {
-                    reminderScheduler.scheduleReminder(savedId, trimmedTitle, trimmedDesc, effectiveDueDate, effectiveOffset)
-                } else {
-                    reminderScheduler.cancelReminder(savedId)
+            // Save tags
+            tagRepository.setTagsForTask(savedId, selectedTagIds.toList())
+
+            // Flush any pending subtasks (e.g. from a template) into real rows.
+            if (pendingSubtasks.isNotEmpty()) {
+                val now = System.currentTimeMillis()
+                pendingSubtasks.forEachIndexed { index, sub ->
+                    val subtask = TaskEntity(
+                        title = sub.title,
+                        parentTaskId = savedId,
+                        isCompleted = sub.isCompleted,
+                        completedAt = if (sub.isCompleted) now else null,
+                        sortOrder = index,
+                        createdAt = now,
+                        updatedAt = now
+                    )
+                    taskRepository.insertTask(subtask)
                 }
-
-                true
-            } catch (e: Exception) {
-                Log.e("AddEditTaskVM", "Failed to save task", e)
-                _errorMessages.emit("Something went wrong")
-                false
+                pendingSubtasks.clear()
             }
-        }
 
-        suspend fun deleteTask() {
-            try {
-                currentTaskId?.let { taskRepository.deleteTask(it) }
-            } catch (e: Exception) {
-                Log.e("AddEditTaskVM", "Failed to delete task", e)
-                _errorMessages.emit("Something went wrong")
+            // Schedule or cancel reminder
+            val effectiveDueDate = dueDate
+            val effectiveOffset = reminderOffset
+            if (effectiveDueDate != null && effectiveOffset != null) {
+                reminderScheduler.scheduleReminder(savedId, trimmedTitle, trimmedDesc, effectiveDueDate, effectiveOffset)
+            } else {
+                reminderScheduler.cancelReminder(savedId)
             }
-        }
 
-        /**
-         * Duplicates the task currently open in the editor. On success, re-seeds
-         * the form with the new copy so the sheet immediately shows the
-         * duplicated task without the host having to dismiss-and-reopen. Returns
-         * the id of the new task, or null if duplication failed (e.g. we were in
-         * create mode or the original had already been deleted).
-         */
-        suspend fun duplicateCurrentTask(
-            includeSubtasks: Boolean,
-            copyDueDate: Boolean = false
-        ): Long? {
-            val id = currentTaskId ?: return null
-            return try {
-                val newId = taskRepository.duplicateTask(id, includeSubtasks, copyDueDate)
-                if (newId <= 0L) {
-                    _errorMessages.emit("Something went wrong")
-                    null
-                } else {
-                    // Reseed the form from the new copy. projectId / initialDate
-                    // are not needed since initialize() will load them from the
-                    // new task's persisted state.
-                    initialize(taskId = newId, projectId = null, initialDate = null)
-                    newId
-                }
-            } catch (e: Exception) {
-                Log.e("AddEditTaskVM", "Failed to duplicate task", e)
-                _errorMessages.emit("Something went wrong")
-                null
-            }
+            true
+        } catch (e: Exception) {
+            Log.e("AddEditTaskVM", "Failed to save task", e)
+            _errorMessages.emit("Something went wrong")
+            false
         }
     }
+
+    suspend fun deleteTask() {
+        try {
+            currentTaskId?.let { taskRepository.deleteTask(it) }
+        } catch (e: Exception) {
+            Log.e("AddEditTaskVM", "Failed to delete task", e)
+            _errorMessages.emit("Something went wrong")
+        }
+    }
+
+    /**
+     * Duplicates the task currently open in the editor. On success, re-seeds
+     * the form with the new copy so the sheet immediately shows the
+     * duplicated task without the host having to dismiss-and-reopen. Returns
+     * the id of the new task, or null if duplication failed (e.g. we were in
+     * create mode or the original had already been deleted).
+     */
+    suspend fun duplicateCurrentTask(
+        includeSubtasks: Boolean,
+        copyDueDate: Boolean = false
+    ): Long? {
+        val id = currentTaskId ?: return null
+        return try {
+            val newId = taskRepository.duplicateTask(id, includeSubtasks, copyDueDate)
+            if (newId <= 0L) {
+                _errorMessages.emit("Something went wrong")
+                null
+            } else {
+                // Reseed the form from the new copy. projectId / initialDate
+                // are not needed since initialize() will load them from the
+                // new task's persisted state.
+                initialize(taskId = newId, projectId = null, initialDate = null)
+                newId
+            }
+        } catch (e: Exception) {
+            Log.e("AddEditTaskVM", "Failed to duplicate task", e)
+            _errorMessages.emit("Something went wrong")
+            null
+        }
+    }
+}

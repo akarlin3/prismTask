@@ -353,8 +353,8 @@ fun TodayScreen(
                                     balanceState.currentRatios[
                                         com.averycorp.prismtask.domain.model.LifeCategory.WORK
                                     ] ?: 0f
-                                ) * 100f
-                            ).toInt()
+                                    ) * 100f
+                                ).toInt()
                             OverloadBanner(
                                 workPct = workPctNow,
                                 targetPct = workLifeBalancePrefs.workTarget,

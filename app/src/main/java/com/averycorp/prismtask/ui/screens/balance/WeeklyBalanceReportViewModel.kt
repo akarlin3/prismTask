@@ -31,96 +31,96 @@ import javax.inject.Inject
  */
 @HiltViewModel
 class WeeklyBalanceReportViewModel
-    @Inject
-    constructor(
-        private val taskRepository: TaskRepository,
-        private val userPreferencesDataStore: UserPreferencesDataStore
-    ) : ViewModel() {
-        private val aggregator = WeeklyReviewAggregator()
-        private val balanceTracker = BalanceTracker()
-        private val burnoutScorer = BurnoutScorer()
+@Inject
+constructor(
+    private val taskRepository: TaskRepository,
+    private val userPreferencesDataStore: UserPreferencesDataStore
+) : ViewModel() {
+    private val aggregator = WeeklyReviewAggregator()
+    private val balanceTracker = BalanceTracker()
+    private val burnoutScorer = BurnoutScorer()
 
-        private val _state = MutableStateFlow(WeeklyBalanceReportState())
-        val state: StateFlow<WeeklyBalanceReportState> = _state.asStateFlow()
+    private val _state = MutableStateFlow(WeeklyBalanceReportState())
+    val state: StateFlow<WeeklyBalanceReportState> = _state.asStateFlow()
 
-        init {
-            loadWeek(System.currentTimeMillis())
-        }
+    init {
+        loadWeek(System.currentTimeMillis())
+    }
 
-        fun loadWeek(reference: Long) {
-            viewModelScope.launch {
-                try {
-                    val prefs = userPreferencesDataStore.workLifeBalanceFlow.first()
-                    val tasks = taskRepository.getAllTasksOnce()
-                    val stats = aggregator.aggregate(tasks, reference)
-                    val config = BalanceConfig(
-                        workTarget = prefs.workTarget / 100f,
-                        personalTarget = prefs.personalTarget / 100f,
-                        selfCareTarget = prefs.selfCareTarget / 100f,
-                        healthTarget = prefs.healthTarget / 100f,
-                        overloadThreshold = prefs.overloadThresholdPct / 100f
-                    )
-                    val balance = balanceTracker.compute(tasks, config, now = reference)
-                    val workRatio = balance.currentRatios[LifeCategory.WORK] ?: 0f
-                    val burnout = burnoutScorer.computeFromTasks(
-                        tasks,
-                        workRatio,
-                        prefs.workTarget / 100f,
-                        now = reference
-                    )
+    fun loadWeek(reference: Long) {
+        viewModelScope.launch {
+            try {
+                val prefs = userPreferencesDataStore.workLifeBalanceFlow.first()
+                val tasks = taskRepository.getAllTasksOnce()
+                val stats = aggregator.aggregate(tasks, reference)
+                val config = BalanceConfig(
+                    workTarget = prefs.workTarget / 100f,
+                    personalTarget = prefs.personalTarget / 100f,
+                    selfCareTarget = prefs.selfCareTarget / 100f,
+                    healthTarget = prefs.healthTarget / 100f,
+                    overloadThreshold = prefs.overloadThresholdPct / 100f
+                )
+                val balance = balanceTracker.compute(tasks, config, now = reference)
+                val workRatio = balance.currentRatios[LifeCategory.WORK] ?: 0f
+                val burnout = burnoutScorer.computeFromTasks(
+                    tasks,
+                    workRatio,
+                    prefs.workTarget / 100f,
+                    now = reference
+                )
 
-                    // v1.4.0 V3 phase 3: 4-week rolling trend per tracked
-                    // category. We collect both the ratio (for normalized sparkline
-                    // rendering) and the absolute count (to show this-vs-last-week
-                    // deltas in the sparkline label). Lists are oldest → newest
-                    // so index 3 is the selected week.
-                    val weekMillis = SEVEN_DAYS_MILLIS
-                    val trendRatios = mutableMapOf<LifeCategory, MutableList<Float>>()
-                    val trendCounts = mutableMapOf<LifeCategory, MutableList<Int>>()
-                    LifeCategory.TRACKED.forEach {
-                        trendRatios[it] = mutableListOf()
-                        trendCounts[it] = mutableListOf()
-                    }
-                    for (i in 3 downTo 0) {
-                        val weekRef = reference - i.toLong() * weekMillis
-                        val weekStats = aggregator.aggregate(tasks, weekRef)
-                        val totalInWeek = weekStats.byCategory.values
-                            .sum()
-                            .coerceAtLeast(1)
-                        LifeCategory.TRACKED.forEach { cat ->
-                            val count = weekStats.byCategory[cat] ?: 0
-                            trendRatios.getValue(cat).add(count.toFloat() / totalInWeek.toFloat())
-                            trendCounts.getValue(cat).add(count)
-                        }
-                    }
-
-                    _state.value = WeeklyBalanceReportState(
-                        stats = stats,
-                        balance = balance,
-                        burnoutScore = burnout.score,
-                        burnoutBand = burnout.band,
-                        reference = reference,
-                        fourWeekTrend = trendRatios.mapValues { it.value.toList() },
-                        fourWeekCounts = trendCounts.mapValues { it.value.toList() }
-                    )
-                } catch (e: Exception) {
-                    android.util.Log.e("WeeklyBalanceVM", "Failed to load week", e)
+                // v1.4.0 V3 phase 3: 4-week rolling trend per tracked
+                // category. We collect both the ratio (for normalized sparkline
+                // rendering) and the absolute count (to show this-vs-last-week
+                // deltas in the sparkline label). Lists are oldest → newest
+                // so index 3 is the selected week.
+                val weekMillis = SEVEN_DAYS_MILLIS
+                val trendRatios = mutableMapOf<LifeCategory, MutableList<Float>>()
+                val trendCounts = mutableMapOf<LifeCategory, MutableList<Int>>()
+                LifeCategory.TRACKED.forEach {
+                    trendRatios[it] = mutableListOf()
+                    trendCounts[it] = mutableListOf()
                 }
+                for (i in 3 downTo 0) {
+                    val weekRef = reference - i.toLong() * weekMillis
+                    val weekStats = aggregator.aggregate(tasks, weekRef)
+                    val totalInWeek = weekStats.byCategory.values
+                        .sum()
+                        .coerceAtLeast(1)
+                    LifeCategory.TRACKED.forEach { cat ->
+                        val count = weekStats.byCategory[cat] ?: 0
+                        trendRatios.getValue(cat).add(count.toFloat() / totalInWeek.toFloat())
+                        trendCounts.getValue(cat).add(count)
+                    }
+                }
+
+                _state.value = WeeklyBalanceReportState(
+                    stats = stats,
+                    balance = balance,
+                    burnoutScore = burnout.score,
+                    burnoutBand = burnout.band,
+                    reference = reference,
+                    fourWeekTrend = trendRatios.mapValues { it.value.toList() },
+                    fourWeekCounts = trendCounts.mapValues { it.value.toList() }
+                )
+            } catch (e: Exception) {
+                android.util.Log.e("WeeklyBalanceVM", "Failed to load week", e)
             }
         }
-
-        fun previousWeek() {
-            loadWeek(_state.value.reference - SEVEN_DAYS_MILLIS)
-        }
-
-        fun nextWeek() {
-            loadWeek(_state.value.reference + SEVEN_DAYS_MILLIS)
-        }
-
-        companion object {
-            private const val SEVEN_DAYS_MILLIS = 7L * 24 * 60 * 60 * 1000
-        }
     }
+
+    fun previousWeek() {
+        loadWeek(_state.value.reference - SEVEN_DAYS_MILLIS)
+    }
+
+    fun nextWeek() {
+        loadWeek(_state.value.reference + SEVEN_DAYS_MILLIS)
+    }
+
+    companion object {
+        private const val SEVEN_DAYS_MILLIS = 7L * 24 * 60 * 60 * 1000
+    }
+}
 
 data class WeeklyBalanceReportState(
     val stats: WeeklyReviewStats? = null,

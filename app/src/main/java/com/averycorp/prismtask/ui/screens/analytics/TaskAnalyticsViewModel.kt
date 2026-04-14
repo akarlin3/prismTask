@@ -38,49 +38,49 @@ data class TaskAnalyticsState(
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class TaskAnalyticsViewModel
-    @Inject
-    constructor(
-        private val taskCompletionRepository: TaskCompletionRepository,
-        private val projectRepository: ProjectRepository,
-        savedStateHandle: SavedStateHandle
-    ) : ViewModel() {
-        private val initialProjectId: Long? = savedStateHandle
-            .get<Long>("projectId")
-            ?.takeIf { it > 0 }
+@Inject
+constructor(
+    private val taskCompletionRepository: TaskCompletionRepository,
+    private val projectRepository: ProjectRepository,
+    savedStateHandle: SavedStateHandle
+) : ViewModel() {
+    private val initialProjectId: Long? = savedStateHandle
+        .get<Long>("projectId")
+        ?.takeIf { it > 0 }
 
-        private val _selectedPeriod = MutableStateFlow(AnalyticsPeriod.MONTH)
-        private val _selectedProjectId = MutableStateFlow(initialProjectId)
+    private val _selectedPeriod = MutableStateFlow(AnalyticsPeriod.MONTH)
+    private val _selectedProjectId = MutableStateFlow(initialProjectId)
 
-        val state: StateFlow<TaskAnalyticsState> = combine(
-            _selectedPeriod,
-            _selectedProjectId,
-            combine(_selectedPeriod, _selectedProjectId) { period, projectId ->
-                if (projectId != null) {
-                    taskCompletionRepository.getProjectStats(projectId, period.days)
-                } else {
-                    taskCompletionRepository.getCompletionStats(period.days)
-                }
-            }.flatMapLatest { it },
-            projectRepository.getAllProjects()
-        ) { period, projectId, stats, projects ->
-            TaskAnalyticsState(
-                stats = stats,
-                selectedPeriod = period,
-                selectedProjectId = projectId,
-                projects = projects,
-                isLoading = false
-            )
-        }.stateIn(
-            viewModelScope,
-            SharingStarted.WhileSubscribed(5000),
-            TaskAnalyticsState()
+    val state: StateFlow<TaskAnalyticsState> = combine(
+        _selectedPeriod,
+        _selectedProjectId,
+        combine(_selectedPeriod, _selectedProjectId) { period, projectId ->
+            if (projectId != null) {
+                taskCompletionRepository.getProjectStats(projectId, period.days)
+            } else {
+                taskCompletionRepository.getCompletionStats(period.days)
+            }
+        }.flatMapLatest { it },
+        projectRepository.getAllProjects()
+    ) { period, projectId, stats, projects ->
+        TaskAnalyticsState(
+            stats = stats,
+            selectedPeriod = period,
+            selectedProjectId = projectId,
+            projects = projects,
+            isLoading = false
         )
+    }.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5000),
+        TaskAnalyticsState()
+    )
 
-        fun setPeriod(period: AnalyticsPeriod) {
-            _selectedPeriod.value = period
-        }
-
-        fun setProject(projectId: Long?) {
-            _selectedProjectId.value = projectId
-        }
+    fun setPeriod(period: AnalyticsPeriod) {
+        _selectedPeriod.value = period
     }
+
+    fun setProject(projectId: Long?) {
+        _selectedProjectId.value = projectId
+    }
+}

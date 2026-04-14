@@ -184,7 +184,8 @@ private fun WidgetTaskRowView(context: Context, task: WidgetTaskRow, showDate: B
         putExtra("task_id", task.id)
     }
     Row(modifier = GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Box(modifier = GlanceModifier.size(width = 3.dp, height = 18.dp).cornerRadius(2.dp).background(priorityColorFor(task.priority))) {}
+        Box(modifier = GlanceModifier.size(width = 3.dp, height = 18.dp).cornerRadius(2.dp).background(priorityColorFor(task.priority))) {
+        }
         Spacer(modifier = GlanceModifier.width(4.dp))
         Box(
             modifier = GlanceModifier
