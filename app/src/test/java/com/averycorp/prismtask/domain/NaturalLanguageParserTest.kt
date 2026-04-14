@@ -16,6 +16,10 @@ import com.averycorp.prismtask.data.remote.api.ImportResponse
 import com.averycorp.prismtask.data.remote.api.ReengagementRequest
 import com.averycorp.prismtask.data.remote.api.ReengagementResponse
 import com.averycorp.prismtask.data.remote.api.LoginRequest
+import com.averycorp.prismtask.data.remote.api.ParseChecklistRequest
+import com.averycorp.prismtask.data.remote.api.ParseChecklistResponse
+import com.averycorp.prismtask.data.remote.api.ParseImportRequest
+import com.averycorp.prismtask.data.remote.api.ParseImportResponse
 import com.averycorp.prismtask.data.remote.api.ParseRequest
 import com.averycorp.prismtask.data.remote.api.ParsedTaskResponse
 import com.averycorp.prismtask.data.remote.api.PomodoroRequest
