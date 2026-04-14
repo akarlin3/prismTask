@@ -5,8 +5,6 @@ import com.averycorp.prismtask.data.local.database.MIGRATION_1_2
 import com.averycorp.prismtask.data.local.database.MIGRATION_37_38
 import com.averycorp.prismtask.data.local.database.MIGRATION_38_39
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -23,7 +21,6 @@ import org.junit.Test
  * 3. Incorrect migration version ordering in ALL_MIGRATIONS
  */
 class StartupCrashDiagnosticTest {
-
     // ------------------------------------------------------------------
     // Region: Room Migration Integrity
     // ------------------------------------------------------------------

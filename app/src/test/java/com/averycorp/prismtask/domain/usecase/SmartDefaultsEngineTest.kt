@@ -7,7 +7,6 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 class SmartDefaultsEngineTest {
-
     private val now = 1_700_000_000_000L
     private val day = 24L * 60 * 60 * 1000
 
@@ -46,8 +45,12 @@ class SmartDefaultsEngineTest {
     @Test
     fun `most common priority wins`() {
         val history = listOf(
-            t(priority = 3), t(priority = 3), t(priority = 3),
-            t(priority = 1), t(priority = 2), t(priority = 4)
+            t(priority = 3),
+            t(priority = 3),
+            t(priority = 3),
+            t(priority = 1),
+            t(priority = 2),
+            t(priority = 4)
         )
         val result = SmartDefaultsEngine.compute(history)
         assertEquals(3, result.priority)
@@ -56,8 +59,12 @@ class SmartDefaultsEngineTest {
     @Test
     fun `most common project wins`() {
         val history = listOf(
-            t(projectId = 10), t(projectId = 10), t(projectId = 10),
-            t(projectId = 20), t(projectId = 30), t(projectId = null)
+            t(projectId = 10),
+            t(projectId = 10),
+            t(projectId = 10),
+            t(projectId = 20),
+            t(projectId = 30),
+            t(projectId = null)
         )
         val result = SmartDefaultsEngine.compute(history)
         assertEquals(10L, result.projectId)

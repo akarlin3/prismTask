@@ -13,17 +13,32 @@ data class TaskFilter(
     /** Work-Life Balance categories to filter by (empty = no category filter). */
     val selectedLifeCategories: List<LifeCategory> = emptyList()
 ) {
-    fun isActive(): Boolean = selectedTagIds.isNotEmpty() || selectedPriorities.isNotEmpty() ||
-        selectedProjectIds.isNotEmpty() || dateRange != null || showCompleted || showArchived ||
-        searchQuery.isNotBlank() || showFlaggedOnly || selectedLifeCategories.isNotEmpty()
+    fun isActive(): Boolean = selectedTagIds.isNotEmpty() ||
+        selectedPriorities.isNotEmpty() ||
+        selectedProjectIds.isNotEmpty() ||
+        dateRange != null ||
+        showCompleted ||
+        showArchived ||
+        searchQuery.isNotBlank() ||
+        showFlaggedOnly ||
+        selectedLifeCategories.isNotEmpty()
 
     fun activeFilterCount(): Int = listOf(
-        selectedTagIds.isNotEmpty(), selectedPriorities.isNotEmpty(),
-        selectedProjectIds.isNotEmpty(), dateRange != null, showCompleted, showArchived,
-        searchQuery.isNotBlank(), showFlaggedOnly, selectedLifeCategories.isNotEmpty()
+        selectedTagIds.isNotEmpty(),
+        selectedPriorities.isNotEmpty(),
+        selectedProjectIds.isNotEmpty(),
+        dateRange != null,
+        showCompleted,
+        showArchived,
+        searchQuery.isNotBlank(),
+        showFlaggedOnly,
+        selectedLifeCategories.isNotEmpty()
     ).count { it }
 }
 
 enum class TagFilterMode { ANY, ALL }
 
-data class DateRange(val start: Long?, val end: Long?)
+data class DateRange(
+    val start: Long?,
+    val end: Long?
+)

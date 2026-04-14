@@ -17,11 +17,13 @@ import javax.inject.Singleton
     replaces = [DatabaseModule::class]
 )
 object TestDatabaseModule {
-
     @Provides
     @Singleton
-    fun provideTestDatabase(@ApplicationContext context: Context): PrismTaskDatabase =
-        Room.inMemoryDatabaseBuilder(context, PrismTaskDatabase::class.java)
+    fun provideTestDatabase(
+        @ApplicationContext context: Context
+    ): PrismTaskDatabase =
+        Room
+            .inMemoryDatabaseBuilder(context, PrismTaskDatabase::class.java)
             .allowMainThreadQueries()
             .build()
 

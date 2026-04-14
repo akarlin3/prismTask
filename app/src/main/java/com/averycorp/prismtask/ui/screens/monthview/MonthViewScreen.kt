@@ -32,9 +32,9 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Today
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import com.averycorp.prismtask.ui.components.CircularCheckbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -48,6 +48,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -60,12 +61,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
-import androidx.compose.material3.AlertDialog
-import androidx.compose.runtime.LaunchedEffect
 import com.averycorp.prismtask.data.local.entity.TaskEntity
 import com.averycorp.prismtask.ui.components.MoveToProjectSheet
 import com.averycorp.prismtask.ui.components.QuickReschedulePopup
@@ -74,7 +72,6 @@ import com.averycorp.prismtask.ui.screens.addedittask.AddEditTaskSheetHost
 import com.averycorp.prismtask.ui.theme.LocalPriorityColors
 import java.time.DayOfWeek
 import java.time.LocalDate
-import java.time.YearMonth
 import java.time.ZoneId
 import java.time.format.TextStyle
 import java.util.Locale
@@ -83,7 +80,7 @@ private val NeutralGray = Color(0xFF9E9E9E)
 
 private data class MonthTaskEditorState(
     val taskId: Long? = null,
-    val initialDate: Long? = null,
+    val initialDate: Long? = null
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -145,16 +142,24 @@ fun MonthViewScreen(
                     .padding(horizontal = 8.dp)
             ) {
                 val daysOfWeek = listOf(
-                    DayOfWeek.MONDAY, DayOfWeek.TUESDAY, DayOfWeek.WEDNESDAY,
-                    DayOfWeek.THURSDAY, DayOfWeek.FRIDAY, DayOfWeek.SATURDAY, DayOfWeek.SUNDAY
+                    DayOfWeek.MONDAY,
+                    DayOfWeek.TUESDAY,
+                    DayOfWeek.WEDNESDAY,
+                    DayOfWeek.THURSDAY,
+                    DayOfWeek.FRIDAY,
+                    DayOfWeek.SATURDAY,
+                    DayOfWeek.SUNDAY
                 )
                 daysOfWeek.forEach { dow ->
                     Text(
                         text = dow.getDisplayName(TextStyle.SHORT, Locale.getDefault()),
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
-                        color = if (dow.value >= 6) MaterialTheme.colorScheme.onSurfaceVariant
-                        else MaterialTheme.colorScheme.onSurface,
+                        color = if (dow.value >= 6) {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        } else {
+                            MaterialTheme.colorScheme.onSurface
+                        },
                         modifier = Modifier
                             .weight(1f)
                             .padding(vertical = 4.dp),
@@ -226,7 +231,8 @@ fun MonthViewScreen(
                         onDuplicate = { taskId -> viewModel.onDuplicateTask(taskId) },
                         onDelete = { taskId -> viewModel.onDeleteTaskWithUndo(taskId) },
                         onAddTask = {
-                            val dayStartMillis = date.atStartOfDay(ZoneId.systemDefault())
+                            val dayStartMillis = date
+                                .atStartOfDay(ZoneId.systemDefault())
                                 .toInstant()
                                 .toEpochMilli()
                             editorState = MonthTaskEditorState(initialDate = dayStartMillis)
@@ -322,8 +328,7 @@ private fun DayCell(
                     info?.hasOverdue == true -> Modifier.background(NeutralGray.copy(alpha = 0.06f))
                     else -> Modifier
                 }
-            )
-            .clickable { onClick() }
+            ).clickable { onClick() }
             .padding(2.dp),
         contentAlignment = Alignment.TopCenter
     ) {
@@ -333,10 +338,13 @@ private fun DayCell(
                 modifier = Modifier
                     .size(24.dp)
                     .then(
-                        if (isToday) Modifier
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.primary)
-                        else Modifier
+                        if (isToday) {
+                            Modifier
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.primary)
+                        } else {
+                            Modifier
+                        }
                     ),
                 contentAlignment = Alignment.Center
             ) {
@@ -358,8 +366,11 @@ private fun DayCell(
                     horizontalArrangement = Arrangement.spacedBy(2.dp),
                     modifier = Modifier.padding(top = 2.dp)
                 ) {
-                    val dotColor = if (info.topPriority > 0) LocalPriorityColors.current.forLevel(info.topPriority)
-                    else MaterialTheme.colorScheme.primary
+                    val dotColor = if (info.topPriority > 0) {
+                        LocalPriorityColors.current.forLevel(info.topPriority)
+                    } else {
+                        MaterialTheme.colorScheme.primary
+                    }
                     val dots = when {
                         info.taskCount >= 5 -> 3
                         info.taskCount >= 3 -> 2
@@ -414,7 +425,10 @@ private fun DayDetail(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "${date.dayOfWeek.getDisplayName(TextStyle.FULL, Locale.getDefault())}, ${date.month.getDisplayName(TextStyle.SHORT, Locale.getDefault())} ${date.dayOfMonth}",
+                    text = "${date.dayOfWeek.getDisplayName(
+                        TextStyle.FULL,
+                        Locale.getDefault()
+                    )}, ${date.month.getDisplayName(TextStyle.SHORT, Locale.getDefault())} ${date.dayOfMonth}",
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold
                 )
@@ -460,8 +474,11 @@ private fun DayDetail(
                                 text = task.title,
                                 style = MaterialTheme.typography.bodyMedium,
                                 textDecoration = if (task.isCompleted) TextDecoration.LineThrough else null,
-                                color = if (task.isCompleted) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-                                else MaterialTheme.colorScheme.onSurface,
+                                color = if (task.isCompleted) {
+                                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                                } else {
+                                    MaterialTheme.colorScheme.onSurface
+                                },
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                                 modifier = Modifier.weight(1f)

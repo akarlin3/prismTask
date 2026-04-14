@@ -11,7 +11,6 @@ import java.time.LocalDate
 import java.time.ZoneId
 
 class StreakCalculatorTest {
-
     private fun LocalDate.toMillis(): Long =
         atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
 
@@ -159,7 +158,7 @@ class StreakCalculatorTest {
         val completions = listOf(
             completion(date = monday),
             completion(date = monday.plusDays(2)), // Wed
-            completion(date = monday.plusDays(4))  // Fri
+            completion(date = monday.plusDays(4)) // Fri
         )
         val rate = StreakCalculator.calculateCompletionRate(completions, habit, 5, today)
         assertEquals(1.0f, rate, 0.01f)
@@ -170,9 +169,9 @@ class StreakCalculatorTest {
     @Test
     fun test_bestDay() {
         val completions = listOf(
-            completion(date = LocalDate.of(2025, 6, 9)),  // Monday
-            completion(date = LocalDate.of(2025, 6, 9)),  // Monday (2nd)
-            completion(date = LocalDate.of(2025, 6, 10)), // Tuesday
+            completion(date = LocalDate.of(2025, 6, 9)), // Monday
+            completion(date = LocalDate.of(2025, 6, 9)), // Monday (2nd)
+            completion(date = LocalDate.of(2025, 6, 10)) // Tuesday
         )
         val best = StreakCalculator.getBestDay(completions)
         assertEquals(DayOfWeek.MONDAY, best)
@@ -181,15 +180,24 @@ class StreakCalculatorTest {
     @Test
     fun test_worstDay() {
         val completions = listOf(
-            completion(date = LocalDate.of(2025, 6, 9)),  // Monday
-            completion(date = LocalDate.of(2025, 6, 10)), // Tuesday
+            completion(date = LocalDate.of(2025, 6, 9)), // Monday
+            completion(date = LocalDate.of(2025, 6, 10)) // Tuesday
         )
         val worst = StreakCalculator.getWorstDay(completions)
         assertNotNull(worst)
         // Worst should be one of the days with 0 completions (Wed-Sun)
-        assertEquals(0, completions.count { it.completedDate.let { ts ->
-            java.time.Instant.ofEpochMilli(ts).atZone(ZoneId.systemDefault()).toLocalDate().dayOfWeek
-        } == worst })
+        assertEquals(
+            0,
+            completions.count {
+                it.completedDate.let { ts ->
+                    java.time.Instant
+                        .ofEpochMilli(ts)
+                        .atZone(ZoneId.systemDefault())
+                        .toLocalDate()
+                        .dayOfWeek
+                } == worst
+            }
+        )
     }
 
     // --- Additional Edge Cases ---
@@ -260,8 +268,10 @@ class StreakCalculatorTest {
         val today = LocalDate.of(2025, 6, 10)
         // Habit requires 2 per day, and we have 2 completions per day
         val completions = listOf(
-            completion(date = today), completion(date = today),
-            completion(date = today.minusDays(1)), completion(date = today.minusDays(1))
+            completion(date = today),
+            completion(date = today),
+            completion(date = today.minusDays(1)),
+            completion(date = today.minusDays(1))
         )
         val streak = StreakCalculator.calculateCurrentStreak(completions, dailyHabit(target = 2), today)
         assertEquals(2, streak)
@@ -281,7 +291,10 @@ class StreakCalculatorTest {
         )
         // Grace of 2 means a single missed day is forgiven.
         val streak = StreakCalculator.calculateCurrentStreak(
-            completions, dailyHabit(), today, maxMissedDays = 2
+            completions,
+            dailyHabit(),
+            today,
+            maxMissedDays = 2
         )
         assertEquals(4, streak)
     }
@@ -296,7 +309,10 @@ class StreakCalculatorTest {
             completion(date = today.minusDays(4))
         )
         val streak = StreakCalculator.calculateCurrentStreak(
-            completions, dailyHabit(), today, maxMissedDays = 2
+            completions,
+            dailyHabit(),
+            today,
+            maxMissedDays = 2
         )
         assertEquals(1, streak)
     }
@@ -310,7 +326,10 @@ class StreakCalculatorTest {
             completion(date = today.minusDays(2))
         )
         val streak = StreakCalculator.calculateCurrentStreak(
-            completions, dailyHabit(), today, maxMissedDays = 1
+            completions,
+            dailyHabit(),
+            today,
+            maxMissedDays = 1
         )
         assertEquals(1, streak)
     }
@@ -330,7 +349,10 @@ class StreakCalculatorTest {
             completion(date = today.minusDays(1))
         )
         val longest = StreakCalculator.calculateLongestStreak(
-            completions, dailyHabit(), today, maxMissedDays = 2
+            completions,
+            dailyHabit(),
+            today,
+            maxMissedDays = 2
         )
         // With one forgiven gap, the run should stitch together into 7 completions.
         assertEquals(7, longest)

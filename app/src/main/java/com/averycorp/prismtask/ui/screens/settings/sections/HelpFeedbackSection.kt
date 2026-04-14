@@ -47,9 +47,9 @@ fun HelpFeedbackSection(
                 putExtra(
                     Intent.EXTRA_TEXT,
                     "Device: ${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}\n" +
-                            "Android: ${android.os.Build.VERSION.SDK_INT}\n" +
-                            "App: ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})\n\n" +
-                            "Feedback:\n"
+                        "Android: ${android.os.Build.VERSION.SDK_INT}\n" +
+                        "App: ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})\n\n" +
+                        "Feedback:\n"
                 )
             }
             try {

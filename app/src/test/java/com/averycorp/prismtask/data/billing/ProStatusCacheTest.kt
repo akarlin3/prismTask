@@ -9,7 +9,6 @@ import org.junit.Test
  * so these tests focus on the state machine and cache expiration logic.
  */
 class ProStatusCacheTest {
-
     @Test
     fun `subscription states cover all expected values`() {
         val states = SubscriptionState.entries

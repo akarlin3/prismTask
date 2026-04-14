@@ -12,7 +12,6 @@ import java.time.ZoneId
  * Added in v1.3.0 (P14).
  */
 object QuietHoursDeferrer {
-
     /**
      * @param fireAtMillis when the alarm would originally fire
      * @param quietStart start of the quiet window (inclusive)
@@ -47,7 +46,11 @@ object QuietHoursDeferrer {
             // (early-morning), the end is the same day.
             if (firingTime >= quietStart) firingDate.plusDays(1) else firingDate
         }
-        return endDate.atTime(quietEnd).atZone(zone).toInstant().toEpochMilli()
+        return endDate
+            .atTime(quietEnd)
+            .atZone(zone)
+            .toInstant()
+            .toEpochMilli()
     }
 
     /** True iff [time] is within [start, end). Handles overnight windows. */

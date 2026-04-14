@@ -10,7 +10,6 @@ import org.junit.Test
  * composition.
  */
 class AccessibilityTest {
-
     @Test
     fun `reduced motion composition local exists`() {
         assertNotNull(LocalReducedMotion)

@@ -25,7 +25,6 @@ import org.robolectric.annotation.Config
 @RunWith(AndroidJUnit4::class)
 @Config(manifest = Config.NONE, sdk = [33], application = Application::class)
 class ShakeDetectorTest {
-
     private lateinit var shakeDetector: ShakeDetector
     private val mockContext = mockk<Context>(relaxed = true)
     private val mockSensorManager = mockk<SensorManager>(relaxed = true)

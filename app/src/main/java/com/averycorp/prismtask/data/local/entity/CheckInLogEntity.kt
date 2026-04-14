@@ -21,23 +21,17 @@ import androidx.room.PrimaryKey
 data class CheckInLogEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
-
     /** Midnight-normalized date in millis. */
     @ColumnInfo(name = "date")
     val date: Long,
-
     @ColumnInfo(name = "steps_completed_csv")
     val stepsCompletedCsv: String,
-
     @ColumnInfo(name = "medications_confirmed", defaultValue = "0")
     val medicationsConfirmed: Int = 0,
-
     @ColumnInfo(name = "tasks_reviewed", defaultValue = "0")
     val tasksReviewed: Int = 0,
-
     @ColumnInfo(name = "habits_completed", defaultValue = "0")
     val habitsCompleted: Int = 0,
-
     @ColumnInfo(name = "created_at")
     val createdAt: Long = System.currentTimeMillis()
 )

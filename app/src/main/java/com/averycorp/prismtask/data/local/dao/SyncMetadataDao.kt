@@ -9,7 +9,6 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface SyncMetadataDao {
-
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(metadata: SyncMetadataEntity)
 
@@ -25,7 +24,9 @@ interface SyncMetadataDao {
     @Query("SELECT COUNT(*) FROM sync_metadata WHERE pending_action IS NOT NULL")
     fun getPendingCount(): Flow<Int>
 
-    @Query("UPDATE sync_metadata SET pending_action = NULL, last_synced_at = :now, retry_count = 0 WHERE local_id = :localId AND entity_type = :entityType")
+    @Query(
+        "UPDATE sync_metadata SET pending_action = NULL, last_synced_at = :now, retry_count = 0 WHERE local_id = :localId AND entity_type = :entityType"
+    )
     suspend fun clearPendingAction(localId: Long, entityType: String, now: Long = System.currentTimeMillis())
 
     @Query("DELETE FROM sync_metadata WHERE local_id = :localId AND entity_type = :entityType")

@@ -23,7 +23,6 @@ import java.util.Locale
  * the manual rule editor.
  */
 object BoundaryRuleParser {
-
     private val categoryMap = mapOf(
         "work" to LifeCategory.WORK,
         "personal" to LifeCategory.PERSONAL,
@@ -74,9 +73,10 @@ object BoundaryRuleParser {
         val startTime = LocalTime.of(hour, minRaw.coerceIn(0, 59))
 
         // Day clause: search anywhere in the rest string.
-        val days = dayClauseMap.entries.firstOrNull { (key, _) ->
-            rest.contains(key)
-        }?.value ?: BoundaryRule.ALL_DAYS
+        val days = dayClauseMap.entries
+            .firstOrNull { (key, _) ->
+                rest.contains(key)
+            }?.value ?: BoundaryRule.ALL_DAYS
 
         val name = "No ${category.name.lowercase().replace('_', '-')} after ${BoundaryRule.formatTime(startTime)}"
             .replaceFirstChar { it.uppercase() }

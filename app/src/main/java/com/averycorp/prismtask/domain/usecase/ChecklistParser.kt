@@ -65,196 +65,212 @@ data class ChecklistParsedTask(
  * backend call fails.
  */
 @Singleton
-class ChecklistParser @Inject constructor(
-    private val api: PrismTaskApi,
-    private val authTokenPreferences: AuthTokenPreferences
-) {
-    suspend fun parse(content: String): ComprehensiveImportResult? {
-        // Try backend (Claude Haiku) first when the user is logged in
-        val token = authTokenPreferences.getAccessToken()
-        if (!token.isNullOrBlank()) {
-            try {
-                val response = api.parseChecklist(ParseChecklistRequest(content = content))
-                return response.toComprehensiveImportResult()
-            } catch (e: Exception) {
-                if (BuildConfig.DEBUG) Log.e("ChecklistParser", "Backend parse failed", e)
-                // Fall through to regex
+class ChecklistParser
+    @Inject
+    constructor(
+        private val api: PrismTaskApi,
+        private val authTokenPreferences: AuthTokenPreferences
+    ) {
+        suspend fun parse(content: String): ComprehensiveImportResult? {
+            // Try backend (Claude Haiku) first when the user is logged in
+            val token = authTokenPreferences.getAccessToken()
+            if (!token.isNullOrBlank()) {
+                try {
+                    val response = api.parseChecklist(ParseChecklistRequest(content = content))
+                    return response.toComprehensiveImportResult()
+                } catch (e: Exception) {
+                    if (BuildConfig.DEBUG) Log.e("ChecklistParser", "Backend parse failed", e)
+                    // Fall through to regex
+                }
             }
+
+            // Fall back to regex → wrap in comprehensive result
+            val regexCourse = parseWithRegex(content) ?: return null
+            return wrapRegexResult(regexCourse)
         }
 
-        // Fall back to regex → wrap in comprehensive result
-        val regexCourse = parseWithRegex(content) ?: return null
-        return wrapRegexResult(regexCourse)
-    }
+        fun parseWithRegex(content: String): ParsedCourse? = parseScheduleFormat(content) ?: parseTasksFormat(content)
 
-    fun parseWithRegex(content: String): ParsedCourse? {
-        return parseScheduleFormat(content) ?: parseTasksFormat(content)
-    }
-
-    private fun wrapRegexResult(course: ParsedCourse): ComprehensiveImportResult {
-        val tags = course.assignments.mapNotNull { it.type }.distinct().map { type ->
-            ParsedTag(name = type, color = tagColorForType(type))
-        }
-        val tasks = course.assignments.map { a ->
-            ChecklistParsedTask(
-                title = a.title,
-                description = a.time?.let { "Duration: $it" },
-                dueDate = a.dueDate,
-                priority = if (a.type == "exam") 4 else 0,
-                completed = a.completed,
-                tags = listOfNotNull(a.type),
-                subtasks = emptyList(),
-                estimatedMinutes = null
+        private fun wrapRegexResult(course: ParsedCourse): ComprehensiveImportResult {
+            val tags = course.assignments.mapNotNull { it.type }.distinct().map { type ->
+                ParsedTag(name = type, color = tagColorForType(type))
+            }
+            val tasks = course.assignments.map { a ->
+                ChecklistParsedTask(
+                    title = a.title,
+                    description = a.time?.let { "Duration: $it" },
+                    dueDate = a.dueDate,
+                    priority = if (a.type == "exam") 4 else 0,
+                    completed = a.completed,
+                    tags = listOfNotNull(a.type),
+                    subtasks = emptyList(),
+                    estimatedMinutes = null
+                )
+            }
+            return ComprehensiveImportResult(
+                course = course,
+                project = ParsedProject(
+                    name = "${course.code} — ${course.name}",
+                    color = "#4A90D9",
+                    icon = "\uD83D\uDCDA"
+                ),
+                tags = tags,
+                tasks = tasks
             )
         }
-        return ComprehensiveImportResult(
-            course = course,
-            project = ParsedProject(
-                name = "${course.code} — ${course.name}",
-                color = "#4A90D9",
-                icon = "\uD83D\uDCDA"
-            ),
-            tags = tags,
-            tasks = tasks
-        )
-    }
 
-    private fun tagColorForType(type: String): String = when (type) {
-        "exam" -> "#EF4444"
-        "video" -> "#3B82F6"
-        "assignment" -> "#F59E0B"
-        "code" -> "#10B981"
-        "reading" -> "#8B5CF6"
-        else -> "#6B7280"
-    }
+        private fun tagColorForType(type: String): String = when (type) {
+            "exam" -> "#EF4444"
+            "video" -> "#3B82F6"
+            "assignment" -> "#F59E0B"
+            "code" -> "#10B981"
+            "reading" -> "#8B5CF6"
+            else -> "#6B7280"
+        }
 
-    // --- Regex fallback parsers ---
+        // --- Regex fallback parsers ---
 
-    private fun parseScheduleFormat(content: String): ParsedCourse? {
-        if (!content.contains("SCHEDULE")) return null
+        private fun parseScheduleFormat(content: String): ParsedCourse? {
+            if (!content.contains("SCHEDULE")) return null
 
-        val code = extractCourseCode(content) ?: return null
-        val name = extractCourseName(content) ?: code
+            val code = extractCourseCode(content) ?: return null
+            val name = extractCourseName(content) ?: code
 
-        val assignments = mutableListOf<ParsedAssignment>()
+            val assignments = mutableListOf<ParsedAssignment>()
 
-        val dayPattern = Regex("""\{\s*date:\s*"([^"]+)"[^}]*?tasks:\s*\[(.*?)\]\s*\}""", RegexOption.DOT_MATCHES_ALL)
-        for (dayMatch in dayPattern.findAll(content)) {
-            val dateStr = dayMatch.groupValues[1]
-            val tasksBlock = dayMatch.groupValues[2]
+            val dayPattern = Regex("""\{\s*date:\s*"([^"]+)"[^}]*?tasks:\s*\[(.*?)\]\s*\}""", RegexOption.DOT_MATCHES_ALL)
+            for (dayMatch in dayPattern.findAll(content)) {
+                val dateStr = dayMatch.groupValues[1]
+                val tasksBlock = dayMatch.groupValues[2]
 
-            val taskPattern = Regex("""\{\s*id:\s*"[^"]*"\s*,\s*text:\s*"([^"]+)"\s*,\s*time:\s*"([^"]+)"\s*,\s*type:\s*"([^"]+)"(?:\s*,\s*done:\s*(true))?\s*\}""")
-            for (taskMatch in taskPattern.findAll(tasksBlock)) {
-                val text = taskMatch.groupValues[1]
-                val time = taskMatch.groupValues[2]
-                val type = taskMatch.groupValues[3]
-                val done = taskMatch.groupValues[4] == "true"
+                val taskPattern =
+                    Regex(
+                        """\{\s*id:\s*"[^"]*"\s*,\s*text:\s*"([^"]+)"\s*,\s*time:\s*"([^"]+)"\s*,\s*type:\s*"([^"]+)"(?:\s*,\s*done:\s*(true))?\s*\}"""
+                    )
+                for (taskMatch in taskPattern.findAll(tasksBlock)) {
+                    val text = taskMatch.groupValues[1]
+                    val time = taskMatch.groupValues[2]
+                    val type = taskMatch.groupValues[3]
+                    val done = taskMatch.groupValues[4] == "true"
 
-                val typePrefix = when (type) {
-                    "video" -> "\u25B6 "
-                    "assignment" -> "\u270E "
-                    "code" -> "\u27E8/\u27E9 "
-                    else -> ""
+                    val typePrefix = when (type) {
+                        "video" -> "\u25B6 "
+                        "assignment" -> "\u270E "
+                        "code" -> "\u27E8/\u27E9 "
+                        else -> ""
+                    }
+
+                    assignments.add(
+                        ParsedAssignment(
+                            title = "$typePrefix$text",
+                            dueDate = parseDateString(dateStr),
+                            time = time,
+                            type = type,
+                            completed = done
+                        )
+                    )
                 }
+            }
+
+            if (assignments.isEmpty()) return null
+            return ParsedCourse(code = code, name = name, deadline = null, assignments = assignments)
+        }
+
+        private fun parseTasksFormat(content: String): ParsedCourse? {
+            if (!content.contains("const TASKS")) return null
+
+            val code = extractCourseCode(content) ?: return null
+            val name = extractCourseName(content) ?: code
+
+            val assignments = mutableListOf<ParsedAssignment>()
+
+            val itemPattern = Regex(
+                """\{\s*id:\s*"[^"]*"\s*,\s*date:\s*"([^"]+)"\s*,\s*label:\s*"([^"]+)"(?:\s*,\s*time:\s*"([^"]*)")?(?:\s*,\s*done:\s*(true))?(?:\s*,\s*off:\s*true)?(?:\s*,\s*buffer:\s*true)?\s*\}"""
+            )
+
+            for (match in itemPattern.findAll(content)) {
+                val dateStr = match.groupValues[1]
+                val label = match.groupValues[2]
+                val time = match.groupValues[3].ifEmpty { null }
+                val done = match.groupValues[4] == "true"
+
+                val fullMatch = match.value
+                if (fullMatch.contains("off: true") || label.endsWith("— OFF") || label == "OFF") continue
+
+                val isBuffer = fullMatch.contains("buffer: true")
+                if (isBuffer && (label.startsWith("BUFFER") || label == "Buffer")) continue
 
                 assignments.add(
                     ParsedAssignment(
-                        title = "$typePrefix$text",
+                        title = label,
                         dueDate = parseDateString(dateStr),
                         time = time,
-                        type = type,
+                        type = guessType(label),
                         completed = done
                     )
                 )
             }
+
+            if (assignments.isEmpty()) return null
+            return ParsedCourse(code = code, name = name, deadline = null, assignments = assignments)
         }
 
-        if (assignments.isEmpty()) return null
-        return ParsedCourse(code = code, name = name, deadline = null, assignments = assignments)
-    }
+        private fun extractCourseCode(content: String): String? {
+            val codePattern = Regex("""[A-Z]{2,5}\s*\d{4}""")
+            return codePattern.find(content)?.value
+        }
 
-    private fun parseTasksFormat(content: String): ParsedCourse? {
-        if (!content.contains("const TASKS")) return null
+        private fun extractCourseName(content: String): String? {
+            val h1Pattern = Regex(""">([^<]{10,80})</h1>""")
+            val match = h1Pattern.find(content)
+            if (match != null) return match.groupValues[1].trim()
 
-        val code = extractCourseCode(content) ?: return null
-        val name = extractCourseName(content) ?: code
+            val titlePattern = Regex("""title:\s*"([^"]{10,80})"""")
+            return titlePattern.find(content)?.groupValues?.get(1)
+        }
 
-        val assignments = mutableListOf<ParsedAssignment>()
-
-        val itemPattern = Regex(
-            """\{\s*id:\s*"[^"]*"\s*,\s*date:\s*"([^"]+)"\s*,\s*label:\s*"([^"]+)"(?:\s*,\s*time:\s*"([^"]*)")?(?:\s*,\s*done:\s*(true))?(?:\s*,\s*off:\s*true)?(?:\s*,\s*buffer:\s*true)?\s*\}"""
-        )
-
-        for (match in itemPattern.findAll(content)) {
-            val dateStr = match.groupValues[1]
-            val label = match.groupValues[2]
-            val time = match.groupValues[3].ifEmpty { null }
-            val done = match.groupValues[4] == "true"
-
-            val fullMatch = match.value
-            if (fullMatch.contains("off: true") || label.endsWith("— OFF") || label == "OFF") continue
-
-            val isBuffer = fullMatch.contains("buffer: true")
-            if (isBuffer && (label.startsWith("BUFFER") || label == "Buffer")) continue
-
-            assignments.add(
-                ParsedAssignment(
-                    title = label,
-                    dueDate = parseDateString(dateStr),
-                    time = time,
-                    type = guessType(label),
-                    completed = done
-                )
+        private fun parseDateString(dateStr: String): Long? {
+            val months = mapOf(
+                "Jan" to Calendar.JANUARY,
+                "Feb" to Calendar.FEBRUARY,
+                "Mar" to Calendar.MARCH,
+                "Apr" to Calendar.APRIL,
+                "May" to Calendar.MAY,
+                "Jun" to Calendar.JUNE,
+                "Jul" to Calendar.JULY,
+                "Aug" to Calendar.AUGUST,
+                "Sep" to Calendar.SEPTEMBER,
+                "Oct" to Calendar.OCTOBER,
+                "Nov" to Calendar.NOVEMBER,
+                "Dec" to Calendar.DECEMBER
             )
+            val parts = dateStr.trim().split(" ", limit = 2)
+            if (parts.size != 2) return null
+            val month = months[parts[0]] ?: return null
+            val day = parts[1].toIntOrNull() ?: return null
+
+            val cal = Calendar.getInstance()
+            val currentYear = cal.get(Calendar.YEAR)
+            cal.set(currentYear, month, day, 23, 59, 0)
+            cal.set(Calendar.MILLISECOND, 0)
+            return cal.timeInMillis
         }
 
-        if (assignments.isEmpty()) return null
-        return ParsedCourse(code = code, name = name, deadline = null, assignments = assignments)
-    }
-
-    private fun extractCourseCode(content: String): String? {
-        val codePattern = Regex("""[A-Z]{2,5}\s*\d{4}""")
-        return codePattern.find(content)?.value
-    }
-
-    private fun extractCourseName(content: String): String? {
-        val h1Pattern = Regex(""">([^<]{10,80})</h1>""")
-        val match = h1Pattern.find(content)
-        if (match != null) return match.groupValues[1].trim()
-
-        val titlePattern = Regex("""title:\s*"([^"]{10,80})"""")
-        return titlePattern.find(content)?.groupValues?.get(1)
-    }
-
-    private fun parseDateString(dateStr: String): Long? {
-        val months = mapOf(
-            "Jan" to Calendar.JANUARY, "Feb" to Calendar.FEBRUARY, "Mar" to Calendar.MARCH,
-            "Apr" to Calendar.APRIL, "May" to Calendar.MAY, "Jun" to Calendar.JUNE,
-            "Jul" to Calendar.JULY, "Aug" to Calendar.AUGUST, "Sep" to Calendar.SEPTEMBER,
-            "Oct" to Calendar.OCTOBER, "Nov" to Calendar.NOVEMBER, "Dec" to Calendar.DECEMBER
-        )
-        val parts = dateStr.trim().split(" ", limit = 2)
-        if (parts.size != 2) return null
-        val month = months[parts[0]] ?: return null
-        val day = parts[1].toIntOrNull() ?: return null
-
-        val cal = Calendar.getInstance()
-        val currentYear = cal.get(Calendar.YEAR)
-        cal.set(currentYear, month, day, 23, 59, 0)
-        cal.set(Calendar.MILLISECOND, 0)
-        return cal.timeInMillis
-    }
-
-    private fun guessType(label: String): String {
-        val lower = label.lowercase()
-        return when {
-            lower.startsWith("watch:") || lower.contains("video") -> "video"
-            lower.contains("programming") || lower.contains("final exam") || lower.contains("coding") -> "code"
-            lower.contains("assignment") || lower.contains("quiz") || lower.contains("graded") || lower.contains("honor code") -> "assignment"
-            else -> "assignment"
+        private fun guessType(label: String): String {
+            val lower = label.lowercase()
+            return when {
+                lower.startsWith("watch:") || lower.contains("video") -> "video"
+                lower.contains("programming") || lower.contains("final exam") || lower.contains("coding") -> "code"
+                lower.contains(
+                    "assignment"
+                ) ||
+                    lower.contains("quiz") ||
+                    lower.contains("graded") ||
+                    lower.contains("honor code") -> "assignment"
+                else -> "assignment"
+            }
         }
     }
-}
 
 // --- Mapping from backend response to domain models ---
 

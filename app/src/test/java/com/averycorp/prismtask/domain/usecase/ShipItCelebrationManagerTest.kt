@@ -10,7 +10,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ShipItCelebrationManagerTest {
-
     private val frPrefs = NdPreferences(
         focusReleaseModeEnabled = true,
         shipItCelebrationsEnabled = true,
@@ -21,7 +20,8 @@ class ShipItCelebrationManagerTest {
     fun `returns null when FR mode is off`() {
         val prefs = frPrefs.copy(focusReleaseModeEnabled = false)
         val result = ShipItCelebrationManager.createCelebration(
-            CelebrationTrigger.NORMAL_COMPLETION, prefs
+            CelebrationTrigger.NORMAL_COMPLETION,
+            prefs
         )
         assertNull(result)
     }
@@ -30,7 +30,8 @@ class ShipItCelebrationManagerTest {
     fun `returns null when celebrations disabled`() {
         val prefs = frPrefs.copy(shipItCelebrationsEnabled = false)
         val result = ShipItCelebrationManager.createCelebration(
-            CelebrationTrigger.NORMAL_COMPLETION, prefs
+            CelebrationTrigger.NORMAL_COMPLETION,
+            prefs
         )
         assertNull(result)
     }
@@ -38,7 +39,8 @@ class ShipItCelebrationManagerTest {
     @Test
     fun `normal completion uses MEDIUM intensity by default`() {
         val result = ShipItCelebrationManager.createCelebration(
-            CelebrationTrigger.NORMAL_COMPLETION, frPrefs
+            CelebrationTrigger.NORMAL_COMPLETION,
+            frPrefs
         )
         assertNotNull(result)
         assertEquals(CelebrationIntensity.MEDIUM, result!!.intensity)
@@ -48,7 +50,8 @@ class ShipItCelebrationManagerTest {
     @Test
     fun `good enough ship returns correct trigger`() {
         val result = ShipItCelebrationManager.createCelebration(
-            CelebrationTrigger.GOOD_ENOUGH_SHIP, frPrefs
+            CelebrationTrigger.GOOD_ENOUGH_SHIP,
+            frPrefs
         )
         assertNotNull(result)
         assertEquals(CelebrationTrigger.GOOD_ENOUGH_SHIP, result!!.trigger)
@@ -57,7 +60,8 @@ class ShipItCelebrationManagerTest {
     @Test
     fun `resisted rework returns correct trigger`() {
         val result = ShipItCelebrationManager.createCelebration(
-            CelebrationTrigger.RESISTED_REWORK, frPrefs
+            CelebrationTrigger.RESISTED_REWORK,
+            frPrefs
         )
         assertNotNull(result)
         assertEquals(CelebrationTrigger.RESISTED_REWORK, result!!.trigger)
@@ -66,7 +70,8 @@ class ShipItCelebrationManagerTest {
     @Test
     fun `locked at max revisions returns correct trigger`() {
         val result = ShipItCelebrationManager.createCelebration(
-            CelebrationTrigger.LOCKED_AT_MAX_REVISIONS, frPrefs
+            CelebrationTrigger.LOCKED_AT_MAX_REVISIONS,
+            frPrefs
         )
         assertNotNull(result)
         assertEquals(CelebrationTrigger.LOCKED_AT_MAX_REVISIONS, result!!.trigger)
@@ -76,7 +81,8 @@ class ShipItCelebrationManagerTest {
     fun `calm mode forces LOW intensity`() {
         val prefs = frPrefs.copy(calmModeEnabled = true, celebrationIntensity = CelebrationIntensity.HIGH)
         val result = ShipItCelebrationManager.createCelebration(
-            CelebrationTrigger.NORMAL_COMPLETION, prefs
+            CelebrationTrigger.NORMAL_COMPLETION,
+            prefs
         )
         assertNotNull(result)
         assertEquals(CelebrationIntensity.LOW, result!!.intensity)
@@ -84,11 +90,14 @@ class ShipItCelebrationManagerTest {
 
     @Test
     fun `messages rotate - not always the same`() {
-        val messages = (1..20).mapNotNull {
-            ShipItCelebrationManager.createCelebration(
-                CelebrationTrigger.NORMAL_COMPLETION, frPrefs
-            )?.message
-        }.toSet()
+        val messages = (1..20)
+            .mapNotNull {
+                ShipItCelebrationManager
+                    .createCelebration(
+                        CelebrationTrigger.NORMAL_COMPLETION,
+                        frPrefs
+                    )?.message
+            }.toSet()
         // With 5 possible messages, over 20 iterations we should see at least 2 different ones
         assertTrue("Expected message rotation but got: $messages", messages.size >= 2)
     }
@@ -96,7 +105,9 @@ class ShipItCelebrationManagerTest {
     @Test
     fun `streak milestone at 3 days`() {
         val result = ShipItCelebrationManager.createCelebration(
-            CelebrationTrigger.NORMAL_COMPLETION, frPrefs, releaseStreakDays = 3
+            CelebrationTrigger.NORMAL_COMPLETION,
+            frPrefs,
+            releaseStreakDays = 3
         )
         assertNotNull(result)
         assertTrue(result!!.isStreakMilestone)
@@ -106,7 +117,9 @@ class ShipItCelebrationManagerTest {
     @Test
     fun `streak milestone at 7 days`() {
         val result = ShipItCelebrationManager.createCelebration(
-            CelebrationTrigger.NORMAL_COMPLETION, frPrefs, releaseStreakDays = 7
+            CelebrationTrigger.NORMAL_COMPLETION,
+            frPrefs,
+            releaseStreakDays = 7
         )
         assertTrue(result!!.isStreakMilestone)
     }
@@ -114,7 +127,9 @@ class ShipItCelebrationManagerTest {
     @Test
     fun `streak milestone at 14 days`() {
         val result = ShipItCelebrationManager.createCelebration(
-            CelebrationTrigger.NORMAL_COMPLETION, frPrefs, releaseStreakDays = 14
+            CelebrationTrigger.NORMAL_COMPLETION,
+            frPrefs,
+            releaseStreakDays = 14
         )
         assertTrue(result!!.isStreakMilestone)
     }
@@ -122,7 +137,9 @@ class ShipItCelebrationManagerTest {
     @Test
     fun `streak milestone at 30 days`() {
         val result = ShipItCelebrationManager.createCelebration(
-            CelebrationTrigger.NORMAL_COMPLETION, frPrefs, releaseStreakDays = 30
+            CelebrationTrigger.NORMAL_COMPLETION,
+            frPrefs,
+            releaseStreakDays = 30
         )
         assertTrue(result!!.isStreakMilestone)
     }
@@ -130,7 +147,9 @@ class ShipItCelebrationManagerTest {
     @Test
     fun `non-milestone day is not a milestone`() {
         val result = ShipItCelebrationManager.createCelebration(
-            CelebrationTrigger.NORMAL_COMPLETION, frPrefs, releaseStreakDays = 5
+            CelebrationTrigger.NORMAL_COMPLETION,
+            frPrefs,
+            releaseStreakDays = 5
         )
         assertNotNull(result)
         assertFalse(result!!.isStreakMilestone)
@@ -158,7 +177,8 @@ class ShipItCelebrationManagerTest {
         CelebrationIntensity.entries.forEach { intensity ->
             val prefs = frPrefs.copy(celebrationIntensity = intensity)
             val result = ShipItCelebrationManager.createCelebration(
-                CelebrationTrigger.NORMAL_COMPLETION, prefs
+                CelebrationTrigger.NORMAL_COMPLETION,
+                prefs
             )
             assertNotNull(result)
             assertEquals(intensity, result!!.intensity)

@@ -2,8 +2,6 @@ package com.averycorp.prismtask.smoke
 
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasText
-import androidx.compose.ui.test.onNodeWithContentDescription
-import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTouchInput
@@ -16,7 +14,6 @@ import java.util.Locale
 
 @HiltAndroidTest
 class TodayScreenSmokeTest : SmokeTestBase() {
-
     @Test
     fun todayScreen_launches_withCompactHeader() {
         composeRule.waitForIdle()
@@ -77,9 +74,10 @@ class TodayScreenSmokeTest : SmokeTestBase() {
 
         // The quick-add bar is rendered as the bottomBar and should show
         // its prompt text when collapsed
-        composeRule.onNode(
-            hasText("Add task", substring = true)
-        ).assertIsDisplayed()
+        composeRule
+            .onNode(
+                hasText("Add task", substring = true)
+            ).assertIsDisplayed()
     }
 
     @Test

@@ -28,7 +28,6 @@ import java.io.File
  * a temp file so tests run as pure JVM without Android/Robolectric.
  */
 class UserPreferencesDataStoreTest {
-
     @get:Rule
     val tmpFolder = TemporaryFolder()
 

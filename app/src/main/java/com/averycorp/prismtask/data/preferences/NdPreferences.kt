@@ -16,14 +16,12 @@ data class NdPreferences(
     val adhdModeEnabled: Boolean = false,
     val calmModeEnabled: Boolean = false,
     val focusReleaseModeEnabled: Boolean = false,
-
     // --- Calm Mode sub-settings (all flip ON when calmModeEnabled first enabled) ---
     val reduceAnimations: Boolean = false,
     val mutedColorPalette: Boolean = false,
     val quietMode: Boolean = false,
     val reduceHaptics: Boolean = false,
     val softContrast: Boolean = false,
-
     // --- ADHD Mode sub-settings (all flip ON when adhdModeEnabled first enabled) ---
     val taskDecompositionEnabled: Boolean = false,
     val focusGuardEnabled: Boolean = false,
@@ -33,14 +31,11 @@ data class NdPreferences(
     val streakCelebrations: Boolean = false,
     val showProgressBars: Boolean = false,
     val forgivenessStreaks: Boolean = false,
-
     // --- Focus & Release Mode sub-settings ---
-
     // Good Enough Timers
     val goodEnoughTimersEnabled: Boolean = true,
     val defaultGoodEnoughMinutes: Int = 30,
     val goodEnoughEscalation: GoodEnoughEscalation = GoodEnoughEscalation.NUDGE,
-
     // Anti-Rework Guards
     val antiReworkEnabled: Boolean = true,
     val softWarningEnabled: Boolean = true,
@@ -48,11 +43,9 @@ data class NdPreferences(
     val coolingOffMinutes: Int = 30,
     val revisionCounterEnabled: Boolean = false,
     val maxRevisions: Int = 3,
-
     // Ship-It Celebrations
     val shipItCelebrationsEnabled: Boolean = true,
     val celebrationIntensity: CelebrationIntensity = CelebrationIntensity.MEDIUM,
-
     // Decision Paralysis Breakers
     val paralysisBreakersEnabled: Boolean = true,
     val autoSuggestEnabled: Boolean = true,

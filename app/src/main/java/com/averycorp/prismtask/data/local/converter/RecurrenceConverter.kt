@@ -4,7 +4,6 @@ import com.averycorp.prismtask.domain.model.RecurrenceRule
 import com.google.gson.Gson
 
 object RecurrenceConverter {
-
     private val gson = Gson()
 
     fun toJson(rule: RecurrenceRule): String = gson.toJson(rule)

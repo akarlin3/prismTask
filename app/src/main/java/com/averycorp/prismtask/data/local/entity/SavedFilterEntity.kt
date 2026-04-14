@@ -15,18 +15,13 @@ import androidx.room.PrimaryKey
 data class SavedFilterEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
-
     val name: String,
-
     @ColumnInfo(name = "filter_json")
     val filterJson: String,
-
     @ColumnInfo(name = "icon_emoji")
     val iconEmoji: String? = null,
-
     @ColumnInfo(name = "sort_order", defaultValue = "0")
     val sortOrder: Int = 0,
-
     @ColumnInfo(name = "created_at")
     val createdAt: Long = System.currentTimeMillis()
 )

@@ -6,7 +6,6 @@ import android.content.Intent
 import android.util.Log
 
 class ReminderBroadcastReceiver : BroadcastReceiver() {
-
     override fun onReceive(context: Context, intent: Intent) {
         val taskId = intent.getLongExtra("taskId", -1L)
         if (taskId == -1L) return

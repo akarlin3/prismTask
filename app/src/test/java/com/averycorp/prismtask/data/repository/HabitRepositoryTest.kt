@@ -11,8 +11,8 @@ import com.averycorp.prismtask.data.preferences.HabitListPreferences
 import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
 import com.averycorp.prismtask.data.remote.SyncTracker
 import com.averycorp.prismtask.notifications.MedicationReminderScheduler
-import com.averycorp.prismtask.widget.WidgetUpdateManager
 import com.averycorp.prismtask.util.DayBoundary
+import com.averycorp.prismtask.widget.WidgetUpdateManager
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.flow.Flow
@@ -21,7 +21,6 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -36,7 +35,6 @@ import org.junit.Test
  * clock.
  */
 class HabitRepositoryTest {
-
     private lateinit var habitDao: FakeHabitDao
     private lateinit var completionDao: FakeHabitCompletionDao
     private lateinit var habitLogDao: FakeHabitLogDao
@@ -319,22 +317,33 @@ class HabitRepositoryTest {
         }
 
         override fun getAllHabits(): Flow<List<HabitEntity>> = flowOf(habits.toList())
+
         override fun getActiveHabits(): Flow<List<HabitEntity>> =
             flowOf(habits.filter { !it.isArchived })
+
         override fun getHabitById(id: Long): Flow<HabitEntity?> =
             flowOf(habits.firstOrNull { it.id == id })
+
         override suspend fun getHabitByIdOnce(id: Long): HabitEntity? =
             habits.firstOrNull { it.id == id }
+
         override suspend fun getHabitByName(name: String): HabitEntity? =
             habits.firstOrNull { it.name == name }
+
         override suspend fun getActiveHabitsOnce(): List<HabitEntity> =
             habits.filter { !it.isArchived }
+
         override suspend fun getAllHabitsOnce(): List<HabitEntity> = habits.toList()
+
         override suspend fun getHabitsWithIntervalReminder(): List<HabitEntity> =
             habits.filter { it.reminderIntervalMillis != null && !it.isArchived }
+
         override suspend fun getAllCategories(): List<String> =
             habits.mapNotNull { it.category }.distinct().sorted()
-        override suspend fun deleteAll() { habits.clear() }
+
+        override suspend fun deleteAll() {
+            habits.clear()
+        }
     }
 
     private class FakeHabitCompletionDao : HabitCompletionDao {
@@ -342,8 +351,12 @@ class HabitRepositoryTest {
         private var nextId = 1L
 
         override suspend fun insert(completion: HabitCompletionEntity): Long {
-            val id = if (completion.id == 0L) nextId++ else completion.id.also {
-                nextId = maxOf(nextId, it + 1)
+            val id = if (completion.id == 0L) {
+                nextId++
+            } else {
+                completion.id.also {
+                    nextId = maxOf(nextId, it + 1)
+                }
             }
             completions.add(completion.copy(id = id))
             return id
@@ -395,7 +408,10 @@ class HabitRepositoryTest {
 
         override suspend fun getAllCompletionsOnce(): List<HabitCompletionEntity> =
             completions.toList()
-        override suspend fun deleteAll() { completions.clear() }
+
+        override suspend fun deleteAll() {
+            completions.clear()
+        }
     }
 
     private class FakeHabitLogDao : HabitLogDao {
@@ -408,7 +424,10 @@ class HabitRepositoryTest {
             return id
         }
 
-        override suspend fun deleteLog(log: HabitLogEntity) { logs.removeAll { it.id == log.id } }
+        override suspend fun deleteLog(log: HabitLogEntity) {
+            logs.removeAll { it.id == log.id }
+        }
+
         override suspend fun updateLog(log: HabitLogEntity) {
             val idx = logs.indexOfFirst { it.id == log.id }
             if (idx >= 0) logs[idx] = log
@@ -428,6 +447,9 @@ class HabitRepositoryTest {
 
         override suspend fun getAllLogsOnce(): List<HabitLogEntity> =
             logs.sortedByDescending { it.date }
-        override suspend fun deleteAll() { logs.clear() }
+
+        override suspend fun deleteAll() {
+            logs.clear()
+        }
     }
 }

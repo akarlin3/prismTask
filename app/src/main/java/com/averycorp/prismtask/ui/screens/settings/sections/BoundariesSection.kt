@@ -1,7 +1,6 @@
 package com.averycorp.prismtask.ui.screens.settings.sections
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -99,13 +98,20 @@ private fun BoundaryRuleRow(
                 BoundaryRuleType.SUGGEST_CATEGORY -> "Suggest"
                 BoundaryRuleType.REMIND -> "Remind"
             }
-            val dayLabel = if (rule.activeDays.size == 7) "every day"
-            else if (rule.activeDays == BoundaryRule.WEEKDAYS) "weekdays"
-            else if (rule.activeDays == BoundaryRule.WEEKEND) "weekends"
-            else rule.activeDays.joinToString(", ") { it.name.take(3).lowercase() }
+            val dayLabel = if (rule.activeDays.size == 7) {
+                "every day"
+            } else if (rule.activeDays == BoundaryRule.WEEKDAYS) {
+                "weekdays"
+            } else if (rule.activeDays == BoundaryRule.WEEKEND) {
+                "weekends"
+            } else {
+                rule.activeDays.joinToString(", ") { it.name.take(3).lowercase() }
+            }
             val categoryLabel = LifeCategory.label(rule.category)
             Text(
-                text = "$typeLabel $categoryLabel · ${BoundaryRule.formatTime(rule.startTime)}–${BoundaryRule.formatTime(rule.endTime)} · $dayLabel",
+                text = "$typeLabel $categoryLabel · ${BoundaryRule.formatTime(
+                    rule.startTime
+                )}–${BoundaryRule.formatTime(rule.endTime)} · $dayLabel",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

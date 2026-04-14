@@ -36,7 +36,6 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
-
     private const val CONNECT_TIMEOUT_SECONDS = 30L
     private const val READ_TIMEOUT_SECONDS = 60L
     private const val WRITE_TIMEOUT_SECONDS = 60L
@@ -59,7 +58,8 @@ object NetworkModule {
         loggingInterceptor: HttpLoggingInterceptor,
         authInterceptor: AuthInterceptor,
         tokenAuthenticator: TokenAuthenticator
-    ): OkHttpClient = OkHttpClient.Builder()
+    ): OkHttpClient = OkHttpClient
+        .Builder()
         .connectTimeout(CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
         .readTimeout(READ_TIMEOUT_SECONDS, TimeUnit.SECONDS)
         .writeTimeout(WRITE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
@@ -73,7 +73,8 @@ object NetworkModule {
     fun provideRetrofit(
         okHttpClient: OkHttpClient,
         gson: Gson
-    ): Retrofit = Retrofit.Builder()
+    ): Retrofit = Retrofit
+        .Builder()
         .baseUrl(normalizeBaseUrl(BuildConfig.API_BASE_URL))
         .client(okHttpClient)
         .addConverterFactory(GsonConverterFactory.create(gson))

@@ -13,7 +13,6 @@ import org.junit.Test
  */
 @HiltAndroidTest
 class SettingsSmokeTest : SmokeTestBase() {
-
     @Test
     fun settingsGear_isReachableFromTodayTab() {
         composeRule.waitForIdle()

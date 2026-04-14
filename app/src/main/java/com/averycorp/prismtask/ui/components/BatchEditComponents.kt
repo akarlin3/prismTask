@@ -491,8 +491,7 @@ fun BatchMoveToProjectDialog(
                                 .clickable {
                                     isCreating = true
                                     newProjectName = ""
-                                }
-                                .padding(horizontal = 8.dp, vertical = 12.dp),
+                                }.padding(horizontal = 8.dp, vertical = 12.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(

@@ -48,7 +48,6 @@ data class WeeklyReviewStats(
  * tasks and a configurable "week start day" (Monday vs Sunday).
  */
 class WeeklyReviewAggregator {
-
     /**
      * Build a [WeeklyReviewStats] snapshot for the week containing [reference].
      * Defaults to ISO-8601 (Monday start). Pass [weekStartDay] = [Calendar.SUNDAY]

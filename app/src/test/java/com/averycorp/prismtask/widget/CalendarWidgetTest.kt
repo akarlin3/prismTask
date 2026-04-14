@@ -10,7 +10,6 @@ import org.junit.Test
  * model and timeline merging logic.
  */
 class CalendarWidgetTest {
-
     @Test
     fun `calendar event preserves title and time`() {
         val event = WidgetCalendarEvent(

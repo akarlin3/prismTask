@@ -153,10 +153,12 @@ fun AppearanceSection(
                     .clip(CircleShape)
                     .background(color)
                     .then(
-                        if (isSelected) Modifier.border(2.dp, MaterialTheme.colorScheme.onSurface, CircleShape)
-                        else Modifier
-                    )
-                    .clickable { onAccentColorChange(hex) },
+                        if (isSelected) {
+                            Modifier.border(2.dp, MaterialTheme.colorScheme.onSurface, CircleShape)
+                        } else {
+                            Modifier
+                        }
+                    ).clickable { onAccentColorChange(hex) },
                 contentAlignment = Alignment.Center
             ) {
                 if (isSelected) {
@@ -177,17 +179,22 @@ fun AppearanceSection(
                 .background(
                     brush = Brush.sweepGradient(
                         listOf(
-                            Color(0xFFFF0000), Color(0xFFFFFF00), Color(0xFF00FF00),
-                            Color(0xFF00FFFF), Color(0xFF0000FF), Color(0xFFFF00FF),
+                            Color(0xFFFF0000),
+                            Color(0xFFFFFF00),
+                            Color(0xFF00FF00),
+                            Color(0xFF00FFFF),
+                            Color(0xFF0000FF),
+                            Color(0xFFFF00FF),
                             Color(0xFFFF0000)
                         )
                     )
-                )
-                .then(
-                    if (isCustomSelected) Modifier.border(2.dp, MaterialTheme.colorScheme.onSurface, CircleShape)
-                    else Modifier
-                )
-                .clickable { showCustomAccentPicker = true },
+                ).then(
+                    if (isCustomSelected) {
+                        Modifier.border(2.dp, MaterialTheme.colorScheme.onSurface, CircleShape)
+                    } else {
+                        Modifier
+                    }
+                ).clickable { showCustomAccentPicker = true },
             contentAlignment = Alignment.Center
         ) {
             if (isCustomSelected) {
@@ -211,7 +218,11 @@ fun AppearanceSection(
         )
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             recentCustomColors.forEach { hex ->
-                val color = try { Color(android.graphics.Color.parseColor(hex)) } catch (_: Exception) { Color.Gray }
+                val color = try {
+                    Color(android.graphics.Color.parseColor(hex))
+                } catch (_: Exception) {
+                    Color.Gray
+                }
                 val isSelected = accentColor.equals(hex, ignoreCase = true)
                 Box(
                     modifier = Modifier
@@ -219,10 +230,12 @@ fun AppearanceSection(
                         .clip(CircleShape)
                         .background(color)
                         .then(
-                            if (isSelected) Modifier.border(2.dp, MaterialTheme.colorScheme.onSurface, CircleShape)
-                            else Modifier
-                        )
-                        .clickable { onCustomAccentColorChange(hex) }
+                            if (isSelected) {
+                                Modifier.border(2.dp, MaterialTheme.colorScheme.onSurface, CircleShape)
+                            } else {
+                                Modifier
+                            }
+                        ).clickable { onCustomAccentColorChange(hex) }
                 )
             }
         }

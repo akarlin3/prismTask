@@ -15,31 +15,21 @@ import androidx.room.PrimaryKey
 data class ProjectTemplateEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
-
     val name: String,
-
     val description: String? = null,
-
     val color: String? = null,
-
     @ColumnInfo(name = "icon_emoji")
     val iconEmoji: String? = null,
-
     val category: String? = null,
-
     /** JSON array of inline task definitions (title/description/priority/etc). */
     @ColumnInfo(name = "task_templates_json")
     val taskTemplatesJson: String,
-
     @ColumnInfo(name = "is_built_in", defaultValue = "0")
     val isBuiltIn: Boolean = false,
-
     @ColumnInfo(name = "usage_count", defaultValue = "0")
     val usageCount: Int = 0,
-
     @ColumnInfo(name = "last_used_at")
     val lastUsedAt: Long? = null,
-
     @ColumnInfo(name = "created_at")
     val createdAt: Long = System.currentTimeMillis()
 )

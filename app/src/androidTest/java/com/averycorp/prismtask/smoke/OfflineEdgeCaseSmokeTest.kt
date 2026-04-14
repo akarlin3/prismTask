@@ -14,7 +14,6 @@ import org.junit.Test
  */
 @HiltAndroidTest
 class OfflineEdgeCaseSmokeTest : SmokeTestBase() {
-
     @Test
     fun createTaskOffline_isVisibleAfterRefetch() = runBlocking {
         val dao = database.taskDao()

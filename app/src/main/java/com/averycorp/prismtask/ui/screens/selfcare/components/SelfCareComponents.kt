@@ -1,8 +1,5 @@
 package com.averycorp.prismtask.ui.screens.selfcare.components
 
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -11,26 +8,18 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -38,17 +27,11 @@ import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -62,9 +45,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.navigation.NavController
 import com.averycorp.prismtask.data.local.entity.SelfCareStepEntity
 import com.averycorp.prismtask.domain.model.SelfCareRoutines
 
@@ -118,8 +98,11 @@ internal fun PhaseOrderDialog(
                                 Icons.Default.KeyboardArrowUp,
                                 contentDescription = "Move up",
                                 modifier = Modifier.size(20.dp),
-                                tint = if (index > 0) MaterialTheme.colorScheme.onSurfaceVariant
-                                       else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.25f)
+                                tint = if (index > 0) {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.25f)
+                                }
                             )
                         }
                         IconButton(
@@ -137,8 +120,11 @@ internal fun PhaseOrderDialog(
                                 Icons.Default.KeyboardArrowDown,
                                 contentDescription = "Move down",
                                 modifier = Modifier.size(20.dp),
-                                tint = if (index < phases.lastIndex) MaterialTheme.colorScheme.onSurfaceVariant
-                                       else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.25f)
+                                tint = if (index < phases.lastIndex) {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.25f)
+                                }
                             )
                         }
                     }
@@ -314,8 +300,7 @@ internal fun EditableStepItem(
                 width = 1.dp,
                 color = MaterialTheme.colorScheme.outlineVariant,
                 shape = RoundedCornerShape(12.dp)
-            )
-            .clickable(onClick = onEdit)
+            ).clickable(onClick = onEdit)
             .padding(horizontal = 8.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -326,8 +311,11 @@ internal fun EditableStepItem(
                     Icons.Default.KeyboardArrowUp,
                     contentDescription = "Move up",
                     modifier = Modifier.size(18.dp),
-                    tint = if (!isFirst) MaterialTheme.colorScheme.onSurfaceVariant
-                           else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.25f)
+                    tint = if (!isFirst) {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.25f)
+                    }
                 )
             }
             IconButton(onClick = onMoveDown, modifier = Modifier.size(28.dp), enabled = !isLast) {
@@ -335,8 +323,11 @@ internal fun EditableStepItem(
                     Icons.Default.KeyboardArrowDown,
                     contentDescription = "Move down",
                     modifier = Modifier.size(18.dp),
-                    tint = if (!isLast) MaterialTheme.colorScheme.onSurfaceVariant
-                           else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.25f)
+                    tint = if (!isLast) {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.25f)
+                    }
                 )
             }
         }
@@ -410,15 +401,16 @@ internal fun StepItem(
             .padding(bottom = 6.dp)
             .clip(RoundedCornerShape(12.dp))
             .background(
-                if (isDone) tierColor.copy(alpha = 0.07f)
-                else MaterialTheme.colorScheme.surfaceContainerLow
-            )
-            .border(
+                if (isDone) {
+                    tierColor.copy(alpha = 0.07f)
+                } else {
+                    MaterialTheme.colorScheme.surfaceContainerLow
+                }
+            ).border(
                 width = 1.dp,
                 color = if (isDone) tierColor.copy(alpha = 0.25f) else MaterialTheme.colorScheme.outlineVariant,
                 shape = RoundedCornerShape(12.dp)
-            )
-            .clickable(onClick = onClick)
+            ).clickable(onClick = onClick)
             .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -428,8 +420,11 @@ internal fun StepItem(
                 .size(22.dp)
                 .clip(CircleShape)
                 .then(
-                    if (isDone) Modifier.background(tierColor)
-                    else Modifier.border(2.dp, MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f), CircleShape)
+                    if (isDone) {
+                        Modifier.background(tierColor)
+                    } else {
+                        Modifier.border(2.dp, MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f), CircleShape)
+                    }
                 ),
             contentAlignment = Alignment.Center
         ) {

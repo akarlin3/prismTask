@@ -1,0 +1,59 @@
+root = true
+
+[*]
+end_of_line = lf
+insert_final_newline = true
+charset = utf-8
+trim_trailing_whitespace = true
+
+[*.{kt,kts}]
+indent_style = space
+indent_size = 4
+max_line_length = 140
+
+# --- ktlint configuration -----------------------------------------------
+# Target Kotlin 2.2.10 for parsing / rule activation.
+ktlint_kotlin_version = 2.2.10
+
+# Use the ktlint official code style.
+ktlint_code_style = ktlint_official
+
+# Jetpack Compose uses PascalCase for @Composable functions, which clashes
+# with the function-naming rule. Disable globally — this is a Compose-first
+# project and the lowercase-only rule would force widespread suppressions.
+ktlint_standard_function-naming = disabled
+
+# Composable function signatures and parameter lists are often long;
+# ktlint_official's auto-wrapping is stricter than we want for UI code.
+# Keep the rules on but allow the formatter to handle wrapping.
+ktlint_standard_function-signature = disabled
+
+# Allow multiline expressions to start on the same line — Compose state
+# hoisting often reads better this way.
+ktlint_standard_multiline-expression-wrapping = disabled
+
+# Trailing commas are a style preference; leave off to minimize churn on
+# existing files that don't use them.
+ij_kotlin_allow_trailing_comma = false
+ij_kotlin_allow_trailing_comma_on_call_site = false
+
+# Backing-property pattern (e.g. private _state: MutableStateFlow + public
+# state: StateFlow) is the standard Kotlin/ViewModel convention; ktlint's
+# stricter interpretation produces many false positives here.
+ktlint_standard_backing-property-naming = disabled
+
+# Single-line if/else wrapping is a style opinion that doesn't materially
+# improve readability for widget layouts and short guards.
+ktlint_standard_if-else-wrapping = disabled
+
+# The `filename` rule demands `LifeCategoryColors.kt` be renamed to
+# `LifeCategoryColor.kt` because it declares one public symbol, but the
+# plural name documents that the file hosts a palette mapping. Disable.
+ktlint_standard_filename = disabled
+
+# Exclusions mirror the Gradle plugin's `filter { exclude ... }` block.
+[{**/build/**,**/generated/**}]
+ktlint = disabled
+
+[*.md]
+trim_trailing_whitespace = false

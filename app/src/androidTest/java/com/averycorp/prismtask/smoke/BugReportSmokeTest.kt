@@ -11,7 +11,6 @@ import org.junit.Test
 
 @HiltAndroidTest
 class BugReportSmokeTest : SmokeTestBase() {
-
     @Test
     fun settingsHelpSection_showsReportBugOption() {
         composeRule.waitForIdle()

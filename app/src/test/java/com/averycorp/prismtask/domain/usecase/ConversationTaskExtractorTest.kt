@@ -5,7 +5,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ConversationTaskExtractorTest {
-
     private val extractor = ConversationTaskExtractor()
 
     @Test
@@ -57,11 +56,12 @@ class ConversationTaskExtractorTest {
 
     @Test
     fun `multiple patterns in same input all extracted`() {
-        val text = """
+        val text =
+            """
             TODO: fix the login bug
             I should call the dentist
             Action item: draft the email
-        """.trimIndent()
+            """.trimIndent()
         val result = extractor.extract(text)
         assertEquals(3, result.size)
         // Results should be sorted by confidence, TODO and action item first.
@@ -70,10 +70,11 @@ class ConversationTaskExtractorTest {
 
     @Test
     fun `duplicate action items are deduped by lowercase`() {
-        val text = """
+        val text =
+            """
             TODO: fix the bug
             I should fix the bug
-        """.trimIndent()
+            """.trimIndent()
         val result = extractor.extract(text)
         // Both resolve to "Fix the bug"; dedupe leaves one.
         assertEquals(1, result.size)

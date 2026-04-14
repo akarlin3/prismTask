@@ -11,7 +11,6 @@ import org.junit.Test
  * Unit tests for [SmartDefaultsEngine]. Pure object — no fakes needed.
  */
 class SmartDefaultsEngineTest {
-
     @Test
     fun compute_returnsAllNullsWhenHistoryBelowMinimum() {
         val result = SmartDefaultsEngine.compute(

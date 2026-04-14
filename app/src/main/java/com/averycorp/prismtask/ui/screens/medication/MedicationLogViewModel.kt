@@ -13,19 +13,22 @@ import kotlinx.coroutines.flow.stateIn
 import javax.inject.Inject
 
 @HiltViewModel
-class MedicationLogViewModel @Inject constructor(
-    private val repository: SelfCareRepository
-) : ViewModel() {
+class MedicationLogViewModel
+    @Inject
+    constructor(
+        private val repository: SelfCareRepository
+    ) : ViewModel() {
+        val logs: StateFlow<List<SelfCareLogEntity>> = repository
+            .getLogsForRoutine("medication")
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val logs: StateFlow<List<SelfCareLogEntity>> = repository.getLogsForRoutine("medication")
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+        val steps: StateFlow<List<SelfCareStepEntity>> = repository
+            .getSteps("medication")
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val steps: StateFlow<List<SelfCareStepEntity>> = repository.getSteps("medication")
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+        fun parseMedStepLogs(log: SelfCareLogEntity): List<MedStepLog> =
+            repository.parseMedStepLogs(log.completedSteps)
 
-    fun parseMedStepLogs(log: SelfCareLogEntity): List<MedStepLog> =
-        repository.parseMedStepLogs(log.completedSteps)
-
-    fun parseTiersByTime(log: SelfCareLogEntity): Map<String, String> =
-        repository.parseTiersByTime(log.tiersByTime)
-}
+        fun parseTiersByTime(log: SelfCareLogEntity): Map<String, String> =
+            repository.parseTiersByTime(log.tiersByTime)
+    }

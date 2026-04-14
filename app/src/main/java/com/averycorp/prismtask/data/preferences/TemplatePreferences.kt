@@ -25,34 +25,36 @@ private val Context.templateDataStore: DataStore<Preferences> by preferencesData
  *    once per install/account pair.
  */
 @Singleton
-class TemplatePreferences @Inject constructor(
-    @ApplicationContext private val context: Context
-) {
-    companion object {
-        private val TEMPLATES_SEEDED_KEY = booleanPreferencesKey("templates_seeded")
-        private val TEMPLATES_FIRST_SYNC_DONE_KEY =
-            booleanPreferencesKey("templates_first_sync_done")
-    }
+class TemplatePreferences
+    @Inject
+    constructor(
+        @ApplicationContext private val context: Context
+    ) {
+        companion object {
+            private val TEMPLATES_SEEDED_KEY = booleanPreferencesKey("templates_seeded")
+            private val TEMPLATES_FIRST_SYNC_DONE_KEY =
+                booleanPreferencesKey("templates_first_sync_done")
+        }
 
-    suspend fun isSeeded(): Boolean =
-        context.templateDataStore.data.first()[TEMPLATES_SEEDED_KEY] ?: false
+        suspend fun isSeeded(): Boolean =
+            context.templateDataStore.data.first()[TEMPLATES_SEEDED_KEY] ?: false
 
-    suspend fun setSeeded(seeded: Boolean) {
-        context.templateDataStore.edit { prefs ->
-            prefs[TEMPLATES_SEEDED_KEY] = seeded
+        suspend fun setSeeded(seeded: Boolean) {
+            context.templateDataStore.edit { prefs ->
+                prefs[TEMPLATES_SEEDED_KEY] = seeded
+            }
+        }
+
+        suspend fun isFirstSyncDone(): Boolean =
+            context.templateDataStore.data.first()[TEMPLATES_FIRST_SYNC_DONE_KEY] ?: false
+
+        suspend fun setFirstSyncDone(done: Boolean) {
+            context.templateDataStore.edit { prefs ->
+                prefs[TEMPLATES_FIRST_SYNC_DONE_KEY] = done
+            }
+        }
+
+        suspend fun clear() {
+            context.templateDataStore.edit { it.clear() }
         }
     }
-
-    suspend fun isFirstSyncDone(): Boolean =
-        context.templateDataStore.data.first()[TEMPLATES_FIRST_SYNC_DONE_KEY] ?: false
-
-    suspend fun setFirstSyncDone(done: Boolean) {
-        context.templateDataStore.edit { prefs ->
-            prefs[TEMPLATES_FIRST_SYNC_DONE_KEY] = done
-        }
-    }
-
-    suspend fun clear() {
-        context.templateDataStore.edit { it.clear() }
-    }
-}

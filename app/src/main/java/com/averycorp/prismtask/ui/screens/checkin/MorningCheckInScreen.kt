@@ -174,8 +174,11 @@ private fun StepIndicator(current: Int, total: Int, modifier: Modifier = Modifie
         horizontalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         for (i in 0 until total) {
-            val color = if (i <= current) MaterialTheme.colorScheme.primary
-            else MaterialTheme.colorScheme.surfaceContainerHighest
+            val color = if (i <= current) {
+                MaterialTheme.colorScheme.primary
+            } else {
+                MaterialTheme.colorScheme.surfaceContainerHighest
+            }
             Box(
                 modifier = Modifier
                     .size(8.dp)
@@ -285,8 +288,11 @@ private fun EmojiRow(emojis: List<String>, selected: Int, onSelect: (Int) -> Uni
         horizontalArrangement = Arrangement.SpaceEvenly
     ) {
         emojis.forEachIndexed { index, emoji ->
-            val bg = if (index == selected) MaterialTheme.colorScheme.primaryContainer
-            else Color.Transparent
+            val bg = if (index == selected) {
+                MaterialTheme.colorScheme.primaryContainer
+            } else {
+                Color.Transparent
+            }
             Box(
                 modifier = Modifier
                     .size(48.dp)
@@ -647,8 +653,11 @@ private fun HabitRow(habit: HabitWithStatus, onTap: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            containerColor = if (isDone) habitColor.copy(alpha = 0.18f)
-            else MaterialTheme.colorScheme.surfaceContainerLow
+            containerColor = if (isDone) {
+                habitColor.copy(alpha = 0.18f)
+            } else {
+                MaterialTheme.colorScheme.surfaceContainerLow
+            }
         )
     ) {
         Row(
@@ -676,7 +685,13 @@ private fun HabitRow(habit: HabitWithStatus, onTap: () -> Unit) {
                 )
                 val target = habit.dailyTarget.coerceAtLeast(1)
                 val doneCount = habit.completionsToday.coerceAtMost(target)
-                val sub = if (target > 1) "$doneCount/$target today" else if (isDone) "Done" else "Not done yet"
+                val sub = if (target > 1) {
+                    "$doneCount/$target today"
+                } else if (isDone) {
+                    "Done"
+                } else {
+                    "Not done yet"
+                }
                 Text(
                     text = sub,
                     style = MaterialTheme.typography.bodySmall,
@@ -823,7 +838,9 @@ private fun buildCategorySummary(state: BalanceState): String {
     val parts = LifeCategory.TRACKED
         .mapNotNull { cat ->
             val ratio = state.currentRatios[cat] ?: 0f
-            if (ratio <= 0f) null else {
+            if (ratio <= 0f) {
+                null
+            } else {
                 val pct = (ratio * 100f).roundToInt()
                 "$pct% ${categoryShortLabel(cat)}"
             }

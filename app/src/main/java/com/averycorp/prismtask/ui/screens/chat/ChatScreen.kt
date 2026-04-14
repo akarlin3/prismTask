@@ -1,13 +1,10 @@
 package com.averycorp.prismtask.ui.screens.chat
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -63,13 +60,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
@@ -78,7 +73,6 @@ import com.averycorp.prismtask.data.remote.api.ChatActionResponse
 import com.averycorp.prismtask.data.repository.ChatMessage
 import com.averycorp.prismtask.ui.components.ProFeature
 import com.averycorp.prismtask.ui.components.UpgradePrompt
-import com.averycorp.prismtask.domain.usecase.ProFeatureGate
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -144,7 +138,7 @@ fun ChatScreen(
             text = {
                 Text(
                     "Your messages are processed by AI to provide coaching. " +
-                            "Chat resets daily and isn't stored permanently."
+                        "Chat resets daily and isn't stored permanently."
                 )
             },
             confirmButton = {
@@ -274,8 +268,8 @@ private fun WelcomeCard() {
             Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = "I can help you break down tasks, plan your day, " +
-                        "or just talk through what feels stuck. " +
-                        "What's on your mind?",
+                    "or just talk through what feels stuck. " +
+                    "What's on your mind?",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -393,7 +387,8 @@ private fun TypingIndicator() {
                 animationSpec = infiniteRepeatable(
                     animation = tween(600),
                     repeatMode = RepeatMode.Reverse,
-                    initialStartOffset = androidx.compose.animation.core.StartOffset(index * 200)
+                    initialStartOffset = androidx.compose.animation.core
+                        .StartOffset(index * 200)
                 ),
                 label = "dot_$index"
             )

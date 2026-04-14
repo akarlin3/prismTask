@@ -65,9 +65,11 @@ fun DisplaySection(
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp),
         shape = RoundedCornerShape(appearancePrefs.cardCornerRadius.dp),
-        border = if (appearancePrefs.showTaskCardBorders)
+        border = if (appearancePrefs.showTaskCardBorders) {
             BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
-        else null
+        } else {
+            null
+        }
     ) {
         Column(
             modifier = Modifier.padding(

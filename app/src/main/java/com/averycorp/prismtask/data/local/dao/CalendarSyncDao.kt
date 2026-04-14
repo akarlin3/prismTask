@@ -8,7 +8,6 @@ import com.averycorp.prismtask.data.local.entity.CalendarSyncEntity
 
 @Dao
 interface CalendarSyncDao {
-
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(entity: CalendarSyncEntity)
 

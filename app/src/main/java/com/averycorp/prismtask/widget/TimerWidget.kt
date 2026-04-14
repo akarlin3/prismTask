@@ -10,6 +10,7 @@ import androidx.compose.ui.unit.sp
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
+import androidx.glance.LocalSize
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
@@ -19,7 +20,6 @@ import androidx.glance.appwidget.action.actionRunCallback
 import androidx.glance.appwidget.action.actionStartActivity
 import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.provideContent
-import androidx.glance.LocalSize
 import androidx.glance.background
 import androidx.glance.layout.Alignment
 import androidx.glance.layout.Box
@@ -39,41 +39,128 @@ import androidx.glance.unit.ColorProvider
 import com.averycorp.prismtask.MainActivity
 
 class TimerWidget : GlanceAppWidget() {
-    companion object { private val SMALL = DpSize(120.dp, 120.dp); private val LARGE = DpSize(200.dp, 120.dp) }
+    companion object {
+        private val SMALL = DpSize(120.dp, 120.dp)
+        private val LARGE = DpSize(200.dp, 120.dp)
+    }
+
     override val sizeMode = SizeMode.Responsive(setOf(SMALL, LARGE))
+
     override suspend fun provideGlance(context: Context, id: GlanceId) {
-        val state = try { TimerStateDataStore.read(context) } catch (_: Exception) { TimerWidgetState() }
-        provideContent { val size = LocalSize.current; GlanceTheme { TimerWidgetContent(context, state, size) } }
+        val state = try {
+            TimerStateDataStore.read(context)
+        } catch (_: Exception) {
+            TimerWidgetState()
+        }
+        provideContent {
+            val size = LocalSize.current
+            GlanceTheme { TimerWidgetContent(context, state, size) }
+        }
     }
 }
 
 @Composable
 private fun TimerWidgetContent(context: Context, state: TimerWidgetState, size: DpSize) {
-    val isLarge = size.width >= 200.dp; val isActive = state.isRunning || state.isPaused; val isWork = state.sessionType == "work"
+    val isLarge = size.width >= 200.dp
+    val isActive = state.isRunning || state.isPaused
+    val isWork = state.sessionType == "work"
     val accentColor = if (isWork) ColorProvider(Color(0xFFF57C00)) else ColorProvider(Color(0xFF00897B))
-    val launchIntent = Intent(context, MainActivity::class.java).apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP }
-    Column(modifier = GlanceModifier.fillMaxSize().cornerRadius(16.dp).background(GlanceTheme.colors.surface).padding(12.dp).clickable(actionStartActivity(launchIntent)), verticalAlignment = Alignment.CenterVertically, horizontalAlignment = Alignment.CenterHorizontally) {
+    val launchIntent = Intent(context, MainActivity::class.java).apply {
+        flags =
+            Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+    }
+    Column(
+        modifier = GlanceModifier
+            .fillMaxSize()
+            .cornerRadius(
+                16.dp
+            ).background(GlanceTheme.colors.surface)
+            .padding(12.dp)
+            .clickable(actionStartActivity(launchIntent)),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
         if (!isActive) {
-            Text(text = "\u23F1\uFE0F Timer", style = TextStyle(fontWeight = FontWeight.Bold, fontSize = 14.sp, color = GlanceTheme.colors.onSurface))
+            Text(
+                text = "\u23F1\uFE0F Timer",
+                style = TextStyle(fontWeight = FontWeight.Bold, fontSize = 14.sp, color = GlanceTheme.colors.onSurface)
+            )
             Spacer(modifier = GlanceModifier.height(8.dp))
             Text(text = "Start a Focus Session", style = TextStyle(fontSize = 11.sp, color = GlanceTheme.colors.onSurfaceVariant))
             Spacer(modifier = GlanceModifier.height(10.dp))
-            val timerIntent = Intent(context, MainActivity::class.java).apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP; putExtra(MainActivity.EXTRA_LAUNCH_ACTION, "open_timer") }
-            Box(modifier = GlanceModifier.cornerRadius(20.dp).background(GlanceTheme.colors.primary).padding(horizontal = 14.dp, vertical = 8.dp).clickable(actionStartActivity(timerIntent))) { Text(text = "\u25B6 Start", style = TextStyle(fontSize = 12.sp, fontWeight = FontWeight.Bold, color = GlanceTheme.colors.onPrimary)) }
+            val timerIntent = Intent(context, MainActivity::class.java).apply {
+                flags =
+                    Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                putExtra(MainActivity.EXTRA_LAUNCH_ACTION, "open_timer")
+            }
+            Box(
+                modifier = GlanceModifier
+                    .cornerRadius(
+                        20.dp
+                    ).background(
+                        GlanceTheme.colors.primary
+                    ).padding(horizontal = 14.dp, vertical = 8.dp)
+                    .clickable(actionStartActivity(timerIntent))
+            ) {
+                Text(
+                    text = "\u25B6 Start",
+                    style = TextStyle(fontSize = 12.sp, fontWeight = FontWeight.Bold, color = GlanceTheme.colors.onPrimary)
+                )
+            }
         } else {
-            val minutes = state.remainingSeconds / 60; val seconds = state.remainingSeconds % 60; val timeText = "%d:%02d".format(minutes, seconds)
+            val minutes =
+                state.remainingSeconds / 60
+            val seconds = state.remainingSeconds % 60
+            val timeText = "%d:%02d".format(minutes, seconds)
             val progress = if (state.totalSeconds > 0) 1f - (state.remainingSeconds.toFloat() / state.totalSeconds) else 0f
             val sessionLabel = if (isWork) "Session ${state.currentSession}/${state.totalSessions}" else "Break Time"
             Text(text = sessionLabel, style = TextStyle(fontSize = 10.sp, fontWeight = FontWeight.Medium, color = accentColor))
             Spacer(modifier = GlanceModifier.height(4.dp))
-            Text(text = timeText, style = TextStyle(fontSize = if (isLarge) 28.sp else 24.sp, fontWeight = FontWeight.Bold, color = if (state.isPaused) GlanceTheme.colors.onSurfaceVariant else GlanceTheme.colors.onSurface))
-            if (isLarge && state.currentTaskTitle != null) { Text(text = state.currentTaskTitle, style = TextStyle(fontSize = 10.sp, color = GlanceTheme.colors.onSurfaceVariant), maxLines = 1) }
+            Text(
+                text = timeText,
+                style = TextStyle(
+                    fontSize = if (isLarge) 28.sp else 24.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = if (state.isPaused) GlanceTheme.colors.onSurfaceVariant else GlanceTheme.colors.onSurface
+                )
+            )
+            if (isLarge &&
+                state.currentTaskTitle != null
+            ) {
+                Text(
+                    text = state.currentTaskTitle,
+                    style = TextStyle(fontSize = 10.sp, color = GlanceTheme.colors.onSurfaceVariant),
+                    maxLines = 1
+                )
+            }
             Spacer(modifier = GlanceModifier.height(4.dp))
-            LinearProgressIndicator(progress = progress.coerceIn(0f, 1f), modifier = GlanceModifier.fillMaxWidth().height(3.dp), color = accentColor, backgroundColor = GlanceTheme.colors.surfaceVariant)
+            LinearProgressIndicator(
+                progress = progress.coerceIn(0f, 1f),
+                modifier = GlanceModifier.fillMaxWidth().height(3.dp),
+                color = accentColor,
+                backgroundColor = GlanceTheme.colors.surfaceVariant
+            )
             Spacer(modifier = GlanceModifier.height(6.dp))
-            Row(modifier = GlanceModifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalAlignment = Alignment.CenterVertically) {
-                if (state.isPaused) { WidgetButton("\u25B6", accentColor, actionRunCallback<ResumeTimerAction>()); if (isLarge) { Spacer(modifier = GlanceModifier.width(8.dp)); WidgetButton("\u25A0", ColorProvider(Color(0xFFC62828)), actionRunCallback<StopTimerAction>()) } }
-                else { WidgetButton("\u23F8", accentColor, actionRunCallback<PauseTimerAction>()); if (isLarge && !isWork) { Spacer(modifier = GlanceModifier.width(8.dp)); WidgetButton("\u23ED", GlanceTheme.colors.secondaryContainer, actionRunCallback<SkipBreakAction>()) } }
+            Row(
+                modifier = GlanceModifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (state.isPaused) {
+                    WidgetButton("\u25B6", accentColor, actionRunCallback<ResumeTimerAction>())
+                    if (isLarge) {
+                        Spacer(modifier = GlanceModifier.width(8.dp))
+                        WidgetButton("\u25A0", ColorProvider(Color(0xFFC62828)), actionRunCallback<StopTimerAction>())
+                    }
+                } else {
+                    WidgetButton("\u23F8", accentColor, actionRunCallback<PauseTimerAction>())
+                    if (isLarge &&
+                        !isWork
+                    ) {
+                        Spacer(modifier = GlanceModifier.width(8.dp))
+                        WidgetButton("\u23ED", GlanceTheme.colors.secondaryContainer, actionRunCallback<SkipBreakAction>())
+                    }
+                }
             }
         }
     }
@@ -81,7 +168,19 @@ private fun TimerWidgetContent(context: Context, state: TimerWidgetState, size: 
 
 @Composable
 private fun WidgetButton(text: String, backgroundColor: ColorProvider, onClick: androidx.glance.action.Action) {
-    Box(modifier = GlanceModifier.cornerRadius(16.dp).background(backgroundColor).padding(horizontal = 12.dp, vertical = 6.dp).clickable(onClick), contentAlignment = Alignment.Center) { Text(text = text, style = TextStyle(fontSize = 14.sp, fontWeight = FontWeight.Bold, color = ColorProvider(Color.White))) }
+    Box(
+        modifier = GlanceModifier
+            .cornerRadius(
+                16.dp
+            ).background(backgroundColor)
+            .padding(horizontal = 12.dp, vertical = 6.dp)
+            .clickable(onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(text = text, style = TextStyle(fontSize = 14.sp, fontWeight = FontWeight.Bold, color = ColorProvider(Color.White)))
+    }
 }
 
-class TimerWidgetReceiver : GlanceAppWidgetReceiver() { override val glanceAppWidget: GlanceAppWidget = TimerWidget() }
+class TimerWidgetReceiver : GlanceAppWidgetReceiver() {
+    override val glanceAppWidget: GlanceAppWidget = TimerWidget()
+}

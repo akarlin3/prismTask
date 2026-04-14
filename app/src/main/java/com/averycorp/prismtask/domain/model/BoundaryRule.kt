@@ -64,19 +64,24 @@ data class BoundaryRule(
 
         fun parseDays(csv: String): Set<DayOfWeek> {
             if (csv.isBlank()) return emptySet()
-            return csv.split(",").mapNotNull { entry ->
-                entry.trim().toIntOrNull()?.let { num ->
-                    runCatching { DayOfWeek.of(num) }.getOrNull()
-                }
-            }.toSet()
+            return csv
+                .split(",")
+                .mapNotNull { entry ->
+                    entry.trim().toIntOrNull()?.let { num ->
+                        runCatching { DayOfWeek.of(num) }.getOrNull()
+                    }
+                }.toSet()
         }
 
         fun formatDays(days: Set<DayOfWeek>): String =
             days.map { it.value }.sorted().joinToString(",")
 
         val WEEKDAYS: Set<DayOfWeek> = setOf(
-            DayOfWeek.MONDAY, DayOfWeek.TUESDAY, DayOfWeek.WEDNESDAY,
-            DayOfWeek.THURSDAY, DayOfWeek.FRIDAY
+            DayOfWeek.MONDAY,
+            DayOfWeek.TUESDAY,
+            DayOfWeek.WEDNESDAY,
+            DayOfWeek.THURSDAY,
+            DayOfWeek.FRIDAY
         )
         val WEEKEND: Set<DayOfWeek> = setOf(DayOfWeek.SATURDAY, DayOfWeek.SUNDAY)
         val ALL_DAYS: Set<DayOfWeek> = DayOfWeek.values().toSet()

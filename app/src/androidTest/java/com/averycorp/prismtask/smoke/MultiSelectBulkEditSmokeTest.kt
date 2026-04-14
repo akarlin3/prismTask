@@ -12,7 +12,6 @@ import org.junit.Test
  */
 @HiltAndroidTest
 class MultiSelectBulkEditSmokeTest : SmokeTestBase() {
-
     @Test
     fun batchUpdatePriority_updatesEveryTaskInBatch() = runBlocking {
         val dao = database.taskDao()

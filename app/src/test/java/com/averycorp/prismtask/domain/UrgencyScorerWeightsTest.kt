@@ -12,7 +12,6 @@ import org.junit.Test
  * These complement the existing UrgencyScorerTest which uses default weights.
  */
 class UrgencyScorerWeightsTest {
-
     private val now = System.currentTimeMillis()
     private val day = 24L * 60 * 60 * 1000
 
@@ -53,7 +52,8 @@ class UrgencyScorerWeightsTest {
         val t = task(dueDate = now + 3 * day, priority = 4)
         val defaultScore = UrgencyScorer.calculateScore(t, weights = UrgencyWeights())
         val priorityFocused = UrgencyScorer.calculateScore(
-            t, weights = UrgencyWeights(dueDate = 0f, priority = 1f, age = 0f, subtasks = 0f)
+            t,
+            weights = UrgencyWeights(dueDate = 0f, priority = 1f, age = 0f, subtasks = 0f)
         )
         // Priority-focused scoring of a priority-4 task should be >= the default.
         assertTrue(priorityFocused >= defaultScore)

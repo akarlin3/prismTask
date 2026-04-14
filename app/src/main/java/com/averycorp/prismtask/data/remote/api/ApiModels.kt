@@ -7,9 +7,9 @@ import com.google.gson.annotations.SerializedName
  *
  * Field names use snake_case to match the backend JSON contract; Kotlin
  * property names use camelCase via [SerializedName].
+ *
+ * Sections below are delineated with `// region` / `// endregion` markers.
  */
-
-// region Auth
 
 data class RegisterRequest(
     val email: String,
@@ -333,31 +333,26 @@ data class CoachingContext(
     val priority: Int? = null,
     @SerializedName("subtask_count") val subtaskCount: Int? = null,
     @SerializedName("completed_subtasks") val completedSubtasks: Int? = null,
-
     // Perfectionism-scoped fields
     @SerializedName("edit_count") val editCount: Int? = null,
     @SerializedName("reschedule_count") val rescheduleCount: Int? = null,
     @SerializedName("subtasks_added") val subtasksAdded: Int? = null,
     @SerializedName("subtasks_completed") val subtasksCompleted: Int? = null,
     val reason: String? = null,
-
     // Energy plan fields
     @SerializedName("energy_level") val energyLevel: String? = null,
     @SerializedName("tasks_due_today") val tasksDueToday: List<CoachingTaskSummary>? = null,
     @SerializedName("overdue_count") val overdueCount: Int? = null,
     @SerializedName("yesterday_completed") val yesterdayCompleted: Int? = null,
     @SerializedName("yesterday_total") val yesterdayTotal: Int? = null,
-
     // Welcome back fields
     @SerializedName("days_absent") val daysAbsent: Int? = null,
     @SerializedName("recent_completions") val recentCompletions: Int? = null,
-
     // Celebration fields
     @SerializedName("completed_subtask_count") val completedSubtaskCount: Int? = null,
     @SerializedName("total_subtask_count") val totalSubtaskCount: Int? = null,
     @SerializedName("days_overdue") val daysOverdue: Int? = null,
     @SerializedName("first_after_gap") val firstAfterGap: Boolean? = null,
-
     // Breakdown fields
     @SerializedName("duration_minutes") val durationMinutes: Int? = null,
     @SerializedName("project_name") val projectName: String? = null

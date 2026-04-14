@@ -23,27 +23,29 @@ private val Context.backendSyncDataStore: DataStore<Preferences> by preferencesD
  * the Firebase [com.averycorp.prismtask.data.remote.SyncService] sync-metadata.
  */
 @Singleton
-class BackendSyncPreferences @Inject constructor(
-    @ApplicationContext private val context: Context
-) {
-    companion object {
-        private val LAST_SYNC_AT_KEY = longPreferencesKey("last_sync_at")
-    }
+class BackendSyncPreferences
+    @Inject
+    constructor(
+        @ApplicationContext private val context: Context
+    ) {
+        companion object {
+            private val LAST_SYNC_AT_KEY = longPreferencesKey("last_sync_at")
+        }
 
-    val lastSyncAtFlow: Flow<Long> = context.backendSyncDataStore.data.map { prefs ->
-        prefs[LAST_SYNC_AT_KEY] ?: 0L
-    }
+        val lastSyncAtFlow: Flow<Long> = context.backendSyncDataStore.data.map { prefs ->
+            prefs[LAST_SYNC_AT_KEY] ?: 0L
+        }
 
-    suspend fun getLastSyncAt(): Long =
-        context.backendSyncDataStore.data.first()[LAST_SYNC_AT_KEY] ?: 0L
+        suspend fun getLastSyncAt(): Long =
+            context.backendSyncDataStore.data.first()[LAST_SYNC_AT_KEY] ?: 0L
 
-    suspend fun setLastSyncAt(timestamp: Long) {
-        context.backendSyncDataStore.edit { prefs ->
-            prefs[LAST_SYNC_AT_KEY] = timestamp
+        suspend fun setLastSyncAt(timestamp: Long) {
+            context.backendSyncDataStore.edit { prefs ->
+                prefs[LAST_SYNC_AT_KEY] = timestamp
+            }
+        }
+
+        suspend fun clear() {
+            context.backendSyncDataStore.edit { it.clear() }
         }
     }
-
-    suspend fun clear() {
-        context.backendSyncDataStore.edit { it.clear() }
-    }
-}

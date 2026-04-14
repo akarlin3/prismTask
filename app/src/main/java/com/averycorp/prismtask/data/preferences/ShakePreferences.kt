@@ -22,43 +22,45 @@ private val Context.shakeDataStore: DataStore<Preferences> by preferencesDataSto
  * find accidental triggers too frequent (or too hard to invoke).
  */
 @Singleton
-class ShakePreferences @Inject constructor(
-    @ApplicationContext private val context: Context
-) {
-    companion object {
-        private val SHAKE_ENABLED = booleanPreferencesKey("shake_enabled")
-        private val SHAKE_SENSITIVITY = stringPreferencesKey("shake_sensitivity")
+class ShakePreferences
+    @Inject
+    constructor(
+        @ApplicationContext private val context: Context
+    ) {
+        companion object {
+            private val SHAKE_ENABLED = booleanPreferencesKey("shake_enabled")
+            private val SHAKE_SENSITIVITY = stringPreferencesKey("shake_sensitivity")
 
-        const val SENSITIVITY_LOW = "low"
-        const val SENSITIVITY_MEDIUM = "medium"
-        const val SENSITIVITY_HIGH = "high"
+            const val SENSITIVITY_LOW = "low"
+            const val SENSITIVITY_MEDIUM = "medium"
+            const val SENSITIVITY_HIGH = "high"
 
-        const val DEFAULT_ENABLED = true
-        const val DEFAULT_SENSITIVITY = SENSITIVITY_MEDIUM
+            const val DEFAULT_ENABLED = true
+            const val DEFAULT_SENSITIVITY = SENSITIVITY_MEDIUM
 
-        val ALL_SENSITIVITIES = listOf(SENSITIVITY_LOW, SENSITIVITY_MEDIUM, SENSITIVITY_HIGH)
+            val ALL_SENSITIVITIES = listOf(SENSITIVITY_LOW, SENSITIVITY_MEDIUM, SENSITIVITY_HIGH)
+        }
+
+        fun getEnabled(): Flow<Boolean> = context.shakeDataStore.data.map { prefs ->
+            prefs[SHAKE_ENABLED] ?: DEFAULT_ENABLED
+        }
+
+        fun getSensitivity(): Flow<String> = context.shakeDataStore.data.map { prefs ->
+            val stored = prefs[SHAKE_SENSITIVITY] ?: DEFAULT_SENSITIVITY
+            if (stored in ALL_SENSITIVITIES) stored else DEFAULT_SENSITIVITY
+        }
+
+        suspend fun setEnabled(enabled: Boolean) {
+            context.shakeDataStore.edit { it[SHAKE_ENABLED] = enabled }
+        }
+
+        suspend fun setSensitivity(sensitivity: String) {
+            val normalized = if (sensitivity in ALL_SENSITIVITIES) sensitivity else DEFAULT_SENSITIVITY
+            context.shakeDataStore.edit { it[SHAKE_SENSITIVITY] = normalized }
+        }
+
+        /** Clears every persisted shake preference, reverting to defaults. */
+        suspend fun clearAll() {
+            context.shakeDataStore.edit { it.clear() }
+        }
     }
-
-    fun getEnabled(): Flow<Boolean> = context.shakeDataStore.data.map { prefs ->
-        prefs[SHAKE_ENABLED] ?: DEFAULT_ENABLED
-    }
-
-    fun getSensitivity(): Flow<String> = context.shakeDataStore.data.map { prefs ->
-        val stored = prefs[SHAKE_SENSITIVITY] ?: DEFAULT_SENSITIVITY
-        if (stored in ALL_SENSITIVITIES) stored else DEFAULT_SENSITIVITY
-    }
-
-    suspend fun setEnabled(enabled: Boolean) {
-        context.shakeDataStore.edit { it[SHAKE_ENABLED] = enabled }
-    }
-
-    suspend fun setSensitivity(sensitivity: String) {
-        val normalized = if (sensitivity in ALL_SENSITIVITIES) sensitivity else DEFAULT_SENSITIVITY
-        context.shakeDataStore.edit { it[SHAKE_SENSITIVITY] = normalized }
-    }
-
-    /** Clears every persisted shake preference, reverting to defaults. */
-    suspend fun clearAll() {
-        context.shakeDataStore.edit { it.clear() }
-    }
-}

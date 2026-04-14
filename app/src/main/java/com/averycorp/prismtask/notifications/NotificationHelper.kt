@@ -5,14 +5,12 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import android.os.Build
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.averycorp.prismtask.MainActivity
 import com.averycorp.prismtask.R
 
 object NotificationHelper {
-
     private const val CHANNEL_ID = "averytask_reminders"
     private const val CHANNEL_NAME = "Task Reminders"
     private const val MED_CHANNEL_ID = "averytask_medication_reminders"
@@ -59,7 +57,8 @@ object NotificationHelper {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+        val notification = NotificationCompat
+            .Builder(context, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
             .setContentTitle("$taskTitle is coming up")
             .setContentText(taskDescription ?: "Ready when you are.")
@@ -71,8 +70,7 @@ object NotificationHelper {
                 android.R.drawable.ic_menu_send,
                 "Complete",
                 completePending
-            )
-            .build()
+            ).build()
 
         val manager = context.getSystemService(NotificationManager::class.java)
         manager.notify(taskId.toInt(), notification)
@@ -135,7 +133,8 @@ object NotificationHelper {
             "$contentText\nNext reminder $intervalText after logging."
         }
 
-        val notification = NotificationCompat.Builder(context, MED_CHANNEL_ID)
+        val notification = NotificationCompat
+            .Builder(context, MED_CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
             .setContentTitle(title)
             .setContentText(contentText)
@@ -148,8 +147,7 @@ object NotificationHelper {
                 android.R.drawable.ic_menu_send,
                 "Log",
                 logPending
-            )
-            .build()
+            ).build()
 
         val manager = context.getSystemService(NotificationManager::class.java)
         manager.notify(habitId.toInt() + 200_000, notification)
@@ -175,7 +173,8 @@ object NotificationHelper {
 
         val contentText = if (medNote.isNotEmpty()) medNote else "$medName \u2014 whenever you're ready."
 
-        val notification = NotificationCompat.Builder(context, MED_CHANNEL_ID)
+        val notification = NotificationCompat
+            .Builder(context, MED_CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
             .setContentTitle("$medName \u2014 Heads Up")
             .setContentText(contentText)

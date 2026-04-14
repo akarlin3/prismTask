@@ -9,7 +9,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ClinicalReportGeneratorTest {
-
     private val gen = ClinicalReportGenerator()
     private val start = 1_776_000_000_000L
     private val end = start + 30L * 24 * 60 * 60 * 1000

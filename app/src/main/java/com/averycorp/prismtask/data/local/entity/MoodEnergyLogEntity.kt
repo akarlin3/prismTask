@@ -26,23 +26,17 @@ import androidx.room.PrimaryKey
 data class MoodEnergyLogEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
-
     /** Midnight-normalized date in millis. */
     @ColumnInfo(name = "date")
     val date: Long,
-
     @ColumnInfo(name = "mood")
     val mood: Int,
-
     @ColumnInfo(name = "energy")
     val energy: Int,
-
     @ColumnInfo(name = "notes")
     val notes: String? = null,
-
     @ColumnInfo(name = "time_of_day", defaultValue = "'morning'")
     val timeOfDay: String = "morning",
-
     @ColumnInfo(name = "created_at")
     val createdAt: Long = System.currentTimeMillis()
 )

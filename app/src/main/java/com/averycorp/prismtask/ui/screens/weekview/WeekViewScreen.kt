@@ -2,7 +2,6 @@ package com.averycorp.prismtask.ui.screens.weekview
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -25,6 +24,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Today
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
@@ -36,9 +36,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -54,9 +56,6 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.TextButton
-import androidx.compose.runtime.LaunchedEffect
 import com.averycorp.prismtask.data.local.entity.TaskEntity
 import com.averycorp.prismtask.ui.components.MoveToProjectSheet
 import com.averycorp.prismtask.ui.components.QuickReschedulePopup
@@ -71,7 +70,7 @@ import java.util.Locale
 
 private data class WeekTaskEditorState(
     val taskId: Long? = null,
-    val initialDate: Long? = null,
+    val initialDate: Long? = null
 )
 
 private val NeutralGray = Color(0xFF9E9E9E)
@@ -144,11 +143,14 @@ fun WeekViewScreen(
                         .weight(1f)
                         .fillMaxHeight()
                         .then(
-                            if (isToday) Modifier.background(
-                                MaterialTheme.colorScheme.primary.copy(alpha = 0.05f)
-                            ) else Modifier
-                        )
-                        .padding(horizontal = 2.dp),
+                            if (isToday) {
+                                Modifier.background(
+                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.05f)
+                                )
+                            } else {
+                                Modifier
+                            }
+                        ).padding(horizontal = 2.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     // Day header
@@ -168,10 +170,13 @@ fun WeekViewScreen(
                         modifier = Modifier
                             .size(28.dp)
                             .then(
-                                if (isToday) Modifier
-                                    .clip(CircleShape)
-                                    .background(MaterialTheme.colorScheme.primary)
-                                else Modifier
+                                if (isToday) {
+                                    Modifier
+                                        .clip(CircleShape)
+                                        .background(MaterialTheme.colorScheme.primary)
+                                } else {
+                                    Modifier
+                                }
                             ),
                         contentAlignment = Alignment.Center
                     ) {
@@ -179,10 +184,13 @@ fun WeekViewScreen(
                             text = "${date.dayOfMonth}",
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal,
-                            color = if (isToday) MaterialTheme.colorScheme.onPrimary
-                            else MaterialTheme.colorScheme.onSurface.copy(
-                                alpha = if (isPast) 0.4f else 1f
-                            )
+                            color = if (isToday) {
+                                MaterialTheme.colorScheme.onPrimary
+                            } else {
+                                MaterialTheme.colorScheme.onSurface.copy(
+                                    alpha = if (isPast) 0.4f else 1f
+                                )
+                            }
                         )
                     }
 
@@ -229,7 +237,8 @@ fun WeekViewScreen(
                     // Add button
                     IconButton(
                         onClick = {
-                            val dayStartMillis = date.atStartOfDay(ZoneId.systemDefault())
+                            val dayStartMillis = date
+                                .atStartOfDay(ZoneId.systemDefault())
                                 .toInstant()
                                 .toEpochMilli()
                             editorState = WeekTaskEditorState(initialDate = dayStartMillis)

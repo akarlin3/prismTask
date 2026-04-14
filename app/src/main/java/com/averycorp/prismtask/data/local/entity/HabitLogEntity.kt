@@ -24,14 +24,10 @@ import androidx.room.PrimaryKey
 data class HabitLogEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
-
     @ColumnInfo(name = "habit_id")
     val habitId: Long,
-
     val date: Long,
-
     val notes: String? = null,
-
     @ColumnInfo(name = "created_at")
     val createdAt: Long = System.currentTimeMillis()
 )

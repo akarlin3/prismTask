@@ -1,6 +1,5 @@
 package com.averycorp.prismtask.domain
 
-import com.averycorp.prismtask.data.remote.api.PrismTaskApi
 import com.averycorp.prismtask.data.remote.api.BugReportMirrorResponse
 import com.averycorp.prismtask.data.remote.api.ChatRequest
 import com.averycorp.prismtask.data.remote.api.ChatResponse
@@ -8,14 +7,12 @@ import com.averycorp.prismtask.data.remote.api.CoachingRequest
 import com.averycorp.prismtask.data.remote.api.CoachingResponse
 import com.averycorp.prismtask.data.remote.api.DailyBriefingRequest
 import com.averycorp.prismtask.data.remote.api.DailyBriefingResponse
-import com.averycorp.prismtask.data.remote.api.FirebaseTokenRequest
 import com.averycorp.prismtask.data.remote.api.EisenhowerRequest
 import com.averycorp.prismtask.data.remote.api.EisenhowerResponse
 import com.averycorp.prismtask.data.remote.api.EveningSummaryRequest
 import com.averycorp.prismtask.data.remote.api.EveningSummaryResponse
+import com.averycorp.prismtask.data.remote.api.FirebaseTokenRequest
 import com.averycorp.prismtask.data.remote.api.ImportResponse
-import com.averycorp.prismtask.data.remote.api.ReengagementRequest
-import com.averycorp.prismtask.data.remote.api.ReengagementResponse
 import com.averycorp.prismtask.data.remote.api.LoginRequest
 import com.averycorp.prismtask.data.remote.api.ParseChecklistRequest
 import com.averycorp.prismtask.data.remote.api.ParseChecklistResponse
@@ -25,22 +22,27 @@ import com.averycorp.prismtask.data.remote.api.ParseRequest
 import com.averycorp.prismtask.data.remote.api.ParsedTaskResponse
 import com.averycorp.prismtask.data.remote.api.PomodoroRequest
 import com.averycorp.prismtask.data.remote.api.PomodoroResponse
+import com.averycorp.prismtask.data.remote.api.PrismTaskApi
+import com.averycorp.prismtask.data.remote.api.ReengagementRequest
+import com.averycorp.prismtask.data.remote.api.ReengagementResponse
 import com.averycorp.prismtask.data.remote.api.RefreshRequest
+import com.averycorp.prismtask.data.remote.api.RegisterRequest
 import com.averycorp.prismtask.data.remote.api.TimeBlockRequest
 import com.averycorp.prismtask.data.remote.api.TimeBlockResponse
-import com.averycorp.prismtask.data.remote.api.WeeklyPlanRequest
-import com.averycorp.prismtask.data.remote.api.WeeklyPlanResponse
-import com.averycorp.prismtask.data.remote.api.RegisterRequest
 import com.averycorp.prismtask.data.remote.api.TokenResponse
 import com.averycorp.prismtask.data.remote.api.UserInfoResponse
 import com.averycorp.prismtask.data.remote.api.VersionResponse
+import com.averycorp.prismtask.data.remote.api.WeeklyPlanRequest
+import com.averycorp.prismtask.data.remote.api.WeeklyPlanResponse
 import com.averycorp.prismtask.data.remote.sync.SyncPullResponse
 import com.averycorp.prismtask.data.remote.sync.SyncPushRequest
 import com.averycorp.prismtask.data.remote.sync.SyncPushResponse
 import com.averycorp.prismtask.domain.usecase.NaturalLanguageParser
 import okhttp3.MultipartBody
 import okhttp3.ResponseBody
-import org.junit.Assert.*
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import java.time.LocalDate
@@ -49,7 +51,6 @@ import java.time.ZoneId
 import java.time.temporal.TemporalAdjusters
 
 class NaturalLanguageParserTest {
-
     private lateinit var parser: NaturalLanguageParser
     private val zone = ZoneId.systemDefault()
     private val today = LocalDate.now()
@@ -58,48 +59,70 @@ class NaturalLanguageParserTest {
     private val stubApi = object : PrismTaskApi {
         override suspend fun getMe(): UserInfoResponse =
             error("not used in offline parser tests")
+
         override suspend fun register(request: RegisterRequest): TokenResponse =
             error("not used in offline parser tests")
+
         override suspend fun login(request: LoginRequest): TokenResponse =
             error("not used in offline parser tests")
+
         override suspend fun firebaseLogin(request: FirebaseTokenRequest): TokenResponse =
             error("not used in offline parser tests")
+
         override suspend fun refresh(request: RefreshRequest): TokenResponse =
             error("not used in offline parser tests")
+
         override suspend fun parseTask(request: ParseRequest): ParsedTaskResponse =
             error("not used in offline parser tests")
+
         override suspend fun getVersion(): VersionResponse =
             error("not used in offline parser tests")
+
         override suspend fun syncPush(request: SyncPushRequest): SyncPushResponse =
             error("not used in offline parser tests")
+
         override suspend fun syncPull(since: String?): SyncPullResponse =
             error("not used in offline parser tests")
+
         override suspend fun exportJson(): ResponseBody =
             error("not used in offline parser tests")
+
         override suspend fun importJson(file: MultipartBody.Part, mode: String): ImportResponse =
             error("not used in offline parser tests")
+
         override suspend fun categorizeEisenhower(request: EisenhowerRequest): EisenhowerResponse =
             error("not used in offline parser tests")
+
         override suspend fun planPomodoro(request: PomodoroRequest): PomodoroResponse =
             error("not used in offline parser tests")
+
         override suspend fun getDailyBriefing(request: DailyBriefingRequest): DailyBriefingResponse =
             error("not used in offline parser tests")
+
         override suspend fun getWeeklyPlan(request: WeeklyPlanRequest): WeeklyPlanResponse =
             error("not used in offline parser tests")
+
         override suspend fun getTimeBlock(request: TimeBlockRequest): TimeBlockResponse =
             error("not used in offline parser tests")
+
         override suspend fun aiChat(request: ChatRequest): ChatResponse =
             error("not used in offline parser tests")
+
         override suspend fun getEveningSummary(request: EveningSummaryRequest): EveningSummaryResponse =
             error("not used in offline parser tests")
+
         override suspend fun getReengagementNudge(request: ReengagementRequest): ReengagementResponse =
             error("not used in offline parser tests")
+
         override suspend fun getCoaching(request: CoachingRequest): CoachingResponse =
             error("not used in offline parser tests")
+
         override suspend fun parseImport(request: ParseImportRequest): ParseImportResponse =
             error("not used in offline parser tests")
+
         override suspend fun parseChecklist(request: ParseChecklistRequest): ParseChecklistResponse =
             error("not used in offline parser tests")
+
         override suspend fun submitBugReport(body: Map<String, Any?>): BugReportMirrorResponse =
             error("not used in offline parser tests")
     }
@@ -108,7 +131,11 @@ class NaturalLanguageParserTest {
         date.atStartOfDay(zone).toInstant().toEpochMilli()
 
     private fun timeMillis(date: LocalDate, time: LocalTime): Long =
-        date.atTime(time).atZone(zone).toInstant().toEpochMilli()
+        date
+            .atTime(time)
+            .atZone(zone)
+            .toInstant()
+            .toEpochMilli()
 
     @Before
     fun setup() {

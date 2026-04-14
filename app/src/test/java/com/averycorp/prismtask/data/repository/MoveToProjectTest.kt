@@ -18,7 +18,6 @@ import org.junit.Test
  * tests live there too.
  */
 class MoveToProjectTest {
-
     private fun sampleTask(
         id: Long = 100L,
         title: String = "Draft spec",

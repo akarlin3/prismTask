@@ -2,7 +2,6 @@ package com.averycorp.prismtask.ui.a11y
 
 import android.provider.Settings
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
@@ -22,16 +21,14 @@ import androidx.compose.ui.unit.dp
  * This is the non-composable accessor; the composable form
  * [rememberReducedMotion] caches the value per composition.
  */
-fun isSystemAnimationsDisabled(context: android.content.Context): Boolean {
-    return try {
-        Settings.Global.getFloat(
-            context.contentResolver,
-            Settings.Global.ANIMATOR_DURATION_SCALE,
-            1f
-        ) == 0f
-    } catch (_: Throwable) {
-        false
-    }
+fun isSystemAnimationsDisabled(context: android.content.Context): Boolean = try {
+    Settings.Global.getFloat(
+        context.contentResolver,
+        Settings.Global.ANIMATOR_DURATION_SCALE,
+        1f
+    ) == 0f
+} catch (_: Throwable) {
+    false
 }
 
 /**

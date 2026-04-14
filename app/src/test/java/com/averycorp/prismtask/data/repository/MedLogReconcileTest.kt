@@ -14,7 +14,6 @@ import org.junit.Test
  * log existed for that step.
  */
 class MedLogReconcileTest {
-
     private fun step(
         id: String,
         tier: String = "essential",

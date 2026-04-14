@@ -11,15 +11,19 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 class SyncMapperTest {
-
     // --- Task ---
 
     @Test
     fun task_roundTrip() {
         val task = TaskEntity(
-            id = 1, title = "Test Task", description = "desc",
-            dueDate = 1000L, priority = 3, isCompleted = false,
-            createdAt = 500L, updatedAt = 600L
+            id = 1,
+            title = "Test Task",
+            description = "desc",
+            dueDate = 1000L,
+            priority = 3,
+            isCompleted = false,
+            createdAt = 500L,
+            updatedAt = 600L
         )
         val map = SyncMapper.taskToMap(task, listOf("cloud_tag_1"))
         val restored = SyncMapper.mapToTask(map, 1)
@@ -34,6 +38,7 @@ class SyncMapperTest {
     fun task_withTagIds() {
         val task = TaskEntity(id = 1, title = "t", createdAt = 0, updatedAt = 0)
         val map = SyncMapper.taskToMap(task, listOf("a", "b", "c"))
+
         @Suppress("UNCHECKED_CAST")
         val tags = map["tags"] as List<String>
         assertEquals(3, tags.size)
@@ -43,8 +48,11 @@ class SyncMapperTest {
     @Test
     fun task_sourceHabitId_roundTrip() {
         val task = TaskEntity(
-            id = 1, title = "Habit Task", sourceHabitId = 42L,
-            createdAt = 500L, updatedAt = 600L
+            id = 1,
+            title = "Habit Task",
+            sourceHabitId = 42L,
+            createdAt = 500L,
+            updatedAt = 600L
         )
         val map = SyncMapper.taskToMap(task)
         assertEquals(42L, map["sourceHabitId"])
@@ -113,10 +121,16 @@ class SyncMapperTest {
     @Test
     fun habit_roundTrip() {
         val habit = HabitEntity(
-            id = 1, name = "Exercise", description = "Daily run",
-            targetFrequency = 1, frequencyPeriod = "daily",
-            color = "#4A90D9", icon = "\uD83C\uDFC3",
-            category = "Fitness", createdAt = 100, updatedAt = 200
+            id = 1,
+            name = "Exercise",
+            description = "Daily run",
+            targetFrequency = 1,
+            frequencyPeriod = "daily",
+            color = "#4A90D9",
+            icon = "\uD83C\uDFC3",
+            category = "Fitness",
+            createdAt = 100,
+            updatedAt = 200
         )
         val map = SyncMapper.habitToMap(habit)
         val restored = SyncMapper.mapToHabit(map, 1)
@@ -167,8 +181,11 @@ class SyncMapperTest {
     @Test
     fun habitCompletion_roundTrip() {
         val completion = HabitCompletionEntity(
-            id = 1, habitId = 5, completedDate = 1000L,
-            completedAt = 1100L, notes = "felt good"
+            id = 1,
+            habitId = 5,
+            completedDate = 1000L,
+            completedAt = 1100L,
+            notes = "felt good"
         )
         val map = SyncMapper.habitCompletionToMap(completion, "cloud_habit_1")
         assertEquals("cloud_habit_1", map["habitCloudId"])

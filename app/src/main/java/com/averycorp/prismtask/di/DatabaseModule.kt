@@ -10,53 +10,54 @@ import com.averycorp.prismtask.data.local.dao.FocusReleaseLogDao
 import com.averycorp.prismtask.data.local.dao.HabitCompletionDao
 import com.averycorp.prismtask.data.local.dao.HabitDao
 import com.averycorp.prismtask.data.local.dao.HabitLogDao
+import com.averycorp.prismtask.data.local.dao.HabitTemplateDao
 import com.averycorp.prismtask.data.local.dao.LeisureDao
 import com.averycorp.prismtask.data.local.dao.MedicationRefillDao
 import com.averycorp.prismtask.data.local.dao.MoodEnergyLogDao
-import com.averycorp.prismtask.data.local.dao.HabitTemplateDao
 import com.averycorp.prismtask.data.local.dao.NlpShortcutDao
+import com.averycorp.prismtask.data.local.dao.ProjectDao
 import com.averycorp.prismtask.data.local.dao.ProjectTemplateDao
 import com.averycorp.prismtask.data.local.dao.ReminderProfileDao
 import com.averycorp.prismtask.data.local.dao.SavedFilterDao
-import com.averycorp.prismtask.data.local.dao.ProjectDao
 import com.averycorp.prismtask.data.local.dao.SchoolworkDao
 import com.averycorp.prismtask.data.local.dao.SelfCareDao
 import com.averycorp.prismtask.data.local.dao.SyncMetadataDao
 import com.averycorp.prismtask.data.local.dao.TagDao
+import com.averycorp.prismtask.data.local.dao.TaskCompletionDao
 import com.averycorp.prismtask.data.local.dao.TaskDao
 import com.averycorp.prismtask.data.local.dao.TaskTemplateDao
 import com.averycorp.prismtask.data.local.dao.UsageLogDao
-import com.averycorp.prismtask.data.local.dao.TaskCompletionDao
 import com.averycorp.prismtask.data.local.dao.WeeklyReviewDao
 import com.averycorp.prismtask.data.local.database.PrismTaskDatabase
 import com.averycorp.prismtask.data.seed.TemplatePreferencesSeededFlagStore
 import com.averycorp.prismtask.data.seed.TemplateSeeder
+import com.google.gson.Gson
 import dagger.Binds
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
-import com.google.gson.Gson
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 
 @Module
 @InstallIn(SingletonComponent::class)
 object DatabaseModule {
-
     @Provides
     @Singleton
     fun provideGson(): Gson = Gson()
 
     @Provides
     @Singleton
-    fun provideDatabase(@ApplicationContext context: Context): PrismTaskDatabase =
-        Room.databaseBuilder(
-            context,
-            PrismTaskDatabase::class.java,
-            "averytask.db"
-        )
-            .addMigrations(*com.averycorp.prismtask.data.local.database.ALL_MIGRATIONS)
+    fun provideDatabase(
+        @ApplicationContext context: Context
+    ): PrismTaskDatabase =
+        Room
+            .databaseBuilder(
+                context,
+                PrismTaskDatabase::class.java,
+                "averytask.db"
+            ).addMigrations(*com.averycorp.prismtask.data.local.database.ALL_MIGRATIONS)
             .build()
 
     @Provides

@@ -47,14 +47,33 @@ import androidx.navigation.NavController
 import kotlinx.coroutines.launch
 
 private val presetColors = listOf(
-    "#E86F3C", "#D4534A", "#4A90D9", "#7B61C2", "#2E9E6E", "#E8B84A",
-    "#5B8C5A", "#8B5CF6", "#EC4899", "#06B6D4", "#F59E0B", "#6B7280"
+    "#E86F3C",
+    "#D4534A",
+    "#4A90D9",
+    "#7B61C2",
+    "#2E9E6E",
+    "#E8B84A",
+    "#5B8C5A",
+    "#8B5CF6",
+    "#EC4899",
+    "#06B6D4",
+    "#F59E0B",
+    "#6B7280"
 )
 
 private val presetIcons = listOf(
-    "\uD83D\uDCC1", "\uD83D\uDCBC", "\uD83C\uDFE0", "\uD83C\uDFAF",
-    "\uD83D\uDCA1", "\uD83D\uDD27", "\uD83D\uDCDA", "\uD83C\uDFA8",
-    "\uD83C\uDFCB\uFE0F", "\uD83D\uDED2", "\u2708\uFE0F", "\u2764\uFE0F"
+    "\uD83D\uDCC1",
+    "\uD83D\uDCBC",
+    "\uD83C\uDFE0",
+    "\uD83C\uDFAF",
+    "\uD83D\uDCA1",
+    "\uD83D\uDD27",
+    "\uD83D\uDCDA",
+    "\uD83C\uDFA8",
+    "\uD83C\uDFCB\uFE0F",
+    "\uD83D\uDED2",
+    "\u2708\uFE0F",
+    "\u2764\uFE0F"
 )
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -118,7 +137,9 @@ fun AddEditProjectScreen(
                 isError = viewModel.nameError,
                 supportingText = if (viewModel.nameError) {
                     { Text("Name is required") }
-                } else null,
+                } else {
+                    null
+                },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
@@ -200,10 +221,12 @@ private fun ColorCircle(hex: String, selected: Boolean, onClick: () -> Unit) {
             .clip(CircleShape)
             .background(color)
             .then(
-                if (selected) Modifier.border(3.dp, MaterialTheme.colorScheme.onSurface, CircleShape)
-                else Modifier
-            )
-            .clickable(onClick = onClick),
+                if (selected) {
+                    Modifier.border(3.dp, MaterialTheme.colorScheme.onSurface, CircleShape)
+                } else {
+                    Modifier
+                }
+            ).clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
         if (selected) {
@@ -224,14 +247,14 @@ private fun IconOption(emoji: String, selected: Boolean, onClick: () -> Unit) {
             .size(48.dp)
             .clip(RoundedCornerShape(10.dp))
             .then(
-                if (selected)
+                if (selected) {
                     Modifier
                         .background(MaterialTheme.colorScheme.primaryContainer)
                         .border(2.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(10.dp))
-                else
+                } else {
                     Modifier.background(MaterialTheme.colorScheme.surfaceContainerLow)
-            )
-            .clickable(onClick = onClick),
+                }
+            ).clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
         Text(

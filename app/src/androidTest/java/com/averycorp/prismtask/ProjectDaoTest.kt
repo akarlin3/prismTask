@@ -21,7 +21,6 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class ProjectDaoTest {
-
     @get:Rule
     val instantTaskExecutorRule = InstantTaskExecutorRule()
 
@@ -32,7 +31,8 @@ class ProjectDaoTest {
     @Before
     fun setup() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
-        database = Room.inMemoryDatabaseBuilder(context, PrismTaskDatabase::class.java)
+        database = Room
+            .inMemoryDatabaseBuilder(context, PrismTaskDatabase::class.java)
             .allowMainThreadQueries()
             .build()
         projectDao = database.projectDao()

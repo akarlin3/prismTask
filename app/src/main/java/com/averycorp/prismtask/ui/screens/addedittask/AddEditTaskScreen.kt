@@ -32,7 +32,6 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.AddLink
 import androidx.compose.material.icons.filled.AddPhotoAlternate
-import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Clear
@@ -82,13 +81,13 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NavController
 import com.averycorp.prismtask.data.local.entity.AttachmentEntity
 import com.averycorp.prismtask.ui.components.RecurrenceSelector
 import com.averycorp.prismtask.ui.components.TagSelector
 import com.averycorp.prismtask.ui.theme.LocalPriorityColors
-import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.navigation.NavController
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -205,247 +204,254 @@ internal fun AddEditTaskFormFields(
         Spacer(modifier = Modifier.height(4.dp))
 
         // Title
-            OutlinedTextField(
-                value = viewModel.title,
-                onValueChange = viewModel::onTitleChange,
-                label = { Text("Title") },
-                isError = viewModel.titleError,
-                supportingText = if (viewModel.titleError) {
-                    { Text("Title is required") }
-                } else null,
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
+        OutlinedTextField(
+            value = viewModel.title,
+            onValueChange = viewModel::onTitleChange,
+            label = { Text("Title") },
+            isError = viewModel.titleError,
+            supportingText = if (viewModel.titleError) {
+                { Text("Title is required") }
+            } else {
+                null
+            },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth()
+        )
 
-            // Description
-            OutlinedTextField(
-                value = viewModel.description,
-                onValueChange = viewModel::onDescriptionChange,
-                label = { Text("Description") },
-                minLines = 3,
-                maxLines = 5,
-                modifier = Modifier.fillMaxWidth()
-            )
+        // Description
+        OutlinedTextField(
+            value = viewModel.description,
+            onValueChange = viewModel::onDescriptionChange,
+            label = { Text("Description") },
+            minLines = 3,
+            maxLines = 5,
+            modifier = Modifier.fillMaxWidth()
+        )
 
-            // Due date
-            SectionLabel("Due Date")
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                DateQuickChip("Today", viewModel.dueDate, todayMillis()) {
-                    viewModel.onDueDateChange(todayMillis())
+        // Due date
+        SectionLabel("Due Date")
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            DateQuickChip("Today", viewModel.dueDate, todayMillis()) {
+                viewModel.onDueDateChange(todayMillis())
+            }
+            DateQuickChip("Tomorrow", viewModel.dueDate, tomorrowMillis()) {
+                viewModel.onDueDateChange(tomorrowMillis())
+            }
+            DateQuickChip("+1 Week", viewModel.dueDate, weekFromNowMillis()) {
+                viewModel.onDueDateChange(weekFromNowMillis())
+            }
+            FilterChip(
+                selected = false,
+                onClick = { showDatePicker = true },
+                label = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.CalendarMonth, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Pick Date")
+                    }
                 }
-                DateQuickChip("Tomorrow", viewModel.dueDate, tomorrowMillis()) {
-                    viewModel.onDueDateChange(tomorrowMillis())
-                }
-                DateQuickChip("+1 Week", viewModel.dueDate, weekFromNowMillis()) {
-                    viewModel.onDueDateChange(weekFromNowMillis())
-                }
+            )
+            if (viewModel.dueDate != null) {
                 FilterChip(
                     selected = false,
-                    onClick = { showDatePicker = true },
+                    onClick = { viewModel.onDueDateChange(null) },
                     label = {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.CalendarMonth, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Icon(Icons.Default.Clear, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("Pick Date")
+                            Text("Clear")
                         }
                     }
                 )
-                if (viewModel.dueDate != null) {
-                    FilterChip(
-                        selected = false,
-                        onClick = { viewModel.onDueDateChange(null) },
-                        label = {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.Clear, contentDescription = null, modifier = Modifier.size(16.dp))
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("Clear")
-                            }
-                        }
+            }
+        }
+        if (viewModel.dueDate != null) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(top = 4.dp)
+            ) {
+                Icon(
+                    Icons.Default.CalendarToday,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Due: ${viewModel.dueDate?.let { formatDateSmart(it) } ?: ""}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                IconButton(
+                    onClick = { viewModel.onDueDateChange(null) },
+                    modifier = Modifier.size(24.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Close,
+                        contentDescription = "Clear date",
+                        modifier = Modifier.size(14.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
-            if (viewModel.dueDate != null) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(top = 4.dp)
+        }
+
+        // Due time
+        SectionLabel("Due Time")
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            TextButton(onClick = { showTimePicker = true }) {
+                Icon(Icons.Default.AccessTime, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = viewModel.dueTime?.let { formatTime(it) } ?: "No Time"
+                )
+            }
+            if (viewModel.dueTime != null) {
+                IconButton(onClick = { viewModel.onDueTimeChange(null) }) {
+                    Icon(Icons.Default.Clear, contentDescription = "Clear time", modifier = Modifier.size(18.dp))
+                }
+            }
+        }
+
+        // Reminder
+        SectionLabel("Reminder")
+        val hasDate = viewModel.dueDate != null
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(enabled = hasDate) { showReminderDialog = true }
+                .padding(vertical = 8.dp)
+        ) {
+            Icon(
+                imageVector = if (viewModel.reminderOffset != null) {
+                    Icons.Default.Notifications
+                } else {
+                    Icons.Default.NotificationsNone
+                },
+                contentDescription = null,
+                modifier = Modifier.size(20.dp),
+                tint = if (hasDate) {
+                    MaterialTheme.colorScheme.onSurface
+                } else {
+                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                }
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+            Text(
+                text = if (!hasDate) {
+                    "Set a due date first"
+                } else {
+                    reminderOffsetLabel(viewModel.reminderOffset)
+                },
+                style = MaterialTheme.typography.bodyMedium,
+                color = if (hasDate) {
+                    MaterialTheme.colorScheme.onSurface
+                } else {
+                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                }
+            )
+        }
+
+        // Recurrence
+        SectionLabel("Recurrence")
+        RecurrenceSelector(
+            currentRule = viewModel.recurrenceRule,
+            onRuleChanged = viewModel::onRecurrenceRuleChange
+        )
+
+        // Priority
+        SectionLabel("Priority")
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            val priorityColors = LocalPriorityColors.current
+            PriorityOption.entries.forEach { option ->
+                PriorityChip(
+                    label = option.label,
+                    color = priorityColors.forLevel(option.value),
+                    selected = viewModel.priority == option.value,
+                    onClick = { viewModel.onPriorityChange(option.value) }
+                )
+            }
+        }
+
+        // Project
+        SectionLabel("Project")
+        ProjectDropdown(
+            selectedProjectId = viewModel.projectId,
+            projects = projects,
+            onSelect = viewModel::onProjectIdChange
+        )
+
+        // Tags
+        SectionLabel("Tags")
+        TagSelector(
+            availableTags = allTags,
+            selectedTagIds = viewModel.selectedTagIds,
+            onSelectionChanged = viewModel::onSelectedTagIdsChange
+        )
+
+        // Notes
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable {
+                    notesExpanded = !notesExpanded
+                }.padding(vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            SectionLabel("Notes")
+            Spacer(modifier = Modifier.weight(1f))
+            Icon(
+                imageVector = if (notesExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                contentDescription = if (notesExpanded) "Collapse" else "Expand",
+                modifier = Modifier.size(20.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        AnimatedVisibility(visible = notesExpanded) {
+            OutlinedTextField(
+                value = viewModel.notes,
+                onValueChange = viewModel::onNotesChange,
+                label = { Text("Notes") },
+                minLines = 4,
+                maxLines = 8,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+
+        // Attachments (only visible in edit mode)
+        if (viewModel.isEditMode) {
+            SectionLabel("Attachments")
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(
+                    onClick = {
+                        imagePickerLauncher.launch(
+                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                        )
+                    }
                 ) {
-                    Icon(
-                        Icons.Default.CalendarToday,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp),
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Due: ${viewModel.dueDate?.let { formatDateSmart(it) } ?: ""}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
+                    Icon(Icons.Default.AddPhotoAlternate, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(4.dp))
-                    IconButton(
-                        onClick = { viewModel.onDueDateChange(null) },
-                        modifier = Modifier.size(24.dp)
-                    ) {
-                        Icon(
-                            Icons.Default.Close,
-                            contentDescription = "Clear date",
-                            modifier = Modifier.size(14.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    Text("Add Image")
+                }
+                OutlinedButton(onClick = { showAddLinkDialog = true }) {
+                    Icon(Icons.Default.AddLink, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Add Link")
+                }
+            }
+            if (attachments.isNotEmpty()) {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    attachments.forEach { attachment ->
+                        AttachmentRow(
+                            attachment = attachment,
+                            onDelete = { viewModel.onDeleteAttachment(context, attachment) }
                         )
                     }
                 }
             }
-
-            // Due time
-            SectionLabel("Due Time")
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                TextButton(onClick = { showTimePicker = true }) {
-                    Icon(Icons.Default.AccessTime, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = viewModel.dueTime?.let { formatTime(it) } ?: "No Time"
-                    )
-                }
-                if (viewModel.dueTime != null) {
-                    IconButton(onClick = { viewModel.onDueTimeChange(null) }) {
-                        Icon(Icons.Default.Clear, contentDescription = "Clear time", modifier = Modifier.size(18.dp))
-                    }
-                }
-            }
-
-            // Reminder
-            SectionLabel("Reminder")
-            val hasDate = viewModel.dueDate != null
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable(enabled = hasDate) { showReminderDialog = true }
-                    .padding(vertical = 8.dp)
-            ) {
-                Icon(
-                    imageVector = if (viewModel.reminderOffset != null)
-                        Icons.Default.Notifications
-                    else
-                        Icons.Default.NotificationsNone,
-                    contentDescription = null,
-                    modifier = Modifier.size(20.dp),
-                    tint = if (hasDate)
-                        MaterialTheme.colorScheme.onSurface
-                    else
-                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                )
-                Spacer(modifier = Modifier.width(12.dp))
-                Text(
-                    text = if (!hasDate) "Set a due date first"
-                    else reminderOffsetLabel(viewModel.reminderOffset),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = if (hasDate)
-                        MaterialTheme.colorScheme.onSurface
-                    else
-                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                )
-            }
-
-            // Recurrence
-            SectionLabel("Recurrence")
-            RecurrenceSelector(
-                currentRule = viewModel.recurrenceRule,
-                onRuleChanged = viewModel::onRecurrenceRuleChange
-            )
-
-            // Priority
-            SectionLabel("Priority")
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                val priorityColors = LocalPriorityColors.current
-                PriorityOption.entries.forEach { option ->
-                    PriorityChip(
-                        label = option.label,
-                        color = priorityColors.forLevel(option.value),
-                        selected = viewModel.priority == option.value,
-                        onClick = { viewModel.onPriorityChange(option.value) }
-                    )
-                }
-            }
-
-            // Project
-            SectionLabel("Project")
-            ProjectDropdown(
-                selectedProjectId = viewModel.projectId,
-                projects = projects,
-                onSelect = viewModel::onProjectIdChange
-            )
-
-            // Tags
-            SectionLabel("Tags")
-            TagSelector(
-                availableTags = allTags,
-                selectedTagIds = viewModel.selectedTagIds,
-                onSelectionChanged = viewModel::onSelectedTagIdsChange
-            )
-
-            // Notes
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable {
-                        notesExpanded = !notesExpanded
-                    }
-                    .padding(vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                SectionLabel("Notes")
-                Spacer(modifier = Modifier.weight(1f))
-                Icon(
-                    imageVector = if (notesExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                    contentDescription = if (notesExpanded) "Collapse" else "Expand",
-                    modifier = Modifier.size(20.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            AnimatedVisibility(visible = notesExpanded) {
-                OutlinedTextField(
-                    value = viewModel.notes,
-                    onValueChange = viewModel::onNotesChange,
-                    label = { Text("Notes") },
-                    minLines = 4,
-                    maxLines = 8,
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-
-            // Attachments (only visible in edit mode)
-            if (viewModel.isEditMode) {
-                SectionLabel("Attachments")
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(
-                        onClick = {
-                            imagePickerLauncher.launch(
-                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                            )
-                        }
-                    ) {
-                        Icon(Icons.Default.AddPhotoAlternate, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Add Image")
-                    }
-                    OutlinedButton(onClick = { showAddLinkDialog = true }) {
-                        Icon(Icons.Default.AddLink, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Add Link")
-                    }
-                }
-                if (attachments.isNotEmpty()) {
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        attachments.forEach { attachment ->
-                            AttachmentRow(
-                                attachment = attachment,
-                                onDelete = { viewModel.onDeleteAttachment(context, attachment) }
-                            )
-                        }
-                    }
-                }
-            }
+        }
 
         trailingContent()
     }
@@ -555,10 +561,10 @@ internal fun AttachmentRow(
                     try {
                         val intent = Intent(Intent.ACTION_VIEW, Uri.parse(attachment.uri))
                         context.startActivity(intent)
-                    } catch (_: Exception) {}
+                    } catch (_: Exception) {
+                    }
                 }
-            }
-            .padding(horizontal = 12.dp, vertical = 8.dp),
+            }.padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
@@ -596,7 +602,10 @@ internal fun SectionLabel(text: String) {
     )
 }
 
-private enum class PriorityOption(val value: Int, val label: String) {
+private enum class PriorityOption(
+    val value: Int,
+    val label: String
+) {
     NONE(0, "None"),
     LOW(1, "Low"),
     MEDIUM(2, "Med"),
@@ -610,15 +619,16 @@ private fun PriorityChip(label: String, color: Color, selected: Boolean, onClick
         modifier = Modifier
             .clip(RoundedCornerShape(8.dp))
             .then(
-                if (selected) Modifier.background(color.copy(alpha = 0.2f))
-                else Modifier
-            )
-            .border(
+                if (selected) {
+                    Modifier.background(color.copy(alpha = 0.2f))
+                } else {
+                    Modifier
+                }
+            ).border(
                 width = 1.5.dp,
                 color = if (selected) color else MaterialTheme.colorScheme.outlineVariant,
                 shape = RoundedCornerShape(8.dp)
-            )
-            .clickable(onClick = onClick)
+            ).clickable(onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 8.dp),
         contentAlignment = Alignment.Center
     ) {
@@ -695,28 +705,34 @@ internal fun TimePickerDialog(
     )
 }
 
-internal fun todayMillis(): Long = Calendar.getInstance().apply {
-    set(Calendar.HOUR_OF_DAY, 0)
-    set(Calendar.MINUTE, 0)
-    set(Calendar.SECOND, 0)
-    set(Calendar.MILLISECOND, 0)
-}.timeInMillis
+internal fun todayMillis(): Long = Calendar
+    .getInstance()
+    .apply {
+        set(Calendar.HOUR_OF_DAY, 0)
+        set(Calendar.MINUTE, 0)
+        set(Calendar.SECOND, 0)
+        set(Calendar.MILLISECOND, 0)
+    }.timeInMillis
 
-internal fun tomorrowMillis(): Long = Calendar.getInstance().apply {
-    set(Calendar.HOUR_OF_DAY, 0)
-    set(Calendar.MINUTE, 0)
-    set(Calendar.SECOND, 0)
-    set(Calendar.MILLISECOND, 0)
-    add(Calendar.DAY_OF_YEAR, 1)
-}.timeInMillis
+internal fun tomorrowMillis(): Long = Calendar
+    .getInstance()
+    .apply {
+        set(Calendar.HOUR_OF_DAY, 0)
+        set(Calendar.MINUTE, 0)
+        set(Calendar.SECOND, 0)
+        set(Calendar.MILLISECOND, 0)
+        add(Calendar.DAY_OF_YEAR, 1)
+    }.timeInMillis
 
-internal fun weekFromNowMillis(): Long = Calendar.getInstance().apply {
-    set(Calendar.HOUR_OF_DAY, 0)
-    set(Calendar.MINUTE, 0)
-    set(Calendar.SECOND, 0)
-    set(Calendar.MILLISECOND, 0)
-    add(Calendar.DAY_OF_YEAR, 7)
-}.timeInMillis
+internal fun weekFromNowMillis(): Long = Calendar
+    .getInstance()
+    .apply {
+        set(Calendar.HOUR_OF_DAY, 0)
+        set(Calendar.MINUTE, 0)
+        set(Calendar.SECOND, 0)
+        set(Calendar.MILLISECOND, 0)
+        add(Calendar.DAY_OF_YEAR, 7)
+    }.timeInMillis
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -735,10 +751,12 @@ internal fun DateQuickChip(label: String, currentDate: Long?, targetDate: Long, 
 internal fun formatDateSmart(epochMillis: Long): String {
     val today = todayMillis()
     val tomorrow = tomorrowMillis()
-    val dayAfter = Calendar.getInstance().apply {
-        timeInMillis = tomorrow
-        add(Calendar.DAY_OF_YEAR, 1)
-    }.timeInMillis
+    val dayAfter = Calendar
+        .getInstance()
+        .apply {
+            timeInMillis = tomorrow
+            add(Calendar.DAY_OF_YEAR, 1)
+        }.timeInMillis
 
     val dateFmt = SimpleDateFormat("EEE, MMM d", Locale.getDefault())
     val fullFmt = SimpleDateFormat("MMM d, yyyy", Locale.getDefault())
@@ -765,7 +783,10 @@ internal fun reminderOffsetLabel(offset: Long?): String = when (offset) {
     else -> "${offset / 60_000} min before"
 }
 
-private data class ReminderOption(val label: String, val offset: Long?)
+private data class ReminderOption(
+    val label: String,
+    val offset: Long?
+)
 
 private val reminderOptions = listOf(
     ReminderOption("None", null),

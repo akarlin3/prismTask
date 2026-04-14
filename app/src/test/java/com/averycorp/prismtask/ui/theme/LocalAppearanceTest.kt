@@ -11,7 +11,6 @@ import org.junit.Test
  * asserting without Robolectric.
  */
 class LocalAppearanceTest {
-
     @Test
     fun `compactOr returns compact value when compact true`() {
         assertEquals(8.dp, 16.dp.compactOr(compact = true, compactDp = 8.dp))

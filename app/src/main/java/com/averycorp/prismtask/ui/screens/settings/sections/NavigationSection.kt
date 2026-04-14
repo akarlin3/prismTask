@@ -46,8 +46,7 @@ fun NavigationSection(
                     if (!isHidden && visibleTabCount <= 2) return@clickable
                     val newHidden = if (isHidden) hiddenTabs - item.route else hiddenTabs + item.route
                     onHiddenTabsChange(newHidden)
-                }
-                .padding(vertical = 4.dp),
+                }.padding(vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             CircularCheckbox(

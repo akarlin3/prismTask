@@ -11,7 +11,6 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 
 class LogMedicationReceiver : BroadcastReceiver() {
-
     @dagger.hilt.EntryPoint
     @dagger.hilt.InstallIn(SingletonComponent::class)
     interface LogMedicationEntryPoint {

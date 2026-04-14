@@ -26,7 +26,6 @@ import java.io.File
  * or Robolectric.
  */
 class SortPreferencesTest {
-
     @get:Rule
     val tmpFolder = TemporaryFolder()
 

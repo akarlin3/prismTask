@@ -19,133 +19,145 @@ import javax.inject.Singleton
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @Singleton
-class SchoolworkRepository @Inject constructor(
-    private val dao: SchoolworkDao,
-    private val habitDao: HabitDao,
-    private val habitCompletionDao: HabitCompletionDao,
-    private val taskBehaviorPreferences: TaskBehaviorPreferences
-) {
+class SchoolworkRepository
+    @Inject
+    constructor(
+        private val dao: SchoolworkDao,
+        private val habitDao: HabitDao,
+        private val habitCompletionDao: HabitCompletionDao,
+        private val taskBehaviorPreferences: TaskBehaviorPreferences
+    ) {
+        private suspend fun startOfToday(): Long =
+            DayBoundary.startOfCurrentDay(taskBehaviorPreferences.getDayStartHour().first())
 
-    private suspend fun startOfToday(): Long =
-        DayBoundary.startOfCurrentDay(taskBehaviorPreferences.getDayStartHour().first())
+        // --- Courses ---
 
-    // --- Courses ---
+        fun getActiveCourses(): Flow<List<CourseEntity>> = dao.getActiveCourses()
 
-    fun getActiveCourses(): Flow<List<CourseEntity>> = dao.getActiveCourses()
-    fun getAllCourses(): Flow<List<CourseEntity>> = dao.getAllCourses()
-    suspend fun getCourseById(id: Long): CourseEntity? = dao.getCourseById(id)
-    suspend fun insertCourse(course: CourseEntity): Long = dao.insertCourse(course)
-    suspend fun updateCourse(course: CourseEntity) = dao.updateCourse(course)
-    suspend fun deleteCourse(id: Long) = dao.deleteCourse(id)
+        fun getAllCourses(): Flow<List<CourseEntity>> = dao.getAllCourses()
 
-    // --- Assignments ---
+        suspend fun getCourseById(id: Long): CourseEntity? = dao.getCourseById(id)
 
-    fun getAssignmentsForCourse(courseId: Long): Flow<List<AssignmentEntity>> =
-        dao.getAssignmentsForCourse(courseId)
+        suspend fun insertCourse(course: CourseEntity): Long = dao.insertCourse(course)
 
-    fun getActiveAssignments(): Flow<List<AssignmentEntity>> = dao.getActiveAssignments()
-    fun getAllAssignments(): Flow<List<AssignmentEntity>> = dao.getAllAssignments()
+        suspend fun updateCourse(course: CourseEntity) = dao.updateCourse(course)
 
-    suspend fun getAssignmentById(id: Long): AssignmentEntity? = dao.getAssignmentById(id)
+        suspend fun deleteCourse(id: Long) = dao.deleteCourse(id)
 
-    suspend fun insertAssignment(assignment: AssignmentEntity): Long =
-        dao.insertAssignment(assignment)
+        // --- Assignments ---
 
-    suspend fun updateAssignment(assignment: AssignmentEntity) = dao.updateAssignment(assignment)
-    suspend fun deleteAssignment(id: Long) = dao.deleteAssignment(id)
+        fun getAssignmentsForCourse(courseId: Long): Flow<List<AssignmentEntity>> =
+            dao.getAssignmentsForCourse(courseId)
 
-    suspend fun toggleAssignmentComplete(id: Long) {
-        val assignment = dao.getAssignmentById(id) ?: return
-        val now = if (!assignment.completed) System.currentTimeMillis() else null
-        dao.updateAssignment(assignment.copy(completed = !assignment.completed, completedAt = now))
-    }
+        fun getActiveAssignments(): Flow<List<AssignmentEntity>> = dao.getActiveAssignments()
 
-    fun getActiveAssignmentCount(courseId: Long): Flow<Int> = dao.getActiveAssignmentCount(courseId)
+        fun getAllAssignments(): Flow<List<AssignmentEntity>> = dao.getAllAssignments()
 
-    // --- Course Completions (daily habit) ---
+        suspend fun getAssignmentById(id: Long): AssignmentEntity? = dao.getAssignmentById(id)
 
-    fun getTodayCompletions(): Flow<List<CourseCompletionEntity>> =
-        taskBehaviorPreferences.getDayStartHour().flatMapLatest { hour ->
-            dao.getCompletionsForDate(DayBoundary.startOfCurrentDay(hour))
+        suspend fun insertAssignment(assignment: AssignmentEntity): Long =
+            dao.insertAssignment(assignment)
+
+        suspend fun updateAssignment(assignment: AssignmentEntity) = dao.updateAssignment(assignment)
+
+        suspend fun deleteAssignment(id: Long) = dao.deleteAssignment(id)
+
+        suspend fun toggleAssignmentComplete(id: Long) {
+            val assignment = dao.getAssignmentById(id) ?: return
+            val now = if (!assignment.completed) System.currentTimeMillis() else null
+            dao.updateAssignment(assignment.copy(completed = !assignment.completed, completedAt = now))
         }
 
-    suspend fun toggleCourseCompletion(courseId: Long) {
-        val today = startOfToday()
-        val existing = dao.getCompletionOnce(today, courseId)
-        if (existing != null) {
-            if (existing.completed) {
-                dao.deleteCompletion(today, courseId)
-            } else {
-                dao.updateCompletion(existing.copy(
-                    completed = true,
-                    completedAt = System.currentTimeMillis()
-                ))
+        fun getActiveAssignmentCount(courseId: Long): Flow<Int> = dao.getActiveAssignmentCount(courseId)
+
+        // --- Course Completions (daily habit) ---
+
+        fun getTodayCompletions(): Flow<List<CourseCompletionEntity>> =
+            taskBehaviorPreferences.getDayStartHour().flatMapLatest { hour ->
+                dao.getCompletionsForDate(DayBoundary.startOfCurrentDay(hour))
             }
-        } else {
-            dao.insertCompletion(CourseCompletionEntity(
-                date = today,
-                courseId = courseId,
-                completed = true,
-                completedAt = System.currentTimeMillis()
-            ))
+
+        suspend fun toggleCourseCompletion(courseId: Long) {
+            val today = startOfToday()
+            val existing = dao.getCompletionOnce(today, courseId)
+            if (existing != null) {
+                if (existing.completed) {
+                    dao.deleteCompletion(today, courseId)
+                } else {
+                    dao.updateCompletion(
+                        existing.copy(
+                            completed = true,
+                            completedAt = System.currentTimeMillis()
+                        )
+                    )
+                }
+            } else {
+                dao.insertCompletion(
+                    CourseCompletionEntity(
+                        date = today,
+                        courseId = courseId,
+                        completed = true,
+                        completedAt = System.currentTimeMillis()
+                    )
+                )
+            }
+            syncHabitCompletion()
         }
-        syncHabitCompletion()
-    }
 
-    suspend fun resetToday() {
-        dao.deleteCompletionsForDate(startOfToday())
-        syncHabitCompletion()
-    }
+        suspend fun resetToday() {
+            dao.deleteCompletionsForDate(startOfToday())
+            syncHabitCompletion()
+        }
 
-    // --- Habit sync ---
+        // --- Habit sync ---
 
-    suspend fun ensureHabitExists() {
-        getOrCreateSchoolHabit()
-    }
+        suspend fun ensureHabitExists() {
+            getOrCreateSchoolHabit()
+        }
 
-    private suspend fun getOrCreateSchoolHabit(): HabitEntity {
-        val existing = habitDao.getHabitByName(SCHOOL_HABIT_NAME)
-        if (existing != null) return existing
-        val id = habitDao.insert(
-            HabitEntity(
-                name = SCHOOL_HABIT_NAME,
-                description = "Complete daily work for all courses",
-                icon = "\uD83C\uDF93",
-                color = "#CFB87C",
-                category = "School",
-                targetFrequency = 1,
-                frequencyPeriod = "daily"
-            )
-        )
-        return habitDao.getHabitByIdOnce(id)
-            ?: throw IllegalStateException("Habit not found after insert")
-    }
-
-    private suspend fun syncHabitCompletion() {
-        val habit = getOrCreateSchoolHabit()
-        val today = startOfToday()
-        val completions = dao.getCompletionsForDateOnce(today)
-        // Need to know how many active courses there are
-        // Use a one-shot query approach
-        val courseCount = dao.getActiveCourseCount()
-        val completedCount = completions.count { it.completed }
-        val allDone = courseCount > 0 && completedCount >= courseCount
-        val alreadyCompleted = habitCompletionDao.isCompletedOnDateOnce(habit.id, today)
-
-        if (allDone && !alreadyCompleted) {
-            habitCompletionDao.insert(
-                HabitCompletionEntity(
-                    habitId = habit.id,
-                    completedDate = today,
-                    completedAt = System.currentTimeMillis()
+        private suspend fun getOrCreateSchoolHabit(): HabitEntity {
+            val existing = habitDao.getHabitByName(SCHOOL_HABIT_NAME)
+            if (existing != null) return existing
+            val id = habitDao.insert(
+                HabitEntity(
+                    name = SCHOOL_HABIT_NAME,
+                    description = "Complete daily work for all courses",
+                    icon = "\uD83C\uDF93",
+                    color = "#CFB87C",
+                    category = "School",
+                    targetFrequency = 1,
+                    frequencyPeriod = "daily"
                 )
             )
-        } else if (!allDone && alreadyCompleted) {
-            habitCompletionDao.deleteByHabitAndDate(habit.id, today)
+            return habitDao.getHabitByIdOnce(id)
+                ?: error("Habit not found after insert")
+        }
+
+        private suspend fun syncHabitCompletion() {
+            val habit = getOrCreateSchoolHabit()
+            val today = startOfToday()
+            val completions = dao.getCompletionsForDateOnce(today)
+            // Need to know how many active courses there are
+            // Use a one-shot query approach
+            val courseCount = dao.getActiveCourseCount()
+            val completedCount = completions.count { it.completed }
+            val allDone = courseCount > 0 && completedCount >= courseCount
+            val alreadyCompleted = habitCompletionDao.isCompletedOnDateOnce(habit.id, today)
+
+            if (allDone && !alreadyCompleted) {
+                habitCompletionDao.insert(
+                    HabitCompletionEntity(
+                        habitId = habit.id,
+                        completedDate = today,
+                        completedAt = System.currentTimeMillis()
+                    )
+                )
+            } else if (!allDone && alreadyCompleted) {
+                habitCompletionDao.deleteByHabitAndDate(habit.id, today)
+            }
+        }
+
+        companion object {
+            const val SCHOOL_HABIT_NAME = "School"
         }
     }
-
-    companion object {
-        const val SCHOOL_HABIT_NAME = "School"
-    }
-}

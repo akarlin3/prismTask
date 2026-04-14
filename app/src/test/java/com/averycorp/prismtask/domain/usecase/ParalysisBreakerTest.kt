@@ -9,7 +9,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ParalysisBreakerTest {
-
     private val frPrefs = NdPreferences(
         focusReleaseModeEnabled = true,
         paralysisBreakersEnabled = true,

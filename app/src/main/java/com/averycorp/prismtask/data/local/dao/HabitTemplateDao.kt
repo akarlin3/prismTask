@@ -11,7 +11,6 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface HabitTemplateDao {
-
     @Query("SELECT * FROM habit_templates ORDER BY is_built_in DESC, usage_count DESC, name ASC")
     fun getAll(): Flow<List<HabitTemplateEntity>>
 

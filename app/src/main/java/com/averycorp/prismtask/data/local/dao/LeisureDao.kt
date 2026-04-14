@@ -10,7 +10,6 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface LeisureDao {
-
     @Query("SELECT * FROM leisure_logs WHERE date = :date LIMIT 1")
     fun getLogForDate(date: Long): Flow<LeisureLogEntity?>
 

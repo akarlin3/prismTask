@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -62,18 +61,51 @@ import androidx.navigation.NavController
 import kotlinx.coroutines.launch
 
 private val presetColors = listOf(
-    "#E86F3C", "#D4534A", "#4A90D9", "#7B61C2", "#2E9E6E", "#E8B84A",
-    "#5B8C5A", "#8B5CF6", "#EC4899", "#06B6D4", "#F59E0B", "#6B7280"
+    "#E86F3C",
+    "#D4534A",
+    "#4A90D9",
+    "#7B61C2",
+    "#2E9E6E",
+    "#E8B84A",
+    "#5B8C5A",
+    "#8B5CF6",
+    "#EC4899",
+    "#06B6D4",
+    "#F59E0B",
+    "#6B7280"
 )
 
 private val presetIcons = listOf(
-    "\u2B50", "\uD83D\uDCAA", "\uD83D\uDCDA", "\uD83C\uDFC3", "\uD83D\uDCA7", "\uD83E\uDDD8", "\u270D\uFE0F", "\uD83C\uDFB5",
-    "\uD83D\uDCA4", "\uD83E\uDD57", "\uD83D\uDC8A", "\uD83E\uDDF9", "\uD83D\uDCF1", "\uD83C\uDFAF", "\uD83E\uDDE0", "\u2764\uFE0F"
+    "\u2B50",
+    "\uD83D\uDCAA",
+    "\uD83D\uDCDA",
+    "\uD83C\uDFC3",
+    "\uD83D\uDCA7",
+    "\uD83E\uDDD8",
+    "\u270D\uFE0F",
+    "\uD83C\uDFB5",
+    "\uD83D\uDCA4",
+    "\uD83E\uDD57",
+    "\uD83D\uDC8A",
+    "\uD83E\uDDF9",
+    "\uD83D\uDCF1",
+    "\uD83C\uDFAF",
+    "\uD83E\uDDE0",
+    "\u2764\uFE0F"
 )
 
 private val defaultCategories = listOf(
-    "Health", "Productivity", "Personal", "Fitness", "Learning",
-    "Self-Care", "Housework", "Hygiene", "Nutrition", "Mindfulness", "Social"
+    "Health",
+    "Productivity",
+    "Personal",
+    "Fitness",
+    "Learning",
+    "Self-Care",
+    "Housework",
+    "Hygiene",
+    "Nutrition",
+    "Mindfulness",
+    "Social"
 )
 private val dayLabels = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
 private val dayValues = listOf(2, 3, 4, 5, 6, 7, 1) // Calendar.MONDAY=2 ... SUNDAY=1
@@ -140,7 +172,9 @@ fun AddEditHabitScreen(
                 isError = viewModel.nameError,
                 supportingText = if (viewModel.nameError) {
                     { Text("Name is required") }
-                } else null,
+                } else {
+                    null
+                },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
@@ -246,7 +280,14 @@ fun AddEditHabitScreen(
             // Frequency
             SectionLabel("Frequency")
             SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                val periods = listOf("daily" to "Daily", "weekly" to "Weekly", "fortnightly" to "Fortnightly", "monthly" to "Monthly", "bimonthly" to "Bimonthly", "quarterly" to "Quarterly")
+                val periods = listOf(
+                    "daily" to "Daily",
+                    "weekly" to "Weekly",
+                    "fortnightly" to "Fortnightly",
+                    "monthly" to "Monthly",
+                    "bimonthly" to "Bimonthly",
+                    "quarterly" to "Quarterly"
+                )
                 periods.forEachIndexed { index, (value, label) ->
                     SegmentedButton(
                         selected = viewModel.frequencyPeriod == value,
@@ -319,19 +360,22 @@ fun AddEditHabitScreen(
                                 .height(40.dp)
                                 .clip(RoundedCornerShape(8.dp))
                                 .then(
-                                    if (isActive)
+                                    if (isActive) {
                                         Modifier.background(MaterialTheme.colorScheme.primary)
-                                    else
+                                    } else {
                                         Modifier.background(MaterialTheme.colorScheme.surfaceContainerLow)
-                                )
-                                .clickable { viewModel.onToggleActiveDay(dayValue) },
+                                    }
+                                ).clickable { viewModel.onToggleActiveDay(dayValue) },
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
                                 text = label,
                                 style = MaterialTheme.typography.labelSmall,
-                                color = if (isActive) MaterialTheme.colorScheme.onPrimary
-                                else MaterialTheme.colorScheme.onSurface
+                                color = if (isActive) {
+                                    MaterialTheme.colorScheme.onPrimary
+                                } else {
+                                    MaterialTheme.colorScheme.onSurface
+                                }
                             )
                         }
                     }
@@ -649,10 +693,12 @@ private fun ColorCircle(hex: String, selected: Boolean, onClick: () -> Unit) {
             .clip(CircleShape)
             .background(color)
             .then(
-                if (selected) Modifier.border(3.dp, MaterialTheme.colorScheme.onSurface, CircleShape)
-                else Modifier
-            )
-            .clickable(onClick = onClick),
+                if (selected) {
+                    Modifier.border(3.dp, MaterialTheme.colorScheme.onSurface, CircleShape)
+                } else {
+                    Modifier
+                }
+            ).clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
         if (selected) {
@@ -673,7 +719,7 @@ private fun formatMedInterval(index: Int): String {
     return when {
         hours == 0 -> "30m"
         !hasHalf -> "${hours}h"
-        else -> "${hours}.5h"
+        else -> "$hours.5h"
     }
 }
 
@@ -684,14 +730,14 @@ private fun IconOption(emoji: String, selected: Boolean, onClick: () -> Unit) {
             .size(48.dp)
             .clip(RoundedCornerShape(10.dp))
             .then(
-                if (selected)
+                if (selected) {
                     Modifier
                         .background(MaterialTheme.colorScheme.primaryContainer)
                         .border(2.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(10.dp))
-                else
+                } else {
                     Modifier.background(MaterialTheme.colorScheme.surfaceContainerLow)
-            )
-            .clickable(onClick = onClick),
+                }
+            ).clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
         Text(

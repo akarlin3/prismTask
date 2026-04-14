@@ -15,9 +15,9 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -31,7 +31,6 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Image
-import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -153,8 +152,7 @@ fun BugReportScreen(
                         .background(
                             MaterialTheme.colorScheme.errorContainer,
                             RoundedCornerShape(8.dp)
-                        )
-                        .padding(12.dp),
+                        ).padding(12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
@@ -207,8 +205,11 @@ fun BugReportScreen(
                 onValueChange = { viewModel.setDescription(it) },
                 label = {
                     Text(
-                        if (isFeatureRequest) "Describe the feature you'd like..."
-                        else "Describe what went wrong..."
+                        if (isFeatureRequest) {
+                            "Describe the feature you'd like..."
+                        } else {
+                            "Describe what went wrong..."
+                        }
                     )
                 },
                 modifier = Modifier.fillMaxWidth(),
@@ -370,8 +371,7 @@ fun BugReportScreen(
                                 1.dp,
                                 MaterialTheme.colorScheme.outlineVariant,
                                 RoundedCornerShape(8.dp)
-                            )
-                            .padding(12.dp)
+                            ).padding(12.dp)
                     ) {
                         deviceInfo?.let { info ->
                             ContextLine("Device", "${info.manufacturer} ${info.model}")
@@ -445,10 +445,11 @@ fun BugReportScreen(
             }
 
             Text(
-                text = if (isFeatureRequest)
+                text = if (isFeatureRequest) {
                     "Feature requests help us prioritize what to build next."
-                else
-                    "Reports include device info to help us debug. No personal task content is included.",
+                } else {
+                    "Reports include device info to help us debug. No personal task content is included."
+                },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(vertical = 8.dp)

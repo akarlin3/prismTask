@@ -11,7 +11,6 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface SavedFilterDao {
-
     @Query("SELECT * FROM saved_filters ORDER BY sort_order ASC, id ASC")
     fun getAll(): Flow<List<SavedFilterEntity>>
 

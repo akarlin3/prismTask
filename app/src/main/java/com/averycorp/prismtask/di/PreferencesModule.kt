@@ -23,24 +23,31 @@ private val Context.ndPrefsDataStore: DataStore<Preferences> by preferencesDataS
 @Module
 @InstallIn(SingletonComponent::class)
 object PreferencesModule {
-
     @Provides
     @Singleton
-    fun provideSortPreferences(@ApplicationContext context: Context): SortPreferences =
+    fun provideSortPreferences(
+        @ApplicationContext context: Context
+    ): SortPreferences =
         SortPreferences(context.sortDataStore)
 
     @Provides
     @Singleton
-    fun provideCalendarSyncPreferences(@ApplicationContext context: Context): CalendarSyncPreferences =
+    fun provideCalendarSyncPreferences(
+        @ApplicationContext context: Context
+    ): CalendarSyncPreferences =
         CalendarSyncPreferences(context.calendarSyncDataStore)
 
     @Provides
     @Singleton
-    fun provideUserPreferencesDataStore(@ApplicationContext context: Context): UserPreferencesDataStore =
+    fun provideUserPreferencesDataStore(
+        @ApplicationContext context: Context
+    ): UserPreferencesDataStore =
         UserPreferencesDataStore(context.userPrefsDataStore)
 
     @Provides
     @Singleton
-    fun provideNdPreferencesDataStore(@ApplicationContext context: Context): NdPreferencesDataStore =
+    fun provideNdPreferencesDataStore(
+        @ApplicationContext context: Context
+    ): NdPreferencesDataStore =
         NdPreferencesDataStore(context.ndPrefsDataStore)
 }

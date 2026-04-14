@@ -21,7 +21,6 @@ import com.averycorp.prismtask.domain.model.LifeCategory
 class LifeCategoryClassifier(
     private val keywords: Map<LifeCategory, List<String>> = DEFAULT_KEYWORDS
 ) {
-
     /**
      * Classify a task's text into one of the four tracked [LifeCategory] values,
      * or [LifeCategory.UNCATEGORIZED] when nothing matches.
@@ -80,24 +79,73 @@ class LifeCategoryClassifier(
 
         val DEFAULT_KEYWORDS: Map<LifeCategory, List<String>> = mapOf(
             LifeCategory.WORK to listOf(
-                "meeting", "report", "deadline", "client", "project",
-                "email", "presentation", "sprint", "deploy", "review",
-                "standup", "1:1", "pr", "bug", "ticket", "jira", "invoice"
+                "meeting",
+                "report",
+                "deadline",
+                "client",
+                "project",
+                "email",
+                "presentation",
+                "sprint",
+                "deploy",
+                "review",
+                "standup",
+                "1:1",
+                "pr",
+                "bug",
+                "ticket",
+                "jira",
+                "invoice"
             ),
             LifeCategory.PERSONAL to listOf(
-                "grocery", "clean", "laundry", "cook", "call",
-                "birthday", "errand", "bank", "rent", "bills",
-                "mail", "package", "shopping"
+                "grocery",
+                "clean",
+                "laundry",
+                "cook",
+                "call",
+                "birthday",
+                "errand",
+                "bank",
+                "rent",
+                "bills",
+                "mail",
+                "package",
+                "shopping"
             ),
             LifeCategory.SELF_CARE to listOf(
-                "yoga", "meditate", "meditation", "exercise", "walk",
-                "read", "journal", "rest", "hobby", "music",
-                "stretch", "nap", "self-care", "self care", "hike", "breathe"
+                "yoga",
+                "meditate",
+                "meditation",
+                "exercise",
+                "walk",
+                "read",
+                "journal",
+                "rest",
+                "hobby",
+                "music",
+                "stretch",
+                "nap",
+                "self-care",
+                "self care",
+                "hike",
+                "breathe"
             ),
             LifeCategory.HEALTH to listOf(
-                "medication", "meds", "doctor", "therapy", "prescription",
-                "refill", "appointment", "lab", "pharmacy", "vitamins",
-                "dentist", "dental", "checkup", "physical", "therapist"
+                "medication",
+                "meds",
+                "doctor",
+                "therapy",
+                "prescription",
+                "refill",
+                "appointment",
+                "lab",
+                "pharmacy",
+                "vitamins",
+                "dentist",
+                "dental",
+                "checkup",
+                "physical",
+                "therapist"
             )
         )
     }

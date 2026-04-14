@@ -15,24 +15,26 @@ import javax.inject.Singleton
 private val Context.archiveDataStore: DataStore<Preferences> by preferencesDataStore(name = "archive_prefs")
 
 @Singleton
-class ArchivePreferences @Inject constructor(
-    @ApplicationContext private val context: Context
-) {
-    companion object {
-        private val AUTO_ARCHIVE_DAYS_KEY = intPreferencesKey("auto_archive_days")
-    }
+class ArchivePreferences
+    @Inject
+    constructor(
+        @ApplicationContext private val context: Context
+    ) {
+        companion object {
+            private val AUTO_ARCHIVE_DAYS_KEY = intPreferencesKey("auto_archive_days")
+        }
 
-    fun getAutoArchiveDays(): Flow<Int> = context.archiveDataStore.data.map { prefs ->
-        prefs[AUTO_ARCHIVE_DAYS_KEY] ?: 7
-    }
+        fun getAutoArchiveDays(): Flow<Int> = context.archiveDataStore.data.map { prefs ->
+            prefs[AUTO_ARCHIVE_DAYS_KEY] ?: 7
+        }
 
-    suspend fun setAutoArchiveDays(days: Int) {
-        context.archiveDataStore.edit { prefs ->
-            prefs[AUTO_ARCHIVE_DAYS_KEY] = days
+        suspend fun setAutoArchiveDays(days: Int) {
+            context.archiveDataStore.edit { prefs ->
+                prefs[AUTO_ARCHIVE_DAYS_KEY] = days
+            }
+        }
+
+        suspend fun clearAll() {
+            context.archiveDataStore.edit { it.clear() }
         }
     }
-
-    suspend fun clearAll() {
-        context.archiveDataStore.edit { it.clear() }
-    }
-}

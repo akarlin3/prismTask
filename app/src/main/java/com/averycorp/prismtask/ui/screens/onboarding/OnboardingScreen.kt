@@ -3,8 +3,6 @@ package com.averycorp.prismtask.ui.screens.onboarding
 import android.app.Activity
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -79,8 +77,18 @@ import kotlinx.coroutines.launch
 private const val TOTAL_PAGES = 7
 
 private val accentColors = listOf(
-    "#2563EB", "#7C3AED", "#DB2777", "#DC2626", "#EA580C", "#D97706",
-    "#65A30D", "#059669", "#0891B2", "#6366F1", "#8B5CF6", "#EC4899"
+    "#2563EB",
+    "#7C3AED",
+    "#DB2777",
+    "#DC2626",
+    "#EA580C",
+    "#D97706",
+    "#65A30D",
+    "#059669",
+    "#0891B2",
+    "#6366F1",
+    "#8B5CF6",
+    "#EC4899"
 )
 
 @Composable
@@ -153,8 +161,11 @@ fun OnboardingScreen(
                                 .width(width.dp)
                                 .clip(CircleShape)
                                 .background(
-                                    if (isSelected) MaterialTheme.colorScheme.primary
-                                    else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
+                                    if (isSelected) {
+                                        MaterialTheme.colorScheme.primary
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
+                                    }
                                 )
                         )
                     }
@@ -273,7 +284,7 @@ private fun SmartTasksPage() {
                 AnimatedVisibility(
                     visible = animStarted,
                     enter = fadeIn(tween(300, delayMillis = index * 150)) +
-                            slideInVertically(tween(300, delayMillis = index * 150)) { it }
+                        slideInVertically(tween(300, delayMillis = index * 150)) { it }
                 ) {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
@@ -415,8 +426,11 @@ private fun HabitsPage() {
                             .size(32.dp)
                             .clip(CircleShape)
                             .background(
-                                if (filled) MaterialTheme.colorScheme.primary
-                                else MaterialTheme.colorScheme.surfaceVariant
+                                if (filled) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.surfaceVariant
+                                }
                             ),
                         contentAlignment = Alignment.Center
                     ) {
@@ -450,11 +464,14 @@ private fun ViewsPage() {
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier.padding(horizontal = 24.dp)
         ) {
-            listOf("Today" to "\u2600\uFE0F", "Week" to "\uD83D\uDCC5", "Month" to "\uD83D\uDDD3\uFE0F").forEachIndexed { index, (label, icon) ->
+            listOf("Today" to "\u2600\uFE0F", "Week" to "\uD83D\uDCC5", "Month" to "\uD83D\uDDD3\uFE0F").forEachIndexed {
+                    index,
+                    (label, icon)
+                ->
                 AnimatedVisibility(
                     visible = animStarted,
                     enter = fadeIn(tween(400, delayMillis = index * 200)) +
-                            slideInVertically(tween(400, delayMillis = index * 200)) { 40 }
+                        slideInVertically(tween(400, delayMillis = index * 200)) { 40 }
                 ) {
                     Card(
                         modifier = Modifier.weight(1f),
@@ -533,8 +550,8 @@ private fun BrainModePage(viewModel: OnboardingViewModel) {
             title = "I Get Distracted Easily",
             subtitle = "Hard to start tasks, lose track of time, need momentum to keep going",
             expandedDescription = "This turns on: task decomposition to break big tasks into small wins, " +
-                    "focus guard timers, body doubling check-ins, completion celebrations, " +
-                    "progress bars, and forgiveness streaks.",
+                "focus guard timers, body doubling check-ins, completion celebrations, " +
+                "progress bars, and forgiveness streaks.",
             isSelected = adhdSelected,
             isExpanded = expandedCard == 0,
             onToggle = {
@@ -554,7 +571,7 @@ private fun BrainModePage(viewModel: OnboardingViewModel) {
             title = "I Get Overstimulated Easily",
             subtitle = "Animations, bright colors, and sounds can be too much",
             expandedDescription = "This turns on: reduced animations, muted color palette, " +
-                    "quiet mode (no sounds), reduced haptics, and soft contrast throughout the app.",
+                "quiet mode (no sounds), reduced haptics, and soft contrast throughout the app.",
             isSelected = calmSelected,
             isExpanded = expandedCard == 1,
             onToggle = {
@@ -574,8 +591,8 @@ private fun BrainModePage(viewModel: OnboardingViewModel) {
             title = "I Have Trouble Letting Go of Tasks",
             subtitle = "Spend too long polishing, re-check finished work, struggle to call things done",
             expandedDescription = "This turns on: \u2018good enough\u2019 timers that gently nudge you to finish, " +
-                    "guards against endlessly re-editing completed work, celebrations for " +
-                    "shipping (not perfecting), and help when you\u2019re stuck choosing.",
+                "guards against endlessly re-editing completed work, celebrations for " +
+                "shipping (not perfecting), and help when you\u2019re stuck choosing.",
             isSelected = focusReleaseSelected,
             isExpanded = expandedCard == 2,
             onToggle = {
@@ -616,15 +633,17 @@ private fun BrainModeCard(
                 .fillMaxWidth()
                 .clickable(onClick = onToggle),
             colors = CardDefaults.cardColors(
-                containerColor = if (isSelected)
+                containerColor = if (isSelected) {
                     MaterialTheme.colorScheme.primaryContainer
-                else
+                } else {
                     MaterialTheme.colorScheme.surfaceVariant
+                }
             ),
-            border = if (isSelected)
+            border = if (isSelected) {
                 BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
-            else
+            } else {
                 null
+            }
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Row(
@@ -638,19 +657,21 @@ private fun BrainModeCard(
                             text = title,
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold,
-                            color = if (isSelected)
+                            color = if (isSelected) {
                                 MaterialTheme.colorScheme.onPrimaryContainer
-                            else
+                            } else {
                                 MaterialTheme.colorScheme.onSurface
+                            }
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = subtitle,
                             style = MaterialTheme.typography.bodySmall,
-                            color = if (isSelected)
+                            color = if (isSelected) {
                                 MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
-                            else
+                            } else {
                                 MaterialTheme.colorScheme.onSurfaceVariant
+                            }
                         )
                     }
                     if (isSelected) {
@@ -670,10 +691,11 @@ private fun BrainModeCard(
                         Text(
                             text = expandedDescription,
                             style = MaterialTheme.typography.bodySmall,
-                            color = if (isSelected)
+                            color = if (isSelected) {
                                 MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
-                            else
-                                MaterialTheme.colorScheme.onSurfaceVariant,
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            },
                             lineHeight = 18.sp
                         )
                     }
@@ -741,12 +763,21 @@ private fun SetupPage(
             Column(modifier = Modifier.padding(16.dp)) {
                 Text("Sign In with Google", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Medium)
                 Spacer(modifier = Modifier.height(4.dp))
-                Text("Sync your tasks across devices", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    "Sync your tasks across devices",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
                 Spacer(modifier = Modifier.height(12.dp))
                 when (signInState) {
                     is SignInState.SignedIn -> {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                            Icon(
+                                Icons.Default.Check,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text((signInState as? SignInState.SignedIn)?.email ?: "", style = MaterialTheme.typography.bodySmall)
                         }
@@ -823,10 +854,12 @@ private fun SetupPage(
                                 .clip(CircleShape)
                                 .background(color)
                                 .then(
-                                    if (isSelected) Modifier.border(2.dp, MaterialTheme.colorScheme.onSurface, CircleShape)
-                                    else Modifier
-                                )
-                                .clickable { viewModel.setAccentColor(hex) },
+                                    if (isSelected) {
+                                        Modifier.border(2.dp, MaterialTheme.colorScheme.onSurface, CircleShape)
+                                    } else {
+                                        Modifier
+                                    }
+                                ).clickable { viewModel.setAccentColor(hex) },
                             contentAlignment = Alignment.Center
                         ) {
                             if (isSelected) {
@@ -852,7 +885,12 @@ private fun SetupPage(
                 Spacer(modifier = Modifier.height(12.dp))
                 if (taskCreated) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                        Icon(
+                            Icons.Default.Check,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
+                        )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text("Task created!", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
                     }

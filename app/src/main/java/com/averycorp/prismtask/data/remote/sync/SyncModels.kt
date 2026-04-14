@@ -13,9 +13,10 @@ import com.google.gson.annotations.SerializedName
  *
  * Entity types (string): "task", "project", "tag", "habit", "habit_completion"
  * Operations (string): "create", "update", "delete" (push) / "upsert" (pull)
+ *
+ * Push models: [SyncOperation], [SyncPushRequest], [SyncPushResponse].
+ * Pull models: [SyncChange], [SyncPullResponse].
  */
-
-// region Push
 
 data class SyncOperation(
     @SerializedName("entity_type") val entityType: String,
@@ -36,10 +37,6 @@ data class SyncPushResponse(
     @SerializedName("server_timestamp") val serverTimestamp: String? = null
 )
 
-// endregion
-
-// region Pull
-
 data class SyncChange(
     @SerializedName("entity_type") val entityType: String,
     val operation: String,
@@ -52,5 +49,3 @@ data class SyncPullResponse(
     val changes: List<SyncChange> = emptyList(),
     @SerializedName("server_timestamp") val serverTimestamp: String? = null
 )
-
-// endregion

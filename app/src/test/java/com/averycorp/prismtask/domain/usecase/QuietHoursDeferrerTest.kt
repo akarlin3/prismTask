@@ -9,11 +9,14 @@ import java.time.LocalTime
 import java.time.ZoneId
 
 class QuietHoursDeferrerTest {
-
     private val zone = ZoneId.of("America/Los_Angeles")
 
     private fun millisAt(date: LocalDate, time: LocalTime): Long =
-        date.atTime(time).atZone(zone).toInstant().toEpochMilli()
+        date
+            .atTime(time)
+            .atZone(zone)
+            .toInstant()
+            .toEpochMilli()
 
     @Test
     fun `is in quiet window simple same day range`() {

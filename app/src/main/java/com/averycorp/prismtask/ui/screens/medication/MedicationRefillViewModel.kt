@@ -22,51 +22,54 @@ import javax.inject.Inject
  * run the calculator itself.
  */
 @HiltViewModel
-class MedicationRefillViewModel @Inject constructor(
-    private val repository: MedicationRefillRepository
-) : ViewModel() {
+class MedicationRefillViewModel
+    @Inject
+    constructor(
+        private val repository: MedicationRefillRepository
+    ) : ViewModel() {
+        val medications: StateFlow<List<MedicationWithForecast>> =
+            repository
+                .observeAll()
+                .map { list ->
+                    val now = System.currentTimeMillis()
+                    list.map { row -> MedicationWithForecast(row, RefillCalculator.forecast(row, now)) }
+                }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val medications: StateFlow<List<MedicationWithForecast>> =
-        repository.observeAll().map { list ->
-            val now = System.currentTimeMillis()
-            list.map { row -> MedicationWithForecast(row, RefillCalculator.forecast(row, now)) }
-        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-
-    fun addMedication(
-        name: String,
-        pillCount: Int,
-        pillsPerDose: Int,
-        dosesPerDay: Int,
-        pharmacyName: String? = null,
-        pharmacyPhone: String? = null
-    ) {
-        viewModelScope.launch {
-            repository.upsert(
-                MedicationRefillEntity(
-                    medicationName = name.trim(),
-                    pillCount = pillCount,
-                    pillsPerDose = pillsPerDose,
-                    dosesPerDay = dosesPerDay,
-                    pharmacyName = pharmacyName?.takeIf { it.isNotBlank() },
-                    pharmacyPhone = pharmacyPhone?.takeIf { it.isNotBlank() },
-                    lastRefillDate = System.currentTimeMillis()
+        fun addMedication(
+            name: String,
+            pillCount: Int,
+            pillsPerDose: Int,
+            dosesPerDay: Int,
+            pharmacyName: String? = null,
+            pharmacyPhone: String? = null
+        ) {
+            viewModelScope.launch {
+                repository.upsert(
+                    MedicationRefillEntity(
+                        medicationName = name.trim(),
+                        pillCount = pillCount,
+                        pillsPerDose = pillsPerDose,
+                        dosesPerDay = dosesPerDay,
+                        pharmacyName = pharmacyName?.takeIf { it.isNotBlank() },
+                        pharmacyPhone = pharmacyPhone?.takeIf { it.isNotBlank() },
+                        lastRefillDate = System.currentTimeMillis()
+                    )
                 )
-            )
+            }
+        }
+
+        fun recordDailyDose(refill: MedicationRefillEntity) {
+            viewModelScope.launch { repository.applyDailyDose(refill) }
+        }
+
+        fun recordRefill(refill: MedicationRefillEntity, newSupply: Int) {
+            viewModelScope.launch { repository.applyRefill(refill, newSupply) }
+        }
+
+        fun delete(id: Long) {
+            viewModelScope.launch { repository.delete(id) }
         }
     }
-
-    fun recordDailyDose(refill: MedicationRefillEntity) {
-        viewModelScope.launch { repository.applyDailyDose(refill) }
-    }
-
-    fun recordRefill(refill: MedicationRefillEntity, newSupply: Int) {
-        viewModelScope.launch { repository.applyRefill(refill, newSupply) }
-    }
-
-    fun delete(id: Long) {
-        viewModelScope.launch { repository.delete(id) }
-    }
-}
 
 data class MedicationWithForecast(
     val row: MedicationRefillEntity,

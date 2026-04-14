@@ -1,7 +1,5 @@
 package com.averycorp.prismtask.ui.screens.habits
 
-import com.averycorp.prismtask.ui.screens.habits.components.ActivityLogDialog
-import com.averycorp.prismtask.ui.screens.habits.components.BookingDialog
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -49,6 +47,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.averycorp.prismtask.data.repository.HabitWithStatus
 import com.averycorp.prismtask.ui.components.RichEmptyState
+import com.averycorp.prismtask.ui.screens.habits.components.ActivityLogDialog
+import com.averycorp.prismtask.ui.screens.habits.components.BookingDialog
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -123,8 +123,11 @@ fun HabitDetailScreen(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
                     colors = CardDefaults.cardColors(
-                        containerColor = if (h.isBooked) habitColor.copy(alpha = 0.1f)
-                        else MaterialTheme.colorScheme.surfaceContainerLow
+                        containerColor = if (h.isBooked) {
+                            habitColor.copy(alpha = 0.1f)
+                        } else {
+                            MaterialTheme.colorScheme.surfaceContainerLow
+                        }
                     )
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {

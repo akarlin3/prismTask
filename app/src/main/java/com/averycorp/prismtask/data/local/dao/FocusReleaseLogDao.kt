@@ -8,7 +8,6 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface FocusReleaseLogDao {
-
     @Insert
     suspend fun insert(log: FocusReleaseLogEntity): Long
 

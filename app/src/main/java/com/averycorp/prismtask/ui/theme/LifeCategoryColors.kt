@@ -12,10 +12,10 @@ import com.averycorp.prismtask.domain.model.LifeCategory
  * coherent.
  */
 object LifeCategoryColor {
-    val WORK = Color(0xFF2E7BE5)      // blue
-    val PERSONAL = Color(0xFF37A669)  // green
+    val WORK = Color(0xFF2E7BE5) // blue
+    val PERSONAL = Color(0xFF37A669) // green
     val SELF_CARE = Color(0xFF8A4FCF) // purple
-    val HEALTH = Color(0xFFE05353)    // red
+    val HEALTH = Color(0xFFE05353) // red
     val UNCATEGORIZED = Color(0xFF9E9E9E) // neutral gray
 
     fun forCategory(category: LifeCategory): Color = when (category) {

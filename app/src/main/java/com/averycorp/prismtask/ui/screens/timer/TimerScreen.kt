@@ -376,7 +376,9 @@ private fun TimerRing(
 ) {
     val progress = if (totalSeconds > 0) {
         remainingSeconds.toFloat() / totalSeconds.toFloat()
-    } else 0f
+    } else {
+        0f
+    }
     val animatedProgress by animateFloatAsState(
         targetValue = progress,
         animationSpec = tween(durationMillis = 600),

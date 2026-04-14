@@ -15,7 +15,6 @@ import java.time.LocalDate
 import java.time.ZoneId
 
 class TaskCompletionAnalyticsTest {
-
     private fun LocalDate.toMillis(): Long =
         atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
 
@@ -113,10 +112,12 @@ class TaskCompletionAnalyticsTest {
         )
         val grouped = completions
             .groupBy {
-                java.time.Instant.ofEpochMilli(it.completedDate)
-                    .atZone(ZoneId.systemDefault()).toLocalDate().dayOfWeek
-            }
-            .mapValues { it.value.size }
+                java.time.Instant
+                    .ofEpochMilli(it.completedDate)
+                    .atZone(ZoneId.systemDefault())
+                    .toLocalDate()
+                    .dayOfWeek
+            }.mapValues { it.value.size }
 
         assertEquals(2, grouped[DayOfWeek.MONDAY])
         assertEquals(1, grouped[DayOfWeek.TUESDAY])
@@ -133,10 +134,11 @@ class TaskCompletionAnalyticsTest {
         )
         val grouped = completions
             .groupBy {
-                java.time.Instant.ofEpochMilli(it.completedAtTime)
-                    .atZone(ZoneId.systemDefault()).hour
-            }
-            .mapValues { it.value.size }
+                java.time.Instant
+                    .ofEpochMilli(it.completedAtTime)
+                    .atZone(ZoneId.systemDefault())
+                    .hour
+            }.mapValues { it.value.size }
 
         assertEquals(2, grouped[9])
         assertEquals(1, grouped[14])
@@ -173,10 +175,12 @@ class TaskCompletionAnalyticsTest {
         )
         val grouped = completions
             .groupBy {
-                java.time.Instant.ofEpochMilli(it.completedDate)
-                    .atZone(ZoneId.systemDefault()).toLocalDate().dayOfWeek
-            }
-            .mapValues { it.value.size }
+                java.time.Instant
+                    .ofEpochMilli(it.completedDate)
+                    .atZone(ZoneId.systemDefault())
+                    .toLocalDate()
+                    .dayOfWeek
+            }.mapValues { it.value.size }
         val best = grouped.maxByOrNull { it.value }?.key
         assertEquals(DayOfWeek.MONDAY, best)
     }
@@ -192,10 +196,12 @@ class TaskCompletionAnalyticsTest {
         )
         val grouped = completions
             .groupBy {
-                java.time.Instant.ofEpochMilli(it.completedDate)
-                    .atZone(ZoneId.systemDefault()).toLocalDate().dayOfWeek
-            }
-            .mapValues { it.value.size }
+                java.time.Instant
+                    .ofEpochMilli(it.completedDate)
+                    .atZone(ZoneId.systemDefault())
+                    .toLocalDate()
+                    .dayOfWeek
+            }.mapValues { it.value.size }
         val worst = DayOfWeek.entries.minByOrNull { grouped[it] ?: 0 }
         // Wednesday through Sunday all have 0, any of them is valid
         assertNotNull(worst)
@@ -212,10 +218,11 @@ class TaskCompletionAnalyticsTest {
         )
         val grouped = completions
             .groupBy {
-                java.time.Instant.ofEpochMilli(it.completedAtTime)
-                    .atZone(ZoneId.systemDefault()).hour
-            }
-            .mapValues { it.value.size }
+                java.time.Instant
+                    .ofEpochMilli(it.completedAtTime)
+                    .atZone(ZoneId.systemDefault())
+                    .hour
+            }.mapValues { it.value.size }
         val peak = grouped.maxByOrNull { it.value }?.key
         assertEquals(10, peak)
     }

@@ -12,7 +12,6 @@ import org.junit.Test
  * zeros → 0, all maxed → 100).
  */
 class BurnoutScorerTest {
-
     private val scorer = BurnoutScorer()
 
     @Test
@@ -26,13 +25,13 @@ class BurnoutScorerTest {
     fun `all components maxed produce score of one hundred`() {
         val result = scorer.compute(
             BurnoutInputs(
-                workRatio = 1f,           // target + 0.60 → caps at 0.40 overshoot → 25 pts
+                workRatio = 1f, // target + 0.60 → caps at 0.40 overshoot → 25 pts
                 workTarget = 0.40f,
-                overdueCount = 50,        // caps at 10 → 20 pts
+                overdueCount = 50, // caps at 10 → 20 pts
                 skippedSelfCareRatio = 1f, // → 20 pts
-                medicationGapRatio = 1f,   // → 15 pts
-                streakBreaks = 10,         // caps at 5 → 10 pts
-                restDeficit = true         // → 10 pts
+                medicationGapRatio = 1f, // → 15 pts
+                streakBreaks = 10, // caps at 5 → 10 pts
+                restDeficit = true // → 10 pts
             )
         )
         assertEquals(100, result.score)
@@ -111,9 +110,9 @@ class BurnoutScorerTest {
     fun `moderate overload plus overdue lands in monitor band`() {
         val result = scorer.compute(
             BurnoutInputs(
-                workRatio = 0.55f,       // overshoot 0.15/0.40 → 9 pts
+                workRatio = 0.55f, // overshoot 0.15/0.40 → 9 pts
                 workTarget = 0.40f,
-                overdueCount = 5,        // scaled → 10 pts
+                overdueCount = 5, // scaled → 10 pts
                 skippedSelfCareRatio = 0.3f // → 6 pts
             )
         )

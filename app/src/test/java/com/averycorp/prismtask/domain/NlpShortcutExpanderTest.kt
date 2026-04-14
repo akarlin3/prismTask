@@ -10,7 +10,6 @@ import org.junit.Test
  * or Hilt plumbing are needed.
  */
 class NlpShortcutExpanderTest {
-
     @Test
     fun expand_returnsInputUnchangedWhenNoShortcutsMatch() {
         val input = "Write the weekly report"

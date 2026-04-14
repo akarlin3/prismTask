@@ -257,8 +257,7 @@ fun GoogleCalendarSection(
                                 .clickable {
                                     onSetGCalSyncCalendarId(cal.id)
                                     showGCalCalendarPicker = false
-                                }
-                                .padding(vertical = 12.dp, horizontal = 8.dp),
+                                }.padding(vertical = 12.dp, horizontal = 8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Box(
@@ -317,8 +316,7 @@ fun GoogleCalendarSection(
                                 .clickable {
                                     onSetGCalSyncFrequency(value)
                                     showGCalFrequencyPicker = false
-                                }
-                                .padding(vertical = 12.dp, horizontal = 8.dp),
+                                }.padding(vertical = 12.dp, horizontal = 8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             RadioButton(

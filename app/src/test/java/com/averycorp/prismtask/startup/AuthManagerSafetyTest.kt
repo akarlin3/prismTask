@@ -1,7 +1,5 @@
 package com.averycorp.prismtask.startup
 
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
@@ -21,7 +19,6 @@ import java.io.File
  * which executes during DI graph construction with no surrounding catch.
  */
 class AuthManagerSafetyTest {
-
     @Test
     fun `AuthManager protects FirebaseAuth initialization`() {
         val file = File("app/src/main/java/com/averycorp/prismtask/data/remote/AuthManager.kt")
@@ -142,8 +139,10 @@ class AuthManagerSafetyTest {
             if ((l.startsWith("try") || l.contains("} catch") || l == "try {") && depth <= 0) {
                 return true
             }
-            if (l.startsWith("fun ") || l.startsWith("override fun ") ||
-                l.startsWith("class ") || l.startsWith("object ")
+            if (l.startsWith("fun ") ||
+                l.startsWith("override fun ") ||
+                l.startsWith("class ") ||
+                l.startsWith("object ")
             ) {
                 return false
             }

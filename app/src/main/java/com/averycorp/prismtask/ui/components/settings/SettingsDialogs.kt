@@ -47,10 +47,26 @@ fun ColorPickerDialog(
     var hexInput by remember(currentHex) { mutableStateOf(currentHex) }
 
     val presetColors = listOf(
-        "#F44336", "#E91E63", "#9C27B0", "#673AB7", "#3F51B5", "#2196F3",
-        "#03A9F4", "#00BCD4", "#009688", "#4CAF50", "#8BC34A", "#CDDC39",
-        "#FFEB3B", "#FFC107", "#FF9800", "#FF5722", "#795548", "#607D8B",
-        "#9E9E9E", "#000000"
+        "#F44336",
+        "#E91E63",
+        "#9C27B0",
+        "#673AB7",
+        "#3F51B5",
+        "#2196F3",
+        "#03A9F4",
+        "#00BCD4",
+        "#009688",
+        "#4CAF50",
+        "#8BC34A",
+        "#CDDC39",
+        "#FFEB3B",
+        "#FFC107",
+        "#FF9800",
+        "#FF5722",
+        "#795548",
+        "#607D8B",
+        "#9E9E9E",
+        "#000000"
     )
 
     AlertDialog(
@@ -72,18 +88,23 @@ fun ColorPickerDialog(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     presetColors.forEach { hex ->
-                        val color = try { Color(android.graphics.Color.parseColor(hex)) } catch (_: Exception) { Color.Gray }
+                        val color = try {
+                            Color(android.graphics.Color.parseColor(hex))
+                        } catch (_: Exception) {
+                            Color.Gray
+                        }
                         Box(
                             modifier = Modifier
                                 .size(32.dp)
                                 .clip(CircleShape)
                                 .background(color)
                                 .then(
-                                    if (hexInput.equals(hex, ignoreCase = true))
+                                    if (hexInput.equals(hex, ignoreCase = true)) {
                                         Modifier.border(2.dp, MaterialTheme.colorScheme.onSurface, CircleShape)
-                                    else Modifier
-                                )
-                                .clickable { hexInput = hex }
+                                    } else {
+                                        Modifier
+                                    }
+                                ).clickable { hexInput = hex }
                         )
                     }
                 }
@@ -244,9 +265,9 @@ fun BackendAuthDialog(
                     }
                 },
                 enabled = !isAuthenticating &&
-                        email.isNotBlank() &&
-                        password.isNotBlank() &&
-                        (!isRegisterMode || name.isNotBlank())
+                    email.isNotBlank() &&
+                    password.isNotBlank() &&
+                    (!isRegisterMode || name.isNotBlank())
             ) {
                 Text(if (isRegisterMode) "Register" else "Sign In")
             }

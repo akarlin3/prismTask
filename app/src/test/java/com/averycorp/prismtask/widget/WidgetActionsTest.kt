@@ -10,7 +10,6 @@ import org.junit.Test
  * pure helper functions are unit-testable.
  */
 class WidgetActionsTest {
-
     @Test
     fun `taskIdParams builds correct parameter bundle`() {
         val params = taskIdParams(42L)

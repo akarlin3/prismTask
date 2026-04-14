@@ -21,7 +21,6 @@ import org.junit.Test
  * is pure enough to verify with mocked DAOs.
  */
 class WeeklyHabitSummaryTest {
-
     private lateinit var habitDao: HabitDao
     private lateinit var completionDao: HabitCompletionDao
     private lateinit var summary: WeeklyHabitSummary

@@ -45,10 +45,22 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 
 private val iconOptions = listOf(
-    "\uD83D\uDCDA", "\uD83E\uDDE0", "\uD83E\uDD16", "\uD83D\uDCBB",
-    "\uD83D\uDCCA", "\uD83D\uDD2C", "\uD83C\uDF0E", "\u2696\uFE0F",
-    "\uD83C\uDFA8", "\uD83D\uDCDD", "\u2699\uFE0F", "\uD83E\uDDEE",
-    "\uD83D\uDE80", "\uD83C\uDFAF", "\uD83D\uDCA1", "\uD83D\uDCC8"
+    "\uD83D\uDCDA",
+    "\uD83E\uDDE0",
+    "\uD83E\uDD16",
+    "\uD83D\uDCBB",
+    "\uD83D\uDCCA",
+    "\uD83D\uDD2C",
+    "\uD83C\uDF0E",
+    "\u2696\uFE0F",
+    "\uD83C\uDFA8",
+    "\uD83D\uDCDD",
+    "\u2699\uFE0F",
+    "\uD83E\uDDEE",
+    "\uD83D\uDE80",
+    "\uD83C\uDFAF",
+    "\uD83D\uDCA1",
+    "\uD83D\uDCC8"
 )
 
 private val colorOptions = listOf(
@@ -59,7 +71,7 @@ private val colorOptions = listOf(
     Color(0xFF8B5CF6), // Purple
     Color(0xFFF59E0B), // Amber
     Color(0xFFEC4899), // Pink
-    Color(0xFF06B6D4), // Cyan
+    Color(0xFF06B6D4) // Cyan
 )
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -151,15 +163,16 @@ fun AddEditCourseScreen(
                             .size(44.dp)
                             .clip(RoundedCornerShape(10.dp))
                             .background(
-                                if (selected) MaterialTheme.colorScheme.primaryContainer
-                                else MaterialTheme.colorScheme.surfaceVariant
-                            )
-                            .border(
+                                if (selected) {
+                                    MaterialTheme.colorScheme.primaryContainer
+                                } else {
+                                    MaterialTheme.colorScheme.surfaceVariant
+                                }
+                            ).border(
                                 2.dp,
                                 if (selected) MaterialTheme.colorScheme.primary else Color.Transparent,
                                 RoundedCornerShape(10.dp)
-                            )
-                            .clickable { viewModel.onIconChange(opt) },
+                            ).clickable { viewModel.onIconChange(opt) },
                         contentAlignment = Alignment.Center
                     ) {
                         Text(opt, fontSize = 20.sp)
@@ -192,8 +205,7 @@ fun AddEditCourseScreen(
                                 3.dp,
                                 if (selected) MaterialTheme.colorScheme.onSurface else Color.Transparent,
                                 CircleShape
-                            )
-                            .clickable { viewModel.onColorChange(index) },
+                            ).clickable { viewModel.onColorChange(index) },
                         contentAlignment = Alignment.Center
                     ) {
                         if (selected) {

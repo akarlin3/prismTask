@@ -1,6 +1,5 @@
 package com.averycorp.prismtask.smoke
 
-import com.averycorp.prismtask.data.local.entity.TaskEntity
 import dagger.hilt.android.testing.HiltAndroidTest
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -14,7 +13,6 @@ import org.junit.Test
  */
 @HiltAndroidTest
 class SearchArchiveSmokeTest : SmokeTestBase() {
-
     @Test
     fun searchTasks_matchesOnTitle() = runBlocking {
         val results = database.taskDao().searchTasks("Review").first()

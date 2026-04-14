@@ -206,7 +206,10 @@ fun ProUpgradePrompt(
     )
 }
 
-enum class ProFeature(val label: String, val description: String) {
+enum class ProFeature(
+    val label: String,
+    val description: String
+) {
     AI("AI Features", "Let AI organize your tasks and plan focus sessions"),
     SYNC("Cloud Sync", "Sync your tasks across devices with cloud backup"),
     COLLABORATION("Collaboration", "Share projects and work with your team"),

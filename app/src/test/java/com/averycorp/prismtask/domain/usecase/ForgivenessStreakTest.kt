@@ -15,7 +15,6 @@ import java.time.ZoneId
  * time zones and run days. The daily habit target is 1 completion per day.
  */
 class ForgivenessStreakTest {
-
     private val today: LocalDate = LocalDate.of(2026, 4, 11)
 
     private fun LocalDate.toMillis(): Long =
@@ -49,7 +48,10 @@ class ForgivenessStreakTest {
             completion(today)
         )
         val result = StreakCalculator.calculateResilientDailyStreak(
-            completions, dailyHabit(), today, ForgivenessConfig.DEFAULT
+            completions,
+            dailyHabit(),
+            today,
+            ForgivenessConfig.DEFAULT
         )
         assertEquals(3, result.strictStreak)
         assertEquals(9, result.resilientStreak)
@@ -69,7 +71,10 @@ class ForgivenessStreakTest {
             // missing today and minusDays(1)
         )
         val result = StreakCalculator.calculateResilientDailyStreak(
-            completions, dailyHabit(), today, ForgivenessConfig.DEFAULT
+            completions,
+            dailyHabit(),
+            today,
+            ForgivenessConfig.DEFAULT
         )
         assertEquals(0, result.resilientStreak)
     }
@@ -88,7 +93,10 @@ class ForgivenessStreakTest {
             completion(today)
         )
         val result = StreakCalculator.calculateResilientDailyStreak(
-            completions, dailyHabit(), today, ForgivenessConfig.STRICT
+            completions,
+            dailyHabit(),
+            today,
+            ForgivenessConfig.STRICT
         )
         assertEquals(3, result.strictStreak)
         assertEquals(3, result.resilientStreak)
@@ -100,7 +108,10 @@ class ForgivenessStreakTest {
         // 5 completions ending yesterday, today skipped (mid-day).
         val completions = (1..5).map { completion(today.minusDays(it.toLong())) }
         val result = StreakCalculator.calculateResilientDailyStreak(
-            completions, dailyHabit(), today, ForgivenessConfig.DEFAULT
+            completions,
+            dailyHabit(),
+            today,
+            ForgivenessConfig.DEFAULT
         )
         // Today is "not yet done" so we start from yesterday. All 5 met,
         // no absorbed misses, earliestCompletion truncates walk.
@@ -112,7 +123,10 @@ class ForgivenessStreakTest {
     @Test
     fun `empty completions returns zero`() {
         val result = StreakCalculator.calculateResilientDailyStreak(
-            emptyList(), dailyHabit(), today, ForgivenessConfig.DEFAULT
+            emptyList(),
+            dailyHabit(),
+            today,
+            ForgivenessConfig.DEFAULT
         )
         assertEquals(0, result.strictStreak)
         assertEquals(0, result.resilientStreak)
@@ -128,7 +142,10 @@ class ForgivenessStreakTest {
             completion(today)
         )
         val result = StreakCalculator.calculateResilientDailyStreak(
-            completions, dailyHabit(), today, ForgivenessConfig.DEFAULT
+            completions,
+            dailyHabit(),
+            today,
+            ForgivenessConfig.DEFAULT
         )
         assertEquals(3, result.strictStreak)
         assertEquals(3, result.resilientStreak)
@@ -145,7 +162,10 @@ class ForgivenessStreakTest {
             completion(today)
         )
         val result = StreakCalculator.calculateResilientDailyStreak(
-            completions, dailyHabit(), today, ForgivenessConfig(enabled = true, gracePeriodDays = 7, allowedMisses = 2)
+            completions,
+            dailyHabit(),
+            today,
+            ForgivenessConfig(enabled = true, gracePeriodDays = 7, allowedMisses = 2)
         )
         // 1 absorbed miss, 2 allowed - 1 used = 1 remaining.
         assertEquals(1, result.missesInWindow)
@@ -166,7 +186,10 @@ class ForgivenessStreakTest {
             completion(today)
         )
         val result = StreakCalculator.calculateResilientStreak(
-            completions, weeklyHabit, today, ForgivenessConfig.DEFAULT
+            completions,
+            weeklyHabit,
+            today,
+            ForgivenessConfig.DEFAULT
         )
         // Non-daily frequencies fall back to strict behavior. Resilient ==
         // strict, forgivenDates empty.
@@ -179,7 +202,9 @@ class ForgivenessStreakTest {
         // 5 on days ending today — no gaps, so classic and forgiveness agree.
         val completions = (0..4).map { completion(today.minusDays(it.toLong())) }
         val result = StreakCalculator.calculateResilientDailyStreak(
-            completions, dailyHabit(), today,
+            completions,
+            dailyHabit(),
+            today,
             ForgivenessConfig(enabled = true, gracePeriodDays = 7, allowedMisses = 0)
         )
         assertEquals(5, result.strictStreak)
@@ -196,7 +221,9 @@ class ForgivenessStreakTest {
             completion(today)
         )
         val result = StreakCalculator.calculateResilientDailyStreak(
-            completions, dailyHabit(), today,
+            completions,
+            dailyHabit(),
+            today,
             ForgivenessConfig(enabled = true, gracePeriodDays = 7, allowedMisses = 0)
         )
         // With 0 allowed, any miss breaks the streak.

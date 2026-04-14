@@ -33,76 +33,51 @@ import androidx.room.PrimaryKey
 data class TaskEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
-
     val title: String,
-
     val description: String? = null,
-
     @ColumnInfo(name = "due_date")
     val dueDate: Long? = null,
-
     @ColumnInfo(name = "due_time")
     val dueTime: Long? = null,
-
     val priority: Int = 0,
-
     @ColumnInfo(name = "is_completed")
     val isCompleted: Boolean = false,
-
     @ColumnInfo(name = "project_id")
     val projectId: Long? = null,
-
     @ColumnInfo(name = "parent_task_id")
     val parentTaskId: Long? = null,
-
     @ColumnInfo(name = "recurrence_rule")
     val recurrenceRule: String? = null,
-
     @ColumnInfo(name = "reminder_offset")
     val reminderOffset: Long? = null,
-
     @ColumnInfo(name = "created_at")
     val createdAt: Long = System.currentTimeMillis(),
-
     @ColumnInfo(name = "updated_at")
     val updatedAt: Long = System.currentTimeMillis(),
-
     @ColumnInfo(name = "completed_at")
     val completedAt: Long? = null,
-
     @ColumnInfo(name = "archived_at")
     val archivedAt: Long? = null,
-
     @ColumnInfo(name = "notes")
     val notes: String? = null,
-
     @ColumnInfo(name = "planned_date")
     val plannedDate: Long? = null,
-
     @ColumnInfo(name = "estimated_duration")
     val estimatedDuration: Int? = null,
-
     @ColumnInfo(name = "scheduled_start_time")
     val scheduledStartTime: Long? = null,
-
     @ColumnInfo(name = "source_habit_id")
     val sourceHabitId: Long? = null,
-
     @ColumnInfo(name = "eisenhower_quadrant")
     val eisenhowerQuadrant: String? = null,
-
     @ColumnInfo(name = "eisenhower_updated_at")
     val eisenhowerUpdatedAt: Long? = null,
-
     @ColumnInfo(name = "eisenhower_reason")
     val eisenhowerReason: String? = null,
-
     @ColumnInfo(name = "sort_order")
     val sortOrder: Int = 0,
-
     @ColumnInfo(name = "is_flagged", defaultValue = "0")
     val isFlagged: Boolean = false,
-
     /**
      * Work-Life Balance category. Stored as the [com.averycorp.prismtask.domain.model.LifeCategory]
      * enum name (e.g. "WORK", "SELF_CARE"). Null or unknown values are treated as
@@ -110,25 +85,22 @@ data class TaskEntity(
      */
     @ColumnInfo(name = "life_category")
     val lifeCategory: String? = null,
-
-    // --- Focus & Release Mode per-task overrides ---
-
-    /** Per-task Good Enough Timer override in minutes. Null = use global default. */
+    /**
+     * Focus & Release Mode per-task overrides.
+     *
+     * Good Enough Timer override in minutes. Null = use global default.
+     */
     @ColumnInfo(name = "good_enough_minutes_override")
     val goodEnoughMinutesOverride: Int? = null,
-
     /** Per-task max revision limit override. Null = use global default. */
     @ColumnInfo(name = "max_revisions_override")
     val maxRevisionsOverride: Int? = null,
-
     /** How many times this task has been re-opened for editing after completion. */
     @ColumnInfo(name = "revision_count", defaultValue = "0")
     val revisionCount: Int = 0,
-
     /** When true, task cannot be re-opened without explicit unlock. */
     @ColumnInfo(name = "revision_locked", defaultValue = "0")
     val revisionLocked: Boolean = false,
-
     /** Cumulative editing time in minutes (for Good Enough Timer tracking). */
     @ColumnInfo(name = "cumulative_edit_minutes", defaultValue = "0")
     val cumulativeEditMinutes: Int = 0

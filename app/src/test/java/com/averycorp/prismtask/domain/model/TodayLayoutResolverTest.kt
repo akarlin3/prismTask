@@ -6,7 +6,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class TodayLayoutResolverTest {
-
     @Test
     fun `empty user order falls back to default order`() {
         val result = TodayLayoutResolver.resolve(

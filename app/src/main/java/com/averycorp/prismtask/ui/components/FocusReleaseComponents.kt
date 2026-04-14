@@ -11,7 +11,6 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -42,9 +41,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.SnackbarDuration
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -66,7 +62,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.averycorp.prismtask.data.preferences.CelebrationIntensity
-import com.averycorp.prismtask.domain.usecase.CelebrationTrigger
 import com.averycorp.prismtask.domain.usecase.ShipItCelebration
 import kotlinx.coroutines.delay
 
@@ -325,7 +320,7 @@ fun CoolingOffDialog(
         text = {
             Text(
                 "You finished this $minutesAgo minutes ago. Give it some space \u2014 " +
-                        "you can edit again in $remainingMinutes minutes."
+                    "you can edit again in $remainingMinutes minutes."
             )
         },
         confirmButton = {
@@ -395,8 +390,7 @@ fun RevisionLockedBadge(modifier: Modifier = Modifier) {
             .background(
                 MaterialTheme.colorScheme.tertiaryContainer,
                 RoundedCornerShape(4.dp)
-            )
-            .padding(horizontal = 6.dp, vertical = 2.dp),
+            ).padding(horizontal = 6.dp, vertical = 2.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
@@ -458,8 +452,7 @@ private fun SubtleCelebration(message: String, onDismiss: () -> Unit) {
                     .background(
                         MaterialTheme.colorScheme.primaryContainer,
                         RoundedCornerShape(24.dp)
-                    )
-                    .padding(horizontal = 20.dp, vertical = 12.dp),
+                    ).padding(horizontal = 20.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
@@ -540,7 +533,10 @@ private fun FullSendCelebration(
             modifier = Modifier
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.5f))
-                .clickable { visible = false; onDismiss() },
+                .clickable {
+                    visible = false
+                    onDismiss()
+                },
             contentAlignment = Alignment.Center
         ) {
             ConfettiCanvas(modifier = Modifier.fillMaxSize())
@@ -583,8 +579,12 @@ private fun ConfettiCanvas(modifier: Modifier = Modifier) {
                 y = (-Math.random() * 500).toFloat(),
                 size = (4 + Math.random() * 8).toFloat(),
                 color = listOf(
-                    Color(0xFFFF6B6B), Color(0xFF4ECDC4), Color(0xFF45B7D1),
-                    Color(0xFFFFA726), Color(0xFFAB47BC), Color(0xFF66BB6A)
+                    Color(0xFFFF6B6B),
+                    Color(0xFF4ECDC4),
+                    Color(0xFF45B7D1),
+                    Color(0xFFFFA726),
+                    Color(0xFFAB47BC),
+                    Color(0xFF66BB6A)
                 ).random(),
                 speed = (2 + Math.random() * 4).toFloat()
             )

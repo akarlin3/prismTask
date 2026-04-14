@@ -18,14 +18,16 @@ import org.junit.Test
  * - Tier-based access control patterns
  */
 class CoachingRepositoryTest {
-
     // region Perfectionism detection (Trigger 2)
 
     @Test
     fun `shouldShowPerfectionismCard returns true when editCount at least 3`() {
         assertTrue(
             shouldShowPerfectionismCardStatic(
-                editCount = 3, rescheduleCount = 0, subtasksAdded = 0, subtasksCompleted = 0
+                editCount = 3,
+                rescheduleCount = 0,
+                subtasksAdded = 0,
+                subtasksCompleted = 0
             )
         )
     }
@@ -34,7 +36,10 @@ class CoachingRepositoryTest {
     fun `shouldShowPerfectionismCard returns true when rescheduleCount at least 2`() {
         assertTrue(
             shouldShowPerfectionismCardStatic(
-                editCount = 0, rescheduleCount = 2, subtasksAdded = 0, subtasksCompleted = 0
+                editCount = 0,
+                rescheduleCount = 2,
+                subtasksAdded = 0,
+                subtasksCompleted = 0
             )
         )
     }
@@ -43,7 +48,10 @@ class CoachingRepositoryTest {
     fun `shouldShowPerfectionismCard returns true when subtasks added but none completed`() {
         assertTrue(
             shouldShowPerfectionismCardStatic(
-                editCount = 0, rescheduleCount = 0, subtasksAdded = 2, subtasksCompleted = 0
+                editCount = 0,
+                rescheduleCount = 0,
+                subtasksAdded = 2,
+                subtasksCompleted = 0
             )
         )
     }
@@ -52,7 +60,10 @@ class CoachingRepositoryTest {
     fun `shouldShowPerfectionismCard returns false when subtasks are partially completed`() {
         assertFalse(
             shouldShowPerfectionismCardStatic(
-                editCount = 0, rescheduleCount = 0, subtasksAdded = 3, subtasksCompleted = 1
+                editCount = 0,
+                rescheduleCount = 0,
+                subtasksAdded = 3,
+                subtasksCompleted = 1
             )
         )
     }
@@ -61,7 +72,10 @@ class CoachingRepositoryTest {
     fun `shouldShowPerfectionismCard returns false when all counts below threshold`() {
         assertFalse(
             shouldShowPerfectionismCardStatic(
-                editCount = 2, rescheduleCount = 1, subtasksAdded = 1, subtasksCompleted = 0
+                editCount = 2,
+                rescheduleCount = 1,
+                subtasksAdded = 1,
+                subtasksCompleted = 0
             )
         )
     }
@@ -70,7 +84,10 @@ class CoachingRepositoryTest {
     fun `shouldShowPerfectionismCard returns true when multiple conditions met`() {
         assertTrue(
             shouldShowPerfectionismCardStatic(
-                editCount = 5, rescheduleCount = 3, subtasksAdded = 4, subtasksCompleted = 0
+                editCount = 5,
+                rescheduleCount = 3,
+                subtasksAdded = 4,
+                subtasksCompleted = 0
             )
         )
     }
@@ -83,8 +100,10 @@ class CoachingRepositoryTest {
     fun `shouldCelebrate returns true for partial subtask completion`() {
         assertTrue(
             shouldCelebrateStatic(
-                completedSubtaskCount = 3, totalSubtaskCount = 5,
-                daysOverdue = 0, firstAfterGap = false
+                completedSubtaskCount = 3,
+                totalSubtaskCount = 5,
+                daysOverdue = 0,
+                firstAfterGap = false
             )
         )
     }
@@ -94,8 +113,10 @@ class CoachingRepositoryTest {
         // All subtasks done is not "partial" — the task is just complete.
         assertFalse(
             shouldCelebrateStatic(
-                completedSubtaskCount = 5, totalSubtaskCount = 5,
-                daysOverdue = 0, firstAfterGap = false
+                completedSubtaskCount = 5,
+                totalSubtaskCount = 5,
+                daysOverdue = 0,
+                firstAfterGap = false
             )
         )
     }
@@ -104,8 +125,10 @@ class CoachingRepositoryTest {
     fun `shouldCelebrate returns true when task completed significantly overdue`() {
         assertTrue(
             shouldCelebrateStatic(
-                completedSubtaskCount = 0, totalSubtaskCount = 0,
-                daysOverdue = 2, firstAfterGap = false
+                completedSubtaskCount = 0,
+                totalSubtaskCount = 0,
+                daysOverdue = 2,
+                firstAfterGap = false
             )
         )
     }
@@ -114,8 +137,10 @@ class CoachingRepositoryTest {
     fun `shouldCelebrate returns true for first task after gap`() {
         assertTrue(
             shouldCelebrateStatic(
-                completedSubtaskCount = 0, totalSubtaskCount = 0,
-                daysOverdue = 0, firstAfterGap = true
+                completedSubtaskCount = 0,
+                totalSubtaskCount = 0,
+                daysOverdue = 0,
+                firstAfterGap = true
             )
         )
     }
@@ -124,8 +149,10 @@ class CoachingRepositoryTest {
     fun `shouldCelebrate returns false when no qualifying conditions`() {
         assertFalse(
             shouldCelebrateStatic(
-                completedSubtaskCount = 0, totalSubtaskCount = 0,
-                daysOverdue = 1, firstAfterGap = false
+                completedSubtaskCount = 0,
+                totalSubtaskCount = 0,
+                daysOverdue = 1,
+                firstAfterGap = false
             )
         )
     }
@@ -183,7 +210,8 @@ class CoachingRepositoryTest {
     @Test
     fun `CoachingResult Success carries response`() {
         val response = com.averycorp.prismtask.data.remote.api.CoachingResponse(
-            message = "Test message", subtasks = listOf("a", "b")
+            message = "Test message",
+            subtasks = listOf("a", "b")
         )
         val result = CoachingResult.Success(response)
         assertEquals("Test message", result.response.message)
@@ -216,10 +244,9 @@ class CoachingRepositoryTest {
             rescheduleCount: Int,
             subtasksAdded: Int,
             subtasksCompleted: Int
-        ): Boolean {
-            return editCount >= 3 || rescheduleCount >= 2 ||
-                (subtasksAdded >= 2 && subtasksCompleted == 0)
-        }
+        ): Boolean = editCount >= 3 ||
+            rescheduleCount >= 2 ||
+            (subtasksAdded >= 2 && subtasksCompleted == 0)
     }
 
     private fun shouldCelebrateStatic(
@@ -227,11 +254,9 @@ class CoachingRepositoryTest {
         totalSubtaskCount: Int,
         daysOverdue: Int,
         firstAfterGap: Boolean
-    ): Boolean {
-        return (completedSubtaskCount in 1 until totalSubtaskCount) ||
-            daysOverdue >= 2 ||
-            firstAfterGap
-    }
+    ): Boolean = (completedSubtaskCount in 1 until totalSubtaskCount) ||
+        daysOverdue >= 2 ||
+        firstAfterGap
 
     private fun shouldSuggestBreakdownStatic(task: TaskEntity, subtaskCount: Int): Boolean {
         if (subtaskCount > 0) return false

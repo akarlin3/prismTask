@@ -28,7 +28,6 @@ import org.junit.Test
  *    sibling metadata by the importer, e.g. `_projectName`, `_tagNames`).
  */
 class EntityJsonMergerTest {
-
     private val gson = Gson()
 
     private fun parseObject(json: String): JsonObject =

@@ -219,41 +219,42 @@ fun DebugLogScreen(navController: NavController) {
     }
 }
 
-private data class LogReadResult(val lines: List<String>, val error: String?)
+private data class LogReadResult(
+    val lines: List<String>,
+    val error: String?
+)
 
 /**
  * Reads the current process's logcat output. On modern Android (API 16+),
  * third-party apps can only read their own process's log entries, which is
  * exactly what we want for admin debugging.
  */
-private fun readLogcat(): LogReadResult {
-    return try {
-        val pid = android.os.Process.myPid()
-        val process = Runtime.getRuntime().exec(
-            arrayOf("logcat", "-d", "-v", "time", "--pid=$pid")
-        )
-        val lines = ArrayDeque<String>()
-        BufferedReader(InputStreamReader(process.inputStream)).use { reader ->
-            var line = reader.readLine()
-            while (line != null) {
-                lines.addLast(line)
-                if (lines.size > MAX_LOG_LINES) lines.removeFirst()
-                line = reader.readLine()
-            }
+private fun readLogcat(): LogReadResult = try {
+    val pid = android.os.Process.myPid()
+    val process = Runtime.getRuntime().exec(
+        arrayOf("logcat", "-d", "-v", "time", "--pid=$pid")
+    )
+    val lines = ArrayDeque<String>()
+    BufferedReader(InputStreamReader(process.inputStream)).use { reader ->
+        var line = reader.readLine()
+        while (line != null) {
+            lines.addLast(line)
+            if (lines.size > MAX_LOG_LINES) lines.removeFirst()
+            line = reader.readLine()
         }
-        process.waitFor()
-        LogReadResult(lines.toList(), null)
-    } catch (e: Exception) {
-        LogReadResult(emptyList(), e.message ?: e.javaClass.simpleName)
     }
+    process.waitFor()
+    LogReadResult(lines.toList(), null)
+} catch (e: Exception) {
+    LogReadResult(emptyList(), e.message ?: e.javaClass.simpleName)
 }
 
 private fun buildHeader(): String {
     val timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date())
     return "App: ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})\n" +
-            "Device: ${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}\n" +
-            "Android: ${android.os.Build.VERSION.SDK_INT}\n" +
-            "Captured: $timestamp"
+        "Device: ${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}\n" +
+        "Android: ${android.os.Build.VERSION.SDK_INT}\n" +
+        "Captured: $timestamp"
 }
 
 private fun copyToClipboard(context: Context, text: String) {
@@ -288,6 +289,8 @@ private fun shareLog(context: Context, text: String) {
         }
         try {
             context.startActivity(Intent.createChooser(intent, "Share Debug Log"))
-        } catch (_: Exception) { /* no share targets */ }
+        } catch (_: Exception) {
+            // no share targets
+        }
     }
 }

@@ -10,7 +10,6 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class SmartPomodoroTest {
-
     @Test
     fun defaultConfig_hasCorrectValues() {
         val config = PomodoroConfig()

@@ -2,14 +2,10 @@ package com.averycorp.prismtask.ui.screens.tasklist.components
 
 import android.content.ClipData
 import android.content.ClipDescription
-import androidx.activity.compose.BackHandler
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.draganddrop.dragAndDropSource
 import androidx.compose.foundation.draganddrop.dragAndDropTarget
@@ -24,81 +20,46 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AddTask
-import androidx.compose.material.icons.filled.ContentPaste
-import androidx.compose.material.icons.filled.UploadFile
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.CheckBoxOutlineBlank
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.FilterList
-import androidx.compose.material.icons.filled.FolderCopy
-import androidx.compose.material.icons.filled.Inventory2
-import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.Repeat
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.automirrored.filled.Label
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.FormatListBulleted
-import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.AttachFile
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.DragIndicator
+import androidx.compose.material.icons.filled.FolderCopy
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.SelectAll
-import androidx.compose.material.icons.filled.SortByAlpha
-import androidx.compose.material3.AlertDialog
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
-import androidx.compose.material3.Badge
-import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import com.averycorp.prismtask.ui.components.CircularCheckbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draganddrop.DragAndDropEvent
 import androidx.compose.ui.draganddrop.DragAndDropTarget
@@ -107,44 +68,26 @@ import androidx.compose.ui.draganddrop.mimeTypes
 import androidx.compose.ui.draganddrop.toAndroidDragEvent
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.navigation.NavController
 import com.averycorp.prismtask.data.local.entity.ProjectEntity
 import com.averycorp.prismtask.data.local.entity.TagEntity
 import com.averycorp.prismtask.data.local.entity.TaskEntity
-import com.averycorp.prismtask.domain.model.TaskFilter
-import com.averycorp.prismtask.ui.components.BatchEditBar
-import com.averycorp.prismtask.ui.components.BatchMoveToProjectDialog
-import com.averycorp.prismtask.ui.components.BatchTagsDialog
-import com.averycorp.prismtask.ui.components.RichEmptyState
-import com.averycorp.prismtask.ui.components.TaskListSkeleton
-import com.averycorp.prismtask.ui.components.FilterPanel
-import com.averycorp.prismtask.ui.components.MoveToProjectSheet
-import com.averycorp.prismtask.ui.components.QuickAddBar
-import com.averycorp.prismtask.ui.components.QuickReschedulePopup
-import com.averycorp.prismtask.ui.components.SubtaskSection
-import com.averycorp.prismtask.ui.components.computeInitialTagStates
-import com.averycorp.prismtask.ui.navigation.PrismTaskRoute
-import com.averycorp.prismtask.ui.screens.addedittask.AddEditTaskSheetHost
-import com.averycorp.prismtask.ui.screens.tasklist.TaskListViewModel
 import com.averycorp.prismtask.data.preferences.SwipePrefs
+import com.averycorp.prismtask.domain.model.TaskFilter
+import com.averycorp.prismtask.ui.components.CircularCheckbox
+import com.averycorp.prismtask.ui.components.SubtaskSection
+import com.averycorp.prismtask.ui.screens.tasklist.TaskListViewModel
 import com.averycorp.prismtask.ui.theme.LocalPriorityColors
-import kotlinx.coroutines.launch
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.ReorderableLazyListState
-import sh.calvin.reorderable.rememberReorderableLazyListState
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -155,7 +98,7 @@ private val TodayOrange = Color(0xFFE8872A)
 private data class TaskEditorSheetState(
     val taskId: Long? = null,
     val projectId: Long? = null,
-    val initialDate: Long? = null,
+    val initialDate: Long? = null
 )
 
 internal data class DuplicateDialogState(
@@ -163,6 +106,7 @@ internal data class DuplicateDialogState(
     val dueDate: Long?,
     val subtaskCount: Int
 )
+
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 internal fun androidx.compose.foundation.lazy.LazyListScope.reorderableTaskItemWithSubtasks(
     task: TaskEntity,
@@ -223,11 +167,13 @@ internal fun androidx.compose.foundation.lazy.LazyListScope.reorderableTaskItemW
                         onFocusChange(task.id)
                     },
                     onDuplicate = {
-                        onDuplicate(DuplicateDialogState(
-                            taskId = task.id,
-                            dueDate = task.dueDate,
-                            subtaskCount = subtasks.size
-                        ))
+                        onDuplicate(
+                            DuplicateDialogState(
+                                taskId = task.id,
+                                dueDate = task.dueDate,
+                                subtaskCount = subtasks.size
+                            )
+                        )
                     },
                     showDragHandle = true,
                     dragHandleModifier = Modifier.draggableHandle(
@@ -255,10 +201,11 @@ internal fun androidx.compose.foundation.lazy.LazyListScope.reorderableTaskItemW
                 expanded = expandedTaskIds.contains(task.id),
                 onToggleExpand = {
                     onExpandChange(
-                        if (expandedTaskIds.contains(task.id))
+                        if (expandedTaskIds.contains(task.id)) {
                             expandedTaskIds - task.id
-                        else
+                        } else {
                             expandedTaskIds + task.id
+                        }
                     )
                 },
                 requestFocus = focusSubtaskForId == task.id,
@@ -319,7 +266,12 @@ internal fun androidx.compose.foundation.lazy.LazyListScope.taskItemWithSubtasks
                         SwipeToDismissBoxValue.Settled -> com.averycorp.prismtask.domain.model.SwipeAction.NONE
                     }
                     if (action == com.averycorp.prismtask.domain.model.SwipeAction.NONE) return@rememberSwipeToDismissBoxState false
-                    try { haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress) } catch (_: Exception) {}
+                    try {
+                        haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                    } catch (
+                        _: Exception
+                    ) {
+                    }
                     com.averycorp.prismtask.ui.components.dispatchSwipeAction(
                         action = action,
                         taskId = task.id,
@@ -327,7 +279,10 @@ internal fun androidx.compose.foundation.lazy.LazyListScope.taskItemWithSubtasks
                         onDelete = { viewModel.onDeleteTaskWithUndo(it) },
                         onReschedule = { viewModel.onMoveToTomorrow(it) },
                         onArchive = { viewModel.onArchiveTask(it) },
-                        onMoveToProject = { /* project picker is a larger lift — fall through to move-to-tomorrow for now */ viewModel.onMoveToTomorrow(it) },
+                        onMoveToProject = {
+                            // project picker is a larger lift — fall through to move-to-tomorrow for now
+                            viewModel.onMoveToTomorrow(it)
+                        },
                         onToggleFlag = { viewModel.onToggleFlag(it) }
                     )
                 }
@@ -335,7 +290,9 @@ internal fun androidx.compose.foundation.lazy.LazyListScope.taskItemWithSubtasks
 
             val swipeIconScale by androidx.compose.animation.core.animateFloatAsState(
                 targetValue = if (dismissState.dismissDirection != SwipeToDismissBoxValue.Settled) 1.2f else 0.8f,
-                animationSpec = androidx.compose.animation.core.spring(dampingRatio = androidx.compose.animation.core.Spring.DampingRatioMediumBouncy),
+                animationSpec = androidx.compose.animation.core.spring(
+                    dampingRatio = androidx.compose.animation.core.Spring.DampingRatioMediumBouncy
+                ),
                 label = "swipe_icon_scale"
             )
 
@@ -348,7 +305,8 @@ internal fun androidx.compose.foundation.lazy.LazyListScope.taskItemWithSubtasks
                         SwipeToDismissBoxValue.EndToStart -> swipePrefs.left
                         else -> com.averycorp.prismtask.domain.model.SwipeAction.NONE
                     }
-                    val style = com.averycorp.prismtask.ui.components.swipeActionStyle(action)
+                    val style = com.averycorp.prismtask.ui.components
+                        .swipeActionStyle(action)
                     val backgroundColor = style.backgroundColor
                     val icon = style.icon ?: Icons.Default.Check
                     val alignment = when (direction) {
@@ -405,11 +363,13 @@ internal fun androidx.compose.foundation.lazy.LazyListScope.taskItemWithSubtasks
                         onFocusChange(task.id)
                     },
                     onDuplicate = {
-                        onDuplicate(DuplicateDialogState(
-                            taskId = task.id,
-                            dueDate = task.dueDate,
-                            subtaskCount = subtasks.size
-                        ))
+                        onDuplicate(
+                            DuplicateDialogState(
+                                taskId = task.id,
+                                dueDate = task.dueDate,
+                                subtaskCount = subtasks.size
+                            )
+                        )
                     }
                 )
             }
@@ -429,10 +389,11 @@ internal fun androidx.compose.foundation.lazy.LazyListScope.taskItemWithSubtasks
                 expanded = expandedTaskIds.contains(task.id),
                 onToggleExpand = {
                     onExpandChange(
-                        if (expandedTaskIds.contains(task.id))
+                        if (expandedTaskIds.contains(task.id)) {
                             expandedTaskIds - task.id
-                        else
+                        } else {
                             expandedTaskIds + task.id
+                        }
                     )
                 },
                 requestFocus = focusSubtaskForId == task.id,
@@ -506,11 +467,22 @@ internal fun ProjectGroupHeader(
 
     val target = remember(project?.id) {
         object : DragAndDropTarget {
-            override fun onEntered(event: DragAndDropEvent) { isHovered = true }
-            override fun onExited(event: DragAndDropEvent) { isHovered = false }
-            override fun onEnded(event: DragAndDropEvent) { isHovered = false }
+            override fun onEntered(event: DragAndDropEvent) {
+                isHovered = true
+            }
+
+            override fun onExited(event: DragAndDropEvent) {
+                isHovered = false
+            }
+
+            override fun onEnded(event: DragAndDropEvent) {
+                isHovered = false
+            }
+
             override fun onDrop(event: DragAndDropEvent): Boolean {
-                val clipItem = event.toAndroidDragEvent().clipData
+                val clipItem = event
+                    .toAndroidDragEvent()
+                    .clipData
                     ?.takeIf { it.itemCount > 0 }
                     ?.getItemAt(0)
                 val droppedId = clipItem?.text?.toString()?.toLongOrNull()
@@ -532,23 +504,24 @@ internal fun ProjectGroupHeader(
             .scale(scale)
             .clip(RoundedCornerShape(10.dp))
             .then(
-                if (isHovered) Modifier.border(
-                    width = 2.dp,
-                    color = accent,
-                    shape = RoundedCornerShape(10.dp)
-                ) else Modifier
-            )
-            .background(
+                if (isHovered) {
+                    Modifier.border(
+                        width = 2.dp,
+                        color = accent,
+                        shape = RoundedCornerShape(10.dp)
+                    )
+                } else {
+                    Modifier
+                }
+            ).background(
                 if (isHovered) accent.copy(alpha = 0.12f) else Color.Transparent,
                 shape = RoundedCornerShape(10.dp)
-            )
-            .dragAndDropTarget(
+            ).dragAndDropTarget(
                 shouldStartDragAndDrop = { event ->
                     event.mimeTypes().contains(ClipDescription.MIMETYPE_TEXT_PLAIN)
                 },
                 target = target
-            )
-            .padding(horizontal = 8.dp, vertical = 6.dp),
+            ).padding(horizontal = 8.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
@@ -615,11 +588,22 @@ internal fun androidx.compose.foundation.lazy.LazyListScope.draggableTaskItemWit
 
         val dropTarget = remember(task.id, task.projectId) {
             object : DragAndDropTarget {
-                override fun onEntered(event: DragAndDropEvent) { isHovered = true }
-                override fun onExited(event: DragAndDropEvent) { isHovered = false }
-                override fun onEnded(event: DragAndDropEvent) { isHovered = false }
+                override fun onEntered(event: DragAndDropEvent) {
+                    isHovered = true
+                }
+
+                override fun onExited(event: DragAndDropEvent) {
+                    isHovered = false
+                }
+
+                override fun onEnded(event: DragAndDropEvent) {
+                    isHovered = false
+                }
+
                 override fun onDrop(event: DragAndDropEvent): Boolean {
-                    val clipItem = event.toAndroidDragEvent().clipData
+                    val clipItem = event
+                        .toAndroidDragEvent()
+                        .clipData
                         ?.takeIf { it.itemCount > 0 }
                         ?.getItemAt(0)
                     val droppedId = clipItem?.text?.toString()?.toLongOrNull()
@@ -669,8 +653,7 @@ internal fun androidx.compose.foundation.lazy.LazyListScope.draggableTaskItemWit
                     event.mimeTypes().contains(ClipDescription.MIMETYPE_TEXT_PLAIN)
                 },
                 target = dropTarget
-            )
-            .shadow(if (isHovered) 6.dp else 0.dp, RoundedCornerShape(12.dp))
+            ).shadow(if (isHovered) 6.dp else 0.dp, RoundedCornerShape(12.dp))
             .scale(scale)
 
         if (isMultiSelectMode) {
@@ -705,11 +688,13 @@ internal fun androidx.compose.foundation.lazy.LazyListScope.draggableTaskItemWit
                     onFocusChange(task.id)
                 },
                 onDuplicate = {
-                    onDuplicate(DuplicateDialogState(
-                        taskId = task.id,
-                        dueDate = task.dueDate,
-                        subtaskCount = subtasks.size
-                    ))
+                    onDuplicate(
+                        DuplicateDialogState(
+                            taskId = task.id,
+                            dueDate = task.dueDate,
+                            subtaskCount = subtasks.size
+                        )
+                    )
                 },
                 showDragHandle = true,
                 dragHandleModifier = dragHandleDragModifier,
@@ -731,10 +716,11 @@ internal fun androidx.compose.foundation.lazy.LazyListScope.draggableTaskItemWit
                 expanded = expandedTaskIds.contains(task.id),
                 onToggleExpand = {
                     onExpandChange(
-                        if (expandedTaskIds.contains(task.id))
+                        if (expandedTaskIds.contains(task.id)) {
                             expandedTaskIds - task.id
-                        else
+                        } else {
                             expandedTaskIds + task.id
+                        }
                     )
                 },
                 requestFocus = focusSubtaskForId == task.id,
@@ -840,7 +826,8 @@ internal fun TaskItem(
     modifier: Modifier = Modifier
 ) {
     var showOverflowMenu by remember { mutableStateOf(false) }
-    val hasOverflowActions = !isMultiSelectMode && (onReschedule != null || onMoveToProject != null || onDuplicate != null || onDelete != null)
+    val hasOverflowActions =
+        !isMultiSelectMode && (onReschedule != null || onMoveToProject != null || onDuplicate != null || onDelete != null)
 
     Card(
         modifier = modifier
@@ -882,10 +869,11 @@ internal fun TaskItem(
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.SemiBold,
                     textDecoration = if (task.isCompleted) TextDecoration.LineThrough else null,
-                    color = if (task.isCompleted)
+                    color = if (task.isCompleted) {
                         MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-                    else
-                        MaterialTheme.colorScheme.onSurface,
+                    } else {
+                        MaterialTheme.colorScheme.onSurface
+                    },
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -1055,12 +1043,14 @@ internal fun TaskItem(
 
 internal fun isTaskOverdue(task: TaskEntity): Boolean {
     if (task.isCompleted || task.dueDate == null) return false
-    val startOfToday = Calendar.getInstance().apply {
-        set(Calendar.HOUR_OF_DAY, 0)
-        set(Calendar.MINUTE, 0)
-        set(Calendar.SECOND, 0)
-        set(Calendar.MILLISECOND, 0)
-    }.timeInMillis
+    val startOfToday = Calendar
+        .getInstance()
+        .apply {
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }.timeInMillis
     return task.dueDate < startOfToday
 }
 
@@ -1157,7 +1147,10 @@ internal fun ProjectChip(project: ProjectEntity) {
     }
 }
 
-internal data class DueDateLabel(val text: String, val color: Color)
+internal data class DueDateLabel(
+    val text: String,
+    val color: Color
+)
 
 @Composable
 internal fun formatDueDate(epochMillis: Long): DueDateLabel {
@@ -1214,7 +1207,14 @@ internal fun ActiveFilterPills(
 
         if (filter.selectedPriorities.isNotEmpty()) {
             val labels = filter.selectedPriorities.sorted().joinToString(", ") { p ->
-                when (p) { 0 -> "None"; 1 -> "Low"; 2 -> "Med"; 3 -> "High"; 4 -> "Urgent"; else -> "$p" }
+                when (p) {
+                    0 -> "None"
+                    1 -> "Low"
+                    2 -> "Med"
+                    3 -> "High"
+                    4 -> "Urgent"
+                    else -> "$p"
+                }
             }
             RemovableFilterChip(
                 label = "Priority: $labels",
@@ -1292,4 +1292,3 @@ internal fun RemovableFilterChip(
         )
     )
 }
-

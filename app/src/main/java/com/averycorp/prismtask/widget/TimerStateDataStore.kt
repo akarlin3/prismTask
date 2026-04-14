@@ -7,7 +7,6 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.map
 
 /**
  * Lightweight DataStore that the timer ViewModel writes to when state
@@ -30,7 +29,6 @@ data class TimerWidgetState(
 )
 
 object TimerStateDataStore {
-
     private val IS_RUNNING = booleanPreferencesKey("timer_is_running")
     private val IS_PAUSED = booleanPreferencesKey("timer_is_paused")
     private val TASK_TITLE = stringPreferencesKey("timer_task_title")

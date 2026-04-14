@@ -12,7 +12,6 @@ import org.junit.Test
  * [android.content.Context] extension style which requires a real Context.
  */
 class ThemePreferencesRecentColorsTest {
-
     @Test
     fun `valid 6 digit hex accepted`() {
         assertTrue(ThemePreferences.isValidHex("#FF0000"))

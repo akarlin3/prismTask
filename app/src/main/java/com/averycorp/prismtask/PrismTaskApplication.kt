@@ -1,7 +1,6 @@
 package com.averycorp.prismtask
 
 import android.app.Application
-import com.averycorp.prismtask.BuildConfig
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import androidx.work.ExistingPeriodicWorkPolicy
@@ -26,8 +25,9 @@ import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
 @HiltAndroidApp
-class PrismTaskApplication : Application(), Configuration.Provider {
-
+class PrismTaskApplication :
+    Application(),
+    Configuration.Provider {
     @Inject
     lateinit var workerFactory: HiltWorkerFactory
 
@@ -49,7 +49,8 @@ class PrismTaskApplication : Application(), Configuration.Provider {
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override val workManagerConfiguration: Configuration
-        get() = Configuration.Builder()
+        get() = Configuration
+            .Builder()
             .setWorkerFactory(workerFactory)
             .build()
 
@@ -64,7 +65,9 @@ class PrismTaskApplication : Application(), Configuration.Provider {
             android.util.Log.e("PrismTaskApp", "Worker scheduling failed", e)
             try {
                 FirebaseCrashlytics.getInstance().recordException(e)
-            } catch (_: Exception) { /* Firebase not available */ }
+            } catch (_: Exception) {
+                // Firebase not available
+            }
         }
         seedBuiltInHabits()
         seedBuiltInTemplates()
@@ -72,7 +75,8 @@ class PrismTaskApplication : Application(), Configuration.Provider {
 
     private fun configureCrashlytics() {
         try {
-            FirebaseCrashlytics.getInstance()
+            FirebaseCrashlytics
+                .getInstance()
                 .setCrashlyticsCollectionEnabled(!BuildConfig.DEBUG)
         } catch (e: Exception) {
             android.util.Log.e("PrismTaskApp", "Crashlytics init failed — Firebase may not be configured", e)
@@ -88,7 +92,8 @@ class PrismTaskApplication : Application(), Configuration.Provider {
      */
     private fun scheduleOverloadCheck() {
         val workRequest = PeriodicWorkRequestBuilder<OverloadCheckWorker>(
-            24, TimeUnit.HOURS
+            24,
+            TimeUnit.HOURS
         ).build()
         WorkManager.getInstance(this).enqueueUniquePeriodicWork(
             OverloadCheckWorker.UNIQUE_WORK_NAME,
@@ -131,7 +136,8 @@ class PrismTaskApplication : Application(), Configuration.Provider {
 
     private fun scheduleAutoArchive() {
         val workRequest = PeriodicWorkRequestBuilder<AutoArchiveWorker>(
-            24, TimeUnit.HOURS
+            24,
+            TimeUnit.HOURS
         ).build()
 
         WorkManager.getInstance(this).enqueueUniquePeriodicWork(

@@ -11,7 +11,6 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface ReminderProfileDao {
-
     @Query("SELECT * FROM reminder_profiles ORDER BY is_built_in DESC, name ASC")
     fun getAll(): Flow<List<ReminderProfileEntity>>
 

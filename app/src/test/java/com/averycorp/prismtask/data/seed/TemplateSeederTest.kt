@@ -17,7 +17,6 @@ import org.junit.Test
  * database or DataStore-backed [com.averycorp.prismtask.data.preferences.TemplatePreferences].
  */
 class TemplateSeederTest {
-
     @Test
     fun seedIfNeeded_insertsAllBuiltInTemplatesOnFirstRun() = runBlocking {
         val dao = FakeTemplateDao()
@@ -150,7 +149,9 @@ class TemplateSeederTest {
         initiallySeeded: Boolean
     ) : TemplateSeeder.SeededFlagStore {
         private var seeded = initiallySeeded
+
         override suspend fun isSeeded(): Boolean = seeded
+
         override suspend fun setSeeded(seeded: Boolean) {
             this.seeded = seeded
         }
@@ -166,7 +167,9 @@ class TemplateSeederTest {
         private var nextId = 1L
 
         override suspend fun insertTemplate(template: TaskTemplateEntity): Long {
-            val id = if (template.id == 0L) nextId++ else {
+            val id = if (template.id == 0L) {
+                nextId++
+            } else {
                 nextId = maxOf(nextId, template.id + 1)
                 template.id
             }
@@ -220,6 +223,9 @@ class TemplateSeederTest {
 
         override fun searchTemplates(query: String): Flow<List<TaskTemplateEntity>> =
             flowOf(templates.filter { it.name.contains(query) })
-        override suspend fun deleteAll() { templates.clear() }
+
+        override suspend fun deleteAll() {
+            templates.clear()
+        }
     }
 }

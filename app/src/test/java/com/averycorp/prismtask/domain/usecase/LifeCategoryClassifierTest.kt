@@ -5,7 +5,6 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class LifeCategoryClassifierTest {
-
     private val classifier = LifeCategoryClassifier()
 
     @Test

@@ -7,7 +7,6 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.FolderOpen
-import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.averycorp.prismtask.domain.model.SwipeAction
@@ -55,11 +54,29 @@ fun dispatchSwipeAction(
     onMoveToProject: (Long) -> Unit,
     onToggleFlag: (Long) -> Unit
 ): Boolean = when (action) {
-    SwipeAction.COMPLETE -> { onComplete(taskId); true }
-    SwipeAction.DELETE -> { onDelete(taskId); true }
-    SwipeAction.RESCHEDULE -> { onReschedule(taskId); true }
-    SwipeAction.ARCHIVE -> { onArchive(taskId); true }
-    SwipeAction.MOVE_TO_PROJECT -> { onMoveToProject(taskId); true }
-    SwipeAction.FLAG -> { onToggleFlag(taskId); false /* flag toggle shouldn't dismiss row */ }
+    SwipeAction.COMPLETE -> {
+        onComplete(taskId)
+        true
+    }
+    SwipeAction.DELETE -> {
+        onDelete(taskId)
+        true
+    }
+    SwipeAction.RESCHEDULE -> {
+        onReschedule(taskId)
+        true
+    }
+    SwipeAction.ARCHIVE -> {
+        onArchive(taskId)
+        true
+    }
+    SwipeAction.MOVE_TO_PROJECT -> {
+        onMoveToProject(taskId)
+        true
+    }
+    SwipeAction.FLAG -> {
+        onToggleFlag(taskId)
+        false // flag toggle shouldn't dismiss row
+    }
     SwipeAction.NONE -> false
 }

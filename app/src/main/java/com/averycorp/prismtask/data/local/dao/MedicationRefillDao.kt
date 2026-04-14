@@ -10,7 +10,6 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface MedicationRefillDao {
-
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(refill: MedicationRefillEntity): Long
 

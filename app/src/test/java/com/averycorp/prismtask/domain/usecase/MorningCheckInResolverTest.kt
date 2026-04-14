@@ -11,12 +11,15 @@ import java.time.LocalDateTime
 import java.time.ZoneId
 
 class MorningCheckInResolverTest {
-
     private val resolver = MorningCheckInResolver()
     private val zone: ZoneId = ZoneId.of("UTC")
 
     private fun millis(year: Int, month: Int, day: Int, hour: Int): Long =
-        LocalDateTime.of(year, month, day, hour, 0).atZone(zone).toInstant().toEpochMilli()
+        LocalDateTime
+            .of(year, month, day, hour, 0)
+            .atZone(zone)
+            .toInstant()
+            .toEpochMilli()
 
     private fun task(id: Long, priority: Int = 0, dueDate: Long? = null, completed: Boolean = false) =
         TaskEntity(
@@ -74,7 +77,7 @@ class MorningCheckInResolverTest {
             tasks = emptyList(),
             habits = emptyList(),
             config = MorningCheckInConfig(),
-            lastCompletedDate = todayStart + 1000,  // already done this morning
+            lastCompletedDate = todayStart + 1000, // already done this morning
             todayStart = todayStart,
             now = now,
             zone = zone

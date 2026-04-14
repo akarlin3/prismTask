@@ -15,7 +15,6 @@ import org.junit.Test
  */
 @HiltAndroidTest
 class ViewsSmokeTest : SmokeTestBase() {
-
     @Test
     fun taskListTab_rendersSeededTasks() {
         composeRule.waitForIdle()

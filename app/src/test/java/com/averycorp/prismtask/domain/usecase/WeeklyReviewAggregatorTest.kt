@@ -9,7 +9,6 @@ import java.util.Calendar
 import java.util.TimeZone
 
 class WeeklyReviewAggregatorTest {
-
     private val agg = WeeklyReviewAggregator()
     private val utc = TimeZone.getTimeZone("UTC")
 
@@ -90,7 +89,8 @@ class WeeklyReviewAggregatorTest {
     @Test
     fun `rescheduled tasks are detected by updated after create`() {
         val tasks = listOf(
-            task(1,
+            task(
+                1,
                 dueDate = reference + 10 * DAY, // pushed past this week
                 createdAt = reference - 20 * DAY,
                 updatedAt = reference - 1 * DAY

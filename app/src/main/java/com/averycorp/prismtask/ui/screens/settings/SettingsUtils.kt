@@ -3,8 +3,18 @@ package com.averycorp.prismtask.ui.screens.settings
 import androidx.compose.ui.graphics.Color
 
 internal val accentColors = listOf(
-    "#2563EB", "#7C3AED", "#DB2777", "#DC2626", "#EA580C", "#D97706",
-    "#65A30D", "#059669", "#0891B2", "#6366F1", "#8B5CF6", "#EC4899"
+    "#2563EB",
+    "#7C3AED",
+    "#DB2777",
+    "#DC2626",
+    "#EA580C",
+    "#D97706",
+    "#65A30D",
+    "#059669",
+    "#0891B2",
+    "#6366F1",
+    "#8B5CF6",
+    "#EC4899"
 )
 
 internal val sectionLabels = mapOf(
@@ -32,12 +42,10 @@ internal val viewModeLabels = mapOf(
     "MONTH" to "Month"
 )
 
-internal fun parseColorSafe(hex: String): Color {
-    return try {
-        Color(android.graphics.Color.parseColor(hex))
-    } catch (_: Exception) {
-        Color(0xFF4285F4) // Google Blue default
-    }
+internal fun parseColorSafe(hex: String): Color = try {
+    Color(android.graphics.Color.parseColor(hex))
+} catch (_: Exception) {
+    Color(0xFF4285F4) // Google Blue default
 }
 
 internal fun formatLastSync(timestamp: Long): String {

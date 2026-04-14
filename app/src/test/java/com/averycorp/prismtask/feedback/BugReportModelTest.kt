@@ -9,7 +9,6 @@ import org.junit.Assert.assertNotNull
 import org.junit.Test
 
 class BugReportModelTest {
-
     @Test
     fun `BugReport data class creates correctly`() {
         val report = BugReport(
@@ -104,14 +103,29 @@ class BugReportModelTest {
     @Test
     fun `BugReport defaults diagnosticLog to null`() {
         val report = BugReport(
-            id = "test", userId = null, category = BugCategory.OTHER,
-            description = "test description", severity = BugSeverity.MINOR,
-            steps = emptyList(), screenshotUris = emptyList(),
-            deviceModel = "", deviceManufacturer = "", androidVersion = 26,
-            appVersion = "1.0", appVersionCode = 1, buildType = "debug",
-            userTier = "Free", currentScreen = "", taskCount = 0, habitCount = 0,
-            availableRamMb = 0, freeStorageMb = 0, networkType = "wifi",
-            batteryPercent = 50, isCharging = false, timestamp = 0L,
+            id = "test",
+            userId = null,
+            category = BugCategory.OTHER,
+            description = "test description",
+            severity = BugSeverity.MINOR,
+            steps = emptyList(),
+            screenshotUris = emptyList(),
+            deviceModel = "",
+            deviceManufacturer = "",
+            androidVersion = 26,
+            appVersion = "1.0",
+            appVersionCode = 1,
+            buildType = "debug",
+            userTier = "Free",
+            currentScreen = "",
+            taskCount = 0,
+            habitCount = 0,
+            availableRamMb = 0,
+            freeStorageMb = 0,
+            networkType = "wifi",
+            batteryPercent = 50,
+            isCharging = false,
+            timestamp = 0L,
             status = ReportStatus.SUBMITTED
         )
         assertEquals(null, report.diagnosticLog)

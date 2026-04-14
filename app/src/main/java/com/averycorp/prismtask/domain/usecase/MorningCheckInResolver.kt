@@ -14,12 +14,12 @@ import java.time.ZoneId
  * its data from the relevant repository.
  */
 enum class CheckInStep {
-    MOOD_ENERGY,   // Optional V7 entry at the top
+    MOOD_ENERGY, // Optional V7 entry at the top
     MEDICATIONS,
     TOP_TASKS,
     HABITS,
-    BALANCE,       // Pro — burnout gauge + category bar
-    CALENDAR       // Free — today's events
+    BALANCE, // Pro — burnout gauge + category bar
+    CALENDAR // Free — today's events
 }
 
 /**
@@ -59,12 +59,11 @@ data class CheckInPlan(
  * this up with their own Flows.
  */
 class MorningCheckInResolver {
-
     fun plan(
         tasks: List<TaskEntity>,
         habits: List<HabitWithStatus>,
         config: MorningCheckInConfig,
-        lastCompletedDate: Long?,  // midnight-normalized millis of the last completed check-in
+        lastCompletedDate: Long?, // midnight-normalized millis of the last completed check-in
         todayStart: Long,
         now: Long = System.currentTimeMillis(),
         zone: ZoneId = ZoneId.systemDefault()
@@ -78,7 +77,10 @@ class MorningCheckInResolver {
             )
         }
 
-        val localNow = java.time.Instant.ofEpochMilli(now).atZone(zone).toLocalTime()
+        val localNow = java.time.Instant
+            .ofEpochMilli(now)
+            .atZone(zone)
+            .toLocalTime()
         val beforeThreshold = localNow.isBefore(LocalTime.of(config.promptBeforeHour, 0))
         val alreadyToday = lastCompletedDate != null && lastCompletedDate >= todayStart
         val shouldPrompt = beforeThreshold && !alreadyToday
@@ -89,8 +91,7 @@ class MorningCheckInResolver {
             .sortedWith(
                 compareByDescending<TaskEntity> { it.priority }
                     .thenBy { it.dueDate ?: Long.MAX_VALUE }
-            )
-            .take(3)
+            ).take(3)
 
         val steps = buildList {
             if (config.includeMoodEnergy) add(CheckInStep.MOOD_ENERGY)

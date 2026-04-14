@@ -6,7 +6,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ReminderProfileTest {
-
     @Test
     fun `encode and decode offsets round trips`() {
         val offsets = listOf(0L, 900_000L, 86_400_000L)

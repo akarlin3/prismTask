@@ -26,8 +26,13 @@ fun WeeklyProgressDots(
 ) {
     val todayDow = today.dayOfWeek
     val days = listOf(
-        DayOfWeek.MONDAY, DayOfWeek.TUESDAY, DayOfWeek.WEDNESDAY,
-        DayOfWeek.THURSDAY, DayOfWeek.FRIDAY, DayOfWeek.SATURDAY, DayOfWeek.SUNDAY
+        DayOfWeek.MONDAY,
+        DayOfWeek.TUESDAY,
+        DayOfWeek.WEDNESDAY,
+        DayOfWeek.THURSDAY,
+        DayOfWeek.FRIDAY,
+        DayOfWeek.SATURDAY,
+        DayOfWeek.SUNDAY
     )
 
     Row(
@@ -51,13 +56,16 @@ fun WeeklyProgressDots(
                             isCompleted -> Modifier.background(color)
                             else -> Modifier.background(color.copy(alpha = 0.2f))
                         }
-                    )
-                    .then(
-                        if (isToday) Modifier.border(
-                            1.dp,
-                            MaterialTheme.colorScheme.primary,
-                            CircleShape
-                        ) else Modifier
+                    ).then(
+                        if (isToday) {
+                            Modifier.border(
+                                1.dp,
+                                MaterialTheme.colorScheme.primary,
+                                CircleShape
+                            )
+                        } else {
+                            Modifier
+                        }
                     )
             )
         }

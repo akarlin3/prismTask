@@ -2,12 +2,9 @@ package com.averycorp.prismtask.ui.screens.settings.sections
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -120,8 +117,7 @@ private fun InfoChip(text: String) {
             .background(
                 MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.5f),
                 RoundedCornerShape(8.dp)
-            )
-            .padding(12.dp)
+            ).padding(12.dp)
             .semantics { contentDescription = text },
         verticalAlignment = Alignment.CenterVertically
     ) {

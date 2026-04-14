@@ -9,12 +9,13 @@ import org.junit.Test
  * These tests verify the escaping rules directly.
  */
 class DataExporterTest {
-
     // Replicate the csvEscape logic for unit testing
     private fun csvEscape(value: String): String =
-        if (value.contains(",") || value.contains("\"") || value.contains("\n"))
+        if (value.contains(",") || value.contains("\"") || value.contains("\n")) {
             "\"${value.replace("\"", "\"\"")}\""
-        else value
+        } else {
+            value
+        }
 
     @Test
     fun csvEscape_plainText_unchanged() {

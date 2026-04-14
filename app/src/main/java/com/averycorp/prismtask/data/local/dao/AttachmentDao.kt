@@ -10,7 +10,6 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface AttachmentDao {
-
     @Query("SELECT * FROM attachments WHERE taskId = :taskId ORDER BY created_at ASC")
     fun getAttachmentsForTask(taskId: Long): Flow<List<AttachmentEntity>>
 

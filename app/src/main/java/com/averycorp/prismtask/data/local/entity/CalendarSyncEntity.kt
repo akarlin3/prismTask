@@ -20,13 +20,10 @@ data class CalendarSyncEntity(
     @PrimaryKey
     @ColumnInfo(name = "task_id")
     val taskId: Long,
-
     @ColumnInfo(name = "calendar_event_id")
     val calendarEventId: String,
-
     @ColumnInfo(name = "last_synced_at")
     val lastSyncedAt: Long = System.currentTimeMillis(),
-
     @ColumnInfo(name = "last_synced_version")
     val lastSyncedVersion: Long = 0
 )

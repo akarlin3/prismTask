@@ -567,7 +567,9 @@ private fun BurnoutDetailSheet(
 
 @Composable
 private fun BurnoutContributionRow(contribution: BurnoutContribution) {
-    val progress = if (contribution.max == 0) 0f else {
+    val progress = if (contribution.max == 0) {
+        0f
+    } else {
         (contribution.points.toFloat() / contribution.max.toFloat()).coerceIn(0f, 1f)
     }
     Column(modifier = Modifier.fillMaxWidth()) {
@@ -971,7 +973,12 @@ private fun HabitChip(
             .scale(chipScale)
             .clickable {
                 tapped = true
-                try { haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress) } catch (_: Exception) {}
+                try {
+                    haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                } catch (
+                    _: Exception
+                ) {
+                }
                 onTap()
             },
         shape = RoundedCornerShape(14.dp),
@@ -1108,12 +1115,22 @@ internal fun SwipeableTaskItem(
         confirmValueChange = { value ->
             when (value) {
                 SwipeToDismissBoxValue.StartToEnd -> {
-                    try { haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress) } catch (_: Exception) {}
+                    try {
+                        haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                    } catch (
+                        _: Exception
+                    ) {
+                    }
                     onComplete()
                     true
                 }
                 SwipeToDismissBoxValue.EndToStart -> {
-                    try { haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress) } catch (_: Exception) {}
+                    try {
+                        haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                    } catch (
+                        _: Exception
+                    ) {
+                    }
                     onMoveToTomorrow()
                     true
                 }
@@ -1249,7 +1266,9 @@ internal fun SwipeableTaskItem(
                         tags.take(3).forEach { tag ->
                             val tagColor = try {
                                 Color(android.graphics.Color.parseColor(tag.color))
-                            } catch (_: Exception) { MaterialTheme.colorScheme.outline }
+                            } catch (_: Exception) {
+                                MaterialTheme.colorScheme.outline
+                            }
                             Text(
                                 text = "#${tag.name}",
                                 style = MaterialTheme.typography.labelSmall,

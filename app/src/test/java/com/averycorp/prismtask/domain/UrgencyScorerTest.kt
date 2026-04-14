@@ -3,18 +3,18 @@ package com.averycorp.prismtask.domain
 import com.averycorp.prismtask.data.local.entity.TaskEntity
 import com.averycorp.prismtask.domain.usecase.UrgencyLevel
 import com.averycorp.prismtask.domain.usecase.UrgencyScorer
-import org.junit.Assert.*
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class UrgencyScorerTest {
-
     private val now = System.currentTimeMillis()
     private val oneDay = 24 * 60 * 60 * 1000L
 
     private fun task(
         dueDate: Long? = null,
         priority: Int = 0,
-        createdAt: Long = now,
+        createdAt: Long = now
     ) = TaskEntity(
         title = "Test",
         dueDate = dueDate,
@@ -90,7 +90,8 @@ class UrgencyScorerTest {
     fun test_scoreClampedTo01() {
         val score = UrgencyScorer.calculateScore(
             task(dueDate = now - 30 * oneDay, priority = 4, createdAt = now - 30 * oneDay),
-            subtaskCount = 10, subtaskCompleted = 0
+            subtaskCount = 10,
+            subtaskCompleted = 0
         )
         assertTrue(score <= 1.0f)
         assertTrue(score >= 0.0f)

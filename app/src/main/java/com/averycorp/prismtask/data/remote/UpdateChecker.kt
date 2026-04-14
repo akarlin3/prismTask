@@ -31,7 +31,8 @@ class UpdateChecker(
 
     suspend fun checkForUpdate(): VersionInfo? = withContext(Dispatchers.IO) {
         try {
-            val request = Request.Builder()
+            val request = Request
+                .Builder()
                 .url("$baseUrl/api/v1/app/version")
                 .build()
             val response = client.newCall(request).execute()
@@ -40,7 +41,8 @@ class UpdateChecker(
             val info = gson.fromJson(response.body?.string(), VersionInfo::class.java)
             val currentVersionCode = context.packageManager
                 .getPackageInfo(context.packageName, 0)
-                .longVersionCode.toInt()
+                .longVersionCode
+                .toInt()
 
             if (info.versionCode > currentVersionCode) info else null
         } catch (_: Exception) {

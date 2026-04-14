@@ -4,15 +4,11 @@ import com.averycorp.prismtask.data.remote.api.ChatActionResponse
 import com.averycorp.prismtask.data.remote.api.ChatResponse
 import com.averycorp.prismtask.data.remote.api.ChatTokensUsed
 import com.averycorp.prismtask.data.repository.ChatMessage
-import com.averycorp.prismtask.data.repository.ChatRepository
-import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ChatRepositoryTest {
-
     // --- ChatMessage ---
 
     @Test

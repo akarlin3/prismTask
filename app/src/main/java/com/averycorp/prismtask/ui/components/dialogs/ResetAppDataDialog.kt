@@ -44,8 +44,13 @@ data class ResetOptions(
     val restartOnboarding: Boolean = false
 ) {
     val anySelected: Boolean get() =
-        tasksAndProjects || habitsAndHistory || tags || templates ||
-        calendarSyncData || preferencesAndSettings || restartOnboarding
+        tasksAndProjects ||
+            habitsAndHistory ||
+            tags ||
+            templates ||
+            calendarSyncData ||
+            preferencesAndSettings ||
+            restartOnboarding
 }
 
 private enum class ResetDialogStep { OPTIONS, CONFIRM }

@@ -140,9 +140,12 @@ internal fun PlanForTodaySheet(
     val laterTasks = filteredUpcoming.filter { it.dueDate != null && it.dueDate >= nextWeekEnd }
     val noDateTasks = filteredUpcoming.filter { it.dueDate == null }
 
-    val hasAnyUpcoming = filteredOverdue.isNotEmpty() || tomorrowTasks.isNotEmpty() ||
-            thisWeekTasks.isNotEmpty() || nextWeekTasks.isNotEmpty() ||
-            laterTasks.isNotEmpty() || noDateTasks.isNotEmpty()
+    val hasAnyUpcoming = filteredOverdue.isNotEmpty() ||
+        tomorrowTasks.isNotEmpty() ||
+        thisWeekTasks.isNotEmpty() ||
+        nextWeekTasks.isNotEmpty() ||
+        laterTasks.isNotEmpty() ||
+        noDateTasks.isNotEmpty()
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -282,10 +285,11 @@ internal fun PlanForTodaySheet(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = if (searchQuery.isNotBlank())
+                        text = if (searchQuery.isNotBlank()) {
                             "No tasks match your search"
-                        else
-                            "No upcoming tasks to plan. Create one above!",
+                        } else {
+                            "No upcoming tasks to plan. Create one above!"
+                        },
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -317,8 +321,11 @@ internal fun PlanForTodaySheet(
                                 isSelected = task.id in selectedIds,
                                 onTap = {
                                     if (multiSelectMode) {
-                                        selectedIds = if (task.id in selectedIds)
-                                            selectedIds - task.id else selectedIds + task.id
+                                        selectedIds = if (task.id in selectedIds) {
+                                            selectedIds - task.id
+                                        } else {
+                                            selectedIds + task.id
+                                        }
                                     } else {
                                         onUnplan(task.id)
                                     }
@@ -370,8 +377,11 @@ internal fun PlanForTodaySheet(
                                     isSelected = task.id in selectedIds,
                                     onTap = {
                                         if (multiSelectMode) {
-                                            selectedIds = if (task.id in selectedIds)
-                                                selectedIds - task.id else selectedIds + task.id
+                                            selectedIds = if (task.id in selectedIds) {
+                                                selectedIds - task.id
+                                            } else {
+                                                selectedIds + task.id
+                                            }
                                         } else {
                                             onPlan(task.id)
                                         }
@@ -417,8 +427,11 @@ internal fun PlanForTodaySheet(
                                     isSelected = task.id in selectedIds,
                                     onTap = {
                                         if (multiSelectMode) {
-                                            selectedIds = if (task.id in selectedIds)
-                                                selectedIds - task.id else selectedIds + task.id
+                                            selectedIds = if (task.id in selectedIds) {
+                                                selectedIds - task.id
+                                            } else {
+                                                selectedIds + task.id
+                                            }
                                         } else {
                                             onPlan(task.id)
                                         }

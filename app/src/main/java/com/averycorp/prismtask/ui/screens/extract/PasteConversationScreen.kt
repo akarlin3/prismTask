@@ -23,7 +23,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -103,8 +102,11 @@ fun PasteConversationScreen(
 
             if (candidates.isEmpty()) {
                 Text(
-                    if (input.isBlank()) "Paste some text above and tap Extract Tasks."
-                    else "Tap Extract Tasks to find action items.",
+                    if (input.isBlank()) {
+                        "Paste some text above and tap Extract Tasks."
+                    } else {
+                        "Tap Extract Tasks to find action items."
+                    },
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

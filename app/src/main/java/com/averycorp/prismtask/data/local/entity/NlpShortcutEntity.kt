@@ -16,14 +16,10 @@ import androidx.room.PrimaryKey
 data class NlpShortcutEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
-
     val trigger: String,
-
     val expansion: String,
-
     @ColumnInfo(name = "sort_order", defaultValue = "0")
     val sortOrder: Int = 0,
-
     @ColumnInfo(name = "created_at")
     val createdAt: Long = System.currentTimeMillis()
 )

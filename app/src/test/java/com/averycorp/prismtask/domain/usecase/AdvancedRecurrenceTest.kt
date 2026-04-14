@@ -13,12 +13,14 @@ import java.time.ZoneId
  * CUSTOM_DAYS, AFTER_COMPLETION.
  */
 class AdvancedRecurrenceTest {
-
     private fun toMillis(date: LocalDate): Long =
         date.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
 
     private fun toDate(millis: Long): LocalDate =
-        java.time.Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()).toLocalDate()
+        java.time.Instant
+            .ofEpochMilli(millis)
+            .atZone(ZoneId.systemDefault())
+            .toLocalDate()
 
     @Test
     fun `weekday from monday advances to tuesday`() {
@@ -104,7 +106,9 @@ class AdvancedRecurrenceTest {
             afterCompletionUnit = "weeks"
         )
         val next = RecurrenceEngine.calculateNextDueDate(
-            toMillis(due), rule, completedAt = toMillis(completed)
+            toMillis(due),
+            rule,
+            completedAt = toMillis(completed)
         )
         assertEquals(LocalDate.of(2026, 4, 15), toDate(next!!))
     }
@@ -129,7 +133,8 @@ class AdvancedRecurrenceTest {
         assertEquals(null, rule.afterCompletionInterval)
         assertEquals(null, rule.afterCompletionUnit)
         val next = RecurrenceEngine.calculateNextDueDate(
-            toMillis(LocalDate.of(2026, 4, 1)), rule
+            toMillis(LocalDate.of(2026, 4, 1)),
+            rule
         )
         assertNotNull(next)
     }

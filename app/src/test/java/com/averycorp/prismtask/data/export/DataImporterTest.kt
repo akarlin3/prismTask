@@ -44,7 +44,6 @@ import org.junit.Test
  * persist.
  */
 class DataImporterTest {
-
     private lateinit var taskDao: TaskDao
     private lateinit var projectDao: ProjectDao
     private lateinit var tagDao: TagDao
@@ -94,13 +93,25 @@ class DataImporterTest {
         stubEmptyDaos()
 
         importer = DataImporter(
-            taskDao, projectDao, tagDao,
-            habitDao, habitCompletionDao, taskCompletionDao,
+            taskDao,
+            projectDao,
+            tagDao,
+            habitDao,
+            habitCompletionDao,
+            taskCompletionDao,
             habitLogDao,
-            leisureDao, selfCareDao, schoolworkDao,
-            themePreferences, archivePreferences, dashboardPreferences,
-            tabPreferences, taskBehaviorPreferences, calendarPreferences,
-            habitListPreferences, leisurePreferences, medicationPreferences,
+            leisureDao,
+            selfCareDao,
+            schoolworkDao,
+            themePreferences,
+            archivePreferences,
+            dashboardPreferences,
+            tabPreferences,
+            taskBehaviorPreferences,
+            calendarPreferences,
+            habitListPreferences,
+            leisurePreferences,
+            medicationPreferences,
             userPreferencesDataStore
         )
     }
@@ -159,12 +170,13 @@ class DataImporterTest {
             next
         }
 
-        val json = """
+        val json =
+            """
             { "version": 3, "projects": [
                 { "name": "Home", "color": "#FF0000", "icon": "🏠" },
                 { "name": "Work", "color": "#00FF00", "icon": "💼" }
             ] }
-        """.trimIndent()
+            """.trimIndent()
 
         val result = importer.importFromJson(json, ImportMode.MERGE)
 
@@ -178,12 +190,13 @@ class DataImporterTest {
             ProjectEntity(id = 1L, name = "Home")
         )
 
-        val json = """
+        val json =
+            """
             { "projects": [
                 { "name": "Home", "color": "#FF0000" },
                 { "name": "work", "color": "#00FF00" }
             ] }
-        """.trimIndent()
+            """.trimIndent()
 
         val result = importer.importFromJson(json, ImportMode.MERGE)
 
@@ -194,12 +207,13 @@ class DataImporterTest {
 
     @Test
     fun importFromJson_tagsAreInsertedInMergeMode() = runBlocking {
-        val json = """
+        val json =
+            """
             { "tags": [
                 { "name": "urgent", "color": "#FF0000" },
                 { "name": "later", "color": "#999999" }
             ] }
-        """.trimIndent()
+            """.trimIndent()
 
         val result = importer.importFromJson(json, ImportMode.MERGE)
 
@@ -209,13 +223,14 @@ class DataImporterTest {
 
     @Test
     fun importFromJson_tasksWithoutTitleAreSkipped() = runBlocking {
-        val json = """
+        val json =
+            """
             { "tasks": [
                 { "title": "Valid task" },
                 { "title": "" },
                 { "description": "no title" }
             ] }
-        """.trimIndent()
+            """.trimIndent()
 
         val result = importer.importFromJson(json, ImportMode.MERGE)
 
@@ -232,11 +247,12 @@ class DataImporterTest {
         val inserted = slot<TaskEntity>()
         coEvery { taskDao.insert(capture(inserted)) } returns 1L
 
-        val json = """
+        val json =
+            """
             { "tasks": [
                 { "title": "Mow lawn", "_projectName": "Home" }
             ] }
-        """.trimIndent()
+            """.trimIndent()
 
         importer.importFromJson(json, ImportMode.MERGE)
 
@@ -255,11 +271,12 @@ class DataImporterTest {
         val crossRefSlot = slot<TaskTagCrossRef>()
         coEvery { tagDao.addTagToTask(capture(crossRefSlot)) } just Runs
 
-        val json = """
+        val json =
+            """
             { "tasks": [
                 { "title": "Pay bills", "_tagNames": ["urgent", "unknown"] }
             ] }
-        """.trimIndent()
+            """.trimIndent()
 
         val result = importer.importFromJson(json, ImportMode.MERGE)
 
@@ -273,14 +290,15 @@ class DataImporterTest {
         val habitInsertedSlot = slot<HabitEntity>()
         coEvery { habitDao.insert(capture(habitInsertedSlot)) } returns 99L
 
-        val json = """
+        val json =
+            """
             { "habits": [
                 { "name": "Meditate", "targetFrequency": 1 }
               ],
               "habitCompletions": [
                 { "_habitName": "Meditate", "completedDate": 1700000000000 }
               ] }
-        """.trimIndent()
+            """.trimIndent()
 
         val result = importer.importFromJson(json, ImportMode.MERGE)
 
@@ -288,9 +306,11 @@ class DataImporterTest {
         assertEquals(1, result.habitCompletionsImported)
         assertEquals("Meditate", habitInsertedSlot.captured.name)
         coVerify {
-            habitCompletionDao.insert(match {
-                it.habitId == 99L && it.completedDate == 1_700_000_000_000L
-            })
+            habitCompletionDao.insert(
+                match {
+                    it.habitId == 99L && it.completedDate == 1_700_000_000_000L
+                }
+            )
         }
     }
 
@@ -315,9 +335,10 @@ class DataImporterTest {
             HabitEntity(id = 30L, name = "Old habit")
         ) andThen emptyList()
 
-        val json = """
+        val json =
+            """
             { "tasks": [ { "title": "Fresh" } ] }
-        """.trimIndent()
+            """.trimIndent()
 
         importer.importFromJson(json, ImportMode.REPLACE)
 
@@ -341,12 +362,13 @@ class DataImporterTest {
             TaskEntity(id = 1L, title = "Exists", createdAt = existingCreatedAt)
         )
 
-        val json = """
+        val json =
+            """
             { "tasks": [
                 { "title": "Exists", "createdAt": $existingCreatedAt },
                 { "title": "Fresh",  "createdAt": $existingCreatedAt }
             ] }
-        """.trimIndent()
+            """.trimIndent()
 
         val result = importer.importFromJson(json, ImportMode.MERGE)
 
@@ -358,12 +380,15 @@ class DataImporterTest {
     fun importFromJson_duplicateHabitCompletionsByKeyAreSkipped() = runBlocking {
         coEvery { habitCompletionDao.getAllCompletionsOnce() } returns listOf(
             com.averycorp.prismtask.data.local.entity.HabitCompletionEntity(
-                id = 1L, habitId = 99L, completedDate = 1_700_000_000_000L
+                id = 1L,
+                habitId = 99L,
+                completedDate = 1_700_000_000_000L
             )
         )
         coEvery { habitDao.insert(any()) } returns 99L
 
-        val json = """
+        val json =
+            """
             { "habits": [
                 { "name": "Meditate" }
               ],
@@ -371,7 +396,7 @@ class DataImporterTest {
                 { "_habitName": "Meditate", "completedDate": 1700000000000 },
                 { "_habitName": "Meditate", "completedDate": 1800000000000 }
               ] }
-        """.trimIndent()
+            """.trimIndent()
 
         val result = importer.importFromJson(json, ImportMode.MERGE)
 
@@ -381,11 +406,12 @@ class DataImporterTest {
 
     @Test
     fun importFromJson_missingHabitForCompletionIsSilentlyDropped() = runBlocking {
-        val json = """
+        val json =
+            """
             { "habitCompletions": [
                 { "_habitName": "GhostHabit", "completedDate": 1700000000000 }
             ] }
-        """.trimIndent()
+            """.trimIndent()
 
         val result = importer.importFromJson(json, ImportMode.MERGE)
 

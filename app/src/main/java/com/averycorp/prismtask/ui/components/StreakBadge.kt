@@ -70,7 +70,7 @@ fun StreakBadge(
         )
         if (graceDaysUsed > 0) {
             Text(
-                text = "  (${graceDaysUsed} grace day${if (graceDaysUsed == 1) "" else "s"} used)",
+                text = "  ($graceDaysUsed grace day${if (graceDaysUsed == 1) "" else "s"} used)",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(start = 4.dp)

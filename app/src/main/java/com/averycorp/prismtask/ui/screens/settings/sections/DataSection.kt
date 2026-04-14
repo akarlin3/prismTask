@@ -75,8 +75,7 @@ fun DataSection(
                                 .clickable {
                                     onAutoArchiveDaysChange(days)
                                     showAutoArchiveDialog = false
-                                }
-                                .padding(vertical = 8.dp),
+                                }.padding(vertical = 8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             RadioButton(

@@ -14,7 +14,6 @@ import org.junit.Test
  * serialization approach exactly, so any field renames will show up here.
  */
 class SavedFilterSerializationTest {
-
     private val gson = Gson()
 
     private fun roundTrip(filter: TaskFilter): TaskFilter =

@@ -1,12 +1,8 @@
 package com.averycorp.prismtask.di
 
-import com.averycorp.prismtask.data.billing.BillingManager
-import com.averycorp.prismtask.data.preferences.ProStatusPreferences
 import dagger.Module
-import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
-import javax.inject.Singleton
 
 @Module
 @InstallIn(SingletonComponent::class)

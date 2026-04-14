@@ -71,7 +71,6 @@ enum class CorrelationStrength { WEAK, MODERATE, STRONG }
  * together with task/habit/med stats into observations.
  */
 class MoodCorrelationEngine {
-
     /**
      * Correlate mood against every supported factor. Returns a list sorted
      * by absolute coefficient (strongest first).
@@ -79,32 +78,36 @@ class MoodCorrelationEngine {
     fun correlateMood(observations: List<DailyObservation>): List<CorrelationResult> {
         if (observations.size < MIN_OBSERVATIONS) return emptyList()
         val moods = observations.map { it.mood.toFloat() }
-        return CorrelationFactor.values().map { factor ->
-            val values = observations.map { it.extract(factor) }
-            val coef = pearson(moods, values)
-            CorrelationResult(
-                factor = factor,
-                targetLabel = "mood",
-                coefficient = coef,
-                strength = bucket(coef)
-            )
-        }.sortedByDescending { kotlin.math.abs(it.coefficient) }
+        return CorrelationFactor
+            .values()
+            .map { factor ->
+                val values = observations.map { it.extract(factor) }
+                val coef = pearson(moods, values)
+                CorrelationResult(
+                    factor = factor,
+                    targetLabel = "mood",
+                    coefficient = coef,
+                    strength = bucket(coef)
+                )
+            }.sortedByDescending { kotlin.math.abs(it.coefficient) }
     }
 
     /** Same as [correlateMood] but for energy. */
     fun correlateEnergy(observations: List<DailyObservation>): List<CorrelationResult> {
         if (observations.size < MIN_OBSERVATIONS) return emptyList()
         val energies = observations.map { it.energy.toFloat() }
-        return CorrelationFactor.values().map { factor ->
-            val values = observations.map { it.extract(factor) }
-            val coef = pearson(energies, values)
-            CorrelationResult(
-                factor = factor,
-                targetLabel = "energy",
-                coefficient = coef,
-                strength = bucket(coef)
-            )
-        }.sortedByDescending { kotlin.math.abs(it.coefficient) }
+        return CorrelationFactor
+            .values()
+            .map { factor ->
+                val values = observations.map { it.extract(factor) }
+                val coef = pearson(energies, values)
+                CorrelationResult(
+                    factor = factor,
+                    targetLabel = "energy",
+                    coefficient = coef,
+                    strength = bucket(coef)
+                )
+            }.sortedByDescending { kotlin.math.abs(it.coefficient) }
     }
 
     /**

@@ -8,7 +8,6 @@ import org.junit.Test
 import java.util.Locale
 
 class TaskMenuActionTest {
-
     @Test
     fun `defaults returns eight actions in declared order`() {
         val defaults = TaskMenuAction.defaults()

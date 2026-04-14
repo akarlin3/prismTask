@@ -12,7 +12,6 @@ import java.util.Calendar
  * timezone/day-rollover edge cases slip in.
  */
 class MedicationReminderSchedulerTest {
-
     private fun epochFor(hour: Int, minute: Int, daysFromEpoch: Int): Long {
         val cal = Calendar.getInstance().apply {
             clear()

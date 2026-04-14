@@ -10,12 +10,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
-import com.averycorp.prismtask.ui.components.CircularCheckbox
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.MaterialTheme
@@ -241,7 +239,10 @@ fun FilterPanel(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            data class DateOption(val label: String, val range: DateRange?)
+            data class DateOption(
+                val label: String,
+                val range: DateRange?
+            )
             val dateOptions = listOf(
                 DateOption("Today", DateRange(startOfToday, endOfToday)),
                 DateOption("This Week", DateRange(startOfToday, endOfWeek)),

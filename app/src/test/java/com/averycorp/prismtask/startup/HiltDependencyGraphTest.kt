@@ -18,7 +18,6 @@ import java.io.File
  * before they cause cryptic build failures.
  */
 class HiltDependencyGraphTest {
-
     private val srcMainDir = File("app/src/main/java/com/averycorp/prismtask")
 
     /**
@@ -90,7 +89,8 @@ class HiltDependencyGraphTest {
 
         // Extract all "database.xxxDao()" calls from DatabaseModule
         val daoCallPattern = Regex("""database\.(\w+Dao)\(\)""")
-        val moduleDaoCalls = daoCallPattern.findAll(moduleContent)
+        val moduleDaoCalls = daoCallPattern
+            .findAll(moduleContent)
             .map { it.groupValues[1] }
             .toSet()
 

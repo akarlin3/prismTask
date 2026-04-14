@@ -13,7 +13,6 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface SchoolworkDao {
-
     // --- Courses ---
 
     @Query("SELECT * FROM courses WHERE active = 1 ORDER BY sort_order ASC, name ASC")

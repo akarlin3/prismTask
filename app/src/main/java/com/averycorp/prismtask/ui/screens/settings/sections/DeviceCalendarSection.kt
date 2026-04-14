@@ -118,8 +118,7 @@ fun DeviceCalendarSection(
                                     onSelectCalendar(cal)
                                     onSetCalendarSyncEnabled(true)
                                     showCalendarPicker = false
-                                }
-                                .padding(vertical = 12.dp, horizontal = 8.dp),
+                                }.padding(vertical = 12.dp, horizontal = 8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Column {

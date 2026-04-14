@@ -1,25 +1,14 @@
 package com.averycorp.prismtask.ui.screens.tasklist
 
-import android.content.ClipData
-import android.content.ClipDescription
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.draganddrop.dragAndDropSource
-import androidx.compose.foundation.draganddrop.dragAndDropTarget
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -29,67 +18,41 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.AddTask
-import androidx.compose.material.icons.filled.ContentPaste
-import androidx.compose.material.icons.filled.UploadFile
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.CheckBoxOutlineBlank
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.FilterList
-import androidx.compose.material.icons.filled.FolderCopy
-import androidx.compose.material.icons.filled.Inventory2
-import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.Repeat
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.Label
-import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ContentPaste
+import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.FormatListBulleted
+import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material.icons.filled.AttachFile
-import androidx.compose.material.icons.filled.Description
-import androidx.compose.material.icons.filled.DragIndicator
-import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SelectAll
 import androidx.compose.material.icons.filled.SortByAlpha
+import androidx.compose.material.icons.filled.UploadFile
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import com.averycorp.prismtask.ui.components.CircularCheckbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.SwipeToDismissBox
-import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
-import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -98,55 +61,29 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draganddrop.DragAndDropEvent
-import androidx.compose.ui.draganddrop.DragAndDropTarget
-import androidx.compose.ui.draganddrop.DragAndDropTransferData
-import androidx.compose.ui.draganddrop.mimeTypes
-import androidx.compose.ui.draganddrop.toAndroidDragEvent
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.draw.scale
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextDecoration
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
-import com.averycorp.prismtask.data.local.entity.ProjectEntity
-import com.averycorp.prismtask.data.local.entity.TagEntity
 import com.averycorp.prismtask.data.local.entity.TaskEntity
-import com.averycorp.prismtask.domain.model.TaskFilter
 import com.averycorp.prismtask.ui.components.BatchEditBar
 import com.averycorp.prismtask.ui.components.BatchMoveToProjectDialog
 import com.averycorp.prismtask.ui.components.BatchTagsDialog
-import com.averycorp.prismtask.ui.components.RichEmptyState
-import com.averycorp.prismtask.ui.components.TaskListSkeleton
+import com.averycorp.prismtask.ui.components.CircularCheckbox
 import com.averycorp.prismtask.ui.components.FilterPanel
 import com.averycorp.prismtask.ui.components.MoveToProjectSheet
 import com.averycorp.prismtask.ui.components.QuickAddBar
 import com.averycorp.prismtask.ui.components.QuickReschedulePopup
-import com.averycorp.prismtask.ui.components.SubtaskSection
+import com.averycorp.prismtask.ui.components.RichEmptyState
+import com.averycorp.prismtask.ui.components.TaskListSkeleton
 import com.averycorp.prismtask.ui.components.computeInitialTagStates
 import com.averycorp.prismtask.ui.navigation.PrismTaskRoute
 import com.averycorp.prismtask.ui.screens.addedittask.AddEditTaskSheetHost
-import com.averycorp.prismtask.ui.theme.LocalPriorityColors
-import kotlinx.coroutines.launch
-import sh.calvin.reorderable.ReorderableItem
-import sh.calvin.reorderable.ReorderableLazyListState
-import sh.calvin.reorderable.rememberReorderableLazyListState
-import java.text.SimpleDateFormat
-import java.util.Calendar
-import java.util.Date
-import java.util.Locale
 import com.averycorp.prismtask.ui.screens.tasklist.components.ActiveFilterPills
 import com.averycorp.prismtask.ui.screens.tasklist.components.DuplicateDialogState
 import com.averycorp.prismtask.ui.screens.tasklist.components.GroupHeader
@@ -155,13 +92,18 @@ import com.averycorp.prismtask.ui.screens.tasklist.components.ProjectGroupHeader
 import com.averycorp.prismtask.ui.screens.tasklist.components.draggableTaskItemWithSubtasks
 import com.averycorp.prismtask.ui.screens.tasklist.components.reorderableTaskItemWithSubtasks
 import com.averycorp.prismtask.ui.screens.tasklist.components.taskItemWithSubtasks
+import kotlinx.coroutines.launch
+import sh.calvin.reorderable.rememberReorderableLazyListState
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 private val TodayOrange = Color(0xFFE8872A)
 
 private data class TaskEditorSheetState(
     val taskId: Long? = null,
     val projectId: Long? = null,
-    val initialDate: Long? = null,
+    val initialDate: Long? = null
 )
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class, ExperimentalFoundationApi::class)
@@ -425,7 +367,8 @@ fun TaskListScreen(
             onPlanForToday = {
                 // Plan-for-today doesn't map to a bulk operation; treat
                 // it as rescheduling to today to keep the popup signature.
-                val today = com.averycorp.prismtask.domain.usecase.DateShortcuts.today(System.currentTimeMillis())
+                val today = com.averycorp.prismtask.domain.usecase.DateShortcuts
+                    .today(System.currentTimeMillis())
                 viewModel.onBulkReschedule(today)
                 showBatchReschedulePopup = false
             }
@@ -501,8 +444,11 @@ fun TaskListScreen(
                         Box {
                             IconButton(onClick = { showViewMenu = true }) {
                                 Icon(
-                                    imageVector = if (viewMode == ViewMode.UPCOMING) Icons.Default.Schedule
-                                    else Icons.Default.FormatListBulleted,
+                                    imageVector = if (viewMode == ViewMode.UPCOMING) {
+                                        Icons.Default.Schedule
+                                    } else {
+                                        Icons.Default.FormatListBulleted
+                                    },
                                     contentDescription = "View mode"
                                 )
                             }
@@ -512,34 +458,73 @@ fun TaskListScreen(
                             ) {
                                 DropdownMenuItem(
                                     text = { Text("Upcoming") },
-                                    onClick = { viewModel.onChangeViewMode(ViewMode.UPCOMING); showViewMenu = false },
-                                    trailingIcon = if (viewMode == ViewMode.UPCOMING) { { Icon(Icons.Default.Check, null, Modifier.size(18.dp)) } } else null
+                                    onClick = {
+                                        viewModel.onChangeViewMode(ViewMode.UPCOMING)
+                                        showViewMenu = false
+                                    },
+                                    trailingIcon = if (viewMode ==
+                                        ViewMode.UPCOMING
+                                    ) {
+                                        { Icon(Icons.Default.Check, null, Modifier.size(18.dp)) }
+                                    } else {
+                                        null
+                                    }
                                 )
                                 DropdownMenuItem(
                                     text = { Text("List") },
-                                    onClick = { viewModel.onChangeViewMode(ViewMode.LIST); showViewMenu = false },
-                                    trailingIcon = if (viewMode == ViewMode.LIST) { { Icon(Icons.Default.Check, null, Modifier.size(18.dp)) } } else null
+                                    onClick = {
+                                        viewModel.onChangeViewMode(ViewMode.LIST)
+                                        showViewMenu = false
+                                    },
+                                    trailingIcon = if (viewMode ==
+                                        ViewMode.LIST
+                                    ) {
+                                        { Icon(Icons.Default.Check, null, Modifier.size(18.dp)) }
+                                    } else {
+                                        null
+                                    }
                                 )
                                 DropdownMenuItem(
                                     text = { Text("By Project") },
-                                    onClick = { viewModel.onChangeViewMode(ViewMode.BY_PROJECT); showViewMenu = false },
-                                    trailingIcon = if (viewMode == ViewMode.BY_PROJECT) { { Icon(Icons.Default.Check, null, Modifier.size(18.dp)) } } else null
+                                    onClick = {
+                                        viewModel.onChangeViewMode(ViewMode.BY_PROJECT)
+                                        showViewMenu = false
+                                    },
+                                    trailingIcon = if (viewMode ==
+                                        ViewMode.BY_PROJECT
+                                    ) {
+                                        { Icon(Icons.Default.Check, null, Modifier.size(18.dp)) }
+                                    } else {
+                                        null
+                                    }
                                 )
                                 DropdownMenuItem(
                                     text = { Text("Week") },
-                                    onClick = { showViewMenu = false; navController.navigate(PrismTaskRoute.WeekView.route) }
+                                    onClick = {
+                                        showViewMenu = false
+                                        navController.navigate(PrismTaskRoute.WeekView.route)
+                                    }
                                 )
                                 DropdownMenuItem(
                                     text = { Text("Month") },
-                                    onClick = { showViewMenu = false; navController.navigate(PrismTaskRoute.MonthView.route) }
+                                    onClick = {
+                                        showViewMenu = false
+                                        navController.navigate(PrismTaskRoute.MonthView.route)
+                                    }
                                 )
                                 DropdownMenuItem(
                                     text = { Text("Timeline") },
-                                    onClick = { showViewMenu = false; navController.navigate(PrismTaskRoute.Timeline.route) }
+                                    onClick = {
+                                        showViewMenu = false
+                                        navController.navigate(PrismTaskRoute.Timeline.route)
+                                    }
                                 )
                                 DropdownMenuItem(
                                     text = { Text("Eisenhower Matrix") },
-                                    onClick = { showViewMenu = false; navController.navigate(PrismTaskRoute.EisenhowerMatrix.route) }
+                                    onClick = {
+                                        showViewMenu = false
+                                        navController.navigate(PrismTaskRoute.EisenhowerMatrix.route)
+                                    }
                                 )
                             }
                         }
@@ -581,7 +566,9 @@ fun TaskListScreen(
                                                     modifier = Modifier.size(18.dp)
                                                 )
                                             }
-                                        } else null
+                                        } else {
+                                            null
+                                        }
                                     )
                                 }
                             }
@@ -946,4 +933,3 @@ fun TaskListScreen(
         )
     }
 }
-

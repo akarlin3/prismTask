@@ -8,7 +8,6 @@ import org.junit.Test
  * Unit tests for [NdFeatureGate].
  */
 class NdFeatureGateTest {
-
     // region isAnyNdActive
 
     @Test

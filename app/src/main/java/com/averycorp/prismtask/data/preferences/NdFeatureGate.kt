@@ -8,7 +8,6 @@ package com.averycorp.prismtask.data.preferences
  * most ADHD Mode features are Free tier. Only AI-powered features require Pro.
  */
 object NdFeatureGate {
-
     /** Returns true if any ND mode (ADHD, Calm, or Focus & Release) is active. */
     fun isAnyNdActive(prefs: NdPreferences): Boolean =
         prefs.adhdModeEnabled || prefs.calmModeEnabled || prefs.focusReleaseModeEnabled

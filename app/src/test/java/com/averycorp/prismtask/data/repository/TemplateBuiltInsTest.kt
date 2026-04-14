@@ -13,7 +13,6 @@ import org.junit.Test
  * database or DI.
  */
 class TemplateBuiltInsTest {
-
     private val gson = Gson()
 
     @Test
@@ -79,7 +78,9 @@ class TemplateBuiltInsTest {
     @Test
     fun `project template entity defaults usage count to zero`() {
         val e = ProjectTemplateEntity(
-            name = "Test", taskTemplatesJson = "[]", isBuiltIn = false
+            name = "Test",
+            taskTemplatesJson = "[]",
+            isBuiltIn = false
         )
         assertEquals(0, e.usageCount)
         assertEquals(null, e.lastUsedAt)

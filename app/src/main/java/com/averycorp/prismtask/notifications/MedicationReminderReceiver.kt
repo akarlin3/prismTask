@@ -5,7 +5,6 @@ import android.content.Context
 import android.content.Intent
 
 class MedicationReminderReceiver : BroadcastReceiver() {
-
     override fun onReceive(context: Context, intent: Intent) {
         val habitId = intent.getLongExtra("habitId", -1L)
         if (habitId == -1L) return

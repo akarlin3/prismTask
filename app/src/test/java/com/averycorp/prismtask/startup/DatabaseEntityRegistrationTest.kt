@@ -1,12 +1,12 @@
 package com.averycorp.prismtask.startup
 
+import com.averycorp.prismtask.data.local.entity.AssignmentEntity
 import com.averycorp.prismtask.data.local.entity.AttachmentEntity
 import com.averycorp.prismtask.data.local.entity.BoundaryRuleEntity
 import com.averycorp.prismtask.data.local.entity.CalendarSyncEntity
 import com.averycorp.prismtask.data.local.entity.CheckInLogEntity
 import com.averycorp.prismtask.data.local.entity.CourseCompletionEntity
 import com.averycorp.prismtask.data.local.entity.CourseEntity
-import com.averycorp.prismtask.data.local.entity.AssignmentEntity
 import com.averycorp.prismtask.data.local.entity.HabitCompletionEntity
 import com.averycorp.prismtask.data.local.entity.HabitEntity
 import com.averycorp.prismtask.data.local.entity.HabitLogEntity
@@ -46,7 +46,6 @@ import org.junit.Test
  * - Missing @Entity / @ColumnInfo annotations (via compile-time import verification)
  */
 class DatabaseEntityRegistrationTest {
-
     /**
      * The 30 entity classes listed in PrismTaskDatabase's @Database annotation.
      * If this list doesn't match PrismTaskDatabase, the test should be updated.

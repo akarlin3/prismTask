@@ -14,11 +14,11 @@ import java.time.ZoneId
  * assertions don't drift with the host's local time zone.
  */
 class QuietHoursDeferrerTest {
-
     private val zone = ZoneId.of("UTC")
 
     private fun millisOf(date: String, time: String): Long =
-        LocalDateTime.parse("${date}T$time")
+        LocalDateTime
+            .parse("${date}T$time")
             .atZone(zone)
             .toInstant()
             .toEpochMilli()

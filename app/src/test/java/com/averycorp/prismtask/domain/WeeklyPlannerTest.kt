@@ -10,12 +10,10 @@ import com.averycorp.prismtask.ui.screens.planner.UnscheduledTask
 import com.averycorp.prismtask.ui.screens.planner.WeeklyPlan
 import com.averycorp.prismtask.ui.screens.planner.WeeklyPlanConfig
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class WeeklyPlannerTest {
-
     @Test
     fun plan_parsesFromApiResponse() {
         val response = WeeklyPlanResponse(
@@ -78,11 +76,22 @@ class WeeklyPlannerTest {
 
     @Test
     fun moveTaskToDay_updatesCorrectly() {
-        val monday = DayPlan("2026-04-13", "Monday",
+        val monday = DayPlan(
+            "2026-04-13",
+            "Monday",
             listOf(PlannedTask(1L, "Task A", "9:00", 60, "Reason")),
-            1.0, emptyList(), emptyList())
-        val tuesday = DayPlan("2026-04-14", "Tuesday",
-            emptyList(), 0.0, emptyList(), emptyList())
+            1.0,
+            emptyList(),
+            emptyList()
+        )
+        val tuesday = DayPlan(
+            "2026-04-14",
+            "Tuesday",
+            emptyList(),
+            0.0,
+            emptyList(),
+            emptyList()
+        )
 
         val plan = WeeklyPlan(
             days = listOf(monday, tuesday),
@@ -108,14 +117,25 @@ class WeeklyPlannerTest {
     fun applyPlan_generatesCorrectTaskUpdates() {
         val plan = WeeklyPlan(
             days = listOf(
-                DayPlan("2026-04-13", "Monday",
+                DayPlan(
+                    "2026-04-13",
+                    "Monday",
                     listOf(
                         PlannedTask(1L, "Task A", "9:00", 60, ""),
                         PlannedTask(2L, "Task B", "10:00", 30, "")
-                    ), 1.5, emptyList(), emptyList()),
-                DayPlan("2026-04-14", "Tuesday",
+                    ),
+                    1.5,
+                    emptyList(),
+                    emptyList()
+                ),
+                DayPlan(
+                    "2026-04-14",
+                    "Tuesday",
                     listOf(PlannedTask(3L, "Task C", "9:00", 45, "")),
-                    0.75, emptyList(), emptyList())
+                    0.75,
+                    emptyList(),
+                    emptyList()
+                )
             ),
             unscheduled = emptyList(),
             weekSummary = "",

@@ -7,7 +7,6 @@ import com.averycorp.prismtask.data.preferences.NdPreferences
 import com.averycorp.prismtask.data.preferences.effectiveCelebrationIntensity
 import com.averycorp.prismtask.data.preferences.shouldFireShipItCelebration
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -18,7 +17,6 @@ import org.junit.Test
  * compose correctly when combined with each other and with ADHD/Calm modes.
  */
 class FocusReleaseModeIntegrationTest {
-
     // region Mode activation
 
     @Test
@@ -44,7 +42,8 @@ class FocusReleaseModeIntegrationTest {
         // Use case functions check focusReleaseModeEnabled first
         assertNull(
             ShipItCelebrationManager.createCelebration(
-                CelebrationTrigger.NORMAL_COMPLETION, prefs
+                CelebrationTrigger.NORMAL_COMPLETION,
+                prefs
             )
         )
         val task = TaskEntity(id = 1, title = "Test", isCompleted = true)
@@ -106,7 +105,8 @@ class FocusReleaseModeIntegrationTest {
         assertEquals(CelebrationIntensity.LOW, effectiveCelebrationIntensity(prefs))
 
         val celebration = ShipItCelebrationManager.createCelebration(
-            CelebrationTrigger.NORMAL_COMPLETION, prefs
+            CelebrationTrigger.NORMAL_COMPLETION,
+            prefs
         )
         assertNotNull(celebration)
         assertEquals(CelebrationIntensity.LOW, celebration!!.intensity)
@@ -169,7 +169,8 @@ class FocusReleaseModeIntegrationTest {
 
         // User clicks "Ship it" → celebration fires
         val celebration = ShipItCelebrationManager.createCelebration(
-            CelebrationTrigger.GOOD_ENOUGH_SHIP, prefs
+            CelebrationTrigger.GOOD_ENOUGH_SHIP,
+            prefs
         )
         assertNotNull(celebration)
         assertEquals(CelebrationTrigger.GOOD_ENOUGH_SHIP, celebration!!.trigger)
@@ -194,7 +195,8 @@ class FocusReleaseModeIntegrationTest {
 
         // User taps "You're right, leave it" → celebration fires
         val celebration = ShipItCelebrationManager.createCelebration(
-            CelebrationTrigger.RESISTED_REWORK, prefs
+            CelebrationTrigger.RESISTED_REWORK,
+            prefs
         )
         assertNotNull(celebration)
         assertEquals(CelebrationTrigger.RESISTED_REWORK, celebration!!.trigger)
@@ -226,7 +228,8 @@ class FocusReleaseModeIntegrationTest {
 
         // User clicks "It's done — lock it" → celebration fires
         val celebration = ShipItCelebrationManager.createCelebration(
-            CelebrationTrigger.LOCKED_AT_MAX_REVISIONS, prefs
+            CelebrationTrigger.LOCKED_AT_MAX_REVISIONS,
+            prefs
         )
         assertNotNull(celebration)
         assertEquals(CelebrationTrigger.LOCKED_AT_MAX_REVISIONS, celebration!!.trigger)

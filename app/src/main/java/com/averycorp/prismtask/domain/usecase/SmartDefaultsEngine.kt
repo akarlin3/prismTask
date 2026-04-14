@@ -15,7 +15,6 @@ import com.averycorp.prismtask.data.preferences.TaskDefaults
  * Added in v1.3.0 (P9).
  */
 object SmartDefaultsEngine {
-
     /** Minimum history required before smart defaults kick in. */
     const val MIN_HISTORY = 5
 
@@ -30,8 +29,11 @@ object SmartDefaultsEngine {
         val typicalDueDateOffsetDays: Long?
     ) {
         fun isEmpty(): Boolean =
-            priority == null && projectId == null && reminderOffset == null &&
-                averageDurationMinutes == null && typicalDueDateOffsetDays == null
+            priority == null &&
+                projectId == null &&
+                reminderOffset == null &&
+                averageDurationMinutes == null &&
+                typicalDueDateOffsetDays == null
     }
 
     /**
@@ -51,7 +53,8 @@ object SmartDefaultsEngine {
         val projectId = slice.mapNotNull { it.projectId }.modeIfRepeated()
         val reminderOffset = slice.mapNotNull { it.reminderOffset }.mode()
 
-        val averageDuration = slice.mapNotNull { it.estimatedDuration }
+        val averageDuration = slice
+            .mapNotNull { it.estimatedDuration }
             .takeIf { it.isNotEmpty() }
             ?.let { list -> (list.average() / 15.0).let { Math.round(it).toInt() * 15 } }
             ?.takeIf { it > 0 }
@@ -87,6 +90,7 @@ object SmartDefaultsEngine {
     ): TaskDefaults {
         fun pickInt(current: Int?, fromSmart: Int?, fromStatic: Int?): Int =
             current ?: fromSmart ?: fromStatic ?: 0
+
         fun pickLong(current: Long?, fromSmart: Long?, fromStatic: Long?): Long =
             current ?: fromSmart ?: fromStatic ?: -1L
 

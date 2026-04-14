@@ -1,7 +1,6 @@
 package com.averycorp.prismtask.ui.screens.planner
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -65,8 +64,6 @@ import com.averycorp.prismtask.ui.components.ProUpgradePrompt
 import com.averycorp.prismtask.ui.components.shimmer
 import com.averycorp.prismtask.ui.navigation.PrismTaskRoute
 import java.time.format.DateTimeFormatter
-import java.time.format.TextStyle
-import java.util.Locale
 
 private val DAY_CODES = listOf("MO", "TU", "WE", "TH", "FR", "SA", "SU")
 private val DAY_LABELS = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")

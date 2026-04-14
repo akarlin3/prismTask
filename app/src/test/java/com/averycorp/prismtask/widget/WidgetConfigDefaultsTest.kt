@@ -12,7 +12,6 @@ import org.junit.Test
  * via instrumentation — these unit tests lock in the shape of the defaults.
  */
 class WidgetConfigDefaultsTest {
-
     @Test
     fun `today config defaults show everything with max 5 tasks`() {
         val cfg = WidgetConfigDataStore.TodayConfig()

@@ -153,7 +153,10 @@ internal fun TaskListViewModel.onBulkApplyTags(addIds: Set<Long>, removeIds: Set
     viewModelScope.launch {
         try {
             val snapshot: Map<Long, Set<Long>> = ids.associateWith { id ->
-                taskTagsMap.value[id].orEmpty().map { it.id }.toSet()
+                taskTagsMap.value[id]
+                    .orEmpty()
+                    .map { it.id }
+                    .toSet()
             }
             addIds.forEach { tagId -> taskRepository.batchAddTag(ids, tagId) }
             removeIds.forEach { tagId -> taskRepository.batchRemoveTag(ids, tagId) }

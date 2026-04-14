@@ -3,18 +3,22 @@ package com.averycorp.prismtask.domain
 import com.averycorp.prismtask.domain.model.RecurrenceRule
 import com.averycorp.prismtask.domain.model.RecurrenceType
 import com.averycorp.prismtask.domain.usecase.RecurrenceEngine
-import org.junit.Assert.*
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Test
 import java.time.LocalDate
 import java.time.ZoneId
 
 class RecurrenceEngineTest {
-
     private fun LocalDate.toMillis(): Long =
         atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
 
     private fun Long.toLocalDate(): LocalDate =
-        java.time.Instant.ofEpochMilli(this).atZone(ZoneId.systemDefault()).toLocalDate()
+        java.time.Instant
+            .ofEpochMilli(this)
+            .atZone(ZoneId.systemDefault())
+            .toLocalDate()
 
     // --- Daily ---
 

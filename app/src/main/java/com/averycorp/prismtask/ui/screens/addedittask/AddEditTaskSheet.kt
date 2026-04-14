@@ -1,16 +1,6 @@
 package com.averycorp.prismtask.ui.screens.addedittask
 
-import android.net.Uri
 import androidx.activity.compose.BackHandler
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.PickVisualMediaRequest
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -24,78 +14,44 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentSize
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.AccessTime
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.AddLink
-import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.AddPhotoAlternate
-import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.Bookmark
-import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.ExpandLess
-import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material.icons.filled.DragIndicator
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.NotificationsNone
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.BottomSheetDefaults
-import com.averycorp.prismtask.ui.components.CircularCheckbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.DatePicker
-import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
-import androidx.compose.material3.TabRowDefaults
 import androidx.compose.material3.TabRowDefaults.SecondaryIndicator
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TimePicker
-import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberModalBottomSheetState
-import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -104,34 +60,18 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextDecoration
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.lerp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.averycorp.prismtask.data.billing.UserTier
-import com.averycorp.prismtask.data.local.entity.ProjectEntity
-import com.averycorp.prismtask.data.local.entity.TagEntity
-import com.averycorp.prismtask.ui.components.BreakdownResultCard
-import com.averycorp.prismtask.ui.components.CoachingCard
-import com.averycorp.prismtask.ui.components.RecurrenceSelector
-import com.averycorp.prismtask.ui.components.TierBadge
-import com.averycorp.prismtask.ui.components.UpgradePrompt
-import com.averycorp.prismtask.domain.model.RecurrenceRule
-import com.averycorp.prismtask.domain.model.RecurrenceType
-import com.averycorp.prismtask.ui.components.RecurrenceDialog
-import com.averycorp.prismtask.ui.components.TagSelector
+import com.averycorp.prismtask.ui.components.CircularCheckbox
 import com.averycorp.prismtask.ui.screens.addedittask.tabs.DetailsTabContent
 import com.averycorp.prismtask.ui.screens.addedittask.tabs.OrganizeTabContent
 import com.averycorp.prismtask.ui.screens.addedittask.tabs.PriorityCircleRow
@@ -139,13 +79,8 @@ import com.averycorp.prismtask.ui.screens.addedittask.tabs.ScheduleTabContent
 import com.averycorp.prismtask.ui.screens.addedittask.tabs.formatShortDate
 import com.averycorp.prismtask.ui.screens.coaching.CoachingViewModel
 import com.averycorp.prismtask.ui.screens.templates.TemplatePickerSheet
-import com.averycorp.prismtask.ui.theme.LocalPriorityColors
-import kotlin.math.abs
 import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
-import java.util.Calendar
-import java.util.Date
-import java.util.Locale
+import kotlin.math.abs
 
 /**
  * Entry point for presenting the task editor as a modal bottom sheet from any
@@ -173,7 +108,7 @@ fun AddEditTaskSheetHost(
     initialTab: Int = 0,
     onDismiss: () -> Unit,
     onDeleteTask: ((Long) -> Unit)? = null,
-    onManageTemplates: (() -> Unit)? = null,
+    onManageTemplates: (() -> Unit)? = null
 ) {
     val viewModel: AddEditTaskViewModel = hiltViewModel(key = "addedit_task_sheet")
     val coachingViewModel: CoachingViewModel = hiltViewModel()
@@ -204,7 +139,7 @@ fun AddEditTaskSheet(
     initialTab: Int = 0,
     onDismiss: () -> Unit,
     onDeleteTask: ((Long) -> Unit)? = null,
-    onManageTemplates: (() -> Unit)? = null,
+    onManageTemplates: (() -> Unit)? = null
 ) {
     val scope = rememberCoroutineScope()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -235,213 +170,216 @@ fun AddEditTaskSheet(
         dragHandle = { BottomSheetDefaults.DragHandle() }
     ) {
         Box(modifier = Modifier.fillMaxHeight(0.9f).imePadding()) {
-        Column(
-            modifier = Modifier.fillMaxSize()
-        ) {
-            // Sticky header: close / screen title / save
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 4.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically
+            Column(
+                modifier = Modifier.fillMaxSize()
             ) {
-                IconButton(onClick = { attemptDismiss() }) {
-                    Icon(Icons.Default.Close, contentDescription = "Dismiss")
-                }
-                Text(
-                    text = if (viewModel.isEditMode) "Edit Task" else "New Task",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.weight(1f)
-                )
-                // "From Template" shortcut — create mode only. Opens a
-                // picker sheet that pre-fills the form with the chosen
-                // template's fields. Hidden in edit mode so users don't
-                // accidentally blow away their task's data.
-                if (!viewModel.isEditMode) {
+                // Sticky header: close / screen title / save
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 4.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(onClick = { attemptDismiss() }) {
+                        Icon(Icons.Default.Close, contentDescription = "Dismiss")
+                    }
+                    Text(
+                        text = if (viewModel.isEditMode) "Edit Task" else "New Task",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.weight(1f)
+                    )
+                    // "From Template" shortcut — create mode only. Opens a
+                    // picker sheet that pre-fills the form with the chosen
+                    // template's fields. Hidden in edit mode so users don't
+                    // accidentally blow away their task's data.
+                    if (!viewModel.isEditMode) {
+                        TextButton(
+                            onClick = { showTemplatePicker = true },
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
+                            Text(
+                                text = "\uD83D\uDCCB Template",
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
                     TextButton(
-                        onClick = { showTemplatePicker = true },
-                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                        onClick = {
+                            scope.launch {
+                                if (viewModel.saveTask()) onDismiss()
+                            }
+                        }
                     ) {
                         Text(
-                            text = "\uD83D\uDCCB Template",
-                            style = MaterialTheme.typography.labelLarge,
+                            text = "Save",
                             color = MaterialTheme.colorScheme.primary,
-                            fontWeight = FontWeight.Medium
+                            fontWeight = FontWeight.SemiBold
                         )
                     }
-                }
-                TextButton(
-                    onClick = {
-                        scope.launch {
-                            if (viewModel.saveTask()) onDismiss()
-                        }
-                    }
-                ) {
-                    Text(
-                        text = "Save",
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
-                // Header overflow menu (edit mode only). Hosts Duplicate
-                // and Save-As-Template; add future task-wide actions here.
-                if (viewModel.isEditMode) {
-                    Box {
-                        IconButton(onClick = { showOverflowMenu = true }) {
-                            Icon(
-                                Icons.Default.MoreVert,
-                                contentDescription = "More Actions"
-                            )
-                        }
-                        DropdownMenu(
-                            expanded = showOverflowMenu,
-                            onDismissRequest = { showOverflowMenu = false }
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text("Duplicate") },
-                                leadingIcon = {
-                                    Icon(
-                                        Icons.Default.ContentCopy,
-                                        contentDescription = null
-                                    )
-                                },
-                                onClick = {
-                                    showOverflowMenu = false
-                                    showDuplicateDialog = true
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Save As Template") },
-                                leadingIcon = {
-                                    Icon(
-                                        Icons.Default.Bookmark,
-                                        contentDescription = null
-                                    )
-                                },
-                                onClick = {
-                                    showOverflowMenu = false
-                                    showSaveAsTemplateDialog = true
-                                }
-                            )
+                    // Header overflow menu (edit mode only). Hosts Duplicate
+                    // and Save-As-Template; add future task-wide actions here.
+                    if (viewModel.isEditMode) {
+                        Box {
+                            IconButton(onClick = { showOverflowMenu = true }) {
+                                Icon(
+                                    Icons.Default.MoreVert,
+                                    contentDescription = "More Actions"
+                                )
+                            }
+                            DropdownMenu(
+                                expanded = showOverflowMenu,
+                                onDismissRequest = { showOverflowMenu = false }
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text("Duplicate") },
+                                    leadingIcon = {
+                                        Icon(
+                                            Icons.Default.ContentCopy,
+                                            contentDescription = null
+                                        )
+                                    },
+                                    onClick = {
+                                        showOverflowMenu = false
+                                        showDuplicateDialog = true
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Save As Template") },
+                                    leadingIcon = {
+                                        Icon(
+                                            Icons.Default.Bookmark,
+                                            contentDescription = null
+                                        )
+                                    },
+                                    onClick = {
+                                        showOverflowMenu = false
+                                        showSaveAsTemplateDialog = true
+                                    }
+                                )
+                            }
                         }
                     }
                 }
-            }
 
-            // Title field (large, always visible above tabs)
-            OutlinedTextField(
-                value = viewModel.title,
-                onValueChange = viewModel::onTitleChange,
-                placeholder = {
-                    Text(
-                        text = "Task Title",
-                        style = MaterialTheme.typography.titleLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                },
-                textStyle = MaterialTheme.typography.titleLarge,
-                isError = viewModel.titleError,
-                supportingText = if (viewModel.titleError) {
-                    { Text("Title is required") }
-                } else null,
-                singleLine = true,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
-                    .focusRequester(titleFocusRequester)
-            )
-
-            // Priority circles row (always visible above tabs)
-            PriorityCircleRow(
-                selected = viewModel.priority,
-                onSelect = viewModel::onPriorityChange,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 4.dp)
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Tab bar
-            val tabs = listOf("Details", "Schedule", "Organize")
-            TabRow(
-                selectedTabIndex = pagerState.currentPage,
-                indicator = { tabPositions ->
-                    if (tabPositions.isNotEmpty()) {
-                        val currentPage = pagerState.currentPage.coerceIn(0, tabPositions.lastIndex)
-                        val fraction = pagerState.currentPageOffsetFraction
-                        val currentTab = tabPositions[currentPage]
-                        val targetTab = tabPositions.getOrElse(
-                            if (fraction > 0f) currentPage + 1 else currentPage - 1
-                        ) { currentTab }
-                        val indicatorOffset = lerp(currentTab.left, targetTab.left, abs(fraction))
-                        val indicatorWidth = lerp(currentTab.width, targetTab.width, abs(fraction))
-                        SecondaryIndicator(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .wrapContentSize(Alignment.BottomStart)
-                                .offset(x = indicatorOffset)
-                                .width(indicatorWidth)
+                // Title field (large, always visible above tabs)
+                OutlinedTextField(
+                    value = viewModel.title,
+                    onValueChange = viewModel::onTitleChange,
+                    placeholder = {
+                        Text(
+                            text = "Task Title",
+                            style = MaterialTheme.typography.titleLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                    }
-                }
-            ) {
-                tabs.forEachIndexed { index, title ->
-                    Tab(
-                        selected = pagerState.currentPage == index,
-                        onClick = {
-                            scope.launch { pagerState.animateScrollToPage(index) }
-                        },
-                        text = {
-                            Text(
-                                text = title,
-                                fontWeight = if (pagerState.currentPage == index)
-                                    FontWeight.SemiBold
-                                else
-                                    FontWeight.Normal
-                            )
-                        }
-                    )
-                }
-            }
-            HorizontalDivider()
-
-            // Swipeable tab content
-            HorizontalPager(
-                state = pagerState,
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-            ) { page ->
-                Column(
+                    },
+                    textStyle = MaterialTheme.typography.titleLarge,
+                    isError = viewModel.titleError,
+                    supportingText = if (viewModel.titleError) {
+                        { Text("Title is required") }
+                    } else {
+                        null
+                    },
+                    singleLine = true,
                     modifier = Modifier
-                        .fillMaxSize()
-                        .verticalScroll(rememberScrollState())
-                        .padding(horizontal = 16.dp, vertical = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                        .focusRequester(titleFocusRequester)
+                )
+
+                // Priority circles row (always visible above tabs)
+                PriorityCircleRow(
+                    selected = viewModel.priority,
+                    onSelect = viewModel::onPriorityChange,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 4.dp)
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Tab bar
+                val tabs = listOf("Details", "Schedule", "Organize")
+                TabRow(
+                    selectedTabIndex = pagerState.currentPage,
+                    indicator = { tabPositions ->
+                        if (tabPositions.isNotEmpty()) {
+                            val currentPage = pagerState.currentPage.coerceIn(0, tabPositions.lastIndex)
+                            val fraction = pagerState.currentPageOffsetFraction
+                            val currentTab = tabPositions[currentPage]
+                            val targetTab = tabPositions.getOrElse(
+                                if (fraction > 0f) currentPage + 1 else currentPage - 1
+                            ) { currentTab }
+                            val indicatorOffset = lerp(currentTab.left, targetTab.left, abs(fraction))
+                            val indicatorWidth = lerp(currentTab.width, targetTab.width, abs(fraction))
+                            SecondaryIndicator(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .wrapContentSize(Alignment.BottomStart)
+                                    .offset(x = indicatorOffset)
+                                    .width(indicatorWidth)
+                            )
+                        }
+                    }
                 ) {
-                    when (page) {
-                        0 -> DetailsTabContent(viewModel, coachingViewModel)
-                        1 -> ScheduleTabContent(viewModel)
-                        2 -> OrganizeTabContent(
-                            viewModel = viewModel,
-                            onDeleteTask = onDeleteTask,
-                            onDismiss = onDismiss
+                    tabs.forEachIndexed { index, title ->
+                        Tab(
+                            selected = pagerState.currentPage == index,
+                            onClick = {
+                                scope.launch { pagerState.animateScrollToPage(index) }
+                            },
+                            text = {
+                                Text(
+                                    text = title,
+                                    fontWeight = if (pagerState.currentPage == index) {
+                                        FontWeight.SemiBold
+                                    } else {
+                                        FontWeight.Normal
+                                    }
+                                )
+                            }
                         )
                     }
-                    Spacer(modifier = Modifier.height(16.dp))
+                }
+                HorizontalDivider()
+
+                // Swipeable tab content
+                HorizontalPager(
+                    state = pagerState,
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                ) { page ->
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .verticalScroll(rememberScrollState())
+                            .padding(horizontal = 16.dp, vertical = 16.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        when (page) {
+                            0 -> DetailsTabContent(viewModel, coachingViewModel)
+                            1 -> ScheduleTabContent(viewModel)
+                            2 -> OrganizeTabContent(
+                                viewModel = viewModel,
+                                onDeleteTask = onDeleteTask,
+                                onDismiss = onDismiss
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(16.dp))
+                    }
                 }
             }
-        }
-        // Ephemeral snackbar overlay used for in-sheet confirmations (e.g.
-        // "Task Duplicated"). Scoped to the sheet so it dismisses cleanly
-        // when the sheet closes.
-        SnackbarHost(
-            hostState = snackbarHostState,
-            modifier = Modifier.align(Alignment.BottomCenter)
-        )
+            // Ephemeral snackbar overlay used for in-sheet confirmations (e.g.
+            // "Task Duplicated"). Scoped to the sheet so it dismisses cleanly
+            // when the sheet closes.
+            SnackbarHost(
+                hostState = snackbarHostState,
+                modifier = Modifier.align(Alignment.BottomCenter)
+            )
         }
     }
 
@@ -636,13 +574,25 @@ internal fun parseColorOr(hex: String, fallback: Color): Color = try {
 }
 
 internal val PROJECT_COLORS = listOf(
-    "#4A90D9", "#7B61FF", "#E8872A", "#D93025",
-    "#2E7D32", "#00897B", "#F4B400", "#8E24AA"
+    "#4A90D9",
+    "#7B61FF",
+    "#E8872A",
+    "#D93025",
+    "#2E7D32",
+    "#00897B",
+    "#F4B400",
+    "#8E24AA"
 )
 
 internal val TAG_COLORS = listOf(
-    "#6B7280", "#4A90D9", "#7B61FF", "#2E7D32",
-    "#E8872A", "#D93025", "#00897B", "#F4B400"
+    "#6B7280",
+    "#4A90D9",
+    "#7B61FF",
+    "#2E7D32",
+    "#E8872A",
+    "#D93025",
+    "#00897B",
+    "#F4B400"
 )
 
 // ---------------------------------------------------------------------------
@@ -653,12 +603,12 @@ internal val TAG_COLORS = listOf(
 internal val TEMPLATE_ICON_CHOICES = listOf(
     "\uD83D\uDCCB", // 📋
     "\uD83D\uDCDD", // 📝
-    "\u2B50",       // ⭐
+    "\u2B50", // ⭐
     "\uD83D\uDD25", // 🔥
     "\uD83C\uDFAF", // 🎯
     "\uD83D\uDCC5", // 📅
     "\uD83D\uDCBC", // 💼
-    "\uD83C\uDFE0"  // 🏠
+    "\uD83C\uDFE0" // 🏠
 )
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -699,17 +649,16 @@ private fun SaveAsTemplateDialog(
                                     .size(36.dp)
                                     .clip(CircleShape)
                                     .background(
-                                        if (selected)
+                                        if (selected) {
                                             MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
-                                        else
+                                        } else {
                                             MaterialTheme.colorScheme.surfaceContainerHighest
-                                    )
-                                    .border(
+                                        }
+                                    ).border(
                                         width = if (selected) 2.dp else 0.dp,
                                         color = MaterialTheme.colorScheme.primary,
                                         shape = CircleShape
-                                    )
-                                    .clickable { selectedIcon = emoji },
+                                    ).clickable { selectedIcon = emoji },
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(text = emoji, style = MaterialTheme.typography.titleMedium)

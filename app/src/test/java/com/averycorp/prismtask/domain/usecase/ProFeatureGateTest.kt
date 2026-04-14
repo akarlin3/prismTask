@@ -16,46 +16,49 @@ import org.junit.Test
  * a controllable StateFlow instead of requiring BillingManager.
  */
 class ProFeatureGateTest {
-
     /**
      * Mirrors [ProFeatureGate] logic for unit-testability without Android
      * dependencies.
      */
-    private class TestableFeatureGate(initialTier: UserTier = UserTier.FREE) {
+    private class TestableFeatureGate(
+        initialTier: UserTier = UserTier.FREE
+    ) {
         private val _userTier = MutableStateFlow(initialTier)
         val userTier: StateFlow<UserTier> = _userTier.asStateFlow()
 
-        fun setTier(tier: UserTier) { _userTier.value = tier }
+        fun setTier(tier: UserTier) {
+            _userTier.value = tier
+        }
 
         fun isPro(): Boolean = userTier.value >= UserTier.PRO
+
         fun isPremium(): Boolean = userTier.value >= UserTier.PREMIUM
+
         fun isUltra(): Boolean = userTier.value == UserTier.ULTRA
 
-        fun hasAccess(feature: String): Boolean {
-            return when (feature) {
-                ProFeatureGate.CLOUD_SYNC, ProFeatureGate.TEMPLATE_SYNC,
-                ProFeatureGate.AI_EISENHOWER, ProFeatureGate.AI_POMODORO,
-                ProFeatureGate.ANALYTICS_BASIC, ProFeatureGate.TIME_TRACKING,
-                ProFeatureGate.AI_NLP,
-                ProFeatureGate.AI_COACHING, ProFeatureGate.AI_TASK_BREAKDOWN -> isPro()
+        fun hasAccess(feature: String): Boolean = when (feature) {
+            ProFeatureGate.CLOUD_SYNC, ProFeatureGate.TEMPLATE_SYNC,
+            ProFeatureGate.AI_EISENHOWER, ProFeatureGate.AI_POMODORO,
+            ProFeatureGate.ANALYTICS_BASIC, ProFeatureGate.TIME_TRACKING,
+            ProFeatureGate.AI_NLP,
+            ProFeatureGate.AI_COACHING, ProFeatureGate.AI_TASK_BREAKDOWN -> isPro()
 
-                ProFeatureGate.AI_BRIEFING, ProFeatureGate.AI_WEEKLY_PLAN,
-                ProFeatureGate.AI_TIME_BLOCK, ProFeatureGate.AI_CONVERSATIONAL,
-                ProFeatureGate.COLLABORATION,
-                ProFeatureGate.INTEGRATIONS, ProFeatureGate.ANALYTICS_FULL,
-                ProFeatureGate.ANALYTICS_CORRELATIONS,
-                ProFeatureGate.DRIVE_BACKUP,
-                ProFeatureGate.AI_DAILY_PLANNING, ProFeatureGate.AI_REENGAGEMENT,
-                ProFeatureGate.AI_WEEKLY_INSIGHTS -> isPremium()
+            ProFeatureGate.AI_BRIEFING, ProFeatureGate.AI_WEEKLY_PLAN,
+            ProFeatureGate.AI_TIME_BLOCK, ProFeatureGate.AI_CONVERSATIONAL,
+            ProFeatureGate.COLLABORATION,
+            ProFeatureGate.INTEGRATIONS, ProFeatureGate.ANALYTICS_FULL,
+            ProFeatureGate.ANALYTICS_CORRELATIONS,
+            ProFeatureGate.DRIVE_BACKUP,
+            ProFeatureGate.AI_DAILY_PLANNING, ProFeatureGate.AI_REENGAGEMENT,
+            ProFeatureGate.AI_WEEKLY_INSIGHTS -> isPremium()
 
-                ProFeatureGate.AI_SONNET_NLP, ProFeatureGate.AI_SONNET_EISENHOWER,
-                ProFeatureGate.AI_SONNET_POMODORO, ProFeatureGate.AI_SONNET_BRIEFING,
-                ProFeatureGate.AI_SONNET_COACHING, ProFeatureGate.AI_SONNET_WEEKLY,
-                ProFeatureGate.AI_SONNET_PLANNER, ProFeatureGate.AI_SONNET_EXTRACT,
-                ProFeatureGate.AI_PRIORITY_SUPPORT -> isUltra()
+            ProFeatureGate.AI_SONNET_NLP, ProFeatureGate.AI_SONNET_EISENHOWER,
+            ProFeatureGate.AI_SONNET_POMODORO, ProFeatureGate.AI_SONNET_BRIEFING,
+            ProFeatureGate.AI_SONNET_COACHING, ProFeatureGate.AI_SONNET_WEEKLY,
+            ProFeatureGate.AI_SONNET_PLANNER, ProFeatureGate.AI_SONNET_EXTRACT,
+            ProFeatureGate.AI_PRIORITY_SUPPORT -> isUltra()
 
-                else -> true
-            }
+            else -> true
         }
     }
 
@@ -165,11 +168,15 @@ class ProFeatureGateTest {
 
         // Pro-tier features
         val proFeatures = listOf(
-            ProFeatureGate.CLOUD_SYNC, ProFeatureGate.TEMPLATE_SYNC,
-            ProFeatureGate.AI_EISENHOWER, ProFeatureGate.AI_POMODORO,
-            ProFeatureGate.ANALYTICS_BASIC, ProFeatureGate.TIME_TRACKING,
+            ProFeatureGate.CLOUD_SYNC,
+            ProFeatureGate.TEMPLATE_SYNC,
+            ProFeatureGate.AI_EISENHOWER,
+            ProFeatureGate.AI_POMODORO,
+            ProFeatureGate.ANALYTICS_BASIC,
+            ProFeatureGate.TIME_TRACKING,
             ProFeatureGate.AI_NLP,
-            ProFeatureGate.AI_COACHING, ProFeatureGate.AI_TASK_BREAKDOWN
+            ProFeatureGate.AI_COACHING,
+            ProFeatureGate.AI_TASK_BREAKDOWN
         )
         proFeatures.forEach { feature ->
             assertTrue("PRO should access $feature", gate.hasAccess(feature))
@@ -177,12 +184,17 @@ class ProFeatureGateTest {
 
         // Premium-tier features
         val premiumFeatures = listOf(
-            ProFeatureGate.AI_BRIEFING, ProFeatureGate.AI_WEEKLY_PLAN,
-            ProFeatureGate.AI_TIME_BLOCK, ProFeatureGate.AI_CONVERSATIONAL,
+            ProFeatureGate.AI_BRIEFING,
+            ProFeatureGate.AI_WEEKLY_PLAN,
+            ProFeatureGate.AI_TIME_BLOCK,
+            ProFeatureGate.AI_CONVERSATIONAL,
             ProFeatureGate.COLLABORATION,
-            ProFeatureGate.INTEGRATIONS, ProFeatureGate.ANALYTICS_FULL,
-            ProFeatureGate.ANALYTICS_CORRELATIONS, ProFeatureGate.DRIVE_BACKUP,
-            ProFeatureGate.AI_DAILY_PLANNING, ProFeatureGate.AI_REENGAGEMENT,
+            ProFeatureGate.INTEGRATIONS,
+            ProFeatureGate.ANALYTICS_FULL,
+            ProFeatureGate.ANALYTICS_CORRELATIONS,
+            ProFeatureGate.DRIVE_BACKUP,
+            ProFeatureGate.AI_DAILY_PLANNING,
+            ProFeatureGate.AI_REENGAGEMENT,
             ProFeatureGate.AI_WEEKLY_INSIGHTS
         )
         premiumFeatures.forEach { feature ->
@@ -311,23 +323,36 @@ class ProFeatureGateTest {
     @Test
     fun `all feature constants including Ultra have unique values`() {
         val constants = setOf(
-            ProFeatureGate.CLOUD_SYNC, ProFeatureGate.TEMPLATE_SYNC,
-            ProFeatureGate.AI_EISENHOWER, ProFeatureGate.AI_POMODORO,
-            ProFeatureGate.AI_NLP, ProFeatureGate.ANALYTICS_BASIC,
-            ProFeatureGate.TIME_TRACKING, ProFeatureGate.AI_BRIEFING,
-            ProFeatureGate.AI_WEEKLY_PLAN, ProFeatureGate.AI_TIME_BLOCK,
+            ProFeatureGate.CLOUD_SYNC,
+            ProFeatureGate.TEMPLATE_SYNC,
+            ProFeatureGate.AI_EISENHOWER,
+            ProFeatureGate.AI_POMODORO,
+            ProFeatureGate.AI_NLP,
+            ProFeatureGate.ANALYTICS_BASIC,
+            ProFeatureGate.TIME_TRACKING,
+            ProFeatureGate.AI_BRIEFING,
+            ProFeatureGate.AI_WEEKLY_PLAN,
+            ProFeatureGate.AI_TIME_BLOCK,
             ProFeatureGate.AI_CONVERSATIONAL,
-            ProFeatureGate.COLLABORATION, ProFeatureGate.INTEGRATIONS,
-            ProFeatureGate.ANALYTICS_FULL, ProFeatureGate.ANALYTICS_CORRELATIONS,
+            ProFeatureGate.COLLABORATION,
+            ProFeatureGate.INTEGRATIONS,
+            ProFeatureGate.ANALYTICS_FULL,
+            ProFeatureGate.ANALYTICS_CORRELATIONS,
             ProFeatureGate.DRIVE_BACKUP,
-            ProFeatureGate.AI_COACHING, ProFeatureGate.AI_TASK_BREAKDOWN,
-            ProFeatureGate.AI_DAILY_PLANNING, ProFeatureGate.AI_REENGAGEMENT,
+            ProFeatureGate.AI_COACHING,
+            ProFeatureGate.AI_TASK_BREAKDOWN,
+            ProFeatureGate.AI_DAILY_PLANNING,
+            ProFeatureGate.AI_REENGAGEMENT,
             ProFeatureGate.AI_WEEKLY_INSIGHTS,
             // Ultra constants
-            ProFeatureGate.AI_SONNET_NLP, ProFeatureGate.AI_SONNET_EISENHOWER,
-            ProFeatureGate.AI_SONNET_POMODORO, ProFeatureGate.AI_SONNET_BRIEFING,
-            ProFeatureGate.AI_SONNET_COACHING, ProFeatureGate.AI_SONNET_WEEKLY,
-            ProFeatureGate.AI_SONNET_PLANNER, ProFeatureGate.AI_SONNET_EXTRACT,
+            ProFeatureGate.AI_SONNET_NLP,
+            ProFeatureGate.AI_SONNET_EISENHOWER,
+            ProFeatureGate.AI_SONNET_POMODORO,
+            ProFeatureGate.AI_SONNET_BRIEFING,
+            ProFeatureGate.AI_SONNET_COACHING,
+            ProFeatureGate.AI_SONNET_WEEKLY,
+            ProFeatureGate.AI_SONNET_PLANNER,
+            ProFeatureGate.AI_SONNET_EXTRACT,
             ProFeatureGate.AI_PRIORITY_SUPPORT
         )
         assertEquals("All 30 feature constants should be unique", 30, constants.size)

@@ -70,19 +70,23 @@ fun VoiceInputButton(
                 .size(48.dp)
                 .clip(CircleShape)
                 .background(
-                    if (listening) tintActive.copy(alpha = 0.12f)
-                    else Color.Transparent
-                )
-                .combinedClickable(
+                    if (listening) {
+                        tintActive.copy(alpha = 0.12f)
+                    } else {
+                        Color.Transparent
+                    }
+                ).combinedClickable(
                     enabled = enabled,
                     onClick = onClick,
                     onLongClick = onLongClick,
                     role = Role.Button
-                )
-                .semantics {
+                ).semantics {
                     contentDescription =
-                        if (listening) "Stop voice input"
-                        else "Voice input. Long press for hands free mode"
+                        if (listening) {
+                            "Stop voice input"
+                        } else {
+                            "Voice input. Long press for hands free mode"
+                        }
                     role = Role.Button
                 },
             contentAlignment = Alignment.Center

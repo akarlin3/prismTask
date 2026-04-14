@@ -5,7 +5,6 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class RefillCalculatorTest {
-
     private val now = 1_000_000L
     private val oneDay = 24L * 60 * 60 * 1000
 
@@ -33,7 +32,8 @@ class RefillCalculatorTest {
     @Test
     fun `60 pills 2 per day gives 30 days remaining`() {
         val forecast = RefillCalculator.forecast(
-            med(pillCount = 60, pillsPerDose = 1, dosesPerDay = 2), now
+            med(pillCount = 60, pillsPerDose = 1, dosesPerDay = 2),
+            now
         )
         assertEquals(30, forecast.daysRemaining)
     }
@@ -41,7 +41,8 @@ class RefillCalculatorTest {
     @Test
     fun `60 pills 2 pills per dose 1 dose per day gives 30 days`() {
         val forecast = RefillCalculator.forecast(
-            med(pillCount = 60, pillsPerDose = 2, dosesPerDay = 1), now
+            med(pillCount = 60, pillsPerDose = 2, dosesPerDay = 1),
+            now
         )
         assertEquals(30, forecast.daysRemaining)
     }
@@ -92,7 +93,8 @@ class RefillCalculatorTest {
     @Test
     fun `apply daily dose with multi-dose consumes full daily amount`() {
         val updated = RefillCalculator.applyDailyDose(
-            med(pillCount = 30, pillsPerDose = 2, dosesPerDay = 2), now
+            med(pillCount = 30, pillsPerDose = 2, dosesPerDay = 2),
+            now
         )
         // 2 * 2 = 4 pills per day.
         assertEquals(26, updated.pillCount)

@@ -6,7 +6,6 @@ import java.time.DayOfWeek
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
-import java.time.temporal.ChronoUnit
 import java.time.temporal.TemporalAdjusters
 
 /**
@@ -66,12 +65,8 @@ data class StreakResult(
 }
 
 object StreakCalculator {
-
     private fun Long.toLocalDate(): LocalDate =
         Instant.ofEpochMilli(this).atZone(ZoneId.systemDefault()).toLocalDate()
-
-    private fun LocalDate.toMillis(): Long =
-        atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
 
     /**
      * Forgiveness-aware streak calculation for daily habits.
@@ -96,7 +91,8 @@ object StreakCalculator {
         config: ForgivenessConfig = ForgivenessConfig.DEFAULT
     ): StreakResult {
         val target = habit.targetFrequency
-        val completionsByDate = completions.groupBy { it.completedDate.toLocalDate() }
+        val completionsByDate = completions
+            .groupBy { it.completedDate.toLocalDate() }
             .mapValues { it.value.size }
 
         // Classic strict streak: the prefix of consecutive met days.
@@ -306,7 +302,8 @@ object StreakCalculator {
     ): Int {
         val target = habit.targetFrequency
         val graceLimit = maxMissedDays.coerceAtLeast(1)
-        val completionsByDate = completions.groupBy { it.completedDate.toLocalDate() }
+        val completionsByDate = completions
+            .groupBy { it.completedDate.toLocalDate() }
             .mapValues { it.value.size }
 
         if (longest) {
@@ -373,16 +370,21 @@ object StreakCalculator {
         val activeDays = parseActiveDays(habit.activeDays)
 
         // Group completions by week (Mon-Sun)
-        val completionsByWeek = completions.groupBy { completion ->
-            val date = completion.completedDate.toLocalDate()
-            date.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
-        }.mapValues { entry ->
-            if (activeDays.isEmpty()) {
-                entry.value.size
-            } else {
-                entry.value.count { it.completedDate.toLocalDate().dayOfWeek.value in activeDays }
+        val completionsByWeek = completions
+            .groupBy { completion ->
+                val date = completion.completedDate.toLocalDate()
+                date.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+            }.mapValues { entry ->
+                if (activeDays.isEmpty()) {
+                    entry.value.size
+                } else {
+                    entry.value.count {
+                        it.completedDate
+                            .toLocalDate()
+                            .dayOfWeek.value in activeDays
+                    }
+                }
             }
-        }
 
         if (longest) {
             val weeks = completionsByWeek.keys.sorted()
@@ -446,10 +448,11 @@ object StreakCalculator {
         val target = habit.targetFrequency
 
         // Group completions by fortnight start
-        val completionsByFortnight = completions.groupBy { completion ->
-            val date = completion.completedDate.toLocalDate()
-            getFortnightStart(date)
-        }.mapValues { it.value.groupBy { c -> c.completedDate.toLocalDate() }.size }
+        val completionsByFortnight = completions
+            .groupBy { completion ->
+                val date = completion.completedDate.toLocalDate()
+                getFortnightStart(date)
+            }.mapValues { it.value.groupBy { c -> c.completedDate.toLocalDate() }.size }
 
         if (longest) {
             val fortnights = completionsByFortnight.keys.sorted()
@@ -461,12 +464,20 @@ object StreakCalculator {
 
             for (fn in fortnights) {
                 while (expected.isBefore(fn)) {
-                    if ((completionsByFortnight[expected] ?: 0) >= target) currentStreak++
-                    else { maxStreak = maxOf(maxStreak, currentStreak); currentStreak = 0 }
+                    if ((completionsByFortnight[expected] ?: 0) >= target) {
+                        currentStreak++
+                    } else {
+                        maxStreak = maxOf(maxStreak, currentStreak)
+                        currentStreak = 0
+                    }
                     expected = expected.plusWeeks(2)
                 }
-                if ((completionsByFortnight[fn] ?: 0) >= target) currentStreak++
-                else { maxStreak = maxOf(maxStreak, currentStreak); currentStreak = 0 }
+                if ((completionsByFortnight[fn] ?: 0) >= target) {
+                    currentStreak++
+                } else {
+                    maxStreak = maxOf(maxStreak, currentStreak)
+                    currentStreak = 0
+                }
                 expected = fn.plusWeeks(2)
             }
             return maxOf(maxStreak, currentStreak)
@@ -493,10 +504,11 @@ object StreakCalculator {
         val target = habit.targetFrequency
 
         // Group completions by month start
-        val completionsByMonth = completions.groupBy { completion ->
-            val date = completion.completedDate.toLocalDate()
-            date.withDayOfMonth(1)
-        }.mapValues { it.value.groupBy { c -> c.completedDate.toLocalDate() }.size }
+        val completionsByMonth = completions
+            .groupBy { completion ->
+                val date = completion.completedDate.toLocalDate()
+                date.withDayOfMonth(1)
+            }.mapValues { it.value.groupBy { c -> c.completedDate.toLocalDate() }.size }
 
         if (longest) {
             val months = completionsByMonth.keys.sorted()
@@ -508,12 +520,20 @@ object StreakCalculator {
 
             for (month in months) {
                 while (expected.isBefore(month)) {
-                    if ((completionsByMonth[expected] ?: 0) >= target) currentStreak++
-                    else { maxStreak = maxOf(maxStreak, currentStreak); currentStreak = 0 }
+                    if ((completionsByMonth[expected] ?: 0) >= target) {
+                        currentStreak++
+                    } else {
+                        maxStreak = maxOf(maxStreak, currentStreak)
+                        currentStreak = 0
+                    }
                     expected = expected.plusMonths(1)
                 }
-                if ((completionsByMonth[month] ?: 0) >= target) currentStreak++
-                else { maxStreak = maxOf(maxStreak, currentStreak); currentStreak = 0 }
+                if ((completionsByMonth[month] ?: 0) >= target) {
+                    currentStreak++
+                } else {
+                    maxStreak = maxOf(maxStreak, currentStreak)
+                    currentStreak = 0
+                }
                 expected = month.plusMonths(1)
             }
             return maxOf(maxStreak, currentStreak)
@@ -547,10 +567,11 @@ object StreakCalculator {
         val target = habit.targetFrequency
 
         // Group completions by bimonth start (Jan-Feb, Mar-Apr, etc.)
-        val completionsByBimonth = completions.groupBy { completion ->
-            val date = completion.completedDate.toLocalDate()
-            getBimonthStart(date)
-        }.mapValues { it.value.groupBy { c -> c.completedDate.toLocalDate() }.size }
+        val completionsByBimonth = completions
+            .groupBy { completion ->
+                val date = completion.completedDate.toLocalDate()
+                getBimonthStart(date)
+            }.mapValues { it.value.groupBy { c -> c.completedDate.toLocalDate() }.size }
 
         if (longest) {
             val bimonths = completionsByBimonth.keys.sorted()
@@ -562,12 +583,20 @@ object StreakCalculator {
 
             for (bm in bimonths) {
                 while (expected.isBefore(bm)) {
-                    if ((completionsByBimonth[expected] ?: 0) >= target) currentStreak++
-                    else { maxStreak = maxOf(maxStreak, currentStreak); currentStreak = 0 }
+                    if ((completionsByBimonth[expected] ?: 0) >= target) {
+                        currentStreak++
+                    } else {
+                        maxStreak = maxOf(maxStreak, currentStreak)
+                        currentStreak = 0
+                    }
                     expected = expected.plusMonths(2)
                 }
-                if ((completionsByBimonth[bm] ?: 0) >= target) currentStreak++
-                else { maxStreak = maxOf(maxStreak, currentStreak); currentStreak = 0 }
+                if ((completionsByBimonth[bm] ?: 0) >= target) {
+                    currentStreak++
+                } else {
+                    maxStreak = maxOf(maxStreak, currentStreak)
+                    currentStreak = 0
+                }
                 expected = bm.plusMonths(2)
             }
             return maxOf(maxStreak, currentStreak)
@@ -601,10 +630,11 @@ object StreakCalculator {
         val target = habit.targetFrequency
 
         // Group completions by quarter start
-        val completionsByQuarter = completions.groupBy { completion ->
-            val date = completion.completedDate.toLocalDate()
-            getQuarterStart(date)
-        }.mapValues { it.value.groupBy { c -> c.completedDate.toLocalDate() }.size }
+        val completionsByQuarter = completions
+            .groupBy { completion ->
+                val date = completion.completedDate.toLocalDate()
+                getQuarterStart(date)
+            }.mapValues { it.value.groupBy { c -> c.completedDate.toLocalDate() }.size }
 
         if (longest) {
             val quarters = completionsByQuarter.keys.sorted()
@@ -616,12 +646,20 @@ object StreakCalculator {
 
             for (q in quarters) {
                 while (expected.isBefore(q)) {
-                    if ((completionsByQuarter[expected] ?: 0) >= target) currentStreak++
-                    else { maxStreak = maxOf(maxStreak, currentStreak); currentStreak = 0 }
+                    if ((completionsByQuarter[expected] ?: 0) >= target) {
+                        currentStreak++
+                    } else {
+                        maxStreak = maxOf(maxStreak, currentStreak)
+                        currentStreak = 0
+                    }
                     expected = expected.plusMonths(3)
                 }
-                if ((completionsByQuarter[q] ?: 0) >= target) currentStreak++
-                else { maxStreak = maxOf(maxStreak, currentStreak); currentStreak = 0 }
+                if ((completionsByQuarter[q] ?: 0) >= target) {
+                    currentStreak++
+                } else {
+                    maxStreak = maxOf(maxStreak, currentStreak)
+                    currentStreak = 0
+                }
                 expected = q.plusMonths(3)
             }
             return maxOf(maxStreak, currentStreak)
@@ -642,7 +680,11 @@ object StreakCalculator {
     private fun parseActiveDays(json: String?): Set<Int> {
         if (json.isNullOrBlank()) return emptySet()
         return try {
-            json.trim('[', ']').split(",").mapNotNull { it.trim().toIntOrNull() }.toSet()
+            json
+                .trim('[', ']')
+                .split(",")
+                .mapNotNull { it.trim().toIntOrNull() }
+                .toSet()
         } catch (_: Exception) {
             emptySet()
         }

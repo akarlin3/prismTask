@@ -21,21 +21,22 @@ data class ProjectWithCount(
 
 @Dao
 interface ProjectDao {
-
     @Query("SELECT * FROM projects")
     fun getAllProjects(): Flow<List<ProjectEntity>>
 
     @Query("SELECT * FROM projects WHERE id = :id")
     fun getProjectById(id: Long): Flow<ProjectEntity?>
 
-    @Query("""
+    @Query(
+        """
         SELECT p.id, p.name, p.color, p.icon,
                p.created_at AS createdAt, p.updated_at AS updatedAt,
                COUNT(t.id) AS taskCount
         FROM projects p
         LEFT JOIN tasks t ON t.project_id = p.id
         GROUP BY p.id
-    """)
+    """
+    )
     fun getProjectWithTaskCount(): Flow<List<ProjectWithCount>>
 
     @Query("SELECT * FROM projects")

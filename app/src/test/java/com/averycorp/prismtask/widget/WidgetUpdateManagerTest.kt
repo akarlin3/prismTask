@@ -9,7 +9,6 @@ import org.junit.Test
  * verify the debounce constants and public API surface.
  */
 class WidgetUpdateManagerTest {
-
     @Test
     fun `debounce millis is 500ms`() {
         assertEquals(500L, WidgetUpdateManager.DEBOUNCE_MILLIS)

@@ -30,7 +30,9 @@ fun NotificationDiagnosticSection(
     )
 
     Text(
-        text = "Inspect notification permissions, channels, and exact-alarm status. Fire test notifications to troubleshoot Samsung delivery issues. Temporary — will be removed before release.",
+        text = "Inspect notification permissions, channels, and exact-alarm status. " +
+            "Fire test notifications to troubleshoot Samsung delivery issues. " +
+            "Temporary — will be removed before release.",
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.padding(bottom = 8.dp)

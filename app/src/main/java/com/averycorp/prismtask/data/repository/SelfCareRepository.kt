@@ -13,7 +13,6 @@ import com.averycorp.prismtask.data.local.entity.SelfCareLogEntity
 import com.averycorp.prismtask.data.local.entity.SelfCareStepEntity
 import com.averycorp.prismtask.data.preferences.MedicationPreferences
 import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
-import com.averycorp.prismtask.domain.model.RoutineStep
 import com.averycorp.prismtask.domain.model.SelfCareRoutines
 import com.averycorp.prismtask.notifications.ExactAlarmHelper
 import com.averycorp.prismtask.notifications.MedStepReminderReceiver
@@ -144,744 +143,762 @@ internal fun reconcileMedLogsForTierChange(
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @Singleton
-class SelfCareRepository @Inject constructor(
-    @param:ApplicationContext private val context: Context,
-    private val selfCareDao: SelfCareDao,
-    private val habitDao: HabitDao,
-    private val habitCompletionDao: HabitCompletionDao,
-    private val medicationPreferences: MedicationPreferences,
-    private val taskBehaviorPreferences: TaskBehaviorPreferences,
-    private val gson: Gson
-) {
-
-    private suspend fun startOfToday(): Long =
-        DayBoundary.startOfCurrentDay(taskBehaviorPreferences.getDayStartHour().first())
-
-    fun getTodayLog(routineType: String): Flow<SelfCareLogEntity?> =
-        taskBehaviorPreferences.getDayStartHour().flatMapLatest { hour ->
-            selfCareDao.getLogForDate(routineType, DayBoundary.startOfCurrentDay(hour))
-        }
-
-    fun getLogsForRoutine(routineType: String): Flow<List<SelfCareLogEntity>> =
-        selfCareDao.getLogsForRoutine(routineType)
-
-    fun getSteps(routineType: String): Flow<List<SelfCareStepEntity>> =
-        selfCareDao.getStepsForRoutine(routineType)
-
-    suspend fun ensureDefaultStepsSeeded() {
-        if (selfCareDao.getStepCount() > 0) {
-            ensureHouseworkStepsSeeded()
-            return
-        }
-        val morningEntities = SelfCareRoutines.morningSteps.mapIndexed { i, step ->
-            SelfCareStepEntity(
-                stepId = step.id,
-                routineType = "morning",
-                label = step.label,
-                duration = step.duration,
-                tier = step.tier,
-                note = step.note,
-                phase = step.phase,
-                sortOrder = i
-            )
-        }
-        val bedtimeEntities = SelfCareRoutines.bedtimeSteps.mapIndexed { i, step ->
-            SelfCareStepEntity(
-                stepId = step.id,
-                routineType = "bedtime",
-                label = step.label,
-                duration = step.duration,
-                tier = step.tier,
-                note = step.note,
-                phase = step.phase,
-                sortOrder = i
-            )
-        }
-        val houseworkEntities = SelfCareRoutines.houseworkSteps.mapIndexed { i, step ->
-            SelfCareStepEntity(
-                stepId = step.id,
-                routineType = "housework",
-                label = step.label,
-                duration = step.duration,
-                tier = step.tier,
-                note = step.note,
-                phase = step.phase,
-                sortOrder = i
-            )
-        }
-        selfCareDao.insertSteps(morningEntities + bedtimeEntities + houseworkEntities)
-    }
-
-    private suspend fun ensureHouseworkStepsSeeded() {
-        val existing = selfCareDao.getStepsForRoutineOnce("housework")
-        if (existing.isNotEmpty()) return
-        val houseworkEntities = SelfCareRoutines.houseworkSteps.mapIndexed { i, step ->
-            SelfCareStepEntity(
-                stepId = step.id,
-                routineType = "housework",
-                label = step.label,
-                duration = step.duration,
-                tier = step.tier,
-                note = step.note,
-                phase = step.phase,
-                sortOrder = i
-            )
-        }
-        selfCareDao.insertSteps(houseworkEntities)
-    }
-
-    suspend fun addStep(
-        routineType: String,
-        label: String,
-        duration: String,
-        tier: String,
-        note: String,
-        phase: String,
-        reminderDelayMillis: Long? = null,
-        timeOfDay: String = "morning"
+class SelfCareRepository
+    @Inject
+    constructor(
+        @param:ApplicationContext private val context: Context,
+        private val selfCareDao: SelfCareDao,
+        private val habitDao: HabitDao,
+        private val habitCompletionDao: HabitCompletionDao,
+        private val medicationPreferences: MedicationPreferences,
+        private val taskBehaviorPreferences: TaskBehaviorPreferences,
+        private val gson: Gson
     ) {
-        val nextOrder = selfCareDao.getMaxSortOrder(routineType) + 1
-        val stepId = "custom_${UUID.randomUUID().toString().take(8)}"
-        selfCareDao.insertStep(
-            SelfCareStepEntity(
-                stepId = stepId,
-                routineType = routineType,
-                label = label,
-                duration = duration,
-                tier = tier,
-                note = note,
-                phase = phase,
-                sortOrder = nextOrder,
-                reminderDelayMillis = reminderDelayMillis,
-                timeOfDay = timeOfDay
-            )
-        )
-    }
+        private suspend fun startOfToday(): Long =
+            DayBoundary.startOfCurrentDay(taskBehaviorPreferences.getDayStartHour().first())
 
-    suspend fun updateStep(step: SelfCareStepEntity) {
-        selfCareDao.updateStep(step)
-    }
-
-    suspend fun deleteStep(step: SelfCareStepEntity) {
-        selfCareDao.deleteStep(step)
-    }
-
-    suspend fun moveStep(step: SelfCareStepEntity, direction: Int) {
-        val allSteps = selfCareDao.getStepsForRoutineOnce(step.routineType)
-        val index = allSteps.indexOfFirst { it.id == step.id }
-        if (index < 0) return
-        val targetIndex = index + direction
-        if (targetIndex < 0 || targetIndex >= allSteps.size) return
-
-        val current = allSteps[index]
-        val target = allSteps[targetIndex]
-        selfCareDao.updateSteps(
-            listOf(
-                current.copy(sortOrder = target.sortOrder),
-                target.copy(sortOrder = current.sortOrder)
-            )
-        )
-    }
-
-    fun getVisibleStepsFromEntities(
-        steps: List<SelfCareStepEntity>,
-        tier: String,
-        routineType: String
-    ): List<SelfCareStepEntity> {
-        val tierOrder = SelfCareRoutines.getTierOrder(routineType)
-        return steps.filter { SelfCareRoutines.tierIncludes(tierOrder, tier, it.tier) }
-    }
-
-    fun getPhaseGroupedSteps(
-        steps: List<SelfCareStepEntity>,
-        routineType: String
-    ): List<Pair<String, List<SelfCareStepEntity>>> {
-        if (routineType == "medication") {
-            return if (steps.isEmpty()) emptyList() else listOf("Medications" to steps)
-        }
-        val phaseOrder = when (routineType) {
-            "morning" -> listOf("Skincare", "Hygiene", "Grooming")
-            "housework" -> listOf("Kitchen", "Living Areas", "Bathroom", "Laundry")
-            else -> listOf("Wash", "Skincare", "Hygiene", "Sleep")
-        }
-        val grouped = steps.groupBy { it.phase }
-        val result = mutableListOf<Pair<String, List<SelfCareStepEntity>>>()
-        for (phase in phaseOrder) {
-            grouped[phase]?.let { result.add(phase to it) }
-        }
-        // Include any custom phases not in the predefined order
-        for ((phase, stepsInPhase) in grouped) {
-            if (phase !in phaseOrder) {
-                result.add(phase to stepsInPhase)
+        fun getTodayLog(routineType: String): Flow<SelfCareLogEntity?> =
+            taskBehaviorPreferences.getDayStartHour().flatMapLatest { hour ->
+                selfCareDao.getLogForDate(routineType, DayBoundary.startOfCurrentDay(hour))
             }
-        }
-        return result
-    }
 
-    suspend fun setTier(routineType: String, tier: String) {
-        val today = startOfToday()
-        val existing = selfCareDao.getLogForDateOnce(routineType, today)
-        if (existing != null) {
+        fun getLogsForRoutine(routineType: String): Flow<List<SelfCareLogEntity>> =
+            selfCareDao.getLogsForRoutine(routineType)
+
+        fun getSteps(routineType: String): Flow<List<SelfCareStepEntity>> =
+            selfCareDao.getStepsForRoutine(routineType)
+
+        suspend fun ensureDefaultStepsSeeded() {
+            if (selfCareDao.getStepCount() > 0) {
+                ensureHouseworkStepsSeeded()
+                return
+            }
+            val morningEntities = SelfCareRoutines.morningSteps.mapIndexed { i, step ->
+                SelfCareStepEntity(
+                    stepId = step.id,
+                    routineType = "morning",
+                    label = step.label,
+                    duration = step.duration,
+                    tier = step.tier,
+                    note = step.note,
+                    phase = step.phase,
+                    sortOrder = i
+                )
+            }
+            val bedtimeEntities = SelfCareRoutines.bedtimeSteps.mapIndexed { i, step ->
+                SelfCareStepEntity(
+                    stepId = step.id,
+                    routineType = "bedtime",
+                    label = step.label,
+                    duration = step.duration,
+                    tier = step.tier,
+                    note = step.note,
+                    phase = step.phase,
+                    sortOrder = i
+                )
+            }
+            val houseworkEntities = SelfCareRoutines.houseworkSteps.mapIndexed { i, step ->
+                SelfCareStepEntity(
+                    stepId = step.id,
+                    routineType = "housework",
+                    label = step.label,
+                    duration = step.duration,
+                    tier = step.tier,
+                    note = step.note,
+                    phase = step.phase,
+                    sortOrder = i
+                )
+            }
+            selfCareDao.insertSteps(morningEntities + bedtimeEntities + houseworkEntities)
+        }
+
+        private suspend fun ensureHouseworkStepsSeeded() {
+            val existing = selfCareDao.getStepsForRoutineOnce("housework")
+            if (existing.isNotEmpty()) return
+            val houseworkEntities = SelfCareRoutines.houseworkSteps.mapIndexed { i, step ->
+                SelfCareStepEntity(
+                    stepId = step.id,
+                    routineType = "housework",
+                    label = step.label,
+                    duration = step.duration,
+                    tier = step.tier,
+                    note = step.note,
+                    phase = step.phase,
+                    sortOrder = i
+                )
+            }
+            selfCareDao.insertSteps(houseworkEntities)
+        }
+
+        suspend fun addStep(
+            routineType: String,
+            label: String,
+            duration: String,
+            tier: String,
+            note: String,
+            phase: String,
+            reminderDelayMillis: Long? = null,
+            timeOfDay: String = "morning"
+        ) {
+            val nextOrder = selfCareDao.getMaxSortOrder(routineType) + 1
+            val stepId = "custom_${UUID.randomUUID().toString().take(8)}"
+            selfCareDao.insertStep(
+                SelfCareStepEntity(
+                    stepId = stepId,
+                    routineType = routineType,
+                    label = label,
+                    duration = duration,
+                    tier = tier,
+                    note = note,
+                    phase = phase,
+                    sortOrder = nextOrder,
+                    reminderDelayMillis = reminderDelayMillis,
+                    timeOfDay = timeOfDay
+                )
+            )
+        }
+
+        suspend fun updateStep(step: SelfCareStepEntity) {
+            selfCareDao.updateStep(step)
+        }
+
+        suspend fun deleteStep(step: SelfCareStepEntity) {
+            selfCareDao.deleteStep(step)
+        }
+
+        suspend fun moveStep(step: SelfCareStepEntity, direction: Int) {
+            val allSteps = selfCareDao.getStepsForRoutineOnce(step.routineType)
+            val index = allSteps.indexOfFirst { it.id == step.id }
+            if (index < 0) return
+            val targetIndex = index + direction
+            if (targetIndex < 0 || targetIndex >= allSteps.size) return
+
+            val current = allSteps[index]
+            val target = allSteps[targetIndex]
+            selfCareDao.updateSteps(
+                listOf(
+                    current.copy(sortOrder = target.sortOrder),
+                    target.copy(sortOrder = current.sortOrder)
+                )
+            )
+        }
+
+        fun getVisibleStepsFromEntities(
+            steps: List<SelfCareStepEntity>,
+            tier: String,
+            routineType: String
+        ): List<SelfCareStepEntity> {
+            val tierOrder = SelfCareRoutines.getTierOrder(routineType)
+            return steps.filter { SelfCareRoutines.tierIncludes(tierOrder, tier, it.tier) }
+        }
+
+        fun getPhaseGroupedSteps(
+            steps: List<SelfCareStepEntity>,
+            routineType: String
+        ): List<Pair<String, List<SelfCareStepEntity>>> {
             if (routineType == "medication") {
-                // Medication: don't clear logs when switching tier view
-                val logs = parseMedStepLogs(existing.completedSteps)
-                val dbSteps = selfCareDao.getStepsForRoutineOnce(routineType)
-                val visibleSteps = getVisibleStepsFromEntities(dbSteps, tier, routineType)
-                val allDone = allMedsFullyLogged(logs, visibleSteps)
-                selfCareDao.updateLog(existing.copy(selectedTier = tier, isComplete = allDone))
-                syncHabitCompletion(routineType, allDone)
-            } else {
-                selfCareDao.updateLog(
-                    existing.copy(
-                        selectedTier = tier,
-                        completedSteps = "[]",
-                        isComplete = false,
-                        startedAt = null
-                    )
-                )
-                syncHabitCompletion(routineType, false)
+                return if (steps.isEmpty()) emptyList() else listOf("Medications" to steps)
             }
-        } else {
-            selfCareDao.insertLog(
-                SelfCareLogEntity(
-                    routineType = routineType,
-                    date = today,
-                    selectedTier = tier
-                )
-            )
-        }
-    }
-
-    suspend fun logTier(tier: String, note: String) {
-        val routineType = "medication"
-        val today = startOfToday()
-        var existing = selfCareDao.getLogForDateOnce(routineType, today)
-        if (existing == null) {
-            selfCareDao.insertLog(
-                SelfCareLogEntity(
-                    routineType = routineType,
-                    date = today,
-                    selectedTier = tier,
-                    startedAt = System.currentTimeMillis()
-                )
-            )
-            existing = selfCareDao.getLogForDateOnce(routineType, today)
-                ?: return
-        }
-
-        val logs = parseMedStepLogs(existing.completedSteps).toMutableList()
-        val loggedIds = logs.map { it.id }.toSet()
-        val dbSteps = selfCareDao.getStepsForRoutineOnce(routineType)
-        val visibleSteps = getVisibleStepsFromEntities(dbSteps, tier, routineType)
-        val now = System.currentTimeMillis()
-        val trimmedNote = note.trim()
-
-        for (step in visibleSteps) {
-            if (step.stepId !in loggedIds) {
-                logs.add(MedStepLog(id = step.stepId, note = trimmedNote, at = now))
+            val phaseOrder = when (routineType) {
+                "morning" -> listOf("Skincare", "Hygiene", "Grooming")
+                "housework" -> listOf("Kitchen", "Living Areas", "Bathroom", "Laundry")
+                else -> listOf("Wash", "Skincare", "Hygiene", "Sleep")
             }
-        }
-
-        val activeTier = existing.selectedTier
-        val activeVisible = getVisibleStepsFromEntities(dbSteps, activeTier, routineType)
-        val allDone = allMedsFullyLogged(logs, activeVisible)
-
-        selfCareDao.updateLog(
-            existing.copy(
-                completedSteps = serializeMedStepLogs(logs),
-                isComplete = allDone,
-                startedAt = existing.startedAt ?: now
-            )
-        )
-        syncHabitCompletion(routineType, allDone)
-
-        // Schedule global medication reminder
-        val intervalMinutes = medicationPreferences.getReminderIntervalMinutesOnce()
-        if (intervalMinutes > 0) {
-            scheduleMedicationReminder(now, intervalMinutes.toLong() * 60_000L)
-        }
-    }
-
-    suspend fun unlogTier(tier: String) {
-        val routineType = "medication"
-        val today = startOfToday()
-        val existing = selfCareDao.getLogForDateOnce(routineType, today) ?: return
-
-        val logs = parseMedStepLogs(existing.completedSteps).toMutableList()
-        val dbSteps = selfCareDao.getStepsForRoutineOnce(routineType)
-        // Only remove steps that belong exactly to this tier (not cumulative)
-        val tierStepIds = dbSteps.filter { it.tier == tier }.map { it.stepId }.toSet()
-
-        val removed = logs.filter { it.id in tierStepIds }
-        removed.forEach { cancelMedStepReminder(it.id) }
-        logs.removeAll { it.id in tierStepIds }
-
-        val activeTier = existing.selectedTier
-        val activeVisible = getVisibleStepsFromEntities(dbSteps, activeTier, routineType)
-        val allDone = allMedsFullyLogged(logs, activeVisible)
-
-        selfCareDao.updateLog(
-            existing.copy(
-                completedSteps = serializeMedStepLogs(logs),
-                isComplete = allDone
-            )
-        )
-        syncHabitCompletion(routineType, allDone)
-    }
-
-    suspend fun toggleStep(
-        routineType: String,
-        stepId: String,
-        note: String? = null,
-        timeOfDay: String = ""
-    ) {
-        val today = startOfToday()
-        var existing = selfCareDao.getLogForDateOnce(routineType, today)
-        if (existing == null) {
-            selfCareDao.insertLog(
-                SelfCareLogEntity(
-                    routineType = routineType,
-                    date = today,
-                    startedAt = System.currentTimeMillis()
-                )
-            )
-            existing = selfCareDao.getLogForDateOnce(routineType, today)
-                ?: return
-        }
-
-        val isMedication = routineType == "medication"
-        val completedStepsJson: String
-
-        if (isMedication) {
-            val logs = parseMedStepLogs(existing.completedSteps).toMutableList()
-            val dbSteps = selfCareDao.getStepsForRoutineOnce(routineType)
-            val step = dbSteps.firstOrNull { it.stepId == stepId }
-            val stepTods = step?.let { SelfCareRoutines.parseTimeOfDay(it.timeOfDay) } ?: emptySet()
-            val block = timeOfDay.trim()
-            val wasCompleted = if (block.isEmpty()) {
-                logs.any { it.id == stepId }
-            } else {
-                isMedLoggedAt(logs, stepId, block)
+            val grouped = steps.groupBy { it.phase }
+            val result = mutableListOf<Pair<String, List<SelfCareStepEntity>>>()
+            for (phase in phaseOrder) {
+                grouped[phase]?.let { result.add(phase to it) }
             }
+            // Include any custom phases not in the predefined order
+            for ((phase, stepsInPhase) in grouped) {
+                if (phase !in phaseOrder) {
+                    result.add(phase to stepsInPhase)
+                }
+            }
+            return result
+        }
 
-            if (wasCompleted) {
-                if (block.isEmpty()) {
-                    // Legacy / ungrouped toggle: remove every log for this step.
-                    logs.removeAll { it.id == stepId }
+        suspend fun setTier(routineType: String, tier: String) {
+            val today = startOfToday()
+            val existing = selfCareDao.getLogForDateOnce(routineType, today)
+            if (existing != null) {
+                if (routineType == "medication") {
+                    // Medication: don't clear logs when switching tier view
+                    val logs = parseMedStepLogs(existing.completedSteps)
+                    val dbSteps = selfCareDao.getStepsForRoutineOnce(routineType)
+                    val visibleSteps = getVisibleStepsFromEntities(dbSteps, tier, routineType)
+                    val allDone = allMedsFullyLogged(logs, visibleSteps)
+                    selfCareDao.updateLog(existing.copy(selectedTier = tier, isComplete = allDone))
+                    syncHabitCompletion(routineType, allDone)
                 } else {
-                    // Expand any legacy (blank timeOfDay) log into explicit
-                    // per-block logs for the step's other time blocks, then
-                    // drop any log that targets the block being unchecked.
-                    val legacyForStep = logs.filter { it.id == stepId && it.timeOfDay.isBlank() }
-                    if (legacyForStep.isNotEmpty()) {
-                        val template = legacyForStep.first()
-                        logs.removeAll { it.id == stepId && it.timeOfDay.isBlank() }
-                        for (tod in stepTods) {
-                            if (tod == block) continue
-                            if (!isMedLoggedAt(logs, stepId, tod)) {
-                                logs.add(template.copy(timeOfDay = tod))
-                            }
-                        }
-                    }
-                    logs.removeAll { it.id == stepId && it.timeOfDay == block }
+                    selfCareDao.updateLog(
+                        existing.copy(
+                            selectedTier = tier,
+                            completedSteps = "[]",
+                            isComplete = false,
+                            startedAt = null
+                        )
+                    )
+                    syncHabitCompletion(routineType, false)
                 }
             } else {
-                val now = System.currentTimeMillis()
-                logs.add(
-                    MedStepLog(
-                        id = stepId,
-                        note = note?.trim() ?: "",
-                        at = now,
-                        timeOfDay = block
+                selfCareDao.insertLog(
+                    SelfCareLogEntity(
+                        routineType = routineType,
+                        date = today,
+                        selectedTier = tier
                     )
                 )
             }
+        }
 
-            val visibleSteps = getVisibleStepsFromEntities(dbSteps, existing.selectedTier, routineType)
-            val allDone = allMedsFullyLogged(logs, visibleSteps)
-            completedStepsJson = serializeMedStepLogs(logs)
-
-            val updated = existing.copy(
-                completedSteps = completedStepsJson,
-                isComplete = allDone,
-                startedAt = existing.startedAt ?: System.currentTimeMillis()
-            )
-            selfCareDao.updateLog(updated)
-            syncHabitCompletion(routineType, allDone)
-        } else {
-            // Non-medication routines: plain string ID list
-            val steps = parseSteps(existing.completedSteps).toMutableSet()
-            if (steps.contains(stepId)) {
-                steps.remove(stepId)
-            } else {
-                steps.add(stepId)
+        suspend fun logTier(tier: String, note: String) {
+            val routineType = "medication"
+            val today = startOfToday()
+            var existing = selfCareDao.getLogForDateOnce(routineType, today)
+            if (existing == null) {
+                selfCareDao.insertLog(
+                    SelfCareLogEntity(
+                        routineType = routineType,
+                        date = today,
+                        selectedTier = tier,
+                        startedAt = System.currentTimeMillis()
+                    )
+                )
+                existing = selfCareDao.getLogForDateOnce(routineType, today)
+                    ?: return
             }
 
+            val logs = parseMedStepLogs(existing.completedSteps).toMutableList()
+            val loggedIds = logs.map { it.id }.toSet()
             val dbSteps = selfCareDao.getStepsForRoutineOnce(routineType)
-            val visibleSteps = getVisibleStepsFromEntities(dbSteps, existing.selectedTier, routineType)
-            val allDone = visibleSteps.isNotEmpty() && visibleSteps.all { it.stepId in steps }
+            val visibleSteps = getVisibleStepsFromEntities(dbSteps, tier, routineType)
+            val now = System.currentTimeMillis()
+            val trimmedNote = note.trim()
 
-            val updated = existing.copy(
-                completedSteps = gson.toJson(steps.toList()),
-                isComplete = allDone,
-                startedAt = existing.startedAt ?: System.currentTimeMillis()
+            for (step in visibleSteps) {
+                if (step.stepId !in loggedIds) {
+                    logs.add(MedStepLog(id = step.stepId, note = trimmedNote, at = now))
+                }
+            }
+
+            val activeTier = existing.selectedTier
+            val activeVisible = getVisibleStepsFromEntities(dbSteps, activeTier, routineType)
+            val allDone = allMedsFullyLogged(logs, activeVisible)
+
+            selfCareDao.updateLog(
+                existing.copy(
+                    completedSteps = serializeMedStepLogs(logs),
+                    isComplete = allDone,
+                    startedAt = existing.startedAt ?: now
+                )
             )
-            selfCareDao.updateLog(updated)
+            syncHabitCompletion(routineType, allDone)
+
+            // Schedule global medication reminder
+            val intervalMinutes = medicationPreferences.getReminderIntervalMinutesOnce()
+            if (intervalMinutes > 0) {
+                scheduleMedicationReminder(now, intervalMinutes.toLong() * 60_000L)
+            }
+        }
+
+        suspend fun unlogTier(tier: String) {
+            val routineType = "medication"
+            val today = startOfToday()
+            val existing = selfCareDao.getLogForDateOnce(routineType, today) ?: return
+
+            val logs = parseMedStepLogs(existing.completedSteps).toMutableList()
+            val dbSteps = selfCareDao.getStepsForRoutineOnce(routineType)
+            // Only remove steps that belong exactly to this tier (not cumulative)
+            val tierStepIds = dbSteps.filter { it.tier == tier }.map { it.stepId }.toSet()
+
+            val removed = logs.filter { it.id in tierStepIds }
+            removed.forEach { cancelMedStepReminder(it.id) }
+            logs.removeAll { it.id in tierStepIds }
+
+            val activeTier = existing.selectedTier
+            val activeVisible = getVisibleStepsFromEntities(dbSteps, activeTier, routineType)
+            val allDone = allMedsFullyLogged(logs, activeVisible)
+
+            selfCareDao.updateLog(
+                existing.copy(
+                    completedSteps = serializeMedStepLogs(logs),
+                    isComplete = allDone
+                )
+            )
             syncHabitCompletion(routineType, allDone)
         }
-    }
 
-    suspend fun resetToday(routineType: String) {
-        val today = startOfToday()
-        val existing = selfCareDao.getLogForDateOnce(routineType, today) ?: return
-        if (routineType == "medication") {
-            cancelMedicationReminder()
+        suspend fun toggleStep(
+            routineType: String,
+            stepId: String,
+            note: String? = null,
+            timeOfDay: String = ""
+        ) {
+            val today = startOfToday()
+            var existing = selfCareDao.getLogForDateOnce(routineType, today)
+            if (existing == null) {
+                selfCareDao.insertLog(
+                    SelfCareLogEntity(
+                        routineType = routineType,
+                        date = today,
+                        startedAt = System.currentTimeMillis()
+                    )
+                )
+                existing = selfCareDao.getLogForDateOnce(routineType, today)
+                    ?: return
+            }
+
+            val isMedication = routineType == "medication"
+            val completedStepsJson: String
+
+            if (isMedication) {
+                val logs = parseMedStepLogs(existing.completedSteps).toMutableList()
+                val dbSteps = selfCareDao.getStepsForRoutineOnce(routineType)
+                val step = dbSteps.firstOrNull { it.stepId == stepId }
+                val stepTods = step?.let { SelfCareRoutines.parseTimeOfDay(it.timeOfDay) } ?: emptySet()
+                val block = timeOfDay.trim()
+                val wasCompleted = if (block.isEmpty()) {
+                    logs.any { it.id == stepId }
+                } else {
+                    isMedLoggedAt(logs, stepId, block)
+                }
+
+                if (wasCompleted) {
+                    if (block.isEmpty()) {
+                        // Legacy / ungrouped toggle: remove every log for this step.
+                        logs.removeAll { it.id == stepId }
+                    } else {
+                        // Expand any legacy (blank timeOfDay) log into explicit
+                        // per-block logs for the step's other time blocks, then
+                        // drop any log that targets the block being unchecked.
+                        val legacyForStep = logs.filter { it.id == stepId && it.timeOfDay.isBlank() }
+                        if (legacyForStep.isNotEmpty()) {
+                            val template = legacyForStep.first()
+                            logs.removeAll { it.id == stepId && it.timeOfDay.isBlank() }
+                            for (tod in stepTods) {
+                                if (tod == block) continue
+                                if (!isMedLoggedAt(logs, stepId, tod)) {
+                                    logs.add(template.copy(timeOfDay = tod))
+                                }
+                            }
+                        }
+                        logs.removeAll { it.id == stepId && it.timeOfDay == block }
+                    }
+                } else {
+                    val now = System.currentTimeMillis()
+                    logs.add(
+                        MedStepLog(
+                            id = stepId,
+                            note = note?.trim() ?: "",
+                            at = now,
+                            timeOfDay = block
+                        )
+                    )
+                }
+
+                val visibleSteps = getVisibleStepsFromEntities(dbSteps, existing.selectedTier, routineType)
+                val allDone = allMedsFullyLogged(logs, visibleSteps)
+                completedStepsJson = serializeMedStepLogs(logs)
+
+                val updated = existing.copy(
+                    completedSteps = completedStepsJson,
+                    isComplete = allDone,
+                    startedAt = existing.startedAt ?: System.currentTimeMillis()
+                )
+                selfCareDao.updateLog(updated)
+                syncHabitCompletion(routineType, allDone)
+            } else {
+                // Non-medication routines: plain string ID list
+                val steps = parseSteps(existing.completedSteps).toMutableSet()
+                if (steps.contains(stepId)) {
+                    steps.remove(stepId)
+                } else {
+                    steps.add(stepId)
+                }
+
+                val dbSteps = selfCareDao.getStepsForRoutineOnce(routineType)
+                val visibleSteps = getVisibleStepsFromEntities(dbSteps, existing.selectedTier, routineType)
+                val allDone = visibleSteps.isNotEmpty() && visibleSteps.all { it.stepId in steps }
+
+                val updated = existing.copy(
+                    completedSteps = gson.toJson(steps.toList()),
+                    isComplete = allDone,
+                    startedAt = existing.startedAt ?: System.currentTimeMillis()
+                )
+                selfCareDao.updateLog(updated)
+                syncHabitCompletion(routineType, allDone)
+            }
         }
-        val updated = existing.copy(
-            completedSteps = "[]",
-            tiersByTime = if (routineType == "medication") "{}" else existing.tiersByTime,
-            isComplete = false,
-            startedAt = null
-        )
-        selfCareDao.updateLog(updated)
-        syncHabitCompletion(routineType, false)
-    }
 
-    private fun parseSteps(json: String): Set<String> {
-        return try {
+        suspend fun resetToday(routineType: String) {
+            val today = startOfToday()
+            val existing = selfCareDao.getLogForDateOnce(routineType, today) ?: return
+            if (routineType == "medication") {
+                cancelMedicationReminder()
+            }
+            val updated = existing.copy(
+                completedSteps = "[]",
+                tiersByTime = if (routineType == "medication") "{}" else existing.tiersByTime,
+                isComplete = false,
+                startedAt = null
+            )
+            selfCareDao.updateLog(updated)
+            syncHabitCompletion(routineType, false)
+        }
+
+        private fun parseSteps(json: String): Set<String> = try {
             val type = object : TypeToken<List<String>>() {}.type
             gson.fromJson<List<String>>(json, type).toSet()
         } catch (_: Exception) {
             emptySet()
         }
-    }
 
-    fun parseMedStepLogs(json: String): List<MedStepLog> {
-        if (json.isBlank() || json == "[]") return emptyList()
-        return try {
-            val array = gson.fromJson(json, JsonArray::class.java)
-            array.mapNotNull { element ->
-                if (element.isJsonPrimitive) {
-                    // Legacy format: plain string step ID
-                    MedStepLog(id = element.asString)
-                } else if (element.isJsonObject) {
-                    val obj = element.asJsonObject
-                    MedStepLog(
-                        id = obj.get("id")?.asString ?: return@mapNotNull null,
-                        note = obj.get("note")?.asString ?: "",
-                        at = obj.get("at")?.asLong ?: 0L,
-                        timeOfDay = obj.get("timeOfDay")?.asString ?: ""
-                    )
-                } else null
+        fun parseMedStepLogs(json: String): List<MedStepLog> {
+            if (json.isBlank() || json == "[]") return emptyList()
+            return try {
+                val array = gson.fromJson(json, JsonArray::class.java)
+                array.mapNotNull { element ->
+                    if (element.isJsonPrimitive) {
+                        // Legacy format: plain string step ID
+                        MedStepLog(id = element.asString)
+                    } else if (element.isJsonObject) {
+                        val obj = element.asJsonObject
+                        MedStepLog(
+                            id = obj.get("id")?.asString ?: return@mapNotNull null,
+                            note = obj.get("note")?.asString ?: "",
+                            at = obj.get("at")?.asLong ?: 0L,
+                            timeOfDay = obj.get("timeOfDay")?.asString ?: ""
+                        )
+                    } else {
+                        null
+                    }
+                }
+            } catch (_: Exception) {
+                emptyList()
             }
-        } catch (_: Exception) {
-            emptyList()
         }
-    }
 
-    /**
-     * True if there is a log entry for this step in the given time-of-day.
-     * A legacy log (blank timeOfDay) counts as logged for every block the
-     * step is scheduled for.
-     */
-    fun isMedLoggedAt(logs: List<MedStepLog>, stepId: String, timeOfDay: String): Boolean {
-        return logs.any { it.id == stepId && (it.timeOfDay == timeOfDay || it.timeOfDay.isBlank()) }
-    }
+        /**
+         * True if there is a log entry for this step in the given time-of-day.
+         * A legacy log (blank timeOfDay) counts as logged for every block the
+         * step is scheduled for.
+         */
+        fun isMedLoggedAt(
+            logs: List<MedStepLog>,
+            stepId: String,
+            timeOfDay: String
+        ): Boolean = logs.any { it.id == stepId && (it.timeOfDay == timeOfDay || it.timeOfDay.isBlank()) }
 
-    /**
-     * True if every visible medication is logged for every one of its
-     * scheduled time-of-day blocks.
-     */
-    private fun allMedsFullyLogged(
-        logs: List<MedStepLog>,
-        visibleSteps: List<SelfCareStepEntity>
-    ): Boolean {
-        if (visibleSteps.isEmpty()) return false
-        for (step in visibleSteps) {
-            val tods = SelfCareRoutines.parseTimeOfDay(step.timeOfDay)
-            if (tods.isEmpty()) {
-                if (logs.none { it.id == step.stepId }) return false
-            } else {
-                for (tod in tods) {
-                    if (!isMedLoggedAt(logs, step.stepId, tod)) return false
+        /**
+         * True if every visible medication is logged for every one of its
+         * scheduled time-of-day blocks.
+         */
+        private fun allMedsFullyLogged(
+            logs: List<MedStepLog>,
+            visibleSteps: List<SelfCareStepEntity>
+        ): Boolean {
+            if (visibleSteps.isEmpty()) return false
+            for (step in visibleSteps) {
+                val tods = SelfCareRoutines.parseTimeOfDay(step.timeOfDay)
+                if (tods.isEmpty()) {
+                    if (logs.none { it.id == step.stepId }) return false
+                } else {
+                    for (tod in tods) {
+                        if (!isMedLoggedAt(logs, step.stepId, tod)) return false
+                    }
                 }
             }
-        }
-        return true
-    }
-
-    fun parseTiersByTime(json: String): Map<String, String> {
-        if (json.isBlank() || json == "{}") return emptyMap()
-        return try {
-            val obj = gson.fromJson(json, JsonObject::class.java) ?: return emptyMap()
-            obj.entrySet().associate { (k, v) -> k to v.asString }
-        } catch (_: Exception) {
-            emptyMap()
-        }
-    }
-
-    private fun serializeTiersByTime(map: Map<String, String>): String {
-        val obj = JsonObject()
-        for ((k, v) in map) obj.addProperty(k, v)
-        return gson.toJson(obj)
-    }
-
-    /**
-     * Set or clear the medication tier picked for a specific time-of-day.
-     * Pass [tier] = null to clear the selection for that time-of-day.
-     *
-     * Logging behavior: any med whose time_of_day includes [timeOfDay] AND whose
-     * tier is included in the selected tier (cumulative) becomes logged. Meds in
-     * managed time-of-days that don't satisfy any selection are unlogged. Logs
-     * for meds in time-of-days that aren't currently managed are preserved.
-     */
-    suspend fun setTierForTime(timeOfDay: String, tier: String?) {
-        val routineType = "medication"
-        val today = startOfToday()
-        var existing = selfCareDao.getLogForDateOnce(routineType, today)
-        if (existing == null) {
-            selfCareDao.insertLog(
-                SelfCareLogEntity(
-                    routineType = routineType,
-                    date = today,
-                    startedAt = System.currentTimeMillis()
-                )
-            )
-            existing = selfCareDao.getLogForDateOnce(routineType, today)
-                ?: return
+            return true
         }
 
-        val tiersByTime = parseTiersByTime(existing.tiersByTime).toMutableMap()
-        if (tier.isNullOrBlank()) {
-            tiersByTime.remove(timeOfDay)
-        } else {
-            tiersByTime[timeOfDay] = tier
+        fun parseTiersByTime(json: String): Map<String, String> {
+            if (json.isBlank() || json == "{}") return emptyMap()
+            return try {
+                val obj = gson.fromJson(json, JsonObject::class.java) ?: return emptyMap()
+                obj.entrySet().associate { (k, v) -> k to v.asString }
+            } catch (_: Exception) {
+                emptyMap()
+            }
         }
 
-        val dbSteps = selfCareDao.getStepsForRoutineOnce(routineType)
-        val existingLogs = parseMedStepLogs(existing.completedSteps)
-        val now = System.currentTimeMillis()
-
-        val resultLogs = reconcileMedLogsForTierChange(
-            steps = dbSteps,
-            existingLogs = existingLogs,
-            tiersByTime = tiersByTime,
-            touchedTod = timeOfDay,
-            now = now
-        )
-
-        // "Done" mirrors the MedicationScreen: every time-of-day block that has
-        // any meds scheduled must have a tier selected. Using the per-block
-        // tier selection here keeps the Today chip, the medication screen
-        // header, and the habit completion in lockstep — otherwise the habit
-        // could be logged as "not done" even though the user had checked off
-        // every block in the UI.
-        val timeGroupsWithMeds = SelfCareRoutines.timesOfDay
-            .map { it.id }
-            .filter { tod -> dbSteps.any { step -> tod in SelfCareRoutines.parseTimeOfDay(step.timeOfDay) } }
-        val allDone = timeGroupsWithMeds.isNotEmpty() &&
-            timeGroupsWithMeds.all { it in tiersByTime.keys }
-
-        selfCareDao.updateLog(
-            existing.copy(
-                tiersByTime = serializeTiersByTime(tiersByTime),
-                completedSteps = serializeMedStepLogs(resultLogs),
-                isComplete = allDone,
-                startedAt = existing.startedAt ?: now
-            )
-        )
-        syncHabitCompletion(routineType, allDone)
-
-        val intervalMinutes = medicationPreferences.getReminderIntervalMinutesOnce()
-        if (!tier.isNullOrBlank() && intervalMinutes > 0) {
-            scheduleMedicationReminder(now, intervalMinutes.toLong() * 60_000L)
-        }
-    }
-
-    private fun serializeMedStepLogs(logs: List<MedStepLog>): String {
-        val array = JsonArray()
-        for (log in logs) {
+        private fun serializeTiersByTime(map: Map<String, String>): String {
             val obj = JsonObject()
-            obj.addProperty("id", log.id)
-            obj.addProperty("note", log.note)
-            obj.addProperty("at", log.at)
-            obj.addProperty("timeOfDay", log.timeOfDay)
-            array.add(obj)
-        }
-        return gson.toJson(array)
-    }
-
-    private fun scheduleMedStepReminder(step: SelfCareStepEntity, loggedAt: Long) {
-        val delay = step.reminderDelayMillis ?: return
-        val triggerTime = loggedAt + delay
-        val intent = Intent(context, MedStepReminderReceiver::class.java).apply {
-            putExtra("stepId", step.stepId)
-            putExtra("medName", step.label)
-            putExtra("medNote", step.note)
-        }
-        val requestCode = step.stepId.hashCode() + 400_000
-        val pendingIntent = PendingIntent.getBroadcast(
-            context, requestCode, intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-        ExactAlarmHelper.scheduleExact(context, triggerTime, pendingIntent)
-    }
-
-    private fun cancelMedStepReminder(stepId: String) {
-        val alarmManager = context.getSystemService(AlarmManager::class.java) ?: return
-        val intent = Intent(context, MedStepReminderReceiver::class.java)
-        val requestCode = stepId.hashCode() + 400_000
-        val pendingIntent = PendingIntent.getBroadcast(
-            context, requestCode, intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-        alarmManager.cancel(pendingIntent)
-    }
-
-    private fun scheduleMedicationReminder(loggedAt: Long, intervalMillis: Long) {
-        val triggerTime = maxOf(loggedAt + intervalMillis, System.currentTimeMillis() + 1000)
-        val intent = Intent(context, MedStepReminderReceiver::class.java).apply {
-            putExtra("stepId", "medication_global")
-            putExtra("medName", "Medication Reminder")
-            putExtra("medNote", "Time to take your next medications")
-        }
-        val requestCode = GLOBAL_MED_REMINDER_REQUEST_CODE
-        val pendingIntent = PendingIntent.getBroadcast(
-            context, requestCode, intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-        ExactAlarmHelper.scheduleExact(context, triggerTime, pendingIntent)
-    }
-
-    fun cancelMedicationReminder() {
-        val alarmManager = context.getSystemService(AlarmManager::class.java) ?: return
-        val intent = Intent(context, MedStepReminderReceiver::class.java)
-        val pendingIntent = PendingIntent.getBroadcast(
-            context, GLOBAL_MED_REMINDER_REQUEST_CODE, intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-        alarmManager.cancel(pendingIntent)
-    }
-
-    suspend fun ensureHabitsExist() {
-        getOrCreateHabit("morning")
-        getOrCreateHabit("bedtime")
-        getOrCreateHabit("medication")
-        getOrCreateHabit("housework")
-    }
-
-    private suspend fun getOrCreateHabit(routineType: String): HabitEntity {
-        val name = when (routineType) {
-            "morning" -> MORNING_HABIT_NAME
-            "medication" -> MEDICATION_HABIT_NAME
-            "housework" -> HOUSEWORK_HABIT_NAME
-            else -> BEDTIME_HABIT_NAME
-        }
-        val existing = habitDao.getHabitByName(name)
-        if (existing != null) return existing
-
-        val icon = when (routineType) {
-            "morning" -> "\u2600\uFE0F"
-            "medication" -> "\uD83D\uDC8A"
-            "housework" -> "\uD83C\uDFE0"
-            else -> "\uD83C\uDF19"
-        }
-        val color = when (routineType) {
-            "morning" -> "#F59E0B"
-            "medication" -> "#EF4444"
-            "housework" -> "#10B981"
-            else -> "#8B5CF6"
-        }
-        val category = when (routineType) {
-            "medication" -> "Medication"
-            "housework" -> "Housework"
-            else -> "Self-Care"
-        }
-        val desc = when (routineType) {
-            "morning" -> "Complete morning self-care routine"
-            "medication" -> "Take all daily medications"
-            "housework" -> "Complete daily housework routine"
-            else -> "Complete bedtime self-care routine"
+            for ((k, v) in map) obj.addProperty(k, v)
+            return gson.toJson(obj)
         }
 
-        val id = habitDao.insert(
-            HabitEntity(
-                name = name,
-                description = desc,
-                icon = icon,
-                color = color,
-                category = category,
-                targetFrequency = 1,
-                frequencyPeriod = "daily"
+        /**
+         * Set or clear the medication tier picked for a specific time-of-day.
+         * Pass [tier] = null to clear the selection for that time-of-day.
+         *
+         * Logging behavior: any med whose time_of_day includes [timeOfDay] AND whose
+         * tier is included in the selected tier (cumulative) becomes logged. Meds in
+         * managed time-of-days that don't satisfy any selection are unlogged. Logs
+         * for meds in time-of-days that aren't currently managed are preserved.
+         */
+        suspend fun setTierForTime(timeOfDay: String, tier: String?) {
+            val routineType = "medication"
+            val today = startOfToday()
+            var existing = selfCareDao.getLogForDateOnce(routineType, today)
+            if (existing == null) {
+                selfCareDao.insertLog(
+                    SelfCareLogEntity(
+                        routineType = routineType,
+                        date = today,
+                        startedAt = System.currentTimeMillis()
+                    )
+                )
+                existing = selfCareDao.getLogForDateOnce(routineType, today)
+                    ?: return
+            }
+
+            val tiersByTime = parseTiersByTime(existing.tiersByTime).toMutableMap()
+            if (tier.isNullOrBlank()) {
+                tiersByTime.remove(timeOfDay)
+            } else {
+                tiersByTime[timeOfDay] = tier
+            }
+
+            val dbSteps = selfCareDao.getStepsForRoutineOnce(routineType)
+            val existingLogs = parseMedStepLogs(existing.completedSteps)
+            val now = System.currentTimeMillis()
+
+            val resultLogs = reconcileMedLogsForTierChange(
+                steps = dbSteps,
+                existingLogs = existingLogs,
+                tiersByTime = tiersByTime,
+                touchedTod = timeOfDay,
+                now = now
             )
-        )
-        return habitDao.getHabitByIdOnce(id)
-            ?: throw IllegalStateException("Habit not found after insert")
-    }
 
-    private suspend fun syncHabitCompletion(routineType: String, allDone: Boolean) {
-        val habit = getOrCreateHabit(routineType)
-        val today = startOfToday()
-        val alreadyCompleted = habitCompletionDao.isCompletedOnDateOnce(habit.id, today)
+            // "Done" mirrors the MedicationScreen: every time-of-day block that has
+            // any meds scheduled must have a tier selected. Using the per-block
+            // tier selection here keeps the Today chip, the medication screen
+            // header, and the habit completion in lockstep — otherwise the habit
+            // could be logged as "not done" even though the user had checked off
+            // every block in the UI.
+            val timeGroupsWithMeds = SelfCareRoutines.timesOfDay
+                .map { it.id }
+                .filter { tod -> dbSteps.any { step -> tod in SelfCareRoutines.parseTimeOfDay(step.timeOfDay) } }
+            val allDone = timeGroupsWithMeds.isNotEmpty() &&
+                timeGroupsWithMeds.all { it in tiersByTime.keys }
 
-        if (allDone && !alreadyCompleted) {
-            habitCompletionDao.insert(
-                HabitCompletionEntity(
-                    habitId = habit.id,
-                    completedDate = today,
-                    completedAt = System.currentTimeMillis()
+            selfCareDao.updateLog(
+                existing.copy(
+                    tiersByTime = serializeTiersByTime(tiersByTime),
+                    completedSteps = serializeMedStepLogs(resultLogs),
+                    isComplete = allDone,
+                    startedAt = existing.startedAt ?: now
                 )
             )
-        } else if (!allDone && alreadyCompleted) {
-            habitCompletionDao.deleteByHabitAndDate(habit.id, today)
-        }
-    }
+            syncHabitCompletion(routineType, allDone)
 
-    suspend fun sortStepsByPhaseOrder(routineType: String, phaseOrder: List<String>) {
-        val steps = selfCareDao.getStepsForRoutineOnce(routineType)
-        val sorted = steps.sortedWith(compareBy<SelfCareStepEntity> {
-            val idx = phaseOrder.indexOf(it.phase)
-            if (idx >= 0) idx else phaseOrder.size
-        }.thenBy { it.sortOrder })
-
-        val updated = sorted.mapIndexed { i, step -> step.copy(sortOrder = i) }
-        selfCareDao.updateSteps(updated)
-    }
-
-    fun computeTierTimes(
-        steps: List<SelfCareStepEntity>,
-        routineType: String
-    ): Map<String, String> {
-        val tierOrder = SelfCareRoutines.getTierOrder(routineType)
-        return tierOrder.associateWith { tier ->
-            val visible = steps.filter { SelfCareRoutines.tierIncludes(tierOrder, tier, it.tier) }
-            val totalSeconds = visible.sumOf { parseDurationSeconds(it.duration) }
-            formatDuration(totalSeconds)
-        }
-    }
-
-    companion object {
-        const val MORNING_HABIT_NAME = "Morning Self-Care"
-        const val BEDTIME_HABIT_NAME = "Bedtime Self-Care"
-        const val MEDICATION_HABIT_NAME = "Medication"
-        const val HOUSEWORK_HABIT_NAME = "Housework"
-        private const val GLOBAL_MED_REMINDER_REQUEST_CODE = 500_000
-
-        private fun parseDurationSeconds(duration: String): Int {
-            val cleaned = duration.replace("~", "").replace("+", "").trim().lowercase()
-            val minMatch = Regex("""(\d+)\s*min""").find(cleaned)
-            val secMatch = Regex("""(\d+)\s*sec""").find(cleaned)
-            val mins = minMatch?.groupValues?.get(1)?.toIntOrNull() ?: 0
-            val secs = secMatch?.groupValues?.get(1)?.toIntOrNull() ?: 0
-            return mins * 60 + secs
+            val intervalMinutes = medicationPreferences.getReminderIntervalMinutesOnce()
+            if (!tier.isNullOrBlank() && intervalMinutes > 0) {
+                scheduleMedicationReminder(now, intervalMinutes.toLong() * 60_000L)
+            }
         }
 
-        private fun formatDuration(totalSeconds: Int): String {
-            return when {
+        private fun serializeMedStepLogs(logs: List<MedStepLog>): String {
+            val array = JsonArray()
+            for (log in logs) {
+                val obj = JsonObject()
+                obj.addProperty("id", log.id)
+                obj.addProperty("note", log.note)
+                obj.addProperty("at", log.at)
+                obj.addProperty("timeOfDay", log.timeOfDay)
+                array.add(obj)
+            }
+            return gson.toJson(array)
+        }
+
+        // Kept for future per-step med reminder wiring; callers currently use
+        // MedicationReminderScheduler instead. Suppressed until that wiring lands.
+        @Suppress("UnusedPrivateMember")
+        private fun scheduleMedStepReminder(step: SelfCareStepEntity, loggedAt: Long) {
+            val delay = step.reminderDelayMillis ?: return
+            val triggerTime = loggedAt + delay
+            val intent = Intent(context, MedStepReminderReceiver::class.java).apply {
+                putExtra("stepId", step.stepId)
+                putExtra("medName", step.label)
+                putExtra("medNote", step.note)
+            }
+            val requestCode = step.stepId.hashCode() + 400_000
+            val pendingIntent = PendingIntent.getBroadcast(
+                context,
+                requestCode,
+                intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            ExactAlarmHelper.scheduleExact(context, triggerTime, pendingIntent)
+        }
+
+        private fun cancelMedStepReminder(stepId: String) {
+            val alarmManager = context.getSystemService(AlarmManager::class.java) ?: return
+            val intent = Intent(context, MedStepReminderReceiver::class.java)
+            val requestCode = stepId.hashCode() + 400_000
+            val pendingIntent = PendingIntent.getBroadcast(
+                context,
+                requestCode,
+                intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            alarmManager.cancel(pendingIntent)
+        }
+
+        private fun scheduleMedicationReminder(loggedAt: Long, intervalMillis: Long) {
+            val triggerTime = maxOf(loggedAt + intervalMillis, System.currentTimeMillis() + 1000)
+            val intent = Intent(context, MedStepReminderReceiver::class.java).apply {
+                putExtra("stepId", "medication_global")
+                putExtra("medName", "Medication Reminder")
+                putExtra("medNote", "Time to take your next medications")
+            }
+            val requestCode = GLOBAL_MED_REMINDER_REQUEST_CODE
+            val pendingIntent = PendingIntent.getBroadcast(
+                context,
+                requestCode,
+                intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            ExactAlarmHelper.scheduleExact(context, triggerTime, pendingIntent)
+        }
+
+        fun cancelMedicationReminder() {
+            val alarmManager = context.getSystemService(AlarmManager::class.java) ?: return
+            val intent = Intent(context, MedStepReminderReceiver::class.java)
+            val pendingIntent = PendingIntent.getBroadcast(
+                context,
+                GLOBAL_MED_REMINDER_REQUEST_CODE,
+                intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            alarmManager.cancel(pendingIntent)
+        }
+
+        suspend fun ensureHabitsExist() {
+            getOrCreateHabit("morning")
+            getOrCreateHabit("bedtime")
+            getOrCreateHabit("medication")
+            getOrCreateHabit("housework")
+        }
+
+        private suspend fun getOrCreateHabit(routineType: String): HabitEntity {
+            val name = when (routineType) {
+                "morning" -> MORNING_HABIT_NAME
+                "medication" -> MEDICATION_HABIT_NAME
+                "housework" -> HOUSEWORK_HABIT_NAME
+                else -> BEDTIME_HABIT_NAME
+            }
+            val existing = habitDao.getHabitByName(name)
+            if (existing != null) return existing
+
+            val icon = when (routineType) {
+                "morning" -> "\u2600\uFE0F"
+                "medication" -> "\uD83D\uDC8A"
+                "housework" -> "\uD83C\uDFE0"
+                else -> "\uD83C\uDF19"
+            }
+            val color = when (routineType) {
+                "morning" -> "#F59E0B"
+                "medication" -> "#EF4444"
+                "housework" -> "#10B981"
+                else -> "#8B5CF6"
+            }
+            val category = when (routineType) {
+                "medication" -> "Medication"
+                "housework" -> "Housework"
+                else -> "Self-Care"
+            }
+            val desc = when (routineType) {
+                "morning" -> "Complete morning self-care routine"
+                "medication" -> "Take all daily medications"
+                "housework" -> "Complete daily housework routine"
+                else -> "Complete bedtime self-care routine"
+            }
+
+            val id = habitDao.insert(
+                HabitEntity(
+                    name = name,
+                    description = desc,
+                    icon = icon,
+                    color = color,
+                    category = category,
+                    targetFrequency = 1,
+                    frequencyPeriod = "daily"
+                )
+            )
+            return habitDao.getHabitByIdOnce(id)
+                ?: error("Habit not found after insert")
+        }
+
+        private suspend fun syncHabitCompletion(routineType: String, allDone: Boolean) {
+            val habit = getOrCreateHabit(routineType)
+            val today = startOfToday()
+            val alreadyCompleted = habitCompletionDao.isCompletedOnDateOnce(habit.id, today)
+
+            if (allDone && !alreadyCompleted) {
+                habitCompletionDao.insert(
+                    HabitCompletionEntity(
+                        habitId = habit.id,
+                        completedDate = today,
+                        completedAt = System.currentTimeMillis()
+                    )
+                )
+            } else if (!allDone && alreadyCompleted) {
+                habitCompletionDao.deleteByHabitAndDate(habit.id, today)
+            }
+        }
+
+        suspend fun sortStepsByPhaseOrder(routineType: String, phaseOrder: List<String>) {
+            val steps = selfCareDao.getStepsForRoutineOnce(routineType)
+            val sorted = steps.sortedWith(
+                compareBy<SelfCareStepEntity> {
+                    val idx = phaseOrder.indexOf(it.phase)
+                    if (idx >= 0) idx else phaseOrder.size
+                }.thenBy { it.sortOrder }
+            )
+
+            val updated = sorted.mapIndexed { i, step -> step.copy(sortOrder = i) }
+            selfCareDao.updateSteps(updated)
+        }
+
+        fun computeTierTimes(
+            steps: List<SelfCareStepEntity>,
+            routineType: String
+        ): Map<String, String> {
+            val tierOrder = SelfCareRoutines.getTierOrder(routineType)
+            return tierOrder.associateWith { tier ->
+                val visible = steps.filter { SelfCareRoutines.tierIncludes(tierOrder, tier, it.tier) }
+                val totalSeconds = visible.sumOf { parseDurationSeconds(it.duration) }
+                formatDuration(totalSeconds)
+            }
+        }
+
+        companion object {
+            const val MORNING_HABIT_NAME = "Morning Self-Care"
+            const val BEDTIME_HABIT_NAME = "Bedtime Self-Care"
+            const val MEDICATION_HABIT_NAME = "Medication"
+            const val HOUSEWORK_HABIT_NAME = "Housework"
+            private const val GLOBAL_MED_REMINDER_REQUEST_CODE = 500_000
+
+            private fun parseDurationSeconds(duration: String): Int {
+                val cleaned = duration
+                    .replace("~", "")
+                    .replace("+", "")
+                    .trim()
+                    .lowercase()
+                val minMatch = Regex("""(\d+)\s*min""").find(cleaned)
+                val secMatch = Regex("""(\d+)\s*sec""").find(cleaned)
+                val mins = minMatch?.groupValues?.get(1)?.toIntOrNull() ?: 0
+                val secs = secMatch?.groupValues?.get(1)?.toIntOrNull() ?: 0
+                return mins * 60 + secs
+            }
+
+            private fun formatDuration(totalSeconds: Int): String = when {
                 totalSeconds >= 60 -> "~${totalSeconds / 60} min"
-                totalSeconds > 0 -> "~${totalSeconds} sec"
+                totalSeconds > 0 -> "~$totalSeconds sec"
                 else -> "0 min"
             }
         }
     }
-}

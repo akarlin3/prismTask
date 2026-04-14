@@ -27,7 +27,8 @@ fun ContributionGrid(
     onDayClick: ((LocalDate) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
-    val startDate = today.minusWeeks(weeks.toLong() - 1)
+    val startDate = today
+        .minusWeeks(weeks.toLong() - 1)
         .with(java.time.DayOfWeek.MONDAY)
 
     Row(
@@ -44,7 +45,9 @@ fun ContributionGrid(
                     val count = completionsByDay[date] ?: 0
                     val intensity = if (targetPerDay > 0) {
                         (count.toFloat() / targetPerDay).coerceIn(0f, 1f)
-                    } else 0f
+                    } else {
+                        0f
+                    }
 
                     val isToday = date == today
                     val cellColor = when {
@@ -61,16 +64,21 @@ fun ContributionGrid(
                             .clip(RoundedCornerShape(2.dp))
                             .background(cellColor)
                             .then(
-                                if (isToday) Modifier.border(
-                                    1.dp,
-                                    MaterialTheme.colorScheme.onSurface,
-                                    RoundedCornerShape(2.dp)
-                                ) else Modifier
-                            )
-                            .then(
+                                if (isToday) {
+                                    Modifier.border(
+                                        1.dp,
+                                        MaterialTheme.colorScheme.onSurface,
+                                        RoundedCornerShape(2.dp)
+                                    )
+                                } else {
+                                    Modifier
+                                }
+                            ).then(
                                 if (onDayClick != null && !date.isAfter(today)) {
                                     Modifier.clickable { onDayClick(date) }
-                                } else Modifier
+                                } else {
+                                    Modifier
+                                }
                             )
                     )
                     currentDate = currentDate.plusDays(1)

@@ -143,8 +143,7 @@ fun MoveToProjectSheet(
                                 .clickable {
                                     isCreating = true
                                     newProjectName = ""
-                                }
-                                .padding(horizontal = 12.dp, vertical = 14.dp),
+                                }.padding(horizontal = 12.dp, vertical = 14.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(

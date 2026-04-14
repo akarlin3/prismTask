@@ -20,7 +20,6 @@ import org.robolectric.annotation.Config
 @RunWith(AndroidJUnit4::class)
 @Config(manifest = Config.NONE, sdk = [33], application = Application::class)
 class ShakePreferencesTest {
-
     private lateinit var prefs: ShakePreferences
 
     @Before

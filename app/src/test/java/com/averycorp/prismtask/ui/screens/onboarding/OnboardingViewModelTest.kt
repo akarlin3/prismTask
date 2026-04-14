@@ -14,7 +14,6 @@ import org.junit.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class OnboardingViewModelTest {
-
     private val testDispatcher = UnconfinedTestDispatcher()
 
     @Before

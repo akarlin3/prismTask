@@ -12,12 +12,14 @@ import androidx.room.PrimaryKey
         Index(value = ["date", "course_id"], unique = true),
         Index(value = ["course_id"])
     ],
-    foreignKeys = [ForeignKey(
-        entity = CourseEntity::class,
-        parentColumns = ["id"],
-        childColumns = ["course_id"],
-        onDelete = ForeignKey.CASCADE
-    )]
+    foreignKeys = [
+        ForeignKey(
+            entity = CourseEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["course_id"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ]
 )
 data class CourseCompletionEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,

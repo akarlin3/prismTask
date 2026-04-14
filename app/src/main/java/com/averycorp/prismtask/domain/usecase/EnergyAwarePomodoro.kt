@@ -32,7 +32,6 @@ data class PomodoroSessionConfig(
  * tracking see no change.
  */
 class EnergyAwarePomodoro {
-
     fun plan(
         latestEnergy: Int?,
         defaults: DefaultPomodoroConfig = DefaultPomodoroConfig()

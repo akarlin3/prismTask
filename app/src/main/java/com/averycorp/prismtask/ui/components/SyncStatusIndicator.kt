@@ -21,10 +21,19 @@ import androidx.compose.ui.unit.dp
 
 sealed class SyncState {
     data object Synced : SyncState()
+
     data object Syncing : SyncState()
-    data class Pending(val count: Int) : SyncState()
+
+    data class Pending(
+        val count: Int
+    ) : SyncState()
+
     data object Offline : SyncState()
-    data class Error(val message: String) : SyncState()
+
+    data class Error(
+        val message: String
+    ) : SyncState()
+
     data object NotSignedIn : SyncState()
 }
 

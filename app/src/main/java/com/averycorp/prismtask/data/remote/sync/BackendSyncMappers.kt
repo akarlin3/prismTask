@@ -1,27 +1,14 @@
 package com.averycorp.prismtask.data.remote.sync
 
-import android.util.Log
-import com.averycorp.prismtask.data.local.dao.HabitCompletionDao
-import com.averycorp.prismtask.data.local.dao.HabitDao
-import com.averycorp.prismtask.data.local.dao.ProjectDao
-import com.averycorp.prismtask.data.local.dao.TagDao
-import com.averycorp.prismtask.data.local.dao.TaskDao
-import com.averycorp.prismtask.data.local.dao.TaskTemplateDao
 import com.averycorp.prismtask.data.local.entity.HabitCompletionEntity
 import com.averycorp.prismtask.data.local.entity.HabitEntity
 import com.averycorp.prismtask.data.local.entity.ProjectEntity
 import com.averycorp.prismtask.data.local.entity.TagEntity
 import com.averycorp.prismtask.data.local.entity.TaskEntity
 import com.averycorp.prismtask.data.local.entity.TaskTemplateEntity
-import com.averycorp.prismtask.data.preferences.AuthTokenPreferences
-import com.averycorp.prismtask.data.preferences.BackendSyncPreferences
-import com.averycorp.prismtask.data.preferences.TemplatePreferences
-import com.averycorp.prismtask.data.remote.api.PrismTaskApi
 import com.google.gson.JsonObject
 import java.time.Instant
 import java.time.OffsetDateTime
-import javax.inject.Inject
-import javax.inject.Singleton
 
 // Entity-to-operation mappers + JSON helpers extracted from BackendSyncService.
 
@@ -159,20 +146,27 @@ internal fun taskTemplateToOperation(template: TaskTemplateEntity): SyncOperatio
         if (template.icon != null) addProperty("icon", template.icon)
         if (template.category != null) addProperty("category", template.category)
         if (template.templateTitle != null) addProperty("template_title", template.templateTitle)
-        if (template.templateDescription != null)
+        if (template.templateDescription != null) {
             addProperty("template_description", template.templateDescription)
-        if (template.templatePriority != null)
+        }
+        if (template.templatePriority != null) {
             addProperty("template_priority", template.templatePriority)
-        if (template.templateProjectId != null)
+        }
+        if (template.templateProjectId != null) {
             addProperty("template_project_id", template.templateProjectId)
-        if (template.templateTagsJson != null)
+        }
+        if (template.templateTagsJson != null) {
             addProperty("template_tags_json", template.templateTagsJson)
-        if (template.templateRecurrenceJson != null)
+        }
+        if (template.templateRecurrenceJson != null) {
             addProperty("template_recurrence_json", template.templateRecurrenceJson)
-        if (template.templateDuration != null)
+        }
+        if (template.templateDuration != null) {
             addProperty("template_duration", template.templateDuration)
-        if (template.templateSubtasksJson != null)
+        }
+        if (template.templateSubtasksJson != null) {
             addProperty("template_subtasks_json", template.templateSubtasksJson)
+        }
         addProperty("is_built_in", template.isBuiltIn)
         addProperty("usage_count", template.usageCount)
         if (template.lastUsedAt != null) addProperty("last_used_at", template.lastUsedAt)

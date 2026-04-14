@@ -11,7 +11,6 @@ import org.junit.Test
  */
 @HiltAndroidTest
 class HabitSmokeTest : SmokeTestBase() {
-
     @Test
     fun habitsTab_showsSeededHabits() {
         composeRule.waitForIdle()

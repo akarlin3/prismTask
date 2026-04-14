@@ -2,18 +2,15 @@ package com.averycorp.prismtask.smoke
 
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasText
-import androidx.compose.ui.test.onNodeWithContentDescription
-import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.longClick
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTouchInput
-import androidx.compose.ui.test.longClick
 import dagger.hilt.android.testing.HiltAndroidTest
 import org.junit.Test
 
 @HiltAndroidTest
 class QoLFeaturesSmokeTest : SmokeTestBase() {
-
     @Test
     fun sortMemory_persistsAcrossNavigation() {
         composeRule.waitForIdle()

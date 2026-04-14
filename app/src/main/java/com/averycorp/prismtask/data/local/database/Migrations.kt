@@ -220,7 +220,9 @@ val MIGRATION_9_10 = object : Migration(9, 10) {
                 FOREIGN KEY(`course_id`) REFERENCES `courses`(`id`) ON DELETE CASCADE
             )"""
         )
-        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_course_completions_date_course_id` ON `course_completions` (`date`, `course_id`)")
+        db.execSQL(
+            "CREATE UNIQUE INDEX IF NOT EXISTS `index_course_completions_date_course_id` ON `course_completions` (`date`, `course_id`)"
+        )
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_course_completions_course_id` ON `course_completions` (`course_id`)")
     }
 }
@@ -239,7 +241,9 @@ val MIGRATION_10_11 = object : Migration(10, 11) {
                 `created_at` INTEGER NOT NULL
             )"""
         )
-        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_self_care_logs_routine_type_date` ON `self_care_logs` (`routine_type`, `date`)")
+        db.execSQL(
+            "CREATE UNIQUE INDEX IF NOT EXISTS `index_self_care_logs_routine_type_date` ON `self_care_logs` (`routine_type`, `date`)"
+        )
     }
 }
 
@@ -592,7 +596,9 @@ val MIGRATION_34_35 = object : Migration(34, 35) {
                 `updated_at` INTEGER NOT NULL
             )"""
         )
-        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_medication_refills_medication_name` ON `medication_refills` (`medication_name`)")
+        db.execSQL(
+            "CREATE UNIQUE INDEX IF NOT EXISTS `index_medication_refills_medication_name` ON `medication_refills` (`medication_name`)"
+        )
     }
 }
 
@@ -611,7 +617,9 @@ val MIGRATION_33_34 = object : Migration(33, 34) {
             )"""
         )
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_mood_energy_logs_date` ON `mood_energy_logs` (`date`)")
-        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_mood_energy_logs_date_time_of_day` ON `mood_energy_logs` (`date`, `time_of_day`)")
+        db.execSQL(
+            "CREATE UNIQUE INDEX IF NOT EXISTS `index_mood_energy_logs_date_time_of_day` ON `mood_energy_logs` (`date`, `time_of_day`)"
+        )
     }
 }
 
@@ -716,5 +724,5 @@ val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_35_36,
     MIGRATION_36_37,
     MIGRATION_37_38,
-    MIGRATION_38_39,
+    MIGRATION_38_39
 )

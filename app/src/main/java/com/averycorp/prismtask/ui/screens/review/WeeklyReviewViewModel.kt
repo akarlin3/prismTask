@@ -25,110 +25,113 @@ import javax.inject.Inject
  * so every user gets a review.
  */
 @HiltViewModel
-class WeeklyReviewViewModel @Inject constructor(
-    private val taskRepository: TaskRepository,
-    private val weeklyReviewRepository: WeeklyReviewRepository
-) : ViewModel() {
+class WeeklyReviewViewModel
+    @Inject
+    constructor(
+        private val taskRepository: TaskRepository,
+        private val weeklyReviewRepository: WeeklyReviewRepository
+    ) : ViewModel() {
+        private val aggregator = WeeklyReviewAggregator()
+        private val gson = Gson()
 
-    private val aggregator = WeeklyReviewAggregator()
-    private val gson = Gson()
+        private val _state = MutableStateFlow(WeeklyReviewState())
+        val state: StateFlow<WeeklyReviewState> = _state.asStateFlow()
 
-    private val _state = MutableStateFlow(WeeklyReviewState())
-    val state: StateFlow<WeeklyReviewState> = _state.asStateFlow()
+        init {
+            refresh()
+        }
 
-    init {
-        refresh()
-    }
-
-    fun refresh() {
-        viewModelScope.launch {
-            val tasks = taskRepository.getAllTasksOnce()
-            val thisWeek = aggregator.aggregate(tasks)
-            val lastWeek = aggregator.aggregate(tasks, reference = thisWeek.weekStart - 1)
-            val narrative = buildNarrative(thisWeek, lastWeek)
-            _state.value = WeeklyReviewState(
-                thisWeek = thisWeek,
-                lastWeek = lastWeek,
-                narrative = narrative
-            )
-            // Persist the completed review so future weeks can scroll back
-            // through history. The metrics + narrative are serialized as
-            // separate JSON blobs so the stored schema doesn't depend on
-            // the aggregator's data class layout.
-            val metricsJson = gson.toJson(
-                SerializedMetrics(
-                    weekStart = thisWeek.weekStart,
-                    weekEnd = thisWeek.weekEnd,
-                    completed = thisWeek.completed,
-                    slipped = thisWeek.slipped,
-                    rescheduled = thisWeek.rescheduled,
-                    byCategory = thisWeek.byCategory.mapKeys { it.key.name }
+        fun refresh() {
+            viewModelScope.launch {
+                val tasks = taskRepository.getAllTasksOnce()
+                val thisWeek = aggregator.aggregate(tasks)
+                val lastWeek = aggregator.aggregate(tasks, reference = thisWeek.weekStart - 1)
+                val narrative = buildNarrative(thisWeek, lastWeek)
+                _state.value = WeeklyReviewState(
+                    thisWeek = thisWeek,
+                    lastWeek = lastWeek,
+                    narrative = narrative
                 )
-            )
-            val narrativeJson = gson.toJson(narrative)
-            weeklyReviewRepository.save(
-                weekStart = thisWeek.weekStart,
-                metricsJson = metricsJson,
-                aiInsightsJson = narrativeJson
-            )
+                // Persist the completed review so future weeks can scroll back
+                // through history. The metrics + narrative are serialized as
+                // separate JSON blobs so the stored schema doesn't depend on
+                // the aggregator's data class layout.
+                val metricsJson = gson.toJson(
+                    SerializedMetrics(
+                        weekStart = thisWeek.weekStart,
+                        weekEnd = thisWeek.weekEnd,
+                        completed = thisWeek.completed,
+                        slipped = thisWeek.slipped,
+                        rescheduled = thisWeek.rescheduled,
+                        byCategory = thisWeek.byCategory.mapKeys { it.key.name }
+                    )
+                )
+                val narrativeJson = gson.toJson(narrative)
+                weeklyReviewRepository.save(
+                    weekStart = thisWeek.weekStart,
+                    metricsJson = metricsJson,
+                    aiInsightsJson = narrativeJson
+                )
+            }
+        }
+
+        /**
+         * Local-only serialization shape for the weekly_reviews row. Decoupled
+         * from [WeeklyReviewStats] so future field additions don't require a
+         * Room migration.
+         */
+        private data class SerializedMetrics(
+            val weekStart: Long,
+            val weekEnd: Long,
+            val completed: Int,
+            val slipped: Int,
+            val rescheduled: Int,
+            val byCategory: Map<String, Int>
+        )
+
+        private fun buildNarrative(
+            thisWeek: WeeklyReviewStats,
+            lastWeek: WeeklyReviewStats
+        ): WeeklyReviewNarrative {
+            val wins = mutableListOf<String>()
+            val misses = mutableListOf<String>()
+            val suggestions = mutableListOf<String>()
+
+            if (thisWeek.completed > lastWeek.completed) {
+                wins.add(
+                    "Completed ${thisWeek.completed - lastWeek.completed} more task${if (thisWeek.completed - lastWeek.completed == 1) "" else "s"} than last week."
+                )
+            }
+            if (thisWeek.completionRate >= 0.75f) {
+                wins.add("Strong completion rate of ${(thisWeek.completionRate * 100).toInt()}%.")
+            }
+            val selfCareThisWeek = thisWeek.byCategory[LifeCategory.SELF_CARE] ?: 0
+            if (selfCareThisWeek > 0) {
+                wins.add("You made time for $selfCareThisWeek self-care task${if (selfCareThisWeek == 1) "" else "s"}.")
+            }
+
+            if (thisWeek.slipped > 0) {
+                misses.add("${thisWeek.slipped} task${if (thisWeek.slipped == 1) "" else "s"} slipped — they're ready to carry forward.")
+            }
+            val workThisWeek = thisWeek.byCategory[LifeCategory.WORK] ?: 0
+            val totalCat = thisWeek.byCategory.values.sum()
+            if (totalCat > 0 && workThisWeek > totalCat / 2) {
+                misses.add("Work made up the majority of your completed tasks this week.")
+            }
+
+            if (selfCareThisWeek == 0 && thisWeek.completed > 0) {
+                suggestions.add("Try scheduling one self-care task for the week ahead.")
+            }
+            if (thisWeek.slipped > thisWeek.completed) {
+                suggestions.add("You have more slipped than completed tasks — consider a lighter plan next week.")
+            }
+            if (wins.isEmpty()) {
+                wins.add("You showed up this week — that counts.")
+            }
+
+            return WeeklyReviewNarrative(wins = wins, misses = misses, suggestions = suggestions)
         }
     }
-
-    /**
-     * Local-only serialization shape for the weekly_reviews row. Decoupled
-     * from [WeeklyReviewStats] so future field additions don't require a
-     * Room migration.
-     */
-    private data class SerializedMetrics(
-        val weekStart: Long,
-        val weekEnd: Long,
-        val completed: Int,
-        val slipped: Int,
-        val rescheduled: Int,
-        val byCategory: Map<String, Int>
-    )
-
-    private fun buildNarrative(
-        thisWeek: WeeklyReviewStats,
-        lastWeek: WeeklyReviewStats
-    ): WeeklyReviewNarrative {
-        val wins = mutableListOf<String>()
-        val misses = mutableListOf<String>()
-        val suggestions = mutableListOf<String>()
-
-        if (thisWeek.completed > lastWeek.completed) {
-            wins.add("Completed ${thisWeek.completed - lastWeek.completed} more task${if (thisWeek.completed - lastWeek.completed == 1) "" else "s"} than last week.")
-        }
-        if (thisWeek.completionRate >= 0.75f) {
-            wins.add("Strong completion rate of ${(thisWeek.completionRate * 100).toInt()}%.")
-        }
-        val selfCareThisWeek = thisWeek.byCategory[LifeCategory.SELF_CARE] ?: 0
-        if (selfCareThisWeek > 0) {
-            wins.add("You made time for $selfCareThisWeek self-care task${if (selfCareThisWeek == 1) "" else "s"}.")
-        }
-
-        if (thisWeek.slipped > 0) {
-            misses.add("${thisWeek.slipped} task${if (thisWeek.slipped == 1) "" else "s"} slipped — they're ready to carry forward.")
-        }
-        val workThisWeek = thisWeek.byCategory[LifeCategory.WORK] ?: 0
-        val totalCat = thisWeek.byCategory.values.sum()
-        if (totalCat > 0 && workThisWeek > totalCat / 2) {
-            misses.add("Work made up the majority of your completed tasks this week.")
-        }
-
-        if (selfCareThisWeek == 0 && thisWeek.completed > 0) {
-            suggestions.add("Try scheduling one self-care task for the week ahead.")
-        }
-        if (thisWeek.slipped > thisWeek.completed) {
-            suggestions.add("You have more slipped than completed tasks — consider a lighter plan next week.")
-        }
-        if (wins.isEmpty()) {
-            wins.add("You showed up this week — that counts.")
-        }
-
-        return WeeklyReviewNarrative(wins = wins, misses = misses, suggestions = suggestions)
-    }
-}
 
 data class WeeklyReviewState(
     val thisWeek: WeeklyReviewStats? = null,

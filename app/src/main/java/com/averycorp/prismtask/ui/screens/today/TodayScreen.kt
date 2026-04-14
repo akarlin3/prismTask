@@ -1,5 +1,6 @@
 package com.averycorp.prismtask.ui.screens.today
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -12,8 +13,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.background
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.Add
@@ -76,8 +75,8 @@ import com.averycorp.prismtask.ui.screens.today.components.HabitChipRow
 import com.averycorp.prismtask.ui.screens.today.components.MorningCheckInBanner
 import com.averycorp.prismtask.ui.screens.today.components.NeutralGray
 import com.averycorp.prismtask.ui.screens.today.components.OverloadBanner
-import com.averycorp.prismtask.ui.screens.today.components.SelfCareNudgeCard
 import com.averycorp.prismtask.ui.screens.today.components.PlanForTodaySheet
+import com.averycorp.prismtask.ui.screens.today.components.SelfCareNudgeCard
 import com.averycorp.prismtask.ui.screens.today.components.SwipeableTaskItem
 import com.averycorp.prismtask.ui.screens.today.components.TodayBalanceSection
 
@@ -172,7 +171,8 @@ fun TodayScreen(
     val onMoveTaskToTomorrow: (TaskEntity) -> Unit = { task ->
         viewModel.onRescheduleTask(
             task.id,
-            com.averycorp.prismtask.domain.usecase.DateShortcuts.tomorrow(System.currentTimeMillis())
+            com.averycorp.prismtask.domain.usecase.DateShortcuts
+                .tomorrow(System.currentTimeMillis())
         )
         viewModel.showSnackbar("Moved to tomorrow", "Undo") {
             viewModel.onRescheduleTask(task.id, task.dueDate)
@@ -231,426 +231,432 @@ fun TodayScreen(
         floatingActionButtonPosition = FabPosition.End
     ) { padding ->
         androidx.compose.animation.Crossfade(targetState = isLoading, label = "today_loading") { loading ->
-        if (loading) {
-            Column(modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp)) {
-                ProgressHeaderSkeleton()
-                Spacer(modifier = Modifier.height(16.dp))
-                TaskListSkeleton(count = 3)
-                Spacer(modifier = Modifier.height(16.dp))
-                HabitChipRowSkeleton(count = 4)
-            }
-        } else {
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            if (nothingToday && !allTodayDone) {
-                item(key = "day_clear") {
-                    RichEmptyState(
-                        icon = "\u2600\uFE0F",
-                        title = "Nothing Planned for Today",
-                        description = "That's fine \u2014 rest is productive too.",
-                        actionLabel = "Plan Your Day",
-                        onAction = { viewModel.onShowPlanSheet() },
-                        secondaryActionLabel = "Create a Task",
-                        onSecondaryAction = {
-                            editorSheetTaskId = null
-                            showEditorSheet = true
-                        }
-                    )
+            if (loading) {
+                Column(modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp)) {
+                    ProgressHeaderSkeleton()
+                    Spacer(modifier = Modifier.height(16.dp))
+                    TaskListSkeleton(count = 3)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    HabitChipRowSkeleton(count = 4)
                 }
-            }
-
-            if (allTodayDone) {
-                item(key = "all_caught_up") {
-                    AllCaughtUpCard(
-                        taskCount = completedToday.size,
-                        habitCount = habitCompletedCount,
-                        habitTotal = habitTotalCount,
-                        onPlanTomorrow = { viewModel.onShowPlanSheet() }
-                    )
-                }
-            }
-
-            if (showEnergyCheckIn) {
-                item(key = "energy_checkin") {
-                    EnergyCheckInCard(
-                        visible = true,
-                        isLoading = energyPlanLoading,
-                        selectedEnergy = selectedEnergy,
-                        planMessage = energyPlanMessage,
-                        userTier = coachingUserTier,
-                        onSelectEnergy = { level ->
-                            coachingViewModel.onSelectEnergy(
-                                level = level,
-                                todayTasks = todayTasks + plannedTasks,
-                                overdueCount = overdueTasks.size,
-                                yesterdayCompleted = completedToday.size,
-                                yesterdayTotal = combinedTotal
-                            )
-                        },
-                        onDismiss = { coachingViewModel.dismissEnergyCheckIn() },
-                        onUpgrade = { tier ->
-                            navController.navigate(PrismTaskRoute.Settings.route)
-                        }
-                    )
-                }
-            }
-
-            if (workLifeBalancePrefs.showBalanceBar) {
-                item(key = "balance_bar") {
-                    TodayBalanceSection(
-                        state = balanceState,
-                        burnout = burnoutResult,
-                        onClick = { navController.navigate(PrismTaskRoute.WeeklyBalanceReport.route) }
-                    )
-                }
-            }
-
-            if (showCheckInPrompt) {
-                item(key = "checkin_prompt") {
-                    MorningCheckInBanner(
-                        greeting = checkInGreeting,
-                        summary = checkInSummary,
-                        onStart = {
-                            navController.navigate(PrismTaskRoute.MorningCheckIn.route)
-                        },
-                        onDismiss = { viewModel.dismissCheckInPrompt() }
-                    )
-                }
-            } else if (showCheckInCompleteChip) {
-                item(key = "checkin_complete_chip") {
-                    CheckInCompleteChip(
-                        visible = true,
-                        onAutoDismiss = { viewModel.clearCompletionChip() }
-                    )
-                }
-            }
-
-            // Self-care nudge card (v1.4.0 V2). Only shows when the nudge
-            // engine picks one based on balance state + burnout score.
-            currentNudge?.let { nudge ->
-                item(key = "self_care_nudge") {
-                    SelfCareNudgeCard(
-                        nudge = nudge,
-                        onDidIt = { viewModel.nudgeDidIt() },
-                        onSnooze = { viewModel.snoozeNudge() },
-                        onDismiss = { viewModel.dismissNudge() }
-                    )
-                }
-            }
-
-            // Overload alert banner: shows once per day when the user's
-            // work ratio blows past their target + configured threshold
-            // (v1.4.0 V2). Dismiss is local to this screen session.
-            if (balanceState.isOverloaded && !overloadBannerDismissed) {
-                item(key = "overload_banner") {
-                    val workPctNow = ((balanceState.currentRatios[
-                        com.averycorp.prismtask.domain.model.LifeCategory.WORK
-                    ] ?: 0f) * 100f).toInt()
-                    OverloadBanner(
-                        workPct = workPctNow,
-                        targetPct = workLifeBalancePrefs.workTarget,
-                        onDismiss = { overloadBannerDismissed = true }
-                    )
-                }
-            }
-
-            item(key = "quick_actions") {
-                androidx.compose.foundation.layout.Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.padding(vertical = 2.dp)
+            } else {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding)
+                        .padding(horizontal = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    AssistChip(
-                        onClick = { navController.navigate(PrismTaskRoute.DailyBriefing.route) },
-                        label = { Text("Briefing") },
-                        leadingIcon = {
-                            Icon(Icons.Default.AutoAwesome, contentDescription = null, modifier = Modifier.size(16.dp))
-                        }
-                    )
-                    AssistChip(
-                        onClick = { navController.navigate(PrismTaskRoute.SmartPomodoro.route) },
-                        label = { Text("Focus") },
-                        leadingIcon = {
-                            Icon(Icons.Default.Timer, contentDescription = null, modifier = Modifier.size(16.dp))
-                        }
-                    )
-                    AssistChip(
-                        onClick = { navController.navigate(PrismTaskRoute.WeeklyPlanner.route) },
-                        label = { Text("Plan Week") },
-                        leadingIcon = {
-                            Icon(Icons.Default.CalendarMonth, contentDescription = null, modifier = Modifier.size(16.dp))
-                        }
-                    )
-                }
-            }
-
-            if (SECTION_OVERDUE !in hiddenSections && overdueTasks.isNotEmpty()) {
-                val expanded = SECTION_OVERDUE !in collapsedSections
-                item(key = "section_overdue") {
-                    CollapsibleSection(
-                        emoji = "\uD83D\uDCC2",
-                        title = "From Earlier",
-                        count = overdueTasks.size,
-                        accentColor = NeutralGray,
-                        expanded = expanded,
-                        onToggle = { viewModel.onToggleSectionCollapsed(SECTION_OVERDUE) }
-                    ) {
-                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            overdueTasks.forEach { task ->
-                                SwipeableTaskItem(
-                                    task = task,
-                                    tags = taskTagsMap[task.id].orEmpty(),
-                                    isOverdue = false,
-                                    onComplete = { viewModel.onCompleteWithUndo(task.id) },
-                                    onClick = {
-                                        editorSheetTaskId = task.id
-                                        showEditorSheet = true
-                                    },
-                                    onReschedule = { reschedulePopupTask = task },
-                                    onMoveToProject = { moveToProjectSheetTask = task },
-                                    onDuplicate = { viewModel.onDuplicateTask(task.id) },
-                                    onDelete = { viewModel.onDeleteTaskWithUndo(task.id) },
-                                    onMoveToTomorrow = { onMoveTaskToTomorrow(task) }
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
-            if (SECTION_TODAY_TASKS !in hiddenSections && todayTasks.isNotEmpty()) {
-                val expanded = SECTION_TODAY_TASKS !in collapsedSections
-                item(key = "section_today_tasks") {
-                    CollapsibleSection(
-                        emoji = "\uD83D\uDCCB",
-                        title = "Today Tasks",
-                        count = todayTasks.size,
-                        accentColor = MaterialTheme.colorScheme.primary,
-                        expanded = expanded,
-                        onToggle = { viewModel.onToggleSectionCollapsed(SECTION_TODAY_TASKS) }
-                    ) {
-                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            todayTasks.forEach { task ->
-                                SwipeableTaskItem(
-                                    task = task,
-                                    tags = taskTagsMap[task.id].orEmpty(),
-                                    onComplete = { viewModel.onCompleteWithUndo(task.id) },
-                                    onClick = {
-                                        editorSheetTaskId = task.id
-                                        showEditorSheet = true
-                                    },
-                                    onReschedule = { reschedulePopupTask = task },
-                                    onMoveToProject = { moveToProjectSheetTask = task },
-                                    onDuplicate = { viewModel.onDuplicateTask(task.id) },
-                                    onDelete = { viewModel.onDeleteTaskWithUndo(task.id) },
-                                    onMoveToTomorrow = { onMoveTaskToTomorrow(task) }
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
-            if (SECTION_HABITS !in hiddenSections && todayHabits.isNotEmpty()) {
-                val expanded = SECTION_HABITS !in collapsedSections
-                val habitDoneCount = todayHabits.count { it.isCompletedToday }
-                item(key = "section_habits") {
-                    CollapsibleSection(
-                        emoji = "\uD83D\uDCAA",
-                        title = "Habits",
-                        count = todayHabits.size,
-                        countLabel = "$habitDoneCount done",
-                        accentColor = MaterialTheme.colorScheme.tertiary,
-                        expanded = expanded,
-                        onToggle = { viewModel.onToggleSectionCollapsed(SECTION_HABITS) }
-                    ) {
-                        HabitChipRow(
-                            habits = todayHabits,
-                            onToggle = { hws ->
-                                // Mode-task habits (Medication, Morning / Bedtime
-                                // Self-Care, Housework, School, Leisure) each
-                                // own a dedicated detail screen — open that
-                                // instead of toggling, since tapping the chip
-                                // can't express the per-section state those
-                                // flows require. Everything else still toggles
-                                // directly from the chip.
-                                val route = when (hws.habit.name) {
-                                    SelfCareRepository.MEDICATION_HABIT_NAME ->
-                                        PrismTaskRoute.Medication.route
-                                    SelfCareRepository.MORNING_HABIT_NAME ->
-                                        PrismTaskRoute.SelfCare.createRoute("morning")
-                                    SelfCareRepository.BEDTIME_HABIT_NAME ->
-                                        PrismTaskRoute.SelfCare.createRoute("bedtime")
-                                    SelfCareRepository.HOUSEWORK_HABIT_NAME ->
-                                        PrismTaskRoute.SelfCare.createRoute("housework")
-                                    SchoolworkRepository.SCHOOL_HABIT_NAME ->
-                                        PrismTaskRoute.Schoolwork.route
-                                    LeisureRepository.LEISURE_HABIT_NAME ->
-                                        PrismTaskRoute.Leisure.route
-                                    else -> null
+                    if (nothingToday && !allTodayDone) {
+                        item(key = "day_clear") {
+                            RichEmptyState(
+                                icon = "\u2600\uFE0F",
+                                title = "Nothing Planned for Today",
+                                description = "That's fine \u2014 rest is productive too.",
+                                actionLabel = "Plan Your Day",
+                                onAction = { viewModel.onShowPlanSheet() },
+                                secondaryActionLabel = "Create a Task",
+                                onSecondaryAction = {
+                                    editorSheetTaskId = null
+                                    showEditorSheet = true
                                 }
-                                if (route != null) {
-                                    navController.navigate(route)
-                                } else {
-                                    viewModel.onToggleHabitCompletion(
-                                        hws.habit.id,
-                                        hws.isCompletedToday
+                            )
+                        }
+                    }
+
+                    if (allTodayDone) {
+                        item(key = "all_caught_up") {
+                            AllCaughtUpCard(
+                                taskCount = completedToday.size,
+                                habitCount = habitCompletedCount,
+                                habitTotal = habitTotalCount,
+                                onPlanTomorrow = { viewModel.onShowPlanSheet() }
+                            )
+                        }
+                    }
+
+                    if (showEnergyCheckIn) {
+                        item(key = "energy_checkin") {
+                            EnergyCheckInCard(
+                                visible = true,
+                                isLoading = energyPlanLoading,
+                                selectedEnergy = selectedEnergy,
+                                planMessage = energyPlanMessage,
+                                userTier = coachingUserTier,
+                                onSelectEnergy = { level ->
+                                    coachingViewModel.onSelectEnergy(
+                                        level = level,
+                                        todayTasks = todayTasks + plannedTasks,
+                                        overdueCount = overdueTasks.size,
+                                        yesterdayCompleted = completedToday.size,
+                                        yesterdayTotal = combinedTotal
                                     )
+                                },
+                                onDismiss = { coachingViewModel.dismissEnergyCheckIn() },
+                                onUpgrade = { tier ->
+                                    navController.navigate(PrismTaskRoute.Settings.route)
                                 }
-                            },
-                            onSeeAll = onNavigateToHabits
-                        )
+                            )
+                        }
                     }
-                }
-            }
 
-            if (scheduledTodayHabits.isNotEmpty()) {
-                item(key = "section_scheduled_habits") {
-                    CollapsibleSection(
-                        emoji = "\uD83D\uDCC5",
-                        title = "Scheduled Today",
-                        count = scheduledTodayHabits.size,
-                        accentColor = Color(0xFF10B981),
-                        expanded = true,
-                        onToggle = {}
-                    ) {
-                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            scheduledTodayHabits.forEach { hws ->
-                                BookableHabitReminderCard(
-                                    habitWithStatus = hws,
-                                    onClick = {
+                    if (workLifeBalancePrefs.showBalanceBar) {
+                        item(key = "balance_bar") {
+                            TodayBalanceSection(
+                                state = balanceState,
+                                burnout = burnoutResult,
+                                onClick = { navController.navigate(PrismTaskRoute.WeeklyBalanceReport.route) }
+                            )
+                        }
+                    }
+
+                    if (showCheckInPrompt) {
+                        item(key = "checkin_prompt") {
+                            MorningCheckInBanner(
+                                greeting = checkInGreeting,
+                                summary = checkInSummary,
+                                onStart = {
+                                    navController.navigate(PrismTaskRoute.MorningCheckIn.route)
+                                },
+                                onDismiss = { viewModel.dismissCheckInPrompt() }
+                            )
+                        }
+                    } else if (showCheckInCompleteChip) {
+                        item(key = "checkin_complete_chip") {
+                            CheckInCompleteChip(
+                                visible = true,
+                                onAutoDismiss = { viewModel.clearCompletionChip() }
+                            )
+                        }
+                    }
+
+                    // Self-care nudge card (v1.4.0 V2). Only shows when the nudge
+                    // engine picks one based on balance state + burnout score.
+                    currentNudge?.let { nudge ->
+                        item(key = "self_care_nudge") {
+                            SelfCareNudgeCard(
+                                nudge = nudge,
+                                onDidIt = { viewModel.nudgeDidIt() },
+                                onSnooze = { viewModel.snoozeNudge() },
+                                onDismiss = { viewModel.dismissNudge() }
+                            )
+                        }
+                    }
+
+                    // Overload alert banner: shows once per day when the user's
+                    // work ratio blows past their target + configured threshold
+                    // (v1.4.0 V2). Dismiss is local to this screen session.
+                    if (balanceState.isOverloaded && !overloadBannerDismissed) {
+                        item(key = "overload_banner") {
+                            val workPctNow = (
+                                (
+                                    balanceState.currentRatios[
+                                        com.averycorp.prismtask.domain.model.LifeCategory.WORK
+                                    ] ?: 0f
+                                ) * 100f
+                            ).toInt()
+                            OverloadBanner(
+                                workPct = workPctNow,
+                                targetPct = workLifeBalancePrefs.workTarget,
+                                onDismiss = { overloadBannerDismissed = true }
+                            )
+                        }
+                    }
+
+                    item(key = "quick_actions") {
+                        androidx.compose.foundation.layout.Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.padding(vertical = 2.dp)
+                        ) {
+                            AssistChip(
+                                onClick = { navController.navigate(PrismTaskRoute.DailyBriefing.route) },
+                                label = { Text("Briefing") },
+                                leadingIcon = {
+                                    Icon(Icons.Default.AutoAwesome, contentDescription = null, modifier = Modifier.size(16.dp))
+                                }
+                            )
+                            AssistChip(
+                                onClick = { navController.navigate(PrismTaskRoute.SmartPomodoro.route) },
+                                label = { Text("Focus") },
+                                leadingIcon = {
+                                    Icon(Icons.Default.Timer, contentDescription = null, modifier = Modifier.size(16.dp))
+                                }
+                            )
+                            AssistChip(
+                                onClick = { navController.navigate(PrismTaskRoute.WeeklyPlanner.route) },
+                                label = { Text("Plan Week") },
+                                leadingIcon = {
+                                    Icon(Icons.Default.CalendarMonth, contentDescription = null, modifier = Modifier.size(16.dp))
+                                }
+                            )
+                        }
+                    }
+
+                    if (SECTION_OVERDUE !in hiddenSections && overdueTasks.isNotEmpty()) {
+                        val expanded = SECTION_OVERDUE !in collapsedSections
+                        item(key = "section_overdue") {
+                            CollapsibleSection(
+                                emoji = "\uD83D\uDCC2",
+                                title = "From Earlier",
+                                count = overdueTasks.size,
+                                accentColor = NeutralGray,
+                                expanded = expanded,
+                                onToggle = { viewModel.onToggleSectionCollapsed(SECTION_OVERDUE) }
+                            ) {
+                                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    overdueTasks.forEach { task ->
+                                        SwipeableTaskItem(
+                                            task = task,
+                                            tags = taskTagsMap[task.id].orEmpty(),
+                                            isOverdue = false,
+                                            onComplete = { viewModel.onCompleteWithUndo(task.id) },
+                                            onClick = {
+                                                editorSheetTaskId = task.id
+                                                showEditorSheet = true
+                                            },
+                                            onReschedule = { reschedulePopupTask = task },
+                                            onMoveToProject = { moveToProjectSheetTask = task },
+                                            onDuplicate = { viewModel.onDuplicateTask(task.id) },
+                                            onDelete = { viewModel.onDeleteTaskWithUndo(task.id) },
+                                            onMoveToTomorrow = { onMoveTaskToTomorrow(task) }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    if (SECTION_TODAY_TASKS !in hiddenSections && todayTasks.isNotEmpty()) {
+                        val expanded = SECTION_TODAY_TASKS !in collapsedSections
+                        item(key = "section_today_tasks") {
+                            CollapsibleSection(
+                                emoji = "\uD83D\uDCCB",
+                                title = "Today Tasks",
+                                count = todayTasks.size,
+                                accentColor = MaterialTheme.colorScheme.primary,
+                                expanded = expanded,
+                                onToggle = { viewModel.onToggleSectionCollapsed(SECTION_TODAY_TASKS) }
+                            ) {
+                                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    todayTasks.forEach { task ->
+                                        SwipeableTaskItem(
+                                            task = task,
+                                            tags = taskTagsMap[task.id].orEmpty(),
+                                            onComplete = { viewModel.onCompleteWithUndo(task.id) },
+                                            onClick = {
+                                                editorSheetTaskId = task.id
+                                                showEditorSheet = true
+                                            },
+                                            onReschedule = { reschedulePopupTask = task },
+                                            onMoveToProject = { moveToProjectSheetTask = task },
+                                            onDuplicate = { viewModel.onDuplicateTask(task.id) },
+                                            onDelete = { viewModel.onDeleteTaskWithUndo(task.id) },
+                                            onMoveToTomorrow = { onMoveTaskToTomorrow(task) }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    if (SECTION_HABITS !in hiddenSections && todayHabits.isNotEmpty()) {
+                        val expanded = SECTION_HABITS !in collapsedSections
+                        val habitDoneCount = todayHabits.count { it.isCompletedToday }
+                        item(key = "section_habits") {
+                            CollapsibleSection(
+                                emoji = "\uD83D\uDCAA",
+                                title = "Habits",
+                                count = todayHabits.size,
+                                countLabel = "$habitDoneCount done",
+                                accentColor = MaterialTheme.colorScheme.tertiary,
+                                expanded = expanded,
+                                onToggle = { viewModel.onToggleSectionCollapsed(SECTION_HABITS) }
+                            ) {
+                                HabitChipRow(
+                                    habits = todayHabits,
+                                    onToggle = { hws ->
+                                        // Mode-task habits (Medication, Morning / Bedtime
+                                        // Self-Care, Housework, School, Leisure) each
+                                        // own a dedicated detail screen — open that
+                                        // instead of toggling, since tapping the chip
+                                        // can't express the per-section state those
+                                        // flows require. Everything else still toggles
+                                        // directly from the chip.
+                                        val route = when (hws.habit.name) {
+                                            SelfCareRepository.MEDICATION_HABIT_NAME ->
+                                                PrismTaskRoute.Medication.route
+                                            SelfCareRepository.MORNING_HABIT_NAME ->
+                                                PrismTaskRoute.SelfCare.createRoute("morning")
+                                            SelfCareRepository.BEDTIME_HABIT_NAME ->
+                                                PrismTaskRoute.SelfCare.createRoute("bedtime")
+                                            SelfCareRepository.HOUSEWORK_HABIT_NAME ->
+                                                PrismTaskRoute.SelfCare.createRoute("housework")
+                                            SchoolworkRepository.SCHOOL_HABIT_NAME ->
+                                                PrismTaskRoute.Schoolwork.route
+                                            LeisureRepository.LEISURE_HABIT_NAME ->
+                                                PrismTaskRoute.Leisure.route
+                                            else -> null
+                                        }
+                                        if (route != null) {
+                                            navController.navigate(route)
+                                        } else {
+                                            viewModel.onToggleHabitCompletion(
+                                                hws.habit.id,
+                                                hws.isCompletedToday
+                                            )
+                                        }
+                                    },
+                                    onSeeAll = onNavigateToHabits
+                                )
+                            }
+                        }
+                    }
+
+                    if (scheduledTodayHabits.isNotEmpty()) {
+                        item(key = "section_scheduled_habits") {
+                            CollapsibleSection(
+                                emoji = "\uD83D\uDCC5",
+                                title = "Scheduled Today",
+                                count = scheduledTodayHabits.size,
+                                accentColor = Color(0xFF10B981),
+                                expanded = true,
+                                onToggle = {}
+                            ) {
+                                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    scheduledTodayHabits.forEach { hws ->
+                                        BookableHabitReminderCard(
+                                            habitWithStatus = hws,
+                                            onClick = {
+                                                navController.navigate(
+                                                    PrismTaskRoute.HabitDetail.createRoute(hws.habit.id)
+                                                )
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    if (overdueBookableHabits.isNotEmpty()) {
+                        items(overdueBookableHabits, key = { "overdue_bookable_${it.habit.id}" }) { hws ->
+                            val daysAgo = if (hws.lastLogDate != null) {
+                                java.util.concurrent.TimeUnit.MILLISECONDS.toDays(
+                                    System.currentTimeMillis() - hws.lastLogDate
+                                )
+                            } else {
+                                null
+                            }
+                            val label = if (daysAgo != null) "last done $daysAgo days ago" else "never done"
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
                                         navController.navigate(
                                             PrismTaskRoute.HabitDetail.createRoute(hws.habit.id)
                                         )
-                                    }
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
-            if (overdueBookableHabits.isNotEmpty()) {
-                items(overdueBookableHabits, key = { "overdue_bookable_${it.habit.id}" }) { hws ->
-                    val daysAgo = if (hws.lastLogDate != null) {
-                        java.util.concurrent.TimeUnit.MILLISECONDS.toDays(
-                            System.currentTimeMillis() - hws.lastLogDate
-                        )
-                    } else null
-                    val label = if (daysAgo != null) "last done $daysAgo days ago" else "never done"
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                navController.navigate(
-                                    PrismTaskRoute.HabitDetail.createRoute(hws.habit.id)
-                                )
-                            },
-                        shape = RoundedCornerShape(8.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-                        )
-                    ) {
-                        androidx.compose.foundation.layout.Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "\uD83D\uDCCB",
-                                style = MaterialTheme.typography.bodyLarge
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "${hws.habit.name} \u2014 $label",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                }
-            }
-
-            if (SECTION_PLANNED !in hiddenSections && plannedTasks.isNotEmpty()) {
-                val expanded = SECTION_PLANNED !in collapsedSections
-                item(key = "section_planned") {
-                    CollapsibleSection(
-                        emoji = "\uD83D\uDCCC",
-                        title = "Planned",
-                        count = plannedTasks.size,
-                        accentColor = MaterialTheme.colorScheme.secondary,
-                        expanded = expanded,
-                        onToggle = { viewModel.onToggleSectionCollapsed(SECTION_PLANNED) }
-                    ) {
-                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            plannedTasks.forEach { task ->
-                                SwipeableTaskItem(
-                                    task = task,
-                                    tags = taskTagsMap[task.id].orEmpty(),
-                                    isPlanned = true,
-                                    onComplete = { viewModel.onCompleteWithUndo(task.id) },
-                                    onClick = {
-                                        editorSheetTaskId = task.id
-                                        showEditorSheet = true
                                     },
-                                    onReschedule = { reschedulePopupTask = task },
-                                    onMoveToProject = { moveToProjectSheetTask = task },
-                                    onDuplicate = { viewModel.onDuplicateTask(task.id) },
-                                    onDelete = { viewModel.onDeleteTaskWithUndo(task.id) },
-                                    onMoveToTomorrow = { onMoveTaskToTomorrow(task) }
+                                shape = RoundedCornerShape(8.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
                                 )
+                            ) {
+                                androidx.compose.foundation.layout.Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "\uD83D\uDCCB",
+                                        style = MaterialTheme.typography.bodyLarge
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "${hws.habit.name} \u2014 $label",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
                             }
                         }
                     }
-                }
-            }
 
-            if (SECTION_PLAN_MORE !in hiddenSections) {
-                item(key = "plan_more") {
-                    FilledTonalButton(
-                        onClick = { viewModel.onShowPlanSheet() },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Plan More")
-                    }
-                }
-            }
-
-            if (SECTION_COMPLETED !in hiddenSections && completedToday.isNotEmpty()) {
-                val expanded = SECTION_COMPLETED !in collapsedSections
-                item(key = "section_completed") {
-                    CollapsibleSection(
-                        emoji = "\u2705",
-                        title = "Completed",
-                        count = completedToday.size,
-                        accentColor = CompletedGreen,
-                        expanded = expanded,
-                        onToggle = { viewModel.onToggleSectionCollapsed(SECTION_COMPLETED) }
-                    ) {
-                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            completedToday.forEach { task ->
-                                CompletedTaskItem(
-                                    task = task,
-                                    onUncomplete = { viewModel.onToggleComplete(task.id, true) }
-                                )
+                    if (SECTION_PLANNED !in hiddenSections && plannedTasks.isNotEmpty()) {
+                        val expanded = SECTION_PLANNED !in collapsedSections
+                        item(key = "section_planned") {
+                            CollapsibleSection(
+                                emoji = "\uD83D\uDCCC",
+                                title = "Planned",
+                                count = plannedTasks.size,
+                                accentColor = MaterialTheme.colorScheme.secondary,
+                                expanded = expanded,
+                                onToggle = { viewModel.onToggleSectionCollapsed(SECTION_PLANNED) }
+                            ) {
+                                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    plannedTasks.forEach { task ->
+                                        SwipeableTaskItem(
+                                            task = task,
+                                            tags = taskTagsMap[task.id].orEmpty(),
+                                            isPlanned = true,
+                                            onComplete = { viewModel.onCompleteWithUndo(task.id) },
+                                            onClick = {
+                                                editorSheetTaskId = task.id
+                                                showEditorSheet = true
+                                            },
+                                            onReschedule = { reschedulePopupTask = task },
+                                            onMoveToProject = { moveToProjectSheetTask = task },
+                                            onDuplicate = { viewModel.onDuplicateTask(task.id) },
+                                            onDelete = { viewModel.onDeleteTaskWithUndo(task.id) },
+                                            onMoveToTomorrow = { onMoveTaskToTomorrow(task) }
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
+
+                    if (SECTION_PLAN_MORE !in hiddenSections) {
+                        item(key = "plan_more") {
+                            FilledTonalButton(
+                                onClick = { viewModel.onShowPlanSheet() },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Plan More")
+                            }
+                        }
+                    }
+
+                    if (SECTION_COMPLETED !in hiddenSections && completedToday.isNotEmpty()) {
+                        val expanded = SECTION_COMPLETED !in collapsedSections
+                        item(key = "section_completed") {
+                            CollapsibleSection(
+                                emoji = "\u2705",
+                                title = "Completed",
+                                count = completedToday.size,
+                                accentColor = CompletedGreen,
+                                expanded = expanded,
+                                onToggle = { viewModel.onToggleSectionCollapsed(SECTION_COMPLETED) }
+                            ) {
+                                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    completedToday.forEach { task ->
+                                        CompletedTaskItem(
+                                            task = task,
+                                            onUncomplete = { viewModel.onToggleComplete(task.id, true) }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    item(key = "bottom_pad") {
+                        Spacer(modifier = Modifier.height(120.dp))
+                    }
                 }
             }
-
-            item(key = "bottom_pad") {
-                Spacer(modifier = Modifier.height(120.dp))
-            }
-        }
-        }
         }
     }
 
@@ -764,10 +770,11 @@ fun TodayScreen(
                 currentTier = coachingUserTier,
                 requiredTier = requiredTier,
                 feature = if (requiredTier == UserTier.PREMIUM) "AI Daily Planning" else "AI Coaching",
-                description = if (requiredTier == UserTier.PREMIUM)
+                description = if (requiredTier == UserTier.PREMIUM) {
                     "AI-powered daily planning that adapts to your energy"
-                else
-                    "Get personalized help when you're stuck on a task",
+                } else {
+                    "Get personalized help when you're stuck on a task"
+                },
                 onUpgrade = { tier ->
                     coachingViewModel.dismissUpgradePrompt()
                     navController.navigate(PrismTaskRoute.Settings.route)

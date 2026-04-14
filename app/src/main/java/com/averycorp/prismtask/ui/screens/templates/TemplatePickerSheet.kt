@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -120,7 +119,9 @@ fun TemplatePickerSheet(
                             Icon(Icons.Default.Close, contentDescription = "Clear")
                         }
                     }
-                } else null,
+                } else {
+                    null
+                },
                 singleLine = true,
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier
@@ -184,19 +185,21 @@ fun TemplatePickerSheet(
                         )
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(
-                            text = if (searchQuery.isNotBlank() || selectedCategory != null)
+                            text = if (searchQuery.isNotBlank() || selectedCategory != null) {
                                 "No Matching Templates"
-                            else
-                                "No Templates Yet",
+                            } else {
+                                "No Templates Yet"
+                            },
                             style = MaterialTheme.typography.titleSmall,
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = if (searchQuery.isNotBlank() || selectedCategory != null)
+                            text = if (searchQuery.isNotBlank() || selectedCategory != null) {
                                 "Try A Different Search Or Category."
-                            else
-                                "Create One From The Manage Templates Screen.",
+                            } else {
+                                "Create One From The Manage Templates Screen."
+                            },
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -316,16 +319,27 @@ private fun TemplatePickerRow(
 }
 
 private fun colorForCategoryHash(category: String?): androidx.compose.ui.graphics.Color {
-    if (category.isNullOrBlank()) return androidx.compose.ui.graphics.Color(0xFF4A90D9)
+    if (category.isNullOrBlank()) {
+        return androidx.compose.ui.graphics
+            .Color(0xFF4A90D9)
+    }
     val palette = listOf(
-        androidx.compose.ui.graphics.Color(0xFF4A90D9),
-        androidx.compose.ui.graphics.Color(0xFF7B61FF),
-        androidx.compose.ui.graphics.Color(0xFFE8872A),
-        androidx.compose.ui.graphics.Color(0xFFD93025),
-        androidx.compose.ui.graphics.Color(0xFF2E7D32),
-        androidx.compose.ui.graphics.Color(0xFF00897B),
-        androidx.compose.ui.graphics.Color(0xFFF4B400),
-        androidx.compose.ui.graphics.Color(0xFF8E24AA)
+        androidx.compose.ui.graphics
+            .Color(0xFF4A90D9),
+        androidx.compose.ui.graphics
+            .Color(0xFF7B61FF),
+        androidx.compose.ui.graphics
+            .Color(0xFFE8872A),
+        androidx.compose.ui.graphics
+            .Color(0xFFD93025),
+        androidx.compose.ui.graphics
+            .Color(0xFF2E7D32),
+        androidx.compose.ui.graphics
+            .Color(0xFF00897B),
+        androidx.compose.ui.graphics
+            .Color(0xFFF4B400),
+        androidx.compose.ui.graphics
+            .Color(0xFF8E24AA)
     )
     val index = (category.hashCode() and Int.MAX_VALUE) % palette.size
     return palette[index]

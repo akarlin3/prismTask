@@ -17,7 +17,6 @@ import org.junit.Test
  * the pure functions — so that's where the tests live.
  */
 class DuplicateTaskTest {
-
     private fun sampleTask(
         id: Long = 42L,
         title: String = "Write report",
@@ -99,7 +98,10 @@ class DuplicateTaskTest {
         val now = 1_800_000_000_000L
 
         val duplicate = TaskRepository.buildDuplicateEntity(
-            original, nextSortOrder = 10, now = now, copyDueDate = true
+            original,
+            nextSortOrder = 10,
+            now = now,
+            copyDueDate = true
         )
 
         assertEquals("dueDate should be copied", original.dueDate, duplicate.dueDate)
@@ -119,7 +121,10 @@ class DuplicateTaskTest {
         val now = 1_800_000_000_000L
 
         val duplicate = TaskRepository.buildDuplicateEntity(
-            original, nextSortOrder = 10, now = now, copyDueDate = false
+            original,
+            nextSortOrder = 10,
+            now = now,
+            copyDueDate = false
         )
 
         assertNull("dueDate should reset", duplicate.dueDate)

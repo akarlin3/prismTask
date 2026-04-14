@@ -28,7 +28,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import kotlinx.coroutines.launch
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -36,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import com.averycorp.prismtask.BuildConfig
 import com.averycorp.prismtask.ui.navigation.PrismTaskRoute
 import com.averycorp.prismtask.ui.screens.settings.sections.AboutSection
 import com.averycorp.prismtask.ui.screens.settings.sections.AccessibilitySection
@@ -44,6 +44,10 @@ import com.averycorp.prismtask.ui.screens.settings.sections.AiNotificationsSecti
 import com.averycorp.prismtask.ui.screens.settings.sections.AiSection
 import com.averycorp.prismtask.ui.screens.settings.sections.AppearanceSection
 import com.averycorp.prismtask.ui.screens.settings.sections.BackupExportSection
+import com.averycorp.prismtask.ui.screens.settings.sections.BoundariesSection
+import com.averycorp.prismtask.ui.screens.settings.sections.BrainModeSection
+import com.averycorp.prismtask.ui.screens.settings.sections.CheckInStreakSection
+import com.averycorp.prismtask.ui.screens.settings.sections.ClinicalReportSection
 import com.averycorp.prismtask.ui.screens.settings.sections.DashboardSection
 import com.averycorp.prismtask.ui.screens.settings.sections.DataSection
 import com.averycorp.prismtask.ui.screens.settings.sections.DebugLogAdminSection
@@ -51,25 +55,21 @@ import com.averycorp.prismtask.ui.screens.settings.sections.DebugOnboardingSecti
 import com.averycorp.prismtask.ui.screens.settings.sections.DebugTierSection
 import com.averycorp.prismtask.ui.screens.settings.sections.DeviceCalendarSection
 import com.averycorp.prismtask.ui.screens.settings.sections.DisplaySection
+import com.averycorp.prismtask.ui.screens.settings.sections.ForgivenessStreakSection
 import com.averycorp.prismtask.ui.screens.settings.sections.GoogleCalendarSection
 import com.averycorp.prismtask.ui.screens.settings.sections.HabitsSection
+import com.averycorp.prismtask.ui.screens.settings.sections.HelpFeedbackSection
 import com.averycorp.prismtask.ui.screens.settings.sections.ModesSection
 import com.averycorp.prismtask.ui.screens.settings.sections.NavigationSection
-import com.averycorp.prismtask.ui.screens.settings.sections.SubscriptionSection
+import com.averycorp.prismtask.ui.screens.settings.sections.NotificationDiagnosticSection
 import com.averycorp.prismtask.ui.screens.settings.sections.ShakeSection
+import com.averycorp.prismtask.ui.screens.settings.sections.SubscriptionSection
 import com.averycorp.prismtask.ui.screens.settings.sections.SwipeActionsSection
 import com.averycorp.prismtask.ui.screens.settings.sections.TaskDefaultsSection
 import com.averycorp.prismtask.ui.screens.settings.sections.TimerSection
 import com.averycorp.prismtask.ui.screens.settings.sections.VoiceInputSection
-import com.averycorp.prismtask.ui.screens.settings.sections.BrainModeSection
-import com.averycorp.prismtask.ui.screens.settings.sections.BoundariesSection
-import com.averycorp.prismtask.ui.screens.settings.sections.CheckInStreakSection
-import com.averycorp.prismtask.ui.screens.settings.sections.ClinicalReportSection
-import com.averycorp.prismtask.ui.screens.settings.sections.ForgivenessStreakSection
-import com.averycorp.prismtask.ui.screens.settings.sections.HelpFeedbackSection
-import com.averycorp.prismtask.ui.screens.settings.sections.NotificationDiagnosticSection
 import com.averycorp.prismtask.ui.screens.settings.sections.WorkLifeBalanceSection
-import com.averycorp.prismtask.BuildConfig
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -591,7 +591,8 @@ fun SettingsScreen(
                 HelpFeedbackSection(
                     onNavigateToBugReport = {
                         navController.navigate(
-                            com.averycorp.prismtask.ui.navigation.PrismTaskRoute.BugReport.createRoute("Settings")
+                            com.averycorp.prismtask.ui.navigation.PrismTaskRoute.BugReport
+                                .createRoute("Settings")
                         )
                     },
                     onNavigateToFeatureRequest = {

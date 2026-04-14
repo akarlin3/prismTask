@@ -11,7 +11,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class DailyBriefingTest {
-
     @Test
     fun briefing_parsesFromApiResponse() {
         val apiResponse = DailyBriefingResponse(
@@ -19,13 +18,13 @@ class DailyBriefingTest {
             topPriorities = listOf(
                 BriefingPriorityResponse(1L, "Fix bug", "Due today, high priority"),
                 BriefingPriorityResponse(2L, "Write report", "Blocks other work"),
-                BriefingPriorityResponse(3L, "Reply to emails", "Quick win"),
+                BriefingPriorityResponse(3L, "Reply to emails", "Quick win")
             ),
             headsUp = listOf("2 overdue tasks from yesterday"),
             suggestedOrder = listOf(
                 SuggestedTaskResponse(1L, "Fix bug", "9:00 AM", "Hardest first"),
                 SuggestedTaskResponse(2L, "Write report", "10:30 AM", "Focus time"),
-                SuggestedTaskResponse(3L, "Reply to emails", "12:00 PM", "After break"),
+                SuggestedTaskResponse(3L, "Reply to emails", "12:00 PM", "After break")
             ),
             habitReminders = listOf("Exercise", "Read 20 pages"),
             dayType = "moderate"
@@ -59,7 +58,7 @@ class DailyBriefingTest {
         val suggestedOrder = listOf(
             SuggestedTask(5L, "Task A", "9:00 AM", "Priority"),
             SuggestedTask(3L, "Task B", "10:00 AM", "After A"),
-            SuggestedTask(1L, "Task C", "11:00 AM", "Last"),
+            SuggestedTask(1L, "Task C", "11:00 AM", "Last")
         )
 
         // Simulate the applyOrder logic

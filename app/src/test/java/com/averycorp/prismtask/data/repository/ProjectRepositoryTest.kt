@@ -22,7 +22,6 @@ import org.junit.Test
  * effects without caring about its internals.
  */
 class ProjectRepositoryTest {
-
     private lateinit var projectDao: FakeProjectDao
     private lateinit var syncTracker: SyncTracker
     private lateinit var repo: ProjectRepository
@@ -174,6 +173,9 @@ class ProjectRepositoryTest {
 
         override fun searchProjects(query: String): Flow<List<ProjectEntity>> =
             flowOf(projects.filter { it.name.contains(query, ignoreCase = true) })
-        override suspend fun deleteAll() { projects.clear() }
+
+        override suspend fun deleteAll() {
+            projects.clear()
+        }
     }
 }

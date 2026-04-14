@@ -24,15 +24,11 @@ import androidx.room.PrimaryKey
 data class HabitCompletionEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
-
     @ColumnInfo(name = "habit_id")
     val habitId: Long,
-
     @ColumnInfo(name = "completed_date")
     val completedDate: Long,
-
     @ColumnInfo(name = "completed_at")
     val completedAt: Long = System.currentTimeMillis(),
-
     val notes: String? = null
 )

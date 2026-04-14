@@ -36,7 +36,6 @@ import org.junit.Test
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class TaskListViewModelTest {
-
     private val dispatcher = StandardTestDispatcher()
 
     private lateinit var taskRepository: TaskRepository

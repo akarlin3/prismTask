@@ -441,8 +441,11 @@ private fun IntensityOption(
             Text(
                 label,
                 style = MaterialTheme.typography.bodyMedium,
-                color = if (enabled) MaterialTheme.colorScheme.onSurface
-                else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                color = if (enabled) {
+                    MaterialTheme.colorScheme.onSurface
+                } else {
+                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                }
             )
             Text(
                 description,
@@ -464,8 +467,7 @@ private fun SubInfoChip(text: String) {
             .background(
                 MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                 RoundedCornerShape(6.dp)
-            )
-            .padding(8.dp),
+            ).padding(8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text("\u2139\uFE0F", style = MaterialTheme.typography.bodySmall)

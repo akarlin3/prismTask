@@ -20,7 +20,6 @@ import org.junit.rules.TemporaryFolder
 import java.io.File
 
 class CalendarSyncPreferencesTest {
-
     @get:Rule
     val tmpFolder = TemporaryFolder()
 

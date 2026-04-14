@@ -22,17 +22,13 @@ import androidx.room.PrimaryKey
 data class WeeklyReviewEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
-
     /** Midnight-normalized Monday of the review week, in millis. */
     @ColumnInfo(name = "week_start_date")
     val weekStartDate: Long,
-
     @ColumnInfo(name = "metrics_json")
     val metricsJson: String,
-
     @ColumnInfo(name = "ai_insights_json")
     val aiInsightsJson: String? = null,
-
     @ColumnInfo(name = "created_at")
     val createdAt: Long = System.currentTimeMillis()
 )

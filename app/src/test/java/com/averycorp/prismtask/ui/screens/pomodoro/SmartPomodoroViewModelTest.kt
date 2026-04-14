@@ -40,7 +40,6 @@ import org.junit.Test
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class SmartPomodoroViewModelTest {
-
     private val dispatcher = StandardTestDispatcher()
 
     private lateinit var appContext: Context
@@ -74,7 +73,12 @@ class SmartPomodoroViewModelTest {
     }
 
     private fun newViewModel() = SmartPomodoroViewModel(
-        appContext, taskDao, api, proFeatureGate, moodEnergyRepository, timerPreferences
+        appContext,
+        taskDao,
+        api,
+        proFeatureGate,
+        moodEnergyRepository,
+        timerPreferences
     )
 
     @Test

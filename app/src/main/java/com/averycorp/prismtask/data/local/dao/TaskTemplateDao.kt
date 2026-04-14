@@ -10,7 +10,6 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface TaskTemplateDao {
-
     @Query("SELECT * FROM task_templates ORDER BY usage_count DESC, last_used_at DESC")
     fun getAllTemplates(): Flow<List<TaskTemplateEntity>>
 

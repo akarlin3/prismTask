@@ -8,6 +8,7 @@ import androidx.compose.ui.unit.sp
 
 fun scaledTypography(base: Typography, factor: Float): Typography {
     if (factor == 1.0f) return base
+
     fun TextStyle.scaled() = copy(
         fontSize = fontSize * factor,
         lineHeight = lineHeight * factor

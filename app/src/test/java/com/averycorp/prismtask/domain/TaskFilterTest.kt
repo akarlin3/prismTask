@@ -9,7 +9,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class TaskFilterTest {
-
     @Test
     fun default_isNotActive() {
         assertFalse(TaskFilter().isActive())

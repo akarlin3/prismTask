@@ -9,7 +9,6 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface WeeklyReviewDao {
-
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(review: WeeklyReviewEntity): Long
 

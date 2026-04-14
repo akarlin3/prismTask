@@ -9,13 +9,11 @@ import com.averycorp.prismtask.ui.screens.timeline.AiScheduleBlock
 import com.averycorp.prismtask.ui.screens.timeline.AiTimeBlockStats
 import com.averycorp.prismtask.ui.screens.timeline.TimeBlockConfig
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class TimeBlockTest {
-
     @Test
     fun schedule_parsesFromApiResponse() {
         val response = TimeBlockResponse(
@@ -82,8 +80,8 @@ class TimeBlockTest {
     fun blockDrag_calculatesNewStartTimeCorrectly() {
         // Simulate: a block at 09:00 is dragged to 14:00
         val dayStartMillis = 1712732400000L // some epoch day start
-        val originalStartMinutes = 9 * 60  // 09:00
-        val newStartMinutes = 14 * 60  // 14:00
+        val originalStartMinutes = 9 * 60 // 09:00
+        val newStartMinutes = 14 * 60 // 14:00
 
         val originalStartMillis = dayStartMillis + originalStartMinutes * 60 * 1000L
         val newStartMillis = dayStartMillis + newStartMinutes * 60 * 1000L

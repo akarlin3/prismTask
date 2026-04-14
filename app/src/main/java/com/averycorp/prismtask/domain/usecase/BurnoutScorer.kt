@@ -40,10 +40,10 @@ data class BurnoutInputs(
  * Human-readable interpretation of a burnout score.
  */
 enum class BurnoutBand {
-    BALANCED,   // 0..25
-    MONITOR,    // 26..50
-    CAUTION,    // 51..75
-    HIGH_RISK;  // 76..100
+    BALANCED, // 0..25
+    MONITOR, // 26..50
+    CAUTION, // 51..75
+    HIGH_RISK; // 76..100
 
     companion object {
         fun forScore(score: Int): BurnoutBand = when {
@@ -99,7 +99,6 @@ data class BurnoutResult(
  * "Balanced ✨" or "High risk — consider blocking time for rest."
  */
 class BurnoutScorer {
-
     fun compute(inputs: BurnoutInputs): BurnoutResult {
         val workPoints = workOvershoot(inputs.workRatio, inputs.workTarget)
         val overduePoints = overdueComponent(inputs.overdueCount)
@@ -108,8 +107,10 @@ class BurnoutScorer {
         val streakPoints = streakBreakComponent(inputs.streakBreaks)
         val restDeficitPoints = if (inputs.restDeficit) REST_DEFICIT_MAX else 0
 
-        val total = (workPoints + overduePoints + selfCarePoints + medicationPoints +
-            streakPoints + restDeficitPoints).coerceIn(0, 100)
+        val total = (
+            workPoints + overduePoints + selfCarePoints + medicationPoints +
+                streakPoints + restDeficitPoints
+        ).coerceIn(0, 100)
 
         return BurnoutResult(
             score = total,
@@ -135,8 +136,10 @@ class BurnoutScorer {
         now: Long = System.currentTimeMillis()
     ): BurnoutResult {
         val overdue = tasks.count { t ->
-            !t.isCompleted && t.archivedAt == null &&
-                t.dueDate != null && t.dueDate < now
+            !t.isCompleted &&
+                t.archivedAt == null &&
+                t.dueDate != null &&
+                t.dueDate < now
         }
 
         // Self-care tasks this week: how many were completed vs. total.
@@ -145,7 +148,9 @@ class BurnoutScorer {
                 task.dueDate != null &&
                 task.dueDate >= now - SEVEN_DAYS_MILLIS
         }
-        val skippedSelfCareRatio = if (selfCareThisWeek.isEmpty()) 0f else {
+        val skippedSelfCareRatio = if (selfCareThisWeek.isEmpty()) {
+            0f
+        } else {
             val skipped = selfCareThisWeek.count { !it.isCompleted }
             skipped.toFloat() / selfCareThisWeek.size.toFloat()
         }

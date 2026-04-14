@@ -27,7 +27,6 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class TaskDaoTest {
-
     @get:Rule
     val instantTaskExecutorRule = InstantTaskExecutorRule()
 
@@ -39,7 +38,8 @@ class TaskDaoTest {
     @Before
     fun setup() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
-        database = Room.inMemoryDatabaseBuilder(context, PrismTaskDatabase::class.java)
+        database = Room
+            .inMemoryDatabaseBuilder(context, PrismTaskDatabase::class.java)
             .allowMainThreadQueries()
             .build()
         taskDao = database.taskDao()
@@ -344,5 +344,4 @@ class TaskDaoTest {
         // id2 must stay in B.
         assertEquals(projectBId, taskDao.getTaskByIdOnce(id2)!!.projectId)
     }
-
 }

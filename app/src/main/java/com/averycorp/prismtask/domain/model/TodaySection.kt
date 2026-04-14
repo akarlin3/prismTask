@@ -54,7 +54,6 @@ data class TodaySection(
  * given the user's persisted order, hidden-set, and current tier.
  */
 object TodayLayoutResolver {
-
     /**
      * @param userOrder ordered list of section keys as persisted by the user
      *                  (may be empty -> use defaults)

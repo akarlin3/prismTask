@@ -10,7 +10,6 @@ import org.junit.Test
  * Exercises pure-Kotlin mapping helpers and in-memory aggregations.
  */
 class WidgetDataTest {
-
     private val startOfToday = 1_700_000_000_000L
 
     @Test
@@ -89,9 +88,13 @@ class WidgetDataTest {
     fun `today widget tasks respect max tasks parameter`() {
         val tasks = (1L..10L).map { sampleRow(it, "task $it") }
         val data = TodayWidgetData(
-            totalTasks = 10, completedTasks = 0, tasks = tasks,
-            totalHabits = 0, completedHabits = 0,
-            habitIcons = emptyList(), productivityScore = 0
+            totalTasks = 10,
+            completedTasks = 0,
+            tasks = tasks,
+            totalHabits = 0,
+            completedHabits = 0,
+            habitIcons = emptyList(),
+            productivityScore = 0
         )
         assertEquals(0, data.tasks.take(0).size) // small: no tasks
         assertEquals(3, data.tasks.take(3).size) // medium: 3
@@ -141,9 +144,13 @@ class WidgetDataTest {
     @Test
     fun `today widget productivity score capped at 100`() {
         val data = TodayWidgetData(
-            totalTasks = 5, completedTasks = 5, tasks = emptyList(),
-            totalHabits = 2, completedHabits = 2,
-            habitIcons = emptyList(), productivityScore = 100
+            totalTasks = 5,
+            completedTasks = 5,
+            tasks = emptyList(),
+            totalHabits = 2,
+            completedHabits = 2,
+            habitIcons = emptyList(),
+            productivityScore = 100
         )
         assertEquals(100, data.productivityScore)
     }

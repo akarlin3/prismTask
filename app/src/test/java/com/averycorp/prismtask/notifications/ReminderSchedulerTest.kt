@@ -14,7 +14,6 @@ import org.junit.Test
  * alarm fire, and should we bother firing at all?
  */
 class ReminderSchedulerTest {
-
     @Test
     fun computeTriggerTime_subtractsReminderOffsetFromDueDate() {
         val dueDate = 1_700_000_000_000L
@@ -66,7 +65,7 @@ class ReminderSchedulerTest {
     fun combined_futureDueDate_fires() {
         val now = 1_700_000_000_000L
         val dueDate = now + (60L * 60 * 1000) // one hour from now
-        val offset = 15L * 60 * 1000           // 15 minute reminder
+        val offset = 15L * 60 * 1000 // 15 minute reminder
         val trigger = ReminderScheduler.computeTriggerTime(dueDate, offset)
         assertTrue(ReminderScheduler.isInFuture(trigger, now))
     }

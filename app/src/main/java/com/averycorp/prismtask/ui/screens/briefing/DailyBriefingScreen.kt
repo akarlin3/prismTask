@@ -1,6 +1,5 @@
 package com.averycorp.prismtask.ui.screens.briefing
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -66,7 +65,7 @@ private val DAY_TYPE_HEAVY = Color(0xFFEF4444)
 private val PRIORITY_BORDER_COLORS = listOf(
     Color(0xFF6366F1), // #1 - Indigo
     Color(0xFF3B82F6), // #2 - Blue
-    Color(0xFF10B981), // #3 - Emerald
+    Color(0xFF10B981) // #3 - Emerald
 )
 
 @OptIn(ExperimentalMaterial3Api::class)

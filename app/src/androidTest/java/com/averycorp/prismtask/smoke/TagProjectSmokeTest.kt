@@ -15,7 +15,6 @@ import org.junit.Test
  */
 @HiltAndroidTest
 class TagProjectSmokeTest : SmokeTestBase() {
-
     @Test
     fun projectsArePresentInDatabase() = runBlocking {
         val projects = database.projectDao().getAllProjectsOnce()

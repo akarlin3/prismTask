@@ -262,13 +262,18 @@ private fun StepRow(label: String, entry: MedStepLog?) {
                 .size(14.dp)
                 .clip(CircleShape)
                 .background(
-                    if (logged) Color(0xFF10B981)
-                    else MaterialTheme.colorScheme.surfaceContainerHigh
-                )
-                .border(
+                    if (logged) {
+                        Color(0xFF10B981)
+                    } else {
+                        MaterialTheme.colorScheme.surfaceContainerHigh
+                    }
+                ).border(
                     1.dp,
-                    if (logged) Color(0xFF10B981)
-                    else MaterialTheme.colorScheme.outlineVariant,
+                    if (logged) {
+                        Color(0xFF10B981)
+                    } else {
+                        MaterialTheme.colorScheme.outlineVariant
+                    },
                     CircleShape
                 ),
             contentAlignment = Alignment.Center
@@ -286,8 +291,11 @@ private fun StepRow(label: String, entry: MedStepLog?) {
         Text(
             text = label,
             style = MaterialTheme.typography.bodySmall,
-            color = if (logged) MaterialTheme.colorScheme.onSurface
-            else MaterialTheme.colorScheme.onSurfaceVariant,
+            color = if (logged) {
+                MaterialTheme.colorScheme.onSurface
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            },
             modifier = Modifier.weight(1f)
         )
         if (entry != null && entry.at > 0L) {

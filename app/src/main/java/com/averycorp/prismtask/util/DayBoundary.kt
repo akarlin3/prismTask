@@ -10,7 +10,6 @@ import java.util.Calendar
  * day rolls over at the configured time instead of midnight.
  */
 object DayBoundary {
-
     /**
      * Returns the timestamp of the start of the current day, taking [dayStartHour]
      * into account. If the current wall-clock hour is before [dayStartHour], the

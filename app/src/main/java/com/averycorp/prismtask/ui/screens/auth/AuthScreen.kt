@@ -2,8 +2,6 @@ package com.averycorp.prismtask.ui.screens.auth
 
 import android.app.Activity
 import android.util.Log
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -120,21 +118,25 @@ fun AuthScreen(
                         val activity = context as Activity
 
                         suspend fun requestAuthorized(): GetCredentialResponse {
-                            val googleIdOption = GetGoogleIdOption.Builder()
+                            val googleIdOption = GetGoogleIdOption
+                                .Builder()
                                 .setServerClientId(WEB_CLIENT_ID)
                                 .setFilterByAuthorizedAccounts(true)
                                 .setAutoSelectEnabled(true)
                                 .build()
-                            val request = GetCredentialRequest.Builder()
+                            val request = GetCredentialRequest
+                                .Builder()
                                 .addCredentialOption(googleIdOption)
                                 .build()
                             return credentialManager.getCredential(activity, request)
                         }
 
                         suspend fun requestSignInButton(): GetCredentialResponse {
-                            val signInOption = GetSignInWithGoogleOption.Builder(WEB_CLIENT_ID)
+                            val signInOption = GetSignInWithGoogleOption
+                                .Builder(WEB_CLIENT_ID)
                                 .build()
-                            val request = GetCredentialRequest.Builder()
+                            val request = GetCredentialRequest
+                                .Builder()
                                 .addCredentialOption(signInOption)
                                 .build()
                             return credentialManager.getCredential(activity, request)

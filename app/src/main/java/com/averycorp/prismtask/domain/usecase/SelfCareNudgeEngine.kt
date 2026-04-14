@@ -31,7 +31,6 @@ enum class NudgeKind {
  * don't repeat the same one consecutively" requirement.
  */
 class SelfCareNudgeEngine {
-
     fun select(
         burnoutScore: Int,
         selfCareRatio: Float,

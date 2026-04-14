@@ -29,7 +29,6 @@ import org.junit.Test
  *    inserts, and usage-counter updates — without standing up a real Room db.
  */
 class TaskTemplateRepositoryTest {
-
     // ---------------------------------------------------------------------
     // Pure helper tests — edge cases that are painful to express in the
     // end-to-end flow.
@@ -135,7 +134,8 @@ class TaskTemplateRepositoryTest {
             sampleTemplate(name = "Weekly Review", usageCount = 0)
         )
 
-        val merged = TaskTemplateRepository.mergeTemplatesByName(local, remote)
+        val merged = TaskTemplateRepository
+            .mergeTemplatesByName(local, remote)
             .associateBy { it.name.lowercase() }
 
         assertEquals(3, merged.size)
@@ -275,7 +275,8 @@ class TaskTemplateRepositoryTest {
         val task = taskDao.tasks.first { it.id == newTaskId }
 
         // Quick-use with no dueDateOverride should default to start of today
-        val startOfToday = com.averycorp.prismtask.domain.usecase.DateShortcuts.today()
+        val startOfToday = com.averycorp.prismtask.domain.usecase.DateShortcuts
+            .today()
         assertEquals(startOfToday, task.dueDate)
     }
 
@@ -310,7 +311,9 @@ class TaskTemplateRepositoryTest {
 
         val customDate = 1_700_000_000_000L
         val newTaskId = repo.createTaskFromTemplate(
-            templateId, dueDateOverride = customDate, quickUse = true
+            templateId,
+            dueDateOverride = customDate,
+            quickUse = true
         )
         val task = taskDao.tasks.first { it.id == newTaskId }
 
@@ -434,7 +437,12 @@ class TaskTemplateRepositoryTest {
         override suspend fun getTemplateById(id: Long): TaskTemplateEntity? = store[id]
 
         override fun getAllCategories(): Flow<List<String>> =
-            flowOf(store.values.mapNotNull { it.category }.distinct().sorted())
+            flowOf(
+                store.values
+                    .mapNotNull { it.category }
+                    .distinct()
+                    .sorted()
+            )
 
         override suspend fun insertTemplate(template: TaskTemplateEntity): Long {
             val id = if (template.id == 0L) nextId++ else template.id.also { nextId = maxOf(nextId, it + 1) }
@@ -446,7 +454,9 @@ class TaskTemplateRepositoryTest {
             store[template.id] = template
         }
 
-        override suspend fun deleteTemplate(id: Long) { store.remove(id) }
+        override suspend fun deleteTemplate(id: Long) {
+            store.remove(id)
+        }
 
         override suspend fun incrementUsage(id: Long, usedAt: Long) {
             store[id]?.let {
@@ -468,10 +478,15 @@ class TaskTemplateRepositoryTest {
         }
 
         override fun searchTemplates(query: String): Flow<List<TaskTemplateEntity>> =
-            flowOf(store.values.filter {
-                (it.name.contains(query) || it.templateTitle?.contains(query) == true)
-            })
-        override suspend fun deleteAll() { store.clear() }
+            flowOf(
+                store.values.filter {
+                    (it.name.contains(query) || it.templateTitle?.contains(query) == true)
+                }
+            )
+
+        override suspend fun deleteAll() {
+            store.clear()
+        }
     }
 
     /** In-memory fake of [TaskDao]. Implements only the handful of calls the template repo uses. */
@@ -492,60 +507,115 @@ class TaskTemplateRepositoryTest {
 
         // --- Unused methods: throw so an accidental call in future tests is loud. ---
         override fun getAllTasks(): Flow<List<TaskEntity>> = unsupported()
+
         override fun getAllTasksByCustomOrder(): Flow<List<TaskEntity>> = unsupported()
+
         override fun getTasksByProject(projectId: Long): Flow<List<TaskEntity>> = unsupported()
+
         override suspend fun deleteTasksByProjectId(projectId: Long) = unsupported()
+
         override fun getSubtasks(parentTaskId: Long): Flow<List<TaskEntity>> = unsupported()
+
         override suspend fun getMaxSubtaskSortOrder(parentTaskId: Long): Int = unsupported()
+
         override suspend fun updateSortOrder(id: Long, sortOrder: Int, now: Long) = unsupported()
+
         override suspend fun getMaxRootSortOrder(): Int = unsupported()
+
         override fun getIncompleteTasks(): Flow<List<TaskEntity>> = unsupported()
+
         override fun getIncompleteRootTasks(): Flow<List<TaskEntity>> = unsupported()
+
         override fun getTasksDueOnDate(startOfDay: Long, endOfDay: Long): Flow<List<TaskEntity>> = unsupported()
+
         override fun getOverdueTasks(now: Long): Flow<List<TaskEntity>> = unsupported()
+
         override fun getTaskById(id: Long): Flow<TaskEntity?> = unsupported()
+
         override suspend fun update(task: TaskEntity) = unsupported()
+
         override suspend fun delete(task: TaskEntity) = unsupported()
+
         override suspend fun deleteById(id: Long) = unsupported()
+
         override suspend fun getAllTasksOnce(): List<TaskEntity> = tasks.toList()
+
         override suspend fun getIncompleteTasksWithReminders(): List<TaskEntity> = unsupported()
+
         override suspend fun markCompleted(id: Long, completedAt: Long) = unsupported()
+
         override suspend fun markIncomplete(id: Long, now: Long) = unsupported()
+
         override fun getTasksWithTags(): Flow<List<TaskWithTags>> = unsupported()
+
         override fun searchTasks(query: String): Flow<List<TaskEntity>> = unsupported()
+
         override fun getArchivedTasks(): Flow<List<TaskEntity>> = unsupported()
+
         override suspend fun archiveTask(id: Long, archivedAt: Long) = unsupported()
+
         override suspend fun unarchiveTask(id: Long, updatedAt: Long) = unsupported()
+
         override suspend fun permanentlyDelete(id: Long) = unsupported()
+
         override suspend fun archiveCompletedBefore(cutoffDate: Long, now: Long) = unsupported()
+
         override fun getArchivedCount(): Flow<Int> = unsupported()
+
         override fun searchArchivedTasks(query: String): Flow<List<TaskEntity>> = unsupported()
+
         override fun getOverdueRootTasks(startOfToday: Long): Flow<List<TaskEntity>> = unsupported()
+
         override fun getTodayTasks(startOfToday: Long, endOfToday: Long): Flow<List<TaskEntity>> = unsupported()
+
         override fun getPlannedForToday(startOfToday: Long, endOfToday: Long): Flow<List<TaskEntity>> = unsupported()
+
         override fun getCompletedToday(startOfToday: Long): Flow<List<TaskEntity>> = unsupported()
+
         override suspend fun getOverdueRootTasksOnce(startOfToday: Long): List<TaskEntity> = unsupported()
+
         override suspend fun getTodayTasksOnce(startOfToday: Long, endOfToday: Long): List<TaskEntity> = unsupported()
+
         override suspend fun getCompletedTodayOnce(startOfToday: Long): List<TaskEntity> = unsupported()
+
         override suspend fun setPlanDate(id: Long, plannedDate: Long?, now: Long) = unsupported()
+
         override fun getTasksNotInToday(startOfToday: Long, endOfToday: Long): Flow<List<TaskEntity>> = unsupported()
+
         override suspend fun clearExpiredPlans(startOfToday: Long, now: Long) = unsupported()
+
         override suspend fun updateDueDate(id: Long, newDate: Long?, now: Long) = unsupported()
+
         override suspend fun getTasksForHabitInRangeOnce(habitId: Long, startDate: Long, endDate: Long): List<TaskEntity> = unsupported()
+
         override suspend fun batchUpdatePriorityQuery(taskIds: List<Long>, priority: Int, now: Long) = unsupported()
+
         override suspend fun batchUpdateDueDateQuery(taskIds: List<Long>, newDueDate: Long?, now: Long) = unsupported()
+
         override suspend fun batchUpdateProjectQuery(taskIds: List<Long>, newProjectId: Long?, now: Long) = unsupported()
+
         override suspend fun batchTouchTasksQuery(taskIds: List<Long>, now: Long) = unsupported()
+
         override suspend fun batchInsertTaskTagsQuery(taskIds: List<Long>, tagId: Long) = unsupported()
+
         override suspend fun batchDeleteTaskTagsQuery(taskIds: List<Long>, tagId: Long) = unsupported()
+
         override suspend fun updateEisenhowerQuadrant(id: Long, quadrant: String?, reason: String?, updatedAt: Long) = unsupported()
+
         override fun getCategorizedTasks(): Flow<List<TaskEntity>> = unsupported()
+
         override suspend fun updatePlannedDateAndSortOrder(id: Long, plannedDate: Long, sortOrder: Int, now: Long) = unsupported()
+
         override suspend fun getCompletedTasksInRange(startOfDay: Long, endOfDay: Long): List<TaskEntity> = unsupported()
+
         override suspend fun getIncompleteTodayCount(endOfDay: Long): Int = unsupported()
+
         override suspend fun getLastCompletedTask(): TaskEntity? = unsupported()
+
         override suspend fun getIncompleteTaskCount(): Int = unsupported()
+
         override suspend fun deleteAll(): Nothing = unsupported()
+
         override suspend fun deleteAllTaskTagCrossRefs(): Nothing = unsupported()
     }
 
@@ -563,17 +633,29 @@ class TaskTemplateRepositoryTest {
             tagIdsByTask[taskId]?.toList() ?: emptyList()
 
         override fun getAllTags(): Flow<List<TagEntity>> = unsupported()
+
         override fun getTagById(id: Long): Flow<TagEntity?> = unsupported()
+
         override fun getTagsForTask(taskId: Long): Flow<List<TagEntity>> = unsupported()
+
         override suspend fun getAllTagsOnce(): List<TagEntity> = unsupported()
+
         override suspend fun getTagByIdOnce(id: Long): TagEntity? = unsupported()
+
         override suspend fun insert(tag: TagEntity): Long = unsupported()
+
         override suspend fun update(tag: TagEntity) = unsupported()
+
         override suspend fun delete(tag: TagEntity) = unsupported()
+
         override fun searchTags(query: String): Flow<List<TagEntity>> = unsupported()
+
         override suspend fun removeTagFromTask(taskId: Long, tagId: Long) = unsupported()
+
         override suspend fun removeAllTagsFromTask(taskId: Long) = unsupported()
+
         override suspend fun deleteAll(): Nothing = unsupported()
+
         override suspend fun deleteAllCrossRefs(): Nothing = unsupported()
     }
 

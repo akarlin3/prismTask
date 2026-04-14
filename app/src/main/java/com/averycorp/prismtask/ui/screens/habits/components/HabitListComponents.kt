@@ -1,36 +1,30 @@
 package com.averycorp.prismtask.ui.screens.habits.components
 
-import com.averycorp.prismtask.ui.screens.habits.HabitListViewModel
-import com.averycorp.prismtask.ui.screens.habits.SelfCareCardData
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.EditNote
-import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -38,20 +32,13 @@ import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberDatePickerState
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -62,27 +49,21 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.navigation.NavController
 import com.averycorp.prismtask.data.local.entity.HabitCompletionEntity
 import com.averycorp.prismtask.data.repository.HabitWithStatus
-import com.averycorp.prismtask.ui.components.RichEmptyState
+import com.averycorp.prismtask.ui.components.StreakBadge
+import com.averycorp.prismtask.ui.screens.habits.HabitListViewModel
+import com.averycorp.prismtask.ui.screens.habits.SelfCareCardData
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 import java.util.concurrent.TimeUnit
-import com.averycorp.prismtask.ui.components.StreakBadge
-import com.averycorp.prismtask.ui.navigation.PrismTaskRoute
-import sh.calvin.reorderable.ReorderableItem
-import sh.calvin.reorderable.rememberReorderableLazyListState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -228,10 +209,14 @@ internal fun HabitItem(
                         if (habit.trackBooking) {
                             StatusPill(
                                 label = if (habitWithStatus.isBookedThisPeriod) {
-                                    if (habitWithStatus.bookedTasksThisPeriod > 1)
+                                    if (habitWithStatus.bookedTasksThisPeriod > 1) {
                                         "Booked (${habitWithStatus.bookedTasksThisPeriod})"
-                                    else "Booked"
-                                } else "Not Booked",
+                                    } else {
+                                        "Booked"
+                                    }
+                                } else {
+                                    "Not Booked"
+                                },
                                 active = habitWithStatus.isBookedThisPeriod,
                                 activeColor = habitColor
                             )
@@ -239,10 +224,11 @@ internal fun HabitItem(
                         if (habit.trackPreviousPeriod) {
                             val periodTitle = periodNoun.replaceFirstChar { it.uppercase() }
                             StatusPill(
-                                label = if (habitWithStatus.previousPeriodMet)
+                                label = if (habitWithStatus.previousPeriodMet) {
                                     "Last $periodTitle Done"
-                                else
-                                    "Last $periodTitle Missed",
+                                } else {
+                                    "Last $periodTitle Missed"
+                                },
                                 active = habitWithStatus.previousPeriodMet,
                                 activeColor = habitColor
                             )
@@ -295,8 +281,7 @@ internal fun HabitItem(
                         } else {
                             Modifier.border(2.dp, habitColor, CircleShape)
                         }
-                    )
-                    .pointerInput(habitWithStatus.isCompletedToday, habitWithStatus.completionsToday) {
+                    ).pointerInput(habitWithStatus.isCompletedToday, habitWithStatus.completionsToday) {
                         detectTapGestures(
                             onTap = { onToggle() },
                             onLongPress = { onDecrement() }
@@ -385,8 +370,7 @@ internal fun HabitLogDialog(
                                     .background(
                                         MaterialTheme.colorScheme.surfaceContainerLow,
                                         RoundedCornerShape(8.dp)
-                                    )
-                                    .padding(10.dp)
+                                    ).padding(10.dp)
                             ) {
                                 Text(
                                     text = dateFormat.format(Date(log.completedAt)),
@@ -557,10 +541,12 @@ internal fun BookableHabitItem(
                         .size(36.dp)
                         .clip(RoundedCornerShape(8.dp))
                         .background(
-                            if (habit.isBooked) habitColor.copy(alpha = 0.15f)
-                            else MaterialTheme.colorScheme.surfaceContainerHighest
-                        )
-                        .clickable { onBook() },
+                            if (habit.isBooked) {
+                                habitColor.copy(alpha = 0.15f)
+                            } else {
+                                MaterialTheme.colorScheme.surfaceContainerHighest
+                            }
+                        ).clickable { onBook() },
                     contentAlignment = Alignment.Center
                 ) {
                     Text(text = "\uD83D\uDCC5", style = MaterialTheme.typography.labelLarge)
@@ -842,10 +828,16 @@ internal fun StatusPill(
     active: Boolean,
     activeColor: Color
 ) {
-    val bg = if (active) activeColor.copy(alpha = 0.18f)
-    else MaterialTheme.colorScheme.surfaceContainerHighest
-    val textColor = if (active) activeColor
-    else MaterialTheme.colorScheme.onSurfaceVariant
+    val bg = if (active) {
+        activeColor.copy(alpha = 0.18f)
+    } else {
+        MaterialTheme.colorScheme.surfaceContainerHighest
+    }
+    val textColor = if (active) {
+        activeColor
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    }
     Box(
         modifier = Modifier
             .clip(RoundedCornerShape(10.dp))
@@ -876,8 +868,11 @@ internal fun WeeklyDots(
                     .size(8.dp)
                     .clip(CircleShape)
                     .background(
-                        if (index < completionsThisWeek) color
-                        else color.copy(alpha = 0.2f)
+                        if (index < completionsThisWeek) {
+                            color
+                        } else {
+                            color.copy(alpha = 0.2f)
+                        }
                     )
             )
         }
@@ -916,8 +911,11 @@ internal fun SelfCareRoutineCard(
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (cardData.isComplete) color.copy(alpha = 0.1f)
-            else MaterialTheme.colorScheme.surfaceContainerLow
+            containerColor = if (cardData.isComplete) {
+                color.copy(alpha = 0.1f)
+            } else {
+                MaterialTheme.colorScheme.surfaceContainerLow
+            }
         )
     ) {
         Row(
@@ -1022,8 +1020,11 @@ internal fun BuiltInHabitCard(
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (habitWithStatus.isCompletedToday) color.copy(alpha = 0.1f)
-            else MaterialTheme.colorScheme.surfaceContainerLow
+            containerColor = if (habitWithStatus.isCompletedToday) {
+                color.copy(alpha = 0.1f)
+            } else {
+                MaterialTheme.colorScheme.surfaceContainerLow
+            }
         )
     ) {
         Row(

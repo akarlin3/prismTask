@@ -1,16 +1,15 @@
 package com.averycorp.prismtask.domain.usecase
 
 import com.averycorp.prismtask.data.local.entity.MedicationRefillEntity
-import kotlin.math.ceil
 import kotlin.math.max
 
 /**
  * How a medication's refill forecast reads out in the UI.
  */
 enum class RefillUrgency {
-    HEALTHY,   // > 7 days of pills remaining
-    UPCOMING,  // 3-7 days
-    URGENT,    // < 3 days or already out
+    HEALTHY, // > 7 days of pills remaining
+    UPCOMING, // 3-7 days
+    URGENT, // < 3 days or already out
     OUT_OF_STOCK
 }
 
@@ -41,7 +40,6 @@ data class RefillForecast(
  * to unit-test deterministically.
  */
 object RefillCalculator {
-
     private const val MILLIS_PER_DAY: Long = 24L * 60 * 60 * 1000
 
     fun forecast(refill: MedicationRefillEntity, now: Long = System.currentTimeMillis()): RefillForecast {

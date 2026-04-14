@@ -21,7 +21,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -103,30 +102,40 @@ fun NotificationDiagnosticScreen(
             StatusRow(
                 label = "POST_NOTIFICATIONS",
                 ok = !state.postNotificationsApplicable || state.postNotificationsGranted,
-                detail = if (!state.postNotificationsApplicable)
+                detail = if (!state.postNotificationsApplicable) {
                     "Not required below API 33"
-                else if (state.postNotificationsGranted) "Granted" else "Denied"
+                } else if (state.postNotificationsGranted) {
+                    "Granted"
+                } else {
+                    "Denied"
+                }
             )
             StatusRow(
                 label = "Exact Alarms",
                 ok = state.exactAlarmsAllowed,
-                detail = if (state.exactAlarmsAllowed)
+                detail = if (state.exactAlarmsAllowed) {
                     "Can schedule exact alarms"
-                else "Blocked — reminders will be inexact"
+                } else {
+                    "Blocked — reminders will be inexact"
+                }
             )
             StatusRow(
                 label = "Battery Optimization",
                 ok = state.batteryOptimizationIgnored,
-                detail = if (state.batteryOptimizationIgnored)
+                detail = if (state.batteryOptimizationIgnored) {
                     "App is excluded (unrestricted)"
-                else "App may be throttled in Doze"
+                } else {
+                    "App may be throttled in Doze"
+                }
             )
             StatusRow(
                 label = "App Notifications",
                 ok = state.notificationsEnabled,
-                detail = if (state.notificationsEnabled)
+                detail = if (state.notificationsEnabled) {
                     "Enabled at app level"
-                else "BLOCKED at app level"
+                } else {
+                    "BLOCKED at app level"
+                }
             )
 
             Spacer(modifier = Modifier.height(8.dp))

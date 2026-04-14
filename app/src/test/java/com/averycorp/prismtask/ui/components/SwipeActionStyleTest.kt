@@ -14,10 +14,10 @@ import org.junit.Test
  * that dispatch invokes the correct callback exactly once.
  */
 class SwipeActionStyleTest {
-
     @Test
     fun `every non-none action has a non transparent color`() {
-        SwipeAction.values()
+        SwipeAction
+            .values()
             .filterNot { it == SwipeAction.NONE }
             .forEach { action ->
                 val style = swipeActionStyle(action)
@@ -39,10 +39,17 @@ class SwipeActionStyleTest {
     fun `dispatch complete invokes onComplete and consumes swipe`() {
         var completeCalled = 0
         val consumed = dispatchSwipeAction(
-            action = SwipeAction.COMPLETE, taskId = 7,
-            onComplete = { assertEquals(7, it); completeCalled++ },
-            onDelete = { fail() }, onReschedule = { fail() }, onArchive = { fail() },
-            onMoveToProject = { fail() }, onToggleFlag = { fail() }
+            action = SwipeAction.COMPLETE,
+            taskId = 7,
+            onComplete = {
+                assertEquals(7, it)
+                completeCalled++
+            },
+            onDelete = { fail() },
+            onReschedule = { fail() },
+            onArchive = { fail() },
+            onMoveToProject = { fail() },
+            onToggleFlag = { fail() }
         )
         assertTrue(consumed)
         assertEquals(1, completeCalled)
@@ -52,9 +59,14 @@ class SwipeActionStyleTest {
     fun `dispatch delete invokes onDelete and consumes`() {
         var called = 0
         val consumed = dispatchSwipeAction(
-            action = SwipeAction.DELETE, taskId = 1,
-            onComplete = { fail() }, onDelete = { called++ }, onReschedule = { fail() },
-            onArchive = { fail() }, onMoveToProject = { fail() }, onToggleFlag = { fail() }
+            action = SwipeAction.DELETE,
+            taskId = 1,
+            onComplete = { fail() },
+            onDelete = { called++ },
+            onReschedule = { fail() },
+            onArchive = { fail() },
+            onMoveToProject = { fail() },
+            onToggleFlag = { fail() }
         )
         assertTrue(consumed)
         assertEquals(1, called)
@@ -64,10 +76,17 @@ class SwipeActionStyleTest {
     fun `dispatch flag toggles without consuming swipe`() {
         var called = 0
         val consumed = dispatchSwipeAction(
-            action = SwipeAction.FLAG, taskId = 99,
-            onComplete = { fail() }, onDelete = { fail() }, onReschedule = { fail() },
-            onArchive = { fail() }, onMoveToProject = { fail() },
-            onToggleFlag = { assertEquals(99, it); called++ }
+            action = SwipeAction.FLAG,
+            taskId = 99,
+            onComplete = { fail() },
+            onDelete = { fail() },
+            onReschedule = { fail() },
+            onArchive = { fail() },
+            onMoveToProject = { fail() },
+            onToggleFlag = {
+                assertEquals(99, it)
+                called++
+            }
         )
         assertFalse("FLAG action should not dismiss the row", consumed)
         assertEquals(1, called)
@@ -76,9 +95,14 @@ class SwipeActionStyleTest {
     @Test
     fun `dispatch none does nothing and returns false`() {
         val consumed = dispatchSwipeAction(
-            action = SwipeAction.NONE, taskId = 1,
-            onComplete = { fail() }, onDelete = { fail() }, onReschedule = { fail() },
-            onArchive = { fail() }, onMoveToProject = { fail() }, onToggleFlag = { fail() }
+            action = SwipeAction.NONE,
+            taskId = 1,
+            onComplete = { fail() },
+            onDelete = { fail() },
+            onReschedule = { fail() },
+            onArchive = { fail() },
+            onMoveToProject = { fail() },
+            onToggleFlag = { fail() }
         )
         assertFalse(consumed)
     }
@@ -87,9 +111,14 @@ class SwipeActionStyleTest {
     fun `dispatch reschedule invokes reschedule handler`() {
         var called = 0
         dispatchSwipeAction(
-            action = SwipeAction.RESCHEDULE, taskId = 5,
-            onComplete = { fail() }, onDelete = { fail() }, onReschedule = { called++ },
-            onArchive = { fail() }, onMoveToProject = { fail() }, onToggleFlag = { fail() }
+            action = SwipeAction.RESCHEDULE,
+            taskId = 5,
+            onComplete = { fail() },
+            onDelete = { fail() },
+            onReschedule = { called++ },
+            onArchive = { fail() },
+            onMoveToProject = { fail() },
+            onToggleFlag = { fail() }
         )
         assertEquals(1, called)
     }
@@ -98,9 +127,14 @@ class SwipeActionStyleTest {
     fun `dispatch archive invokes archive handler`() {
         var called = 0
         dispatchSwipeAction(
-            action = SwipeAction.ARCHIVE, taskId = 5,
-            onComplete = { fail() }, onDelete = { fail() }, onReschedule = { fail() },
-            onArchive = { called++ }, onMoveToProject = { fail() }, onToggleFlag = { fail() }
+            action = SwipeAction.ARCHIVE,
+            taskId = 5,
+            onComplete = { fail() },
+            onDelete = { fail() },
+            onReschedule = { fail() },
+            onArchive = { called++ },
+            onMoveToProject = { fail() },
+            onToggleFlag = { fail() }
         )
         assertEquals(1, called)
     }
@@ -109,9 +143,14 @@ class SwipeActionStyleTest {
     fun `dispatch move to project invokes move handler`() {
         var called = 0
         dispatchSwipeAction(
-            action = SwipeAction.MOVE_TO_PROJECT, taskId = 5,
-            onComplete = { fail() }, onDelete = { fail() }, onReschedule = { fail() },
-            onArchive = { fail() }, onMoveToProject = { called++ }, onToggleFlag = { fail() }
+            action = SwipeAction.MOVE_TO_PROJECT,
+            taskId = 5,
+            onComplete = { fail() },
+            onDelete = { fail() },
+            onReschedule = { fail() },
+            onArchive = { fail() },
+            onMoveToProject = { called++ },
+            onToggleFlag = { fail() }
         )
         assertEquals(1, called)
     }

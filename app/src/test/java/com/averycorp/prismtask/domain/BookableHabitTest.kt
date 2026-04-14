@@ -2,7 +2,6 @@ package com.averycorp.prismtask.domain
 
 import com.averycorp.prismtask.data.local.entity.HabitEntity
 import com.averycorp.prismtask.data.local.entity.HabitLogEntity
-import com.averycorp.prismtask.ui.screens.habits.HabitDetailStats
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -12,7 +11,6 @@ import org.junit.Test
 import java.util.concurrent.TimeUnit
 
 class BookableHabitTest {
-
     private fun makeBookableHabit(
         id: Long = 1,
         isBooked: Boolean = false,
@@ -135,7 +133,9 @@ class BookableHabitTest {
         val avgInterval = if (sortedDates.size >= 2) {
             val intervals = sortedDates.zipWithNext { a, b -> b - a }
             intervals.average().toInt()
-        } else null
+        } else {
+            null
+        }
 
         assertNull(avgInterval)
     }
@@ -193,11 +193,15 @@ class BookableHabitTest {
         val avgInterval = if (sortedDates.size >= 2) {
             val intervals = sortedDates.zipWithNext { a, b -> b - a }
             (intervals.average() / day).toInt().coerceAtLeast(1)
-        } else null
+        } else {
+            null
+        }
         val lastDone = sortedDates.lastOrNull()
         val nextSuggested = if (lastDone != null && avgInterval != null) {
             lastDone + avgInterval.toLong() * day
-        } else null
+        } else {
+            null
+        }
 
         assertEquals(3, totalCount)
         assertEquals(30, avgInterval)

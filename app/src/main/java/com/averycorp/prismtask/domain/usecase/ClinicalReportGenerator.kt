@@ -80,7 +80,6 @@ data class ClinicalReportSectionBlock(
  * substitute for medical records.
  */
 class ClinicalReportGenerator {
-
     private val dateFormat = SimpleDateFormat("MMM d, yyyy", Locale.US)
 
     fun generate(inputs: ClinicalReportInputs): ClinicalReport {
@@ -174,8 +173,11 @@ class ClinicalReportGenerator {
         }
         val open = inputs.tasks.count { !it.isCompleted && it.archivedAt == null }
         val overdue = inputs.tasks.count { t ->
-            !t.isCompleted && t.archivedAt == null &&
-                t.dueDate != null && t.dueDate < rangeEnd && t.dueDate >= rangeStart
+            !t.isCompleted &&
+                t.archivedAt == null &&
+                t.dueDate != null &&
+                t.dueDate < rangeEnd &&
+                t.dueDate >= rangeStart
         }
         val lines = listOf(
             "Completed: $completed",

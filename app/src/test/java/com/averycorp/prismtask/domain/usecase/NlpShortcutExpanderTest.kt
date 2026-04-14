@@ -7,7 +7,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class NlpShortcutExpanderTest {
-
     private val hw = NlpShortcutExpander.Shortcut("hw", "Homework assignment @School !medium")
     private val mtg = NlpShortcutExpander.Shortcut("mtg", "Meeting #work !high")
     private val bug = NlpShortcutExpander.Shortcut("bug", "Fix bug #dev !urgent")

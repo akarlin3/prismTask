@@ -70,7 +70,9 @@ fun PrismTaskTheme(
             onBackground = if (useDark) Color.White else Color.Black,
             outline = if (useDark) Color(0xFFCCCCCC) else Color(0xFF333333)
         )
-    } else colorScheme
+    } else {
+        colorScheme
+    }
 
     CompositionLocalProvider(
         LocalPriorityColors provides priorityColors,

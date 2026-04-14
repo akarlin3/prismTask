@@ -43,7 +43,6 @@ import com.averycorp.prismtask.MainActivity
  * - Large (3x2+): score + completed/total counts + trend details
  */
 class ProductivityWidget : GlanceAppWidget() {
-
     companion object {
         private val SMALL = DpSize(120.dp, 120.dp)
         private val LARGE = DpSize(200.dp, 120.dp)

@@ -1,6 +1,5 @@
 package com.averycorp.prismtask.ui.screens.settings.sections
 
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -51,10 +50,11 @@ fun CheckInStreakSection(streak: Int) {
                 }
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = if (streak == 1)
+                    text = if (streak == 1) {
                         "You completed your first check-in today. One day at a time."
-                    else
-                        "Consecutive days you've checked in. Keep it going.",
+                    } else {
+                        "Consecutive days you've checked in. Keep it going."
+                    },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onPrimaryContainer
                 )

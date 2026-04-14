@@ -13,7 +13,6 @@ import kotlinx.coroutines.flow.Flow
  */
 @Dao
 interface MoodEnergyLogDao {
-
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(log: MoodEnergyLogEntity): Long
 

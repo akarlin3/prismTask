@@ -43,7 +43,6 @@ import com.averycorp.prismtask.MainActivity
  * - Large (5x4+): 3-day columns with expanded task details per day
  */
 class UpcomingWidget : GlanceAppWidget() {
-
     companion object {
         private val MEDIUM = DpSize(250.dp, 170.dp)
         private val LARGE = DpSize(350.dp, 250.dp)

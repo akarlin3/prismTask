@@ -22,11 +22,10 @@ data class RoutinePhase(
 )
 
 object SelfCareRoutines {
-
     val morningTiers = listOf(
         RoutineTier("survival", "Survival", "~2 min", 0xFFF59E0B),
         RoutineTier("solid", "Solid", "~5 min", 0xFF3B82F6),
-        RoutineTier("full", "Full", "~8 min", 0xFF8B5CF6),
+        RoutineTier("full", "Full", "~8 min", 0xFF8B5CF6)
     )
 
     val morningSteps = listOf(
@@ -37,7 +36,7 @@ object SelfCareRoutines {
         RoutineStep("toner", "Toner", "~30 sec", "solid", phase = "Skincare"),
         RoutineStep("hair", "Hair styling", "~2 min", "solid", phase = "Grooming"),
         RoutineStep("serum", "Serum / treatment", "~30 sec", "full", phase = "Skincare"),
-        RoutineStep("eyecream", "Eye cream", "~30 sec", "full", phase = "Skincare"),
+        RoutineStep("eyecream", "Eye cream", "~30 sec", "full", phase = "Skincare")
     )
 
     val morningTierOrder = listOf("survival", "solid", "full")
@@ -46,7 +45,7 @@ object SelfCareRoutines {
         RoutineTier("survival", "Survival", "~15 min", 0xFFF59E0B),
         RoutineTier("basic", "Basic", "~17 min", 0xFF10B981),
         RoutineTier("solid", "Solid", "~30 min", 0xFF3B82F6),
-        RoutineTier("full", "Full", "~36+ min", 0xFF8B5CF6),
+        RoutineTier("full", "Full", "~36+ min", 0xFF8B5CF6)
     )
 
     val bedtimeSteps = listOf(
@@ -59,14 +58,14 @@ object SelfCareRoutines {
         RoutineStep("eyecream", "Eye cream", "~30 sec", "full", phase = "Skincare"),
         RoutineStep("exfoliant", "Exfoliant", "~1 min", "full", note = "2-3x / week only", phase = "Skincare"),
         RoutineStep("mask", "Mask", "~5 min", "full", note = "1-2x / week only", phase = "Skincare"),
-        RoutineStep("meditate", "Meditation", "~15 min", "survival", note = "In bed, lights out — last step", phase = "Sleep"),
+        RoutineStep("meditate", "Meditation", "~15 min", "survival", note = "In bed, lights out — last step", phase = "Sleep")
     )
 
     val bedtimeTierOrder = listOf("survival", "basic", "solid", "full")
 
-    fun tierIncludes(tierOrder: List<String>, activeTier: String, stepTier: String): Boolean {
-        return tierOrder.indexOf(stepTier) <= tierOrder.indexOf(activeTier)
-    }
+    fun tierIncludes(tierOrder: List<String>, activeTier: String, stepTier: String): Boolean = tierOrder.indexOf(
+        stepTier
+    ) <= tierOrder.indexOf(activeTier)
 
     fun getSteps(routineType: String): List<RoutineStep> = when (routineType) {
         "morning" -> morningSteps
@@ -111,7 +110,7 @@ object SelfCareRoutines {
         RoutineTier("essential", "Essential", "—", 0xFFEF4444),
         RoutineTier("prescription", "Prescription", "—", 0xFF3B82F6),
         RoutineTier("complete", "Complete", "—", 0xFF10B981),
-        RoutineTier("skipped", "Skipped", "—", 0xFF6B7280),
+        RoutineTier("skipped", "Skipped", "—", 0xFF6B7280)
     )
 
     val medicationSteps = emptyList<RoutineStep>()
@@ -125,7 +124,7 @@ object SelfCareRoutines {
     val houseworkTiers = listOf(
         RoutineTier("quick", "Quick", "~15 min", 0xFFF59E0B),
         RoutineTier("regular", "Regular", "~30 min", 0xFF3B82F6),
-        RoutineTier("deep", "Deep", "~60+ min", 0xFF8B5CF6),
+        RoutineTier("deep", "Deep", "~60+ min", 0xFF8B5CF6)
     )
 
     val houseworkSteps = listOf(
@@ -139,7 +138,7 @@ object SelfCareRoutines {
         RoutineStep("clean_toilet", "Clean toilet", "~5 min", "deep", phase = "Bathroom"),
         RoutineStep("dust", "Dust surfaces", "~10 min", "deep", phase = "Living Areas"),
         RoutineStep("mop", "Mop floors", "~10 min", "deep", phase = "Living Areas"),
-        RoutineStep("fold_laundry", "Fold laundry", "~10 min", "deep", phase = "Laundry"),
+        RoutineStep("fold_laundry", "Fold laundry", "~10 min", "deep", phase = "Laundry")
     )
 
     val houseworkTierOrder = listOf("quick", "regular", "deep")
@@ -157,13 +156,17 @@ object SelfCareRoutines {
         TimeOfDayInfo("morning", "Morning", "\uD83C\uDF05", 0xFFF59E0B),
         TimeOfDayInfo("afternoon", "Afternoon", "\u2600\uFE0F", 0xFFF97316),
         TimeOfDayInfo("evening", "Evening", "\uD83C\uDF06", 0xFF8B5CF6),
-        TimeOfDayInfo("night", "Night", "\uD83C\uDF19", 0xFF3B82F6),
+        TimeOfDayInfo("night", "Night", "\uD83C\uDF19", 0xFF3B82F6)
     )
 
     val timeOfDayOrder = listOf("morning", "afternoon", "evening", "night")
 
     fun parseTimeOfDay(timeOfDay: String): Set<String> =
-        timeOfDay.split(",").map { it.trim() }.filter { it.isNotEmpty() }.toSet()
+        timeOfDay
+            .split(",")
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .toSet()
 
     fun serializeTimeOfDay(times: Set<String>): String =
         timeOfDayOrder.filter { it in times }.joinToString(",")

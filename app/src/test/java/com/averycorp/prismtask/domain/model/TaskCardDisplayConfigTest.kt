@@ -7,7 +7,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class TaskCardDisplayConfigTest {
-
     private val gson = Gson()
 
     @Test

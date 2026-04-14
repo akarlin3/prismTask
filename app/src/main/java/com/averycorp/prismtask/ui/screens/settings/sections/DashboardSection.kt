@@ -80,8 +80,7 @@ fun DashboardSection(
                 .clickable {
                     val newHidden = if (isHidden) hiddenSections - key else hiddenSections + key
                     onHiddenSectionsChange(newHidden)
-                }
-                .padding(vertical = 4.dp),
+                }.padding(vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             CircularCheckbox(checked = !isHidden, onCheckedChange = {

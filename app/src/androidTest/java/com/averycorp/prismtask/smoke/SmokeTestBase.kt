@@ -24,7 +24,6 @@ import javax.inject.Inject
  *  - Helper extensions: [findByText], [findByContentDescription]
  */
 abstract class SmokeTestBase {
-
     @get:Rule(order = 0)
     val hiltRule = HiltAndroidRule(this)
 

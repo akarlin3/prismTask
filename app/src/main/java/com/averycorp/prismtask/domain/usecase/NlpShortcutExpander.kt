@@ -13,8 +13,10 @@ package com.averycorp.prismtask.domain.usecase
  *   position (to avoid ambiguity between, e.g., "hw" and "hwk").
  */
 object NlpShortcutExpander {
-
-    data class Shortcut(val trigger: String, val expansion: String)
+    data class Shortcut(
+        val trigger: String,
+        val expansion: String
+    )
 
     /**
      * Expands any shortcut trigger found in [input]. Returns the expanded

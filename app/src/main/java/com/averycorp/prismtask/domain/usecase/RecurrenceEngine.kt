@@ -8,7 +8,6 @@ import java.time.LocalDate
 import java.time.ZoneId
 
 object RecurrenceEngine {
-
     fun shouldRecur(rule: RecurrenceRule): Boolean {
         if (rule.maxOccurrences != null && rule.occurrenceCount >= rule.maxOccurrences) {
             return false
@@ -26,7 +25,8 @@ object RecurrenceEngine {
     fun calculateNextDueDate(currentDueDate: Long, rule: RecurrenceRule, completedAt: Long?): Long? {
         if (!shouldRecur(rule)) return null
 
-        val current = Instant.ofEpochMilli(currentDueDate)
+        val current = Instant
+            .ofEpochMilli(currentDueDate)
             .atZone(ZoneId.systemDefault())
             .toLocalDate()
 
@@ -65,7 +65,10 @@ object RecurrenceEngine {
     }
 
     private fun calculateCustomDays(current: LocalDate, rule: RecurrenceRule): LocalDate {
-        val days = rule.monthDays?.filter { it in 1..31 }?.sorted().orEmpty()
+        val days = rule.monthDays
+            ?.filter { it in 1..31 }
+            ?.sorted()
+            .orEmpty()
         if (days.isEmpty()) return current.plusMonths(1)
 
         // Find the next valid day in the current month after today, or advance to the

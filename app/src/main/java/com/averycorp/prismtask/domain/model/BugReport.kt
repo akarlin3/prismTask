@@ -1,8 +1,15 @@
 package com.averycorp.prismtask.domain.model
 
 enum class BugCategory {
-    CRASH, UI_GLITCH, FEATURE_NOT_WORKING, DATA_LOSS,
-    PERFORMANCE, SYNC_ISSUE, WIDGET_ISSUE, FEATURE_REQUEST, OTHER
+    CRASH,
+    UI_GLITCH,
+    FEATURE_NOT_WORKING,
+    DATA_LOSS,
+    PERFORMANCE,
+    SYNC_ISSUE,
+    WIDGET_ISSUE,
+    FEATURE_REQUEST,
+    OTHER
 }
 
 enum class BugSeverity { MINOR, MAJOR, CRITICAL }

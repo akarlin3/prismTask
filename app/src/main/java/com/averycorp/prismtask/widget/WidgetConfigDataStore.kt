@@ -26,7 +26,6 @@ import kotlinx.coroutines.flow.map
 private val Context.widgetConfigDataStore: DataStore<Preferences> by preferencesDataStore(name = "widget_config")
 
 object WidgetConfigDataStore {
-
     // ---- Today widget ----
     data class TodayConfig(
         val showProgress: Boolean = true,

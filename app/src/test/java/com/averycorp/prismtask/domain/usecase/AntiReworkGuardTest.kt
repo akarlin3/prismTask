@@ -7,7 +7,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class AntiReworkGuardTest {
-
     private val frPrefs = NdPreferences(
         focusReleaseModeEnabled = true,
         antiReworkEnabled = true,

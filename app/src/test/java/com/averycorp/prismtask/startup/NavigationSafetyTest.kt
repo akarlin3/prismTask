@@ -14,7 +14,6 @@ import java.io.File
  * can happen on startup if the initial route targets a missing screen.
  */
 class NavigationSafetyTest {
-
     private val srcMainDir = File("app/src/main/java/com/averycorp/prismtask")
 
     /**

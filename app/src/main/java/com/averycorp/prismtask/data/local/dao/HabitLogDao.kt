@@ -10,7 +10,6 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface HabitLogDao {
-
     @Query("SELECT * FROM habit_logs WHERE habit_id = :habitId ORDER BY date DESC")
     fun getLogsForHabit(habitId: Long): Flow<List<HabitLogEntity>>
 

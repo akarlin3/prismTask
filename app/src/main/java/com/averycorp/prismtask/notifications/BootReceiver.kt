@@ -9,11 +9,11 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 
 class BootReceiver : BroadcastReceiver() {
-
     @dagger.hilt.EntryPoint
     @dagger.hilt.InstallIn(SingletonComponent::class)
     interface BootEntryPoint {
         fun reminderScheduler(): ReminderScheduler
+
         fun medicationReminderScheduler(): MedicationReminderScheduler
     }
 

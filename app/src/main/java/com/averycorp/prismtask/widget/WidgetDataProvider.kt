@@ -82,9 +82,9 @@ data class TemplateShortcut(
 )
 
 object WidgetDataProvider {
-
     private fun getDb(context: Context): PrismTaskDatabase =
-        Room.databaseBuilder(context, PrismTaskDatabase::class.java, "averytask.db")
+        Room
+            .databaseBuilder(context, PrismTaskDatabase::class.java, "averytask.db")
             .addMigrations(*com.averycorp.prismtask.data.local.database.ALL_MIGRATIONS)
             .fallbackToDestructiveMigrationOnDowngrade(false)
             .build()
@@ -117,7 +117,9 @@ object WidgetDataProvider {
             val completedForScore = completedToday.size + completedHabits
             val productivityScore = if (totalForScore > 0) {
                 ((completedForScore * 100f) / totalForScore).toInt().coerceIn(0, 100)
-            } else 0
+            } else {
+                0
+            }
             return TodayWidgetData(
                 totalTasks = allTasks.size + completedToday.size,
                 completedTasks = completedToday.size,
@@ -155,7 +157,8 @@ object WidgetDataProvider {
 
     private suspend fun computeCurrentStreak(
         completionDao: com.averycorp.prismtask.data.local.dao.HabitCompletionDao,
-        habitId: Long, startOfDay: Long
+        habitId: Long,
+        startOfDay: Long
     ): Int {
         var streak = 0
         var date = startOfDay
@@ -180,7 +183,9 @@ object WidgetDataProvider {
                 overdue = taskDao.getOverdueRootTasksOnce(startOfDay).take(3).map { it.toRow(startOfDay) },
                 today = taskDao.getTodayTasksOnce(startOfDay, endOfDay).take(5).map { it.toRow(startOfDay) },
                 tomorrow = taskDao.getTodayTasksOnce(endOfDay, endOfDay + DayBoundary.DAY_MILLIS).take(5).map { it.toRow(startOfDay) },
-                dayAfter = taskDao.getTodayTasksOnce(endOfDay + DayBoundary.DAY_MILLIS, endOfDay + 2 * DayBoundary.DAY_MILLIS).take(5).map { it.toRow(startOfDay) }
+                dayAfter = taskDao.getTodayTasksOnce(endOfDay + DayBoundary.DAY_MILLIS, endOfDay + 2 * DayBoundary.DAY_MILLIS).take(5).map {
+                    it.toRow(startOfDay)
+                }
             )
         } finally {
             db.close()
@@ -246,9 +251,13 @@ object WidgetDataProvider {
             if (completionDao.isCompletedOnDateOnce(habitId, startOfDay)) {
                 completionDao.deleteByHabitAndDate(habitId, startOfDay)
             } else {
-                completionDao.insert(com.averycorp.prismtask.data.local.entity.HabitCompletionEntity(
-                    habitId = habitId, completedDate = startOfDay, completedAt = System.currentTimeMillis()
-                ))
+                completionDao.insert(
+                    com.averycorp.prismtask.data.local.entity.HabitCompletionEntity(
+                        habitId = habitId,
+                        completedDate = startOfDay,
+                        completedAt = System.currentTimeMillis()
+                    )
+                )
             }
         } finally {
             db.close()

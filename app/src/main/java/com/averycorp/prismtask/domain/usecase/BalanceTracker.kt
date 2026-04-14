@@ -72,7 +72,6 @@ data class BalanceConfig(
  * `Flow<List<TaskEntity>>` combine operators.
  */
 class BalanceTracker {
-
     /** Compute a [BalanceState] from a pool of tasks. */
     fun compute(
         allTasks: List<TaskEntity>,
@@ -142,9 +141,7 @@ class BalanceTracker {
      *  - Completed tasks use `completedAt`.
      *  - Otherwise, `dueDate` if set, else `createdAt`.
      */
-    private fun timestampFor(task: TaskEntity): Long {
-        return task.completedAt ?: task.dueDate ?: task.createdAt
-    }
+    private fun timestampFor(task: TaskEntity): Long = task.completedAt ?: task.dueDate ?: task.createdAt
 
     private fun cutoff(now: Long, days: Int, timeZone: TimeZone): Long {
         val cal = Calendar.getInstance(timeZone)

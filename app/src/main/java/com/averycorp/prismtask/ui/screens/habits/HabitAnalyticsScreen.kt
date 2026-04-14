@@ -203,7 +203,12 @@ fun HabitAnalyticsScreen(
                     modifier = Modifier.weight(1f),
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.errorContainer)
                 ) {
-                    Icon(Icons.Default.Archive, contentDescription = null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onErrorContainer)
+                    Icon(
+                        Icons.Default.Archive,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                        tint = MaterialTheme.colorScheme.onErrorContainer
+                    )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text("Archive", color = MaterialTheme.colorScheme.onErrorContainer)
                 }
@@ -285,8 +290,15 @@ private fun DayOfWeekChart(
     color: Color,
     modifier: Modifier = Modifier
 ) {
-    val days = listOf(DayOfWeek.MONDAY, DayOfWeek.TUESDAY, DayOfWeek.WEDNESDAY,
-        DayOfWeek.THURSDAY, DayOfWeek.FRIDAY, DayOfWeek.SATURDAY, DayOfWeek.SUNDAY)
+    val days = listOf(
+        DayOfWeek.MONDAY,
+        DayOfWeek.TUESDAY,
+        DayOfWeek.WEDNESDAY,
+        DayOfWeek.THURSDAY,
+        DayOfWeek.FRIDAY,
+        DayOfWeek.SATURDAY,
+        DayOfWeek.SUNDAY
+    )
     val labels = listOf("M", "T", "W", "T", "F", "S", "S")
     val maxVal = averages.values.maxOrNull()?.coerceAtLeast(0.1f) ?: 0.1f
 

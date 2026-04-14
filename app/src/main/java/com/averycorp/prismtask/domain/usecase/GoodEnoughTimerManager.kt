@@ -8,7 +8,6 @@ import com.averycorp.prismtask.data.preferences.NdPreferences
  * Tracks cumulative editing time and determines when/how to escalate.
  */
 class GoodEnoughTimerManager {
-
     private var sessionStartTimeMs: Long = 0L
     private var isPaused: Boolean = true
     private var accumulatedMs: Long = 0L
@@ -47,8 +46,11 @@ class GoodEnoughTimerManager {
     }
 
     fun getTotalEditingMinutes(): Int {
-        val currentMs = if (isPaused) accumulatedMs
-        else accumulatedMs + (System.currentTimeMillis() - sessionStartTimeMs)
+        val currentMs = if (isPaused) {
+            accumulatedMs
+        } else {
+            accumulatedMs + (System.currentTimeMillis() - sessionStartTimeMs)
+        }
         return (currentMs / 60_000).toInt()
     }
 
@@ -67,8 +69,11 @@ class GoodEnoughTimerManager {
             ?: ndPrefs.defaultGoodEnoughMinutes
         if (thresholdMinutes <= 0) return null // "No timer" for this task
 
-        val currentMs = if (isPaused) accumulatedMs
-        else accumulatedMs + (System.currentTimeMillis() - sessionStartTimeMs)
+        val currentMs = if (isPaused) {
+            accumulatedMs
+        } else {
+            accumulatedMs + (System.currentTimeMillis() - sessionStartTimeMs)
+        }
 
         val thresholdMs = (thresholdMinutes * 60 * 1000L) + extensionGrantedMs
 
@@ -116,7 +121,15 @@ class GoodEnoughTimerManager {
 sealed class TimerEvent {
     abstract val editingMinutes: Int
 
-    data class Nudge(override val editingMinutes: Int) : TimerEvent()
-    data class Dialog(override val editingMinutes: Int) : TimerEvent()
-    data class Lock(override val editingMinutes: Int) : TimerEvent()
+    data class Nudge(
+        override val editingMinutes: Int
+    ) : TimerEvent()
+
+    data class Dialog(
+        override val editingMinutes: Int
+    ) : TimerEvent()
+
+    data class Lock(
+        override val editingMinutes: Int
+    ) : TimerEvent()
 }

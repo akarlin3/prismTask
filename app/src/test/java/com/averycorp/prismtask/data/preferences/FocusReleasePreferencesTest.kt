@@ -23,7 +23,6 @@ import java.io.File
  * Unit tests for Focus & Release Mode preferences in [NdPreferencesDataStore].
  */
 class FocusReleasePreferencesTest {
-
     @get:Rule
     val tmpFolder = TemporaryFolder()
 

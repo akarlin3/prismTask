@@ -9,7 +9,6 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 class RecurrenceConverterTest {
-
     @Test
     fun roundTrip_daily() {
         val rule = RecurrenceRule(type = RecurrenceType.DAILY, interval = 1)

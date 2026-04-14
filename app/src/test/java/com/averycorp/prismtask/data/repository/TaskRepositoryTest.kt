@@ -31,7 +31,6 @@ import org.junit.Test
  * landed in the right tables.
  */
 class TaskRepositoryTest {
-
     private lateinit var taskDao: FakeTaskDao
     private lateinit var tagDao: FakeTagDao
     private lateinit var syncTracker: SyncTracker
@@ -50,7 +49,16 @@ class TaskRepositoryTest {
         reminderScheduler = mockk(relaxed = true)
         widgetUpdateManager = mockk(relaxed = true)
         taskCompletionRepository = mockk(relaxed = true)
-        repo = TaskRepository(taskDao, tagDao, syncTracker, calendarSyncService, reminderScheduler, widgetUpdateManager, taskCompletionRepository)
+        repo =
+            TaskRepository(
+                taskDao,
+                tagDao,
+                syncTracker,
+                calendarSyncService,
+                reminderScheduler,
+                widgetUpdateManager,
+                taskCompletionRepository
+            )
     }
 
     // ---------------------------------------------------------------------
@@ -383,44 +391,54 @@ class TaskRepositoryTest {
 
         override suspend fun markCompleted(id: Long, completedAt: Long) {
             val idx = tasks.indexOfFirst { it.id == id }
-            if (idx >= 0) tasks[idx] = tasks[idx].copy(
-                isCompleted = true,
-                completedAt = completedAt,
-                updatedAt = completedAt
-            )
+            if (idx >= 0) {
+                tasks[idx] = tasks[idx].copy(
+                    isCompleted = true,
+                    completedAt = completedAt,
+                    updatedAt = completedAt
+                )
+            }
         }
 
         override suspend fun markIncomplete(id: Long, now: Long) {
             val idx = tasks.indexOfFirst { it.id == id }
-            if (idx >= 0) tasks[idx] = tasks[idx].copy(
-                isCompleted = false,
-                completedAt = null,
-                updatedAt = now
-            )
+            if (idx >= 0) {
+                tasks[idx] = tasks[idx].copy(
+                    isCompleted = false,
+                    completedAt = null,
+                    updatedAt = now
+                )
+            }
         }
 
         override suspend fun archiveTask(id: Long, archivedAt: Long) {
             val idx = tasks.indexOfFirst { it.id == id }
-            if (idx >= 0) tasks[idx] = tasks[idx].copy(
-                archivedAt = archivedAt,
-                updatedAt = archivedAt
-            )
+            if (idx >= 0) {
+                tasks[idx] = tasks[idx].copy(
+                    archivedAt = archivedAt,
+                    updatedAt = archivedAt
+                )
+            }
         }
 
         override suspend fun unarchiveTask(id: Long, updatedAt: Long) {
             val idx = tasks.indexOfFirst { it.id == id }
-            if (idx >= 0) tasks[idx] = tasks[idx].copy(
-                archivedAt = null,
-                updatedAt = updatedAt
-            )
+            if (idx >= 0) {
+                tasks[idx] = tasks[idx].copy(
+                    archivedAt = null,
+                    updatedAt = updatedAt
+                )
+            }
         }
 
         override suspend fun setPlanDate(id: Long, plannedDate: Long?, now: Long) {
             val idx = tasks.indexOfFirst { it.id == id }
-            if (idx >= 0) tasks[idx] = tasks[idx].copy(
-                plannedDate = plannedDate,
-                updatedAt = now
-            )
+            if (idx >= 0) {
+                tasks[idx] = tasks[idx].copy(
+                    plannedDate = plannedDate,
+                    updatedAt = now
+                )
+            }
         }
 
         override suspend fun getMaxSubtaskSortOrder(parentTaskId: Long): Int =
@@ -457,6 +475,7 @@ class TaskRepositoryTest {
         }
 
         override suspend fun batchInsertTaskTagsQuery(taskIds: List<Long>, tagId: Long) {}
+
         override suspend fun batchDeleteTaskTagsQuery(taskIds: List<Long>, tagId: Long) {}
 
         override suspend fun updateSortOrder(id: Long, sortOrder: Int, now: Long) {
@@ -466,57 +485,98 @@ class TaskRepositoryTest {
 
         // --- Unused methods ---
         override fun getAllTasks(): Flow<List<TaskEntity>> = flowOf(tasks.toList())
+
         override fun getAllTasksByCustomOrder(): Flow<List<TaskEntity>> = flowOf(tasks.toList())
+
         override fun getTasksByProject(projectId: Long): Flow<List<TaskEntity>> =
             flowOf(tasks.filter { it.projectId == projectId })
+
         override suspend fun deleteTasksByProjectId(projectId: Long) {
             tasks.removeAll { it.projectId == projectId }
         }
+
         override fun getSubtasks(parentTaskId: Long): Flow<List<TaskEntity>> =
             flowOf(tasks.filter { it.parentTaskId == parentTaskId })
+
         override fun getIncompleteTasks(): Flow<List<TaskEntity>> =
             flowOf(tasks.filter { !it.isCompleted })
+
         override fun getIncompleteRootTasks(): Flow<List<TaskEntity>> =
             flowOf(tasks.filter { !it.isCompleted && it.parentTaskId == null })
+
         override fun getTasksDueOnDate(startOfDay: Long, endOfDay: Long): Flow<List<TaskEntity>> =
             flowOf(tasks.filter { (it.dueDate ?: 0L) in startOfDay until endOfDay })
+
         override fun getOverdueTasks(now: Long): Flow<List<TaskEntity>> =
             flowOf(tasks.filter { (it.dueDate ?: Long.MAX_VALUE) < now && !it.isCompleted })
+
         override suspend fun getAllTasksOnce(): List<TaskEntity> = tasks.toList()
+
         override suspend fun getIncompleteTasksWithReminders(): List<TaskEntity> =
             tasks.filter { !it.isCompleted && it.reminderOffset != null && it.dueDate != null }
+
         override fun getTasksWithTags(): Flow<List<TaskWithTags>> = flowOf(emptyList())
+
         override fun searchTasks(query: String): Flow<List<TaskEntity>> =
             flowOf(tasks.filter { it.title.contains(query, true) })
+
         override fun getArchivedTasks(): Flow<List<TaskEntity>> =
             flowOf(tasks.filter { it.archivedAt != null })
-        override suspend fun permanentlyDelete(id: Long) { tasks.removeAll { it.id == id } }
+
+        override suspend fun permanentlyDelete(id: Long) {
+            tasks.removeAll { it.id == id }
+        }
+
         override suspend fun archiveCompletedBefore(cutoffDate: Long, now: Long) {}
+
         override fun getArchivedCount(): Flow<Int> =
             flowOf(tasks.count { it.archivedAt != null })
+
         override fun searchArchivedTasks(query: String): Flow<List<TaskEntity>> = flowOf(emptyList())
+
         override fun getOverdueRootTasks(startOfToday: Long): Flow<List<TaskEntity>> = flowOf(emptyList())
+
         override fun getTodayTasks(startOfToday: Long, endOfToday: Long): Flow<List<TaskEntity>> = flowOf(emptyList())
+
         override fun getPlannedForToday(startOfToday: Long, endOfToday: Long): Flow<List<TaskEntity>> = flowOf(emptyList())
+
         override fun getCompletedToday(startOfToday: Long): Flow<List<TaskEntity>> = flowOf(emptyList())
+
         override suspend fun getOverdueRootTasksOnce(startOfToday: Long): List<TaskEntity> = emptyList()
+
         override suspend fun getTodayTasksOnce(startOfToday: Long, endOfToday: Long): List<TaskEntity> = emptyList()
+
         override suspend fun getCompletedTodayOnce(startOfToday: Long): List<TaskEntity> = emptyList()
+
         override fun getTasksNotInToday(startOfToday: Long, endOfToday: Long): Flow<List<TaskEntity>> = flowOf(emptyList())
+
         override suspend fun clearExpiredPlans(startOfToday: Long, now: Long) {}
+
         override suspend fun updateDueDate(id: Long, newDate: Long?, now: Long) {
             val idx = tasks.indexOfFirst { it.id == id }
             if (idx >= 0) tasks[idx] = tasks[idx].copy(dueDate = newDate, updatedAt = now)
         }
+
         override suspend fun getTasksForHabitInRangeOnce(habitId: Long, startDate: Long, endDate: Long): List<TaskEntity> = emptyList()
+
         override suspend fun updateEisenhowerQuadrant(id: Long, quadrant: String?, reason: String?, updatedAt: Long) {}
+
         override fun getCategorizedTasks(): Flow<List<TaskEntity>> = flowOf(emptyList())
+
         override suspend fun updatePlannedDateAndSortOrder(id: Long, plannedDate: Long, sortOrder: Int, now: Long) {}
+
         override suspend fun getCompletedTasksInRange(startOfDay: Long, endOfDay: Long): List<TaskEntity> = emptyList()
+
         override suspend fun getIncompleteTodayCount(endOfDay: Long): Int = 0
+
         override suspend fun getLastCompletedTask(): TaskEntity? = null
+
         override suspend fun getIncompleteTaskCount(): Int = tasks.count { !it.isCompleted }
-        override suspend fun deleteAll() { tasks.clear() }
+
+        override suspend fun deleteAll() {
+            tasks.clear()
+        }
+
         override suspend fun deleteAllTaskTagCrossRefs() {}
     }
 
@@ -531,21 +591,35 @@ class TaskRepositoryTest {
             crossRefs.filter { it.taskId == taskId }.map { it.tagId }
 
         override fun getAllTags(): Flow<List<TagEntity>> = flowOf(emptyList())
+
         override fun getTagById(id: Long): Flow<TagEntity?> = flowOf(null)
+
         override fun getTagsForTask(taskId: Long): Flow<List<TagEntity>> = flowOf(emptyList())
+
         override suspend fun getAllTagsOnce(): List<TagEntity> = emptyList()
+
         override suspend fun getTagByIdOnce(id: Long): TagEntity? = null
+
         override suspend fun insert(tag: TagEntity): Long = 0L
+
         override suspend fun update(tag: TagEntity) {}
+
         override suspend fun delete(tag: TagEntity) {}
+
         override fun searchTags(query: String): Flow<List<TagEntity>> = flowOf(emptyList())
+
         override suspend fun removeTagFromTask(taskId: Long, tagId: Long) {
             crossRefs.removeAll { it.taskId == taskId && it.tagId == tagId }
         }
+
         override suspend fun removeAllTagsFromTask(taskId: Long) {
             crossRefs.removeAll { it.taskId == taskId }
         }
+
         override suspend fun deleteAll() {}
-        override suspend fun deleteAllCrossRefs() { crossRefs.clear() }
+
+        override suspend fun deleteAllCrossRefs() {
+            crossRefs.clear()
+        }
     }
 }

@@ -18,65 +18,101 @@ import retrofit2.http.Query
  * Base URL is provided by Hilt via [ApiClient] from `BuildConfig.API_BASE_URL`.
  */
 interface PrismTaskApi {
-
     @GET("api/v1/auth/me")
     suspend fun getMe(): UserInfoResponse
 
     @POST("api/v1/auth/register")
-    suspend fun register(@Body request: RegisterRequest): TokenResponse
+    suspend fun register(
+        @Body request: RegisterRequest
+    ): TokenResponse
 
     @POST("api/v1/auth/login")
-    suspend fun login(@Body request: LoginRequest): TokenResponse
+    suspend fun login(
+        @Body request: LoginRequest
+    ): TokenResponse
 
     @POST("api/v1/auth/firebase")
-    suspend fun firebaseLogin(@Body request: FirebaseTokenRequest): TokenResponse
+    suspend fun firebaseLogin(
+        @Body request: FirebaseTokenRequest
+    ): TokenResponse
 
     @POST("api/v1/auth/refresh")
-    suspend fun refresh(@Body request: RefreshRequest): TokenResponse
+    suspend fun refresh(
+        @Body request: RefreshRequest
+    ): TokenResponse
 
     @POST("api/v1/tasks/parse")
-    suspend fun parseTask(@Body request: ParseRequest): ParsedTaskResponse
+    suspend fun parseTask(
+        @Body request: ParseRequest
+    ): ParsedTaskResponse
 
     @GET("api/v1/app/version")
     suspend fun getVersion(): VersionResponse
 
     @POST("api/v1/sync/push")
-    suspend fun syncPush(@Body request: SyncPushRequest): SyncPushResponse
+    suspend fun syncPush(
+        @Body request: SyncPushRequest
+    ): SyncPushResponse
 
     @GET("api/v1/sync/pull")
-    suspend fun syncPull(@Query("since") since: String? = null): SyncPullResponse
+    suspend fun syncPull(
+        @Query("since") since: String? = null
+    ): SyncPullResponse
 
     @POST("api/v1/ai/eisenhower")
-    suspend fun categorizeEisenhower(@Body request: EisenhowerRequest): EisenhowerResponse
+    suspend fun categorizeEisenhower(
+        @Body request: EisenhowerRequest
+    ): EisenhowerResponse
 
     @POST("api/v1/ai/pomodoro-plan")
-    suspend fun planPomodoro(@Body request: PomodoroRequest): PomodoroResponse
+    suspend fun planPomodoro(
+        @Body request: PomodoroRequest
+    ): PomodoroResponse
 
     @POST("api/v1/ai/daily-briefing")
-    suspend fun getDailyBriefing(@Body request: DailyBriefingRequest): DailyBriefingResponse
+    suspend fun getDailyBriefing(
+        @Body request: DailyBriefingRequest
+    ): DailyBriefingResponse
 
     @POST("api/v1/ai/weekly-plan")
-    suspend fun getWeeklyPlan(@Body request: WeeklyPlanRequest): WeeklyPlanResponse
+    suspend fun getWeeklyPlan(
+        @Body request: WeeklyPlanRequest
+    ): WeeklyPlanResponse
 
     @POST("api/v1/ai/time-block")
-    suspend fun getTimeBlock(@Body request: TimeBlockRequest): TimeBlockResponse
+    suspend fun getTimeBlock(
+        @Body request: TimeBlockRequest
+    ): TimeBlockResponse
 
     @POST("api/v1/ai/chat")
-    suspend fun aiChat(@Body request: ChatRequest): ChatResponse
+    suspend fun aiChat(
+        @Body request: ChatRequest
+    ): ChatResponse
 
     @POST("api/v1/tasks/parse-import")
-    suspend fun parseImport(@Body request: ParseImportRequest): ParseImportResponse
+    suspend fun parseImport(
+        @Body request: ParseImportRequest
+    ): ParseImportResponse
 
     @POST("api/v1/tasks/parse-checklist")
-    suspend fun parseChecklist(@Body request: ParseChecklistRequest): ParseChecklistResponse
+    suspend fun parseChecklist(
+        @Body request: ParseChecklistRequest
+    ): ParseChecklistResponse
+
     @POST("api/v1/ai/evening-summary")
-    suspend fun getEveningSummary(@Body request: EveningSummaryRequest): EveningSummaryResponse
+    suspend fun getEveningSummary(
+        @Body request: EveningSummaryRequest
+    ): EveningSummaryResponse
 
     @POST("api/v1/ai/reengagement-nudge")
-    suspend fun getReengagementNudge(@Body request: ReengagementRequest): ReengagementResponse
+    suspend fun getReengagementNudge(
+        @Body request: ReengagementRequest
+    ): ReengagementResponse
 
     @POST("api/v1/ai/coaching")
-    suspend fun getCoaching(@Body request: CoachingRequest): CoachingResponse
+    suspend fun getCoaching(
+        @Body request: CoachingRequest
+    ): CoachingResponse
 
     @GET("api/v1/export/json")
     suspend fun exportJson(): ResponseBody
@@ -89,5 +125,7 @@ interface PrismTaskApi {
     ): ImportResponse
 
     @POST("api/v1/feedback/report")
-    suspend fun submitBugReport(@Body body: Map<String, @JvmSuppressWildcards Any?>): BugReportMirrorResponse
+    suspend fun submitBugReport(
+        @Body body: Map<String, @JvmSuppressWildcards Any?>
+    ): BugReportMirrorResponse
 }

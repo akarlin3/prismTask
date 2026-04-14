@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
@@ -41,7 +42,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -159,8 +159,11 @@ private fun MedicationCard(
                 TextButton(onClick = onDelete) { Text("Delete", color = MaterialTheme.colorScheme.error) }
             }
             Spacer(modifier = Modifier.size(4.dp))
+            val pillSuffix = if (item.row.pillCount == 1) "" else "s"
+            val daySuffix = if (item.forecast.daysRemaining == 1) "" else "s"
             Text(
-                text = "${item.row.pillCount} pill${if (item.row.pillCount == 1) "" else "s"} · ${item.forecast.daysRemaining} day${if (item.forecast.daysRemaining == 1) "" else "s"} remaining",
+                text = "${item.row.pillCount} pill$pillSuffix · " +
+                    "${item.forecast.daysRemaining} day$daySuffix remaining",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -246,8 +249,18 @@ private fun AddMedicationDialog(
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                 )
-                OutlinedTextField(value = pharmacy, onValueChange = { pharmacy = it }, label = { Text("Pharmacy (Optional)") }, singleLine = true)
-                OutlinedTextField(value = phone, onValueChange = { phone = it }, label = { Text("Pharmacy Phone (Optional)") }, singleLine = true)
+                OutlinedTextField(
+                    value = pharmacy,
+                    onValueChange = { pharmacy = it },
+                    label = { Text("Pharmacy (Optional)") },
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = phone,
+                    onValueChange = { phone = it },
+                    label = { Text("Pharmacy Phone (Optional)") },
+                    singleLine = true
+                )
             }
         },
         confirmButton = {

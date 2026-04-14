@@ -57,8 +57,18 @@ import androidx.navigation.NavController
 import com.averycorp.prismtask.data.local.entity.TagEntity
 
 private val presetColors = listOf(
-    "#E86F3C", "#D4534A", "#4A90D9", "#7B61C2", "#2E9E6E", "#E8B84A",
-    "#5B8C5A", "#8B5CF6", "#EC4899", "#06B6D4", "#F59E0B", "#6B7280"
+    "#E86F3C",
+    "#D4534A",
+    "#4A90D9",
+    "#7B61C2",
+    "#2E9E6E",
+    "#E8B84A",
+    "#5B8C5A",
+    "#8B5CF6",
+    "#EC4899",
+    "#06B6D4",
+    "#F59E0B",
+    "#6B7280"
 )
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -347,10 +357,12 @@ private fun ColorCircle(hex: String, selected: Boolean, onClick: () -> Unit) {
             .clip(CircleShape)
             .background(color)
             .then(
-                if (selected) Modifier.border(3.dp, MaterialTheme.colorScheme.onSurface, CircleShape)
-                else Modifier
-            )
-            .clickable(onClick = onClick),
+                if (selected) {
+                    Modifier.border(3.dp, MaterialTheme.colorScheme.onSurface, CircleShape)
+                } else {
+                    Modifier
+                }
+            ).clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
         if (selected) {

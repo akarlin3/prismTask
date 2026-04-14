@@ -29,11 +29,11 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.UploadFile
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -229,91 +229,91 @@ fun SchoolworkScreen(
                 )
             }
 
-        if (courses.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("\uD83C\uDF93", fontSize = 48.sp)
-                    Spacer(Modifier.height(12.dp))
-                    Text(
-                        "No Courses Yet",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        "Import a checklist file or tap + to add a course",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+            if (courses.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("\uD83C\uDF93", fontSize = 48.sp)
+                        Spacer(Modifier.height(12.dp))
+                        Text(
+                            "No Courses Yet",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            "Import a checklist file or tap + to add a course",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 16.dp)
+                ) {
+                    item { Spacer(Modifier.height(8.dp)) }
+
+                    // Progress card
+                    item {
+                        ProgressCard(
+                            doneCount = doneCount,
+                            totalCount = totalCount,
+                            progress = progress,
+                            allDone = allDone
+                        )
+                        Spacer(Modifier.height(20.dp))
+                    }
+
+                    // Daily course checklist
+                    item {
+                        SectionHeader(icon = "\uD83D\uDCDA", title = "Daily Course Work")
+                        Spacer(Modifier.height(8.dp))
+                    }
+
+                    items(courses, key = { it.id }) { course ->
+                        val done = course.id in completedIds
+                        CourseCheckItem(
+                            course = course,
+                            done = done,
+                            onToggle = { viewModel.toggleCourseCompletion(course.id) }
+                        )
+                        Spacer(Modifier.height(6.dp))
+                    }
+
+                    item { Spacer(Modifier.height(16.dp)) }
+
+                    // Courses & Assignments management
+                    item {
+                        SectionHeader(icon = "\uD83C\uDFEB", title = "Courses & Assignments")
+                        Spacer(Modifier.height(8.dp))
+                    }
+
+                    items(courses, key = { "manage_${it.id}" }) { course ->
+                        CourseCard(
+                            course = course,
+                            assignments = assignments.filter { it.courseId == course.id },
+                            onToggleAssignment = { viewModel.toggleAssignmentComplete(it) },
+                            onAddAssignment = { title, dueDate ->
+                                viewModel.addAssignment(course.id, title, dueDate)
+                            },
+                            onDeleteAssignment = { viewModel.deleteAssignment(it) },
+                            onEditCourse = {
+                                navController.navigate(PrismTaskRoute.AddEditCourse.createRoute(course.id))
+                            },
+                            onDeleteCourse = { viewModel.deleteCourse(course.id) }
+                        )
+                        Spacer(Modifier.height(8.dp))
+                    }
+
+                    item { Spacer(Modifier.height(80.dp)) }
                 }
             }
-        } else {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 16.dp)
-            ) {
-                item { Spacer(Modifier.height(8.dp)) }
-
-                // Progress card
-                item {
-                    ProgressCard(
-                        doneCount = doneCount,
-                        totalCount = totalCount,
-                        progress = progress,
-                        allDone = allDone
-                    )
-                    Spacer(Modifier.height(20.dp))
-                }
-
-                // Daily course checklist
-                item {
-                    SectionHeader(icon = "\uD83D\uDCDA", title = "Daily Course Work")
-                    Spacer(Modifier.height(8.dp))
-                }
-
-                items(courses, key = { it.id }) { course ->
-                    val done = course.id in completedIds
-                    CourseCheckItem(
-                        course = course,
-                        done = done,
-                        onToggle = { viewModel.toggleCourseCompletion(course.id) }
-                    )
-                    Spacer(Modifier.height(6.dp))
-                }
-
-                item { Spacer(Modifier.height(16.dp)) }
-
-                // Courses & Assignments management
-                item {
-                    SectionHeader(icon = "\uD83C\uDFEB", title = "Courses & Assignments")
-                    Spacer(Modifier.height(8.dp))
-                }
-
-                items(courses, key = { "manage_${it.id}" }) { course ->
-                    CourseCard(
-                        course = course,
-                        assignments = assignments.filter { it.courseId == course.id },
-                        onToggleAssignment = { viewModel.toggleAssignmentComplete(it) },
-                        onAddAssignment = { title, dueDate ->
-                            viewModel.addAssignment(course.id, title, dueDate)
-                        },
-                        onDeleteAssignment = { viewModel.deleteAssignment(it) },
-                        onEditCourse = {
-                            navController.navigate(PrismTaskRoute.AddEditCourse.createRoute(course.id))
-                        },
-                        onDeleteCourse = { viewModel.deleteCourse(course.id) }
-                    )
-                    Spacer(Modifier.height(8.dp))
-                }
-
-                item { Spacer(Modifier.height(80.dp)) }
-            }
-        }
         }
     }
 }
@@ -450,8 +450,11 @@ private fun CourseCheckItem(
                     "${course.icon} ${course.code}",
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.SemiBold,
-                    color = if (done) MaterialTheme.colorScheme.onSurfaceVariant
-                    else MaterialTheme.colorScheme.onSurface,
+                    color = if (done) {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    } else {
+                        MaterialTheme.colorScheme.onSurface
+                    },
                     textDecoration = if (done) TextDecoration.LineThrough else TextDecoration.None
                 )
                 Text(
@@ -572,8 +575,11 @@ private fun CourseCard(
                             style = MaterialTheme.typography.bodyMedium,
                             modifier = Modifier.weight(1f),
                             textDecoration = if (assignment.completed) TextDecoration.LineThrough else TextDecoration.None,
-                            color = if (assignment.completed) MaterialTheme.colorScheme.onSurfaceVariant
-                            else MaterialTheme.colorScheme.onSurface,
+                            color = if (assignment.completed) {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            } else {
+                                MaterialTheme.colorScheme.onSurface
+                            },
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )

@@ -7,7 +7,6 @@ import com.averycorp.prismtask.domain.model.BoundaryRuleType
 import com.averycorp.prismtask.domain.model.LifeCategory
 import com.averycorp.prismtask.domain.usecase.BoundaryEnforcer
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -21,61 +20,62 @@ import javax.inject.Singleton
  * of the two built-in rules from [BoundaryEnforcer.BUILT_IN].
  */
 @Singleton
-class BoundaryRuleRepository @Inject constructor(
-    private val dao: BoundaryRuleDao
-) {
-
-    fun observeRules(): Flow<List<BoundaryRule>> = dao.observeAll().map { list ->
-        list.map { it.toDomain() }
-    }
-
-    suspend fun getRulesOnce(): List<BoundaryRule> =
-        dao.getAll().map { it.toDomain() }
-
-    suspend fun insert(rule: BoundaryRule): Long =
-        dao.insert(rule.toEntity(isBuiltIn = false))
-
-    suspend fun update(rule: BoundaryRule) {
-        dao.update(rule.toEntity(isBuiltIn = false, id = rule.id))
-    }
-
-    suspend fun delete(id: Long) = dao.delete(id)
-
-    /**
-     * Seed the two built-in rules on first use. Idempotent — subsequent
-     * calls are no-ops because the table already has rows.
-     */
-    suspend fun seedBuiltInIfEmpty() {
-        if (dao.count() > 0) return
-        for (rule in BoundaryEnforcer.BUILT_IN) {
-            dao.insert(rule.toEntity(isBuiltIn = true))
+class BoundaryRuleRepository
+    @Inject
+    constructor(
+        private val dao: BoundaryRuleDao
+    ) {
+        fun observeRules(): Flow<List<BoundaryRule>> = dao.observeAll().map { list ->
+            list.map { it.toDomain() }
         }
-    }
 
-    private fun BoundaryRuleEntity.toDomain(): BoundaryRule = BoundaryRule(
-        id = id,
-        name = name,
-        ruleType = runCatching { BoundaryRuleType.valueOf(ruleType) }
-            .getOrDefault(BoundaryRuleType.REMIND),
-        category = LifeCategory.fromStorage(category).let {
-            if (it == LifeCategory.UNCATEGORIZED) LifeCategory.WORK else it
-        },
-        startTime = BoundaryRule.parseTime(startTime),
-        endTime = BoundaryRule.parseTime(endTime),
-        activeDays = BoundaryRule.parseDays(activeDaysCsv),
-        isEnabled = isEnabled
-    )
+        suspend fun getRulesOnce(): List<BoundaryRule> =
+            dao.getAll().map { it.toDomain() }
 
-    private fun BoundaryRule.toEntity(isBuiltIn: Boolean, id: Long = 0): BoundaryRuleEntity =
-        BoundaryRuleEntity(
+        suspend fun insert(rule: BoundaryRule): Long =
+            dao.insert(rule.toEntity(isBuiltIn = false))
+
+        suspend fun update(rule: BoundaryRule) {
+            dao.update(rule.toEntity(isBuiltIn = false, id = rule.id))
+        }
+
+        suspend fun delete(id: Long) = dao.delete(id)
+
+        /**
+         * Seed the two built-in rules on first use. Idempotent — subsequent
+         * calls are no-ops because the table already has rows.
+         */
+        suspend fun seedBuiltInIfEmpty() {
+            if (dao.count() > 0) return
+            for (rule in BoundaryEnforcer.BUILT_IN) {
+                dao.insert(rule.toEntity(isBuiltIn = true))
+            }
+        }
+
+        private fun BoundaryRuleEntity.toDomain(): BoundaryRule = BoundaryRule(
             id = id,
             name = name,
-            ruleType = ruleType.name,
-            category = category.name,
-            startTime = BoundaryRule.formatTime(startTime),
-            endTime = BoundaryRule.formatTime(endTime),
-            activeDaysCsv = BoundaryRule.formatDays(activeDays),
-            isEnabled = isEnabled,
-            isBuiltIn = isBuiltIn
+            ruleType = runCatching { BoundaryRuleType.valueOf(ruleType) }
+                .getOrDefault(BoundaryRuleType.REMIND),
+            category = LifeCategory.fromStorage(category).let {
+                if (it == LifeCategory.UNCATEGORIZED) LifeCategory.WORK else it
+            },
+            startTime = BoundaryRule.parseTime(startTime),
+            endTime = BoundaryRule.parseTime(endTime),
+            activeDays = BoundaryRule.parseDays(activeDaysCsv),
+            isEnabled = isEnabled
         )
-}
+
+        private fun BoundaryRule.toEntity(isBuiltIn: Boolean, id: Long = 0): BoundaryRuleEntity =
+            BoundaryRuleEntity(
+                id = id,
+                name = name,
+                ruleType = ruleType.name,
+                category = category.name,
+                startTime = BoundaryRule.formatTime(startTime),
+                endTime = BoundaryRule.formatTime(endTime),
+                activeDaysCsv = BoundaryRule.formatDays(activeDays),
+                isEnabled = isEnabled,
+                isBuiltIn = isBuiltIn
+            )
+    }

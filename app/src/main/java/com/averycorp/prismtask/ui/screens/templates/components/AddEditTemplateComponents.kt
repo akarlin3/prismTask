@@ -1,6 +1,5 @@
 package com.averycorp.prismtask.ui.screens.templates.components
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -11,35 +10,28 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -52,7 +44,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -67,9 +58,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.navigation.NavController
 import com.averycorp.prismtask.data.local.entity.ProjectEntity
 import com.averycorp.prismtask.data.local.entity.TagEntity
 import com.averycorp.prismtask.domain.model.RecurrenceRule
@@ -77,7 +66,6 @@ import com.averycorp.prismtask.domain.model.RecurrenceType
 import com.averycorp.prismtask.ui.components.RecurrenceDialog
 import com.averycorp.prismtask.ui.screens.templates.AddEditTemplateViewModel
 import com.averycorp.prismtask.ui.theme.LocalPriorityColors
-import kotlinx.coroutines.launch
 
 /**
  * Emoji set used for the template icon picker. Curated to cover the common
@@ -100,7 +88,7 @@ private val TEMPLATE_ICONS = listOf(
     "\u2708\uFE0F", // ✈️
     "\uD83C\uDFAF", // 🎯
     "\uD83D\uDCA1", // 💡
-    "\u2B50"         // ⭐
+    "\u2B50" // ⭐
 )
 
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
@@ -116,7 +104,9 @@ internal fun TemplateInfoSection(viewModel: AddEditTemplateViewModel) {
             isError = viewModel.nameError,
             supportingText = if (viewModel.nameError) {
                 { Text("Name is required") }
-            } else null,
+            } else {
+                null
+            },
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
         )
@@ -148,7 +138,9 @@ internal fun TemplateInfoSection(viewModel: AddEditTemplateViewModel) {
                         Icon(Icons.Default.Clear, contentDescription = "Clear")
                     }
                 }
-            } else null,
+            } else {
+                null
+            },
             modifier = Modifier.fillMaxWidth()
         )
         if (viewModel.existingCategories.isNotEmpty()) {
@@ -321,14 +313,14 @@ internal fun IconOption(emoji: String, selected: Boolean, onClick: () -> Unit) {
             .size(48.dp)
             .clip(RoundedCornerShape(10.dp))
             .then(
-                if (selected)
+                if (selected) {
                     Modifier
                         .background(MaterialTheme.colorScheme.primaryContainer)
                         .border(2.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(10.dp))
-                else
+                } else {
                     Modifier.background(MaterialTheme.colorScheme.surfaceContainerLow)
-            )
-            .clickable(onClick = onClick),
+                }
+            ).clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
         Text(
@@ -371,13 +363,16 @@ internal fun PriorityDot(color: Color, selected: Boolean, onClick: () -> Unit) {
             .clip(CircleShape)
             .background(color)
             .then(
-                if (selected) Modifier.border(
-                    width = 2.dp,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    shape = CircleShape
-                ) else Modifier
-            )
-            .clickable(onClick = onClick),
+                if (selected) {
+                    Modifier.border(
+                        width = 2.dp,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        shape = CircleShape
+                    )
+                } else {
+                    Modifier
+                }
+            ).clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
         if (selected) {
@@ -404,8 +399,7 @@ internal fun ProjectSelectorCard(
                 width = 1.dp,
                 color = MaterialTheme.colorScheme.outlineVariant,
                 shape = RoundedCornerShape(12.dp)
-            )
-            .clickable(onClick = onClick)
+            ).clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -571,8 +565,7 @@ internal fun TagToggleChip(
                 width = 1.5.dp,
                 color = tagColor,
                 shape = RoundedCornerShape(16.dp)
-            )
-            .clickable(onClick = onClick)
+            ).clickable(onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 8.dp),
         contentAlignment = Alignment.Center
     ) {
@@ -797,7 +790,10 @@ internal fun formatRecurrenceSummary(rule: RecurrenceRule): String {
         RecurrenceType.WEEKDAY -> "Every Weekday"
         RecurrenceType.BIWEEKLY -> "Every Other Week"
         RecurrenceType.CUSTOM_DAYS -> {
-            val days = rule.monthDays?.takeIf { it.isNotEmpty() }?.sorted()?.joinToString(", ")
+            val days = rule.monthDays
+                ?.takeIf { it.isNotEmpty() }
+                ?.sorted()
+                ?.joinToString(", ")
             if (days != null) "Monthly on Days $days" else "Custom Days"
         }
         RecurrenceType.AFTER_COMPLETION -> {

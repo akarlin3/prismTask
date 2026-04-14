@@ -12,7 +12,6 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface SelfCareDao {
-
     @Query("SELECT * FROM self_care_logs WHERE routine_type = :routineType AND date = :date LIMIT 1")
     fun getLogForDate(routineType: String, date: Long): Flow<SelfCareLogEntity?>
 

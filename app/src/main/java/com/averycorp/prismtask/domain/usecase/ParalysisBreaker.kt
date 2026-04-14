@@ -8,7 +8,6 @@ import com.averycorp.prismtask.data.preferences.NdPreferences
  * Helps users who freeze when faced with too many choices.
  */
 object ParalysisBreaker {
-
     /**
      * Suggest the best next task from a list of tasks.
      * Strategy: highest priority first, then nearest due date.
@@ -30,17 +29,19 @@ object ParalysisBreaker {
 
         return if (ndPrefs.adhdModeEnabled) {
             // ADHD + F&R: prefer smallest/quickest task (momentum)
-            candidates.sortedWith(
-                compareBy<TaskEntity> { it.estimatedDuration ?: Int.MAX_VALUE }
-                    .thenByDescending { it.priority }
-                    .thenBy { it.dueDate ?: Long.MAX_VALUE }
-            ).first()
+            candidates
+                .sortedWith(
+                    compareBy<TaskEntity> { it.estimatedDuration ?: Int.MAX_VALUE }
+                        .thenByDescending { it.priority }
+                        .thenBy { it.dueDate ?: Long.MAX_VALUE }
+                ).first()
         } else {
             // F&R only: highest priority + nearest due date
-            candidates.sortedWith(
-                compareByDescending<TaskEntity> { it.priority }
-                    .thenBy { it.dueDate ?: Long.MAX_VALUE }
-            ).first()
+            candidates
+                .sortedWith(
+                    compareByDescending<TaskEntity> { it.priority }
+                        .thenBy { it.dueDate ?: Long.MAX_VALUE }
+                ).first()
         }
     }
 
@@ -73,9 +74,9 @@ object ParalysisBreaker {
      * Maps 3 user-facing levels to internal priority values.
      */
     fun simplifiedPriorities(): List<SimplifiedPriority> = listOf(
-        SimplifiedPriority("Not Urgent", 1),   // Low
-        SimplifiedPriority("Normal", 2),        // Medium
-        SimplifiedPriority("Urgent", 3)         // High
+        SimplifiedPriority("Not Urgent", 1), // Low
+        SimplifiedPriority("Normal", 2), // Medium
+        SimplifiedPriority("Urgent", 3) // High
     )
 
     /**
@@ -97,6 +98,17 @@ object ParalysisBreaker {
     )
 }
 
-data class SimplifiedPriority(val label: String, val internalPriority: Int)
-data class SimplifiedSort(val label: String, val sortKey: String)
-data class SimplifiedFilter(val label: String, val filterKey: String)
+data class SimplifiedPriority(
+    val label: String,
+    val internalPriority: Int
+)
+
+data class SimplifiedSort(
+    val label: String,
+    val sortKey: String
+)
+
+data class SimplifiedFilter(
+    val label: String,
+    val filterKey: String
+)

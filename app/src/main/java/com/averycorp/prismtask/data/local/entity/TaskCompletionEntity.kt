@@ -31,26 +31,18 @@ import androidx.room.PrimaryKey
 data class TaskCompletionEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
-
     @ColumnInfo(name = "task_id")
     val taskId: Long? = null,
-
     @ColumnInfo(name = "project_id")
     val projectId: Long? = null,
-
     @ColumnInfo(name = "completed_date")
     val completedDate: Long,
-
     @ColumnInfo(name = "completed_at_time")
     val completedAtTime: Long = System.currentTimeMillis(),
-
     val priority: Int = 0,
-
     @ColumnInfo(name = "was_overdue")
     val wasOverdue: Boolean = false,
-
     @ColumnInfo(name = "days_to_complete")
     val daysToComplete: Int? = null,
-
     val tags: String? = null
 )

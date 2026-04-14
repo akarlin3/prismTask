@@ -26,7 +26,6 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DragIndicator
 import androidx.compose.material.icons.filled.PlayArrow
-import com.averycorp.prismtask.ui.components.CircularCheckbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -291,10 +290,11 @@ private fun SubtaskRow(
             text = subtask.title,
             style = MaterialTheme.typography.bodyMedium,
             textDecoration = if (subtask.isCompleted) TextDecoration.LineThrough else null,
-            color = if (subtask.isCompleted)
+            color = if (subtask.isCompleted) {
                 MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-            else
-                MaterialTheme.colorScheme.onSurface,
+            } else {
+                MaterialTheme.colorScheme.onSurface
+            },
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f)

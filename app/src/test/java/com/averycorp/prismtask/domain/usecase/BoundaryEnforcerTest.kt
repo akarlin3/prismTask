@@ -13,12 +13,15 @@ import java.time.LocalTime
 import java.time.ZoneId
 
 class BoundaryEnforcerTest {
-
     private val enforcer = BoundaryEnforcer()
     private val zone: ZoneId = ZoneId.of("UTC")
 
     private fun instant(year: Int, month: Int, day: Int, hour: Int, minute: Int = 0): Long =
-        LocalDateTime.of(year, month, day, hour, minute).atZone(zone).toInstant().toEpochMilli()
+        LocalDateTime
+            .of(year, month, day, hour, minute)
+            .atZone(zone)
+            .toInstant()
+            .toEpochMilli()
 
     @Test
     fun `block rule denies matching category during window`() {

@@ -22,7 +22,6 @@ import org.junit.Test
  */
 @HiltAndroidTest
 class RecurrenceSmokeTest : SmokeTestBase() {
-
     private fun buildRepository(): TaskRepository = TaskRepository(
         taskDao = database.taskDao(),
         tagDao = database.tagDao(),
@@ -46,7 +45,10 @@ class RecurrenceSmokeTest : SmokeTestBase() {
 
         repo.completeTask(id)
 
-        val all = database.taskDao().getAllTasks().first()
+        val all = database
+            .taskDao()
+            .getAllTasks()
+            .first()
             .filter { it.title == "Daily meditation" }
         assert(all.size == 2) {
             "Expected original + next occurrence for a daily recurring task"
@@ -76,7 +78,10 @@ class RecurrenceSmokeTest : SmokeTestBase() {
 
         repo.completeTask(id)
 
-        val hits = database.taskDao().getAllTasks().first()
+        val hits = database
+            .taskDao()
+            .getAllTasks()
+            .first()
             .filter { it.title == "Limited recurrence" }
         assert(hits.size == 1) {
             "Expected max-occurrences cap to stop recurrence after final completion"
@@ -104,7 +109,10 @@ class RecurrenceSmokeTest : SmokeTestBase() {
 
         repo.completeTask(id)
 
-        val next = database.taskDao().getAllTasks().first()
+        val next = database
+            .taskDao()
+            .getAllTasks()
+            .first()
             .filter { it.title == "Monday ritual" }
             .single { it.id != id }
         assert(next.dueDate != null)
@@ -124,7 +132,11 @@ class RecurrenceSmokeTest : SmokeTestBase() {
         )
         repo.completeTask(id)
 
-        val hits = database.taskDao().getAllTasks().first().filter { it.title == "One-off" }
+        val hits = database
+            .taskDao()
+            .getAllTasks()
+            .first()
+            .filter { it.title == "One-off" }
         assert(hits.size == 1) { "Non-recurring completion must not fork the task" }
         assert(hits.single().isCompleted)
     }

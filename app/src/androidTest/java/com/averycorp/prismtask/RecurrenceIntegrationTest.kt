@@ -6,17 +6,16 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.averycorp.prismtask.data.local.converter.RecurrenceConverter
 import com.averycorp.prismtask.data.local.database.PrismTaskDatabase
 import com.averycorp.prismtask.data.local.entity.TaskEntity
-import com.averycorp.prismtask.data.remote.CalendarSyncService
-import com.averycorp.prismtask.data.remote.SyncTracker
 import com.averycorp.prismtask.data.repository.TaskRepository
 import com.averycorp.prismtask.domain.model.RecurrenceRule
 import com.averycorp.prismtask.domain.model.RecurrenceType
-import com.averycorp.prismtask.notifications.ReminderScheduler
 import io.mockk.mockk
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.After
-import org.junit.Assert.*
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -25,7 +24,6 @@ import java.time.ZoneId
 
 @RunWith(AndroidJUnit4::class)
 class RecurrenceIntegrationTest {
-
     private lateinit var database: PrismTaskDatabase
     private lateinit var repository: TaskRepository
 
@@ -34,10 +32,12 @@ class RecurrenceIntegrationTest {
 
     @Before
     fun setup() {
-        database = Room.inMemoryDatabaseBuilder(
-            ApplicationProvider.getApplicationContext(),
-            PrismTaskDatabase::class.java
-        ).allowMainThreadQueries().build()
+        database = Room
+            .inMemoryDatabaseBuilder(
+                ApplicationProvider.getApplicationContext(),
+                PrismTaskDatabase::class.java
+            ).allowMainThreadQueries()
+            .build()
 
         repository = TaskRepository(
             taskDao = database.taskDao(),

@@ -10,7 +10,6 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface BoundaryRuleDao {
-
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(rule: BoundaryRuleEntity): Long
 

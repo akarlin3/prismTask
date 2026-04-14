@@ -28,7 +28,6 @@ import org.junit.Test
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class HabitListViewModelTest {
-
     private val dispatcher = StandardTestDispatcher()
 
     private lateinit var habitRepository: HabitRepository

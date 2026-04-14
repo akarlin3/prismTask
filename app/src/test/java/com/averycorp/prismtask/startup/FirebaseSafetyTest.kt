@@ -19,7 +19,6 @@ import java.io.File
  * code paths.
  */
 class FirebaseSafetyTest {
-
     private val srcMainDir = File("app/src/main/java/com/averycorp/prismtask")
 
     /**
@@ -169,8 +168,10 @@ class FirebaseSafetyTest {
                 if (braceDepth <= 0) return true
             }
             // If we hit a function or class declaration, stop searching
-            if (line.startsWith("fun ") || line.startsWith("override fun ") ||
-                line.startsWith("class ") || line.startsWith("object ")
+            if (line.startsWith("fun ") ||
+                line.startsWith("override fun ") ||
+                line.startsWith("class ") ||
+                line.startsWith("object ")
             ) {
                 return false
             }

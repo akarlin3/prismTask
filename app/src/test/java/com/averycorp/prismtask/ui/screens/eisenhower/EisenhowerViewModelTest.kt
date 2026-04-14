@@ -34,7 +34,6 @@ import org.junit.Test
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class EisenhowerViewModelTest {
-
     private val dispatcher = StandardTestDispatcher()
 
     private lateinit var taskDao: TaskDao

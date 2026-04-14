@@ -1,6 +1,5 @@
 package com.averycorp.prismtask.startup
 
-import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
@@ -19,7 +18,6 @@ import java.io.File
  * and asserts that each name is unique.
  */
 class DataStoreCollisionTest {
-
     /**
      * All known DataStore file names used across the app.
      *
@@ -104,7 +102,8 @@ class DataStoreCollisionTest {
         val namePattern = Regex("""preferencesDataStore\(\s*name\s*=\s*"([^"]+)"""")
         val foundNames = mutableSetOf<String>()
 
-        srcMain.walkTopDown()
+        srcMain
+            .walkTopDown()
             .filter { it.extension == "kt" }
             .forEach { file ->
                 namePattern.findAll(file.readText()).forEach { match ->

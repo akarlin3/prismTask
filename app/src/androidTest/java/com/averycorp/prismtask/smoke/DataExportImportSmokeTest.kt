@@ -17,7 +17,6 @@ import javax.inject.Inject
  */
 @HiltAndroidTest
 class DataExportImportSmokeTest : SmokeTestBase() {
-
     @Inject
     lateinit var dataImporter: DataImporter
 
@@ -36,9 +35,10 @@ class DataExportImportSmokeTest : SmokeTestBase() {
 
     @Test
     fun importProjects_persistsRowsInRoom() = runBlocking {
-        val json = """
+        val json =
+            """
             { "projects": [ { "name": "Imported Project", "color": "#112233" } ] }
-        """.trimIndent()
+            """.trimIndent()
 
         val result = dataImporter.importFromJson(json, ImportMode.MERGE)
         assert(result.projectsImported == 1)
@@ -49,9 +49,10 @@ class DataExportImportSmokeTest : SmokeTestBase() {
 
     @Test
     fun importTasks_persistsRowsInRoom() = runBlocking {
-        val json = """
+        val json =
+            """
             { "tasks": [ { "title": "Imported Task", "priority": 2 } ] }
-        """.trimIndent()
+            """.trimIndent()
 
         val result = dataImporter.importFromJson(json, ImportMode.MERGE)
         assert(result.tasksImported == 1)
@@ -63,9 +64,10 @@ class DataExportImportSmokeTest : SmokeTestBase() {
     @Test
     fun importDuplicateProjectInMergeMode_isSkipped() = runBlocking {
         // "Work" is already seeded by SmokeTestBase / TestDataSeeder.
-        val json = """
+        val json =
+            """
             { "projects": [ { "name": "Work" }, { "name": "Fresh" } ] }
-        """.trimIndent()
+            """.trimIndent()
 
         val result = dataImporter.importFromJson(json, ImportMode.MERGE)
         assert(result.projectsImported == 1)
@@ -74,9 +76,10 @@ class DataExportImportSmokeTest : SmokeTestBase() {
 
     @Test
     fun importHabits_persistsRowsInRoom() = runBlocking {
-        val json = """
+        val json =
+            """
             { "habits": [ { "name": "Imported Habit", "icon": "\uD83D\uDE00" } ] }
-        """.trimIndent()
+            """.trimIndent()
 
         val result = dataImporter.importFromJson(json, ImportMode.MERGE)
         assert(result.habitsImported == 1)
@@ -87,13 +90,17 @@ class DataExportImportSmokeTest : SmokeTestBase() {
 
     @Test
     fun importTaskWithUnknownProjectName_dropsFk() = runBlocking {
-        val json = """
+        val json =
+            """
             { "tasks": [ { "title": "Orphan task", "_projectName": "Nonexistent" } ] }
-        """.trimIndent()
+            """.trimIndent()
 
         dataImporter.importFromJson(json, ImportMode.MERGE)
 
-        val task = database.taskDao().getAllTasks().first()
+        val task = database
+            .taskDao()
+            .getAllTasks()
+            .first()
             .firstOrNull { it.title == "Orphan task" }
         assert(task != null)
         assert(task?.projectId == null) {

@@ -8,7 +8,6 @@ import com.averycorp.prismtask.data.preferences.NdPreferences
  * should be warned, blocked, or allowed to re-edit a completed task.
  */
 object AntiReworkGuard {
-
     /**
      * Evaluate what should happen when the user tries to edit a completed task.
      */

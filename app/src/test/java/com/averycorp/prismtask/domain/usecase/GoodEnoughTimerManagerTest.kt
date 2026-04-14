@@ -10,7 +10,6 @@ import org.junit.Before
 import org.junit.Test
 
 class GoodEnoughTimerManagerTest {
-
     private lateinit var manager: GoodEnoughTimerManager
 
     private val frPrefs = NdPreferences(

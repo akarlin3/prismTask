@@ -19,7 +19,6 @@ import org.junit.Test
  * Tests for [TagRepository] using an in-memory fake [TagDao].
  */
 class TagRepositoryTest {
-
     private lateinit var tagDao: FakeTagDao
     private lateinit var syncTracker: SyncTracker
     private lateinit var repo: TagRepository
@@ -185,7 +184,13 @@ class TagRepositoryTest {
         override suspend fun removeAllTagsFromTask(taskId: Long) {
             crossRefs.removeAll { it.taskId == taskId }
         }
-        override suspend fun deleteAll() { tags.clear() }
-        override suspend fun deleteAllCrossRefs() { crossRefs.clear() }
+
+        override suspend fun deleteAll() {
+            tags.clear()
+        }
+
+        override suspend fun deleteAllCrossRefs() {
+            crossRefs.clear()
+        }
     }
 }

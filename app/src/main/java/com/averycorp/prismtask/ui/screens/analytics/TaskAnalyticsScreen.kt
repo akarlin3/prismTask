@@ -164,8 +164,11 @@ fun TaskAnalyticsScreen(
                 StatCard(
                     "Completion Rate",
                     "%.1f/day".format(
-                        if (state.selectedPeriod.days <= 7) stats.completionRate7Day
-                        else stats.completionRate30Day
+                        if (state.selectedPeriod.days <= 7) {
+                            stats.completionRate7Day
+                        } else {
+                            stats.completionRate30Day
+                        }
                     ),
                     accentColor
                 )
@@ -242,8 +245,11 @@ private fun ProjectFilterDropdown(
     onProjectSelected: (Long?) -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
-    val selectedName = if (selectedProjectId == null) "All Projects"
-    else projects.find { it.id == selectedProjectId }?.name ?: "All Projects"
+    val selectedName = if (selectedProjectId == null) {
+        "All Projects"
+    } else {
+        projects.find { it.id == selectedProjectId }?.name ?: "All Projects"
+    }
 
     ExposedDropdownMenuBox(
         expanded = expanded,
@@ -296,7 +302,12 @@ private fun StatCard(label: String, value: String, color: Color, modifier: Modif
         ) {
             Text(value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
             Spacer(modifier = Modifier.height(2.dp))
-            Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+            Text(
+                label,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
         }
     }
 }
@@ -314,7 +325,12 @@ private fun StreakStatCard(label: String, streak: Int) {
         ) {
             StreakBadge(streak = streak)
             Spacer(modifier = Modifier.height(2.dp))
-            Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+            Text(
+                label,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
         }
     }
 }
@@ -338,7 +354,12 @@ private fun OnTimeRateCard(overdueRate: Double?) {
         ) {
             Text("%.0f%%".format(onTimeRate), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = color)
             Spacer(modifier = Modifier.height(2.dp))
-            Text("On-Time Rate", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+            Text(
+                "On-Time Rate",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
         }
     }
 }
@@ -378,8 +399,15 @@ private fun DayOfWeekBarChart(
     color: Color,
     modifier: Modifier = Modifier
 ) {
-    val days = listOf(DayOfWeek.MONDAY, DayOfWeek.TUESDAY, DayOfWeek.WEDNESDAY,
-        DayOfWeek.THURSDAY, DayOfWeek.FRIDAY, DayOfWeek.SATURDAY, DayOfWeek.SUNDAY)
+    val days = listOf(
+        DayOfWeek.MONDAY,
+        DayOfWeek.TUESDAY,
+        DayOfWeek.WEDNESDAY,
+        DayOfWeek.THURSDAY,
+        DayOfWeek.FRIDAY,
+        DayOfWeek.SATURDAY,
+        DayOfWeek.SUNDAY
+    )
     val labels = listOf("M", "T", "W", "T", "F", "S", "S")
     val maxVal = completions.values.maxOrNull()?.coerceAtLeast(1) ?: 1
 
@@ -446,7 +474,8 @@ private fun TimeOfDayChart(
                     drawRect(
                         color = barColor,
                         topLeft = Offset(hour * barWidth, size.height - barHeight),
-                        size = androidx.compose.ui.geometry.Size(barWidth * 0.8f, barHeight)
+                        size = androidx.compose.ui.geometry
+                            .Size(barWidth * 0.8f, barHeight)
                     )
                 }
             }
@@ -499,11 +528,9 @@ private fun InsightsCard(stats: com.averycorp.prismtask.data.repository.TaskComp
     }
 }
 
-private fun formatHour(hour: Int): String {
-    return when {
-        hour == 0 -> "12:00 AM"
-        hour < 12 -> "$hour:00 AM"
-        hour == 12 -> "12:00 PM"
-        else -> "${hour - 12}:00 PM"
-    }
+private fun formatHour(hour: Int): String = when {
+    hour == 0 -> "12:00 AM"
+    hour < 12 -> "$hour:00 AM"
+    hour == 12 -> "12:00 PM"
+    else -> "${hour - 12}:00 PM"
 }

@@ -201,23 +201,30 @@ class UserPreferencesDataStore(
         dataStore.data.map { prefs ->
             val json = prefs[KEY_TASK_MENU_ACTIONS]
             if (json.isNullOrBlank()) {
-                com.averycorp.prismtask.domain.model.TaskMenuAction.defaults()
+                com.averycorp.prismtask.domain.model.TaskMenuAction
+                    .defaults()
             } else {
                 try {
                     val listType = com.google.gson.reflect.TypeToken
                         .getParameterized(List::class.java, com.averycorp.prismtask.domain.model.TaskMenuAction::class.java)
                         .type
                     val parsed: List<com.averycorp.prismtask.domain.model.TaskMenuAction> =
-                        com.google.gson.Gson().fromJson(json, listType)
-                    com.averycorp.prismtask.domain.model.TaskMenuAction.mergeWithDefaults(parsed)
+                        com.google.gson
+                            .Gson()
+                            .fromJson(json, listType)
+                    com.averycorp.prismtask.domain.model.TaskMenuAction
+                        .mergeWithDefaults(parsed)
                 } catch (_: Exception) {
-                    com.averycorp.prismtask.domain.model.TaskMenuAction.defaults()
+                    com.averycorp.prismtask.domain.model.TaskMenuAction
+                        .defaults()
                 }
             }
         }
 
     suspend fun setTaskMenuActions(actions: List<com.averycorp.prismtask.domain.model.TaskMenuAction>) {
-        val json = com.google.gson.Gson().toJson(actions)
+        val json = com.google.gson
+            .Gson()
+            .toJson(actions)
         dataStore.edit { it[KEY_TASK_MENU_ACTIONS] = json }
     }
 
@@ -225,22 +232,28 @@ class UserPreferencesDataStore(
         dataStore.data.map { prefs ->
             val json = prefs[KEY_TASK_CARD_DISPLAY]
             if (json.isNullOrBlank()) {
-                com.averycorp.prismtask.domain.model.TaskCardDisplayConfig()
+                com.averycorp.prismtask.domain.model
+                    .TaskCardDisplayConfig()
             } else {
                 try {
-                    com.google.gson.Gson()
+                    com.google.gson
+                        .Gson()
                         .fromJson(json, com.averycorp.prismtask.domain.model.TaskCardDisplayConfig::class.java)
                         ?.withClampedTagLimit()
-                        ?: com.averycorp.prismtask.domain.model.TaskCardDisplayConfig()
+                        ?: com.averycorp.prismtask.domain.model
+                            .TaskCardDisplayConfig()
                 } catch (_: Exception) {
-                    com.averycorp.prismtask.domain.model.TaskCardDisplayConfig()
+                    com.averycorp.prismtask.domain.model
+                        .TaskCardDisplayConfig()
                 }
             }
         }
 
     suspend fun setTaskCardDisplay(config: com.averycorp.prismtask.domain.model.TaskCardDisplayConfig) {
         val clamped = config.withClampedTagLimit()
-        val json = com.google.gson.Gson().toJson(clamped)
+        val json = com.google.gson
+            .Gson()
+            .toJson(clamped)
         dataStore.edit { it[KEY_TASK_CARD_DISPLAY] = json }
     }
 
@@ -274,7 +287,11 @@ class UserPreferencesDataStore(
 
     /** Combined flow emitting the full preferences bundle. */
     val allFlow: Flow<UserPreferencesSnapshot> = combine(
-        appearanceFlow, swipeFlow, taskDefaultsFlow, quickAddFlow, workLifeBalanceFlow
+        appearanceFlow,
+        swipeFlow,
+        taskDefaultsFlow,
+        quickAddFlow,
+        workLifeBalanceFlow
     ) { appearance, swipe, defaults, quickAdd, wlb ->
         UserPreferencesSnapshot(appearance, swipe, defaults, quickAdd, wlb)
     }

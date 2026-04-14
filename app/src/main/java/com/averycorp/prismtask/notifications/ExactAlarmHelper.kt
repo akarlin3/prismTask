@@ -26,7 +26,6 @@ import java.util.Date
  * rather than silently dropping them.
  */
 object ExactAlarmHelper {
-
     private const val TAG = "ExactAlarmHelper"
 
     /**
@@ -52,17 +51,23 @@ object ExactAlarmHelper {
                         "falling back to inexact alarm"
                 )
                 alarmManager.setAndAllowWhileIdle(
-                    AlarmManager.RTC_WAKEUP, triggerTime, pendingIntent
+                    AlarmManager.RTC_WAKEUP,
+                    triggerTime,
+                    pendingIntent
                 )
             } else {
                 alarmManager.setExactAndAllowWhileIdle(
-                    AlarmManager.RTC_WAKEUP, triggerTime, pendingIntent
+                    AlarmManager.RTC_WAKEUP,
+                    triggerTime,
+                    pendingIntent
                 )
             }
         } catch (e: SecurityException) {
             Log.w(TAG, "Exact alarm denied at scheduling time, falling back to inexact", e)
             alarmManager.setAndAllowWhileIdle(
-                AlarmManager.RTC_WAKEUP, triggerTime, pendingIntent
+                AlarmManager.RTC_WAKEUP,
+                triggerTime,
+                pendingIntent
             )
         }
     }

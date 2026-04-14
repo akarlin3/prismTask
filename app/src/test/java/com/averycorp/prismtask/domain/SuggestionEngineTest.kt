@@ -7,7 +7,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class SuggestionEngineTest {
-
     // Tests for the extractKeywords top-level function
 
     @Test

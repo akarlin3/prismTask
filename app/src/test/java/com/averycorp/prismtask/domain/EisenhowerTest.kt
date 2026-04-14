@@ -7,7 +7,6 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 class EisenhowerTest {
-
     @Test
     fun tasks_groupedByQuadrant() {
         val tasks = listOf(
@@ -29,8 +28,12 @@ class EisenhowerTest {
     @Test
     fun manualOverride_changesQuadrant() {
         val task = TaskEntity(
-            id = 1, title = "Test", eisenhowerQuadrant = "Q1",
-            eisenhowerReason = "AI categorized", createdAt = 0, updatedAt = 0
+            id = 1,
+            title = "Test",
+            eisenhowerQuadrant = "Q1",
+            eisenhowerReason = "AI categorized",
+            createdAt = 0,
+            updatedAt = 0
         )
         val moved = task.copy(eisenhowerQuadrant = "Q2", eisenhowerReason = "Manually moved")
         assertEquals("Q2", moved.eisenhowerQuadrant)
@@ -40,11 +43,13 @@ class EisenhowerTest {
     @Test
     fun syncMapper_roundTrip_eisenhowerFields() {
         val task = TaskEntity(
-            id = 1, title = "Sync test",
+            id = 1,
+            title = "Sync test",
             eisenhowerQuadrant = "Q3",
             eisenhowerUpdatedAt = 1234567890L,
             eisenhowerReason = "Due today, low priority",
-            createdAt = 100L, updatedAt = 200L
+            createdAt = 100L,
+            updatedAt = 200L
         )
         val map = SyncMapper.taskToMap(task)
         val restored = SyncMapper.mapToTask(map, 1)

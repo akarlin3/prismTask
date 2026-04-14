@@ -10,10 +10,13 @@ import com.averycorp.prismtask.data.preferences.effectiveCelebrationIntensity
 enum class CelebrationTrigger {
     /** Normal task completion. */
     NORMAL_COMPLETION,
+
     /** User shipped via a Good Enough Timer. */
     GOOD_ENOUGH_SHIP,
+
     /** User resisted re-editing (tapped "You're right, leave it"). */
     RESISTED_REWORK,
+
     /** User locked a task at max revisions. */
     LOCKED_AT_MAX_REVISIONS
 }
@@ -33,7 +36,6 @@ data class ShipItCelebration(
  * Manages Ship-It Celebrations for Focus & Release Mode.
  */
 object ShipItCelebrationManager {
-
     private val normalMessages = listOf(
         "Shipped!",
         "Done is beautiful.",

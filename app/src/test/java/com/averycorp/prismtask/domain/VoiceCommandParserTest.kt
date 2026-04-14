@@ -14,7 +14,6 @@ import org.junit.Test
  * the date extraction path used by "reschedule ... to ..." commands.
  */
 class VoiceCommandParserTest {
-
     private val parser = VoiceCommandParser()
 
     // ----- pattern matching -----

@@ -7,47 +7,40 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
-import android.os.PowerManager
-import android.provider.Settings
-import android.util.Log
 import android.os.Bundle
+import android.os.PowerManager
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
+import android.provider.Settings
+import android.util.Log
 import androidx.activity.ComponentActivity
-import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.averycorp.prismtask.data.billing.BillingManager
 import com.averycorp.prismtask.data.diagnostics.DiagnosticLogger
-import com.averycorp.prismtask.domain.usecase.ScreenshotCapture
-import com.averycorp.prismtask.domain.usecase.ShakeDetector
-import com.averycorp.prismtask.ui.navigation.PrismTaskRoute
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.averycorp.prismtask.data.preferences.AppearancePrefs
 import com.averycorp.prismtask.data.preferences.OnboardingPreferences
 import com.averycorp.prismtask.data.preferences.ShakePreferences
@@ -59,11 +52,16 @@ import com.averycorp.prismtask.data.remote.SyncService
 import com.averycorp.prismtask.data.remote.UpdateChecker
 import com.averycorp.prismtask.data.remote.VersionInfo
 import com.averycorp.prismtask.data.remote.sync.BackendSyncService
+import com.averycorp.prismtask.domain.usecase.ScreenshotCapture
+import com.averycorp.prismtask.domain.usecase.ShakeDetector
 import com.averycorp.prismtask.notifications.NotificationHelper
 import com.averycorp.prismtask.ui.components.UpdateDialog
 import com.averycorp.prismtask.ui.navigation.PrismTaskNavGraph
-import com.averycorp.prismtask.ui.theme.PrismTaskTheme
+import com.averycorp.prismtask.ui.navigation.PrismTaskRoute
 import com.averycorp.prismtask.ui.theme.PriorityColors
+import com.averycorp.prismtask.ui.theme.PrismTaskTheme
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.crashlytics.FirebaseCrashlytics
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -71,7 +69,6 @@ import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
-
     @Inject
     lateinit var themePreferences: ThemePreferences
 
@@ -181,43 +178,60 @@ class MainActivity : ComponentActivity() {
                 )
             }
 
-            val themeMode by themePreferences.getThemeMode()
+            val themeMode by themePreferences
+                .getThemeMode()
                 .collectAsStateWithLifecycle(initialValue = "system")
-            val accentColor by themePreferences.getAccentColor()
+            val accentColor by themePreferences
+                .getAccentColor()
                 .collectAsStateWithLifecycle(initialValue = "#2563EB")
-            val backgroundColorOverride by themePreferences.getBackgroundColor()
+            val backgroundColorOverride by themePreferences
+                .getBackgroundColor()
                 .collectAsStateWithLifecycle(initialValue = "")
-            val surfaceColorOverride by themePreferences.getSurfaceColor()
+            val surfaceColorOverride by themePreferences
+                .getSurfaceColor()
                 .collectAsStateWithLifecycle(initialValue = "")
-            val errorColorOverride by themePreferences.getErrorColor()
+            val errorColorOverride by themePreferences
+                .getErrorColor()
                 .collectAsStateWithLifecycle(initialValue = "")
-            val fontScale by themePreferences.getFontScale()
+            val fontScale by themePreferences
+                .getFontScale()
                 .collectAsStateWithLifecycle(initialValue = 1.0f)
 
-            val priorityNone by themePreferences.getPriorityColorNone()
+            val priorityNone by themePreferences
+                .getPriorityColorNone()
                 .collectAsStateWithLifecycle(initialValue = "")
-            val priorityLow by themePreferences.getPriorityColorLow()
+            val priorityLow by themePreferences
+                .getPriorityColorLow()
                 .collectAsStateWithLifecycle(initialValue = "")
-            val priorityMedium by themePreferences.getPriorityColorMedium()
+            val priorityMedium by themePreferences
+                .getPriorityColorMedium()
                 .collectAsStateWithLifecycle(initialValue = "")
-            val priorityHigh by themePreferences.getPriorityColorHigh()
+            val priorityHigh by themePreferences
+                .getPriorityColorHigh()
                 .collectAsStateWithLifecycle(initialValue = "")
-            val priorityUrgent by themePreferences.getPriorityColorUrgent()
+            val priorityUrgent by themePreferences
+                .getPriorityColorUrgent()
                 .collectAsStateWithLifecycle(initialValue = "")
 
-            val hasCompletedOnboarding by onboardingPreferences.hasCompletedOnboarding()
+            val hasCompletedOnboarding by onboardingPreferences
+                .hasCompletedOnboarding()
                 .collectAsStateWithLifecycle(initialValue = null as Boolean?)
 
-            val reduceMotion by a11yPreferences.getReduceMotion()
+            val reduceMotion by a11yPreferences
+                .getReduceMotion()
                 .collectAsStateWithLifecycle(initialValue = false)
-            val highContrast by a11yPreferences.getHighContrast()
+            val highContrast by a11yPreferences
+                .getHighContrast()
                 .collectAsStateWithLifecycle(initialValue = false)
-            val largeTouchTargets by a11yPreferences.getLargeTouchTargets()
+            val largeTouchTargets by a11yPreferences
+                .getLargeTouchTargets()
                 .collectAsStateWithLifecycle(initialValue = false)
 
-            val tabOrder by tabPreferences.getTabOrder()
+            val tabOrder by tabPreferences
+                .getTabOrder()
                 .collectAsStateWithLifecycle(initialValue = TabPreferences.DEFAULT_ORDER)
-            val hiddenTabs by tabPreferences.getHiddenTabs()
+            val hiddenTabs by tabPreferences
+                .getHiddenTabs()
                 .collectAsStateWithLifecycle(initialValue = emptySet())
 
             val appearance by userPreferencesDataStore.appearanceFlow
@@ -390,9 +404,11 @@ class MainActivity : ComponentActivity() {
             var showShakeDialog by remember { mutableStateOf(false) }
             var pendingScreenshotUri by remember { mutableStateOf<android.net.Uri?>(null) }
 
-            val shakeEnabled by shakePreferences.getEnabled()
+            val shakeEnabled by shakePreferences
+                .getEnabled()
                 .collectAsStateWithLifecycle(initialValue = ShakePreferences.DEFAULT_ENABLED)
-            val shakeSensitivity by shakePreferences.getSensitivity()
+            val shakeSensitivity by shakePreferences
+                .getSensitivity()
                 .collectAsStateWithLifecycle(initialValue = ShakePreferences.DEFAULT_SENSITIVITY)
 
             LaunchedEffect(shakeSensitivity) {

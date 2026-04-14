@@ -8,7 +8,6 @@ import java.util.Calendar
  * system clock.
  */
 object DateShortcuts {
-
     /** Returns the epoch millis at midnight for the day [now] falls into. */
     fun startOfDay(now: Long): Long {
         val cal = Calendar.getInstance().apply { timeInMillis = now }

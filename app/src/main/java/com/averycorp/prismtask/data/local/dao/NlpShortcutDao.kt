@@ -11,7 +11,6 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface NlpShortcutDao {
-
     @Query("SELECT * FROM nlp_shortcuts ORDER BY sort_order ASC, id ASC")
     fun getAll(): Flow<List<NlpShortcutEntity>>
 

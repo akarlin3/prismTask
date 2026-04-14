@@ -89,11 +89,21 @@ fun TaskDefaultsSection(
     )
     SettingsRowWithSubtitle(
         title = "Day Start Hour",
-        subtitle = if (dayStartHour == 0) "Midnight" else String.format(
-            "%d:00 %s",
-            if (dayStartHour > 12) dayStartHour - 12 else if (dayStartHour == 0) 12 else dayStartHour,
-            if (dayStartHour < 12) "AM" else "PM"
-        ),
+        subtitle = if (dayStartHour == 0) {
+            "Midnight"
+        } else {
+            String.format(
+                "%d:00 %s",
+                if (dayStartHour > 12) {
+                    dayStartHour - 12
+                } else if (dayStartHour == 0) {
+                    12
+                } else {
+                    dayStartHour
+                },
+                if (dayStartHour < 12) "AM" else "PM"
+            )
+        },
         onClick = {
             val next = (dayStartHour + 1) % 24
             onDayStartHourChange(next)
@@ -125,8 +135,10 @@ fun TaskDefaultsSection(
                 val total = localDueDate + localPriority + localAge + localSubtasks
                 if (total > 0) {
                     val w = UrgencyWeights(
-                        localDueDate / total, localPriority / total,
-                        localAge / total, localSubtasks / total
+                        localDueDate / total,
+                        localPriority / total,
+                        localAge / total,
+                        localSubtasks / total
                     )
                     localDueDate = w.dueDate
                     localPriority = w.priority
@@ -136,10 +148,22 @@ fun TaskDefaultsSection(
                 }
             }
 
-            WeightSlider("Due Date", localDueDate) { localDueDate = it; normalizeAndSave() }
-            WeightSlider("Priority", localPriority) { localPriority = it; normalizeAndSave() }
-            WeightSlider("Task Age", localAge) { localAge = it; normalizeAndSave() }
-            WeightSlider("Subtasks", localSubtasks) { localSubtasks = it; normalizeAndSave() }
+            WeightSlider("Due Date", localDueDate) {
+                localDueDate = it
+                normalizeAndSave()
+            }
+            WeightSlider("Priority", localPriority) {
+                localPriority = it
+                normalizeAndSave()
+            }
+            WeightSlider("Task Age", localAge) {
+                localAge = it
+                normalizeAndSave()
+            }
+            WeightSlider("Subtasks", localSubtasks) {
+                localSubtasks = it
+                normalizeAndSave()
+            }
 
             Spacer(modifier = Modifier.height(12.dp))
             Text(
@@ -179,24 +203,33 @@ private fun UrgencyPreviewSamples(weights: UrgencyWeights) {
         Triple(
             "Overdue report",
             TaskEntity(
-                id = 1, title = "Overdue report", priority = 3,
-                dueDate = now - day, createdAt = now - 3 * day
+                id = 1,
+                title = "Overdue report",
+                priority = 3,
+                dueDate = now - day,
+                createdAt = now - 3 * day
             ),
             0 to 0
         ),
         Triple(
             "New idea",
             TaskEntity(
-                id = 2, title = "New idea", priority = 1,
-                dueDate = now + 7 * day, createdAt = now
+                id = 2,
+                title = "New idea",
+                priority = 1,
+                dueDate = now + 7 * day,
+                createdAt = now
             ),
             0 to 0
         ),
         Triple(
             "Big project",
             TaskEntity(
-                id = 3, title = "Big project", priority = 2,
-                dueDate = now + 2 * day, createdAt = now - 14 * day
+                id = 3,
+                title = "Big project",
+                priority = 2,
+                dueDate = now + 2 * day,
+                createdAt = now - 14 * day
             ),
             5 to 2
         )

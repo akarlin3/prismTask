@@ -11,7 +11,11 @@ data class PriorityColors(
     val urgent: Color = Color(0xFFD4534A)
 ) {
     fun forLevel(priority: Int): Color = when (priority) {
-        1 -> low; 2 -> medium; 3 -> high; 4 -> urgent; else -> none
+        1 -> low
+        2 -> medium
+        3 -> high
+        4 -> urgent
+        else -> none
     }
 }
 

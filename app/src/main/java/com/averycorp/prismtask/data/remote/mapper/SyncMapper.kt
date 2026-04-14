@@ -1,16 +1,15 @@
 package com.averycorp.prismtask.data.remote.mapper
 
-import com.averycorp.prismtask.data.local.entity.TaskCompletionEntity
 import com.averycorp.prismtask.data.local.entity.HabitCompletionEntity
 import com.averycorp.prismtask.data.local.entity.HabitEntity
 import com.averycorp.prismtask.data.local.entity.HabitLogEntity
 import com.averycorp.prismtask.data.local.entity.ProjectEntity
 import com.averycorp.prismtask.data.local.entity.TagEntity
+import com.averycorp.prismtask.data.local.entity.TaskCompletionEntity
 import com.averycorp.prismtask.data.local.entity.TaskEntity
 import com.averycorp.prismtask.data.local.entity.TaskTemplateEntity
 
 object SyncMapper {
-
     fun taskToMap(task: TaskEntity, tagIds: List<String> = emptyList()): Map<String, Any?> = mapOf(
         "localId" to task.id,
         "title" to task.title,

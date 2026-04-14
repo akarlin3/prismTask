@@ -9,7 +9,6 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface CheckInLogDao {
-
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(log: CheckInLogEntity): Long
 

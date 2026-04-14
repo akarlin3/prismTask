@@ -7,7 +7,6 @@ import org.junit.Test
 import java.util.Calendar
 
 class HabitRepositoryHelpersTest {
-
     @Test
     fun normalizeToMidnight_zeroesTimes() {
         val cal = Calendar.getInstance()

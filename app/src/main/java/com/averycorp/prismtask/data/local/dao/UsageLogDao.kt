@@ -14,29 +14,33 @@ data class EntityFrequency(
 
 @Dao
 interface UsageLogDao {
-
     @Insert
     suspend fun insert(log: UsageLogEntity)
 
-    @Query("""
+    @Query(
+        """
         SELECT entity_id AS entityId, entity_name AS entityName, COUNT(*) AS count
         FROM usage_logs
         WHERE event_type = 'tag_assigned' AND entity_id IS NOT NULL
         GROUP BY entity_id
         ORDER BY count DESC
-    """)
+    """
+    )
     fun getTagFrequency(): Flow<List<EntityFrequency>>
 
-    @Query("""
+    @Query(
+        """
         SELECT entity_id AS entityId, entity_name AS entityName, COUNT(*) AS count
         FROM usage_logs
         WHERE event_type = 'project_assigned' AND entity_id IS NOT NULL
         GROUP BY entity_id
         ORDER BY count DESC
-    """)
+    """
+    )
     fun getProjectFrequency(): Flow<List<EntityFrequency>>
 
-    @Query("""
+    @Query(
+        """
         SELECT entity_id AS entityId, entity_name AS entityName, COUNT(*) AS count
         FROM usage_logs
         WHERE event_type = 'tag_assigned' AND entity_id IS NOT NULL
@@ -44,10 +48,12 @@ interface UsageLogDao {
         GROUP BY entity_id
         ORDER BY count DESC
         LIMIT 5
-    """)
+    """
+    )
     fun getTagsForKeyword(keyword: String): Flow<List<EntityFrequency>>
 
-    @Query("""
+    @Query(
+        """
         SELECT entity_id AS entityId, entity_name AS entityName, COUNT(*) AS count
         FROM usage_logs
         WHERE event_type = 'project_assigned' AND entity_id IS NOT NULL
@@ -55,6 +61,7 @@ interface UsageLogDao {
         GROUP BY entity_id
         ORDER BY count DESC
         LIMIT 3
-    """)
+    """
+    )
     fun getProjectsForKeyword(keyword: String): Flow<List<EntityFrequency>>
 }

@@ -16,7 +16,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
@@ -24,12 +23,9 @@ import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import com.averycorp.prismtask.ui.components.CircularCheckbox
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -50,14 +46,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.averycorp.prismtask.ui.components.CircularCheckbox
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -264,8 +259,11 @@ private fun PlanningView(
                     ) {
                         HorizontalDivider(modifier = Modifier.weight(1f))
                         Text(
-                            if (isLongBreak) "  ${config.longBreakLength} Min Long Break  "
-                            else "  ${config.breakLength} Min Break  ",
+                            if (isLongBreak) {
+                                "  ${config.longBreakLength} Min Long Break  "
+                            } else {
+                                "  ${config.breakLength} Min Break  "
+                            },
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -629,7 +627,8 @@ private fun CompletionView(
                 style = MaterialTheme.typography.titleSmall,
                 modifier = Modifier.fillMaxWidth()
             )
-            plan.sessions.flatMap { it.tasks }
+            plan.sessions
+                .flatMap { it.tasks }
                 .filter { it.taskId in completedTaskIds }
                 .forEach { task ->
                     Row(

@@ -12,7 +12,6 @@ import org.junit.Test
  * validate the pure model layer.
  */
 class TimerStateDataStoreTest {
-
     @Test
     fun `default state is not running`() {
         val state = TimerWidgetState()

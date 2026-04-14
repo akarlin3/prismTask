@@ -24,7 +24,6 @@ import java.io.File
  * a temp file so tests run as pure JVM without Android/Robolectric.
  */
 class NdPreferencesDataStoreTest {
-
     @get:Rule
     val tmpFolder = TemporaryFolder()
 

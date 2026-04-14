@@ -176,7 +176,10 @@ fun TimelineScreen(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
-                        text = "${stats.tasksScheduled} tasks \u00B7 ${stats.totalWorkMinutes / 60}h work \u00B7 ${stats.totalBreakMinutes}m breaks \u00B7 ${stats.totalFreeMinutes}m free",
+                        text = "${stats.tasksScheduled} tasks \u00B7 " +
+                            "${stats.totalWorkMinutes / 60}h work \u00B7 " +
+                            "${stats.totalBreakMinutes}m breaks \u00B7 " +
+                            "${stats.totalFreeMinutes}m free",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onPrimaryContainer
                     )
@@ -219,7 +222,7 @@ fun TimelineScreen(
                             verticalAlignment = Alignment.Top
                         ) {
                             Text(
-                                text = if (hour <= 12) "${hour} AM" else "${hour - 12} PM",
+                                text = if (hour <= 12) "$hour AM" else "${hour - 12} PM",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier
@@ -262,7 +265,11 @@ fun TimelineScreen(
 
                 // Scheduled blocks
                 val zone = ZoneId.systemDefault()
-                val dayStart = currentDate.atTime(START_HOUR, 0).atZone(zone).toInstant().toEpochMilli()
+                val dayStart = currentDate
+                    .atTime(START_HOUR, 0)
+                    .atZone(zone)
+                    .toInstant()
+                    .toEpochMilli()
 
                 scheduledBlocks.forEach { block ->
                     val minutesFromStart = ((block.startTime - dayStart) / 60000f).coerceAtLeast(0f)
@@ -474,8 +481,11 @@ fun TimelineScreen(
             confirmButton = {
                 TextButton(onClick = {
                     val cal = Calendar.getInstance()
-                    cal.timeInMillis = currentDate.atTime(timePickerState.hour, timePickerState.minute)
-                        .atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+                    cal.timeInMillis = currentDate
+                        .atTime(timePickerState.hour, timePickerState.minute)
+                        .atZone(ZoneId.systemDefault())
+                        .toInstant()
+                        .toEpochMilli()
                     viewModel.onScheduleTask(task.id, cal.timeInMillis)
                     scheduleDialogTask = null
                 }) { Text("Schedule") }

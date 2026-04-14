@@ -37,7 +37,6 @@ import kotlinx.coroutines.launch
  *  - [ACTION_COMPLETE] once when the countdown reaches zero
  */
 class PomodoroTimerService : Service() {
-
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private var tickJob: Job? = null
     private var secondsRemaining: Int = 0
@@ -107,11 +106,13 @@ class PomodoroTimerService : Service() {
         val completion = buildCompletionNotification()
         manager?.notify(NOTIFICATION_ID_COMPLETE, completion)
 
-        sendBroadcast(Intent(ACTION_COMPLETE).apply {
-            setPackage(packageName)
-            putExtra(EXTRA_SESSION_INDEX, sessionIndex)
-            putExtra(EXTRA_SESSION_TYPE, sessionType)
-        })
+        sendBroadcast(
+            Intent(ACTION_COMPLETE).apply {
+                setPackage(packageName)
+                putExtra(EXTRA_SESSION_INDEX, sessionIndex)
+                putExtra(EXTRA_SESSION_TYPE, sessionType)
+            }
+        )
 
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
@@ -150,7 +151,8 @@ class PomodoroTimerService : Service() {
         }
         val content = "$title \u2014 ${formatRemaining(seconds)} remaining"
 
-        return NotificationCompat.Builder(this, CHANNEL_ID_ONGOING)
+        return NotificationCompat
+            .Builder(this, CHANNEL_ID_ONGOING)
             .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
             .setContentTitle(title)
             .setContentText(content)
@@ -164,8 +166,7 @@ class PomodoroTimerService : Service() {
                 android.R.drawable.ic_menu_close_clear_cancel,
                 "Stop",
                 stopPending
-            )
-            .build()
+            ).build()
     }
 
     private fun buildCompletionNotification(): Notification {
@@ -188,7 +189,8 @@ class PomodoroTimerService : Service() {
             else -> "Nice work \u2014 time for a break."
         }
 
-        return NotificationCompat.Builder(this, CHANNEL_ID_COMPLETE)
+        return NotificationCompat
+            .Builder(this, CHANNEL_ID_COMPLETE)
             .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
             .setContentTitle(title)
             .setContentText(body)
@@ -200,12 +202,14 @@ class PomodoroTimerService : Service() {
     }
 
     private fun broadcastTick(seconds: Int) {
-        sendBroadcast(Intent(ACTION_TICK).apply {
-            setPackage(packageName)
-            putExtra(EXTRA_SECONDS_REMAINING, seconds)
-            putExtra(EXTRA_SESSION_INDEX, sessionIndex)
-            putExtra(EXTRA_SESSION_TYPE, sessionType)
-        })
+        sendBroadcast(
+            Intent(ACTION_TICK).apply {
+                setPackage(packageName)
+                putExtra(EXTRA_SECONDS_REMAINING, seconds)
+                putExtra(EXTRA_SESSION_INDEX, sessionIndex)
+                putExtra(EXTRA_SESSION_TYPE, sessionType)
+            }
+        )
     }
 
     override fun onDestroy() {

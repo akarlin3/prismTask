@@ -15,25 +15,26 @@ import javax.inject.Singleton
  * or refill without having to reach into the use case layer.
  */
 @Singleton
-class MedicationRefillRepository @Inject constructor(
-    private val dao: MedicationRefillDao
-) {
+class MedicationRefillRepository
+    @Inject
+    constructor(
+        private val dao: MedicationRefillDao
+    ) {
+        fun observeAll(): Flow<List<MedicationRefillEntity>> = dao.observeAll()
 
-    fun observeAll(): Flow<List<MedicationRefillEntity>> = dao.observeAll()
+        suspend fun getAll(): List<MedicationRefillEntity> = dao.getAll()
 
-    suspend fun getAll(): List<MedicationRefillEntity> = dao.getAll()
+        suspend fun getByName(name: String): MedicationRefillEntity? = dao.getByName(name)
 
-    suspend fun getByName(name: String): MedicationRefillEntity? = dao.getByName(name)
+        suspend fun upsert(refill: MedicationRefillEntity): Long = dao.upsert(refill)
 
-    suspend fun upsert(refill: MedicationRefillEntity): Long = dao.upsert(refill)
+        suspend fun applyDailyDose(refill: MedicationRefillEntity) {
+            dao.update(RefillCalculator.applyDailyDose(refill))
+        }
 
-    suspend fun applyDailyDose(refill: MedicationRefillEntity) {
-        dao.update(RefillCalculator.applyDailyDose(refill))
+        suspend fun applyRefill(refill: MedicationRefillEntity, newSupply: Int) {
+            dao.update(RefillCalculator.applyRefill(refill, newSupply))
+        }
+
+        suspend fun delete(id: Long) = dao.delete(id)
     }
-
-    suspend fun applyRefill(refill: MedicationRefillEntity, newSupply: Int) {
-        dao.update(RefillCalculator.applyRefill(refill, newSupply))
-    }
-
-    suspend fun delete(id: Long) = dao.delete(id)
-}

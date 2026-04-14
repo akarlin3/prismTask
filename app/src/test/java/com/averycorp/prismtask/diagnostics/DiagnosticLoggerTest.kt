@@ -11,7 +11,6 @@ import org.junit.Before
 import org.junit.Test
 
 class DiagnosticLoggerTest {
-
     private lateinit var logger: DiagnosticLogger
 
     @Before

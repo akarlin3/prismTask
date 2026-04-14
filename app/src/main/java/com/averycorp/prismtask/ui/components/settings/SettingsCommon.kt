@@ -55,7 +55,12 @@ fun SettingsRow(title: String, onClick: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(text = title, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
-        Icon(Icons.Default.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
+        Icon(
+            Icons.Default.ChevronRight,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(20.dp)
+        )
     }
 }
 
@@ -73,7 +78,12 @@ fun SettingsRowWithSubtitle(title: String, subtitle: String, onClick: () -> Unit
             Text(text = title, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
             Text(text = subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        Icon(Icons.Default.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
+        Icon(
+            Icons.Default.ChevronRight,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(20.dp)
+        )
     }
 }
 
@@ -161,7 +171,11 @@ fun ColorOverrideRow(label: String, currentHex: String, onClick: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically
     ) {
         if (currentHex.isNotBlank()) {
-            val color = try { Color(android.graphics.Color.parseColor(currentHex)) } catch (_: Exception) { Color.Gray }
+            val color = try {
+                Color(android.graphics.Color.parseColor(currentHex))
+            } catch (_: Exception) {
+                Color.Gray
+            }
             Box(
                 modifier = Modifier
                     .size(24.dp)
@@ -197,8 +211,14 @@ fun ColorOverrideRow(label: String, currentHex: String, onClick: () -> Unit) {
 @Composable
 fun PriorityColorRow(label: String, currentHex: String, defaultColor: Color, onClick: () -> Unit) {
     val displayColor = if (currentHex.isNotBlank()) {
-        try { Color(android.graphics.Color.parseColor(currentHex)) } catch (_: Exception) { defaultColor }
-    } else defaultColor
+        try {
+            Color(android.graphics.Color.parseColor(currentHex))
+        } catch (_: Exception) {
+            defaultColor
+        }
+    } else {
+        defaultColor
+    }
 
     Row(
         modifier = Modifier

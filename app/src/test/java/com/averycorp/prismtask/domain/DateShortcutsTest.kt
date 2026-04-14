@@ -11,7 +11,6 @@ import java.util.Calendar
  * across time zones.
  */
 class DateShortcutsTest {
-
     /**
      * Builds a "now" anchored to a specific [dayOfWeek] (e.g. [Calendar.MONDAY])
      * so assertions don't depend on hard-coded calendar dates that might not

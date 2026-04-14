@@ -29,12 +29,23 @@ class ToggleTaskFromWidgetAction : ActionCallback {
         val taskId = parameters[WidgetActionKeys.TASK_ID] ?: return
         try {
             WidgetDataProvider.toggleTaskCompletion(context, taskId)
-        } catch (_: Exception) { /* fail silently — widget will redraw next tick */ }
+        } catch (_: Exception) {
+            // fail silently — widget will redraw next tick
+        }
         // Refresh every widget that might show this task.
         TodayWidget().updateAll(context)
-        try { UpcomingWidget().updateAll(context) } catch (_: Exception) {}
-        try { ProductivityWidget().updateAll(context) } catch (_: Exception) {}
-        try { CalendarWidget().updateAll(context) } catch (_: Exception) {}
+        try {
+            UpcomingWidget().updateAll(context)
+        } catch (_: Exception) {
+        }
+        try {
+            ProductivityWidget().updateAll(context)
+        } catch (_: Exception) {
+        }
+        try {
+            CalendarWidget().updateAll(context)
+        } catch (_: Exception) {
+        }
     }
 }
 
@@ -48,10 +59,17 @@ class ToggleHabitFromWidgetAction : ActionCallback {
         val habitId = parameters[WidgetActionKeys.HABIT_ID] ?: return
         try {
             WidgetDataProvider.toggleHabitCompletion(context, habitId)
-        } catch (_: Exception) { }
+        } catch (_: Exception) {
+        }
         HabitStreakWidget().updateAll(context)
-        try { TodayWidget().updateAll(context) } catch (_: Exception) {}
-        try { ProductivityWidget().updateAll(context) } catch (_: Exception) {}
+        try {
+            TodayWidget().updateAll(context)
+        } catch (_: Exception) {
+        }
+        try {
+            ProductivityWidget().updateAll(context)
+        } catch (_: Exception) {
+        }
     }
 }
 
@@ -63,7 +81,8 @@ class PauseTimerAction : ActionCallback {
         try {
             val state = TimerStateDataStore.read(context)
             TimerStateDataStore.write(context, state.copy(isRunning = false, isPaused = true))
-        } catch (_: Exception) {}
+        } catch (_: Exception) {
+        }
         TimerWidget().updateAll(context)
     }
 }
@@ -74,7 +93,8 @@ class ResumeTimerAction : ActionCallback {
         try {
             val state = TimerStateDataStore.read(context)
             TimerStateDataStore.write(context, state.copy(isRunning = true, isPaused = false))
-        } catch (_: Exception) {}
+        } catch (_: Exception) {
+        }
         TimerWidget().updateAll(context)
     }
 }
@@ -84,7 +104,8 @@ class StopTimerAction : ActionCallback {
     override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
         try {
             TimerStateDataStore.clear(context)
-        } catch (_: Exception) {}
+        } catch (_: Exception) {
+        }
         TimerWidget().updateAll(context)
     }
 }
@@ -95,15 +116,19 @@ class SkipBreakAction : ActionCallback {
         try {
             val state = TimerStateDataStore.read(context)
             if (state.sessionType == "break") {
-                TimerStateDataStore.write(context, state.copy(
-                    sessionType = "work",
-                    isRunning = false,
-                    isPaused = false,
-                    remainingSeconds = state.totalSeconds,
-                    currentSession = state.currentSession + 1
-                ))
+                TimerStateDataStore.write(
+                    context,
+                    state.copy(
+                        sessionType = "work",
+                        isRunning = false,
+                        isPaused = false,
+                        remainingSeconds = state.totalSeconds,
+                        currentSession = state.currentSession + 1
+                    )
+                )
             }
-        } catch (_: Exception) {}
+        } catch (_: Exception) {
+        }
         TimerWidget().updateAll(context)
     }
 }

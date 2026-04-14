@@ -1,8 +1,5 @@
 package com.averycorp.prismtask.ui.screens.medication.components
 
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -11,51 +8,29 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.InputChip
-import androidx.compose.material3.InputChipDefaults
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimePicker
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -67,18 +42,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.navigation.NavController
 import com.averycorp.prismtask.data.local.entity.SelfCareStepEntity
-import com.averycorp.prismtask.data.preferences.MedicationScheduleMode
 import com.averycorp.prismtask.data.repository.MedStepLog
 import com.averycorp.prismtask.domain.model.SelfCareRoutines
-import com.averycorp.prismtask.ui.navigation.PrismTaskRoute
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -220,22 +189,22 @@ internal fun MedDialog(
                                 .weight(1f)
                                 .clip(RoundedCornerShape(8.dp))
                                 .background(
-                                    if (selected) chipColor.copy(alpha = 0.15f)
-                                    else MaterialTheme.colorScheme.surfaceContainerLow
-                                )
-                                .border(
+                                    if (selected) {
+                                        chipColor.copy(alpha = 0.15f)
+                                    } else {
+                                        MaterialTheme.colorScheme.surfaceContainerLow
+                                    }
+                                ).border(
                                     width = if (selected) 1.5.dp else 1.dp,
                                     color = if (selected) chipColor else MaterialTheme.colorScheme.outlineVariant,
                                     shape = RoundedCornerShape(8.dp)
-                                )
-                                .clickable {
+                                ).clickable {
                                     selectedTimes = if (selected) {
                                         selectedTimes - tod.id
                                     } else {
                                         selectedTimes + tod.id
                                     }
-                                }
-                                .padding(vertical = 8.dp),
+                                }.padding(vertical = 8.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -266,7 +235,8 @@ internal fun MedDialog(
         confirmButton = {
             TextButton(
                 onClick = {
-                    val timeOfDay = SelfCareRoutines.serializeTimeOfDay(selectedTimes)
+                    val timeOfDay = SelfCareRoutines
+                        .serializeTimeOfDay(selectedTimes)
                         .ifEmpty { "morning" }
                     onConfirm(label.trim(), duration.trim(), tier, note.trim(), timeOfDay)
                 },
@@ -305,8 +275,7 @@ internal fun EditableMedItem(
                 width = 1.dp,
                 color = MaterialTheme.colorScheme.outlineVariant,
                 shape = RoundedCornerShape(12.dp)
-            )
-            .clickable(onClick = onEdit)
+            ).clickable(onClick = onEdit)
             .padding(horizontal = 8.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -316,8 +285,11 @@ internal fun EditableMedItem(
                     Icons.Default.KeyboardArrowUp,
                     contentDescription = "Move up",
                     modifier = Modifier.size(18.dp),
-                    tint = if (!isFirst) MaterialTheme.colorScheme.onSurfaceVariant
-                    else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.25f)
+                    tint = if (!isFirst) {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.25f)
+                    }
                 )
             }
             IconButton(onClick = onMoveDown, modifier = Modifier.size(28.dp), enabled = !isLast) {
@@ -325,8 +297,11 @@ internal fun EditableMedItem(
                     Icons.Default.KeyboardArrowDown,
                     contentDescription = "Move down",
                     modifier = Modifier.size(18.dp),
-                    tint = if (!isLast) MaterialTheme.colorScheme.onSurfaceVariant
-                    else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.25f)
+                    tint = if (!isLast) {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.25f)
+                    }
                 )
             }
         }
@@ -405,15 +380,16 @@ internal fun MedItem(
             .padding(bottom = 6.dp)
             .clip(RoundedCornerShape(12.dp))
             .background(
-                if (isDone) tierColor.copy(alpha = 0.07f)
-                else MaterialTheme.colorScheme.surfaceContainerLow
-            )
-            .border(
+                if (isDone) {
+                    tierColor.copy(alpha = 0.07f)
+                } else {
+                    MaterialTheme.colorScheme.surfaceContainerLow
+                }
+            ).border(
                 width = 1.dp,
                 color = if (isDone) tierColor.copy(alpha = 0.25f) else MaterialTheme.colorScheme.outlineVariant,
                 shape = RoundedCornerShape(12.dp)
-            )
-            .padding(12.dp),
+            ).padding(12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
