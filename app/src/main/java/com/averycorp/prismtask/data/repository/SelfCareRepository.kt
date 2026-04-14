@@ -4,7 +4,6 @@ import android.app.AlarmManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import android.os.Build
 import com.averycorp.prismtask.data.local.dao.HabitCompletionDao
 import com.averycorp.prismtask.data.local.dao.HabitDao
 import com.averycorp.prismtask.data.local.dao.SelfCareDao
@@ -16,6 +15,7 @@ import com.averycorp.prismtask.data.preferences.MedicationPreferences
 import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
 import com.averycorp.prismtask.domain.model.RoutineStep
 import com.averycorp.prismtask.domain.model.SelfCareRoutines
+import com.averycorp.prismtask.notifications.ExactAlarmHelper
 import com.averycorp.prismtask.notifications.MedStepReminderReceiver
 import com.averycorp.prismtask.util.DayBoundary
 import com.google.gson.Gson
@@ -714,10 +714,6 @@ class SelfCareRepository @Inject constructor(
     private fun scheduleMedStepReminder(step: SelfCareStepEntity, loggedAt: Long) {
         val delay = step.reminderDelayMillis ?: return
         val triggerTime = loggedAt + delay
-        val alarmManager = context.getSystemService(AlarmManager::class.java) ?: return
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !alarmManager.canScheduleExactAlarms()) {
-            return
-        }
         val intent = Intent(context, MedStepReminderReceiver::class.java).apply {
             putExtra("stepId", step.stepId)
             putExtra("medName", step.label)
@@ -728,11 +724,7 @@ class SelfCareRepository @Inject constructor(
             context, requestCode, intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-        try {
-            alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerTime, pendingIntent)
-        } catch (_: SecurityException) {
-            // Exact alarm permission not granted
-        }
+        ExactAlarmHelper.scheduleExact(context, triggerTime, pendingIntent)
     }
 
     private fun cancelMedStepReminder(stepId: String) {
@@ -748,10 +740,6 @@ class SelfCareRepository @Inject constructor(
 
     private fun scheduleMedicationReminder(loggedAt: Long, intervalMillis: Long) {
         val triggerTime = maxOf(loggedAt + intervalMillis, System.currentTimeMillis() + 1000)
-        val alarmManager = context.getSystemService(AlarmManager::class.java) ?: return
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !alarmManager.canScheduleExactAlarms()) {
-            return
-        }
         val intent = Intent(context, MedStepReminderReceiver::class.java).apply {
             putExtra("stepId", "medication_global")
             putExtra("medName", "Medication Reminder")
@@ -762,11 +750,7 @@ class SelfCareRepository @Inject constructor(
             context, requestCode, intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-        try {
-            alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerTime, pendingIntent)
-        } catch (_: SecurityException) {
-            // Exact alarm permission not granted
-        }
+        ExactAlarmHelper.scheduleExact(context, triggerTime, pendingIntent)
     }
 
     fun cancelMedicationReminder() {

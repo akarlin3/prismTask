@@ -4,8 +4,6 @@ import android.app.AlarmManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import android.os.Build
-import android.util.Log
 import com.averycorp.prismtask.data.local.dao.HabitCompletionDao
 import com.averycorp.prismtask.data.local.dao.HabitDao
 import com.averycorp.prismtask.data.preferences.MedicationPreferences
@@ -87,16 +85,7 @@ class MedicationReminderScheduler @Inject constructor(
     }
 
     private fun scheduleExactOrFallback(triggerTime: Long, pendingIntent: PendingIntent) {
-        try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !alarmManager.canScheduleExactAlarms()) {
-                alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerTime, pendingIntent)
-            } else {
-                alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerTime, pendingIntent)
-            }
-        } catch (e: SecurityException) {
-            Log.w("MedReminderScheduler", "Exact alarm not allowed, falling back to inexact", e)
-            alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerTime, pendingIntent)
-        }
+        ExactAlarmHelper.scheduleExact(context, triggerTime, pendingIntent)
     }
 
     fun cancelSpecificTime(timeIndex: Int) {
