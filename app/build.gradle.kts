@@ -8,6 +8,8 @@ plugins {
     id("com.google.gms.google-services")
     id("com.google.firebase.appdistribution")
     id("com.google.firebase.crashlytics")
+    id("org.jlleitschuh.gradle.ktlint")
+    id("io.gitlab.arturbosch.detekt")
 }
 
 android {
@@ -123,6 +125,60 @@ kotlin {
 
 ksp {
     arg("dagger.hilt.disableModulesHaveInstallInCheck", "true")
+}
+
+// ktlint — Kotlin linter / formatter
+// Plugin: jlleitschuh/ktlint-gradle 12.1.1
+// Target Kotlin: 2.2.10
+ktlint {
+    outputToConsole.set(true)
+    coloredOutput.set(true)
+    ignoreFailures.set(false)
+    additionalEditorconfig.set(
+        mapOf(
+            "ktlint_kotlin_version" to "2.2.10",
+        ),
+    )
+    filter {
+        exclude { element -> element.file.path.contains("/build/") }
+        exclude { element -> element.file.path.contains("/generated/") }
+    }
+}
+
+// detekt — static analysis for Kotlin
+detekt {
+    toolVersion = "1.23.6"
+    config.setFrom(files("$rootDir/detekt.yml"))
+    buildUponDefaultConfig = true
+    autoCorrect = true
+    parallel = true
+    source.setFrom(
+        files(
+            "src/main/java",
+            "src/main/kotlin",
+            "src/test/java",
+            "src/test/kotlin",
+            "src/androidTest/java",
+            "src/androidTest/kotlin",
+        ),
+    )
+}
+
+tasks.withType<io.gitlab.arturbosch.detekt.Detekt>().configureEach {
+    jvmTarget = JavaVersion.VERSION_21.toString()
+    exclude("**/build/**", "**/generated/**")
+    reports {
+        html.required.set(true)
+        xml.required.set(true)
+        txt.required.set(false)
+        sarif.required.set(false)
+        md.required.set(false)
+    }
+}
+
+tasks.withType<io.gitlab.arturbosch.detekt.DetektCreateBaselineTask>().configureEach {
+    jvmTarget = JavaVersion.VERSION_21.toString()
+    exclude("**/build/**", "**/generated/**")
 }
 
 // Copy built AAB files to the repository root
@@ -257,4 +313,7 @@ dependencies {
     // Debug
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
+
+    // detekt — formatting rules (ktlint wrapper) so detekt can auto-correct formatting issues
+    detektPlugins("io.gitlab.arturbosch.detekt:detekt-formatting:1.23.6")
 }

@@ -1,0 +1,237 @@
+# detekt configuration — PrismTask
+#
+# Layered on top of detekt's default config (see: buildUponDefaultConfig = true
+# in app/build.gradle.kts). Only rules that need overrides for a Jetpack
+# Compose + MVVM + Hilt project are listed below.
+
+build:
+  maxIssues: 0
+  excludeCorrectable: false
+
+config:
+  validation: true
+  warningsAsErrors: false
+  checkExhaustiveness: false
+
+processors:
+  active: true
+
+console-reports:
+  active: true
+
+output-reports:
+  active: true
+
+comments:
+  active: true
+  CommentOverPrivateFunction:
+    active: false
+  CommentOverPrivateProperty:
+    active: false
+  UndocumentedPublicClass:
+    active: false
+  UndocumentedPublicFunction:
+    active: false
+  UndocumentedPublicProperty:
+    active: false
+
+complexity:
+  active: true
+  CyclomaticComplexMethod:
+    active: true
+    threshold: 20
+    ignoreSingleWhenExpression: true
+    ignoreSimpleWhenEntries: true
+    ignoreNestingFunctions: false
+    ignoreAnnotated:
+      - 'Composable'
+  LongMethod:
+    active: true
+    threshold: 120
+    ignoreAnnotated:
+      - 'Composable'
+  LongParameterList:
+    active: true
+    functionThreshold: 10
+    constructorThreshold: 10
+    ignoreDefaultParameters: true
+    ignoreDataClasses: true
+    ignoreAnnotated:
+      - 'Composable'
+      - 'Inject'
+      - 'AssistedInject'
+  TooManyFunctions:
+    active: true
+    thresholdInFiles: 30
+    thresholdInClasses: 20
+    thresholdInInterfaces: 15
+    thresholdInObjects: 20
+    thresholdInEnums: 15
+    ignoreAnnotatedFunctions:
+      - 'Composable'
+      - 'Preview'
+  NestedBlockDepth:
+    active: true
+    threshold: 5
+  ComplexCondition:
+    active: true
+    threshold: 5
+  LargeClass:
+    active: true
+    threshold: 600
+
+empty-blocks:
+  active: true
+  EmptyFunctionBlock:
+    active: true
+    ignoreOverridden: true
+
+exceptions:
+  active: true
+  SwallowedException:
+    active: false
+  TooGenericExceptionCaught:
+    active: false
+  TooGenericExceptionThrown:
+    active: true
+  InstanceOfCheckForException:
+    active: true
+
+naming:
+  active: true
+  # Composable functions use PascalCase — conflicts with FunctionNaming rule.
+  FunctionNaming:
+    active: false
+  # ViewModels and repositories often have top-level constants that don't fit
+  # SCREAMING_SNAKE_CASE when they're compose-related (e.g. `ItemHeight`).
+  TopLevelPropertyNaming:
+    active: true
+    constantPattern: '[A-Z][_A-Z0-9]*|[A-Z][a-zA-Z0-9]*'
+  MatchingDeclarationName:
+    active: false
+  VariableNaming:
+    active: true
+  ObjectPropertyNaming:
+    active: true
+
+performance:
+  active: true
+  SpreadOperator:
+    active: false
+  ArrayPrimitive:
+    active: true
+
+potential-bugs:
+  active: true
+  UnsafeCallOnNullableType:
+    active: true
+  LateinitUsage:
+    active: false
+  ImplicitDefaultLocale:
+    active: true
+
+style:
+  active: true
+  # UI code is full of dp/sp/duration literals. Magic numbers add more noise
+  # than signal in a Compose + MVVM codebase, so we disable the rule entirely.
+  MagicNumber:
+    active: false
+  MaxLineLength:
+    active: true
+    maxLineLength: 140
+    excludePackageStatements: true
+    excludeImportStatements: true
+    excludeCommentStatements: false
+  ReturnCount:
+    active: true
+    max: 5
+    excludedFunctions:
+      - 'equals'
+  WildcardImport:
+    active: true
+    excludeImports:
+      - 'java.util.*'
+  ForbiddenComment:
+    active: false
+  ForbiddenImport:
+    active: false
+  NewLineAtEndOfFile:
+    active: true
+  UnusedPrivateMember:
+    active: true
+    ignoreAnnotated:
+      - 'Preview'
+      - 'Composable'
+  UnusedPrivateProperty:
+    active: true
+    ignoreAnnotated:
+      - 'Preview'
+  DataClassContainsFunctions:
+    active: false
+  UseDataClass:
+    active: false
+  SerialVersionUIDInSerializableClass:
+    active: false
+  OptionalUnit:
+    active: true
+  UseIfInsteadOfWhen:
+    active: false
+  FunctionOnlyReturningConstant:
+    active: false
+  DestructuringDeclarationWithTooManyEntries:
+    active: true
+    maxDestructuringEntries: 4
+
+# detekt-formatting — pulls in ktlint rules via detekt-formatting artifact.
+# autoCorrect is wired globally through the Gradle config, but individual
+# rules must also enable autoCorrect to participate.
+formatting:
+  active: true
+  android: true
+  autoCorrect: true
+  Indentation:
+    active: true
+    autoCorrect: true
+    indentSize: 4
+  MaximumLineLength:
+    active: true
+    autoCorrect: false
+    maxLineLength: 140
+  ArgumentListWrapping:
+    active: true
+    autoCorrect: true
+    maxLineLength: 140
+  ParameterListWrapping:
+    active: true
+    autoCorrect: true
+    maxLineLength: 140
+  Wrapping:
+    active: true
+    autoCorrect: true
+  NoWildcardImports:
+    active: true
+    autoCorrect: true
+    packagesToUseImportOnDemandProperty: 'java.util.*'
+  NoUnusedImports:
+    active: true
+    autoCorrect: true
+  NoSemicolons:
+    active: true
+    autoCorrect: true
+  TrailingCommaOnCallSite:
+    active: false
+  TrailingCommaOnDeclarationSite:
+    active: false
+  Filename:
+    active: false
+  FinalNewline:
+    active: true
+    autoCorrect: true
+    insertFinalNewLine: true
+  ImportOrdering:
+    active: true
+    autoCorrect: true
+    layout: '*,java.**,javax.**,kotlin.**,^'
+  PackageName:
+    active: true
+    autoCorrect: true
