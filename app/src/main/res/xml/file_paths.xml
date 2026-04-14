@@ -2,4 +2,5 @@
 <paths>
     <cache-path name="apk_updates" path="apk_updates/" />
     <cache-path name="screenshots" path="screenshots/" />
+    <cache-path name="debug_logs" path="debug_logs/" />
 </paths>
