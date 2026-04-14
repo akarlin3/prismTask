@@ -32,16 +32,17 @@ import com.averycorp.prismtask.ui.components.settings.SectionHeader
  * Settings section for managing boundary rules (v1.4.0 V3).
  *
  * Lists each configured rule with a toggle + delete button and offers an
- * "Add rule" CTA that routes to a manual-entry dialog (to be added in a
- * follow-up). For now, the seed rules from [com.averycorp.prismtask.domain.usecase.BoundaryEnforcer.BUILT_IN]
- * are what users see on first run.
+ * "Add Rule" CTA that opens [AddBoundaryRuleSheet]. Tapping an existing row
+ * opens the same sheet in edit mode. For first-time users, seed rules come
+ * from [com.averycorp.prismtask.domain.usecase.BoundaryEnforcer.BUILT_IN].
  */
 @Composable
 fun BoundariesSection(
     rules: List<BoundaryRule>,
     onToggle: (BoundaryRule, Boolean) -> Unit,
     onDelete: (BoundaryRule) -> Unit,
-    onAdd: () -> Unit
+    onAdd: () -> Unit,
+    onEdit: (BoundaryRule) -> Unit = {}
 ) {
     SectionHeader("Boundaries")
     Text(
@@ -59,7 +60,12 @@ fun BoundariesSection(
         )
     } else {
         rules.forEach { rule ->
-            BoundaryRuleRow(rule = rule, onToggle = onToggle, onDelete = onDelete)
+            BoundaryRuleRow(
+                rule = rule,
+                onToggle = onToggle,
+                onDelete = onDelete,
+                onEdit = onEdit
+            )
         }
     }
 
@@ -72,11 +78,13 @@ fun BoundariesSection(
 private fun BoundaryRuleRow(
     rule: BoundaryRule,
     onToggle: (BoundaryRule, Boolean) -> Unit,
-    onDelete: (BoundaryRule) -> Unit
+    onDelete: (BoundaryRule) -> Unit,
+    onEdit: (BoundaryRule) -> Unit
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .clickable { onEdit(rule) }
             .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
