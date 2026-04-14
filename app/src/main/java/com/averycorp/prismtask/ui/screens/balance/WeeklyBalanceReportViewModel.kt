@@ -4,9 +4,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.averycorp.prismtask.data.preferences.UserPreferencesDataStore
 import com.averycorp.prismtask.data.repository.TaskRepository
+import com.averycorp.prismtask.domain.model.LifeCategory
 import com.averycorp.prismtask.domain.usecase.BalanceConfig
 import com.averycorp.prismtask.domain.usecase.BalanceState
 import com.averycorp.prismtask.domain.usecase.BalanceTracker
+import com.averycorp.prismtask.domain.usecase.BurnoutBand
 import com.averycorp.prismtask.domain.usecase.BurnoutScorer
 import com.averycorp.prismtask.domain.usecase.WeeklyReviewAggregator
 import com.averycorp.prismtask.domain.usecase.WeeklyReviewStats
@@ -47,45 +49,57 @@ class WeeklyBalanceReportViewModel @Inject constructor(
     fun loadWeek(reference: Long) {
         viewModelScope.launch {
             try {
-            val prefs = userPreferencesDataStore.workLifeBalanceFlow.first()
-            val tasks = taskRepository.getAllTasksOnce()
-            val stats = aggregator.aggregate(tasks, reference)
-            val config = BalanceConfig(
-                workTarget = prefs.workTarget / 100f,
-                personalTarget = prefs.personalTarget / 100f,
-                selfCareTarget = prefs.selfCareTarget / 100f,
-                healthTarget = prefs.healthTarget / 100f,
-                overloadThreshold = prefs.overloadThresholdPct / 100f
-            )
-            val balance = balanceTracker.compute(tasks, config, now = reference)
-            val workRatio = balance.currentRatios[com.averycorp.prismtask.domain.model.LifeCategory.WORK] ?: 0f
-            val burnout = burnoutScorer.computeFromTasks(tasks, workRatio, prefs.workTarget / 100f, now = reference)
+                val prefs = userPreferencesDataStore.workLifeBalanceFlow.first()
+                val tasks = taskRepository.getAllTasksOnce()
+                val stats = aggregator.aggregate(tasks, reference)
+                val config = BalanceConfig(
+                    workTarget = prefs.workTarget / 100f,
+                    personalTarget = prefs.personalTarget / 100f,
+                    selfCareTarget = prefs.selfCareTarget / 100f,
+                    healthTarget = prefs.healthTarget / 100f,
+                    overloadThreshold = prefs.overloadThresholdPct / 100f
+                )
+                val balance = balanceTracker.compute(tasks, config, now = reference)
+                val workRatio = balance.currentRatios[LifeCategory.WORK] ?: 0f
+                val burnout = burnoutScorer.computeFromTasks(
+                    tasks,
+                    workRatio,
+                    prefs.workTarget / 100f,
+                    now = reference
+                )
 
-            // v1.4.0 V3 phase 3: 4-week sparkline trend per tracked
-            // category. Each entry is oldest → newest. An empty week
-            // contributes 0f for every category.
-            val weekMillis = 7L * 24 * 60 * 60 * 1000
-            val fourWeek = mutableMapOf<com.averycorp.prismtask.domain.model.LifeCategory, MutableList<Float>>()
-            com.averycorp.prismtask.domain.model.LifeCategory.TRACKED.forEach {
-                fourWeek[it] = mutableListOf()
-            }
-            for (i in 3 downTo 0) {
-                val weekRef = reference - i.toLong() * weekMillis
-                val weekStats = aggregator.aggregate(tasks, weekRef)
-                val totalInWeek = weekStats.byCategory.values.sum().coerceAtLeast(1)
-                com.averycorp.prismtask.domain.model.LifeCategory.TRACKED.forEach { cat ->
-                    val count = weekStats.byCategory[cat] ?: 0
-                    fourWeek.getOrPut(cat) { mutableListOf() }.add(count.toFloat() / totalInWeek.toFloat())
+                // v1.4.0 V3 phase 3: 4-week rolling trend per tracked
+                // category. We collect both the ratio (for normalized sparkline
+                // rendering) and the absolute count (to show this-vs-last-week
+                // deltas in the sparkline label). Lists are oldest → newest
+                // so index 3 is the selected week.
+                val weekMillis = SEVEN_DAYS_MILLIS
+                val trendRatios = mutableMapOf<LifeCategory, MutableList<Float>>()
+                val trendCounts = mutableMapOf<LifeCategory, MutableList<Int>>()
+                LifeCategory.TRACKED.forEach {
+                    trendRatios[it] = mutableListOf()
+                    trendCounts[it] = mutableListOf()
                 }
-            }
+                for (i in 3 downTo 0) {
+                    val weekRef = reference - i.toLong() * weekMillis
+                    val weekStats = aggregator.aggregate(tasks, weekRef)
+                    val totalInWeek = weekStats.byCategory.values.sum().coerceAtLeast(1)
+                    LifeCategory.TRACKED.forEach { cat ->
+                        val count = weekStats.byCategory[cat] ?: 0
+                        trendRatios.getValue(cat).add(count.toFloat() / totalInWeek.toFloat())
+                        trendCounts.getValue(cat).add(count)
+                    }
+                }
 
-            _state.value = WeeklyBalanceReportState(
-                stats = stats,
-                balance = balance,
-                burnoutScore = burnout.score,
-                reference = reference,
-                fourWeekTrend = fourWeek.mapValues { it.value.toList() }
-            )
+                _state.value = WeeklyBalanceReportState(
+                    stats = stats,
+                    balance = balance,
+                    burnoutScore = burnout.score,
+                    burnoutBand = burnout.band,
+                    reference = reference,
+                    fourWeekTrend = trendRatios.mapValues { it.value.toList() },
+                    fourWeekCounts = trendCounts.mapValues { it.value.toList() }
+                )
             } catch (e: Exception) {
                 android.util.Log.e("WeeklyBalanceVM", "Failed to load week", e)
             }
@@ -93,11 +107,15 @@ class WeeklyBalanceReportViewModel @Inject constructor(
     }
 
     fun previousWeek() {
-        loadWeek(_state.value.reference - 7L * 24 * 60 * 60 * 1000)
+        loadWeek(_state.value.reference - SEVEN_DAYS_MILLIS)
     }
 
     fun nextWeek() {
-        loadWeek(_state.value.reference + 7L * 24 * 60 * 60 * 1000)
+        loadWeek(_state.value.reference + SEVEN_DAYS_MILLIS)
+    }
+
+    companion object {
+        private const val SEVEN_DAYS_MILLIS = 7L * 24 * 60 * 60 * 1000
     }
 }
 
@@ -105,7 +123,10 @@ data class WeeklyBalanceReportState(
     val stats: WeeklyReviewStats? = null,
     val balance: BalanceState = BalanceState.EMPTY,
     val burnoutScore: Int = 0,
+    val burnoutBand: BurnoutBand = BurnoutBand.BALANCED,
     val reference: Long = System.currentTimeMillis(),
-    /** 4-week rolling ratio trend per category. Each list is oldest → newest. */
-    val fourWeekTrend: Map<com.averycorp.prismtask.domain.model.LifeCategory, List<Float>> = emptyMap()
+    /** 4-week rolling ratio trend per category (0f..1f), oldest → newest. */
+    val fourWeekTrend: Map<LifeCategory, List<Float>> = emptyMap(),
+    /** 4-week absolute completed-task count per category, oldest → newest. */
+    val fourWeekCounts: Map<LifeCategory, List<Int>> = emptyMap()
 )
