@@ -19,6 +19,20 @@ import javax.inject.Singleton
 
 data class DeviceCalendar(val id: Long, val name: String, val accountName: String)
 
+/**
+ * Lightweight representation of a single calendar event used by the Morning
+ * Check-In "Calendar Glance" step. Read from the device calendar provider
+ * via [CalendarContract.Instances]; only carries the fields the UI needs.
+ */
+data class CalendarEventInfo(
+    val title: String,
+    val startMillis: Long,
+    val endMillis: Long,
+    val isAllDay: Boolean
+) {
+    val durationMillis: Long get() = (endMillis - startMillis).coerceAtLeast(0)
+}
+
 @Singleton
 class CalendarSyncService @Inject constructor(
     @ApplicationContext private val context: Context,
@@ -193,6 +207,56 @@ class CalendarSyncService @Inject constructor(
                 removeEventForTask(task.id)
             }
         }
+    }
+
+    /**
+     * Reads the device calendar provider for up to [limit] events whose end
+     * time falls after [now] and whose start time falls before [dayEnd]. The
+     * results are ordered by begin time ascending. Returns an empty list if
+     * the caller doesn't yet hold `READ_CALENDAR` permission or the query
+     * fails for any reason.
+     */
+    fun getTodayUpcomingEvents(
+        now: Long,
+        dayEnd: Long,
+        limit: Int = 3
+    ): List<CalendarEventInfo> {
+        val events = mutableListOf<CalendarEventInfo>()
+        val projection = arrayOf(
+            CalendarContract.Instances.TITLE,
+            CalendarContract.Instances.BEGIN,
+            CalendarContract.Instances.END,
+            CalendarContract.Instances.ALL_DAY
+        )
+        val uri = CalendarContract.Instances.CONTENT_URI.buildUpon()
+            .appendPath(now.toString())
+            .appendPath(dayEnd.toString())
+            .build()
+        try {
+            contentResolver.query(
+                uri,
+                projection,
+                null,
+                null,
+                "${CalendarContract.Instances.BEGIN} ASC"
+            )?.use { cursor ->
+                while (cursor.moveToNext() && events.size < limit) {
+                    events.add(
+                        CalendarEventInfo(
+                            title = cursor.getString(0) ?: "(No Title)",
+                            startMillis = cursor.getLong(1),
+                            endMillis = cursor.getLong(2),
+                            isAllDay = cursor.getInt(3) != 0
+                        )
+                    )
+                }
+            }
+        } catch (e: SecurityException) {
+            Log.e(TAG, "READ_CALENDAR permission denied", e)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to query today events", e)
+        }
+        return events
     }
 
     suspend fun clearAllEvents() {
