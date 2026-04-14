@@ -157,6 +157,7 @@ sealed class PrismTaskRoute(val route: String) {
     }
     data object FeatureRequest : PrismTaskRoute("feature_request")
     data object DebugLog : PrismTaskRoute("debug_log")
+    data object NotificationDiagnostic : PrismTaskRoute("notification_diagnostic")
     data object TaskAnalytics : PrismTaskRoute("task_analytics?projectId={projectId}") {
         fun createRoute(projectId: Long? = null): String =
             if (projectId != null) "task_analytics?projectId=$projectId" else "task_analytics"

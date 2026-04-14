@@ -67,7 +67,9 @@ import com.averycorp.prismtask.ui.screens.settings.sections.CheckInStreakSection
 import com.averycorp.prismtask.ui.screens.settings.sections.ClinicalReportSection
 import com.averycorp.prismtask.ui.screens.settings.sections.ForgivenessStreakSection
 import com.averycorp.prismtask.ui.screens.settings.sections.HelpFeedbackSection
+import com.averycorp.prismtask.ui.screens.settings.sections.NotificationDiagnosticSection
 import com.averycorp.prismtask.ui.screens.settings.sections.WorkLifeBalanceSection
+import com.averycorp.prismtask.BuildConfig
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -624,6 +626,14 @@ fun SettingsScreen(
                     DebugLogAdminSection(
                         onViewDebugLog = {
                             navController.navigate(PrismTaskRoute.DebugLog.route)
+                        }
+                    )
+                }
+
+                if (BuildConfig.DEBUG || isAdmin) {
+                    NotificationDiagnosticSection(
+                        onOpenNotificationDiagnostic = {
+                            navController.navigate(PrismTaskRoute.NotificationDiagnostic.route)
                         }
                     )
                 }
