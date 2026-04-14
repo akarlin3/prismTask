@@ -216,11 +216,11 @@ class SmartPomodoroViewModel @Inject constructor(
 
     private fun registerTimerReceiver() {
         if (receiverRegistered) return
-        val filter = IntentFilter().apply {
-            addAction(PomodoroTimerService.ACTION_TICK)
-            addAction(PomodoroTimerService.ACTION_COMPLETE)
-        }
         try {
+            val filter = IntentFilter().apply {
+                addAction(PomodoroTimerService.ACTION_TICK)
+                addAction(PomodoroTimerService.ACTION_COMPLETE)
+            }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 appContext.registerReceiver(timerReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
             } else {
