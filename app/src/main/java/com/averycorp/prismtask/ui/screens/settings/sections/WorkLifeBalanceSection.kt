@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
@@ -41,9 +42,19 @@ import com.averycorp.prismtask.ui.theme.LifeCategoryColor
 @Composable
 fun WorkLifeBalanceSection(
     prefs: WorkLifeBalancePrefs,
-    onPrefsChange: (WorkLifeBalancePrefs) -> Unit
+    onPrefsChange: (WorkLifeBalancePrefs) -> Unit,
+    onViewReport: () -> Unit = {}
 ) {
     SectionHeader("Work-Life Balance")
+
+    FilledTonalButton(
+        onClick = onViewReport,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp)
+    ) {
+        Text("View Weekly Report")
+    }
 
     SettingsToggleRow(
         title = "Auto-Classify Tasks",

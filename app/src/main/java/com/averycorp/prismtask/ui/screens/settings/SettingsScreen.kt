@@ -407,7 +407,10 @@ fun SettingsScreen(
 
                 WorkLifeBalanceSection(
                     prefs = workLifeBalancePrefs,
-                    onPrefsChange = viewModel::setWorkLifeBalancePrefs
+                    onPrefsChange = viewModel::setWorkLifeBalancePrefs,
+                    onViewReport = {
+                        navController.navigate(PrismTaskRoute.WeeklyBalanceReport.route)
+                    }
                 )
 
                 ForgivenessStreakSection(
