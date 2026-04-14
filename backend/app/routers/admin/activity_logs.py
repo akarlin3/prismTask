@@ -5,7 +5,7 @@ project updates, member changes, etc.). This router exposes them to
 admins with pagination, filtering, and aggregate statistics.
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
@@ -67,7 +67,7 @@ async def activity_log_stats(
     total_result = await db.execute(total_q)
     total_logs = total_result.scalar() or 0
 
-    now = datetime.now(timezone.utc)
+    now = datetime.utcnow()
 
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     today_q = select(func.count(ActivityLog.id)).where(

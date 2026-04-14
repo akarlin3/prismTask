@@ -173,7 +173,7 @@ async def sync_pull(
                     operation="upsert",
                     entity_id=entity.id,
                     data=data,
-                    timestamp=timestamp or datetime.now(timezone.utc),
+                    timestamp=timestamp or datetime.utcnow(),
                 )
             )
 

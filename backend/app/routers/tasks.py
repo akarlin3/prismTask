@@ -1,7 +1,7 @@
 import json
 import logging
 import os
-from datetime import date, datetime, timezone
+from datetime import date, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
@@ -139,7 +139,7 @@ async def update_task(
         new_status = TaskStatus(update_data["status"])
         update_data["status"] = new_status
         if new_status == TaskStatus.DONE and task.status != TaskStatus.DONE:
-            update_data["completed_at"] = datetime.now(timezone.utc)
+            update_data["completed_at"] = datetime.utcnow()
         elif new_status != TaskStatus.DONE:
             update_data["completed_at"] = None
 

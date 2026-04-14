@@ -1,4 +1,4 @@
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import select
@@ -100,7 +100,7 @@ async def categorize_eisenhower(
 
     # Build task lookup for updating
     task_map = {t.id: t for t in tasks}
-    now = datetime.now(timezone.utc)
+    now = datetime.utcnow()
 
     valid_quadrants = {"Q1", "Q2", "Q3", "Q4"}
     cleaned = []
@@ -241,7 +241,7 @@ async def daily_briefing(
     habits = [{"name": h.name, "frequency": h.frequency.value} for h in habits_result.scalars().all()]
 
     # Fetch recently completed tasks (last 24 hours)
-    yesterday = datetime.now(timezone.utc) - timedelta(hours=24)
+    yesterday = datetime.utcnow() - timedelta(hours=24)
     completed_query = select(Task).where(
         Task.user_id == current_user.id,
         Task.status == TaskStatus.DONE,

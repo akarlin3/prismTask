@@ -97,9 +97,9 @@ async def scan_gmail_inbox(
 
     # Update last_scan_at
     if config:
-        from datetime import datetime, timezone
+        from datetime import datetime
 
-        config.last_scan_at = datetime.now(timezone.utc)
+        config.last_scan_at = datetime.utcnow()
         await db.flush()
 
     # Fetch the newly stored rows for a full response

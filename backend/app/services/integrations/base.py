@@ -2,7 +2,7 @@
 
 import json
 import logging
-from datetime import date, datetime, timezone
+from datetime import date, datetime
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -84,7 +84,7 @@ async def store_suggestions(
             suggested_tags_json=tags_json,
             confidence=s.get("confidence", 0.0),
             status=SuggestionStatus.PENDING,
-            extracted_at=datetime.now(timezone.utc),
+            extracted_at=datetime.utcnow(),
         )
         db.add(row)
         created.append(row)
