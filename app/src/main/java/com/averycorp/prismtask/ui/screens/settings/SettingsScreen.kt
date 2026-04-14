@@ -128,7 +128,6 @@ fun SettingsScreen(
 
     // Data
     val autoArchiveDays by viewModel.autoArchiveDays.collectAsStateWithLifecycle()
-    val claudeApiKey by viewModel.claudeApiKey.collectAsStateWithLifecycle()
     val archivedCount by viewModel.archivedCount.collectAsStateWithLifecycle()
     val isResetting by viewModel.isResetting.collectAsStateWithLifecycle()
 
@@ -545,9 +544,6 @@ fun SettingsScreen(
                 )
 
                 AiSection(
-                    claudeApiKey = claudeApiKey,
-                    onSetClaudeApiKey = viewModel::setClaudeApiKey,
-                    onClearClaudeApiKey = viewModel::clearClaudeApiKey,
                     onNavigateToEisenhower = { navController.navigate(PrismTaskRoute.EisenhowerMatrix.route) },
                     onNavigateToSmartPomodoro = { navController.navigate(PrismTaskRoute.SmartPomodoro.route) },
                     onNavigateToDailyBriefing = { navController.navigate(PrismTaskRoute.DailyBriefing.route) },

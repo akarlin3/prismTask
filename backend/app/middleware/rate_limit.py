@@ -92,3 +92,36 @@ auth_rate_limiter = RateLimiter(max_requests=10, window_seconds=60)
 
 # Daily AI call rate limiter (tier-based)
 daily_ai_rate_limiter = DailyAIRateLimiter()
+
+
+class UserRateLimiter:
+    """Window-based rate limiter keyed by user ID (not IP).
+
+    Used for authenticated endpoints where per-user limits are more
+    appropriate than per-IP limits (e.g. AI import parsing).
+    """
+
+    def __init__(self, max_requests: int = 10, window_seconds: int = 3600):
+        self.max_requests = max_requests
+        self.window_seconds = window_seconds
+        self._requests: dict[int, list[float]] = defaultdict(list)
+        self._lock = Lock()
+
+    def _cleanup(self, user_id: int, now: float) -> None:
+        cutoff = now - self.window_seconds
+        self._requests[user_id] = [t for t in self._requests[user_id] if t > cutoff]
+
+    def check(self, user_id: int) -> None:
+        now = time.monotonic()
+        with self._lock:
+            self._cleanup(user_id, now)
+            if len(self._requests[user_id]) >= self.max_requests:
+                raise HTTPException(
+                    status_code=429,
+                    detail="Rate limit exceeded. Max 10 import parse requests per hour.",
+                )
+            self._requests[user_id].append(now)
+
+
+# Import parse: 10 requests per user per hour
+import_parse_rate_limiter = UserRateLimiter(max_requests=10, window_seconds=3600)

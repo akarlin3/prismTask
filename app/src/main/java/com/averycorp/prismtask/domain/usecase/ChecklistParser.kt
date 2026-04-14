@@ -2,19 +2,12 @@ package com.averycorp.prismtask.domain.usecase
 
 import android.util.Log
 import com.averycorp.prismtask.BuildConfig
-import com.averycorp.prismtask.data.preferences.ApiPreferences
-import com.google.gson.Gson
-import com.google.gson.JsonParser
-import com.google.gson.annotations.SerializedName
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.firstOrNull
-import kotlinx.coroutines.withContext
-import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
+import com.averycorp.prismtask.data.preferences.AuthTokenPreferences
+import com.averycorp.prismtask.data.remote.api.ParseChecklistRequest
+import com.averycorp.prismtask.data.remote.api.ParseChecklistResponse
+import com.averycorp.prismtask.data.remote.api.ParsedChecklistTaskResponse
+import com.averycorp.prismtask.data.remote.api.PrismTaskApi
 import java.util.Calendar
-import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -64,20 +57,30 @@ data class ChecklistParsedTask(
     val estimatedMinutes: Int?
 )
 
+/**
+ * Parses course syllabi / comprehensive schedules by sending content to the
+ * PrismTask backend, which calls Claude Haiku server-side.
+ *
+ * Falls back to a regex-based parser when the user is not logged in or the
+ * backend call fails.
+ */
 @Singleton
 class ChecklistParser @Inject constructor(
-    private val apiPreferences: ApiPreferences,
-    private val gson: Gson
+    private val api: PrismTaskApi,
+    private val authTokenPreferences: AuthTokenPreferences
 ) {
-    private val client = OkHttpClient.Builder()
-        .connectTimeout(30, TimeUnit.SECONDS)
-        .readTimeout(120, TimeUnit.SECONDS)
-        .writeTimeout(60, TimeUnit.SECONDS)
-        .build()
-
     suspend fun parse(content: String): ComprehensiveImportResult? {
-        val claudeResult = parseWithClaude(content)
-        if (claudeResult != null) return claudeResult
+        // Try backend (Claude Haiku) first when the user is logged in
+        val token = authTokenPreferences.getAccessToken()
+        if (!token.isNullOrBlank()) {
+            try {
+                val response = api.parseChecklist(ParseChecklistRequest(content = content))
+                return response.toComprehensiveImportResult()
+            } catch (e: Exception) {
+                if (BuildConfig.DEBUG) Log.e("ChecklistParser", "Backend parse failed", e)
+                // Fall through to regex
+            }
+        }
 
         // Fall back to regex → wrap in comprehensive result
         val regexCourse = parseWithRegex(content) ?: return null
@@ -124,233 +127,6 @@ class ChecklistParser @Inject constructor(
         "reading" -> "#8B5CF6"
         else -> "#6B7280"
     }
-
-    // --- Claude API path ---
-
-    private suspend fun parseWithClaude(content: String): ComprehensiveImportResult? {
-        val apiKey = apiPreferences.getClaudeApiKey().firstOrNull()
-        if (apiKey.isNullOrBlank()) return null
-
-        return withContext(Dispatchers.IO) {
-            try {
-                callClaude(apiKey, content)
-            } catch (e: Exception) {
-                if (BuildConfig.DEBUG) Log.e("ChecklistParser", "Claude API call failed", e)
-                null
-            }
-        }
-    }
-
-    private fun callClaude(apiKey: String, content: String): ComprehensiveImportResult? {
-        val year = Calendar.getInstance().get(Calendar.YEAR)
-        val systemPrompt = """
-You are a structured data extractor for a task management app. The user will give you the contents of a JSX/TSX file, a text list, schedule, syllabus, or other content.
-
-Your job is to extract EVERY actionable item, preserving ALL detail from the original. Do not summarize or skip anything. Replicate every aspect of the source material.
-
-Return ONLY a JSON object with this exact schema (no other text):
-
-{
-  "course": {
-    "code": "string — course code like CSCA 5454, or a short identifier if not a course",
-    "name": "string — full name or title"
-  },
-  "project": {
-    "name": "string — project display name (e.g. 'CSCA 5454 — Data Structures')",
-    "color": "string — hex color like #4A90D9",
-    "icon": "string — single emoji for the project"
-  },
-  "tags": [
-    {
-      "name": "string — tag name (e.g. 'exam', 'video', 'reading', 'code', 'assignment')",
-      "color": "string — hex color"
-    }
-  ],
-  "tasks": [
-    {
-      "title": "string — the task description, faithfully preserved from source",
-      "description": "string or null — extra details, notes, context, URLs, instructions from the source",
-      "dueDate": "string or null — YYYY-MM-DD, use year $year if not specified",
-      "priority": 0,
-      "completed": false,
-      "tags": ["string — tag names that apply to this task"],
-      "estimatedMinutes": null,
-      "subtasks": [
-        {
-          "title": "string",
-          "description": "string or null",
-          "dueDate": "string or null",
-          "priority": 0,
-          "completed": false,
-          "tags": [],
-          "estimatedMinutes": null,
-          "subtasks": []
-        }
-      ]
-    }
-  ]
-}
-
-Rules:
-- Extract EVERY item from the source. Do not summarize, merge, or skip items.
-- Preserve exact titles, descriptions, notes, and any metadata from the original.
-- If the source has sections/phases/weeks, group items by due date rather than flattening structure — use subtasks if an item clearly has sub-items.
-- Skip only true off-days, holidays, rest days, or explicit breaks. Keep buffer/review days as tasks.
-- For exams/tests/quizzes: set priority to 4 (urgent) and prefix title with "EXAM: "
-- For assignments/homework: set priority to 2 (medium)
-- For videos/lectures: set priority to 0 (none)
-- For readings: set priority to 1 (low)
-- Extract all dates and convert to YYYY-MM-DD format
-- If content has duration/time estimates (e.g. "30 min", "1.5 hrs"), set estimatedMinutes to the number of minutes
-- The completed field should reflect any done/checked/completed state from the source
-- Assign appropriate tags to each task based on its type (video, assignment, exam, reading, code, etc.)
-- Create tag entries for all unique task types you encounter — pick semantically meaningful colors
-- For the project, pick an appropriate emoji icon and color based on the subject matter
-- Return ONLY valid JSON, no explanation or markdown
-""".trimIndent()
-
-        val requestJson = gson.toJson(
-            ClaudeReq(
-                model = "claude-opus-4-6-20250528",
-                maxTokens = 8192,
-                system = systemPrompt,
-                messages = listOf(ClaudeMsg(role = "user", content = content))
-            )
-        )
-
-        val request = Request.Builder()
-            .url("https://api.anthropic.com/v1/messages")
-            .addHeader("x-api-key", apiKey)
-            .addHeader("anthropic-version", "2023-06-01")
-            .addHeader("content-type", "application/json")
-            .post(requestJson.toRequestBody("application/json".toMediaType()))
-            .build()
-
-        val response = client.newCall(request).execute()
-        if (!response.isSuccessful) {
-            if (BuildConfig.DEBUG) Log.e("ChecklistParser", "Claude API returned ${response.code}")
-            return null
-        }
-
-        val body = response.body?.string() ?: return null
-        return parseClaudeResponse(body)
-    }
-
-    private fun parseClaudeResponse(body: String): ComprehensiveImportResult? {
-        val root = JsonParser.parseString(body).asJsonObject
-        val contentArray = root.getAsJsonArray("content") ?: return null
-        val textBlock = contentArray.firstOrNull {
-            it.asJsonObject.get("type")?.asString == "text"
-        }?.asJsonObject ?: return null
-
-        val text = textBlock.get("text")?.asString ?: return null
-        val jsonStr = extractJson(text)
-        val parsed = gson.fromJson(jsonStr, ClaudeFullResult::class.java) ?: return null
-
-        if (parsed.tasks.isNullOrEmpty()) return null
-
-        val course = ParsedCourse(
-            code = parsed.course?.code ?: "UNKNOWN",
-            name = parsed.course?.name ?: parsed.course?.code ?: "Unknown",
-            deadline = null,
-            assignments = parsed.tasks.map { t ->
-                ParsedAssignment(
-                    title = t.title,
-                    dueDate = t.dueDate?.let { parseDateStringIso(it) },
-                    time = t.estimatedMinutes?.let { "${it}min" },
-                    type = t.tags?.firstOrNull(),
-                    completed = t.completed ?: false
-                )
-            }
-        )
-
-        val project = ParsedProject(
-            name = parsed.project?.name ?: "${course.code} — ${course.name}",
-            color = parsed.project?.color ?: "#4A90D9",
-            icon = parsed.project?.icon ?: "\uD83D\uDCDA"
-        )
-
-        val tags = parsed.tags?.map { t ->
-            ParsedTag(name = t.name, color = t.color ?: "#6B7280")
-        } ?: emptyList()
-
-        val tasks = parsed.tasks.map { it.toPublic() }
-
-        return ComprehensiveImportResult(
-            course = course,
-            project = project,
-            tags = tags,
-            tasks = tasks
-        )
-    }
-
-    private fun ClaudeTaskItem.toPublic(): ChecklistParsedTask = ChecklistParsedTask(
-        title = title,
-        description = description,
-        dueDate = dueDate?.let { parseDateStringIso(it) },
-        priority = (priority ?: 0).coerceIn(0, 4),
-        completed = completed ?: false,
-        tags = tags ?: emptyList(),
-        subtasks = subtasks?.map { it.toPublic() } ?: emptyList(),
-        estimatedMinutes = estimatedMinutes
-    )
-
-    private fun extractJson(text: String): String {
-        val fencePattern = Regex("""```(?:json)?\s*\n?(.*?)\n?```""", RegexOption.DOT_MATCHES_ALL)
-        val match = fencePattern.find(text)
-        return match?.groupValues?.get(1)?.trim() ?: text.trim()
-    }
-
-    private fun parseDateStringIso(dateStr: String): Long? {
-        val isoPattern = Regex("""(\d{4})-(\d{2})-(\d{2})""")
-        val match = isoPattern.find(dateStr) ?: return null
-        val year = match.groupValues[1].toIntOrNull() ?: return null
-        val month = (match.groupValues[2].toIntOrNull() ?: return null) - 1
-        val day = match.groupValues[3].toIntOrNull() ?: return null
-        val cal = Calendar.getInstance()
-        cal.set(year, month, day, 23, 59, 0)
-        cal.set(Calendar.MILLISECOND, 0)
-        return cal.timeInMillis
-    }
-
-    // --- Claude API models ---
-
-    private data class ClaudeReq(
-        val model: String,
-        @SerializedName("max_tokens") val maxTokens: Int,
-        val system: String,
-        val messages: List<ClaudeMsg>
-    )
-
-    private data class ClaudeMsg(val role: String, val content: String)
-
-    private data class ClaudeFullResult(
-        val course: ClaudeCourseInfo?,
-        val project: ClaudeProjectInfo?,
-        val tags: List<ClaudeTagInfo>?,
-        val tasks: List<ClaudeTaskItem>?
-    )
-
-    private data class ClaudeCourseInfo(val code: String?, val name: String?)
-
-    private data class ClaudeProjectInfo(
-        val name: String?,
-        val color: String?,
-        val icon: String?
-    )
-
-    private data class ClaudeTagInfo(val name: String, val color: String?)
-
-    private data class ClaudeTaskItem(
-        val title: String,
-        val description: String?,
-        val dueDate: String?,
-        val priority: Int?,
-        val completed: Boolean?,
-        val tags: List<String>?,
-        val estimatedMinutes: Int?,
-        val subtasks: List<ClaudeTaskItem>?
-    )
 
     // --- Regex fallback parsers ---
 
@@ -478,4 +254,59 @@ Rules:
             else -> "assignment"
         }
     }
+}
+
+// --- Mapping from backend response to domain models ---
+
+private fun ParseChecklistResponse.toComprehensiveImportResult(): ComprehensiveImportResult {
+    val domainCourse = ParsedCourse(
+        code = course.code,
+        name = course.name,
+        deadline = null,
+        assignments = tasks.map { t ->
+            ParsedAssignment(
+                title = t.title,
+                dueDate = t.dueDate?.let { parseDateStringIso(it) },
+                time = t.estimatedMinutes?.let { "${it}min" },
+                type = t.tags.firstOrNull(),
+                completed = t.completed
+            )
+        }
+    )
+    val domainProject = ParsedProject(
+        name = project.name,
+        color = project.color,
+        icon = project.icon
+    )
+    val domainTags = tags.map { ParsedTag(name = it.name, color = it.color ?: "#6B7280") }
+    val domainTasks = tasks.map { it.toDomain() }
+    return ComprehensiveImportResult(
+        course = domainCourse,
+        project = domainProject,
+        tags = domainTags,
+        tasks = domainTasks
+    )
+}
+
+private fun ParsedChecklistTaskResponse.toDomain(): ChecklistParsedTask = ChecklistParsedTask(
+    title = title,
+    description = description,
+    dueDate = dueDate?.let { parseDateStringIso(it) },
+    priority = priority.coerceIn(0, 4),
+    completed = completed,
+    tags = tags,
+    subtasks = subtasks.map { it.toDomain() },
+    estimatedMinutes = estimatedMinutes
+)
+
+private fun parseDateStringIso(dateStr: String): Long? {
+    val isoPattern = Regex("""(\d{4})-(\d{2})-(\d{2})""")
+    val match = isoPattern.find(dateStr) ?: return null
+    val year = match.groupValues[1].toIntOrNull() ?: return null
+    val month = (match.groupValues[2].toIntOrNull() ?: return null) - 1
+    val day = match.groupValues[3].toIntOrNull() ?: return null
+    val cal = Calendar.getInstance()
+    cal.set(year, month, day, 23, 59, 0)
+    cal.set(Calendar.MILLISECOND, 0)
+    return cal.timeInMillis
 }

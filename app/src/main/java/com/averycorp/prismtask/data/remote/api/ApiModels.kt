@@ -388,3 +388,67 @@ data class ImportResponse(
 )
 
 // endregion
+
+// region AI Import Parse
+
+data class ParseImportRequest(
+    val content: String
+)
+
+data class ParsedImportItemResponse(
+    val title: String,
+    val description: String? = null,
+    val dueDate: String? = null,
+    val priority: Int = 0,
+    val completed: Boolean = false,
+    val subtasks: List<ParsedImportItemResponse> = emptyList()
+)
+
+data class ParseImportResponse(
+    val name: String? = null,
+    val items: List<ParsedImportItemResponse>
+)
+
+// endregion
+
+// region AI Checklist Parse
+
+data class ParseChecklistRequest(
+    val content: String
+)
+
+data class ParsedChecklistCourseResponse(
+    val code: String,
+    val name: String
+)
+
+data class ParsedChecklistProjectResponse(
+    val name: String,
+    val color: String,
+    val icon: String
+)
+
+data class ParsedChecklistTagResponse(
+    val name: String,
+    val color: String? = null
+)
+
+data class ParsedChecklistTaskResponse(
+    val title: String,
+    val description: String? = null,
+    val dueDate: String? = null,
+    val priority: Int = 0,
+    val completed: Boolean = false,
+    val tags: List<String> = emptyList(),
+    val estimatedMinutes: Int? = null,
+    val subtasks: List<ParsedChecklistTaskResponse> = emptyList()
+)
+
+data class ParseChecklistResponse(
+    val course: ParsedChecklistCourseResponse,
+    val project: ParsedChecklistProjectResponse,
+    val tags: List<ParsedChecklistTagResponse>,
+    val tasks: List<ParsedChecklistTaskResponse>
+)
+
+// endregion

@@ -63,6 +63,12 @@ interface PrismTaskApi {
 
     @POST("api/v1/ai/chat")
     suspend fun aiChat(@Body request: ChatRequest): ChatResponse
+
+    @POST("api/v1/tasks/parse-import")
+    suspend fun parseImport(@Body request: ParseImportRequest): ParseImportResponse
+
+    @POST("api/v1/tasks/parse-checklist")
+    suspend fun parseChecklist(@Body request: ParseChecklistRequest): ParseChecklistResponse
     @POST("api/v1/ai/evening-summary")
     suspend fun getEveningSummary(@Body request: EveningSummaryRequest): EveningSummaryResponse
 

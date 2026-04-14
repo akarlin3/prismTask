@@ -10,7 +10,6 @@ import com.averycorp.prismtask.data.billing.SubscriptionState
 import com.averycorp.prismtask.data.billing.UserTier
 import com.averycorp.prismtask.data.export.DataExporter
 import com.averycorp.prismtask.data.export.DataImporter
-import com.averycorp.prismtask.data.preferences.ApiPreferences
 import com.averycorp.prismtask.data.preferences.ArchivePreferences
 import com.averycorp.prismtask.data.preferences.AuthTokenPreferences
 import com.averycorp.prismtask.data.preferences.BackendSyncPreferences
@@ -65,7 +64,6 @@ class SettingsViewModel @Inject constructor(
     @ApplicationContext internal val appContext: Context,
     private val themePreferences: ThemePreferences,
     private val archivePreferences: ArchivePreferences,
-    private val apiPreferences: ApiPreferences,
     private val dashboardPreferences: DashboardPreferences,
     private val tabPreferences: TabPreferences,
     private val taskBehaviorPreferences: TaskBehaviorPreferences,
@@ -506,9 +504,6 @@ class SettingsViewModel @Inject constructor(
     val autoArchiveDays: StateFlow<Int> = archivePreferences.getAutoArchiveDays()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 7)
 
-    val claudeApiKey: StateFlow<String> = apiPreferences.getClaudeApiKey()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "")
-
     val archivedCount: StateFlow<Int> = taskRepository.getArchivedCount()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
@@ -781,14 +776,6 @@ class SettingsViewModel @Inject constructor(
     // --- Archive ---
     fun setAutoArchiveDays(days: Int) {
         viewModelScope.launch { archivePreferences.setAutoArchiveDays(days) }
-    }
-
-    fun setClaudeApiKey(key: String) {
-        viewModelScope.launch { apiPreferences.setClaudeApiKey(key) }
-    }
-
-    fun clearClaudeApiKey() {
-        viewModelScope.launch { apiPreferences.clearClaudeApiKey() }
     }
 
     // Firebase sync

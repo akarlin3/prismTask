@@ -1,3 +1,6 @@
+import json
+import logging
+import os
 from datetime import date, datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -5,11 +8,21 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.config import settings
 from app.database import get_db
 from app.middleware.auth import get_current_user
+from app.middleware.rate_limit import import_parse_rate_limiter
 from app.models import Project, Task, TaskStatus, User
+from app.schemas.import_parse import (
+    ParseChecklistRequest,
+    ParseChecklistResponse,
+    ParseImportRequest,
+    ParseImportResponse,
+)
 from app.schemas.nlp import ParseRequest, ParseResponse
 from app.schemas.task import SubtaskCreate, TaskCreate, TaskResponse, TaskUpdate
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["tasks"])
 
@@ -224,6 +237,188 @@ async def parse_debug():
         "model": "claude-haiku-4-5-20251001",
         "anthropic_installed": anthropic_installed,
     }
+
+
+def _call_haiku(api_key: str, system_prompt: str, user_content: str, max_tokens: int) -> str:
+    """Call Claude Haiku and return the raw text response. Raises on error."""
+    try:
+        import anthropic
+    except ImportError as exc:
+        raise RuntimeError("anthropic package is not installed") from exc
+
+    client = anthropic.Anthropic(api_key=api_key)
+    message = client.messages.create(
+        model="claude-haiku-4-5-20251001",
+        max_tokens=max_tokens,
+        system=system_prompt,
+        messages=[{"role": "user", "content": user_content}],
+    )
+    text = message.content[0].text.strip()
+    # Strip markdown code fences if present
+    if text.startswith("```"):
+        text = text.split("\n", 1)[1] if "\n" in text else text[3:]
+    if text.endswith("```"):
+        text = text[:-3]
+    return text.strip()
+
+
+@router.post("/tasks/parse-import", response_model=ParseImportResponse)
+async def parse_import_list(
+    data: ParseImportRequest,
+    current_user: User = Depends(get_current_user),
+) -> ParseImportResponse:
+    """Parse a todo list / JSX schedule from raw text using Claude Haiku.
+
+    Returns a flat name + items structure for import into PrismTask.
+    Requires JWT auth. Rate limited to 10 calls per user per hour.
+    Returns 503 if ANTHROPIC_API_KEY is not configured server-side.
+    Returns 502 if the Claude call fails.
+    """
+    import_parse_rate_limiter.check(current_user.id)
+
+    api_key = os.environ.get("ANTHROPIC_API_KEY") or settings.ANTHROPIC_API_KEY
+    if not api_key:
+        raise HTTPException(
+            status_code=503,
+            detail="AI import parsing is unavailable — server ANTHROPIC_API_KEY is not configured",
+        )
+
+    year = datetime.now().year
+    system_prompt = f"""You are a structured data extractor. The user will give you the contents of a JSX/TSX file or a text list that contains a to-do list, schedule, or checklist.
+
+Extract all actionable items and return ONLY a JSON object with this exact schema (no other text):
+
+{{
+  "name": "string or null \u2014 the list/schedule title if apparent",
+  "items": [
+    {{
+      "title": "string \u2014 the task/item description",
+      "description": "string or null \u2014 extra details, duration, notes",
+      "dueDate": "string or null \u2014 date in YYYY-MM-DD format, use year {year} if not specified",
+      "priority": 0,
+      "completed": false,
+      "subtasks": []
+    }}
+  ]
+}}
+
+Rules:
+- Skip items that are days off, holidays, rest days, or breaks
+- For exam/test items, set priority to 4 (urgent) and prefix title with "EXAM: "
+- For other items, keep priority at 0
+- Extract dates and convert to YYYY-MM-DD
+- Include duration/time info in the description field
+- The completed field should reflect the done/checked state from the source
+- Subtasks should use the same object schema
+- Return ONLY valid JSON, no explanation"""
+
+    try:
+        text = _call_haiku(api_key, system_prompt, data.content, max_tokens=4096)
+        parsed = json.loads(text)
+        return ParseImportResponse(**parsed)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error("parse-import failed: %s", exc)
+        raise HTTPException(status_code=502, detail=f"AI parsing failed: {exc}") from exc
+
+
+@router.post("/tasks/parse-checklist", response_model=ParseChecklistResponse)
+async def parse_checklist(
+    data: ParseChecklistRequest,
+    current_user: User = Depends(get_current_user),
+) -> ParseChecklistResponse:
+    """Parse a course syllabus / comprehensive schedule from raw text using Claude Haiku.
+
+    Returns a structured result (course / project / tags / tasks) for import
+    into PrismTask schoolwork mode.
+    Requires JWT auth. Rate limited to 10 calls per user per hour.
+    Returns 503 if ANTHROPIC_API_KEY is not configured server-side.
+    Returns 502 if the Claude call fails.
+    """
+    import_parse_rate_limiter.check(current_user.id)
+
+    api_key = os.environ.get("ANTHROPIC_API_KEY") or settings.ANTHROPIC_API_KEY
+    if not api_key:
+        raise HTTPException(
+            status_code=503,
+            detail="AI import parsing is unavailable — server ANTHROPIC_API_KEY is not configured",
+        )
+
+    year = datetime.now().year
+    system_prompt = f"""You are a structured data extractor for a task management app. The user will give you the contents of a JSX/TSX file, a text list, schedule, syllabus, or other content.
+
+Your job is to extract EVERY actionable item, preserving ALL detail from the original. Do not summarize or skip anything. Replicate every aspect of the source material.
+
+Return ONLY a JSON object with this exact schema (no other text):
+
+{{
+  "course": {{
+    "code": "string \u2014 course code like CSCA 5454, or a short identifier if not a course",
+    "name": "string \u2014 full name or title"
+  }},
+  "project": {{
+    "name": "string \u2014 project display name (e.g. 'CSCA 5454 \u2014 Data Structures')",
+    "color": "string \u2014 hex color like #4A90D9",
+    "icon": "string \u2014 single emoji for the project"
+  }},
+  "tags": [
+    {{
+      "name": "string \u2014 tag name (e.g. 'exam', 'video', 'reading', 'code', 'assignment')",
+      "color": "string \u2014 hex color"
+    }}
+  ],
+  "tasks": [
+    {{
+      "title": "string \u2014 the task description, faithfully preserved from source",
+      "description": "string or null \u2014 extra details, notes, context, URLs, instructions from the source",
+      "dueDate": "string or null \u2014 YYYY-MM-DD, use year {year} if not specified",
+      "priority": 0,
+      "completed": false,
+      "tags": ["string \u2014 tag names that apply to this task"],
+      "estimatedMinutes": null,
+      "subtasks": [
+        {{
+          "title": "string",
+          "description": "string or null",
+          "dueDate": "string or null",
+          "priority": 0,
+          "completed": false,
+          "tags": [],
+          "estimatedMinutes": null,
+          "subtasks": []
+        }}
+      ]
+    }}
+  ]
+}}
+
+Rules:
+- Extract EVERY item from the source. Do not summarize, merge, or skip items.
+- Preserve exact titles, descriptions, notes, and any metadata from the original.
+- If the source has sections/phases/weeks, group items by due date rather than flattening structure \u2014 use subtasks if an item clearly has sub-items.
+- Skip only true off-days, holidays, rest days, or explicit breaks. Keep buffer/review days as tasks.
+- For exams/tests/quizzes: set priority to 4 (urgent) and prefix title with "EXAM: "
+- For assignments/homework: set priority to 2 (medium)
+- For videos/lectures: set priority to 0 (none)
+- For readings: set priority to 1 (low)
+- Extract all dates and convert to YYYY-MM-DD format
+- If content has duration/time estimates (e.g. "30 min", "1.5 hrs"), set estimatedMinutes to the number of minutes
+- The completed field should reflect any done/checked/completed state from the source
+- Assign appropriate tags to each task based on its type (video, assignment, exam, reading, code, etc.)
+- Create tag entries for all unique task types you encounter \u2014 pick semantically meaningful colors
+- For the project, pick an appropriate emoji icon and color based on the subject matter
+- Return ONLY valid JSON, no explanation or markdown"""
+
+    try:
+        text = _call_haiku(api_key, system_prompt, data.content, max_tokens=8192)
+        parsed = json.loads(text)
+        return ParseChecklistResponse(**parsed)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error("parse-checklist failed: %s", exc)
+        raise HTTPException(status_code=502, detail=f"AI parsing failed: {exc}") from exc
 
 
 @router.patch("/tasks/reorder", status_code=status.HTTP_200_OK)
