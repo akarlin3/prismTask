@@ -1,4 +1,5 @@
 import traceback
+import urllib.parse
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -58,15 +59,13 @@ async def health_check():
 async def debug_db():
     """Temporary diagnostic endpoint for troubleshooting database connectivity."""
     db_url = settings.DATABASE_URL or ""
-    if len(db_url) > 110:
-        database_url_preview = f"{db_url[:50]} ... {db_url[-60:]}"
-    else:
-        database_url_preview = db_url
+    parsed = urllib.parse.urlparse(db_url)
+    password = parsed.password or ""
     result: dict = {
-        "database_url_preview": database_url_preview,
-        "database_url_length": len(db_url),
-        "environment": settings.ENVIRONMENT,
-        "cors_origins": settings.effective_cors_origins,
+        "password_length": len(password),
+        "password_repr": repr(password),
+        "password_hex": password.encode().hex(),
+        "url_ends_with_repr": repr(db_url[-10:]),
     }
     try:
         async with engine.connect() as conn:
