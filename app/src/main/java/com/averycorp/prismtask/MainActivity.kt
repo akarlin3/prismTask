@@ -15,11 +15,15 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.LaunchedEffect
@@ -176,7 +180,7 @@ class MainActivity : ComponentActivity() {
                 .collectAsStateWithLifecycle(initialValue = "")
 
             val hasCompletedOnboarding by onboardingPreferences.hasCompletedOnboarding()
-                .collectAsStateWithLifecycle(initialValue = true)
+                .collectAsStateWithLifecycle(initialValue = null as Boolean?)
 
             val reduceMotion by a11yPreferences.getReduceMotion()
                 .collectAsStateWithLifecycle(initialValue = false)
@@ -291,35 +295,52 @@ class MainActivity : ComponentActivity() {
                     )
                 }
 
-                Box(modifier = Modifier.fillMaxSize()) {
-                    PrismTaskNavGraph(
-                        modifier = Modifier.fillMaxSize(),
-                        navController = navController,
-                        tabOrder = tabOrder,
-                        hiddenTabs = hiddenTabs,
-                        initialLaunchAction = launchAction,
-                        initialSharedText = initialSharedText,
-                        hasCompletedOnboarding = hasCompletedOnboarding
-                    )
-
-                    // Notification permission denial snackbar
-                    androidx.compose.material3.SnackbarHost(
-                        hostState = notificationSnackbarHostState,
+                if (hasCompletedOnboarding == null) {
+                    // DataStore hasn't emitted yet — show a minimal loading state
+                    // so we don't flash the wrong screen
+                    Box(
                         modifier = Modifier
-                            .align(Alignment.BottomCenter)
-                            .padding(bottom = 80.dp)
-                    )
-
-                    // Floating feedback button for beta/debug builds
-                    if (BuildConfig.DEBUG) {
-                        com.averycorp.prismtask.ui.components.FeedbackButton(
-                            onClick = {
-                                navController.navigate(PrismTaskRoute.BugReport.createRoute("FloatingButton"))
-                            },
-                            modifier = Modifier
-                                .align(Alignment.BottomEnd)
-                                .padding(end = 16.dp, bottom = 140.dp)
+                            .fillMaxSize()
+                            .background(MaterialTheme.colorScheme.background),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(32.dp),
+                            color = MaterialTheme.colorScheme.primary,
+                            strokeWidth = 2.dp
                         )
+                    }
+                } else {
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        PrismTaskNavGraph(
+                            modifier = Modifier.fillMaxSize(),
+                            navController = navController,
+                            tabOrder = tabOrder,
+                            hiddenTabs = hiddenTabs,
+                            initialLaunchAction = launchAction,
+                            initialSharedText = initialSharedText,
+                            hasCompletedOnboarding = hasCompletedOnboarding!!
+                        )
+
+                        // Notification permission denial snackbar
+                        androidx.compose.material3.SnackbarHost(
+                            hostState = notificationSnackbarHostState,
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .padding(bottom = 80.dp)
+                        )
+
+                        // Floating feedback button for beta/debug builds
+                        if (BuildConfig.DEBUG) {
+                            com.averycorp.prismtask.ui.components.FeedbackButton(
+                                onClick = {
+                                    navController.navigate(PrismTaskRoute.BugReport.createRoute("FloatingButton"))
+                                },
+                                modifier = Modifier
+                                    .align(Alignment.BottomEnd)
+                                    .padding(end = 16.dp, bottom = 140.dp)
+                            )
+                        }
                     }
                 }
             }
