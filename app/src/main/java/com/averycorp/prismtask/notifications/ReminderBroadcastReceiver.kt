@@ -3,6 +3,7 @@ package com.averycorp.prismtask.notifications
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.util.Log
 
 class ReminderBroadcastReceiver : BroadcastReceiver() {
 
@@ -12,6 +13,8 @@ class ReminderBroadcastReceiver : BroadcastReceiver() {
 
         val title = intent.getStringExtra("taskTitle") ?: "Gentle Nudge"
         val description = intent.getStringExtra("taskDescription")
+
+        Log.d("ReminderReceiver", "Alarm fired for task=$taskId title=$title")
 
         NotificationHelper.showTaskReminder(context, taskId, title, description)
     }

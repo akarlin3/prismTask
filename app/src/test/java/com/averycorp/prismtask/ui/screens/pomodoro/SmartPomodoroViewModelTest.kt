@@ -1,5 +1,6 @@
 package com.averycorp.prismtask.ui.screens.pomodoro
 
+import android.content.Context
 import com.averycorp.prismtask.data.billing.UserTier
 import com.averycorp.prismtask.data.local.dao.TaskDao
 import com.averycorp.prismtask.data.preferences.TimerPreferences
@@ -42,6 +43,7 @@ class SmartPomodoroViewModelTest {
 
     private val dispatcher = StandardTestDispatcher()
 
+    private lateinit var appContext: Context
     private lateinit var taskDao: TaskDao
     private lateinit var api: PrismTaskApi
     private lateinit var proFeatureGate: ProFeatureGate
@@ -51,6 +53,7 @@ class SmartPomodoroViewModelTest {
     @Before
     fun setUp() {
         Dispatchers.setMain(dispatcher)
+        appContext = mockk(relaxed = true)
         taskDao = mockk(relaxed = true)
         api = mockk(relaxed = true)
         proFeatureGate = mockk(relaxed = true)
@@ -70,7 +73,9 @@ class SmartPomodoroViewModelTest {
         Dispatchers.resetMain()
     }
 
-    private fun newViewModel() = SmartPomodoroViewModel(taskDao, api, proFeatureGate, moodEnergyRepository, timerPreferences)
+    private fun newViewModel() = SmartPomodoroViewModel(
+        appContext, taskDao, api, proFeatureGate, moodEnergyRepository, timerPreferences
+    )
 
     @Test
     fun initialState_isPlanning() {

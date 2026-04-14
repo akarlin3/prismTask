@@ -1,5 +1,10 @@
 package com.averycorp.prismtask.ui.screens.pomodoro
 
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.os.Build
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.averycorp.prismtask.data.local.dao.TaskDao
@@ -13,9 +18,9 @@ import com.averycorp.prismtask.domain.usecase.DefaultPomodoroConfig
 import com.averycorp.prismtask.domain.usecase.EnergyAwarePomodoro
 import com.averycorp.prismtask.domain.usecase.PomodoroSessionConfig
 import com.averycorp.prismtask.domain.usecase.ProFeatureGate
+import com.averycorp.prismtask.notifications.PomodoroTimerService
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -71,6 +76,7 @@ data class FocusStats(
 
 @HiltViewModel
 class SmartPomodoroViewModel @Inject constructor(
+    @ApplicationContext private val appContext: Context,
     private val taskDao: TaskDao,
     private val api: PrismTaskApi,
     private val proFeatureGate: ProFeatureGate,
@@ -157,7 +163,29 @@ class SmartPomodoroViewModel @Inject constructor(
     private val _incompleteTaskCount = MutableStateFlow(0)
     val incompleteTaskCount: StateFlow<Int> = _incompleteTaskCount
 
-    private var timerJob: Job? = null
+    /**
+     * Listens for tick + completion broadcasts emitted by
+     * [PomodoroTimerService]. The service runs independently of the app
+     * process lifecycle so this is how we pipe the countdown back into the
+     * UI while the user is in the app.
+     */
+    private val timerReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            when (intent?.action) {
+                PomodoroTimerService.ACTION_TICK -> {
+                    val seconds = intent.getIntExtra(
+                        PomodoroTimerService.EXTRA_SECONDS_REMAINING, -1
+                    )
+                    if (seconds >= 0) {
+                        _timerSecondsRemaining.value = seconds
+                    }
+                }
+                PomodoroTimerService.ACTION_COMPLETE -> onTimerComplete()
+            }
+        }
+    }
+
+    private var receiverRegistered = false
 
     init {
         viewModelScope.launch {
@@ -183,6 +211,39 @@ class SmartPomodoroViewModel @Inject constructor(
             )
             _energyAwareConfig.value = planned
         }
+        registerTimerReceiver()
+    }
+
+    private fun registerTimerReceiver() {
+        if (receiverRegistered) return
+        val filter = IntentFilter().apply {
+            addAction(PomodoroTimerService.ACTION_TICK)
+            addAction(PomodoroTimerService.ACTION_COMPLETE)
+        }
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                appContext.registerReceiver(timerReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+            } else {
+                @Suppress("UnspecifiedRegisterReceiverFlag")
+                appContext.registerReceiver(timerReceiver, filter)
+            }
+            receiverRegistered = true
+        } catch (_: Exception) {
+            // Test contexts and edge cases (e.g. early in Application lifecycle)
+            // may reject receiver registration; the service still delivers
+            // the completion notification via the system notification manager
+            // so UI sync is best-effort.
+        }
+    }
+
+    private fun unregisterTimerReceiver() {
+        if (!receiverRegistered) return
+        try {
+            appContext.unregisterReceiver(timerReceiver)
+        } catch (_: Exception) {
+            // Already unregistered or context invalid.
+        }
+        receiverRegistered = false
     }
 
     private val _showUpgradePrompt = MutableStateFlow(false)
@@ -236,17 +297,30 @@ class SmartPomodoroViewModel @Inject constructor(
     fun startSession() {
         _screenState.value = PomodoroState.SESSION_ACTIVE
         _currentSessionIndex.value = 0
-        _timerSecondsRemaining.value = config.value.sessionLength * 60
-        startTimer()
+        val durationSeconds = config.value.sessionLength * 60
+        _timerSecondsRemaining.value = durationSeconds
+        startTimer(durationSeconds, PomodoroTimerService.SESSION_TYPE_WORK)
     }
 
     fun pauseTimer() {
         _isTimerRunning.value = false
-        timerJob?.cancel()
+        // Stopping the service dismisses its ongoing notification; the
+        // remaining seconds are preserved in _timerSecondsRemaining so
+        // resumeTimer() can pick up where we left off.
+        PomodoroTimerService.stop(appContext)
     }
 
     fun resumeTimer() {
-        startTimer()
+        val remaining = _timerSecondsRemaining.value
+        if (remaining <= 0) return
+        val sessionType = if (_screenState.value == PomodoroState.ON_BREAK) {
+            val isLongBreak = (_currentSessionIndex.value + 1) % 4 == 0
+            if (isLongBreak) PomodoroTimerService.SESSION_TYPE_LONG_BREAK
+            else PomodoroTimerService.SESSION_TYPE_BREAK
+        } else {
+            PomodoroTimerService.SESSION_TYPE_WORK
+        }
+        startTimer(remaining, sessionType)
     }
 
     fun completeTask(taskId: Long) {
@@ -262,7 +336,7 @@ class SmartPomodoroViewModel @Inject constructor(
     }
 
     fun endEarly() {
-        timerJob?.cancel()
+        PomodoroTimerService.stop(appContext)
         _isTimerRunning.value = false
         _screenState.value = PomodoroState.COMPLETE
         val totalSeconds = config.value.sessionLength * 60 * (_currentSessionIndex.value + 1) -
@@ -287,12 +361,13 @@ class SmartPomodoroViewModel @Inject constructor(
         }
         _currentSessionIndex.value = nextIndex
         _screenState.value = PomodoroState.SESSION_ACTIVE
-        _timerSecondsRemaining.value = config.value.sessionLength * 60
-        startTimer()
+        val durationSeconds = config.value.sessionLength * 60
+        _timerSecondsRemaining.value = durationSeconds
+        startTimer(durationSeconds, PomodoroTimerService.SESSION_TYPE_WORK)
     }
 
     fun resetToPlanning() {
-        timerJob?.cancel()
+        PomodoroTimerService.stop(appContext)
         _screenState.value = PomodoroState.PLANNING
         _plan.value = null
         _currentSessionIndex.value = 0
@@ -305,20 +380,15 @@ class SmartPomodoroViewModel @Inject constructor(
         _error.value = null
     }
 
-    private fun startTimer() {
-        timerJob?.cancel()
+    private fun startTimer(durationSeconds: Int, sessionType: String) {
+        if (durationSeconds <= 0) return
         _isTimerRunning.value = true
-        timerJob = viewModelScope.launch {
-            while (_timerSecondsRemaining.value > 0 && _isTimerRunning.value) {
-                delay(1000)
-                if (_isTimerRunning.value) {
-                    _timerSecondsRemaining.value -= 1
-                }
-            }
-            if (_timerSecondsRemaining.value <= 0) {
-                onTimerComplete()
-            }
-        }
+        PomodoroTimerService.start(
+            context = appContext,
+            durationSeconds = durationSeconds,
+            sessionIndex = _currentSessionIndex.value,
+            sessionType = sessionType
+        )
     }
 
     private fun onTimerComplete() {
@@ -341,15 +411,20 @@ class SmartPomodoroViewModel @Inject constructor(
             // Start break
             _screenState.value = PomodoroState.ON_BREAK
             val isLongBreak = (sessionIndex + 1) % 4 == 0
-            _timerSecondsRemaining.value =
+            val durationSeconds =
                 if (isLongBreak) config.value.longBreakLength * 60
                 else config.value.breakLength * 60
-            startTimer()
+            _timerSecondsRemaining.value = durationSeconds
+            val sessionType =
+                if (isLongBreak) PomodoroTimerService.SESSION_TYPE_LONG_BREAK
+                else PomodoroTimerService.SESSION_TYPE_BREAK
+            startTimer(durationSeconds, sessionType)
         }
     }
 
     override fun onCleared() {
         super.onCleared()
-        timerJob?.cancel()
+        unregisterTimerReceiver()
+        PomodoroTimerService.stop(appContext)
     }
 }

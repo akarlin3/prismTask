@@ -5,6 +5,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.os.Build
 import android.util.Log
+import java.util.Date
 
 /**
  * Centralized helper for scheduling exact alarms across the Android version
@@ -35,6 +36,12 @@ object ExactAlarmHelper {
      */
     fun scheduleExact(context: Context, triggerTime: Long, pendingIntent: PendingIntent) {
         val alarmManager = context.getSystemService(AlarmManager::class.java) ?: return
+        Log.d(
+            TAG,
+            "Scheduling alarm: triggerTime=${Date(triggerTime)}, " +
+                "canExact=${canScheduleExact(context)}, " +
+                "sdk=${Build.VERSION.SDK_INT}"
+        )
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
                 !alarmManager.canScheduleExactAlarms()

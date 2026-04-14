@@ -32,6 +32,16 @@
     <uses-permission android:name="android.permission.WRITE_CALENDAR" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.VIBRATE" />
+    <!--
+        Foreground service used to keep the Pomodoro countdown alive when
+        the app is backgrounded. Without this, a viewModelScope coroutine
+        is cancelled as soon as the user switches apps and the completion
+        notification is never shown. The timer qualifies as a
+        "special use" foreground service because it is a user-initiated
+        countdown that the user expects to receive a notification from.
+    -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
 
     <queries>
         <intent>
@@ -95,6 +105,15 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
         </provider>
+
+        <service
+            android:name=".notifications.PomodoroTimerService"
+            android:foregroundServiceType="specialUse"
+            android:exported="false">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="pomodoro_countdown_timer" />
+        </service>
 
         <receiver
             android:name=".notifications.ReminderBroadcastReceiver"

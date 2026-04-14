@@ -6,6 +6,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.averycorp.prismtask.MainActivity
 import com.averycorp.prismtask.R
@@ -35,6 +36,7 @@ object NotificationHelper {
         taskTitle: String,
         taskDescription: String?
     ) {
+        Log.d("NotificationHelper", "Showing notification for task=$taskId")
         createNotificationChannel(context)
 
         val tapIntent = Intent(context, MainActivity::class.java).apply {
