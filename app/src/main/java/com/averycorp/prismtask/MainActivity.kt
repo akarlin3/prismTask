@@ -48,9 +48,11 @@ import com.averycorp.prismtask.data.preferences.OnboardingPreferences
 import com.averycorp.prismtask.data.preferences.TabPreferences
 import com.averycorp.prismtask.data.preferences.ThemePreferences
 import com.averycorp.prismtask.data.preferences.UserPreferencesDataStore
+import com.averycorp.prismtask.data.remote.AuthManager
 import com.averycorp.prismtask.data.remote.SyncService
 import com.averycorp.prismtask.data.remote.UpdateChecker
 import com.averycorp.prismtask.data.remote.VersionInfo
+import com.averycorp.prismtask.data.remote.sync.BackendSyncService
 import com.averycorp.prismtask.notifications.NotificationHelper
 import com.averycorp.prismtask.ui.components.UpdateDialog
 import com.averycorp.prismtask.ui.navigation.PrismTaskNavGraph
@@ -92,6 +94,12 @@ class MainActivity : ComponentActivity() {
 
     @Inject
     lateinit var diagnosticLogger: DiagnosticLogger
+
+    @Inject
+    lateinit var authManager: AuthManager
+
+    @Inject
+    lateinit var backendSyncService: BackendSyncService
 
     companion object {
         /** Intent extra key set by the QuickAdd widget to route deep-links. */
@@ -228,6 +236,20 @@ class MainActivity : ComponentActivity() {
                         ) != PackageManager.PERMISSION_GRANTED
                     ) {
                         notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                    }
+                }
+            }
+
+            // Once Firebase confirms we're signed in, refresh admin status
+            // from the backend so the UI (and ProFeatureGate) reflects admin
+            // privileges without waiting for a manual sync to run.
+            val isSignedIn by authManager.isSignedIn.collectAsStateWithLifecycle()
+            LaunchedEffect(isSignedIn) {
+                if (isSignedIn) {
+                    try {
+                        backendSyncService.checkAdminStatus()
+                    } catch (e: Exception) {
+                        Log.w("MainActivity", "Admin status check failed", e)
                     }
                 }
             }

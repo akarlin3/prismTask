@@ -87,4 +87,7 @@ interface PrismTaskApi {
         @Part file: MultipartBody.Part,
         @Query("mode") mode: String = "merge"
     ): ImportResponse
+
+    @POST("api/v1/feedback/report")
+    suspend fun submitBugReport(@Body body: Map<String, @JvmSuppressWildcards Any?>): BugReportMirrorResponse
 }

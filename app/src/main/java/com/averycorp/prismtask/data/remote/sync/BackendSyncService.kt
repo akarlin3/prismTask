@@ -69,7 +69,7 @@ class BackendSyncService @Inject constructor(
             throw IllegalStateException("Not connected to backend. Sign in first.")
         }
         // Check admin status and apply tier override if needed
-        syncAdminStatus()
+        checkAdminStatus()
         // On the very first connect, push all local templates in one shot
         // (including the built-ins). Subsequent syncs fall through to the
         // normal updated_at-based incremental push.
@@ -86,8 +86,14 @@ class BackendSyncService @Inject constructor(
     /**
      * Fetch user info from the backend and update admin status on the
      * BillingManager. Admin users automatically receive ULTRA tier access.
+     *
+     * Public so callers can refresh admin status independently of a full
+     * sync — e.g., on app launch once Firebase auth confirms the user is
+     * signed in, so the UI reflects admin state without waiting for the
+     * next manual sync. Safely no-ops when the user has no backend JWT.
      */
-    private suspend fun syncAdminStatus() {
+    suspend fun checkAdminStatus() {
+        if (!isConnected()) return
         try {
             val userInfo = api.getMe()
             billingManager.setAdminStatus(userInfo.isAdmin)

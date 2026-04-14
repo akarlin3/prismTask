@@ -7,9 +7,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.middleware.admin import require_admin
-from app.middleware.auth import get_optional_user
+from app.middleware.auth import get_current_user, get_optional_user
 from app.models import BugReportModel, User
-from app.schemas.feedback import BugReportCreate, BugReportResponse, BugReportStatusUpdate
+from app.schemas.feedback import (
+    BugReportCreate,
+    BugReportMirror,
+    BugReportResponse,
+    BugReportStatusUpdate,
+)
 
 router = APIRouter(prefix="/feedback", tags=["feedback"])
 
@@ -55,6 +60,64 @@ async def create_bug_report(
     await db.refresh(report)
 
     return {"id": report.report_id, "status": "submitted", "message": "Thanks!"}
+
+
+@router.post("/report", status_code=status.HTTP_201_CREATED)
+async def mirror_bug_report(
+    report_data: BugReportMirror,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Mirror a Firestore bug report into PostgreSQL so it shows up in the
+    admin debug-logs panel. The Android client writes the report to Firestore
+    first (authoritative) and then posts the same payload here fire-and-forget.
+
+    The request body uses the camelCase field names produced by the client's
+    ``reportToMap()`` helper; see ``BugReportMirror`` for the full contract.
+    """
+    report_id = report_data.id or secrets.token_urlsafe(32)
+
+    existing = await db.execute(
+        select(BugReportModel).where(BugReportModel.report_id == report_id)
+    )
+    if existing.scalar_one_or_none() is not None:
+        # Idempotent: the client may retry if the first call failed after the
+        # Firestore write succeeded. Return 201 so the client treats it as OK.
+        return {"id": report_id, "status": "submitted"}
+
+    report = BugReportModel(
+        report_id=report_id,
+        user_id=current_user.id,
+        category=report_data.category,
+        description=report_data.description,
+        severity=report_data.severity,
+        steps=json.dumps(report_data.steps),
+        screenshot_uris=json.dumps(report_data.screenshotUris),
+        device_model=report_data.deviceModel,
+        device_manufacturer=report_data.deviceManufacturer,
+        android_version=report_data.androidVersion,
+        app_version=report_data.appVersion,
+        app_version_code=report_data.appVersionCode,
+        build_type=report_data.buildType,
+        user_tier=report_data.userTier,
+        current_screen=report_data.currentScreen,
+        task_count=report_data.taskCount,
+        habit_count=report_data.habitCount,
+        available_ram_mb=report_data.availableRamMb,
+        free_storage_mb=report_data.freeStorageMb,
+        network_type=report_data.networkType,
+        battery_percent=report_data.batteryPercent,
+        is_charging=report_data.isCharging,
+        status=report_data.status or "SUBMITTED",
+        diagnostic_log=report_data.diagnosticLog,
+        submitted_via=report_data.submittedVia or "firestore",
+    )
+
+    db.add(report)
+    await db.flush()
+    await db.refresh(report)
+
+    return {"id": report.report_id, "status": "submitted"}
 
 
 @router.get("/bug-reports", response_model=list[BugReportResponse])

@@ -29,6 +29,42 @@ class BugReportCreate(BaseModel):
     submitted_via: str = "backend"
 
 
+class BugReportMirror(BaseModel):
+    """Schema for /feedback/report — mirrors a Firestore bug report to PG.
+
+    Field names use the camelCase keys produced by the Android client's
+    ``reportToMap()`` helper so the app can POST the same payload it writes
+    to Firestore without an intermediate transformation.
+    """
+
+    id: Optional[str] = None
+    userId: Optional[str] = None
+    category: str = "OTHER"
+    description: str
+    severity: str = "MINOR"
+    steps: list[str] = Field(default_factory=list)
+    screenshotUris: list[str] = Field(default_factory=list)
+    deviceModel: str = ""
+    deviceManufacturer: str = ""
+    androidVersion: int = 0
+    appVersion: str = ""
+    appVersionCode: int = 0
+    buildType: str = ""
+    userTier: str = ""
+    currentScreen: str = ""
+    taskCount: int = 0
+    habitCount: int = 0
+    availableRamMb: int = 0
+    freeStorageMb: int = 0
+    networkType: str = ""
+    batteryPercent: int = 0
+    isCharging: bool = False
+    timestamp: Optional[int] = None
+    status: Optional[str] = "SUBMITTED"
+    diagnosticLog: Optional[str] = None
+    submittedVia: Optional[str] = "firestore"
+
+
 class BugReportStatusUpdate(BaseModel):
     status: str = Field(..., description="SUBMITTED, ACKNOWLEDGED, FIXED, WONT_FIX")
     admin_notes: Optional[str] = None

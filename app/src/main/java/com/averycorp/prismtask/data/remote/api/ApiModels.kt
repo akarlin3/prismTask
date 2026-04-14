@@ -387,6 +387,11 @@ data class ImportResponse(
     val mode: String
 )
 
+data class BugReportMirrorResponse(
+    val id: String,
+    val status: String
+)
+
 // endregion
 
 // region AI Import Parse

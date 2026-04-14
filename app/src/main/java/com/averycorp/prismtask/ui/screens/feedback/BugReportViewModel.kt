@@ -20,6 +20,7 @@ import com.averycorp.prismtask.data.diagnostics.DiagnosticLogger
 import com.averycorp.prismtask.data.local.dao.HabitDao
 import com.averycorp.prismtask.data.local.dao.TaskDao
 import com.averycorp.prismtask.data.remote.AuthManager
+import com.averycorp.prismtask.data.remote.api.PrismTaskApi
 import com.averycorp.prismtask.domain.model.BugCategory
 import com.averycorp.prismtask.domain.model.BugReport
 import com.averycorp.prismtask.domain.model.BugSeverity
@@ -49,6 +50,7 @@ class BugReportViewModel @Inject constructor(
     private val habitDao: HabitDao,
     private val diagnosticLogger: DiagnosticLogger,
     private val authManager: AuthManager,
+    private val api: PrismTaskApi,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -226,6 +228,16 @@ class BugReportViewModel @Inject constructor(
                     .document(reportId)
                     .set(data)
                     .await()
+
+                // Also mirror to the backend PostgreSQL so the admin debug-logs
+                // panel can see it. Fire-and-forget: the Firestore write above
+                // is authoritative, so a backend failure must not surface to
+                // the user as a submit failure.
+                try {
+                    api.submitBugReport(data)
+                } catch (e: Exception) {
+                    Log.w("BugReport", "Backend mirror failed (non-fatal)", e)
+                }
 
                 _submitSuccess.value = true
                 _messages.emit("Thanks! We'll look into this.")
