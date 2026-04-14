@@ -56,6 +56,7 @@ import com.averycorp.prismtask.ui.screens.settings.sections.HabitsSection
 import com.averycorp.prismtask.ui.screens.settings.sections.ModesSection
 import com.averycorp.prismtask.ui.screens.settings.sections.NavigationSection
 import com.averycorp.prismtask.ui.screens.settings.sections.SubscriptionSection
+import com.averycorp.prismtask.ui.screens.settings.sections.ShakeSection
 import com.averycorp.prismtask.ui.screens.settings.sections.SwipeActionsSection
 import com.averycorp.prismtask.ui.screens.settings.sections.TaskDefaultsSection
 import com.averycorp.prismtask.ui.screens.settings.sections.TimerSection
@@ -167,6 +168,10 @@ fun SettingsScreen(
     val reduceMotionEnabled by viewModel.reduceMotionEnabled.collectAsStateWithLifecycle()
     val highContrastEnabled by viewModel.highContrastEnabled.collectAsStateWithLifecycle()
     val largeTouchTargetsEnabled by viewModel.largeTouchTargetsEnabled.collectAsStateWithLifecycle()
+
+    // Shake to report
+    val shakeEnabled by viewModel.shakeEnabled.collectAsStateWithLifecycle()
+    val shakeSensitivity by viewModel.shakeSensitivity.collectAsStateWithLifecycle()
 
     // Timer / Pomodoro
     val timerWorkSeconds by viewModel.timerWorkDurationSeconds.collectAsStateWithLifecycle()
@@ -572,6 +577,13 @@ fun SettingsScreen(
                     onReduceMotionChange = viewModel::setReduceMotion,
                     onHighContrastChange = viewModel::setHighContrast,
                     onLargeTouchTargetsChange = viewModel::setLargeTouchTargets
+                )
+
+                ShakeSection(
+                    shakeEnabled = shakeEnabled,
+                    shakeSensitivity = shakeSensitivity,
+                    onShakeEnabledChange = viewModel::setShakeEnabled,
+                    onShakeSensitivityChange = viewModel::setShakeSensitivity
                 )
 
                 HelpFeedbackSection(

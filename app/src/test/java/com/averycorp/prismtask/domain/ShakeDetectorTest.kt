@@ -14,6 +14,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withTimeoutOrNull
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Before
@@ -115,5 +116,76 @@ class ShakeDetectorTest {
         assert(ShakeDetector.SHAKE_THRESHOLD == 12.0) {
             "Shake threshold should be 12 m/s^2 net (above gravity)"
         }
+    }
+
+    @Test
+    fun `threshold defaults to medium sensitivity`() {
+        assertEquals(ShakeDetector.THRESHOLD_MEDIUM_SENSITIVITY, shakeDetector.threshold, 0.0)
+    }
+
+    @Test
+    fun `low sensitivity threshold is higher than medium`() {
+        // Low sensitivity = device must be shaken harder = higher threshold.
+        assert(ShakeDetector.THRESHOLD_LOW_SENSITIVITY > ShakeDetector.THRESHOLD_MEDIUM_SENSITIVITY) {
+            "Low-sensitivity threshold should exceed medium-sensitivity threshold"
+        }
+    }
+
+    @Test
+    fun `high sensitivity threshold is lower than medium`() {
+        // High sensitivity = easier to trigger = lower threshold.
+        assert(ShakeDetector.THRESHOLD_HIGH_SENSITIVITY < ShakeDetector.THRESHOLD_MEDIUM_SENSITIVITY) {
+            "High-sensitivity threshold should be below medium-sensitivity threshold"
+        }
+    }
+
+    @Test
+    fun `raising threshold suppresses a shake that would trigger at medium`() = runTest {
+        // Use the low-sensitivity threshold (harder to trigger) and feed the
+        // same medium-magnitude samples that pass the default threshold.
+        shakeDetector.threshold = ShakeDetector.THRESHOLD_LOW_SENSITIVITY
+
+        val event1 = createSensorEvent(22f, 0f, 0f)
+        val event2 = createSensorEvent(0f, 22f, 0f)
+        val event3 = createSensorEvent(0f, 0f, 22f)
+
+        var eventReceived = false
+        val job = launch {
+            shakeDetector.shakeEvents.first()
+            eventReceived = true
+        }
+
+        shakeDetector.onSensorChanged(event1)
+        shakeDetector.onSensorChanged(event2)
+        shakeDetector.onSensorChanged(event3)
+
+        val result = withTimeoutOrNull(200) { job.join() }
+        assertNull("Low-sensitivity threshold should suppress a medium-strength shake", result)
+        job.cancel()
+    }
+
+    @Test
+    fun `lowering threshold lets a lighter shake trigger`() = runTest {
+        // High sensitivity should register events that wouldn't cross the
+        // default threshold. Net ~2 m/s² is well under 12 but above 8.
+        shakeDetector.threshold = ShakeDetector.THRESHOLD_HIGH_SENSITIVITY
+
+        val event1 = createSensorEvent(18f, 0f, 0f) // magnitude 18 → net ~8.2
+        val event2 = createSensorEvent(0f, 18f, 0f)
+        val event3 = createSensorEvent(0f, 0f, 18f)
+
+        var eventReceived = false
+        val job = launch(UnconfinedTestDispatcher(testScheduler)) {
+            shakeDetector.shakeEvents.first()
+            eventReceived = true
+        }
+
+        shakeDetector.onSensorChanged(event1)
+        shakeDetector.onSensorChanged(event2)
+        shakeDetector.onSensorChanged(event3)
+
+        withTimeoutOrNull(500) { job.join() }
+        assertNotNull("High sensitivity should fire for a lighter shake", if (eventReceived) Unit else null)
+        job.cancel()
     }
 }

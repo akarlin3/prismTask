@@ -45,6 +45,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.averycorp.prismtask.data.preferences.AppearancePrefs
 import com.averycorp.prismtask.data.preferences.OnboardingPreferences
+import com.averycorp.prismtask.data.preferences.ShakePreferences
 import com.averycorp.prismtask.data.preferences.TabPreferences
 import com.averycorp.prismtask.data.preferences.ThemePreferences
 import com.averycorp.prismtask.data.preferences.UserPreferencesDataStore
@@ -90,6 +91,9 @@ class MainActivity : ComponentActivity() {
     lateinit var shakeDetector: ShakeDetector
 
     @Inject
+    lateinit var shakePreferences: ShakePreferences
+
+    @Inject
     lateinit var screenshotCapture: ScreenshotCapture
 
     @Inject
@@ -100,6 +104,14 @@ class MainActivity : ComponentActivity() {
 
     @Inject
     lateinit var backendSyncService: BackendSyncService
+
+    /**
+     * Snapshot of the shake-to-report user preference, read by onResume so we
+     * only register the accelerometer listener when the feature is enabled.
+     * Updated from a LaunchedEffect once DataStore emits.
+     */
+    @Volatile
+    private var shakeFeatureEnabled: Boolean = ShakePreferences.DEFAULT_ENABLED
 
     companion object {
         /** Intent extra key set by the QuickAdd widget to route deep-links. */
@@ -254,12 +266,41 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            // Shake-to-report: collect shake events and show confirmation dialog
+            // Shake-to-report: collect shake events and show confirmation dialog.
+            // Respects the user's enabled toggle and sensitivity preference.
             var showShakeDialog by remember { mutableStateOf(false) }
             var pendingScreenshotUri by remember { mutableStateOf<android.net.Uri?>(null) }
 
+            val shakeEnabled by shakePreferences.getEnabled()
+                .collectAsStateWithLifecycle(initialValue = ShakePreferences.DEFAULT_ENABLED)
+            val shakeSensitivity by shakePreferences.getSensitivity()
+                .collectAsStateWithLifecycle(initialValue = ShakePreferences.DEFAULT_SENSITIVITY)
+
+            LaunchedEffect(shakeSensitivity) {
+                shakeDetector.threshold = when (shakeSensitivity) {
+                    ShakePreferences.SENSITIVITY_LOW -> ShakeDetector.THRESHOLD_LOW_SENSITIVITY
+                    ShakePreferences.SENSITIVITY_HIGH -> ShakeDetector.THRESHOLD_HIGH_SENSITIVITY
+                    else -> ShakeDetector.THRESHOLD_MEDIUM_SENSITIVITY
+                }
+            }
+
+            LaunchedEffect(shakeEnabled) {
+                shakeFeatureEnabled = shakeEnabled
+                if (shakeEnabled) {
+                    shakeDetector.register()
+                } else {
+                    shakeDetector.unregister()
+                    // Dismiss any lingering prompt if the user just disabled the feature.
+                    if (showShakeDialog) {
+                        showShakeDialog = false
+                        pendingScreenshotUri = null
+                    }
+                }
+            }
+
             LaunchedEffect(Unit) {
                 shakeDetector.shakeEvents.collect {
+                    if (!shakeFeatureEnabled) return@collect
                     if (!showShakeDialog) {
                         triggerHapticFeedback()
                         val uri = screenshotCapture.capture(this@MainActivity)
@@ -371,7 +412,9 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        shakeDetector.register()
+        if (shakeFeatureEnabled) {
+            shakeDetector.register()
+        }
         screenshotCapture.cleanupOldScreenshots(this)
     }
 

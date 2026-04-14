@@ -24,6 +24,14 @@ class ShakeDetector @Inject constructor(
     private val _shakeEvents = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val shakeEvents: SharedFlow<Unit> = _shakeEvents.asSharedFlow()
 
+    /**
+     * Net-acceleration threshold (m/s², gravity-subtracted) that must be
+     * exceeded to count a sample as part of a shake. Mutable so callers can
+     * honor user sensitivity preferences at runtime.
+     */
+    @Volatile
+    var threshold: Double = SHAKE_THRESHOLD
+
     private var lastShakeTimestamp = 0L
     private var aboveThresholdCount = 0
     private var firstAboveThresholdTime = 0L
@@ -55,7 +63,7 @@ class ShakeDetector @Inject constructor(
 
         val now = System.currentTimeMillis()
 
-        if (netAcceleration > SHAKE_THRESHOLD) {
+        if (netAcceleration > threshold) {
             if (aboveThresholdCount == 0) {
                 firstAboveThresholdTime = now
             }
@@ -83,9 +91,15 @@ class ShakeDetector @Inject constructor(
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
 
     companion object {
-        const val SHAKE_THRESHOLD = 12.0 // m/s^2 net (above gravity)
+        const val SHAKE_THRESHOLD = 12.0 // m/s^2 net (above gravity) — medium default
         const val REQUIRED_SAMPLES = 3
         const val WINDOW_MS = 600L
         const val COOLDOWN_MS = 3000L
+
+        // Sensitivity presets: a higher threshold means the device must be
+        // shaken harder before the gesture triggers (= less sensitive).
+        const val THRESHOLD_LOW_SENSITIVITY = 16.0
+        const val THRESHOLD_MEDIUM_SENSITIVITY = SHAKE_THRESHOLD
+        const val THRESHOLD_HIGH_SENSITIVITY = 8.0
     }
 }
