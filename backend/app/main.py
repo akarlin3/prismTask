@@ -48,9 +48,3 @@ app.include_router(admin_debug_logs.router, prefix="/api/v1")
 @app.get("/")
 async def health_check():
     return {"status": "healthy", "service": "PrismTask API", "version": "0.2.0"}
-
-allow_origins=[
-    "http://localhost:5173",              # local dev
-    "https://web-prismtask-production.up.railway.app",  # Railway web
-    "https://app.prismtask.app",          # custom domain
-]

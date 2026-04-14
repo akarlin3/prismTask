@@ -10,6 +10,7 @@ can access all debug/feedback data from a single interface.
 """
 
 import base64
+import logging
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -20,6 +21,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.middleware.admin import require_admin
 from app.models import BugReportModel, User
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/admin/debug-logs", tags=["admin"])
 
@@ -116,33 +119,37 @@ async def debug_log_stats(
     db: AsyncSession = Depends(get_db),
 ):
     """Return aggregate statistics about stored debug logs."""
-    total_q = select(func.count(BugReportModel.id))
-    total_result = await db.execute(total_q)
-    total_logs = total_result.scalar() or 0
+    try:
+        total_q = select(func.count(BugReportModel.id))
+        total_result = await db.execute(total_q)
+        total_logs = total_result.scalar() or 0
 
-    one_week_ago = datetime.now(timezone.utc) - timedelta(days=7)
-    week_q = select(func.count(BugReportModel.id)).where(
-        BugReportModel.created_at >= one_week_ago
-    )
-    week_result = await db.execute(week_q)
-    logs_this_week = week_result.scalar() or 0
+        one_week_ago = datetime.now(timezone.utc) - timedelta(days=7)
+        week_q = select(func.count(BugReportModel.id)).where(
+            BugReportModel.created_at >= one_week_ago
+        )
+        week_result = await db.execute(week_q)
+        logs_this_week = week_result.scalar() or 0
 
-    users_q = select(func.count(func.distinct(BugReportModel.user_id))).where(
-        BugReportModel.user_id.isnot(None)
-    )
-    users_result = await db.execute(users_q)
-    unique_users = users_result.scalar() or 0
+        users_q = select(func.count(func.distinct(BugReportModel.user_id))).where(
+            BugReportModel.user_id.isnot(None)
+        )
+        users_result = await db.execute(users_q)
+        unique_users = users_result.scalar() or 0
 
-    # Estimate total storage from all reports
-    all_reports = await db.execute(select(BugReportModel))
-    storage_used = sum(_estimate_size(r) for r in all_reports.scalars().all())
+        # Estimate total storage from all reports
+        all_reports = await db.execute(select(BugReportModel))
+        storage_used = sum(_estimate_size(r) for r in all_reports.scalars().all())
 
-    return DebugLogStats(
-        total_logs=total_logs,
-        logs_this_week=logs_this_week,
-        unique_users=unique_users,
-        storage_used_bytes=storage_used,
-    )
+        return DebugLogStats(
+            total_logs=total_logs,
+            logs_this_week=logs_this_week,
+            unique_users=unique_users,
+            storage_used_bytes=storage_used,
+        )
+    except Exception as exc:
+        logger.exception("Failed to compute debug-log stats: %s", exc)
+        raise HTTPException(status_code=500, detail=f"Failed to compute stats: {exc}") from exc
 
 
 @router.get("", response_model=PaginatedDebugLogs)

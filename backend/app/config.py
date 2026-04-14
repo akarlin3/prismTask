@@ -43,10 +43,21 @@ class Settings(BaseSettings):
     def debug(self) -> bool:
         return not self.is_production
 
+    # These origins are always allowed in production regardless of CORS_ORIGINS env var.
+    # This prevents an accidental CORS_ORIGINS=* env var from locking out the web app.
+    _REQUIRED_PRODUCTION_ORIGINS: list[str] = [
+        "https://app.prismtask.app",
+        "https://web-prismtask-production.up.railway.app",
+    ]
+
     @property
     def effective_cors_origins(self) -> list[str]:
         if self.is_production:
-            return [o for o in self.CORS_ORIGINS if o != "*"]
+            origins = [o for o in self.CORS_ORIGINS if o != "*"]
+            for origin in self._REQUIRED_PRODUCTION_ORIGINS:
+                if origin not in origins:
+                    origins.append(origin)
+            return origins
         return self.CORS_ORIGINS
 
     def get_jwt_secret(self) -> str:
