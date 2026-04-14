@@ -44,6 +44,7 @@ import com.averycorp.prismtask.ui.screens.settings.sections.AppearanceSection
 import com.averycorp.prismtask.ui.screens.settings.sections.BackupExportSection
 import com.averycorp.prismtask.ui.screens.settings.sections.DashboardSection
 import com.averycorp.prismtask.ui.screens.settings.sections.DataSection
+import com.averycorp.prismtask.ui.screens.settings.sections.DebugLogAdminSection
 import com.averycorp.prismtask.ui.screens.settings.sections.DebugOnboardingSection
 import com.averycorp.prismtask.ui.screens.settings.sections.DebugTierSection
 import com.averycorp.prismtask.ui.screens.settings.sections.DeviceCalendarSection
@@ -586,11 +587,6 @@ fun SettingsScreen(
                         navController.navigate(
                             com.averycorp.prismtask.ui.navigation.PrismTaskRoute.FeatureRequest.route
                         )
-                    },
-                    onNavigateToMyReports = {
-                        navController.navigate(
-                            com.averycorp.prismtask.ui.navigation.PrismTaskRoute.MyReports.route
-                        )
                     }
                 )
 
@@ -613,6 +609,12 @@ fun SettingsScreen(
                                     popUpTo(PrismTaskRoute.MainTabs.route) { inclusive = true }
                                 }
                             }
+                        }
+                    )
+
+                    DebugLogAdminSection(
+                        onViewDebugLog = {
+                            navController.navigate(PrismTaskRoute.DebugLog.route)
                         }
                     )
                 }

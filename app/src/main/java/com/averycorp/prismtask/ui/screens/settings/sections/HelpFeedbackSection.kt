@@ -16,8 +16,7 @@ import com.averycorp.prismtask.ui.components.settings.SettingsRowWithSubtitle
 @Composable
 fun HelpFeedbackSection(
     onNavigateToBugReport: () -> Unit,
-    onNavigateToFeatureRequest: () -> Unit,
-    onNavigateToMyReports: () -> Unit
+    onNavigateToFeatureRequest: () -> Unit
 ) {
     val context = LocalContext.current
 
@@ -59,11 +58,6 @@ fun HelpFeedbackSection(
                 // No email client available
             }
         }
-    )
-
-    SettingsRow(
-        title = "View My Reports",
-        onClick = onNavigateToMyReports
     )
 
     Spacer(modifier = Modifier.height(4.dp))

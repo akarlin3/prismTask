@@ -55,7 +55,7 @@ import com.averycorp.prismtask.ui.screens.templates.AddEditTemplateScreen
 import com.averycorp.prismtask.ui.screens.chat.ChatScreen
 import com.averycorp.prismtask.ui.screens.feedback.BugReportScreen
 import com.averycorp.prismtask.ui.screens.feedback.BugReportViewModel
-import com.averycorp.prismtask.ui.screens.feedback.MyReportsScreen
+import com.averycorp.prismtask.ui.screens.debug.DebugLogScreen
 import com.averycorp.prismtask.ui.screens.templates.TemplateListScreen
 import com.averycorp.prismtask.ui.screens.timer.TimerScreen
 
@@ -781,7 +781,7 @@ internal fun NavGraphBuilder.featureRoutes(
             }
 
             composable(
-                route = PrismTaskRoute.MyReports.route,
+                route = PrismTaskRoute.DebugLog.route,
                 enterTransition = {
                     slideInHorizontally(initialOffsetX = { it }, animationSpec = tween(NAV_ANIM_DURATION)) +
                             fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
@@ -799,6 +799,6 @@ internal fun NavGraphBuilder.featureRoutes(
                             fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
                 }
             ) {
-                MyReportsScreen(navController)
+                DebugLogScreen(navController)
             }
 }

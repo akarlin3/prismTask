@@ -59,7 +59,7 @@ class NavigationSafetyTest {
         // v1.4.0 screens
         "ui/screens/analytics/TaskAnalyticsScreen.kt",
         "ui/screens/feedback/BugReportScreen.kt",
-        "ui/screens/feedback/MyReportsScreen.kt"
+        "ui/screens/debug/DebugLogScreen.kt"
     )
 
     @Test
