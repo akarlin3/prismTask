@@ -26,7 +26,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -105,7 +107,10 @@ fun SettingsScreen(
 
     // Boundary rules (v1.4.0 V3)
     val boundaryRules by viewModel.boundaryRules.collectAsStateWithLifecycle()
-    var showAddBoundaryDialog by remember { mutableStateOf(false) }
+    var showBoundarySheet by remember { mutableStateOf(false) }
+    var editingBoundaryRule by remember {
+        mutableStateOf<com.averycorp.prismtask.domain.model.BoundaryRule?>(null)
+    }
 
     // Clinical report export (v1.4.0 V8)
     val isExportingClinicalReport by viewModel.isExportingClinicalReport.collectAsStateWithLifecycle()
@@ -118,6 +123,7 @@ fun SettingsScreen(
     val latestReleaseTag by viewModel.latestReleaseTag.collectAsStateWithLifecycle()
 
     val snackbarHostState = remember { SnackbarHostState() }
+    val snackbarScope = rememberCoroutineScope()
 
     LaunchedEffect(clinicalReportUri) {
         val uri = clinicalReportUri
@@ -252,46 +258,27 @@ fun SettingsScreen(
         if (pendingCsv != null) createCsvLauncher.launch("prismtask_tasks.csv")
     }
 
-    if (showAddBoundaryDialog) {
-        var text by remember { mutableStateOf("") }
-        var error by remember { mutableStateOf(false) }
-        androidx.compose.material3.AlertDialog(
-            onDismissRequest = { showAddBoundaryDialog = false },
-            title = { Text("Add Boundary Rule") },
-            text = {
-                Column {
-                    Text(
-                        "Describe a rule in plain English, e.g. 'No work after 7pm on weekdays'.",
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    androidx.compose.material3.OutlinedTextField(
-                        value = text,
-                        onValueChange = { text = it; error = false },
-                        isError = error,
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    if (error) {
-                        Text(
-                            "Couldn't parse that. Try 'No work after 8pm'.",
-                            color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.labelSmall
-                        )
-                    }
+    if (showBoundarySheet) {
+        val editing = editingBoundaryRule
+        com.averycorp.prismtask.ui.screens.settings.sections.AddBoundaryRuleSheet(
+            existingRule = editing,
+            onDismiss = {
+                showBoundarySheet = false
+                editingBoundaryRule = null
+            },
+            onSave = { rule ->
+                val isUpdate = editing != null
+                if (isUpdate) {
+                    viewModel.updateBoundaryRule(rule)
+                } else {
+                    viewModel.insertBoundaryRule(rule)
                 }
-            },
-            confirmButton = {
-                androidx.compose.material3.TextButton(onClick = {
-                    if (viewModel.addBoundaryRuleFromNlp(text)) {
-                        showAddBoundaryDialog = false
-                    } else {
-                        error = true
-                    }
-                }) { Text("Add") }
-            },
-            dismissButton = {
-                androidx.compose.material3.TextButton(onClick = { showAddBoundaryDialog = false }) { Text("Cancel") }
+                showBoundarySheet = false
+                editingBoundaryRule = null
+                val verb = if (isUpdate) "updated" else "added"
+                snackbarScope.launch {
+                    snackbarHostState.showSnackbar("Rule $verb: ${rule.name}")
+                }
             }
         )
     }
@@ -432,7 +419,14 @@ fun SettingsScreen(
                     rules = boundaryRules,
                     onToggle = { rule, enabled -> viewModel.toggleBoundaryRule(rule, enabled) },
                     onDelete = viewModel::deleteBoundaryRule,
-                    onAdd = { showAddBoundaryDialog = true }
+                    onAdd = {
+                        editingBoundaryRule = null
+                        showBoundarySheet = true
+                    },
+                    onEdit = { rule ->
+                        editingBoundaryRule = rule
+                        showBoundarySheet = true
+                    }
                 )
 
                 CheckInStreakSection(streak = checkInStreak)

@@ -209,6 +209,14 @@ class SettingsViewModel @Inject constructor(
         return true
     }
 
+    fun insertBoundaryRule(rule: com.averycorp.prismtask.domain.model.BoundaryRule) {
+        viewModelScope.launch { boundaryRuleRepository.insert(rule) }
+    }
+
+    fun updateBoundaryRule(rule: com.averycorp.prismtask.domain.model.BoundaryRule) {
+        viewModelScope.launch { boundaryRuleRepository.update(rule) }
+    }
+
     // --- Brain Mode / ND preferences ---
     val ndPrefs: StateFlow<com.averycorp.prismtask.data.preferences.NdPreferences> =
         ndPreferencesDataStore.ndPreferencesFlow
