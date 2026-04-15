@@ -98,9 +98,9 @@ constructor(
         val suggestions = mutableListOf<String>()
 
         if (thisWeek.completed > lastWeek.completed) {
-            wins.add(
-                "Completed ${thisWeek.completed - lastWeek.completed} more task${if (thisWeek.completed - lastWeek.completed == 1) "" else "s"} than last week."
-            )
+            val delta = thisWeek.completed - lastWeek.completed
+            val suffix = if (delta == 1) "" else "s"
+            wins.add("Completed $delta more task$suffix than last week.")
         }
         if (thisWeek.completionRate >= 0.75f) {
             wins.add("Strong completion rate of ${(thisWeek.completionRate * 100).toInt()}%.")

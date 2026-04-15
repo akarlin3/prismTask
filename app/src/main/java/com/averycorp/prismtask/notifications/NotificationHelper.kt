@@ -67,10 +67,6 @@ object NotificationHelper {
         )
     }
 
-    private fun previousImportance(context: Context): String? = runBlocking {
-        NotificationPreferences.from(context).getPreviousImportanceOnce()
-    }
-
     private fun recordImportance(context: Context, importance: String) {
         runBlocking {
             NotificationPreferences.from(context).setPreviousImportance(importance)

@@ -456,7 +456,8 @@ constructor(
     }
 
     private fun monthNames(): String =
-        "january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec"
+        "january|february|march|april|may|june|july|august|september|october|november|december|" +
+            "jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec"
 
     private fun parseMonth(name: String): Month? = when (name.lowercase().take(3)) {
         "jan" -> Month.JANUARY

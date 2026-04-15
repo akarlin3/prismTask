@@ -21,7 +21,8 @@ fun NotificationWatchScreen(
 
     NotificationSubScreenScaffold("Smartwatch", navController) {
         Text(
-            "Controls alerts routed to Apple Watch or Wear OS. Settings below are used on both platforms, with the companion watch app enforcing them on-device.",
+            "Controls alerts routed to Apple Watch or Wear OS. Settings below are used on both platforms, " +
+                "with the companion watch app enforcing them on-device.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )

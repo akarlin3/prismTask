@@ -75,7 +75,8 @@ fun NotificationProfilesScreen(
 
         SectionSpacer()
         Text(
-            "Auto-switch rules let PrismTask change the active profile based on time, day, OS Focus mode, or a calendar event. Configure rules inside each profile.",
+            "Auto-switch rules let PrismTask change the active profile based on time, day, OS Focus mode, " +
+                "or a calendar event. Configure rules inside each profile.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )

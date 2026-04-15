@@ -146,7 +146,9 @@ constructor(
 
             val taskPattern =
                 Regex(
-                    """\{\s*id:\s*"[^"]*"\s*,\s*text:\s*"([^"]+)"\s*,\s*time:\s*"([^"]+)"\s*,\s*type:\s*"([^"]+)"(?:\s*,\s*done:\s*(true))?\s*\}"""
+                    """\{\s*id:\s*"[^"]*"\s*,\s*text:\s*"([^"]+)"\s*,\s*""" +
+                        """time:\s*"([^"]+)"\s*,\s*type:\s*"([^"]+)"\s*""" +
+                        """(?:,\s*done:\s*(true))?\s*\}"""
                 )
             for (taskMatch in taskPattern.findAll(tasksBlock)) {
                 val text = taskMatch.groupValues[1]
@@ -186,7 +188,10 @@ constructor(
         val assignments = mutableListOf<ParsedAssignment>()
 
         val itemPattern = Regex(
-            """\{\s*id:\s*"[^"]*"\s*,\s*date:\s*"([^"]+)"\s*,\s*label:\s*"([^"]+)"(?:\s*,\s*time:\s*"([^"]*)")?(?:\s*,\s*done:\s*(true))?(?:\s*,\s*off:\s*true)?(?:\s*,\s*buffer:\s*true)?\s*\}"""
+            """\{\s*id:\s*"[^"]*"\s*,\s*date:\s*"([^"]+)"\s*,\s*""" +
+                """label:\s*"([^"]+)"\s*""" +
+                """(?:,\s*time:\s*"([^"]*)")?(?:\s*,\s*done:\s*(true))?""" +
+                """(?:\s*,\s*off:\s*true)?(?:\s*,\s*buffer:\s*true)?\s*\}"""
         )
 
         for (match in itemPattern.findAll(content)) {

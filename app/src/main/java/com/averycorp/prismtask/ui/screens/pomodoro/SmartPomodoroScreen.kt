@@ -281,7 +281,8 @@ private fun PlanningView(
                     )
                 ) {
                     Text(
-                        "${plan.sessions.size} sessions \u2022 ${plan.totalWorkMinutes} min work \u2022 ${plan.totalBreakMinutes} min breaks",
+                        "${plan.sessions.size} sessions \u2022 ${plan.totalWorkMinutes} min work \u2022 " +
+                            "${plan.totalBreakMinutes} min breaks",
                         modifier = Modifier.padding(12.dp),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onPrimaryContainer

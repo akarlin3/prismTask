@@ -31,22 +31,30 @@ interface TaskCompletionDao {
     fun getCompletionsInRange(startDate: Long, endDate: Long): Flow<List<TaskCompletionEntity>>
 
     @Query(
-        "SELECT * FROM task_completions WHERE project_id = :projectId AND completed_date >= :startDate AND completed_date <= :endDate ORDER BY completed_date ASC"
+        "SELECT * FROM task_completions " +
+            "WHERE project_id = :projectId AND completed_date >= :startDate AND completed_date <= :endDate " +
+            "ORDER BY completed_date ASC"
     )
     fun getCompletionsByProject(projectId: Long, startDate: Long, endDate: Long): Flow<List<TaskCompletionEntity>>
 
     @Query(
-        "SELECT completed_date AS date, COUNT(*) AS count FROM task_completions WHERE completed_date >= :startDate AND completed_date <= :endDate GROUP BY completed_date ORDER BY completed_date ASC"
+        "SELECT completed_date AS date, COUNT(*) AS count FROM task_completions " +
+            "WHERE completed_date >= :startDate AND completed_date <= :endDate " +
+            "GROUP BY completed_date ORDER BY completed_date ASC"
     )
     fun getCompletionCountByDate(startDate: Long, endDate: Long): Flow<List<DateCount>>
 
     @Query(
-        "SELECT CAST(strftime('%w', completed_date / 1000, 'unixepoch', 'localtime') AS INTEGER) AS dayOfWeek, COUNT(*) AS count FROM task_completions WHERE completed_date >= :startDate AND completed_date <= :endDate GROUP BY dayOfWeek"
+        "SELECT CAST(strftime('%w', completed_date / 1000, 'unixepoch', 'localtime') AS INTEGER) AS dayOfWeek, " +
+            "COUNT(*) AS count FROM task_completions " +
+            "WHERE completed_date >= :startDate AND completed_date <= :endDate GROUP BY dayOfWeek"
     )
     fun getCompletionCountByDayOfWeek(startDate: Long, endDate: Long): Flow<List<DayOfWeekCount>>
 
     @Query(
-        "SELECT CAST(strftime('%H', completed_at_time / 1000, 'unixepoch', 'localtime') AS INTEGER) AS hour, COUNT(*) AS count FROM task_completions WHERE completed_date >= :startDate AND completed_date <= :endDate GROUP BY hour"
+        "SELECT CAST(strftime('%H', completed_at_time / 1000, 'unixepoch', 'localtime') AS INTEGER) AS hour, " +
+            "COUNT(*) AS count FROM task_completions " +
+            "WHERE completed_date >= :startDate AND completed_date <= :endDate GROUP BY hour"
     )
     fun getCompletionCountByHour(startDate: Long, endDate: Long): Flow<List<HourCount>>
 
@@ -54,12 +62,15 @@ interface TaskCompletionDao {
     fun getTotalCompletions(): Flow<Int>
 
     @Query(
-        "SELECT AVG(days_to_complete) FROM task_completions WHERE days_to_complete IS NOT NULL AND completed_date >= :startDate AND completed_date <= :endDate"
+        "SELECT AVG(days_to_complete) FROM task_completions " +
+            "WHERE days_to_complete IS NOT NULL AND completed_date >= :startDate AND completed_date <= :endDate"
     )
     fun getAverageDaysToComplete(startDate: Long, endDate: Long): Flow<Double?>
 
     @Query(
-        "SELECT CAST(SUM(CASE WHEN was_overdue = 1 THEN 1 ELSE 0 END) AS REAL) / CAST(COUNT(*) AS REAL) * 100.0 FROM task_completions WHERE completed_date >= :startDate AND completed_date <= :endDate"
+        "SELECT CAST(SUM(CASE WHEN was_overdue = 1 THEN 1 ELSE 0 END) AS REAL) / CAST(COUNT(*) AS REAL) * 100.0 " +
+            "FROM task_completions " +
+            "WHERE completed_date >= :startDate AND completed_date <= :endDate"
     )
     fun getOverdueRate(startDate: Long, endDate: Long): Flow<Double?>
 
@@ -69,11 +80,17 @@ interface TaskCompletionDao {
     @Query("SELECT * FROM task_completions ORDER BY completed_date DESC")
     suspend fun getAllCompletionsOnce(): List<TaskCompletionEntity>
 
-    @Query("SELECT * FROM task_completions WHERE completed_date >= :startDate AND completed_date <= :endDate ORDER BY completed_date ASC")
+    @Query(
+        "SELECT * FROM task_completions " +
+            "WHERE completed_date >= :startDate AND completed_date <= :endDate " +
+            "ORDER BY completed_date ASC"
+    )
     suspend fun getCompletionsInRangeOnce(startDate: Long, endDate: Long): List<TaskCompletionEntity>
 
     @Query(
-        "SELECT * FROM task_completions WHERE project_id = :projectId AND completed_date >= :startDate AND completed_date <= :endDate ORDER BY completed_date ASC"
+        "SELECT * FROM task_completions " +
+            "WHERE project_id = :projectId AND completed_date >= :startDate AND completed_date <= :endDate " +
+            "ORDER BY completed_date ASC"
     )
     suspend fun getCompletionsByProjectOnce(projectId: Long, startDate: Long, endDate: Long): List<TaskCompletionEntity>
 

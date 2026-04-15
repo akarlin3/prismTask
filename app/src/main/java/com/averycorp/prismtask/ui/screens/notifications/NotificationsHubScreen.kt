@@ -161,7 +161,8 @@ fun NotificationsHubScreen(
 
             Spacer(Modifier.height(24.dp))
             Text(
-                text = "All changes apply on the next scheduled reminder. Active profile and per-category overrides sync across devices once you're signed in.",
+                text = "All changes apply on the next scheduled reminder. Active profile and per-category " +
+                    "overrides sync across devices once you're signed in.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.fillMaxWidth()
