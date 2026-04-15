@@ -136,11 +136,16 @@ ktlint {
     outputToConsole.set(true)
     coloredOutput.set(true)
     ignoreFailures.set(false)
-    additionalEditorconfig.set(
-        mapOf(
-            "ktlint_kotlin_version" to "2.2.10"
-        )
-    )
+    // NOTE: Do not set `additionalEditorconfig` here with keys that aren't
+    // registered in ktlint 1.2.1's EditorConfigPropertyRegistry (e.g.
+    // `ktlint_kotlin_version`). The ktlint-gradle 12.1.1 plugin routes
+    // `additionalEditorconfig` entries through a strict
+    // `EditorConfigPropertyRegistry.find(key)` lookup; unknown keys throw
+    // an exception that the plugin wraps as "KtLint failed to parse file:
+    // <path>" against whichever file the worker happened to be processing.
+    // The ktlint CLI silently ignores unknown keys in `.editorconfig`, so
+    // any non-registered settings belong in the project-root `.editorconfig`
+    // only.
     filter {
         exclude { element -> element.file.path.contains("/build/") }
         exclude { element -> element.file.path.contains("/generated/") }
