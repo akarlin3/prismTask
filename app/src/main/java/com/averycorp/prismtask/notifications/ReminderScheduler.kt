@@ -29,14 +29,7 @@ constructor(
     ) {
         val triggerTime = dueDate - reminderOffset
         val now = System.currentTimeMillis()
-        val effectiveTrigger = if (triggerTime <= now) {
-            // If the missed window is within ~24h, fire as soon as possible
-            // rather than silently dropping. Reminders more than a day stale
-            // are genuinely outdated and should be discarded.
-            if (now - triggerTime < 24 * 60 * 60 * 1000L) now + 5_000L else return
-        } else {
-            triggerTime
-        }
+        val effectiveTrigger = computeEffectiveTrigger(triggerTime, now) ?: return
 
         val intent = Intent(context, ReminderBroadcastReceiver::class.java).apply {
             putExtra("taskId", taskId)
@@ -90,6 +83,23 @@ constructor(
          * [scheduleReminder].
          */
         fun isInFuture(triggerTime: Long, now: Long): Boolean = triggerTime > now
+
+        /**
+         * Pure helper: decide what time the alarm should actually fire at,
+         * given a desired [triggerTime] and the current wall-clock [now].
+         *
+         * - Future trigger → schedule it as-is.
+         * - Past trigger within the last 24h → fall-forward to `now + 5s`
+         *   so the user still gets nudged for a same-day reminder we just
+         *   missed (this is the bug fix in commit 43c70b6).
+         * - Past trigger older than 24h → return null so the caller drops
+         *   the alarm; reminders that stale aren't worth firing anymore.
+         */
+        fun computeEffectiveTrigger(triggerTime: Long, now: Long): Long? = when {
+            triggerTime > now -> triggerTime
+            now - triggerTime < 24 * 60 * 60 * 1000L -> now + 5_000L
+            else -> null
+        }
 
         /**
          * Combine a task's stored [dueDate] (midnight of the due day) with

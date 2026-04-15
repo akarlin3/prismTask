@@ -109,6 +109,53 @@ class ReminderSchedulerTest {
     }
 
     @Test
+    fun computeEffectiveTrigger_pastWithin24hFallsForwardInsteadOfDropping() {
+        // Regression guard for the silent-drop bug: scheduleReminder used to
+        // bail out whenever triggerTime <= now, which silently swallowed
+        // same-day reminders whose trigger fell a few minutes (or hours) in
+        // the past — for example, a same-day reminder created after the
+        // intended trigger time, or a reminder restored on boot just after
+        // its scheduled instant. The fall-forward behavior should turn those
+        // into a "fire ASAP" alarm at now + 5s instead of silently dropping.
+        val now = 1_700_000_000_000L
+        val tenMinutesAgo = now - (10L * 60 * 1000)
+        val effective = ReminderScheduler.computeEffectiveTrigger(tenMinutesAgo, now)
+        assertEquals(
+            "Past-but-within-24h triggers should fall forward to now + 5s",
+            now + 5_000L,
+            effective
+        )
+    }
+
+    @Test
+    fun computeEffectiveTrigger_pastJustUnder24hStillFallsForward() {
+        // The 24h boundary is exclusive: anything strictly less than 24h
+        // stale should still fall forward.
+        val now = 1_700_000_000_000L
+        val almostADayAgo = now - (24L * 60 * 60 * 1000) + 1
+        val effective = ReminderScheduler.computeEffectiveTrigger(almostADayAgo, now)
+        assertEquals(now + 5_000L, effective)
+    }
+
+    @Test
+    fun computeEffectiveTrigger_pastBeyond24hIsDropped() {
+        // Reminders more than a day stale are genuinely outdated. The helper
+        // should signal "drop it" by returning null so scheduleReminder
+        // refuses to register an alarm.
+        val now = 1_700_000_000_000L
+        val twoDaysAgo = now - (2L * 24 * 60 * 60 * 1000)
+        assertEquals(null, ReminderScheduler.computeEffectiveTrigger(twoDaysAgo, now))
+    }
+
+    @Test
+    fun computeEffectiveTrigger_futureTriggerPassesThrough() {
+        // Forward-dated triggers are scheduled exactly as requested.
+        val now = 1_700_000_000_000L
+        val anHourFromNow = now + (60L * 60 * 1000)
+        assertEquals(anHourFromNow, ReminderScheduler.computeEffectiveTrigger(anHourFromNow, now))
+    }
+
+    @Test
     fun combineDateAndTime_triggerTimeIsSameDayNotPreviousDay() {
         // Regression guard: this is the exact bug that silently dropped
         // reminders. A task due "today at 3pm" with a 10-minute reminder
