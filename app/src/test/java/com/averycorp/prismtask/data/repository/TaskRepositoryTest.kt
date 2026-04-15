@@ -99,6 +99,27 @@ class TaskRepositoryTest {
     }
 
     @Test
+    fun updateTask_withDueDateAndReminderOffset_schedulesReminder() = runBlocking {
+        val futureDueDate = System.currentTimeMillis() + (24L * 60 * 60 * 1000)
+        val seededId = taskDao.insert(
+            taskFixture(title = "Call dentist", dueDate = futureDueDate, reminderOffset = 60_000L)
+        )
+        val seeded = taskDao.tasks.single { it.id == seededId }
+
+        repo.updateTask(seeded.copy(description = "Annual checkup"))
+
+        coVerify {
+            reminderScheduler.scheduleReminder(
+                taskId = seededId,
+                taskTitle = "Call dentist",
+                taskDescription = "Annual checkup",
+                dueDate = futureDueDate,
+                reminderOffset = 60_000L
+            )
+        }
+    }
+
+    @Test
     fun deleteTask_removesTaskAndTracksDelete() = runBlocking {
         val id = taskDao.insert(taskFixture(title = "Temp"))
 

@@ -94,6 +94,15 @@ constructor(
         syncTracker.trackCreate(id, "task")
         calendarSyncService.syncTaskToCalendar(task.copy(id = id))
         widgetUpdateManager.updateTaskWidgets()
+        if (task.reminderOffset != null && task.dueDate != null) {
+            reminderScheduler.scheduleReminder(
+                taskId = id,
+                taskTitle = task.title,
+                taskDescription = task.description,
+                dueDate = task.dueDate,
+                reminderOffset = task.reminderOffset
+            )
+        }
         return id
     }
 
@@ -136,6 +145,17 @@ constructor(
         syncTracker.trackUpdate(task.id, "task")
         calendarSyncService.syncTaskToCalendar(updated)
         widgetUpdateManager.updateTaskWidgets()
+        if (updated.reminderOffset != null && updated.dueDate != null) {
+            reminderScheduler.scheduleReminder(
+                taskId = updated.id,
+                taskTitle = updated.title,
+                taskDescription = updated.description,
+                dueDate = updated.dueDate,
+                reminderOffset = updated.reminderOffset
+            )
+        } else {
+            reminderScheduler.cancelReminder(updated.id)
+        }
     }
 
     suspend fun rescheduleTask(taskId: Long, newDueDate: Long?) {
