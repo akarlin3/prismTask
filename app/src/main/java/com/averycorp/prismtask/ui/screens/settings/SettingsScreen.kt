@@ -35,7 +35,6 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
-import com.averycorp.prismtask.BuildConfig
 import com.averycorp.prismtask.ui.navigation.PrismTaskRoute
 import com.averycorp.prismtask.ui.screens.settings.sections.AboutSection
 import com.averycorp.prismtask.ui.screens.settings.sections.AccessibilitySection
@@ -61,7 +60,6 @@ import com.averycorp.prismtask.ui.screens.settings.sections.HabitsSection
 import com.averycorp.prismtask.ui.screens.settings.sections.HelpFeedbackSection
 import com.averycorp.prismtask.ui.screens.settings.sections.ModesSection
 import com.averycorp.prismtask.ui.screens.settings.sections.NavigationSection
-import com.averycorp.prismtask.ui.screens.settings.sections.NotificationDiagnosticSection
 import com.averycorp.prismtask.ui.screens.settings.sections.ShakeSection
 import com.averycorp.prismtask.ui.screens.settings.sections.SubscriptionSection
 import com.averycorp.prismtask.ui.screens.settings.sections.SwipeActionsSection
@@ -627,14 +625,6 @@ fun SettingsScreen(
                     DebugLogAdminSection(
                         onViewDebugLog = {
                             navController.navigate(PrismTaskRoute.DebugLog.route)
-                        }
-                    )
-                }
-
-                if (BuildConfig.DEBUG || isAdmin) {
-                    NotificationDiagnosticSection(
-                        onOpenNotificationDiagnostic = {
-                            navController.navigate(PrismTaskRoute.NotificationDiagnostic.route)
                         }
                     )
                 }

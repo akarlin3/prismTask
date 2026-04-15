@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.averycorp.prismtask.data.preferences.TimerPreferences
+import com.averycorp.prismtask.notifications.NotificationHelper
 import com.averycorp.prismtask.widget.TimerStateDataStore
 import com.averycorp.prismtask.widget.TimerWidgetState
 import com.averycorp.prismtask.widget.WidgetUpdateManager
@@ -152,6 +153,14 @@ constructor(
                     _uiState.value = current.copy(remainingSeconds = 0, isRunning = false)
                     syncWidgetState()
                     widgetUpdateManager.updateTimerWidget()
+                    // TODO: migrate countdown to PomodoroTimerService-style
+                    //  foreground service so the timer survives backgrounding
+                    //  (currently the viewModelScope coroutine is cancelled
+                    //  when the ViewModel is cleared).
+                    NotificationHelper.showTimerCompleteNotification(
+                        appContext,
+                        current.mode.name
+                    )
                     onTimerCompleted()
                     break
                 } else {

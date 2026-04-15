@@ -29,8 +29,9 @@ constructor(
     private val completionDao: HabitCompletionDao
 ) {
     companion object {
-        private const val CHANNEL_ID = "averytask_weekly_summary"
+        private const val CHANNEL_ID = "prismtask_weekly_summary"
         private const val CHANNEL_NAME = "Weekly Summary"
+        private const val LEGACY_CHANNEL_ID = "averytask_weekly_summary"
         private const val NOTIFICATION_ID = 9999
     }
 
@@ -83,6 +84,7 @@ constructor(
             NotificationManager.IMPORTANCE_DEFAULT
         ).apply { description = "Weekly habit summary" }
         val manager = context.getSystemService(NotificationManager::class.java)
+        manager.deleteNotificationChannel(LEGACY_CHANNEL_ID)
         manager.createNotificationChannel(channel)
 
         val tapIntent = Intent(context, MainActivity::class.java).apply {

@@ -15,6 +15,9 @@ object NotificationHelper {
     private const val CHANNEL_NAME = "Task Reminders"
     private const val MED_CHANNEL_ID = "prismtask_medication_reminders"
     private const val MED_CHANNEL_NAME = "Medication Reminders"
+    private const val TIMER_CHANNEL_ID = "prismtask_timer_alerts"
+    private const val TIMER_CHANNEL_NAME = "Timer Alerts"
+    private const val TIMER_NOTIFICATION_ID = 8_001
 
     private const val LEGACY_CHANNEL_ID = "averytask_reminders"
     private const val LEGACY_MED_CHANNEL_ID = "averytask_medication_reminders"
@@ -196,6 +199,54 @@ object NotificationHelper {
 
         val manager = context.getSystemService(NotificationManager::class.java)
         manager.notify(stepId.hashCode() + 400_000, notification)
+    }
+
+    private fun createTimerChannel(context: Context) {
+        val channel = NotificationChannel(
+            TIMER_CHANNEL_ID,
+            TIMER_CHANNEL_NAME,
+            NotificationManager.IMPORTANCE_HIGH
+        ).apply {
+            description = "Alerts when a Timer countdown completes"
+        }
+        val manager = context.getSystemService(NotificationManager::class.java)
+        manager.createNotificationChannel(channel)
+    }
+
+    fun showTimerCompleteNotification(context: Context, mode: String) {
+        createTimerChannel(context)
+
+        val isBreak = mode.equals("BREAK", ignoreCase = true)
+        val title = if (isBreak) "Break Complete!" else "Timer Complete!"
+        val body = if (isBreak) {
+            "Ready to get back to focus?"
+        } else {
+            "Nice work \u2014 time for a break."
+        }
+
+        val tapIntent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        val tapPending = PendingIntent.getActivity(
+            context,
+            TIMER_NOTIFICATION_ID,
+            tapIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val notification = NotificationCompat
+            .Builder(context, TIMER_CHANNEL_ID)
+            .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
+            .setContentTitle(title)
+            .setContentText(body)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setDefaults(NotificationCompat.DEFAULT_ALL)
+            .setAutoCancel(true)
+            .setContentIntent(tapPending)
+            .build()
+
+        val manager = context.getSystemService(NotificationManager::class.java)
+        manager.notify(TIMER_NOTIFICATION_ID, notification)
     }
 
     private fun formatInterval(millis: Long): String {

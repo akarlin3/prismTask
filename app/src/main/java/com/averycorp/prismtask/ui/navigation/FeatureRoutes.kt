@@ -23,7 +23,6 @@ import com.averycorp.prismtask.ui.screens.briefing.DailyBriefingScreen
 import com.averycorp.prismtask.ui.screens.chat.ChatScreen
 import com.averycorp.prismtask.ui.screens.checkin.MorningCheckInScreen
 import com.averycorp.prismtask.ui.screens.debug.DebugLogScreen
-import com.averycorp.prismtask.ui.screens.debug.NotificationDiagnosticScreen
 import com.averycorp.prismtask.ui.screens.eisenhower.EisenhowerScreen
 import com.averycorp.prismtask.ui.screens.extract.PasteConversationScreen
 import com.averycorp.prismtask.ui.screens.feedback.BugReportScreen
@@ -793,27 +792,5 @@ internal fun NavGraphBuilder.featureRoutes(
         }
     ) {
         DebugLogScreen(navController)
-    }
-
-    composable(
-        route = PrismTaskRoute.NotificationDiagnostic.route,
-        enterTransition = {
-            slideInHorizontally(initialOffsetX = { it }, animationSpec = tween(NAV_ANIM_DURATION)) +
-                fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
-        },
-        exitTransition = {
-            slideOutHorizontally(targetOffsetX = { -it / 3 }, animationSpec = tween(NAV_ANIM_DURATION)) +
-                fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
-        },
-        popEnterTransition = {
-            slideInHorizontally(initialOffsetX = { -it / 3 }, animationSpec = tween(NAV_ANIM_DURATION)) +
-                fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
-        },
-        popExitTransition = {
-            slideOutHorizontally(targetOffsetX = { it }, animationSpec = tween(NAV_ANIM_DURATION)) +
-                fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
-        }
-    ) {
-        NotificationDiagnosticScreen(navController)
     }
 }
