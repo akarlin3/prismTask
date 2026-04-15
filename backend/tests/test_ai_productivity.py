@@ -148,7 +148,8 @@ class TestPomodoroService:
 
 class TestAIEndpoints:
     @pytest.mark.asyncio
-    async def test_eisenhower_endpoint(self, client: AsyncClient, auth_headers: dict):
+    async def test_eisenhower_endpoint(self, client: AsyncClient, pro_auth_headers: dict):
+        auth_headers = pro_auth_headers
         # Create a goal and project first
         goal_resp = await client.post(
             "/api/v1/goals",
@@ -184,7 +185,8 @@ class TestAIEndpoints:
                 assert "summary" in data
 
     @pytest.mark.asyncio
-    async def test_pomodoro_endpoint(self, client: AsyncClient, auth_headers: dict):
+    async def test_pomodoro_endpoint(self, client: AsyncClient, pro_auth_headers: dict):
+        auth_headers = pro_auth_headers
         # Create a goal and project first
         goal_resp = await client.post(
             "/api/v1/goals",
@@ -229,7 +231,8 @@ class TestAIEndpoints:
                 assert data["total_sessions"] == 1
 
     @pytest.mark.asyncio
-    async def test_rate_limiting(self, client: AsyncClient, auth_headers: dict):
+    async def test_rate_limiting(self, client: AsyncClient, pro_auth_headers: dict):
+        auth_headers = pro_auth_headers
         from app.routers.ai import ai_rate_limiter
         ai_rate_limiter._requests.clear()
 
@@ -491,7 +494,8 @@ class TestTimeBlockService:
 
 class TestNewAIEndpoints:
     @pytest.mark.asyncio
-    async def test_daily_briefing_rate_limiting(self, client: AsyncClient, auth_headers: dict):
+    async def test_daily_briefing_rate_limiting(self, client: AsyncClient, pro_auth_headers: dict):
+        auth_headers = pro_auth_headers
         from app.routers.ai import briefing_rate_limiter
         briefing_rate_limiter._requests.clear()
 
@@ -512,7 +516,8 @@ class TestNewAIEndpoints:
         assert resp2.status_code == 429
 
     @pytest.mark.asyncio
-    async def test_weekly_plan_rate_limiting(self, client: AsyncClient, auth_headers: dict):
+    async def test_weekly_plan_rate_limiting(self, client: AsyncClient, pro_auth_headers: dict):
+        auth_headers = pro_auth_headers
         from app.routers.ai import weekly_plan_rate_limiter
         weekly_plan_rate_limiter._requests.clear()
 
@@ -533,7 +538,8 @@ class TestNewAIEndpoints:
         assert resp2.status_code == 429
 
     @pytest.mark.asyncio
-    async def test_time_block_rate_limiting(self, client: AsyncClient, auth_headers: dict):
+    async def test_time_block_rate_limiting(self, client: AsyncClient, pro_auth_headers: dict):
+        auth_headers = pro_auth_headers
         from app.routers.ai import time_block_rate_limiter
         time_block_rate_limiter._requests.clear()
 

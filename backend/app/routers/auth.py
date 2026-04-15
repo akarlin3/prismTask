@@ -1,3 +1,6 @@
+import logging
+import secrets
+
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -15,6 +18,9 @@ from app.services.auth import (
     verify_firebase_token,
     verify_password,
 )
+from app.services.billing import validate_purchase
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -91,12 +97,16 @@ async def firebase_login(
             # Link existing account to this Firebase UID
             user.firebase_uid = uid
         else:
-            # Create a new user
+            # Create a new user.
+            # The hashed_password column is NOT NULL, so we store a hash of
+            # a random secret that is never exposed. Firebase-linked users
+            # authenticate via the /auth/firebase endpoint — the password
+            # login path cannot succeed against this value.
             display_name = decoded.get("name") or body.name or email.split("@")[0]
             user = User(
                 email=email,
                 name=display_name,
-                hashed_password=hash_password(f"firebase_{uid}"),
+                hashed_password=hash_password(secrets.token_urlsafe(32)),
                 firebase_uid=uid,
             )
             db.add(user)
@@ -145,11 +155,26 @@ async def update_tier(
     """Update the user's subscription tier.
 
     Called by the Android app after a purchase is confirmed with Google Play.
+    Paid tiers require a ``purchase_token`` + ``product_id`` that the server
+    validates with the Google Play Developer API. Downgrades to FREE do not
+    require a token.
     """
     valid_tiers = {"FREE", "PRO", "PREMIUM", "ULTRA"}
     if body.tier not in valid_tiers:
         raise HTTPException(status_code=400, detail=f"Invalid tier: {body.tier}")
-    current_user.tier = body.tier
+
+    result = validate_purchase(
+        claimed_tier=body.tier,
+        purchase_token=body.purchase_token,
+        product_id=body.product_id,
+    )
+    if not result.ok:
+        logger.warning(
+            "Tier elevation rejected for user %s: %s", current_user.id, result.detail
+        )
+        raise HTTPException(status_code=402, detail=result.detail)
+
+    current_user.tier = result.validated_tier or body.tier
     await db.flush()
     await db.refresh(current_user)
     return current_user

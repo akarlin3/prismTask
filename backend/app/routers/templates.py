@@ -1,5 +1,5 @@
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -298,7 +298,7 @@ async def use_template(
 
     # Update usage tracking
     tmpl.usage_count = (tmpl.usage_count or 0) + 1
-    tmpl.last_used_at = datetime.utcnow()
+    tmpl.last_used_at = datetime.now(timezone.utc)
 
     await db.flush()
 

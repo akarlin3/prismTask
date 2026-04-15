@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, Query
@@ -28,6 +29,8 @@ from app.schemas.sync import (
     SyncPushResponse,
 )
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/sync", tags=["sync"])
 
 ENTITY_MAP = {
@@ -47,6 +50,89 @@ STATUS_ENUM_MAP = {
     "habit": HabitFrequency,
 }
 
+# Per-entity allowlists of fields a client may write via /sync. Anything
+# outside these lists is stripped before the ORM instance is constructed
+# or updated — this protects columns like `user_id`, `id`, `is_admin`,
+# `tier`, and `created_at` from client-controlled assignment.
+#
+# Relationship FKs that reference other user-owned entities (e.g.
+# `project_id` on a task) are additionally validated for ownership in
+# ``_validate_foreign_keys`` below.
+WRITABLE_FIELDS: dict[str, frozenset[str]] = {
+    "goal": frozenset({
+        "title", "description", "status", "target_date", "color", "sort_order",
+    }),
+    "project": frozenset({
+        "goal_id", "title", "description", "status", "due_date", "sort_order",
+    }),
+    "task": frozenset({
+        "project_id", "parent_id", "title", "description", "notes", "status",
+        "priority", "due_date", "due_time", "planned_date", "completed_at",
+        "urgency_score", "recurrence_json", "eisenhower_quadrant",
+        "eisenhower_updated_at", "estimated_duration", "actual_duration",
+        "sort_order", "depth",
+    }),
+    "tag": frozenset({"name", "color"}),
+    "habit": frozenset({
+        "name", "description", "icon", "color", "category", "frequency",
+        "target_count", "active_days_json", "is_active",
+    }),
+    "habit_completion": frozenset({"habit_id", "date", "count"}),
+    "template": frozenset({
+        "name", "description", "icon", "category",
+        "template_title", "template_description", "template_priority",
+        "template_project_id", "template_tags_json",
+        "template_recurrence_json", "template_duration", "template_subtasks_json",
+    }),
+}
+
+# Foreign keys that reference user-scoped entities. Before assigning one of
+# these keys, the server must confirm the referenced row belongs to the
+# authenticated user.
+USER_SCOPED_FKS: dict[str, dict[str, type]] = {
+    "project": {"goal_id": Goal},
+    "task": {"project_id": Project, "parent_id": Task},
+    "habit_completion": {"habit_id": Habit},
+    "template": {"template_project_id": Project},
+}
+
+
+def _filter_writable(entity_type: str, data: dict) -> dict:
+    """Strip any key not in the per-entity allowlist."""
+    allowed = WRITABLE_FIELDS.get(entity_type, frozenset())
+    filtered: dict = {}
+    for key, value in data.items():
+        if key in allowed:
+            filtered[key] = value
+        else:
+            logger.info(
+                "sync: dropping disallowed field %s on %s", key, entity_type
+            )
+    return filtered
+
+
+async def _validate_foreign_keys(
+    entity_type: str, data: dict, user: User, db: AsyncSession
+) -> str | None:
+    """Ensure any user-scoped FK in ``data`` points to a row owned by ``user``.
+
+    Returns an error string on failure, None on success.
+    """
+    fks = USER_SCOPED_FKS.get(entity_type)
+    if not fks:
+        return None
+    for column, model in fks.items():
+        value = data.get(column)
+        if value is None:
+            continue
+        query = select(model.id).where(model.id == value)
+        if hasattr(model, "user_id"):
+            query = query.where(model.user_id == user.id)
+        result = await db.execute(query)
+        if result.scalar_one_or_none() is None:
+            return f"Invalid {column} on {entity_type}: {value} not found"
+    return None
+
 
 async def _process_operation(
     op: SyncOperation, user: User, db: AsyncSession
@@ -58,8 +144,11 @@ async def _process_operation(
     if op.operation == "create":
         if not op.data:
             return "Create operation requires data"
-        data = dict(op.data)
-        # Add user_id for entities that need it
+        data = _filter_writable(op.entity_type, dict(op.data))
+        fk_error = await _validate_foreign_keys(op.entity_type, data, user, db)
+        if fk_error:
+            return fk_error
+        # Force user_id server-side — never trust the client for ownership.
         if hasattr(model, "user_id"):
             data["user_id"] = user.id
         # Default status for new tasks (PostgreSQL enum values are lowercase)
@@ -83,7 +172,11 @@ async def _process_operation(
         entity = result.scalar_one_or_none()
         if not entity:
             return f"{op.entity_type} {op.entity_id} not found"
-        for key, value in op.data.items():
+        data = _filter_writable(op.entity_type, dict(op.data))
+        fk_error = await _validate_foreign_keys(op.entity_type, data, user, db)
+        if fk_error:
+            return fk_error
+        for key, value in data.items():
             if key == "status" and op.entity_type in STATUS_ENUM_MAP:
                 value = STATUS_ENUM_MAP[op.entity_type](value).value
             if key == "frequency" and op.entity_type == "habit":
@@ -173,7 +266,7 @@ async def sync_pull(
                     operation="upsert",
                     entity_id=entity.id,
                     data=data,
-                    timestamp=timestamp or datetime.utcnow(),
+                    timestamp=timestamp or datetime.now(timezone.utc),
                 )
             )
 

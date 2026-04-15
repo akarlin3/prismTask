@@ -71,3 +71,31 @@ async def auth_headers(client: AsyncClient) -> dict:
     assert resp.status_code == 200, f"login failed: {resp.status_code} {resp.text}"
     token = resp.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
+
+
+async def _elevate_tier(email: str, tier: str) -> None:
+    """Directly set a user's tier in the test DB.
+
+    AI endpoints enforce the tier gate server-side, so tests that exercise
+    them need to upgrade the default test user from FREE.
+    """
+    from sqlalchemy import update as sqla_update
+
+    from app.models import User as UserModel
+
+    async with TestSessionLocal() as session:
+        await session.execute(
+            sqla_update(UserModel).where(UserModel.email == email).values(tier=tier)
+        )
+        await session.commit()
+
+
+@pytest_asyncio.fixture
+async def pro_auth_headers(client: AsyncClient, auth_headers: dict) -> dict:
+    """Same as ``auth_headers`` but with the user elevated to PRO.
+
+    Use this for tests that hit AI endpoints protected by
+    ``DailyAIRateLimiter`` / ``ProFeatureGate``.
+    """
+    await _elevate_tier("test@example.com", "PRO")
+    return auth_headers

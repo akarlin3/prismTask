@@ -125,7 +125,9 @@ async def test_parse_import_claude_failure(client: AsyncClient, auth_headers: di
         )
 
     assert resp.status_code == 502
-    assert "AI parsing failed" in resp.json()["detail"]
+    # Exception details are intentionally not leaked to clients — the
+    # generic message is returned and the real error is logged server-side.
+    assert "temporarily unavailable" in resp.json()["detail"]
 
 
 @pytest.mark.asyncio

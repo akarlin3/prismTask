@@ -6,10 +6,14 @@ from app.routers import ai, analytics, app_update, auth, dashboard, export, feed
 from app.routers.admin import activity_logs as admin_activity_logs
 from app.routers.admin import debug_logs as admin_debug_logs
 
+# Single source of truth for the backend API version. Keep in sync with
+# the version reported in /health_check and exposed via the OpenAPI schema.
+API_VERSION = "0.2.0"
+
 app = FastAPI(
     title="PrismTask API",
     description="Hierarchical task management API with AI-powered NLP",
-    version="0.2.0",
+    version=API_VERSION,
     debug=settings.debug,
 )
 
@@ -47,4 +51,4 @@ app.include_router(admin_debug_logs.router, prefix="/api/v1")
 
 @app.get("/")
 async def health_check():
-    return {"status": "healthy", "service": "PrismTask API", "version": "0.2.0"}
+    return {"status": "healthy", "service": "PrismTask API", "version": API_VERSION}

@@ -24,6 +24,11 @@ class TokenRefresh(BaseModel):
 
 class UpdateTierRequest(BaseModel):
     tier: str
+    # Google Play purchase receipt. Required for any non-FREE tier so the
+    # server can validate the purchase before elevating the user. Downgrades
+    # to FREE (e.g. cancellation, refund) do not require a token.
+    purchase_token: str | None = None
+    product_id: str | None = None
 
 
 class FirebaseTokenLogin(BaseModel):

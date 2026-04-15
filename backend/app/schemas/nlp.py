@@ -1,7 +1,7 @@
 from datetime import date
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class ParsedTask(BaseModel):
@@ -15,7 +15,9 @@ class ParsedTask(BaseModel):
 
 
 class ParseRequest(BaseModel):
-    text: str
+    # A task title is at most a few hundred characters; cap generously at 2k
+    # to prevent the unauthenticated endpoint being used as a token sink.
+    text: str = Field(..., min_length=1, max_length=2_000)
 
 
 class ParseResponse(ParsedTask):

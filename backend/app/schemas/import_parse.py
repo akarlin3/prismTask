@@ -7,7 +7,12 @@ from __future__ import annotations
 
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+
+# Max bytes of pasted content accepted by the AI import endpoints.
+# Claude Haiku tokenises roughly at ~4 chars/token, so 50k chars is
+# ~12.5k input tokens per call — a reasonable cap for a single paste.
+MAX_PARSE_CONTENT_LENGTH = 50_000
 
 
 # ---------------------------------------------------------------------------
@@ -15,7 +20,7 @@ from pydantic import BaseModel
 # ---------------------------------------------------------------------------
 
 class ParseImportRequest(BaseModel):
-    content: str
+    content: str = Field(..., min_length=1, max_length=MAX_PARSE_CONTENT_LENGTH)
 
 
 class ParsedImportItem(BaseModel):
@@ -41,7 +46,7 @@ class ParseImportResponse(BaseModel):
 # ---------------------------------------------------------------------------
 
 class ParseChecklistRequest(BaseModel):
-    content: str
+    content: str = Field(..., min_length=1, max_length=MAX_PARSE_CONTENT_LENGTH)
 
 
 class ParsedChecklistTask(BaseModel):

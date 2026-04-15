@@ -68,7 +68,13 @@ class DailyAIRateLimiter:
     def check(self, user_id: int, tier: str) -> None:
         limit = self.TIER_LIMITS.get(tier, 0)
         if limit == 0:
-            return  # Free users are blocked by feature gate, not here
+            # Defense in depth: the client-side feature gate should keep
+            # Free users off these endpoints, but if a request gets through
+            # (e.g. direct API call bypassing the app), deny it here too.
+            raise HTTPException(
+                status_code=403,
+                detail="AI features require a Pro subscription",
+            )
 
         today = self._today_key()
         with self._lock:

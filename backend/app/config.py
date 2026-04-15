@@ -1,11 +1,17 @@
 import secrets
+from functools import lru_cache
 
 from pydantic import field_validator
 from pydantic_settings import BaseSettings
 
 
-def _generate_dev_secret() -> str:
-    """Generate a random secret for development. Production must set JWT_SECRET_KEY explicitly."""
+@lru_cache(maxsize=1)
+def _get_dev_secret() -> str:
+    """Return a process-lifetime random secret for development.
+
+    Production must set JWT_SECRET_KEY explicitly — this helper is only
+    consulted when running in dev without an explicit secret.
+    """
     return secrets.token_urlsafe(64)
 
 
@@ -21,9 +27,13 @@ class Settings(BaseSettings):
     FIREBASE_SERVICE_ACCOUNT_KEY_PATH: str = ""
     FIREBASE_STORAGE_BUCKET: str = "prismtask-app.firebasestorage.app"
     ENVIRONMENT: str = "dev"
+    # Default to an explicit allowlist. The wildcard is NOT included by
+    # default — operators must opt in by setting CORS_ORIGINS="*" in dev.
+    # In production the wildcard is stripped even if set; see
+    # effective_cors_origins below.
     CORS_ORIGINS: list[str] = [
-        "*",
         "http://localhost:5173",
+        "http://localhost:3000",
         "https://web-prismtask-production.up.railway.app",
         "https://app.prismtask.app",
     ]
@@ -66,9 +76,7 @@ class Settings(BaseSettings):
         if self.is_production:
             raise RuntimeError("JWT_SECRET_KEY must be set in production")
         # Auto-generate for local dev only (tokens won't persist across restarts)
-        if not hasattr(self, "_dev_secret"):
-            object.__setattr__(self, "_dev_secret", _generate_dev_secret())
-        return self._dev_secret  # type: ignore[attr-defined]
+        return _get_dev_secret()
 
     model_config = {"env_file": ".env", "extra": "ignore"}
 

@@ -11,7 +11,7 @@ can access all debug/feedback data from a single interface.
 
 import base64
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -124,7 +124,7 @@ async def debug_log_stats(
         total_result = await db.execute(total_q)
         total_logs = total_result.scalar() or 0
 
-        one_week_ago = datetime.utcnow() - timedelta(days=7)
+        one_week_ago = datetime.now(timezone.utc) - timedelta(days=7)
         week_q = select(func.count(BugReportModel.id)).where(
             BugReportModel.created_at >= one_week_ago
         )

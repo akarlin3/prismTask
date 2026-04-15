@@ -1,9 +1,10 @@
 import json
 import logging
 import os
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Body, Depends, HTTPException, Request, status
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -11,7 +12,7 @@ from sqlalchemy.orm import selectinload
 from app.config import settings
 from app.database import get_db
 from app.middleware.auth import get_current_user
-from app.middleware.rate_limit import import_parse_rate_limiter
+from app.middleware.rate_limit import RateLimiter, import_parse_rate_limiter
 from app.models import Project, Task, TaskStatus, User
 from app.schemas.import_parse import (
     ParseChecklistRequest,
@@ -21,6 +22,11 @@ from app.schemas.import_parse import (
 )
 from app.schemas.nlp import ParseRequest, ParseResponse
 from app.schemas.task import SubtaskCreate, TaskCreate, TaskResponse, TaskUpdate
+
+# IP-keyed rate limiter for the unauthenticated /tasks/parse endpoint.
+# Keeps the endpoint usable for the web landing demo without exposing the
+# Anthropic API budget to unbounded calls.
+parse_rate_limiter = RateLimiter(max_requests=20, window_seconds=60)
 
 logger = logging.getLogger(__name__)
 
@@ -139,7 +145,7 @@ async def update_task(
         new_status = TaskStatus(update_data["status"])
         update_data["status"] = new_status
         if new_status == TaskStatus.DONE and task.status != TaskStatus.DONE:
-            update_data["completed_at"] = datetime.utcnow()
+            update_data["completed_at"] = datetime.now(timezone.utc)
         elif new_status != TaskStatus.DONE:
             update_data["completed_at"] = None
 
@@ -201,14 +207,17 @@ async def create_subtask(
 
 
 @router.post("/tasks/parse", response_model=ParseResponse)
-async def parse_task(data: ParseRequest):
+async def parse_task(data: ParseRequest, request: Request):
     """
     Parse free-text task input into structured fields.
 
     This is a utility endpoint and does not require authentication — it has no
     user context and simply runs the NLP parser against the supplied text.
     Because there is no user, project-name suggestions are not available.
+
+    Rate-limited per IP to keep the Anthropic API budget bounded.
     """
+    parse_rate_limiter.check(request)
     try:
         from app.services.nlp_parser import parse_task_input
         parsed = parse_task_input(data.text, [], date.today())
@@ -219,11 +228,14 @@ async def parse_task(data: ParseRequest):
 
 
 @router.get("/tasks/parse-debug")
-async def parse_debug():
-    """Diagnostic endpoint for the NLP parser configuration."""
-    import os
+async def parse_debug(current_user: User = Depends(get_current_user)):
+    """Diagnostic endpoint for the NLP parser configuration.
 
-    from app.config import settings
+    Restricted to admin users outside of non-production environments so
+    operators don't leak infrastructure details to callers.
+    """
+    if settings.is_production and not current_user.is_admin:
+        raise HTTPException(status_code=404, detail="Not found")
 
     api_key = os.environ.get("ANTHROPIC_API_KEY") or settings.ANTHROPIC_API_KEY or ""
     try:
@@ -319,8 +331,11 @@ Rules:
     except HTTPException:
         raise
     except Exception as exc:
-        logger.error("parse-import failed: %s", exc)
-        raise HTTPException(status_code=502, detail=f"AI parsing failed: {exc}") from exc
+        logger.error("parse-import failed: %s", exc, exc_info=True)
+        raise HTTPException(
+            status_code=502,
+            detail="AI parsing temporarily unavailable",
+        ) from exc
 
 
 @router.post("/tasks/parse-checklist", response_model=ParseChecklistResponse)
@@ -417,27 +432,31 @@ Rules:
     except HTTPException:
         raise
     except Exception as exc:
-        logger.error("parse-checklist failed: %s", exc)
-        raise HTTPException(status_code=502, detail=f"AI parsing failed: {exc}") from exc
+        logger.error("parse-checklist failed: %s", exc, exc_info=True)
+        raise HTTPException(
+            status_code=502,
+            detail="AI parsing temporarily unavailable",
+        ) from exc
+
+
+class ReorderItem(BaseModel):
+    id: int
+    sort_order: int
 
 
 @router.patch("/tasks/reorder", status_code=status.HTTP_200_OK)
 async def reorder_tasks(
-    items: list[dict],
+    items: list[ReorderItem] = Body(..., max_length=500),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     for item in items:
-        task_id = item.get("id")
-        sort_order = item.get("sort_order")
-        if task_id is None or sort_order is None:
-            raise HTTPException(status_code=400, detail="Each item must have 'id' and 'sort_order'")
         result = await db.execute(
-            select(Task).where(Task.id == task_id, Task.user_id == current_user.id)
+            select(Task).where(Task.id == item.id, Task.user_id == current_user.id)
         )
         task = result.scalar_one_or_none()
         if not task:
-            raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
-        task.sort_order = sort_order
+            raise HTTPException(status_code=404, detail=f"Task {item.id} not found")
+        task.sort_order = item.sort_order
     await db.flush()
     return {"detail": "Tasks reordered"}
