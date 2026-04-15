@@ -633,7 +633,8 @@ fun TaskListScreen(
                                 projectId = selectedProjectId
                             )
                         },
-                        containerColor = MaterialTheme.colorScheme.primary
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
                     ) {
                         Icon(
                             imageVector = Icons.Default.Add,

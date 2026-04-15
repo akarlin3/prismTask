@@ -221,8 +221,8 @@ fun TodayScreen(
                         editorSheetTaskId = null
                         showEditorSheet = true
                     },
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
                 ) {
                     Icon(Icons.Default.Add, contentDescription = "New Task")
                 }

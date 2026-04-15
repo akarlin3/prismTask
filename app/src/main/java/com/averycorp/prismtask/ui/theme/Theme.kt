@@ -51,22 +51,49 @@ fun PrismTaskTheme(
         prismColors.primary
     }
 
-    val baseScheme = darkColorScheme()
-    val colorScheme = baseScheme.copy(
-        // Map PrismThemeColors onto the Material ColorScheme so all existing
-        // MaterialTheme.colorScheme.* lookups automatically reflect the
-        // active PrismTheme.
-        background = parseColorOrNull(backgroundColorOverride) ?: prismColors.background,
-        surface = parseColorOrNull(surfaceColorOverride) ?: prismColors.surface,
+    val resolvedBackground = parseColorOrNull(backgroundColorOverride) ?: prismColors.background
+    val resolvedSurface = parseColorOrNull(surfaceColorOverride) ?: prismColors.surface
+    val resolvedError = parseColorOrNull(errorColorOverride) ?: prismColors.urgentAccent
+
+    // Fully map PrismThemeColors onto the Material ColorScheme so every
+    // MaterialTheme.colorScheme.* lookup (FABs, buttons, chips, dialogs,
+    // text links, top/bottom bars, etc.) automatically reflects the active
+    // PrismTheme palette.
+    val colorScheme = darkColorScheme(
+        background = resolvedBackground,
+        surface = resolvedSurface,
         surfaceVariant = prismColors.surfaceVariant,
+        surfaceContainer = resolvedSurface,
+        surfaceContainerHigh = prismColors.surfaceVariant,
+        surfaceContainerHighest = prismColors.surfaceVariant,
+        surfaceContainerLow = resolvedSurface,
+        surfaceContainerLowest = resolvedBackground,
+        surfaceTint = accent,
         primary = accent,
-        primaryContainer = accent.copy(alpha = 0.25f),
+        onPrimary = resolvedBackground,
+        primaryContainer = prismColors.surfaceVariant,
+        onPrimaryContainer = accent,
         secondary = prismColors.secondary,
+        onSecondary = resolvedBackground,
+        secondaryContainer = prismColors.surfaceVariant,
+        onSecondaryContainer = prismColors.secondary,
+        tertiary = prismColors.secondary,
+        onTertiary = resolvedBackground,
+        tertiaryContainer = prismColors.surfaceVariant,
+        onTertiaryContainer = prismColors.secondary,
         onBackground = prismColors.onBackground,
-        onSurface = prismColors.onBackground,
-        onSurfaceVariant = prismColors.onSurface,
+        onSurface = prismColors.onSurface,
+        onSurfaceVariant = prismColors.muted,
         outline = prismColors.border,
-        error = parseColorOrNull(errorColorOverride) ?: baseScheme.error
+        outlineVariant = prismColors.border,
+        scrim = Color.Black,
+        error = resolvedError,
+        onError = resolvedBackground,
+        errorContainer = prismColors.urgentSurface,
+        onErrorContainer = prismColors.urgentAccent,
+        inverseSurface = prismColors.onBackground,
+        inverseOnSurface = resolvedBackground,
+        inversePrimary = accent
     )
 
     val scaledTypography = remember(fontScale) {
