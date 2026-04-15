@@ -260,9 +260,16 @@ class PomodoroTimerService : Service() {
                 } else {
                     context.startService(intent)
                 }
-            } catch (e: Exception) {
-                Log.e("PomodoroService", "Failed to start foreground service", e)
-                Toast.makeText(context, "Service start failed: ${e.message}", Toast.LENGTH_LONG).show()
+            } catch (e: Throwable) {
+                // Android framework stubs (Log, Toast) throw RuntimeException in
+                // plain JVM unit tests, so the fallback diagnostics must be
+                // guarded too or the whole call site blows up.
+                try {
+                    Log.e("PomodoroService", "Failed to start foreground service", e)
+                    Toast.makeText(context, "Service start failed: ${e.message}", Toast.LENGTH_LONG).show()
+                } catch (_: Throwable) {
+                    // No-op: unit-test environment without Android framework.
+                }
             }
         }
 
