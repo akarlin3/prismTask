@@ -4,6 +4,8 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.util.Calendar
+import java.util.TimeZone
 
 /**
  * Unit tests for the pure scheduling helpers in [ReminderScheduler].
@@ -68,5 +70,69 @@ class ReminderSchedulerTest {
         val offset = 15L * 60 * 1000 // 15 minute reminder
         val trigger = ReminderScheduler.computeTriggerTime(dueDate, offset)
         assertTrue(ReminderScheduler.isInFuture(trigger, now))
+    }
+
+    @Test
+    fun combineDateAndTime_returnsDueDateWhenTimeIsNull() {
+        val dueDate = 1_700_000_000_000L
+        assertEquals(dueDate, ReminderScheduler.combineDateAndTime(dueDate, null))
+    }
+
+    @Test
+    fun combineDateAndTime_appliesHourAndMinuteFromDueTime() {
+        // Tasks store dueDate as midnight of the due day and dueTime as a
+        // separate timestamp whose HH:mm encodes the user's time-of-day.
+        // The helper should land the combined instant on the due day at
+        // the requested time, regardless of which day the time picker ran.
+        val zone = TimeZone.getTimeZone("UTC")
+        val dueDate = Calendar.getInstance(zone).apply {
+            clear()
+            set(2026, Calendar.APRIL, 15, 0, 0, 0)
+        }.timeInMillis
+        // dueTime was recorded the day BEFORE on a different day at 15:30.
+        val dueTime = Calendar.getInstance(zone).apply {
+            clear()
+            set(2020, Calendar.JANUARY, 1, 15, 30, 0)
+        }.timeInMillis
+        val expected = Calendar.getInstance(zone).apply {
+            clear()
+            set(2026, Calendar.APRIL, 15, 15, 30, 0)
+        }.timeInMillis
+
+        val combined = ReminderScheduler.combineDateAndTime(dueDate, dueTime)
+        // Timezone-agnostic assertion: the combined time is exactly
+        // dueDate + 15h30m, regardless of the local zone used by Calendar.
+        val fifteen30 = (15L * 60 * 60 + 30 * 60) * 1000
+        assertEquals(expected - dueDate, fifteen30)
+        // And combined should line up with the expected instant.
+        assertEquals(expected, combined)
+    }
+
+    @Test
+    fun combineDateAndTime_triggerTimeIsSameDayNotPreviousDay() {
+        // Regression guard: this is the exact bug that silently dropped
+        // reminders. A task due "today at 3pm" with a 10-minute reminder
+        // must produce a trigger 10 minutes before 3pm today — not 10
+        // minutes before midnight (which lands YESTERDAY and gets skipped).
+        val zone = TimeZone.getDefault()
+        val dueDate = Calendar.getInstance(zone).apply {
+            set(2026, Calendar.APRIL, 15, 0, 0, 0)
+            set(Calendar.MILLISECOND, 0)
+        }.timeInMillis
+        val dueTime = Calendar.getInstance(zone).apply {
+            // Arbitrary date; only HH:mm matters.
+            set(2025, Calendar.DECEMBER, 1, 15, 0, 0)
+            set(Calendar.MILLISECOND, 0)
+        }.timeInMillis
+        val tenMin = 10L * 60 * 1000
+        val combined = ReminderScheduler.combineDateAndTime(dueDate, dueTime)
+        val trigger = ReminderScheduler.computeTriggerTime(combined, tenMin)
+
+        val cal = Calendar.getInstance(zone).apply { timeInMillis = trigger }
+        assertEquals(2026, cal.get(Calendar.YEAR))
+        assertEquals(Calendar.APRIL, cal.get(Calendar.MONTH))
+        assertEquals(15, cal.get(Calendar.DAY_OF_MONTH))
+        assertEquals(14, cal.get(Calendar.HOUR_OF_DAY))
+        assertEquals(50, cal.get(Calendar.MINUTE))
     }
 }

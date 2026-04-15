@@ -15,6 +15,8 @@ import io.mockk.mockk
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
+import java.util.Calendar
+import java.util.TimeZone
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -115,6 +117,51 @@ class TaskRepositoryTest {
                 taskDescription = "Annual checkup",
                 dueDate = futureDueDate,
                 reminderOffset = 60_000L
+            )
+        }
+    }
+
+    @Test
+    fun updateTask_withDueTime_combinesDateAndTimeBeforeScheduling() = runBlocking {
+        // dueDate is midnight of the due day; dueTime carries the HH:mm.
+        // The scheduler must receive the combined instant (dueDate at HH:mm),
+        // not raw midnight — otherwise a same-day reminder is computed as a
+        // negative offset from yesterday and silently dropped.
+        val zone = TimeZone.getDefault()
+        val dueDate = Calendar.getInstance(zone).apply {
+            add(Calendar.DAY_OF_YEAR, 1)
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }.timeInMillis
+        val dueTime = Calendar.getInstance(zone).apply {
+            set(Calendar.HOUR_OF_DAY, 15)
+            set(Calendar.MINUTE, 30)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }.timeInMillis
+        val expectedCombined = ReminderScheduler.combineDateAndTime(dueDate, dueTime)
+
+        val seededId = taskDao.insert(
+            taskFixture(
+                title = "Call dentist",
+                dueDate = dueDate,
+                dueTime = dueTime,
+                reminderOffset = 10L * 60 * 1000
+            )
+        )
+        val seeded = taskDao.tasks.single { it.id == seededId }
+
+        repo.updateTask(seeded.copy(description = "Annual checkup"))
+
+        coVerify {
+            reminderScheduler.scheduleReminder(
+                taskId = seededId,
+                taskTitle = "Call dentist",
+                taskDescription = "Annual checkup",
+                dueDate = expectedCombined,
+                reminderOffset = 10L * 60 * 1000
             )
         }
     }
@@ -353,6 +400,7 @@ class TaskRepositoryTest {
         title: String = "Task",
         description: String? = null,
         dueDate: Long? = null,
+        dueTime: Long? = null,
         priority: Int = 0,
         projectId: Long? = null,
         parentTaskId: Long? = null,
@@ -367,6 +415,7 @@ class TaskRepositoryTest {
         title = title,
         description = description,
         dueDate = dueDate,
+        dueTime = dueTime,
         priority = priority,
         projectId = projectId,
         parentTaskId = parentTaskId,

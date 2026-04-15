@@ -700,8 +700,12 @@ constructor(
                 pendingSubtasks.clear()
             }
 
-            // Schedule or cancel reminder
-            val effectiveDueDate = dueDate
+            // Schedule or cancel reminder. Combine dueDate (midnight) with
+            // dueTime (time-of-day) so the trigger time is the actual
+            // deadline, not midnight of the due day.
+            val effectiveDueDate = dueDate?.let {
+                ReminderScheduler.combineDateAndTime(it, dueTime)
+            }
             val effectiveOffset = reminderOffset
             if (effectiveDueDate != null && effectiveOffset != null) {
                 reminderScheduler.scheduleReminder(savedId, trimmedTitle, trimmedDesc, effectiveDueDate, effectiveOffset)

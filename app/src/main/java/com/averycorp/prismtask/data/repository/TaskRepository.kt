@@ -99,7 +99,7 @@ constructor(
                 taskId = id,
                 taskTitle = task.title,
                 taskDescription = task.description,
-                dueDate = task.dueDate,
+                dueDate = ReminderScheduler.combineDateAndTime(task.dueDate, task.dueTime),
                 reminderOffset = task.reminderOffset
             )
         }
@@ -150,7 +150,7 @@ constructor(
                 taskId = updated.id,
                 taskTitle = updated.title,
                 taskDescription = updated.description,
-                dueDate = updated.dueDate,
+                dueDate = ReminderScheduler.combineDateAndTime(updated.dueDate, updated.dueTime),
                 reminderOffset = updated.reminderOffset
             )
         } else {
@@ -171,7 +171,7 @@ constructor(
                 taskId = updated.id,
                 taskTitle = updated.title,
                 taskDescription = updated.description,
-                dueDate = newDueDate,
+                dueDate = ReminderScheduler.combineDateAndTime(newDueDate, updated.dueTime),
                 reminderOffset = offset
             )
         } else {
@@ -332,7 +332,7 @@ constructor(
                     taskId = updated.id,
                     taskTitle = updated.title,
                     taskDescription = updated.description,
-                    dueDate = newDueDate,
+                    dueDate = ReminderScheduler.combineDateAndTime(newDueDate, updated.dueTime),
                     reminderOffset = offset
                 )
             } else {
