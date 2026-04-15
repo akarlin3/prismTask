@@ -22,26 +22,19 @@ import androidx.room.PrimaryKey
 data class CustomSoundEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
-
     val name: String,
-
     @ColumnInfo(name = "original_filename")
     val originalFilename: String,
-
     /** Local file URI under the app sandbox (e.g., file:///data/user/0/.../sounds/xyz.mp3). */
     @ColumnInfo(name = "uri")
     val uri: String,
-
     /** One of mp3 / wav / m4a / ogg — validated at import time. */
     @ColumnInfo(name = "format")
     val format: String,
-
     @ColumnInfo(name = "size_bytes")
     val sizeBytes: Long,
-
     @ColumnInfo(name = "duration_ms")
     val durationMs: Long,
-
     @ColumnInfo(name = "created_at")
     val createdAt: Long = System.currentTimeMillis()
 ) {

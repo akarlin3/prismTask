@@ -5,7 +5,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class EscalationChainTest {
-
     @Test
     fun `disabled chain returns no offsets`() {
         val chain = EscalationChain.DISABLED

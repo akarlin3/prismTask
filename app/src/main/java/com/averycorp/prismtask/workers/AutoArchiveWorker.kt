@@ -12,18 +12,18 @@ import kotlinx.coroutines.flow.first
 
 @HiltWorker
 class AutoArchiveWorker
-@AssistedInject
-constructor(
-    @Assisted appContext: Context,
-    @Assisted workerParams: WorkerParameters,
-    private val taskRepository: TaskRepository,
-    private val archivePreferences: ArchivePreferences
-) : CoroutineWorker(appContext, workerParams) {
-    override suspend fun doWork(): Result {
-        val days = archivePreferences.getAutoArchiveDays().first()
-        if (days > 0) {
-            taskRepository.autoArchiveOldCompleted(days)
+    @AssistedInject
+    constructor(
+        @Assisted appContext: Context,
+        @Assisted workerParams: WorkerParameters,
+        private val taskRepository: TaskRepository,
+        private val archivePreferences: ArchivePreferences
+    ) : CoroutineWorker(appContext, workerParams) {
+        override suspend fun doWork(): Result {
+            val days = archivePreferences.getAutoArchiveDays().first()
+            if (days > 0) {
+                taskRepository.autoArchiveOldCompleted(days)
+            }
+            return Result.success()
         }
-        return Result.success()
     }
-}

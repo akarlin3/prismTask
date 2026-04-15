@@ -21,7 +21,6 @@ import com.averycorp.prismtask.domain.model.notifications.VibrationPreset
  * preview/test UI without going through the notification manager.
  */
 object VibrationAdapter {
-
     /**
      * Resolves the effective pattern for [profile], honoring:
      *   - [VibrationPreset.NONE] → null (no vibration)

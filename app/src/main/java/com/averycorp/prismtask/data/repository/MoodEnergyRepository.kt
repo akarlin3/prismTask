@@ -14,48 +14,48 @@ import javax.inject.Singleton
  */
 @Singleton
 class MoodEnergyRepository
-@Inject
-constructor(
-    private val dao: MoodEnergyLogDao
-) {
-    suspend fun upsertForDate(
-        date: Long,
-        mood: Int,
-        energy: Int,
-        notes: String? = null,
-        timeOfDay: String = "morning"
-    ): Long {
-        val existing = dao.getByDate(date).firstOrNull { it.timeOfDay == timeOfDay }
-        return if (existing != null) {
-            val updated = existing.copy(
-                mood = mood,
-                energy = energy,
-                notes = notes
-            )
-            dao.update(updated)
-            existing.id
-        } else {
-            dao.insert(
-                MoodEnergyLogEntity(
-                    date = date,
+    @Inject
+    constructor(
+        private val dao: MoodEnergyLogDao
+    ) {
+        suspend fun upsertForDate(
+            date: Long,
+            mood: Int,
+            energy: Int,
+            notes: String? = null,
+            timeOfDay: String = "morning"
+        ): Long {
+            val existing = dao.getByDate(date).firstOrNull { it.timeOfDay == timeOfDay }
+            return if (existing != null) {
+                val updated = existing.copy(
                     mood = mood,
                     energy = energy,
-                    notes = notes,
-                    timeOfDay = timeOfDay
+                    notes = notes
                 )
-            )
+                dao.update(updated)
+                existing.id
+            } else {
+                dao.insert(
+                    MoodEnergyLogEntity(
+                        date = date,
+                        mood = mood,
+                        energy = energy,
+                        notes = notes,
+                        timeOfDay = timeOfDay
+                    )
+                )
+            }
         }
+
+        suspend fun getByDate(date: Long): List<MoodEnergyLogEntity> = dao.getByDate(date)
+
+        fun observeRange(start: Long, end: Long): Flow<List<MoodEnergyLogEntity>> =
+            dao.observeRange(start, end)
+
+        suspend fun getRange(start: Long, end: Long): List<MoodEnergyLogEntity> =
+            dao.getRange(start, end)
+
+        suspend fun getAll(): List<MoodEnergyLogEntity> = dao.getAll()
+
+        suspend fun delete(id: Long) = dao.delete(id)
     }
-
-    suspend fun getByDate(date: Long): List<MoodEnergyLogEntity> = dao.getByDate(date)
-
-    fun observeRange(start: Long, end: Long): Flow<List<MoodEnergyLogEntity>> =
-        dao.observeRange(start, end)
-
-    suspend fun getRange(start: Long, end: Long): List<MoodEnergyLogEntity> =
-        dao.getRange(start, end)
-
-    suspend fun getAll(): List<MoodEnergyLogEntity> = dao.getAll()
-
-    suspend fun delete(id: Long) = dao.delete(id)
-}

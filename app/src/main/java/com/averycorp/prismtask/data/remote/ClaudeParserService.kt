@@ -23,32 +23,32 @@ import javax.inject.Singleton
  */
 @Singleton
 class ClaudeParserService
-@Inject
-constructor(
-    private val api: PrismTaskApi,
-    private val authTokenPreferences: AuthTokenPreferences
-) {
-    suspend fun parse(content: String): ParsedTodoList? {
-        // Require an active session; offline / logged-out users fall back to regex.
-        val token = authTokenPreferences.getAccessToken()
-        if (token.isNullOrBlank()) return null
+    @Inject
+    constructor(
+        private val api: PrismTaskApi,
+        private val authTokenPreferences: AuthTokenPreferences
+    ) {
+        suspend fun parse(content: String): ParsedTodoList? {
+            // Require an active session; offline / logged-out users fall back to regex.
+            val token = authTokenPreferences.getAccessToken()
+            if (token.isNullOrBlank()) return null
 
-        return try {
-            val response = api.parseImport(ParseImportRequest(content = content))
-            if (response.items.isEmpty()) {
+            return try {
+                val response = api.parseImport(ParseImportRequest(content = content))
+                if (response.items.isEmpty()) {
+                    null
+                } else {
+                    ParsedTodoList(
+                        name = response.name,
+                        items = response.items.map { it.toParsedTodoItem() }
+                    )
+                }
+            } catch (e: Exception) {
+                if (BuildConfig.DEBUG) Log.e("ClaudeParser", "Backend parse failed", e)
                 null
-            } else {
-                ParsedTodoList(
-                    name = response.name,
-                    items = response.items.map { it.toParsedTodoItem() }
-                )
             }
-        } catch (e: Exception) {
-            if (BuildConfig.DEBUG) Log.e("ClaudeParser", "Backend parse failed", e)
-            null
         }
     }
-}
 
 private fun ParsedImportItemResponse.toParsedTodoItem(): ParsedTodoItem = ParsedTodoItem(
     title = title,

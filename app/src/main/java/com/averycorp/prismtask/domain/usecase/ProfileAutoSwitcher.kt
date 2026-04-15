@@ -15,7 +15,6 @@ import java.time.LocalTime
  * single seam for testability.
  */
 class ProfileAutoSwitcher {
-
     /**
      * A single rule. [trigger] tags the rule for UI grouping; [matches]
      * is the opaque predicate the rule evaluates against a [Context].

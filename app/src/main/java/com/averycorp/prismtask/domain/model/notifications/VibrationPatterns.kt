@@ -22,11 +22,25 @@ object VibrationPatterns {
     private val SOS = longArrayOf(
         0L,
         // S: three short
-        150L, 100L, 150L, 100L, 150L, 300L,
+        150L,
+        100L,
+        150L,
+        100L,
+        150L,
+        300L,
         // O: three long
-        350L, 100L, 350L, 100L, 350L, 300L,
+        350L,
+        100L,
+        350L,
+        100L,
+        350L,
+        300L,
         // S: three short
-        150L, 100L, 150L, 100L, 150L
+        150L,
+        100L,
+        150L,
+        100L,
+        150L
     )
     private val HEARTBEAT = longArrayOf(
         0L,
@@ -41,7 +55,19 @@ object VibrationPatterns {
     )
     private val WAVE = longArrayOf(
         0L,
-        80L, 80L, 140L, 80L, 220L, 80L, 320L, 80L, 220L, 80L, 140L, 80L, 80L
+        80L,
+        80L,
+        140L,
+        80L,
+        220L,
+        80L,
+        320L,
+        80L,
+        220L,
+        80L,
+        140L,
+        80L,
+        80L
     )
 
     /**

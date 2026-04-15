@@ -214,8 +214,7 @@ private fun MedicationCard(
 @Composable
 private fun AddMedicationDialog(
     onDismiss: () -> Unit,
-    onConfirm:
-    (name: String, pillCount: Int, pillsPerDose: Int, dosesPerDay: Int, pharmacy: String?, phone: String?) -> Unit
+    onConfirm: (name: String, pillCount: Int, pillsPerDose: Int, dosesPerDay: Int, pharmacy: String?, phone: String?) -> Unit
 ) {
     var name by remember { mutableStateOf("") }
     var pillCount by remember { mutableStateOf("30") }

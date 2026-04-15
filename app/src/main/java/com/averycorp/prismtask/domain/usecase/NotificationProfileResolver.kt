@@ -31,7 +31,6 @@ import java.time.LocalTime
  * injected once; callers reuse the same instance across profiles.
  */
 class NotificationProfileResolver(private val gson: Gson = Gson()) {
-
     fun resolve(entity: NotificationProfileEntity): NotificationProfile = NotificationProfile(
         id = entity.id,
         name = entity.name,

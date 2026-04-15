@@ -18,7 +18,6 @@ import com.averycorp.prismtask.domain.model.notifications.BuiltInSound
  * sounds without hitting the DB.
  */
 object SoundResolver {
-
     /**
      * Resolves [soundId] against:
      *   1. The silent sentinel → null (channel uses no sound)
@@ -73,6 +72,8 @@ object SoundResolver {
             ?: Uri.EMPTY
 
     sealed class Resolved
+
     object SilentChoice : Resolved()
+
     data class UriChoice(val uri: Uri) : Resolved()
 }

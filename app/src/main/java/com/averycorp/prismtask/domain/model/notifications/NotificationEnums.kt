@@ -1,16 +1,14 @@
 package com.averycorp.prismtask.domain.model.notifications
 
-/**
- * Domain enums for the customizable notification system.
- *
- * These are the vocabulary shared between preferences, profile entities,
- * settings UI, and the [com.averycorp.prismtask.notifications.NotificationHelper]
- * so users' choices survive a round-trip through Room, DataStore, and the
- * platform notification APIs without string fragility.
- *
- * Each enum exposes a stable wire-format [key] distinct from [name]; [name]
- * is free to be refactored while [key] is the persistence contract.
- */
+// Domain enums for the customizable notification system.
+//
+// These are the vocabulary shared between preferences, profile entities,
+// settings UI, and the [com.averycorp.prismtask.notifications.NotificationHelper]
+// so users' choices survive a round-trip through Room, DataStore, and the
+// platform notification APIs without string fragility.
+//
+// Each enum exposes a stable wire-format [key] distinct from [name]; [name]
+// is free to be refactored while [key] is the persistence contract.
 
 /** Priority / urgency tier assigned to an individual fired notification. */
 enum class UrgencyTier(val key: String, val label: String) {

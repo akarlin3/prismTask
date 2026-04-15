@@ -21,7 +21,6 @@ import org.junit.Test
  */
 @HiltAndroidTest
 class EdgeCaseRotationTest : SmokeTestBase() {
-
     private fun rotateTo(orientation: Int) {
         composeRule.activity.requestedOrientation = orientation
         composeRule.waitForIdle()

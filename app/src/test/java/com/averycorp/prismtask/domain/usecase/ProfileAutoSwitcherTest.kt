@@ -12,7 +12,6 @@ import java.time.DayOfWeek
 import java.time.LocalTime
 
 class ProfileAutoSwitcherTest {
-
     private val switcher = ProfileAutoSwitcher()
 
     @Test

@@ -5,7 +5,6 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 class CustomSoundEntityTest {
-
     @Test
     fun `soundId formats with custom_ prefix`() {
         val entity = buildEntity(id = 42)

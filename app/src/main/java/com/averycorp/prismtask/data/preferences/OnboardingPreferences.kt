@@ -17,54 +17,54 @@ private val Context.onboardingDataStore: DataStore<Preferences> by preferencesDa
 
 @Singleton
 class OnboardingPreferences
-@Inject
-constructor(
-    @ApplicationContext private val context: Context
-) {
-    companion object {
-        private val HAS_COMPLETED_ONBOARDING = booleanPreferencesKey("has_completed_onboarding")
-        private val ONBOARDING_COMPLETED_AT = longPreferencesKey("onboarding_completed_at")
-        private val HAS_SHOWN_BATTERY_OPTIMIZATION_PROMPT =
-            booleanPreferencesKey("has_shown_battery_optimization_prompt")
-    }
-
-    fun hasCompletedOnboarding(): Flow<Boolean> = context.onboardingDataStore.data.map { prefs ->
-        prefs[HAS_COMPLETED_ONBOARDING] ?: false
-    }
-
-    fun getOnboardingCompletedAt(): Flow<Long> = context.onboardingDataStore.data.map { prefs ->
-        prefs[ONBOARDING_COMPLETED_AT] ?: 0L
-    }
-
-    suspend fun setOnboardingCompleted() {
-        context.onboardingDataStore.edit { prefs ->
-            prefs[HAS_COMPLETED_ONBOARDING] = true
-            prefs[ONBOARDING_COMPLETED_AT] = System.currentTimeMillis()
-        }
-    }
-
-    /**
-     * Whether we've already shown the Samsung/OEM battery-optimization
-     * prompt. Used by MainActivity so the dialog appears at most once per
-     * install, even if the user declines.
-     */
-    fun hasShownBatteryOptimizationPrompt(): Flow<Boolean> =
-        context.onboardingDataStore.data.map { prefs ->
-            prefs[HAS_SHOWN_BATTERY_OPTIMIZATION_PROMPT] ?: false
+    @Inject
+    constructor(
+        @ApplicationContext private val context: Context
+    ) {
+        companion object {
+            private val HAS_COMPLETED_ONBOARDING = booleanPreferencesKey("has_completed_onboarding")
+            private val ONBOARDING_COMPLETED_AT = longPreferencesKey("onboarding_completed_at")
+            private val HAS_SHOWN_BATTERY_OPTIMIZATION_PROMPT =
+                booleanPreferencesKey("has_shown_battery_optimization_prompt")
         }
 
-    suspend fun setBatteryOptimizationPromptShown() {
-        context.onboardingDataStore.edit { prefs ->
-            prefs[HAS_SHOWN_BATTERY_OPTIMIZATION_PROMPT] = true
+        fun hasCompletedOnboarding(): Flow<Boolean> = context.onboardingDataStore.data.map { prefs ->
+            prefs[HAS_COMPLETED_ONBOARDING] ?: false
         }
-    }
 
-    /** Debug-only: clear the onboarding flag so the tutorial plays again. */
-    suspend fun resetOnboarding() {
-        context.onboardingDataStore.edit { prefs ->
-            prefs.remove(HAS_COMPLETED_ONBOARDING)
-            prefs.remove(ONBOARDING_COMPLETED_AT)
-            prefs.remove(HAS_SHOWN_BATTERY_OPTIMIZATION_PROMPT)
+        fun getOnboardingCompletedAt(): Flow<Long> = context.onboardingDataStore.data.map { prefs ->
+            prefs[ONBOARDING_COMPLETED_AT] ?: 0L
+        }
+
+        suspend fun setOnboardingCompleted() {
+            context.onboardingDataStore.edit { prefs ->
+                prefs[HAS_COMPLETED_ONBOARDING] = true
+                prefs[ONBOARDING_COMPLETED_AT] = System.currentTimeMillis()
+            }
+        }
+
+        /**
+         * Whether we've already shown the Samsung/OEM battery-optimization
+         * prompt. Used by MainActivity so the dialog appears at most once per
+         * install, even if the user declines.
+         */
+        fun hasShownBatteryOptimizationPrompt(): Flow<Boolean> =
+            context.onboardingDataStore.data.map { prefs ->
+                prefs[HAS_SHOWN_BATTERY_OPTIMIZATION_PROMPT] ?: false
+            }
+
+        suspend fun setBatteryOptimizationPromptShown() {
+            context.onboardingDataStore.edit { prefs ->
+                prefs[HAS_SHOWN_BATTERY_OPTIMIZATION_PROMPT] = true
+            }
+        }
+
+        /** Debug-only: clear the onboarding flag so the tutorial plays again. */
+        suspend fun resetOnboarding() {
+            context.onboardingDataStore.edit { prefs ->
+                prefs.remove(HAS_COMPLETED_ONBOARDING)
+                prefs.remove(ONBOARDING_COMPLETED_AT)
+                prefs.remove(HAS_SHOWN_BATTERY_OPTIMIZATION_PROMPT)
+            }
         }
     }
-}

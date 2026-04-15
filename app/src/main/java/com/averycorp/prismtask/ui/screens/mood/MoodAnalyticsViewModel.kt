@@ -26,69 +26,69 @@ import javax.inject.Inject
  */
 @HiltViewModel
 class MoodAnalyticsViewModel
-@Inject
-constructor(
-    private val moodEnergyRepository: MoodEnergyRepository,
-    private val taskRepository: TaskRepository
-) : ViewModel() {
-    private val engine = MoodCorrelationEngine()
+    @Inject
+    constructor(
+        private val moodEnergyRepository: MoodEnergyRepository,
+        private val taskRepository: TaskRepository
+    ) : ViewModel() {
+        private val engine = MoodCorrelationEngine()
 
-    private val _state = MutableStateFlow(MoodAnalyticsState())
-    val state: StateFlow<MoodAnalyticsState> = _state.asStateFlow()
+        private val _state = MutableStateFlow(MoodAnalyticsState())
+        val state: StateFlow<MoodAnalyticsState> = _state.asStateFlow()
 
-    init {
-        refresh()
-    }
-
-    fun refresh() {
-        viewModelScope.launch {
-            val now = System.currentTimeMillis()
-            val windowStart = now - 30L * 24 * 60 * 60 * 1000
-            val logs = moodEnergyRepository.getRange(windowStart, now)
-            val tasks = taskRepository.getAllTasksOnce()
-            val observations = buildObservations(logs, tasks)
-            val moodResults = engine.correlateMood(observations)
-            val energyResults = engine.correlateEnergy(observations)
-            val byDay = engine.averageByDay(logs)
-            _state.value = MoodAnalyticsState(
-                logs = logs,
-                observations = observations,
-                moodResults = moodResults,
-                energyResults = energyResults,
-                averageByDay = byDay
-            )
+        init {
+            refresh()
         }
-    }
 
-    private fun buildObservations(
-        logs: List<MoodEnergyLogEntity>,
-        tasks: List<com.averycorp.prismtask.data.local.entity.TaskEntity>
-    ): List<DailyObservation> {
-        val byDay = engine.averageByDay(logs)
-        return byDay.entries
-            .sortedBy { it.key }
-            .map { (date, avg) ->
-                val dayEnd = date + 24L * 60 * 60 * 1000
-                val completedOnDay = tasks.filter { t ->
-                    t.isCompleted &&
-                        t.completedAt != null &&
-                        t.completedAt in date until dayEnd
-                }
-                DailyObservation(
-                    date = date,
-                    mood = avg.first.toInt(),
-                    energy = avg.second.toInt(),
-                    tasksCompleted = completedOnDay.size,
-                    workTasksCompleted = completedOnDay.count {
-                        LifeCategory.fromStorage(it.lifeCategory) == LifeCategory.WORK
-                    },
-                    selfCareTasksCompleted = completedOnDay.count {
-                        LifeCategory.fromStorage(it.lifeCategory) == LifeCategory.SELF_CARE
-                    }
+        fun refresh() {
+            viewModelScope.launch {
+                val now = System.currentTimeMillis()
+                val windowStart = now - 30L * 24 * 60 * 60 * 1000
+                val logs = moodEnergyRepository.getRange(windowStart, now)
+                val tasks = taskRepository.getAllTasksOnce()
+                val observations = buildObservations(logs, tasks)
+                val moodResults = engine.correlateMood(observations)
+                val energyResults = engine.correlateEnergy(observations)
+                val byDay = engine.averageByDay(logs)
+                _state.value = MoodAnalyticsState(
+                    logs = logs,
+                    observations = observations,
+                    moodResults = moodResults,
+                    energyResults = energyResults,
+                    averageByDay = byDay
                 )
             }
+        }
+
+        private fun buildObservations(
+            logs: List<MoodEnergyLogEntity>,
+            tasks: List<com.averycorp.prismtask.data.local.entity.TaskEntity>
+        ): List<DailyObservation> {
+            val byDay = engine.averageByDay(logs)
+            return byDay.entries
+                .sortedBy { it.key }
+                .map { (date, avg) ->
+                    val dayEnd = date + 24L * 60 * 60 * 1000
+                    val completedOnDay = tasks.filter { t ->
+                        t.isCompleted &&
+                            t.completedAt != null &&
+                            t.completedAt in date until dayEnd
+                    }
+                    DailyObservation(
+                        date = date,
+                        mood = avg.first.toInt(),
+                        energy = avg.second.toInt(),
+                        tasksCompleted = completedOnDay.size,
+                        workTasksCompleted = completedOnDay.count {
+                            LifeCategory.fromStorage(it.lifeCategory) == LifeCategory.WORK
+                        },
+                        selfCareTasksCompleted = completedOnDay.count {
+                            LifeCategory.fromStorage(it.lifeCategory) == LifeCategory.SELF_CARE
+                        }
+                    )
+                }
+        }
     }
-}
 
 data class MoodAnalyticsState(
     val logs: List<MoodEnergyLogEntity> = emptyList(),

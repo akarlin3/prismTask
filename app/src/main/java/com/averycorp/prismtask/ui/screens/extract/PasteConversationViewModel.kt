@@ -21,71 +21,71 @@ import javax.inject.Inject
  */
 @HiltViewModel
 class PasteConversationViewModel
-@Inject
-constructor(
-    private val taskRepository: TaskRepository
-) : ViewModel() {
-    private val extractor = ConversationTaskExtractor()
+    @Inject
+    constructor(
+        private val taskRepository: TaskRepository
+    ) : ViewModel() {
+        private val extractor = ConversationTaskExtractor()
 
-    private val _input = MutableStateFlow("")
-    val input: StateFlow<String> = _input.asStateFlow()
+        private val _input = MutableStateFlow("")
+        val input: StateFlow<String> = _input.asStateFlow()
 
-    private val _candidates = MutableStateFlow<List<EditableCandidate>>(emptyList())
-    val candidates: StateFlow<List<EditableCandidate>> = _candidates.asStateFlow()
+        private val _candidates = MutableStateFlow<List<EditableCandidate>>(emptyList())
+        val candidates: StateFlow<List<EditableCandidate>> = _candidates.asStateFlow()
 
-    private val _createdCount = MutableStateFlow<Int?>(null)
-    val createdCount: StateFlow<Int?> = _createdCount.asStateFlow()
+        private val _createdCount = MutableStateFlow<Int?>(null)
+        val createdCount: StateFlow<Int?> = _createdCount.asStateFlow()
 
-    fun onInputChange(text: String) {
-        _input.value = text
-    }
-
-    fun onSourceLabel(source: String?) {
-        _candidates.value = _candidates.value.map { it.copy(source = source) }
-    }
-
-    fun extract(source: String? = null) {
-        val results = extractor.extract(_input.value, source)
-        _candidates.value = results.map { task ->
-            EditableCandidate(
-                title = task.title,
-                confidence = task.confidence,
-                source = task.source,
-                selected = true
-            )
+        fun onInputChange(text: String) {
+            _input.value = text
         }
-    }
 
-    fun toggle(index: Int) {
-        val list = _candidates.value.toMutableList()
-        if (index !in list.indices) return
-        list[index] = list[index].copy(selected = !list[index].selected)
-        _candidates.value = list
-    }
+        fun onSourceLabel(source: String?) {
+            _candidates.value = _candidates.value.map { it.copy(source = source) }
+        }
 
-    fun editTitle(index: Int, newTitle: String) {
-        val list = _candidates.value.toMutableList()
-        if (index !in list.indices) return
-        list[index] = list[index].copy(title = newTitle)
-        _candidates.value = list
-    }
-
-    fun createSelected() {
-        viewModelScope.launch {
-            val selected = _candidates.value.filter { it.selected && it.title.isNotBlank() }
-            for (candidate in selected) {
-                taskRepository.addTask(title = candidate.title)
+        fun extract(source: String? = null) {
+            val results = extractor.extract(_input.value, source)
+            _candidates.value = results.map { task ->
+                EditableCandidate(
+                    title = task.title,
+                    confidence = task.confidence,
+                    source = task.source,
+                    selected = true
+                )
             }
-            _createdCount.value = selected.size
+        }
+
+        fun toggle(index: Int) {
+            val list = _candidates.value.toMutableList()
+            if (index !in list.indices) return
+            list[index] = list[index].copy(selected = !list[index].selected)
+            _candidates.value = list
+        }
+
+        fun editTitle(index: Int, newTitle: String) {
+            val list = _candidates.value.toMutableList()
+            if (index !in list.indices) return
+            list[index] = list[index].copy(title = newTitle)
+            _candidates.value = list
+        }
+
+        fun createSelected() {
+            viewModelScope.launch {
+                val selected = _candidates.value.filter { it.selected && it.title.isNotBlank() }
+                for (candidate in selected) {
+                    taskRepository.addTask(title = candidate.title)
+                }
+                _createdCount.value = selected.size
+            }
+        }
+
+        fun reset() {
+            _input.value = ""
+            _candidates.value = emptyList()
+            _createdCount.value = null
         }
     }
-
-    fun reset() {
-        _input.value = ""
-        _candidates.value = emptyList()
-        _createdCount.value = null
-    }
-}
 
 data class EditableCandidate(
     val title: String,

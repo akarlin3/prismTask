@@ -46,7 +46,9 @@ class NotificationPreferencesExtendedTest {
     }
 
     @After
-    fun tearDown() { scope.cancel() }
+    fun tearDown() {
+        scope.cancel()
+    }
 
     @Test
     fun `active profile id defaults to -1`() = runTest {

@@ -11,7 +11,6 @@ import org.junit.Test
  * target the same alarm we scheduled earlier.
  */
 class EscalationSchedulerTest {
-
     @Test
     fun `request codes are stable across calls`() {
         val first = EscalationScheduler.requestCodeFor(taskId = 42L, stepIndex = 3)

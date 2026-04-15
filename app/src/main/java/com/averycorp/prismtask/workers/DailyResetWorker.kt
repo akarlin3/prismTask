@@ -32,49 +32,49 @@ import java.util.concurrent.TimeUnit
  */
 @HiltWorker
 class DailyResetWorker
-@AssistedInject
-constructor(
-    @Assisted private val appContext: Context,
-    @Assisted workerParams: WorkerParameters,
-    private val taskBehaviorPreferences: TaskBehaviorPreferences,
-    private val widgetUpdateManager: WidgetUpdateManager
-) : CoroutineWorker(appContext, workerParams) {
-    override suspend fun doWork(): Result {
-        // Refresh widgets so the new day's tasks/habits are visible immediately.
-        try {
-            widgetUpdateManager.updateAllWidgets()
-        } catch (_: Throwable) {
-            // Best-effort: don't fail the worker if widget update throws.
+    @AssistedInject
+    constructor(
+        @Assisted private val appContext: Context,
+        @Assisted workerParams: WorkerParameters,
+        private val taskBehaviorPreferences: TaskBehaviorPreferences,
+        private val widgetUpdateManager: WidgetUpdateManager
+    ) : CoroutineWorker(appContext, workerParams) {
+        override suspend fun doWork(): Result {
+            // Refresh widgets so the new day's tasks/habits are visible immediately.
+            try {
+                widgetUpdateManager.updateAllWidgets()
+            } catch (_: Throwable) {
+                // Best-effort: don't fail the worker if widget update throws.
+            }
+
+            // Reschedule for the next day boundary.
+            val dayStartHour = taskBehaviorPreferences.getDayStartHour().first()
+            schedule(appContext, dayStartHour)
+            return Result.success()
         }
 
-        // Reschedule for the next day boundary.
-        val dayStartHour = taskBehaviorPreferences.getDayStartHour().first()
-        schedule(appContext, dayStartHour)
-        return Result.success()
-    }
+        companion object {
+            const val WORK_NAME = "daily_reset"
 
-    companion object {
-        const val WORK_NAME = "daily_reset"
+            /**
+             * Schedules the next run for the next occurrence of the configured
+             * day-start hour. Replaces any previously scheduled run so a settings
+             * change immediately takes effect.
+             */
+            fun schedule(context: Context, dayStartHour: Int) {
+                val now = System.currentTimeMillis()
+                val nextBoundary = DayBoundary.nextBoundary(dayStartHour, now)
+                val delay = (nextBoundary - now).coerceAtLeast(0L)
 
-        /**
-         * Schedules the next run for the next occurrence of the configured
-         * day-start hour. Replaces any previously scheduled run so a settings
-         * change immediately takes effect.
-         */
-        fun schedule(context: Context, dayStartHour: Int) {
-            val now = System.currentTimeMillis()
-            val nextBoundary = DayBoundary.nextBoundary(dayStartHour, now)
-            val delay = (nextBoundary - now).coerceAtLeast(0L)
+                val request = OneTimeWorkRequestBuilder<DailyResetWorker>()
+                    .setInitialDelay(delay, TimeUnit.MILLISECONDS)
+                    .build()
 
-            val request = OneTimeWorkRequestBuilder<DailyResetWorker>()
-                .setInitialDelay(delay, TimeUnit.MILLISECONDS)
-                .build()
-
-            WorkManager.getInstance(context).enqueueUniqueWork(
-                WORK_NAME,
-                ExistingWorkPolicy.REPLACE,
-                request
-            )
+                WorkManager.getInstance(context).enqueueUniqueWork(
+                    WORK_NAME,
+                    ExistingWorkPolicy.REPLACE,
+                    request
+                )
+            }
         }
     }
-}

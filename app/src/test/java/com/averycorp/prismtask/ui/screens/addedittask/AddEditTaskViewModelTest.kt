@@ -199,7 +199,17 @@ class AddEditTaskViewModelTest {
         assertTrue(vm.titleError)
         coVerify(exactly = 0) {
             taskRepository.addTask(
-                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any()
             )
         }
     }
@@ -208,7 +218,17 @@ class AddEditTaskViewModelTest {
     fun saveTask_createMode_invokesRepositoryWithFields() = runTest {
         coEvery {
             taskRepository.addTask(
-                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any()
             )
         } returns 55L
         coEvery { taskRepository.getTaskById(55L) } returns flowOf(

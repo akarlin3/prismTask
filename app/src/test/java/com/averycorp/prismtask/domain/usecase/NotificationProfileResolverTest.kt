@@ -17,7 +17,6 @@ import java.time.DayOfWeek
 import java.time.LocalTime
 
 class NotificationProfileResolverTest {
-
     private val resolver = NotificationProfileResolver.DEFAULT
 
     @Test

@@ -8,7 +8,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class VibrationPatternsTest {
-
     @Test
     fun `pattern for NONE is null`() {
         assertNull(VibrationPatterns.patternFor(VibrationPreset.NONE))
