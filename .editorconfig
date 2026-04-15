@@ -12,8 +12,15 @@ indent_size = 4
 max_line_length = 140
 
 # --- ktlint configuration -----------------------------------------------
-# Target Kotlin 2.2.10 for parsing / rule activation.
-ktlint_kotlin_version = 2.2.10
+# NOTE: Do not re-add `ktlint_kotlin_version` here. ktlint 1.2.1 (bundled
+# with ktlint-gradle 12.1.1) does not register that key in its
+# `EditorConfigPropertyRegistry`, so the plugin's strict `find(key)` lookup
+# throws when it encounters it — surfacing as the misleading
+# "KtLint failed to parse file: <path>" error against the first file each
+# worker touches. The earlier assumption that `.editorconfig` tolerates
+# unknown keys only holds for the ktlint CLI, not the Gradle plugin.
+# Restore this line only after upgrading ktlint-gradle to a version whose
+# bundled ktlint (1.5+) registers `ktlint_kotlin_version`.
 
 # Use the ktlint official code style.
 ktlint_code_style = ktlint_official
