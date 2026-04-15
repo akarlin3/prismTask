@@ -48,7 +48,7 @@ PrismTask Pro is available with two billing cadences:
 - **Monthly:** $7.99/month
 - **Annual:** $59.88/year (equivalent to $4.99/month, billed once per year)
 
-Both options include a 7-day free trial for eligible new subscribers.
+The annual plan includes a 7-day free trial for eligible new subscribers. The monthly plan does not include a free trial.
 
 Pro unlocks:
 
@@ -75,8 +75,9 @@ Pro unlocks:
 
 ### Free Trial
 
-- New subscribers may be eligible for a 7-day free trial
-- The free trial converts to a paid subscription at the end of the trial period unless canceled
+- New subscribers to the **annual** plan may be eligible for a 7-day free trial
+- The monthly plan does not include a free trial
+- The free trial converts to a paid annual subscription at the end of the trial period unless canceled
 - Free trial availability is determined by Google Play
 
 ## 6. Acceptable Use

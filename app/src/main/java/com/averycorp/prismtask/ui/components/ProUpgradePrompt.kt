@@ -27,8 +27,8 @@ import com.averycorp.prismtask.data.billing.UserTier
 
 /**
  * Simplified two-tier upgrade prompt. Shown when a FREE user taps a Pro
- * feature. Offers both monthly and annual billing options with a 7-day free
- * trial.
+ * feature. Offers both monthly and annual billing options; the annual plan
+ * includes a 7-day free trial.
  */
 @Composable
 fun UpgradePrompt(
@@ -104,16 +104,10 @@ fun UpgradePrompt(
                 onClick = { onUpgrade(BillingPeriod.MONTHLY) },
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        text = "Monthly \u2014 \$7.99/mo",
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Text(
-                        text = "7-Day Free Trial",
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
+                Text(
+                    text = "Monthly \u2014 \$7.99/mo",
+                    fontWeight = FontWeight.SemiBold
+                )
             }
             Spacer(modifier = Modifier.height(4.dp))
             TextButton(onClick = onRestorePurchase) {

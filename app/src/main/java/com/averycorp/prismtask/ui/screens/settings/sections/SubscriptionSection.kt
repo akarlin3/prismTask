@@ -122,16 +122,10 @@ fun SubscriptionSection(
                 },
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        text = "Monthly \u2014 \$7.99/mo",
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Text(
-                        text = "7-Day Free Trial",
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
+                Text(
+                    text = "Monthly \u2014 \$7.99/mo",
+                    fontWeight = FontWeight.SemiBold
+                )
             }
             TextButton(onClick = onRestorePurchases) {
                 Text("Restore Purchase")

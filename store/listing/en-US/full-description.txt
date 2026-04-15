@@ -49,7 +49,7 @@ FREE:
 • ADHD Mode and Calm Mode
 • Export/import
 
-PRO ($7.99/month or $4.99/month billed annually, 7-day free trial):
+PRO ($7.99/month or $4.99/month billed annually; annual plan includes a 7-day free trial):
 • Cloud sync across devices
 • AI productivity tools: Eisenhower, Smart Pomodoro, daily briefing, time blocking
 • AI weekly planner powered by Claude Sonnet
