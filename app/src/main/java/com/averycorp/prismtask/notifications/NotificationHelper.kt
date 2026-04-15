@@ -44,7 +44,7 @@ object NotificationHelper {
         }
     }
 
-    fun channelIdFor(base: String, importance: String): String = "${base}_${importance}"
+    fun channelIdFor(base: String, importance: String): String = "${base}_$importance"
 
     fun importanceToChannelLevel(importance: String): Int = when (importance) {
         NotificationPreferences.IMPORTANCE_MINIMAL -> NotificationManager.IMPORTANCE_LOW

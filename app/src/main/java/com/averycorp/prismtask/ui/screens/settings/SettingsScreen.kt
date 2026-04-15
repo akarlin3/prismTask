@@ -40,7 +40,6 @@ import com.averycorp.prismtask.ui.screens.settings.sections.AboutSection
 import com.averycorp.prismtask.ui.screens.settings.sections.AccessibilitySection
 import com.averycorp.prismtask.ui.screens.settings.sections.AccountSyncSection
 import com.averycorp.prismtask.ui.screens.settings.sections.AiSection
-import com.averycorp.prismtask.ui.screens.settings.sections.NotificationSettingsSection
 import com.averycorp.prismtask.ui.screens.settings.sections.AppearanceSection
 import com.averycorp.prismtask.ui.screens.settings.sections.BackupExportSection
 import com.averycorp.prismtask.ui.screens.settings.sections.BoundariesSection
@@ -60,6 +59,7 @@ import com.averycorp.prismtask.ui.screens.settings.sections.HabitsSection
 import com.averycorp.prismtask.ui.screens.settings.sections.HelpFeedbackSection
 import com.averycorp.prismtask.ui.screens.settings.sections.ModesSection
 import com.averycorp.prismtask.ui.screens.settings.sections.NavigationSection
+import com.averycorp.prismtask.ui.screens.settings.sections.NotificationSettingsSection
 import com.averycorp.prismtask.ui.screens.settings.sections.ShakeSection
 import com.averycorp.prismtask.ui.screens.settings.sections.SubscriptionSection
 import com.averycorp.prismtask.ui.screens.settings.sections.SwipeActionsSection
