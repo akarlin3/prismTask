@@ -1,0 +1,79 @@
+package com.averycorp.prismtask.ui.navigation.routes
+
+import androidx.navigation.NavGraphBuilder
+import androidx.navigation.NavHostController
+import androidx.navigation.NavType
+import androidx.navigation.compose.composable
+import androidx.navigation.navArgument
+import com.averycorp.prismtask.ui.navigation.PrismTaskRoute
+import com.averycorp.prismtask.ui.screens.balance.WeeklyBalanceReportScreen
+import com.averycorp.prismtask.ui.screens.briefing.DailyBriefingScreen
+import com.averycorp.prismtask.ui.screens.chat.ChatScreen
+import com.averycorp.prismtask.ui.screens.checkin.MorningCheckInScreen
+import com.averycorp.prismtask.ui.screens.eisenhower.EisenhowerScreen
+import com.averycorp.prismtask.ui.screens.extract.PasteConversationScreen
+import com.averycorp.prismtask.ui.screens.mood.MoodAnalyticsScreen
+import com.averycorp.prismtask.ui.screens.planner.WeeklyPlannerScreen
+import com.averycorp.prismtask.ui.screens.pomodoro.SmartPomodoroScreen
+import com.averycorp.prismtask.ui.screens.review.WeeklyReviewScreen
+
+/**
+ * AI and productivity-tool route definitions: Eisenhower matrix,
+ * smart pomodoro, daily briefing, morning check-in, weekly planner
+ * and review, balance and mood analytics, AI chat, and paste-import.
+ */
+internal fun NavGraphBuilder.aiRoutes(
+    navController: NavHostController,
+    initialSharedText: String? = null
+) {
+    horizontalSlideComposable(PrismTaskRoute.EisenhowerMatrix.route) {
+        EisenhowerScreen(navController)
+    }
+
+    horizontalSlideComposable(PrismTaskRoute.SmartPomodoro.route) {
+        SmartPomodoroScreen(navController)
+    }
+
+    horizontalSlideComposable(PrismTaskRoute.DailyBriefing.route) {
+        DailyBriefingScreen(navController)
+    }
+
+    horizontalSlideComposable(PrismTaskRoute.MorningCheckIn.route) {
+        MorningCheckInScreen(navController)
+    }
+
+    composable(route = PrismTaskRoute.MoodAnalytics.route) {
+        MoodAnalyticsScreen(navController)
+    }
+
+    composable(route = PrismTaskRoute.WeeklyBalanceReport.route) {
+        WeeklyBalanceReportScreen(navController)
+    }
+
+    composable(route = PrismTaskRoute.PasteConversation.route) {
+        PasteConversationScreen(
+            navController = navController,
+            sharedText = initialSharedText
+        )
+    }
+
+    composable(route = PrismTaskRoute.WeeklyReview.route) {
+        WeeklyReviewScreen(navController)
+    }
+
+    horizontalSlideComposable(PrismTaskRoute.WeeklyPlanner.route) {
+        WeeklyPlannerScreen(navController)
+    }
+
+    horizontalSlideComposable(
+        route = PrismTaskRoute.AiChat.route,
+        arguments = listOf(
+            navArgument("taskId") {
+                type = NavType.LongType
+                defaultValue = -1L
+            }
+        )
+    ) {
+        ChatScreen(navController)
+    }
+}

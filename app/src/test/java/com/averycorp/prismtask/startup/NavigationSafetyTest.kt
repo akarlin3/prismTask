@@ -123,15 +123,20 @@ class NavigationSafetyTest {
     fun `FeatureRoutes references composable functions for all routes`() {
         if (!srcMainDir.exists()) return
 
-        val featureRoutes = File(srcMainDir, "ui/navigation/FeatureRoutes.kt")
-        if (!featureRoutes.exists()) return
+        val navDir = File(srcMainDir, "ui/navigation")
+        if (!navDir.exists()) return
 
-        val content = featureRoutes.readText()
-
-        // Check that the file has composable() calls — a sign it's wired up
-        val composableCount = Regex("""composable\(""").findAll(content).count()
+        // Check that composable() calls exist somewhere under the nav
+        // package — the destinations live in per-domain files under
+        // ui/navigation/routes/ now, not directly in FeatureRoutes.kt.
+        val composableCount = navDir.walkTopDown()
+            .filter { it.isFile && it.extension == "kt" }
+            .sumOf { file ->
+                Regex("""composable\(""").findAll(file.readText()).count()
+            }
         assertTrue(
-            "FeatureRoutes.kt should have composable() declarations",
+            "Navigation package should have composable() declarations " +
+                "(searched ${navDir.absolutePath})",
             composableCount > 0
         )
     }
@@ -140,13 +145,12 @@ class NavigationSafetyTest {
     fun `all ViewModels used in navigation have hiltViewModel calls`() {
         if (!srcMainDir.exists()) return
 
-        val featureRoutes = File(srcMainDir, "ui/navigation/FeatureRoutes.kt")
-        val navGraph = File(srcMainDir, "ui/navigation/NavGraph.kt")
+        val navDir = File(srcMainDir, "ui/navigation")
+        if (!navDir.exists()) return
 
-        val combinedContent = buildString {
-            if (featureRoutes.exists()) append(featureRoutes.readText())
-            if (navGraph.exists()) append(navGraph.readText())
-        }
+        val combinedContent = navDir.walkTopDown()
+            .filter { it.isFile && it.extension == "kt" }
+            .joinToString(separator = "\n") { it.readText() }
 
         // If the nav code references ViewModel types, it should use hiltViewModel()
         if (combinedContent.contains("ViewModel")) {

@@ -1,0 +1,135 @@
+package com.averycorp.prismtask.ui.screens.habits.components
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import com.averycorp.prismtask.data.repository.HabitWithStatus
+import com.averycorp.prismtask.ui.components.StreakBadge
+
+/**
+ * Card variant for built-in life-mode habits (schoolwork, leisure, etc.).
+ * Surfaces a fixed icon + fixed color based on [type] and shows a streak
+ * badge when the habit has one. Tapping dives into the corresponding
+ * mode screen.
+ */
+@Composable
+internal fun BuiltInHabitCard(
+    type: String,
+    habitWithStatus: HabitWithStatus,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val title = when (type) {
+        "school" -> "Schoolwork"
+        "leisure" -> "Leisure"
+        else -> type.replaceFirstChar { it.uppercase() }
+    }
+    val icon = when (type) {
+        "school" -> "\uD83C\uDF93"
+        "leisure" -> "\uD83C\uDFB5"
+        else -> "\u2B50"
+    }
+    val color = when (type) {
+        "school" -> Color(0xFFCFB87C)
+        "leisure" -> Color(0xFF8B5CF6)
+        else -> Color(0xFF4A90D9)
+    }
+
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (habitWithStatus.isCompletedToday) {
+                color.copy(alpha = 0.1f)
+            } else {
+                MaterialTheme.colorScheme.surfaceContainerLow
+            }
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(CircleShape)
+                    .background(color.copy(alpha = 0.15f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(text = icon, style = MaterialTheme.typography.titleMedium)
+            }
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                if (habitWithStatus.habit.showStreak && habitWithStatus.currentStreak > 0) {
+                    StreakBadge(streak = habitWithStatus.currentStreak)
+                }
+            }
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            if (habitWithStatus.isCompletedToday) {
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFF10B981)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.Check,
+                        contentDescription = "Done",
+                        tint = Color.White,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+            } else {
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .border(2.dp, color, CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {}
+            }
+        }
+    }
+}
