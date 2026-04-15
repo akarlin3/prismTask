@@ -25,7 +25,7 @@ enum class TodaySectionId(
     PLANNED("planned", true, null, "Planned / Upcoming"),
     FLAGGED("flagged", false, null, "Flagged Tasks"),
     COMPLETED("completed", true, null, "Completed Today"),
-    AI_BRIEFING("ai_briefing", true, "PREMIUM", "AI Briefing");
+    AI_BRIEFING("ai_briefing", true, "PRO", "AI Briefing");
 
     companion object {
         fun fromKey(key: String): TodaySectionId? = values().firstOrNull { it.key == key }
@@ -58,7 +58,7 @@ object TodayLayoutResolver {
      * @param userOrder ordered list of section keys as persisted by the user
      *                  (may be empty -> use defaults)
      * @param hiddenKeys set of section keys the user has toggled off
-     * @param currentTier e.g. "FREE" / "PRO" / "PREMIUM" (case-insensitive)
+     * @param currentTier e.g. "FREE" / "PRO" (case-insensitive)
      */
     fun resolve(
         userOrder: List<String>,
@@ -103,7 +103,7 @@ object TodayLayoutResolver {
 
     private fun tierAllows(requires: String?, current: String): Boolean {
         if (requires == null) return true
-        val rank = mapOf("FREE" to 0, "PRO" to 1, "PREMIUM" to 2)
+        val rank = mapOf("FREE" to 0, "PRO" to 1)
         val requiredRank = rank[requires.uppercase()] ?: 0
         val currentRank = rank[current.uppercase()] ?: 0
         return currentRank >= requiredRank

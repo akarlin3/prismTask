@@ -35,11 +35,9 @@ import androidx.compose.ui.unit.dp
 import com.averycorp.prismtask.data.billing.UserTier
 
 /**
- * Energy check-in card shown at the top of the Today view for Premium users.
+ * Energy check-in card shown at the top of the Today view for Pro users.
  * Lets the user select their energy level (low/medium/high), then shows an
- * AI-generated daily plan. Pro users see a PREMIUM badge with upgrade prompt.
- *
- * Trigger 3: Energy-adaptive daily planning.
+ * AI-generated daily plan.
  */
 @Composable
 fun EnergyCheckInCard(
@@ -50,7 +48,7 @@ fun EnergyCheckInCard(
     userTier: UserTier,
     onSelectEnergy: (String) -> Unit,
     onDismiss: () -> Unit,
-    onUpgrade: (UserTier) -> Unit,
+    onUpgrade: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     AnimatedVisibility(
@@ -83,8 +81,8 @@ fun EnergyCheckInCard(
                         color = MaterialTheme.colorScheme.onSecondaryContainer,
                         modifier = Modifier.weight(1f)
                     )
-                    if (userTier == UserTier.PRO) {
-                        TierBadge(requiredTier = UserTier.PREMIUM)
+                    if (userTier == UserTier.FREE) {
+                        TierBadge(requiredTier = UserTier.PRO)
                         Spacer(modifier = Modifier.width(4.dp))
                     }
                     IconButton(
@@ -100,8 +98,8 @@ fun EnergyCheckInCard(
                     }
                 }
 
-                if (userTier == UserTier.PRO) {
-                    // Pro users see upgrade prompt
+                if (userTier == UserTier.FREE) {
+                    // Free users see upgrade prompt
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = "AI-powered daily planning that adapts to your energy",
@@ -110,12 +108,12 @@ fun EnergyCheckInCard(
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     androidx.compose.material3.FilledTonalButton(
-                        onClick = { onUpgrade(UserTier.PREMIUM) }
+                        onClick = onUpgrade
                     ) {
-                        Text("Upgrade to Premium")
+                        Text("Upgrade to Pro")
                     }
                 } else if (selectedEnergy == null && !isLoading) {
-                    // Premium user: show energy selector
+                    // Pro user: show energy selector
                     Spacer(modifier = Modifier.height(12.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),

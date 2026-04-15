@@ -1,10 +1,10 @@
-"""Tests for admin users automatically receiving the highest (ULTRA) tier.
+"""Tests for admin users automatically receiving the PRO tier.
 
 Covers:
-  - User.effective_tier property returns ULTRA for admins
+  - User.effective_tier property returns PRO for admins
   - User.effective_tier returns stored tier for non-admins
   - GET /auth/me includes effective_tier in response
-  - Admin effective_tier is ULTRA regardless of stored tier
+  - Admin effective_tier is PRO regardless of stored tier
 """
 
 import pytest
@@ -52,30 +52,30 @@ async def test_non_admin_effective_tier_matches_stored_tier(
 
 
 @pytest.mark.asyncio
-async def test_admin_effective_tier_is_ultra(
+async def test_admin_effective_tier_is_pro(
     client: AsyncClient, auth_headers: dict
 ):
-    """Admin users always get ULTRA as their effective_tier."""
+    """Admin users always get PRO as their effective_tier."""
     await _make_admin()
     resp = await client.get("/api/v1/auth/me", headers=auth_headers)
     assert resp.status_code == 200
     data = resp.json()
     assert data["is_admin"] is True
-    assert data["effective_tier"] == "ULTRA"
+    assert data["effective_tier"] == "PRO"
 
 
 @pytest.mark.asyncio
-async def test_admin_effective_tier_ultra_regardless_of_stored_tier(
+async def test_admin_effective_tier_pro_regardless_of_stored_tier(
     client: AsyncClient, auth_headers: dict
 ):
-    """Admin effective_tier is ULTRA even when stored tier is FREE."""
+    """Admin effective_tier is PRO even when stored tier is FREE."""
     await _set_tier("test@example.com", "FREE")
     await _make_admin()
     resp = await client.get("/api/v1/auth/me", headers=auth_headers)
     assert resp.status_code == 200
     data = resp.json()
     assert data["tier"] == "FREE"
-    assert data["effective_tier"] == "ULTRA"
+    assert data["effective_tier"] == "PRO"
 
 
 @pytest.mark.asyncio
@@ -90,17 +90,3 @@ async def test_non_admin_pro_tier(
     assert data["is_admin"] is False
     assert data["effective_tier"] == "PRO"
     assert data["tier"] == "PRO"
-
-
-@pytest.mark.asyncio
-async def test_admin_pro_stored_tier_gets_ultra_effective(
-    client: AsyncClient, auth_headers: dict
-):
-    """Admin with PRO stored tier still gets ULTRA effective_tier."""
-    await _set_tier("test@example.com", "PRO")
-    await _make_admin()
-    resp = await client.get("/api/v1/auth/me", headers=auth_headers)
-    assert resp.status_code == 200
-    data = resp.json()
-    assert data["tier"] == "PRO"
-    assert data["effective_tier"] == "ULTRA"

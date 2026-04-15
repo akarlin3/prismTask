@@ -81,7 +81,7 @@ constructor(
 
     /**
      * Fetch user info from the backend and update admin status on the
-     * BillingManager. Admin users automatically receive ULTRA tier access.
+     * BillingManager. Admin users automatically receive PRO tier access.
      *
      * Public so callers can refresh admin status independently of a full
      * sync — e.g., on app launch once Firebase auth confirms the user is

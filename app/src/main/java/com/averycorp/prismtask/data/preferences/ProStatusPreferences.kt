@@ -23,6 +23,7 @@ constructor(
 ) {
     companion object {
         private val CACHED_TIER_KEY = stringPreferencesKey("cached_tier")
+        private val CACHED_BILLING_PERIOD_KEY = stringPreferencesKey("cached_billing_period")
         private val TIER_EXPIRES_AT_KEY = longPreferencesKey("tier_expires_at")
         private val LAST_VERIFIED_AT_KEY = longPreferencesKey("last_verified_at")
     }
@@ -30,6 +31,11 @@ constructor(
     suspend fun getCachedTier(): String = context.dataStore.data
         .map { prefs ->
             prefs[CACHED_TIER_KEY] ?: "FREE"
+        }.first()
+
+    suspend fun getCachedBillingPeriod(): String = context.dataStore.data
+        .map { prefs ->
+            prefs[CACHED_BILLING_PERIOD_KEY] ?: "NONE"
         }.first()
 
     suspend fun tierExpiresAt(): Long = context.dataStore.data
@@ -44,6 +50,10 @@ constructor(
 
     suspend fun setCachedTier(tier: String) {
         context.dataStore.edit { prefs -> prefs[CACHED_TIER_KEY] = tier }
+    }
+
+    suspend fun setCachedBillingPeriod(period: String) {
+        context.dataStore.edit { prefs -> prefs[CACHED_BILLING_PERIOD_KEY] = period }
     }
 
     suspend fun setTierExpiresAt(expiresAt: Long) {

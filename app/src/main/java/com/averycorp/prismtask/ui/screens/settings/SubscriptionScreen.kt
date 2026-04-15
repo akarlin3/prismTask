@@ -31,6 +31,7 @@ fun SubscriptionScreen(
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val userTier by viewModel.userTier.collectAsStateWithLifecycle()
+    val billingPeriod by viewModel.billingPeriod.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
@@ -53,7 +54,8 @@ fun SubscriptionScreen(
         ) {
             SubscriptionSection(
                 userTier = userTier,
-                onLaunchUpgrade = { activity, tier -> viewModel.launchUpgrade(activity, tier) },
+                billingPeriod = billingPeriod,
+                onLaunchUpgrade = { activity, period -> viewModel.launchUpgrade(activity, period) },
                 onRestorePurchases = { viewModel.restorePurchases() }
             )
             Spacer(modifier = Modifier.height(32.dp))

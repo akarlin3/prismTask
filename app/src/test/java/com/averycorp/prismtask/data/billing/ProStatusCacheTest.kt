@@ -4,7 +4,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 /**
- * Tests for [SubscriptionState] enum and Pro status caching logic.
+ * Tests for [SubscriptionState] and [UserTier] / [BillingPeriod] enums.
  * BillingClient interactions cannot be unit tested without Google Play,
  * so these tests focus on the state machine and cache expiration logic.
  */
@@ -42,27 +42,33 @@ class ProStatusCacheTest {
     }
 
     @Test
-    fun `UserTier enum includes ULTRA and parses from string`() {
-        val ultra = UserTier.valueOf("ULTRA")
-        assertEquals(UserTier.ULTRA, ultra)
-        assertEquals("ULTRA", ultra.name)
-    }
-
-    @Test
-    fun `ULTRA tier round-trips through name serialization`() {
-        val tier = UserTier.ULTRA
-        val serialized = tier.name
-        val deserialized = UserTier.valueOf(serialized)
-        assertEquals(tier, deserialized)
-    }
-
-    @Test
-    fun `all four tiers cover expected values`() {
+    fun `UserTier enum only exposes FREE and PRO`() {
         val tiers = UserTier.entries
-        assertEquals(4, tiers.size)
+        assertEquals(2, tiers.size)
         assert(tiers.contains(UserTier.FREE))
         assert(tiers.contains(UserTier.PRO))
-        assert(tiers.contains(UserTier.PREMIUM))
-        assert(tiers.contains(UserTier.ULTRA))
+    }
+
+    @Test
+    fun `UserTier round-trips through name serialization`() {
+        val tier = UserTier.PRO
+        val serialized = tier.name
+        assertEquals(UserTier.PRO, UserTier.valueOf(serialized))
+    }
+
+    @Test
+    fun `BillingPeriod enum exposes MONTHLY ANNUAL and NONE`() {
+        val periods = BillingPeriod.entries
+        assertEquals(3, periods.size)
+        assert(periods.contains(BillingPeriod.MONTHLY))
+        assert(periods.contains(BillingPeriod.ANNUAL))
+        assert(periods.contains(BillingPeriod.NONE))
+    }
+
+    @Test
+    fun `BillingPeriod round-trips through name serialization`() {
+        assertEquals(BillingPeriod.ANNUAL, BillingPeriod.valueOf("ANNUAL"))
+        assertEquals(BillingPeriod.MONTHLY, BillingPeriod.valueOf("MONTHLY"))
+        assertEquals(BillingPeriod.NONE, BillingPeriod.valueOf("NONE"))
     }
 }

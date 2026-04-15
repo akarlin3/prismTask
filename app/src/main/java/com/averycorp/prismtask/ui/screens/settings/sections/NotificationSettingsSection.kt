@@ -186,24 +186,21 @@ fun NotificationSettingsSection(
         onCheckedChange = onMedicationRemindersToggle
     )
 
-    val isProOrAbove = userTier == UserTier.PRO ||
-        userTier == UserTier.PREMIUM ||
-        userTier == UserTier.ULTRA
-    val isPremiumOrAbove = userTier == UserTier.PREMIUM || userTier == UserTier.ULTRA
+    val isPro = userTier == UserTier.PRO
 
     GatedToggleRow(
         title = "Daily Briefing",
         subtitle = "Morning briefing (Pro)",
-        checked = dailyBriefingEnabled && isProOrAbove,
-        enabled = isProOrAbove,
+        checked = dailyBriefingEnabled && isPro,
+        enabled = isPro,
         onCheckedChange = onDailyBriefingToggle
     )
 
     GatedToggleRow(
         title = "Evening Summary",
         subtitle = "End-of-day summary (Pro)",
-        checked = eveningSummaryEnabled && isProOrAbove,
-        enabled = isProOrAbove,
+        checked = eveningSummaryEnabled && isPro,
+        enabled = isPro,
         onCheckedChange = onEveningSummaryToggle
     )
 
@@ -224,8 +221,8 @@ fun NotificationSettingsSection(
     GatedToggleRow(
         title = "Re-engagement",
         subtitle = "Gentle nudge after inactivity (Pro)",
-        checked = reengagementEnabled && isPremiumOrAbove,
-        enabled = isPremiumOrAbove,
+        checked = reengagementEnabled && isPro,
+        enabled = isPro,
         onCheckedChange = onReengagementToggle
     )
 

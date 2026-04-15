@@ -3,7 +3,7 @@
 The Android client reports a successful purchase to the backend via
 ``PATCH /auth/me/tier``. Before elevating the user's tier, the backend
 must verify the purchase token with the Google Play Developer API so a
-malicious client cannot simply POST ``{"tier": "ULTRA"}`` and get a free
+malicious client cannot simply POST ``{"tier": "PRO"}`` and get a free
 upgrade.
 
 If ``GOOGLE_PLAY_SERVICE_ACCOUNT_KEY`` (or the ``_PATH`` variant) is not
@@ -24,14 +24,11 @@ logger = logging.getLogger(__name__)
 
 
 # Map of Google Play product SKUs to the tier they unlock. The SKUs must
-# match those registered in the Play Console for the PrismTask app.
+# match those registered in the Play Console for the PrismTask app. Pro has
+# two billing cadences: monthly ($7.99/mo) and annual ($4.99/mo, $59.88/yr).
 PRODUCT_TIER_MAP: dict[str, str] = {
     "prismtask_pro_monthly": "PRO",
-    "prismtask_pro_yearly": "PRO",
-    "prismtask_premium_monthly": "PREMIUM",
-    "prismtask_premium_yearly": "PREMIUM",
-    "prismtask_ultra_monthly": "ULTRA",
-    "prismtask_ultra_yearly": "ULTRA",
+    "prismtask_pro_annual": "PRO",
 }
 
 ANDROID_PACKAGE_NAME = "com.averycorp.prismtask"

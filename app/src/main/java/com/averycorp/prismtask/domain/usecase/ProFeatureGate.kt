@@ -6,6 +6,37 @@ import kotlinx.coroutines.flow.StateFlow
 import javax.inject.Inject
 import javax.inject.Singleton
 
+/**
+ * AI features used across the app. `aiModelForFeature` maps each feature to
+ * the Claude model that should power it.
+ */
+enum class AiFeature {
+    NLP,
+    EISENHOWER,
+    POMODORO,
+    DAILY_BRIEFING,
+    COACHING,
+    TASK_BREAKDOWN,
+    DAILY_PLANNING,
+    REENGAGEMENT,
+    TIME_BLOCKING,
+    EVENING_SUMMARY,
+    CONVERSATIONAL_CHAT,
+    WEEKLY_PLANNER,
+    MONTHLY_REVIEW,
+    TASK_EXTRACTION
+}
+
+/**
+ * Returns the Claude model ID that should serve the given feature. Weekly
+ * planner and monthly review get Sonnet for higher-quality output; all other
+ * AI features run on Haiku.
+ */
+fun aiModelForFeature(feature: AiFeature): String = when (feature) {
+    AiFeature.WEEKLY_PLANNER, AiFeature.MONTHLY_REVIEW -> "claude-sonnet-4-20250514"
+    else -> "claude-haiku-4-5-20251001"
+}
+
 @Singleton
 class ProFeatureGate
 @Inject
@@ -14,51 +45,24 @@ constructor(
 ) {
     val userTier: StateFlow<UserTier> = billingManager.userTier
 
-    fun isPro(): Boolean = userTier.value >= UserTier.PRO
+    fun isPro(): Boolean = userTier.value == UserTier.PRO
 
-    fun isPremium(): Boolean = userTier.value >= UserTier.PREMIUM
-
-    fun isUltra(): Boolean = userTier.value == UserTier.ULTRA
-
-    fun hasAccess(feature: String): Boolean = when (feature) {
-        TEMPLATE_SYNC, AI_EISENHOWER, AI_POMODORO,
-        ANALYTICS_BASIC, TIME_TRACKING, AI_NLP,
-        AI_EVENING_SUMMARY, AI_COACHING, AI_TASK_BREAKDOWN -> isPro()
-
-        AI_BRIEFING, AI_WEEKLY_PLAN, AI_TIME_BLOCK,
-        AI_CONVERSATIONAL,
-        COLLABORATION, INTEGRATIONS, ANALYTICS_FULL,
-        ANALYTICS_CORRELATIONS, DRIVE_BACKUP,
-        AI_REENGAGEMENT, AI_DAILY_PLANNING,
-        AI_WEEKLY_INSIGHTS -> isPremium()
-
-        AI_SONNET_NLP, AI_SONNET_EISENHOWER, AI_SONNET_POMODORO,
-        AI_SONNET_BRIEFING, AI_SONNET_COACHING, AI_SONNET_WEEKLY,
-        AI_SONNET_PLANNER, AI_SONNET_EXTRACT,
-        AI_PRIORITY_SUPPORT -> isUltra()
-
-        CLOUD_SYNC -> true // free tier — cloud sync available to all users
-        else -> true
+    fun hasAccess(feature: String): Boolean = when (requiredTier(feature)) {
+        UserTier.FREE -> true
+        UserTier.PRO -> isPro()
     }
 
     fun requiredTier(feature: String): UserTier = when (feature) {
         TEMPLATE_SYNC, AI_EISENHOWER, AI_POMODORO,
         ANALYTICS_BASIC, TIME_TRACKING, AI_NLP,
-        AI_EVENING_SUMMARY, AI_COACHING, AI_TASK_BREAKDOWN -> UserTier.PRO
-
+        AI_EVENING_SUMMARY, AI_COACHING, AI_TASK_BREAKDOWN,
         AI_BRIEFING, AI_WEEKLY_PLAN, AI_TIME_BLOCK,
         AI_CONVERSATIONAL,
         COLLABORATION, INTEGRATIONS, ANALYTICS_FULL,
         ANALYTICS_CORRELATIONS, DRIVE_BACKUP,
         AI_REENGAGEMENT, AI_DAILY_PLANNING,
-        AI_WEEKLY_INSIGHTS -> UserTier.PREMIUM
+        AI_WEEKLY_INSIGHTS, CLOUD_SYNC -> UserTier.PRO
 
-        AI_SONNET_NLP, AI_SONNET_EISENHOWER, AI_SONNET_POMODORO,
-        AI_SONNET_BRIEFING, AI_SONNET_COACHING, AI_SONNET_WEEKLY,
-        AI_SONNET_PLANNER, AI_SONNET_EXTRACT,
-        AI_PRIORITY_SUPPORT -> UserTier.ULTRA
-
-        CLOUD_SYNC -> UserTier.FREE // cloud sync available to all users
         else -> UserTier.FREE
     }
 
@@ -85,14 +89,5 @@ constructor(
         const val AI_DAILY_PLANNING = "ai_daily_planning"
         const val AI_REENGAGEMENT = "ai_reengagement"
         const val AI_WEEKLY_INSIGHTS = "ai_weekly_insights"
-        const val AI_SONNET_NLP = "ai_sonnet_nlp"
-        const val AI_SONNET_EISENHOWER = "ai_sonnet_eisenhower"
-        const val AI_SONNET_POMODORO = "ai_sonnet_pomodoro"
-        const val AI_SONNET_BRIEFING = "ai_sonnet_briefing"
-        const val AI_SONNET_COACHING = "ai_sonnet_coaching"
-        const val AI_SONNET_WEEKLY = "ai_sonnet_weekly"
-        const val AI_SONNET_PLANNER = "ai_sonnet_planner"
-        const val AI_SONNET_EXTRACT = "ai_sonnet_extract"
-        const val AI_PRIORITY_SUPPORT = "ai_priority_support"
     }
 }

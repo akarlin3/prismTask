@@ -5,6 +5,7 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.averycorp.prismtask.data.billing.BillingManager
+import com.averycorp.prismtask.data.billing.BillingPeriod
 import com.averycorp.prismtask.data.billing.SubscriptionState
 import com.averycorp.prismtask.data.billing.UserTier
 import com.averycorp.prismtask.data.calendar.CalendarInfo
@@ -451,6 +452,7 @@ constructor(
 
     // --- Subscription ---
     val userTier: StateFlow<UserTier> = billingManager.userTier
+    val billingPeriod: StateFlow<BillingPeriod> = billingManager.billingPeriod
     val subscriptionState: StateFlow<SubscriptionState> = billingManager.proSubscriptionState
     val debugTierOverride: StateFlow<UserTier?> = billingManager.debugTierOverride
     val isAdmin: StateFlow<Boolean> = billingManager.isAdmin
@@ -1185,10 +1187,10 @@ constructor(
         }
     }
 
-    fun launchUpgrade(activity: android.app.Activity, tier: UserTier = UserTier.PRO) {
+    fun launchUpgrade(activity: android.app.Activity, period: BillingPeriod = BillingPeriod.MONTHLY) {
         viewModelScope.launch {
             try {
-                billingManager.launchPurchaseFlow(activity, tier)
+                billingManager.launchPurchaseFlow(activity, period)
             } catch (e: Exception) {
                 _messages.emit("Could not start purchase: ${e.message}")
             }

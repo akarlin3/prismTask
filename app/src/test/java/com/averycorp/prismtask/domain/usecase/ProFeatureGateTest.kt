@@ -10,7 +10,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Tests for [ProFeatureGate] three-tier feature-gating logic.
+ * Tests for [ProFeatureGate] two-tier feature-gating logic.
  *
  * Uses a TestableFeatureGate that mirrors ProFeatureGate's logic but accepts
  * a controllable StateFlow instead of requiring BillingManager.
@@ -30,19 +30,15 @@ class ProFeatureGateTest {
             _userTier.value = tier
         }
 
-        fun isPro(): Boolean = userTier.value >= UserTier.PRO
+        fun isPro(): Boolean = userTier.value == UserTier.PRO
 
-        fun isPremium(): Boolean = userTier.value >= UserTier.PREMIUM
-
-        fun isUltra(): Boolean = userTier.value == UserTier.ULTRA
-
-        fun hasAccess(feature: String): Boolean = when (feature) {
+        fun requiredTier(feature: String): UserTier = when (feature) {
             ProFeatureGate.CLOUD_SYNC, ProFeatureGate.TEMPLATE_SYNC,
             ProFeatureGate.AI_EISENHOWER, ProFeatureGate.AI_POMODORO,
-            ProFeatureGate.ANALYTICS_BASIC, ProFeatureGate.TIME_TRACKING,
             ProFeatureGate.AI_NLP,
-            ProFeatureGate.AI_COACHING, ProFeatureGate.AI_TASK_BREAKDOWN -> isPro()
-
+            ProFeatureGate.ANALYTICS_BASIC, ProFeatureGate.TIME_TRACKING,
+            ProFeatureGate.AI_EVENING_SUMMARY,
+            ProFeatureGate.AI_COACHING, ProFeatureGate.AI_TASK_BREAKDOWN,
             ProFeatureGate.AI_BRIEFING, ProFeatureGate.AI_WEEKLY_PLAN,
             ProFeatureGate.AI_TIME_BLOCK, ProFeatureGate.AI_CONVERSATIONAL,
             ProFeatureGate.COLLABORATION,
@@ -50,252 +46,135 @@ class ProFeatureGateTest {
             ProFeatureGate.ANALYTICS_CORRELATIONS,
             ProFeatureGate.DRIVE_BACKUP,
             ProFeatureGate.AI_DAILY_PLANNING, ProFeatureGate.AI_REENGAGEMENT,
-            ProFeatureGate.AI_WEEKLY_INSIGHTS -> isPremium()
+            ProFeatureGate.AI_WEEKLY_INSIGHTS -> UserTier.PRO
 
-            ProFeatureGate.AI_SONNET_NLP, ProFeatureGate.AI_SONNET_EISENHOWER,
-            ProFeatureGate.AI_SONNET_POMODORO, ProFeatureGate.AI_SONNET_BRIEFING,
-            ProFeatureGate.AI_SONNET_COACHING, ProFeatureGate.AI_SONNET_WEEKLY,
-            ProFeatureGate.AI_SONNET_PLANNER, ProFeatureGate.AI_SONNET_EXTRACT,
-            ProFeatureGate.AI_PRIORITY_SUPPORT -> isUltra()
+            else -> UserTier.FREE
+        }
 
-            else -> true
+        fun hasAccess(feature: String): Boolean = when (requiredTier(feature)) {
+            UserTier.FREE -> true
+            UserTier.PRO -> isPro()
         }
     }
 
-    // --- Tier comparison ---
+    private val allProFeatures = listOf(
+        ProFeatureGate.CLOUD_SYNC,
+        ProFeatureGate.TEMPLATE_SYNC,
+        ProFeatureGate.AI_EISENHOWER,
+        ProFeatureGate.AI_POMODORO,
+        ProFeatureGate.AI_NLP,
+        ProFeatureGate.ANALYTICS_BASIC,
+        ProFeatureGate.TIME_TRACKING,
+        ProFeatureGate.AI_EVENING_SUMMARY,
+        ProFeatureGate.AI_COACHING,
+        ProFeatureGate.AI_TASK_BREAKDOWN,
+        ProFeatureGate.AI_BRIEFING,
+        ProFeatureGate.AI_WEEKLY_PLAN,
+        ProFeatureGate.AI_TIME_BLOCK,
+        ProFeatureGate.AI_CONVERSATIONAL,
+        ProFeatureGate.COLLABORATION,
+        ProFeatureGate.INTEGRATIONS,
+        ProFeatureGate.ANALYTICS_FULL,
+        ProFeatureGate.ANALYTICS_CORRELATIONS,
+        ProFeatureGate.DRIVE_BACKUP,
+        ProFeatureGate.AI_DAILY_PLANNING,
+        ProFeatureGate.AI_REENGAGEMENT,
+        ProFeatureGate.AI_WEEKLY_INSIGHTS
+    )
+
+    // --- Tier ordering ---
 
     @Test
-    fun `tier ordering FREE less than PRO less than PREMIUM less than ULTRA`() {
+    fun `tier ordering FREE less than PRO`() {
         assertTrue(UserTier.FREE < UserTier.PRO)
-        assertTrue(UserTier.PRO < UserTier.PREMIUM)
-        assertTrue(UserTier.PREMIUM < UserTier.ULTRA)
-        assertTrue(UserTier.FREE < UserTier.ULTRA)
+        assertFalse(UserTier.PRO < UserTier.FREE)
+    }
+
+    @Test
+    fun `UserTier only has FREE and PRO`() {
+        assertEquals(2, UserTier.entries.size)
     }
 
     // --- FREE user access ---
 
     @Test
-    fun `FREE user has no access to Pro or Premium features`() {
+    fun `FREE user has no access to Pro features`() {
         val gate = TestableFeatureGate(UserTier.FREE)
-
-        // Pro features blocked
-        assertFalse(gate.hasAccess(ProFeatureGate.CLOUD_SYNC))
-        assertFalse(gate.hasAccess(ProFeatureGate.AI_EISENHOWER))
-        assertFalse(gate.hasAccess(ProFeatureGate.AI_POMODORO))
-        assertFalse(gate.hasAccess(ProFeatureGate.TEMPLATE_SYNC))
-        assertFalse(gate.hasAccess(ProFeatureGate.ANALYTICS_BASIC))
-        assertFalse(gate.hasAccess(ProFeatureGate.TIME_TRACKING))
-        assertFalse(gate.hasAccess(ProFeatureGate.AI_NLP))
-        assertFalse(gate.hasAccess(ProFeatureGate.AI_COACHING))
-        assertFalse(gate.hasAccess(ProFeatureGate.AI_TASK_BREAKDOWN))
-
-        // Premium features blocked
-        assertFalse(gate.hasAccess(ProFeatureGate.AI_BRIEFING))
-        assertFalse(gate.hasAccess(ProFeatureGate.AI_WEEKLY_PLAN))
-        assertFalse(gate.hasAccess(ProFeatureGate.AI_TIME_BLOCK))
-        assertFalse(gate.hasAccess(ProFeatureGate.COLLABORATION))
-        assertFalse(gate.hasAccess(ProFeatureGate.INTEGRATIONS))
-        assertFalse(gate.hasAccess(ProFeatureGate.DRIVE_BACKUP))
-        assertFalse(gate.hasAccess(ProFeatureGate.AI_DAILY_PLANNING))
-        assertFalse(gate.hasAccess(ProFeatureGate.AI_REENGAGEMENT))
-        assertFalse(gate.hasAccess(ProFeatureGate.AI_WEEKLY_INSIGHTS))
-
-        // Free features allowed
+        allProFeatures.forEach { feature ->
+            assertFalse("FREE should NOT access $feature", gate.hasAccess(feature))
+        }
+        // Free/unknown features allowed
         assertTrue(gate.hasAccess("some_free_feature"))
     }
 
     // --- PRO user access ---
 
     @Test
-    fun `PRO user has access to Pro features but not Premium`() {
+    fun `PRO user has access to every Pro feature`() {
         val gate = TestableFeatureGate(UserTier.PRO)
-
-        // Pro features allowed
-        assertTrue(gate.hasAccess(ProFeatureGate.CLOUD_SYNC))
-        assertTrue(gate.hasAccess(ProFeatureGate.AI_EISENHOWER))
-        assertTrue(gate.hasAccess(ProFeatureGate.AI_POMODORO))
-        assertTrue(gate.hasAccess(ProFeatureGate.TEMPLATE_SYNC))
-        assertTrue(gate.hasAccess(ProFeatureGate.ANALYTICS_BASIC))
-        assertTrue(gate.hasAccess(ProFeatureGate.TIME_TRACKING))
-        assertTrue(gate.hasAccess(ProFeatureGate.AI_COACHING))
-        assertTrue(gate.hasAccess(ProFeatureGate.AI_TASK_BREAKDOWN))
-
-        // Premium features blocked
-        assertFalse(gate.hasAccess(ProFeatureGate.AI_BRIEFING))
-        assertFalse(gate.hasAccess(ProFeatureGate.AI_WEEKLY_PLAN))
-        assertFalse(gate.hasAccess(ProFeatureGate.AI_TIME_BLOCK))
-        assertFalse(gate.hasAccess(ProFeatureGate.COLLABORATION))
-        assertFalse(gate.hasAccess(ProFeatureGate.INTEGRATIONS))
-        assertFalse(gate.hasAccess(ProFeatureGate.DRIVE_BACKUP))
-        assertFalse(gate.hasAccess(ProFeatureGate.AI_DAILY_PLANNING))
-        assertFalse(gate.hasAccess(ProFeatureGate.AI_REENGAGEMENT))
-        assertFalse(gate.hasAccess(ProFeatureGate.AI_WEEKLY_INSIGHTS))
-    }
-
-    // --- PREMIUM user access ---
-
-    @Test
-    fun `PREMIUM user has access to everything`() {
-        val gate = TestableFeatureGate(UserTier.PREMIUM)
-
-        // Pro features allowed
-        assertTrue(gate.hasAccess(ProFeatureGate.CLOUD_SYNC))
-        assertTrue(gate.hasAccess(ProFeatureGate.AI_EISENHOWER))
-        assertTrue(gate.hasAccess(ProFeatureGate.AI_POMODORO))
-        assertTrue(gate.hasAccess(ProFeatureGate.AI_COACHING))
-        assertTrue(gate.hasAccess(ProFeatureGate.AI_TASK_BREAKDOWN))
-
-        // Premium features allowed
-        assertTrue(gate.hasAccess(ProFeatureGate.AI_BRIEFING))
-        assertTrue(gate.hasAccess(ProFeatureGate.AI_WEEKLY_PLAN))
-        assertTrue(gate.hasAccess(ProFeatureGate.AI_TIME_BLOCK))
-        assertTrue(gate.hasAccess(ProFeatureGate.COLLABORATION))
-        assertTrue(gate.hasAccess(ProFeatureGate.INTEGRATIONS))
-        assertTrue(gate.hasAccess(ProFeatureGate.DRIVE_BACKUP))
-        assertTrue(gate.hasAccess(ProFeatureGate.AI_DAILY_PLANNING))
-        assertTrue(gate.hasAccess(ProFeatureGate.AI_REENGAGEMENT))
-        assertTrue(gate.hasAccess(ProFeatureGate.AI_WEEKLY_INSIGHTS))
-
-        // Free features allowed
+        allProFeatures.forEach { feature ->
+            assertTrue("PRO should access $feature", gate.hasAccess(feature))
+        }
+        // Free/unknown features still allowed
         assertTrue(gate.hasAccess("some_free_feature"))
     }
 
-    // --- hasAccess per-feature ---
+    // --- hasAccess per-feature matches requiredTier ---
 
     @Test
     fun `hasAccess returns correct results for each feature constant`() {
-        val gate = TestableFeatureGate(UserTier.PRO)
-
-        // Pro-tier features
-        val proFeatures = listOf(
-            ProFeatureGate.CLOUD_SYNC,
-            ProFeatureGate.TEMPLATE_SYNC,
-            ProFeatureGate.AI_EISENHOWER,
-            ProFeatureGate.AI_POMODORO,
-            ProFeatureGate.ANALYTICS_BASIC,
-            ProFeatureGate.TIME_TRACKING,
-            ProFeatureGate.AI_NLP,
-            ProFeatureGate.AI_COACHING,
-            ProFeatureGate.AI_TASK_BREAKDOWN
-        )
-        proFeatures.forEach { feature ->
-            assertTrue("PRO should access $feature", gate.hasAccess(feature))
-        }
-
-        // Premium-tier features
-        val premiumFeatures = listOf(
-            ProFeatureGate.AI_BRIEFING,
-            ProFeatureGate.AI_WEEKLY_PLAN,
-            ProFeatureGate.AI_TIME_BLOCK,
-            ProFeatureGate.AI_CONVERSATIONAL,
-            ProFeatureGate.COLLABORATION,
-            ProFeatureGate.INTEGRATIONS,
-            ProFeatureGate.ANALYTICS_FULL,
-            ProFeatureGate.ANALYTICS_CORRELATIONS,
-            ProFeatureGate.DRIVE_BACKUP,
-            ProFeatureGate.AI_DAILY_PLANNING,
-            ProFeatureGate.AI_REENGAGEMENT,
-            ProFeatureGate.AI_WEEKLY_INSIGHTS
-        )
-        premiumFeatures.forEach { feature ->
-            assertFalse("PRO should NOT access $feature", gate.hasAccess(feature))
+        val free = TestableFeatureGate(UserTier.FREE)
+        val pro = TestableFeatureGate(UserTier.PRO)
+        allProFeatures.forEach { feature ->
+            assertEquals(UserTier.PRO, free.requiredTier(feature))
+            assertFalse("FREE blocked on $feature", free.hasAccess(feature))
+            assertTrue("PRO allowed on $feature", pro.hasAccess(feature))
         }
     }
 
-    // --- Tier upgrade restores highest ---
+    // --- Billing restores PRO from either monthly or annual product ID ---
 
     @Test
-    fun `billing restores highest active tier`() {
+    fun `billing restores PRO when any Pro product is active`() {
+        // Simulate the BillingManager's aggregate logic: regardless of which
+        // Pro SKU (monthly or annual) is active, the user's effective tier
+        // should be PRO.
         val gate = TestableFeatureGate(UserTier.FREE)
         assertFalse(gate.isPro())
-        assertFalse(gate.isPremium())
 
-        // Simulate restoring Pro purchase
+        // Monthly subscription active
         gate.setTier(UserTier.PRO)
         assertTrue(gate.isPro())
-        assertFalse(gate.isPremium())
 
-        // Simulate restoring Premium (highest wins)
-        gate.setTier(UserTier.PREMIUM)
-        assertTrue(gate.isPro())
-        assertTrue(gate.isPremium())
-    }
-
-    // --- ULTRA user access ---
-
-    @Test
-    fun `ULTRA user has access to everything including Ultra-exclusive features`() {
-        val gate = TestableFeatureGate(UserTier.ULTRA)
-
-        // Pro features allowed
-        assertTrue(gate.hasAccess(ProFeatureGate.CLOUD_SYNC))
-        assertTrue(gate.hasAccess(ProFeatureGate.AI_EISENHOWER))
-        assertTrue(gate.hasAccess(ProFeatureGate.AI_POMODORO))
-        assertTrue(gate.hasAccess(ProFeatureGate.AI_COACHING))
-        assertTrue(gate.hasAccess(ProFeatureGate.AI_TASK_BREAKDOWN))
-
-        // Premium features allowed
-        assertTrue(gate.hasAccess(ProFeatureGate.AI_BRIEFING))
-        assertTrue(gate.hasAccess(ProFeatureGate.AI_WEEKLY_PLAN))
-        assertTrue(gate.hasAccess(ProFeatureGate.AI_TIME_BLOCK))
-        assertTrue(gate.hasAccess(ProFeatureGate.COLLABORATION))
-        assertTrue(gate.hasAccess(ProFeatureGate.INTEGRATIONS))
-        assertTrue(gate.hasAccess(ProFeatureGate.DRIVE_BACKUP))
-        assertTrue(gate.hasAccess(ProFeatureGate.AI_DAILY_PLANNING))
-        assertTrue(gate.hasAccess(ProFeatureGate.AI_REENGAGEMENT))
-        assertTrue(gate.hasAccess(ProFeatureGate.AI_WEEKLY_INSIGHTS))
-
-        // Ultra-exclusive features allowed
-        assertTrue(gate.hasAccess(ProFeatureGate.AI_SONNET_NLP))
-        assertTrue(gate.hasAccess(ProFeatureGate.AI_SONNET_EISENHOWER))
-        assertTrue(gate.hasAccess(ProFeatureGate.AI_SONNET_POMODORO))
-        assertTrue(gate.hasAccess(ProFeatureGate.AI_SONNET_BRIEFING))
-        assertTrue(gate.hasAccess(ProFeatureGate.AI_SONNET_COACHING))
-        assertTrue(gate.hasAccess(ProFeatureGate.AI_SONNET_WEEKLY))
-        assertTrue(gate.hasAccess(ProFeatureGate.AI_SONNET_PLANNER))
-        assertTrue(gate.hasAccess(ProFeatureGate.AI_SONNET_EXTRACT))
-        assertTrue(gate.hasAccess(ProFeatureGate.AI_PRIORITY_SUPPORT))
-
-        // Free features allowed
-        assertTrue(gate.hasAccess("some_free_feature"))
-    }
-
-    @Test
-    fun `PREMIUM user cannot access Ultra-exclusive features`() {
-        val gate = TestableFeatureGate(UserTier.PREMIUM)
-
-        assertFalse(gate.hasAccess(ProFeatureGate.AI_SONNET_NLP))
-        assertFalse(gate.hasAccess(ProFeatureGate.AI_SONNET_EISENHOWER))
-        assertFalse(gate.hasAccess(ProFeatureGate.AI_SONNET_POMODORO))
-        assertFalse(gate.hasAccess(ProFeatureGate.AI_SONNET_BRIEFING))
-        assertFalse(gate.hasAccess(ProFeatureGate.AI_SONNET_COACHING))
-        assertFalse(gate.hasAccess(ProFeatureGate.AI_SONNET_WEEKLY))
-        assertFalse(gate.hasAccess(ProFeatureGate.AI_SONNET_PLANNER))
-        assertFalse(gate.hasAccess(ProFeatureGate.AI_SONNET_EXTRACT))
-        assertFalse(gate.hasAccess(ProFeatureGate.AI_PRIORITY_SUPPORT))
-    }
-
-    @Test
-    fun `isUltra returns true only for ULTRA tier`() {
-        val gate = TestableFeatureGate(UserTier.FREE)
-        assertFalse(gate.isUltra())
-
+        // Swap to annual — still PRO
         gate.setTier(UserTier.PRO)
-        assertFalse(gate.isUltra())
+        assertTrue(gate.isPro())
 
-        gate.setTier(UserTier.PREMIUM)
-        assertFalse(gate.isUltra())
+        // Cancel everything
+        gate.setTier(UserTier.FREE)
+        assertFalse(gate.isPro())
+    }
 
-        gate.setTier(UserTier.ULTRA)
-        assertTrue(gate.isUltra())
+    // --- aiModelForFeature routing ---
+
+    @Test
+    fun `aiModelForFeature returns Sonnet for weekly planner and monthly review`() {
+        assertEquals("claude-sonnet-4-20250514", aiModelForFeature(AiFeature.WEEKLY_PLANNER))
+        assertEquals("claude-sonnet-4-20250514", aiModelForFeature(AiFeature.MONTHLY_REVIEW))
     }
 
     @Test
-    fun `isPro and isPremium return true for ULTRA tier`() {
-        val gate = TestableFeatureGate(UserTier.ULTRA)
-        assertTrue(gate.isPro())
-        assertTrue(gate.isPremium())
-        assertTrue(gate.isUltra())
+    fun `aiModelForFeature returns Haiku for every other feature`() {
+        val haikuFeatures = AiFeature.entries.filter {
+            it != AiFeature.WEEKLY_PLANNER && it != AiFeature.MONTHLY_REVIEW
+        }
+        haikuFeatures.forEach { feature ->
+            assertEquals(
+                "Expected Haiku for $feature",
+                "claude-haiku-4-5-20251001",
+                aiModelForFeature(feature)
+            )
+        }
     }
 
     // --- Tier flow state changes ---
@@ -304,16 +183,8 @@ class ProFeatureGateTest {
     fun `userTier flow reflects billing state changes`() {
         val gate = TestableFeatureGate(UserTier.FREE)
         assertEquals(UserTier.FREE, gate.userTier.value)
-
         gate.setTier(UserTier.PRO)
         assertEquals(UserTier.PRO, gate.userTier.value)
-
-        gate.setTier(UserTier.PREMIUM)
-        assertEquals(UserTier.PREMIUM, gate.userTier.value)
-
-        gate.setTier(UserTier.ULTRA)
-        assertEquals(UserTier.ULTRA, gate.userTier.value)
-
         gate.setTier(UserTier.FREE)
         assertEquals(UserTier.FREE, gate.userTier.value)
     }
@@ -321,40 +192,8 @@ class ProFeatureGateTest {
     // --- Feature constant uniqueness ---
 
     @Test
-    fun `all feature constants including Ultra have unique values`() {
-        val constants = setOf(
-            ProFeatureGate.CLOUD_SYNC,
-            ProFeatureGate.TEMPLATE_SYNC,
-            ProFeatureGate.AI_EISENHOWER,
-            ProFeatureGate.AI_POMODORO,
-            ProFeatureGate.AI_NLP,
-            ProFeatureGate.ANALYTICS_BASIC,
-            ProFeatureGate.TIME_TRACKING,
-            ProFeatureGate.AI_BRIEFING,
-            ProFeatureGate.AI_WEEKLY_PLAN,
-            ProFeatureGate.AI_TIME_BLOCK,
-            ProFeatureGate.AI_CONVERSATIONAL,
-            ProFeatureGate.COLLABORATION,
-            ProFeatureGate.INTEGRATIONS,
-            ProFeatureGate.ANALYTICS_FULL,
-            ProFeatureGate.ANALYTICS_CORRELATIONS,
-            ProFeatureGate.DRIVE_BACKUP,
-            ProFeatureGate.AI_COACHING,
-            ProFeatureGate.AI_TASK_BREAKDOWN,
-            ProFeatureGate.AI_DAILY_PLANNING,
-            ProFeatureGate.AI_REENGAGEMENT,
-            ProFeatureGate.AI_WEEKLY_INSIGHTS,
-            // Ultra constants
-            ProFeatureGate.AI_SONNET_NLP,
-            ProFeatureGate.AI_SONNET_EISENHOWER,
-            ProFeatureGate.AI_SONNET_POMODORO,
-            ProFeatureGate.AI_SONNET_BRIEFING,
-            ProFeatureGate.AI_SONNET_COACHING,
-            ProFeatureGate.AI_SONNET_WEEKLY,
-            ProFeatureGate.AI_SONNET_PLANNER,
-            ProFeatureGate.AI_SONNET_EXTRACT,
-            ProFeatureGate.AI_PRIORITY_SUPPORT
-        )
-        assertEquals("All 30 feature constants should be unique", 30, constants.size)
+    fun `all feature constants have unique values`() {
+        val constants = allProFeatures.toSet()
+        assertEquals("All Pro feature constants should be unique", allProFeatures.size, constants.size)
     }
 }

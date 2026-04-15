@@ -257,7 +257,7 @@ data class ChatRequest(
     val message: String,
     @SerializedName("conversation_id") val conversationId: String,
     @SerializedName("task_context_id") val taskContextId: Long? = null,
-    val tier: String = "PREMIUM"
+    val tier: String = "PRO"
 )
 
 data class ChatActionResponse(

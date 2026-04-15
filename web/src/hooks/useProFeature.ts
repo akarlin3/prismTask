@@ -3,23 +3,18 @@ import { useAuthStore } from '@/stores/authStore';
 
 interface ProFeatureGate {
   isPro: boolean;
-  isPremium: boolean;
   checkAccess: () => boolean;
   showUpgrade: boolean;
   setShowUpgrade: (show: boolean) => void;
   gatedAction: (action: () => void) => void;
 }
 
-const PRO_TIERS = ['PRO', 'PREMIUM', 'ULTRA'];
-const PREMIUM_TIERS = ['PREMIUM', 'ULTRA'];
-
 export function useProFeature(): ProFeatureGate {
   const user = useAuthStore((s) => s.user);
   const [showUpgrade, setShowUpgrade] = useState(false);
 
   const tier = user?.tier || 'FREE';
-  const isPro = PRO_TIERS.includes(tier);
-  const isPremium = PREMIUM_TIERS.includes(tier);
+  const isPro = tier === 'PRO';
 
   const checkAccess = useCallback(() => {
     if (isPro) return true;
@@ -38,5 +33,5 @@ export function useProFeature(): ProFeatureGate {
     [isPro],
   );
 
-  return { isPro, isPremium, checkAccess, showUpgrade, setShowUpgrade, gatedAction };
+  return { isPro, checkAccess, showUpgrade, setShowUpgrade, gatedAction };
 }

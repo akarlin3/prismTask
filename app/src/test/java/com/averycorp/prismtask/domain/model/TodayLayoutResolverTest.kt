@@ -42,11 +42,11 @@ class TodayLayoutResolverTest {
     }
 
     @Test
-    fun `ai briefing renders at premium tier`() {
+    fun `ai briefing renders at pro tier`() {
         val result = TodayLayoutResolver.resolve(
             userOrder = emptyList(),
             hiddenKeys = emptySet(),
-            currentTier = "PREMIUM"
+            currentTier = "PRO"
         )
         val ai = result.first { it.id == TodaySectionId.AI_BRIEFING }
         assertTrue(ai.tierAllows)

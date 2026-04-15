@@ -233,21 +233,12 @@ internal fun DetailsTabContent(
     }
 
     // Coaching upgrade prompt (inline)
-    coachingUpgradePrompt?.let { requiredTier ->
+    if (coachingUpgradePrompt) {
         UpgradePrompt(
             currentTier = coachingUserTier,
-            requiredTier = requiredTier,
-            feature = when (requiredTier) {
-                UserTier.PRO -> "AI Coaching"
-                UserTier.PREMIUM -> "AI Daily Planning"
-                else -> "AI Features"
-            },
-            description = when (requiredTier) {
-                UserTier.PRO -> "Unlimited AI task coaching and breakdown"
-                UserTier.PREMIUM -> "AI-powered daily planning that adapts to your energy"
-                else -> "AI-powered productivity features"
-            },
-            onUpgrade = { coachingViewModel.dismissUpgradePrompt() },
+            feature = "AI Coaching",
+            description = "Unlimited AI task coaching, task breakdown, and energy-adaptive daily planning",
+            onUpgrade = { _ -> coachingViewModel.dismissUpgradePrompt() },
             onDismiss = { coachingViewModel.dismissUpgradePrompt() }
         )
     }

@@ -201,7 +201,7 @@ fun TodayScreen(
                 horizontalAlignment = Alignment.End,
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                if (viewModel.isPremium) {
+                if (viewModel.isPro) {
                     SmallFloatingActionButton(
                         onClick = {
                             navController.navigate(PrismTaskRoute.AiChat.createRoute())
@@ -293,7 +293,7 @@ fun TodayScreen(
                                     )
                                 },
                                 onDismiss = { coachingViewModel.dismissEnergyCheckIn() },
-                                onUpgrade = { tier ->
+                                onUpgrade = {
                                     navController.navigate(PrismTaskRoute.Settings.route)
                                 }
                             )
@@ -762,20 +762,15 @@ fun TodayScreen(
         )
     }
 
-    coachingUpgradePrompt?.let { requiredTier ->
+    if (coachingUpgradePrompt) {
         AlertDialog(
             onDismissRequest = { coachingViewModel.dismissUpgradePrompt() }
         ) {
             UpgradePrompt(
                 currentTier = coachingUserTier,
-                requiredTier = requiredTier,
-                feature = if (requiredTier == UserTier.PREMIUM) "AI Daily Planning" else "AI Coaching",
-                description = if (requiredTier == UserTier.PREMIUM) {
-                    "AI-powered daily planning that adapts to your energy"
-                } else {
-                    "Get personalized help when you're stuck on a task"
-                },
-                onUpgrade = { tier ->
+                feature = "AI Coaching",
+                description = "Get personalized help when you're stuck on a task, plus energy-adaptive daily planning",
+                onUpgrade = { _ ->
                     coachingViewModel.dismissUpgradePrompt()
                     navController.navigate(PrismTaskRoute.Settings.route)
                 },

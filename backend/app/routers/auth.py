@@ -159,7 +159,7 @@ async def update_tier(
     validates with the Google Play Developer API. Downgrades to FREE do not
     require a token.
     """
-    valid_tiers = {"FREE", "PRO", "PREMIUM", "ULTRA"}
+    valid_tiers = {"FREE", "PRO"}
     if body.tier not in valid_tiers:
         raise HTTPException(status_code=400, detail=f"Invalid tier: {body.tier}")
 

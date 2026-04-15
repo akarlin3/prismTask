@@ -58,7 +58,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
-import com.averycorp.prismtask.data.billing.UserTier
 import com.averycorp.prismtask.ui.components.ProFeature
 import com.averycorp.prismtask.ui.components.ProUpgradePrompt
 import com.averycorp.prismtask.ui.components.shimmer
@@ -119,8 +118,7 @@ fun WeeklyPlannerScreen(
                 ProUpgradePrompt(
                     feature = ProFeature.AI_WEEKLY_PLAN,
                     currentTier = userTier,
-                    requiredTier = UserTier.PREMIUM,
-                    onUpgrade = { },
+                    onUpgrade = { _ -> },
                     onDismiss = {
                         viewModel.dismissUpgradePrompt()
                         navController.popBackStack()

@@ -42,18 +42,14 @@ class DailyAIRateLimiter:
     """Daily AI call rate limiter keyed by user ID.
 
     Tier-based limits:
-    - Ultra: 100 calls/day
-    - Premium: 30 calls/day
-    - Pro: 15 calls/day
+    - Pro: 100 calls/day (covers both monthly and annual billing)
     - Free: 0 (AI features are gated, but safety net)
 
     Resets at midnight UTC. Counts reset on server restart (in-memory).
     """
 
     TIER_LIMITS = {
-        "ULTRA": 100,
-        "PREMIUM": 30,
-        "PRO": 15,
+        "PRO": 100,
         "FREE": 0,
     }
 

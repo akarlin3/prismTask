@@ -54,9 +54,7 @@ constructor(
     fun checkEnergyCheckIn(todayTaskCount: Int) {
         viewModelScope.launch {
             val isPro = proFeatureGate.isPro()
-            val isPremium = proFeatureGate.isPremium()
-            // Show for Pro users (as upgrade prompt) and Premium users (functional)
-            if (!isPro && !isPremium) {
+            if (!isPro) {
                 _showEnergyCheckIn.value = false
                 return@launch
             }
@@ -64,13 +62,11 @@ constructor(
                 _showEnergyCheckIn.value = false
                 return@launch
             }
-            if (isPremium) {
-                val existing = coachingRepository.getTodayEnergyLevel()
-                if (existing != null) {
-                    _selectedEnergy.value = existing
-                    _showEnergyCheckIn.value = false
-                    return@launch
-                }
+            val existing = coachingRepository.getTodayEnergyLevel()
+            if (existing != null) {
+                _selectedEnergy.value = existing
+                _showEnergyCheckIn.value = false
+                return@launch
             }
             _showEnergyCheckIn.value = true
         }
@@ -99,7 +95,7 @@ constructor(
                     _energyPlanMessage.value = result.response.message
                 }
                 is CoachingResult.UpgradeRequired -> {
-                    _showUpgradePrompt.value = result.requiredTier
+                    _showUpgradePrompt.value = true
                 }
                 is CoachingResult.Error -> {
                     Log.e("CoachingVM", "Energy plan error: ${result.message}")
@@ -192,7 +188,7 @@ constructor(
                     _stuckMessage.value = result.response.message
                 }
                 is CoachingResult.UpgradeRequired -> {
-                    _showUpgradePrompt.value = result.requiredTier
+                    _showUpgradePrompt.value = true
                 }
                 is CoachingResult.Error -> {
                     Log.e("CoachingVM", "Stuck coaching error: ${result.message}")
@@ -331,10 +327,10 @@ constructor(
                     _remainingBreakdowns.value = coachingRepository.getRemainingBreakdowns()
                 }
                 is CoachingResult.FreeLimitReached -> {
-                    _showUpgradePrompt.value = UserTier.PRO
+                    _showUpgradePrompt.value = true
                 }
                 is CoachingResult.UpgradeRequired -> {
-                    _showUpgradePrompt.value = result.requiredTier
+                    _showUpgradePrompt.value = true
                 }
                 is CoachingResult.Error -> {
                     Log.e("CoachingVM", "Breakdown error: ${result.message}")
@@ -359,11 +355,11 @@ constructor(
 
     // region Upgrade prompt
 
-    private val _showUpgradePrompt = MutableStateFlow<UserTier?>(null)
-    val showUpgradePrompt: StateFlow<UserTier?> = _showUpgradePrompt
+    private val _showUpgradePrompt = MutableStateFlow(false)
+    val showUpgradePrompt: StateFlow<Boolean> = _showUpgradePrompt
 
     fun dismissUpgradePrompt() {
-        _showUpgradePrompt.value = null
+        _showUpgradePrompt.value = false
     }
 
     // endregion

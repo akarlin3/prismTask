@@ -15,19 +15,26 @@ logger = logging.getLogger(__name__)
 MODEL_HAIKU = "claude-haiku-4-5-20251001"
 MODEL_SONNET = "claude-sonnet-4-20250514"
 
-def get_model(tier: str) -> str:
-    """Return the appropriate model ID for the given subscription tier."""
-    if tier == "ULTRA":
+# AI features that use Sonnet for higher-quality output. Everything else runs
+# on Haiku. These are the premium AI features baked into the single Pro tier.
+SONNET_FEATURES = {"weekly_planner", "monthly_review"}
+
+
+def get_model(feature: str | None = None) -> str:
+    """Return the appropriate Claude model ID for the given AI feature.
+
+    Weekly planner and monthly review use Sonnet; everything else uses
+    Haiku. ``feature`` is a short lowercase identifier (e.g. ``"eisenhower"``,
+    ``"weekly_planner"``). Passing ``None`` defaults to Haiku.
+    """
+    if feature in SONNET_FEATURES:
         return MODEL_SONNET
     return MODEL_HAIKU
 
-# Sonnet pricing (~$3/M input, ~$15/M output) vs Haiku (~$0.25/M, ~$1.25/M)
-# At ~500 tokens per AI call, ~20 AI calls/day per active Ultra user:
-# Haiku: ~$0.01/day/user -> $0.30/month/user
-# Sonnet: ~$0.16/day/user -> $4.80/month/user
-# At $9.99/mo subscription, margin is ~$5.19/user/month for Sonnet tier.
-# Break-even at ~63 AI calls/day. Implement rate limiting at 100 calls/day
-# for Ultra to prevent abuse.
+# Sonnet pricing (~$3/M input, ~$15/M output) vs Haiku (~$0.25/M, ~$1.25/M).
+# Weekly planner / monthly review are Sonnet-backed; all other AI features
+# use Haiku to keep the margin healthy at the single $7.99/mo (or $4.99/mo
+# annual) Pro tier.
 
 
 def _get_client():
@@ -53,7 +60,7 @@ def _parse_ai_json(content: str) -> dict | list:
 def categorize_eisenhower(tasks: list[dict], today: date, tier: str = "FREE") -> list[dict]:
     """Call Claude to categorize tasks into Eisenhower quadrants."""
     client = _get_client()
-    model = get_model(tier)
+    model = get_model("eisenhower")
     tasks_json = json.dumps(tasks, default=str, indent=2)
     prompt = f"""You are a productivity assistant. Categorize each task into an Eisenhower Matrix quadrant.
 
@@ -123,7 +130,7 @@ Create an ordered plan of which tasks to work on in each session.
 Respond ONLY with valid JSON:
 {{"sessions": [{{"session_number": 1, "tasks": [{{"task_id": 1, "title": "Write report draft", "allocated_minutes": 25}}], "rationale": "Starting with the most urgent deadline"}}], "total_sessions": 4, "total_work_minutes": 100, "total_break_minutes": 20, "skipped_tasks": [{{"task_id": 7, "reason": "No estimated duration and low priority"}}]}}"""
 
-    model = get_model(tier)
+    model = get_model("pomodoro")
     last_error = None
     for attempt in range(2):
         try:
@@ -175,8 +182,8 @@ Generate a morning briefing with:
 Respond ONLY with valid JSON:
 {{"greeting": "Good morning!", "top_priorities": [{{"task_id": 1, "title": "...", "reason": "Due today"}}], "heads_up": ["You have 2 overdue tasks"], "suggested_order": [{{"task_id": 1, "title": "...", "suggested_time": "9:00 AM", "reason": "Hardest task first"}}], "habit_reminders": ["Exercise"], "day_type": "moderate"}}"""
 
-    model = get_model(tier)
-    max_tokens = 8192 if tier == "ULTRA" else 4096
+    model = get_model("daily_briefing")
+    max_tokens = 4096
     last_error = None
     for attempt in range(2):
         try:
@@ -223,7 +230,7 @@ Create a day-by-day plan distributing tasks across the week. Consider:
 Respond ONLY with valid JSON:
 {{"plan": {{"Monday": {{"date": "{week_start.isoformat()}", "tasks": [{{"task_id": 1, "title": "...", "suggested_time": "9:00 AM", "duration_minutes": 60, "reason": "Due Tuesday"}}], "total_hours": 5.5, "calendar_events": [], "habits": ["Exercise"]}}}}, "unscheduled": [{{"task_id": 12, "title": "...", "reason": "No deadline"}}], "week_summary": "Moderate week.", "tips": ["Consider delegating Q3 tasks"]}}"""
 
-    model = get_model(tier)
+    model = get_model("weekly_planner")
     last_error = None
     for attempt in range(2):
         try:
@@ -275,7 +282,7 @@ Rules:
 Respond ONLY with valid JSON:
 {{"schedule": [{{"start": "09:00", "end": "09:30", "type": "task", "task_id": 1, "title": "Write report", "reason": "Deep work while fresh"}}], "unscheduled_tasks": [{{"task_id": 7, "title": "...", "reason": "Not enough time today"}}], "stats": {{"total_work_minutes": 300, "total_break_minutes": 60, "total_free_minutes": 60, "tasks_scheduled": 8, "tasks_deferred": 2}}}}"""
 
-    model = get_model(tier)
+    model = get_model("time_blocking")
     last_error = None
     for attempt in range(2):
         try:
@@ -311,7 +318,7 @@ For each habit, calculate: task completion rate on days done vs not done, correl
 Respond ONLY with valid JSON:
 {{"correlations": [{{"habit": "Exercise", "done_productivity": 82, "not_done_productivity": 65, "correlation": "positive", "interpretation": "You complete 26% more tasks on days you exercise"}}], "top_insight": "Exercise has the strongest positive impact", "recommendation": "Try to exercise before starting work"}}"""
 
-    model = get_model(tier)
+    model = get_model("habit_correlation")
     last_error = None
     for attempt in range(2):
         try:
@@ -355,8 +362,10 @@ Respond ONLY with valid JSON:
 
 Keep each list to 2-3 bullets max."""
 
-    model = get_model(tier)
-    max_tokens = 2048 if tier == "ULTRA" else 1024
+    # Weekly review uses Sonnet via the monthly_review feature flag for
+    # higher-quality narrative output.
+    model = get_model("monthly_review")
+    max_tokens = 2048
     last_error_wr = None
     for attempt in range(2):
         try:
@@ -407,7 +416,7 @@ Respond ONLY with valid JSON:
 
 Return an empty array if no action items are found."""
 
-    model = get_model(tier)
+    model = get_model("task_extraction")
     last_error_ex = None
     for attempt in range(2):
         try:

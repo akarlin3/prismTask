@@ -68,7 +68,6 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
-import com.averycorp.prismtask.data.billing.UserTier
 import com.averycorp.prismtask.data.remote.api.ChatActionResponse
 import com.averycorp.prismtask.data.repository.ChatMessage
 import com.averycorp.prismtask.ui.components.ProFeature
@@ -121,10 +120,9 @@ fun ChatScreen(
             text = {
                 UpgradePrompt(
                     currentTier = userTier,
-                    requiredTier = UserTier.PREMIUM,
                     feature = ProFeature.AI_CHAT.label,
                     description = ProFeature.AI_CHAT.description,
-                    onUpgrade = { viewModel.dismissUpgradePrompt() },
+                    onUpgrade = { _ -> viewModel.dismissUpgradePrompt() },
                     onDismiss = { viewModel.dismissUpgradePrompt() }
                 )
             }

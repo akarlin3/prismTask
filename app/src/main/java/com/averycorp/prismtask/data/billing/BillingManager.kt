@@ -33,9 +33,13 @@ import kotlin.coroutines.resume
 
 enum class UserTier {
     FREE,
-    PRO,
-    PREMIUM,
-    ULTRA
+    PRO
+}
+
+enum class BillingPeriod {
+    MONTHLY,
+    ANNUAL,
+    NONE
 }
 
 enum class SubscriptionState {
@@ -54,15 +58,17 @@ constructor(
     private val proStatusPreferences: ProStatusPreferences
 ) {
     companion object {
-        const val PRODUCT_ID_PRO = "prismtask_pro_monthly"
-        const val PRODUCT_ID_PREMIUM = "prismtask_premium_monthly"
-        const val PRODUCT_ID_ULTRA = "prismtask_ultra_monthly"
+        const val PRODUCT_ID_PRO_MONTHLY = "prismtask_pro_monthly"
+        const val PRODUCT_ID_PRO_ANNUAL = "prismtask_pro_annual"
     }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     private val _userTier = MutableStateFlow(UserTier.FREE)
     val userTier: StateFlow<UserTier> = _userTier.asStateFlow()
+
+    private val _billingPeriod = MutableStateFlow(BillingPeriod.NONE)
+    val billingPeriod: StateFlow<BillingPeriod> = _billingPeriod.asStateFlow()
 
     private val _proSubscriptionState = MutableStateFlow(SubscriptionState.NOT_SUBSCRIBED)
     val proSubscriptionState: StateFlow<SubscriptionState> = _proSubscriptionState.asStateFlow()
@@ -74,6 +80,7 @@ constructor(
     val isAdmin: StateFlow<Boolean> = _isAdmin.asStateFlow()
 
     private var realTier: UserTier = UserTier.FREE
+    private var realPeriod: BillingPeriod = BillingPeriod.NONE
     private var realState: SubscriptionState = SubscriptionState.NOT_SUBSCRIBED
 
     private val purchasesUpdatedListener = PurchasesUpdatedListener { billingResult, purchases ->
@@ -100,17 +107,25 @@ constructor(
     fun initialize(activity: Activity) {
         scope.launch {
             val cachedTier = proStatusPreferences.getCachedTier()
+            val cachedPeriod = proStatusPreferences.getCachedBillingPeriod()
             val expiresAt = proStatusPreferences.tierExpiresAt()
             if (cachedTier != "FREE" && expiresAt > System.currentTimeMillis()) {
-                val parsed = try {
+                val parsedTier = try {
                     UserTier.valueOf(cachedTier)
                 } catch (_: IllegalArgumentException) {
                     UserTier.FREE
                 }
-                realTier = parsed
+                val parsedPeriod = try {
+                    BillingPeriod.valueOf(cachedPeriod)
+                } catch (_: IllegalArgumentException) {
+                    BillingPeriod.NONE
+                }
+                realTier = parsedTier
+                realPeriod = parsedPeriod
                 realState = SubscriptionState.SUBSCRIBED
                 if (_debugTierOverride.value == null) {
-                    _userTier.value = parsed
+                    _userTier.value = parsedTier
+                    _billingPeriod.value = parsedPeriod
                     _proSubscriptionState.value = SubscriptionState.SUBSCRIBED
                 }
             }
@@ -137,16 +152,15 @@ constructor(
         })
     }
 
-    suspend fun launchPurchaseFlow(activity: Activity, tier: UserTier): Result<Unit> {
+    suspend fun launchPurchaseFlow(activity: Activity, period: BillingPeriod): Result<Unit> {
         if (!billingClient.isReady) {
             val connected = connectBillingClient()
             if (!connected) return Result.failure(Exception("Could not connect to Google Play"))
         }
-        val productId = when (tier) {
-            UserTier.PRO -> PRODUCT_ID_PRO
-            UserTier.PREMIUM -> PRODUCT_ID_PREMIUM
-            UserTier.ULTRA -> PRODUCT_ID_ULTRA
-            UserTier.FREE -> return Result.failure(Exception("Cannot purchase Free tier"))
+        val productId = when (period) {
+            BillingPeriod.MONTHLY -> PRODUCT_ID_PRO_MONTHLY
+            BillingPeriod.ANNUAL -> PRODUCT_ID_PRO_ANNUAL
+            BillingPeriod.NONE -> return Result.failure(Exception("Cannot purchase with no billing period"))
         }
         val productDetails = queryProductDetails(productId)
             ?: return Result.failure(Exception("Could not load subscription details"))
@@ -192,7 +206,7 @@ constructor(
             if (purchasesList.isNotEmpty()) {
                 handlePurchaseUpdate(purchasesList)
             } else {
-                updateTierStatus(UserTier.FREE, SubscriptionState.NOT_SUBSCRIBED)
+                updateTierStatus(UserTier.FREE, BillingPeriod.NONE, SubscriptionState.NOT_SUBSCRIBED)
             }
             return Result.success(Unit)
         }
@@ -200,13 +214,13 @@ constructor(
     }
 
     suspend fun handlePurchaseUpdate(purchases: List<Purchase>) {
-        var highestTier = UserTier.FREE
+        var matchedTier = UserTier.FREE
+        var matchedPeriod = BillingPeriod.NONE
         var hasActivePurchase = false
         for (purchase in purchases) {
-            val tier = when {
-                purchase.products.contains(PRODUCT_ID_ULTRA) -> UserTier.ULTRA
-                purchase.products.contains(PRODUCT_ID_PREMIUM) -> UserTier.PREMIUM
-                purchase.products.contains(PRODUCT_ID_PRO) -> UserTier.PRO
+            val period = when {
+                purchase.products.contains(PRODUCT_ID_PRO_ANNUAL) -> BillingPeriod.ANNUAL
+                purchase.products.contains(PRODUCT_ID_PRO_MONTHLY) -> BillingPeriod.MONTHLY
                 else -> continue
             }
             when (purchase.purchaseState) {
@@ -214,8 +228,10 @@ constructor(
                     if (!purchase.isAcknowledged) {
                         acknowledgePurchase(purchase)
                     }
-                    if (tier > highestTier) {
-                        highestTier = tier
+                    matchedTier = UserTier.PRO
+                    // Prefer annual over monthly if both are somehow active
+                    if (period == BillingPeriod.ANNUAL || matchedPeriod == BillingPeriod.NONE) {
+                        matchedPeriod = period
                     }
                     hasActivePurchase = true
                 }
@@ -224,9 +240,9 @@ constructor(
             }
         }
         if (hasActivePurchase) {
-            updateTierStatus(highestTier, SubscriptionState.SUBSCRIBED)
+            updateTierStatus(matchedTier, matchedPeriod, SubscriptionState.SUBSCRIBED)
         } else {
-            updateTierStatus(UserTier.FREE, SubscriptionState.EXPIRED)
+            updateTierStatus(UserTier.FREE, BillingPeriod.NONE, SubscriptionState.EXPIRED)
         }
     }
 
@@ -274,17 +290,26 @@ constructor(
         }
     }
 
-    private suspend fun updateTierStatus(tier: UserTier, state: SubscriptionState) {
+    private suspend fun updateTierStatus(
+        tier: UserTier,
+        period: BillingPeriod,
+        state: SubscriptionState
+    ) {
         realTier = tier
+        realPeriod = period
         realState = state
         if (_debugTierOverride.value == null) {
-            applyEffectiveTier(tier, state)
+            applyEffectiveTier(tier, period, state)
         }
         proStatusPreferences.setCachedTier(tier.name)
+        proStatusPreferences.setCachedBillingPeriod(period.name)
         if (tier != UserTier.FREE) {
-            proStatusPreferences.setTierExpiresAt(
-                System.currentTimeMillis() + 30L * 24 * 60 * 60 * 1000
-            )
+            val renewalWindow = if (period == BillingPeriod.ANNUAL) {
+                365L * 24 * 60 * 60 * 1000
+            } else {
+                30L * 24 * 60 * 60 * 1000
+            }
+            proStatusPreferences.setTierExpiresAt(System.currentTimeMillis() + renewalWindow)
         } else {
             proStatusPreferences.setTierExpiresAt(0)
         }
@@ -293,26 +318,28 @@ constructor(
 
     /**
      * Apply the effective tier, taking admin status into account.
-     * Admin users always get ULTRA tier.
+     * Admin users always get PRO tier.
      */
-    private fun applyEffectiveTier(tier: UserTier, state: SubscriptionState) {
+    private fun applyEffectiveTier(tier: UserTier, period: BillingPeriod, state: SubscriptionState) {
         if (_isAdmin.value) {
-            _userTier.value = UserTier.ULTRA
+            _userTier.value = UserTier.PRO
+            _billingPeriod.value = period
             _proSubscriptionState.value = SubscriptionState.SUBSCRIBED
         } else {
             _userTier.value = tier
+            _billingPeriod.value = period
             _proSubscriptionState.value = state
         }
     }
 
     /**
      * Set admin status. When admin is true, the user automatically gets
-     * the highest tier (ULTRA) regardless of their billing status.
+     * PRO tier regardless of their billing status.
      */
     fun setAdminStatus(isAdmin: Boolean) {
         _isAdmin.value = isAdmin
         if (_debugTierOverride.value == null) {
-            applyEffectiveTier(realTier, realState)
+            applyEffectiveTier(realTier, realPeriod, realState)
         }
     }
 
@@ -330,6 +357,6 @@ constructor(
     fun clearDebugTier() {
         if (!BuildConfig.DEBUG && !_isAdmin.value) return
         _debugTierOverride.value = null
-        applyEffectiveTier(realTier, realState)
+        applyEffectiveTier(realTier, realPeriod, realState)
     }
 }

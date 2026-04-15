@@ -1,6 +1,8 @@
 package com.averycorp.prismtask.ui.screens.settings.sections
 
 import android.app.Activity
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -9,7 +11,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -20,86 +21,24 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.averycorp.prismtask.data.billing.BillingPeriod
 import com.averycorp.prismtask.data.billing.UserTier
 import com.averycorp.prismtask.ui.components.settings.SectionHeader
 
 @Composable
 fun SubscriptionSection(
     userTier: UserTier,
-    onLaunchUpgrade: (Activity, UserTier) -> Unit,
+    billingPeriod: BillingPeriod,
+    onLaunchUpgrade: (Activity, BillingPeriod) -> Unit,
     onRestorePurchases: () -> Unit
 ) {
     val context = LocalContext.current
     SectionHeader("Subscription")
     when (userTier) {
-        UserTier.ULTRA -> {
-            Text(
-                text = "\u2B50 PrismTask Ultra",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF7C3AED),
-                modifier = Modifier.padding(bottom = 4.dp)
-            )
-            Text(
-                text = "You have access to all features with Claude Sonnet AI",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
-            OutlinedButton(
-                onClick = {
-                    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
-                        data = android.net.Uri.parse("https://play.google.com/store/account/subscriptions")
-                    }
-                    context.startActivity(intent)
-                }
-            ) {
-                Text("Manage Subscription")
-            }
-        }
-        UserTier.PREMIUM -> {
-            Text(
-                text = "PrismTask Premium",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFFD97706),
-                modifier = Modifier.padding(bottom = 4.dp)
-            )
-            Text(
-                text = "Upgrade to Ultra for enhanced AI powered by Claude Sonnet",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
-            Button(
-                onClick = {
-                    val activity = context as? Activity ?: return@Button
-                    onLaunchUpgrade(activity, UserTier.ULTRA)
-                },
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF7C3AED)
-                )
-            ) {
-                Text("Upgrade to Ultra \u2014 \$9.99/month")
-            }
-            Spacer(modifier = Modifier.height(4.dp))
-            OutlinedButton(
-                onClick = {
-                    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
-                        data = android.net.Uri.parse("https://play.google.com/store/account/subscriptions")
-                    }
-                    context.startActivity(intent)
-                }
-            ) {
-                Text("Manage Subscription")
-            }
-        }
         UserTier.PRO -> {
             Text(
                 text = "PrismTask Pro",
@@ -108,45 +47,31 @@ fun SubscriptionSection(
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.padding(bottom = 4.dp)
             )
+            val periodLabel = when (billingPeriod) {
+                BillingPeriod.ANNUAL -> "Billed Annually \u2014 \$4.99/mo (\$59.88/year)"
+                BillingPeriod.MONTHLY -> "Billed Monthly \u2014 \$7.99/mo"
+                BillingPeriod.NONE -> "Subscription Active"
+            }
             Text(
-                text = "Upgrade to Premium for AI briefing, planner, collaboration, and more",
+                text = periodLabel,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(bottom = 8.dp)
             )
-            Button(
-                onClick = {
-                    val activity = context as? Activity ?: return@Button
-                    onLaunchUpgrade(activity, UserTier.PREMIUM)
-                },
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFFD97706)
-                )
-            ) {
-                Text("Upgrade to Premium \u2014 \$7.99/month")
-            }
-            Spacer(modifier = Modifier.height(4.dp))
-            Button(
-                onClick = {
-                    val activity = context as? Activity ?: return@Button
-                    onLaunchUpgrade(activity, UserTier.ULTRA)
-                },
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF7C3AED)
-                )
-            ) {
-                Text("Upgrade to Ultra \u2014 \$9.99/month")
-            }
-            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "All features unlocked. Thanks for supporting PrismTask.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(bottom = 12.dp)
+            )
             OutlinedButton(
                 onClick = {
                     val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
                         data = android.net.Uri.parse("https://play.google.com/store/account/subscriptions")
                     }
                     context.startActivity(intent)
-                }
+                },
+                modifier = Modifier.fillMaxWidth()
             ) {
                 Text("Manage Subscription")
             }
@@ -158,45 +83,59 @@ fun SubscriptionSection(
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(bottom = 4.dp)
             )
+            Text(
+                text = "Upgrade to Pro to unlock cloud sync, AI tools, integrations, and more.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(bottom = 12.dp)
+            )
             SubscriptionComparisonCard()
             Spacer(modifier = Modifier.height(12.dp))
             Button(
                 onClick = {
                     val activity = context as? Activity ?: return@Button
-                    onLaunchUpgrade(activity, UserTier.PRO)
+                    onLaunchUpgrade(activity, BillingPeriod.ANNUAL)
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(
+                        width = 2.dp,
+                        color = MaterialTheme.colorScheme.primary,
+                        shape = RoundedCornerShape(24.dp)
+                    )
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = "Annual \u2014 \$4.99/mo (Save 37%)",
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "Best Value \u2022 7-Day Free Trial",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            OutlinedButton(
+                onClick = {
+                    val activity = context as? Activity ?: return@OutlinedButton
+                    onLaunchUpgrade(activity, BillingPeriod.MONTHLY)
                 },
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("Start Pro \u2014 \$3.99/month")
-            }
-            Spacer(modifier = Modifier.height(4.dp))
-            Button(
-                onClick = {
-                    val activity = context as? Activity ?: return@Button
-                    onLaunchUpgrade(activity, UserTier.PREMIUM)
-                },
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFFD97706)
-                )
-            ) {
-                Text("Start Premium \u2014 \$7.99/month")
-            }
-            Spacer(modifier = Modifier.height(4.dp))
-            Button(
-                onClick = {
-                    val activity = context as? Activity ?: return@Button
-                    onLaunchUpgrade(activity, UserTier.ULTRA)
-                },
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF7C3AED)
-                )
-            ) {
-                Text("Start Ultra \u2014 \$9.99/month")
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = "Monthly \u2014 \$7.99/mo",
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        text = "7-Day Free Trial",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
             }
             TextButton(onClick = onRestorePurchases) {
-                Text("Restore Purchases")
+                Text("Restore Purchase")
             }
         }
     }
@@ -217,53 +156,38 @@ private fun SubscriptionComparisonCard() {
             Row(modifier = Modifier.fillMaxWidth()) {
                 Text(
                     text = "",
-                    modifier = Modifier.weight(1.4f),
+                    modifier = Modifier.weight(1.8f),
                     style = MaterialTheme.typography.bodySmall
                 )
                 Text(
                     text = "Free",
-                    modifier = Modifier.weight(0.8f),
+                    modifier = Modifier.weight(1f),
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
                     textAlign = TextAlign.Center
                 )
                 Text(
-                    text = "Pro\n\$3.99",
-                    modifier = Modifier.weight(0.8f),
+                    text = "Pro",
+                    modifier = Modifier.weight(1f),
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary,
                     textAlign = TextAlign.Center
                 )
-                Text(
-                    text = "Prem\n\$7.99",
-                    modifier = Modifier.weight(0.8f),
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFFD97706),
-                    textAlign = TextAlign.Center
-                )
-                Text(
-                    text = "Ultra\n\$9.99",
-                    modifier = Modifier.weight(0.8f),
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF7C3AED),
-                    textAlign = TextAlign.Center
-                )
             }
             Spacer(modifier = Modifier.height(8.dp))
             HorizontalDivider()
-            ComparisonRow("Core Tasks & Habits", free = true, pro = true, premium = true, ultra = true)
-            ComparisonRow("Calendar Sync", free = true, pro = true, premium = true, ultra = true)
-            ComparisonRow("Templates (Local)", free = true, pro = true, premium = true, ultra = true)
-            ComparisonRow("Cloud Sync", free = false, pro = true, premium = true, ultra = true)
-            ComparisonRow("AI Eisenhower & Pomodoro", free = false, pro = true, premium = true, ultra = true)
-            ComparisonRow("Analytics & Time Tracking", free = false, pro = true, premium = true, ultra = true)
-            ComparisonRow("AI Briefing & Planner", free = false, pro = false, premium = true, ultra = true)
-            ComparisonRow("Collaboration", free = false, pro = false, premium = true, ultra = true)
-            ComparisonRow("Integrations", free = false, pro = false, premium = true, ultra = true)
-            ComparisonRow("Claude Sonnet AI", free = false, pro = false, premium = false, ultra = true)
+            ComparisonRow("Core Tasks & Habits", free = true, pro = true)
+            ComparisonRow("All Views (Today/Week/Month/Timeline/Eisenhower)", free = true, pro = true)
+            ComparisonRow("Templates, Widgets, NLP", free = true, pro = true)
+            ComparisonRow("Google Calendar Sync", free = true, pro = true)
+            ComparisonRow("ADHD Mode & Calm Mode", free = true, pro = true)
+            ComparisonRow("Cloud Sync & Template Sync", free = false, pro = true)
+            ComparisonRow("AI Eisenhower, Pomodoro, Briefing", free = false, pro = true)
+            ComparisonRow("AI Weekly Planner (Sonnet)", free = false, pro = true)
+            ComparisonRow("Analytics & Time Tracking", free = false, pro = true)
+            ComparisonRow("Collaboration & Integrations", free = false, pro = true)
+            ComparisonRow("Google Drive Backup", free = false, pro = true)
         }
     }
 }
@@ -272,9 +196,7 @@ private fun SubscriptionComparisonCard() {
 private fun ComparisonRow(
     feature: String,
     free: Boolean,
-    pro: Boolean,
-    premium: Boolean,
-    ultra: Boolean
+    pro: Boolean
 ) {
     Row(
         modifier = Modifier
@@ -284,14 +206,12 @@ private fun ComparisonRow(
     ) {
         Text(
             text = feature,
-            modifier = Modifier.weight(1.4f),
+            modifier = Modifier.weight(1.8f),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        TierCheck(enabled = free, modifier = Modifier.weight(0.8f))
-        TierCheck(enabled = pro, modifier = Modifier.weight(0.8f))
-        TierCheck(enabled = premium, modifier = Modifier.weight(0.8f))
-        TierCheck(enabled = ultra, modifier = Modifier.weight(0.8f))
+        TierCheck(enabled = free, modifier = Modifier.weight(1f))
+        TierCheck(enabled = pro, modifier = Modifier.weight(1f))
     }
 }
 

@@ -93,9 +93,9 @@ class User(Base):
 
     @property
     def effective_tier(self) -> str:
-        """Return ULTRA for admins, otherwise the stored tier."""
+        """Return PRO for admins, otherwise the stored tier."""
         if self.is_admin:
-            return "ULTRA"
+            return "PRO"
         return self.tier or "FREE"
 
     goals = relationship("Goal", back_populates="user", cascade="all, delete-orphan")

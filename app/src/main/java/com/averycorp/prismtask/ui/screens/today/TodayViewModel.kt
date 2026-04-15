@@ -308,8 +308,8 @@ constructor(
             result
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), BurnoutResult.EMPTY)
 
-    val isPremium: Boolean
-        get() = proFeatureGate.isPremium()
+    val isPro: Boolean
+        get() = proFeatureGate.isPro()
 
     /**
      * Persisted sort mode for the Today screen. Screens that don't yet have

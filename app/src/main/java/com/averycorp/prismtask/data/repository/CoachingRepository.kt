@@ -48,8 +48,6 @@ constructor(
     private val coachingPreferences: CoachingPreferences
 ) {
     private fun tierString(): String = when (proFeatureGate.userTier.value) {
-        UserTier.ULTRA -> "ULTRA"
-        UserTier.PREMIUM -> "PREMIUM"
         UserTier.PRO -> "PRO"
         UserTier.FREE -> "FREE"
     }
