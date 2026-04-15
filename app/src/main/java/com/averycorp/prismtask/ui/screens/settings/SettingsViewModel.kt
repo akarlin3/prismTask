@@ -23,6 +23,7 @@ import com.averycorp.prismtask.data.preferences.CalendarPreferences
 import com.averycorp.prismtask.data.preferences.DashboardPreferences
 import com.averycorp.prismtask.data.preferences.HabitListPreferences
 import com.averycorp.prismtask.data.preferences.LeisurePreferences
+import com.averycorp.prismtask.data.preferences.NotificationPreferences
 import com.averycorp.prismtask.data.preferences.OnboardingPreferences
 import com.averycorp.prismtask.data.preferences.ShakePreferences
 import com.averycorp.prismtask.data.preferences.TabPreferences
@@ -98,7 +99,8 @@ constructor(
     private val clinicalReportPdfWriter: com.averycorp.prismtask.data.export.ClinicalReportPdfWriter,
     private val onboardingPreferences: OnboardingPreferences,
     private val widgetUpdateManager: com.averycorp.prismtask.widget.WidgetUpdateManager,
-    private val ndPreferencesDataStore: com.averycorp.prismtask.data.preferences.NdPreferencesDataStore
+    private val ndPreferencesDataStore: com.averycorp.prismtask.data.preferences.NdPreferencesDataStore,
+    private val notificationPreferences: NotificationPreferences
 ) : ViewModel() {
     private val _checkInStreak = kotlinx.coroutines.flow.MutableStateFlow(0)
     val checkInStreak: StateFlow<Int> = _checkInStreak
@@ -453,33 +455,115 @@ constructor(
     val debugTierOverride: StateFlow<UserTier?> = billingManager.debugTierOverride
     val isAdmin: StateFlow<Boolean> = billingManager.isAdmin
 
-    // --- AI Notification Settings ---
-    private val _eveningSummaryEnabled = MutableStateFlow(false)
-    val eveningSummaryEnabled: Boolean get() = _eveningSummaryEnabled.value
+    // --- Notification Settings ---
+    // Per-type enable flags backed by NotificationPreferences.
+    val taskRemindersEnabled: StateFlow<Boolean> = notificationPreferences.taskRemindersEnabled
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+    val timerAlertsEnabled: StateFlow<Boolean> = notificationPreferences.timerAlertsEnabled
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+    val medicationRemindersEnabled: StateFlow<Boolean> = notificationPreferences.medicationRemindersEnabled
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+    val dailyBriefingEnabled: StateFlow<Boolean> = notificationPreferences.dailyBriefingEnabled
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+    val eveningSummaryEnabled: StateFlow<Boolean> = notificationPreferences.eveningSummaryEnabled
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+    val weeklySummaryEnabled: StateFlow<Boolean> = notificationPreferences.weeklySummaryEnabled
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+    val overloadAlertsEnabled: StateFlow<Boolean> = notificationPreferences.overloadAlertsEnabled
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+    val reengagementEnabled: StateFlow<Boolean> = notificationPreferences.reengagementEnabled
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
 
-    private val _reengagementEnabled = MutableStateFlow(true)
-    val reengagementEnabled: Boolean get() = _reengagementEnabled.value
+    val notificationImportance: StateFlow<String> = notificationPreferences.importance
+        .stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5000),
+            NotificationPreferences.DEFAULT_IMPORTANCE
+        )
 
-    fun onEveningSummaryToggle(enabled: Boolean) {
-        _eveningSummaryEnabled.value = enabled
-        if (enabled) {
-            com.averycorp.prismtask.notifications.EveningSummaryWorker
-                .schedule(appContext)
-        } else {
-            com.averycorp.prismtask.notifications.EveningSummaryWorker
-                .cancel(appContext)
+    val defaultReminderOffset: StateFlow<Long> = notificationPreferences.defaultReminderOffset
+        .stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5000),
+            NotificationPreferences.DEFAULT_REMINDER_OFFSET_MS
+        )
+
+    fun setTaskRemindersEnabled(enabled: Boolean) {
+        viewModelScope.launch { notificationPreferences.setTaskRemindersEnabled(enabled) }
+    }
+
+    fun setTimerAlertsEnabled(enabled: Boolean) {
+        viewModelScope.launch { notificationPreferences.setTimerAlertsEnabled(enabled) }
+    }
+
+    fun setMedicationRemindersEnabled(enabled: Boolean) {
+        viewModelScope.launch { notificationPreferences.setMedicationRemindersEnabled(enabled) }
+    }
+
+    fun setDailyBriefingEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            notificationPreferences.setDailyBriefingEnabled(enabled)
+            if (enabled) {
+                com.averycorp.prismtask.notifications.BriefingNotificationWorker
+                    .schedule(appContext)
+            } else {
+                com.averycorp.prismtask.notifications.BriefingNotificationWorker
+                    .cancel(appContext)
+            }
         }
     }
 
-    fun onReengagementToggle(enabled: Boolean) {
-        _reengagementEnabled.value = enabled
-        if (enabled) {
-            com.averycorp.prismtask.notifications.ReengagementWorker
-                .schedule(appContext)
-        } else {
-            com.averycorp.prismtask.notifications.ReengagementWorker
-                .cancel(appContext)
+    fun setEveningSummaryEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            notificationPreferences.setEveningSummaryEnabled(enabled)
+            if (enabled) {
+                com.averycorp.prismtask.notifications.EveningSummaryWorker
+                    .schedule(appContext)
+            } else {
+                com.averycorp.prismtask.notifications.EveningSummaryWorker
+                    .cancel(appContext)
+            }
         }
+    }
+
+    fun setWeeklySummaryEnabled(enabled: Boolean) {
+        viewModelScope.launch { notificationPreferences.setWeeklySummaryEnabled(enabled) }
+    }
+
+    fun setOverloadAlertsEnabled(enabled: Boolean) {
+        viewModelScope.launch { notificationPreferences.setOverloadAlertsEnabled(enabled) }
+    }
+
+    fun setReengagementEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            notificationPreferences.setReengagementEnabled(enabled)
+            if (enabled) {
+                com.averycorp.prismtask.notifications.ReengagementWorker
+                    .schedule(appContext)
+            } else {
+                com.averycorp.prismtask.notifications.ReengagementWorker
+                    .cancel(appContext)
+            }
+        }
+    }
+
+    fun setNotificationImportance(level: String) {
+        viewModelScope.launch {
+            notificationPreferences.setImportance(level)
+            // Re-create the channel for the current importance — the helper
+            // tears down the stale channel (whose importance is immutable)
+            // and creates a fresh one tagged with the new importance suffix.
+            try {
+                com.averycorp.prismtask.notifications.NotificationHelper
+                    .createNotificationChannel(appContext)
+            } catch (e: Exception) {
+                Log.w("SettingsVM", "Failed to recreate notification channel after importance change", e)
+            }
+        }
+    }
+
+    fun setDefaultReminderOffset(offsetMs: Long) {
+        viewModelScope.launch { notificationPreferences.setDefaultReminderOffset(offsetMs) }
     }
 
     // --- Theme ---

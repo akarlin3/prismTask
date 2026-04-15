@@ -17,6 +17,7 @@ import com.averycorp.prismtask.data.local.entity.AttachmentEntity
 import com.averycorp.prismtask.data.local.entity.ProjectEntity
 import com.averycorp.prismtask.data.local.entity.TagEntity
 import com.averycorp.prismtask.data.local.entity.TaskEntity
+import com.averycorp.prismtask.data.preferences.NotificationPreferences
 import com.averycorp.prismtask.data.repository.AttachmentRepository
 import com.averycorp.prismtask.data.repository.BoundaryRuleRepository
 import com.averycorp.prismtask.data.repository.ProjectRepository
@@ -67,6 +68,7 @@ constructor(
     private val attachmentRepository: AttachmentRepository,
     private val templateRepository: TaskTemplateRepository,
     private val boundaryRuleRepository: BoundaryRuleRepository,
+    private val notificationPreferences: NotificationPreferences,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
     private val boundaryEnforcer = BoundaryEnforcer()
@@ -317,6 +319,25 @@ constructor(
         } else {
             snapshotInitialValuesForCreate(projectId, initialDate)
             hasInitialized = true
+            // Pre-fill the reminder offset for new tasks from the user's
+            // configured default. A value of OFFSET_NONE / -1 means "no
+            // default" (leave it null so the user must opt in explicitly).
+            // Edit-mode never goes through this path, so we never overwrite
+            // an existing task's saved reminder.
+            loadJob = viewModelScope.launch {
+                try {
+                    val default = notificationPreferences.getDefaultReminderOffsetOnce()
+                    if (default != NotificationPreferences.OFFSET_NONE && default >= 0L) {
+                        // Only apply if the user hasn't already changed it.
+                        if (reminderOffset == null) {
+                            reminderOffset = default
+                            initialReminderOffset = default
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e("AddEditTaskVM", "Failed to load default reminder offset", e)
+                }
+            }
         }
     }
 

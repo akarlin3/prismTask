@@ -10,6 +10,7 @@ import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.averycorp.prismtask.R
+import com.averycorp.prismtask.data.preferences.NotificationPreferences
 import com.averycorp.prismtask.data.preferences.UserPreferencesDataStore
 import com.averycorp.prismtask.data.repository.TaskRepository
 import com.averycorp.prismtask.domain.usecase.BalanceConfig
@@ -37,9 +38,11 @@ constructor(
     @Assisted context: Context,
     @Assisted params: WorkerParameters,
     private val taskRepository: TaskRepository,
-    private val userPreferencesDataStore: UserPreferencesDataStore
+    private val userPreferencesDataStore: UserPreferencesDataStore,
+    private val notificationPreferences: NotificationPreferences
 ) : CoroutineWorker(context, params) {
     override suspend fun doWork(): Result {
+        if (!notificationPreferences.overloadAlertsEnabled.first()) return Result.success()
         val prefs = userPreferencesDataStore.workLifeBalanceFlow.first()
         if (!prefs.showBalanceBar) return Result.success()
 

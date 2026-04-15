@@ -7,8 +7,10 @@ import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
+import com.averycorp.prismtask.data.preferences.NotificationPreferences
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
+import kotlinx.coroutines.flow.first
 import java.util.Calendar
 import java.util.concurrent.TimeUnit
 
@@ -18,9 +20,11 @@ class WeeklySummaryWorker
 constructor(
     @Assisted context: Context,
     @Assisted params: WorkerParameters,
-    private val weeklyHabitSummary: WeeklyHabitSummary
+    private val weeklyHabitSummary: WeeklyHabitSummary,
+    private val notificationPreferences: NotificationPreferences
 ) : CoroutineWorker(context, params) {
     override suspend fun doWork(): Result = try {
+        if (!notificationPreferences.weeklySummaryEnabled.first()) return Result.success()
         val data = weeklyHabitSummary.generateWeeklySummary()
         if (data.totalHabits > 0) {
             weeklyHabitSummary.showWeeklyNotification(applicationContext, data)

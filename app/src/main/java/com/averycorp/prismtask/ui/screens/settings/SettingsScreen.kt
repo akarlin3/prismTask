@@ -39,8 +39,8 @@ import com.averycorp.prismtask.ui.navigation.PrismTaskRoute
 import com.averycorp.prismtask.ui.screens.settings.sections.AboutSection
 import com.averycorp.prismtask.ui.screens.settings.sections.AccessibilitySection
 import com.averycorp.prismtask.ui.screens.settings.sections.AccountSyncSection
-import com.averycorp.prismtask.ui.screens.settings.sections.AiNotificationsSection
 import com.averycorp.prismtask.ui.screens.settings.sections.AiSection
+import com.averycorp.prismtask.ui.screens.settings.sections.NotificationSettingsSection
 import com.averycorp.prismtask.ui.screens.settings.sections.AppearanceSection
 import com.averycorp.prismtask.ui.screens.settings.sections.BackupExportSection
 import com.averycorp.prismtask.ui.screens.settings.sections.BoundariesSection
@@ -210,6 +210,18 @@ fun SettingsScreen(
     val schoolEnabled by viewModel.schoolEnabled.collectAsStateWithLifecycle()
     val leisureEnabled by viewModel.leisureEnabled.collectAsStateWithLifecycle()
     val houseworkEnabled by viewModel.houseworkEnabled.collectAsStateWithLifecycle()
+
+    // Notifications
+    val notificationImportance by viewModel.notificationImportance.collectAsStateWithLifecycle()
+    val defaultReminderOffset by viewModel.defaultReminderOffset.collectAsStateWithLifecycle()
+    val taskRemindersEnabled by viewModel.taskRemindersEnabled.collectAsStateWithLifecycle()
+    val timerAlertsEnabled by viewModel.timerAlertsEnabled.collectAsStateWithLifecycle()
+    val medicationRemindersEnabled by viewModel.medicationRemindersEnabled.collectAsStateWithLifecycle()
+    val dailyBriefingEnabled by viewModel.dailyBriefingEnabled.collectAsStateWithLifecycle()
+    val eveningSummaryEnabled by viewModel.eveningSummaryEnabled.collectAsStateWithLifecycle()
+    val weeklySummaryEnabled by viewModel.weeklySummaryEnabled.collectAsStateWithLifecycle()
+    val overloadAlertsEnabled by viewModel.overloadAlertsEnabled.collectAsStateWithLifecycle()
+    val reengagementEnabled by viewModel.reengagementEnabled.collectAsStateWithLifecycle()
 
     LaunchedEffect(Unit) {
         viewModel.messages.collect { message ->
@@ -554,11 +566,28 @@ fun SettingsScreen(
                     onNavigateToTimeline = { navController.navigate(PrismTaskRoute.Timeline.route) }
                 )
 
-                AiNotificationsSection(
-                    eveningSummaryEnabled = viewModel.eveningSummaryEnabled,
-                    reengagementEnabled = viewModel.reengagementEnabled,
-                    onEveningSummaryToggle = viewModel::onEveningSummaryToggle,
-                    onReengagementToggle = viewModel::onReengagementToggle
+                NotificationSettingsSection(
+                    importance = notificationImportance,
+                    defaultReminderOffset = defaultReminderOffset,
+                    taskRemindersEnabled = taskRemindersEnabled,
+                    timerAlertsEnabled = timerAlertsEnabled,
+                    medicationRemindersEnabled = medicationRemindersEnabled,
+                    dailyBriefingEnabled = dailyBriefingEnabled,
+                    eveningSummaryEnabled = eveningSummaryEnabled,
+                    weeklySummaryEnabled = weeklySummaryEnabled,
+                    overloadAlertsEnabled = overloadAlertsEnabled,
+                    reengagementEnabled = reengagementEnabled,
+                    userTier = userTier,
+                    onImportanceChange = viewModel::setNotificationImportance,
+                    onDefaultReminderOffsetChange = viewModel::setDefaultReminderOffset,
+                    onTaskRemindersToggle = viewModel::setTaskRemindersEnabled,
+                    onTimerAlertsToggle = viewModel::setTimerAlertsEnabled,
+                    onMedicationRemindersToggle = viewModel::setMedicationRemindersEnabled,
+                    onDailyBriefingToggle = viewModel::setDailyBriefingEnabled,
+                    onEveningSummaryToggle = viewModel::setEveningSummaryEnabled,
+                    onWeeklySummaryToggle = viewModel::setWeeklySummaryEnabled,
+                    onOverloadAlertsToggle = viewModel::setOverloadAlertsEnabled,
+                    onReengagementToggle = viewModel::setReengagementEnabled
                 )
 
                 VoiceInputSection(

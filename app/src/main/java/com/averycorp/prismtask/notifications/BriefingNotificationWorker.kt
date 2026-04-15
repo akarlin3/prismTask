@@ -14,11 +14,13 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.averycorp.prismtask.MainActivity
 import com.averycorp.prismtask.R
+import com.averycorp.prismtask.data.preferences.NotificationPreferences
 import com.averycorp.prismtask.data.remote.api.DailyBriefingRequest
 import com.averycorp.prismtask.data.remote.api.PrismTaskApi
 import com.averycorp.prismtask.domain.usecase.ProFeatureGate
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
+import kotlinx.coroutines.flow.first
 import java.util.Calendar
 import java.util.concurrent.TimeUnit
 
@@ -29,10 +31,12 @@ constructor(
     @Assisted context: Context,
     @Assisted params: WorkerParameters,
     private val api: PrismTaskApi,
-    private val proFeatureGate: ProFeatureGate
+    private val proFeatureGate: ProFeatureGate,
+    private val notificationPreferences: NotificationPreferences
 ) : CoroutineWorker(context, params) {
     override suspend fun doWork(): Result {
         if (!proFeatureGate.hasAccess(ProFeatureGate.AI_BRIEFING)) return Result.success()
+        if (!notificationPreferences.dailyBriefingEnabled.first()) return Result.success()
 
         return try {
             val response = api.getDailyBriefing(DailyBriefingRequest())

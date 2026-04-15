@@ -2,6 +2,7 @@ package com.averycorp.prismtask.ui.screens.addedittask
 
 import androidx.lifecycle.SavedStateHandle
 import com.averycorp.prismtask.data.local.entity.TaskEntity
+import com.averycorp.prismtask.data.preferences.NotificationPreferences
 import com.averycorp.prismtask.data.repository.AttachmentRepository
 import com.averycorp.prismtask.data.repository.BoundaryRuleRepository
 import com.averycorp.prismtask.data.repository.ProjectRepository
@@ -42,6 +43,7 @@ class AddEditTaskViewModelTest {
     private lateinit var attachmentRepository: AttachmentRepository
     private lateinit var templateRepository: TaskTemplateRepository
     private lateinit var boundaryRuleRepository: BoundaryRuleRepository
+    private lateinit var notificationPreferences: NotificationPreferences
     private lateinit var savedStateHandle: SavedStateHandle
 
     @Before
@@ -53,11 +55,17 @@ class AddEditTaskViewModelTest {
         attachmentRepository = mockk(relaxed = true)
         templateRepository = mockk(relaxed = true)
         boundaryRuleRepository = mockk(relaxed = true)
+        notificationPreferences = mockk(relaxed = true)
         savedStateHandle = SavedStateHandle()
 
         // Default StateFlow seeds so the VM init doesn't crash on relaxed mocks.
         coEvery { projectRepository.getAllProjects() } returns flowOf(emptyList())
         coEvery { tagRepository.getAllTags() } returns flowOf(emptyList())
+        // Default reminder offset = OFFSET_NONE so create-mode tests don't
+        // get a surprise pre-fill that flips hasUnsavedChanges semantics.
+        coEvery {
+            notificationPreferences.getDefaultReminderOffsetOnce()
+        } returns NotificationPreferences.OFFSET_NONE
     }
 
     @After
@@ -72,6 +80,7 @@ class AddEditTaskViewModelTest {
         attachmentRepository,
         templateRepository,
         boundaryRuleRepository,
+        notificationPreferences,
         savedStateHandle
     )
 

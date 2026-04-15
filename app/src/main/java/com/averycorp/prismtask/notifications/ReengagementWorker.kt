@@ -19,6 +19,7 @@ import androidx.work.WorkerParameters
 import com.averycorp.prismtask.MainActivity
 import com.averycorp.prismtask.R
 import com.averycorp.prismtask.data.local.dao.TaskDao
+import com.averycorp.prismtask.data.preferences.NotificationPreferences
 import com.averycorp.prismtask.data.remote.api.PrismTaskApi
 import com.averycorp.prismtask.data.remote.api.ReengagementRequest
 import com.averycorp.prismtask.domain.usecase.ProFeatureGate
@@ -44,10 +45,12 @@ constructor(
     @Assisted params: WorkerParameters,
     private val api: PrismTaskApi,
     private val taskDao: TaskDao,
-    private val proFeatureGate: ProFeatureGate
+    private val proFeatureGate: ProFeatureGate,
+    private val notificationPreferences: NotificationPreferences
 ) : CoroutineWorker(context, params) {
     override suspend fun doWork(): Result {
         if (!proFeatureGate.hasAccess(ProFeatureGate.AI_REENGAGEMENT)) return Result.success()
+        if (!notificationPreferences.reengagementEnabled.first()) return Result.success()
 
         val store = applicationContext.reengagementStore
         val prefs = store.data.first()

@@ -17,12 +17,14 @@ import com.averycorp.prismtask.R
 import com.averycorp.prismtask.data.local.dao.HabitCompletionDao
 import com.averycorp.prismtask.data.local.dao.HabitDao
 import com.averycorp.prismtask.data.local.dao.TaskDao
+import com.averycorp.prismtask.data.preferences.NotificationPreferences
 import com.averycorp.prismtask.data.remote.api.EveningSummaryRequest
 import com.averycorp.prismtask.data.remote.api.PrismTaskApi
 import com.averycorp.prismtask.data.repository.HabitRepository
 import com.averycorp.prismtask.domain.usecase.ProFeatureGate
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
+import kotlinx.coroutines.flow.first
 import java.util.Calendar
 import java.util.concurrent.TimeUnit
 
@@ -43,10 +45,12 @@ constructor(
     private val taskDao: TaskDao,
     private val habitDao: HabitDao,
     private val completionDao: HabitCompletionDao,
-    private val proFeatureGate: ProFeatureGate
+    private val proFeatureGate: ProFeatureGate,
+    private val notificationPreferences: NotificationPreferences
 ) : CoroutineWorker(context, params) {
     override suspend fun doWork(): Result {
         if (!proFeatureGate.hasAccess(ProFeatureGate.AI_EVENING_SUMMARY)) return Result.success()
+        if (!notificationPreferences.eveningSummaryEnabled.first()) return Result.success()
 
         return try {
             val now = System.currentTimeMillis()
