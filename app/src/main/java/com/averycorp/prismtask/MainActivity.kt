@@ -62,6 +62,7 @@ import com.averycorp.prismtask.ui.navigation.PrismTaskRoute
 import com.averycorp.prismtask.ui.theme.PriorityColors
 import com.averycorp.prismtask.ui.theme.PrismTaskTheme
 import com.averycorp.prismtask.ui.theme.ThemeViewModel
+import com.averycorp.prismtask.ui.theme.themeOverlay
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 import dagger.hilt.android.AndroidEntryPoint
@@ -526,7 +527,11 @@ class MainActivity : ComponentActivity() {
                         )
                     }
                 } else {
-                    Box(modifier = Modifier.fillMaxSize()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .themeOverlay(currentPrismTheme)
+                    ) {
                         PrismTaskNavGraph(
                             modifier = Modifier.fillMaxSize(),
                             navController = navController,

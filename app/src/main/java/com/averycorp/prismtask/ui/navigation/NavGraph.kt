@@ -3,8 +3,13 @@ package com.averycorp.prismtask.ui.navigation
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.background
 import androidx.compose.foundation.focusable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -24,6 +29,7 @@ import androidx.compose.material.icons.outlined.Today
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -40,6 +46,7 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -53,6 +60,8 @@ import com.averycorp.prismtask.ui.screens.settings.SettingsScreen
 import com.averycorp.prismtask.ui.screens.tasklist.TaskListScreen
 import com.averycorp.prismtask.ui.screens.timer.TimerScreen
 import com.averycorp.prismtask.ui.screens.today.TodayScreen
+import com.averycorp.prismtask.ui.theme.LocalPrismColors
+import com.averycorp.prismtask.ui.theme.LocalPrismFonts
 import kotlinx.coroutines.launch
 
 sealed class PrismTaskRoute(
@@ -351,45 +360,71 @@ fun PrismTaskNavGraph(
             }
         }
 
+    val prismColors = LocalPrismColors.current
+    val prismFonts = LocalPrismFonts.current
+
     Scaffold(
         modifier = shortcutModifier,
+        containerColor = prismColors.background,
         bottomBar = {
             if (showBottomBar) {
-                NavigationBar {
-                    bottomNavItems.forEachIndexed { index, item ->
-                        val selected = pagerState.currentPage == index
+                Column {
+                    // Faint top border so the nav bar reads as a distinct band
+                    // against the screen background on all four themes.
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(1.dp)
+                            .background(prismColors.border)
+                    )
+                    NavigationBar(
+                        containerColor = prismColors.background,
+                        contentColor = prismColors.onBackground,
+                        tonalElevation = 0.dp
+                    ) {
+                        bottomNavItems.forEachIndexed { index, item ->
+                            val selected = pagerState.currentPage == index
 
-                        NavigationBarItem(
-                            selected = selected,
-                            onClick = {
-                                coroutineScope.launch {
-                                    pagerState.animateScrollToPage(index)
-                                }
-                            },
-                            icon = {
-                                val iconScale by androidx.compose.animation.core.animateFloatAsState(
-                                    targetValue = if (selected) 1.1f else 1f,
-                                    animationSpec = androidx.compose.animation.core.spring(
-                                        dampingRatio = androidx.compose.animation.core.Spring.DampingRatioMediumBouncy
-                                    ),
-                                    label = "nav_icon_scale"
+                            NavigationBarItem(
+                                selected = selected,
+                                onClick = {
+                                    coroutineScope.launch {
+                                        pagerState.animateScrollToPage(index)
+                                    }
+                                },
+                                icon = {
+                                    val iconScale by androidx.compose.animation.core.animateFloatAsState(
+                                        targetValue = if (selected) 1.1f else 1f,
+                                        animationSpec = androidx.compose.animation.core.spring(
+                                            dampingRatio = androidx.compose.animation.core.Spring.DampingRatioMediumBouncy
+                                        ),
+                                        label = "nav_icon_scale"
+                                    )
+                                    Icon(
+                                        imageVector = if (selected) item.selectedIcon else item.unselectedIcon,
+                                        contentDescription = item.label,
+                                        modifier = Modifier.scale(iconScale)
+                                    )
+                                },
+                                label = {
+                                    Text(
+                                        text = item.label,
+                                        fontFamily = prismFonts,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        softWrap = false
+                                    )
+                                },
+                                alwaysShowLabel = true,
+                                colors = NavigationBarItemDefaults.colors(
+                                    selectedIconColor = prismColors.primary,
+                                    selectedTextColor = prismColors.primary,
+                                    unselectedIconColor = prismColors.muted,
+                                    unselectedTextColor = prismColors.muted,
+                                    indicatorColor = prismColors.primary.copy(alpha = 0.12f)
                                 )
-                                Icon(
-                                    imageVector = if (selected) item.selectedIcon else item.unselectedIcon,
-                                    contentDescription = item.label,
-                                    modifier = Modifier.scale(iconScale)
-                                )
-                            },
-                            label = {
-                                Text(
-                                    text = item.label,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    softWrap = false
-                                )
-                            },
-                            alwaysShowLabel = true
-                        )
+                            )
+                        }
                     }
                 }
             }

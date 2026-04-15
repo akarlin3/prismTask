@@ -92,6 +92,9 @@ import com.averycorp.prismtask.ui.screens.tasklist.components.ProjectGroupHeader
 import com.averycorp.prismtask.ui.screens.tasklist.components.draggableTaskItemWithSubtasks
 import com.averycorp.prismtask.ui.screens.tasklist.components.reorderableTaskItemWithSubtasks
 import com.averycorp.prismtask.ui.screens.tasklist.components.taskItemWithSubtasks
+import com.averycorp.prismtask.ui.theme.LocalPrismColors
+import com.averycorp.prismtask.ui.theme.LocalPrismTheme
+import com.averycorp.prismtask.ui.theme.prismDisplayFont
 import kotlinx.coroutines.launch
 import sh.calvin.reorderable.rememberReorderableLazyListState
 import java.text.SimpleDateFormat
@@ -375,15 +378,21 @@ fun TaskListScreen(
         )
     }
 
+    val prismColors = LocalPrismColors.current
+    val prismTheme = LocalPrismTheme.current
+    val displayFont = prismDisplayFont(prismTheme)
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = viewModel.snackbarHostState) },
+        containerColor = prismColors.background,
         topBar = {
             if (isMultiSelectMode) {
                 TopAppBar(
                     title = {
                         Text(
                             text = "${selectedTaskIds.size} Selected",
-                            fontWeight = FontWeight.Bold
+                            fontFamily = displayFont,
+                            fontWeight = FontWeight.Bold,
+                            color = prismColors.onBackground
                         )
                     },
                     navigationIcon = {
@@ -397,8 +406,10 @@ fun TaskListScreen(
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer,
-                        titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                        containerColor = prismColors.primary.copy(alpha = 0.12f),
+                        titleContentColor = prismColors.onBackground,
+                        navigationIconContentColor = prismColors.onBackground,
+                        actionIconContentColor = prismColors.onBackground
                     )
                 )
             } else {
@@ -406,7 +417,9 @@ fun TaskListScreen(
                     title = {
                         Text(
                             text = "Tasks",
-                            fontWeight = FontWeight.Bold
+                            fontFamily = displayFont,
+                            fontWeight = FontWeight.Bold,
+                            color = prismColors.onBackground
                         )
                     },
                     actions = {
@@ -575,8 +588,9 @@ fun TaskListScreen(
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.surface,
-                        titleContentColor = MaterialTheme.colorScheme.onSurface
+                        containerColor = prismColors.background,
+                        titleContentColor = prismColors.onBackground,
+                        actionIconContentColor = prismColors.onBackground
                     )
                 )
             }

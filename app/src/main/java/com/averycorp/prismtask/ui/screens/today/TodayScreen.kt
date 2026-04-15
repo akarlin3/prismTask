@@ -42,7 +42,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -78,6 +77,7 @@ import com.averycorp.prismtask.ui.screens.today.components.PlanForTodaySheet
 import com.averycorp.prismtask.ui.screens.today.components.SelfCareNudgeCard
 import com.averycorp.prismtask.ui.screens.today.components.SwipeableTaskItem
 import com.averycorp.prismtask.ui.screens.today.components.TodayBalanceSection
+import com.averycorp.prismtask.ui.theme.LocalPrismColors
 
 private const val SECTION_OVERDUE = "overdue"
 private const val SECTION_TODAY_TASKS = "today_tasks"
@@ -85,7 +85,6 @@ private const val SECTION_HABITS = "habits"
 private const val SECTION_PLANNED = "planned"
 private const val SECTION_PLAN_MORE = "plan_more"
 private const val SECTION_COMPLETED = "completed"
-private val CompletedGreen = Color(0xFF4CAF50)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -178,8 +177,10 @@ fun TodayScreen(
         }
     }
 
+    val prismColors = LocalPrismColors.current
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = viewModel.snackbarHostState) },
+        containerColor = prismColors.background,
         topBar = {
             CompactProgressHeader(
                 completed = combinedCompleted,
@@ -432,7 +433,7 @@ fun TodayScreen(
                                 emoji = "\uD83D\uDCCB",
                                 title = "Today Tasks",
                                 count = todayTasks.size,
-                                accentColor = MaterialTheme.colorScheme.primary,
+                                accentColor = prismColors.primary,
                                 expanded = expanded,
                                 onToggle = { viewModel.onToggleSectionCollapsed(SECTION_TODAY_TASKS) }
                             ) {
@@ -467,7 +468,7 @@ fun TodayScreen(
                                 title = "Habits",
                                 count = todayHabits.size,
                                 countLabel = "$habitDoneCount done",
-                                accentColor = MaterialTheme.colorScheme.tertiary,
+                                accentColor = prismColors.secondary,
                                 expanded = expanded,
                                 onToggle = { viewModel.onToggleSectionCollapsed(SECTION_HABITS) }
                             ) {
@@ -517,7 +518,7 @@ fun TodayScreen(
                                 emoji = "\uD83D\uDCC5",
                                 title = "Scheduled Today",
                                 count = scheduledTodayHabits.size,
-                                accentColor = Color(0xFF10B981),
+                                accentColor = prismColors.secondary,
                                 expanded = true,
                                 onToggle = {}
                             ) {
@@ -588,7 +589,7 @@ fun TodayScreen(
                                 emoji = "\uD83D\uDCCC",
                                 title = "Planned",
                                 count = plannedTasks.size,
-                                accentColor = MaterialTheme.colorScheme.secondary,
+                                accentColor = prismColors.secondary,
                                 expanded = expanded,
                                 onToggle = { viewModel.onToggleSectionCollapsed(SECTION_PLANNED) }
                             ) {
@@ -635,7 +636,7 @@ fun TodayScreen(
                                 emoji = "\u2705",
                                 title = "Completed",
                                 count = completedToday.size,
-                                accentColor = CompletedGreen,
+                                accentColor = prismColors.primary,
                                 expanded = expanded,
                                 onToggle = { viewModel.onToggleSectionCollapsed(SECTION_COMPLETED) }
                             ) {

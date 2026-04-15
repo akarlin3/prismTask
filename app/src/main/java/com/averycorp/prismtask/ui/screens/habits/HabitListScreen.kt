@@ -46,6 +46,9 @@ import com.averycorp.prismtask.ui.screens.habits.components.BuiltInHabitCard
 import com.averycorp.prismtask.ui.screens.habits.components.HabitItem
 import com.averycorp.prismtask.ui.screens.habits.components.HabitLogDialog
 import com.averycorp.prismtask.ui.screens.habits.components.SelfCareRoutineCard
+import com.averycorp.prismtask.ui.theme.LocalPrismColors
+import com.averycorp.prismtask.ui.theme.LocalPrismTheme
+import com.averycorp.prismtask.ui.theme.prismDisplayFont
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 
@@ -79,25 +82,37 @@ fun HabitListScreen(
     }
 
     val screenTitle = if (filter == "daily") "Daily Habits" else "Recurring Habits"
+    val prismColors = LocalPrismColors.current
+    val prismTheme = LocalPrismTheme.current
+    val displayFont = prismDisplayFont(prismTheme)
 
     Scaffold(
+        containerColor = prismColors.background,
         topBar = {
             TopAppBar(
-                title = { Text(screenTitle, fontWeight = FontWeight.Bold) },
+                title = {
+                    Text(
+                        screenTitle,
+                        fontFamily = displayFont,
+                        fontWeight = FontWeight.Bold,
+                        color = prismColors.onBackground
+                    )
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
+                    containerColor = prismColors.background,
+                    titleContentColor = prismColors.onBackground
                 )
             )
         },
         floatingActionButton = {
             FloatingActionButton(
                 onClick = { navController.navigate(PrismTaskRoute.AddEditHabit.createRoute()) },
-                containerColor = MaterialTheme.colorScheme.primary
+                containerColor = prismColors.primary
             ) {
                 Icon(
                     Icons.Default.Add,
                     contentDescription = "Add Habit",
-                    tint = MaterialTheme.colorScheme.onPrimary
+                    tint = prismColors.background
                 )
             }
         }

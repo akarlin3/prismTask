@@ -5,6 +5,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -52,7 +53,8 @@ import androidx.compose.ui.unit.dp
 import com.averycorp.prismtask.data.local.entity.TagEntity
 import com.averycorp.prismtask.data.local.entity.TaskEntity
 import com.averycorp.prismtask.ui.components.CircularCheckbox
-import com.averycorp.prismtask.ui.theme.LocalPriorityColors
+import com.averycorp.prismtask.ui.theme.LocalPrismColors
+import com.averycorp.prismtask.ui.theme.LocalPrismFonts
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -80,7 +82,9 @@ internal fun SwipeableTaskItem(
 ) {
     var showOverflowMenu by remember { mutableStateOf(false) }
     val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
-    val tomorrowBlue = Color(0xFF5C8CC7)
+    val colors = LocalPrismColors.current
+    val fonts = LocalPrismFonts.current
+    val tomorrowBlue = colors.secondary
     val dismissState = rememberSwipeToDismissBoxState(
         confirmValueChange = { value ->
             when (value) {
@@ -121,7 +125,7 @@ internal fun SwipeableTaskItem(
         backgroundContent = {
             val direction = dismissState.dismissDirection
             val backgroundColor = when (direction) {
-                SwipeToDismissBoxValue.StartToEnd -> CompletedGreen
+                SwipeToDismissBoxValue.StartToEnd -> colors.primary
                 SwipeToDismissBoxValue.EndToStart -> tomorrowBlue
                 else -> Color.Transparent
             }
@@ -169,13 +173,19 @@ internal fun SwipeableTaskItem(
             }
         }
     ) {
+        val isUrgent = task.priority >= 4
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable(onClick = onClick),
+                .clickable(onClick = onClick)
+                .border(
+                    width = 1.dp,
+                    color = colors.border,
+                    shape = RoundedCornerShape(12.dp)
+                ),
             shape = RoundedCornerShape(12.dp),
             colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                containerColor = colors.surface
             )
         ) {
             Row(
@@ -193,7 +203,9 @@ internal fun SwipeableTaskItem(
                     Text(
                         text = task.title,
                         style = MaterialTheme.typography.bodyLarge,
+                        fontFamily = fonts,
                         fontWeight = FontWeight.Medium,
+                        color = colors.onBackground,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -206,7 +218,9 @@ internal fun SwipeableTaskItem(
                                 modifier = Modifier
                                     .size(8.dp)
                                     .clip(CircleShape)
-                                    .background(LocalPriorityColors.current.forLevel(task.priority))
+                                    .background(
+                                        if (isUrgent) colors.urgentAccent else colors.primary
+                                    )
                             )
                         }
                         if (isOverdue && task.dueDate != null) {
@@ -214,7 +228,8 @@ internal fun SwipeableTaskItem(
                             Text(
                                 text = fmt.format(Date(task.dueDate)),
                                 style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                fontFamily = fonts,
+                                color = colors.muted
                             )
                         }
                         if (isPlanned && task.dueDate != null) {
@@ -222,7 +237,8 @@ internal fun SwipeableTaskItem(
                             Text(
                                 text = "Due: ${fmt.format(Date(task.dueDate))}",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                fontFamily = fonts,
+                                color = colors.muted
                             )
                         }
                         if (isPlanned) {
@@ -230,20 +246,26 @@ internal fun SwipeableTaskItem(
                                 Icons.Default.PushPin,
                                 contentDescription = "Planned",
                                 modifier = Modifier.size(12.dp),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                tint = colors.muted
                             )
                         }
                         tags.take(3).forEach { tag ->
-                            val tagColor = try {
-                                Color(android.graphics.Color.parseColor(tag.color))
-                            } catch (_: Exception) {
-                                MaterialTheme.colorScheme.outline
+                            val tagIsUrgent = tag.name.equals("urgent", ignoreCase = true)
+                            val pillBg = if (tagIsUrgent) colors.urgentSurface else colors.tagSurface
+                            val pillFg = if (tagIsUrgent) colors.urgentAccent else colors.tagText
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(pillBg)
+                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = "#${tag.name}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontFamily = fonts,
+                                    color = pillFg
+                                )
                             }
-                            Text(
-                                text = "#${tag.name}",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = tagColor
-                            )
                         }
                     }
                 }
@@ -256,7 +278,7 @@ internal fun SwipeableTaskItem(
                             Icons.Default.MoreVert,
                             contentDescription = "More Actions",
                             modifier = Modifier.size(18.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                            tint = colors.muted
                         )
                     }
                     DropdownMenu(
@@ -305,13 +327,20 @@ internal fun SwipeableTaskItem(
  */
 @Composable
 internal fun CompletedTaskItem(task: TaskEntity, onUncomplete: () -> Unit) {
+    val colors = LocalPrismColors.current
+    val fonts = LocalPrismFonts.current
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onUncomplete() },
+            .clickable { onUncomplete() }
+            .border(
+                width = 1.dp,
+                color = colors.border,
+                shape = RoundedCornerShape(12.dp)
+            ),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.6f)
+            containerColor = colors.surface.copy(alpha = 0.6f)
         )
     ) {
         Row(
@@ -325,8 +354,9 @@ internal fun CompletedTaskItem(task: TaskEntity, onUncomplete: () -> Unit) {
             Text(
                 text = task.title,
                 style = MaterialTheme.typography.bodyMedium,
+                fontFamily = fonts,
                 textDecoration = TextDecoration.LineThrough,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                color = colors.muted,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )

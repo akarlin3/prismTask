@@ -30,6 +30,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.averycorp.prismtask.ui.theme.LocalPrismColors
+import com.averycorp.prismtask.ui.theme.LocalPrismFonts
 
 /**
  * Collapsible section wrapper used throughout the Today screen — e.g.
@@ -84,6 +86,8 @@ private fun SectionHeaderRow(
         animationSpec = tween(220),
         label = "chevronRotation"
     )
+    val colors = LocalPrismColors.current
+    val fonts = LocalPrismFonts.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -94,10 +98,17 @@ private fun SectionHeaderRow(
     ) {
         Text(text = emoji, fontSize = 18.sp)
         Spacer(modifier = Modifier.width(8.dp))
+        // Section headers ("TODAY", "HABITS", etc.) use the active theme
+        // font at 10sp / letterSpacing 1.5sp / Medium weight per the
+        // design spec, rendered uppercase so the terminal-style themes
+        // (Cyberpunk / Matrix) read as command labels.
         Text(
-            text = title,
+            text = title.uppercase(),
             style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.Bold,
+            fontFamily = fonts,
+            fontWeight = FontWeight.Medium,
+            fontSize = 10.sp,
+            letterSpacing = 1.5.sp,
             color = accentColor
         )
         Spacer(modifier = Modifier.width(8.dp))
@@ -111,6 +122,7 @@ private fun SectionHeaderRow(
             Text(
                 text = countLabel ?: "$count",
                 style = MaterialTheme.typography.labelSmall,
+                fontFamily = fonts,
                 fontWeight = FontWeight.SemiBold,
                 color = accentColor
             )
@@ -123,7 +135,7 @@ private fun SectionHeaderRow(
             modifier = Modifier
                 .size(20.dp)
                 .rotate(chevronRotation),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant
+            tint = colors.muted
         )
     }
 }

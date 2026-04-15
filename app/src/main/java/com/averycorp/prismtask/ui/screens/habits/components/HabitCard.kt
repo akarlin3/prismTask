@@ -43,6 +43,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.averycorp.prismtask.data.repository.HabitWithStatus
 import com.averycorp.prismtask.ui.components.StreakBadge
+import com.averycorp.prismtask.ui.theme.LocalPrismColors
+import com.averycorp.prismtask.ui.theme.LocalPrismFonts
 
 /**
  * The main habit list card. Shows the habit's icon, name, weekly-progress
@@ -63,11 +65,14 @@ internal fun HabitItem(
     modifier: Modifier = Modifier
 ) {
     val habit = habitWithStatus.habit
+    val colors = LocalPrismColors.current
+    val fonts = LocalPrismFonts.current
     val habitColor = try {
         Color(android.graphics.Color.parseColor(habit.color))
     } catch (_: Exception) {
-        Color(0xFF4A90D9)
+        colors.primary
     }
+    val isComplete = habitWithStatus.isCompletedToday
 
     val scale by animateFloatAsState(
         targetValue = if (habitWithStatus.isCompletedToday) 1.0f else 1.0f,
@@ -78,10 +83,15 @@ internal fun HabitItem(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .clickable { onClick() },
+            .clickable { onClick() }
+            .border(
+                width = 1.dp,
+                color = if (isComplete) colors.primary.copy(alpha = 0.4f) else colors.border,
+                shape = RoundedCornerShape(12.dp)
+            ),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+            containerColor = if (isComplete) colors.surfaceVariant else colors.surface
         )
     ) {
         Row(
@@ -112,7 +122,9 @@ internal fun HabitItem(
                     Text(
                         text = habit.name,
                         style = MaterialTheme.typography.bodyLarge,
+                        fontFamily = fonts,
                         fontWeight = FontWeight.SemiBold,
+                        color = if (isComplete) colors.primary else colors.onBackground,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f, fill = false)
@@ -123,7 +135,7 @@ internal fun HabitItem(
                             Icons.Default.EditNote,
                             contentDescription = "Logging enabled",
                             modifier = Modifier.size(16.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            tint = colors.muted
                         )
                     }
                 }
@@ -140,7 +152,7 @@ internal fun HabitItem(
                         Text(
                             text = "${habitWithStatus.completionsToday}/${habitWithStatus.dailyTarget} today",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = colors.muted
                         )
                         if (habit.showStreak && habitWithStatus.currentStreak > 0) {
                             Spacer(modifier = Modifier.width(8.dp))
@@ -152,13 +164,13 @@ internal fun HabitItem(
                         Text(
                             text = "${habitWithStatus.completionsThisWeek} days this week",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = colors.muted
                         )
                     } else {
                         Text(
                             text = "${habitWithStatus.completionsThisWeek} done $periodLabel",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = colors.muted
                         )
                     }
                 }
@@ -234,7 +246,7 @@ internal fun HabitItem(
                     Icons.Default.Edit,
                     contentDescription = "Edit habit",
                     modifier = Modifier.size(18.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                    tint = colors.muted.copy(alpha = 0.6f)
                 )
             }
 
@@ -247,7 +259,7 @@ internal fun HabitItem(
                     Icons.Default.Close,
                     contentDescription = "Delete habit",
                     modifier = Modifier.size(18.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                    tint = colors.muted.copy(alpha = 0.6f)
                 )
             }
 

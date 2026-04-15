@@ -3,6 +3,7 @@ package com.averycorp.prismtask.ui.screens.today.components
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -40,6 +41,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.averycorp.prismtask.data.repository.HabitWithStatus
+import com.averycorp.prismtask.ui.theme.LocalPrismColors
+import com.averycorp.prismtask.ui.theme.LocalPrismFonts
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -83,11 +86,13 @@ internal fun BookableHabitReminderCard(
     onClick: () -> Unit
 ) {
     val habit = habitWithStatus.habit
-    val habitColor = remember(habit.color) {
+    val colors = LocalPrismColors.current
+    val fonts = LocalPrismFonts.current
+    val habitColor = remember(habit.color, colors.primary) {
         try {
             Color(android.graphics.Color.parseColor(habit.color))
         } catch (_: Exception) {
-            Color(0xFF4A90D9)
+            colors.primary
         }
     }
     val dateFormat = remember { SimpleDateFormat("MMM d", Locale.getDefault()) }
@@ -97,7 +102,12 @@ internal fun BookableHabitReminderCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick),
+            .clickable(onClick = onClick)
+            .border(
+                width = 1.dp,
+                color = colors.border,
+                shape = RoundedCornerShape(8.dp)
+            ),
         shape = RoundedCornerShape(8.dp),
         colors = CardDefaults.cardColors(
             containerColor = habitColor.copy(alpha = 0.1f)
@@ -115,12 +125,15 @@ internal fun BookableHabitReminderCard(
                 Text(
                     text = habit.name,
                     style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.SemiBold
+                    fontFamily = fonts,
+                    fontWeight = FontWeight.SemiBold,
+                    color = colors.onBackground
                 )
                 Text(
                     text = "\uD83D\uDCC5 $dateStr$noteStr",
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color(0xFF10B981)
+                    fontFamily = fonts,
+                    color = colors.secondary
                 )
             }
         }
@@ -133,11 +146,13 @@ private fun HabitChip(
     onTap: () -> Unit
 ) {
     val habit = habitWithStatus.habit
-    val habitColor = remember(habit.color) {
+    val colors = LocalPrismColors.current
+    val fonts = LocalPrismFonts.current
+    val habitColor = remember(habit.color, colors.primary) {
         try {
             Color(android.graphics.Color.parseColor(habit.color))
         } catch (_: Exception) {
-            Color(0xFF4A90D9)
+            colors.primary
         }
     }
     val isComplete = habitWithStatus.isCompletedToday
@@ -145,11 +160,8 @@ private fun HabitChip(
     val done = habitWithStatus.completionsToday.coerceAtMost(target)
     val ringProgress = if (isComplete) 1f else done.toFloat() / target.toFloat()
 
-    val containerColor = if (isComplete) {
-        habitColor.copy(alpha = 0.18f)
-    } else {
-        MaterialTheme.colorScheme.surfaceContainerHigh
-    }
+    val containerColor = if (isComplete) colors.surfaceVariant else colors.surface
+    val borderColor = if (isComplete) colors.primary.copy(alpha = 0.4f) else colors.border
     val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
     var tapped by remember { mutableStateOf(false) }
     val chipScale by animateFloatAsState(
@@ -171,7 +183,12 @@ private fun HabitChip(
                 ) {
                 }
                 onTap()
-            },
+            }
+            .border(
+                width = 1.dp,
+                color = borderColor,
+                shape = RoundedCornerShape(14.dp)
+            ),
         shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(containerColor = containerColor)
     ) {
@@ -188,7 +205,7 @@ private fun HabitChip(
                 CircularProgressIndicator(
                     progress = { ringProgress.coerceIn(0f, 1f) },
                     modifier = Modifier.size(28.dp),
-                    color = if (isComplete) CompletedGreen else habitColor,
+                    color = if (isComplete) colors.primary else habitColor,
                     trackColor = habitColor.copy(alpha = 0.18f),
                     strokeWidth = 2.5.dp
                 )
@@ -201,8 +218,9 @@ private fun HabitChip(
             Text(
                 text = habit.name,
                 style = MaterialTheme.typography.labelMedium,
+                fontFamily = fonts,
                 fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSurface,
+                color = if (isComplete) colors.primary else colors.muted,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -210,13 +228,15 @@ private fun HabitChip(
                 Text(
                     text = "$done/$target",
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    fontFamily = fonts,
+                    color = colors.muted
                 )
             } else if (isComplete) {
                 Text(
                     text = "Done",
                     style = MaterialTheme.typography.labelSmall,
-                    color = CompletedGreen,
+                    fontFamily = fonts,
+                    color = colors.primary,
                     fontWeight = FontWeight.SemiBold
                 )
             }
@@ -226,14 +246,19 @@ private fun HabitChip(
 
 @Composable
 private fun SeeAllChip(onClick: () -> Unit) {
+    val colors = LocalPrismColors.current
+    val fonts = LocalPrismFonts.current
     Card(
         modifier = Modifier
             .width(96.dp)
-            .clickable { onClick() },
+            .clickable { onClick() }
+            .border(
+                width = 1.dp,
+                color = colors.border,
+                shape = RoundedCornerShape(14.dp)
+            ),
         shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainer
-        )
+        colors = CardDefaults.cardColors(containerColor = colors.surface)
     ) {
         Column(
             modifier = Modifier
@@ -245,14 +270,15 @@ private fun SeeAllChip(onClick: () -> Unit) {
                 imageVector = Icons.Default.ChevronRight,
                 contentDescription = null,
                 modifier = Modifier.size(24.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                tint = colors.muted
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = "See All",
                 style = MaterialTheme.typography.labelMedium,
+                fontFamily = fonts,
                 fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = colors.muted
             )
         }
     }
