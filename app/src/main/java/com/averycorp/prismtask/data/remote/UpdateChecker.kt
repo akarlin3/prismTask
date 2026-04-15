@@ -4,6 +4,7 @@ import android.app.DownloadManager
 import android.content.Context
 import android.net.Uri
 import android.os.Environment
+import androidx.core.content.pm.PackageInfoCompat
 import com.averycorp.prismtask.BuildConfig
 import com.google.gson.Gson
 import com.google.gson.annotations.SerializedName
@@ -39,10 +40,8 @@ class UpdateChecker(
             if (!response.isSuccessful) return@withContext null
 
             val info = gson.fromJson(response.body?.string(), VersionInfo::class.java)
-            val currentVersionCode = context.packageManager
-                .getPackageInfo(context.packageName, 0)
-                .longVersionCode
-                .toInt()
+            val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
+            val currentVersionCode = PackageInfoCompat.getLongVersionCode(packageInfo).toInt()
 
             if (info.versionCode > currentVersionCode) info else null
         } catch (_: Exception) {
