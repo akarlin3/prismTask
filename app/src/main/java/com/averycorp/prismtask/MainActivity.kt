@@ -38,6 +38,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.averycorp.prismtask.data.billing.BillingManager
 import com.averycorp.prismtask.data.diagnostics.DiagnosticLogger
@@ -60,6 +61,7 @@ import com.averycorp.prismtask.ui.navigation.PrismTaskNavGraph
 import com.averycorp.prismtask.ui.navigation.PrismTaskRoute
 import com.averycorp.prismtask.ui.theme.PriorityColors
 import com.averycorp.prismtask.ui.theme.PrismTaskTheme
+import com.averycorp.prismtask.ui.theme.ThemeViewModel
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 import dagger.hilt.android.AndroidEntryPoint
@@ -177,6 +179,13 @@ class MainActivity : ComponentActivity() {
                     onDismiss = { updateInfo = null }
                 )
             }
+
+            // Hilt-scoped ThemeViewModel owns the persisted PrismTheme choice
+            // and writes back through ThemePreferences when the user picks a
+            // new theme in Settings.
+            val themeViewModel: ThemeViewModel = hiltViewModel()
+            val currentPrismTheme by themeViewModel.currentTheme
+                .collectAsStateWithLifecycle()
 
             val themeMode by themePreferences
                 .getThemeMode()
@@ -446,6 +455,7 @@ class MainActivity : ComponentActivity() {
             }
 
             PrismTaskTheme(
+                prismTheme = currentPrismTheme,
                 themeMode = themeMode,
                 accentColor = accentColor,
                 backgroundColorOverride = backgroundColorOverride,
