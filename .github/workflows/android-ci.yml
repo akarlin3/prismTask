@@ -125,3 +125,23 @@ jobs:
         with:
           name: app-debug
           path: app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Read app version
+        id: version
+        run: |
+          set -euo pipefail
+          VERSION_NAME=$(grep -oP 'versionName\s*=\s*"\K[^"]+' app/build.gradle.kts | head -1)
+          VERSION_CODE=$(grep -oP 'versionCode\s*=\s*\K[0-9]+' app/build.gradle.kts | head -1)
+          echo "version_name=$VERSION_NAME" >> "$GITHUB_OUTPUT"
+          echo "version_code=$VERSION_CODE" >> "$GITHUB_OUTPUT"
+
+      - name: Upload to Firebase App Distribution
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+        run: |
+          npm install -g firebase-tools
+          firebase appdistribution:distribute app/build/outputs/apk/debug/app-debug.apk \
+            --app 1:403186103462:android:59c861c84c76969b47b067 \
+            --groups testers \
+            --release-notes "v${{ steps.version.outputs.version_name }} (build ${{ steps.version.outputs.version_code }}) from commit ${{ github.sha }}" \
+            --token "$FIREBASE_TOKEN"
