@@ -82,4 +82,18 @@ class ThemePreferencesTest {
         prefs.addRecentCustomColor("not a color")
         assertEquals(emptyList<String>(), prefs.getRecentCustomColors().first())
     }
+
+    @Test
+    fun getPrismTheme_defaultIsVoid() = runTest {
+        assertEquals(ThemePreferences.DEFAULT_PRISM_THEME, prefs.getPrismTheme().first())
+        assertEquals("VOID", prefs.getPrismTheme().first())
+    }
+
+    @Test
+    fun setPrismTheme_roundTripsEnumName() = runTest {
+        prefs.setPrismTheme("CYBERPUNK")
+        assertEquals("CYBERPUNK", prefs.getPrismTheme().first())
+        prefs.setPrismTheme("MATRIX")
+        assertEquals("MATRIX", prefs.getPrismTheme().first())
+    }
 }

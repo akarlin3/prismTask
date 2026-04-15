@@ -34,8 +34,12 @@ constructor(
         private val PRIORITY_COLOR_HIGH_KEY = stringPreferencesKey("priority_color_high")
         private val PRIORITY_COLOR_URGENT_KEY = stringPreferencesKey("priority_color_urgent")
         private val RECENT_CUSTOM_COLORS_KEY = stringPreferencesKey("recent_custom_colors")
+        private val PRISM_THEME_KEY = stringPreferencesKey("pref_prism_theme")
 
         private const val MAX_RECENT_CUSTOM_COLORS = 5
+
+        /** Default PrismTheme value stored when the user has not picked one. */
+        const val DEFAULT_PRISM_THEME = "VOID"
 
         /** Returns true iff [hex] is a valid 6- or 8-digit hex color string. */
         fun isValidHex(hex: String): Boolean {
@@ -153,6 +157,22 @@ constructor(
             val updated = addToRecentColors(current, hex)
             prefs[RECENT_CUSTOM_COLORS_KEY] = updated.joinToString(",")
         }
+    }
+
+    /**
+     * Returns the currently selected [com.averycorp.prismtask.ui.theme.PrismTheme]
+     * name, or [DEFAULT_PRISM_THEME] if the user has not chosen one yet.
+     */
+    fun getPrismTheme(): Flow<String> = context.themePrefsDataStore.data.map { prefs ->
+        prefs[PRISM_THEME_KEY] ?: DEFAULT_PRISM_THEME
+    }
+
+    /**
+     * Persists the user's [com.averycorp.prismtask.ui.theme.PrismTheme]
+     * selection. [themeName] should be the enum name (e.g. "VOID", "CYBERPUNK").
+     */
+    suspend fun setPrismTheme(themeName: String) {
+        context.themePrefsDataStore.edit { prefs -> prefs[PRISM_THEME_KEY] = themeName }
     }
 
     suspend fun resetColorOverrides() {

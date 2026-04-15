@@ -35,6 +35,7 @@ import com.averycorp.prismtask.ui.screens.settings.sections.AboutSection
 import com.averycorp.prismtask.ui.screens.settings.sections.DebugLogAdminSection
 import com.averycorp.prismtask.ui.screens.settings.sections.DebugOnboardingSection
 import com.averycorp.prismtask.ui.screens.settings.sections.DebugTierSection
+import com.averycorp.prismtask.ui.screens.settings.sections.PrismThemeSection
 
 private val ColAccount = Color(0xFFE6F1FB)
 private val ColSubscription = Color(0xFFFAEEDA)
@@ -130,22 +131,26 @@ fun SettingsScreen(
                 }
 
                 item {
-                    SettingsGroup(label = "Appearance") {
-                        SettingsNavRow(
-                            title = "Appearance",
-                            subtitle = "Theme, colors, font size",
-                            iconEmoji = "\uD83C\uDFA8",
-                            iconBgColor = ColAppearance,
-                            onClick = { navController.navigate("settings/appearance") }
-                        )
-                        SettingsNavRow(
-                            title = "Layout & Navigation",
-                            subtitle = "Tabs, dashboard, swipe actions",
-                            iconEmoji = "\uD83D\uDCD0",
-                            iconBgColor = ColLayout,
-                            onClick = { navController.navigate("settings/layout") }
-                        )
-                    }
+                    // "Appearance" section — the PrismTheme picker renders at
+                    // the top and writes the selection through ThemeViewModel,
+                    // which propagates palette + font changes via the
+                    // LocalPrismColors / LocalPrismFonts CompositionLocals
+                    // declared in PrismTaskTheme (live preview).
+                    PrismThemeSection()
+                    SettingsNavRow(
+                        title = "Advanced Appearance",
+                        subtitle = "Accent color, overrides, font size",
+                        iconEmoji = "\uD83C\uDFA8",
+                        iconBgColor = ColAppearance,
+                        onClick = { navController.navigate("settings/appearance") }
+                    )
+                    SettingsNavRow(
+                        title = "Layout & Navigation",
+                        subtitle = "Tabs, dashboard, swipe actions",
+                        iconEmoji = "\uD83D\uDCD0",
+                        iconBgColor = ColLayout,
+                        onClick = { navController.navigate("settings/layout") }
+                    )
                 }
 
                 item {
