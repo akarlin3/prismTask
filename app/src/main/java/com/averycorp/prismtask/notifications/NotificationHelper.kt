@@ -677,7 +677,7 @@ object NotificationHelper {
                 runCatching { android.graphics.Color.parseColor(hex) }
                     .getOrNull()
                     ?.let {
-                        lightColor = it;
+                        lightColor = it
                         enableLights(true)
                     }
             }
