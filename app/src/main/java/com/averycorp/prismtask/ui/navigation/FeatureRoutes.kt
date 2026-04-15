@@ -60,6 +60,21 @@ import com.averycorp.prismtask.ui.screens.schoolwork.AddEditCourseScreen
 import com.averycorp.prismtask.ui.screens.schoolwork.SchoolworkScreen
 import com.averycorp.prismtask.ui.screens.search.SearchScreen
 import com.averycorp.prismtask.ui.screens.selfcare.SelfCareScreen
+import com.averycorp.prismtask.ui.screens.settings.AccessibilityScreen
+import com.averycorp.prismtask.ui.screens.settings.AccountSyncScreen
+import com.averycorp.prismtask.ui.screens.settings.AiFeaturesScreen
+import com.averycorp.prismtask.ui.screens.settings.AppearanceScreen
+import com.averycorp.prismtask.ui.screens.settings.BrainModeScreen
+import com.averycorp.prismtask.ui.screens.settings.CalendarScreen
+import com.averycorp.prismtask.ui.screens.settings.DataBackupScreen
+import com.averycorp.prismtask.ui.screens.settings.FocusTimerScreen
+import com.averycorp.prismtask.ui.screens.settings.HabitsStreaksScreen
+import com.averycorp.prismtask.ui.screens.settings.LayoutScreen
+import com.averycorp.prismtask.ui.screens.settings.LifeModesScreen
+import com.averycorp.prismtask.ui.screens.settings.NotificationsScreen
+import com.averycorp.prismtask.ui.screens.settings.SubscriptionScreen
+import com.averycorp.prismtask.ui.screens.settings.TaskDefaultsScreen
+import com.averycorp.prismtask.ui.screens.settings.WellbeingScreen
 import com.averycorp.prismtask.ui.screens.tags.TagManagementScreen
 import com.averycorp.prismtask.ui.screens.templates.AddEditTemplateScreen
 import com.averycorp.prismtask.ui.screens.templates.TemplateListScreen
@@ -810,6 +825,12 @@ internal fun NavGraphBuilder.featureRoutes(
     }
 
     // ------------------------------------------------------------------
+    // Settings sub-screens — reorganized flat list into category screens.
+    // Each row on SettingsScreen routes into one of these.
+    // ------------------------------------------------------------------
+    settingsSubScreenRoutes(navController)
+
+    // ------------------------------------------------------------------
     // v1.4.0 Notifications Overhaul
     //
     // Hub + 14 sub-screens. They all share the same simple horizontal
@@ -817,6 +838,53 @@ internal fun NavGraphBuilder.featureRoutes(
     // is a push off the stack.
     // ------------------------------------------------------------------
     notificationRoutes(navController)
+}
+
+/**
+ * Settings category sub-screens. Extracted so the transition lambdas
+ * infer the correct receiver and the main [featureRoutes] stays compact.
+ */
+private fun NavGraphBuilder.settingsSubScreenRoutes(navController: NavHostController) {
+    val durationTween: androidx.compose.animation.core.TweenSpec<androidx.compose.ui.unit.IntOffset> =
+        tween(NAV_ANIM_DURATION)
+
+    listOf<Pair<String, @androidx.compose.runtime.Composable () -> Unit>>(
+        "settings/account_sync" to { AccountSyncScreen(navController) },
+        "settings/subscription" to { SubscriptionScreen(navController) },
+        "settings/appearance" to { AppearanceScreen(navController) },
+        "settings/layout" to { LayoutScreen(navController) },
+        "settings/task_defaults" to { TaskDefaultsScreen(navController) },
+        "settings/habits_streaks" to { HabitsStreaksScreen(navController) },
+        "settings/life_modes" to { LifeModesScreen(navController) },
+        "settings/focus_timer" to { FocusTimerScreen(navController) },
+        "settings/ai_features" to { AiFeaturesScreen(navController) },
+        "settings/brain_mode" to { BrainModeScreen(navController) },
+        "settings/wellbeing" to { WellbeingScreen(navController) },
+        "settings/calendar" to { CalendarScreen(navController) },
+        "settings/notifications" to { NotificationsScreen(navController) },
+        "settings/accessibility" to { AccessibilityScreen(navController) },
+        "settings/data_backup" to { DataBackupScreen(navController) }
+    ).forEach { (route, content) ->
+        composable(
+            route = route,
+            enterTransition = {
+                slideInHorizontally(initialOffsetX = { it }, animationSpec = durationTween) +
+                    fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
+            },
+            exitTransition = {
+                slideOutHorizontally(targetOffsetX = { -it / 3 }, animationSpec = durationTween) +
+                    fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
+            },
+            popEnterTransition = {
+                slideInHorizontally(initialOffsetX = { -it / 3 }, animationSpec = durationTween) +
+                    fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
+            },
+            popExitTransition = {
+                slideOutHorizontally(targetOffsetX = { it }, animationSpec = durationTween) +
+                    fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
+            }
+        ) { content() }
+    }
 }
 
 /**

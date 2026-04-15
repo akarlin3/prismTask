@@ -1,0 +1,61 @@
+package com.averycorp.prismtask.ui.screens.settings
+
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavController
+import com.averycorp.prismtask.ui.navigation.PrismTaskRoute
+import com.averycorp.prismtask.ui.screens.settings.sections.AiSection
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AiFeaturesScreen(
+    navController: NavController,
+    @Suppress("UNUSED_PARAMETER") viewModel: SettingsViewModel = hiltViewModel()
+) {
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("AI Features") },
+                navigationIcon = {
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                }
+            )
+        }
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(padding)
+                .padding(horizontal = 16.dp)
+        ) {
+            AiSection(
+                onNavigateToEisenhower = { navController.navigate(PrismTaskRoute.EisenhowerMatrix.route) },
+                onNavigateToSmartPomodoro = { navController.navigate(PrismTaskRoute.SmartPomodoro.route) },
+                onNavigateToDailyBriefing = { navController.navigate(PrismTaskRoute.DailyBriefing.route) },
+                onNavigateToWeeklyPlanner = { navController.navigate(PrismTaskRoute.WeeklyPlanner.route) },
+                onNavigateToTimeline = { navController.navigate(PrismTaskRoute.Timeline.route) }
+            )
+            Spacer(modifier = Modifier.height(32.dp))
+        }
+    }
+}
