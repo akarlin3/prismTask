@@ -1,5 +1,6 @@
 package com.averycorp.prismtask.ui.navigation.routes
 
+import androidx.compose.animation.AnimatedContentScope
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
@@ -94,7 +95,7 @@ internal val fadeExitOnly: AnimatedContentTransitionScope<NavBackStackEntry>.() 
 internal fun NavGraphBuilder.horizontalSlideComposable(
     route: String,
     arguments: List<NamedNavArgument> = emptyList(),
-    content: @Composable (NavBackStackEntry) -> Unit
+    content: @Composable AnimatedContentScope.(NavBackStackEntry) -> Unit
 ) {
     composable(
         route = route,
@@ -114,7 +115,7 @@ internal fun NavGraphBuilder.horizontalSlideComposable(
 internal fun NavGraphBuilder.simpleSlideComposable(
     route: String,
     arguments: List<NamedNavArgument> = emptyList(),
-    content: @Composable (NavBackStackEntry) -> Unit
+    content: @Composable AnimatedContentScope.(NavBackStackEntry) -> Unit
 ) {
     composable(
         route = route,
