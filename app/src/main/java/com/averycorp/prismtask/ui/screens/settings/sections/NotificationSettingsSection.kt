@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import com.averycorp.prismtask.data.billing.UserTier
 import com.averycorp.prismtask.data.preferences.NotificationPreferences
 import com.averycorp.prismtask.ui.components.settings.SectionHeader
+import com.averycorp.prismtask.ui.components.settings.SettingsRowWithSubtitle
 import com.averycorp.prismtask.ui.components.settings.SettingsToggleRow
 
 /**
@@ -68,9 +69,18 @@ fun NotificationSettingsSection(
     onReengagementToggle: (Boolean) -> Unit,
     onFullScreenNotificationsToggle: (Boolean) -> Unit,
     onOverrideVolumeToggle: (Boolean) -> Unit,
-    onRepeatingVibrationToggle: (Boolean) -> Unit
+    onRepeatingVibrationToggle: (Boolean) -> Unit,
+    onOpenAdvanced: (() -> Unit)? = null
 ) {
     SectionHeader("Notifications")
+
+    if (onOpenAdvanced != null) {
+        SettingsRowWithSubtitle(
+            title = "Customize Delivery",
+            subtitle = "Profiles, sounds, vibration, quiet hours, escalation\u2026",
+            onClick = onOpenAdvanced
+        )
+    }
 
     Text(
         text = "Importance",

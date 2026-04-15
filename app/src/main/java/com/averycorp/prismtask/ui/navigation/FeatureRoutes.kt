@@ -36,6 +36,21 @@ import com.averycorp.prismtask.ui.screens.medication.MedicationRefillScreen
 import com.averycorp.prismtask.ui.screens.medication.MedicationScreen
 import com.averycorp.prismtask.ui.screens.monthview.MonthViewScreen
 import com.averycorp.prismtask.ui.screens.mood.MoodAnalyticsScreen
+import com.averycorp.prismtask.ui.screens.notifications.NotificationBriefingScreen
+import com.averycorp.prismtask.ui.screens.notifications.NotificationCollaboratorScreen
+import com.averycorp.prismtask.ui.screens.notifications.NotificationEscalationScreen
+import com.averycorp.prismtask.ui.screens.notifications.NotificationLockScreen
+import com.averycorp.prismtask.ui.screens.notifications.NotificationProfilesScreen
+import com.averycorp.prismtask.ui.screens.notifications.NotificationQuietHoursScreen
+import com.averycorp.prismtask.ui.screens.notifications.NotificationSnoozeScreen
+import com.averycorp.prismtask.ui.screens.notifications.NotificationSoundScreen
+import com.averycorp.prismtask.ui.screens.notifications.NotificationStreakScreen
+import com.averycorp.prismtask.ui.screens.notifications.NotificationTesterScreen
+import com.averycorp.prismtask.ui.screens.notifications.NotificationTypesScreen
+import com.averycorp.prismtask.ui.screens.notifications.NotificationVibrationScreen
+import com.averycorp.prismtask.ui.screens.notifications.NotificationVisualScreen
+import com.averycorp.prismtask.ui.screens.notifications.NotificationWatchScreen
+import com.averycorp.prismtask.ui.screens.notifications.NotificationsHubScreen
 import com.averycorp.prismtask.ui.screens.planner.WeeklyPlannerScreen
 import com.averycorp.prismtask.ui.screens.pomodoro.SmartPomodoroScreen
 import com.averycorp.prismtask.ui.screens.projects.AddEditProjectScreen
@@ -792,5 +807,83 @@ internal fun NavGraphBuilder.featureRoutes(
         }
     ) {
         DebugLogScreen(navController)
+    }
+
+    // ------------------------------------------------------------------
+    // v1.4.0 Notifications Overhaul
+    //
+    // Hub + 14 sub-screens. They all share the same simple horizontal
+    // slide animation — the hub acts as the "home" and each sub-screen
+    // is a push off the stack.
+    // ------------------------------------------------------------------
+    notificationRoutes(navController)
+}
+
+/**
+ * Notification hub + 14 sub-screen routes. Extracted into its own
+ * extension so the transition lambdas infer the correct
+ * `AnimatedContentTransitionScope<NavBackStackEntry>` receiver, and so
+ * adding another sub-screen doesn't grow [featureRoutes] any further.
+ */
+private fun NavGraphBuilder.notificationRoutes(navController: NavHostController) {
+    // Shared transition spec — kept local so it closes over NAV_ANIM_DURATION.
+    val durationTween: androidx.compose.animation.core.TweenSpec<androidx.compose.ui.unit.IntOffset> =
+        tween(NAV_ANIM_DURATION)
+
+    composable(
+        route = PrismTaskRoute.NotificationsHub.route,
+        enterTransition = {
+            slideInHorizontally(initialOffsetX = { it }, animationSpec = durationTween) +
+                fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
+        },
+        exitTransition = {
+            slideOutHorizontally(targetOffsetX = { -it / 3 }, animationSpec = durationTween) +
+                fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
+        },
+        popEnterTransition = {
+            slideInHorizontally(initialOffsetX = { -it / 3 }, animationSpec = durationTween) +
+                fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
+        },
+        popExitTransition = {
+            slideOutHorizontally(targetOffsetX = { it }, animationSpec = durationTween) +
+                fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
+        }
+    ) { NotificationsHubScreen(navController) }
+
+    listOf<Pair<String, @androidx.compose.runtime.Composable () -> Unit>>(
+        PrismTaskRoute.NotificationProfiles.route to { NotificationProfilesScreen(navController) },
+        PrismTaskRoute.NotificationTypes.route to { NotificationTypesScreen(navController) },
+        PrismTaskRoute.NotificationBriefing.route to { NotificationBriefingScreen(navController) },
+        PrismTaskRoute.NotificationStreak.route to { NotificationStreakScreen(navController) },
+        PrismTaskRoute.NotificationCollaborator.route to { NotificationCollaboratorScreen(navController) },
+        PrismTaskRoute.NotificationSound.route to { NotificationSoundScreen(navController) },
+        PrismTaskRoute.NotificationVibration.route to { NotificationVibrationScreen(navController) },
+        PrismTaskRoute.NotificationVisual.route to { NotificationVisualScreen(navController) },
+        PrismTaskRoute.NotificationLockScreen.route to { NotificationLockScreen(navController) },
+        PrismTaskRoute.NotificationQuietHours.route to { NotificationQuietHoursScreen(navController) },
+        PrismTaskRoute.NotificationSnooze.route to { NotificationSnoozeScreen(navController) },
+        PrismTaskRoute.NotificationEscalation.route to { NotificationEscalationScreen(navController) },
+        PrismTaskRoute.NotificationWatch.route to { NotificationWatchScreen(navController) },
+        PrismTaskRoute.NotificationTester.route to { NotificationTesterScreen(navController) }
+    ).forEach { (route, content) ->
+        composable(
+            route = route,
+            enterTransition = {
+                slideInHorizontally(initialOffsetX = { it }, animationSpec = durationTween) +
+                    fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
+            },
+            exitTransition = {
+                slideOutHorizontally(targetOffsetX = { -it / 3 }, animationSpec = durationTween) +
+                    fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
+            },
+            popEnterTransition = {
+                slideInHorizontally(initialOffsetX = { -it / 3 }, animationSpec = durationTween) +
+                    fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
+            },
+            popExitTransition = {
+                slideOutHorizontally(targetOffsetX = { it }, animationSpec = durationTween) +
+                    fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
+            }
+        ) { content() }
     }
 }

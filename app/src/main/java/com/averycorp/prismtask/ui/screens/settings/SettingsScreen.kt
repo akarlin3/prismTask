@@ -596,7 +596,10 @@ fun SettingsScreen(
                     onReengagementToggle = viewModel::setReengagementEnabled,
                     onFullScreenNotificationsToggle = viewModel::setFullScreenNotificationsEnabled,
                     onOverrideVolumeToggle = viewModel::setOverrideVolumeEnabled,
-                    onRepeatingVibrationToggle = viewModel::setRepeatingVibrationEnabled
+                    onRepeatingVibrationToggle = viewModel::setRepeatingVibrationEnabled,
+                    onOpenAdvanced = {
+                        navController.navigate(PrismTaskRoute.NotificationsHub.route)
+                    }
                 )
 
                 VoiceInputSection(

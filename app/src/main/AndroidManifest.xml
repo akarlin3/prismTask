@@ -126,6 +126,10 @@
             android:exported="false" />
 
         <receiver
+            android:name=".notifications.EscalationBroadcastReceiver"
+            android:exported="false" />
+
+        <receiver
             android:name=".notifications.CompleteTaskReceiver"
             android:exported="false" />
 

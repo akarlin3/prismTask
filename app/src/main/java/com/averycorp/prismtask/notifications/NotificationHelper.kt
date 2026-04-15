@@ -7,10 +7,16 @@ import android.content.Context
 import android.content.Intent
 import android.media.AudioAttributes
 import android.media.RingtoneManager
+import android.net.Uri
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.averycorp.prismtask.MainActivity
 import com.averycorp.prismtask.data.preferences.NotificationPreferences
+import com.averycorp.prismtask.domain.model.notifications.EscalationStepAction
+import com.averycorp.prismtask.domain.model.notifications.LockScreenVisibility
+import com.averycorp.prismtask.domain.model.notifications.NotificationDisplayMode
+import com.averycorp.prismtask.domain.model.notifications.NotificationProfile
+import com.averycorp.prismtask.domain.model.notifications.UrgencyTier
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 
@@ -463,5 +469,325 @@ object NotificationHelper {
             minutes == 0L -> "${hours}h"
             else -> "${hours}h ${minutes}m"
         }
+    }
+
+    // =========================================================================
+    //                       Profile-aware notifications
+    // =========================================================================
+
+    /**
+     * Posts a task reminder using the supplied [NotificationProfile]
+     * rather than the global delivery style.
+     *
+     * This is the new entry point used by the customizable notification
+     * system; the legacy [showTaskReminder] is preserved so un-migrated
+     * callers keep working.
+     *
+     * - Lock-screen visibility, display mode, accent color, per-profile
+     *   sound, vibration, and silent override are honored.
+     * - The channel ID is namespaced by profile.id so two profiles can
+     *   have distinct immutable delivery settings side-by-side.
+     */
+    fun showTaskReminderFor(
+        context: Context,
+        profile: NotificationProfile,
+        taskId: Long,
+        taskTitle: String,
+        taskDescription: String?
+    ) {
+        val prefs = NotificationPreferences.from(context)
+        val enabled = runBlocking { prefs.taskRemindersEnabled.first() }
+        if (!enabled) {
+            Log.d("NotificationHelper", "Task reminders disabled — skipping task=$taskId")
+            return
+        }
+        val channelId = ensureProfileChannel(
+            context = context,
+            baseId = BASE_CHANNEL_ID,
+            channelName = CHANNEL_NAME,
+            description = "Reminders for upcoming tasks",
+            profile = profile
+        )
+
+        val tapIntent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        val tapPending = PendingIntent.getActivity(
+            context,
+            taskId.toInt(),
+            tapIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val completeIntent = Intent(context, CompleteTaskReceiver::class.java).apply {
+            putExtra("taskId", taskId)
+        }
+        val completePending = PendingIntent.getBroadcast(
+            context,
+            taskId.toInt() + 100_000,
+            completeIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val builder = NotificationCompat
+            .Builder(context, channelId)
+            .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
+            .setContentTitle("$taskTitle is coming up")
+            .setContentText(taskDescription ?: "Ready when you are.")
+            .setAutoCancel(true)
+            .setContentIntent(tapPending)
+            .addAction(
+                android.R.drawable.ic_menu_send,
+                "Complete",
+                completePending
+            )
+        applyProfile(builder, profile, tapPending)
+
+        val manager = context.getSystemService(NotificationManager::class.java)
+        manager.notify(taskId.toInt(), builder.build())
+    }
+
+    /**
+     * Called by [EscalationBroadcastReceiver] when an escalation step
+     * fires. Rebuilds the notification with a more intrusive style while
+     * reusing the same notification ID so the heads-up just refreshes
+     * in place.
+     */
+    fun showEscalatedTaskReminder(
+        context: Context,
+        taskId: Long,
+        taskTitle: String,
+        taskDescription: String?,
+        stepAction: EscalationStepAction,
+        tier: UrgencyTier,
+        stepIndex: Int
+    ) {
+        val channelId = ensureEscalationChannel(context, stepAction, tier)
+
+        val tapIntent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        val tapPending = PendingIntent.getActivity(
+            context,
+            taskId.toInt() + 500_000,
+            tapIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val completeIntent = Intent(context, CompleteTaskReceiver::class.java).apply {
+            putExtra("taskId", taskId)
+        }
+        val completePending = PendingIntent.getBroadcast(
+            context,
+            taskId.toInt() + 600_000 + stepIndex,
+            completeIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val headline = when (stepAction) {
+            EscalationStepAction.GENTLE_PING -> "Gentle nudge"
+            EscalationStepAction.STANDARD_ALERT -> "Still pending"
+            EscalationStepAction.LOUD_VIBRATE -> "Action needed"
+            EscalationStepAction.FULL_SCREEN -> "Critical"
+        }
+
+        val builder = NotificationCompat
+            .Builder(context, channelId)
+            .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
+            .setContentTitle("$headline \u2014 $taskTitle")
+            .setContentText(taskDescription ?: "This task still needs your attention.")
+            .setAutoCancel(true)
+            .setContentIntent(tapPending)
+            .addAction(
+                android.R.drawable.ic_menu_send,
+                "Complete",
+                completePending
+            )
+            .setPriority(priorityForStep(stepAction))
+            .setCategory(NotificationCompat.CATEGORY_REMINDER)
+            .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
+        if (stepAction == EscalationStepAction.FULL_SCREEN) {
+            builder.setFullScreenIntent(tapPending, true)
+        }
+
+        val manager = context.getSystemService(NotificationManager::class.java)
+        manager.notify(taskId.toInt(), builder.build())
+    }
+
+    /**
+     * Creates (or reuses) a [NotificationChannel] that matches the
+     * profile's sound / vibration / importance / lock-screen visibility
+     * signature. Channels are immutable after creation, so profile
+     * changes create a new channel with an updated suffix and delete
+     * the prior ones.
+     */
+    private fun ensureProfileChannel(
+        context: Context,
+        baseId: String,
+        channelName: String,
+        description: String,
+        profile: NotificationProfile
+    ): String {
+        val manager = context.getSystemService(NotificationManager::class.java)
+        val channelId = profileChannelId(baseId, profile)
+        deleteStaleProfileChannels(context, baseId, profile, keepId = channelId)
+
+        val importance = importanceForTier(profile.urgencyTier)
+        val effective = if (profile.displayMode == NotificationDisplayMode.FULL_SCREEN) {
+            maxOf(importance, NotificationManager.IMPORTANCE_HIGH)
+        } else {
+            importance
+        }
+
+        val channel = NotificationChannel(channelId, channelName, effective).apply {
+            this.description = description
+
+            // Sound
+            if (profile.silent) {
+                setSound(null, null)
+            } else {
+                val sound = SoundResolver.resolve(context, profile.soundId)
+                when (sound) {
+                    is SoundResolver.SilentChoice -> setSound(null, null)
+                    is SoundResolver.UriChoice -> {
+                        val attrs = AudioAttributes.Builder()
+                            .setUsage(AudioAttributes.USAGE_NOTIFICATION_EVENT)
+                            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                            .build()
+                        setSound(sound.uri, attrs)
+                    }
+                }
+            }
+
+            // Vibration
+            val pattern = VibrationAdapter.patternFor(profile)
+            enableVibration(pattern != null)
+            if (pattern != null) {
+                vibrationPattern = pattern
+            }
+
+            // Lock-screen visibility
+            lockscreenVisibility = when (profile.lockScreenVisibility) {
+                LockScreenVisibility.SHOW_ALL -> NotificationCompat.VISIBILITY_PUBLIC
+                LockScreenVisibility.APP_NAME_ONLY -> NotificationCompat.VISIBILITY_PRIVATE
+                LockScreenVisibility.HIDDEN -> NotificationCompat.VISIBILITY_SECRET
+            }
+
+            // Accent color
+            profile.accentColorHex?.let { hex ->
+                runCatching { android.graphics.Color.parseColor(hex) }
+                    .getOrNull()
+                    ?.let { lightColor = it; enableLights(true) }
+            }
+
+            // Badge behavior
+            setShowBadge(profile.badgeMode != com.averycorp.prismtask.domain.model.notifications.BadgeMode.OFF)
+        }
+        manager.createNotificationChannel(channel)
+        return channelId
+    }
+
+    private fun ensureEscalationChannel(
+        context: Context,
+        action: EscalationStepAction,
+        tier: UrgencyTier
+    ): String {
+        val manager = context.getSystemService(NotificationManager::class.java)
+        val id = "prismtask_escalation_${action.key}_${tier.key}"
+        val importance = when (action) {
+            EscalationStepAction.GENTLE_PING -> NotificationManager.IMPORTANCE_LOW
+            EscalationStepAction.STANDARD_ALERT -> NotificationManager.IMPORTANCE_DEFAULT
+            EscalationStepAction.LOUD_VIBRATE -> NotificationManager.IMPORTANCE_HIGH
+            EscalationStepAction.FULL_SCREEN -> NotificationManager.IMPORTANCE_HIGH
+        }
+        val channel = NotificationChannel(id, "Escalation — ${action.label}", importance).apply {
+            description = "Escalation step for ${tier.label} tier"
+            enableVibration(action != EscalationStepAction.GENTLE_PING)
+            if (action == EscalationStepAction.LOUD_VIBRATE || action == EscalationStepAction.FULL_SCREEN) {
+                val alarmUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+                    ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+                val attrs = AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_ALARM)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                    .build()
+                setSound(alarmUri, attrs)
+            }
+        }
+        manager.createNotificationChannel(channel)
+        return id
+    }
+
+    private fun applyProfile(
+        builder: NotificationCompat.Builder,
+        profile: NotificationProfile,
+        tapPending: PendingIntent
+    ) {
+        builder.priority = when (profile.urgencyTier) {
+            UrgencyTier.LOW -> NotificationCompat.PRIORITY_LOW
+            UrgencyTier.MEDIUM -> NotificationCompat.PRIORITY_DEFAULT
+            UrgencyTier.HIGH -> NotificationCompat.PRIORITY_HIGH
+            UrgencyTier.CRITICAL -> NotificationCompat.PRIORITY_MAX
+        }
+        builder.setVisibility(
+            when (profile.lockScreenVisibility) {
+                LockScreenVisibility.SHOW_ALL -> NotificationCompat.VISIBILITY_PUBLIC
+                LockScreenVisibility.APP_NAME_ONLY -> NotificationCompat.VISIBILITY_PRIVATE
+                LockScreenVisibility.HIDDEN -> NotificationCompat.VISIBILITY_SECRET
+            }
+        )
+        if (profile.displayMode == NotificationDisplayMode.FULL_SCREEN) {
+            builder.setFullScreenIntent(tapPending, true)
+        }
+        if (profile.displayMode == NotificationDisplayMode.PERSISTENT_BANNER) {
+            builder.setOngoing(true)
+            builder.setAutoCancel(false)
+        }
+        profile.accentColorHex?.let { hex ->
+            runCatching { android.graphics.Color.parseColor(hex) }
+                .getOrNull()
+                ?.let { builder.color = it }
+        }
+    }
+
+    private fun importanceForTier(tier: UrgencyTier): Int = when (tier) {
+        UrgencyTier.LOW -> NotificationManager.IMPORTANCE_LOW
+        UrgencyTier.MEDIUM -> NotificationManager.IMPORTANCE_DEFAULT
+        UrgencyTier.HIGH -> NotificationManager.IMPORTANCE_HIGH
+        UrgencyTier.CRITICAL -> NotificationManager.IMPORTANCE_HIGH
+    }
+
+    private fun priorityForStep(action: EscalationStepAction): Int = when (action) {
+        EscalationStepAction.GENTLE_PING -> NotificationCompat.PRIORITY_LOW
+        EscalationStepAction.STANDARD_ALERT -> NotificationCompat.PRIORITY_DEFAULT
+        EscalationStepAction.LOUD_VIBRATE -> NotificationCompat.PRIORITY_HIGH
+        EscalationStepAction.FULL_SCREEN -> NotificationCompat.PRIORITY_MAX
+    }
+
+    /** Deterministic channel id per profile so signature changes create a new channel. */
+    fun profileChannelId(base: String, profile: NotificationProfile): String {
+        val signature = buildString {
+            append('_').append(profile.id)
+            append('_').append(profile.urgencyTier.key)
+            append('_').append(profile.soundId.hashCode())
+            append('_').append(profile.vibrationPreset.key)
+            append('_').append(profile.vibrationRepeatCount)
+            if (profile.silent) append("_silent")
+            if (profile.displayMode == NotificationDisplayMode.FULL_SCREEN) append("_fsi")
+            append('_').append(profile.lockScreenVisibility.key)
+        }
+        return base + signature
+    }
+
+    private fun deleteStaleProfileChannels(
+        context: Context,
+        base: String,
+        profile: NotificationProfile,
+        keepId: String
+    ) {
+        val manager = context.getSystemService(NotificationManager::class.java) ?: return
+        val prefix = "${base}_${profile.id}_"
+        manager.notificationChannels
+            .filter { it.id.startsWith(prefix) && it.id != keepId }
+            .forEach { manager.deleteNotificationChannel(it.id) }
     }
 }

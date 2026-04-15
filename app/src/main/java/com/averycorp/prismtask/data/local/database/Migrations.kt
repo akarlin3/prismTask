@@ -686,6 +686,58 @@ val MIGRATION_38_39 = object : Migration(38, 39) {
     }
 }
 
+// v1.4.0 Notifications Overhaul: expand reminder_profiles into a full
+// notification-delivery profile (sound, vibration, display mode,
+// lock-screen visibility, escalation, quiet hours, snooze, re-alert,
+// watch sync), and introduce custom_sounds for user-uploaded audio.
+val MIGRATION_39_40 = object : Migration(39, 40) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        // --- reminder_profiles expansion ---
+        val adds = listOf(
+            "ALTER TABLE reminder_profiles ADD COLUMN urgency_tier TEXT NOT NULL DEFAULT 'medium'",
+            "ALTER TABLE reminder_profiles ADD COLUMN sound_id TEXT NOT NULL DEFAULT '__system_default__'",
+            "ALTER TABLE reminder_profiles ADD COLUMN sound_volume_percent INTEGER NOT NULL DEFAULT 70",
+            "ALTER TABLE reminder_profiles ADD COLUMN sound_fade_in_ms INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE reminder_profiles ADD COLUMN sound_fade_out_ms INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE reminder_profiles ADD COLUMN silent INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE reminder_profiles ADD COLUMN vibration_preset TEXT NOT NULL DEFAULT 'single'",
+            "ALTER TABLE reminder_profiles ADD COLUMN vibration_intensity TEXT NOT NULL DEFAULT 'medium'",
+            "ALTER TABLE reminder_profiles ADD COLUMN vibration_repeat_count INTEGER NOT NULL DEFAULT 1",
+            "ALTER TABLE reminder_profiles ADD COLUMN vibration_continuous INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE reminder_profiles ADD COLUMN custom_vibration_pattern_csv TEXT",
+            "ALTER TABLE reminder_profiles ADD COLUMN display_mode TEXT NOT NULL DEFAULT 'standard'",
+            "ALTER TABLE reminder_profiles ADD COLUMN lock_screen_visibility TEXT NOT NULL DEFAULT 'app_name'",
+            "ALTER TABLE reminder_profiles ADD COLUMN accent_color_hex TEXT",
+            "ALTER TABLE reminder_profiles ADD COLUMN badge_mode TEXT NOT NULL DEFAULT 'total'",
+            "ALTER TABLE reminder_profiles ADD COLUMN toast_position TEXT NOT NULL DEFAULT 'top_right'",
+            "ALTER TABLE reminder_profiles ADD COLUMN escalation_chain_json TEXT",
+            "ALTER TABLE reminder_profiles ADD COLUMN quiet_hours_json TEXT",
+            "ALTER TABLE reminder_profiles ADD COLUMN snooze_durations_csv TEXT NOT NULL DEFAULT '5,15,30,60'",
+            "ALTER TABLE reminder_profiles ADD COLUMN re_alert_interval_minutes INTEGER NOT NULL DEFAULT 5",
+            "ALTER TABLE reminder_profiles ADD COLUMN re_alert_max_attempts INTEGER NOT NULL DEFAULT 3",
+            "ALTER TABLE reminder_profiles ADD COLUMN watch_sync_mode TEXT NOT NULL DEFAULT 'mirror'",
+            "ALTER TABLE reminder_profiles ADD COLUMN watch_haptic_preset_key TEXT NOT NULL DEFAULT 'single'",
+            "ALTER TABLE reminder_profiles ADD COLUMN auto_switch_rules_json TEXT"
+        )
+        adds.forEach { db.execSQL(it) }
+
+        // --- custom_sounds table ---
+        db.execSQL(
+            """CREATE TABLE IF NOT EXISTS `custom_sounds` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `name` TEXT NOT NULL,
+                `original_filename` TEXT NOT NULL,
+                `uri` TEXT NOT NULL,
+                `format` TEXT NOT NULL,
+                `size_bytes` INTEGER NOT NULL,
+                `duration_ms` INTEGER NOT NULL,
+                `created_at` INTEGER NOT NULL
+            )"""
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_custom_sounds_name` ON `custom_sounds` (`name`)")
+    }
+}
+
 val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_1_2,
     MIGRATION_2_3,
@@ -724,5 +776,6 @@ val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_35_36,
     MIGRATION_36_37,
     MIGRATION_37_38,
-    MIGRATION_38_39
+    MIGRATION_38_39,
+    MIGRATION_39_40
 )

@@ -6,6 +6,7 @@ import com.averycorp.prismtask.data.local.dao.AttachmentDao
 import com.averycorp.prismtask.data.local.dao.BoundaryRuleDao
 import com.averycorp.prismtask.data.local.dao.CalendarSyncDao
 import com.averycorp.prismtask.data.local.dao.CheckInLogDao
+import com.averycorp.prismtask.data.local.dao.CustomSoundDao
 import com.averycorp.prismtask.data.local.dao.FocusReleaseLogDao
 import com.averycorp.prismtask.data.local.dao.HabitCompletionDao
 import com.averycorp.prismtask.data.local.dao.HabitDao
@@ -16,8 +17,8 @@ import com.averycorp.prismtask.data.local.dao.MedicationRefillDao
 import com.averycorp.prismtask.data.local.dao.MoodEnergyLogDao
 import com.averycorp.prismtask.data.local.dao.NlpShortcutDao
 import com.averycorp.prismtask.data.local.dao.ProjectDao
+import com.averycorp.prismtask.data.local.dao.NotificationProfileDao
 import com.averycorp.prismtask.data.local.dao.ProjectTemplateDao
-import com.averycorp.prismtask.data.local.dao.ReminderProfileDao
 import com.averycorp.prismtask.data.local.dao.SavedFilterDao
 import com.averycorp.prismtask.data.local.dao.SchoolworkDao
 import com.averycorp.prismtask.data.local.dao.SelfCareDao
@@ -109,7 +110,11 @@ object DatabaseModule {
     fun provideSavedFilterDao(database: PrismTaskDatabase): SavedFilterDao = database.savedFilterDao()
 
     @Provides
-    fun provideReminderProfileDao(database: PrismTaskDatabase): ReminderProfileDao = database.reminderProfileDao()
+    fun provideNotificationProfileDao(database: PrismTaskDatabase): NotificationProfileDao =
+        database.notificationProfileDao()
+
+    @Provides
+    fun provideCustomSoundDao(database: PrismTaskDatabase): CustomSoundDao = database.customSoundDao()
 
     @Provides
     fun provideProjectTemplateDao(database: PrismTaskDatabase): ProjectTemplateDao = database.projectTemplateDao()

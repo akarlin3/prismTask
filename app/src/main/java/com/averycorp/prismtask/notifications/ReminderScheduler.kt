@@ -5,7 +5,11 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import com.averycorp.prismtask.data.local.dao.TaskDao
+import com.averycorp.prismtask.domain.model.notifications.QuietHoursWindow
+import com.averycorp.prismtask.domain.model.notifications.UrgencyTier
+import com.averycorp.prismtask.domain.usecase.QuietHoursDeferrer
 import dagger.hilt.android.qualifiers.ApplicationContext
+import java.time.ZoneId
 import java.util.Calendar
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -27,9 +31,40 @@ constructor(
         dueDate: Long,
         reminderOffset: Long
     ) {
+        scheduleReminder(
+            taskId = taskId,
+            taskTitle = taskTitle,
+            taskDescription = taskDescription,
+            dueDate = dueDate,
+            reminderOffset = reminderOffset,
+            quietHours = QuietHoursWindow.DISABLED,
+            urgencyTier = UrgencyTier.MEDIUM
+        )
+    }
+
+    /**
+     * Profile-aware scheduling that honors a [QuietHoursWindow]. If the
+     * computed trigger falls inside the window and the [urgencyTier] is
+     * NOT on the quiet-hours break-through allowlist, the alarm is
+     * deferred to the end of the quiet period.
+     *
+     * Back-compat wrapper: the zero-arg [scheduleReminder] above uses
+     * [QuietHoursWindow.DISABLED] so existing call sites keep their
+     * behavior.
+     */
+    fun scheduleReminder(
+        taskId: Long,
+        taskTitle: String,
+        taskDescription: String?,
+        dueDate: Long,
+        reminderOffset: Long,
+        quietHours: QuietHoursWindow,
+        urgencyTier: UrgencyTier
+    ) {
         val triggerTime = dueDate - reminderOffset
         val now = System.currentTimeMillis()
         val effectiveTrigger = computeEffectiveTrigger(triggerTime, now) ?: return
+        val finalTrigger = applyQuietHours(effectiveTrigger, quietHours, urgencyTier)
 
         val intent = Intent(context, ReminderBroadcastReceiver::class.java).apply {
             putExtra("taskId", taskId)
@@ -43,7 +78,7 @@ constructor(
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        ExactAlarmHelper.scheduleExact(context, effectiveTrigger, pendingIntent)
+        ExactAlarmHelper.scheduleExact(context, finalTrigger, pendingIntent)
     }
 
     fun cancelReminder(taskId: Long) {
@@ -68,6 +103,31 @@ constructor(
     }
 
     companion object {
+        /**
+         * Defers [trigger] until the end of the quiet-hours window when
+         * appropriate. If the window doesn't apply today, the trigger
+         * isn't inside the window, or the task's urgency tier is on the
+         * break-through allowlist, [trigger] is returned unchanged.
+         */
+        fun applyQuietHours(
+            trigger: Long,
+            window: QuietHoursWindow,
+            urgencyTier: UrgencyTier,
+            zone: ZoneId = ZoneId.systemDefault()
+        ): Long {
+            if (!window.enabled) return trigger
+            if (window.canBreakThrough(urgencyTier)) return trigger
+            val day = java.time.Instant.ofEpochMilli(trigger)
+                .atZone(zone).toLocalDate().dayOfWeek
+            if (!window.appliesOn(day)) return trigger
+            return QuietHoursDeferrer.defer(
+                fireAtMillis = trigger,
+                quietStart = window.start,
+                quietEnd = window.end,
+                zone = zone
+            )
+        }
+
         /**
          * Pure helper: compute the wall-clock time at which a reminder should
          * fire given a task's due date and how far in advance the user wants

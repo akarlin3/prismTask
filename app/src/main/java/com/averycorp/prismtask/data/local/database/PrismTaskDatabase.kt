@@ -6,6 +6,7 @@ import com.averycorp.prismtask.data.local.dao.AttachmentDao
 import com.averycorp.prismtask.data.local.dao.BoundaryRuleDao
 import com.averycorp.prismtask.data.local.dao.CalendarSyncDao
 import com.averycorp.prismtask.data.local.dao.CheckInLogDao
+import com.averycorp.prismtask.data.local.dao.CustomSoundDao
 import com.averycorp.prismtask.data.local.dao.FocusReleaseLogDao
 import com.averycorp.prismtask.data.local.dao.HabitCompletionDao
 import com.averycorp.prismtask.data.local.dao.HabitDao
@@ -16,8 +17,8 @@ import com.averycorp.prismtask.data.local.dao.MedicationRefillDao
 import com.averycorp.prismtask.data.local.dao.MoodEnergyLogDao
 import com.averycorp.prismtask.data.local.dao.NlpShortcutDao
 import com.averycorp.prismtask.data.local.dao.ProjectDao
+import com.averycorp.prismtask.data.local.dao.NotificationProfileDao
 import com.averycorp.prismtask.data.local.dao.ProjectTemplateDao
-import com.averycorp.prismtask.data.local.dao.ReminderProfileDao
 import com.averycorp.prismtask.data.local.dao.SavedFilterDao
 import com.averycorp.prismtask.data.local.dao.SchoolworkDao
 import com.averycorp.prismtask.data.local.dao.SelfCareDao
@@ -34,6 +35,7 @@ import com.averycorp.prismtask.data.local.entity.BoundaryRuleEntity
 import com.averycorp.prismtask.data.local.entity.CalendarSyncEntity
 import com.averycorp.prismtask.data.local.entity.CheckInLogEntity
 import com.averycorp.prismtask.data.local.entity.CourseCompletionEntity
+import com.averycorp.prismtask.data.local.entity.CustomSoundEntity
 import com.averycorp.prismtask.data.local.entity.CourseEntity
 import com.averycorp.prismtask.data.local.entity.FocusReleaseLogEntity
 import com.averycorp.prismtask.data.local.entity.HabitCompletionEntity
@@ -44,9 +46,9 @@ import com.averycorp.prismtask.data.local.entity.LeisureLogEntity
 import com.averycorp.prismtask.data.local.entity.MedicationRefillEntity
 import com.averycorp.prismtask.data.local.entity.MoodEnergyLogEntity
 import com.averycorp.prismtask.data.local.entity.NlpShortcutEntity
+import com.averycorp.prismtask.data.local.entity.NotificationProfileEntity
 import com.averycorp.prismtask.data.local.entity.ProjectEntity
 import com.averycorp.prismtask.data.local.entity.ProjectTemplateEntity
-import com.averycorp.prismtask.data.local.entity.ReminderProfileEntity
 import com.averycorp.prismtask.data.local.entity.SavedFilterEntity
 import com.averycorp.prismtask.data.local.entity.SelfCareLogEntity
 import com.averycorp.prismtask.data.local.entity.SelfCareStepEntity
@@ -83,7 +85,8 @@ import com.averycorp.prismtask.data.local.entity.WeeklyReviewEntity
         TaskTemplateEntity::class,
         NlpShortcutEntity::class,
         SavedFilterEntity::class,
-        ReminderProfileEntity::class,
+        NotificationProfileEntity::class,
+        CustomSoundEntity::class,
         ProjectTemplateEntity::class,
         HabitTemplateEntity::class,
         MoodEnergyLogEntity::class,
@@ -94,7 +97,7 @@ import com.averycorp.prismtask.data.local.entity.WeeklyReviewEntity
         TaskCompletionEntity::class,
         FocusReleaseLogEntity::class
     ],
-    version = 39,
+    version = 40,
     exportSchema = false
 )
 abstract class PrismTaskDatabase : RoomDatabase() {
@@ -130,7 +133,9 @@ abstract class PrismTaskDatabase : RoomDatabase() {
 
     abstract fun savedFilterDao(): SavedFilterDao
 
-    abstract fun reminderProfileDao(): ReminderProfileDao
+    abstract fun notificationProfileDao(): NotificationProfileDao
+
+    abstract fun customSoundDao(): CustomSoundDao
 
     abstract fun projectTemplateDao(): ProjectTemplateDao
 

@@ -6,6 +6,7 @@ import com.averycorp.prismtask.data.local.entity.BoundaryRuleEntity
 import com.averycorp.prismtask.data.local.entity.CalendarSyncEntity
 import com.averycorp.prismtask.data.local.entity.CheckInLogEntity
 import com.averycorp.prismtask.data.local.entity.CourseCompletionEntity
+import com.averycorp.prismtask.data.local.entity.CustomSoundEntity
 import com.averycorp.prismtask.data.local.entity.CourseEntity
 import com.averycorp.prismtask.data.local.entity.HabitCompletionEntity
 import com.averycorp.prismtask.data.local.entity.HabitEntity
@@ -15,9 +16,9 @@ import com.averycorp.prismtask.data.local.entity.LeisureLogEntity
 import com.averycorp.prismtask.data.local.entity.MedicationRefillEntity
 import com.averycorp.prismtask.data.local.entity.MoodEnergyLogEntity
 import com.averycorp.prismtask.data.local.entity.NlpShortcutEntity
+import com.averycorp.prismtask.data.local.entity.NotificationProfileEntity
 import com.averycorp.prismtask.data.local.entity.ProjectEntity
 import com.averycorp.prismtask.data.local.entity.ProjectTemplateEntity
-import com.averycorp.prismtask.data.local.entity.ReminderProfileEntity
 import com.averycorp.prismtask.data.local.entity.SavedFilterEntity
 import com.averycorp.prismtask.data.local.entity.SelfCareLogEntity
 import com.averycorp.prismtask.data.local.entity.SelfCareStepEntity
@@ -29,6 +30,7 @@ import com.averycorp.prismtask.data.local.entity.TaskEntity
 import com.averycorp.prismtask.data.local.entity.TaskTagCrossRef
 import com.averycorp.prismtask.data.local.entity.TaskTemplateEntity
 import com.averycorp.prismtask.data.local.entity.UsageLogEntity
+import com.averycorp.prismtask.data.local.entity.FocusReleaseLogEntity
 import com.averycorp.prismtask.data.local.entity.WeeklyReviewEntity
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
@@ -72,7 +74,8 @@ class DatabaseEntityRegistrationTest {
         TaskTemplateEntity::class.java,
         NlpShortcutEntity::class.java,
         SavedFilterEntity::class.java,
-        ReminderProfileEntity::class.java,
+        NotificationProfileEntity::class.java,
+        CustomSoundEntity::class.java,
         ProjectTemplateEntity::class.java,
         HabitTemplateEntity::class.java,
         MoodEnergyLogEntity::class.java,
@@ -80,7 +83,8 @@ class DatabaseEntityRegistrationTest {
         BoundaryRuleEntity::class.java,
         CheckInLogEntity::class.java,
         WeeklyReviewEntity::class.java,
-        TaskCompletionEntity::class.java
+        TaskCompletionEntity::class.java,
+        FocusReleaseLogEntity::class.java
     )
 
     @Test
@@ -97,14 +101,14 @@ class DatabaseEntityRegistrationTest {
     }
 
     @Test
-    fun `exactly 30 entities are registered`() {
-        // PrismTaskDatabase @Database annotation lists 30 entities.
+    fun `exactly 32 entities are registered`() {
+        // PrismTaskDatabase @Database annotation lists 32 entities.
         // If someone adds or removes one, both this test and the annotation
         // must be updated together.
         assertTrue(
-            "Expected 30 entity classes, found ${expectedEntityClasses.size}. " +
+            "Expected 32 entity classes, found ${expectedEntityClasses.size}. " +
                 "Update this test AND PrismTaskDatabase.kt if entities were added/removed.",
-            expectedEntityClasses.size == 30
+            expectedEntityClasses.size == 32
         )
     }
 

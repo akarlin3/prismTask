@@ -5,8 +5,10 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -71,6 +73,49 @@ class NotificationPreferences(
         // Default reminder lead time (millis before due date)
         private val DEFAULT_REMINDER_OFFSET = longPreferencesKey("default_reminder_offset")
 
+        // ---- v1.4.0 Notifications Overhaul additions ----
+
+        // Active profile ID (points at notification_profiles.id). -1 = built-in fallback.
+        private val ACTIVE_PROFILE_ID = longPreferencesKey("active_notification_profile_id")
+
+        // Per-category profile overrides; stored as "<category_key>=<profile_id>" strings.
+        private val CATEGORY_PROFILE_OVERRIDES =
+            stringSetPreferencesKey("category_profile_overrides")
+
+        // Streak & gamification alerts
+        private val STREAK_ALERTS_ENABLED = booleanPreferencesKey("streak_alerts_enabled")
+        private val STREAK_AT_RISK_LEAD_HOURS = intPreferencesKey("streak_at_risk_lead_hours")
+
+        // Daily briefing customization
+        private val BRIEFING_MORNING_HOUR = intPreferencesKey("briefing_morning_hour")
+        private val BRIEFING_MIDDAY_ENABLED = booleanPreferencesKey("briefing_midday_enabled")
+        private val BRIEFING_EVENING_HOUR = intPreferencesKey("briefing_evening_hour")
+        private val BRIEFING_TONE = stringPreferencesKey("briefing_tone")
+        private val BRIEFING_SECTIONS = stringSetPreferencesKey("briefing_sections")
+        private val BRIEFING_READ_ALOUD = booleanPreferencesKey("briefing_read_aloud")
+
+        // Collaborator notifications
+        private val COLLAB_DIGEST_MODE = stringPreferencesKey("collab_digest_mode")
+        private val COLLAB_ASSIGNED_ENABLED = booleanPreferencesKey("collab_assigned_enabled")
+        private val COLLAB_MENTIONED_ENABLED = booleanPreferencesKey("collab_mentioned_enabled")
+        private val COLLAB_STATUS_ENABLED = booleanPreferencesKey("collab_status_enabled")
+        private val COLLAB_COMMENT_ENABLED = booleanPreferencesKey("collab_comment_enabled")
+        private val COLLAB_DUE_SOON_ENABLED = booleanPreferencesKey("collab_due_soon_enabled")
+
+        // Smartwatch
+        private val WATCH_SYNC_MODE = stringPreferencesKey("watch_sync_mode")
+        private val WATCH_VOLUME_PERCENT = intPreferencesKey("watch_volume_percent")
+        private val WATCH_HAPTIC_INTENSITY = stringPreferencesKey("watch_haptic_intensity")
+
+        // Visual badge / toast (cross-platform: desktop/web honor toast pos)
+        private val BADGE_MODE = stringPreferencesKey("badge_mode")
+        private val TOAST_POSITION = stringPreferencesKey("toast_position")
+        private val HIGH_CONTRAST_NOTIFICATIONS =
+            booleanPreferencesKey("high_contrast_notifications")
+
+        // Snooze options (CSV of minute integers)
+        private val SNOOZE_DURATIONS_CSV = stringPreferencesKey("snooze_durations_csv")
+
         const val IMPORTANCE_MINIMAL = "minimal"
         const val IMPORTANCE_STANDARD = "standard"
         const val IMPORTANCE_URGENT = "urgent"
@@ -94,6 +139,52 @@ class NotificationPreferences(
             86_400_000L,
             OFFSET_NONE
         )
+
+        // ---- Briefing tone constants ----
+        const val BRIEFING_TONE_CONCISE = "concise"
+        const val BRIEFING_TONE_CONVERSATIONAL = "conversational"
+        const val BRIEFING_TONE_MOTIVATIONAL = "motivational"
+        val ALL_BRIEFING_TONES = listOf(
+            BRIEFING_TONE_CONCISE,
+            BRIEFING_TONE_CONVERSATIONAL,
+            BRIEFING_TONE_MOTIVATIONAL
+        )
+
+        /** Section IDs toggleable in the AI briefing. */
+        const val BRIEFING_SECTION_TODAY_TASKS = "today_tasks"
+        const val BRIEFING_SECTION_OVERDUE = "overdue"
+        const val BRIEFING_SECTION_UPCOMING = "upcoming"
+        const val BRIEFING_SECTION_COLLAB = "collaborator"
+        const val BRIEFING_SECTION_STREAK = "streak"
+        val DEFAULT_BRIEFING_SECTIONS: Set<String> = setOf(
+            BRIEFING_SECTION_TODAY_TASKS,
+            BRIEFING_SECTION_OVERDUE,
+            BRIEFING_SECTION_UPCOMING,
+            BRIEFING_SECTION_STREAK
+        )
+
+        // ---- Collaborator digest modes ----
+        const val COLLAB_DIGEST_IMMEDIATE = "immediate"
+        const val COLLAB_DIGEST_HOURLY = "hourly"
+        const val COLLAB_DIGEST_DAILY = "daily"
+        const val COLLAB_DIGEST_MUTED = "muted"
+
+        // ---- Watch sync modes ----
+        const val WATCH_SYNC_MIRROR = "mirror"
+        const val WATCH_SYNC_WATCH_ONLY = "watch_only"
+        const val WATCH_SYNC_DIFFERENTIATED = "differentiated"
+        const val WATCH_SYNC_DISABLED = "disabled"
+
+        // ---- Briefing defaults ----
+        const val DEFAULT_MORNING_HOUR = 8
+        const val DEFAULT_EVENING_HOUR = 20
+
+        // ---- Streak defaults ----
+        const val DEFAULT_STREAK_AT_RISK_LEAD_HOURS = 4
+
+        // ---- Snooze defaults ----
+        val DEFAULT_SNOOZE_MINUTES: List<Int> = listOf(5, 15, 30, 60)
+        const val DEFAULT_SNOOZE_CSV = "5,15,30,60"
 
         /** Factory for non-Hilt callers that only have a [Context]. */
         fun from(context: Context): NotificationPreferences =
@@ -239,6 +330,226 @@ class NotificationPreferences(
     }
 
     suspend fun getDefaultReminderOffsetOnce(): Long = defaultReminderOffset.first()
+
+    // endregion
+
+    // region Active profile
+
+    /** -1 = no selection, fall back to the built-in default bundle. */
+    val activeProfileId: Flow<Long> = dataStore.data.map {
+        it[ACTIVE_PROFILE_ID] ?: -1L
+    }
+
+    suspend fun setActiveProfileId(id: Long) {
+        dataStore.edit { it[ACTIVE_PROFILE_ID] = id }
+    }
+
+    suspend fun getActiveProfileIdOnce(): Long = activeProfileId.first()
+
+    /**
+     * Per-category profile overrides: "<category_key>=<profile_id>" strings.
+     * A category without an entry inherits the global [activeProfileId].
+     */
+    val categoryProfileOverrides: Flow<Map<String, Long>> = dataStore.data.map { prefs ->
+        (prefs[CATEGORY_PROFILE_OVERRIDES] ?: emptySet()).mapNotNull { s ->
+            val parts = s.split("=", limit = 2)
+            if (parts.size == 2) {
+                val id = parts[1].toLongOrNull()
+                if (id != null) parts[0] to id else null
+            } else {
+                null
+            }
+        }.toMap()
+    }
+
+    suspend fun setCategoryProfileOverride(categoryKey: String, profileId: Long?) {
+        dataStore.edit { prefs ->
+            val existing = (prefs[CATEGORY_PROFILE_OVERRIDES] ?: emptySet()).filterNot {
+                it.startsWith("$categoryKey=")
+            }.toMutableSet()
+            if (profileId != null) existing += "$categoryKey=$profileId"
+            prefs[CATEGORY_PROFILE_OVERRIDES] = existing
+        }
+    }
+
+    // endregion
+
+    // region Streak alerts
+
+    val streakAlertsEnabled: Flow<Boolean> = dataStore.data
+        .map { it[STREAK_ALERTS_ENABLED] ?: true }
+
+    suspend fun setStreakAlertsEnabled(enabled: Boolean) {
+        dataStore.edit { it[STREAK_ALERTS_ENABLED] = enabled }
+    }
+
+    val streakAtRiskLeadHours: Flow<Int> = dataStore.data
+        .map { it[STREAK_AT_RISK_LEAD_HOURS] ?: DEFAULT_STREAK_AT_RISK_LEAD_HOURS }
+
+    suspend fun setStreakAtRiskLeadHours(hours: Int) {
+        dataStore.edit { it[STREAK_AT_RISK_LEAD_HOURS] = hours.coerceIn(1, 24) }
+    }
+
+    // endregion
+
+    // region Daily briefing
+
+    val briefingMorningHour: Flow<Int> = dataStore.data
+        .map { it[BRIEFING_MORNING_HOUR] ?: DEFAULT_MORNING_HOUR }
+
+    suspend fun setBriefingMorningHour(hour: Int) {
+        dataStore.edit { it[BRIEFING_MORNING_HOUR] = hour.coerceIn(0, 23) }
+    }
+
+    val briefingMiddayEnabled: Flow<Boolean> = dataStore.data
+        .map { it[BRIEFING_MIDDAY_ENABLED] ?: false }
+
+    suspend fun setBriefingMiddayEnabled(enabled: Boolean) {
+        dataStore.edit { it[BRIEFING_MIDDAY_ENABLED] = enabled }
+    }
+
+    val briefingEveningHour: Flow<Int> = dataStore.data
+        .map { it[BRIEFING_EVENING_HOUR] ?: DEFAULT_EVENING_HOUR }
+
+    suspend fun setBriefingEveningHour(hour: Int) {
+        dataStore.edit { it[BRIEFING_EVENING_HOUR] = hour.coerceIn(0, 23) }
+    }
+
+    val briefingTone: Flow<String> = dataStore.data
+        .map { it[BRIEFING_TONE] ?: BRIEFING_TONE_CONCISE }
+
+    suspend fun setBriefingTone(tone: String) {
+        val normalized = if (tone in ALL_BRIEFING_TONES) tone else BRIEFING_TONE_CONCISE
+        dataStore.edit { it[BRIEFING_TONE] = normalized }
+    }
+
+    val briefingSections: Flow<Set<String>> = dataStore.data
+        .map { it[BRIEFING_SECTIONS] ?: DEFAULT_BRIEFING_SECTIONS }
+
+    suspend fun setBriefingSections(sections: Set<String>) {
+        dataStore.edit { it[BRIEFING_SECTIONS] = sections }
+    }
+
+    val briefingReadAloudEnabled: Flow<Boolean> = dataStore.data
+        .map { it[BRIEFING_READ_ALOUD] ?: false }
+
+    suspend fun setBriefingReadAloudEnabled(enabled: Boolean) {
+        dataStore.edit { it[BRIEFING_READ_ALOUD] = enabled }
+    }
+
+    // endregion
+
+    // region Collaborator notifications
+
+    val collabDigestMode: Flow<String> = dataStore.data
+        .map { it[COLLAB_DIGEST_MODE] ?: COLLAB_DIGEST_IMMEDIATE }
+
+    suspend fun setCollabDigestMode(mode: String) {
+        dataStore.edit { it[COLLAB_DIGEST_MODE] = mode }
+    }
+
+    val collabAssignedEnabled: Flow<Boolean> = dataStore.data
+        .map { it[COLLAB_ASSIGNED_ENABLED] ?: true }
+
+    suspend fun setCollabAssignedEnabled(enabled: Boolean) {
+        dataStore.edit { it[COLLAB_ASSIGNED_ENABLED] = enabled }
+    }
+
+    val collabMentionedEnabled: Flow<Boolean> = dataStore.data
+        .map { it[COLLAB_MENTIONED_ENABLED] ?: true }
+
+    suspend fun setCollabMentionedEnabled(enabled: Boolean) {
+        dataStore.edit { it[COLLAB_MENTIONED_ENABLED] = enabled }
+    }
+
+    val collabStatusEnabled: Flow<Boolean> = dataStore.data
+        .map { it[COLLAB_STATUS_ENABLED] ?: true }
+
+    suspend fun setCollabStatusEnabled(enabled: Boolean) {
+        dataStore.edit { it[COLLAB_STATUS_ENABLED] = enabled }
+    }
+
+    val collabCommentEnabled: Flow<Boolean> = dataStore.data
+        .map { it[COLLAB_COMMENT_ENABLED] ?: true }
+
+    suspend fun setCollabCommentEnabled(enabled: Boolean) {
+        dataStore.edit { it[COLLAB_COMMENT_ENABLED] = enabled }
+    }
+
+    val collabDueSoonEnabled: Flow<Boolean> = dataStore.data
+        .map { it[COLLAB_DUE_SOON_ENABLED] ?: true }
+
+    suspend fun setCollabDueSoonEnabled(enabled: Boolean) {
+        dataStore.edit { it[COLLAB_DUE_SOON_ENABLED] = enabled }
+    }
+
+    // endregion
+
+    // region Smartwatch
+
+    val watchSyncMode: Flow<String> = dataStore.data
+        .map { it[WATCH_SYNC_MODE] ?: WATCH_SYNC_MIRROR }
+
+    suspend fun setWatchSyncMode(mode: String) {
+        dataStore.edit { it[WATCH_SYNC_MODE] = mode }
+    }
+
+    val watchVolumePercent: Flow<Int> = dataStore.data
+        .map { it[WATCH_VOLUME_PERCENT] ?: 70 }
+
+    suspend fun setWatchVolumePercent(percent: Int) {
+        dataStore.edit { it[WATCH_VOLUME_PERCENT] = percent.coerceIn(0, 100) }
+    }
+
+    val watchHapticIntensity: Flow<String> = dataStore.data
+        .map { it[WATCH_HAPTIC_INTENSITY] ?: "medium" }
+
+    suspend fun setWatchHapticIntensity(intensity: String) {
+        dataStore.edit { it[WATCH_HAPTIC_INTENSITY] = intensity }
+    }
+
+    // endregion
+
+    // region Visual: badge + toast position + contrast
+
+    val badgeMode: Flow<String> = dataStore.data
+        .map { it[BADGE_MODE] ?: "total" }
+
+    suspend fun setBadgeMode(mode: String) {
+        dataStore.edit { it[BADGE_MODE] = mode }
+    }
+
+    val toastPosition: Flow<String> = dataStore.data
+        .map { it[TOAST_POSITION] ?: "top_right" }
+
+    suspend fun setToastPosition(position: String) {
+        dataStore.edit { it[TOAST_POSITION] = position }
+    }
+
+    val highContrastNotificationsEnabled: Flow<Boolean> = dataStore.data
+        .map { it[HIGH_CONTRAST_NOTIFICATIONS] ?: false }
+
+    suspend fun setHighContrastNotificationsEnabled(enabled: Boolean) {
+        dataStore.edit { it[HIGH_CONTRAST_NOTIFICATIONS] = enabled }
+    }
+
+    // endregion
+
+    // region Snooze durations
+
+    val snoozeDurationsMinutes: Flow<List<Int>> = dataStore.data.map { prefs ->
+        (prefs[SNOOZE_DURATIONS_CSV] ?: DEFAULT_SNOOZE_CSV)
+            .split(",")
+            .mapNotNull { it.trim().toIntOrNull() }
+            .takeIf { it.isNotEmpty() }
+            ?: DEFAULT_SNOOZE_MINUTES
+    }
+
+    suspend fun setSnoozeDurationsMinutes(minutes: List<Int>) {
+        dataStore.edit {
+            it[SNOOZE_DURATIONS_CSV] = minutes.joinToString(",")
+        }
+    }
 
     // endregion
 }

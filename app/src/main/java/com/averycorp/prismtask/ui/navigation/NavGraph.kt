@@ -175,6 +175,23 @@ sealed class PrismTaskRoute(
         fun createRoute(projectId: Long? = null): String =
             if (projectId != null) "task_analytics?projectId=$projectId" else "task_analytics"
     }
+
+    // v1.4.0 Notifications Overhaul: top-level hub + per-domain sub-screens
+    data object NotificationsHub : PrismTaskRoute("notifications_hub")
+    data object NotificationProfiles : PrismTaskRoute("notifications_profiles")
+    data object NotificationTypes : PrismTaskRoute("notifications_types")
+    data object NotificationBriefing : PrismTaskRoute("notifications_briefing")
+    data object NotificationStreak : PrismTaskRoute("notifications_streak")
+    data object NotificationCollaborator : PrismTaskRoute("notifications_collab")
+    data object NotificationSound : PrismTaskRoute("notifications_sound")
+    data object NotificationVibration : PrismTaskRoute("notifications_vibration")
+    data object NotificationVisual : PrismTaskRoute("notifications_visual")
+    data object NotificationLockScreen : PrismTaskRoute("notifications_lockscreen")
+    data object NotificationQuietHours : PrismTaskRoute("notifications_quiet_hours")
+    data object NotificationSnooze : PrismTaskRoute("notifications_snooze")
+    data object NotificationEscalation : PrismTaskRoute("notifications_escalation")
+    data object NotificationWatch : PrismTaskRoute("notifications_watch")
+    data object NotificationTester : PrismTaskRoute("notifications_tester")
 }
 
 data class BottomNavItem(

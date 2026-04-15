@@ -41,7 +41,8 @@ class HiltDependencyGraphTest {
         "taskTemplateDao",
         "nlpShortcutDao",
         "savedFilterDao",
-        "reminderProfileDao",
+        "notificationProfileDao",
+        "customSoundDao",
         "projectTemplateDao",
         "habitTemplateDao",
         "moodEnergyLogDao",
@@ -49,7 +50,8 @@ class HiltDependencyGraphTest {
         "boundaryRuleDao",
         "checkInLogDao",
         "weeklyReviewDao",
-        "taskCompletionDao"
+        "taskCompletionDao",
+        "focusReleaseLogDao"
     )
 
     @Test
