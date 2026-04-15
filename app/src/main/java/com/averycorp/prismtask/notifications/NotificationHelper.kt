@@ -11,12 +11,17 @@ import com.averycorp.prismtask.MainActivity
 import com.averycorp.prismtask.R
 
 object NotificationHelper {
-    private const val CHANNEL_ID = "averytask_reminders"
+    private const val CHANNEL_ID = "prismtask_reminders"
     private const val CHANNEL_NAME = "Task Reminders"
-    private const val MED_CHANNEL_ID = "averytask_medication_reminders"
+    private const val MED_CHANNEL_ID = "prismtask_medication_reminders"
     private const val MED_CHANNEL_NAME = "Medication Reminders"
 
+    private const val LEGACY_CHANNEL_ID = "averytask_reminders"
+    private const val LEGACY_MED_CHANNEL_ID = "averytask_medication_reminders"
+
     fun createNotificationChannel(context: Context) {
+        val manager = context.getSystemService(NotificationManager::class.java)
+        migrateOldChannels(context)
         val channel = NotificationChannel(
             CHANNEL_ID,
             CHANNEL_NAME,
@@ -24,8 +29,13 @@ object NotificationHelper {
         ).apply {
             description = "Reminders for upcoming tasks"
         }
-        val manager = context.getSystemService(NotificationManager::class.java)
         manager.createNotificationChannel(channel)
+    }
+
+    fun migrateOldChannels(context: Context) {
+        val manager = context.getSystemService(NotificationManager::class.java)
+        manager.deleteNotificationChannel(LEGACY_CHANNEL_ID)
+        manager.deleteNotificationChannel(LEGACY_MED_CHANNEL_ID)
     }
 
     fun showTaskReminder(
