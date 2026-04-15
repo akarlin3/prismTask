@@ -476,8 +476,15 @@ class MainActivity : ComponentActivity() {
                         },
                         confirmButton = {
                             androidx.compose.material3.TextButton(onClick = {
+                                val capturedUri = pendingScreenshotUri
                                 showShakeDialog = false
-                                navController.navigate(PrismTaskRoute.BugReport.createRoute("ShakeReport"))
+                                pendingScreenshotUri = null
+                                navController.navigate(
+                                    PrismTaskRoute.BugReport.createRoute(
+                                        fromScreen = "ShakeReport",
+                                        screenshotUri = capturedUri?.toString()
+                                    )
+                                )
                             }) {
                                 androidx.compose.material3.Text("Report")
                             }

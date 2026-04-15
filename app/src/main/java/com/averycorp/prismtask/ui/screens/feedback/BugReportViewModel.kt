@@ -56,6 +56,16 @@ constructor(
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
     private val fromScreen: String = savedStateHandle.get<String>("fromScreen") ?: "Unknown"
+    private val initialScreenshotUri: Uri? = savedStateHandle
+        .get<String>("screenshotUri")
+        ?.takeIf { it.isNotBlank() }
+        ?.let {
+            try {
+                Uri.parse(it)
+            } catch (_: Exception) {
+                null
+            }
+        }
 
     // Form state
     private val _category = MutableStateFlow(BugCategory.OTHER)
@@ -70,7 +80,9 @@ constructor(
     private val _steps = MutableStateFlow(listOf("", ""))
     val steps: StateFlow<List<String>> = _steps.asStateFlow()
 
-    private val _screenshotUris = MutableStateFlow<List<Uri>>(emptyList())
+    private val _screenshotUris = MutableStateFlow<List<Uri>>(
+        listOfNotNull(initialScreenshotUri)
+    )
     val screenshotUris: StateFlow<List<Uri>> = _screenshotUris.asStateFlow()
 
     private val _includeDiagnosticLog = MutableStateFlow(true)

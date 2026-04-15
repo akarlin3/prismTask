@@ -162,9 +162,17 @@ sealed class PrismTaskRoute(
 
     data object MedicationRefill : PrismTaskRoute("medication_refill")
 
-    data object BugReport : PrismTaskRoute("bug_report?fromScreen={fromScreen}") {
-        fun createRoute(fromScreen: String = ""): String =
-            "bug_report?fromScreen=$fromScreen"
+    data object BugReport : PrismTaskRoute(
+        "bug_report?fromScreen={fromScreen}&screenshotUri={screenshotUri}"
+    ) {
+        fun createRoute(fromScreen: String = "", screenshotUri: String? = null): String {
+            val base = "bug_report?fromScreen=${android.net.Uri.encode(fromScreen)}"
+            return if (!screenshotUri.isNullOrBlank()) {
+                "$base&screenshotUri=${android.net.Uri.encode(screenshotUri)}"
+            } else {
+                base
+            }
+        }
     }
 
     data object FeatureRequest : PrismTaskRoute("feature_request")
