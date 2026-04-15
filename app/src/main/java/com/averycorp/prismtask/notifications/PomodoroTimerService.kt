@@ -11,7 +11,6 @@ import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
 import android.util.Log
-import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import com.averycorp.prismtask.MainActivity
 import kotlinx.coroutines.CoroutineScope
@@ -68,14 +67,19 @@ class PomodoroTimerService : Service() {
         Log.d("PomodoroService", "startCountdown: seconds=$secondsRemaining type=$sessionType")
 
         val notification = buildOngoingNotification(secondsRemaining)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            startForeground(
-                NOTIFICATION_ID_ONGOING,
-                notification,
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
-            )
-        } else {
-            startForeground(NOTIFICATION_ID_ONGOING, notification)
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                startForeground(
+                    NOTIFICATION_ID_ONGOING,
+                    notification,
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
+                )
+            } else {
+                startForeground(NOTIFICATION_ID_ONGOING, notification)
+            }
+            Log.d("PomodoroService", "startForeground succeeded")
+        } catch (e: Exception) {
+            Log.e("PomodoroService", "startForeground FAILED", e)
         }
 
         tickJob?.cancel()
@@ -247,29 +251,21 @@ class PomodoroTimerService : Service() {
             sessionIndex: Int,
             sessionType: String
         ) {
+            createChannels(context)
+            val intent = Intent(context, PomodoroTimerService::class.java).apply {
+                action = ACTION_START
+                putExtra(EXTRA_DURATION_SECONDS, durationSeconds)
+                putExtra(EXTRA_SESSION_INDEX, sessionIndex)
+                putExtra(EXTRA_SESSION_TYPE, sessionType)
+            }
             try {
-                createChannels(context)
-                val intent = Intent(context, PomodoroTimerService::class.java).apply {
-                    action = ACTION_START
-                    putExtra(EXTRA_DURATION_SECONDS, durationSeconds)
-                    putExtra(EXTRA_SESSION_INDEX, sessionIndex)
-                    putExtra(EXTRA_SESSION_TYPE, sessionType)
-                }
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     context.startForegroundService(intent)
                 } else {
                     context.startService(intent)
                 }
-            } catch (e: Throwable) {
-                // Android framework stubs (Log, Toast) throw RuntimeException in
-                // plain JVM unit tests, so the fallback diagnostics must be
-                // guarded too or the whole call site blows up.
-                try {
-                    Log.e("PomodoroService", "Failed to start foreground service", e)
-                    Toast.makeText(context, "Service start failed: ${e.message}", Toast.LENGTH_LONG).show()
-                } catch (_: Throwable) {
-                    // No-op: unit-test environment without Android framework.
-                }
+            } catch (e: Exception) {
+                Log.e("PomodoroService", "FAILED to start foreground service", e)
             }
         }
 
