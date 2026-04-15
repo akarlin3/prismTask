@@ -46,7 +46,7 @@ data class BuiltInSound(
         )
 
         /**
-         * Complete catalog. These map 1:1 to `res/raw/*.ogg` files that
+         * Complete catalog. These map 1:1 to `res/raw/` .ogg files that
          * ship in the APK; missing resource names mean only metadata is
          * exposed (the actual file is provided in a later asset drop so
          * the picker can function even before audio is bundled).
