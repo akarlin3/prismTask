@@ -61,12 +61,19 @@ class EdgeCaseOfflineTest {
     val hiltRule = HiltAndroidRule(this)
 
     @Inject lateinit var database: PrismTaskDatabase
+
     @Inject lateinit var taskRepository: TaskRepository
+
     @Inject lateinit var habitRepository: HabitRepository
+
     @Inject lateinit var syncMetadataDao: SyncMetadataDao
+
     @Inject lateinit var backendSyncService: BackendSyncService
+
     @Inject lateinit var fakeApi: FakePrismTaskApi
+
     @Inject lateinit var authTokenPreferences: AuthTokenPreferences
+
     @Inject lateinit var backendSyncPreferences: BackendSyncPreferences
 
     @Before

@@ -54,6 +54,7 @@ class FakePrismTaskApi : PrismTaskApi {
     val pulledSinceParams: MutableList<String?> = mutableListOf()
 
     @Volatile var onBeforePush: (suspend () -> Unit)? = null
+
     @Volatile var onBeforePull: (suspend () -> Unit)? = null
 
     private fun requireOnline() {
