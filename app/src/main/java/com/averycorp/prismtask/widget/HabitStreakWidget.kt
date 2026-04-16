@@ -3,7 +3,6 @@ package com.averycorp.prismtask.widget
 import android.content.Context
 import android.content.Intent
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -34,7 +33,6 @@ import androidx.glance.layout.width
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
-import androidx.glance.unit.ColorProvider
 import com.averycorp.prismtask.MainActivity
 
 class HabitStreakWidget : GlanceAppWidget() {
@@ -50,11 +48,17 @@ class HabitStreakWidget : GlanceAppWidget() {
         val data = try {
             WidgetDataProvider.getHabitData(context)
         } catch (_: Exception) {
-            HabitWidgetData(emptyList(), 0)
+            null
         }
         provideContent {
             val size = LocalSize.current
-            GlanceTheme { HabitStreakContent(context, data, size) }
+            GlanceTheme {
+                if (data != null) {
+                    HabitStreakContent(context, data, size)
+                } else {
+                    WidgetLoadingState()
+                }
+            }
         }
     }
 }
@@ -64,16 +68,18 @@ private fun HabitStreakContent(context: Context, data: HabitWidgetData, size: Dp
     val isSmall = size.width < 250.dp
     val isLarge = size.width >= 350.dp
     val habitsIntent = Intent(context, MainActivity::class.java).apply {
-        flags =
-            Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
         putExtra(MainActivity.EXTRA_LAUNCH_ACTION, "open_habits")
     }
+    val completedToday = data.habits.count { it.isCompletedToday }
+    val totalHabits = data.habits.size
+
     Column(
         modifier = GlanceModifier
             .fillMaxSize()
             .cornerRadius(16.dp)
             .background(GlanceTheme.colors.surface)
-            .padding(12.dp)
+            .padding(if (isLarge) 12.dp else 8.dp)
     ) {
         Row(
             modifier = GlanceModifier.fillMaxWidth().clickable(actionStartActivity(habitsIntent)),
@@ -81,60 +87,50 @@ private fun HabitStreakContent(context: Context, data: HabitWidgetData, size: Dp
         ) {
             Text(
                 text = "Habits",
-                style = TextStyle(fontWeight = FontWeight.Bold, fontSize = 15.sp, color = GlanceTheme.colors.onSurface),
+                style = WidgetTextStyles.header(GlanceTheme.colors.onSurface),
                 modifier = GlanceModifier.defaultWeight()
             )
-            if (data.longestStreak >
-                0
-            ) {
+            if (data.longestStreak > 0) {
                 Text(
                     text = "\uD83D\uDD25 ${data.longestStreak} day${if (data.longestStreak != 1) "s" else ""}",
-                    style = TextStyle(
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = if (data.longestStreak >
-                            30
-                        ) {
-                            ColorProvider(Color(0xFFFFB300))
-                        } else {
-                            GlanceTheme.colors.primary
-                        }
+                    style = WidgetTextStyles.captionMedium(
+                        if (data.longestStreak > 30) WidgetColors.streakGold
+                        else GlanceTheme.colors.primary
                     )
                 )
             }
         }
-        Spacer(modifier = GlanceModifier.height(8.dp))
+        // Subtitle: completed today count
+        if (totalHabits > 0) {
+            Text(
+                text = "$completedToday of $totalHabits done today",
+                style = WidgetTextStyles.badge(GlanceTheme.colors.onSurfaceVariant)
+            )
+        }
+        Spacer(modifier = GlanceModifier.height(6.dp))
         if (data.habits.isEmpty()) {
-            Box(modifier = GlanceModifier.fillMaxSize().clickable(actionStartActivity(habitsIntent)), contentAlignment = Alignment.Center) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(text = "\u2795", style = TextStyle(fontSize = 20.sp))
-                    Spacer(modifier = GlanceModifier.height(4.dp))
-                    Text(
-                        text = "No Habits Yet \u2014 Tap to Create One",
-                        style = TextStyle(fontSize = 11.sp, color = GlanceTheme.colors.onSurfaceVariant)
-                    )
-                }
-            }
+            WidgetEmptyState(
+                emoji = "\uD83C\uDF31",
+                message = "No Habits Yet"
+            )
         } else if (isSmall) {
             data.habits.take(3).forEach { habit ->
                 SmallHabitRow(habit)
                 Spacer(modifier = GlanceModifier.height(4.dp))
             }
         } else {
-            val maxHabits = if (isLarge) 8 else 6
-            data.habits.take(maxHabits).chunked(2).take(if (isLarge) 4 else 3).forEach { pair ->
+            // Large: show up to 16, Medium: show up to 6
+            val maxHabits = if (isLarge) minOf(data.habits.size, 16) else 6
+            val maxRows = if (isLarge) 8 else 3
+            data.habits.take(maxHabits).chunked(2).take(maxRows).forEach { pair ->
                 Row(modifier = GlanceModifier.fillMaxWidth()) {
                     pair.forEachIndexed { index, habit ->
-                        if (index >
-                            0
-                        ) {
+                        if (index > 0) {
                             Spacer(modifier = GlanceModifier.width(6.dp))
                         }
                         HabitCell(habit, showWeeklyDots = isLarge, modifier = GlanceModifier.defaultWeight())
                     }
-                    if (pair.size ==
-                        1
-                    ) {
+                    if (pair.size == 1) {
                         Spacer(modifier = GlanceModifier.defaultWeight())
                     }
                 }
@@ -145,7 +141,7 @@ private fun HabitStreakContent(context: Context, data: HabitWidgetData, size: Dp
         Box(modifier = GlanceModifier.fillMaxWidth().clickable(actionStartActivity(habitsIntent))) {
             Text(
                 text = "View All \u2192",
-                style = TextStyle(fontSize = 10.sp, color = GlanceTheme.colors.primary, fontWeight = FontWeight.Medium)
+                style = WidgetTextStyles.badge(GlanceTheme.colors.primary)
             )
         }
     }
@@ -163,7 +159,7 @@ private fun SmallHabitRow(habit: HabitWidgetItem) {
         Spacer(modifier = GlanceModifier.width(6.dp))
         Text(
             text = habit.name,
-            style = TextStyle(fontSize = 11.sp, color = GlanceTheme.colors.onSurface),
+            style = WidgetTextStyles.caption(GlanceTheme.colors.onSurface),
             maxLines = 1,
             modifier = GlanceModifier.defaultWeight()
         )
@@ -171,7 +167,7 @@ private fun SmallHabitRow(habit: HabitWidgetItem) {
             text = if (habit.isCompletedToday) "\u2705" else "\u25CB",
             style = TextStyle(
                 fontSize = 14.sp,
-                color = if (habit.isCompletedToday) ColorProvider(Color(0xFF2E7D32)) else GlanceTheme.colors.onSurfaceVariant
+                color = if (habit.isCompletedToday) WidgetColors.habitComplete else GlanceTheme.colors.onSurfaceVariant
             )
         )
     }
@@ -179,12 +175,11 @@ private fun SmallHabitRow(habit: HabitWidgetItem) {
 
 @Composable
 private fun HabitCell(habit: HabitWidgetItem, showWeeklyDots: Boolean, modifier: GlanceModifier) {
-    val tint = if (habit.isCompletedToday) ColorProvider(Color(0xFFC8E6C9)) else GlanceTheme.colors.surfaceVariant
+    val tint = if (habit.isCompletedToday) WidgetColors.habitCompleteBg else GlanceTheme.colors.surfaceVariant
     Box(
         modifier = modifier
-            .cornerRadius(
-                10.dp
-            ).background(tint)
+            .cornerRadius(8.dp)
+            .background(tint)
             .padding(8.dp)
             .clickable(actionRunCallback<ToggleHabitFromWidgetAction>(parameters = habitIdParams(habit.id)))
     ) {
@@ -195,15 +190,13 @@ private fun HabitCell(habit: HabitWidgetItem, showWeeklyDots: Boolean, modifier:
                 Column(modifier = GlanceModifier.defaultWeight()) {
                     Text(
                         text = habit.name,
-                        style = TextStyle(fontSize = 11.sp, fontWeight = FontWeight.Medium, color = GlanceTheme.colors.onSurface),
+                        style = WidgetTextStyles.captionMedium(GlanceTheme.colors.onSurface),
                         maxLines = 1
                     )
-                    if (habit.streak >
-                        0
-                    ) {
+                    if (habit.streak > 0) {
                         Text(
                             text = "\uD83D\uDD25 ${habit.streak}",
-                            style = TextStyle(fontSize = 9.sp, color = GlanceTheme.colors.onSurfaceVariant)
+                            style = TextStyle(fontSize = 9.sp, color = WidgetColors.streakFire)
                         )
                     }
                 }
@@ -211,7 +204,7 @@ private fun HabitCell(habit: HabitWidgetItem, showWeeklyDots: Boolean, modifier:
                     text = if (habit.isCompletedToday) "\u25CF" else "\u25CB",
                     style = TextStyle(
                         fontSize = 14.sp,
-                        color = if (habit.isCompletedToday) ColorProvider(Color(0xFF2E7D32)) else GlanceTheme.colors.onSurfaceVariant
+                        color = if (habit.isCompletedToday) WidgetColors.habitComplete else GlanceTheme.colors.onSurfaceVariant
                     )
                 )
             }
@@ -240,28 +233,21 @@ private fun WeeklyDots(habit: HabitWidgetItem) {
     }
     Row {
         for (i in 0..6) {
-            val isFuture =
-                i > todayIdx
-            val isToday =
-                i == todayIdx
-            val daysFromToday =
-                todayIdx - i
+            val isFuture = i > todayIdx
+            val isToday = i == todayIdx
+            val daysFromToday = todayIdx - i
             val isCompleted = when {
                 isToday -> habit.isCompletedToday
                 isFuture -> false
-                else ->
-                    daysFromToday <
-                        habit.streak + (if (habit.isCompletedToday) 0 else -1)
+                else -> daysFromToday < habit.streak + (if (habit.isCompletedToday) 0 else -1)
             }
             val dotColor = when {
                 isFuture -> GlanceTheme.colors.surfaceVariant
-                isCompleted -> ColorProvider(Color(0xFF2E7D32))
-                else -> ColorProvider(Color(0xFFBDBDBD))
+                isCompleted -> WidgetColors.streakFire
+                else -> WidgetColors.habitIncomplete
             }
             Box(modifier = GlanceModifier.size(5.dp).cornerRadius(3.dp).background(dotColor)) {}
-            if (i <
-                6
-            ) {
+            if (i < 6) {
                 Spacer(modifier = GlanceModifier.width(2.dp))
             }
         }

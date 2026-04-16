@@ -12,6 +12,7 @@ import com.averycorp.prismtask.data.repository.SchoolworkRepository
 import com.averycorp.prismtask.data.repository.SelfCareRepository
 import com.averycorp.prismtask.data.seed.TemplateSeeder
 import com.averycorp.prismtask.notifications.OverloadCheckWorker
+import com.averycorp.prismtask.widget.WidgetRefreshWorker
 import com.averycorp.prismtask.workers.AutoArchiveWorker
 import com.averycorp.prismtask.workers.DailyResetWorker
 import com.google.firebase.crashlytics.FirebaseCrashlytics
@@ -61,6 +62,7 @@ class PrismTaskApplication :
             scheduleAutoArchive()
             scheduleDailyReset()
             scheduleOverloadCheck()
+            scheduleWidgetRefresh()
         } catch (e: Exception) {
             android.util.Log.e("PrismTaskApp", "Worker scheduling failed", e)
             try {
@@ -132,6 +134,10 @@ class PrismTaskApplication :
             leisureRepository.ensureHabitExists()
             selfCareRepository.ensureHabitsExist()
         }
+    }
+
+    private fun scheduleWidgetRefresh() {
+        WidgetRefreshWorker.schedule(WorkManager.getInstance(this))
     }
 
     private fun scheduleAutoArchive() {
