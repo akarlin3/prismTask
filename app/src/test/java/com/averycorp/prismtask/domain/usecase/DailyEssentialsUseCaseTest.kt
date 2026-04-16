@@ -1,0 +1,98 @@
+package com.averycorp.prismtask.domain.usecase
+
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+class DailyEssentialsUseCaseTest {
+
+    @Test
+    fun `parseStepIds handles legacy string-array format`() {
+        val parsed = DailyEssentialsUseCase.parseStepIds("""["a","b","c"]""")
+        assertEquals(setOf("a", "b", "c"), parsed)
+    }
+
+    @Test
+    fun `parseStepIds handles the rich medication-log object format`() {
+        val json = """[
+            {"id":"a","note":"","at":0,"timeOfDay":""},
+            {"id":"b","note":"x","at":1,"timeOfDay":"morning"}
+        ]"""
+        assertEquals(setOf("a", "b"), DailyEssentialsUseCase.parseStepIds(json))
+    }
+
+    @Test
+    fun `parseStepIds returns empty set for null and empty inputs`() {
+        assertTrue(DailyEssentialsUseCase.parseStepIds(null).isEmpty())
+        assertTrue(DailyEssentialsUseCase.parseStepIds("").isEmpty())
+        assertTrue(DailyEssentialsUseCase.parseStepIds("[]").isEmpty())
+    }
+
+    @Test
+    fun `parseStepIds swallows malformed json`() {
+        assertTrue(DailyEssentialsUseCase.parseStepIds("not valid json").isEmpty())
+        assertTrue(DailyEssentialsUseCase.parseStepIds("{\"id\":\"a\"}").isEmpty())
+    }
+
+    @Test
+    fun `empty state is hidden once the hint has been seen`() {
+        val state = DailyEssentialsUiState.empty().copy(hasSeenHint = true)
+        assertTrue(state.isEmpty)
+    }
+
+    @Test
+    fun `state with any populated card is not empty`() {
+        val state = DailyEssentialsUiState.empty().copy(
+            housework = HabitCardState(
+                habitId = 1L,
+                name = "Housework",
+                icon = "\uD83C\uDFE0",
+                color = "#10B981",
+                completedToday = false
+            )
+        )
+        assertFalse(state.isEmpty)
+    }
+
+    @Test
+    fun `state with only leisure picks is not empty`() {
+        val state = DailyEssentialsUiState.empty().copy(
+            musicLeisure = LeisureCardState(LeisureKind.MUSIC, "classical", doneForToday = false)
+        )
+        assertFalse(state.isEmpty)
+    }
+
+    @Test
+    fun `schoolwork card with only assignments still shows`() {
+        val schoolwork = SchoolworkCardState(
+            habit = null,
+            assignmentsDueToday = listOf(
+                AssignmentSummary(
+                    id = 1L,
+                    title = "Essay",
+                    courseName = "History",
+                    courseColor = 0,
+                    completed = false
+                )
+            )
+        )
+        assertTrue(schoolwork.hasContent)
+        val state = DailyEssentialsUiState.empty().copy(schoolwork = schoolwork)
+        assertFalse(state.isEmpty)
+    }
+
+    @Test
+    fun `RoutineCardState allComplete mirrors every step`() {
+        val routine = RoutineCardState(
+            routineType = "morning",
+            displayName = "Morning Routine",
+            steps = listOf(
+                StepState("a", "Wash face", completedToday = true, timeOfDay = "morning"),
+                StepState("b", "Brush teeth", completedToday = true, timeOfDay = "morning")
+            )
+        )
+        assertTrue(routine.allComplete)
+        assertFalse(routine.copy(steps = routine.steps.map { it.copy(completedToday = false) }).allComplete)
+    }
+}

@@ -50,6 +50,20 @@ interface SchoolworkDao {
     @Query("SELECT * FROM assignments WHERE completed = 0 ORDER BY due_date ASC, created_at DESC")
     fun getActiveAssignments(): Flow<List<AssignmentEntity>>
 
+    /**
+     * Assignments due inside the `[from, to)` window (exclusive upper
+     * bound) and still incomplete. Used by the Daily Essentials
+     * Schoolwork card to list work due today.
+     */
+    @Query(
+        "SELECT * FROM assignments " +
+            "WHERE due_date IS NOT NULL " +
+            "AND due_date >= :from AND due_date < :to " +
+            "AND completed = 0 " +
+            "ORDER BY due_date ASC"
+    )
+    fun getAssignmentsDueBetween(from: Long, to: Long): Flow<List<AssignmentEntity>>
+
     @Query("SELECT * FROM assignments ORDER BY completed ASC, due_date ASC, created_at DESC")
     fun getAllAssignments(): Flow<List<AssignmentEntity>>
 

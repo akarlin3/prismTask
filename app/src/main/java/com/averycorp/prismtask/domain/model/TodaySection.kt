@@ -21,6 +21,7 @@ enum class TodaySectionId(
     OVERDUE("overdue", true, null, "Overdue Tasks"),
     TODAY_TASKS("today_tasks", true, null, "Today's Tasks"),
     HABITS("habits", true, null, "Habit Chips"),
+    DAILY_ESSENTIALS("daily_essentials", true, null, "Daily Essentials"),
     CALENDAR_EVENTS("calendar_events", true, null, "Calendar Events"),
     PLANNED("planned", true, null, "Planned / Upcoming"),
     FLAGGED("flagged", false, null, "Flagged Tasks"),

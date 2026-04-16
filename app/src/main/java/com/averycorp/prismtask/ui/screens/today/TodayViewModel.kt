@@ -11,6 +11,7 @@ import com.averycorp.prismtask.data.local.entity.ProjectEntity
 import com.averycorp.prismtask.data.local.entity.TagEntity
 import com.averycorp.prismtask.data.local.entity.TaskEntity
 import com.averycorp.prismtask.data.local.entity.TaskTemplateEntity
+import com.averycorp.prismtask.data.preferences.DailyEssentialsPreferences
 import com.averycorp.prismtask.data.preferences.DashboardPreferences
 import com.averycorp.prismtask.data.preferences.HabitListPreferences
 import com.averycorp.prismtask.data.preferences.MorningCheckInPreferences
@@ -33,6 +34,9 @@ import com.averycorp.prismtask.domain.usecase.BalanceState
 import com.averycorp.prismtask.domain.usecase.BalanceTracker
 import com.averycorp.prismtask.domain.usecase.BurnoutResult
 import com.averycorp.prismtask.domain.usecase.BurnoutScorer
+import com.averycorp.prismtask.domain.usecase.DailyEssentialsUiState
+import com.averycorp.prismtask.domain.usecase.DailyEssentialsUseCase
+import com.averycorp.prismtask.domain.usecase.MedicationDose
 import com.averycorp.prismtask.domain.usecase.SelfCareNudge
 import com.averycorp.prismtask.domain.usecase.SelfCareNudgeEngine
 import com.averycorp.prismtask.ui.components.QuickRescheduleFormatter
@@ -72,7 +76,12 @@ constructor(
     private val userPreferencesDataStore: UserPreferencesDataStore,
     private val checkInLogRepository: com.averycorp.prismtask.data.repository.CheckInLogRepository,
     private val medicationRefillRepository: MedicationRefillRepository,
-    private val morningCheckInPreferences: MorningCheckInPreferences
+    private val morningCheckInPreferences: MorningCheckInPreferences,
+    private val dailyEssentialsUseCase: DailyEssentialsUseCase,
+    private val dailyEssentialsPreferences: DailyEssentialsPreferences,
+    private val selfCareRepository: SelfCareRepository,
+    private val schoolworkRepository: SchoolworkRepository,
+    private val leisureRepository: LeisureRepository
 ) : ViewModel() {
     /** UI complexity tier — gates dashboard customization in the Today screen. */
     val uiTier: StateFlow<com.averycorp.prismtask.domain.model.UiComplexityTier> =
@@ -966,6 +975,92 @@ constructor(
             } catch (e: Exception) {
                 Log.e("TodayVM", "Failed to create task from template", e)
                 snackbarHostState.showSnackbar("Something went wrong")
+            }
+        }
+    }
+
+    // --- Daily Essentials ---
+
+    /**
+     * Aggregated state for the Daily Essentials section. Emits
+     * [DailyEssentialsUiState.empty] until the underlying flows produce
+     * their first value so the UI renders a safe skeleton.
+     */
+    val dailyEssentials: StateFlow<DailyEssentialsUiState> =
+        dailyEssentialsUseCase.observeToday()
+            .stateIn(
+                viewModelScope,
+                SharingStarted.WhileSubscribed(5000),
+                DailyEssentialsUiState.empty()
+            )
+
+    fun onToggleRoutineStep(routineType: String, stepId: String) {
+        viewModelScope.launch {
+            try {
+                selfCareRepository.toggleStep(routineType = routineType, stepId = stepId)
+            } catch (e: Exception) {
+                Log.e("TodayVM", "Failed to toggle routine step", e)
+            }
+        }
+    }
+
+    fun onToggleHouseworkHabit() {
+        val habitId = dailyEssentials.value.housework?.habitId ?: return
+        val isCompleted = dailyEssentials.value.housework?.completedToday ?: false
+        onToggleHabitCompletion(habitId, isCompleted)
+    }
+
+    fun onToggleSchoolworkHabit() {
+        val habit = dailyEssentials.value.schoolwork?.habit ?: return
+        onToggleHabitCompletion(habit.habitId, habit.completedToday)
+    }
+
+    fun onToggleMusicDone() {
+        val state = dailyEssentials.value.musicLeisure
+        viewModelScope.launch {
+            try {
+                leisureRepository.toggleMusicDone(!state.doneForToday)
+            } catch (e: Exception) {
+                Log.e("TodayVM", "Failed to toggle music done", e)
+            }
+        }
+    }
+
+    fun onToggleFlexDone() {
+        val state = dailyEssentials.value.flexLeisure
+        viewModelScope.launch {
+            try {
+                leisureRepository.toggleFlexDone(!state.doneForToday)
+            } catch (e: Exception) {
+                Log.e("TodayVM", "Failed to toggle flex done", e)
+            }
+        }
+    }
+
+    fun onMarkMedicationTaken(dose: MedicationDose) {
+        viewModelScope.launch {
+            try {
+                val habitId = dose.linkedHabitId
+                if (habitId != null) {
+                    habitRepository.completeHabit(habitId, System.currentTimeMillis())
+                }
+            } catch (e: Exception) {
+                Log.e("TodayVM", "Failed to mark medication taken", e)
+            }
+        }
+    }
+
+    fun onMarkNextMedicationTaken() {
+        val dose = dailyEssentials.value.medication?.nextDose ?: return
+        onMarkMedicationTaken(dose)
+    }
+
+    fun onDismissDailyEssentialsHint() {
+        viewModelScope.launch {
+            try {
+                dailyEssentialsPreferences.markHintSeen()
+            } catch (e: Exception) {
+                Log.e("TodayVM", "Failed to dismiss daily essentials hint", e)
             }
         }
     }

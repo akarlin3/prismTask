@@ -29,6 +29,21 @@ interface HabitDao {
     @Query("SELECT * FROM habits WHERE is_archived = 0 ORDER BY sort_order ASC")
     suspend fun getActiveHabitsOnce(): List<HabitEntity>
 
+    /**
+     * Returns habits that should appear on a given day-of-week. [day] is a
+     * `java.time.DayOfWeek.value` (1 = Monday ... 7 = Sunday), matching the
+     * format written by the habit editor into `active_days` as e.g.
+     * `[1,2,3,4,5]`. Habits with a null/empty `active_days` (daily habits
+     * with no weekly restriction) are always considered active.
+     */
+    @Query(
+        "SELECT * FROM habits " +
+            "WHERE is_archived = 0 " +
+            "AND (active_days IS NULL OR active_days = '' OR active_days LIKE '%' || :day || '%') " +
+            "ORDER BY sort_order ASC"
+    )
+    fun getHabitsActiveForDay(day: Int): Flow<List<HabitEntity>>
+
     @Query("SELECT * FROM habits ORDER BY sort_order ASC")
     suspend fun getAllHabitsOnce(): List<HabitEntity>
 

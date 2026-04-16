@@ -28,6 +28,23 @@ interface SelfCareDao {
     @Query("SELECT * FROM self_care_steps WHERE routine_type = :routineType ORDER BY sort_order ASC")
     fun getStepsForRoutine(routineType: String): Flow<List<SelfCareStepEntity>>
 
+    /**
+     * Steps filtered to a single `time_of_day` value. The column stores a
+     * CSV-like string such as `"morning"` or `"morning,evening"` so a
+     * substring match is used instead of exact equality, mirroring the
+     * reader helper in `SelfCareRoutines.parseTimeOfDay`.
+     */
+    @Query(
+        "SELECT * FROM self_care_steps " +
+            "WHERE routine_type = :routineType " +
+            "AND time_of_day LIKE '%' || :timeOfDay || '%' " +
+            "ORDER BY sort_order ASC"
+    )
+    fun getStepsForRoutineByTimeOfDay(
+        routineType: String,
+        timeOfDay: String
+    ): Flow<List<SelfCareStepEntity>>
+
     @Query("SELECT * FROM self_care_steps WHERE routine_type = :routineType ORDER BY sort_order ASC")
     suspend fun getStepsForRoutineOnce(routineType: String): List<SelfCareStepEntity>
 
