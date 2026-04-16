@@ -2,7 +2,7 @@ name: Version Bump & Firebase Distribution
 
 # Runs on main after a merge when Android-related files change.
 # Bumps versionCode/versionName, builds a debug APK, and distributes
-# it to Firebase App Distribution.
+# it to Firebase App Distribution via the Gradle plugin.
 
 on:
   push:
@@ -22,7 +22,7 @@ concurrency:
 
 jobs:
   version-bump-and-distribute:
-    name: Version Bump & Firebase Distribute
+    name: Version Bump, Build & Firebase Distribute
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -90,11 +90,47 @@ jobs:
           echo "version_code=$NEW_CODE" >> "$GITHUB_OUTPUT"
           echo "Building v$NEW_NAME (build $NEW_CODE)"
 
+      - name: Setup Firebase credentials
+        if: steps.skip_check.outputs.skip != 'true'
+        id: firebase
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+        run: |
+          if [ -n "$FIREBASE_SERVICE_ACCOUNT" ]; then
+            echo "$FIREBASE_SERVICE_ACCOUNT" | base64 -d > "$RUNNER_TEMP/firebase-sa.json"
+            echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/firebase-sa.json" >> "$GITHUB_ENV"
+            echo "has_credentials=true" >> "$GITHUB_OUTPUT"
+            echo "Using service account credentials for Firebase."
+          elif [ -n "$FIREBASE_TOKEN" ]; then
+            echo "has_credentials=true" >> "$GITHUB_OUTPUT"
+            echo "Using legacy FIREBASE_TOKEN for Firebase."
+          else
+            echo "::warning::No Firebase credentials found. Set FIREBASE_SERVICE_ACCOUNT (preferred) or FIREBASE_TOKEN secret to enable distribution."
+            echo "has_credentials=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Generate release notes
+        if: steps.skip_check.outputs.skip != 'true'
+        run: |
+          {
+            echo "v${{ steps.version.outputs.version_name }} (build ${{ steps.version.outputs.version_code }})"
+            echo ""
+            git log -5 --pretty=format:"• %s"
+          } > "$RUNNER_TEMP/release_notes.txt"
+
       - name: Assemble debug APK
         if: steps.skip_check.outputs.skip != 'true'
         run: ./gradlew assembleDebug --no-configuration-cache
 
-      - name: Upload debug APK
+      - name: Upload to Firebase App Distribution
+        if: steps.skip_check.outputs.skip != 'true' && steps.firebase.outputs.has_credentials == 'true'
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+          RELEASE_NOTES_FILE: ${{ runner.temp }}/release_notes.txt
+        run: ./gradlew appDistributionUploadDebug --no-configuration-cache
+
+      - name: Upload debug APK artifact
         if: steps.skip_check.outputs.skip != 'true' && success()
         uses: actions/upload-artifact@v4
         with:
@@ -113,15 +149,3 @@ jobs:
             git commit -m "chore: bump to v${{ steps.version.outputs.version_name }} (build ${{ steps.version.outputs.version_code }}) [skip ci]" &&
             git push
           )
-
-      - name: Upload to Firebase App Distribution
-        if: steps.skip_check.outputs.skip != 'true' && success()
-        env:
-          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
-        run: |
-          npm install -g firebase-tools
-          firebase appdistribution:distribute app/build/outputs/apk/debug/app-debug.apk \
-            --app 1:403186103462:android:59c861c84c76969b47b067 \
-            --groups testers \
-            --release-notes "v${{ steps.version.outputs.version_name }} (build ${{ steps.version.outputs.version_code }}) from commit ${{ github.sha }}" \
-            --token "$FIREBASE_TOKEN"
