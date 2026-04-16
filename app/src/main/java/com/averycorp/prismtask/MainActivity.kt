@@ -125,6 +125,7 @@ class MainActivity : ComponentActivity() {
         const val ACTION_QUICK_ADD = "quick_add"
         const val ACTION_OPEN_TEMPLATES = "open_templates"
         const val ACTION_VOICE_INPUT = "voice_input"
+        const val ACTION_OPEN_HABITS = "open_habits"
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {

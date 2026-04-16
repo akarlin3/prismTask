@@ -68,7 +68,7 @@ private fun HabitStreakContent(context: Context, data: HabitWidgetData, size: Dp
     val isLarge = size.width >= 350.dp
     val habitsIntent = Intent(context, MainActivity::class.java).apply {
         flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-        putExtra(MainActivity.EXTRA_LAUNCH_ACTION, "open_habits")
+        putExtra(MainActivity.EXTRA_LAUNCH_ACTION, MainActivity.ACTION_OPEN_HABITS)
     }
     val completedToday = data.habits.count { it.isCompletedToday }
     val totalHabits = data.habits.size
@@ -220,36 +220,12 @@ private fun HabitCell(habit: HabitWidgetItem, showWeeklyDots: Boolean, modifier:
 
 @Composable
 private fun WeeklyDots(habit: HabitWidgetItem) {
-    val dayOfWeek = java.util.Calendar
-        .getInstance()
-        .get(java.util.Calendar.DAY_OF_WEEK)
-    val todayIdx = when (dayOfWeek) {
-        java.util.Calendar.MONDAY -> 0
-        java.util.Calendar.TUESDAY -> 1
-        java.util.Calendar.WEDNESDAY -> 2
-        java.util.Calendar.THURSDAY -> 3
-        java.util.Calendar.FRIDAY -> 4
-        java.util.Calendar.SATURDAY -> 5
-        java.util.Calendar.SUNDAY -> 6
-        else -> 0
-    }
+    // last7Days: index 0 = 6 days ago, index 6 = today
     Row {
-        for (i in 0..6) {
-            val isFuture = i > todayIdx
-            val isToday = i == todayIdx
-            val daysFromToday = todayIdx - i
-            val isCompleted = when {
-                isToday -> habit.isCompletedToday
-                isFuture -> false
-                else -> daysFromToday < habit.streak + (if (habit.isCompletedToday) 0 else -1)
-            }
-            val dotColor = when {
-                isFuture -> GlanceTheme.colors.surfaceVariant
-                isCompleted -> WidgetColors.streakFire
-                else -> WidgetColors.habitIncomplete
-            }
-            Box(modifier = GlanceModifier.size(5.dp).cornerRadius(3.dp).background(dotColor)) {}
-            if (i < 6) {
+        habit.last7Days.forEachIndexed { index, completed ->
+            val dotColor = if (completed) WidgetColors.streakFire else WidgetColors.habitIncomplete
+            Box(modifier = GlanceModifier.size(8.dp).cornerRadius(4.dp).background(dotColor)) {}
+            if (index < habit.last7Days.size - 1) {
                 Spacer(modifier = GlanceModifier.width(2.dp))
             }
         }

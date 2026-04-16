@@ -296,6 +296,18 @@ fun PrismTaskNavGraph(
     val pagerState = rememberPagerState(pageCount = { bottomNavItems.size })
     val coroutineScope = rememberCoroutineScope()
 
+    // Navigate to Habits tab when launched from the HabitStreakWidget.
+    LaunchedEffect(initialLaunchAction) {
+        if (initialLaunchAction == com.averycorp.prismtask.MainActivity.ACTION_OPEN_HABITS) {
+            val habitIndex = bottomNavItems.indexOfFirst {
+                it.route == PrismTaskRoute.HabitList.route
+            }
+            if (habitIndex >= 0) {
+                pagerState.scrollToPage(habitIndex)
+            }
+        }
+    }
+
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
     val showBottomBar = currentRoute == null || currentRoute == PrismTaskRoute.MainTabs.route

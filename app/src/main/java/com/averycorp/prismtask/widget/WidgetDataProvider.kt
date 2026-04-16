@@ -56,7 +56,8 @@ data class HabitWidgetItem(
     val name: String,
     val icon: String,
     val streak: Int,
-    val isCompletedToday: Boolean
+    val isCompletedToday: Boolean,
+    val last7Days: List<Boolean> = emptyList()
 )
 
 data class UpcomingWidgetData(
@@ -147,7 +148,13 @@ object WidgetDataProvider {
                 val isCompleted = completionDao.isCompletedOnDateOnce(habit.id, startOfDay)
                 val streak = computeCurrentStreak(completionDao, habit.id, startOfDay)
                 if (streak > longestStreak) longestStreak = streak
-                HabitWidgetItem(habit.id, habit.name, habit.icon, streak, isCompleted)
+                val last7Days = (6 downTo 0).map { daysAgo ->
+                    completionDao.isCompletedOnDateOnce(
+                        habit.id,
+                        startOfDay - (daysAgo * DayBoundary.DAY_MILLIS)
+                    )
+                }
+                HabitWidgetItem(habit.id, habit.name, habit.icon, streak, isCompleted, last7Days)
             }
             return HabitWidgetData(habits = items, longestStreak = longestStreak)
         } finally {

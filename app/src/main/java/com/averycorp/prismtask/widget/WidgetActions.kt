@@ -60,16 +60,9 @@ class ToggleHabitFromWidgetAction : ActionCallback {
         try {
             WidgetDataProvider.toggleHabitCompletion(context, habitId)
         } catch (_: Exception) {
+            return
         }
-        HabitStreakWidget().updateAll(context)
-        try {
-            TodayWidget().updateAll(context)
-        } catch (_: Exception) {
-        }
-        try {
-            ProductivityWidget().updateAll(context)
-        } catch (_: Exception) {
-        }
+        WidgetUpdateManager.refreshHabitWidgets(context)
     }
 }
 

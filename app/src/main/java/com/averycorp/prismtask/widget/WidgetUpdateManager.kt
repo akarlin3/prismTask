@@ -110,5 +110,28 @@ constructor(
 
         /** Debounce window: rapid calls within this period are coalesced. */
         const val DEBOUNCE_MILLIS = 500L
+
+        /**
+         * Refreshes habit-related widgets from a Glance ActionCallback
+         * where Hilt injection is unavailable. Mirrors [updateHabitWidgets]
+         * but runs synchronously without debounce.
+         */
+        suspend fun refreshHabitWidgets(context: Context) {
+            try {
+                HabitStreakWidget().updateAll(context)
+            } catch (e: Exception) {
+                Log.w(TAG, "HabitStreakWidget refresh failed: ${e.message}")
+            }
+            try {
+                TodayWidget().updateAll(context)
+            } catch (e: Exception) {
+                Log.w(TAG, "TodayWidget refresh failed: ${e.message}")
+            }
+            try {
+                ProductivityWidget().updateAll(context)
+            } catch (e: Exception) {
+                Log.w(TAG, "ProductivityWidget refresh failed: ${e.message}")
+            }
+        }
     }
 }
