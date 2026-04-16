@@ -11,7 +11,7 @@ import com.averycorp.prismtask.data.local.dao.HabitCompletionDao
 import com.averycorp.prismtask.data.local.dao.HabitDao
 import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
 import com.averycorp.prismtask.data.repository.HabitRepository
-import com.averycorp.prismtask.data.repository.HabitRepository.Companion.toCalendarDayOfWeek
+import com.averycorp.prismtask.data.repository.toCalendarDayOfWeek
 import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 import javax.inject.Singleton

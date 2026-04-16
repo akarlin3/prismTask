@@ -467,17 +467,6 @@ constructor(
     }
 
     companion object {
-        /** Converts a [java.time.DayOfWeek] to the [Calendar] DAY_OF_WEEK int. */
-        fun DayOfWeek.toCalendarDayOfWeek(): Int = when (this) {
-            DayOfWeek.MONDAY -> Calendar.MONDAY
-            DayOfWeek.TUESDAY -> Calendar.TUESDAY
-            DayOfWeek.WEDNESDAY -> Calendar.WEDNESDAY
-            DayOfWeek.THURSDAY -> Calendar.THURSDAY
-            DayOfWeek.FRIDAY -> Calendar.FRIDAY
-            DayOfWeek.SATURDAY -> Calendar.SATURDAY
-            DayOfWeek.SUNDAY -> Calendar.SUNDAY
-        }
-
         /** Returns the last day of the week for a given first day. */
         private fun lastDayOfWeek(firstDay: Int): Int =
             if (firstDay == Calendar.SUNDAY) Calendar.SATURDAY
@@ -623,4 +612,15 @@ constructor(
             return cal.timeInMillis
         }
     }
+}
+
+/** Converts a [java.time.DayOfWeek] to the [Calendar] DAY_OF_WEEK int. */
+fun DayOfWeek.toCalendarDayOfWeek(): Int = when (this) {
+    DayOfWeek.MONDAY -> Calendar.MONDAY
+    DayOfWeek.TUESDAY -> Calendar.TUESDAY
+    DayOfWeek.WEDNESDAY -> Calendar.WEDNESDAY
+    DayOfWeek.THURSDAY -> Calendar.THURSDAY
+    DayOfWeek.FRIDAY -> Calendar.FRIDAY
+    DayOfWeek.SATURDAY -> Calendar.SATURDAY
+    DayOfWeek.SUNDAY -> Calendar.SUNDAY
 }

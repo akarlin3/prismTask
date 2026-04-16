@@ -56,8 +56,6 @@ constructor(
     private val _selectedProjectId = MutableStateFlow(initialProjectId)
 
     val state: StateFlow<TaskAnalyticsState> = combine(
-        _selectedPeriod,
-        _selectedProjectId,
         combine(_selectedPeriod, _selectedProjectId) { period, projectId ->
             if (projectId != null) {
                 taskCompletionRepository.getProjectStats(projectId, period.days)
@@ -65,9 +63,10 @@ constructor(
                 taskCompletionRepository.getCompletionStats(period.days)
             }
         }.flatMapLatest { it },
-        projectRepository.getAllProjects(),
-        taskBehaviorPreferences.getFirstDayOfWeek()
-    ) { period, projectId, stats, projects, fdow ->
+        _selectedPeriod,
+        _selectedProjectId,
+        combine(projectRepository.getAllProjects(), taskBehaviorPreferences.getFirstDayOfWeek()) { p, f -> p to f }
+    ) { stats, period, projectId, (projects, fdow) ->
         TaskAnalyticsState(
             stats = stats,
             selectedPeriod = period,

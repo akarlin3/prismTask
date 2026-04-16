@@ -6,14 +6,14 @@ import androidx.lifecycle.viewModelScope
 import com.averycorp.prismtask.data.billing.UserTier
 import com.averycorp.prismtask.data.local.dao.HabitCompletionDao
 import com.averycorp.prismtask.data.local.dao.TaskDao
-import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
-import com.averycorp.prismtask.data.repository.HabitRepository.Companion.toCalendarDayOfWeek
 import com.averycorp.prismtask.data.local.entity.TaskEntity
+import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
 import com.averycorp.prismtask.data.remote.api.ChatActionResponse
 import com.averycorp.prismtask.data.repository.ChatMessage
 import com.averycorp.prismtask.data.repository.ChatRepository
 import com.averycorp.prismtask.data.repository.HabitRepository
 import com.averycorp.prismtask.data.repository.TaskRepository
+import com.averycorp.prismtask.data.repository.toCalendarDayOfWeek
 import com.averycorp.prismtask.domain.usecase.ProFeatureGate
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
