@@ -39,57 +39,57 @@ fun aiModelForFeature(feature: AiFeature): String = when (feature) {
 
 @Singleton
 class ProFeatureGate
-    @Inject
-    constructor(
-        private val billingManager: BillingManager
-    ) {
-        val userTier: StateFlow<UserTier> = billingManager.userTier
+@Inject
+constructor(
+    private val billingManager: BillingManager
+) {
+    val userTier: StateFlow<UserTier> = billingManager.userTier
 
-        fun isPro(): Boolean = userTier.value == UserTier.PRO
+    fun isPro(): Boolean = userTier.value == UserTier.PRO
 
-        fun hasAccess(feature: String): Boolean = when (requiredTier(feature)) {
-            UserTier.FREE -> true
-            UserTier.PRO -> isPro()
-        }
-
-        fun requiredTier(feature: String): UserTier = when (feature) {
-            TEMPLATE_SYNC, AI_EISENHOWER, AI_POMODORO,
-            ANALYTICS_BASIC, TIME_TRACKING, AI_NLP,
-            AI_EVENING_SUMMARY, AI_COACHING, AI_TASK_BREAKDOWN,
-            AI_BRIEFING, AI_WEEKLY_PLAN, AI_TIME_BLOCK,
-            AI_CONVERSATIONAL,
-            COLLABORATION, INTEGRATIONS, ANALYTICS_FULL,
-            ANALYTICS_CORRELATIONS, DRIVE_BACKUP,
-            AI_REENGAGEMENT, AI_DAILY_PLANNING,
-            AI_WEEKLY_INSIGHTS, CLOUD_SYNC,
-            SYLLABUS_IMPORT -> UserTier.PRO
-
-            else -> UserTier.FREE
-        }
-
-        companion object {
-            const val CLOUD_SYNC = "cloud_sync"
-            const val TEMPLATE_SYNC = "template_sync"
-            const val AI_EISENHOWER = "ai_eisenhower"
-            const val AI_POMODORO = "ai_pomodoro"
-            const val AI_NLP = "ai_nlp"
-            const val ANALYTICS_BASIC = "analytics_basic"
-            const val TIME_TRACKING = "time_tracking"
-            const val AI_EVENING_SUMMARY = "ai_evening_summary"
-            const val AI_COACHING = "ai_coaching"
-            const val AI_TASK_BREAKDOWN = "ai_task_breakdown"
-            const val AI_BRIEFING = "ai_briefing"
-            const val AI_WEEKLY_PLAN = "ai_weekly_plan"
-            const val AI_TIME_BLOCK = "ai_time_block"
-            const val COLLABORATION = "collaboration"
-            const val INTEGRATIONS = "integrations"
-            const val ANALYTICS_FULL = "analytics_full"
-            const val ANALYTICS_CORRELATIONS = "analytics_correlations"
-            const val DRIVE_BACKUP = "drive_backup"
-            const val AI_CONVERSATIONAL = "ai_conversational"
-            const val AI_DAILY_PLANNING = "ai_daily_planning"
-            const val AI_REENGAGEMENT = "ai_reengagement"
-            const val AI_WEEKLY_INSIGHTS = "ai_weekly_insights"
-            const val SYLLABUS_IMPORT = "syllabus_import"
-        }
+    fun hasAccess(feature: String): Boolean = when (requiredTier(feature)) {
+        UserTier.FREE -> true
+        UserTier.PRO -> isPro()
     }
+
+    fun requiredTier(feature: String): UserTier = when (feature) {
+        TEMPLATE_SYNC, AI_EISENHOWER, AI_POMODORO,
+        ANALYTICS_BASIC, TIME_TRACKING, AI_NLP,
+        AI_EVENING_SUMMARY, AI_COACHING, AI_TASK_BREAKDOWN,
+        AI_BRIEFING, AI_WEEKLY_PLAN, AI_TIME_BLOCK,
+        AI_CONVERSATIONAL,
+        COLLABORATION, INTEGRATIONS, ANALYTICS_FULL,
+        ANALYTICS_CORRELATIONS, DRIVE_BACKUP,
+        AI_REENGAGEMENT, AI_DAILY_PLANNING,
+        AI_WEEKLY_INSIGHTS, CLOUD_SYNC,
+        SYLLABUS_IMPORT -> UserTier.PRO
+
+        else -> UserTier.FREE
+    }
+
+    companion object {
+        const val CLOUD_SYNC = "cloud_sync"
+        const val TEMPLATE_SYNC = "template_sync"
+        const val AI_EISENHOWER = "ai_eisenhower"
+        const val AI_POMODORO = "ai_pomodoro"
+        const val AI_NLP = "ai_nlp"
+        const val ANALYTICS_BASIC = "analytics_basic"
+        const val TIME_TRACKING = "time_tracking"
+        const val AI_EVENING_SUMMARY = "ai_evening_summary"
+        const val AI_COACHING = "ai_coaching"
+        const val AI_TASK_BREAKDOWN = "ai_task_breakdown"
+        const val AI_BRIEFING = "ai_briefing"
+        const val AI_WEEKLY_PLAN = "ai_weekly_plan"
+        const val AI_TIME_BLOCK = "ai_time_block"
+        const val COLLABORATION = "collaboration"
+        const val INTEGRATIONS = "integrations"
+        const val ANALYTICS_FULL = "analytics_full"
+        const val ANALYTICS_CORRELATIONS = "analytics_correlations"
+        const val DRIVE_BACKUP = "drive_backup"
+        const val AI_CONVERSATIONAL = "ai_conversational"
+        const val AI_DAILY_PLANNING = "ai_daily_planning"
+        const val AI_REENGAGEMENT = "ai_reengagement"
+        const val AI_WEEKLY_INSIGHTS = "ai_weekly_insights"
+        const val SYLLABUS_IMPORT = "syllabus_import"
+    }
+}

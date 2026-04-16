@@ -74,7 +74,7 @@ object UrgencyScorer {
         return (
             dueDateScore * effective.dueDate + priorityScore * effective.priority + ageScore * effective.age +
                 subtaskScore * effective.subtasks
-        ).coerceIn(0f, 1f)
+            ).coerceIn(0f, 1f)
     }
 
     fun getUrgencyLevel(score: Float): UrgencyLevel = when {

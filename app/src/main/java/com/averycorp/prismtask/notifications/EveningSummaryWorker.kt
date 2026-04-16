@@ -37,124 +37,124 @@ import java.util.concurrent.TimeUnit
  */
 @HiltWorker
 class EveningSummaryWorker
-    @AssistedInject
-    constructor(
-        @Assisted context: Context,
-        @Assisted params: WorkerParameters,
-        private val api: PrismTaskApi,
-        private val taskDao: TaskDao,
-        private val habitDao: HabitDao,
-        private val completionDao: HabitCompletionDao,
-        private val proFeatureGate: ProFeatureGate,
-        private val notificationPreferences: NotificationPreferences
-    ) : CoroutineWorker(context, params) {
-        override suspend fun doWork(): Result {
-            if (!proFeatureGate.hasAccess(ProFeatureGate.AI_EVENING_SUMMARY)) return Result.success()
-            if (!notificationPreferences.eveningSummaryEnabled.first()) return Result.success()
+@AssistedInject
+constructor(
+    @Assisted context: Context,
+    @Assisted params: WorkerParameters,
+    private val api: PrismTaskApi,
+    private val taskDao: TaskDao,
+    private val habitDao: HabitDao,
+    private val completionDao: HabitCompletionDao,
+    private val proFeatureGate: ProFeatureGate,
+    private val notificationPreferences: NotificationPreferences
+) : CoroutineWorker(context, params) {
+    override suspend fun doWork(): Result {
+        if (!proFeatureGate.hasAccess(ProFeatureGate.AI_EVENING_SUMMARY)) return Result.success()
+        if (!notificationPreferences.eveningSummaryEnabled.first()) return Result.success()
 
-            return try {
-                val now = System.currentTimeMillis()
-                val startOfToday = HabitRepository.normalizeToMidnight(now)
-                val endOfToday = startOfToday + 24 * 60 * 60 * 1000
+        return try {
+            val now = System.currentTimeMillis()
+            val startOfToday = HabitRepository.normalizeToMidnight(now)
+            val endOfToday = startOfToday + 24 * 60 * 60 * 1000
 
-                // Get completed tasks today
-                val completedTasks = taskDao.getCompletedTasksInRange(startOfToday, endOfToday)
-                if (completedTasks.isEmpty()) return Result.success() // Don't send if nothing was done
+            // Get completed tasks today
+            val completedTasks = taskDao.getCompletedTasksInRange(startOfToday, endOfToday)
+            if (completedTasks.isEmpty()) return Result.success() // Don't send if nothing was done
 
-                val completedTitles = completedTasks.map { it.title }
+            val completedTitles = completedTasks.map { it.title }
 
-                // Get remaining incomplete tasks
-                val remainingCount = taskDao.getIncompleteTodayCount(endOfToday)
+            // Get remaining incomplete tasks
+            val remainingCount = taskDao.getIncompleteTodayCount(endOfToday)
 
-                // Get habit completions today
-                val habits = habitDao.getActiveHabitsOnce()
-                val todayDate = startOfToday
-                var habitsDone = 0
-                for (habit in habits) {
-                    val completions = completionDao.getCompletionsForHabitOnce(habit.id)
-                    if (completions.any { it.completedDate == todayDate }) {
-                        habitsDone++
-                    }
+            // Get habit completions today
+            val habits = habitDao.getActiveHabitsOnce()
+            val todayDate = startOfToday
+            var habitsDone = 0
+            for (habit in habits) {
+                val completions = completionDao.getCompletionsForHabitOnce(habit.id)
+                if (completions.any { it.completedDate == todayDate }) {
+                    habitsDone++
                 }
+            }
 
-                val response = api.getEveningSummary(
-                    EveningSummaryRequest(
-                        completedTasks = completedTitles,
-                        remainingCount = remainingCount,
-                        habitsDone = habitsDone,
-                        habitsTotal = habits.size,
-                        completedOverdue = false,
-                        completedStalled = false
-                    )
+            val response = api.getEveningSummary(
+                EveningSummaryRequest(
+                    completedTasks = completedTitles,
+                    remainingCount = remainingCount,
+                    habitsDone = habitsDone,
+                    habitsTotal = habits.size,
+                    completedOverdue = false,
+                    completedStalled = false
                 )
-
-                showNotification(applicationContext, response.summary)
-                Result.success()
-            } catch (_: Exception) {
-                Result.retry()
-            }
-        }
-
-        private fun showNotification(context: Context, summary: String) {
-            val channel = NotificationChannel(
-                CHANNEL_ID,
-                "Evening Summary",
-                NotificationManager.IMPORTANCE_LOW
-            ).apply { description = "Daily evening summary of accomplishments" }
-            val manager = context.getSystemService(NotificationManager::class.java)
-            manager.createNotificationChannel(channel)
-
-            val intent = Intent(context, MainActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-            }
-            val pendingIntent = PendingIntent.getActivity(
-                context,
-                NOTIFICATION_ID,
-                intent,
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
 
-            val notification = NotificationCompat
-                .Builder(context, CHANNEL_ID)
-                .setSmallIcon(R.drawable.ic_launcher_foreground)
-                .setContentTitle("Today's Wrap-Up")
-                .setContentText(summary)
-                .setStyle(NotificationCompat.BigTextStyle().bigText(summary))
-                .setPriority(NotificationCompat.PRIORITY_LOW)
-                .setContentIntent(pendingIntent)
-                .setAutoCancel(true)
-                .build()
-
-            manager.notify(NOTIFICATION_ID, notification)
-        }
-
-        companion object {
-            private const val WORK_NAME = "evening_summary_notification"
-            private const val CHANNEL_ID = "prismtask_evening_summary"
-            private const val NOTIFICATION_ID = 9002
-
-            fun schedule(context: Context, hourOfDay: Int = 20, minute: Int = 0) {
-                val now = Calendar.getInstance()
-                val target = Calendar.getInstance().apply {
-                    set(Calendar.HOUR_OF_DAY, hourOfDay)
-                    set(Calendar.MINUTE, minute)
-                    set(Calendar.SECOND, 0)
-                    if (before(now)) add(Calendar.DAY_OF_YEAR, 1)
-                }
-
-                val delay = target.timeInMillis - now.timeInMillis
-
-                val request = PeriodicWorkRequestBuilder<EveningSummaryWorker>(1, TimeUnit.DAYS)
-                    .setInitialDelay(delay, TimeUnit.MILLISECONDS)
-                    .build()
-
-                WorkManager
-                    .getInstance(context)
-                    .enqueueUniquePeriodicWork(WORK_NAME, ExistingPeriodicWorkPolicy.UPDATE, request)
-            }
-
-            fun cancel(context: Context) {
-                WorkManager.getInstance(context).cancelUniqueWork(WORK_NAME)
-            }
+            showNotification(applicationContext, response.summary)
+            Result.success()
+        } catch (_: Exception) {
+            Result.retry()
         }
     }
+
+    private fun showNotification(context: Context, summary: String) {
+        val channel = NotificationChannel(
+            CHANNEL_ID,
+            "Evening Summary",
+            NotificationManager.IMPORTANCE_LOW
+        ).apply { description = "Daily evening summary of accomplishments" }
+        val manager = context.getSystemService(NotificationManager::class.java)
+        manager.createNotificationChannel(channel)
+
+        val intent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        val pendingIntent = PendingIntent.getActivity(
+            context,
+            NOTIFICATION_ID,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val notification = NotificationCompat
+            .Builder(context, CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setContentTitle("Today's Wrap-Up")
+            .setContentText(summary)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(summary))
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setContentIntent(pendingIntent)
+            .setAutoCancel(true)
+            .build()
+
+        manager.notify(NOTIFICATION_ID, notification)
+    }
+
+    companion object {
+        private const val WORK_NAME = "evening_summary_notification"
+        private const val CHANNEL_ID = "prismtask_evening_summary"
+        private const val NOTIFICATION_ID = 9002
+
+        fun schedule(context: Context, hourOfDay: Int = 20, minute: Int = 0) {
+            val now = Calendar.getInstance()
+            val target = Calendar.getInstance().apply {
+                set(Calendar.HOUR_OF_DAY, hourOfDay)
+                set(Calendar.MINUTE, minute)
+                set(Calendar.SECOND, 0)
+                if (before(now)) add(Calendar.DAY_OF_YEAR, 1)
+            }
+
+            val delay = target.timeInMillis - now.timeInMillis
+
+            val request = PeriodicWorkRequestBuilder<EveningSummaryWorker>(1, TimeUnit.DAYS)
+                .setInitialDelay(delay, TimeUnit.MILLISECONDS)
+                .build()
+
+            WorkManager
+                .getInstance(context)
+                .enqueueUniquePeriodicWork(WORK_NAME, ExistingPeriodicWorkPolicy.UPDATE, request)
+        }
+
+        fun cancel(context: Context) {
+            WorkManager.getInstance(context).cancelUniqueWork(WORK_NAME)
+        }
+    }
+}

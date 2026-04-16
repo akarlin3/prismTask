@@ -23,96 +23,96 @@ data class WeeklySummaryData(
 
 @Singleton
 class WeeklyHabitSummary
-    @Inject
-    constructor(
-        private val habitDao: HabitDao,
-        private val completionDao: HabitCompletionDao
-    ) {
-        companion object {
-            private const val CHANNEL_ID = "prismtask_weekly_summary"
-            private const val CHANNEL_NAME = "Weekly Summary"
-            private const val LEGACY_CHANNEL_ID = "averytask_weekly_summary"
-            private const val NOTIFICATION_ID = 9999
-        }
-
-        suspend fun generateWeeklySummary(): WeeklySummaryData {
-            val habits = habitDao.getActiveHabitsOnce()
-            val weekStart = HabitRepository.getWeekStart(
-                HabitRepository.normalizeToMidnight(System.currentTimeMillis())
-            )
-            val weekEnd = HabitRepository.getWeekEnd(
-                HabitRepository.normalizeToMidnight(System.currentTimeMillis())
-            )
-
-            var totalCompletions = 0
-            var bestName: String? = null
-            var bestCount = -1
-            var worstName: String? = null
-            var worstCount = Int.MAX_VALUE
-
-            for (habit in habits) {
-                val completions = completionDao.getCompletionsForHabitOnce(habit.id)
-                val weekCount = completions.count { it.completedDate in weekStart..weekEnd }
-                totalCompletions += weekCount
-
-                if (weekCount > bestCount) {
-                    bestCount = weekCount
-                    bestName = habit.name
-                }
-                if (weekCount < worstCount) {
-                    worstCount = weekCount
-                    worstName = habit.name
-                }
-            }
-
-            val totalPossible = habits.sumOf { it.targetFrequency * 7 }
-            val rate = if (totalPossible > 0) totalCompletions.toFloat() / totalPossible else 0f
-
-            return WeeklySummaryData(
-                totalHabits = habits.size,
-                totalCompletions = totalCompletions,
-                completionRate = rate,
-                bestHabit = bestName,
-                worstHabit = worstName
-            )
-        }
-
-        fun showWeeklyNotification(context: Context, data: WeeklySummaryData) {
-            val channel = NotificationChannel(
-                CHANNEL_ID,
-                CHANNEL_NAME,
-                NotificationManager.IMPORTANCE_DEFAULT
-            ).apply { description = "Weekly habit summary" }
-            val manager = context.getSystemService(NotificationManager::class.java)
-            manager.deleteNotificationChannel(LEGACY_CHANNEL_ID)
-            manager.createNotificationChannel(channel)
-
-            val tapIntent = Intent(context, MainActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-            }
-            val tapPending = PendingIntent.getActivity(
-                context,
-                NOTIFICATION_ID,
-                tapIntent,
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-            )
-
-            val body = buildString {
-                append("This week you finished ${data.totalCompletions} things.")
-                data.bestHabit?.let { append(" Here's what went well: $it.") }
-            }
-
-            val notification = NotificationCompat
-                .Builder(context, CHANNEL_ID)
-                .setSmallIcon(android.R.drawable.ic_menu_my_calendar)
-                .setContentTitle("Your Week in Review")
-                .setContentText(body)
-                .setStyle(NotificationCompat.BigTextStyle().bigText(body))
-                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-                .setAutoCancel(true)
-                .setContentIntent(tapPending)
-                .build()
-
-            manager.notify(NOTIFICATION_ID, notification)
-        }
+@Inject
+constructor(
+    private val habitDao: HabitDao,
+    private val completionDao: HabitCompletionDao
+) {
+    companion object {
+        private const val CHANNEL_ID = "prismtask_weekly_summary"
+        private const val CHANNEL_NAME = "Weekly Summary"
+        private const val LEGACY_CHANNEL_ID = "averytask_weekly_summary"
+        private const val NOTIFICATION_ID = 9999
     }
+
+    suspend fun generateWeeklySummary(): WeeklySummaryData {
+        val habits = habitDao.getActiveHabitsOnce()
+        val weekStart = HabitRepository.getWeekStart(
+            HabitRepository.normalizeToMidnight(System.currentTimeMillis())
+        )
+        val weekEnd = HabitRepository.getWeekEnd(
+            HabitRepository.normalizeToMidnight(System.currentTimeMillis())
+        )
+
+        var totalCompletions = 0
+        var bestName: String? = null
+        var bestCount = -1
+        var worstName: String? = null
+        var worstCount = Int.MAX_VALUE
+
+        for (habit in habits) {
+            val completions = completionDao.getCompletionsForHabitOnce(habit.id)
+            val weekCount = completions.count { it.completedDate in weekStart..weekEnd }
+            totalCompletions += weekCount
+
+            if (weekCount > bestCount) {
+                bestCount = weekCount
+                bestName = habit.name
+            }
+            if (weekCount < worstCount) {
+                worstCount = weekCount
+                worstName = habit.name
+            }
+        }
+
+        val totalPossible = habits.sumOf { it.targetFrequency * 7 }
+        val rate = if (totalPossible > 0) totalCompletions.toFloat() / totalPossible else 0f
+
+        return WeeklySummaryData(
+            totalHabits = habits.size,
+            totalCompletions = totalCompletions,
+            completionRate = rate,
+            bestHabit = bestName,
+            worstHabit = worstName
+        )
+    }
+
+    fun showWeeklyNotification(context: Context, data: WeeklySummaryData) {
+        val channel = NotificationChannel(
+            CHANNEL_ID,
+            CHANNEL_NAME,
+            NotificationManager.IMPORTANCE_DEFAULT
+        ).apply { description = "Weekly habit summary" }
+        val manager = context.getSystemService(NotificationManager::class.java)
+        manager.deleteNotificationChannel(LEGACY_CHANNEL_ID)
+        manager.createNotificationChannel(channel)
+
+        val tapIntent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        val tapPending = PendingIntent.getActivity(
+            context,
+            NOTIFICATION_ID,
+            tapIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val body = buildString {
+            append("This week you finished ${data.totalCompletions} things.")
+            data.bestHabit?.let { append(" Here's what went well: $it.") }
+        }
+
+        val notification = NotificationCompat
+            .Builder(context, CHANNEL_ID)
+            .setSmallIcon(android.R.drawable.ic_menu_my_calendar)
+            .setContentTitle("Your Week in Review")
+            .setContentText(body)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(body))
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setAutoCancel(true)
+            .setContentIntent(tapPending)
+            .build()
+
+        manager.notify(NOTIFICATION_ID, notification)
+    }
+}

@@ -25,49 +25,49 @@ private val Context.authTokenDataStore: DataStore<Preferences> by preferencesDat
  */
 @Singleton
 class AuthTokenPreferences
-    @Inject
-    constructor(
-        @ApplicationContext private val context: Context
-    ) {
-        companion object {
-            private val ACCESS_TOKEN_KEY = stringPreferencesKey("access_token")
-            private val REFRESH_TOKEN_KEY = stringPreferencesKey("refresh_token")
-        }
+@Inject
+constructor(
+    @ApplicationContext private val context: Context
+) {
+    companion object {
+        private val ACCESS_TOKEN_KEY = stringPreferencesKey("access_token")
+        private val REFRESH_TOKEN_KEY = stringPreferencesKey("refresh_token")
+    }
 
-        val accessTokenFlow: Flow<String?> = context.authTokenDataStore.data.map { prefs ->
-            prefs[ACCESS_TOKEN_KEY]
-        }
+    val accessTokenFlow: Flow<String?> = context.authTokenDataStore.data.map { prefs ->
+        prefs[ACCESS_TOKEN_KEY]
+    }
 
-        val refreshTokenFlow: Flow<String?> = context.authTokenDataStore.data.map { prefs ->
-            prefs[REFRESH_TOKEN_KEY]
-        }
+    val refreshTokenFlow: Flow<String?> = context.authTokenDataStore.data.map { prefs ->
+        prefs[REFRESH_TOKEN_KEY]
+    }
 
-        suspend fun getAccessToken(): String? =
-            context.authTokenDataStore.data.first()[ACCESS_TOKEN_KEY]
+    suspend fun getAccessToken(): String? =
+        context.authTokenDataStore.data.first()[ACCESS_TOKEN_KEY]
 
-        suspend fun getRefreshToken(): String? =
-            context.authTokenDataStore.data.first()[REFRESH_TOKEN_KEY]
+    suspend fun getRefreshToken(): String? =
+        context.authTokenDataStore.data.first()[REFRESH_TOKEN_KEY]
 
-        suspend fun saveTokens(accessToken: String, refreshToken: String) {
-            context.authTokenDataStore.edit { prefs ->
-                prefs[ACCESS_TOKEN_KEY] = accessToken
-                prefs[REFRESH_TOKEN_KEY] = refreshToken
-            }
-        }
-
-        suspend fun clearTokens() {
-            context.authTokenDataStore.edit { it.clear() }
-        }
-
-        /**
-         * Blocking read of the current access token. Used by the OkHttp interceptor,
-         * which runs on a network thread outside of a coroutine scope.
-         */
-        fun getAccessTokenBlocking(): String? = runBlocking { getAccessToken() }
-
-        fun getRefreshTokenBlocking(): String? = runBlocking { getRefreshToken() }
-
-        fun setTokensBlocking(accessToken: String, refreshToken: String) {
-            runBlocking { saveTokens(accessToken, refreshToken) }
+    suspend fun saveTokens(accessToken: String, refreshToken: String) {
+        context.authTokenDataStore.edit { prefs ->
+            prefs[ACCESS_TOKEN_KEY] = accessToken
+            prefs[REFRESH_TOKEN_KEY] = refreshToken
         }
     }
+
+    suspend fun clearTokens() {
+        context.authTokenDataStore.edit { it.clear() }
+    }
+
+    /**
+     * Blocking read of the current access token. Used by the OkHttp interceptor,
+     * which runs on a network thread outside of a coroutine scope.
+     */
+    fun getAccessTokenBlocking(): String? = runBlocking { getAccessToken() }
+
+    fun getRefreshTokenBlocking(): String? = runBlocking { getRefreshToken() }
+
+    fun setTokensBlocking(accessToken: String, refreshToken: String) {
+        runBlocking { saveTokens(accessToken, refreshToken) }
+    }
+}

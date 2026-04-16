@@ -24,28 +24,28 @@ private val Context.backendSyncDataStore: DataStore<Preferences> by preferencesD
  */
 @Singleton
 class BackendSyncPreferences
-    @Inject
-    constructor(
-        @ApplicationContext private val context: Context
-    ) {
-        companion object {
-            private val LAST_SYNC_AT_KEY = longPreferencesKey("last_sync_at")
-        }
+@Inject
+constructor(
+    @ApplicationContext private val context: Context
+) {
+    companion object {
+        private val LAST_SYNC_AT_KEY = longPreferencesKey("last_sync_at")
+    }
 
-        val lastSyncAtFlow: Flow<Long> = context.backendSyncDataStore.data.map { prefs ->
-            prefs[LAST_SYNC_AT_KEY] ?: 0L
-        }
+    val lastSyncAtFlow: Flow<Long> = context.backendSyncDataStore.data.map { prefs ->
+        prefs[LAST_SYNC_AT_KEY] ?: 0L
+    }
 
-        suspend fun getLastSyncAt(): Long =
-            context.backendSyncDataStore.data.first()[LAST_SYNC_AT_KEY] ?: 0L
+    suspend fun getLastSyncAt(): Long =
+        context.backendSyncDataStore.data.first()[LAST_SYNC_AT_KEY] ?: 0L
 
-        suspend fun setLastSyncAt(timestamp: Long) {
-            context.backendSyncDataStore.edit { prefs ->
-                prefs[LAST_SYNC_AT_KEY] = timestamp
-            }
-        }
-
-        suspend fun clear() {
-            context.backendSyncDataStore.edit { it.clear() }
+    suspend fun setLastSyncAt(timestamp: Long) {
+        context.backendSyncDataStore.edit { prefs ->
+            prefs[LAST_SYNC_AT_KEY] = timestamp
         }
     }
+
+    suspend fun clear() {
+        context.backendSyncDataStore.edit { it.clear() }
+    }
+}

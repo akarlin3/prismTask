@@ -31,258 +31,258 @@ import javax.inject.Inject
  */
 @HiltViewModel
 class NotificationSettingsViewModel
-    @Inject
-    constructor(
-        private val prefs: NotificationPreferences,
-        private val profileRepo: NotificationProfileRepository,
-        private val customSoundRepo: CustomSoundRepository,
-        private val tester: NotificationTester
-    ) : ViewModel() {
-        private val resolver = NotificationProfileResolver.DEFAULT
+@Inject
+constructor(
+    private val prefs: NotificationPreferences,
+    private val profileRepo: NotificationProfileRepository,
+    private val customSoundRepo: CustomSoundRepository,
+    private val tester: NotificationTester
+) : ViewModel() {
+    private val resolver = NotificationProfileResolver.DEFAULT
 
-        val profiles: StateFlow<List<NotificationProfileEntity>> = profileRepo.getAll()
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    val profiles: StateFlow<List<NotificationProfileEntity>> = profileRepo.getAll()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-        val customSounds: StateFlow<List<CustomSoundEntity>> = customSoundRepo.getAll()
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    val customSounds: StateFlow<List<CustomSoundEntity>> = customSoundRepo.getAll()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-        val activeProfileId: StateFlow<Long> = prefs.activeProfileId
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), -1L)
+    val activeProfileId: StateFlow<Long> = prefs.activeProfileId
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), -1L)
 
-        val activeProfile: StateFlow<NotificationProfile> = combine(
-            profiles,
-            activeProfileId
-        ) { list, id ->
-            val entity = list.firstOrNull { it.id == id } ?: list.firstOrNull()
-            if (entity != null) resolver.resolve(entity) else NotificationProfile.builtInDefault()
-        }.stateIn(
-            viewModelScope,
-            SharingStarted.WhileSubscribed(5_000),
-            NotificationProfile.builtInDefault()
-        )
+    val activeProfile: StateFlow<NotificationProfile> = combine(
+        profiles,
+        activeProfileId
+    ) { list, id ->
+        val entity = list.firstOrNull { it.id == id } ?: list.firstOrNull()
+        if (entity != null) resolver.resolve(entity) else NotificationProfile.builtInDefault()
+    }.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5_000),
+        NotificationProfile.builtInDefault()
+    )
 
-        // Global per-type toggles (re-export existing preferences unchanged)
-        val taskRemindersEnabled = prefs.taskRemindersEnabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
-        val timerAlertsEnabled = prefs.timerAlertsEnabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
-        val medicationRemindersEnabled = prefs.medicationRemindersEnabled.stateIn(
-            viewModelScope,
-            SharingStarted.WhileSubscribed(5_000),
-            true
-        )
-        val dailyBriefingEnabled = prefs.dailyBriefingEnabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
-        val eveningSummaryEnabled = prefs.eveningSummaryEnabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
-        val weeklySummaryEnabled = prefs.weeklySummaryEnabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
-        val streakAlertsEnabled = prefs.streakAlertsEnabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
-        val reengagementEnabled = prefs.reengagementEnabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
-        val overloadAlertsEnabled = prefs.overloadAlertsEnabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+    // Global per-type toggles (re-export existing preferences unchanged)
+    val taskRemindersEnabled = prefs.taskRemindersEnabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+    val timerAlertsEnabled = prefs.timerAlertsEnabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+    val medicationRemindersEnabled = prefs.medicationRemindersEnabled.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5_000),
+        true
+    )
+    val dailyBriefingEnabled = prefs.dailyBriefingEnabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+    val eveningSummaryEnabled = prefs.eveningSummaryEnabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+    val weeklySummaryEnabled = prefs.weeklySummaryEnabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+    val streakAlertsEnabled = prefs.streakAlertsEnabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+    val reengagementEnabled = prefs.reengagementEnabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+    val overloadAlertsEnabled = prefs.overloadAlertsEnabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
 
-        // Habit nag suppression
-        val habitNagSuppressionDays = prefs.habitNagSuppressionDays.stateIn(
-            viewModelScope,
-            SharingStarted.WhileSubscribed(5_000),
-            NotificationPreferences.DEFAULT_HABIT_NAG_SUPPRESSION_DAYS
-        )
+    // Habit nag suppression
+    val habitNagSuppressionDays = prefs.habitNagSuppressionDays.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5_000),
+        NotificationPreferences.DEFAULT_HABIT_NAG_SUPPRESSION_DAYS
+    )
 
-        // Briefing
-        val briefingMorningHour = prefs.briefingMorningHour.stateIn(
-            viewModelScope,
-            SharingStarted.WhileSubscribed(5_000),
-            NotificationPreferences.DEFAULT_MORNING_HOUR
-        )
-        val briefingEveningHour = prefs.briefingEveningHour.stateIn(
-            viewModelScope,
-            SharingStarted.WhileSubscribed(5_000),
-            NotificationPreferences.DEFAULT_EVENING_HOUR
-        )
-        val briefingMiddayEnabled = prefs.briefingMiddayEnabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
-        val briefingTone = prefs.briefingTone.stateIn(
-            viewModelScope,
-            SharingStarted.WhileSubscribed(5_000),
-            NotificationPreferences.BRIEFING_TONE_CONCISE
-        )
-        val briefingSections = prefs.briefingSections.stateIn(
-            viewModelScope,
-            SharingStarted.WhileSubscribed(5_000),
-            NotificationPreferences.DEFAULT_BRIEFING_SECTIONS
-        )
-        val briefingReadAloudEnabled = prefs.briefingReadAloudEnabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+    // Briefing
+    val briefingMorningHour = prefs.briefingMorningHour.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5_000),
+        NotificationPreferences.DEFAULT_MORNING_HOUR
+    )
+    val briefingEveningHour = prefs.briefingEveningHour.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5_000),
+        NotificationPreferences.DEFAULT_EVENING_HOUR
+    )
+    val briefingMiddayEnabled = prefs.briefingMiddayEnabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+    val briefingTone = prefs.briefingTone.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5_000),
+        NotificationPreferences.BRIEFING_TONE_CONCISE
+    )
+    val briefingSections = prefs.briefingSections.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5_000),
+        NotificationPreferences.DEFAULT_BRIEFING_SECTIONS
+    )
+    val briefingReadAloudEnabled = prefs.briefingReadAloudEnabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
-        // Streak
-        val streakAtRiskLeadHours = prefs.streakAtRiskLeadHours.stateIn(
-            viewModelScope,
-            SharingStarted.WhileSubscribed(5_000),
-            NotificationPreferences.DEFAULT_STREAK_AT_RISK_LEAD_HOURS
-        )
+    // Streak
+    val streakAtRiskLeadHours = prefs.streakAtRiskLeadHours.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5_000),
+        NotificationPreferences.DEFAULT_STREAK_AT_RISK_LEAD_HOURS
+    )
 
-        // Collaborator
-        val collabDigestMode = prefs.collabDigestMode.stateIn(
-            viewModelScope,
-            SharingStarted.WhileSubscribed(5_000),
-            NotificationPreferences.COLLAB_DIGEST_IMMEDIATE
-        )
-        val collabAssignedEnabled = prefs.collabAssignedEnabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
-        val collabMentionedEnabled = prefs.collabMentionedEnabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
-        val collabStatusEnabled = prefs.collabStatusEnabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
-        val collabCommentEnabled = prefs.collabCommentEnabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
-        val collabDueSoonEnabled = prefs.collabDueSoonEnabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+    // Collaborator
+    val collabDigestMode = prefs.collabDigestMode.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5_000),
+        NotificationPreferences.COLLAB_DIGEST_IMMEDIATE
+    )
+    val collabAssignedEnabled = prefs.collabAssignedEnabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+    val collabMentionedEnabled = prefs.collabMentionedEnabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+    val collabStatusEnabled = prefs.collabStatusEnabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+    val collabCommentEnabled = prefs.collabCommentEnabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+    val collabDueSoonEnabled = prefs.collabDueSoonEnabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
 
-        // Watch
-        val watchSyncMode = prefs.watchSyncMode.stateIn(
-            viewModelScope,
-            SharingStarted.WhileSubscribed(5_000),
-            NotificationPreferences.WATCH_SYNC_MIRROR
-        )
-        val watchVolumePercent = prefs.watchVolumePercent.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 70)
-        val watchHapticIntensity = prefs.watchHapticIntensity.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "medium")
+    // Watch
+    val watchSyncMode = prefs.watchSyncMode.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5_000),
+        NotificationPreferences.WATCH_SYNC_MIRROR
+    )
+    val watchVolumePercent = prefs.watchVolumePercent.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 70)
+    val watchHapticIntensity = prefs.watchHapticIntensity.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "medium")
 
-        // Visual
-        val badgeMode = prefs.badgeMode.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "total")
-        val toastPosition = prefs.toastPosition.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "top_right")
-        val highContrastEnabled = prefs.highContrastNotificationsEnabled.stateIn(
-            viewModelScope,
-            SharingStarted.WhileSubscribed(5_000),
-            false
-        )
+    // Visual
+    val badgeMode = prefs.badgeMode.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "total")
+    val toastPosition = prefs.toastPosition.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "top_right")
+    val highContrastEnabled = prefs.highContrastNotificationsEnabled.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5_000),
+        false
+    )
 
-        // Snooze options
-        val snoozeDurationsMinutes = prefs.snoozeDurationsMinutes.stateIn(
-            viewModelScope,
-            SharingStarted.WhileSubscribed(5_000),
-            NotificationPreferences.DEFAULT_SNOOZE_MINUTES
-        )
+    // Snooze options
+    val snoozeDurationsMinutes = prefs.snoozeDurationsMinutes.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5_000),
+        NotificationPreferences.DEFAULT_SNOOZE_MINUTES
+    )
 
-        // Transient status for the tester button
-        private val _testStatus = MutableStateFlow<String?>(null)
-        val testStatus: StateFlow<String?> = _testStatus
+    // Transient status for the tester button
+    private val _testStatus = MutableStateFlow<String?>(null)
+    val testStatus: StateFlow<String?> = _testStatus
 
-        // ---------- Actions ----------
+    // ---------- Actions ----------
 
-        fun setActiveProfile(id: Long) = viewModelScope.launch { prefs.setActiveProfileId(id) }
+    fun setActiveProfile(id: Long) = viewModelScope.launch { prefs.setActiveProfileId(id) }
 
-        fun saveProfile(entity: NotificationProfileEntity) = viewModelScope.launch {
-            if (entity.id == 0L) profileRepo.insert(entity) else profileRepo.update(entity)
-        }
-
-        fun deleteProfile(entity: NotificationProfileEntity) = viewModelScope.launch {
-            if (!entity.isBuiltIn) profileRepo.delete(entity)
-        }
-
-        fun setTaskRemindersEnabled(enabled: Boolean) = viewModelScope.launch { prefs.setTaskRemindersEnabled(enabled) }
-
-        fun setTimerAlertsEnabled(enabled: Boolean) = viewModelScope.launch { prefs.setTimerAlertsEnabled(enabled) }
-
-        fun setMedicationRemindersEnabled(enabled: Boolean) = viewModelScope.launch {
-            prefs.setMedicationRemindersEnabled(enabled)
-        }
-
-        fun setDailyBriefingEnabled(enabled: Boolean) = viewModelScope.launch { prefs.setDailyBriefingEnabled(enabled) }
-
-        fun setEveningSummaryEnabled(enabled: Boolean) = viewModelScope.launch { prefs.setEveningSummaryEnabled(enabled) }
-
-        fun setWeeklySummaryEnabled(enabled: Boolean) = viewModelScope.launch { prefs.setWeeklySummaryEnabled(enabled) }
-
-        fun setStreakAlertsEnabled(enabled: Boolean) = viewModelScope.launch { prefs.setStreakAlertsEnabled(enabled) }
-
-        fun setReengagementEnabled(enabled: Boolean) = viewModelScope.launch { prefs.setReengagementEnabled(enabled) }
-
-        fun setOverloadAlertsEnabled(enabled: Boolean) = viewModelScope.launch { prefs.setOverloadAlertsEnabled(enabled) }
-
-        fun setHabitNagSuppressionDays(days: Int) = viewModelScope.launch { prefs.setHabitNagSuppressionDays(days) }
-
-        fun setBriefingMorningHour(hour: Int) = viewModelScope.launch { prefs.setBriefingMorningHour(hour) }
-
-        fun setBriefingEveningHour(hour: Int) = viewModelScope.launch { prefs.setBriefingEveningHour(hour) }
-
-        fun setBriefingMiddayEnabled(enabled: Boolean) = viewModelScope.launch { prefs.setBriefingMiddayEnabled(enabled) }
-
-        fun setBriefingTone(tone: String) = viewModelScope.launch { prefs.setBriefingTone(tone) }
-
-        fun toggleBriefingSection(section: String, enabled: Boolean) = viewModelScope.launch {
-            val current = briefingSections.value.toMutableSet()
-            if (enabled) current += section else current -= section
-            prefs.setBriefingSections(current)
-        }
-
-        fun setBriefingReadAloud(enabled: Boolean) = viewModelScope.launch { prefs.setBriefingReadAloudEnabled(enabled) }
-
-        fun setStreakAtRiskLeadHours(hours: Int) = viewModelScope.launch { prefs.setStreakAtRiskLeadHours(hours) }
-
-        fun setCollabDigestMode(mode: String) = viewModelScope.launch { prefs.setCollabDigestMode(mode) }
-
-        fun setCollabAssignedEnabled(enabled: Boolean) = viewModelScope.launch { prefs.setCollabAssignedEnabled(enabled) }
-
-        fun setCollabMentionedEnabled(enabled: Boolean) = viewModelScope.launch { prefs.setCollabMentionedEnabled(enabled) }
-
-        fun setCollabStatusEnabled(enabled: Boolean) = viewModelScope.launch { prefs.setCollabStatusEnabled(enabled) }
-
-        fun setCollabCommentEnabled(enabled: Boolean) = viewModelScope.launch { prefs.setCollabCommentEnabled(enabled) }
-
-        fun setCollabDueSoonEnabled(enabled: Boolean) = viewModelScope.launch { prefs.setCollabDueSoonEnabled(enabled) }
-
-        fun setWatchSyncMode(mode: String) = viewModelScope.launch { prefs.setWatchSyncMode(mode) }
-
-        fun setWatchVolumePercent(percent: Int) = viewModelScope.launch { prefs.setWatchVolumePercent(percent) }
-
-        fun setWatchHapticIntensity(intensity: String) = viewModelScope.launch { prefs.setWatchHapticIntensity(intensity) }
-
-        fun setBadgeMode(mode: String) = viewModelScope.launch { prefs.setBadgeMode(mode) }
-
-        fun setToastPosition(position: String) = viewModelScope.launch { prefs.setToastPosition(position) }
-
-        fun setHighContrastEnabled(enabled: Boolean) = viewModelScope.launch {
-            prefs.setHighContrastNotificationsEnabled(enabled)
-        }
-
-        fun setSnoozeDurationsMinutes(minutes: List<Int>) = viewModelScope.launch {
-            prefs.setSnoozeDurationsMinutes(minutes.sorted().distinct())
-        }
-
-        fun seedBuiltInProfilesIfEmpty() = viewModelScope.launch {
-            profileRepo.seedBuiltInsIfEmpty()
-        }
-
-        fun previewProfile(profile: NotificationProfile) = viewModelScope.launch {
-            tester.previewSoundAndVibration(profile, customSounds.value)
-            _testStatus.value = "Preview playing \u2014 ${profile.name}"
-        }
-
-        fun testProfile(profile: NotificationProfile) = viewModelScope.launch {
-            tester.fireTestNotification(profile)
-            _testStatus.value = "Test notification posted \u2014 check the shade"
-        }
-
-        fun stopPreview() {
-            tester.stopPreview()
-            _testStatus.value = null
-        }
-
-        fun clearTestStatus() {
-            _testStatus.value = null
-        }
-
-        fun deleteCustomSound(sound: CustomSoundEntity) = viewModelScope.launch {
-            customSoundRepo.delete(sound)
-        }
-
-        /** Helper for the profile editor: rebuild the entity from an in-memory copy. */
-        fun commitProfileEdit(entity: NotificationProfileEntity) = saveProfile(entity)
-
-        /** Expose the count of enabled per-type toggles — used by the hub subtitle. */
-        val enabledTypeCount: StateFlow<Int> = combine(
-            taskRemindersEnabled,
-            timerAlertsEnabled,
-            medicationRemindersEnabled,
-            dailyBriefingEnabled,
-            eveningSummaryEnabled,
-            weeklySummaryEnabled,
-            streakAlertsEnabled,
-            reengagementEnabled
-        ) { flags: Array<Boolean> -> flags.count { it } }
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
-
-        init {
-            // Ensure the built-in profile library exists — matches the
-            // pattern used by TemplateSeeder during first-run.
-            seedBuiltInProfilesIfEmpty()
-        }
+    fun saveProfile(entity: NotificationProfileEntity) = viewModelScope.launch {
+        if (entity.id == 0L) profileRepo.insert(entity) else profileRepo.update(entity)
     }
+
+    fun deleteProfile(entity: NotificationProfileEntity) = viewModelScope.launch {
+        if (!entity.isBuiltIn) profileRepo.delete(entity)
+    }
+
+    fun setTaskRemindersEnabled(enabled: Boolean) = viewModelScope.launch { prefs.setTaskRemindersEnabled(enabled) }
+
+    fun setTimerAlertsEnabled(enabled: Boolean) = viewModelScope.launch { prefs.setTimerAlertsEnabled(enabled) }
+
+    fun setMedicationRemindersEnabled(enabled: Boolean) = viewModelScope.launch {
+        prefs.setMedicationRemindersEnabled(enabled)
+    }
+
+    fun setDailyBriefingEnabled(enabled: Boolean) = viewModelScope.launch { prefs.setDailyBriefingEnabled(enabled) }
+
+    fun setEveningSummaryEnabled(enabled: Boolean) = viewModelScope.launch { prefs.setEveningSummaryEnabled(enabled) }
+
+    fun setWeeklySummaryEnabled(enabled: Boolean) = viewModelScope.launch { prefs.setWeeklySummaryEnabled(enabled) }
+
+    fun setStreakAlertsEnabled(enabled: Boolean) = viewModelScope.launch { prefs.setStreakAlertsEnabled(enabled) }
+
+    fun setReengagementEnabled(enabled: Boolean) = viewModelScope.launch { prefs.setReengagementEnabled(enabled) }
+
+    fun setOverloadAlertsEnabled(enabled: Boolean) = viewModelScope.launch { prefs.setOverloadAlertsEnabled(enabled) }
+
+    fun setHabitNagSuppressionDays(days: Int) = viewModelScope.launch { prefs.setHabitNagSuppressionDays(days) }
+
+    fun setBriefingMorningHour(hour: Int) = viewModelScope.launch { prefs.setBriefingMorningHour(hour) }
+
+    fun setBriefingEveningHour(hour: Int) = viewModelScope.launch { prefs.setBriefingEveningHour(hour) }
+
+    fun setBriefingMiddayEnabled(enabled: Boolean) = viewModelScope.launch { prefs.setBriefingMiddayEnabled(enabled) }
+
+    fun setBriefingTone(tone: String) = viewModelScope.launch { prefs.setBriefingTone(tone) }
+
+    fun toggleBriefingSection(section: String, enabled: Boolean) = viewModelScope.launch {
+        val current = briefingSections.value.toMutableSet()
+        if (enabled) current += section else current -= section
+        prefs.setBriefingSections(current)
+    }
+
+    fun setBriefingReadAloud(enabled: Boolean) = viewModelScope.launch { prefs.setBriefingReadAloudEnabled(enabled) }
+
+    fun setStreakAtRiskLeadHours(hours: Int) = viewModelScope.launch { prefs.setStreakAtRiskLeadHours(hours) }
+
+    fun setCollabDigestMode(mode: String) = viewModelScope.launch { prefs.setCollabDigestMode(mode) }
+
+    fun setCollabAssignedEnabled(enabled: Boolean) = viewModelScope.launch { prefs.setCollabAssignedEnabled(enabled) }
+
+    fun setCollabMentionedEnabled(enabled: Boolean) = viewModelScope.launch { prefs.setCollabMentionedEnabled(enabled) }
+
+    fun setCollabStatusEnabled(enabled: Boolean) = viewModelScope.launch { prefs.setCollabStatusEnabled(enabled) }
+
+    fun setCollabCommentEnabled(enabled: Boolean) = viewModelScope.launch { prefs.setCollabCommentEnabled(enabled) }
+
+    fun setCollabDueSoonEnabled(enabled: Boolean) = viewModelScope.launch { prefs.setCollabDueSoonEnabled(enabled) }
+
+    fun setWatchSyncMode(mode: String) = viewModelScope.launch { prefs.setWatchSyncMode(mode) }
+
+    fun setWatchVolumePercent(percent: Int) = viewModelScope.launch { prefs.setWatchVolumePercent(percent) }
+
+    fun setWatchHapticIntensity(intensity: String) = viewModelScope.launch { prefs.setWatchHapticIntensity(intensity) }
+
+    fun setBadgeMode(mode: String) = viewModelScope.launch { prefs.setBadgeMode(mode) }
+
+    fun setToastPosition(position: String) = viewModelScope.launch { prefs.setToastPosition(position) }
+
+    fun setHighContrastEnabled(enabled: Boolean) = viewModelScope.launch {
+        prefs.setHighContrastNotificationsEnabled(enabled)
+    }
+
+    fun setSnoozeDurationsMinutes(minutes: List<Int>) = viewModelScope.launch {
+        prefs.setSnoozeDurationsMinutes(minutes.sorted().distinct())
+    }
+
+    fun seedBuiltInProfilesIfEmpty() = viewModelScope.launch {
+        profileRepo.seedBuiltInsIfEmpty()
+    }
+
+    fun previewProfile(profile: NotificationProfile) = viewModelScope.launch {
+        tester.previewSoundAndVibration(profile, customSounds.value)
+        _testStatus.value = "Preview playing \u2014 ${profile.name}"
+    }
+
+    fun testProfile(profile: NotificationProfile) = viewModelScope.launch {
+        tester.fireTestNotification(profile)
+        _testStatus.value = "Test notification posted \u2014 check the shade"
+    }
+
+    fun stopPreview() {
+        tester.stopPreview()
+        _testStatus.value = null
+    }
+
+    fun clearTestStatus() {
+        _testStatus.value = null
+    }
+
+    fun deleteCustomSound(sound: CustomSoundEntity) = viewModelScope.launch {
+        customSoundRepo.delete(sound)
+    }
+
+    /** Helper for the profile editor: rebuild the entity from an in-memory copy. */
+    fun commitProfileEdit(entity: NotificationProfileEntity) = saveProfile(entity)
+
+    /** Expose the count of enabled per-type toggles — used by the hub subtitle. */
+    val enabledTypeCount: StateFlow<Int> = combine(
+        taskRemindersEnabled,
+        timerAlertsEnabled,
+        medicationRemindersEnabled,
+        dailyBriefingEnabled,
+        eveningSummaryEnabled,
+        weeklySummaryEnabled,
+        streakAlertsEnabled,
+        reengagementEnabled
+    ) { flags: Array<Boolean> -> flags.count { it } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
+
+    init {
+        // Ensure the built-in profile library exists — matches the
+        // pattern used by TemplateSeeder during first-run.
+        seedBuiltInProfilesIfEmpty()
+    }
+}

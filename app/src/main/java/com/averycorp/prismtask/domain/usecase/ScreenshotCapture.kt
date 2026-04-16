@@ -17,63 +17,63 @@ import kotlin.coroutines.suspendCoroutine
 
 @Singleton
 class ScreenshotCapture
-    @Inject
-    constructor() {
-        suspend fun capture(activity: Activity): Uri? {
-            val window = activity.window ?: return null
+@Inject
+constructor() {
+    suspend fun capture(activity: Activity): Uri? {
+        val window = activity.window ?: return null
 
-            // Delay slightly to let screen settle during transitions
-            kotlinx.coroutines.delay(300)
+        // Delay slightly to let screen settle during transitions
+        kotlinx.coroutines.delay(300)
 
-            val bitmap = captureWindow(window) ?: return null
+        val bitmap = captureWindow(window) ?: return null
 
-            return saveBitmapToCache(activity, bitmap)
-        }
+        return saveBitmapToCache(activity, bitmap)
+    }
 
-        private suspend fun captureWindow(window: Window): Bitmap? = suspendCoroutine { cont ->
-            val view = window.decorView
-            val bitmap = Bitmap.createBitmap(view.width, view.height, Bitmap.Config.ARGB_8888)
-            try {
-                PixelCopy.request(window, bitmap, { result ->
-                    if (result == PixelCopy.SUCCESS) {
-                        cont.resume(bitmap)
-                    } else {
-                        cont.resume(null)
-                    }
-                }, Handler(Looper.getMainLooper()))
-            } catch (_: Exception) {
-                cont.resume(null)
-            }
-        }
-
-        private fun saveBitmapToCache(activity: Activity, bitmap: Bitmap): Uri? = try {
-            val cacheDir = File(activity.cacheDir, "screenshots")
-            cacheDir.mkdirs()
-            val file = File(cacheDir, "screenshot_${System.currentTimeMillis()}.jpg")
-            FileOutputStream(file).use { out ->
-                bitmap.compress(Bitmap.CompressFormat.JPEG, 85, out)
-            }
-            FileProvider.getUriForFile(
-                activity,
-                "${activity.packageName}.fileprovider",
-                file
-            )
-        } catch (_: Exception) {
-            null
-        }
-
-        fun cleanupOldScreenshots(activity: Activity) {
-            try {
-                val cacheDir = File(activity.cacheDir, "screenshots")
-                if (!cacheDir.exists()) return
-                val cutoff = System.currentTimeMillis() - 60 * 60 * 1000 // 1 hour
-                cacheDir.listFiles()?.forEach { file ->
-                    if (file.lastModified() < cutoff) {
-                        file.delete()
-                    }
+    private suspend fun captureWindow(window: Window): Bitmap? = suspendCoroutine { cont ->
+        val view = window.decorView
+        val bitmap = Bitmap.createBitmap(view.width, view.height, Bitmap.Config.ARGB_8888)
+        try {
+            PixelCopy.request(window, bitmap, { result ->
+                if (result == PixelCopy.SUCCESS) {
+                    cont.resume(bitmap)
+                } else {
+                    cont.resume(null)
                 }
-            } catch (_: Exception) {
-                // Best effort cleanup
-            }
+            }, Handler(Looper.getMainLooper()))
+        } catch (_: Exception) {
+            cont.resume(null)
         }
     }
+
+    private fun saveBitmapToCache(activity: Activity, bitmap: Bitmap): Uri? = try {
+        val cacheDir = File(activity.cacheDir, "screenshots")
+        cacheDir.mkdirs()
+        val file = File(cacheDir, "screenshot_${System.currentTimeMillis()}.jpg")
+        FileOutputStream(file).use { out ->
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 85, out)
+        }
+        FileProvider.getUriForFile(
+            activity,
+            "${activity.packageName}.fileprovider",
+            file
+        )
+    } catch (_: Exception) {
+        null
+    }
+
+    fun cleanupOldScreenshots(activity: Activity) {
+        try {
+            val cacheDir = File(activity.cacheDir, "screenshots")
+            if (!cacheDir.exists()) return
+            val cutoff = System.currentTimeMillis() - 60 * 60 * 1000 // 1 hour
+            cacheDir.listFiles()?.forEach { file ->
+                if (file.lastModified() < cutoff) {
+                    file.delete()
+                }
+            }
+        } catch (_: Exception) {
+            // Best effort cleanup
+        }
+    }
+}

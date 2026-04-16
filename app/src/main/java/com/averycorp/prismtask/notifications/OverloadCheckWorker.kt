@@ -33,71 +33,71 @@ import kotlinx.coroutines.flow.first
  */
 @HiltWorker
 class OverloadCheckWorker
-    @AssistedInject
-    constructor(
-        @Assisted context: Context,
-        @Assisted params: WorkerParameters,
-        private val taskRepository: TaskRepository,
-        private val userPreferencesDataStore: UserPreferencesDataStore,
-        private val notificationPreferences: NotificationPreferences
-    ) : CoroutineWorker(context, params) {
-        override suspend fun doWork(): Result {
-            if (!notificationPreferences.overloadAlertsEnabled.first()) return Result.success()
-            val prefs = userPreferencesDataStore.workLifeBalanceFlow.first()
-            if (!prefs.showBalanceBar) return Result.success()
+@AssistedInject
+constructor(
+    @Assisted context: Context,
+    @Assisted params: WorkerParameters,
+    private val taskRepository: TaskRepository,
+    private val userPreferencesDataStore: UserPreferencesDataStore,
+    private val notificationPreferences: NotificationPreferences
+) : CoroutineWorker(context, params) {
+    override suspend fun doWork(): Result {
+        if (!notificationPreferences.overloadAlertsEnabled.first()) return Result.success()
+        val prefs = userPreferencesDataStore.workLifeBalanceFlow.first()
+        if (!prefs.showBalanceBar) return Result.success()
 
-            val tasks = taskRepository.getAllTasksOnce()
-            val config = BalanceConfig(
-                workTarget = prefs.workTarget / 100f,
-                personalTarget = prefs.personalTarget / 100f,
-                selfCareTarget = prefs.selfCareTarget / 100f,
-                healthTarget = prefs.healthTarget / 100f,
-                overloadThreshold = prefs.overloadThresholdPct / 100f
-            )
-            val balance = BalanceTracker().compute(tasks, config)
+        val tasks = taskRepository.getAllTasksOnce()
+        val config = BalanceConfig(
+            workTarget = prefs.workTarget / 100f,
+            personalTarget = prefs.personalTarget / 100f,
+            selfCareTarget = prefs.selfCareTarget / 100f,
+            healthTarget = prefs.healthTarget / 100f,
+            overloadThreshold = prefs.overloadThresholdPct / 100f
+        )
+        val balance = BalanceTracker().compute(tasks, config)
 
-            if (!balance.isOverloaded || balance.totalTracked == 0) {
-                return Result.success()
-            }
-
-            ensureChannel(applicationContext)
-            val workPct = ((balance.currentRatios[com.averycorp.prismtask.domain.model.LifeCategory.WORK] ?: 0f) * 100).toInt()
-            val notification = NotificationCompat
-                .Builder(applicationContext, CHANNEL_ID)
-                .setSmallIcon(R.mipmap.ic_launcher)
-                .setContentTitle("Work-life balance is skewing")
-                .setContentText("$workPct% work this week — consider blocking time for self-care.")
-                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-                .setAutoCancel(true)
-                .build()
-
-            try {
-                NotificationManagerCompat.from(applicationContext).notify(NOTIFICATION_ID, notification)
-            } catch (_: SecurityException) {
-                // POST_NOTIFICATIONS not granted — silent no-op.
-            }
+        if (!balance.isOverloaded || balance.totalTracked == 0) {
             return Result.success()
         }
 
-        private fun ensureChannel(context: Context) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                val manager = context.getSystemService(NotificationManager::class.java)
-                if (manager?.getNotificationChannel(CHANNEL_ID) == null) {
-                    val channel = NotificationChannel(
-                        CHANNEL_ID,
-                        "Balance Alerts",
-                        NotificationManager.IMPORTANCE_DEFAULT
-                    ).apply {
-                        description = "Daily work-life balance overload alerts"
-                    }
-                    manager?.createNotificationChannel(channel)
+        ensureChannel(applicationContext)
+        val workPct = ((balance.currentRatios[com.averycorp.prismtask.domain.model.LifeCategory.WORK] ?: 0f) * 100).toInt()
+        val notification = NotificationCompat
+            .Builder(applicationContext, CHANNEL_ID)
+            .setSmallIcon(R.mipmap.ic_launcher)
+            .setContentTitle("Work-life balance is skewing")
+            .setContentText("$workPct% work this week — consider blocking time for self-care.")
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setAutoCancel(true)
+            .build()
+
+        try {
+            NotificationManagerCompat.from(applicationContext).notify(NOTIFICATION_ID, notification)
+        } catch (_: SecurityException) {
+            // POST_NOTIFICATIONS not granted — silent no-op.
+        }
+        return Result.success()
+    }
+
+    private fun ensureChannel(context: Context) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val manager = context.getSystemService(NotificationManager::class.java)
+            if (manager?.getNotificationChannel(CHANNEL_ID) == null) {
+                val channel = NotificationChannel(
+                    CHANNEL_ID,
+                    "Balance Alerts",
+                    NotificationManager.IMPORTANCE_DEFAULT
+                ).apply {
+                    description = "Daily work-life balance overload alerts"
                 }
+                manager?.createNotificationChannel(channel)
             }
         }
-
-        companion object {
-            const val CHANNEL_ID = "balance_alerts"
-            const val NOTIFICATION_ID = 9401
-            const val UNIQUE_WORK_NAME = "overload_check_daily"
-        }
     }
+
+    companion object {
+        const val CHANNEL_ID = "balance_alerts"
+        const val NOTIFICATION_ID = 9401
+        const val UNIQUE_WORK_NAME = "overload_check_daily"
+    }
+}

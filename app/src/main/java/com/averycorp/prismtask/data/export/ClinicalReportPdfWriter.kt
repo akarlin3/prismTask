@@ -30,82 +30,55 @@ import javax.inject.Singleton
  */
 @Singleton
 class ClinicalReportPdfWriter
-    @Inject
-    constructor() {
-        /**
-         * Render [report] to a PDF saved in the user's Downloads folder and
-         * return its [Uri]. Returns null on any I/O failure so the caller can
-         * surface a generic "Could not export report" snackbar without
-         * needing to understand the PDF stack.
-         */
-        fun write(context: Context, report: ClinicalReport): Uri? {
-            val document = PdfDocument()
-            try {
-                val pageWidth = 595
-                val pageHeight = 842
-                val margin = 40f
-                var pageNumber = 1
-                var pageInfo = PdfDocument.PageInfo.Builder(pageWidth, pageHeight, pageNumber).create()
-                var page = document.startPage(pageInfo)
-                var canvas = page.canvas
-                val headerPaint = Paint().apply {
-                    textSize = 18f
-                    isFakeBoldText = true
-                    color = android.graphics.Color.BLACK
-                }
-                val subtitlePaint = Paint().apply {
-                    textSize = 11f
-                    color = android.graphics.Color.DKGRAY
-                }
-                val sectionPaint = Paint().apply {
-                    textSize = 14f
-                    isFakeBoldText = true
-                    color = android.graphics.Color.BLACK
-                }
-                val bodyPaint = Paint().apply {
-                    textSize = 11f
-                    color = android.graphics.Color.BLACK
-                }
-                val footerPaint = Paint().apply {
-                    textSize = 9f
-                    color = android.graphics.Color.GRAY
-                }
+@Inject
+constructor() {
+    /**
+     * Render [report] to a PDF saved in the user's Downloads folder and
+     * return its [Uri]. Returns null on any I/O failure so the caller can
+     * surface a generic "Could not export report" snackbar without
+     * needing to understand the PDF stack.
+     */
+    fun write(context: Context, report: ClinicalReport): Uri? {
+        val document = PdfDocument()
+        try {
+            val pageWidth = 595
+            val pageHeight = 842
+            val margin = 40f
+            var pageNumber = 1
+            var pageInfo = PdfDocument.PageInfo.Builder(pageWidth, pageHeight, pageNumber).create()
+            var page = document.startPage(pageInfo)
+            var canvas = page.canvas
+            val headerPaint = Paint().apply {
+                textSize = 18f
+                isFakeBoldText = true
+                color = android.graphics.Color.BLACK
+            }
+            val subtitlePaint = Paint().apply {
+                textSize = 11f
+                color = android.graphics.Color.DKGRAY
+            }
+            val sectionPaint = Paint().apply {
+                textSize = 14f
+                isFakeBoldText = true
+                color = android.graphics.Color.BLACK
+            }
+            val bodyPaint = Paint().apply {
+                textSize = 11f
+                color = android.graphics.Color.BLACK
+            }
+            val footerPaint = Paint().apply {
+                textSize = 9f
+                color = android.graphics.Color.GRAY
+            }
 
-                var cursorY = margin
-                canvas.drawText(report.title, margin, cursorY + 18f, headerPaint)
-                cursorY += 28f
-                canvas.drawText(report.subtitle, margin, cursorY + 11f, subtitlePaint)
-                cursorY += 24f
+            var cursorY = margin
+            canvas.drawText(report.title, margin, cursorY + 18f, headerPaint)
+            cursorY += 28f
+            canvas.drawText(report.subtitle, margin, cursorY + 11f, subtitlePaint)
+            cursorY += 24f
 
-                for (section in report.sections) {
-                    if (cursorY + 60f > pageHeight - margin) {
-                        document.finishPage(page)
-                        pageNumber++
-                        pageInfo = PdfDocument.PageInfo.Builder(pageWidth, pageHeight, pageNumber).create()
-                        page = document.startPage(pageInfo)
-                        canvas = page.canvas
-                        cursorY = margin
-                    }
-                    canvas.drawText(section.header, margin, cursorY + 14f, sectionPaint)
-                    cursorY += 22f
-                    for (line in section.lines) {
-                        if (cursorY + 14f > pageHeight - margin) {
-                            document.finishPage(page)
-                            pageNumber++
-                            pageInfo = PdfDocument.PageInfo.Builder(pageWidth, pageHeight, pageNumber).create()
-                            page = document.startPage(pageInfo)
-                            canvas = page.canvas
-                            cursorY = margin
-                        }
-                        canvas.drawText("  $line", margin, cursorY + 11f, bodyPaint)
-                        cursorY += 15f
-                    }
-                    cursorY += 10f
-                }
-
-                // Footer on the final page.
-                val footer = "Generated by PrismTask. Not a medical document."
-                if (cursorY + 20f > pageHeight - margin) {
+            for (section in report.sections) {
+                if (cursorY + 60f > pageHeight - margin) {
                     document.finishPage(page)
                     pageNumber++
                     pageInfo = PdfDocument.PageInfo.Builder(pageWidth, pageHeight, pageNumber).create()
@@ -113,48 +86,75 @@ class ClinicalReportPdfWriter
                     canvas = page.canvas
                     cursorY = margin
                 }
-                canvas.drawText(footer, margin, (pageHeight - margin + 10f), footerPaint)
-                document.finishPage(page)
-
-                val fileName = "prismtask-report-${SimpleDateFormat("yyyyMMdd-HHmm", Locale.US).format(Date())}.pdf"
-                return saveViaMediaStore(context, document, fileName)
-                    ?: saveToExternal(context, document, fileName)
-            } catch (t: Throwable) {
-                return null
-            } finally {
-                document.close()
-            }
-        }
-
-        private fun saveViaMediaStore(context: Context, document: PdfDocument, fileName: String): Uri? {
-            if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.Q) return null
-            return try {
-                val values = ContentValues().apply {
-                    put(MediaStore.Downloads.DISPLAY_NAME, fileName)
-                    put(MediaStore.Downloads.MIME_TYPE, "application/pdf")
-                    put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/PrismTask")
+                canvas.drawText(section.header, margin, cursorY + 14f, sectionPaint)
+                cursorY += 22f
+                for (line in section.lines) {
+                    if (cursorY + 14f > pageHeight - margin) {
+                        document.finishPage(page)
+                        pageNumber++
+                        pageInfo = PdfDocument.PageInfo.Builder(pageWidth, pageHeight, pageNumber).create()
+                        page = document.startPage(pageInfo)
+                        canvas = page.canvas
+                        cursorY = margin
+                    }
+                    canvas.drawText("  $line", margin, cursorY + 11f, bodyPaint)
+                    cursorY += 15f
                 }
-                val resolver = context.contentResolver
-                val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values) ?: return null
-                resolver.openOutputStream(uri)?.use { out ->
-                    document.writeTo(out)
-                } ?: return null
-                uri
-            } catch (_: Throwable) {
-                null
+                cursorY += 10f
             }
-        }
 
-        private fun saveToExternal(context: Context, document: PdfDocument, fileName: String): Uri? = try {
-            val dir = File(
-                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
-                "PrismTask"
-            )
-            if (!dir.exists()) dir.mkdirs()
-            val file = File(dir, fileName)
-            FileOutputStream(file).use { out -> document.writeTo(out) }
-            Uri.fromFile(file)
+            // Footer on the final page.
+            val footer = "Generated by PrismTask. Not a medical document."
+            if (cursorY + 20f > pageHeight - margin) {
+                document.finishPage(page)
+                pageNumber++
+                pageInfo = PdfDocument.PageInfo.Builder(pageWidth, pageHeight, pageNumber).create()
+                page = document.startPage(pageInfo)
+                canvas = page.canvas
+                cursorY = margin
+            }
+            canvas.drawText(footer, margin, (pageHeight - margin + 10f), footerPaint)
+            document.finishPage(page)
+
+            val fileName = "prismtask-report-${SimpleDateFormat("yyyyMMdd-HHmm", Locale.US).format(Date())}.pdf"
+            return saveViaMediaStore(context, document, fileName)
+                ?: saveToExternal(context, document, fileName)
+        } catch (t: Throwable) {
+            return null
+        } finally {
+            document.close()
+        }
+    }
+
+    private fun saveViaMediaStore(context: Context, document: PdfDocument, fileName: String): Uri? {
+        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.Q) return null
+        return try {
+            val values = ContentValues().apply {
+                put(MediaStore.Downloads.DISPLAY_NAME, fileName)
+                put(MediaStore.Downloads.MIME_TYPE, "application/pdf")
+                put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/PrismTask")
+            }
+            val resolver = context.contentResolver
+            val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values) ?: return null
+            resolver.openOutputStream(uri)?.use { out ->
+                document.writeTo(out)
+            } ?: return null
+            uri
         } catch (_: Throwable) {
             null
         }
     }
+
+    private fun saveToExternal(context: Context, document: PdfDocument, fileName: String): Uri? = try {
+        val dir = File(
+            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
+            "PrismTask"
+        )
+        if (!dir.exists()) dir.mkdirs()
+        val file = File(dir, fileName)
+        FileOutputStream(file).use { out -> document.writeTo(out) }
+        Uri.fromFile(file)
+    } catch (_: Throwable) {
+        null
+    }
+}

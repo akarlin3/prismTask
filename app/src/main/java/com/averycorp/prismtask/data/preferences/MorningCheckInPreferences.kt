@@ -27,43 +27,43 @@ private val Context.morningCheckInDataStore: DataStore<Preferences> by
  */
 @Singleton
 class MorningCheckInPreferences
-    @Inject
-    constructor(
-        @ApplicationContext private val context: Context
-    ) {
-        companion object {
-            private val BANNER_DISMISSED_DATE_KEY = stringPreferencesKey("banner_dismissed_date")
-            private val FEATURE_ENABLED_KEY = booleanPreferencesKey("feature_enabled")
-        }
+@Inject
+constructor(
+    @ApplicationContext private val context: Context
+) {
+    companion object {
+        private val BANNER_DISMISSED_DATE_KEY = stringPreferencesKey("banner_dismissed_date")
+        private val FEATURE_ENABLED_KEY = booleanPreferencesKey("feature_enabled")
+    }
 
-        private fun todayString(): String = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE)
+    private fun todayString(): String = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE)
 
-        /** Live dismissal date (ISO yyyy-MM-dd) or empty string when not dismissed. */
-        fun bannerDismissedDate(): Flow<String> = context.morningCheckInDataStore.data.map { prefs ->
-            prefs[BANNER_DISMISSED_DATE_KEY] ?: ""
-        }
+    /** Live dismissal date (ISO yyyy-MM-dd) or empty string when not dismissed. */
+    fun bannerDismissedDate(): Flow<String> = context.morningCheckInDataStore.data.map { prefs ->
+        prefs[BANNER_DISMISSED_DATE_KEY] ?: ""
+    }
 
-        /** Live feature-enabled toggle. Defaults to true. */
-        fun featureEnabled(): Flow<Boolean> = context.morningCheckInDataStore.data.map { prefs ->
-            prefs[FEATURE_ENABLED_KEY] ?: true
-        }
+    /** Live feature-enabled toggle. Defaults to true. */
+    fun featureEnabled(): Flow<Boolean> = context.morningCheckInDataStore.data.map { prefs ->
+        prefs[FEATURE_ENABLED_KEY] ?: true
+    }
 
-        /** True when the user has dismissed the banner earlier today. */
-        suspend fun isBannerDismissedToday(): Boolean {
-            val prefs = context.morningCheckInDataStore.data.first()
-            return prefs[BANNER_DISMISSED_DATE_KEY] == todayString()
-        }
+    /** True when the user has dismissed the banner earlier today. */
+    suspend fun isBannerDismissedToday(): Boolean {
+        val prefs = context.morningCheckInDataStore.data.first()
+        return prefs[BANNER_DISMISSED_DATE_KEY] == todayString()
+    }
 
-        /** Records today's dismissal so the banner stays hidden until tomorrow. */
-        suspend fun dismissBannerToday() {
-            context.morningCheckInDataStore.edit { prefs ->
-                prefs[BANNER_DISMISSED_DATE_KEY] = todayString()
-            }
-        }
-
-        suspend fun setFeatureEnabled(enabled: Boolean) {
-            context.morningCheckInDataStore.edit { prefs ->
-                prefs[FEATURE_ENABLED_KEY] = enabled
-            }
+    /** Records today's dismissal so the banner stays hidden until tomorrow. */
+    suspend fun dismissBannerToday() {
+        context.morningCheckInDataStore.edit { prefs ->
+            prefs[BANNER_DISMISSED_DATE_KEY] = todayString()
         }
     }
+
+    suspend fun setFeatureEnabled(enabled: Boolean) {
+        context.morningCheckInDataStore.edit { prefs ->
+            prefs[FEATURE_ENABLED_KEY] = enabled
+        }
+    }
+}

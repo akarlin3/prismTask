@@ -23,115 +23,115 @@ import javax.inject.Singleton
  */
 @Singleton
 class NotificationTester
-    @Inject
-    constructor(
-        @ApplicationContext private val context: Context
-    ) {
-        @Volatile
-        private var player: MediaPlayer? = null
+@Inject
+constructor(
+    @ApplicationContext private val context: Context
+) {
+    @Volatile
+    private var player: MediaPlayer? = null
 
-        /**
-         * Plays [profile]'s sound with the configured volume and fade-in,
-         * and triggers its vibration pattern. Intended for use by the
-         * preview panel — returns a [Preview] token the caller can
-         * [Preview.stop] to cancel mid-play.
-         */
-        fun previewSoundAndVibration(
-            profile: NotificationProfile,
-            customSounds: List<CustomSoundEntity> = emptyList()
-        ): Preview {
-            stopPreview()
-            val vibePlayed = playVibration(profile)
-            val soundPlayed = playSound(profile, customSounds)
-            return Preview(soundPlayed || vibePlayed)
-        }
-
-        /** Plays just the sound portion (used by the sound picker). */
-        fun previewSound(
-            profile: NotificationProfile,
-            customSounds: List<CustomSoundEntity> = emptyList()
-        ): Preview {
-            stopPreview()
-            val played = playSound(profile, customSounds)
-            return Preview(played)
-        }
-
-        /** Plays just the vibration pattern. */
-        fun previewVibration(profile: NotificationProfile): Preview {
-            val played = playVibration(profile)
-            return Preview(played)
-        }
-
-        /**
-         * Posts a real notification using [profile] as a one-shot test. The
-         * notification appears in the tray with a fixed title so users can
-         * tell it apart from real reminders.
-         */
-        fun fireTestNotification(profile: NotificationProfile) {
-            NotificationHelper.showTaskReminderFor(
-                context = context,
-                profile = profile,
-                taskId = TEST_NOTIFICATION_ID,
-                taskTitle = "Test \u2014 ${profile.name}",
-                taskDescription = "This is how the ${profile.name} profile will look & sound."
-            )
-        }
-
-        fun stopPreview() {
-            player?.let {
-                try {
-                    if (it.isPlaying) it.stop()
-                } catch (_: IllegalStateException) {
-                }
-                it.release()
-            }
-            player = null
-            VibrationAdapter.cancel(context)
-        }
-
-        private fun playSound(
-            profile: NotificationProfile,
-            customSounds: List<CustomSoundEntity>
-        ): Boolean {
-            if (profile.silent) return false
-            val resolved = SoundResolver.resolve(context, profile.soundId, customSounds)
-            val uri = (resolved as? SoundResolver.UriChoice)?.uri ?: return false
-            val mp = MediaPlayer().apply {
-                setAudioAttributes(
-                    AudioAttributes.Builder()
-                        .setUsage(AudioAttributes.USAGE_NOTIFICATION)
-                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                        .build()
-                )
-                val volume = profile.soundVolumePercent.coerceIn(0, 100) / 100f
-                setVolume(volume, volume)
-                setDataSource(context, uri)
-                setOnCompletionListener { it.release() }
-                prepare()
-                start()
-            }
-            player = mp
-            return true
-        }
-
-        private fun playVibration(profile: NotificationProfile): Boolean {
-            if (profile.vibrationPreset == VibrationPreset.NONE) return false
-            val pattern = VibrationAdapter.patternFor(profile) ?: return false
-            return VibrationAdapter.playNow(
-                context = context,
-                pattern = pattern,
-                intensity = profile.vibrationIntensity,
-                continuous = profile.vibrationContinuous
-            )
-        }
-
-        /** Handle returned to callers so they can stop the preview. */
-        class Preview internal constructor(val started: Boolean) {
-            fun isPlaying(): Boolean = started
-        }
-
-        companion object {
-            /** Fixed notification id for test pings so they replace in place. */
-            const val TEST_NOTIFICATION_ID = 99_901L
-        }
+    /**
+     * Plays [profile]'s sound with the configured volume and fade-in,
+     * and triggers its vibration pattern. Intended for use by the
+     * preview panel — returns a [Preview] token the caller can
+     * [Preview.stop] to cancel mid-play.
+     */
+    fun previewSoundAndVibration(
+        profile: NotificationProfile,
+        customSounds: List<CustomSoundEntity> = emptyList()
+    ): Preview {
+        stopPreview()
+        val vibePlayed = playVibration(profile)
+        val soundPlayed = playSound(profile, customSounds)
+        return Preview(soundPlayed || vibePlayed)
     }
+
+    /** Plays just the sound portion (used by the sound picker). */
+    fun previewSound(
+        profile: NotificationProfile,
+        customSounds: List<CustomSoundEntity> = emptyList()
+    ): Preview {
+        stopPreview()
+        val played = playSound(profile, customSounds)
+        return Preview(played)
+    }
+
+    /** Plays just the vibration pattern. */
+    fun previewVibration(profile: NotificationProfile): Preview {
+        val played = playVibration(profile)
+        return Preview(played)
+    }
+
+    /**
+     * Posts a real notification using [profile] as a one-shot test. The
+     * notification appears in the tray with a fixed title so users can
+     * tell it apart from real reminders.
+     */
+    fun fireTestNotification(profile: NotificationProfile) {
+        NotificationHelper.showTaskReminderFor(
+            context = context,
+            profile = profile,
+            taskId = TEST_NOTIFICATION_ID,
+            taskTitle = "Test \u2014 ${profile.name}",
+            taskDescription = "This is how the ${profile.name} profile will look & sound."
+        )
+    }
+
+    fun stopPreview() {
+        player?.let {
+            try {
+                if (it.isPlaying) it.stop()
+            } catch (_: IllegalStateException) {
+            }
+            it.release()
+        }
+        player = null
+        VibrationAdapter.cancel(context)
+    }
+
+    private fun playSound(
+        profile: NotificationProfile,
+        customSounds: List<CustomSoundEntity>
+    ): Boolean {
+        if (profile.silent) return false
+        val resolved = SoundResolver.resolve(context, profile.soundId, customSounds)
+        val uri = (resolved as? SoundResolver.UriChoice)?.uri ?: return false
+        val mp = MediaPlayer().apply {
+            setAudioAttributes(
+                AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_NOTIFICATION)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                    .build()
+            )
+            val volume = profile.soundVolumePercent.coerceIn(0, 100) / 100f
+            setVolume(volume, volume)
+            setDataSource(context, uri)
+            setOnCompletionListener { it.release() }
+            prepare()
+            start()
+        }
+        player = mp
+        return true
+    }
+
+    private fun playVibration(profile: NotificationProfile): Boolean {
+        if (profile.vibrationPreset == VibrationPreset.NONE) return false
+        val pattern = VibrationAdapter.patternFor(profile) ?: return false
+        return VibrationAdapter.playNow(
+            context = context,
+            pattern = pattern,
+            intensity = profile.vibrationIntensity,
+            continuous = profile.vibrationContinuous
+        )
+    }
+
+    /** Handle returned to callers so they can stop the preview. */
+    class Preview internal constructor(val started: Boolean) {
+        fun isPlaying(): Boolean = started
+    }
+
+    companion object {
+        /** Fixed notification id for test pings so they replace in place. */
+        const val TEST_NOTIFICATION_ID = 99_901L
+    }
+}
