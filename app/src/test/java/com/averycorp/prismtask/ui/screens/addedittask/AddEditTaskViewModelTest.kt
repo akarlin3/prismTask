@@ -3,13 +3,13 @@ package com.averycorp.prismtask.ui.screens.addedittask
 import androidx.lifecycle.SavedStateHandle
 import com.averycorp.prismtask.data.local.entity.TaskEntity
 import com.averycorp.prismtask.data.preferences.NotificationPreferences
+import com.averycorp.prismtask.data.preferences.UserPreferencesDataStore
 import com.averycorp.prismtask.data.repository.AttachmentRepository
 import com.averycorp.prismtask.data.repository.BoundaryRuleRepository
 import com.averycorp.prismtask.data.repository.ProjectRepository
 import com.averycorp.prismtask.data.repository.TagRepository
 import com.averycorp.prismtask.data.repository.TaskRepository
 import com.averycorp.prismtask.data.repository.TaskTemplateRepository
-import com.averycorp.prismtask.data.preferences.UserPreferencesDataStore
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
