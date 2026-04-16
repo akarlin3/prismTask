@@ -45,7 +45,7 @@ fun WidgetEmptyState(
         )
         if (actionLabel != null && actionCallback != null) {
             Spacer(modifier = GlanceModifier.height(8.dp))
-            androidx.glance.appwidget.Button(
+            androidx.glance.Button(
                 text = actionLabel,
                 onClick = actionRunCallback(actionCallback)
             )
