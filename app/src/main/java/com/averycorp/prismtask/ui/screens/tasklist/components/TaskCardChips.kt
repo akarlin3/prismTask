@@ -24,8 +24,8 @@ import com.averycorp.prismtask.data.local.entity.ProjectEntity
 import com.averycorp.prismtask.data.local.entity.TagEntity
 import com.averycorp.prismtask.ui.theme.LocalPriorityColors
 
-/**
- * Small decorative chips and badges used inside [TaskItem]. Kept in
+/*
+ * Small decorative chips and badges used inside TaskItem. Kept in
  * a dedicated file so the card itself stays focused on layout rather
  * than color parsing and chip styling.
  */

@@ -19,7 +19,6 @@ import kotlinx.coroutines.runBlocking
  * cancelled if the habit is completed before the follow-up fires.
  */
 class HabitFollowUpReceiver : BroadcastReceiver() {
-
     override fun onReceive(context: Context, intent: Intent) {
         val habitId = intent.getLongExtra(EXTRA_HABIT_ID, -1L)
         if (habitId == -1L) return

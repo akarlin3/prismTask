@@ -10,7 +10,6 @@ import com.averycorp.prismtask.data.local.entity.HabitEntity
  * follow-up ("how did it go?") after the scheduled time.
  */
 object HabitNotificationUtils {
-
     /**
      * Returns the effective suppression window in days for a given habit.
      * Returns 0 if suppression is disabled (either globally or per-habit).

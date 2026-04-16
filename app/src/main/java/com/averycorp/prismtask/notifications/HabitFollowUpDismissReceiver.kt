@@ -11,7 +11,6 @@ import android.content.Intent
  * Cancels any pending follow-up alarm so it doesn't re-fire.
  */
 class HabitFollowUpDismissReceiver : BroadcastReceiver() {
-
     override fun onReceive(context: Context, intent: Intent) {
         val habitId = intent.getLongExtra(HabitFollowUpReceiver.EXTRA_HABIT_ID, -1L)
         if (habitId == -1L) return

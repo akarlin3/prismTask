@@ -9,11 +9,11 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 
 class MedicationReminderReceiver : BroadcastReceiver() {
-
     @dagger.hilt.EntryPoint
     @dagger.hilt.InstallIn(SingletonComponent::class)
     interface MedReminderEntryPoint {
         fun medicationReminderScheduler(): MedicationReminderScheduler
+
         fun habitDao(): com.averycorp.prismtask.data.local.dao.HabitDao
     }
 
@@ -48,8 +48,13 @@ class MedicationReminderReceiver : BroadcastReceiver() {
 
             // No suppression — fire the nag notification as normal
             NotificationHelper.showMedicationReminder(
-                context, habitId, name, description,
-                intervalMillis, doseNumber, totalDoses
+                context,
+                habitId,
+                name,
+                description,
+                intervalMillis,
+                doseNumber,
+                totalDoses
             )
         }
     }

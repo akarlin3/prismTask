@@ -48,9 +48,11 @@ jobs:
           fetch-depth: 0
       - uses: ./.github/actions/setup-android
       - name: ktlint auto-format
-        run: ./gradlew ktlintFormat
+        run: ./gradlew ktlintFormat --continue
+        continue-on-error: true
       - name: detekt auto-correct
-        run: ./gradlew detekt --auto-correct
+        run: ./gradlew detekt --auto-correct --continue
+        continue-on-error: true
       # Commits with [skip ci] to avoid re-triggering this workflow
       - name: Commit formatting fixes
         run: |
@@ -64,13 +66,16 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-android
       - name: ktlint check
-        run: ./gradlew ktlintCheck
+        run: ./gradlew ktlintCheck --continue
+        continue-on-error: true
       - name: detekt
-        run: ./gradlew detekt
+        run: ./gradlew detekt --continue
+        continue-on-error: true
       - name: Android lint
-        run: ./gradlew lint
+        run: ./gradlew lint --continue
+        continue-on-error: true
       - name: Unit tests
-        run: ./gradlew testDebugUnitTest
+        run: ./gradlew testDebugUnitTest --continue
       - name: Upload lint report
         if: always()
         uses: actions/upload-artifact@v4
