@@ -568,7 +568,8 @@ fun TaskListScreen(
                                 expanded = showSortMenu,
                                 onDismissRequest = { showSortMenu = false }
                             ) {
-                                val basicSortOptions = setOf(SortOption.DUE_DATE, SortOption.PRIORITY, SortOption.CREATED)
+                                val basicSortOptions =
+                                    setOf(SortOption.DUE_DATE, SortOption.PRIORITY, SortOption.CREATED)
                                 val visibleSortOptions = SortOption.entries.filter { option ->
                                     when {
                                         uiTier == com.averycorp.prismtask.domain.model.UiComplexityTier.BASIC ->

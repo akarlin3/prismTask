@@ -9,7 +9,6 @@ import com.averycorp.prismtask.data.repository.HabitRepository
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
-import java.time.DayOfWeek
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
@@ -17,6 +16,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import java.time.DayOfWeek
 
 /**
  * Unit tests for [WeeklyHabitSummary.generateWeeklySummary]. The rendering

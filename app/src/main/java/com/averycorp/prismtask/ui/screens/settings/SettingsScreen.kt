@@ -1,7 +1,6 @@
 package com.averycorp.prismtask.ui.screens.settings
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -35,18 +34,18 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import com.averycorp.prismtask.domain.model.UiComplexityTier
+import com.averycorp.prismtask.domain.model.isAtLeast
 import com.averycorp.prismtask.ui.components.settings.SettingsGroup
 import com.averycorp.prismtask.ui.components.settings.SettingsNavRow
 import com.averycorp.prismtask.ui.navigation.PrismTaskRoute
-import kotlinx.coroutines.launch
-import com.averycorp.prismtask.domain.model.UiComplexityTier
-import com.averycorp.prismtask.domain.model.isAtLeast
 import com.averycorp.prismtask.ui.screens.settings.sections.AboutSection
 import com.averycorp.prismtask.ui.screens.settings.sections.DebugLogAdminSection
 import com.averycorp.prismtask.ui.screens.settings.sections.DebugOnboardingSection
 import com.averycorp.prismtask.ui.screens.settings.sections.DebugTierSection
 import com.averycorp.prismtask.ui.screens.settings.sections.PrismThemeSection
 import com.averycorp.prismtask.ui.screens.settings.sections.UiComplexitySection
+import kotlinx.coroutines.launch
 
 private val ColAccount = Color(0xFFE6F1FB)
 private val ColSubscription = Color(0xFFFAEEDA)

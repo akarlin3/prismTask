@@ -369,24 +369,30 @@ class StreakCalculatorTest {
         // With MONDAY first-day: week starts Jun 9, so Jun 8 is previous week.
         val today = LocalDate.of(2025, 6, 14) // Saturday
         val completions = listOf(
-            completion(date = LocalDate.of(2025, 6, 8)),  // Sunday
-            completion(date = LocalDate.of(2025, 6, 9)),  // Monday
+            completion(date = LocalDate.of(2025, 6, 8)), // Sunday
+            completion(date = LocalDate.of(2025, 6, 9)), // Monday
             completion(date = LocalDate.of(2025, 6, 10)), // Tuesday
             // New week (with Sunday first-day: Jun 15 is next week start; with Monday: Jun 9)
-            completion(date = LocalDate.of(2025, 6, 2)),  // Monday prev week (Mon-first)
-            completion(date = LocalDate.of(2025, 6, 3)),  // Tuesday
-            completion(date = LocalDate.of(2025, 6, 4))   // Wednesday
+            completion(date = LocalDate.of(2025, 6, 2)), // Monday prev week (Mon-first)
+            completion(date = LocalDate.of(2025, 6, 3)), // Tuesday
+            completion(date = LocalDate.of(2025, 6, 4)) // Wednesday
         )
         val habit = weeklyHabit(target = 3)
 
         // Default MONDAY start: current week (Jun 9–15) has 3 completions (Jun 9, 10 + one more needed)
         val streakMon = StreakCalculator.calculateCurrentStreak(
-            completions, habit, today, firstDayOfWeek = DayOfWeek.MONDAY
+            completions,
+            habit,
+            today,
+            firstDayOfWeek = DayOfWeek.MONDAY
         )
 
         // SUNDAY start: current week (Jun 8–14) has 3 completions (Jun 8, 9, 10)
         val streakSun = StreakCalculator.calculateCurrentStreak(
-            completions, habit, today, firstDayOfWeek = DayOfWeek.SUNDAY
+            completions,
+            habit,
+            today,
+            firstDayOfWeek = DayOfWeek.SUNDAY
         )
 
         // Both should produce valid results; the key assertion is they can differ

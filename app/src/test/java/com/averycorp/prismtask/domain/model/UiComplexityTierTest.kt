@@ -9,7 +9,6 @@ import org.junit.Test
  * Unit tests for [UiComplexityTier] and [isAtLeast].
  */
 class UiComplexityTierTest {
-
     @Test
     fun `enum has three entries in correct order`() {
         val entries = UiComplexityTier.entries
