@@ -9,6 +9,7 @@ import com.averycorp.prismtask.data.repository.ProjectRepository
 import com.averycorp.prismtask.data.repository.TagRepository
 import com.averycorp.prismtask.data.repository.TaskRepository
 import com.averycorp.prismtask.data.repository.TaskTemplateRepository
+import com.averycorp.prismtask.data.preferences.UserPreferencesDataStore
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -44,6 +45,7 @@ class AddEditTaskViewModelTest {
     private lateinit var templateRepository: TaskTemplateRepository
     private lateinit var boundaryRuleRepository: BoundaryRuleRepository
     private lateinit var notificationPreferences: NotificationPreferences
+    private lateinit var userPreferencesDataStore: UserPreferencesDataStore
     private lateinit var savedStateHandle: SavedStateHandle
 
     @Before
@@ -56,6 +58,7 @@ class AddEditTaskViewModelTest {
         templateRepository = mockk(relaxed = true)
         boundaryRuleRepository = mockk(relaxed = true)
         notificationPreferences = mockk(relaxed = true)
+        userPreferencesDataStore = mockk(relaxed = true)
         savedStateHandle = SavedStateHandle()
 
         // Default StateFlow seeds so the VM init doesn't crash on relaxed mocks.
@@ -81,6 +84,7 @@ class AddEditTaskViewModelTest {
         templateRepository,
         boundaryRuleRepository,
         notificationPreferences,
+        userPreferencesDataStore,
         savedStateHandle
     )
 
