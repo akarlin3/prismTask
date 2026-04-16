@@ -30,7 +30,6 @@ import androidx.glance.layout.height
 import androidx.glance.layout.padding
 import androidx.glance.layout.size
 import androidx.glance.layout.width
-import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import com.averycorp.prismtask.MainActivity
@@ -94,8 +93,11 @@ private fun HabitStreakContent(context: Context, data: HabitWidgetData, size: Dp
                 Text(
                     text = "\uD83D\uDD25 ${data.longestStreak} day${if (data.longestStreak != 1) "s" else ""}",
                     style = WidgetTextStyles.captionMedium(
-                        if (data.longestStreak > 30) WidgetColors.streakGold
-                        else GlanceTheme.colors.primary
+                        if (data.longestStreak > 30) {
+                            WidgetColors.streakGold
+                        } else {
+                            GlanceTheme.colors.primary
+                        }
                     )
                 )
             }
