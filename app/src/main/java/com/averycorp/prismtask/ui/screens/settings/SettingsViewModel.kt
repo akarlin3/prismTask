@@ -39,8 +39,8 @@ import com.averycorp.prismtask.data.remote.AuthManager
 import com.averycorp.prismtask.data.remote.SyncService
 import com.averycorp.prismtask.data.repository.CalendarSyncRepository
 import com.averycorp.prismtask.data.repository.TaskRepository
-import com.averycorp.prismtask.workers.CalendarSyncScheduler
 import com.averycorp.prismtask.ui.navigation.ALL_BOTTOM_NAV_ITEMS
+import com.averycorp.prismtask.workers.CalendarSyncScheduler
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers

@@ -8,12 +8,12 @@ import android.content.Intent
 import com.averycorp.prismtask.data.calendar.CalendarManager
 import com.averycorp.prismtask.data.local.dao.HabitCompletionDao
 import com.averycorp.prismtask.data.local.dao.HabitDao
-import com.averycorp.prismtask.data.repository.CalendarSyncRepository
 import com.averycorp.prismtask.data.local.entity.HabitEntity
 import com.averycorp.prismtask.data.preferences.MedicationPreferences
 import com.averycorp.prismtask.data.preferences.MedicationScheduleMode
 import com.averycorp.prismtask.data.preferences.NotificationPreferences
 import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
+import com.averycorp.prismtask.data.repository.CalendarSyncRepository
 import com.averycorp.prismtask.util.DayBoundary
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.first
