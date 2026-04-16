@@ -33,6 +33,36 @@ object DayBoundary {
         startOfCurrentDay(dayStartHour, now) + DAY_MILLIS
 
     /**
+     * Calendar midnight of the "effective current day" — i.e. the same calendar
+     * date that [startOfCurrentDay] resolves to, but snapped back to 00:00 local
+     * instead of [dayStartHour].
+     *
+     * Intended for UI filters where timeless events (tasks/habits whose dueDate,
+     * plannedDate, or bookedDate is stored at local midnight because the user
+     * tapped "Today"/"Tomorrow") should be assumed to fall after the day-start
+     * hour for their own calendar date. Pair with [calendarMidnightOfNextDay]
+     * to get a `[start, end)` window that contains every timeless event dated
+     * to the current day, and only those events.
+     */
+    fun calendarMidnightOfCurrentDay(dayStartHour: Int, now: Long = System.currentTimeMillis()): Long {
+        val cal = Calendar.getInstance().apply { timeInMillis = startOfCurrentDay(dayStartHour, now) }
+        cal.set(Calendar.HOUR_OF_DAY, 0)
+        cal.set(Calendar.MINUTE, 0)
+        cal.set(Calendar.SECOND, 0)
+        cal.set(Calendar.MILLISECOND, 0)
+        return cal.timeInMillis
+    }
+
+    /** Calendar midnight of the calendar day *after* [calendarMidnightOfCurrentDay]. */
+    fun calendarMidnightOfNextDay(dayStartHour: Int, now: Long = System.currentTimeMillis()): Long {
+        val cal = Calendar.getInstance().apply {
+            timeInMillis = calendarMidnightOfCurrentDay(dayStartHour, now)
+        }
+        cal.add(Calendar.DAY_OF_YEAR, 1)
+        return cal.timeInMillis
+    }
+
+    /**
      * Normalizes any timestamp to the day-start of the day it falls into,
      * given the configured [dayStartHour]. Used by habit completions so that a
      * completion logged at 2 AM (with a 4 AM day start) is recorded against the

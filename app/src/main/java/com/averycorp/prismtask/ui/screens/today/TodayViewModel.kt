@@ -339,14 +339,35 @@ constructor(
     val snackbarHostState = SnackbarHostState()
 
     /**
-     * Reactive "start of current day" timestamp. Re-emits whenever the user
-     * changes their day-start hour in settings, so that downstream task/habit
-     * queries automatically refresh and reset to the new day's window.
+     * Lower/upper bounds of the Today-screen filter window.
+     *
+     * The user's configured day-start hour determines *which calendar date* is
+     * "today" (so at 2 AM with dayStartHour = 4 we're still on yesterday's
+     * day), but the bounds themselves snap to that date's calendar midnight —
+     * not to `date @ dayStartHour`. This way any event stored at local
+     * midnight (the "Today"/"Tomorrow" chips and the habit booking dialog all
+     * do this) is assumed to be past the day-start hour for its own calendar
+     * date and falls naturally inside the right window. Without this, a
+     * non-zero dayStartHour widens the window past midnight and lets
+     * tomorrow's midnight timestamps leak into "Scheduled Today" / "Planned".
      */
     private val dayStart: StateFlow<Long> = taskBehaviorPreferences
         .getDayStartHour()
-        .map { DayBoundary.startOfCurrentDay(it) }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DayBoundary.startOfCurrentDay(0))
+        .map { DayBoundary.calendarMidnightOfCurrentDay(it) }
+        .stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5000),
+            DayBoundary.calendarMidnightOfCurrentDay(0)
+        )
+
+    private val dayEnd: StateFlow<Long> = taskBehaviorPreferences
+        .getDayStartHour()
+        .map { DayBoundary.calendarMidnightOfNextDay(it) }
+        .stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5000),
+            DayBoundary.calendarMidnightOfNextDay(0)
+        )
 
     val sectionOrder: StateFlow<List<String>> = dashboardPreferences
         .getSectionOrder()
@@ -371,8 +392,13 @@ constructor(
         }
     }
 
+    // Matches [dayStart]: calendar midnight of the effective current day so
+    // plan/due dates written here sit inside the same window the filters read.
     private suspend fun currentStartOfToday(): Long =
-        DayBoundary.startOfCurrentDay(taskBehaviorPreferences.getDayStartHour().first())
+        DayBoundary.calendarMidnightOfCurrentDay(taskBehaviorPreferences.getDayStartHour().first())
+
+    private suspend fun currentEndOfToday(): Long =
+        DayBoundary.calendarMidnightOfNextDay(taskBehaviorPreferences.getDayStartHour().first())
 
     private val _isLoading = MutableStateFlow(true)
     val isLoading: StateFlow<Boolean> = _isLoading
@@ -390,7 +416,9 @@ constructor(
         viewModelScope.launch {
             try {
                 // Wait for first emission from a key data flow, then mark loading done
-                dayStart.flatMapLatest { start -> taskDao.getTodayTasks(start, start + DayBoundary.DAY_MILLIS) }.first()
+                combine(dayStart, dayEnd) { start, end -> start to end }
+                    .flatMapLatest { (start, end) -> taskDao.getTodayTasks(start, end) }
+                    .first()
             } catch (e: Exception) {
                 Log.e("TodayVM", "Failed initial data load", e)
             } finally {
@@ -404,15 +432,15 @@ constructor(
             taskDao.getOverdueRootTasks(start)
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val todayTasks: StateFlow<List<TaskEntity>> = dayStart
-        .flatMapLatest { start ->
-            taskDao.getTodayTasks(start, start + DayBoundary.DAY_MILLIS)
-        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    val todayTasks: StateFlow<List<TaskEntity>> =
+        combine(dayStart, dayEnd) { start, end -> start to end }
+            .flatMapLatest { (start, end) -> taskDao.getTodayTasks(start, end) }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val plannedTasks: StateFlow<List<TaskEntity>> = dayStart
-        .flatMapLatest { start ->
-            taskDao.getPlannedForToday(start, start + DayBoundary.DAY_MILLIS)
-        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    val plannedTasks: StateFlow<List<TaskEntity>> =
+        combine(dayStart, dayEnd) { start, end -> start to end }
+            .flatMapLatest { (start, end) -> taskDao.getPlannedForToday(start, end) }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val completedToday: StateFlow<List<TaskEntity>> = dayStart
         .flatMapLatest { start ->
@@ -531,14 +559,14 @@ constructor(
     // Bookable habits booked for today
     val scheduledTodayHabits: StateFlow<List<HabitWithStatus>> = combine(
         habitRepository.getHabitsWithFullStatus(),
-        dayStart
-    ) { habits, start ->
-        val endOfDay = start + com.averycorp.prismtask.util.DayBoundary.DAY_MILLIS
+        dayStart,
+        dayEnd
+    ) { habits, start, end ->
         habits.filter { hws ->
             hws.habit.isBookable &&
                 hws.habit.isBooked &&
                 hws.habit.bookedDate != null &&
-                hws.habit.bookedDate in start until endOfDay
+                hws.habit.bookedDate in start until end
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
@@ -606,10 +634,10 @@ constructor(
     }
 
     // Plan for Today
-    val tasksNotInToday: StateFlow<List<TaskEntity>> = dayStart
-        .flatMapLatest { start ->
-            taskDao.getTasksNotInToday(start, start + DayBoundary.DAY_MILLIS)
-        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    val tasksNotInToday: StateFlow<List<TaskEntity>> =
+        combine(dayStart, dayEnd) { start, end -> start to end }
+            .flatMapLatest { (start, end) -> taskDao.getTasksNotInToday(start, end) }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val projects: StateFlow<List<ProjectEntity>> = projectRepository
         .getAllProjects()
@@ -879,7 +907,7 @@ constructor(
     fun onRolloverToTomorrow(taskIds: List<Long>) {
         viewModelScope.launch {
             try {
-                val tomorrow = currentStartOfToday() + DayBoundary.DAY_MILLIS
+                val tomorrow = currentEndOfToday()
                 taskIds.forEach { id ->
                     taskDao.updateDueDate(id, tomorrow)
                 }
