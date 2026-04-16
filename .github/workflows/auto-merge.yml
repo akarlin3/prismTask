@@ -1,14 +1,10 @@
 name: Auto-merge
 
-# Enables GitHub's built-in auto-merge on pull requests targeting main.
-# Once enabled, GitHub will merge the PR automatically after all required
-# status checks pass and required reviews (if any) are satisfied.
-#
-# Requirements (one-time repo setup in Settings → General):
-#   - "Allow auto-merge" must be enabled.
-#   - Branch protection on `main` should list the CI checks that must pass
-#     before a merge is allowed (otherwise auto-merge falls back to merging
-#     as soon as a review/required-check is satisfied).
+# Waits for every other CI check on the PR to pass, then merges via squash.
+# Uses lewagon/wait-on-check-action to poll the GitHub Checks API until all
+# sibling check runs report success or skipped.  This makes the workflow
+# self-contained — it does not depend on branch-protection required-checks
+# being configured correctly.
 
 on:
   pull_request:
@@ -18,23 +14,34 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  checks: read
 
 jobs:
-  enable-auto-merge:
-    name: Enable auto-merge
+  auto-merge:
+    name: Auto-merge
     runs-on: ubuntu-latest
     # Skip drafts and forks (GITHUB_TOKEN can't enable auto-merge on forks).
     if: >-
       github.event.pull_request.draft == false &&
       github.event.pull_request.head.repo.full_name == github.repository
     steps:
-      - name: Enable auto-merge (squash)
+      - name: Wait for all other CI checks to pass
+        uses: lewagon/wait-on-check-action@v1.3.4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          running-workflow-name: Auto-merge
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          wait-interval: 30
+          allowed-conclusions: success,skipped
+
+      - name: Merge PR (squash)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_URL: ${{ github.event.pull_request.html_url }}
         run: |
           set -euo pipefail
-          # Ignore errors if auto-merge is already enabled or the branch
-          # is already in a mergeable state and gets merged immediately.
+          # Use --auto so GitHub still waits for required reviews (if any).
+          # Since all CI checks have already passed at this point, the merge
+          # will proceed as soon as review requirements are satisfied.
           gh pr merge --auto --squash "$PR_URL" || \
             echo "Auto-merge could not be enabled (already enabled, already merged, or repo setting disabled)."
