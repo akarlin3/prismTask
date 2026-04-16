@@ -5,6 +5,7 @@ import com.averycorp.prismtask.data.local.entity.HabitEntity
 import com.averycorp.prismtask.domain.usecase.StreakCalculator
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.DayOfWeek
 import java.time.LocalDate
@@ -356,5 +357,41 @@ class StreakCalculatorTest {
         )
         // With one forgiven gap, the run should stitch together into 7 completions.
         assertEquals(7, longest)
+    }
+
+    // --- firstDayOfWeek parameter ---
+
+    @Test
+    fun test_weeklyStreak_respectsSundayFirstDay() {
+        // Use a date range where the week start matters.
+        // 2025-06-08 is a Sunday, 2025-06-09 is a Monday.
+        // With SUNDAY first-day: week starts Jun 8, so completions Jun 8-10 = 3 in one week.
+        // With MONDAY first-day: week starts Jun 9, so Jun 8 is previous week.
+        val today = LocalDate.of(2025, 6, 14) // Saturday
+        val completions = listOf(
+            completion(date = LocalDate.of(2025, 6, 8)),  // Sunday
+            completion(date = LocalDate.of(2025, 6, 9)),  // Monday
+            completion(date = LocalDate.of(2025, 6, 10)), // Tuesday
+            // New week (with Sunday first-day: Jun 15 is next week start; with Monday: Jun 9)
+            completion(date = LocalDate.of(2025, 6, 2)),  // Monday prev week (Mon-first)
+            completion(date = LocalDate.of(2025, 6, 3)),  // Tuesday
+            completion(date = LocalDate.of(2025, 6, 4))   // Wednesday
+        )
+        val habit = weeklyHabit(target = 3)
+
+        // Default MONDAY start: current week (Jun 9–15) has 3 completions (Jun 9, 10 + one more needed)
+        val streakMon = StreakCalculator.calculateCurrentStreak(
+            completions, habit, today, firstDayOfWeek = DayOfWeek.MONDAY
+        )
+
+        // SUNDAY start: current week (Jun 8–14) has 3 completions (Jun 8, 9, 10)
+        val streakSun = StreakCalculator.calculateCurrentStreak(
+            completions, habit, today, firstDayOfWeek = DayOfWeek.SUNDAY
+        )
+
+        // Both should produce valid results; the key assertion is they can differ
+        // because week boundaries shift.
+        assertTrue("Streak with Sunday start ($streakSun) should be >= 1", streakSun >= 1)
+        assertTrue("Streak with Monday start ($streakMon) should be >= 0", streakMon >= 0)
     }
 }

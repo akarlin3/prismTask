@@ -58,7 +58,7 @@ fun TaskDefaultsSection(
 ) {
     var showTaskAdvanced by remember { mutableStateOf(false) }
 
-    SectionHeader("Task Defaults")
+    SectionHeader("Global Defaults")
 
     SettingsRowWithSubtitle(
         title = "Default Sort",
@@ -187,7 +187,7 @@ fun TaskDefaultsSection(
                 Text("Reset Urgency Weights to Defaults", color = MaterialTheme.colorScheme.error)
             }
             TextButton(onClick = onResetTaskBehaviorDefaults) {
-                Text("Reset All Task Defaults", color = MaterialTheme.colorScheme.error)
+                Text("Reset All Global Defaults", color = MaterialTheme.colorScheme.error)
             }
         }
     }

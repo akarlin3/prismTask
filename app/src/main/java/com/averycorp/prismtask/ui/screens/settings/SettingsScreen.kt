@@ -156,8 +156,8 @@ fun SettingsScreen(
                 item {
                     SettingsGroup(label = "Tasks & Habits") {
                         SettingsNavRow(
-                            title = "Task Defaults",
-                            subtitle = "Sort, view mode, urgency weights",
+                            title = "Global Defaults",
+                            subtitle = "Day of week, day start, sort, urgency",
                             iconEmoji = "\u2705",
                             iconBgColor = ColTaskDefaults,
                             onClick = { navController.navigate("settings/task_defaults") }

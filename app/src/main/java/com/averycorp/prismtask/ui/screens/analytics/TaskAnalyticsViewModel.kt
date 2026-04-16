@@ -4,10 +4,12 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.averycorp.prismtask.data.local.entity.ProjectEntity
+import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
 import com.averycorp.prismtask.data.repository.ProjectRepository
 import com.averycorp.prismtask.data.repository.TaskCompletionRepository
 import com.averycorp.prismtask.data.repository.TaskCompletionStats
 import dagger.hilt.android.lifecycle.HiltViewModel
+import java.time.DayOfWeek
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -32,7 +34,8 @@ data class TaskAnalyticsState(
     val selectedPeriod: AnalyticsPeriod = AnalyticsPeriod.MONTH,
     val selectedProjectId: Long? = null,
     val projects: List<ProjectEntity> = emptyList(),
-    val isLoading: Boolean = true
+    val isLoading: Boolean = true,
+    val firstDayOfWeek: DayOfWeek = DayOfWeek.MONDAY
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -42,6 +45,7 @@ class TaskAnalyticsViewModel
 constructor(
     private val taskCompletionRepository: TaskCompletionRepository,
     private val projectRepository: ProjectRepository,
+    private val taskBehaviorPreferences: TaskBehaviorPreferences,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
     private val initialProjectId: Long? = savedStateHandle
@@ -61,14 +65,16 @@ constructor(
                 taskCompletionRepository.getCompletionStats(period.days)
             }
         }.flatMapLatest { it },
-        projectRepository.getAllProjects()
-    ) { period, projectId, stats, projects ->
+        projectRepository.getAllProjects(),
+        taskBehaviorPreferences.getFirstDayOfWeek()
+    ) { period, projectId, stats, projects, fdow ->
         TaskAnalyticsState(
             stats = stats,
             selectedPeriod = period,
             selectedProjectId = projectId,
             projects = projects,
-            isLoading = false
+            isLoading = false,
+            firstDayOfWeek = fdow
         )
     }.stateIn(
         viewModelScope,

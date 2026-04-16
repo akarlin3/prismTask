@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.averycorp.prismtask.data.local.entity.HabitCompletionEntity
 import com.averycorp.prismtask.data.local.entity.HabitEntity
 import com.averycorp.prismtask.data.preferences.HabitListPreferences
+import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
 import com.averycorp.prismtask.data.repository.HabitRepository
 import com.averycorp.prismtask.domain.usecase.StreakCalculator
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -15,6 +16,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.time.DayOfWeek
 import java.time.LocalDate
+import java.time.temporal.TemporalAdjusters
 import javax.inject.Inject
 
 data class HabitAnalyticsState(
@@ -30,7 +32,8 @@ data class HabitAnalyticsState(
     val weeklyTotals: List<Int> = emptyList(),
     val dayOfWeekAverages: Map<DayOfWeek, Float> = emptyMap(),
     val bestDay: DayOfWeek? = null,
-    val worstDay: DayOfWeek? = null
+    val worstDay: DayOfWeek? = null,
+    val firstDayOfWeek: DayOfWeek = DayOfWeek.MONDAY
 )
 
 @HiltViewModel
@@ -39,6 +42,7 @@ class HabitAnalyticsViewModel
 constructor(
     private val habitRepository: HabitRepository,
     private val habitListPreferences: HabitListPreferences,
+    private val taskBehaviorPreferences: TaskBehaviorPreferences,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
     private val habitId: Long = savedStateHandle.get<Long>("habitId") ?: -1L
@@ -51,14 +55,15 @@ constructor(
             val habit = habitRepository.getHabitByIdOnce(habitId) ?: return@launch
             val completions = habitRepository.getCompletionsForHabitOnce(habitId)
             val streakMaxMissedDays = habitListPreferences.getStreakMaxMissedDays().first()
+            val firstDayOfWeek = taskBehaviorPreferences.getFirstDayOfWeek().first()
             val today = LocalDate.now()
-            val gridStart = today.minusWeeks(11).with(DayOfWeek.MONDAY)
+            val gridStart = today.minusWeeks(11).with(TemporalAdjusters.previousOrSame(firstDayOfWeek))
 
             val completionsByDay = StreakCalculator.getCompletionsByDay(completions, gridStart, today)
 
             // Weekly totals for last 12 weeks
             val weeklyTotals = (0 until 12).map { weekOffset ->
-                val weekStart = today.minusWeeks(11L - weekOffset).with(DayOfWeek.MONDAY)
+                val weekStart = today.minusWeeks(11L - weekOffset).with(TemporalAdjusters.previousOrSame(firstDayOfWeek))
                 val weekEnd = weekStart.plusDays(6)
                 completions.count { c ->
                     val d = java.time.Instant
@@ -84,8 +89,8 @@ constructor(
             _state.value = HabitAnalyticsState(
                 habit = habit,
                 completions = completions,
-                currentStreak = StreakCalculator.calculateCurrentStreak(completions, habit, today, streakMaxMissedDays),
-                longestStreak = StreakCalculator.calculateLongestStreak(completions, habit, today, streakMaxMissedDays),
+                currentStreak = StreakCalculator.calculateCurrentStreak(completions, habit, today, streakMaxMissedDays, firstDayOfWeek),
+                longestStreak = StreakCalculator.calculateLongestStreak(completions, habit, today, streakMaxMissedDays, firstDayOfWeek),
                 totalCompletions = completions.size,
                 rate7d = StreakCalculator.calculateCompletionRate(completions, habit, 7, today),
                 rate30d = StreakCalculator.calculateCompletionRate(completions, habit, 30, today),
@@ -94,7 +99,8 @@ constructor(
                 weeklyTotals = weeklyTotals,
                 dayOfWeekAverages = dayAverages,
                 bestDay = StreakCalculator.getBestDay(completions),
-                worstDay = StreakCalculator.getWorstDay(completions)
+                worstDay = StreakCalculator.getWorstDay(completions),
+                firstDayOfWeek = firstDayOfWeek
             )
         }
     }

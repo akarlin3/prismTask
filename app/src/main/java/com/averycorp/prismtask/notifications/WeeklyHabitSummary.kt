@@ -9,7 +9,10 @@ import androidx.core.app.NotificationCompat
 import com.averycorp.prismtask.MainActivity
 import com.averycorp.prismtask.data.local.dao.HabitCompletionDao
 import com.averycorp.prismtask.data.local.dao.HabitDao
+import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
 import com.averycorp.prismtask.data.repository.HabitRepository
+import com.averycorp.prismtask.data.repository.HabitRepository.Companion.toCalendarDayOfWeek
+import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -26,7 +29,8 @@ class WeeklyHabitSummary
 @Inject
 constructor(
     private val habitDao: HabitDao,
-    private val completionDao: HabitCompletionDao
+    private val completionDao: HabitCompletionDao,
+    private val taskBehaviorPreferences: TaskBehaviorPreferences
 ) {
     companion object {
         private const val CHANNEL_ID = "prismtask_weekly_summary"
@@ -37,11 +41,14 @@ constructor(
 
     suspend fun generateWeeklySummary(): WeeklySummaryData {
         val habits = habitDao.getActiveHabitsOnce()
+        val calendarDow = taskBehaviorPreferences.getFirstDayOfWeek().first().toCalendarDayOfWeek()
         val weekStart = HabitRepository.getWeekStart(
-            HabitRepository.normalizeToMidnight(System.currentTimeMillis())
+            HabitRepository.normalizeToMidnight(System.currentTimeMillis()),
+            calendarDow
         )
         val weekEnd = HabitRepository.getWeekEnd(
-            HabitRepository.normalizeToMidnight(System.currentTimeMillis())
+            HabitRepository.normalizeToMidnight(System.currentTimeMillis()),
+            calendarDow
         )
 
         var totalCompletions = 0

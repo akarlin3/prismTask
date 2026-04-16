@@ -187,6 +187,7 @@ fun TaskAnalyticsScreen(
                 targetPerDay = 1,
                 habitColor = accentColor,
                 weeks = gridWeeks,
+                firstDayOfWeek = state.firstDayOfWeek,
                 modifier = Modifier.fillMaxWidth()
             )
 

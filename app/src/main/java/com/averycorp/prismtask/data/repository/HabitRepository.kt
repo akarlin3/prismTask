@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
+import java.time.DayOfWeek
 import java.time.LocalDate
 import java.util.Calendar
 import javax.inject.Inject
@@ -53,6 +54,8 @@ constructor(
     private val widgetUpdateManager: WidgetUpdateManager
 ) {
     private suspend fun currentDayStartHour(): Int = taskBehaviorPreferences.getDayStartHour().first()
+
+    private suspend fun currentFirstDayOfWeek(): DayOfWeek = taskBehaviorPreferences.getFirstDayOfWeek().first()
 
     private suspend fun normalizeForToday(timestamp: Long): Long =
         DayBoundary.normalizeToDayStart(timestamp, currentDayStartHour())
@@ -304,10 +307,14 @@ constructor(
 
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     fun getHabitsWithFullStatus(): Flow<List<HabitWithStatus>> =
-        taskBehaviorPreferences.getDayStartHour().flatMapLatest { dayStartHour ->
+        combine(
+            taskBehaviorPreferences.getDayStartHour(),
+            taskBehaviorPreferences.getFirstDayOfWeek()
+        ) { dsh, fdow -> dsh to fdow }.flatMapLatest { (dayStartHour, firstDayOfWeek) ->
+            val calendarDow = firstDayOfWeek.toCalendarDayOfWeek()
             val today = DayBoundary.startOfCurrentDay(dayStartHour)
-            val weekStart = getWeekStart(today)
-            val weekEnd = getWeekEnd(today)
+            val weekStart = getWeekStart(today, calendarDow)
+            val weekEnd = getWeekEnd(today, calendarDow)
             val todayLocal = LocalDate.now()
 
             combine(
@@ -333,8 +340,8 @@ constructor(
                     val periodEnd: Long
                     when (habit.frequencyPeriod) {
                         "fortnightly" -> {
-                            periodStart = getFortnightStart(today)
-                            periodEnd = getFortnightEnd(today)
+                            periodStart = getFortnightStart(today, calendarDow)
+                            periodEnd = getFortnightEnd(today, calendarDow)
                         }
                         "monthly" -> {
                             periodStart = getMonthStart(today)
@@ -394,7 +401,7 @@ constructor(
                     HabitWithStatus(
                         habit = habit,
                         isCompletedToday = isCompleted,
-                        currentStreak = StreakCalculator.calculateCurrentStreak(completions, habit, todayLocal, streakMaxMissedDays),
+                        currentStreak = StreakCalculator.calculateCurrentStreak(completions, habit, todayLocal, streakMaxMissedDays, firstDayOfWeek),
                         completionsThisWeek = periodCompletions,
                         completionsToday = count,
                         dailyTarget = target,
@@ -462,6 +469,22 @@ constructor(
     }
 
     companion object {
+        /** Converts a [java.time.DayOfWeek] to the [Calendar] DAY_OF_WEEK int. */
+        fun DayOfWeek.toCalendarDayOfWeek(): Int = when (this) {
+            DayOfWeek.MONDAY -> Calendar.MONDAY
+            DayOfWeek.TUESDAY -> Calendar.TUESDAY
+            DayOfWeek.WEDNESDAY -> Calendar.WEDNESDAY
+            DayOfWeek.THURSDAY -> Calendar.THURSDAY
+            DayOfWeek.FRIDAY -> Calendar.FRIDAY
+            DayOfWeek.SATURDAY -> Calendar.SATURDAY
+            DayOfWeek.SUNDAY -> Calendar.SUNDAY
+        }
+
+        /** Returns the last day of the week for a given first day. */
+        private fun lastDayOfWeek(firstDay: Int): Int =
+            if (firstDay == Calendar.SUNDAY) Calendar.SATURDAY
+            else ((firstDay - 1 + 5) % 7) + 1
+
         fun normalizeToMidnight(timestamp: Long): Long {
             val cal = Calendar.getInstance()
             cal.timeInMillis = timestamp
@@ -472,23 +495,25 @@ constructor(
             return cal.timeInMillis
         }
 
-        fun getWeekStart(today: Long): Long {
+        fun getWeekStart(today: Long, firstDayOfWeek: Int = Calendar.MONDAY): Long {
             val cal = Calendar.getInstance()
-            cal.firstDayOfWeek = Calendar.MONDAY
+            cal.firstDayOfWeek = firstDayOfWeek
             cal.timeInMillis = today
-            cal.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
+            cal.set(Calendar.DAY_OF_WEEK, firstDayOfWeek)
             cal.set(Calendar.HOUR_OF_DAY, 0)
             cal.set(Calendar.MINUTE, 0)
             cal.set(Calendar.SECOND, 0)
             cal.set(Calendar.MILLISECOND, 0)
+            if (cal.timeInMillis > today) cal.add(Calendar.WEEK_OF_YEAR, -1)
             return cal.timeInMillis
         }
 
-        fun getWeekEnd(today: Long): Long {
+        fun getWeekEnd(today: Long, firstDayOfWeek: Int = Calendar.MONDAY): Long {
             val cal = Calendar.getInstance()
-            cal.firstDayOfWeek = Calendar.MONDAY
+            cal.firstDayOfWeek = firstDayOfWeek
             cal.timeInMillis = today
-            cal.set(Calendar.DAY_OF_WEEK, Calendar.SUNDAY)
+            val lastDay = lastDayOfWeek(firstDayOfWeek)
+            cal.set(Calendar.DAY_OF_WEEK, lastDay)
             cal.set(Calendar.HOUR_OF_DAY, 23)
             cal.set(Calendar.MINUTE, 59)
             cal.set(Calendar.SECOND, 59)
@@ -497,10 +522,11 @@ constructor(
             return cal.timeInMillis
         }
 
-        fun getFortnightStart(today: Long): Long {
+        fun getFortnightStart(today: Long, firstDayOfWeek: Int = Calendar.MONDAY): Long {
             val cal = Calendar.getInstance()
+            cal.firstDayOfWeek = firstDayOfWeek
             cal.timeInMillis = today
-            cal.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
+            cal.set(Calendar.DAY_OF_WEEK, firstDayOfWeek)
             cal.set(Calendar.HOUR_OF_DAY, 0)
             cal.set(Calendar.MINUTE, 0)
             cal.set(Calendar.SECOND, 0)
@@ -512,8 +538,8 @@ constructor(
             return cal.timeInMillis
         }
 
-        fun getFortnightEnd(today: Long): Long {
-            val start = getFortnightStart(today)
+        fun getFortnightEnd(today: Long, firstDayOfWeek: Int = Calendar.MONDAY): Long {
+            val start = getFortnightStart(today, firstDayOfWeek)
             val cal = Calendar.getInstance()
             cal.timeInMillis = start
             cal.add(Calendar.DAY_OF_YEAR, 13)

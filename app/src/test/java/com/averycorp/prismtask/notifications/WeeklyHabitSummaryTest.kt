@@ -4,10 +4,14 @@ import com.averycorp.prismtask.data.local.dao.HabitCompletionDao
 import com.averycorp.prismtask.data.local.dao.HabitDao
 import com.averycorp.prismtask.data.local.entity.HabitCompletionEntity
 import com.averycorp.prismtask.data.local.entity.HabitEntity
+import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
 import com.averycorp.prismtask.data.repository.HabitRepository
 import io.mockk.coEvery
+import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
+import java.time.DayOfWeek
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -23,13 +27,16 @@ import org.junit.Test
 class WeeklyHabitSummaryTest {
     private lateinit var habitDao: HabitDao
     private lateinit var completionDao: HabitCompletionDao
+    private lateinit var taskBehaviorPreferences: TaskBehaviorPreferences
     private lateinit var summary: WeeklyHabitSummary
 
     @Before
     fun setUp() {
         habitDao = mockk(relaxed = true)
         completionDao = mockk(relaxed = true)
-        summary = WeeklyHabitSummary(habitDao, completionDao)
+        taskBehaviorPreferences = mockk(relaxed = true)
+        every { taskBehaviorPreferences.getFirstDayOfWeek() } returns flowOf(DayOfWeek.MONDAY)
+        summary = WeeklyHabitSummary(habitDao, completionDao, taskBehaviorPreferences)
     }
 
     @Test

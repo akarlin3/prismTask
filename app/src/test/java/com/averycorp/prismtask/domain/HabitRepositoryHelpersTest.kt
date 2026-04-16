@@ -94,4 +94,46 @@ class HabitRepositoryHelpersTest {
         val daysBetween = (weekEnd - weekStart) / (24 * 60 * 60 * 1000)
         assertTrue(daysBetween in 6..7)
     }
+
+    @Test
+    fun getWeekStart_withSundayFirst_isSunday() {
+        // 2025-06-12 is a Thursday
+        val cal = Calendar.getInstance()
+        cal.set(2025, Calendar.JUNE, 12, 0, 0, 0)
+        cal.set(Calendar.MILLISECOND, 0)
+        val today = HabitRepository.normalizeToMidnight(cal.timeInMillis)
+        val weekStart = HabitRepository.getWeekStart(today, Calendar.SUNDAY)
+
+        val result = Calendar.getInstance()
+        result.timeInMillis = weekStart
+        assertEquals(Calendar.SUNDAY, result.get(Calendar.DAY_OF_WEEK))
+    }
+
+    @Test
+    fun getWeekStart_withSaturdayFirst_isSaturday() {
+        // 2025-06-12 is a Thursday
+        val cal = Calendar.getInstance()
+        cal.set(2025, Calendar.JUNE, 12, 0, 0, 0)
+        cal.set(Calendar.MILLISECOND, 0)
+        val today = HabitRepository.normalizeToMidnight(cal.timeInMillis)
+        val weekStart = HabitRepository.getWeekStart(today, Calendar.SATURDAY)
+
+        val result = Calendar.getInstance()
+        result.timeInMillis = weekStart
+        assertEquals(Calendar.SATURDAY, result.get(Calendar.DAY_OF_WEEK))
+    }
+
+    @Test
+    fun weekBoundaries_withSundayFirst_spanSevenDays() {
+        val cal = Calendar.getInstance()
+        cal.set(2025, Calendar.JUNE, 12, 0, 0, 0) // Thursday
+        cal.set(Calendar.MILLISECOND, 0)
+        val today = HabitRepository.normalizeToMidnight(cal.timeInMillis)
+        val weekStart = HabitRepository.getWeekStart(today, Calendar.SUNDAY)
+        val weekEnd = HabitRepository.getWeekEnd(today, Calendar.SUNDAY)
+
+        assertTrue("weekEnd ($weekEnd) should be > weekStart ($weekStart)", weekEnd > weekStart)
+        val daysBetween = (weekEnd - weekStart) / (24 * 60 * 60 * 1000)
+        assertTrue(daysBetween in 6..7)
+    }
 }

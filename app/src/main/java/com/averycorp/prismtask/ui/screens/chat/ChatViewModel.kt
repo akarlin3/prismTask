@@ -6,6 +6,8 @@ import androidx.lifecycle.viewModelScope
 import com.averycorp.prismtask.data.billing.UserTier
 import com.averycorp.prismtask.data.local.dao.HabitCompletionDao
 import com.averycorp.prismtask.data.local.dao.TaskDao
+import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
+import com.averycorp.prismtask.data.repository.HabitRepository.Companion.toCalendarDayOfWeek
 import com.averycorp.prismtask.data.local.entity.TaskEntity
 import com.averycorp.prismtask.data.remote.api.ChatActionResponse
 import com.averycorp.prismtask.data.repository.ChatMessage
@@ -20,7 +22,9 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
@@ -36,7 +40,8 @@ constructor(
     private val taskDao: TaskDao,
     private val habitRepository: HabitRepository,
     private val habitCompletionDao: HabitCompletionDao,
-    private val proFeatureGate: ProFeatureGate
+    private val proFeatureGate: ProFeatureGate,
+    private val taskBehaviorPreferences: TaskBehaviorPreferences
 ) : ViewModel() {
     val userTier: StateFlow<UserTier> = proFeatureGate.userTier
     val messages: StateFlow<List<ChatMessage>> = chatRepository.messages
@@ -200,8 +205,10 @@ constructor(
                 cal.timeInMillis
             }
             "next_week" -> {
+                val calDow = runBlocking { taskBehaviorPreferences.getFirstDayOfWeek().first() }.toCalendarDayOfWeek()
+                cal.firstDayOfWeek = calDow
                 cal.add(Calendar.WEEK_OF_YEAR, 1)
-                cal.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
+                cal.set(Calendar.DAY_OF_WEEK, calDow)
                 cal.timeInMillis
             }
             else -> {

@@ -22,18 +22,11 @@ fun WeeklyProgressDots(
     activeDays: Set<DayOfWeek> = DayOfWeek.entries.toSet(),
     color: Color,
     today: LocalDate = LocalDate.now(),
+    firstDayOfWeek: DayOfWeek = DayOfWeek.MONDAY,
     modifier: Modifier = Modifier
 ) {
     val todayDow = today.dayOfWeek
-    val days = listOf(
-        DayOfWeek.MONDAY,
-        DayOfWeek.TUESDAY,
-        DayOfWeek.WEDNESDAY,
-        DayOfWeek.THURSDAY,
-        DayOfWeek.FRIDAY,
-        DayOfWeek.SATURDAY,
-        DayOfWeek.SUNDAY
-    )
+    val days = (0 until 7).map { DayOfWeek.of((firstDayOfWeek.value - 1 + it) % 7 + 1) }
 
     Row(
         horizontalArrangement = Arrangement.spacedBy(4.dp),

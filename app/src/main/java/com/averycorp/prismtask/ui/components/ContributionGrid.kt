@@ -15,7 +15,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import java.time.DayOfWeek
 import java.time.LocalDate
+import java.time.temporal.TemporalAdjusters
 
 @Composable
 fun ContributionGrid(
@@ -25,11 +27,12 @@ fun ContributionGrid(
     today: LocalDate = LocalDate.now(),
     weeks: Int = 12,
     onDayClick: ((LocalDate) -> Unit)? = null,
+    firstDayOfWeek: DayOfWeek = DayOfWeek.MONDAY,
     modifier: Modifier = Modifier
 ) {
     val startDate = today
         .minusWeeks(weeks.toLong() - 1)
-        .with(java.time.DayOfWeek.MONDAY)
+        .with(TemporalAdjusters.previousOrSame(firstDayOfWeek))
 
     Row(
         horizontalArrangement = Arrangement.spacedBy(2.dp),

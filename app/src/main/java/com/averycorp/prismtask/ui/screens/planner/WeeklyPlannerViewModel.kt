@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.averycorp.prismtask.data.billing.UserTier
 import com.averycorp.prismtask.data.local.dao.TaskDao
+import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
 import com.averycorp.prismtask.data.remote.api.PrismTaskApi
 import com.averycorp.prismtask.data.remote.api.WeeklyPlanPreferencesRequest
 import com.averycorp.prismtask.data.remote.api.WeeklyPlanRequest
@@ -11,7 +12,9 @@ import com.averycorp.prismtask.domain.usecase.ProFeatureGate
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -60,7 +63,8 @@ class WeeklyPlannerViewModel
 constructor(
     private val api: PrismTaskApi,
     private val taskDao: TaskDao,
-    private val proFeatureGate: ProFeatureGate
+    private val proFeatureGate: ProFeatureGate,
+    private val taskBehaviorPreferences: TaskBehaviorPreferences
 ) : ViewModel() {
     val userTier: StateFlow<UserTier> = proFeatureGate.userTier
 
@@ -82,18 +86,19 @@ constructor(
     private val _showUpgradePrompt = MutableStateFlow(false)
     val showUpgradePrompt: StateFlow<Boolean> = _showUpgradePrompt
 
-    private val _weekStart = MutableStateFlow(computeNextMonday())
+    private val _weekStart = MutableStateFlow(computeNextWeekStart())
     val weekStart: StateFlow<LocalDate> = _weekStart
 
     private val _planApplied = MutableStateFlow(false)
     val planApplied: StateFlow<Boolean> = _planApplied
 
-    private fun computeNextMonday(): LocalDate {
+    private fun computeNextWeekStart(): LocalDate {
         val today = LocalDate.now()
-        return if (today.dayOfWeek == DayOfWeek.MONDAY) {
+        val fdow = runBlocking { taskBehaviorPreferences.getFirstDayOfWeek().first() }
+        return if (today.dayOfWeek == fdow) {
             today
         } else {
-            today.with(TemporalAdjusters.next(DayOfWeek.MONDAY))
+            today.with(TemporalAdjusters.next(fdow))
         }
     }
 

@@ -39,7 +39,7 @@ fun TaskDefaultsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Task Defaults") },
+                title = { Text("Global Defaults") },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")

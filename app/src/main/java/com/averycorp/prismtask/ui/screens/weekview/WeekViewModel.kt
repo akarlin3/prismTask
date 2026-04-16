@@ -10,6 +10,7 @@ import com.averycorp.prismtask.data.local.dao.TaskDao
 import com.averycorp.prismtask.data.local.entity.ProjectEntity
 import com.averycorp.prismtask.data.local.entity.TaskEntity
 import com.averycorp.prismtask.data.preferences.SortPreferences
+import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
 import com.averycorp.prismtask.data.repository.ProjectRepository
 import com.averycorp.prismtask.data.repository.TaskRepository
 import com.averycorp.prismtask.ui.components.QuickRescheduleFormatter
@@ -38,7 +39,8 @@ constructor(
     private val taskDao: TaskDao,
     private val taskRepository: TaskRepository,
     private val projectRepository: ProjectRepository,
-    private val sortPreferences: SortPreferences
+    private val sortPreferences: SortPreferences,
+    private val taskBehaviorPreferences: TaskBehaviorPreferences
 ) : ViewModel() {
     val projects: StateFlow<List<ProjectEntity>> = projectRepository
         .getAllProjects()
@@ -58,10 +60,23 @@ constructor(
 
     private val zone = ZoneId.systemDefault()
 
+    val firstDayOfWeek: StateFlow<DayOfWeek> = taskBehaviorPreferences
+        .getFirstDayOfWeek()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DayOfWeek.MONDAY)
+
     private val _currentWeekStart = MutableStateFlow(
         LocalDate.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
     )
     val currentWeekStart: StateFlow<LocalDate> = _currentWeekStart
+
+    init {
+        // Update week start when firstDayOfWeek changes
+        viewModelScope.launch {
+            taskBehaviorPreferences.getFirstDayOfWeek().collect { dow ->
+                _currentWeekStart.value = LocalDate.now().with(TemporalAdjusters.previousOrSame(dow))
+            }
+        }
+    }
 
     val currentSort: StateFlow<String> =
         sortPreferences
@@ -128,7 +143,7 @@ constructor(
     }
 
     fun onGoToToday() {
-        _currentWeekStart.value = LocalDate.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+        _currentWeekStart.value = LocalDate.now().with(TemporalAdjusters.previousOrSame(firstDayOfWeek.value))
     }
 
     fun onMoveTask(taskId: Long, newDate: LocalDate) {

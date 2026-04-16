@@ -205,13 +205,14 @@ object StreakCalculator {
         completions: List<HabitCompletionEntity>,
         habit: HabitEntity,
         today: LocalDate = LocalDate.now(),
-        maxMissedDays: Int = 1
+        maxMissedDays: Int = 1,
+        firstDayOfWeek: DayOfWeek = DayOfWeek.MONDAY
     ): Int {
         if (completions.isEmpty()) return 0
 
         return when (habit.frequencyPeriod) {
-            "weekly" -> calculateWeeklyStreak(completions, habit, today, longest = false)
-            "fortnightly" -> calculateFortnightlyStreak(completions, habit, today, longest = false)
+            "weekly" -> calculateWeeklyStreak(completions, habit, today, longest = false, firstDayOfWeek = firstDayOfWeek)
+            "fortnightly" -> calculateFortnightlyStreak(completions, habit, today, longest = false, firstDayOfWeek = firstDayOfWeek)
             "monthly" -> calculateMonthlyStreak(completions, habit, today, longest = false)
             "bimonthly" -> calculateBimonthlyStreak(completions, habit, today, longest = false)
             "quarterly" -> calculateQuarterlyStreak(completions, habit, today, longest = false)
@@ -223,13 +224,14 @@ object StreakCalculator {
         completions: List<HabitCompletionEntity>,
         habit: HabitEntity,
         today: LocalDate = LocalDate.now(),
-        maxMissedDays: Int = 1
+        maxMissedDays: Int = 1,
+        firstDayOfWeek: DayOfWeek = DayOfWeek.MONDAY
     ): Int {
         if (completions.isEmpty()) return 0
 
         return when (habit.frequencyPeriod) {
-            "weekly" -> calculateWeeklyStreak(completions, habit, today, longest = true)
-            "fortnightly" -> calculateFortnightlyStreak(completions, habit, today, longest = true)
+            "weekly" -> calculateWeeklyStreak(completions, habit, today, longest = true, firstDayOfWeek = firstDayOfWeek)
+            "fortnightly" -> calculateFortnightlyStreak(completions, habit, today, longest = true, firstDayOfWeek = firstDayOfWeek)
             "monthly" -> calculateMonthlyStreak(completions, habit, today, longest = true)
             "bimonthly" -> calculateBimonthlyStreak(completions, habit, today, longest = true)
             "quarterly" -> calculateQuarterlyStreak(completions, habit, today, longest = true)
@@ -364,16 +366,17 @@ object StreakCalculator {
         completions: List<HabitCompletionEntity>,
         habit: HabitEntity,
         today: LocalDate,
-        longest: Boolean
+        longest: Boolean,
+        firstDayOfWeek: DayOfWeek = DayOfWeek.MONDAY
     ): Int {
         val target = habit.targetFrequency
         val activeDays = parseActiveDays(habit.activeDays)
 
-        // Group completions by week (Mon-Sun)
+        // Group completions by week start (respects user's first-day-of-week preference)
         val completionsByWeek = completions
             .groupBy { completion ->
                 val date = completion.completedDate.toLocalDate()
-                date.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+                date.with(TemporalAdjusters.previousOrSame(firstDayOfWeek))
             }.mapValues { entry ->
                 if (activeDays.isEmpty()) {
                     entry.value.size
@@ -417,7 +420,7 @@ object StreakCalculator {
 
         // Current weekly streak
         var streak = 0
-        var checkWeekStart = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+        var checkWeekStart = today.with(TemporalAdjusters.previousOrSame(firstDayOfWeek))
 
         // If current week target isn't met yet, start from previous week
         if ((completionsByWeek[checkWeekStart] ?: 0) < target) {
@@ -432,8 +435,8 @@ object StreakCalculator {
         return streak
     }
 
-    private fun getFortnightStart(date: LocalDate): LocalDate {
-        val weekStart = date.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+    private fun getFortnightStart(date: LocalDate, firstDayOfWeek: DayOfWeek = DayOfWeek.MONDAY): LocalDate {
+        val weekStart = date.with(TemporalAdjusters.previousOrSame(firstDayOfWeek))
         // Align fortnights using ISO week number: odd weeks start a fortnight
         val weekNum = weekStart.get(java.time.temporal.IsoFields.WEEK_OF_WEEK_BASED_YEAR)
         return if (weekNum % 2 == 0) weekStart.minusWeeks(1) else weekStart
@@ -443,7 +446,8 @@ object StreakCalculator {
         completions: List<HabitCompletionEntity>,
         habit: HabitEntity,
         today: LocalDate,
-        longest: Boolean
+        longest: Boolean,
+        firstDayOfWeek: DayOfWeek = DayOfWeek.MONDAY
     ): Int {
         val target = habit.targetFrequency
 
@@ -451,7 +455,7 @@ object StreakCalculator {
         val completionsByFortnight = completions
             .groupBy { completion ->
                 val date = completion.completedDate.toLocalDate()
-                getFortnightStart(date)
+                getFortnightStart(date, firstDayOfWeek)
             }.mapValues { it.value.groupBy { c -> c.completedDate.toLocalDate() }.size }
 
         if (longest) {
@@ -484,7 +488,7 @@ object StreakCalculator {
         }
 
         var streak = 0
-        var checkStart = getFortnightStart(today)
+        var checkStart = getFortnightStart(today, firstDayOfWeek)
         if ((completionsByFortnight[checkStart] ?: 0) < target) {
             checkStart = checkStart.minusWeeks(2)
         }

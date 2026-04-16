@@ -146,6 +146,7 @@ fun HabitAnalyticsScreen(
                 completionsByDay = state.completionsByDay,
                 targetPerDay = habit.targetFrequency,
                 habitColor = habitColor,
+                firstDayOfWeek = state.firstDayOfWeek,
                 modifier = Modifier.fillMaxWidth()
             )
 
@@ -175,6 +176,7 @@ fun HabitAnalyticsScreen(
                     bestDay = state.bestDay,
                     worstDay = state.worstDay,
                     color = habitColor,
+                    firstDayOfWeek = state.firstDayOfWeek,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(100.dp)
@@ -288,18 +290,11 @@ private fun DayOfWeekChart(
     bestDay: DayOfWeek?,
     worstDay: DayOfWeek?,
     color: Color,
+    firstDayOfWeek: DayOfWeek = DayOfWeek.MONDAY,
     modifier: Modifier = Modifier
 ) {
-    val days = listOf(
-        DayOfWeek.MONDAY,
-        DayOfWeek.TUESDAY,
-        DayOfWeek.WEDNESDAY,
-        DayOfWeek.THURSDAY,
-        DayOfWeek.FRIDAY,
-        DayOfWeek.SATURDAY,
-        DayOfWeek.SUNDAY
-    )
-    val labels = listOf("M", "T", "W", "T", "F", "S", "S")
+    val days = (0 until 7).map { DayOfWeek.of((firstDayOfWeek.value - 1 + it) % 7 + 1) }
+    val labels = days.map { it.getDisplayName(java.time.format.TextStyle.NARROW, java.util.Locale.getDefault()) }
     val maxVal = averages.values.maxOrNull()?.coerceAtLeast(0.1f) ?: 0.1f
 
     Card(
