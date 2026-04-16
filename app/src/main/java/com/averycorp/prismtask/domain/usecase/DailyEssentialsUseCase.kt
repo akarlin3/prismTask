@@ -8,8 +8,6 @@ import com.averycorp.prismtask.data.local.entity.AssignmentEntity
 import com.averycorp.prismtask.data.local.entity.CourseEntity
 import com.averycorp.prismtask.data.local.entity.HabitEntity
 import com.averycorp.prismtask.data.local.entity.LeisureLogEntity
-import com.averycorp.prismtask.data.local.entity.SelfCareLogEntity
-import com.averycorp.prismtask.data.local.entity.SelfCareStepEntity
 import com.averycorp.prismtask.data.preferences.DailyEssentialsPreferences
 import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
 import com.averycorp.prismtask.data.repository.LeisureRepository
@@ -152,13 +150,17 @@ constructor(
             ) { args ->
                 @Suppress("UNCHECKED_CAST")
                 val morning = args[0] as RoutineCardState?
+
                 @Suppress("UNCHECKED_CAST")
                 val bedtime = args[1] as RoutineCardState?
+
                 @Suppress("UNCHECKED_CAST")
                 val housework = args[2] as HabitCardState?
+
                 @Suppress("UNCHECKED_CAST")
                 val schoolwork = args[3] as SchoolworkCardState?
                 val leisureLog = args[4] as LeisureLogEntity?
+
                 @Suppress("UNCHECKED_CAST")
                 val dueDoses = args[5] as List<MedicationDose>
                 val seenHint = args[6] as Boolean
@@ -216,13 +218,16 @@ constructor(
 
     private fun observeHouseworkCard(todayStart: Long): Flow<HabitCardState?> =
         dailyEssentialsPreferences.houseworkHabitId.flatMapLatest { habitId ->
-            if (habitId == null) flowOf(null)
-            else habitDao.getHabitById(habitId).flatMapLatest { habit ->
-                if (habit == null || habit.isArchived) {
-                    flowOf(null)
-                } else {
-                    habitCompletionDao.isCompletedOnDate(habit.id, todayStart)
-                        .map { completed -> habit.toHabitCardState(completed) }
+            if (habitId == null) {
+                flowOf(null)
+            } else {
+                habitDao.getHabitById(habitId).flatMapLatest { habit ->
+                    if (habit == null || habit.isArchived) {
+                        flowOf(null)
+                    } else {
+                        habitCompletionDao.isCompletedOnDate(habit.id, todayStart)
+                            .map { completed -> habit.toHabitCardState(completed) }
+                    }
                 }
             }
         }
@@ -234,13 +239,16 @@ constructor(
     ): Flow<SchoolworkCardState?> {
         val habitCardFlow: Flow<HabitCardState?> =
             dailyEssentialsPreferences.schoolworkHabitId.flatMapLatest { habitId ->
-                if (habitId == null) flowOf(null)
-                else habitDao.getHabitById(habitId).flatMapLatest { habit ->
-                    if (habit == null || habit.isArchived) {
-                        flowOf(null)
-                    } else {
-                        habitCompletionDao.isCompletedOnDate(habit.id, todayStart)
-                            .map { completed -> habit.toHabitCardState(completed) }
+                if (habitId == null) {
+                    flowOf(null)
+                } else {
+                    habitDao.getHabitById(habitId).flatMapLatest { habit ->
+                        if (habit == null || habit.isArchived) {
+                            flowOf(null)
+                        } else {
+                            habitCompletionDao.isCompletedOnDate(habit.id, todayStart)
+                                .map { completed -> habit.toHabitCardState(completed) }
+                        }
                     }
                 }
             }
@@ -254,8 +262,11 @@ constructor(
         }
 
         return combine(habitCardFlow, assignmentsFlow) { habit, assignments ->
-            if (habit == null && assignments.isEmpty()) null
-            else SchoolworkCardState(habit = habit, assignmentsDueToday = assignments)
+            if (habit == null && assignments.isEmpty()) {
+                null
+            } else {
+                SchoolworkCardState(habit = habit, assignmentsDueToday = assignments)
+            }
         }
     }
 

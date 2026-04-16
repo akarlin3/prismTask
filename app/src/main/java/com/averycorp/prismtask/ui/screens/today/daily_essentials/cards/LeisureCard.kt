@@ -1,7 +1,6 @@
 package com.averycorp.prismtask.ui.screens.today.daily_essentials.cards
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -95,4 +94,3 @@ private fun ToggleIcon(done: Boolean, accent: Color, onToggle: () -> Unit) {
         )
     }
 }
-
