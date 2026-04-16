@@ -6,6 +6,8 @@ import com.averycorp.prismtask.data.remote.api.PrismTaskApi
 import com.averycorp.prismtask.data.remote.api.SyllabusConfirmRequest
 import com.averycorp.prismtask.data.remote.api.SyllabusConfirmResponse
 import com.averycorp.prismtask.data.remote.api.SyllabusParseResponse
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -19,9 +21,11 @@ constructor(
     private val api: PrismTaskApi
 ) {
     suspend fun parseSyllabus(uri: Uri, context: Context): SyllabusParseResponse {
-        val inputStream = context.contentResolver.openInputStream(uri)
-            ?: throw IllegalStateException("Could not open file")
-        val bytes = inputStream.use { it.readBytes() }
+        val bytes = withContext(Dispatchers.IO) {
+            val inputStream = context.contentResolver.openInputStream(uri)
+                ?: throw IllegalStateException("Could not open file")
+            inputStream.use { it.readBytes() }
+        }
 
         if (bytes.size > MAX_FILE_SIZE) {
             throw FileTooLargeException()

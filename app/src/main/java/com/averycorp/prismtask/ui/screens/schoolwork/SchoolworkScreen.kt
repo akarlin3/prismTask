@@ -1,5 +1,6 @@
 package com.averycorp.prismtask.ui.screens.schoolwork
 
+import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
@@ -107,9 +108,17 @@ fun SchoolworkScreen(
     }
 
     val syllabusPicker = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
+        contract = ActivityResultContracts.OpenDocument()
     ) { uri ->
         uri?.let {
+            try {
+                context.contentResolver.takePersistableUriPermission(
+                    it,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+            } catch (_: SecurityException) {
+                // Some providers don't support persistable permissions
+            }
             navController.navigate(PrismTaskRoute.SyllabusReview.createRoute(it.toString()))
         }
     }
@@ -232,7 +241,7 @@ fun SchoolworkScreen(
                 SmallFloatingActionButton(
                     onClick = {
                         if (viewModel.proFeatureGate.hasAccess(ProFeatureGate.SYLLABUS_IMPORT)) {
-                            syllabusPicker.launch("application/pdf")
+                            syllabusPicker.launch(arrayOf("application/pdf"))
                         } else {
                             showUpgradePrompt = true
                         }
