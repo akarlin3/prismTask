@@ -11,6 +11,7 @@ import com.averycorp.prismtask.data.local.entity.LeisureLogEntity
 import com.averycorp.prismtask.data.preferences.DailyEssentialsPreferences
 import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
 import com.averycorp.prismtask.data.repository.LeisureRepository
+import com.averycorp.prismtask.domain.model.SelfCareRoutines
 import com.averycorp.prismtask.util.DayBoundary
 import com.google.gson.JsonArray
 import com.google.gson.JsonParser
@@ -85,6 +86,7 @@ data class DailyEssentialsUiState(
     val morning: RoutineCardState?,
     val bedtime: RoutineCardState?,
     val housework: HabitCardState?,
+    val houseworkRoutine: RoutineCardState?,
     val schoolwork: SchoolworkCardState?,
     val musicLeisure: LeisureCardState,
     val flexLeisure: LeisureCardState,
@@ -95,6 +97,7 @@ data class DailyEssentialsUiState(
         get() = morning == null &&
             bedtime == null &&
             housework == null &&
+            houseworkRoutine == null &&
             (schoolwork == null || !schoolwork.hasContent) &&
             medication == null &&
             musicLeisure.pickedForToday == null &&
@@ -105,6 +108,7 @@ data class DailyEssentialsUiState(
             morning = null,
             bedtime = null,
             housework = null,
+            houseworkRoutine = null,
             schoolwork = null,
             musicLeisure = LeisureCardState(LeisureKind.MUSIC, null, false),
             flexLeisure = LeisureCardState(LeisureKind.FLEX, null, false),
@@ -143,6 +147,7 @@ constructor(
                 observeRoutineCard("morning", "Morning Routine", todayStart),
                 observeRoutineCard("bedtime", "Bedtime Routine", todayStart),
                 observeHouseworkCard(todayStart),
+                observeRoutineCard("housework", "Housework", todayStart),
                 observeSchoolworkCard(todayStart, windowStart, windowEnd),
                 leisureRepository.getTodayLog(),
                 medicationStatusUseCase.observeDueDosesToday(),
@@ -155,15 +160,17 @@ constructor(
         val morning = args[0] as RoutineCardState?
         val bedtime = args[1] as RoutineCardState?
         val housework = args[2] as HabitCardState?
-        val schoolwork = args[3] as SchoolworkCardState?
-        val leisureLog = args[4] as LeisureLogEntity?
-        val dueDoses = args[5] as List<MedicationDose>
-        val seenHint = args[6] as Boolean
+        val houseworkRoutine = args[3] as RoutineCardState?
+        val schoolwork = args[4] as SchoolworkCardState?
+        val leisureLog = args[5] as LeisureLogEntity?
+        val dueDoses = args[6] as List<MedicationDose>
+        val seenHint = args[7] as Boolean
 
         return DailyEssentialsUiState(
             morning = morning,
             bedtime = bedtime,
             housework = housework,
+            houseworkRoutine = houseworkRoutine,
             schoolwork = schoolwork,
             musicLeisure = LeisureCardState(
                 kind = LeisureKind.MUSIC,
@@ -195,11 +202,18 @@ constructor(
         selfCareDao.getLogForDate(routineType, todayStart)
     ) { steps, log ->
         if (steps.isEmpty()) return@combine null
+        val tierOrder = SelfCareRoutines.getTierOrder(routineType)
+        val selectedTier = resolveSelectedTier(log?.selectedTier, tierOrder)
+            ?: return@combine null
+        val visibleSteps = steps.filter {
+            SelfCareRoutines.tierIncludes(tierOrder, selectedTier, it.tier)
+        }
+        if (visibleSteps.isEmpty()) return@combine null
         val takenIds = parseStepIds(log?.completedSteps)
         RoutineCardState(
             routineType = routineType,
             displayName = displayName,
-            steps = steps.map { step ->
+            steps = visibleSteps.map { step ->
                 StepState(
                     stepId = step.stepId,
                     label = step.label,
@@ -287,6 +301,20 @@ constructor(
     }
 
     companion object {
+        /**
+         * Resolves the tier used to filter a routine's steps. When the user
+         * hasn't logged the routine yet today, we fall back to the second-to-
+         * last tier in the order (matching SelfCareViewModel's default) so new
+         * days start at a reasonable mid-tier rather than the lightest or the
+         * heaviest variant.
+         */
+        @JvmStatic
+        internal fun resolveSelectedTier(logTier: String?, tierOrder: List<String>): String? {
+            if (!logTier.isNullOrBlank() && logTier in tierOrder) return logTier
+            if (tierOrder.isEmpty()) return null
+            return tierOrder.getOrNull(tierOrder.size - 2) ?: tierOrder.last()
+        }
+
         /**
          * Mirrors the medication log parser but only needs step IDs — handles
          * both the legacy string-array format and the richer object format
