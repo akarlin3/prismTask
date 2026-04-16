@@ -338,7 +338,9 @@ export function EisenhowerScreen() {
     [projects],
   );
 
-  const isPro = user && user.tier !== 'FREE';
+  const isPro =
+    !!user &&
+    ((user.effective_tier ?? user.tier) !== 'FREE' || user.is_admin === true);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),

@@ -5,6 +5,7 @@ export interface User {
   display_name?: string | null;
   avatar_url?: string | null;
   tier: 'FREE' | 'PRO';
+  effective_tier?: 'FREE' | 'PRO';
   is_admin?: boolean;
   created_at: string;
   updated_at: string;

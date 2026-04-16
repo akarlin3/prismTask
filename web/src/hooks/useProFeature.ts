@@ -13,8 +13,8 @@ export function useProFeature(): ProFeatureGate {
   const user = useAuthStore((s) => s.user);
   const [showUpgrade, setShowUpgrade] = useState(false);
 
-  const tier = user?.tier || 'FREE';
-  const isPro = tier === 'PRO';
+  const tier = user?.effective_tier || user?.tier || 'FREE';
+  const isPro = tier === 'PRO' || user?.is_admin === true;
 
   const checkAccess = useCallback(() => {
     if (isPro) return true;

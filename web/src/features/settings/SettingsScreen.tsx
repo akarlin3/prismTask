@@ -625,7 +625,7 @@ export function SettingsScreen() {
             }`}
           >
             {proGate.isPro && <Crown className="h-3 w-3" />}
-            {user?.tier || 'FREE'}
+            {proGate.isPro ? 'PRO' : user?.tier || 'FREE'}
           </span>
           {!proGate.isPro && (
             <Button size="sm" onClick={() => proGate.setShowUpgrade(true)}>
