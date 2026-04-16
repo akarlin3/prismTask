@@ -71,6 +71,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.averycorp.prismtask.data.local.entity.TaskEntity
+import com.averycorp.prismtask.domain.model.isAtLeast
 import com.averycorp.prismtask.ui.components.BatchEditBar
 import com.averycorp.prismtask.ui.components.BatchMoveToProjectDialog
 import com.averycorp.prismtask.ui.components.BatchTagsDialog
@@ -82,7 +83,6 @@ import com.averycorp.prismtask.ui.components.QuickReschedulePopup
 import com.averycorp.prismtask.ui.components.RichEmptyState
 import com.averycorp.prismtask.ui.components.TaskListSkeleton
 import com.averycorp.prismtask.ui.components.computeInitialTagStates
-import com.averycorp.prismtask.domain.model.isAtLeast
 import com.averycorp.prismtask.ui.navigation.PrismTaskRoute
 import com.averycorp.prismtask.ui.screens.addedittask.AddEditTaskSheetHost
 import com.averycorp.prismtask.ui.screens.tasklist.components.ActiveFilterPills
