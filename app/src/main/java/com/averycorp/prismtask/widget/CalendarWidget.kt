@@ -76,10 +76,8 @@ class CalendarWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val upcoming = try {
             WidgetDataProvider.getUpcomingData(context)
-        } catch (
-            _: Exception
-        ) {
-            UpcomingWidgetData(emptyList(), emptyList(), emptyList(), emptyList())
+        } catch (_: Exception) {
+            null
         }
         val calendarEvents = try {
             getCalendarEventsForWidget(context)
@@ -88,7 +86,13 @@ class CalendarWidget : GlanceAppWidget() {
         }
         provideContent {
             val size = LocalSize.current
-            GlanceTheme { CalendarContent(context, upcoming, calendarEvents, size) }
+            GlanceTheme {
+                if (upcoming != null) {
+                    CalendarContent(context, upcoming, calendarEvents, size)
+                } else {
+                    WidgetLoadingState()
+                }
+            }
         }
     }
 }
@@ -134,15 +138,18 @@ private fun getCalendarEventsForWidget(context: Context): List<WidgetCalendarEve
                 )
             }
         }
-    } catch (
-        _: Exception
-    ) {
+    } catch (_: Exception) {
     }
     return events
 }
 
 @Composable
-private fun CalendarContent(context: Context, data: UpcomingWidgetData, calendarEvents: List<WidgetCalendarEvent>, size: DpSize) {
+private fun CalendarContent(
+    context: Context,
+    data: UpcomingWidgetData,
+    calendarEvents: List<WidgetCalendarEvent>,
+    size: DpSize
+) {
     val isLarge = size.width >= 350.dp
     val timeFormat = remember { SimpleDateFormat("h:mm a", Locale.getDefault()) }
     val todayItems = buildMergedTimeline(data.today, calendarEvents)
@@ -150,9 +157,10 @@ private fun CalendarContent(context: Context, data: UpcomingWidgetData, calendar
         calendarEvents.isNotEmpty() ||
             ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CALENDAR) == PackageManager.PERMISSION_GRANTED
     val openAppIntent = Intent(context, MainActivity::class.java).apply {
-        flags =
-            Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
     }
+    val maxVisibleRows = if (isLarge) 6 else 5
+
     Column(
         modifier = GlanceModifier
             .fillMaxSize()
@@ -163,64 +171,92 @@ private fun CalendarContent(context: Context, data: UpcomingWidgetData, calendar
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 text = "Today's Schedule",
-                style = TextStyle(fontWeight = FontWeight.Bold, fontSize = 14.sp, color = GlanceTheme.colors.onSurface),
+                style = WidgetTextStyles.header(GlanceTheme.colors.onSurface),
                 modifier = GlanceModifier.defaultWeight()
             )
             Text(
                 text = "${data.today.size} tasks, ${calendarEvents.size} events",
-                style = TextStyle(fontSize = 10.sp, color = GlanceTheme.colors.onSurfaceVariant)
+                style = WidgetTextStyles.badge(GlanceTheme.colors.onSurfaceVariant)
             )
         }
         Spacer(modifier = GlanceModifier.height(8.dp))
         if (todayItems.isEmpty() && !hasCalendarPermission) {
+            // No calendar permission — show actionable button
             Box(
                 modifier = GlanceModifier.fillMaxSize().clickable(actionStartActivity(openAppIntent)),
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(text = "\uD83D\uDCC5", style = TextStyle(fontSize = 20.sp))
+                    Text(text = "\uD83D\uDCC5", style = TextStyle(fontSize = 24.sp))
                     Spacer(modifier = GlanceModifier.height(4.dp))
-                    Text(text = "Connect Calendar in Settings", style = TextStyle(fontSize = 11.sp, color = GlanceTheme.colors.primary))
+                    Text(
+                        text = "Grant Calendar Access",
+                        style = WidgetTextStyles.caption(GlanceTheme.colors.primary)
+                    )
+                    Spacer(modifier = GlanceModifier.height(4.dp))
+                    Text(
+                        text = "Tap to open settings",
+                        style = WidgetTextStyles.badge(GlanceTheme.colors.onSurfaceVariant)
+                    )
                 }
             }
         } else if (todayItems.isEmpty()) {
-            Box(modifier = GlanceModifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text(text = "Clear Schedule Today \u2728", style = TextStyle(fontSize = 12.sp, color = GlanceTheme.colors.onSurfaceVariant))
-            }
+            WidgetEmptyState(
+                emoji = "\uD83D\uDDD3",
+                message = "Nothing Scheduled Today"
+            )
         } else if (isLarge) {
             Row(modifier = GlanceModifier.fillMaxWidth()) {
                 Column(modifier = GlanceModifier.defaultWeight()) {
                     Text(
                         text = "Today",
-                        style = TextStyle(fontSize = 10.sp, fontWeight = FontWeight.Bold, color = GlanceTheme.colors.primary)
+                        style = WidgetTextStyles.badgeBold(GlanceTheme.colors.primary)
                     )
                     Spacer(modifier = GlanceModifier.height(4.dp))
-                    todayItems.take(5).forEach { item ->
+                    todayItems.take(maxVisibleRows).forEach { item ->
                         TimelineRow(item, timeFormat, context)
                         Spacer(modifier = GlanceModifier.height(2.dp))
+                    }
+                    if (todayItems.size > maxVisibleRows) {
+                        Text(
+                            text = "+${todayItems.size - maxVisibleRows} more",
+                            style = WidgetTextStyles.badge(GlanceTheme.colors.onSurfaceVariant)
+                        )
                     }
                 }
                 Spacer(modifier = GlanceModifier.width(8.dp))
                 Column(modifier = GlanceModifier.defaultWeight()) {
                     Text(
                         text = "Tomorrow",
-                        style = TextStyle(fontSize = 10.sp, fontWeight = FontWeight.Bold, color = GlanceTheme.colors.primary)
+                        style = WidgetTextStyles.badgeBold(GlanceTheme.colors.primary)
                     )
                     Spacer(modifier = GlanceModifier.height(4.dp))
                     if (data.tomorrow.isEmpty()) {
-                        Text(text = "\u2014", style = TextStyle(fontSize = 10.sp, color = GlanceTheme.colors.onSurfaceVariant))
+                        Text(text = "\u2014", style = WidgetTextStyles.badge(GlanceTheme.colors.onSurfaceVariant))
                     } else {
                         data.tomorrow.take(5).forEach { row ->
                             TaskTimelineRow(row, timeFormat, context)
                             Spacer(modifier = GlanceModifier.height(2.dp))
                         }
+                        if (data.tomorrow.size > 5) {
+                            Text(
+                                text = "+${data.tomorrow.size - 5} more",
+                                style = WidgetTextStyles.badge(GlanceTheme.colors.onSurfaceVariant)
+                            )
+                        }
                     }
                 }
             }
         } else {
-            todayItems.take(6).forEach { item ->
+            todayItems.take(maxVisibleRows).forEach { item ->
                 TimelineRow(item, timeFormat, context)
                 Spacer(modifier = GlanceModifier.height(2.dp))
+            }
+            if (todayItems.size > maxVisibleRows) {
+                Text(
+                    text = "+${todayItems.size - maxVisibleRows} more",
+                    style = WidgetTextStyles.badge(GlanceTheme.colors.onSurfaceVariant)
+                )
             }
         }
     }
@@ -246,8 +282,7 @@ private fun TimelineRow(
 @Composable
 private fun TaskTimelineRow(row: WidgetTaskRow, timeFormat: SimpleDateFormat, context: Context) {
     val taskIntent = Intent(context, MainActivity::class.java).apply {
-        flags =
-            Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
         putExtra(MainActivity.EXTRA_LAUNCH_ACTION, "open_task")
         putExtra("task_id", row.id)
     }
@@ -259,16 +294,16 @@ private fun TaskTimelineRow(row: WidgetTaskRow, timeFormat: SimpleDateFormat, co
             text = row.dueDate?.let {
                 timeFormat.format(Date(it))
             } ?: "--:--",
-            style = TextStyle(
-                fontSize = 10.sp,
-                color = GlanceTheme.colors.onSurfaceVariant,
-                fontWeight = FontWeight.Medium
-            ),
+            style = WidgetTextStyles.badgeBold(GlanceTheme.colors.onSurfaceVariant),
             modifier = GlanceModifier.width(56.dp)
         )
         Box(modifier = GlanceModifier.size(6.dp).cornerRadius(3.dp).background(priorityColorFor(row.priority))) {}
         Spacer(modifier = GlanceModifier.width(6.dp))
-        Text(text = row.title, style = TextStyle(fontSize = 12.sp, color = GlanceTheme.colors.onSurface), maxLines = 1)
+        Text(
+            text = row.title,
+            style = WidgetTextStyles.body(GlanceTheme.colors.onSurface),
+            maxLines = 1
+        )
     }
 }
 
@@ -277,13 +312,19 @@ private fun EventTimelineRow(event: WidgetCalendarEvent, timeFormat: SimpleDateF
     Row(modifier = GlanceModifier.fillMaxWidth().padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
         Text(
             text = if (event.isAllDay) "All day" else timeFormat.format(Date(event.startTime)),
-            style = TextStyle(fontSize = 10.sp, color = GlanceTheme.colors.onSurfaceVariant, fontWeight = FontWeight.Medium),
+            style = WidgetTextStyles.badgeBold(GlanceTheme.colors.onSurfaceVariant),
             modifier = GlanceModifier.width(56.dp)
         )
-        val eventColor = event.calendarColor?.let { ColorProvider(Color(it)) } ?: ColorProvider(Color(0xFF1976D2))
+        val eventColor = event.calendarColor?.let { ColorProvider(Color(it), Color(it)) } ?: WidgetColors.calendarEvent
         Box(modifier = GlanceModifier.size(6.dp).cornerRadius(3.dp).background(eventColor)) {}
-        Spacer(modifier = GlanceModifier.width(6.dp))
-        Text(text = event.title, style = TextStyle(fontSize = 12.sp, color = GlanceTheme.colors.onSurface), maxLines = 1)
+        Spacer(modifier = GlanceModifier.width(2.dp))
+        Text(text = "\uD83D\uDCC5", style = TextStyle(fontSize = 8.sp))
+        Spacer(modifier = GlanceModifier.width(2.dp))
+        Text(
+            text = event.title,
+            style = WidgetTextStyles.body(GlanceTheme.colors.onSurface),
+            maxLines = 1
+        )
     }
 }
 

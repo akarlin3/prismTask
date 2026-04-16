@@ -1,8 +1,8 @@
 package com.averycorp.prismtask.widget
 
 import android.content.Context
+import android.content.Intent
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -10,11 +10,11 @@ import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
 import androidx.glance.LocalSize
-import androidx.glance.action.actionStartActivity
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
 import androidx.glance.appwidget.SizeMode
+import androidx.glance.appwidget.action.actionStartActivity
 import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.provideContent
 import androidx.glance.background
@@ -29,17 +29,15 @@ import androidx.glance.layout.height
 import androidx.glance.layout.padding
 import androidx.glance.layout.size
 import androidx.glance.layout.width
-import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
-import androidx.glance.unit.ColorProvider
 import com.averycorp.prismtask.MainActivity
 
 /**
  * Upcoming widget — shows tasks for today, tomorrow, and the day after.
  *
  * Adapts to two size breakpoints:
- * - Medium (4x3): 3-day columns (today/tomorrow/day after)
+ * - Medium (4x3): today + tomorrow columns
  * - Large (5x4+): 3-day columns with expanded task details per day
  */
 class UpcomingWidget : GlanceAppWidget() {
@@ -54,29 +52,38 @@ class UpcomingWidget : GlanceAppWidget() {
         val data = try {
             WidgetDataProvider.getUpcomingData(context)
         } catch (_: Exception) {
-            UpcomingWidgetData(emptyList(), emptyList(), emptyList(), emptyList())
+            null
         }
 
         provideContent {
             val size = LocalSize.current
             GlanceTheme {
-                UpcomingContent(data, size)
+                if (data != null) {
+                    UpcomingContent(context, data, size)
+                } else {
+                    WidgetLoadingState()
+                }
             }
         }
     }
 }
 
 @Composable
-private fun UpcomingContent(data: UpcomingWidgetData, size: DpSize) {
+private fun UpcomingContent(context: Context, data: UpcomingWidgetData, size: DpSize) {
     val isLarge = size.width >= 350.dp
     val maxTasksPerColumn = if (isLarge) 5 else 3
+
+    val overdueIntent = Intent(context, MainActivity::class.java).apply {
+        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        putExtra(MainActivity.EXTRA_LAUNCH_ACTION, "open_today")
+    }
 
     Column(
         modifier = GlanceModifier
             .fillMaxSize()
             .cornerRadius(16.dp)
             .background(GlanceTheme.colors.surface)
-            .padding(12.dp)
+            .padding(if (isLarge) 12.dp else 8.dp)
             .clickable(actionStartActivity<MainActivity>())
     ) {
         Row(
@@ -85,70 +92,59 @@ private fun UpcomingContent(data: UpcomingWidgetData, size: DpSize) {
         ) {
             Text(
                 text = "Upcoming",
-                style = TextStyle(
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 15.sp,
-                    color = GlanceTheme.colors.onSurface
-                ),
+                style = WidgetTextStyles.header(GlanceTheme.colors.onSurface),
                 modifier = GlanceModifier.defaultWeight()
             )
             Text(
                 text = "${data.totalCount} tasks",
-                style = TextStyle(
-                    fontSize = 11.sp,
-                    color = GlanceTheme.colors.onSurfaceVariant
-                )
+                style = WidgetTextStyles.caption(GlanceTheme.colors.onSurfaceVariant)
             )
         }
 
-        if (data.totalCount == 0) {
-            Spacer(modifier = GlanceModifier.height(16.dp))
+        // Overdue badge at top
+        if (data.overdue.isNotEmpty()) {
+            Spacer(modifier = GlanceModifier.height(4.dp))
             Box(
-                modifier = GlanceModifier.fillMaxWidth(),
-                contentAlignment = Alignment.Center
+                modifier = GlanceModifier
+                    .fillMaxWidth()
+                    .cornerRadius(6.dp)
+                    .background(WidgetColors.overdueBg)
+                    .padding(6.dp)
+                    .clickable(actionStartActivity(overdueIntent))
             ) {
-                Text(
-                    text = "Nothing Upcoming \u2014 Enjoy the Peace \uD83C\uDF3F",
-                    style = TextStyle(
-                        fontSize = 12.sp,
-                        color = GlanceTheme.colors.onSurfaceVariant
+                Column {
+                    Text(
+                        text = "\u26A0 ${data.overdue.size} overdue",
+                        style = WidgetTextStyles.badgeBold(WidgetColors.overdue)
                     )
-                )
-            }
-        } else {
-            if (data.overdue.isNotEmpty()) {
-                Spacer(modifier = GlanceModifier.height(6.dp))
-                Box(
-                    modifier = GlanceModifier
-                        .fillMaxWidth()
-                        .cornerRadius(6.dp)
-                        .background(ColorProvider(Color(0x33D32F2F)))
-                        .padding(6.dp)
-                ) {
-                    Column {
-                        Text(
-                            text = "Overdue (${data.overdue.size})",
-                            style = TextStyle(
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = ColorProvider(Color(0xFFD32F2F))
-                            )
-                        )
-                        data.overdue.take(2).forEach { row ->
+                    data.overdue.take(2).forEach { row ->
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = GlanceModifier
+                                    .size(4.dp)
+                                    .cornerRadius(2.dp)
+                                    .background(priorityColorFor(row.priority))
+                            ) {}
+                            Spacer(modifier = GlanceModifier.width(3.dp))
                             Text(
-                                text = "\u2022 ${row.title}",
-                                style = TextStyle(
-                                    fontSize = 10.sp,
-                                    color = ColorProvider(Color(0xFFD32F2F))
-                                ),
+                                text = row.title,
+                                style = WidgetTextStyles.badge(WidgetColors.overdue),
                                 maxLines = 1
                             )
                         }
                     }
                 }
             }
+        }
 
-            Spacer(modifier = GlanceModifier.height(8.dp))
+        if (data.totalCount == 0) {
+            Spacer(modifier = GlanceModifier.height(16.dp))
+            WidgetEmptyState(
+                emoji = "\uD83D\uDCC5",
+                message = "Nothing Upcoming"
+            )
+        } else {
+            Spacer(modifier = GlanceModifier.height(6.dp))
 
             Row(modifier = GlanceModifier.fillMaxWidth()) {
                 DayColumn(
@@ -164,13 +160,16 @@ private fun UpcomingContent(data: UpcomingWidgetData, size: DpSize) {
                     maxTasks = maxTasksPerColumn,
                     modifier = GlanceModifier.defaultWeight()
                 )
-                Spacer(modifier = GlanceModifier.width(6.dp))
-                DayColumn(
-                    label = "+2 Days",
-                    tasks = data.dayAfter,
-                    maxTasks = maxTasksPerColumn,
-                    modifier = GlanceModifier.defaultWeight()
-                )
+                // Medium: 2 day columns; Large: 3 day columns
+                if (isLarge) {
+                    Spacer(modifier = GlanceModifier.width(6.dp))
+                    DayColumn(
+                        label = "+2 Days",
+                        tasks = data.dayAfter,
+                        maxTasks = maxTasksPerColumn,
+                        modifier = GlanceModifier.defaultWeight()
+                    )
+                }
             }
         }
     }
@@ -191,20 +190,13 @@ private fun DayColumn(
     ) {
         Text(
             text = label,
-            style = TextStyle(
-                fontSize = 10.sp,
-                fontWeight = FontWeight.Bold,
-                color = GlanceTheme.colors.primary
-            )
+            style = WidgetTextStyles.badgeBold(GlanceTheme.colors.primary)
         )
         Spacer(modifier = GlanceModifier.height(4.dp))
         if (tasks.isEmpty()) {
             Text(
                 text = "\u2014",
-                style = TextStyle(
-                    fontSize = 10.sp,
-                    color = GlanceTheme.colors.onSurfaceVariant
-                )
+                style = WidgetTextStyles.badge(GlanceTheme.colors.onSurfaceVariant)
             )
         } else {
             tasks.take(maxTasks).forEach { row ->
@@ -219,18 +211,19 @@ private fun DayColumn(
                     Text(
                         text = row.title,
                         style = TextStyle(
-                            fontSize = 9.sp,
+                            fontSize = 11.sp,
                             color = GlanceTheme.colors.onSurface
                         ),
                         maxLines = 1
                     )
                 }
+                Spacer(modifier = GlanceModifier.height(2.dp))
             }
             if (tasks.size > maxTasks) {
                 Text(
                     text = "+${tasks.size - maxTasks} more",
                     style = TextStyle(
-                        fontSize = 8.sp,
+                        fontSize = 10.sp,
                         color = GlanceTheme.colors.onSurfaceVariant
                     )
                 )

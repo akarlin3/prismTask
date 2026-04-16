@@ -37,7 +37,10 @@ constructor(
 
     fun getSubtasks(parentTaskId: Long): Flow<List<TaskEntity>> = taskDao.getSubtasks(parentTaskId)
 
-    suspend fun deleteTasksByProjectId(projectId: Long) = taskDao.deleteTasksByProjectId(projectId)
+    suspend fun deleteTasksByProjectId(projectId: Long) {
+        taskDao.deleteTasksByProjectId(projectId)
+        widgetUpdateManager.updateTaskWidgets()
+    }
 
     fun getIncompleteTasks(): Flow<List<TaskEntity>> = taskDao.getIncompleteTasks()
 
@@ -65,6 +68,7 @@ constructor(
         val id = taskDao.insert(task)
         syncTracker.trackCreate(id, "task")
         calendarSyncService.syncTaskToCalendar(task.copy(id = id))
+        widgetUpdateManager.updateTaskWidgets()
         return id
     }
 
@@ -193,12 +197,14 @@ constructor(
             reminderScheduler.cancelReminder(taskId)
         }
         calendarSyncService.syncTaskToCalendar(updated)
+        widgetUpdateManager.updateTaskWidgets()
     }
 
     suspend fun planTaskForToday(taskId: Long) {
         val startOfToday = DayBoundary.startOfCurrentDay(0)
         taskDao.setPlanDate(taskId, startOfToday)
         syncTracker.trackUpdate(taskId, "task")
+        widgetUpdateManager.updateTaskWidgets()
     }
 
     suspend fun completeTask(id: Long) {
@@ -257,17 +263,20 @@ constructor(
     suspend fun archiveTask(id: Long) {
         taskDao.archiveTask(id, System.currentTimeMillis())
         syncTracker.trackUpdate(id, "task")
+        widgetUpdateManager.updateTaskWidgets()
     }
 
     suspend fun unarchiveTask(id: Long) {
         taskDao.unarchiveTask(id, System.currentTimeMillis())
         syncTracker.trackUpdate(id, "task")
+        widgetUpdateManager.updateTaskWidgets()
     }
 
     suspend fun permanentlyDeleteTask(id: Long) {
         calendarSyncService.removeEventForTask(id)
         syncTracker.trackDelete(id, "task")
         taskDao.permanentlyDelete(id)
+        widgetUpdateManager.updateTaskWidgets()
     }
 
     suspend fun toggleFlag(id: Long): Boolean? {
@@ -324,6 +333,7 @@ constructor(
             }
         }
         calendarSyncService.syncTaskToCalendar(duplicate.copy(id = newId))
+        widgetUpdateManager.updateTaskWidgets()
         return newId
     }
 
@@ -331,6 +341,7 @@ constructor(
         if (taskIds.isEmpty()) return
         taskDao.batchUpdatePriority(taskIds, priority)
         taskIds.forEach { syncTracker.trackUpdate(it, "task") }
+        widgetUpdateManager.updateTaskWidgets()
     }
 
     suspend fun batchReschedule(taskIds: List<Long>, newDueDate: Long?) {
@@ -356,12 +367,14 @@ constructor(
             calendarSyncService.syncTaskToCalendar(updated)
             syncTracker.trackUpdate(id, "task")
         }
+        widgetUpdateManager.updateTaskWidgets()
     }
 
     suspend fun batchMoveToProject(taskIds: List<Long>, newProjectId: Long?) {
         if (taskIds.isEmpty()) return
         taskDao.batchMoveToProject(taskIds, newProjectId)
         taskIds.forEach { syncTracker.trackUpdate(it, "task") }
+        widgetUpdateManager.updateTaskWidgets()
     }
 
     suspend fun moveToProject(taskId: Long, projectId: Long?, cascadeSubtasks: Boolean = false): List<Long> {
@@ -370,6 +383,7 @@ constructor(
         val idsToMove = buildMoveTargetIds(task, subtasks, cascadeSubtasks)
         taskDao.batchMoveToProject(idsToMove, projectId)
         idsToMove.forEach { syncTracker.trackUpdate(it, "task") }
+        widgetUpdateManager.updateTaskWidgets()
         return idsToMove
     }
 

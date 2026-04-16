@@ -111,12 +111,14 @@ constructor(
         medicationReminderScheduler.cancel(id)
         habitDao.update(habit.copy(isArchived = true, updatedAt = System.currentTimeMillis()))
         syncTracker.trackUpdate(id, "habit")
+        widgetUpdateManager.updateHabitWidgets()
     }
 
     suspend fun unarchiveHabit(id: Long) {
         val habit = habitDao.getHabitByIdOnce(id) ?: return
         habitDao.update(habit.copy(isArchived = false, updatedAt = System.currentTimeMillis()))
         syncTracker.trackUpdate(id, "habit")
+        widgetUpdateManager.updateHabitWidgets()
     }
 
     suspend fun completeHabit(habitId: Long, date: Long, notes: String? = null) {
@@ -240,6 +242,7 @@ constructor(
             }
             syncTracker.trackUpdate(habitId, "habit")
         }
+        widgetUpdateManager.updateHabitWidgets()
         return logId
     }
 
