@@ -60,4 +60,4 @@ jobs:
         run: alembic upgrade head
 
       - name: Run tests
-        run: pytest -v
+        run: pytest tests/ -x --tb=short -q
