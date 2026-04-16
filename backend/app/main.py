@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.routers import ai, analytics, app_update, auth, dashboard, export, feedback, goals, habits, integrations, nd_preferences, projects, search, sync, tags, tasks, templates
+from app.routers import ai, analytics, app_update, auth, dashboard, export, feedback, goals, habits, integrations, nd_preferences, projects, search, syllabus, sync, tags, tasks, templates
 from app.routers.admin import activity_logs as admin_activity_logs
 from app.routers.admin import debug_logs as admin_debug_logs
 
@@ -40,6 +40,7 @@ app.include_router(tags.router, prefix="/api/v1")
 app.include_router(habits.router, prefix="/api/v1")
 app.include_router(templates.router, prefix="/api/v1/templates", tags=["templates"])
 app.include_router(search.router, prefix="/api/v1")
+app.include_router(syllabus.router, prefix="/api/v1")
 app.include_router(sync.router, prefix="/api/v1")
 app.include_router(export.router, prefix="/api/v1")
 app.include_router(feedback.router, prefix="/api/v1")

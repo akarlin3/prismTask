@@ -194,5 +194,6 @@ enum class ProFeature(
     AI_COACHING("AI Coaching", "Get personalized help when you're stuck on a task"),
     AI_TASK_BREAKDOWN("AI Task Breakdown", "Unlimited AI-powered task breakdown into subtasks"),
     AI_DAILY_PLANNING("AI Daily Planning", "AI-powered daily planning that adapts to your energy"),
-    AI_REENGAGEMENT("AI Welcome Back", "Personalized re-engagement after time away")
+    AI_REENGAGEMENT("AI Welcome Back", "Personalized re-engagement after time away"),
+    SYLLABUS_IMPORT("Syllabus Import", "Import your course syllabus and auto-create tasks, events, and schedules")
 }

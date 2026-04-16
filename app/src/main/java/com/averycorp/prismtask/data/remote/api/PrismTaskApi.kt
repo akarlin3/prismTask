@@ -124,6 +124,17 @@ interface PrismTaskApi {
         @Query("mode") mode: String = "merge"
     ): ImportResponse
 
+    @Multipart
+    @POST("api/v1/syllabus/parse")
+    suspend fun parseSyllabus(
+        @Part file: MultipartBody.Part
+    ): SyllabusParseResponse
+
+    @POST("api/v1/syllabus/confirm")
+    suspend fun confirmSyllabus(
+        @Body request: SyllabusConfirmRequest
+    ): SyllabusConfirmResponse
+
     @POST("api/v1/feedback/report")
     suspend fun submitBugReport(
         @Body body: Map<String, @JvmSuppressWildcards Any?>

@@ -411,6 +411,55 @@ data class ParseImportResponse(
 
 // endregion
 
+// region Syllabus Import
+
+data class SyllabusTaskResponse(
+    val title: String,
+    @SerializedName("due_date") val dueDate: String? = null,
+    @SerializedName("due_time") val dueTime: String? = null,
+    val type: String = "other",
+    val notes: String? = null
+)
+
+data class SyllabusEventResponse(
+    val title: String,
+    val date: String? = null,
+    @SerializedName("start_time") val startTime: String? = null,
+    @SerializedName("end_time") val endTime: String? = null,
+    val location: String? = null
+)
+
+data class SyllabusRecurringItemResponse(
+    val title: String,
+    @SerializedName("day_of_week") val dayOfWeek: String,
+    @SerializedName("start_time") val startTime: String? = null,
+    @SerializedName("end_time") val endTime: String? = null,
+    val location: String? = null,
+    @SerializedName("recurrence_end_date") val recurrenceEndDate: String? = null
+)
+
+data class SyllabusParseResponse(
+    @SerializedName("course_name") val courseName: String,
+    val tasks: List<SyllabusTaskResponse> = emptyList(),
+    val events: List<SyllabusEventResponse> = emptyList(),
+    @SerializedName("recurring_schedule") val recurringSchedule: List<SyllabusRecurringItemResponse> = emptyList()
+)
+
+data class SyllabusConfirmRequest(
+    @SerializedName("course_name") val courseName: String = "My Course",
+    val tasks: List<SyllabusTaskResponse> = emptyList(),
+    val events: List<SyllabusEventResponse> = emptyList(),
+    @SerializedName("recurring_schedule") val recurringSchedule: List<SyllabusRecurringItemResponse> = emptyList()
+)
+
+data class SyllabusConfirmResponse(
+    @SerializedName("tasks_created") val tasksCreated: Int = 0,
+    @SerializedName("events_created") val eventsCreated: Int = 0,
+    @SerializedName("recurring_created") val recurringCreated: Int = 0
+)
+
+// endregion
+
 // region AI Checklist Parse
 
 data class ParseChecklistRequest(

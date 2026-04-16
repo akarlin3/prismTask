@@ -61,7 +61,8 @@ constructor(
         COLLABORATION, INTEGRATIONS, ANALYTICS_FULL,
         ANALYTICS_CORRELATIONS, DRIVE_BACKUP,
         AI_REENGAGEMENT, AI_DAILY_PLANNING,
-        AI_WEEKLY_INSIGHTS, CLOUD_SYNC -> UserTier.PRO
+        AI_WEEKLY_INSIGHTS, CLOUD_SYNC,
+        SYLLABUS_IMPORT -> UserTier.PRO
 
         else -> UserTier.FREE
     }
@@ -89,5 +90,6 @@ constructor(
         const val AI_DAILY_PLANNING = "ai_daily_planning"
         const val AI_REENGAGEMENT = "ai_reengagement"
         const val AI_WEEKLY_INSIGHTS = "ai_weekly_insights"
+        const val SYLLABUS_IMPORT = "syllabus_import"
     }
 }

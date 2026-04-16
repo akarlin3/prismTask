@@ -12,6 +12,7 @@ import com.averycorp.prismtask.ui.screens.medication.MedicationRefillScreen
 import com.averycorp.prismtask.ui.screens.medication.MedicationScreen
 import com.averycorp.prismtask.ui.screens.schoolwork.AddEditCourseScreen
 import com.averycorp.prismtask.ui.screens.schoolwork.SchoolworkScreen
+import com.averycorp.prismtask.ui.screens.schoolwork.SyllabusReviewScreen
 import com.averycorp.prismtask.ui.screens.selfcare.SelfCareScreen
 
 /**
@@ -25,6 +26,18 @@ internal fun NavGraphBuilder.modeRoutes(navController: NavHostController) {
 
     simpleSlideComposable(PrismTaskRoute.Schoolwork.route) {
         SchoolworkScreen(navController)
+    }
+
+    horizontalSlideComposable(
+        route = PrismTaskRoute.SyllabusReview.route,
+        arguments = listOf(
+            navArgument("uri") {
+                type = NavType.StringType
+                defaultValue = ""
+            }
+        )
+    ) {
+        SyllabusReviewScreen(navController)
     }
 
     horizontalSlideComposable(

@@ -130,6 +130,10 @@ sealed class PrismTaskRoute(
 
     data object Schoolwork : PrismTaskRoute("schoolwork")
 
+    data object SyllabusReview : PrismTaskRoute("syllabus_review?uri={uri}") {
+        fun createRoute(uri: String): String = "syllabus_review?uri=${android.net.Uri.encode(uri)}"
+    }
+
     data object AddEditCourse : PrismTaskRoute("add_edit_course?courseId={courseId}") {
         fun createRoute(courseId: Long? = null): String =
             if (courseId != null) "add_edit_course?courseId=$courseId" else "add_edit_course"

@@ -14,6 +14,7 @@ import com.averycorp.prismtask.data.repository.TagRepository
 import com.averycorp.prismtask.data.repository.TaskRepository
 import com.averycorp.prismtask.domain.usecase.ChecklistParsedTask
 import com.averycorp.prismtask.domain.usecase.ChecklistParser
+import com.averycorp.prismtask.domain.usecase.ProFeatureGate
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -32,7 +33,8 @@ constructor(
     private val taskRepository: TaskRepository,
     private val projectRepository: ProjectRepository,
     private val tagRepository: TagRepository,
-    private val checklistParser: ChecklistParser
+    private val checklistParser: ChecklistParser,
+    val proFeatureGate: ProFeatureGate
 ) : ViewModel() {
     val courses: StateFlow<List<CourseEntity>> = repository
         .getActiveCourses()

@@ -76,6 +76,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.averycorp.prismtask.data.local.entity.AssignmentEntity
 import com.averycorp.prismtask.data.local.entity.CourseEntity
+import com.averycorp.prismtask.domain.usecase.ProFeatureGate
+import com.averycorp.prismtask.ui.components.ProFeature
+import com.averycorp.prismtask.ui.components.ProUpgradePrompt
 import com.averycorp.prismtask.ui.navigation.PrismTaskRoute
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -101,6 +104,32 @@ fun SchoolworkScreen(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri ->
         uri?.let { viewModel.importChecklist(context, it) }
+    }
+
+    val syllabusPicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        uri?.let {
+            navController.navigate(PrismTaskRoute.SyllabusReview.createRoute(it.toString()))
+        }
+    }
+
+    val userTier by viewModel.proFeatureGate.userTier.collectAsStateWithLifecycle()
+    var showUpgradePrompt by remember { mutableStateOf(false) }
+
+    if (showUpgradePrompt) {
+        AlertDialog(
+            onDismissRequest = { showUpgradePrompt = false },
+            confirmButton = {},
+            text = {
+                ProUpgradePrompt(
+                    feature = ProFeature.SYLLABUS_IMPORT,
+                    currentTier = userTier,
+                    onUpgrade = { _ -> },
+                    onDismiss = { showUpgradePrompt = false }
+                )
+            }
+        )
     }
 
     LaunchedEffect(Unit) {
@@ -200,6 +229,23 @@ fun SchoolworkScreen(
                 horizontalAlignment = Alignment.End,
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
+                SmallFloatingActionButton(
+                    onClick = {
+                        if (viewModel.proFeatureGate.hasAccess(ProFeatureGate.SYLLABUS_IMPORT)) {
+                            syllabusPicker.launch("application/pdf")
+                        } else {
+                            showUpgradePrompt = true
+                        }
+                    },
+                    containerColor = accentColor
+                ) {
+                    Icon(
+                        Icons.Default.UploadFile,
+                        contentDescription = "Import Syllabus",
+                        modifier = Modifier.size(20.dp),
+                        tint = Color.Black
+                    )
+                }
                 SmallFloatingActionButton(
                     onClick = { showPasteDialog = true },
                     containerColor = MaterialTheme.colorScheme.secondaryContainer
