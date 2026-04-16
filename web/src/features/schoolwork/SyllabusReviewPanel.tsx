@@ -76,15 +76,15 @@ export function SyllabusReviewPanel({ result, onDone }: SyllabusReviewPanelProps
     setConfirming(true);
     try {
       const tasks = result.tasks
-        .map((t, i) => ({ item: getTask(i), i }))
+        .map((_t, i) => ({ item: getTask(i), i }))
         .filter(({ i }) => checkedTasks.has(i))
         .map(({ item }) => item);
       const events = result.events
-        .map((e, i) => ({ item: getEvent(i), i }))
+        .map((_e, i) => ({ item: getEvent(i), i }))
         .filter(({ i }) => checkedEvents.has(i))
         .map(({ item }) => item);
       const recurring = result.recurring_schedule
-        .map((r, i) => ({ item: getRecurring(i), i }))
+        .map((_r, i) => ({ item: getRecurring(i), i }))
         .filter(({ i }) => checkedRecurring.has(i))
         .map(({ item }) => item);
 
