@@ -27,7 +27,6 @@ constructor(
     @Assisted workerParams: WorkerParameters,
     private val widgetUpdateManager: WidgetUpdateManager
 ) : CoroutineWorker(appContext, workerParams) {
-
     override suspend fun doWork(): Result {
         widgetUpdateManager.updateAllWidgets()
         return Result.success()
@@ -38,7 +37,8 @@ constructor(
 
         fun schedule(workManager: WorkManager) {
             val request = PeriodicWorkRequestBuilder<WidgetRefreshWorker>(
-                15, TimeUnit.MINUTES
+                15,
+                TimeUnit.MINUTES
             ).setConstraints(
                 Constraints.Builder()
                     .setRequiresBatteryNotLow(false)

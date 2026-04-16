@@ -24,7 +24,6 @@ import com.averycorp.prismtask.data.local.entity.TaskEntity
  * to a single duplicate group).
  */
 object DuplicateCleanupPlanner {
-
     /** Per-task data the planner needs for its completeness score. */
     data class TaskExtras(
         val subtaskCount: Int,
