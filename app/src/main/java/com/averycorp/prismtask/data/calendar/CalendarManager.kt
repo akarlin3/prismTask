@@ -31,7 +31,9 @@ data class CalendarInfo(
 
 sealed class CalendarConnectionResult {
     data object Connected : CalendarConnectionResult()
+
     data class NeedsConsent(val signInIntent: Intent) : CalendarConnectionResult()
+
     data class Failed(val message: String) : CalendarConnectionResult()
 }
 
