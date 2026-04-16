@@ -4,23 +4,32 @@
 
 **PrismTask** (`com.averycorp.prismtask`) is a native Android todo list app built with Kotlin and Jetpack Compose. v1.3.0 includes full task management, projects, subtasks, tags, recurrence, reminders, notifications, NLP quick-add, voice input (speech-to-task, voice commands, TTS, hands-free mode), accessibility (TalkBack, font scaling, high-contrast, keyboard nav, reduced motion), Today focus screen (compact header, collapsible sections, customizable layout), tabbed task editor (Details/Schedule/Organize), week/month/timeline views, urgency scoring with user-configurable weights, smart suggestions, drag-to-reorder with custom sort, quick reschedule, duplicate task, bulk edit (priority/date/tags/project), configurable swipe actions, flagged tasks, task templates with built-ins and NLP shortcuts, project and habit templates, saved filter presets, advanced recurrence (weekday/biweekly/custom month days/after-completion), notification profiles with quiet hours and daily digest, three-tier pricing (Free/Pro/Premium) with Google Play Billing, Firebase cloud sync, Google Sign-In, JSON/CSV data export/import, Google Drive backup/restore, habit tracking with streaks/analytics, bookable habits, productivity dashboard with burndown charts and heatmap, time tracking per task, 7 home-screen widgets (Today, Habit Streak, Quick-Add, Calendar, Productivity, Timer, Upcoming) with per-instance config, Gmail/Slack/Calendar/Zapier integrations, app self-update, and a FastAPI web backend with Claude Haiku-powered NLP parsing.
 
-**v1.4.0 (in progress):** Work-Life Balance Engine phase 1 (V1) adds a `LifeCategory` enum per task (Work/Personal/Self-Care/Health/Uncategorized), a keyword-based `LifeCategoryClassifier`, `BalanceTracker` for ratio/overload computation, a Today-screen balance bar section, Organize-tab life-category chips, NLP category tags (`#work`, `#self-care`, `#personal`, `#health`), filter-panel category multi-select, and a Settings section with target-ratio sliders, auto-classify toggle, balance-bar toggle, and overload-threshold slider. Room migration 32 → 33 adds `tasks.life_category`.
+**v1.4.0 (in progress):** The release expands PrismTask into a wellness-aware productivity layer on top of the v1.3 core:
+
+- **Work-Life Balance Engine (V1)**: `LifeCategory` enum per task (Work/Personal/Self-Care/Health/Uncategorized), keyword-based `LifeCategoryClassifier`, `BalanceTracker` for ratio/overload computation, a Today-screen balance bar section, Organize-tab life-category chips, NLP category tags (`#work`, `#self-care`, `#personal`, `#health`), filter-panel category multi-select, a dedicated `WeeklyBalanceReportScreen`, and a Settings section with target-ratio sliders, auto-classify toggle, balance-bar toggle, and overload-threshold slider. Room migration 32 → 33 adds `tasks.life_category`; `OverloadCheckWorker` runs periodic overload checks.
+- **Mood & energy tracking**: `MoodEnergyLogEntity` + `MoodCorrelationEngine` power a dedicated Mood Analytics screen that correlates mood/energy with task completion, habits, and life categories.
+- **Morning check-in & weekly review**: `CheckInLogEntity`, `MorningCheckInResolver`, and `WeeklyReviewAggregator` drive guided daily check-ins and end-of-week reflections, surfaced via new `checkin/` and `review/` feature modules and a Check-In Streak settings section.
+- **Boundaries & overload protection**: `BoundaryRuleEntity` + `BoundaryRuleParser` + `BoundaryEnforcer` let users declare work-hours / category limits; `BurnoutScorer` and `ProfileAutoSwitcher` auto-adjust notification profiles when overload is detected.
+- **Focus Release & ND-friendly modes**: `FocusReleaseLogEntity`, `GoodEnoughTimerManager`, `ParalysisBreaker`, `EnergyAwarePomodoro`, and `ShipItCelebrationManager` provide neurodivergence-friendly focus flows; `NdPreferences` + `NdFeatureGate` gate these features, with Brain Mode / UI Complexity / Forgiveness-Streak / Shake-to-capture settings sections.
+- **Medication refills, clinical report, conversation extraction**: `MedicationRefillEntity` + `RefillCalculator` project refill dates; `ClinicalReportGenerator` exports a therapist-friendly summary; `ConversationTaskExtractor` pulls tasks out of chat transcripts (new `extract/` screen).
+- **Custom notification sounds + escalation**: `CustomSoundEntity`, `SoundResolver`, `EscalationScheduler`, and `VibrationAdapter` power per-profile custom sounds, vibration patterns, and escalation chains; `ReminderProfile*` was renamed to `NotificationProfile*` and moved under `domain/model/notifications/`.
+- **Database**: Current Room version is **42** with 41 cumulative migrations (`MIGRATION_1_2` through `MIGRATION_41_42`) wired into `PrismTaskDatabase`.
 
 ## Tech Stack
 
-- **Language**: Kotlin 2.2.10 (JVM target 21)
+- **Language**: Kotlin 2.3.20 (JVM target 21)
 - **UI**: Jetpack Compose with Material 3 (BOM 2024.12.01)
 - **DI**: Hilt (Dagger) 2.59.2
-- **Database**: Room 2.8.4 with KSP
+- **Database**: Room 2.8.4 with KSP 2.3.6
 - **Navigation**: Jetpack Navigation Compose 2.8.5
 - **Serialization**: Gson 2.11.0 (for RecurrenceRule JSON)
-- **Cloud**: Firebase Auth + Firestore + Storage (BOM 33.6.0), Google Drive API v3
+- **Cloud**: Firebase Auth + Firestore + Storage (BOM 33.12.0), Google Drive API v3
 - **Auth**: Credential Manager + Google Identity
 - **Drag-to-Reorder**: sh.calvin.reorderable 2.4.3
 - **Widgets**: Glance for Compose 1.1.0
 - **Billing**: Google Play Billing 7.1.1
 - **Testing**: JUnit 4.13.2, kotlinx-coroutines-test 1.9.0, Turbine 1.1.0, MockK 1.13.13, Robolectric 4.13, Hilt Testing 2.59.2
-- **Build**: Gradle 8.13 with Kotlin DSL
+- **Build**: Gradle 9.3.1 with Kotlin DSL, AGP 9.1.0
 - **Min SDK**: 26 (Android 8.0) / **Target SDK**: 35 (Android 15)
 
 ## Project Structure
@@ -47,22 +56,28 @@ app/src/main/java/com/averycorp/prismtask/
 │   │   │   ├── UsageLogDao.kt, SyncMetadataDao.kt, CalendarSyncDao.kt
 │   │   │   ├── HabitDao.kt, HabitCompletionDao.kt, HabitLogDao.kt
 │   │   │   ├── HabitTemplateDao.kt, TaskTemplateDao.kt, ProjectTemplateDao.kt
-│   │   │   ├── NlpShortcutDao.kt, SavedFilterDao.kt, ReminderProfileDao.kt
+│   │   │   ├── NlpShortcutDao.kt, SavedFilterDao.kt, NotificationProfileDao.kt
 │   │   │   ├── SelfCareDao.kt, LeisureDao.kt, SchoolworkDao.kt
 │   │   │   ├── TaskCompletionDao.kt        # Task completion history queries
+│   │   │   ├── BoundaryRuleDao.kt, CheckInLogDao.kt, CustomSoundDao.kt
+│   │   │   ├── FocusReleaseLogDao.kt, MedicationRefillDao.kt
+│   │   │   ├── MoodEnergyLogDao.kt, WeeklyReviewDao.kt
 │   │   ├── database/
-│   │   │   ├── PrismTaskDatabase.kt    # Room DB with migrations
-│   │   │   └── Migrations.kt           # Grouped migration definitions
+│   │   │   ├── PrismTaskDatabase.kt    # Room DB (@Database version = 42)
+│   │   │   └── Migrations.kt           # MIGRATION_1_2 … MIGRATION_41_42
 │   │   └── entity/                     # Room entities
 │   │       ├── TaskEntity.kt, ProjectEntity.kt, TagEntity.kt
 │   │       ├── TaskTagCrossRef.kt, TaskWithTags.kt, AttachmentEntity.kt
 │   │       ├── UsageLogEntity.kt, SyncMetadataEntity.kt, CalendarSyncEntity.kt
 │   │       ├── HabitEntity.kt, HabitCompletionEntity.kt, HabitLogEntity.kt (bookable)
 │   │       ├── HabitTemplateEntity.kt, TaskTemplateEntity.kt, ProjectTemplateEntity.kt
-│   │       ├── NlpShortcutEntity.kt, SavedFilterEntity.kt, ReminderProfileEntity.kt
+│   │       ├── NlpShortcutEntity.kt, SavedFilterEntity.kt, NotificationProfileEntity.kt
 │   │       ├── SelfCareLogEntity.kt, SelfCareStepEntity.kt, StudyLogEntity.kt
 │   │       ├── TaskCompletionEntity.kt     # Task completion history record
 │   │       ├── LeisureLogEntity.kt, CourseEntity.kt, AssignmentEntity.kt, CourseCompletionEntity.kt
+│   │       ├── BoundaryRuleEntity.kt, CheckInLogEntity.kt, CustomSoundEntity.kt
+│   │       ├── FocusReleaseLogEntity.kt, MedicationRefillEntity.kt
+│   │       ├── MoodEnergyLogEntity.kt, WeeklyReviewEntity.kt
 │   ├── preferences/                    # DataStore preferences
 │   │   ├── UserPreferencesDataStore.kt # Centralized customization settings
 │   │   ├── ThemePreferences.kt, ArchivePreferences.kt, SortPreferences.kt
@@ -71,7 +86,9 @@ app/src/main/java/com/averycorp/prismtask/
 │   │   ├── VoicePreferences.kt, A11yPreferences.kt, OnboardingPreferences.kt
 │   │   ├── TabPreferences.kt, LeisurePreferences.kt, MedicationPreferences.kt
 │   │   ├── CalendarPreferences.kt, BackendSyncPreferences.kt, CoachingPreferences.kt
-│   │   ├── ApiPreferences.kt, AuthTokenPreferences.kt
+│   │   ├── AuthTokenPreferences.kt, NotificationPreferences.kt
+│   │   ├── MorningCheckInPreferences.kt, ShakePreferences.kt
+│   │   ├── FocusReleaseEnums.kt, NdPreferences.kt, NdPreferencesDataStore.kt, NdFeatureGate.kt
 │   ├── remote/
 │   │   ├── AuthManager.kt              # Firebase Auth + Google Sign-In
 │   │   ├── GoogleDriveService.kt       # Drive backup/restore
@@ -90,15 +107,22 @@ app/src/main/java/com/averycorp/prismtask/
 │   │   ├── TaskCompletionRepository.kt     # Task completion recording + analytics stats
 │   │   ├── HabitRepository.kt, HabitTemplateRepository.kt, TaskTemplateRepository.kt
 │   │   ├── ProjectTemplateRepository.kt, SavedFilterRepository.kt, NlpShortcutRepository.kt
-│   │   ├── ReminderProfileRepository.kt, ChatRepository.kt, CoachingRepository.kt
+│   │   ├── NotificationProfileRepository.kt, ChatRepository.kt, CoachingRepository.kt
 │   │   ├── SelfCareRepository.kt, LeisureRepository.kt, SchoolworkRepository.kt
+│   │   ├── BoundaryRuleRepository.kt, CheckInLogRepository.kt, CustomSoundRepository.kt
+│   │   ├── MedicationRefillRepository.kt, MoodEnergyRepository.kt
+│   │   ├── SyllabusRepository.kt, WeeklyReviewRepository.kt
 │   └── seed/                           # Built-in content seeders
 ├── di/
-│   ├── DatabaseModule.kt, BillingModule.kt (+ additional Hilt modules)
+│   ├── DatabaseModule.kt, BillingModule.kt, NetworkModule.kt, PreferencesModule.kt
+├── diagnostics/                        # Crash/event diagnostics helpers
 ├── domain/
 │   ├── model/
-│   │   ├── RecurrenceRule.kt, TaskFilter.kt
-│   │   ├── TodayLayoutResolver.kt, TaskCardDisplayConfig.kt, TaskMenuAction.kt
+│   │   ├── RecurrenceRule.kt, TaskFilter.kt, LifeCategory.kt, BoundaryRule.kt
+│   │   ├── TaskCardDisplayConfig.kt, TaskMenuAction.kt, TodaySection.kt
+│   │   ├── SelfCareRoutine.kt, BugReport.kt, UiComplexityTier.kt, UserPreferenceEnums.kt
+│   │   └── notifications/              # NotificationProfile, EscalationChain,
+│   │                                   #   QuietHoursWindow, BuiltInSound, VibrationPatterns
 │   └── usecase/
 │       ├── RecurrenceEngine.kt, NaturalLanguageParser.kt, ParsedTaskResolver.kt
 │       ├── UrgencyScorer.kt, SuggestionEngine.kt, StreakCalculator.kt
@@ -106,18 +130,31 @@ app/src/main/java/com/averycorp/prismtask/
 │       ├── VoiceInputManager.kt, VoiceCommandParser.kt, TextToSpeechManager.kt
 │       ├── SmartDefaultsEngine.kt, NlpShortcutExpander.kt, QuietHoursDeferrer.kt
 │       ├── ChecklistParser.kt, TodoListParser.kt, DateShortcuts.kt
+│       ├── NotificationProfileResolver.kt, AntiReworkGuard.kt
+│       ├── LifeCategoryClassifier.kt, BalanceTracker.kt, BurnoutScorer.kt
+│       ├── BoundaryEnforcer.kt, BoundaryRuleParser.kt, ProfileAutoSwitcher.kt
+│       ├── MoodCorrelationEngine.kt, MorningCheckInResolver.kt, WeeklyReviewAggregator.kt
+│       ├── EnergyAwarePomodoro.kt, GoodEnoughTimerManager.kt, ParalysisBreaker.kt
+│       ├── ShipItCelebrationManager.kt, SelfCareNudgeEngine.kt
+│       ├── ConversationTaskExtractor.kt, DuplicateCleanupPlanner.kt
+│       ├── RefillCalculator.kt, ClinicalReportGenerator.kt
+│       ├── ScreenshotCapture.kt, ShakeDetector.kt
 ├── notifications/
 │   ├── NotificationHelper.kt, ReminderScheduler.kt, ReminderBroadcastReceiver.kt
-│   ├── CompleteTaskReceiver.kt, BootReceiver.kt
-│   ├── WeeklyHabitSummary.kt, WeeklySummaryWorker.kt
+│   ├── EscalationScheduler.kt, EscalationBroadcastReceiver.kt
+│   ├── SoundResolver.kt, VibrationAdapter.kt, ExactAlarmHelper.kt, NotificationTester.kt
+│   ├── CompleteTaskReceiver.kt, BootReceiver.kt, OverloadCheckWorker.kt
+│   ├── WeeklyHabitSummary.kt, WeeklySummaryWorker.kt, HabitNotificationUtils.kt
+│   ├── HabitFollowUpReceiver.kt, HabitFollowUpDismissReceiver.kt
 │   ├── BriefingNotificationWorker.kt, EveningSummaryWorker.kt, ReengagementWorker.kt
 │   ├── MedicationReminderScheduler.kt, MedicationReminderReceiver.kt
-│   ├── MedStepReminderReceiver.kt, LogMedicationReceiver.kt
+│   ├── MedStepReminderReceiver.kt, LogMedicationReceiver.kt, PomodoroTimerService.kt
 ├── widget/                             # 7 Glance widgets with per-instance config
 │   ├── TodayWidget.kt, HabitStreakWidget.kt, QuickAddWidget.kt
 │   ├── CalendarWidget.kt, ProductivityWidget.kt, TimerWidget.kt, UpcomingWidget.kt
-│   ├── WidgetActions.kt, WidgetConfigDataStore.kt
-│   ├── WidgetDataProvider.kt, WidgetUpdateManager.kt
+│   ├── WidgetActions.kt, WidgetColors.kt, WidgetTextStyles.kt, WidgetEmptyState.kt
+│   ├── WidgetConfigDataStore.kt, WidgetDataProvider.kt, WidgetUpdateManager.kt
+│   ├── WidgetRefreshWorker.kt, TimerStateDataStore.kt
 ├── workers/                            # Background WorkManager workers
 ├── util/, utils/                       # Shared helpers
 └── ui/
@@ -138,9 +175,12 @@ app/src/main/java/com/averycorp/prismtask/
     │   ├── today/components/           # PlanForTodaySheet + TodayComponents
     │   ├── tasklist/components/        # Extracted task list components
     │   ├── addedittask/tabs/           # DetailsTab, ScheduleTab, OrganizeTab
-    │   ├── settings/sections/          # 22 extracted settings sections (Accessibility,
+    │   ├── settings/sections/          # 35 extracted settings sections (Accessibility,
     │   │                               #   SwipeActions, Voice, TaskDefaults, DebugTier,
-    │   │                               #   Subscription, Appearance, AI, etc.)
+    │   │                               #   Subscription, Appearance, AI, WorkLifeBalance,
+    │   │                               #   Boundaries, Modes, BrainMode, CheckInStreak,
+    │   │                               #   ClinicalReport, ForgivenessStreak, FocusRelease,
+    │   │                               #   Shake, UiComplexity, DebugLogAdmin, etc.)
     │   ├── habits/components/, templates/components/
     │   ├── leisure/, leisure/components/
     │   ├── selfcare/, selfcare/components/
@@ -148,8 +188,15 @@ app/src/main/java/com/averycorp/prismtask/
     │   ├── schoolwork/, briefing/, chat/, coaching/
     │   ├── eisenhower/, pomodoro/, planner/, timer/, onboarding/
     │   ├── analytics/                  # TaskAnalyticsScreen + TaskAnalyticsViewModel
+    │   ├── balance/                    # WeeklyBalanceReportScreen + life-category visualizations
+    │   ├── mood/                       # MoodAnalyticsScreen + mood/energy correlation views
+    │   ├── checkin/                    # MorningCheckInScreen + check-in streak UI
+    │   ├── review/                     # Weekly review flow screens
+    │   ├── extract/                    # ConversationTaskExtractor inbox
+    │   ├── notifications/              # Notification profile editor, escalation, custom sounds
+    │   ├── feedback/, debug/
     └── theme/
-        ├── Color.kt, Theme.kt, Type.kt, PriorityColors.kt
+        ├── Color.kt, Theme.kt, Type.kt, PriorityColors.kt, LifeCategoryColors.kt
 ```
 
 ## Architecture
@@ -183,11 +230,17 @@ app/src/main/java/com/averycorp/prismtask/
 - **Voice Input**: `VoiceInputManager` wraps Android SpeechRecognizer for dictation and continuous hands-free mode; `VoiceCommandParser` parses command grammar; `TextToSpeechManager` reads tasks and briefings
 - **Accessibility**: `ui/a11y/` helpers expose TalkBack labels, dynamic font scaling, high-contrast mode, keyboard focus traversal, and reduced-motion animation gates
 - **Customization**: `UserPreferencesDataStore` centralizes configurable swipe actions, urgency weights, task card fields, accent colors, card corner radius, compact mode, NLP shortcuts, saved filters, context menu ordering, and Today-screen layout
-- **Notification Profiles**: `ReminderProfileRepository` supports multi-reminder bundles with escalation; `QuietHoursDeferrer` defers notifications during quiet hours; daily digest notification
+- **Notification Profiles**: `NotificationProfileRepository` supports multi-reminder bundles with escalation chains (`EscalationScheduler`), custom per-profile sounds (`CustomSoundEntity` + `SoundResolver`), and vibration patterns (`VibrationAdapter`); `QuietHoursDeferrer` defers notifications during quiet hours; `ProfileAutoSwitcher` rotates active profile based on burnout signals; daily digest notification
 - **Analytics**: Productivity dashboard with daily/weekly/monthly views, burndown charts, habit-productivity correlation, heatmap visualization, per-task time tracking
-- **Task Analytics**: Contribution grid, streak tracking, day-of-week/hour-of-day distributions, completion rate, on-time rate, and per-project filtering for completed tasks via `TaskCompletionEntity` history table (Room migration 37→38 with backfill)
+- **Task Analytics**: Contribution grid, streak tracking, day-of-week/hour-of-day distributions, completion rate, on-time rate, and per-project filtering for completed tasks via `TaskCompletionEntity` history table (added in migration 37→38 with backfill; DB is currently at version 42)
 - **Integrations**: Gmail starred-email sync, Slack message-to-task, Google Calendar prep-task generation, webhook/Zapier endpoint; a suggestion inbox reviews auto-created tasks
 - **Bookable Habits**: Habit logs carry booking state via `HabitLogEntity` for activity history
+- **Work-Life Balance**: `LifeCategory` enum on every task; `LifeCategoryClassifier` auto-tags tasks from keywords; `BalanceTracker` computes category ratios and detects overload; `OverloadCheckWorker` runs periodic checks; dedicated Today balance bar and `WeeklyBalanceReportScreen`
+- **Mood / Check-In / Review**: `MoodEnergyLogEntity` + `MoodCorrelationEngine` power Mood Analytics; `CheckInLogEntity` + `MorningCheckInResolver` drive morning check-ins with streaks; `WeeklyReviewEntity` + `WeeklyReviewAggregator` drive guided weekly reviews
+- **Boundaries**: `BoundaryRuleEntity` + `BoundaryRuleParser` + `BoundaryEnforcer` enforce user-declared work-hours / category limits; `BurnoutScorer` surfaces risk scores
+- **ND-Friendly Modes**: `NdFeatureGate` + `NdPreferences` gate Brain Mode, UI Complexity, Forgiveness Streak, Focus Release (`FocusReleaseLogEntity`, `GoodEnoughTimerManager`, `ParalysisBreaker`, `EnergyAwarePomodoro`, `ShipItCelebrationManager`), and Shake-to-capture (`ShakeDetector` + `ScreenshotCapture`)
+- **Medication Refills + Clinical Report**: `MedicationRefillEntity` + `RefillCalculator` project refill dates; `ClinicalReportGenerator` exports a therapist-friendly summary
+- **Conversation Extraction**: `ConversationTaskExtractor` pulls tasks from chat transcripts into a dedicated review inbox
 
 ## CI Failure Logs
 
@@ -236,12 +289,12 @@ Historical failures: `ci-logs/<workflow-slug>/<timestamp>-<run-id>.log` on the s
 
 ## Important Files
 
-- `build.gradle.kts` — Root build file with plugin versions (AGP 9.1.0, Kotlin 2.2.10)
+- `build.gradle.kts` — Root build file with plugin versions (AGP 9.1.0, Kotlin 2.3.20, KSP 2.3.6, Hilt 2.59.2)
 - `app/build.gradle.kts` — App module dependencies, build config, ProGuard/R8 settings
 - `app/proguard-rules.pro` — Keep rules for Room, Gson, domain models
 - `app/src/main/AndroidManifest.xml` — Activity, receivers, permissions
 - `app/google-services.json` — Firebase config (placeholder — replace with actual)
-- `app/src/test/` — ~490 unit tests spanning NaturalLanguageParser, AppUpdater, StreakCalculator, RecurrenceEngine, TaskFilter, SyncMapper, TaskTemplateRepository, UrgencyScorer (+ weights), EntityJsonMerger, SuggestionEngine, RecurrenceConverter, DateShortcuts, DuplicateTask, HabitRepositoryHelpers, DataExporter, DataImporter, SortPreferences, ProFeatureGate, MoveToProject, TemplateSeeder, ProStatusCache, repository tests (Task, Habit, Project, Tag, Coaching, ReminderProfile, SavedFilter, MedLogReconcile), use case tests (ParsedTaskResolver, ChecklistParser, TodoListParser, VoiceCommandParser, SmartDefaults, NlpShortcutExpander, QuietHoursDeferrer, AdvancedRecurrence, TimeBlock, WeeklyPlanner, DailyBriefing, Eisenhower, SmartPomodoro, BookableHabit), DataStore preferences tests (ThemePreferences, ThemePreferencesRecentColors, UserPreferencesDataStore, DashboardPreferences, ArchivePreferences, SortPreferences), notification/reminder scheduling tests, ViewModel tests (Today, AddEditTask, TaskList, HabitList, Eisenhower, Onboarding, SmartPomodoro), TaskCardDisplayConfig/TaskMenuAction/TodayLayoutResolver model tests, widget data and config-defaults tests, accessibility and theme tests, calendar manager + sync preferences tests, TaskCompletionAnalytics (streaks, stats, recording)
-- `app/src/androidTest/` — ~100 instrumentation tests: Task/Project/Habit/Tag DAO tests, recurrence integration, and smoke suites for Navigation, QoL features, Task editor, Templates, Today screen, Data export/import, Views, Search/archive, Tags/projects, Settings, Recurrence, Multi-select/bulk edit, Habits, and Offline edge cases
-- `backend/tests/` — ~60+ pytest suites for dashboard, export, search, app_update, projects routers; recurrence/urgency/NLP edge-case services; and end-to-end integration workflows and stress tests
-- **Total:** ~674 tests across the repo
+- `gradle/wrapper/gradle-wrapper.properties` — Gradle 9.3.1
+- `app/src/test/` — 121 unit test files covering NLP, recurrence, urgency, suggestion, streak, export/import, repositories (Task, Habit, Project, Tag, Coaching, NotificationProfile, SavedFilter, MedLogReconcile, TaskCompletion), use cases (ParsedTaskResolver, ChecklistParser, TodoListParser, VoiceCommandParser, SmartDefaults, NlpShortcutExpander, QuietHoursDeferrer, AdvancedRecurrence, TimeBlock, WeeklyPlanner, DailyBriefing, Eisenhower, SmartPomodoro, BookableHabit, BalanceTracker, LifeCategoryClassifier, BurnoutScorer, BoundaryEnforcer, MoodCorrelationEngine, WeeklyReviewAggregator, RefillCalculator, ConversationTaskExtractor, ShakeDetector), DataStore preferences, notification/reminder scheduling, ViewModels (Today, AddEditTask, TaskList, HabitList, Eisenhower, Onboarding, SmartPomodoro, Mood, CheckIn, Balance), TaskCardDisplayConfig/TaskMenuAction model tests, widget data/config-defaults, accessibility, theme, and calendar manager
+- `app/src/androidTest/` — 28 instrumentation test files: Task/Project/Habit/Tag DAO tests, recurrence integration, and smoke suites for Navigation, QoL features, Task editor, Templates, Today screen, Data export/import, Views, Search/archive, Tags/projects, Settings, Recurrence, Multi-select/bulk edit, Habits, and Offline edge cases
+- `backend/tests/` — 25 pytest files covering dashboard, export, search, app_update, projects routers; recurrence/urgency/NLP edge-case services; and end-to-end integration workflows and stress tests
