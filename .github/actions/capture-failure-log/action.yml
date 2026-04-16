@@ -1,0 +1,137 @@
+name: Capture CI Failure Log
+description: >-
+  Collects metadata and the failing job's log for the current workflow run and
+  writes them to a file that can be committed to the ci-logs branch. Intended
+  to run in an "if: failure()" job after all other jobs in a workflow.
+
+inputs:
+  workflow-slug:
+    description: Folder slug under ci-logs/ (e.g. android-ci, backend-ci, web-ci, release, auto-merge).
+    required: true
+
+outputs:
+  log-path:
+    description: Absolute path to the generated log file.
+    value: ${{ steps.write.outputs.log-path }}
+
+runs:
+  using: composite
+  steps:
+    - name: Prepare output path
+      id: prep
+      shell: bash
+      run: |
+        set -euo pipefail
+        TS=$(date -u +'%Y%m%dT%H%M%SZ')
+        OUT_DIR="${RUNNER_TEMP}/ci-failure-log"
+        mkdir -p "$OUT_DIR"
+        OUT_FILE="${OUT_DIR}/${{ inputs.workflow-slug }}-${TS}-${GITHUB_RUN_ID}.log"
+        echo "out-file=$OUT_FILE" >> "$GITHUB_OUTPUT"
+        echo "timestamp=$TS" >> "$GITHUB_OUTPUT"
+
+    - name: Fetch failing job log
+      id: fetch
+      uses: actions/github-script@v7
+      env:
+        OUT_FILE: ${{ steps.prep.outputs.out-file }}
+        TS: ${{ steps.prep.outputs.timestamp }}
+        WORKFLOW_SLUG: ${{ inputs.workflow-slug }}
+      with:
+        script: |
+          const fs = require('fs');
+          const { OUT_FILE, TS, WORKFLOW_SLUG } = process.env;
+          const owner = context.repo.owner;
+          const repo = context.repo.repo;
+          const runId = Number(context.runId);
+          const runAttempt = Number(process.env.GITHUB_RUN_ATTEMPT || '1');
+
+          async function listJobs() {
+            const jobs = [];
+            for (let page = 1; page < 20; page++) {
+              const res = await github.rest.actions.listJobsForWorkflowRunAttempt({
+                owner, repo, run_id: runId, attempt_number: runAttempt,
+                per_page: 100, page,
+              });
+              jobs.push(...res.data.jobs);
+              if (res.data.jobs.length < 100) break;
+            }
+            return jobs;
+          }
+
+          let workflowName = context.workflow || '';
+          let workflowFile = process.env.GITHUB_WORKFLOW_REF || '';
+          let eventName = context.eventName || '';
+          let actor = context.actor || '';
+          let sha = context.sha || '';
+          let branch = process.env.GITHUB_REF_NAME || '';
+          let runnerOs = process.env.RUNNER_OS || '';
+          let runUrl = `https://github.com/${owner}/${repo}/actions/runs/${runId}`;
+
+          const lines = [];
+          lines.push('=== CI FAILURE ===');
+          lines.push(`Workflow:      ${workflowName}`);
+          lines.push(`Workflow file: ${workflowFile}`);
+
+          let failingJobs = [];
+          try {
+            const jobs = await listJobs();
+            failingJobs = jobs.filter(j => j.conclusion === 'failure' || j.conclusion === 'cancelled' || j.conclusion === 'timed_out');
+            // Never include the capture job itself.
+            failingJobs = failingJobs.filter(j => j.name !== context.job && !/capture-failure-log/i.test(j.name));
+          } catch (e) {
+            core.warning(`Failed to list jobs: ${e.message}`);
+          }
+
+          const jobSummary = failingJobs.length > 0
+            ? failingJobs.map(j => j.name).join(', ')
+            : '(no failing jobs reported by API)';
+          lines.push(`Job(s):        ${jobSummary}`);
+          lines.push(`Run ID:        ${runId}`);
+          lines.push(`Run attempt:   ${runAttempt}`);
+          lines.push(`Run URL:       ${runUrl}`);
+          lines.push(`Commit:        ${sha}`);
+          lines.push(`Branch:        ${branch}`);
+          lines.push(`Event:         ${eventName}`);
+          lines.push(`Actor:         ${actor}`);
+          lines.push(`Runner OS:     ${runnerOs}`);
+          lines.push(`Timestamp:     ${new Date().toISOString()}`);
+          if (failingJobs.length > 0) {
+            lines.push('');
+            lines.push('Failed steps:');
+            for (const j of failingJobs) {
+              const failed = (j.steps || []).filter(s => s.conclusion === 'failure' || s.conclusion === 'cancelled' || s.conclusion === 'timed_out');
+              const names = failed.length ? failed.map(s => `#${s.number} ${s.name}`).join(' | ') : '(job-level failure)';
+              lines.push(`  - ${j.name}: ${names}`);
+            }
+          }
+          lines.push('');
+          lines.push('=== FAILED JOB LOG ===');
+
+          let bodyAppended = false;
+          for (const job of failingJobs) {
+            try {
+              const logRes = await github.request('GET /repos/{owner}/{repo}/actions/jobs/{job_id}/logs', {
+                owner, repo, job_id: job.id,
+              });
+              const body = typeof logRes.data === 'string' ? logRes.data : Buffer.from(logRes.data).toString('utf8');
+              lines.push('');
+              lines.push(`--- Job: ${job.name} (id ${job.id}) ---`);
+              lines.push(body && body.length ? body : '(empty log body returned)');
+              bodyAppended = true;
+            } catch (e) {
+              lines.push('');
+              lines.push(`--- Job: ${job.name} (id ${job.id}) ---`);
+              lines.push(`(failed to fetch log: ${e.status || ''} ${e.message})`);
+            }
+          }
+          if (!bodyAppended) {
+            lines.push('(no job logs were retrieved; see Run URL above for full details)');
+          }
+
+          fs.writeFileSync(OUT_FILE, lines.join('\n'));
+          core.info(`Wrote failure log to ${OUT_FILE} (${fs.statSync(OUT_FILE).size} bytes)`);
+
+    - name: Expose log path
+      id: write
+      shell: bash
+      run: echo "log-path=${{ steps.prep.outputs.out-file }}" >> "$GITHUB_OUTPUT"

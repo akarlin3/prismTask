@@ -12,8 +12,9 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: write   # needed for gh release create
+  contents: write   # needed for gh release create; capture job pushes to ci-logs branch
   checks: read
+  actions: read     # capture-failure-log fetches job logs via API
 
 # versionCode strategy: release.yml increments by 1 from current value in
 # build.gradle.kts. auto-merge.yml independently increments debug builds.
@@ -145,3 +146,18 @@ jobs:
             app/build/outputs/apk/release/app-release.apk \
             --title "PrismTask ${{ github.ref_name }}" \
             --generate-notes
+
+  capture-failure-log:
+    needs: [build-and-release]
+    if: ${{ failure() }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - id: capture
+        uses: ./.github/actions/capture-failure-log
+        with:
+          workflow-slug: release
+      - uses: ./.github/actions/commit-ci-log
+        with:
+          workflow-slug: release
+          log-path: ${{ steps.capture.outputs.log-path }}

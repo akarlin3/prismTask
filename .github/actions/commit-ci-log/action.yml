@@ -1,0 +1,78 @@
+name: Commit CI Log to ci-logs branch
+description: >-
+  Clones the ci-logs branch, copies the captured failure log under
+  ci-logs/<workflow-slug>/, and pushes. Safe under concurrency — retries with
+  pull --rebase up to 3 times on non-fast-forward rejections.
+
+inputs:
+  workflow-slug:
+    description: Folder slug under ci-logs/ (matches capture-failure-log input).
+    required: true
+  log-path:
+    description: Absolute path to the log file produced by capture-failure-log.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Copy and push log to ci-logs branch
+      shell: bash
+      env:
+        WORKFLOW_SLUG: ${{ inputs.workflow-slug }}
+        LOG_PATH: ${{ inputs.log-path }}
+        RUN_ID: ${{ github.run_id }}
+        GH_TOKEN: ${{ github.token }}
+        REPO: ${{ github.repository }}
+        SERVER_URL: ${{ github.server_url }}
+      run: |
+        set -euo pipefail
+
+        if [ ! -f "$LOG_PATH" ]; then
+          echo "::error::Log file not found at $LOG_PATH — nothing to commit."
+          exit 1
+        fi
+
+        TS=$(date -u +'%Y%m%dT%H%M%SZ')
+        WORK_DIR="$(mktemp -d)"
+        REMOTE="${SERVER_URL#https://}"
+        CLONE_URL="https://x-access-token:${GH_TOKEN}@${REMOTE}/${REPO}.git"
+
+        echo "Cloning ci-logs branch into $WORK_DIR"
+        git clone --depth 1 --branch ci-logs --single-branch "$CLONE_URL" "$WORK_DIR"
+
+        cd "$WORK_DIR"
+        git config user.name  "github-actions[bot]"
+        git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+        TARGET_DIR="ci-logs/${WORKFLOW_SLUG}"
+        mkdir -p "$TARGET_DIR"
+        HIST_FILE="${TARGET_DIR}/${TS}-${RUN_ID}.log"
+        LATEST_FILE="${TARGET_DIR}/latest.log"
+        cp "$LOG_PATH" "$HIST_FILE"
+        cp "$LOG_PATH" "$LATEST_FILE"
+
+        git add "$HIST_FILE" "$LATEST_FILE"
+
+        if git diff --cached --quiet; then
+          echo "No changes staged — nothing to commit."
+          exit 0
+        fi
+
+        git commit -m "ci: capture failure for ${WORKFLOW_SLUG} run ${RUN_ID}"
+
+        # Push with rebase-on-reject retry (concurrency safety).
+        MAX_TRIES=3
+        for i in $(seq 1 $MAX_TRIES); do
+          if git push origin ci-logs; then
+            echo "Pushed on attempt $i."
+            exit 0
+          fi
+          echo "Push attempt $i failed — pulling --rebase and retrying."
+          git pull --rebase origin ci-logs || {
+            echo "::warning::Rebase failed on attempt $i."
+          }
+          sleep $((i * 2))
+        done
+
+        echo "::error::Failed to push to ci-logs after ${MAX_TRIES} attempts."
+        exit 1

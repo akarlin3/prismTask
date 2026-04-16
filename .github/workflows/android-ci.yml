@@ -29,9 +29,10 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: write        # autofix needs to commit
-  pull-requests: write   # post failure comments
+  contents: write        # autofix needs to commit; capture job pushes to ci-logs branch
+  pull-requests: read
   checks: read
+  actions: read          # capture-failure-log fetches job logs via API
 
 jobs:
   # autofix and lint-and-test run in parallel (no needs: between them).
@@ -125,3 +126,18 @@ jobs:
           name: test-results
           path: app/build/test-results/
           retention-days: 7
+
+  capture-failure-log:
+    needs: [autofix, lint-and-test]
+    if: ${{ failure() }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - id: capture
+        uses: ./.github/actions/capture-failure-log
+        with:
+          workflow-slug: android-ci
+      - uses: ./.github/actions/commit-ci-log
+        with:
+          workflow-slug: android-ci
+          log-path: ${{ steps.capture.outputs.log-path }}

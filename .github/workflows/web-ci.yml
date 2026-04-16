@@ -19,8 +19,9 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: read
+  contents: write        # capture job pushes to ci-logs branch
   checks: read
+  actions: read          # capture-failure-log fetches job logs via API
 
 jobs:
   lint-and-test:
@@ -71,3 +72,18 @@ jobs:
           name: playwright-report
           path: web/playwright-report/
           retention-days: 7
+
+  capture-failure-log:
+    needs: [lint-and-test, e2e]
+    if: ${{ failure() }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - id: capture
+        uses: ./.github/actions/capture-failure-log
+        with:
+          workflow-slug: web-ci
+      - uses: ./.github/actions/commit-ci-log
+        with:
+          workflow-slug: web-ci
+          log-path: ${{ steps.capture.outputs.log-path }}

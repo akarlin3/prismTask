@@ -18,8 +18,9 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: read
+  contents: write        # capture job pushes to ci-logs branch
   checks: read
+  actions: read          # capture-failure-log fetches job logs via API
 
 jobs:
   test:
@@ -72,3 +73,18 @@ jobs:
 
       - name: Run tests
         run: pytest tests/ -x --tb=short -q
+
+  capture-failure-log:
+    needs: [test]
+    if: ${{ failure() }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - id: capture
+        uses: ./.github/actions/capture-failure-log
+        with:
+          workflow-slug: backend-ci
+      - uses: ./.github/actions/commit-ci-log
+        with:
+          workflow-slug: backend-ci
+          log-path: ${{ steps.capture.outputs.log-path }}

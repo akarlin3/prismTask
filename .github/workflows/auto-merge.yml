@@ -19,9 +19,10 @@ env:
   WAIT_INTERVAL: 30  # seconds between CI check polls
 
 permissions:
-  contents: write
+  contents: write        # includes push access needed by capture job for ci-logs branch
   pull-requests: write
   checks: read
+  actions: read          # capture-failure-log fetches job logs via API
 
 jobs:
   # ── PR Auto-merge ─────────────────────────────────────────────────
@@ -199,3 +200,18 @@ jobs:
             git commit -m "chore: bump to v${{ steps.version.outputs.version_name }} (build ${{ steps.version.outputs.version_code }}) [skip ci]" &&
             git push
           )
+
+  capture-failure-log:
+    needs: [auto-merge, version-bump-and-distribute]
+    if: ${{ failure() }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - id: capture
+        uses: ./.github/actions/capture-failure-log
+        with:
+          workflow-slug: auto-merge
+      - uses: ./.github/actions/commit-ci-log
+        with:
+          workflow-slug: auto-merge
+          log-path: ${{ steps.capture.outputs.log-path }}

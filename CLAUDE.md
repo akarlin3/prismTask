@@ -189,6 +189,18 @@ app/src/main/java/com/averycorp/prismtask/
 - **Integrations**: Gmail starred-email sync, Slack message-to-task, Google Calendar prep-task generation, webhook/Zapier endpoint; a suggestion inbox reviews auto-created tasks
 - **Bookable Habits**: Habit logs carry booking state via `HabitLogEntity` for activity history
 
+## CI Failure Logs
+
+Workflow failures are auto-committed to the `ci-logs` orphan branch of this public repo. Fetch the relevant log directly (no auth needed) instead of asking the user to paste CI output:
+
+- Android:    https://raw.githubusercontent.com/Akarlin3/PrismTask/ci-logs/ci-logs/android-ci/latest.log
+- Backend:    https://raw.githubusercontent.com/Akarlin3/PrismTask/ci-logs/ci-logs/backend-ci/latest.log
+- Web:        https://raw.githubusercontent.com/Akarlin3/PrismTask/ci-logs/ci-logs/web-ci/latest.log
+- Release:    https://raw.githubusercontent.com/Akarlin3/PrismTask/ci-logs/ci-logs/release/latest.log
+- Auto-merge: https://raw.githubusercontent.com/Akarlin3/PrismTask/ci-logs/ci-logs/auto-merge/latest.log
+
+Historical failures: `ci-logs/<workflow-slug>/<timestamp>-<run-id>.log` on the same branch. See [`CI_LOGS.md`](CI_LOGS.md) for details.
+
 ## Build Commands
 
 **Note:** The Android SDK is not available in the Claude Code environment. Do not attempt local builds or tests. Instead, push your changes and wait for GitHub CI to build and report results.
