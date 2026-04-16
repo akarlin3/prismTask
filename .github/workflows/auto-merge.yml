@@ -34,7 +34,32 @@ jobs:
       github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     steps:
+      - name: Detect whether any CI workflows were triggered
+        id: ci_check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          # Give GitHub a short grace period to schedule workflow runs for
+          # the head commit. Paths-filtered workflows (android/backend/web CI)
+          # won't run for doc-only or cross-cutting config PRs, so the
+          # wait-on-check-action step below would otherwise hang waiting for
+          # checks that will never appear.
+          sleep 20
+          COUNT=$(gh api "repos/$REPO/commits/$HEAD_SHA/check-runs" \
+            --jq '[.check_runs[] | select(.name != "Auto-merge")] | length')
+          echo "Non-Auto-merge check runs on head: $COUNT"
+          if [ "$COUNT" -gt 0 ]; then
+            echo "has_ci=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_ci=false" >> "$GITHUB_OUTPUT"
+            echo "No CI checks on this PR — will merge without waiting."
+          fi
+
       - name: Wait for all other CI checks to pass
+        if: steps.ci_check.outputs.has_ci == 'true'
         # Pinned to v1.3.4 SHA for supply-chain safety
         uses: lewagon/wait-on-check-action@ccfb013c15c8afb7bf2b7c028fb74dc5a068cccc
         with:
