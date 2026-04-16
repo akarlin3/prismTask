@@ -34,7 +34,32 @@ jobs:
       github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     steps:
+      - name: Detect whether any CI workflows were triggered
+        id: ci_check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          # Give GitHub a short grace period to schedule workflow runs for
+          # the head commit. Paths-filtered workflows (android/backend/web CI)
+          # won't run for doc-only or cross-cutting config PRs, so the
+          # wait-on-check-action step below would otherwise hang waiting for
+          # checks that will never appear.
+          sleep 20
+          COUNT=$(gh api "repos/$REPO/commits/$HEAD_SHA/check-runs" \
+            --jq '[.check_runs[] | select(.name != "Auto-merge")] | length')
+          echo "Non-Auto-merge check runs on head: $COUNT"
+          if [ "$COUNT" -gt 0 ]; then
+            echo "has_ci=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_ci=false" >> "$GITHUB_OUTPUT"
+            echo "No CI checks on this PR — will merge without waiting."
+          fi
+
       - name: Wait for all other CI checks to pass
+        if: steps.ci_check.outputs.has_ci == 'true'
         # Pinned to v1.3.4 SHA for supply-chain safety
         uses: lewagon/wait-on-check-action@ccfb013c15c8afb7bf2b7c028fb74dc5a068cccc
         with:
@@ -64,9 +89,12 @@ jobs:
     name: Version Bump, Build & Firebase Distribute
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
+    # Queue runs (do NOT cancel in progress). Cancelling mid-flight drops
+    # Firebase distributions for Android-changing PRs when a second push
+    # lands before the first run finishes.
     concurrency:
       group: version-firebase-${{ github.ref }}
-      cancel-in-progress: true
+      cancel-in-progress: false
 
     steps:
       - name: Checkout
@@ -78,11 +106,15 @@ jobs:
 
       - name: Skip if triggered by version bump commit
         id: skip_check
+        env:
+          COMMIT_MSG: ${{ github.event.head_commit.message }}
         run: |
-          MSG=$(git log -1 --pretty=%s)
-          if echo "$MSG" | grep -q '\[skip ci\]'; then
+          # Inspect the triggering commit, not HEAD. When runs queue, main
+          # may have advanced past the triggering commit (e.g. to a bump
+          # commit from an earlier run), and we don't want to misread that.
+          if echo "$COMMIT_MSG" | grep -q '\[skip ci\]'; then
             echo "skip=true" >> "$GITHUB_OUTPUT"
-            echo "Skipping — last commit was a CI version bump."
+            echo "Skipping — triggering commit was a CI version bump."
           else
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
@@ -90,9 +122,20 @@ jobs:
       - name: Detect Android-related changes
         if: steps.skip_check.outputs.skip != 'true'
         id: changes
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+          AFTER_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
-          CHANGED=$(git diff --name-only HEAD~1 HEAD)
+          # Diff the exact push range, not HEAD~1..HEAD. When this run is
+          # queued behind another, HEAD on main may have advanced and
+          # HEAD~1..HEAD would describe a later push's changes instead of
+          # this one's.
+          if [ -z "$BEFORE_SHA" ] || [ "$BEFORE_SHA" = "0000000000000000000000000000000000000000" ]; then
+            CHANGED=$(git diff --name-only HEAD~1 HEAD)
+          else
+            CHANGED=$(git diff --name-only "$BEFORE_SHA" "$AFTER_SHA")
+          fi
           if echo "$CHANGED" | grep -qE '^(app/|build\.gradle\.kts$|settings\.gradle\.kts$|gradle\.properties$|gradle/|gradlew)'; then
             echo "has_android=true" >> "$GITHUB_OUTPUT"
             echo "Android-related changes detected:"
