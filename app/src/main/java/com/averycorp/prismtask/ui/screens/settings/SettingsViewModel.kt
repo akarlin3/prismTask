@@ -83,6 +83,7 @@ constructor(
     private val syncService: SyncService,
     private val calendarSyncService: CalendarSyncService,
     private val taskRepository: TaskRepository,
+    private val habitRepository: com.averycorp.prismtask.data.repository.HabitRepository,
     internal val backendSyncPreferences: BackendSyncPreferences,
     internal val templatePreferences: TemplatePreferences,
     internal val authTokenPreferences: AuthTokenPreferences,
@@ -1113,6 +1114,120 @@ constructor(
 
     private val _isResetting = MutableStateFlow(false)
     val isResetting: StateFlow<Boolean> = _isResetting
+
+    /**
+     * UI state for the "Clean Up Duplicates" flow. When the user taps the
+     * button, the app scans for duplicate tasks/habits and exposes the
+     * result here so the Settings UI can show a confirmation dialog.
+     */
+    data class DuplicateCleanupState(
+        val isScanning: Boolean = false,
+        val isDeleting: Boolean = false,
+        val pendingPreview: Preview? = null,
+        val noDuplicatesFound: Boolean = false
+    ) {
+        data class Preview(val taskCount: Int, val habitCount: Int) {
+            val total: Int get() = taskCount + habitCount
+        }
+    }
+
+    private val _duplicateCleanupState = MutableStateFlow(DuplicateCleanupState())
+    val duplicateCleanupState: StateFlow<DuplicateCleanupState> = _duplicateCleanupState
+
+    /**
+     * Scans active tasks and habits for duplicates (same title + due date /
+     * same name + frequency). Updates [duplicateCleanupState] with the
+     * result so the UI can show a confirmation dialog or a "no duplicates"
+     * message.
+     */
+    fun scanForDuplicates() {
+        if (_duplicateCleanupState.value.isScanning || _duplicateCleanupState.value.isDeleting) return
+        viewModelScope.launch {
+            _duplicateCleanupState.value = DuplicateCleanupState(isScanning = true)
+            try {
+                val (taskIds, habitIds) = findDuplicateIds()
+                _duplicateCleanupState.value = if (taskIds.isEmpty() && habitIds.isEmpty()) {
+                    DuplicateCleanupState(noDuplicatesFound = true)
+                } else {
+                    DuplicateCleanupState(
+                        pendingPreview = DuplicateCleanupState.Preview(taskIds.size, habitIds.size)
+                    )
+                }
+            } catch (e: Exception) {
+                Log.e("SettingsVM", "Duplicate scan failed", e)
+                _duplicateCleanupState.value = DuplicateCleanupState()
+                _messages.emit("Could not scan for duplicates: ${e.message}")
+            }
+        }
+    }
+
+    /**
+     * Re-runs detection and deletes every duplicate task/habit found,
+     * keeping the "most complete" entry in each group.
+     */
+    fun confirmDeleteDuplicates() {
+        val current = _duplicateCleanupState.value
+        if (current.pendingPreview == null || current.isDeleting) return
+        viewModelScope.launch {
+            _duplicateCleanupState.value = current.copy(isDeleting = true)
+            try {
+                val (taskIds, habitIds) = findDuplicateIds()
+                taskIds.forEach { taskRepository.deleteTask(it) }
+                habitIds.forEach { habitRepository.deleteHabit(it) }
+                _messages.emit(
+                    "Deleted ${taskIds.size} duplicate tasks and ${habitIds.size} duplicate habits"
+                )
+            } catch (e: Exception) {
+                Log.e("SettingsVM", "Duplicate cleanup failed", e)
+                _messages.emit("Cleanup failed: ${e.message}")
+            } finally {
+                _duplicateCleanupState.value = DuplicateCleanupState()
+            }
+        }
+    }
+
+    /** Dismisses the confirmation / "no duplicates found" dialog. */
+    fun dismissDuplicateDialog() {
+        _duplicateCleanupState.value = DuplicateCleanupState()
+    }
+
+    private suspend fun findDuplicateIds(): Pair<List<Long>, List<Long>> =
+        withContext(Dispatchers.IO) {
+            val taskDao = database.taskDao()
+            val tagDao = database.tagDao()
+            val habitDao = database.habitDao()
+            val completionDao = database.habitCompletionDao()
+            val logDao = database.habitLogDao()
+
+            val tasks = taskDao.getAllTasksOnce()
+            val taskCandidates = tasks.filter {
+                it.archivedAt == null && !it.isCompleted && it.parentTaskId == null
+            }
+            val subtasksByParent = tasks.filter { it.parentTaskId != null }
+                .groupBy { it.parentTaskId!! }
+            val taskExtras = taskCandidates.associate { t ->
+                t.id to com.averycorp.prismtask.domain.usecase.DuplicateCleanupPlanner.TaskExtras(
+                    subtaskCount = subtasksByParent[t.id]?.size ?: 0,
+                    tagCount = tagDao.getTagIdsForTaskOnce(t.id).size
+                )
+            }
+            val taskIds = com.averycorp.prismtask.domain.usecase.DuplicateCleanupPlanner
+                .findTaskDuplicatesToDelete(tasks, taskExtras)
+
+            val habits = habitDao.getAllHabitsOnce()
+            val compsByHabit = completionDao.getAllCompletionsOnce().groupBy { it.habitId }
+            val logsByHabit = logDao.getAllLogsOnce().groupBy { it.habitId }
+            val habitExtras = habits.associate { h ->
+                h.id to com.averycorp.prismtask.domain.usecase.DuplicateCleanupPlanner.HabitExtras(
+                    completionCount = compsByHabit[h.id]?.size ?: 0,
+                    logCount = logsByHabit[h.id]?.size ?: 0
+                )
+            }
+            val habitIds = com.averycorp.prismtask.domain.usecase.DuplicateCleanupPlanner
+                .findHabitDuplicatesToDelete(habits, habitExtras)
+
+            taskIds to habitIds
+        }
 
     /**
      * Granular reset based on [options]. Executes each selected category in

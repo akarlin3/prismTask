@@ -31,14 +31,19 @@ import com.averycorp.prismtask.ui.components.dialogs.ResetOptions
 import com.averycorp.prismtask.ui.components.settings.SectionHeader
 import com.averycorp.prismtask.ui.components.settings.SettingsRow
 import com.averycorp.prismtask.ui.components.settings.SettingsRowWithSubtitle
+import com.averycorp.prismtask.ui.screens.settings.SettingsViewModel.DuplicateCleanupState
 
 @Composable
 fun DataSection(
     autoArchiveDays: Int,
     archivedCount: Int,
     isResetting: Boolean,
+    duplicateCleanupState: DuplicateCleanupState,
     onAutoArchiveDaysChange: (Int) -> Unit,
     onResetAppData: (ResetOptions) -> Unit,
+    onScanDuplicates: () -> Unit,
+    onConfirmDeleteDuplicates: () -> Unit,
+    onDismissDuplicateDialog: () -> Unit,
     onNavigateToTags: () -> Unit,
     onNavigateToProjects: () -> Unit,
     onNavigateToTemplates: () -> Unit,
@@ -109,6 +114,85 @@ fun DataSection(
         subtitle = "$archivedCount archived tasks",
         onClick = onNavigateToArchive
     )
+
+    Spacer(modifier = Modifier.height(8.dp))
+
+    val isCleanupBusy = duplicateCleanupState.isScanning || duplicateCleanupState.isDeleting
+
+    OutlinedButton(
+        onClick = onScanDuplicates,
+        enabled = !isCleanupBusy,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        if (isCleanupBusy) {
+            CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(if (duplicateCleanupState.isDeleting) "Deleting..." else "Scanning...")
+        } else {
+            Text("Clean Up Duplicates")
+        }
+    }
+
+    if (duplicateCleanupState.noDuplicatesFound) {
+        AlertDialog(
+            onDismissRequest = onDismissDuplicateDialog,
+            confirmButton = {
+                TextButton(onClick = onDismissDuplicateDialog) { Text("OK") }
+            },
+            title = { Text("No Duplicates Found") },
+            text = {
+                Text(
+                    "No duplicate tasks or habits were detected. Duplicates are " +
+                        "matched by the same title and due date (or same habit name " +
+                        "and frequency)."
+                )
+            }
+        )
+    }
+
+    val preview = duplicateCleanupState.pendingPreview
+    if (preview != null) {
+        AlertDialog(
+            onDismissRequest = { if (!duplicateCleanupState.isDeleting) onDismissDuplicateDialog() },
+            confirmButton = {
+                TextButton(
+                    onClick = onConfirmDeleteDuplicates,
+                    enabled = !duplicateCleanupState.isDeleting
+                ) {
+                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = onDismissDuplicateDialog,
+                    enabled = !duplicateCleanupState.isDeleting
+                ) { Text("Cancel") }
+            },
+            title = { Text("Delete Duplicates?") },
+            text = {
+                Column {
+                    val taskLine = when (preview.taskCount) {
+                        0 -> null
+                        1 -> "1 duplicate task"
+                        else -> "${preview.taskCount} duplicate tasks"
+                    }
+                    val habitLine = when (preview.habitCount) {
+                        0 -> null
+                        1 -> "1 duplicate habit"
+                        else -> "${preview.habitCount} duplicate habits"
+                    }
+                    val parts = listOfNotNull(taskLine, habitLine).joinToString(" and ")
+                    Text("Found $parts.")
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        "The most complete copy in each group will be kept; the " +
+                            "others will be deleted. This cannot be undone.",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            }
+        )
+    }
 
     Spacer(modifier = Modifier.height(8.dp))
 

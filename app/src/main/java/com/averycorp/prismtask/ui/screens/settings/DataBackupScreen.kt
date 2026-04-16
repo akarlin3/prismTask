@@ -16,11 +16,14 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -42,8 +45,15 @@ fun DataBackupScreen(
     val autoArchiveDays by viewModel.autoArchiveDays.collectAsStateWithLifecycle()
     val archivedCount by viewModel.archivedCount.collectAsStateWithLifecycle()
     val isResetting by viewModel.isResetting.collectAsStateWithLifecycle()
+    val duplicateCleanupState by viewModel.duplicateCleanupState.collectAsStateWithLifecycle()
     val pendingJson by viewModel.pendingJsonExport.collectAsStateWithLifecycle()
     val pendingCsv by viewModel.pendingCsvExport.collectAsStateWithLifecycle()
+
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(Unit) {
+        viewModel.messages.collect { message -> snackbarHostState.showSnackbar(message) }
+    }
 
     val createJsonLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/json")
@@ -100,7 +110,8 @@ fun DataBackupScreen(
                     }
                 }
             )
-        }
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { padding ->
         Column(
             modifier = Modifier
@@ -113,6 +124,7 @@ fun DataBackupScreen(
                 autoArchiveDays = autoArchiveDays,
                 archivedCount = archivedCount,
                 isResetting = isResetting,
+                duplicateCleanupState = duplicateCleanupState,
                 onAutoArchiveDaysChange = viewModel::setAutoArchiveDays,
                 onResetAppData = { options ->
                     viewModel.resetAppData(options) { navigateToOnboarding ->
@@ -125,6 +137,9 @@ fun DataBackupScreen(
                         }
                     }
                 },
+                onScanDuplicates = viewModel::scanForDuplicates,
+                onConfirmDeleteDuplicates = viewModel::confirmDeleteDuplicates,
+                onDismissDuplicateDialog = viewModel::dismissDuplicateDialog,
                 onNavigateToTags = { navController.navigate("tag_management") },
                 onNavigateToProjects = { navController.navigate("project_list") },
                 onNavigateToTemplates = { navController.navigate("templates") },
