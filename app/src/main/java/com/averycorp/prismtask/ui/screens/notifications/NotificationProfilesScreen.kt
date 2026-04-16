@@ -90,6 +90,7 @@ private fun profileSummary(profile: com.averycorp.prismtask.data.local.entity.No
         append(" \u2014 ")
         append(profile.urgencyTierKey.replaceFirstChar { it.uppercase() })
         if (profile.silent) append(" \u2022 Silent")
+        if (profile.volumeOverride && !profile.silent) append(" \u2022 Override Volume")
         if (profile.escalation) append(" \u2022 Escalates")
     }
 }

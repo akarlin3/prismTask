@@ -98,7 +98,10 @@ data class NotificationProfileEntity(
     val watchHapticPresetKey: String = VibrationPreset.SINGLE_PULSE.key,
     /** Auto-switch rules JSON (list of trigger + predicate). Null = manual only. */
     @ColumnInfo(name = "auto_switch_rules_json")
-    val autoSwitchRulesJson: String? = null
+    val autoSwitchRulesJson: String? = null,
+    /** When true, play at alarm volume (bypasses silent/vibrate/DND). */
+    @ColumnInfo(name = "volume_override", defaultValue = "0")
+    val volumeOverride: Boolean = false
 ) {
     /** Decodes [offsetsCsv] into a list of Long millis. */
     fun offsets(): List<Long> =

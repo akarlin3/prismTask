@@ -36,6 +36,18 @@ class NotificationProfileResolverTest {
         assertEquals(NotificationDisplayMode.FULL_SCREEN, profile.displayMode)
         assertEquals(LockScreenVisibility.HIDDEN, profile.lockScreenVisibility)
         assertEquals(listOf(900_000L, 0L), profile.reminderOffsetsMs)
+        assertFalse(profile.volumeOverride)
+    }
+
+    @Test
+    fun `resolves volume override flag`() {
+        val entity = NotificationProfileEntity(
+            name = "Loud",
+            offsetsCsv = "0",
+            volumeOverride = true
+        )
+        val profile = resolver.resolve(entity)
+        assertTrue(profile.volumeOverride)
     }
 
     @Test

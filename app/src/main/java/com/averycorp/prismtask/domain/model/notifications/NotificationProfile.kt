@@ -40,7 +40,8 @@ data class NotificationProfile(
     val reAlertIntervalMinutes: Int,
     val reAlertMaxAttempts: Int,
     val watchSyncMode: WatchSyncMode,
-    val watchHapticPresetKey: String
+    val watchHapticPresetKey: String,
+    val volumeOverride: Boolean
 ) {
     companion object {
         /** Factory for the global default profile used when the DB is empty. */
@@ -72,7 +73,8 @@ data class NotificationProfile(
                 reAlertIntervalMinutes = 5,
                 reAlertMaxAttempts = 3,
                 watchSyncMode = WatchSyncMode.MIRROR_PHONE,
-                watchHapticPresetKey = VibrationPreset.SINGLE_PULSE.key
+                watchHapticPresetKey = VibrationPreset.SINGLE_PULSE.key,
+                volumeOverride = false
             )
     }
 }

@@ -100,7 +100,11 @@ fun NotificationsHubScreen(
             SectionHeader("How You're Alerted")
             SettingsRowWithSubtitle(
                 title = "Sound",
-                subtitle = "${if (activeProfile.silent) "Silent" else "Playing"} \u2014 Volume ${activeProfile.soundVolumePercent}%"
+                subtitle = buildString {
+                    append(if (activeProfile.silent) "Silent" else "Playing")
+                    append(" \u2014 Volume ${activeProfile.soundVolumePercent}%")
+                    if (activeProfile.volumeOverride && !activeProfile.silent) append(" \u2014 Override On")
+                }
             ) { navController.navigate(NotificationRoutes.SOUND) }
 
             SettingsRowWithSubtitle(

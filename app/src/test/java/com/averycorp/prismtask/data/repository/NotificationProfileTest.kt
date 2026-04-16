@@ -4,6 +4,7 @@ import com.averycorp.prismtask.data.local.entity.NotificationProfileEntity
 import com.averycorp.prismtask.domain.model.notifications.UrgencyTier
 import com.averycorp.prismtask.domain.model.notifications.VibrationPreset
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -55,6 +56,7 @@ class NotificationProfileTest {
         assertTrue(aggr.escalation)
         assertEquals(15, aggr.escalationIntervalMinutes)
         assertEquals(UrgencyTier.HIGH, aggr.urgencyTier)
+        assertTrue(aggr.volumeOverride)
     }
 
     @Test
@@ -74,5 +76,19 @@ class NotificationProfileTest {
         assertEquals(1_000L, entity.createdAt)
         assertEquals(UrgencyTier.MEDIUM.key, entity.urgencyTierKey)
         assertEquals(VibrationPreset.SINGLE_PULSE.key, entity.vibrationPresetKey)
+        assertFalse(entity.volumeOverride)
+    }
+
+    @Test
+    fun `aggressive template converts to entity with volume override`() {
+        val template = NotificationProfileRepository.BUILT_IN_PROFILES.first { it.name == "Aggressive" }
+        val entity = template.toEntity(now = 1_000L)
+        assertTrue(entity.volumeOverride)
+    }
+
+    @Test
+    fun `default profile does not have volume override`() {
+        val template = NotificationProfileRepository.BUILT_IN_PROFILES.first { it.name == "Default" }
+        assertFalse(template.volumeOverride)
     }
 }

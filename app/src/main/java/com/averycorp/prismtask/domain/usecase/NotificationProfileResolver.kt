@@ -62,7 +62,8 @@ class NotificationProfileResolver(private val gson: Gson = Gson()) {
         reAlertIntervalMinutes = entity.reAlertIntervalMinutes.coerceIn(1, 60),
         reAlertMaxAttempts = entity.reAlertMaxAttempts.coerceIn(1, 10),
         watchSyncMode = WatchSyncMode.fromKey(entity.watchSyncModeKey),
-        watchHapticPresetKey = entity.watchHapticPresetKey
+        watchHapticPresetKey = entity.watchHapticPresetKey,
+        volumeOverride = entity.volumeOverride
     )
 
     fun encodeEscalationChain(chain: EscalationChain): String = gson.toJson(chain.toWire())

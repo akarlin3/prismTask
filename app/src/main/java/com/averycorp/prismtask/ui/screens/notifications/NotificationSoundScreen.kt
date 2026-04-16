@@ -47,6 +47,7 @@ fun NotificationSoundScreen(
     var pendingFadeIn by remember { mutableStateOf(profile.soundFadeInMs.toFloat()) }
     var pendingFadeOut by remember { mutableStateOf(profile.soundFadeOutMs.toFloat()) }
     var pendingSilent by remember { mutableStateOf(profile.silent) }
+    var pendingVolumeOverride by remember { mutableStateOf(profile.volumeOverride) }
 
     val visibleSounds = remember(selectedCategory) {
         when (selectedCategory) {
@@ -63,6 +64,13 @@ fun NotificationSoundScreen(
             subtitle = "Play no sound at all, even when the device is unmuted",
             checked = pendingSilent,
             onCheckedChange = { pendingSilent = it }
+        )
+
+        SettingsToggleRow(
+            title = "Override Volume",
+            subtitle = "Play at alarm volume so reminders are heard even on silent or Do Not Disturb",
+            checked = pendingVolumeOverride && !pendingSilent,
+            onCheckedChange = { pendingVolumeOverride = it }
         )
 
         SubHeader("Volume & Fades")
@@ -150,6 +158,7 @@ fun NotificationSoundScreen(
                         profile.copy(
                             soundId = pendingSoundId,
                             silent = pendingSilent,
+                            volumeOverride = pendingVolumeOverride && !pendingSilent,
                             soundVolumePercent = pendingVolume.toInt(),
                             soundFadeInMs = pendingFadeIn.toInt(),
                             soundFadeOutMs = pendingFadeOut.toInt()
@@ -165,6 +174,7 @@ fun NotificationSoundScreen(
                         currentEntity.copy(
                             soundId = pendingSoundId,
                             silent = pendingSilent,
+                            volumeOverride = pendingVolumeOverride && !pendingSilent,
                             soundVolumePercent = pendingVolume.toInt(),
                             soundFadeInMs = pendingFadeIn.toInt(),
                             soundFadeOutMs = pendingFadeOut.toInt()

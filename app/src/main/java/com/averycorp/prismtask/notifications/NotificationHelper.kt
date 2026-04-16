@@ -645,7 +645,7 @@ object NotificationHelper {
         deleteStaleProfileChannels(context, baseId, profile, keepId = channelId)
 
         val importance = importanceForTier(profile.urgencyTier)
-        val effective = if (profile.displayMode == NotificationDisplayMode.FULL_SCREEN) {
+        val effective = if (profile.displayMode == NotificationDisplayMode.FULL_SCREEN || profile.volumeOverride) {
             maxOf(importance, NotificationManager.IMPORTANCE_HIGH)
         } else {
             importance
@@ -657,6 +657,15 @@ object NotificationHelper {
             // Sound
             if (profile.silent) {
                 setSound(null, null)
+            } else if (profile.volumeOverride) {
+                val alarmUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+                    ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+                val attrs = AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_ALARM)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                    .build()
+                setSound(alarmUri, attrs)
+                setBypassDnd(true)
             } else {
                 val sound = SoundResolver.resolve(context, profile.soundId)
                 when (sound) {
@@ -750,6 +759,9 @@ object NotificationHelper {
                 LockScreenVisibility.HIDDEN -> NotificationCompat.VISIBILITY_SECRET
             }
         )
+        if (profile.volumeOverride) {
+            builder.setCategory(NotificationCompat.CATEGORY_ALARM)
+        }
         if (profile.displayMode == NotificationDisplayMode.FULL_SCREEN) {
             builder.setFullScreenIntent(tapPending, true)
         }
@@ -787,6 +799,7 @@ object NotificationHelper {
             append('_').append(profile.vibrationPreset.key)
             append('_').append(profile.vibrationRepeatCount)
             if (profile.silent) append("_silent")
+            if (profile.volumeOverride) append("_alrm")
             if (profile.displayMode == NotificationDisplayMode.FULL_SCREEN) append("_fsi")
             append('_').append(profile.lockScreenVisibility.key)
         }

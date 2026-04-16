@@ -73,7 +73,8 @@ constructor(
             val lockScreenVisibility: LockScreenVisibility = LockScreenVisibility.APP_NAME_ONLY,
             val escalation: Boolean = false,
             val escalationIntervalMinutes: Int? = null,
-            val watchSyncMode: WatchSyncMode = WatchSyncMode.MIRROR_PHONE
+            val watchSyncMode: WatchSyncMode = WatchSyncMode.MIRROR_PHONE,
+            val volumeOverride: Boolean = false
         ) {
             fun toEntity(now: Long): NotificationProfileEntity = NotificationProfileEntity(
                 name = name,
@@ -93,7 +94,8 @@ constructor(
                 watchSyncModeKey = watchSyncMode.key,
                 watchHapticPresetKey = vibrationPreset.key,
                 quietHoursJson = null,
-                escalationChainJson = null
+                escalationChainJson = null,
+                volumeOverride = volumeOverride
             )
         }
 
@@ -120,7 +122,8 @@ constructor(
                 escalation = true,
                 escalationIntervalMinutes = 15,
                 displayMode = NotificationDisplayMode.FULL_SCREEN,
-                volumePercent = 90
+                volumePercent = 90,
+                volumeOverride = true
             ),
             BuiltInProfileTemplate(
                 name = "Minimal",
