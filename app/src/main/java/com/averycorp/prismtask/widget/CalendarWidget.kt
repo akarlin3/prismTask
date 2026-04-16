@@ -264,7 +264,7 @@ private fun CalendarContent(
 private fun buildMergedTimeline(tasks: List<WidgetTaskRow>, events: List<WidgetCalendarEvent>): List<TimelineItem> = (
     tasks.map { TimelineItem.Task(it) } +
         events.map { TimelineItem.Event(it) }
-    ).sortedBy { it.sortTime }
+).sortedBy { it.sortTime }
 
 @Composable
 private fun TimelineRow(

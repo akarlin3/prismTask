@@ -21,34 +21,34 @@ import java.util.concurrent.TimeUnit
  */
 @HiltWorker
 class WidgetRefreshWorker
-@AssistedInject
-constructor(
-    @Assisted appContext: Context,
-    @Assisted workerParams: WorkerParameters,
-    private val widgetUpdateManager: WidgetUpdateManager
-) : CoroutineWorker(appContext, workerParams) {
-    override suspend fun doWork(): Result {
-        widgetUpdateManager.updateAllWidgets()
-        return Result.success()
-    }
+    @AssistedInject
+    constructor(
+        @Assisted appContext: Context,
+        @Assisted workerParams: WorkerParameters,
+        private val widgetUpdateManager: WidgetUpdateManager
+    ) : CoroutineWorker(appContext, workerParams) {
+        override suspend fun doWork(): Result {
+            widgetUpdateManager.updateAllWidgets()
+            return Result.success()
+        }
 
-    companion object {
-        const val WORK_NAME = "widget_refresh_periodic"
+        companion object {
+            const val WORK_NAME = "widget_refresh_periodic"
 
-        fun schedule(workManager: WorkManager) {
-            val request = PeriodicWorkRequestBuilder<WidgetRefreshWorker>(
-                15,
-                TimeUnit.MINUTES
-            ).setConstraints(
-                Constraints.Builder()
-                    .setRequiresBatteryNotLow(false)
-                    .build()
-            ).build()
-            workManager.enqueueUniquePeriodicWork(
-                WORK_NAME,
-                ExistingPeriodicWorkPolicy.UPDATE,
-                request
-            )
+            fun schedule(workManager: WorkManager) {
+                val request = PeriodicWorkRequestBuilder<WidgetRefreshWorker>(
+                    15,
+                    TimeUnit.MINUTES
+                ).setConstraints(
+                    Constraints.Builder()
+                        .setRequiresBatteryNotLow(false)
+                        .build()
+                ).build()
+                workManager.enqueueUniquePeriodicWork(
+                    WORK_NAME,
+                    ExistingPeriodicWorkPolicy.UPDATE,
+                    request
+                )
+            }
         }
     }
-}

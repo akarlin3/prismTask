@@ -19,40 +19,40 @@ import javax.inject.Inject
  */
 @HiltViewModel
 class ThemeViewModel
-@Inject
-constructor(
-    private val themePreferences: ThemePreferences
-) : ViewModel() {
-    /**
-     * The [PrismTheme] the user has selected. Falls back to [PrismTheme.VOID]
-     * both for first launch (no stored value) and for any malformed stored
-     * value so the UI never crashes on an unknown enum name.
-     */
-    val currentTheme: StateFlow<PrismTheme> = themePreferences
-        .getPrismTheme()
-        .map { name -> parsePrismThemeOrDefault(name) }
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5_000L),
-            initialValue = PrismTheme.VOID
-        )
+    @Inject
+    constructor(
+        private val themePreferences: ThemePreferences
+    ) : ViewModel() {
+        /**
+         * The [PrismTheme] the user has selected. Falls back to [PrismTheme.VOID]
+         * both for first launch (no stored value) and for any malformed stored
+         * value so the UI never crashes on an unknown enum name.
+         */
+        val currentTheme: StateFlow<PrismTheme> = themePreferences
+            .getPrismTheme()
+            .map { name -> parsePrismThemeOrDefault(name) }
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5_000L),
+                initialValue = PrismTheme.VOID
+            )
 
-    /**
-     * Persist [theme] as the user's new selection. The backing flow will emit
-     * the new value and drive the CompositionLocal update in MainActivity.
-     */
-    fun setTheme(theme: PrismTheme) {
-        viewModelScope.launch {
-            themePreferences.setPrismTheme(theme.name)
+        /**
+         * Persist [theme] as the user's new selection. The backing flow will emit
+         * the new value and drive the CompositionLocal update in MainActivity.
+         */
+        fun setTheme(theme: PrismTheme) {
+            viewModelScope.launch {
+                themePreferences.setPrismTheme(theme.name)
+            }
+        }
+
+        companion object {
+            private fun parsePrismThemeOrDefault(name: String): PrismTheme =
+                try {
+                    PrismTheme.valueOf(name)
+                } catch (_: IllegalArgumentException) {
+                    PrismTheme.VOID
+                }
         }
     }
-
-    companion object {
-        private fun parsePrismThemeOrDefault(name: String): PrismTheme =
-            try {
-                PrismTheme.valueOf(name)
-            } catch (_: IllegalArgumentException) {
-                PrismTheme.VOID
-            }
-    }
-}

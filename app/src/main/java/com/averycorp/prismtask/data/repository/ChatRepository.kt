@@ -25,102 +25,102 @@ data class ChatMessage(
 
 @Singleton
 class ChatRepository
-@Inject
-constructor(
-    private val api: PrismTaskApi
-) {
-    private val _messages = MutableStateFlow<List<ChatMessage>>(emptyList())
-    val messages: StateFlow<List<ChatMessage>> = _messages.asStateFlow()
+    @Inject
+    constructor(
+        private val api: PrismTaskApi
+    ) {
+        private val _messages = MutableStateFlow<List<ChatMessage>>(emptyList())
+        val messages: StateFlow<List<ChatMessage>> = _messages.asStateFlow()
 
-    private var conversationId: String = generateConversationId()
-    private var conversationDate: LocalDate = LocalDate.now()
-    private var messagesSinceContextRefresh = 0
+        private var conversationId: String = generateConversationId()
+        private var conversationDate: LocalDate = LocalDate.now()
+        private var messagesSinceContextRefresh = 0
 
-    /** Maximum conversation pairs kept in history (spec: 10). */
-    private val maxHistoryPairs = 10
+        /** Maximum conversation pairs kept in history (spec: 10). */
+        private val maxHistoryPairs = 10
 
-    /**
-     * Returns the current conversation ID, resetting if the day has changed.
-     */
-    fun getConversationId(): String {
-        resetIfNewDay()
-        return conversationId
-    }
+        /**
+         * Returns the current conversation ID, resetting if the day has changed.
+         */
+        fun getConversationId(): String {
+            resetIfNewDay()
+            return conversationId
+        }
 
-    /**
-     * Returns whether the user context block should be refreshed
-     * (every 5 messages per spec).
-     */
-    fun shouldRefreshContext(): Boolean = messagesSinceContextRefresh >= 5 || messagesSinceContextRefresh == 0
+        /**
+         * Returns whether the user context block should be refreshed
+         * (every 5 messages per spec).
+         */
+        fun shouldRefreshContext(): Boolean = messagesSinceContextRefresh >= 5 || messagesSinceContextRefresh == 0
 
-    fun markContextRefreshed() {
-        messagesSinceContextRefresh = 0
-    }
+        fun markContextRefreshed() {
+            messagesSinceContextRefresh = 0
+        }
 
-    /**
-     * Sends a message to the AI chat backend and returns the response.
-     * Manages conversation history, trimming to max pairs.
-     */
-    suspend fun sendMessage(
-        userMessage: String,
-        taskContextId: Long? = null
-    ): ChatResponse {
-        resetIfNewDay()
+        /**
+         * Sends a message to the AI chat backend and returns the response.
+         * Manages conversation history, trimming to max pairs.
+         */
+        suspend fun sendMessage(
+            userMessage: String,
+            taskContextId: Long? = null
+        ): ChatResponse {
+            resetIfNewDay()
 
-        val userMsg = ChatMessage(
-            role = ChatMessage.Role.USER,
-            text = userMessage
-        )
-        _messages.value = _messages.value + userMsg
-        messagesSinceContextRefresh++
-
-        val response = api.aiChat(
-            ChatRequest(
-                message = userMessage,
-                conversationId = conversationId,
-                taskContextId = taskContextId
+            val userMsg = ChatMessage(
+                role = ChatMessage.Role.USER,
+                text = userMessage
             )
-        )
+            _messages.value = _messages.value + userMsg
+            messagesSinceContextRefresh++
 
-        val assistantMsg = ChatMessage(
-            role = ChatMessage.Role.ASSISTANT,
-            text = response.message,
-            actions = response.actions
-        )
-        _messages.value = _messages.value + assistantMsg
+            val response = api.aiChat(
+                ChatRequest(
+                    message = userMessage,
+                    conversationId = conversationId,
+                    taskContextId = taskContextId
+                )
+            )
 
-        trimHistory()
+            val assistantMsg = ChatMessage(
+                role = ChatMessage.Role.ASSISTANT,
+                text = response.message,
+                actions = response.actions
+            )
+            _messages.value = _messages.value + assistantMsg
 
-        return response
-    }
+            trimHistory()
 
-    fun clearConversation() {
-        _messages.value = emptyList()
-        conversationId = generateConversationId()
-        conversationDate = LocalDate.now()
-        messagesSinceContextRefresh = 0
-    }
+            return response
+        }
 
-    private fun resetIfNewDay() {
-        val today = LocalDate.now()
-        if (today != conversationDate) {
-            clearConversation()
+        fun clearConversation() {
+            _messages.value = emptyList()
+            conversationId = generateConversationId()
+            conversationDate = LocalDate.now()
+            messagesSinceContextRefresh = 0
+        }
+
+        private fun resetIfNewDay() {
+            val today = LocalDate.now()
+            if (today != conversationDate) {
+                clearConversation()
+            }
+        }
+
+        /**
+         * Trims conversation history to keep at most [maxHistoryPairs] user+assistant pairs.
+         * Oldest pairs are dropped silently per spec.
+         */
+        private fun trimHistory() {
+            val current = _messages.value
+            if (current.size > maxHistoryPairs * 2) {
+                _messages.value = current.takeLast(maxHistoryPairs * 2)
+            }
+        }
+
+        private fun generateConversationId(): String {
+            val date = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE)
+            return "chat_${date}_${UUID.randomUUID().toString().take(8)}"
         }
     }
-
-    /**
-     * Trims conversation history to keep at most [maxHistoryPairs] user+assistant pairs.
-     * Oldest pairs are dropped silently per spec.
-     */
-    private fun trimHistory() {
-        val current = _messages.value
-        if (current.size > maxHistoryPairs * 2) {
-            _messages.value = current.takeLast(maxHistoryPairs * 2)
-        }
-    }
-
-    private fun generateConversationId(): String {
-        val date = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE)
-        return "chat_${date}_${UUID.randomUUID().toString().take(8)}"
-    }
-}
