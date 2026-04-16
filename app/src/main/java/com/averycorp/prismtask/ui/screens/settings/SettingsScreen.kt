@@ -7,7 +7,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -21,6 +26,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -28,6 +34,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import com.averycorp.prismtask.domain.model.UiComplexityTier
+import com.averycorp.prismtask.domain.model.isAtLeast
 import com.averycorp.prismtask.ui.components.settings.SettingsGroup
 import com.averycorp.prismtask.ui.components.settings.SettingsNavRow
 import com.averycorp.prismtask.ui.navigation.PrismTaskRoute
@@ -36,6 +44,8 @@ import com.averycorp.prismtask.ui.screens.settings.sections.DebugLogAdminSection
 import com.averycorp.prismtask.ui.screens.settings.sections.DebugOnboardingSection
 import com.averycorp.prismtask.ui.screens.settings.sections.DebugTierSection
 import com.averycorp.prismtask.ui.screens.settings.sections.PrismThemeSection
+import com.averycorp.prismtask.ui.screens.settings.sections.UiComplexitySection
+import kotlinx.coroutines.launch
 
 private val ColAccount = Color(0xFFE6F1FB)
 private val ColSubscription = Color(0xFFFAEEDA)
@@ -62,6 +72,7 @@ fun SettingsScreen(
 ) {
     val isAdmin by viewModel.isAdmin.collectAsStateWithLifecycle()
     val debugTierOverride by viewModel.debugTierOverride.collectAsStateWithLifecycle()
+    val uiTier by viewModel.uiComplexityTier.collectAsStateWithLifecycle()
 
     val isSyncing by viewModel.isSyncing.collectAsStateWithLifecycle()
     val isImporting by viewModel.isImporting.collectAsStateWithLifecycle()
@@ -86,11 +97,39 @@ fun SettingsScreen(
         }
     }
 
+    val listState = rememberLazyListState()
+    val scope = rememberCoroutineScope()
+
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text("Settings", fontWeight = FontWeight.Bold) },
+                actions = {
+                    AssistChip(
+                        onClick = {
+                            scope.launch { listState.animateScrollToItem(0) }
+                        },
+                        label = {
+                            Text(
+                                text = uiTier.displayName,
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        },
+                        shape = RoundedCornerShape(16.dp),
+                        border = AssistChipDefaults.assistChipBorder(
+                            borderColor = when (uiTier) {
+                                UiComplexityTier.BASIC -> MaterialTheme.colorScheme.outline
+                                UiComplexityTier.STANDARD -> MaterialTheme.colorScheme.primary
+                                UiComplexityTier.POWER -> MaterialTheme.colorScheme.tertiary
+                            }
+                        ),
+                        modifier = Modifier
+                            .padding(end = 8.dp)
+                            .size(height = 28.dp, width = 90.dp)
+                    )
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface,
                     titleContentColor = MaterialTheme.colorScheme.onSurface
@@ -107,10 +146,22 @@ fun SettingsScreen(
                 LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
             }
             LazyColumn(
+                state = listState,
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(horizontal = 16.dp)
             ) {
+                // Experience Level — always first
+                item {
+                    UiComplexitySection(
+                        currentTier = uiTier,
+                        onTierSelected = viewModel::setUiComplexityTier,
+                        onUpgradeMessage = { msg ->
+                            scope.launch { snackbarHostState.showSnackbar(msg) }
+                        }
+                    )
+                }
+
                 item {
                     SettingsGroup(label = "Account") {
                         SettingsNavRow(
@@ -131,37 +182,43 @@ fun SettingsScreen(
                 }
 
                 item {
-                    // "Appearance" section — the PrismTheme picker renders at
-                    // the top and writes the selection through ThemeViewModel,
-                    // which propagates palette + font changes via the
-                    // LocalPrismColors / LocalPrismFonts CompositionLocals
-                    // declared in PrismTaskTheme (live preview).
+                    // Theme picker — ALL tiers
                     PrismThemeSection()
-                    SettingsNavRow(
-                        title = "Advanced Appearance",
-                        subtitle = "Accent color, overrides, font size",
-                        iconEmoji = "\uD83C\uDFA8",
-                        iconBgColor = ColAppearance,
-                        onClick = { navController.navigate("settings/appearance") }
-                    )
-                    SettingsNavRow(
-                        title = "Layout & Navigation",
-                        subtitle = "Tabs, dashboard, swipe actions",
-                        iconEmoji = "\uD83D\uDCD0",
-                        iconBgColor = ColLayout,
-                        onClick = { navController.navigate("settings/layout") }
-                    )
+                    // Advanced Appearance — STANDARD+ (card corner radius, compact mode, borders)
+                    if (uiTier.isAtLeast(UiComplexityTier.STANDARD)) {
+                        SettingsNavRow(
+                            title = "Advanced Appearance",
+                            subtitle = "Accent color, overrides, font size",
+                            iconEmoji = "\uD83C\uDFA8",
+                            iconBgColor = ColAppearance,
+                            onClick = { navController.navigate("settings/appearance") }
+                        )
+                    }
+                    // Layout & Navigation — STANDARD+ (swipe actions, compact mode, card borders)
+                    if (uiTier.isAtLeast(UiComplexityTier.STANDARD)) {
+                        SettingsNavRow(
+                            title = "Layout & Navigation",
+                            subtitle = "Tabs, dashboard, swipe actions",
+                            iconEmoji = "\uD83D\uDCD0",
+                            iconBgColor = ColLayout,
+                            onClick = { navController.navigate("settings/layout") }
+                        )
+                    }
                 }
 
                 item {
                     SettingsGroup(label = "Tasks & Habits") {
-                        SettingsNavRow(
-                            title = "Global Defaults",
-                            subtitle = "Day of week, day start, sort, urgency",
-                            iconEmoji = "\u2705",
-                            iconBgColor = ColTaskDefaults,
-                            onClick = { navController.navigate("settings/task_defaults") }
-                        )
+                        // Global Defaults — STANDARD+
+                        // POWER-only items within (default duration, default project, auto-due-date, start of week)
+                        if (uiTier.isAtLeast(UiComplexityTier.STANDARD)) {
+                            SettingsNavRow(
+                                title = "Global Defaults",
+                                subtitle = "Day of week, day start, sort, urgency",
+                                iconEmoji = "\u2705",
+                                iconBgColor = ColTaskDefaults,
+                                onClick = { navController.navigate("settings/task_defaults") }
+                            )
+                        }
                         SettingsNavRow(
                             title = "Habits & Streaks",
                             subtitle = "Streak tolerance, forgiveness",
@@ -169,13 +226,15 @@ fun SettingsScreen(
                             iconBgColor = ColHabits,
                             onClick = { navController.navigate("settings/habits_streaks") }
                         )
-                        SettingsNavRow(
-                            title = "Life Modes",
-                            subtitle = "Self-care, school, medication, leisure",
-                            iconEmoji = "\uD83E\uDDE9",
-                            iconBgColor = ColLifeModes,
-                            onClick = { navController.navigate("settings/life_modes") }
-                        )
+                        if (uiTier.isAtLeast(UiComplexityTier.STANDARD)) {
+                            SettingsNavRow(
+                                title = "Life Modes",
+                                subtitle = "Self-care, school, medication, leisure",
+                                iconEmoji = "\uD83E\uDDE9",
+                                iconBgColor = ColLifeModes,
+                                onClick = { navController.navigate("settings/life_modes") }
+                            )
+                        }
                         SettingsNavRow(
                             title = "Focus Timer",
                             subtitle = "Pomodoro durations and preferences",
@@ -186,42 +245,48 @@ fun SettingsScreen(
                     }
                 }
 
-                item {
-                    SettingsGroup(label = "Productivity") {
-                        SettingsNavRow(
-                            title = "AI Features",
-                            subtitle = "Eisenhower, Smart Pomodoro, briefing",
-                            iconEmoji = "\u2728",
-                            iconBgColor = ColAi,
-                            isPro = true,
-                            onClick = { navController.navigate("settings/ai_features") }
-                        )
-                        SettingsNavRow(
-                            title = "Brain Mode",
-                            subtitle = "ADHD, Calm, Focus Release",
-                            iconEmoji = "\uD83E\uDDE0",
-                            iconBgColor = ColBrainMode,
-                            onClick = { navController.navigate("settings/brain_mode") }
-                        )
-                        SettingsNavRow(
-                            title = "Wellbeing",
-                            subtitle = "Work-life balance, boundaries, reports",
-                            iconEmoji = "\u2696\uFE0F",
-                            iconBgColor = ColWellbeing,
-                            onClick = { navController.navigate("settings/wellbeing") }
-                        )
+                // Productivity — STANDARD+
+                if (uiTier.isAtLeast(UiComplexityTier.STANDARD)) {
+                    item {
+                        SettingsGroup(label = "Productivity") {
+                            SettingsNavRow(
+                                title = "AI Features",
+                                subtitle = "Eisenhower, Smart Pomodoro, briefing",
+                                iconEmoji = "\u2728",
+                                iconBgColor = ColAi,
+                                isPro = true,
+                                onClick = { navController.navigate("settings/ai_features") }
+                            )
+                            SettingsNavRow(
+                                title = "Brain Mode",
+                                subtitle = "ADHD, Calm, Focus Release",
+                                iconEmoji = "\uD83E\uDDE0",
+                                iconBgColor = ColBrainMode,
+                                onClick = { navController.navigate("settings/brain_mode") }
+                            )
+                            SettingsNavRow(
+                                title = "Wellbeing",
+                                subtitle = "Work-life balance, boundaries, reports",
+                                iconEmoji = "\u2696\uFE0F",
+                                iconBgColor = ColWellbeing,
+                                onClick = { navController.navigate("settings/wellbeing") }
+                            )
+                        }
                     }
                 }
 
-                item {
-                    SettingsGroup(label = "Integrations") {
-                        SettingsNavRow(
-                            title = "Calendar",
-                            subtitle = "Device calendar, Google Calendar",
-                            iconEmoji = "\uD83D\uDCC5",
-                            iconBgColor = ColCalendar,
-                            onClick = { navController.navigate("settings/calendar") }
-                        )
+                // Integrations — STANDARD+
+                if (uiTier.isAtLeast(UiComplexityTier.STANDARD)) {
+                    item {
+                        SettingsGroup(label = "Integrations") {
+                            SettingsNavRow(
+                                title = "Calendar",
+                                subtitle = "Device calendar, Google Calendar",
+                                iconEmoji = "\uD83D\uDCC5",
+                                iconBgColor = ColCalendar,
+                                onClick = { navController.navigate("settings/calendar") }
+                            )
+                        }
                     }
                 }
 
@@ -290,7 +355,7 @@ fun SettingsScreen(
                     }
                 }
 
-                if (isAdmin) {
+                if (isAdmin && uiTier == UiComplexityTier.POWER) {
                     item {
                         DebugTierSection(
                             debugTierOverride = debugTierOverride,

@@ -399,7 +399,13 @@ constructor(
                     HabitWithStatus(
                         habit = habit,
                         isCompletedToday = isCompleted,
-                        currentStreak = StreakCalculator.calculateCurrentStreak(completions, habit, todayLocal, streakMaxMissedDays, firstDayOfWeek),
+                        currentStreak = StreakCalculator.calculateCurrentStreak(
+                            completions,
+                            habit,
+                            todayLocal,
+                            streakMaxMissedDays,
+                            firstDayOfWeek
+                        ),
                         completionsThisWeek = periodCompletions,
                         completionsToday = count,
                         dailyTarget = target,
@@ -469,8 +475,11 @@ constructor(
     companion object {
         /** Returns the last day of the week for a given first day. */
         private fun lastDayOfWeek(firstDay: Int): Int =
-            if (firstDay == Calendar.SUNDAY) Calendar.SATURDAY
-            else ((firstDay - 1 + 5) % 7) + 1
+            if (firstDay == Calendar.SUNDAY) {
+                Calendar.SATURDAY
+            } else {
+                ((firstDay - 1 + 5) % 7) + 1
+            }
 
         fun normalizeToMidnight(timestamp: Long): Long {
             val cal = Calendar.getInstance()

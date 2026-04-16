@@ -85,6 +85,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.averycorp.prismtask.data.local.entity.AttachmentEntity
+import com.averycorp.prismtask.domain.model.UiComplexityTier
+import com.averycorp.prismtask.domain.model.isAtLeast
 import com.averycorp.prismtask.ui.components.RecurrenceSelector
 import com.averycorp.prismtask.ui.components.TagSelector
 import com.averycorp.prismtask.ui.theme.LocalPriorityColors
@@ -184,6 +186,7 @@ internal fun AddEditTaskFormFields(
     val projects by viewModel.projects.collectAsStateWithLifecycle()
     val allTags by viewModel.allTags.collectAsStateWithLifecycle()
     val attachments by viewModel.attachments.collectAsStateWithLifecycle()
+    val uiTier by viewModel.uiTier.collectAsStateWithLifecycle()
 
     var showDatePicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
@@ -297,69 +300,75 @@ internal fun AddEditTaskFormFields(
             }
         }
 
-        // Due time
-        SectionLabel("Due Time")
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            TextButton(onClick = { showTimePicker = true }) {
-                Icon(Icons.Default.AccessTime, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(modifier = Modifier.width(8.dp))
+        // Due time — STANDARD+
+        if (uiTier.isAtLeast(UiComplexityTier.STANDARD)) {
+            SectionLabel("Due Time")
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                TextButton(onClick = { showTimePicker = true }) {
+                    Icon(Icons.Default.AccessTime, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = viewModel.dueTime?.let { formatTime(it) } ?: "No Time"
+                    )
+                }
+                if (viewModel.dueTime != null) {
+                    IconButton(onClick = { viewModel.onDueTimeChange(null) }) {
+                        Icon(Icons.Default.Clear, contentDescription = "Clear time", modifier = Modifier.size(18.dp))
+                    }
+                }
+            }
+        }
+
+        // Reminder — STANDARD+
+        if (uiTier.isAtLeast(UiComplexityTier.STANDARD)) {
+            SectionLabel("Reminder")
+            val hasDate = viewModel.dueDate != null
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(enabled = hasDate) { showReminderDialog = true }
+                    .padding(vertical = 8.dp)
+            ) {
+                Icon(
+                    imageVector = if (viewModel.reminderOffset != null) {
+                        Icons.Default.Notifications
+                    } else {
+                        Icons.Default.NotificationsNone
+                    },
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp),
+                    tint = if (hasDate) {
+                        MaterialTheme.colorScheme.onSurface
+                    } else {
+                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                    }
+                )
+                Spacer(modifier = Modifier.width(12.dp))
                 Text(
-                    text = viewModel.dueTime?.let { formatTime(it) } ?: "No Time"
+                    text = if (!hasDate) {
+                        "Set a due date first"
+                    } else {
+                        reminderOffsetLabel(viewModel.reminderOffset)
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (hasDate) {
+                        MaterialTheme.colorScheme.onSurface
+                    } else {
+                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                    }
                 )
             }
-            if (viewModel.dueTime != null) {
-                IconButton(onClick = { viewModel.onDueTimeChange(null) }) {
-                    Icon(Icons.Default.Clear, contentDescription = "Clear time", modifier = Modifier.size(18.dp))
-                }
-            }
         }
 
-        // Reminder
-        SectionLabel("Reminder")
-        val hasDate = viewModel.dueDate != null
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable(enabled = hasDate) { showReminderDialog = true }
-                .padding(vertical = 8.dp)
-        ) {
-            Icon(
-                imageVector = if (viewModel.reminderOffset != null) {
-                    Icons.Default.Notifications
-                } else {
-                    Icons.Default.NotificationsNone
-                },
-                contentDescription = null,
-                modifier = Modifier.size(20.dp),
-                tint = if (hasDate) {
-                    MaterialTheme.colorScheme.onSurface
-                } else {
-                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                }
-            )
-            Spacer(modifier = Modifier.width(12.dp))
-            Text(
-                text = if (!hasDate) {
-                    "Set a due date first"
-                } else {
-                    reminderOffsetLabel(viewModel.reminderOffset)
-                },
-                style = MaterialTheme.typography.bodyMedium,
-                color = if (hasDate) {
-                    MaterialTheme.colorScheme.onSurface
-                } else {
-                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                }
+        // Recurrence — STANDARD+
+        if (uiTier.isAtLeast(UiComplexityTier.STANDARD)) {
+            SectionLabel("Recurrence")
+            RecurrenceSelector(
+                currentRule = viewModel.recurrenceRule,
+                onRuleChanged = viewModel::onRecurrenceRuleChange
             )
         }
-
-        // Recurrence
-        SectionLabel("Recurrence")
-        RecurrenceSelector(
-            currentRule = viewModel.recurrenceRule,
-            onRuleChanged = viewModel::onRecurrenceRuleChange
-        )
 
         // Priority
         SectionLabel("Priority")
@@ -375,21 +384,25 @@ internal fun AddEditTaskFormFields(
             }
         }
 
-        // Project
-        SectionLabel("Project")
-        ProjectDropdown(
-            selectedProjectId = viewModel.projectId,
-            projects = projects,
-            onSelect = viewModel::onProjectIdChange
-        )
+        // Project — STANDARD+
+        if (uiTier.isAtLeast(UiComplexityTier.STANDARD)) {
+            SectionLabel("Project")
+            ProjectDropdown(
+                selectedProjectId = viewModel.projectId,
+                projects = projects,
+                onSelect = viewModel::onProjectIdChange
+            )
+        }
 
-        // Tags
-        SectionLabel("Tags")
-        TagSelector(
-            availableTags = allTags,
-            selectedTagIds = viewModel.selectedTagIds,
-            onSelectionChanged = viewModel::onSelectedTagIdsChange
-        )
+        // Tags — STANDARD+
+        if (uiTier.isAtLeast(UiComplexityTier.STANDARD)) {
+            SectionLabel("Tags")
+            TagSelector(
+                availableTags = allTags,
+                selectedTagIds = viewModel.selectedTagIds,
+                onSelectionChanged = viewModel::onSelectedTagIdsChange
+            )
+        }
 
         // Notes
         Row(
@@ -420,8 +433,26 @@ internal fun AddEditTaskFormFields(
             )
         }
 
-        // Attachments (only visible in edit mode)
-        if (viewModel.isEditMode) {
+        // "More options" hint for BASIC users
+        if (!uiTier.isAtLeast(UiComplexityTier.STANDARD)) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { /* navigate to settings */ }
+                    .padding(vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = "More Options Available in Standard Mode",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+        }
+
+        // Attachments (only visible in edit mode, STANDARD+)
+        if (viewModel.isEditMode && uiTier.isAtLeast(UiComplexityTier.STANDARD)) {
             SectionLabel("Attachments")
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(
