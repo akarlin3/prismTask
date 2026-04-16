@@ -57,6 +57,7 @@ fun DailyEssentialsSection(
         state.morning,
         state.medication,
         state.housework,
+        state.houseworkRoutine,
         state.schoolwork?.takeIf { it.hasContent },
         state.musicLeisure.pickedForToday?.let { state.musicLeisure },
         state.flexLeisure.pickedForToday?.let { state.flexLeisure },
@@ -100,6 +101,12 @@ fun DailyEssentialsSection(
                     state = housework,
                     contentDescriptionPrefix = "Housework",
                     onToggle = actions.onToggleHousework
+                )
+            }
+            state.houseworkRoutine?.let { houseworkRoutine ->
+                RoutineCard(
+                    state = houseworkRoutine,
+                    onToggleStep = { stepId -> actions.onToggleRoutineStep("housework", stepId) }
                 )
             }
             state.schoolwork?.takeIf { it.hasContent }?.let { schoolwork ->

@@ -56,6 +56,19 @@ class DailyEssentialsUseCaseTest {
     }
 
     @Test
+    fun `state with only a housework routine card is not empty`() {
+        val routine = RoutineCardState(
+            routineType = "housework",
+            displayName = "Housework",
+            steps = listOf(
+                StepState("dishes", "Dishes", completedToday = false, timeOfDay = "")
+            )
+        )
+        val state = DailyEssentialsUiState.empty().copy(houseworkRoutine = routine)
+        assertFalse(state.isEmpty)
+    }
+
+    @Test
     fun `state with only leisure picks is not empty`() {
         val state = DailyEssentialsUiState.empty().copy(
             musicLeisure = LeisureCardState(LeisureKind.MUSIC, "classical", doneForToday = false)
@@ -80,6 +93,37 @@ class DailyEssentialsUseCaseTest {
         assertTrue(schoolwork.hasContent)
         val state = DailyEssentialsUiState.empty().copy(schoolwork = schoolwork)
         assertFalse(state.isEmpty)
+    }
+
+    @Test
+    fun `resolveSelectedTier returns the stored tier when valid`() {
+        val tierOrder = listOf("survival", "solid", "full")
+        assertEquals("full", DailyEssentialsUseCase.resolveSelectedTier("full", tierOrder))
+        assertEquals("survival", DailyEssentialsUseCase.resolveSelectedTier("survival", tierOrder))
+    }
+
+    @Test
+    fun `resolveSelectedTier falls back to the second-to-last tier for null or blank`() {
+        val morningOrder = listOf("survival", "solid", "full")
+        assertEquals("solid", DailyEssentialsUseCase.resolveSelectedTier(null, morningOrder))
+        assertEquals("solid", DailyEssentialsUseCase.resolveSelectedTier("", morningOrder))
+
+        val bedtimeOrder = listOf("survival", "basic", "solid", "full")
+        assertEquals("solid", DailyEssentialsUseCase.resolveSelectedTier(null, bedtimeOrder))
+
+        val houseworkOrder = listOf("quick", "regular", "deep")
+        assertEquals("regular", DailyEssentialsUseCase.resolveSelectedTier(null, houseworkOrder))
+    }
+
+    @Test
+    fun `resolveSelectedTier ignores unknown tiers and falls back`() {
+        val tierOrder = listOf("quick", "regular", "deep")
+        assertEquals("regular", DailyEssentialsUseCase.resolveSelectedTier("bogus", tierOrder))
+    }
+
+    @Test
+    fun `resolveSelectedTier returns null when tier order is empty`() {
+        assertEquals(null, DailyEssentialsUseCase.resolveSelectedTier("solid", emptyList()))
     }
 
     @Test
