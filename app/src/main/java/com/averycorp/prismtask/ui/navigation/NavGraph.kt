@@ -62,6 +62,7 @@ import com.averycorp.prismtask.ui.screens.timer.TimerScreen
 import com.averycorp.prismtask.ui.screens.today.TodayScreen
 import com.averycorp.prismtask.ui.theme.LocalPrismColors
 import com.averycorp.prismtask.ui.theme.LocalPrismFonts
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 
 sealed class PrismTaskRoute(

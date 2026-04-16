@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -118,8 +119,9 @@ fun SettingsScreen(
                             )
                         },
                         shape = RoundedCornerShape(16.dp),
-                        border = AssistChipDefaults.assistChipBorder(
-                            borderColor = when (uiTier) {
+                        border = BorderStroke(
+                            1.dp,
+                            when (uiTier) {
                                 UiComplexityTier.BASIC -> MaterialTheme.colorScheme.outline
                                 UiComplexityTier.STANDARD -> MaterialTheme.colorScheme.primary
                                 UiComplexityTier.POWER -> MaterialTheme.colorScheme.tertiary
