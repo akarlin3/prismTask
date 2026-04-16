@@ -74,6 +74,10 @@ android {
             signingConfig = signingConfigs.getByName("debug")
             firebaseAppDistribution {
                 groups = "testers"
+                val notesFile = System.getenv("RELEASE_NOTES_FILE")
+                if (!notesFile.isNullOrEmpty()) {
+                    releaseNotesFile = notesFile
+                }
             }
         }
         release {
