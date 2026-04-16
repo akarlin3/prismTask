@@ -1,6 +1,7 @@
 package com.averycorp.prismtask.ui.screens.settings
 
 import android.content.Context
+import android.content.Intent
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -8,6 +9,7 @@ import com.averycorp.prismtask.data.billing.BillingManager
 import com.averycorp.prismtask.data.billing.BillingPeriod
 import com.averycorp.prismtask.data.billing.SubscriptionState
 import com.averycorp.prismtask.data.billing.UserTier
+import com.averycorp.prismtask.data.calendar.CalendarConnectionResult
 import com.averycorp.prismtask.data.calendar.CalendarInfo
 import com.averycorp.prismtask.data.calendar.CalendarManager
 import com.averycorp.prismtask.data.calendar.CalendarSyncPreferences
@@ -887,14 +889,34 @@ constructor(
     private val _isGCalSyncing = MutableStateFlow(false)
     val isGCalSyncing: StateFlow<Boolean> = _isGCalSyncing
 
+    private val _calendarConsentIntent = MutableSharedFlow<Intent>()
+    val calendarConsentIntent: SharedFlow<Intent> = _calendarConsentIntent.asSharedFlow()
+
     fun connectGoogleCalendar() {
         viewModelScope.launch {
-            val result = calendarManager.connectCalendar()
-            result
+            when (val result = calendarManager.connectCalendar()) {
+                is CalendarConnectionResult.Connected -> {
+                    loadGCalCalendars()
+                    _messages.emit("Google Calendar connected")
+                }
+                is CalendarConnectionResult.NeedsConsent -> {
+                    _calendarConsentIntent.emit(result.signInIntent)
+                }
+                is CalendarConnectionResult.Failed -> {
+                    _messages.emit(result.message)
+                }
+            }
+        }
+    }
+
+    fun handleCalendarConsentResult(data: Intent?) {
+        viewModelScope.launch {
+            calendarManager.handleSignInResult(data)
                 .onSuccess {
                     loadGCalCalendars()
                     _messages.emit("Google Calendar connected")
-                }.onFailure { e ->
+                }
+                .onFailure { e ->
                     _messages.emit(e.message ?: "Failed to connect Google Calendar")
                 }
         }
