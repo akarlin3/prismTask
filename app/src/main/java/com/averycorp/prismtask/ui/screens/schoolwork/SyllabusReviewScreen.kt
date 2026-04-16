@@ -385,10 +385,12 @@ private fun SyllabusTaskItem(
                         textStyle = MaterialTheme.typography.bodyMedium,
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                         keyboardActions = KeyboardActions(onDone = {
-                            onEdit(task.copy(
-                                title = editTitle,
-                                dueDate = editDate.ifBlank { null }
-                            ))
+                            onEdit(
+                                task.copy(
+                                    title = editTitle,
+                                    dueDate = editDate.ifBlank { null }
+                                )
+                            )
                             editing = false
                         })
                     )
@@ -427,10 +429,12 @@ private fun SyllabusTaskItem(
             IconButton(
                 onClick = {
                     if (editing) {
-                        onEdit(task.copy(
-                            title = editTitle,
-                            dueDate = editDate.ifBlank { null }
-                        ))
+                        onEdit(
+                            task.copy(
+                                title = editTitle,
+                                dueDate = editDate.ifBlank { null }
+                            )
+                        )
                     }
                     editing = !editing
                 },
@@ -489,10 +493,12 @@ private fun SyllabusEventItem(
                         textStyle = MaterialTheme.typography.bodyMedium,
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                         keyboardActions = KeyboardActions(onDone = {
-                            onEdit(event.copy(
-                                title = editTitle,
-                                date = editDate.ifBlank { null }
-                            ))
+                            onEdit(
+                                event.copy(
+                                    title = editTitle,
+                                    date = editDate.ifBlank { null }
+                                )
+                            )
                             editing = false
                         })
                     )
@@ -541,10 +547,12 @@ private fun SyllabusEventItem(
             IconButton(
                 onClick = {
                     if (editing) {
-                        onEdit(event.copy(
-                            title = editTitle,
-                            date = editDate.ifBlank { null }
-                        ))
+                        onEdit(
+                            event.copy(
+                                title = editTitle,
+                                date = editDate.ifBlank { null }
+                            )
+                        )
                     }
                     editing = !editing
                 },

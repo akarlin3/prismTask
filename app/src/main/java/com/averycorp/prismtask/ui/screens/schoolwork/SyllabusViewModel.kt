@@ -5,7 +5,6 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.averycorp.prismtask.data.remote.api.SyllabusConfirmRequest
-import com.averycorp.prismtask.data.remote.api.SyllabusConfirmResponse
 import com.averycorp.prismtask.data.remote.api.SyllabusEventResponse
 import com.averycorp.prismtask.data.remote.api.SyllabusParseResponse
 import com.averycorp.prismtask.data.remote.api.SyllabusRecurringItemResponse
@@ -23,12 +22,13 @@ import retrofit2.HttpException
 import javax.inject.Inject
 
 @HiltViewModel
-class SyllabusViewModel @Inject constructor(
+class SyllabusViewModel
+@Inject
+constructor(
     private val syllabusRepository: SyllabusRepository,
     savedStateHandle: SavedStateHandle,
     @ApplicationContext private val appContext: android.content.Context
 ) : ViewModel() {
-
     init {
         val uriString = savedStateHandle.get<String>("uri")
         if (!uriString.isNullOrBlank()) {
@@ -39,14 +39,19 @@ class SyllabusViewModel @Inject constructor(
 
     sealed class UiState {
         data object Idle : UiState()
+
         data object Uploading : UiState()
+
         data class Review(val result: SyllabusParseResponse) : UiState()
+
         data object Confirming : UiState()
+
         data class Success(
             val tasksCreated: Int,
             val eventsCreated: Int,
             val recurringCreated: Int
         ) : UiState()
+
         data class Error(val message: String) : UiState()
     }
 

@@ -13,7 +13,9 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class SyllabusRepository @Inject constructor(
+class SyllabusRepository
+@Inject
+constructor(
     private val api: PrismTaskApi
 ) {
     suspend fun parseSyllabus(uri: Uri, context: Context): SyllabusParseResponse {

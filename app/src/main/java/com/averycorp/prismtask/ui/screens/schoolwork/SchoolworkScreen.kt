@@ -74,8 +74,6 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
-import com.averycorp.prismtask.data.billing.BillingPeriod
-import com.averycorp.prismtask.data.billing.UserTier
 import com.averycorp.prismtask.data.local.entity.AssignmentEntity
 import com.averycorp.prismtask.data.local.entity.CourseEntity
 import com.averycorp.prismtask.domain.usecase.ProFeatureGate
@@ -241,7 +239,12 @@ fun SchoolworkScreen(
                     },
                     containerColor = accentColor
                 ) {
-                    Icon(Icons.Default.UploadFile, contentDescription = "Import Syllabus", modifier = Modifier.size(20.dp), tint = Color.Black)
+                    Icon(
+                        Icons.Default.UploadFile,
+                        contentDescription = "Import Syllabus",
+                        modifier = Modifier.size(20.dp),
+                        tint = Color.Black
+                    )
                 }
                 SmallFloatingActionButton(
                     onClick = { showPasteDialog = true },
