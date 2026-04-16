@@ -39,6 +39,13 @@ ktlint_standard_function-signature = disabled
 # hoisting often reads better this way.
 ktlint_standard_multiline-expression-wrapping = disabled
 
+# `string-template-indent` depends on `multiline-expression-wrapping`; when the
+# latter is disabled ktlint 1.2.1 logs "Rule ... requires rule ... to be loaded"
+# and the ktlint-gradle 12.1.1 worker wraps the resulting exception as the
+# misleading "KtLint failed to parse file: <path>" error on whichever file the
+# worker was processing. Disable the dependent rule so the pair is consistent.
+ktlint_standard_string-template-indent = disabled
+
 # Trailing commas are a style preference; leave off to minimize churn on
 # existing files that don't use them.
 ij_kotlin_allow_trailing_comma = false
