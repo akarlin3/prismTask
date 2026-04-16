@@ -1,7 +1,6 @@
 import { useRef, useState } from 'react';
-import { Upload, FileText, Loader2 } from 'lucide-react';
+import { Upload, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { Button } from '@/components/ui/Button';
 import { ProUpgradeModal } from '@/components/shared/ProUpgradeModal';
 import { useProFeature } from '@/hooks/useProFeature';
 import { parseSyllabus } from './syllabusApi';
