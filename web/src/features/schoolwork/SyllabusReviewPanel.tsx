@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react';
-import { Pencil, Check, Loader2 } from 'lucide-react';
+import { useState } from 'react';
+import { Pencil, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/Button';
 import { Checkbox } from '@/components/ui/Checkbox';
@@ -53,21 +53,21 @@ export function SyllabusReviewPanel({ result, onDone }: SyllabusReviewPanelProps
   const toggleTask = (i: number) => {
     setCheckedTasks((prev) => {
       const next = new Set(prev);
-      next.has(i) ? next.delete(i) : next.add(i);
+      if (next.has(i)) { next.delete(i); } else { next.add(i); }
       return next;
     });
   };
   const toggleEvent = (i: number) => {
     setCheckedEvents((prev) => {
       const next = new Set(prev);
-      next.has(i) ? next.delete(i) : next.add(i);
+      if (next.has(i)) { next.delete(i); } else { next.add(i); }
       return next;
     });
   };
   const toggleRecurring = (i: number) => {
     setCheckedRecurring((prev) => {
       const next = new Set(prev);
-      next.has(i) ? next.delete(i) : next.add(i);
+      if (next.has(i)) { next.delete(i); } else { next.add(i); }
       return next;
     });
   };
@@ -76,15 +76,15 @@ export function SyllabusReviewPanel({ result, onDone }: SyllabusReviewPanelProps
     setConfirming(true);
     try {
       const tasks = result.tasks
-        .map((t, i) => ({ item: getTask(i), i }))
+        .map((_t, i) => ({ item: getTask(i), i }))
         .filter(({ i }) => checkedTasks.has(i))
         .map(({ item }) => item);
       const events = result.events
-        .map((e, i) => ({ item: getEvent(i), i }))
+        .map((_e, i) => ({ item: getEvent(i), i }))
         .filter(({ i }) => checkedEvents.has(i))
         .map(({ item }) => item);
       const recurring = result.recurring_schedule
-        .map((r, i) => ({ item: getRecurring(i), i }))
+        .map((_r, i) => ({ item: getRecurring(i), i }))
         .filter(({ i }) => checkedRecurring.has(i))
         .map(({ item }) => item);
 
@@ -101,7 +101,7 @@ export function SyllabusReviewPanel({ result, onDone }: SyllabusReviewPanelProps
       if (res.recurring_created > 0) parts.push(`${res.recurring_created} recurring schedule`);
       toast.success(`Added ${parts.join(', ')}`);
       onDone();
-    } catch (err) {
+    } catch {
       toast.error('Failed to add items - please try again');
     } finally {
       setConfirming(false);

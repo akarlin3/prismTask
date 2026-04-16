@@ -2,7 +2,7 @@ import io
 import json
 import logging
 import os
-from datetime import date, time
+from datetime import time
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy import select
