@@ -315,7 +315,7 @@ private fun EventTimelineRow(event: WidgetCalendarEvent, timeFormat: SimpleDateF
             style = WidgetTextStyles.badgeBold(GlanceTheme.colors.onSurfaceVariant),
             modifier = GlanceModifier.width(56.dp)
         )
-        val eventColor = event.calendarColor?.let { ColorProvider(Color(it), Color(it)) } ?: WidgetColors.calendarEvent
+        val eventColor = event.calendarColor?.let { ColorProvider(Color(it)) } ?: WidgetColors.calendarEvent
         Box(modifier = GlanceModifier.size(6.dp).cornerRadius(3.dp).background(eventColor)) {}
         Spacer(modifier = GlanceModifier.width(2.dp))
         Text(text = "\uD83D\uDCC5", style = TextStyle(fontSize = 8.sp))

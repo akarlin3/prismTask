@@ -73,6 +73,9 @@ private fun UpcomingContent(context: Context, data: UpcomingWidgetData, size: Dp
     val isLarge = size.width >= 350.dp
     val maxTasksPerColumn = if (isLarge) 5 else 3
 
+    val mainIntent = Intent(context, MainActivity::class.java).apply {
+        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+    }
     val overdueIntent = Intent(context, MainActivity::class.java).apply {
         flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
         putExtra(MainActivity.EXTRA_LAUNCH_ACTION, "open_today")
@@ -84,7 +87,7 @@ private fun UpcomingContent(context: Context, data: UpcomingWidgetData, size: Dp
             .cornerRadius(16.dp)
             .background(GlanceTheme.colors.surface)
             .padding(if (isLarge) 12.dp else 8.dp)
-            .clickable(actionStartActivity<MainActivity>())
+            .clickable(actionStartActivity(mainIntent))
     ) {
         Row(
             modifier = GlanceModifier.fillMaxWidth(),
