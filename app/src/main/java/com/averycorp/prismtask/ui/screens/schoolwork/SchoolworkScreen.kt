@@ -214,9 +214,10 @@ fun SchoolworkScreen(
                 }
                 FloatingActionButton(
                     onClick = { navController.navigate(PrismTaskRoute.AddEditCourse.createRoute()) },
-                    containerColor = accentColor
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
                 ) {
-                    Icon(Icons.Default.Add, contentDescription = "Add Course", tint = Color.Black)
+                    Icon(Icons.Default.Add, contentDescription = "Add Course")
                 }
             }
         }

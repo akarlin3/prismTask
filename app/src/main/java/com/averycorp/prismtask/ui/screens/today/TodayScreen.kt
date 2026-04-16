@@ -1,5 +1,6 @@
 package com.averycorp.prismtask.ui.screens.today
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -21,6 +22,7 @@ import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
+import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -206,8 +208,8 @@ fun TodayScreen(
                         onClick = {
                             navController.navigate(PrismTaskRoute.AiChat.createRoute())
                         },
-                        containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onTertiaryContainer
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
                     ) {
                         Icon(
                             Icons.AutoMirrored.Filled.Chat,
@@ -364,6 +366,12 @@ fun TodayScreen(
                     }
 
                     item(key = "quick_actions") {
+                        val chipColors = AssistChipDefaults.assistChipColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            labelColor = MaterialTheme.colorScheme.onSurface,
+                            leadingIconContentColor = MaterialTheme.colorScheme.onSurface
+                        )
+                        val chipBorder = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
                         androidx.compose.foundation.layout.Row(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             modifier = Modifier.padding(vertical = 2.dp)
@@ -373,21 +381,27 @@ fun TodayScreen(
                                 label = { Text("Briefing") },
                                 leadingIcon = {
                                     Icon(Icons.Default.AutoAwesome, contentDescription = null, modifier = Modifier.size(16.dp))
-                                }
+                                },
+                                colors = chipColors,
+                                border = chipBorder
                             )
                             AssistChip(
                                 onClick = { navController.navigate(PrismTaskRoute.SmartPomodoro.route) },
                                 label = { Text("Focus") },
                                 leadingIcon = {
                                     Icon(Icons.Default.Timer, contentDescription = null, modifier = Modifier.size(16.dp))
-                                }
+                                },
+                                colors = chipColors,
+                                border = chipBorder
                             )
                             AssistChip(
                                 onClick = { navController.navigate(PrismTaskRoute.WeeklyPlanner.route) },
                                 label = { Text("Plan Week") },
                                 leadingIcon = {
                                     Icon(Icons.Default.CalendarMonth, contentDescription = null, modifier = Modifier.size(16.dp))
-                                }
+                                },
+                                colors = chipColors,
+                                border = chipBorder
                             )
                         }
                     }

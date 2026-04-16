@@ -19,7 +19,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.averycorp.prismtask.domain.usecase.SelfCareNudge
-import com.averycorp.prismtask.ui.theme.LifeCategoryColor
 
 /**
  * Gentle self-care nudge card (v1.4.0 V2). Shown beneath the balance bar
@@ -40,28 +39,35 @@ internal fun SelfCareNudgeCard(
             .padding(vertical = 4.dp),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
-            containerColor = LifeCategoryColor.SELF_CARE.copy(alpha = 0.12f)
+            containerColor = MaterialTheme.colorScheme.surface
         )
     ) {
         Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = "\uD83D\uDCA1",
-                    style = MaterialTheme.typography.titleMedium
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = nudge.message,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.weight(1f)
                 )
             }
             Spacer(modifier = Modifier.height(4.dp))
             Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
-                TextButton(onClick = onDismiss) { Text("Not Now") }
-                TextButton(onClick = onSnooze) { Text("Snooze") }
-                TextButton(onClick = onDidIt) { Text("Did It \u2713") }
+                TextButton(onClick = onDismiss) {
+                    Text("Not Now", color = MaterialTheme.colorScheme.primary)
+                }
+                TextButton(onClick = onSnooze) {
+                    Text("Snooze", color = MaterialTheme.colorScheme.primary)
+                }
+                TextButton(onClick = onDidIt) {
+                    Text("Did It \u2713", color = MaterialTheme.colorScheme.primary)
+                }
             }
         }
     }
