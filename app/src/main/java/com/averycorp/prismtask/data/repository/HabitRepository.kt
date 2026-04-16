@@ -474,12 +474,7 @@ constructor(
 
     companion object {
         /** Returns the last day of the week for a given first day. */
-        private fun lastDayOfWeek(firstDay: Int): Int =
-            if (firstDay == Calendar.SUNDAY) {
-                Calendar.SATURDAY
-            } else {
-                ((firstDay - 1 + 5) % 7) + 1
-            }
+        private fun lastDayOfWeek(firstDay: Int): Int = ((firstDay + 5) % 7) + 1
 
         fun normalizeToMidnight(timestamp: Long): Long {
             val cal = Calendar.getInstance()

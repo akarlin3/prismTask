@@ -42,7 +42,7 @@ constructor(
             }
 
             val inputStream = context.contentResolver.openInputStream(uri)
-                ?: throw IllegalStateException("Could not open file")
+                ?: error("Could not open file")
             // Stream with a hard cap for providers that don't report size
             inputStream.use { stream ->
                 val buffer = ByteArrayOutputStream()

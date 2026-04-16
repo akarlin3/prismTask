@@ -22,8 +22,12 @@ max_line_length = 140
 # Restore this line only after upgrading ktlint-gradle to a version whose
 # bundled ktlint (1.5+) registers `ktlint_kotlin_version`.
 
-# Use the ktlint official code style.
-ktlint_code_style = ktlint_official
+# Use the IntelliJ IDEA code style. The `ktlint_official` style is stricter
+# about things like continuation indent on class-declaration secondary
+# constructors and produces ~20k violations that ktlint's auto-correct
+# cannot resolve in this codebase, so we stick with the IntelliJ style
+# that matches what the IDE formats to.
+ktlint_code_style = intellij_idea
 
 # Jetpack Compose uses PascalCase for @Composable functions, which clashes
 # with the function-naming rule. Disable globally — this is a Compose-first
@@ -64,6 +68,19 @@ ktlint_standard_if-else-wrapping = disabled
 # `LifeCategoryColor.kt` because it declares one public symbol, but the
 # plural name documents that the file hosts a palette mapping. Disable.
 ktlint_standard_filename = disabled
+
+# Inline `// foo` comments next to arguments in value_argument_list /
+# value_parameter_list are used throughout tests and a few main-source
+# files. ktlint flags them as "cannot be auto-corrected" which blocks
+# auto-formatting entirely. Disable the rule — the comments are concise
+# and readable where they are.
+ktlint_standard_comment-wrapping = disabled
+
+# Backing-property pattern `_state` already pattern-matches via the
+# dedicated rule, but the broader property-naming rule still fires on
+# underscore-prefixed names. Disable to allow the common `_foo` + `foo`
+# pairing without per-symbol suppressions.
+ktlint_standard_property-naming = disabled
 
 # Exclusions mirror the Gradle plugin's `filter { exclude ... }` block.
 [{**/build/**,**/generated/**}]

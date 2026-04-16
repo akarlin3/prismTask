@@ -76,9 +76,11 @@ jobs:
         run: |
           set -euo pipefail
           # Use --auto so GitHub still waits for required reviews (if any).
+          # --delete-branch removes the head branch once the merge completes
+          # so feature branches don't accumulate.
           # Once the merge completes, the push to main triggers the
           # version-bump-and-distribute job below.
-          gh pr merge --auto --squash "$PR_URL" || \
+          gh pr merge --auto --squash --delete-branch "$PR_URL" || \
             echo "Auto-merge could not be enabled (already enabled, already merged, or repo setting disabled)."
 
   # ── Version Bump + Firebase Distribution ──────────────────────────

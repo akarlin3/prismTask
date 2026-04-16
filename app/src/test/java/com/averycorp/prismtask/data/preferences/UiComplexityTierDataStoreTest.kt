@@ -102,12 +102,14 @@ class UiComplexityTierDataStoreTest {
         prefs.setUiComplexityTier(UiComplexityTier.POWER)
         assertEquals(UiComplexityTier.POWER, prefs.uiComplexityTier.first())
 
-        // Create a new DataStore instance pointing at the same file (simulating process recreation)
+        // DataStore officially supports at most one instance per file per
+        // process, so cancel the first scope before opening another — this
+        // also matches what an app restart does.
+        scope.cancel()
+        scope = CoroutineScope(Dispatchers.Unconfined + SupervisorJob())
         val file = File(tmpFolder.root, "ui_tier_test.preferences_pb")
-        val scope2 = CoroutineScope(Dispatchers.Unconfined + SupervisorJob())
-        val dataStore2 = PreferenceDataStoreFactory.create(scope = scope2) { file }
+        val dataStore2 = PreferenceDataStoreFactory.create(scope = scope) { file }
         val prefs2 = UserPreferencesDataStore(dataStore2)
         assertEquals(UiComplexityTier.POWER, prefs2.uiComplexityTier.first())
-        scope2.cancel()
     }
 }
