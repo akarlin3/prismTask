@@ -1,7 +1,17 @@
 package com.averycorp.prismtask.ui.screens.notifications
 
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Slider
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
@@ -25,6 +35,7 @@ fun NotificationTypesScreen(
     val streak by viewModel.streakAlertsEnabled.collectAsStateWithLifecycle()
     val reengage by viewModel.reengagementEnabled.collectAsStateWithLifecycle()
     val overload by viewModel.overloadAlertsEnabled.collectAsStateWithLifecycle()
+    val nagSuppressionDays by viewModel.habitNagSuppressionDays.collectAsStateWithLifecycle()
 
     NotificationSubScreenScaffold("Notification Types", navController) {
         SubHeader("Tasks & Reminders")
@@ -46,6 +57,53 @@ fun NotificationTypesScreen(
             checked = med,
             onCheckedChange = viewModel::setMedicationRemindersEnabled
         )
+
+        SectionSpacer()
+        SubHeader("Habit Reminders")
+
+        SettingsToggleRow(
+            title = "Delay Habit Reminders If Scheduled",
+            subtitle = if (nagSuppressionDays > 0) {
+                "Suppress nag if the habit is booked within $nagSuppressionDays days"
+            } else {
+                "Disabled \u2014 nag notifications fire immediately"
+            },
+            checked = nagSuppressionDays > 0,
+            onCheckedChange = { enabled ->
+                viewModel.setHabitNagSuppressionDays(if (enabled) 7 else 0)
+            }
+        )
+
+        if (nagSuppressionDays > 0) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 4.dp, end = 4.dp, bottom = 8.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = "Suppression window:",
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Text(
+                        text = "$nagSuppressionDays days",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+                Slider(
+                    value = nagSuppressionDays.toFloat(),
+                    onValueChange = { viewModel.setHabitNagSuppressionDays(it.toInt()) },
+                    valueRange = 1f..30f,
+                    steps = 28,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
 
         SectionSpacer()
         SubHeader("AI & Summaries")

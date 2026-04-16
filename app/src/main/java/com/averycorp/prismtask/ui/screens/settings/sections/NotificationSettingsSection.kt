@@ -14,6 +14,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -48,6 +49,7 @@ fun NotificationSettingsSection(
     taskRemindersEnabled: Boolean,
     timerAlertsEnabled: Boolean,
     medicationRemindersEnabled: Boolean,
+    habitNagSuppressionDays: Int = 7,
     dailyBriefingEnabled: Boolean,
     eveningSummaryEnabled: Boolean,
     weeklySummaryEnabled: Boolean,
@@ -62,6 +64,7 @@ fun NotificationSettingsSection(
     onTaskRemindersToggle: (Boolean) -> Unit,
     onTimerAlertsToggle: (Boolean) -> Unit,
     onMedicationRemindersToggle: (Boolean) -> Unit,
+    onHabitNagSuppressionDaysChange: (Int) -> Unit = {},
     onDailyBriefingToggle: (Boolean) -> Unit,
     onEveningSummaryToggle: (Boolean) -> Unit,
     onWeeklySummaryToggle: (Boolean) -> Unit,
@@ -185,6 +188,58 @@ fun NotificationSettingsSection(
         checked = medicationRemindersEnabled,
         onCheckedChange = onMedicationRemindersToggle
     )
+
+    Spacer(modifier = Modifier.height(8.dp))
+
+    Text(
+        text = "Habit Reminders",
+        style = MaterialTheme.typography.bodyMedium,
+        fontWeight = FontWeight.Medium,
+        modifier = Modifier.padding(top = 4.dp, bottom = 4.dp)
+    )
+
+    SettingsToggleRow(
+        title = "Delay If Scheduled",
+        subtitle = if (habitNagSuppressionDays > 0) {
+            "Suppress nag if booked within $habitNagSuppressionDays days"
+        } else {
+            "Disabled \u2014 nag notifications fire immediately"
+        },
+        checked = habitNagSuppressionDays > 0,
+        onCheckedChange = { enabled ->
+            onHabitNagSuppressionDaysChange(if (enabled) 7 else 0)
+        }
+    )
+
+    if (habitNagSuppressionDays > 0) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 4.dp, end = 4.dp)
+        ) {
+            Text(
+                text = "Window:",
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(end = 8.dp)
+            )
+            Slider(
+                value = habitNagSuppressionDays.toFloat(),
+                onValueChange = { onHabitNagSuppressionDaysChange(it.toInt()) },
+                valueRange = 1f..30f,
+                steps = 28,
+                modifier = Modifier.weight(1f)
+            )
+            Text(
+                text = "$habitNagSuppressionDays d",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(start = 8.dp)
+            )
+        }
+    }
+
+    Spacer(modifier = Modifier.height(8.dp))
 
     val isPro = userTier == UserTier.PRO
 

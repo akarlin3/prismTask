@@ -466,6 +466,8 @@ constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
     val medicationRemindersEnabled: StateFlow<Boolean> = notificationPreferences.medicationRemindersEnabled
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+    val habitNagSuppressionDays: StateFlow<Int> = notificationPreferences.habitNagSuppressionDays
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), NotificationPreferences.DEFAULT_HABIT_NAG_SUPPRESSION_DAYS)
     val dailyBriefingEnabled: StateFlow<Boolean> = notificationPreferences.dailyBriefingEnabled
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
     val eveningSummaryEnabled: StateFlow<Boolean> = notificationPreferences.eveningSummaryEnabled
@@ -511,6 +513,10 @@ constructor(
 
     fun setMedicationRemindersEnabled(enabled: Boolean) {
         viewModelScope.launch { notificationPreferences.setMedicationRemindersEnabled(enabled) }
+    }
+
+    fun setHabitNagSuppressionDays(days: Int) {
+        viewModelScope.launch { notificationPreferences.setHabitNagSuppressionDays(days) }
     }
 
     fun setDailyBriefingEnabled(enabled: Boolean) {

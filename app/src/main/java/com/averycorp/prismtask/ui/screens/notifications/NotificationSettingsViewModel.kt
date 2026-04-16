@@ -76,6 +76,13 @@ constructor(
     val reengagementEnabled = prefs.reengagementEnabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
     val overloadAlertsEnabled = prefs.overloadAlertsEnabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
 
+    // Habit nag suppression
+    val habitNagSuppressionDays = prefs.habitNagSuppressionDays.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5_000),
+        NotificationPreferences.DEFAULT_HABIT_NAG_SUPPRESSION_DAYS
+    )
+
     // Briefing
     val briefingMorningHour = prefs.briefingMorningHour.stateIn(
         viewModelScope,
@@ -179,6 +186,8 @@ constructor(
     fun setReengagementEnabled(enabled: Boolean) = viewModelScope.launch { prefs.setReengagementEnabled(enabled) }
 
     fun setOverloadAlertsEnabled(enabled: Boolean) = viewModelScope.launch { prefs.setOverloadAlertsEnabled(enabled) }
+
+    fun setHabitNagSuppressionDays(days: Int) = viewModelScope.launch { prefs.setHabitNagSuppressionDays(days) }
 
     fun setBriefingMorningHour(hour: Int) = viewModelScope.launch { prefs.setBriefingMorningHour(hour) }
 

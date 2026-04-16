@@ -47,6 +47,10 @@ data class HabitEntity(
     val bookedNote: String? = null,
     @ColumnInfo(name = "show_streak", defaultValue = "0")
     val showStreak: Boolean = false,
+    @ColumnInfo(name = "nag_suppression_override_enabled", defaultValue = "0")
+    val nagSuppressionOverrideEnabled: Boolean = false,
+    @ColumnInfo(name = "nag_suppression_days_override", defaultValue = "-1")
+    val nagSuppressionDaysOverride: Int = -1,
     @ColumnInfo(name = "created_at")
     val createdAt: Long = System.currentTimeMillis(),
     @ColumnInfo(name = "updated_at")

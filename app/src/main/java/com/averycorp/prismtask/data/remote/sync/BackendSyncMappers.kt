@@ -109,6 +109,8 @@ internal fun habitToOperation(habit: HabitEntity): SyncOperation {
         if (habit.bookedDate != null) addProperty("booked_date", habit.bookedDate)
         if (habit.bookedNote != null) addProperty("booked_note", habit.bookedNote)
         addProperty("show_streak", habit.showStreak)
+        addProperty("nag_suppression_override_enabled", habit.nagSuppressionOverrideEnabled)
+        addProperty("nag_suppression_days_override", habit.nagSuppressionDaysOverride)
         addProperty("created_at", habit.createdAt)
         addProperty("updated_at", habit.updatedAt)
     }

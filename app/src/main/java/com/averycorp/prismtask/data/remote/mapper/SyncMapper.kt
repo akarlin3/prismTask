@@ -135,6 +135,8 @@ object SyncMapper {
         "bookedDate" to habit.bookedDate,
         "bookedNote" to habit.bookedNote,
         "showStreak" to habit.showStreak,
+        "nagSuppressionOverrideEnabled" to habit.nagSuppressionOverrideEnabled,
+        "nagSuppressionDaysOverride" to habit.nagSuppressionDaysOverride,
         "createdAt" to habit.createdAt,
         "updatedAt" to habit.updatedAt
     )
@@ -163,6 +165,8 @@ object SyncMapper {
         bookedDate = (data["bookedDate"] as? Number)?.toLong(),
         bookedNote = data["bookedNote"] as? String,
         showStreak = data["showStreak"] as? Boolean ?: false,
+        nagSuppressionOverrideEnabled = data["nagSuppressionOverrideEnabled"] as? Boolean ?: false,
+        nagSuppressionDaysOverride = (data["nagSuppressionDaysOverride"] as? Number)?.toInt() ?: -1,
         createdAt = (data["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
         updatedAt = (data["updatedAt"] as? Number)?.toLong() ?: System.currentTimeMillis()
     )

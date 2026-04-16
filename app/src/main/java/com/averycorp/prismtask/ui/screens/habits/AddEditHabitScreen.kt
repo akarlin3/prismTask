@@ -29,6 +29,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -37,6 +38,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -640,6 +642,82 @@ fun AddEditHabitScreen(
                     Switch(
                         checked = viewModel.isBookable,
                         onCheckedChange = viewModel::onIsBookableChange
+                    )
+                }
+            }
+
+            // Reminder delay override
+            SectionLabel("Reminder Settings")
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Custom Reminder Delay",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Text(
+                        text = if (viewModel.nagSuppressionOverrideEnabled) {
+                            "Override global setting for this habit"
+                        } else {
+                            "Using global setting (${viewModel.globalSuppressionDays} days)"
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Switch(
+                    checked = viewModel.nagSuppressionOverrideEnabled,
+                    onCheckedChange = viewModel::onNagSuppressionOverrideEnabledChange
+                )
+            }
+
+            if (viewModel.nagSuppressionOverrideEnabled) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 4.dp)
+                ) {
+                    Checkbox(
+                        checked = viewModel.nagSuppressionDisableForHabit,
+                        onCheckedChange = viewModel::onNagSuppressionDisableForHabitChange
+                    )
+                    Text(
+                        text = "Disable Suppression for This Habit",
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(start = 4.dp)
+                    )
+                }
+
+                if (!viewModel.nagSuppressionDisableForHabit) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = 4.dp, end = 4.dp)
+                    ) {
+                        Text(
+                            text = "Suppress if scheduled within",
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Text(
+                            text = "${viewModel.nagSuppressionDaysOverride.coerceAtLeast(1)} days",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    Slider(
+                        value = viewModel.nagSuppressionDaysOverride.coerceAtLeast(1).toFloat(),
+                        onValueChange = { viewModel.onNagSuppressionDaysOverrideChange(it.toInt()) },
+                        valueRange = 1f..30f,
+                        steps = 28,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 4.dp)
                     )
                 }
             }

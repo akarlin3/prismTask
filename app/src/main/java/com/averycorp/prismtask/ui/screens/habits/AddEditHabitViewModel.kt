@@ -9,6 +9,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.averycorp.prismtask.data.local.entity.HabitEntity
+import com.averycorp.prismtask.data.preferences.NotificationPreferences
 import com.averycorp.prismtask.data.repository.HabitRepository
 import com.averycorp.prismtask.notifications.MedicationReminderScheduler
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -24,6 +25,7 @@ class AddEditHabitViewModel
 constructor(
     private val habitRepository: HabitRepository,
     private val medicationReminderScheduler: MedicationReminderScheduler,
+    private val notificationPreferences: NotificationPreferences,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
     private val _errorMessages = MutableSharedFlow<String>()
@@ -72,6 +74,14 @@ constructor(
         private set
     var showStreak by mutableStateOf(false)
         private set
+    var nagSuppressionOverrideEnabled by mutableStateOf(false)
+        private set
+    var nagSuppressionDaysOverride by mutableIntStateOf(-1)
+        private set
+    var nagSuppressionDisableForHabit by mutableStateOf(false)
+        private set
+    var globalSuppressionDays by mutableIntStateOf(NotificationPreferences.DEFAULT_HABIT_NAG_SUPPRESSION_DAYS)
+        private set
     var nameError by mutableStateOf(false)
         private set
     var customCategories by mutableStateOf<List<String>>(emptyList())
@@ -80,6 +90,7 @@ constructor(
     init {
         viewModelScope.launch {
             customCategories = habitRepository.getAllCategories()
+            globalSuppressionDays = notificationPreferences.getHabitNagSuppressionDaysOnce()
         }
         if (habitId != null) {
             viewModelScope.launch {
@@ -98,6 +109,9 @@ constructor(
                     trackPreviousPeriod = habit.trackPreviousPeriod
                     isBookable = habit.isBookable
                     showStreak = habit.showStreak
+                    nagSuppressionOverrideEnabled = habit.nagSuppressionOverrideEnabled
+                    nagSuppressionDaysOverride = habit.nagSuppressionDaysOverride
+                    nagSuppressionDisableForHabit = habit.nagSuppressionDaysOverride == 0
                     if (habit.reminderTime != null) {
                         reminderEnabled = true
                         reminderHour = (habit.reminderTime / (60 * 60 * 1000)).toInt()
@@ -216,6 +230,24 @@ constructor(
         showStreak = value
     }
 
+    fun onNagSuppressionOverrideEnabledChange(value: Boolean) {
+        nagSuppressionOverrideEnabled = value
+        if (!value) {
+            nagSuppressionDaysOverride = -1
+            nagSuppressionDisableForHabit = false
+        }
+    }
+
+    fun onNagSuppressionDisableForHabitChange(value: Boolean) {
+        nagSuppressionDisableForHabit = value
+        nagSuppressionDaysOverride = if (value) 0 else 7
+    }
+
+    fun onNagSuppressionDaysOverrideChange(value: Int) {
+        nagSuppressionDaysOverride = value.coerceIn(1, 30)
+        nagSuppressionDisableForHabit = false
+    }
+
     suspend fun saveHabit(): Boolean {
         if (name.isBlank()) {
             nameError = true
@@ -249,6 +281,12 @@ constructor(
             val effectiveTrackPreviousPeriod = isRecurring && trackPreviousPeriod
             val effectiveIsBookable = isRecurring && isBookable
 
+            val effectiveNagOverride = if (nagSuppressionOverrideEnabled) {
+                nagSuppressionDaysOverride
+            } else {
+                -1
+            }
+
             val existing = existingHabit
             if (existing != null) {
                 habitRepository.updateHabit(
@@ -268,7 +306,9 @@ constructor(
                         trackBooking = effectiveTrackBooking,
                         trackPreviousPeriod = effectiveTrackPreviousPeriod,
                         isBookable = effectiveIsBookable,
-                        showStreak = showStreak
+                        showStreak = showStreak,
+                        nagSuppressionOverrideEnabled = nagSuppressionOverrideEnabled,
+                        nagSuppressionDaysOverride = effectiveNagOverride
                     )
                 )
                 // Cancel or reschedule medication reminder on edit
@@ -295,7 +335,9 @@ constructor(
                         trackBooking = effectiveTrackBooking,
                         trackPreviousPeriod = effectiveTrackPreviousPeriod,
                         isBookable = effectiveIsBookable,
-                        showStreak = showStreak
+                        showStreak = showStreak,
+                        nagSuppressionOverrideEnabled = nagSuppressionOverrideEnabled,
+                        nagSuppressionDaysOverride = effectiveNagOverride
                     )
                 )
             }

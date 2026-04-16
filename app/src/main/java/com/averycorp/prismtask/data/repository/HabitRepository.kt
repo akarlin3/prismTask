@@ -81,6 +81,7 @@ constructor(
 
     suspend fun deleteHabit(id: Long) {
         medicationReminderScheduler.cancel(id)
+        medicationReminderScheduler.cancelFollowUp(id)
         syncTracker.trackDelete(id, "habit")
         habitDao.deleteById(id)
         widgetUpdateManager.updateHabitWidgets()
@@ -109,6 +110,7 @@ constructor(
     suspend fun archiveHabit(id: Long) {
         val habit = habitDao.getHabitByIdOnce(id) ?: return
         medicationReminderScheduler.cancel(id)
+        medicationReminderScheduler.cancelFollowUp(id)
         habitDao.update(habit.copy(isArchived = true, updatedAt = System.currentTimeMillis()))
         syncTracker.trackUpdate(id, "habit")
         widgetUpdateManager.updateHabitWidgets()
@@ -137,6 +139,9 @@ constructor(
         }
 
         val now = System.currentTimeMillis()
+        // Cancel any pending follow-up now that the habit is completed
+        medicationReminderScheduler.cancelFollowUp(habitId)
+
         val id = completionDao.insert(
             HabitCompletionEntity(
                 habitId = habitId,

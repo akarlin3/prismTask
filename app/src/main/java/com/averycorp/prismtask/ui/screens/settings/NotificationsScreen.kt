@@ -37,6 +37,7 @@ fun NotificationsScreen(
     val taskRemindersEnabled by viewModel.taskRemindersEnabled.collectAsStateWithLifecycle()
     val timerAlertsEnabled by viewModel.timerAlertsEnabled.collectAsStateWithLifecycle()
     val medicationRemindersEnabled by viewModel.medicationRemindersEnabled.collectAsStateWithLifecycle()
+    val habitNagSuppressionDays by viewModel.habitNagSuppressionDays.collectAsStateWithLifecycle()
     val dailyBriefingEnabled by viewModel.dailyBriefingEnabled.collectAsStateWithLifecycle()
     val eveningSummaryEnabled by viewModel.eveningSummaryEnabled.collectAsStateWithLifecycle()
     val weeklySummaryEnabled by viewModel.weeklySummaryEnabled.collectAsStateWithLifecycle()
@@ -71,6 +72,7 @@ fun NotificationsScreen(
                 taskRemindersEnabled = taskRemindersEnabled,
                 timerAlertsEnabled = timerAlertsEnabled,
                 medicationRemindersEnabled = medicationRemindersEnabled,
+                habitNagSuppressionDays = habitNagSuppressionDays,
                 dailyBriefingEnabled = dailyBriefingEnabled,
                 eveningSummaryEnabled = eveningSummaryEnabled,
                 weeklySummaryEnabled = weeklySummaryEnabled,
@@ -85,6 +87,7 @@ fun NotificationsScreen(
                 onTaskRemindersToggle = viewModel::setTaskRemindersEnabled,
                 onTimerAlertsToggle = viewModel::setTimerAlertsEnabled,
                 onMedicationRemindersToggle = viewModel::setMedicationRemindersEnabled,
+                onHabitNagSuppressionDaysChange = viewModel::setHabitNagSuppressionDays,
                 onDailyBriefingToggle = viewModel::setDailyBriefingEnabled,
                 onEveningSummaryToggle = viewModel::setEveningSummaryEnabled,
                 onWeeklySummaryToggle = viewModel::setWeeklySummaryEnabled,

@@ -113,6 +113,9 @@ class NotificationPreferences(
         private val HIGH_CONTRAST_NOTIFICATIONS =
             booleanPreferencesKey("high_contrast_notifications")
 
+        // Habit nag suppression: suppress habit nag if next occurrence is within N days (0 = disabled)
+        private val HABIT_NAG_SUPPRESSION_DAYS = intPreferencesKey("habit_nag_suppression_days")
+
         // Snooze options (CSV of minute integers)
         private val SNOOZE_DURATIONS_CSV = stringPreferencesKey("snooze_durations_csv")
 
@@ -124,6 +127,9 @@ class NotificationPreferences(
 
         /** Default reminder offset = 15 minutes before the task is due. */
         const val DEFAULT_REMINDER_OFFSET_MS = 900_000L
+
+        /** Default habit nag suppression window in days (0 = disabled). */
+        const val DEFAULT_HABIT_NAG_SUPPRESSION_DAYS = 7
 
         /** Sentinel meaning "user has opted out of any default offset". */
         const val OFFSET_NONE = -1L
@@ -532,6 +538,19 @@ class NotificationPreferences(
     suspend fun setHighContrastNotificationsEnabled(enabled: Boolean) {
         dataStore.edit { it[HIGH_CONTRAST_NOTIFICATIONS] = enabled }
     }
+
+    // endregion
+
+    // region Habit nag suppression
+
+    val habitNagSuppressionDays: Flow<Int> = dataStore.data
+        .map { it[HABIT_NAG_SUPPRESSION_DAYS] ?: DEFAULT_HABIT_NAG_SUPPRESSION_DAYS }
+
+    suspend fun setHabitNagSuppressionDays(days: Int) {
+        dataStore.edit { it[HABIT_NAG_SUPPRESSION_DAYS] = days.coerceIn(0, 30) }
+    }
+
+    suspend fun getHabitNagSuppressionDaysOnce(): Int = habitNagSuppressionDays.first()
 
     // endregion
 

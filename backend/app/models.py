@@ -236,6 +236,8 @@ class Habit(Base):
     target_count = Column(Integer, default=1)
     active_days_json = Column(Text, nullable=True)
     is_active = Column(Boolean, default=True)
+    nag_suppression_override_enabled = Column(Boolean, default=False)
+    nag_suppression_days_override = Column(Integer, default=-1)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 

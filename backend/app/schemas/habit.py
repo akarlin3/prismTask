@@ -13,6 +13,8 @@ class HabitCreate(BaseModel):
     frequency: str = "daily"
     target_count: int = 1
     active_days_json: Optional[str] = None
+    nag_suppression_override_enabled: bool = False
+    nag_suppression_days_override: int = -1
 
 
 class HabitUpdate(BaseModel):
@@ -25,6 +27,8 @@ class HabitUpdate(BaseModel):
     target_count: Optional[int] = None
     active_days_json: Optional[str] = None
     is_active: Optional[bool] = None
+    nag_suppression_override_enabled: Optional[bool] = None
+    nag_suppression_days_override: Optional[int] = None
 
 
 class HabitResponse(BaseModel):
@@ -39,6 +43,8 @@ class HabitResponse(BaseModel):
     target_count: int
     active_days_json: Optional[str] = None
     is_active: bool
+    nag_suppression_override_enabled: bool = False
+    nag_suppression_days_override: int = -1
     created_at: datetime
     updated_at: datetime
 

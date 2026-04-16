@@ -138,6 +138,14 @@
             android:exported="false" />
 
         <receiver
+            android:name=".notifications.HabitFollowUpReceiver"
+            android:exported="false" />
+
+        <receiver
+            android:name=".notifications.HabitFollowUpDismissReceiver"
+            android:exported="false" />
+
+        <receiver
             android:name=".notifications.LogMedicationReceiver"
             android:exported="false" />
 

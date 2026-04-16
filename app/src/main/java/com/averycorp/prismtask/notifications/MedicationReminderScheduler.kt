@@ -1,17 +1,25 @@
 package com.averycorp.prismtask.notifications
 
 import android.app.AlarmManager
+import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import com.averycorp.prismtask.data.local.dao.HabitCompletionDao
 import com.averycorp.prismtask.data.local.dao.HabitDao
+import com.averycorp.prismtask.data.local.entity.HabitEntity
+import com.averycorp.prismtask.data.calendar.CalendarManager
 import com.averycorp.prismtask.data.preferences.MedicationPreferences
 import com.averycorp.prismtask.data.preferences.MedicationScheduleMode
+import com.averycorp.prismtask.data.preferences.NotificationPreferences
 import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
 import com.averycorp.prismtask.util.DayBoundary
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.first
+import java.time.Instant
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.ZoneId
 import java.util.Calendar
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -24,7 +32,9 @@ constructor(
     private val habitDao: HabitDao,
     private val completionDao: HabitCompletionDao,
     private val medicationPreferences: MedicationPreferences,
-    private val taskBehaviorPreferences: TaskBehaviorPreferences
+    private val taskBehaviorPreferences: TaskBehaviorPreferences,
+    private val notificationPreferences: NotificationPreferences,
+    private val calendarManager: CalendarManager
 ) {
     private val alarmManager: AlarmManager
         get() = context.getSystemService(AlarmManager::class.java)
@@ -152,6 +162,136 @@ constructor(
                 totalDoses = timesPerDay
             )
         }
+    }
+
+    /**
+     * Determines whether a habit nag notification should be suppressed
+     * because the habit has a scheduled occurrence within the suppression
+     * window.
+     *
+     * Returns the [LocalDateTime] at which a delayed follow-up should
+     * fire, or null if the nag should proceed normally.
+     */
+    suspend fun getFollowUpTimeIfSuppressed(habit: HabitEntity): LocalDateTime? {
+        val globalDays = notificationPreferences.getHabitNagSuppressionDaysOnce()
+        val suppressionDays = HabitNotificationUtils.resolveSuppressionDays(habit, globalDays)
+        if (suppressionDays == 0) return null
+
+        val now = LocalDate.now()
+        val windowEnd = now.plusDays(suppressionDays.toLong())
+
+        // Check 1: habit has a fixed reminder time (millis from midnight)
+        if (habit.reminderTime != null) {
+            val reminderHour = (habit.reminderTime / (60 * 60 * 1000)).toInt()
+            val reminderMinute = ((habit.reminderTime % (60 * 60 * 1000)) / (60 * 1000)).toInt()
+            // The next occurrence is today (if not passed) or tomorrow
+            val todayReminder = now.atTime(reminderHour, reminderMinute)
+            val nextOccurrence = if (todayReminder.isAfter(LocalDateTime.now())) {
+                todayReminder
+            } else {
+                now.plusDays(1).atTime(reminderHour, reminderMinute)
+            }
+            if (!nextOccurrence.toLocalDate().isAfter(windowEnd)) {
+                // Schedule follow-up 1 hour after the scheduled time
+                return nextOccurrence.plusHours(1)
+            }
+        }
+
+        // Check 2: habit is linked to a calendar event within the window
+        // (fuzzy match by habit name since no direct FK exists)
+        if (calendarManager.isCalendarConnected.value) {
+            val events = getCalendarEventsForHabit(habit, now, windowEnd)
+            if (events.isNotEmpty()) {
+                // Use the earliest matching event; follow-up 1 hour after its start
+                val earliestStart = events.minOf { it }
+                return earliestStart.plusHours(1)
+            }
+        }
+
+        return null
+    }
+
+    /**
+     * Queries Google Calendar events whose title contains the habit name
+     * (case-insensitive) within the given date range.
+     *
+     * Returns start times of matching events. If calendar is not connected
+     * or the query fails, returns an empty list.
+     *
+     * Known limitation: this is a fuzzy title-match fallback since habits
+     * are not directly linked to calendar events via a foreign key.
+     */
+    private fun getCalendarEventsForHabit(
+        habit: HabitEntity,
+        from: LocalDate,
+        to: LocalDate
+    ): List<LocalDateTime> {
+        val service = calendarManager.getCalendarService() ?: return emptyList()
+        return try {
+            val zone = ZoneId.systemDefault()
+            val timeMin = com.google.api.client.util.DateTime(
+                from.atStartOfDay(zone).toInstant().toEpochMilli()
+            )
+            val timeMax = com.google.api.client.util.DateTime(
+                to.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
+            )
+            val events = service.events().list("primary")
+                .setTimeMin(timeMin)
+                .setTimeMax(timeMax)
+                .setQ(habit.name)
+                .setMaxResults(10)
+                .setSingleEvents(true)
+                .setOrderBy("startTime")
+                .execute()
+
+            events.items?.mapNotNull { event ->
+                val summary = event.summary ?: return@mapNotNull null
+                if (!summary.contains(habit.name, ignoreCase = true)) return@mapNotNull null
+                val startMillis = event.start?.dateTime?.value
+                    ?: event.start?.date?.value
+                    ?: return@mapNotNull null
+                Instant.ofEpochMilli(startMillis).atZone(zone).toLocalDateTime()
+            } ?: emptyList()
+        } catch (_: Exception) {
+            emptyList()
+        }
+    }
+
+    /**
+     * Schedules a delayed follow-up notification for a habit at the given
+     * time. Cancels any existing pending nag for this habit first.
+     */
+    fun scheduleDelayedHabitFollowUp(habitId: Long, habitName: String, fireAt: LocalDateTime) {
+        // Cancel any existing pending nag first
+        cancel(habitId)
+        cancelFollowUp(habitId)
+
+        val zone = ZoneId.systemDefault()
+        val triggerTime = fireAt.atZone(zone).toInstant().toEpochMilli()
+
+        val intent = Intent(context, HabitFollowUpReceiver::class.java).apply {
+            putExtra(HabitFollowUpReceiver.EXTRA_HABIT_ID, habitId)
+            putExtra(HabitFollowUpReceiver.EXTRA_HABIT_NAME, habitName)
+        }
+        val pendingIntent = PendingIntent.getBroadcast(
+            context,
+            habitId.toInt() + HabitFollowUpReceiver.FOLLOW_UP_REQUEST_CODE_OFFSET,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        ExactAlarmHelper.scheduleExact(context, triggerTime, pendingIntent)
+    }
+
+    /**
+     * Cancels any pending follow-up notification for the given habit.
+     * Called when: the habit is completed, deleted, or archived.
+     */
+    fun cancelFollowUp(habitId: Long) {
+        HabitFollowUpDismissReceiver.cancelFollowUp(context, habitId)
+        // Also dismiss the notification if it's already showing
+        val manager = context.getSystemService(NotificationManager::class.java)
+        manager?.cancel(HabitFollowUpReceiver.followUpNotificationId(habitId))
     }
 
     companion object {
