@@ -230,7 +230,9 @@ class TestNlpParser:
 
     def test_missing_api_key(self):
         from app.services.nlp_parser import parse_task_input
+        from app.config import settings
 
-        with patch.dict("os.environ", {}, clear=True):
+        with patch.dict("os.environ", {}, clear=True), \
+             patch.object(settings, "ANTHROPIC_API_KEY", ""):
             with pytest.raises(RuntimeError, match="ANTHROPIC_API_KEY"):
                 parse_task_input("Test task", [], date(2026, 4, 6))
