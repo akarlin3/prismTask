@@ -8,8 +8,6 @@ import com.averycorp.prismtask.data.local.entity.AssignmentEntity
 import com.averycorp.prismtask.data.local.entity.CourseEntity
 import com.averycorp.prismtask.data.local.entity.HabitEntity
 import com.averycorp.prismtask.data.local.entity.LeisureLogEntity
-import com.averycorp.prismtask.data.local.entity.SelfCareLogEntity
-import com.averycorp.prismtask.data.local.entity.SelfCareStepEntity
 import com.averycorp.prismtask.data.preferences.DailyEssentialsPreferences
 import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
 import com.averycorp.prismtask.data.repository.LeisureRepository
@@ -149,46 +147,44 @@ constructor(
                 leisureRepository.getTodayLog(),
                 medicationStatusUseCase.observeDueDosesToday(),
                 dailyEssentialsPreferences.hasSeenHint
-            ) { args ->
-                @Suppress("UNCHECKED_CAST")
-                val morning = args[0] as RoutineCardState?
-                @Suppress("UNCHECKED_CAST")
-                val bedtime = args[1] as RoutineCardState?
-                @Suppress("UNCHECKED_CAST")
-                val housework = args[2] as HabitCardState?
-                @Suppress("UNCHECKED_CAST")
-                val schoolwork = args[3] as SchoolworkCardState?
-                val leisureLog = args[4] as LeisureLogEntity?
-                @Suppress("UNCHECKED_CAST")
-                val dueDoses = args[5] as List<MedicationDose>
-                val seenHint = args[6] as Boolean
-
-                DailyEssentialsUiState(
-                    morning = morning,
-                    bedtime = bedtime,
-                    housework = housework,
-                    schoolwork = schoolwork,
-                    musicLeisure = LeisureCardState(
-                        kind = LeisureKind.MUSIC,
-                        pickedForToday = leisureLog?.musicPick,
-                        doneForToday = leisureLog?.musicDone == true
-                    ),
-                    flexLeisure = LeisureCardState(
-                        kind = LeisureKind.FLEX,
-                        pickedForToday = leisureLog?.flexPick,
-                        doneForToday = leisureLog?.flexDone == true
-                    ),
-                    medication = dueDoses.firstOrNull()?.let { first ->
-                        MedicationCardState(
-                            totalDueToday = dueDoses.size,
-                            nextDose = first,
-                            otherDoses = dueDoses.drop(1)
-                        )
-                    },
-                    hasSeenHint = seenHint
-                )
-            }
+            ) { args -> combineDailyEssentials(args) }
         }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun combineDailyEssentials(args: Array<Any?>): DailyEssentialsUiState {
+        val morning = args[0] as RoutineCardState?
+        val bedtime = args[1] as RoutineCardState?
+        val housework = args[2] as HabitCardState?
+        val schoolwork = args[3] as SchoolworkCardState?
+        val leisureLog = args[4] as LeisureLogEntity?
+        val dueDoses = args[5] as List<MedicationDose>
+        val seenHint = args[6] as Boolean
+
+        return DailyEssentialsUiState(
+            morning = morning,
+            bedtime = bedtime,
+            housework = housework,
+            schoolwork = schoolwork,
+            musicLeisure = LeisureCardState(
+                kind = LeisureKind.MUSIC,
+                pickedForToday = leisureLog?.musicPick,
+                doneForToday = leisureLog?.musicDone == true
+            ),
+            flexLeisure = LeisureCardState(
+                kind = LeisureKind.FLEX,
+                pickedForToday = leisureLog?.flexPick,
+                doneForToday = leisureLog?.flexDone == true
+            ),
+            medication = dueDoses.firstOrNull()?.let { first ->
+                MedicationCardState(
+                    totalDueToday = dueDoses.size,
+                    nextDose = first,
+                    otherDoses = dueDoses.drop(1)
+                )
+            },
+            hasSeenHint = seenHint
+        )
+    }
 
     private fun observeRoutineCard(
         routineType: String,
@@ -216,13 +212,16 @@ constructor(
 
     private fun observeHouseworkCard(todayStart: Long): Flow<HabitCardState?> =
         dailyEssentialsPreferences.houseworkHabitId.flatMapLatest { habitId ->
-            if (habitId == null) flowOf(null)
-            else habitDao.getHabitById(habitId).flatMapLatest { habit ->
-                if (habit == null || habit.isArchived) {
-                    flowOf(null)
-                } else {
-                    habitCompletionDao.isCompletedOnDate(habit.id, todayStart)
-                        .map { completed -> habit.toHabitCardState(completed) }
+            if (habitId == null) {
+                flowOf(null)
+            } else {
+                habitDao.getHabitById(habitId).flatMapLatest { habit ->
+                    if (habit == null || habit.isArchived) {
+                        flowOf(null)
+                    } else {
+                        habitCompletionDao.isCompletedOnDate(habit.id, todayStart)
+                            .map { completed -> habit.toHabitCardState(completed) }
+                    }
                 }
             }
         }
@@ -234,13 +233,16 @@ constructor(
     ): Flow<SchoolworkCardState?> {
         val habitCardFlow: Flow<HabitCardState?> =
             dailyEssentialsPreferences.schoolworkHabitId.flatMapLatest { habitId ->
-                if (habitId == null) flowOf(null)
-                else habitDao.getHabitById(habitId).flatMapLatest { habit ->
-                    if (habit == null || habit.isArchived) {
-                        flowOf(null)
-                    } else {
-                        habitCompletionDao.isCompletedOnDate(habit.id, todayStart)
-                            .map { completed -> habit.toHabitCardState(completed) }
+                if (habitId == null) {
+                    flowOf(null)
+                } else {
+                    habitDao.getHabitById(habitId).flatMapLatest { habit ->
+                        if (habit == null || habit.isArchived) {
+                            flowOf(null)
+                        } else {
+                            habitCompletionDao.isCompletedOnDate(habit.id, todayStart)
+                                .map { completed -> habit.toHabitCardState(completed) }
+                        }
                     }
                 }
             }
@@ -254,8 +256,11 @@ constructor(
         }
 
         return combine(habitCardFlow, assignmentsFlow) { habit, assignments ->
-            if (habit == null && assignments.isEmpty()) null
-            else SchoolworkCardState(habit = habit, assignmentsDueToday = assignments)
+            if (habit == null && assignments.isEmpty()) {
+                null
+            } else {
+                SchoolworkCardState(habit = habit, assignmentsDueToday = assignments)
+            }
         }
     }
 

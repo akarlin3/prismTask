@@ -1,4 +1,4 @@
-package com.averycorp.prismtask.ui.screens.today.daily_essentials.cards
+package com.averycorp.prismtask.ui.screens.today.dailyessentials.cards
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column

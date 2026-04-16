@@ -1,4 +1,4 @@
-package com.averycorp.prismtask.ui.screens.today.daily_essentials
+package com.averycorp.prismtask.ui.screens.today.dailyessentials
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -16,11 +16,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.averycorp.prismtask.domain.usecase.DailyEssentialsUiState
 import com.averycorp.prismtask.ui.screens.today.components.CollapsibleSection
-import com.averycorp.prismtask.ui.screens.today.daily_essentials.cards.HabitCard
-import com.averycorp.prismtask.ui.screens.today.daily_essentials.cards.LeisureCard
-import com.averycorp.prismtask.ui.screens.today.daily_essentials.cards.MedicationCard
-import com.averycorp.prismtask.ui.screens.today.daily_essentials.cards.RoutineCard
-import com.averycorp.prismtask.ui.screens.today.daily_essentials.cards.SchoolworkCard
+import com.averycorp.prismtask.ui.screens.today.dailyessentials.cards.HabitCard
+import com.averycorp.prismtask.ui.screens.today.dailyessentials.cards.LeisureCard
+import com.averycorp.prismtask.ui.screens.today.dailyessentials.cards.MedicationCard
+import com.averycorp.prismtask.ui.screens.today.dailyessentials.cards.RoutineCard
+import com.averycorp.prismtask.ui.screens.today.dailyessentials.cards.SchoolworkCard
 import com.averycorp.prismtask.ui.theme.LocalPrismColors
 
 data class DailyEssentialsActions(

@@ -80,8 +80,8 @@ import com.averycorp.prismtask.ui.screens.today.components.PlanForTodaySheet
 import com.averycorp.prismtask.ui.screens.today.components.SelfCareNudgeCard
 import com.averycorp.prismtask.ui.screens.today.components.SwipeableTaskItem
 import com.averycorp.prismtask.ui.screens.today.components.TodayBalanceSection
-import com.averycorp.prismtask.ui.screens.today.daily_essentials.DailyEssentialsActions
-import com.averycorp.prismtask.ui.screens.today.daily_essentials.DailyEssentialsSection
+import com.averycorp.prismtask.ui.screens.today.dailyessentials.DailyEssentialsActions
+import com.averycorp.prismtask.ui.screens.today.dailyessentials.DailyEssentialsSection
 import com.averycorp.prismtask.ui.theme.LocalPrismColors
 
 private const val SECTION_OVERDUE = "overdue"
