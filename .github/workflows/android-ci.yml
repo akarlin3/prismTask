@@ -49,13 +49,18 @@ jobs:
           fetch-depth: 0
       - uses: ./.github/actions/setup-android
       - name: ktlint auto-format
+        id: ktlint_format
         run: ./gradlew ktlintFormat --continue
-        continue-on-error: true
       - name: detekt auto-correct
+        id: detekt_autocorrect
+        if: always()
         run: ./gradlew detekt --auto-correct --continue
-        continue-on-error: true
-      # Commits with [skip ci] to avoid re-triggering this workflow
+      # Commits with [skip ci] to avoid re-triggering this workflow.
+      # Runs even if the auto-fix steps exited non-zero so partial fixes
+      # still get committed, but the job as a whole still fails so
+      # unfixable issues aren't silently ignored.
       - name: Commit formatting fixes
+        if: always()
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -68,14 +73,14 @@ jobs:
       - uses: ./.github/actions/setup-android
       - name: ktlint check
         run: ./gradlew ktlintCheck --continue
-        continue-on-error: true
       - name: detekt
+        if: always()
         run: ./gradlew detekt --continue
-        continue-on-error: true
       - name: Android lint
+        if: always()
         run: ./gradlew lint --continue
-        continue-on-error: true
       - name: Unit tests
+        if: always()
         run: ./gradlew testDebugUnitTest --continue 2>&1 | tee unit-test-output.log
       - name: Post failure details to PR
         if: failure() && github.event_name == 'pull_request'
