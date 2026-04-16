@@ -112,11 +112,66 @@ jobs:
           path: app/build/reports/tests/testDebugUnitTest/
           retention-days: 7
 
+  detect-app-changes:
+    name: Detect App Changes
+    # Main-push only: determine whether to build a new APK by diffing app/
+    # and Gradle build files between the push's before/after SHAs.
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    outputs:
+      app_changed: ${{ steps.check.outputs.app_changed }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+
+      - name: Check for app changes since last push
+        id: check
+        run: |
+          set -euo pipefail
+          BEFORE="${{ github.event.before }}"
+          AFTER="${{ github.sha }}"
+          ZERO_SHA="0000000000000000000000000000000000000000"
+
+          # Branch creation or unknown prior SHA — build to be safe.
+          if [ -z "$BEFORE" ] || [ "$BEFORE" = "$ZERO_SHA" ]; then
+            echo "No prior commit on record — treating as app changed."
+            echo "app_changed=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if ! git cat-file -e "$BEFORE" 2>/dev/null; then
+            echo "Before commit $BEFORE not reachable — treating as app changed."
+            echo "app_changed=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          CHANGED=$(git diff --name-only "$BEFORE" "$AFTER" -- \
+            'app/**' \
+            'build.gradle.kts' \
+            'settings.gradle.kts' \
+            'gradle.properties' \
+            'gradle/**' \
+            'gradlew' \
+            'gradlew.bat' || true)
+
+          if [ -n "$CHANGED" ]; then
+            echo "App changes detected:"
+            echo "$CHANGED"
+            echo "app_changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "No app or Gradle changes between $BEFORE and $AFTER — skipping APK build."
+            echo "app_changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
   assemble-and-distribute:
     name: Assemble & Distribute
     # Main-push only: version bump + APK build + Firebase distribution.
     # Runs in parallel with lint-and-test to minimize wall-clock time.
-    if: github.event_name == 'push'
+    needs: detect-app-changes
+    if: github.event_name == 'push' && needs.detect-app-changes.outputs.app_changed == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: write
