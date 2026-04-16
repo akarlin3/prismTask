@@ -80,11 +80,14 @@ import com.averycorp.prismtask.ui.screens.today.components.PlanForTodaySheet
 import com.averycorp.prismtask.ui.screens.today.components.SelfCareNudgeCard
 import com.averycorp.prismtask.ui.screens.today.components.SwipeableTaskItem
 import com.averycorp.prismtask.ui.screens.today.components.TodayBalanceSection
+import com.averycorp.prismtask.ui.screens.today.dailyessentials.DailyEssentialsActions
+import com.averycorp.prismtask.ui.screens.today.dailyessentials.DailyEssentialsSection
 import com.averycorp.prismtask.ui.theme.LocalPrismColors
 
 private const val SECTION_OVERDUE = "overdue"
 private const val SECTION_TODAY_TASKS = "today_tasks"
 private const val SECTION_HABITS = "habits"
+private const val SECTION_DAILY_ESSENTIALS = "daily_essentials"
 private const val SECTION_PLANNED = "planned"
 private const val SECTION_PLAN_MORE = "plan_more"
 private const val SECTION_COMPLETED = "completed"
@@ -129,6 +132,7 @@ fun TodayScreen(
     val checkInSummary by viewModel.checkInSummaryFlow.collectAsStateWithLifecycle()
     val showCheckInCompleteChip by viewModel.showCompletionChip.collectAsStateWithLifecycle()
     val currentNudge by viewModel.currentNudge.collectAsStateWithLifecycle()
+    val dailyEssentials by viewModel.dailyEssentials.collectAsStateWithLifecycle()
     var overloadBannerDismissed by remember { mutableStateOf(false) }
 
     val coachingUserTier by coachingViewModel.userTier.collectAsStateWithLifecycle()
@@ -530,6 +534,42 @@ fun TodayScreen(
                                     onSeeAll = onNavigateToHabits
                                 )
                             }
+                        }
+                    }
+
+                    if (SECTION_DAILY_ESSENTIALS !in hiddenSections) {
+                        val expanded = SECTION_DAILY_ESSENTIALS !in collapsedSections
+                        item(key = "section_daily_essentials") {
+                            DailyEssentialsSection(
+                                state = dailyEssentials,
+                                expanded = expanded,
+                                onToggleExpanded = {
+                                    viewModel.onToggleSectionCollapsed(SECTION_DAILY_ESSENTIALS)
+                                },
+                                actions = DailyEssentialsActions(
+                                    onToggleRoutineStep = { routineType, stepId ->
+                                        viewModel.onToggleRoutineStep(routineType, stepId)
+                                    },
+                                    onToggleHousework = { viewModel.onToggleHouseworkHabit() },
+                                    onToggleSchoolworkHabit = { viewModel.onToggleSchoolworkHabit() },
+                                    onOpenAssignment = {
+                                        navController.navigate(PrismTaskRoute.Schoolwork.route)
+                                    },
+                                    onPickMusic = {
+                                        navController.navigate(PrismTaskRoute.Leisure.route)
+                                    },
+                                    onToggleMusicDone = { viewModel.onToggleMusicDone() },
+                                    onPickFlex = {
+                                        navController.navigate(PrismTaskRoute.Leisure.route)
+                                    },
+                                    onToggleFlexDone = { viewModel.onToggleFlexDone() },
+                                    onMarkMedicationTaken = { viewModel.onMarkNextMedicationTaken() },
+                                    onDismissHint = { viewModel.onDismissDailyEssentialsHint() },
+                                    onOpenSettings = {
+                                        navController.navigate("settings/layout")
+                                    }
+                                )
+                            )
                         }
                     }
 

@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased — v1.4.0 Vision Deck Rollout
 
+### Added — Daily Essentials Section
+- New "Daily Essentials" section on the Today screen aggregating seven virtual
+  cards (Morning Routine, Medication, Housework, Schoolwork, Music Leisure,
+  Flex Leisure, Bedtime Routine) from existing data sources. No new tables,
+  no Room migrations.
+- `DailyEssentialsPreferences` DataStore stores the Housework and Schoolwork
+  habit pointers and the one-time onboarding-hint flag.
+- `MedicationStatusUseCase` unifies the three medication scheduling sources
+  (interval habits, self-care steps, specific-time slots) into a single
+  "is any dose due and untaken" state with a deterministic dedup priority
+  (SPECIFIC_TIME > INTERVAL_HABIT > SELF_CARE_STEP).
+- `DailyEssentialsUseCase` aggregates all seven cards behind a single
+  `StateFlow<DailyEssentialsUiState>` for the Today VM.
+- Three narrow DAO additions: `HabitDao.getHabitsActiveForDay`,
+  `SchoolworkDao.getAssignmentsDueBetween`, and
+  `SelfCareDao.getStepsForRoutineByTimeOfDay`.
+- New `DAILY_ESSENTIALS` entry in `TodaySectionId`, visible by default in
+  the free tier, ordered right after `HABITS`.
+- Settings → Layout now lists the "Daily Essentials" toggle alongside the
+  other dashboard sections. A dedicated settings section lets users pick
+  the Housework and Schoolwork habits and links to the existing Self-Care,
+  Medication, and Leisure management screens.
+
 ### Added — Work-Life Balance Engine (V1)
 - New `LifeCategory` enum (WORK / PERSONAL / SELF_CARE / HEALTH / UNCATEGORIZED)
   with a `life_category` column on `tasks` (migration 32 → 33).

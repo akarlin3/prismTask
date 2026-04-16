@@ -27,7 +27,15 @@ constructor(
         private val PROGRESS_STYLE = stringPreferencesKey("progress_style")
         private val COLLAPSED_SECTIONS = stringSetPreferencesKey("collapsed_sections")
 
-        val DEFAULT_ORDER = listOf("progress", "habits", "overdue", "today_tasks", "plan_more", "completed")
+        val DEFAULT_ORDER = listOf(
+            "progress",
+            "habits",
+            "daily_essentials",
+            "overdue",
+            "today_tasks",
+            "plan_more",
+            "completed"
+        )
 
         // Sections collapsed by default. Anything not in this set is expanded.
         val DEFAULT_COLLAPSED = setOf("planned", "completed")

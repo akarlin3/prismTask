@@ -333,6 +333,15 @@ class HabitRepositoryTest {
         override suspend fun getActiveHabitsOnce(): List<HabitEntity> =
             habits.filter { !it.isArchived }
 
+        override fun getHabitsActiveForDay(day: Int): Flow<List<HabitEntity>> =
+            flowOf(
+                habits.filter { habit ->
+                    if (habit.isArchived) return@filter false
+                    val active = habit.activeDays
+                    active.isNullOrBlank() || active.contains(day.toString())
+                }
+            )
+
         override suspend fun getAllHabitsOnce(): List<HabitEntity> = habits.toList()
 
         override suspend fun getHabitsWithIntervalReminder(): List<HabitEntity> =

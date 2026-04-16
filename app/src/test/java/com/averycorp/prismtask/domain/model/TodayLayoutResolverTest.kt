@@ -103,4 +103,17 @@ class TodayLayoutResolverTest {
         assertFalse(result.any { it.id.key == "nonsense_key" })
         assertTrue(result.any { it.id == TodaySectionId.PROGRESS })
     }
+
+    @Test
+    fun `daily essentials is free-tier and visible by default`() {
+        val result = TodayLayoutResolver.resolve(
+            userOrder = emptyList(),
+            hiddenKeys = emptySet(),
+            currentTier = "FREE"
+        )
+        val essentials = result.first { it.id == TodaySectionId.DAILY_ESSENTIALS }
+        assertTrue(essentials.tierAllows)
+        assertTrue(essentials.visible)
+        assertTrue(essentials.render)
+    }
 }

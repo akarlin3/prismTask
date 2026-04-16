@@ -1,6 +1,7 @@
 package com.averycorp.prismtask.ui.screens.today
 
 import com.averycorp.prismtask.data.local.dao.TaskDao
+import com.averycorp.prismtask.data.preferences.DailyEssentialsPreferences
 import com.averycorp.prismtask.data.preferences.DashboardPreferences
 import com.averycorp.prismtask.data.preferences.HabitListPreferences
 import com.averycorp.prismtask.data.preferences.MorningCheckInPreferences
@@ -9,11 +10,16 @@ import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
 import com.averycorp.prismtask.data.preferences.UserPreferencesDataStore
 import com.averycorp.prismtask.data.repository.CheckInLogRepository
 import com.averycorp.prismtask.data.repository.HabitRepository
+import com.averycorp.prismtask.data.repository.LeisureRepository
 import com.averycorp.prismtask.data.repository.MedicationRefillRepository
 import com.averycorp.prismtask.data.repository.ProjectRepository
+import com.averycorp.prismtask.data.repository.SchoolworkRepository
+import com.averycorp.prismtask.data.repository.SelfCareRepository
 import com.averycorp.prismtask.data.repository.TagRepository
 import com.averycorp.prismtask.data.repository.TaskRepository
 import com.averycorp.prismtask.data.repository.TaskTemplateRepository
+import com.averycorp.prismtask.domain.usecase.DailyEssentialsUiState
+import com.averycorp.prismtask.domain.usecase.DailyEssentialsUseCase
 import com.averycorp.prismtask.domain.usecase.ProFeatureGate
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -57,6 +63,11 @@ class TodayViewModelTest {
     private lateinit var checkInLogRepository: CheckInLogRepository
     private lateinit var medicationRefillRepository: MedicationRefillRepository
     private lateinit var morningCheckInPreferences: MorningCheckInPreferences
+    private lateinit var dailyEssentialsUseCase: DailyEssentialsUseCase
+    private lateinit var dailyEssentialsPreferences: DailyEssentialsPreferences
+    private lateinit var selfCareRepository: SelfCareRepository
+    private lateinit var schoolworkRepository: SchoolworkRepository
+    private lateinit var leisureRepository: LeisureRepository
 
     @Before
     fun setUp() {
@@ -76,6 +87,12 @@ class TodayViewModelTest {
         checkInLogRepository = mockk(relaxed = true)
         medicationRefillRepository = mockk(relaxed = true)
         morningCheckInPreferences = mockk(relaxed = true)
+        dailyEssentialsUseCase = mockk(relaxed = true)
+        dailyEssentialsPreferences = mockk(relaxed = true)
+        selfCareRepository = mockk(relaxed = true)
+        schoolworkRepository = mockk(relaxed = true)
+        leisureRepository = mockk(relaxed = true)
+        coEvery { dailyEssentialsUseCase.observeToday() } returns flowOf(DailyEssentialsUiState.empty())
 
         coEvery { taskBehaviorPreferences.getDayStartHour() } returns flowOf(0)
         coEvery { dashboardPreferences.getSectionOrder() } returns flowOf(DashboardPreferences.DEFAULT_ORDER)
@@ -123,7 +140,12 @@ class TodayViewModelTest {
         userPreferencesDataStore,
         checkInLogRepository,
         medicationRefillRepository,
-        morningCheckInPreferences
+        morningCheckInPreferences,
+        dailyEssentialsUseCase,
+        dailyEssentialsPreferences,
+        selfCareRepository,
+        schoolworkRepository,
+        leisureRepository
     )
 
     @Test
