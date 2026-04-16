@@ -27,6 +27,9 @@ import com.averycorp.prismtask.data.remote.api.ReengagementRequest
 import com.averycorp.prismtask.data.remote.api.ReengagementResponse
 import com.averycorp.prismtask.data.remote.api.RefreshRequest
 import com.averycorp.prismtask.data.remote.api.RegisterRequest
+import com.averycorp.prismtask.data.remote.api.SyllabusConfirmRequest
+import com.averycorp.prismtask.data.remote.api.SyllabusConfirmResponse
+import com.averycorp.prismtask.data.remote.api.SyllabusParseResponse
 import com.averycorp.prismtask.data.remote.api.TimeBlockRequest
 import com.averycorp.prismtask.data.remote.api.TimeBlockResponse
 import com.averycorp.prismtask.data.remote.api.TokenResponse
@@ -124,6 +127,12 @@ class NaturalLanguageParserTest {
             error("not used in offline parser tests")
 
         override suspend fun submitBugReport(body: Map<String, Any?>): BugReportMirrorResponse =
+            error("not used in offline parser tests")
+
+        override suspend fun parseSyllabus(file: MultipartBody.Part): SyllabusParseResponse =
+            error("not used in offline parser tests")
+
+        override suspend fun confirmSyllabus(request: SyllabusConfirmRequest): SyllabusConfirmResponse =
             error("not used in offline parser tests")
     }
 
