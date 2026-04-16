@@ -1,5 +1,7 @@
 package com.averycorp.prismtask.ui.screens.settings
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -16,6 +18,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -46,6 +49,18 @@ fun CalendarScreen(
     val gCalLastSyncTimestamp by viewModel.gCalLastSyncTimestamp.collectAsStateWithLifecycle()
     val gCalAvailableCalendars by viewModel.gCalAvailableCalendars.collectAsStateWithLifecycle()
     val isGCalSyncing by viewModel.isGCalSyncing.collectAsStateWithLifecycle()
+
+    val calendarConsentLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        viewModel.handleCalendarConsentResult(result.data)
+    }
+
+    LaunchedEffect(Unit) {
+        viewModel.calendarConsentIntent.collect { intent ->
+            calendarConsentLauncher.launch(intent)
+        }
+    }
 
     Scaffold(
         topBar = {

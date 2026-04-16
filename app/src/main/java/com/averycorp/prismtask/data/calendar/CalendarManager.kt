@@ -1,8 +1,12 @@
 package com.averycorp.prismtask.data.calendar
 
 import android.content.Context
+import android.content.Intent
 import android.util.Log
 import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.gms.common.api.ApiException
+import com.google.android.gms.common.api.Scope
 import com.google.api.client.googleapis.extensions.android.gms.auth.GoogleAccountCredential
 import com.google.api.client.http.javanet.NetHttpTransport
 import com.google.api.client.json.gson.GsonFactory
@@ -13,6 +17,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -23,6 +28,12 @@ data class CalendarInfo(
     val color: String,
     val isPrimary: Boolean
 )
+
+sealed class CalendarConnectionResult {
+    data object Connected : CalendarConnectionResult()
+    data class NeedsConsent(val signInIntent: Intent) : CalendarConnectionResult()
+    data class Failed(val message: String) : CalendarConnectionResult()
+}
 
 @Singleton
 class CalendarManager
@@ -53,36 +64,73 @@ constructor(
         }
     }
 
+    private fun buildCalendarSignInClient(): com.google.android.gms.auth.api.signin.GoogleSignInClient {
+        val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+            .requestEmail()
+            .requestScopes(Scope(CalendarScopes.CALENDAR))
+            .build()
+        return GoogleSignIn.getClient(context, gso)
+    }
+
     /**
-     * Connects to Google Calendar by checking if the calendar scope is already
-     * granted on the signed-in Google account. If the scope is present, the
-     * connection succeeds. If not, returns a failure indicating that the caller
-     * needs to trigger re-consent with the calendar scope.
+     * Connects to Google Calendar. First checks if the calendar scope is already
+     * granted, then tries silent sign-in. If neither works, returns [CalendarConnectionResult.NeedsConsent]
+     * with an intent that the caller must launch to obtain user consent.
      */
-    suspend fun connectCalendar(): Result<Unit> = withContext(Dispatchers.IO) {
+    suspend fun connectCalendar(): CalendarConnectionResult = withContext(Dispatchers.IO) {
         try {
-            val account = GoogleSignIn.getLastSignedInAccount(context)
-                ?: return@withContext Result.failure(Exception("Not signed in to Google. Please sign in first."))
-
-            val hasCalendarScope = account.grantedScopes.any {
-                it.scopeUri == CalendarScopes.CALENDAR
+            // Check if already have the scope from a previous connection
+            val existing = GoogleSignIn.getLastSignedInAccount(context)
+            if (existing != null && existing.grantedScopes.any { it.scopeUri == CalendarScopes.CALENDAR }) {
+                _isCalendarConnected.value = true
+                _connectedAccountEmail.value = existing.email
+                refreshCalendarCache()
+                return@withContext CalendarConnectionResult.Connected
             }
 
-            if (!hasCalendarScope) {
-                return@withContext Result.failure(
-                    CalendarScopeRequiredException("Calendar scope not granted. Re-consent required.")
-                )
+            // Try silent sign-in with Calendar scope
+            val client = buildCalendarSignInClient()
+            try {
+                val account = client.silentSignIn().await()
+                if (account.grantedScopes.any { it.scopeUri == CalendarScopes.CALENDAR }) {
+                    _isCalendarConnected.value = true
+                    _connectedAccountEmail.value = account.email
+                    refreshCalendarCache()
+                    return@withContext CalendarConnectionResult.Connected
+                }
+            } catch (_: Exception) {
+                // Silent sign-in failed — need interactive consent
             }
 
-            _isCalendarConnected.value = true
-            _connectedAccountEmail.value = account.email
-
-            // Pre-fetch calendars on connect
-            refreshCalendarCache()
-
-            Result.success(Unit)
+            // Need user to grant Calendar scope via consent UI
+            CalendarConnectionResult.NeedsConsent(client.signInIntent)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to connect calendar", e)
+            CalendarConnectionResult.Failed(e.message ?: "Failed to connect Google Calendar")
+        }
+    }
+
+    /**
+     * Processes the result intent returned by the consent activity launched
+     * from [CalendarConnectionResult.NeedsConsent].
+     */
+    suspend fun handleSignInResult(data: Intent?): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val task = GoogleSignIn.getSignedInAccountFromIntent(data)
+            val account = task.getResult(ApiException::class.java)
+            if (account.grantedScopes.any { it.scopeUri == CalendarScopes.CALENDAR }) {
+                _isCalendarConnected.value = true
+                _connectedAccountEmail.value = account.email
+                refreshCalendarCache()
+                Result.success(Unit)
+            } else {
+                Result.failure(CalendarScopeRequiredException("Calendar permission was not granted"))
+            }
+        } catch (e: ApiException) {
+            Log.e(TAG, "Calendar sign-in failed: status=${e.statusCode}", e)
+            Result.failure(Exception("Google Calendar authorization failed"))
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to handle sign-in result", e)
             Result.failure(e)
         }
     }
