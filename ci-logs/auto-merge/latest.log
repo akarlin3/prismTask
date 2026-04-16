@@ -1,0 +1,418 @@
+=== CI FAILURE ===
+Workflow:      Auto-merge & Release
+Workflow file: akarlin3/prismTask/.github/workflows/auto-merge.yml@refs/pull/468/merge
+Job(s):        Auto-merge
+Run ID:        24523532782
+Run attempt:   1
+Run URL:       https://github.com/akarlin3/prismTask/actions/runs/24523532782
+Commit:        cb1ff242f84299d16f63b57968d65bafdf4eec79
+Branch:        468/merge
+Event:         pull_request
+Actor:         akarlin3
+Runner OS:     Linux
+Timestamp:     2026-04-16T17:15:09.014Z
+
+Failed steps:
+  - Auto-merge: #2 Wait for all other CI checks to pass
+
+=== FAILED JOB LOG ===
+
+--- Job: Auto-merge (id 71687486356) ---
+2026-04-16T17:07:41.0387148Z Current runner version: '2.333.1'
+2026-04-16T17:07:41.0410462Z ##[group]Runner Image Provisioner
+2026-04-16T17:07:41.0411292Z Hosted Compute Agent
+2026-04-16T17:07:41.0411743Z Version: 20260213.493
+2026-04-16T17:07:41.0412319Z Commit: 5c115507f6dd24b8de37d8bbe0bb4509d0cc0fa3
+2026-04-16T17:07:41.0412930Z Build Date: 2026-02-13T00:28:41Z
+2026-04-16T17:07:41.0413533Z Worker ID: {2c527ffa-b2a2-4565-8f5a-bc913aac55ba}
+2026-04-16T17:07:41.0414177Z Azure Region: northcentralus
+2026-04-16T17:07:41.0414675Z ##[endgroup]
+2026-04-16T17:07:41.0415928Z ##[group]Operating System
+2026-04-16T17:07:41.0416438Z Ubuntu
+2026-04-16T17:07:41.0416878Z 24.04.4
+2026-04-16T17:07:41.0417275Z LTS
+2026-04-16T17:07:41.0417681Z ##[endgroup]
+2026-04-16T17:07:41.0418071Z ##[group]Runner Image
+2026-04-16T17:07:41.0418874Z Image: ubuntu-24.04
+2026-04-16T17:07:41.0419327Z Version: 20260406.80.1
+2026-04-16T17:07:41.0420439Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260406.80/images/ubuntu/Ubuntu2404-Readme.md
+2026-04-16T17:07:41.0421683Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260406.80
+2026-04-16T17:07:41.0422465Z ##[endgroup]
+2026-04-16T17:07:41.0423603Z ##[group]GITHUB_TOKEN Permissions
+2026-04-16T17:07:41.0425474Z Actions: read
+2026-04-16T17:07:41.0425991Z Checks: read
+2026-04-16T17:07:41.0426432Z Contents: write
+2026-04-16T17:07:41.0426848Z Metadata: read
+2026-04-16T17:07:41.0427319Z PullRequests: write
+2026-04-16T17:07:41.0427777Z ##[endgroup]
+2026-04-16T17:07:41.0430068Z Secret source: Actions
+2026-04-16T17:07:41.0430751Z Prepare workflow directory
+2026-04-16T17:07:41.0915340Z Prepare all required actions
+2026-04-16T17:07:41.0972985Z Getting action download info
+2026-04-16T17:07:41.9587489Z Download action repository 'lewagon/wait-on-check-action@ccfb013c15c8afb7bf2b7c028fb74dc5a068cccc' (SHA:ccfb013c15c8afb7bf2b7c028fb74dc5a068cccc)
+2026-04-16T17:07:42.4350257Z Getting action download info
+2026-04-16T17:07:42.6129201Z Download action repository 'ruby/setup-ruby@v1' (SHA:7372622e62b60b3cb750dcd2b9e32c247ffec26a)
+2026-04-16T17:07:43.0172835Z Download action repository 'actions/cache@v4' (SHA:0057852bfaa89a56745cba8c7296529d2fc39830)
+2026-04-16T17:07:43.2597957Z Complete job name: Auto-merge
+2026-04-16T17:07:43.3350575Z ##[group]Run lewagon/wait-on-check-action@ccfb013c15c8afb7bf2b7c028fb74dc5a068cccc
+2026-04-16T17:07:43.3351375Z with:
+2026-04-16T17:07:43.3351647Z   ref: 86a602566268ef5f41533a63c372bf3a7bd0f4cf
+2026-04-16T17:07:43.3351989Z   running-workflow-name: Auto-merge
+2026-04-16T17:07:43.3352738Z   repo-token: ***
+2026-04-16T17:07:43.3352983Z   wait-interval: 30
+2026-04-16T17:07:43.3353235Z   allowed-conclusions: success,skipped
+2026-04-16T17:07:43.3353545Z   verbose: true
+2026-04-16T17:07:43.3353930Z env:
+2026-04-16T17:07:43.3354146Z   WAIT_INTERVAL: 30
+2026-04-16T17:07:43.3354385Z ##[endgroup]
+2026-04-16T17:07:43.3498090Z ##[group]Run ruby/setup-ruby@v1
+2026-04-16T17:07:43.3498576Z with:
+2026-04-16T17:07:43.3498793Z   ruby-version: 3.2
+2026-04-16T17:07:43.3499024Z   bundler-cache: false
+2026-04-16T17:07:43.3499495Z   token: ***
+2026-04-16T17:07:43.3499694Z env:
+2026-04-16T17:07:43.3499890Z   WAIT_INTERVAL: 30
+2026-04-16T17:07:43.3500118Z ##[endgroup]
+2026-04-16T17:07:43.4835620Z ##[group]Modifying PATH
+2026-04-16T17:07:43.4836305Z Entries added to PATH to use selected Ruby:
+2026-04-16T17:07:43.4836649Z   /opt/hostedtoolcache/Ruby/3.2.11/x64/bin
+2026-04-16T17:07:43.4840764Z ##[endgroup]
+2026-04-16T17:07:43.4841460Z ##[group]Print Ruby version
+2026-04-16T17:07:43.4979026Z [command]/opt/hostedtoolcache/Ruby/3.2.11/x64/bin/ruby --version
+2026-04-16T17:07:43.6709863Z ruby 3.2.11 (2026-03-27 revision 5483bfc1ae) [x86_64-linux]
+2026-04-16T17:07:43.6729033Z Took   0.19 seconds
+2026-04-16T17:07:43.6729914Z ##[endgroup]
+2026-04-16T17:07:43.6730650Z ##[group]Installing Bundler
+2026-04-16T17:07:43.6734255Z Using Bundler shipped with ruby-3.2.11
+2026-04-16T17:07:43.6735005Z Took   0.00 seconds
+2026-04-16T17:07:43.6735854Z ##[endgroup]
+2026-04-16T17:07:43.7345096Z ##[group]Run actions/cache@v4
+2026-04-16T17:07:43.7345687Z with:
+2026-04-16T17:07:43.7346131Z   path: /home/runner/work/_actions/lewagon/wait-on-check-action/ccfb013c15c8afb7bf2b7c028fb74dc5a068cccc
+2026-04-16T17:07:43.7346614Z   key: Linux-gems-
+2026-04-16T17:07:43.7346835Z   restore-keys: Linux-gems-
+2026-04-16T17:07:43.7347093Z   enableCrossOsArchive: false
+2026-04-16T17:07:43.7347341Z   fail-on-cache-miss: false
+2026-04-16T17:07:43.7347585Z   lookup-only: false
+2026-04-16T17:07:43.7347799Z   save-always: false
+2026-04-16T17:07:43.7348004Z env:
+2026-04-16T17:07:43.7348186Z   WAIT_INTERVAL: 30
+2026-04-16T17:07:43.7348731Z ##[endgroup]
+2026-04-16T17:07:43.9873910Z Cache not found for input keys: Linux-gems-, Linux-gems-
+2026-04-16T17:07:43.9946390Z ##[group]Run bundle install --jobs 4 --retry 3
+2026-04-16T17:07:43.9946872Z [36;1mbundle install --jobs 4 --retry 3[0m
+2026-04-16T17:07:43.9965678Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-04-16T17:07:43.9966043Z env:
+2026-04-16T17:07:43.9966253Z   WAIT_INTERVAL: 30
+2026-04-16T17:07:43.9966490Z ##[endgroup]
+2026-04-16T17:07:45.2205549Z Bundler 2.4.19 is running, but your lockfile was generated with 2.2.3. Installing Bundler 2.2.3 and restarting using that version.
+2026-04-16T17:07:46.3837499Z Fetching gem metadata from https://rubygems.org/.
+2026-04-16T17:07:46.3914602Z Fetching bundler 2.2.3
+2026-04-16T17:07:46.5160674Z Installing bundler 2.2.3
+2026-04-16T17:07:46.6686088Z Calling `DidYouMean::SPELL_CHECKERS.merge!(error_name => spell_checker)' has been deprecated. Please call `DidYouMean.correct_error(error_name, spell_checker)' instead.
+2026-04-16T17:07:47.8666214Z Fetching gem metadata from https://rubygems.org/.........
+2026-04-16T17:07:47.8761907Z Fetching minitest 5.18.0
+2026-04-16T17:07:47.9043257Z Fetching concurrent-ruby 1.2.2
+2026-04-16T17:07:47.9278562Z Fetching public_suffix 4.0.7
+2026-04-16T17:07:47.9285233Z Fetching zeitwerk 2.6.7
+2026-04-16T17:07:47.9914490Z Installing zeitwerk 2.6.7
+2026-04-16T17:07:48.0067175Z Installing public_suffix 4.0.7
+2026-04-16T17:07:48.0235091Z Installing minitest 5.18.0
+2026-04-16T17:07:48.0477780Z Fetching ast 2.4.2
+2026-04-16T17:07:48.0793812Z Installing concurrent-ruby 1.2.2
+2026-04-16T17:07:48.0845653Z Installing ast 2.4.2
+2026-04-16T17:07:48.0978140Z Using bundler 2.2.3
+2026-04-16T17:07:48.0981602Z Fetching byebug 11.1.3
+2026-04-16T17:07:48.1291034Z Fetching diff-lcs 1.4.4
+2026-04-16T17:07:48.1589707Z Fetching faraday-net_http 2.0.3
+2026-04-16T17:07:48.1952593Z Installing byebug 11.1.3 with native extensions
+2026-04-16T17:07:48.1955040Z Installing diff-lcs 1.4.4
+2026-04-16T17:07:48.2169276Z Installing faraday-net_http 2.0.3
+2026-04-16T17:07:48.2294391Z Using ruby2_keywords 0.0.5
+2026-04-16T17:07:48.2309692Z Fetching json 2.7.1
+2026-04-16T17:07:48.2772305Z Installing json 2.7.1 with native extensions
+2026-04-16T17:07:48.2951777Z Fetching language_server-protocol 3.17.0.3
+2026-04-16T17:07:48.3445313Z Installing language_server-protocol 3.17.0.3
+2026-04-16T17:07:48.3987732Z Fetching lint_roller 1.1.0
+2026-04-16T17:07:48.4591745Z Installing lint_roller 1.1.0
+2026-04-16T17:07:48.4737792Z Fetching parallel 1.24.0
+2026-04-16T17:07:48.5211082Z Installing parallel 1.24.0
+2026-04-16T17:07:48.5279469Z Fetching racc 1.7.3
+2026-04-16T17:07:48.5793456Z Installing racc 1.7.3 with native extensions
+2026-04-16T17:07:48.5897638Z Fetching rainbow 3.1.1
+2026-04-16T17:07:48.6266312Z Installing rainbow 3.1.1
+2026-04-16T17:07:48.6353167Z Fetching regexp_parser 2.8.3
+2026-04-16T17:07:48.6825374Z Installing regexp_parser 2.8.3
+2026-04-16T17:07:48.7001594Z Fetching rexml 3.2.6
+2026-04-16T17:07:48.7709342Z Installing rexml 3.2.6
+2026-04-16T17:07:48.8519144Z Fetching rspec-support 3.10.1
+2026-04-16T17:07:48.8947065Z Installing rspec-support 3.10.1
+2026-04-16T17:07:48.9046531Z Fetching ruby-progressbar 1.13.0
+2026-04-16T17:07:48.9398624Z Installing ruby-progressbar 1.13.0
+2026-04-16T17:07:48.9473948Z Fetching unicode-display_width 2.5.0
+2026-04-16T17:07:48.9834716Z Installing unicode-display_width 2.5.0
+2026-04-16T17:07:48.9939205Z Fetching addressable 2.8.0
+2026-04-16T17:07:49.0491871Z Installing addressable 2.8.0
+2026-04-16T17:07:49.0610827Z Fetching faraday 2.3.0
+2026-04-16T17:07:49.1024430Z Installing faraday 2.3.0
+2026-04-16T17:07:49.1186950Z Fetching i18n 1.12.0
+2026-04-16T17:07:49.1614611Z Installing i18n 1.12.0
+2026-04-16T17:07:49.1733059Z Fetching tzinfo 2.0.6
+2026-04-16T17:07:49.2129378Z Installing tzinfo 2.0.6
+2026-04-16T17:07:49.2271123Z Fetching rspec-core 3.10.1
+2026-04-16T17:07:49.2710835Z Installing rspec-core 3.10.1
+2026-04-16T17:07:49.2914767Z Fetching rspec-expectations 3.10.1
+2026-04-16T17:07:49.3306156Z Installing rspec-expectations 3.10.1
+2026-04-16T17:07:49.3459016Z Fetching rspec-mocks 3.10.1
+2026-04-16T17:07:49.4029319Z Installing rspec-mocks 3.10.1
+2026-04-16T17:07:49.4200753Z Fetching faraday-retry 2.0.0
+2026-04-16T17:07:49.4816211Z Installing faraday-retry 2.0.0
+2026-04-16T17:07:49.4919266Z Fetching sawyer 0.9.2
+2026-04-16T17:07:49.5509356Z Installing sawyer 0.9.2
+2026-04-16T17:07:49.5593538Z Fetching activesupport 6.1.7.3
+2026-04-16T17:07:49.6317663Z Installing activesupport 6.1.7.3
+2026-04-16T17:07:49.6988636Z Fetching rspec 3.10.0
+2026-04-16T17:07:49.7630477Z Installing rspec 3.10.0
+2026-04-16T17:07:49.7687477Z Fetching octokit 4.25.0
+2026-04-16T17:07:49.8348874Z Installing octokit 4.25.0
+2026-04-16T17:07:50.0722264Z Fetching parser 3.2.2.4
+2026-04-16T17:07:50.1895790Z Installing parser 3.2.2.4
+2026-04-16T17:07:50.2939104Z Fetching rubocop-ast 1.30.0
+2026-04-16T17:07:50.3648010Z Installing rubocop-ast 1.30.0
+2026-04-16T17:07:51.6637177Z Fetching rubocop 1.57.2
+2026-04-16T17:07:51.7237399Z Installing rubocop 1.57.2
+2026-04-16T17:07:51.8466075Z Fetching standard-custom 1.0.2
+2026-04-16T17:07:51.8466883Z Fetching rubocop-performance 1.19.1
+2026-04-16T17:07:51.9014843Z Installing standard-custom 1.0.2
+2026-04-16T17:07:51.9080193Z Installing rubocop-performance 1.19.1
+2026-04-16T17:07:51.9201815Z Fetching standard-performance 1.2.1
+2026-04-16T17:07:51.9546616Z Installing standard-performance 1.2.1
+2026-04-16T17:07:51.9601395Z Fetching standard 1.32.1
+2026-04-16T17:07:51.9975249Z Installing standard 1.32.1
+2026-04-16T17:07:52.0135884Z Bundle complete! 6 Gemfile dependencies, 40 gems now installed.
+2026-04-16T17:07:52.0136912Z Use `bundle info [gemname]` to see where a bundled gem is installed.
+2026-04-16T17:07:52.0537946Z ##[group]Run ruby entrypoint.rb
+2026-04-16T17:07:52.0538229Z [36;1mruby entrypoint.rb[0m
+2026-04-16T17:07:52.0551880Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-04-16T17:07:52.0552182Z env:
+2026-04-16T17:07:52.0552337Z   WAIT_INTERVAL: 30
+2026-04-16T17:07:52.0552542Z   ALLOWED_CONCLUSIONS: success,skipped
+2026-04-16T17:07:52.0552760Z   IGNORE_CHECKS: 
+2026-04-16T17:07:52.0552926Z   CHECK_NAME: 
+2026-04-16T17:07:52.0553076Z   CHECK_REGEXP: 
+2026-04-16T17:07:52.0553267Z   REF: 86a602566268ef5f41533a63c372bf3a7bd0f4cf
+2026-04-16T17:07:52.0553765Z   REPO_TOKEN: ***
+2026-04-16T17:07:52.0553935Z   VERBOSE: true
+2026-04-16T17:07:52.0554119Z   RUNNING_WORKFLOW_NAME: Auto-merge
+2026-04-16T17:07:52.0554348Z   API_ENDPOINT: 
+2026-04-16T17:07:52.0554515Z ##[endgroup]
+2026-04-16T17:12:26.4410962Z Checks running on ref:
+2026-04-16T17:12:26.4411662Z Checks completed: Version Bump, Build & Firebase Distribute
+2026-04-16T17:12:26.4412197Z Checks in_progress: lint-and-test, Auto-merge, autofix, test, lint-and-test
+2026-04-16T17:12:26.4412538Z Checks after ignore checks filter:
+2026-04-16T17:12:26.4412809Z Checks completed: Version Bump, Build & Firebase Distribute
+2026-04-16T17:12:26.4413153Z Checks in_progress: lint-and-test, autofix, test, lint-and-test
+2026-04-16T17:12:26.4413439Z Checks after check_name filter:
+2026-04-16T17:12:26.4413697Z Checks completed: Version Bump, Build & Firebase Distribute
+2026-04-16T17:12:26.4414025Z Checks in_progress: lint-and-test, autofix, test, lint-and-test
+2026-04-16T17:12:26.4414313Z Checks after Regexp filter:
+2026-04-16T17:12:26.4414550Z Checks completed: Version Bump, Build & Firebase Distribute
+2026-04-16T17:12:26.4414881Z Checks in_progress: lint-and-test, autofix, test, lint-and-test
+2026-04-16T17:12:26.4415572Z The requested checks aren't complete yet, will check back in 30 seconds...
+2026-04-16T17:12:26.4415883Z Checks running on ref:
+2026-04-16T17:12:26.4416076Z Checks queued: e2e
+2026-04-16T17:12:26.4416375Z Checks completed: Version Bump, Build & Firebase Distribute, lint-and-test, autofix
+2026-04-16T17:12:26.4416766Z Checks in_progress: Auto-merge, test, lint-and-test
+2026-04-16T17:12:26.4417022Z Checks after ignore checks filter:
+2026-04-16T17:12:26.4417232Z Checks queued: e2e
+2026-04-16T17:12:26.4417510Z Checks completed: Version Bump, Build & Firebase Distribute, lint-and-test, autofix
+2026-04-16T17:12:26.4417865Z Checks in_progress: test, lint-and-test
+2026-04-16T17:12:26.4418097Z Checks after check_name filter:
+2026-04-16T17:12:26.4418488Z Checks queued: e2e
+2026-04-16T17:12:26.4418776Z Checks completed: Version Bump, Build & Firebase Distribute, lint-and-test, autofix
+2026-04-16T17:12:26.4419121Z Checks in_progress: test, lint-and-test
+2026-04-16T17:12:26.4419349Z Checks after Regexp filter:
+2026-04-16T17:12:26.4419538Z Checks queued: e2e
+2026-04-16T17:12:26.4419826Z Checks completed: Version Bump, Build & Firebase Distribute, lint-and-test, autofix
+2026-04-16T17:12:26.4420176Z Checks in_progress: test, lint-and-test
+2026-04-16T17:12:26.4420501Z The requested checks aren't complete yet, will check back in 30 seconds...
+2026-04-16T17:12:26.4420821Z Checks running on ref:
+2026-04-16T17:12:26.4421052Z Checks in_progress: e2e, Auto-merge, test, lint-and-test
+2026-04-16T17:12:26.4421432Z Checks completed: Version Bump, Build & Firebase Distribute, lint-and-test, autofix
+2026-04-16T17:12:26.4421790Z Checks after ignore checks filter:
+2026-04-16T17:12:26.4422125Z Checks in_progress: e2e, test, lint-and-test
+2026-04-16T17:12:26.4422479Z Checks completed: Version Bump, Build & Firebase Distribute, lint-and-test, autofix
+2026-04-16T17:12:26.4422823Z Checks after check_name filter:
+2026-04-16T17:12:26.4423051Z Checks in_progress: e2e, test, lint-and-test
+2026-04-16T17:12:26.4423396Z Checks completed: Version Bump, Build & Firebase Distribute, lint-and-test, autofix
+2026-04-16T17:12:26.4423742Z Checks after Regexp filter:
+2026-04-16T17:12:26.4423957Z Checks in_progress: e2e, test, lint-and-test
+2026-04-16T17:12:26.4424434Z Checks completed: Version Bump, Build & Firebase Distribute, lint-and-test, autofix
+2026-04-16T17:12:26.4424860Z The requested checks aren't complete yet, will check back in 30 seconds...
+2026-04-16T17:12:26.4425178Z Checks running on ref:
+2026-04-16T17:12:26.4425416Z Checks in_progress: e2e, Auto-merge, test, lint-and-test
+2026-04-16T17:12:26.4425787Z Checks completed: Version Bump, Build & Firebase Distribute, lint-and-test, autofix
+2026-04-16T17:12:26.4426135Z Checks after ignore checks filter:
+2026-04-16T17:12:26.4426359Z Checks in_progress: e2e, test, lint-and-test
+2026-04-16T17:12:26.4426721Z Checks completed: Version Bump, Build & Firebase Distribute, lint-and-test, autofix
+2026-04-16T17:12:26.4427058Z Checks after check_name filter:
+2026-04-16T17:12:26.4427289Z Checks in_progress: e2e, test, lint-and-test
+2026-04-16T17:12:26.4427630Z Checks completed: Version Bump, Build & Firebase Distribute, lint-and-test, autofix
+2026-04-16T17:12:26.4427963Z Checks after Regexp filter:
+2026-04-16T17:12:26.4428181Z Checks in_progress: e2e, test, lint-and-test
+2026-04-16T17:12:26.4428601Z Checks completed: Version Bump, Build & Firebase Distribute, lint-and-test, autofix
+2026-04-16T17:12:26.4429032Z The requested checks aren't complete yet, will check back in 30 seconds...
+2026-04-16T17:12:26.4429336Z Checks running on ref:
+2026-04-16T17:12:26.4429823Z Checks completed: capture-failure-log, capture-failure-log, e2e, Version Bump, Build & Firebase Distribute, lint-and-test, autofix, test
+2026-04-16T17:12:26.4430370Z Checks in_progress: Auto-merge, lint-and-test
+2026-04-16T17:12:26.4430614Z Checks after ignore checks filter:
+2026-04-16T17:12:26.4431141Z Checks completed: capture-failure-log, capture-failure-log, e2e, Version Bump, Build & Firebase Distribute, lint-and-test, autofix, test
+2026-04-16T17:12:26.4431723Z Checks in_progress: lint-and-test
+2026-04-16T17:12:26.4431942Z Checks after check_name filter:
+2026-04-16T17:12:26.4432414Z Checks completed: capture-failure-log, capture-failure-log, e2e, Version Bump, Build & Firebase Distribute, lint-and-test, autofix, test
+2026-04-16T17:12:26.4432921Z Checks in_progress: lint-and-test
+2026-04-16T17:12:26.4433125Z Checks after Regexp filter:
+2026-04-16T17:12:26.4433590Z Checks completed: capture-failure-log, capture-failure-log, e2e, Version Bump, Build & Firebase Distribute, lint-and-test, autofix, test
+2026-04-16T17:12:26.4434094Z Checks in_progress: lint-and-test
+2026-04-16T17:12:26.4434388Z The requested checks aren't complete yet, will check back in 30 seconds...
+2026-04-16T17:12:26.4434704Z Checks running on ref:
+2026-04-16T17:12:26.4435160Z Checks completed: capture-failure-log, capture-failure-log, e2e, Version Bump, Build & Firebase Distribute, lint-and-test, autofix, test
+2026-04-16T17:12:26.4435690Z Checks in_progress: Auto-merge, lint-and-test
+2026-04-16T17:12:26.4435934Z Checks after ignore checks filter:
+2026-04-16T17:12:26.4436422Z Checks completed: capture-failure-log, capture-failure-log, e2e, Version Bump, Build & Firebase Distribute, lint-and-test, autofix, test
+2026-04-16T17:12:26.4436922Z Checks in_progress: lint-and-test
+2026-04-16T17:12:26.4437128Z Checks after check_name filter:
+2026-04-16T17:12:26.4437599Z Checks completed: capture-failure-log, capture-failure-log, e2e, Version Bump, Build & Firebase Distribute, lint-and-test, autofix, test
+2026-04-16T17:12:26.4438088Z Checks in_progress: lint-and-test
+2026-04-16T17:12:26.4438362Z Checks after Regexp filter:
+2026-04-16T17:12:26.4438822Z Checks completed: capture-failure-log, capture-failure-log, e2e, Version Bump, Build & Firebase Distribute, lint-and-test, autofix, test
+2026-04-16T17:12:26.4439319Z Checks in_progress: lint-and-test
+2026-04-16T17:12:26.4439619Z The requested checks aren't complete yet, will check back in 30 seconds...
+2026-04-16T17:12:26.4439926Z Checks running on ref:
+2026-04-16T17:12:26.4440385Z Checks completed: capture-failure-log, capture-failure-log, e2e, Version Bump, Build & Firebase Distribute, lint-and-test, autofix, test
+2026-04-16T17:12:26.4441034Z Checks in_progress: Auto-merge, lint-and-test
+2026-04-16T17:12:26.4441287Z Checks after ignore checks filter:
+2026-04-16T17:12:26.4441767Z Checks completed: capture-failure-log, capture-failure-log, e2e, Version Bump, Build & Firebase Distribute, lint-and-test, autofix, test
+2026-04-16T17:12:26.4442257Z Checks in_progress: lint-and-test
+2026-04-16T17:12:26.4442474Z Checks after check_name filter:
+2026-04-16T17:12:26.4442936Z Checks completed: capture-failure-log, capture-failure-log, e2e, Version Bump, Build & Firebase Distribute, lint-and-test, autofix, test
+2026-04-16T17:12:26.4443442Z Checks in_progress: lint-and-test
+2026-04-16T17:12:26.4443654Z Checks after Regexp filter:
+2026-04-16T17:12:26.4444124Z Checks completed: capture-failure-log, capture-failure-log, e2e, Version Bump, Build & Firebase Distribute, lint-and-test, autofix, test
+2026-04-16T17:12:26.4444632Z Checks in_progress: lint-and-test
+2026-04-16T17:12:26.4444926Z The requested checks aren't complete yet, will check back in 30 seconds...
+2026-04-16T17:12:26.4445248Z Checks running on ref:
+2026-04-16T17:12:26.4445703Z Checks completed: capture-failure-log, capture-failure-log, e2e, Version Bump, Build & Firebase Distribute, lint-and-test, autofix, test
+2026-04-16T17:12:26.4446238Z Checks in_progress: Auto-merge, lint-and-test
+2026-04-16T17:12:26.4446491Z Checks after ignore checks filter:
+2026-04-16T17:12:26.4446963Z Checks completed: capture-failure-log, capture-failure-log, e2e, Version Bump, Build & Firebase Distribute, lint-and-test, autofix, test
+2026-04-16T17:12:26.4447472Z Checks in_progress: lint-and-test
+2026-04-16T17:12:26.4447679Z Checks after check_name filter:
+2026-04-16T17:12:26.4448151Z Checks completed: capture-failure-log, capture-failure-log, e2e, Version Bump, Build & Firebase Distribute, lint-and-test, autofix, test
+2026-04-16T17:12:26.4448793Z Checks in_progress: lint-and-test
+2026-04-16T17:12:26.4449000Z Checks after Regexp filter:
+2026-04-16T17:12:26.4449475Z Checks completed: capture-failure-log, capture-failure-log, e2e, Version Bump, Build & Firebase Distribute, lint-and-test, autofix, test
+2026-04-16T17:12:26.4449971Z Checks in_progress: lint-and-test
+2026-04-16T17:12:26.4450270Z The requested checks aren't complete yet, will check back in 30 seconds...
+2026-04-16T17:12:26.4450579Z Checks running on ref:
+2026-04-16T17:12:26.4451040Z Checks completed: capture-failure-log, capture-failure-log, e2e, Version Bump, Build & Firebase Distribute, lint-and-test, autofix, test
+2026-04-16T17:12:26.4451572Z Checks in_progress: Auto-merge, lint-and-test
+2026-04-16T17:12:26.4451809Z Checks after ignore checks filter:
+2026-04-16T17:12:26.4452294Z Checks completed: capture-failure-log, capture-failure-log, e2e, Version Bump, Build & Firebase Distribute, lint-and-test, autofix, test
+2026-04-16T17:12:26.4452790Z Checks in_progress: lint-and-test
+2026-04-16T17:12:26.4453008Z Checks after check_name filter:
+2026-04-16T17:12:26.4453478Z Checks completed: capture-failure-log, capture-failure-log, e2e, Version Bump, Build & Firebase Distribute, lint-and-test, autofix, test
+2026-04-16T17:12:26.4453980Z Checks in_progress: lint-and-test
+2026-04-16T17:12:26.4454192Z Checks after Regexp filter:
+2026-04-16T17:12:26.4454649Z Checks completed: capture-failure-log, capture-failure-log, e2e, Version Bump, Build & Firebase Distribute, lint-and-test, autofix, test
+2026-04-16T17:12:26.4455147Z Checks in_progress: lint-and-test
+2026-04-16T17:12:26.4455437Z The requested checks aren't complete yet, will check back in 30 seconds...
+2026-04-16T17:12:26.4455745Z Checks running on ref:
+2026-04-16T17:12:26.4456188Z Checks completed: capture-failure-log, capture-failure-log, e2e, Version Bump, Build & Firebase Distribute, lint-and-test, autofix, test
+2026-04-16T17:12:26.4456707Z Checks in_progress: Auto-merge, lint-and-test
+2026-04-16T17:12:26.4456949Z Checks after ignore checks filter:
+2026-04-16T17:12:26.4457430Z Checks completed: capture-failure-log, capture-failure-log, e2e, Version Bump, Build & Firebase Distribute, lint-and-test, autofix, test
+2026-04-16T17:12:26.4457997Z Checks in_progress: lint-and-test
+2026-04-16T17:12:26.4458202Z Checks after check_name filter:
+2026-04-16T17:12:26.4458741Z Checks completed: capture-failure-log, capture-failure-log, e2e, Version Bump, Build & Firebase Distribute, lint-and-test, autofix, test
+2026-04-16T17:12:26.4459232Z Checks in_progress: lint-and-test
+2026-04-16T17:12:26.4459442Z Checks after Regexp filter:
+2026-04-16T17:12:26.4459906Z Checks completed: capture-failure-log, capture-failure-log, e2e, Version Bump, Build & Firebase Distribute, lint-and-test, autofix, test
+2026-04-16T17:12:26.4460397Z Checks in_progress: lint-and-test
+2026-04-16T17:14:58.4986612Z The requested checks aren't complete yet, will check back in 30 seconds...
+2026-04-16T17:14:58.4987165Z Checks running on ref:
+2026-04-16T17:14:58.4987853Z Checks completed: capture-failure-log, capture-failure-log, e2e, Version Bump, Build & Firebase Distribute, lint-and-test, autofix, test
+2026-04-16T17:14:58.4989036Z Checks in_progress: Auto-merge, lint-and-test
+2026-04-16T17:14:58.4989477Z Checks after ignore checks filter:
+2026-04-16T17:14:58.4990268Z Checks completed: capture-failure-log, capture-failure-log, e2e, Version Bump, Build & Firebase Distribute, lint-and-test, autofix, test
+2026-04-16T17:14:58.4991208Z Checks in_progress: lint-and-test
+2026-04-16T17:14:58.4991587Z Checks after check_name filter:
+2026-04-16T17:14:58.4992466Z Checks completed: capture-failure-log, capture-failure-log, e2e, Version Bump, Build & Firebase Distribute, lint-and-test, autofix, test
+2026-04-16T17:14:58.4992986Z Checks in_progress: lint-and-test
+2026-04-16T17:14:58.4993198Z Checks after Regexp filter:
+2026-04-16T17:14:58.4993671Z Checks completed: capture-failure-log, capture-failure-log, e2e, Version Bump, Build & Firebase Distribute, lint-and-test, autofix, test
+2026-04-16T17:14:58.4994479Z Checks in_progress: lint-and-test
+2026-04-16T17:14:58.4994791Z The requested checks aren't complete yet, will check back in 30 seconds...
+2026-04-16T17:14:58.4995107Z Checks running on ref:
+2026-04-16T17:14:58.4995579Z Checks completed: capture-failure-log, capture-failure-log, e2e, Version Bump, Build & Firebase Distribute, lint-and-test, autofix, test
+2026-04-16T17:14:58.4996115Z Checks in_progress: Auto-merge, lint-and-test
+2026-04-16T17:14:58.4996355Z Checks after ignore checks filter:
+2026-04-16T17:14:58.4996891Z Checks completed: capture-failure-log, capture-failure-log, e2e, Version Bump, Build & Firebase Distribute, lint-and-test, autofix, test
+2026-04-16T17:14:58.4997386Z Checks in_progress: lint-and-test
+2026-04-16T17:14:58.4997599Z Checks after check_name filter:
+2026-04-16T17:14:58.4998067Z Checks completed: capture-failure-log, capture-failure-log, e2e, Version Bump, Build & Firebase Distribute, lint-and-test, autofix, test
+2026-04-16T17:14:58.4998794Z Checks in_progress: lint-and-test
+2026-04-16T17:14:58.4999021Z Checks after Regexp filter:
+2026-04-16T17:14:58.4999500Z Checks completed: capture-failure-log, capture-failure-log, e2e, Version Bump, Build & Firebase Distribute, lint-and-test, autofix, test
+2026-04-16T17:14:58.5000012Z Checks in_progress: lint-and-test
+2026-04-16T17:14:58.5000316Z The requested checks aren't complete yet, will check back in 30 seconds...
+2026-04-16T17:14:58.5000642Z Checks running on ref:
+2026-04-16T17:14:58.5001135Z Checks completed: capture-failure-log, capture-failure-log, e2e, Version Bump, Build & Firebase Distribute, lint-and-test, autofix, test
+2026-04-16T17:14:58.5001655Z Checks in_progress: Auto-merge, lint-and-test
+2026-04-16T17:14:58.5001901Z Checks after ignore checks filter:
+2026-04-16T17:14:58.5002381Z Checks completed: capture-failure-log, capture-failure-log, e2e, Version Bump, Build & Firebase Distribute, lint-and-test, autofix, test
+2026-04-16T17:14:58.5002881Z Checks in_progress: lint-and-test
+2026-04-16T17:14:58.5003086Z Checks after check_name filter:
+2026-04-16T17:14:58.5003564Z Checks completed: capture-failure-log, capture-failure-log, e2e, Version Bump, Build & Firebase Distribute, lint-and-test, autofix, test
+2026-04-16T17:14:58.5004204Z Checks in_progress: lint-and-test
+2026-04-16T17:14:58.5004410Z Checks after Regexp filter:
+2026-04-16T17:14:58.5004878Z Checks completed: capture-failure-log, capture-failure-log, e2e, Version Bump, Build & Firebase Distribute, lint-and-test, autofix, test
+2026-04-16T17:14:58.5005367Z Checks in_progress: lint-and-test
+2026-04-16T17:14:58.5005670Z The requested checks aren't complete yet, will check back in 30 seconds...
+2026-04-16T17:14:58.5005975Z Checks running on ref:
+2026-04-16T17:14:58.5006425Z Checks completed: capture-failure-log, capture-failure-log, e2e, Version Bump, Build & Firebase Distribute, lint-and-test, autofix, test
+2026-04-16T17:14:58.5006946Z Checks in_progress: Auto-merge, lint-and-test
+2026-04-16T17:14:58.5007181Z Checks after ignore checks filter:
+2026-04-16T17:14:58.5007668Z Checks completed: capture-failure-log, capture-failure-log, e2e, Version Bump, Build & Firebase Distribute, lint-and-test, autofix, test
+2026-04-16T17:14:58.5008161Z Checks in_progress: lint-and-test
+2026-04-16T17:14:58.5008525Z Checks after check_name filter:
+2026-04-16T17:14:58.5008992Z Checks completed: capture-failure-log, capture-failure-log, e2e, Version Bump, Build & Firebase Distribute, lint-and-test, autofix, test
+2026-04-16T17:14:58.5009492Z Checks in_progress: lint-and-test
+2026-04-16T17:14:58.5009708Z Checks after Regexp filter:
+2026-04-16T17:14:58.5010164Z Checks completed: capture-failure-log, capture-failure-log, e2e, Version Bump, Build & Firebase Distribute, lint-and-test, autofix, test
+2026-04-16T17:14:58.5010666Z Checks in_progress: lint-and-test
+2026-04-16T17:14:58.5010968Z The requested checks aren't complete yet, will check back in 30 seconds...
+2026-04-16T17:14:58.5011281Z Checks running on ref:
+2026-04-16T17:14:58.5011857Z Checks completed: capture-failure-log, capture-failure-log, capture-failure-log, e2e, Version Bump, Build & Firebase Distribute, lint-and-test, autofix, test, lint-and-test
+2026-04-16T17:14:58.5012557Z Checks in_progress: Auto-merge
+2026-04-16T17:14:58.5012775Z Checks after ignore checks filter:
+2026-04-16T17:14:58.5013362Z Checks completed: capture-failure-log, capture-failure-log, capture-failure-log, e2e, Version Bump, Build & Firebase Distribute, lint-and-test, autofix, test, lint-and-test
+2026-04-16T17:14:58.5014174Z Checks after check_name filter:
+2026-04-16T17:14:58.5015169Z Checks completed: capture-failure-log, capture-failure-log, capture-failure-log, e2e, Version Bump, Build & Firebase Distribute, lint-and-test, autofix, test, lint-and-test
+2026-04-16T17:14:58.5016231Z Checks after Regexp filter:
+2026-04-16T17:14:58.5017161Z Checks completed: capture-failure-log, capture-failure-log, capture-failure-log, e2e, Version Bump, Build & Firebase Distribute, lint-and-test, autofix, test, lint-and-test
+2026-04-16T17:14:58.5018092Z Checks completed:
+2026-04-16T17:14:58.5018598Z capture-failure-log: completed (success)
+2026-04-16T17:14:58.5019012Z capture-failure-log: completed (skipped)
+2026-04-16T17:14:58.5019431Z capture-failure-log: completed (success)
+2026-04-16T17:14:58.5019830Z e2e: completed (success)
+2026-04-16T17:14:58.5020266Z Version Bump, Build & Firebase Distribute: completed (skipped)
+2026-04-16T17:14:58.5020754Z lint-and-test: completed (success)
+2026-04-16T17:14:58.5021102Z autofix: completed (failure)
+2026-04-16T17:14:58.5021442Z test: completed (failure)
+2026-04-16T17:14:58.5021731Z lint-and-test: completed (success)
+2026-04-16T17:14:58.5022625Z The conclusion of one or more checks were not allowed. Allowed conclusions are: success, skipped. This can be configured with the 'allowed-conclusions' param.
+2026-04-16T17:14:58.5064479Z ##[error]Process completed with exit code 1.
+2026-04-16T17:14:58.5201247Z Post job cleanup.
+2026-04-16T17:14:58.5263167Z Cleaning up orphan processes
+2026-04-16T17:14:58.5476705Z ##[warning]Node.js 20 actions are deprecated. The following actions are running on Node.js 20 and may not work as expected: actions/cache@v4. Actions will be forced to run with Node.js 24 by default starting June 2nd, 2026. Node.js 20 will be removed from the runner on September 16th, 2026. Please check if updated versions of these actions are available that support Node.js 24. To opt into Node.js 24 now, set the FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true environment variable on the runner or in your workflow file. Once Node.js 24 becomes the default, you can temporarily opt out by setting ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
