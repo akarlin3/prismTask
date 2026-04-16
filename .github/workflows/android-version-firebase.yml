@@ -1,0 +1,151 @@
+name: Version Bump & Firebase Distribution
+
+# Runs on main after a merge when Android-related files change.
+# Bumps versionCode/versionName, builds a debug APK, and distributes
+# it to Firebase App Distribution via the Gradle plugin.
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'app/**'
+      - 'build.gradle.kts'
+      - 'settings.gradle.kts'
+      - 'gradle.properties'
+      - 'gradle/**'
+      - 'gradlew'
+      - 'gradlew.bat'
+
+concurrency:
+  group: version-firebase-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  version-bump-and-distribute:
+    name: Version Bump, Build & Firebase Distribute
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+
+      - name: Skip if triggered by version bump commit
+        id: skip_check
+        run: |
+          MSG=$(git log -1 --pretty=%s)
+          if echo "$MSG" | grep -q '\[skip ci\]'; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "Skipping — last commit was a CI version bump."
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up JDK 21
+        if: steps.skip_check.outputs.skip != 'true'
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        if: steps.skip_check.outputs.skip != 'true'
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: false
+
+      - name: Grant execute permission for gradlew
+        if: steps.skip_check.outputs.skip != 'true'
+        run: chmod +x gradlew
+
+      - name: Bump versionCode and versionName
+        if: steps.skip_check.outputs.skip != 'true'
+        id: version
+        run: |
+          set -euo pipefail
+          OFFSET=200
+          CURRENT_CODE=$(grep -oP 'versionCode\s*=\s*\K[0-9]+' app/build.gradle.kts | head -1)
+          CANDIDATE=$(( OFFSET + ${{ github.run_number }} ))
+          if [ "$CANDIDATE" -le "$CURRENT_CODE" ]; then
+            NEW_CODE=$(( CURRENT_CODE + 1 ))
+          else
+            NEW_CODE=$CANDIDATE
+          fi
+          sed -i "s/versionCode = [0-9]*/versionCode = $NEW_CODE/" app/build.gradle.kts
+
+          CURRENT_NAME=$(grep -oP 'versionName\s*=\s*"\K[^"]+' app/build.gradle.kts | head -1)
+          MAJOR=$(echo "$CURRENT_NAME" | cut -d. -f1)
+          MINOR=$(echo "$CURRENT_NAME" | cut -d. -f2)
+          PATCH=$(echo "$CURRENT_NAME" | cut -d. -f3)
+          NEW_PATCH=$(( PATCH + 1 ))
+          NEW_NAME="${MAJOR}.${MINOR}.${NEW_PATCH}"
+          sed -i "s/versionName = \"${CURRENT_NAME}\"/versionName = \"${NEW_NAME}\"/" app/build.gradle.kts
+
+          echo "version_name=$NEW_NAME" >> "$GITHUB_OUTPUT"
+          echo "version_code=$NEW_CODE" >> "$GITHUB_OUTPUT"
+          echo "Building v$NEW_NAME (build $NEW_CODE)"
+
+      - name: Setup Firebase credentials
+        if: steps.skip_check.outputs.skip != 'true'
+        id: firebase
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+        run: |
+          if [ -n "$FIREBASE_SERVICE_ACCOUNT" ]; then
+            echo "$FIREBASE_SERVICE_ACCOUNT" | base64 -d > "$RUNNER_TEMP/firebase-sa.json"
+            echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/firebase-sa.json" >> "$GITHUB_ENV"
+            echo "has_credentials=true" >> "$GITHUB_OUTPUT"
+            echo "Using service account credentials for Firebase."
+          elif [ -n "$FIREBASE_TOKEN" ]; then
+            echo "has_credentials=true" >> "$GITHUB_OUTPUT"
+            echo "Using legacy FIREBASE_TOKEN for Firebase."
+          else
+            echo "::warning::No Firebase credentials found. Set FIREBASE_SERVICE_ACCOUNT (preferred) or FIREBASE_TOKEN secret to enable distribution."
+            echo "has_credentials=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Generate release notes
+        if: steps.skip_check.outputs.skip != 'true'
+        run: |
+          {
+            echo "v${{ steps.version.outputs.version_name }} (build ${{ steps.version.outputs.version_code }})"
+            echo ""
+            git log -5 --pretty=format:"• %s"
+          } > "$RUNNER_TEMP/release_notes.txt"
+
+      - name: Assemble debug APK
+        if: steps.skip_check.outputs.skip != 'true'
+        run: ./gradlew assembleDebug --no-configuration-cache
+
+      - name: Upload to Firebase App Distribution
+        if: steps.skip_check.outputs.skip != 'true' && steps.firebase.outputs.has_credentials == 'true'
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+          RELEASE_NOTES_FILE: ${{ runner.temp }}/release_notes.txt
+        run: ./gradlew appDistributionUploadDebug --no-configuration-cache
+
+      - name: Upload debug APK artifact
+        if: steps.skip_check.outputs.skip != 'true' && success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug
+          path: app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 14
+
+      - name: Commit version bump
+        if: steps.skip_check.outputs.skip != 'true' && success()
+        run: |
+          set -euo pipefail
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add app/build.gradle.kts
+          git diff --cached --quiet && echo "No version bump to commit" || (
+            git commit -m "chore: bump to v${{ steps.version.outputs.version_name }} (build ${{ steps.version.outputs.version_code }}) [skip ci]" &&
+            git push
+          )
