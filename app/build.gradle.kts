@@ -1,4 +1,4 @@
-// CI pipeline test
+// CI pipeline test — version bump & Firebase distribution validation
 import com.google.firebase.appdistribution.gradle.firebaseAppDistribution
 
 plugins {
