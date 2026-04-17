@@ -19,6 +19,7 @@ import { Spinner } from '@/components/ui/Spinner';
 import TaskEditor from '@/features/tasks/TaskEditor';
 import type { Task } from '@/types/task';
 import type { DashboardSummary } from '@/types/api';
+import { MedicationSlotList } from '@/features/daily-essentials/MedicationSlotList';
 
 const COLLAPSE_KEY = 'prismtask_today_collapse';
 
@@ -423,6 +424,14 @@ export function TodayScreen() {
 
       {/* Weekly Habit Summary Banner */}
       <WeeklyHabitSummary />
+
+      {/* Daily Essentials — medication time slots */}
+      <section className="flex flex-col gap-2">
+        <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">
+          Medications
+        </h3>
+        <MedicationSlotList />
+      </section>
 
       {/* Empty state */}
       {isEmpty && (
