@@ -344,22 +344,6 @@ constructor(
         viewModelScope.launch { ndPreferencesDataStore.setCelebrationIntensity(i) }
     }
 
-    fun setParalysisBreakersEnabled(e: Boolean) {
-        viewModelScope.launch { ndPreferencesDataStore.setParalysisBreakersEnabled(e) }
-    }
-
-    fun setAutoSuggestEnabled(e: Boolean) {
-        viewModelScope.launch { ndPreferencesDataStore.setAutoSuggestEnabled(e) }
-    }
-
-    fun setSimplifyChoicesEnabled(e: Boolean) {
-        viewModelScope.launch { ndPreferencesDataStore.setSimplifyChoicesEnabled(e) }
-    }
-
-    fun setStuckDetectionMinutes(m: Int) {
-        viewModelScope.launch { ndPreferencesDataStore.setStuckDetectionMinutes(m) }
-    }
-
     /** Forgiveness-first streak preferences (v1.4.0 V5). */
     val forgivenessPrefs: StateFlow<com.averycorp.prismtask.data.preferences.ForgivenessPrefs> =
         userPreferencesDataStore.forgivenessFlow
@@ -757,6 +741,10 @@ constructor(
         .getPomodoroFocusPreference()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), TimerPreferences.DEFAULT_FOCUS_PREFERENCE)
 
+    val timerBuzzUntilDismissed: StateFlow<Boolean> = timerPreferences
+        .getBuzzUntilDismissed()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
     fun setTimerWorkDurationMinutes(minutes: Int) {
         viewModelScope.launch { timerPreferences.setWorkDurationSeconds(minutes * 60) }
     }
@@ -775,6 +763,10 @@ constructor(
 
     fun setPomodoroFocusPreference(preference: String) {
         viewModelScope.launch { timerPreferences.setPomodoroFocusPreference(preference) }
+    }
+
+    fun setTimerBuzzUntilDismissed(enabled: Boolean) {
+        viewModelScope.launch { timerPreferences.setBuzzUntilDismissed(enabled) }
     }
 
     // --- Habits / Streaks ---

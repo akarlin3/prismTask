@@ -41,11 +41,7 @@ fun BrainModeSection(
     onRevisionCounterChange: (Boolean) -> Unit,
     onMaxRevisionsChange: (Int) -> Unit,
     onShipItCelebrationsChange: (Boolean) -> Unit,
-    onCelebrationIntensityChange: (CelebrationIntensity) -> Unit,
-    onParalysisBreakersChange: (Boolean) -> Unit,
-    onAutoSuggestChange: (Boolean) -> Unit,
-    onSimplifyChoicesChange: (Boolean) -> Unit,
-    onStuckDetectionMinutesChange: (Int) -> Unit
+    onCelebrationIntensityChange: (CelebrationIntensity) -> Unit
 ) {
     SectionHeader("Brain Mode")
 
@@ -97,11 +93,7 @@ fun BrainModeSection(
             onRevisionCounterChange = onRevisionCounterChange,
             onMaxRevisionsChange = onMaxRevisionsChange,
             onShipItCelebrationsChange = onShipItCelebrationsChange,
-            onCelebrationIntensityChange = onCelebrationIntensityChange,
-            onParalysisBreakersChange = onParalysisBreakersChange,
-            onAutoSuggestChange = onAutoSuggestChange,
-            onSimplifyChoicesChange = onSimplifyChoicesChange,
-            onStuckDetectionMinutesChange = onStuckDetectionMinutesChange
+            onCelebrationIntensityChange = onCelebrationIntensityChange
         )
     }
 

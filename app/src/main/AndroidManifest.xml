@@ -152,6 +152,10 @@
             android:exported="false" />
 
         <receiver
+            android:name=".notifications.TimerBuzzerDismissReceiver"
+            android:exported="false" />
+
+        <receiver
             android:name=".notifications.BootReceiver"
             android:exported="true">
             <intent-filter>

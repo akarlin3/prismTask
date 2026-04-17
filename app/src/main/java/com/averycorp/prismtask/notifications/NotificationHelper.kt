@@ -11,11 +11,13 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.averycorp.prismtask.MainActivity
 import com.averycorp.prismtask.data.preferences.NotificationPreferences
+import com.averycorp.prismtask.data.preferences.TimerPreferences
 import com.averycorp.prismtask.domain.model.notifications.EscalationStepAction
 import com.averycorp.prismtask.domain.model.notifications.LockScreenVisibility
 import com.averycorp.prismtask.domain.model.notifications.NotificationDisplayMode
 import com.averycorp.prismtask.domain.model.notifications.NotificationProfile
 import com.averycorp.prismtask.domain.model.notifications.UrgencyTier
+import com.averycorp.prismtask.domain.model.notifications.VibrationIntensity
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 
@@ -61,6 +63,14 @@ object NotificationHelper {
         500,
         300
     )
+
+    /**
+     * Short [wait, buzz, wait, buzz] cell played with `repeatIndex = 1` when
+     * the user opts into "Buzz Until Dismissed" on timer completion. The
+     * OS loops it indefinitely until [TimerBuzzerDismissReceiver] calls
+     * [VibrationAdapter.cancel].
+     */
+    internal val CONTINUOUS_BUZZ_PATTERN = longArrayOf(0, 600, 400, 600, 400)
 
     /**
      * Bundle of user-configurable delivery-style flags. Channels are
@@ -442,10 +452,13 @@ object NotificationHelper {
 
         val isBreak = mode.equals("BREAK", ignoreCase = true)
         val title = if (isBreak) "Break Complete!" else "Timer Complete!"
-        val body = if (isBreak) {
-            "Ready to get back to focus?"
-        } else {
-            "Nice work \u2014 time for a break."
+        val buzzUntilDismissed = runBlocking {
+            TimerPreferences(context).getBuzzUntilDismissed().first()
+        }
+        val body = when {
+            buzzUntilDismissed -> TimerBuzzerDismissReceiver.BUZZ_BODY_TEXT
+            isBreak -> "Ready to get back to focus?"
+            else -> "Nice work \u2014 time for a break."
         }
 
         val tapIntent = Intent(context, MainActivity::class.java).apply {
@@ -463,13 +476,50 @@ object NotificationHelper {
             .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
             .setContentTitle(title)
             .setContentText(body)
-            .setDefaults(NotificationCompat.DEFAULT_ALL)
             .setAutoCancel(true)
-            .setContentIntent(tapPending)
+
+        if (buzzUntilDismissed) {
+            // setAutoCancel fires on tap but not the delete intent, so the
+            // content intent must also dismiss the buzz — otherwise opening
+            // the app leaves the vibration running.
+            val tapDismissPending = TimerBuzzerDismissReceiver
+                .pendingIntent(context, TIMER_NOTIFICATION_ID, launchApp = true)
+            val swipeDismissPending = TimerBuzzerDismissReceiver
+                .pendingIntent(context, TIMER_NOTIFICATION_ID, launchApp = false)
+            builder.setContentIntent(tapDismissPending)
+            builder.setDeleteIntent(swipeDismissPending)
+            builder.addAction(
+                android.R.drawable.ic_lock_silent_mode,
+                "Stop",
+                swipeDismissPending
+            )
+        } else {
+            builder.setContentIntent(tapPending)
+            builder.setDefaults(NotificationCompat.DEFAULT_ALL)
+        }
         applyStyle(builder, style, tapPending)
 
         val manager = context.getSystemService(NotificationManager::class.java)
         manager.notify(TIMER_NOTIFICATION_ID, builder.build())
+
+        if (buzzUntilDismissed) {
+            startContinuousBuzz(context)
+        }
+    }
+
+    /**
+     * Starts a looping vibration that plays until
+     * [TimerBuzzerDismissReceiver] cancels it. Intentionally separate from
+     * the channel-level vibration, since channel patterns only fire once
+     * per notification post.
+     */
+    internal fun startContinuousBuzz(context: Context) {
+        VibrationAdapter.playNow(
+            context = context,
+            pattern = CONTINUOUS_BUZZ_PATTERN,
+            intensity = VibrationIntensity.STRONG,
+            continuous = true
+        )
     }
 
     private fun formatInterval(millis: Long): String {

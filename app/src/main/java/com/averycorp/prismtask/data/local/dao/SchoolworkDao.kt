@@ -8,7 +8,6 @@ import androidx.room.Update
 import com.averycorp.prismtask.data.local.entity.AssignmentEntity
 import com.averycorp.prismtask.data.local.entity.CourseCompletionEntity
 import com.averycorp.prismtask.data.local.entity.CourseEntity
-import com.averycorp.prismtask.data.local.entity.StudyLogEntity
 import kotlinx.coroutines.flow.Flow
 
 @Dao

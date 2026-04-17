@@ -17,7 +17,9 @@ The April 16 2026 audit (`CALENDAR_SYNC_AUDIT.md`) confirmed:
 - `CalendarSyncPreferences` already has all eight DataStore keys wired.
 - `CalendarManager.getUserCalendars()` already hits the Google Calendar API
   directly from Android for the picker.
-- The `IntegrationSource.CALENDAR` enum exists on the backend but is unused.
+- Since April 2026 the `IntegrationSource.CALENDAR` enum is consumed by
+  `backend/app/services/integrations/calendar_integration.py` and
+  `backend/app/routers/calendar.py`.
 - Gmail integration at `backend/app/services/integrations/gmail_integration.py`
   is a template for server-side OAuth plus polling.
 

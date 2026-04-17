@@ -536,51 +536,13 @@ ANTHROPIC_API_KEY=<your-key>
 
 ---
 
-## 8. MVP Build Phases
+## 8. Build History
 
-### Phase 1: Backend Foundation (Week 1)
-- [ ] FastAPI project scaffold with Docker + PostgreSQL
-- [ ] SQLAlchemy models + Alembic initial migration
-- [ ] Auth endpoints (register, login, refresh)
-- [ ] Goal CRUD endpoints with tests
-- [ ] Project CRUD endpoints with tests
-- [ ] Task + Subtask CRUD endpoints with tests
-
-### Phase 2: Mobile Foundation (Week 2)
-- [ ] Expo project init with file-based routing
-- [ ] Auth screens (login / register)
-- [ ] Axios client with JWT interceptor
-- [ ] Goals list screen + Goal detail (projects)
-- [ ] Project detail screen (tasks + subtasks)
-- [ ] Task creation / editing form
-
-### Phase 3: Dashboard & Polish (Week 3)
-- [ ] Dashboard summary endpoint
-- [ ] Today / Overdue / Upcoming views
-- [ ] Dashboard home screen on mobile
-- [ ] Priority badges, progress bars, status chips
-- [ ] Pull-to-refresh, loading states, error handling
-
-### Phase 4: NLP Feature (Week 4)
-- [ ] Claude Haiku integration in `nlp_parser.py`
-- [ ] `/tasks/parse` endpoint with tests
-- [ ] NLP input bar component on mobile
-- [ ] Confirmation flow (parsed → pre-filled form → save)
-- [ ] Edge case handling (no project match, ambiguous dates)
-
-### Phase 5: Deploy & Document (Week 5)
-- [ ] Dockerize and deploy backend to Railway
-- [ ] Set up GitHub Actions CI pipeline
-- [ ] Build APK with EAS Build
-- [ ] Write README with screenshots, architecture diagram, API docs link
-- [ ] Record a 60-second demo video (optional but high-impact)
-
-### Phase 6: Buffer / Nice-to-Haves (Week 6)
-- [ ] Drag-and-drop reordering
-- [ ] Search / filter across all tasks
-- [ ] Dark mode
-- [ ] Swipe-to-complete gesture
-- [ ] Any bugs or UX issues from daily use
+The original MVP roadmap targeted an Expo / React Native mobile client. That
+plan was abandoned in favor of a native Kotlin / Jetpack Compose Android
+app plus a React / TypeScript / Vite web app. Both clients share the FastAPI
++ PostgreSQL backend. See the [README](README.md) and [CHANGELOG](CHANGELOG.md)
+for the shipping feature set.
 
 ---
 

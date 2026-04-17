@@ -23,9 +23,6 @@ data class NdPreferences(
     val reduceHaptics: Boolean = false,
     val softContrast: Boolean = false,
     // --- ADHD Mode sub-settings (all flip ON when adhdModeEnabled first enabled) ---
-    val taskDecompositionEnabled: Boolean = false,
-    val focusGuardEnabled: Boolean = false,
-    val bodyDoublingEnabled: Boolean = false,
     val checkInIntervalMinutes: Int = 25,
     val completionAnimations: Boolean = false,
     val streakCelebrations: Boolean = false,
@@ -45,12 +42,7 @@ data class NdPreferences(
     val maxRevisions: Int = 3,
     // Ship-It Celebrations
     val shipItCelebrationsEnabled: Boolean = true,
-    val celebrationIntensity: CelebrationIntensity = CelebrationIntensity.MEDIUM,
-    // Decision Paralysis Breakers
-    val paralysisBreakersEnabled: Boolean = true,
-    val autoSuggestEnabled: Boolean = true,
-    val simplifyChoicesEnabled: Boolean = true,
-    val stuckDetectionMinutes: Int = 5
+    val celebrationIntensity: CelebrationIntensity = CelebrationIntensity.MEDIUM
 )
 
 /**

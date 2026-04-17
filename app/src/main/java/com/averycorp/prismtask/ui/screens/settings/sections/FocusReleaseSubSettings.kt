@@ -41,11 +41,7 @@ fun FocusReleaseSubSettings(
     onRevisionCounterChange: (Boolean) -> Unit,
     onMaxRevisionsChange: (Int) -> Unit,
     onShipItCelebrationsChange: (Boolean) -> Unit,
-    onCelebrationIntensityChange: (CelebrationIntensity) -> Unit,
-    onParalysisBreakersChange: (Boolean) -> Unit,
-    onAutoSuggestChange: (Boolean) -> Unit,
-    onSimplifyChoicesChange: (Boolean) -> Unit,
-    onStuckDetectionMinutesChange: (Int) -> Unit
+    onCelebrationIntensityChange: (CelebrationIntensity) -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -169,48 +165,6 @@ fun FocusReleaseSubSettings(
                     selected = ndPrefs.celebrationIntensity,
                     onSelected = onCelebrationIntensityChange,
                     calmModeActive = ndPrefs.calmModeEnabled
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        // --- Decision Paralysis Breakers ---
-        SubSectionHeader("Decision Paralysis Breakers")
-
-        SubToggleRow(
-            title = "Enable Paralysis Breakers",
-            checked = ndPrefs.paralysisBreakersEnabled,
-            onCheckedChange = onParalysisBreakersChange,
-            accessibilityLabel = "Toggle decision paralysis breakers"
-        )
-
-        AnimatedVisibility(visible = ndPrefs.paralysisBreakersEnabled) {
-            Column {
-                SubToggleRow(
-                    title = "Auto-Suggest Next Action",
-                    subtitle = "When I'm stuck, suggest what to do next",
-                    checked = ndPrefs.autoSuggestEnabled,
-                    onCheckedChange = onAutoSuggestChange,
-                    accessibilityLabel = "Toggle auto-suggest next action"
-                )
-
-                SubToggleRow(
-                    title = "Simplify Choices",
-                    subtitle = "Show fewer sort/filter/priority options",
-                    checked = ndPrefs.simplifyChoicesEnabled,
-                    onCheckedChange = onSimplifyChoicesChange,
-                    accessibilityLabel = "Toggle simplify choices"
-                )
-
-                LabeledSlider(
-                    label = "Consider me stuck after",
-                    value = ndPrefs.stuckDetectionMinutes.toFloat(),
-                    valueRange = 1f..15f,
-                    steps = 13,
-                    valueLabel = "${ndPrefs.stuckDetectionMinutes} min",
-                    onValueChange = { onStuckDetectionMinutesChange(it.toInt()) },
-                    accessibilityLabel = "Stuck detection: ${ndPrefs.stuckDetectionMinutes} minutes of inaction"
                 )
             }
         }
