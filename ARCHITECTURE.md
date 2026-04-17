@@ -474,7 +474,7 @@ prismTask/
 │   │   ├── di/                      # Hilt DI modules
 │   │   ├── notifications/           # Reminders, workers, receivers
 │   │   └── widget/                  # Glance home-screen widgets
-│   └── src/test/                    # ~490 unit tests
+│   └── src/test/                    # 121 unit test files (see CLAUDE.md)
 │
 ├── web/                             # Web client (React + TypeScript + Vite)
 │   ├── src/
