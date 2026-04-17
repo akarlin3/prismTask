@@ -10,6 +10,7 @@ import com.averycorp.prismtask.data.preferences.SortPreferences
 import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
 import com.averycorp.prismtask.data.preferences.UserPreferencesDataStore
 import com.averycorp.prismtask.data.repository.CheckInLogRepository
+import com.averycorp.prismtask.data.repository.DailyEssentialSlotCompletionRepository
 import com.averycorp.prismtask.data.repository.HabitRepository
 import com.averycorp.prismtask.data.repository.LeisureRepository
 import com.averycorp.prismtask.data.repository.MedicationRefillRepository
@@ -70,6 +71,7 @@ class TodayViewModelTest {
     private lateinit var selfCareRepository: SelfCareRepository
     private lateinit var schoolworkRepository: SchoolworkRepository
     private lateinit var leisureRepository: LeisureRepository
+    private lateinit var slotCompletionRepository: DailyEssentialSlotCompletionRepository
 
     @Before
     fun setUp() {
@@ -95,6 +97,7 @@ class TodayViewModelTest {
         selfCareRepository = mockk(relaxed = true)
         schoolworkRepository = mockk(relaxed = true)
         leisureRepository = mockk(relaxed = true)
+        slotCompletionRepository = mockk(relaxed = true)
         coEvery { dailyEssentialsUseCase.observeToday() } returns flowOf(DailyEssentialsUiState.empty())
 
         coEvery { taskBehaviorPreferences.getDayStartHour() } returns flowOf(0)
@@ -152,7 +155,8 @@ class TodayViewModelTest {
         dailyEssentialsPreferences,
         selfCareRepository,
         schoolworkRepository,
-        leisureRepository
+        leisureRepository,
+        slotCompletionRepository
     )
 
     @Test
