@@ -1,8 +1,8 @@
 package com.averycorp.prismtask.data.repository
 
 import com.averycorp.prismtask.data.local.dao.HabitCompletionDao
-import com.averycorp.prismtask.data.local.dao.HabitLastCompletion
 import com.averycorp.prismtask.data.local.dao.HabitDao
+import com.averycorp.prismtask.data.local.dao.HabitLastCompletion
 import com.averycorp.prismtask.data.local.dao.HabitLogDao
 import com.averycorp.prismtask.data.local.dao.TaskDao
 import com.averycorp.prismtask.data.local.database.DatabaseTransactionRunner
