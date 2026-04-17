@@ -72,7 +72,48 @@ jobs:
         run: alembic upgrade head
 
       - name: Run tests
-        run: pytest tests/ -x --tb=short -q
+        # `-x` stops at the first failure, but we still emit a JUnit XML so the
+        # verify step below has something to inspect. `--junitxml` writes one
+        # report per pytest invocation regardless of pass/fail.
+        run: pytest tests/ -x --tb=short -q --junitxml=junit.xml
+
+      - name: Verify unit-test results (XML)
+        # Belt-and-suspenders: even if pytest's exit code somehow ends up zero,
+        # a <testsuite> reporting non-zero `failures` or `errors` fails the
+        # step. Also fails fast if the XML wasn't produced (pytest never ran).
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s globstar nullglob
+          xmls=(junit.xml tests/**/*.xml)
+          if [ ${#xmls[@]} -eq 0 ]; then
+            echo "::error::No JUnit XML results found in backend/. Did pytest run?"
+            exit 1
+          fi
+          failed=0
+          for f in "${xmls[@]}"; do
+            fails=$(grep -oE 'failures="[0-9]+"' "$f" | head -n1 | grep -oE '[0-9]+' || echo 0)
+            errs=$(grep -oE 'errors="[0-9]+"' "$f" | head -n1 | grep -oE '[0-9]+' || echo 0)
+            if [ "${fails:-0}" -gt 0 ] || [ "${errs:-0}" -gt 0 ]; then
+              echo "::error file=${f}::${fails} failure(s), ${errs} error(s) in ${f}"
+              failed=$((failed + fails + errs))
+            fi
+          done
+          if [ "$failed" -gt 0 ]; then
+            echo "::error::${failed} backend-test failure(s)/error(s) detected. See annotations and the test-results artifact."
+            exit 1
+          fi
+          echo "All ${#xmls[@]} JUnit XML reports clean."
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-test-results
+          path: backend/junit.xml
+          retention-days: 7
+          if-no-files-found: ignore
 
   capture-failure-log:
     needs: [test]
