@@ -4,15 +4,29 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.averycorp.prismtask.data.local.entity.LeisureLogEntity
 import com.averycorp.prismtask.data.preferences.LeisurePreferences
+import com.averycorp.prismtask.data.preferences.LeisureSlotConfig
+import com.averycorp.prismtask.data.preferences.LeisureSlotId
 import com.averycorp.prismtask.data.repository.LeisureRepository
 import com.averycorp.prismtask.ui.screens.leisure.components.LeisureOption
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+
+/**
+ * UI state for one leisure slot. [options] is the fully-merged activity list
+ * (built-ins minus hidden + user-added customs), ready to render.
+ */
+data class LeisureSlotState(
+    val slot: LeisureSlotId,
+    val config: LeisureSlotConfig,
+    val options: List<LeisureOption>,
+    val picked: String?,
+    val done: Boolean
+)
 
 @HiltViewModel
 class LeisureViewModel
@@ -25,60 +39,71 @@ constructor(
         .getTodayLog()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
-    val musicActivities: StateFlow<List<LeisureOption>> = leisurePreferences
-        .getCustomMusicActivities()
-        .map { custom ->
-            DEFAULT_INSTRUMENTS + custom.map { LeisureOption(it.id, it.label, it.icon) }
-        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DEFAULT_INSTRUMENTS)
+    val musicSlot: StateFlow<LeisureSlotState> = slotStateFlow(LeisureSlotId.MUSIC)
+    val flexSlot: StateFlow<LeisureSlotState> = slotStateFlow(LeisureSlotId.FLEX)
 
-    val flexActivities: StateFlow<List<LeisureOption>> = leisurePreferences
-        .getCustomFlexActivities()
-        .map { custom ->
-            DEFAULT_FLEX_OPTIONS + custom.map { LeisureOption(it.id, it.label, it.icon) }
-        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DEFAULT_FLEX_OPTIONS)
+    private fun slotStateFlow(slot: LeisureSlotId): StateFlow<LeisureSlotState> = combine(
+        leisurePreferences.getSlotConfig(slot),
+        repository.getTodayLog()
+    ) { config, log ->
+        val defaults = defaultsFor(slot).filter { it.id !in config.hiddenBuiltInIds }
+        val customs = config.customActivities.map { LeisureOption(it.id, it.label, it.icon) }
+        LeisureSlotState(
+            slot = slot,
+            config = config,
+            options = defaults + customs,
+            picked = if (slot == LeisureSlotId.MUSIC) log?.musicPick else log?.flexPick,
+            done = if (slot == LeisureSlotId.MUSIC) log?.musicDone == true else log?.flexDone == true
+        )
+    }.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5000),
+        LeisureSlotState(
+            slot = slot,
+            config = LeisureSlotConfig.defaultFor(slot),
+            options = defaultsFor(slot),
+            picked = null,
+            done = false
+        )
+    )
 
-    fun pickMusic(activityId: String) {
-        viewModelScope.launch { repository.setMusicPick(activityId) }
+    fun pickActivity(slot: LeisureSlotId, activityId: String) {
+        viewModelScope.launch {
+            when (slot) {
+                LeisureSlotId.MUSIC -> repository.setMusicPick(activityId)
+                LeisureSlotId.FLEX -> repository.setFlexPick(activityId)
+            }
+        }
     }
 
-    fun pickFlex(activityId: String) {
-        viewModelScope.launch { repository.setFlexPick(activityId) }
+    fun toggleDone(slot: LeisureSlotId, done: Boolean) {
+        viewModelScope.launch {
+            when (slot) {
+                LeisureSlotId.MUSIC -> repository.toggleMusicDone(done)
+                LeisureSlotId.FLEX -> repository.toggleFlexDone(done)
+            }
+        }
     }
 
-    fun toggleMusicDone(done: Boolean) {
-        viewModelScope.launch { repository.toggleMusicDone(done) }
-    }
-
-    fun toggleFlexDone(done: Boolean) {
-        viewModelScope.launch { repository.toggleFlexDone(done) }
-    }
-
-    fun clearMusicPick() {
-        viewModelScope.launch { repository.clearMusicPick() }
-    }
-
-    fun clearFlexPick() {
-        viewModelScope.launch { repository.clearFlexPick() }
+    fun clearPick(slot: LeisureSlotId) {
+        viewModelScope.launch {
+            when (slot) {
+                LeisureSlotId.MUSIC -> repository.clearMusicPick()
+                LeisureSlotId.FLEX -> repository.clearFlexPick()
+            }
+        }
     }
 
     fun resetToday() {
         viewModelScope.launch { repository.resetToday() }
     }
 
-    fun addMusicActivity(label: String, icon: String) {
-        viewModelScope.launch { leisurePreferences.addMusicActivity(label, icon) }
+    fun addActivity(slot: LeisureSlotId, label: String, icon: String) {
+        viewModelScope.launch { leisurePreferences.addActivity(slot, label, icon) }
     }
 
-    fun addFlexActivity(label: String, icon: String) {
-        viewModelScope.launch { leisurePreferences.addFlexActivity(label, icon) }
-    }
-
-    fun removeMusicActivity(id: String) {
-        viewModelScope.launch { leisurePreferences.removeMusicActivity(id) }
-    }
-
-    fun removeFlexActivity(id: String) {
-        viewModelScope.launch { leisurePreferences.removeFlexActivity(id) }
+    fun removeActivity(slot: LeisureSlotId, id: String) {
+        viewModelScope.launch { leisurePreferences.removeActivity(slot, id) }
     }
 
     fun isCustomActivity(id: String): Boolean = id.startsWith("custom_")
@@ -99,5 +124,10 @@ constructor(
             LeisureOption("watch", "Watch a show or movie", "\uD83D\uDCFA"),
             LeisureOption("boardgame", "Board game / puzzle", "\uD83E\uDDE9")
         )
+
+        fun defaultsFor(slot: LeisureSlotId): List<LeisureOption> = when (slot) {
+            LeisureSlotId.MUSIC -> DEFAULT_INSTRUMENTS
+            LeisureSlotId.FLEX -> DEFAULT_FLEX_OPTIONS
+        }
     }
 }

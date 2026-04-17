@@ -30,6 +30,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the Housework and Schoolwork habits and links to the existing Self-Care,
   Medication, and Leisure management screens.
 
+### Added — Leisure Mode Customization
+- Per-slot `LeisureSlotConfig` (music + flex) in `LeisurePreferences`: label,
+  emoji, duration, grid columns, auto-complete toggle, enabled flag, and a
+  hidden built-ins list. Defaults fall back to the legacy 15-min music /
+  30-min flex behavior, so existing users see no change until they opt in.
+- New `LeisureSettingsScreen` and `LeisureSettingsViewModel` under
+  `ui/screens/leisure/settings/`, reachable via a gear icon on Leisure Mode's
+  top bar and a new `PrismTaskRoute.LeisureSettings` route.
+- `LeisureScreen` / `LeisureViewModel` now iterate over slot configs instead
+  of hardcoding two branches; disabled slots hide entirely and the progress
+  card's daily target becomes `0 / 1 / 2` based on enabled slots.
+- `DailyEssentialsUseCase` threads the slot config through
+  `LeisureCardState` (new `label` + `enabled` fields), so the Today screen's
+  leisure cards follow the user's custom label and disappear when a slot is
+  disabled.
+- Auto-complete at the duration threshold is now a per-slot toggle; off lets
+  users finish manually whenever they want.
+- Dedicated unit tests for slot-config persistence, bounds coercion, and
+  built-in hide/unhide round-trips.
+
 ### Added — Work-Life Balance Engine (V1)
 - New `LifeCategory` enum (WORK / PERSONAL / SELF_CARE / HEALTH / UNCATEGORIZED)
   with a `life_category` column on `tasks` (migration 32 → 33).

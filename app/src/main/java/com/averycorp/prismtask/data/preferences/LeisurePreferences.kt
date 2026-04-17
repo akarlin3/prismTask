@@ -20,6 +20,44 @@ data class CustomLeisureActivity(
     val icon: String
 )
 
+enum class LeisureSlotId { MUSIC, FLEX }
+
+data class LeisureSlotConfig(
+    val enabled: Boolean,
+    val label: String,
+    val emoji: String,
+    val durationMinutes: Int,
+    val gridColumns: Int,
+    val autoComplete: Boolean,
+    val hiddenBuiltInIds: List<String>,
+    val customActivities: List<CustomLeisureActivity>
+) {
+    companion object {
+        fun defaultFor(slot: LeisureSlotId): LeisureSlotConfig = when (slot) {
+            LeisureSlotId.MUSIC -> LeisureSlotConfig(
+                enabled = true,
+                label = "Music Practice",
+                emoji = "\uD83C\uDFB5",
+                durationMinutes = 15,
+                gridColumns = 3,
+                autoComplete = true,
+                hiddenBuiltInIds = emptyList(),
+                customActivities = emptyList()
+            )
+            LeisureSlotId.FLEX -> LeisureSlotConfig(
+                enabled = true,
+                label = "Flexible",
+                emoji = "\uD83C\uDFB2",
+                durationMinutes = 30,
+                gridColumns = 2,
+                autoComplete = true,
+                hiddenBuiltInIds = emptyList(),
+                customActivities = emptyList()
+            )
+        }
+    }
+}
+
 private val Context.leisureDataStore: DataStore<Preferences> by preferencesDataStore(name = "leisure_prefs")
 
 @Singleton
@@ -29,63 +67,180 @@ constructor(
     @ApplicationContext private val context: Context
 ) {
     private val gson = Gson()
+    private val activityListType = object : TypeToken<List<CustomLeisureActivity>>() {}.type
+    private val stringListType = object : TypeToken<List<String>>() {}.type
 
     companion object {
         private val CUSTOM_MUSIC_KEY = stringPreferencesKey("custom_music_activities")
         private val CUSTOM_FLEX_KEY = stringPreferencesKey("custom_flex_activities")
+
+        private val MUSIC_ENABLED_KEY = stringPreferencesKey("music_enabled")
+        private val FLEX_ENABLED_KEY = stringPreferencesKey("flex_enabled")
+
+        private val MUSIC_LABEL_KEY = stringPreferencesKey("music_label")
+        private val FLEX_LABEL_KEY = stringPreferencesKey("flex_label")
+
+        private val MUSIC_EMOJI_KEY = stringPreferencesKey("music_emoji")
+        private val FLEX_EMOJI_KEY = stringPreferencesKey("flex_emoji")
+
+        private val MUSIC_DURATION_KEY = stringPreferencesKey("music_duration_minutes")
+        private val FLEX_DURATION_KEY = stringPreferencesKey("flex_duration_minutes")
+
+        private val MUSIC_COLUMNS_KEY = stringPreferencesKey("music_grid_columns")
+        private val FLEX_COLUMNS_KEY = stringPreferencesKey("flex_grid_columns")
+
+        private val MUSIC_AUTO_KEY = stringPreferencesKey("music_auto_complete")
+        private val FLEX_AUTO_KEY = stringPreferencesKey("flex_auto_complete")
+
+        private val MUSIC_HIDDEN_KEY = stringPreferencesKey("music_hidden_builtins")
+        private val FLEX_HIDDEN_KEY = stringPreferencesKey("flex_hidden_builtins")
+
+        const val MIN_DURATION_MINUTES = 1
+        const val MAX_DURATION_MINUTES = 240
+        const val MIN_GRID_COLUMNS = 1
+        const val MAX_GRID_COLUMNS = 4
     }
 
-    private val listType = object : TypeToken<List<CustomLeisureActivity>>() {}.type
+    fun getSlotConfig(slot: LeisureSlotId): Flow<LeisureSlotConfig> =
+        context.leisureDataStore.data.map { prefs -> readSlotConfig(prefs, slot) }
+
+    private fun readSlotConfig(prefs: Preferences, slot: LeisureSlotId): LeisureSlotConfig {
+        val default = LeisureSlotConfig.defaultFor(slot)
+        val keys = keysFor(slot)
+        val hidden: List<String> = prefs[keys.hiddenKey]?.let { gson.fromJson<List<String>>(it, stringListType) } ?: emptyList()
+        val custom: List<CustomLeisureActivity> = prefs[keys.customKey]?.let { gson.fromJson<List<CustomLeisureActivity>>(it, activityListType) } ?: emptyList()
+        return LeisureSlotConfig(
+            enabled = prefs[keys.enabledKey]?.toBooleanStrictOrNull() ?: default.enabled,
+            label = prefs[keys.labelKey]?.takeIf { it.isNotBlank() } ?: default.label,
+            emoji = prefs[keys.emojiKey]?.takeIf { it.isNotBlank() } ?: default.emoji,
+            durationMinutes = prefs[keys.durationKey]?.toIntOrNull()
+                ?.coerceIn(MIN_DURATION_MINUTES, MAX_DURATION_MINUTES)
+                ?: default.durationMinutes,
+            gridColumns = prefs[keys.columnsKey]?.toIntOrNull()
+                ?.coerceIn(MIN_GRID_COLUMNS, MAX_GRID_COLUMNS)
+                ?: default.gridColumns,
+            autoComplete = prefs[keys.autoKey]?.toBooleanStrictOrNull() ?: default.autoComplete,
+            hiddenBuiltInIds = hidden,
+            customActivities = custom
+        )
+    }
+
+    suspend fun updateSlotConfig(
+        slot: LeisureSlotId,
+        enabled: Boolean? = null,
+        label: String? = null,
+        emoji: String? = null,
+        durationMinutes: Int? = null,
+        gridColumns: Int? = null,
+        autoComplete: Boolean? = null
+    ) {
+        val keys = keysFor(slot)
+        context.leisureDataStore.edit { prefs ->
+            enabled?.let { prefs[keys.enabledKey] = it.toString() }
+            label?.let {
+                val trimmed = it.trim()
+                if (trimmed.isNotEmpty()) prefs[keys.labelKey] = trimmed
+            }
+            emoji?.let {
+                val trimmed = it.trim()
+                if (trimmed.isNotEmpty()) prefs[keys.emojiKey] = trimmed
+            }
+            durationMinutes?.let {
+                prefs[keys.durationKey] = it
+                    .coerceIn(MIN_DURATION_MINUTES, MAX_DURATION_MINUTES)
+                    .toString()
+            }
+            gridColumns?.let {
+                prefs[keys.columnsKey] = it
+                    .coerceIn(MIN_GRID_COLUMNS, MAX_GRID_COLUMNS)
+                    .toString()
+            }
+            autoComplete?.let { prefs[keys.autoKey] = it.toString() }
+        }
+    }
+
+    suspend fun setBuiltInHidden(slot: LeisureSlotId, builtInId: String, hidden: Boolean) {
+        val keys = keysFor(slot)
+        context.leisureDataStore.edit { prefs ->
+            val current: List<String> = prefs[keys.hiddenKey]?.let { gson.fromJson(it, stringListType) } ?: emptyList()
+            val updated = if (hidden) (current + builtInId).distinct() else current.filter { it != builtInId }
+            prefs[keys.hiddenKey] = gson.toJson(updated)
+        }
+    }
+
+    suspend fun resetSlotConfig(slot: LeisureSlotId) {
+        val keys = keysFor(slot)
+        context.leisureDataStore.edit { prefs ->
+            prefs.remove(keys.enabledKey)
+            prefs.remove(keys.labelKey)
+            prefs.remove(keys.emojiKey)
+            prefs.remove(keys.durationKey)
+            prefs.remove(keys.columnsKey)
+            prefs.remove(keys.autoKey)
+            prefs.remove(keys.hiddenKey)
+        }
+    }
+
+    suspend fun addActivity(slot: LeisureSlotId, label: String, icon: String) {
+        val key = keysFor(slot).customKey
+        context.leisureDataStore.edit { prefs ->
+            val current: List<CustomLeisureActivity> =
+                prefs[key]?.let { gson.fromJson(it, activityListType) } ?: emptyList()
+            val id = "custom_${slot.name.lowercase()}_${System.currentTimeMillis()}"
+            prefs[key] = gson.toJson(current + CustomLeisureActivity(id, label, icon))
+        }
+    }
+
+    suspend fun removeActivity(slot: LeisureSlotId, id: String) {
+        val key = keysFor(slot).customKey
+        context.leisureDataStore.edit { prefs ->
+            val current: List<CustomLeisureActivity> =
+                prefs[key]?.let { gson.fromJson(it, activityListType) } ?: emptyList()
+            prefs[key] = gson.toJson(current.filter { it.id != id })
+        }
+    }
 
     fun getCustomMusicActivities(): Flow<List<CustomLeisureActivity>> =
         context.leisureDataStore.data.map { prefs ->
-            val json = prefs[CUSTOM_MUSIC_KEY] ?: "[]"
-            gson.fromJson(json, listType)
+            prefs[CUSTOM_MUSIC_KEY]?.let { gson.fromJson<List<CustomLeisureActivity>>(it, activityListType) } ?: emptyList()
         }
 
     fun getCustomFlexActivities(): Flow<List<CustomLeisureActivity>> =
         context.leisureDataStore.data.map { prefs ->
-            val json = prefs[CUSTOM_FLEX_KEY] ?: "[]"
-            gson.fromJson(json, listType)
+            prefs[CUSTOM_FLEX_KEY]?.let { gson.fromJson<List<CustomLeisureActivity>>(it, activityListType) } ?: emptyList()
         }
 
-    suspend fun addMusicActivity(label: String, icon: String) {
-        context.leisureDataStore.edit { prefs ->
-            val current: List<CustomLeisureActivity> =
-                gson.fromJson(prefs[CUSTOM_MUSIC_KEY] ?: "[]", listType)
-            val id = "custom_music_${System.currentTimeMillis()}"
-            val updated = current + CustomLeisureActivity(id, label, icon)
-            prefs[CUSTOM_MUSIC_KEY] = gson.toJson(updated)
-        }
-    }
+    suspend fun addMusicActivity(label: String, icon: String) = addActivity(LeisureSlotId.MUSIC, label, icon)
 
-    suspend fun addFlexActivity(label: String, icon: String) {
-        context.leisureDataStore.edit { prefs ->
-            val current: List<CustomLeisureActivity> =
-                gson.fromJson(prefs[CUSTOM_FLEX_KEY] ?: "[]", listType)
-            val id = "custom_flex_${System.currentTimeMillis()}"
-            val updated = current + CustomLeisureActivity(id, label, icon)
-            prefs[CUSTOM_FLEX_KEY] = gson.toJson(updated)
-        }
-    }
+    suspend fun addFlexActivity(label: String, icon: String) = addActivity(LeisureSlotId.FLEX, label, icon)
 
-    suspend fun removeMusicActivity(id: String) {
-        context.leisureDataStore.edit { prefs ->
-            val current: List<CustomLeisureActivity> =
-                gson.fromJson(prefs[CUSTOM_MUSIC_KEY] ?: "[]", listType)
-            prefs[CUSTOM_MUSIC_KEY] = gson.toJson(current.filter { it.id != id })
-        }
-    }
+    suspend fun removeMusicActivity(id: String) = removeActivity(LeisureSlotId.MUSIC, id)
 
-    suspend fun removeFlexActivity(id: String) {
-        context.leisureDataStore.edit { prefs ->
-            val current: List<CustomLeisureActivity> =
-                gson.fromJson(prefs[CUSTOM_FLEX_KEY] ?: "[]", listType)
-            prefs[CUSTOM_FLEX_KEY] = gson.toJson(current.filter { it.id != id })
-        }
-    }
+    suspend fun removeFlexActivity(id: String) = removeActivity(LeisureSlotId.FLEX, id)
 
     suspend fun clearAll() {
         context.leisureDataStore.edit { it.clear() }
+    }
+
+    private data class SlotKeys(
+        val enabledKey: Preferences.Key<String>,
+        val labelKey: Preferences.Key<String>,
+        val emojiKey: Preferences.Key<String>,
+        val durationKey: Preferences.Key<String>,
+        val columnsKey: Preferences.Key<String>,
+        val autoKey: Preferences.Key<String>,
+        val hiddenKey: Preferences.Key<String>,
+        val customKey: Preferences.Key<String>
+    )
+
+    private fun keysFor(slot: LeisureSlotId): SlotKeys = when (slot) {
+        LeisureSlotId.MUSIC -> SlotKeys(
+            MUSIC_ENABLED_KEY, MUSIC_LABEL_KEY, MUSIC_EMOJI_KEY, MUSIC_DURATION_KEY,
+            MUSIC_COLUMNS_KEY, MUSIC_AUTO_KEY, MUSIC_HIDDEN_KEY, CUSTOM_MUSIC_KEY
+        )
+        LeisureSlotId.FLEX -> SlotKeys(
+            FLEX_ENABLED_KEY, FLEX_LABEL_KEY, FLEX_EMOJI_KEY, FLEX_DURATION_KEY,
+            FLEX_COLUMNS_KEY, FLEX_AUTO_KEY, FLEX_HIDDEN_KEY, CUSTOM_FLEX_KEY
+        )
     }
 }
