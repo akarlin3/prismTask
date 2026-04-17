@@ -1,0 +1,217 @@
+=== CI FAILURE ===
+Workflow:      Web CI
+Workflow file: akarlin3/prismTask/.github/workflows/web-ci.yml@refs/pull/504/merge
+Job(s):        lint-and-test
+Run ID:        24586460860
+Run attempt:   1
+Run URL:       https://github.com/akarlin3/prismTask/actions/runs/24586460860
+Commit:        9168dec20c2ec5357f99906d18117731147a66e0
+Branch:        504/merge
+Event:         pull_request
+Actor:         akarlin3
+Runner OS:     Linux
+Timestamp:     2026-04-17T21:00:29.621Z
+
+Failed steps:
+  - lint-and-test: #4 Run npm run lint
+
+=== FAILED JOB LOG ===
+
+--- Job: lint-and-test (id 71897178693) ---
+2026-04-17T20:59:51.0489447Z Current runner version: '2.333.1'
+2026-04-17T20:59:51.0516769Z ##[group]Runner Image Provisioner
+2026-04-17T20:59:51.0517518Z Hosted Compute Agent
+2026-04-17T20:59:51.0518042Z Version: 20260213.493
+2026-04-17T20:59:51.0518993Z Commit: 5c115507f6dd24b8de37d8bbe0bb4509d0cc0fa3
+2026-04-17T20:59:51.0519661Z Build Date: 2026-02-13T00:28:41Z
+2026-04-17T20:59:51.0520289Z Worker ID: {d2c19e5c-d0eb-43a5-ab66-b1b55c9c792d}
+2026-04-17T20:59:51.0521108Z Azure Region: northcentralus
+2026-04-17T20:59:51.0521708Z ##[endgroup]
+2026-04-17T20:59:51.0523102Z ##[group]Operating System
+2026-04-17T20:59:51.0523819Z Ubuntu
+2026-04-17T20:59:51.0524314Z 24.04.4
+2026-04-17T20:59:51.0524789Z LTS
+2026-04-17T20:59:51.0525253Z ##[endgroup]
+2026-04-17T20:59:51.0525783Z ##[group]Runner Image
+2026-04-17T20:59:51.0526342Z Image: ubuntu-24.04
+2026-04-17T20:59:51.0526880Z Version: 20260413.86.1
+2026-04-17T20:59:51.0528335Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260413.86/images/ubuntu/Ubuntu2404-Readme.md
+2026-04-17T20:59:51.0530052Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260413.86
+2026-04-17T20:59:51.0530958Z ##[endgroup]
+2026-04-17T20:59:51.0532077Z ##[group]GITHUB_TOKEN Permissions
+2026-04-17T20:59:51.0534217Z Actions: read
+2026-04-17T20:59:51.0534839Z Checks: read
+2026-04-17T20:59:51.0535301Z Contents: write
+2026-04-17T20:59:51.0535927Z Metadata: read
+2026-04-17T20:59:51.0536409Z ##[endgroup]
+2026-04-17T20:59:51.0538746Z Secret source: Actions
+2026-04-17T20:59:51.0539817Z Prepare workflow directory
+2026-04-17T20:59:51.0944381Z Prepare all required actions
+2026-04-17T20:59:51.0981988Z Getting action download info
+2026-04-17T20:59:51.3872506Z Download action repository 'actions/checkout@v4' (SHA:34e114876b0b11c390a56381ad16ebd13914f8d5)
+2026-04-17T20:59:51.5980019Z Complete job name: lint-and-test
+2026-04-17T20:59:51.6671859Z ##[group]Run actions/checkout@v4
+2026-04-17T20:59:51.6672680Z with:
+2026-04-17T20:59:51.6673086Z   repository: akarlin3/prismTask
+2026-04-17T20:59:51.6673740Z   token: ***
+2026-04-17T20:59:51.6674110Z   ssh-strict: true
+2026-04-17T20:59:51.6674504Z   ssh-user: git
+2026-04-17T20:59:51.6674891Z   persist-credentials: true
+2026-04-17T20:59:51.6675326Z   clean: true
+2026-04-17T20:59:51.6675723Z   sparse-checkout-cone-mode: true
+2026-04-17T20:59:51.6676196Z   fetch-depth: 1
+2026-04-17T20:59:51.6676572Z   fetch-tags: false
+2026-04-17T20:59:51.6676974Z   show-progress: true
+2026-04-17T20:59:51.6677408Z   lfs: false
+2026-04-17T20:59:51.6677826Z   submodules: false
+2026-04-17T20:59:51.6678259Z   set-safe-directory: true
+2026-04-17T20:59:51.6679173Z ##[endgroup]
+2026-04-17T20:59:51.7818342Z Syncing repository: akarlin3/prismTask
+2026-04-17T20:59:51.7821105Z ##[group]Getting Git version info
+2026-04-17T20:59:51.7822209Z Working directory is '/home/runner/work/prismTask/prismTask'
+2026-04-17T20:59:51.7823811Z [command]/usr/bin/git version
+2026-04-17T20:59:51.7883351Z git version 2.53.0
+2026-04-17T20:59:51.7919781Z ##[endgroup]
+2026-04-17T20:59:51.7935508Z Temporarily overriding HOME='/home/runner/work/_temp/c1e4c80c-d358-4e04-80f0-7ac03847c0d4' before making global git config changes
+2026-04-17T20:59:51.7937731Z Adding repository directory to the temporary git global config as a safe directory
+2026-04-17T20:59:51.7941872Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/prismTask/prismTask
+2026-04-17T20:59:51.7976950Z Deleting the contents of '/home/runner/work/prismTask/prismTask'
+2026-04-17T20:59:51.7981723Z ##[group]Initializing the repository
+2026-04-17T20:59:51.7987113Z [command]/usr/bin/git init /home/runner/work/prismTask/prismTask
+2026-04-17T20:59:51.8072968Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-04-17T20:59:51.8074669Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-04-17T20:59:51.8076201Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-04-17T20:59:51.8077339Z hint: call:
+2026-04-17T20:59:51.8077897Z hint:
+2026-04-17T20:59:51.8079146Z hint: 	git config --global init.defaultBranch <name>
+2026-04-17T20:59:51.8079887Z hint:
+2026-04-17T20:59:51.8080433Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-04-17T20:59:51.8081307Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-04-17T20:59:51.8081994Z hint:
+2026-04-17T20:59:51.8082369Z hint: 	git branch -m <name>
+2026-04-17T20:59:51.8082796Z hint:
+2026-04-17T20:59:51.8083380Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-04-17T20:59:51.8084607Z Initialized empty Git repository in /home/runner/work/prismTask/prismTask/.git/
+2026-04-17T20:59:51.8091512Z [command]/usr/bin/git remote add origin https://github.com/akarlin3/prismTask
+2026-04-17T20:59:51.8128086Z ##[endgroup]
+2026-04-17T20:59:51.8129627Z ##[group]Disabling automatic garbage collection
+2026-04-17T20:59:51.8136009Z [command]/usr/bin/git config --local gc.auto 0
+2026-04-17T20:59:51.8164495Z ##[endgroup]
+2026-04-17T20:59:51.8165522Z ##[group]Setting up auth
+2026-04-17T20:59:51.8171587Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-04-17T20:59:51.8203915Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-04-17T20:59:51.8671883Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-04-17T20:59:51.8715056Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-04-17T20:59:51.8955695Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-04-17T20:59:51.8985219Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-04-17T20:59:51.9230909Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-04-17T20:59:51.9270906Z ##[endgroup]
+2026-04-17T20:59:51.9272608Z ##[group]Fetching the repository
+2026-04-17T20:59:51.9282146Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +9168dec20c2ec5357f99906d18117731147a66e0:refs/remotes/pull/504/merge
+2026-04-17T20:59:54.2340058Z From https://github.com/akarlin3/prismTask
+2026-04-17T20:59:54.2341499Z  * [new ref]         9168dec20c2ec5357f99906d18117731147a66e0 -> pull/504/merge
+2026-04-17T20:59:54.2369851Z ##[endgroup]
+2026-04-17T20:59:54.2371191Z ##[group]Determining the checkout info
+2026-04-17T20:59:54.2372415Z ##[endgroup]
+2026-04-17T20:59:54.2376947Z [command]/usr/bin/git sparse-checkout disable
+2026-04-17T20:59:54.2414914Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-04-17T20:59:54.2441131Z ##[group]Checking out the ref
+2026-04-17T20:59:54.2444968Z [command]/usr/bin/git checkout --progress --force refs/remotes/pull/504/merge
+2026-04-17T20:59:54.3817136Z Note: switching to 'refs/remotes/pull/504/merge'.
+2026-04-17T20:59:54.3818396Z 
+2026-04-17T20:59:54.3819667Z You are in 'detached HEAD' state. You can look around, make experimental
+2026-04-17T20:59:54.3821371Z changes and commit them, and you can discard any commits you make in this
+2026-04-17T20:59:54.3823016Z state without impacting any branches by switching back to a branch.
+2026-04-17T20:59:54.3824019Z 
+2026-04-17T20:59:54.3824655Z If you want to create a new branch to retain commits you create, you may
+2026-04-17T20:59:54.3826117Z do so (now or later) by using -c with the switch command. Example:
+2026-04-17T20:59:54.3826966Z 
+2026-04-17T20:59:54.3827319Z   git switch -c <new-branch-name>
+2026-04-17T20:59:54.3827907Z 
+2026-04-17T20:59:54.3828293Z Or undo this operation with:
+2026-04-17T20:59:54.3828986Z 
+2026-04-17T20:59:54.3829297Z   git switch -
+2026-04-17T20:59:54.3829732Z 
+2026-04-17T20:59:54.3831268Z Turn off this advice by setting config variable advice.detachedHead to false
+2026-04-17T20:59:54.3833086Z 
+2026-04-17T20:59:54.3835129Z HEAD is now at 9168dec Merge 76ef8b0e423ee38b4c2dcd75a8a6cb35e32a2ecb into 041ca0a53cb88e4b92761fe6b65e09e0f839f703
+2026-04-17T20:59:54.3841667Z ##[endgroup]
+2026-04-17T20:59:54.3876748Z [command]/usr/bin/git log -1 --format=%H
+2026-04-17T20:59:54.3899880Z 9168dec20c2ec5357f99906d18117731147a66e0
+2026-04-17T20:59:54.4209263Z Prepare all required actions
+2026-04-17T20:59:54.4210614Z Getting action download info
+2026-04-17T20:59:54.5392883Z Download action repository 'actions/setup-node@v4' (SHA:49933ea5288caeca8642d1e84afbd3f7d6820020)
+2026-04-17T20:59:54.7272754Z ##[group]Run ./.github/actions/setup-node-web
+2026-04-17T20:59:54.7273785Z ##[endgroup]
+2026-04-17T20:59:54.7471758Z ##[group]Run actions/setup-node@v4
+2026-04-17T20:59:54.7472697Z with:
+2026-04-17T20:59:54.7473409Z   node-version: 22
+2026-04-17T20:59:54.7474161Z   cache: npm
+2026-04-17T20:59:54.7475025Z   cache-dependency-path: web/package-lock.json
+2026-04-17T20:59:54.7476068Z   always-auth: false
+2026-04-17T20:59:54.7476857Z   check-latest: false
+2026-04-17T20:59:54.7477892Z   token: ***
+2026-04-17T20:59:54.7478765Z ##[endgroup]
+2026-04-17T20:59:54.9466084Z Found in cache @ /opt/hostedtoolcache/node/22.22.2/x64
+2026-04-17T20:59:54.9473562Z ##[group]Environment details
+2026-04-17T20:59:58.6189579Z node: v22.22.2
+2026-04-17T20:59:58.6190539Z npm: 10.9.7
+2026-04-17T20:59:58.6190957Z yarn: 1.22.22
+2026-04-17T20:59:58.6192146Z ##[endgroup]
+2026-04-17T20:59:58.6213917Z [command]/opt/hostedtoolcache/node/22.22.2/x64/bin/npm config get cache
+2026-04-17T20:59:58.8531715Z /home/runner/.npm
+2026-04-17T20:59:59.0705784Z Cache hit for: node-cache-Linux-x64-npm-669751001bd677c88143a07649bd7a055fbb8388d571a3566c348a42800c16fc
+2026-04-17T21:00:00.0555852Z Received 94671343 of 94671343 (100.0%), 103.2 MBs/sec
+2026-04-17T21:00:00.0558049Z Cache Size: ~90 MB (94671343 B)
+2026-04-17T21:00:00.0633791Z [command]/usr/bin/tar -xf /home/runner/work/_temp/79e60f28-b5ab-4d83-b04c-f1f377c2ec77/cache.tzst -P -C /home/runner/work/prismTask/prismTask --use-compress-program unzstd
+2026-04-17T21:00:00.2664842Z Cache restored successfully
+2026-04-17T21:00:00.2714424Z Cache restored from key: node-cache-Linux-x64-npm-669751001bd677c88143a07649bd7a055fbb8388d571a3566c348a42800c16fc
+2026-04-17T21:00:00.2875901Z ##[group]Run npm ci
+2026-04-17T21:00:00.2876261Z [36;1mnpm ci[0m
+2026-04-17T21:00:00.2910619Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-04-17T21:00:00.2911008Z ##[endgroup]
+2026-04-17T21:00:11.8286906Z 
+2026-04-17T21:00:11.8296432Z added 453 packages, and audited 454 packages in 11s
+2026-04-17T21:00:11.8296975Z 
+2026-04-17T21:00:11.8297222Z 100 packages are looking for funding
+2026-04-17T21:00:11.8297556Z   run `npm fund` for details
+2026-04-17T21:00:11.8318276Z 
+2026-04-17T21:00:11.8319184Z 2 vulnerabilities (1 moderate, 1 critical)
+2026-04-17T21:00:11.8319636Z 
+2026-04-17T21:00:11.8319922Z To address all issues, run:
+2026-04-17T21:00:11.8320297Z   npm audit fix
+2026-04-17T21:00:11.8320449Z 
+2026-04-17T21:00:11.8320604Z Run `npm audit` for details.
+2026-04-17T21:00:11.9207709Z ##[group]Run npm run lint
+2026-04-17T21:00:11.9208011Z [36;1mnpm run lint[0m
+2026-04-17T21:00:11.9236861Z shell: /usr/bin/bash -e {0}
+2026-04-17T21:00:11.9237133Z ##[endgroup]
+2026-04-17T21:00:12.0211377Z 
+2026-04-17T21:00:12.0211870Z > web@0.0.0 lint
+2026-04-17T21:00:12.0212331Z > eslint .
+2026-04-17T21:00:12.0212549Z 
+2026-04-17T21:00:20.1656153Z 
+2026-04-17T21:00:20.1657570Z /home/runner/work/prismTask/prismTask/web/src/features/daily-essentials/MedicationSlotList.tsx
+2026-04-17T21:00:20.1691620Z ##[error]   88:14  error  '_err' is defined but never used  @typescript-eslint/no-unused-vars
+2026-04-17T21:00:20.1702474Z ##[error]  113:16  error  '_err' is defined but never used  @typescript-eslint/no-unused-vars
+2026-04-17T21:00:20.1703844Z 
+2026-04-17T21:00:20.1704440Z ✖ 2 problems (2 errors, 0 warnings)
+2026-04-17T21:00:20.1704783Z 
+2026-04-17T21:00:20.3222901Z ##[error]Process completed with exit code 1.
+2026-04-17T21:00:20.3294395Z Post job cleanup.
+2026-04-17T21:00:20.3380133Z Post job cleanup.
+2026-04-17T21:00:20.4324488Z [command]/usr/bin/git version
+2026-04-17T21:00:20.4366146Z git version 2.53.0
+2026-04-17T21:00:20.4410058Z Temporarily overriding HOME='/home/runner/work/_temp/610d5c7f-eacc-42e3-8e8a-18274188362e' before making global git config changes
+2026-04-17T21:00:20.4411709Z Adding repository directory to the temporary git global config as a safe directory
+2026-04-17T21:00:20.4416499Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/prismTask/prismTask
+2026-04-17T21:00:20.4450454Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-04-17T21:00:20.4482240Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-04-17T21:00:20.4715156Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-04-17T21:00:20.4737205Z http.https://github.com/.extraheader
+2026-04-17T21:00:20.4753633Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-04-17T21:00:20.4789525Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-04-17T21:00:20.5025771Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-04-17T21:00:20.5060227Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-04-17T21:00:20.5425717Z Cleaning up orphan processes
+2026-04-17T21:00:20.5810672Z ##[warning]Node.js 20 actions are deprecated. The following actions are running on Node.js 20 and may not work as expected: actions/checkout@v4, actions/setup-node@v4. Actions will be forced to run with Node.js 24 by default starting June 2nd, 2026. Node.js 20 will be removed from the runner on September 16th, 2026. Please check if updated versions of these actions are available that support Node.js 24. To opt into Node.js 24 now, set the FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true environment variable on the runner or in your workflow file. Once Node.js 24 becomes the default, you can temporarily opt out by setting ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
