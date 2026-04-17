@@ -4,6 +4,7 @@ import com.averycorp.prismtask.data.calendar.CalendarPushDispatcher
 import com.averycorp.prismtask.data.local.converter.RecurrenceConverter
 import com.averycorp.prismtask.data.local.dao.TagDao
 import com.averycorp.prismtask.data.local.dao.TaskDao
+import com.averycorp.prismtask.data.local.database.DatabaseTransactionRunner
 import com.averycorp.prismtask.data.local.entity.TaskEntity
 import com.averycorp.prismtask.data.local.entity.TaskTagCrossRef
 import com.averycorp.prismtask.data.remote.SyncTracker
@@ -23,6 +24,7 @@ import javax.inject.Singleton
 class TaskRepository
 @Inject
 constructor(
+    private val transactionRunner: DatabaseTransactionRunner,
     private val taskDao: TaskDao,
     private val tagDao: TagDao,
     private val syncTracker: SyncTracker,
@@ -210,15 +212,16 @@ constructor(
     suspend fun completeTask(id: Long) {
         val now = System.currentTimeMillis()
         val task = taskDao.getTaskById(id).firstOrNull()
-        if (task != null) {
-            val tags = tagDao.getTagsForTask(id).first()
-            taskCompletionRepository.recordCompletion(task, tags)
-        }
-        if (task?.recurrenceRule != null && task.dueDate != null) {
-            val rule = RecurrenceConverter.fromJson(task.recurrenceRule)
-            if (rule != null) {
-                val nextDueDate = RecurrenceEngine.calculateNextDueDate(task.dueDate, rule)
-                if (nextDueDate != null) {
+        val tags = if (task != null) tagDao.getTagsForTask(id).first() else emptyList()
+
+        val nextRecurrenceId = transactionRunner.withTransaction {
+            if (task != null) {
+                taskCompletionRepository.recordCompletion(task, tags)
+            }
+            val nextId = if (task?.recurrenceRule != null && task.dueDate != null) {
+                val rule = RecurrenceConverter.fromJson(task.recurrenceRule)
+                val nextDueDate = rule?.let { RecurrenceEngine.calculateNextDueDate(task.dueDate, it) }
+                if (rule != null && nextDueDate != null) {
                     val updatedRule = rule.copy(occurrenceCount = rule.occurrenceCount + 1)
                     val nextTask = task.copy(
                         id = 0,
@@ -229,13 +232,21 @@ constructor(
                         createdAt = now,
                         updatedAt = now
                     )
-                    val nextId = taskDao.insert(nextTask)
-                    syncTracker.trackCreate(nextId, "task")
-                    calendarPushDispatcher.enqueuePushTask(nextId)
+                    taskDao.insert(nextTask)
+                } else {
+                    null
                 }
+            } else {
+                null
             }
+            taskDao.markCompleted(id, now)
+            nextId
         }
-        taskDao.markCompleted(id, now)
+
+        if (nextRecurrenceId != null) {
+            syncTracker.trackCreate(nextRecurrenceId, "task")
+            calendarPushDispatcher.enqueuePushTask(nextRecurrenceId)
+        }
         syncTracker.trackUpdate(id, "task")
         calendarPushDispatcher.enqueueDeleteTaskEvent(id)
         widgetUpdateManager.updateTaskWidgets()

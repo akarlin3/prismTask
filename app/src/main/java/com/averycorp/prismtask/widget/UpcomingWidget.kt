@@ -237,4 +237,9 @@ private fun DayColumn(
 
 class UpcomingWidgetReceiver : GlanceAppWidgetReceiver() {
     override val glanceAppWidget: GlanceAppWidget = UpcomingWidget()
+
+    override fun onDeleted(context: Context, appWidgetIds: IntArray) {
+        super.onDeleted(context, appWidgetIds)
+        clearWidgetConfigOnDelete(this, context, appWidgetIds)
+    }
 }

@@ -234,4 +234,9 @@ private fun WeeklyDots(habit: HabitWidgetItem) {
 
 class HabitStreakWidgetReceiver : GlanceAppWidgetReceiver() {
     override val glanceAppWidget: GlanceAppWidget = HabitStreakWidget()
+
+    override fun onDeleted(context: Context, appWidgetIds: IntArray) {
+        super.onDeleted(context, appWidgetIds)
+        clearWidgetConfigOnDelete(this, context, appWidgetIds)
+    }
 }

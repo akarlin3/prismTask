@@ -3,6 +3,7 @@ package com.averycorp.prismtask.data.repository
 import com.averycorp.prismtask.data.calendar.CalendarPushDispatcher
 import com.averycorp.prismtask.data.local.dao.TagDao
 import com.averycorp.prismtask.data.local.dao.TaskDao
+import com.averycorp.prismtask.data.local.database.DatabaseTransactionRunner
 import com.averycorp.prismtask.data.local.entity.TagEntity
 import com.averycorp.prismtask.data.local.entity.TaskEntity
 import com.averycorp.prismtask.data.local.entity.TaskTagCrossRef
@@ -53,6 +54,7 @@ class TaskRepositoryTest {
         taskCompletionRepository = mockk(relaxed = true)
         repo =
             TaskRepository(
+                inlineTransactionRunner(),
                 taskDao,
                 tagDao,
                 syncTracker,
@@ -62,6 +64,11 @@ class TaskRepositoryTest {
                 taskCompletionRepository
             )
     }
+
+    private fun inlineTransactionRunner(): DatabaseTransactionRunner =
+        object : DatabaseTransactionRunner(mockk(relaxed = true)) {
+            override suspend fun <R> withTransaction(block: suspend () -> R): R = block()
+        }
 
     // ---------------------------------------------------------------------
     // Create / update / delete

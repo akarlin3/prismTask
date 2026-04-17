@@ -1327,6 +1327,17 @@ constructor(
                     if (options.calendarSyncData) {
                         database.calendarSyncDao().deleteAll()
                     }
+                    // Any data wipe invalidates the local↔cloud_id mappings; drop
+                    // pending sync actions so a future sign-in doesn't try to
+                    // delete or update entities that no longer exist locally.
+                    val anyDataReset = options.tasksAndProjects ||
+                        options.habitsAndHistory ||
+                        options.tags ||
+                        options.templates ||
+                        options.calendarSyncData
+                    if (anyDataReset) {
+                        database.syncMetadataDao().deleteAll()
+                    }
                 }
                 if (options.calendarSyncData) {
                     calendarSyncPreferences.clearAll()

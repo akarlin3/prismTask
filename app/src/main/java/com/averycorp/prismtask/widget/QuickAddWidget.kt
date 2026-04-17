@@ -132,4 +132,9 @@ private fun QuickAddContent(context: Context, templates: List<TemplateShortcut>,
 
 class QuickAddWidgetReceiver : GlanceAppWidgetReceiver() {
     override val glanceAppWidget: GlanceAppWidget = QuickAddWidget()
+
+    override fun onDeleted(context: Context, appWidgetIds: IntArray) {
+        super.onDeleted(context, appWidgetIds)
+        clearWidgetConfigOnDelete(this, context, appWidgetIds)
+    }
 }

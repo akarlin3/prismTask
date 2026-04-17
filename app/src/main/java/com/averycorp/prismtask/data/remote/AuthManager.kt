@@ -5,6 +5,7 @@ import android.util.Log
 import androidx.credentials.ClearCredentialStateRequest
 import androidx.credentials.CredentialManager
 import androidx.credentials.exceptions.ClearCredentialException
+import com.averycorp.prismtask.data.local.dao.SyncMetadataDao
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.GoogleAuthProvider
@@ -26,7 +27,8 @@ import javax.inject.Singleton
 class AuthManager
 @Inject
 constructor(
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
+    private val syncMetadataDao: SyncMetadataDao
 ) {
     private val auth: FirebaseAuth? = try {
         FirebaseAuth.getInstance()
@@ -65,6 +67,13 @@ constructor(
     }
 
     suspend fun signOut() {
+        // Drop pending sync metadata so cloud_id mappings from this account
+        // don't reattach to a different account on next sign-in.
+        try {
+            syncMetadataDao.deleteAll()
+        } catch (e: Exception) {
+            Log.w("AuthManager", "Failed to clear sync_metadata on sign-out", e)
+        }
         auth?.signOut()
         clearCredentialState()
     }
@@ -85,6 +94,11 @@ constructor(
     }
 
     suspend fun deleteAccount() {
+        try {
+            syncMetadataDao.deleteAll()
+        } catch (e: Exception) {
+            Log.w("AuthManager", "Failed to clear sync_metadata on account delete", e)
+        }
         auth?.currentUser?.delete()?.await()
         clearCredentialState()
     }

@@ -300,4 +300,9 @@ internal fun priorityColorFor(priority: Int): androidx.glance.unit.ColorProvider
 
 class TodayWidgetReceiver : GlanceAppWidgetReceiver() {
     override val glanceAppWidget: GlanceAppWidget = TodayWidget()
+
+    override fun onDeleted(context: Context, appWidgetIds: IntArray) {
+        super.onDeleted(context, appWidgetIds)
+        clearWidgetConfigOnDelete(this, context, appWidgetIds)
+    }
 }

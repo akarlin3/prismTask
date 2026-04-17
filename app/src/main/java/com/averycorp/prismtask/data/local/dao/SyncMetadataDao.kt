@@ -42,6 +42,24 @@ interface SyncMetadataDao {
     @Query("SELECT local_id FROM sync_metadata WHERE cloud_id = :cloudId AND entity_type = :entityType")
     suspend fun getLocalId(cloudId: String, entityType: String): Long?
 
-    @Query("UPDATE sync_metadata SET retry_count = retry_count + 1 WHERE local_id = :localId AND entity_type = :entityType")
-    suspend fun incrementRetry(localId: Long, entityType: String)
+    /**
+     * Increments retry_count and, once it crosses [MAX_RETRIES], drops the
+     * pending action so the queue cannot loop forever on a permanently
+     * failing operation. The row is preserved so the dead-letter is visible
+     * via [getDeadLettered] for surfacing to the user.
+     */
+    @Query(
+        "UPDATE sync_metadata SET " +
+            "retry_count = retry_count + 1, " +
+            "pending_action = CASE WHEN retry_count + 1 >= :maxRetries THEN NULL ELSE pending_action END " +
+            "WHERE local_id = :localId AND entity_type = :entityType"
+    )
+    suspend fun incrementRetry(localId: Long, entityType: String, maxRetries: Int = MAX_RETRIES)
+
+    @Query("SELECT * FROM sync_metadata WHERE retry_count >= :maxRetries")
+    suspend fun getDeadLettered(maxRetries: Int = MAX_RETRIES): List<SyncMetadataEntity>
+
+    companion object {
+        const val MAX_RETRIES: Int = 10
+    }
 }

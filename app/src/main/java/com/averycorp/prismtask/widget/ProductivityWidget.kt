@@ -177,4 +177,9 @@ private fun ProductivityContent(data: ProductivityWidgetData, size: DpSize) {
 
 class ProductivityWidgetReceiver : GlanceAppWidgetReceiver() {
     override val glanceAppWidget: GlanceAppWidget = ProductivityWidget()
+
+    override fun onDeleted(context: Context, appWidgetIds: IntArray) {
+        super.onDeleted(context, appWidgetIds)
+        clearWidgetConfigOnDelete(this, context, appWidgetIds)
+    }
 }

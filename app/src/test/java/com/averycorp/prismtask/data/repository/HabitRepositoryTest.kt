@@ -4,6 +4,7 @@ import com.averycorp.prismtask.data.local.dao.HabitCompletionDao
 import com.averycorp.prismtask.data.local.dao.HabitDao
 import com.averycorp.prismtask.data.local.dao.HabitLogDao
 import com.averycorp.prismtask.data.local.dao.TaskDao
+import com.averycorp.prismtask.data.local.database.DatabaseTransactionRunner
 import com.averycorp.prismtask.data.local.entity.HabitCompletionEntity
 import com.averycorp.prismtask.data.local.entity.HabitEntity
 import com.averycorp.prismtask.data.local.entity.HabitLogEntity
@@ -61,6 +62,7 @@ class HabitRepositoryTest {
         every { habitListPreferences.getStreakMaxMissedDays() } returns flowOf(1)
 
         repo = HabitRepository(
+            inlineTransactionRunner(),
             habitDao,
             completionDao,
             habitLogDao,
@@ -72,6 +74,11 @@ class HabitRepositoryTest {
             widgetUpdateManager
         )
     }
+
+    private fun inlineTransactionRunner(): DatabaseTransactionRunner =
+        object : DatabaseTransactionRunner(mockk(relaxed = true)) {
+            override suspend fun <R> withTransaction(block: suspend () -> R): R = block()
+        }
 
     // ---------------------------------------------------------------------
     // CRUD

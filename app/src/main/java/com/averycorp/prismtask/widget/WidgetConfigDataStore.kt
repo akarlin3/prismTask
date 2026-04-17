@@ -1,5 +1,6 @@
 package com.averycorp.prismtask.widget
 
+import android.content.BroadcastReceiver
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
@@ -9,9 +10,13 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 
 /**
  * Per-instance configuration for home screen widgets.
@@ -128,4 +133,27 @@ object WidgetConfigDataStore {
         quickAddConfigFlow(context, appWidgetId).first()
 
     private val MAX_TASKS_RANGE = 1..20
+}
+
+private val cleanupScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+/**
+ * Hook for `GlanceAppWidgetReceiver.onDeleted` so each widget instance's
+ * per-instance config is purged from DataStore when the user removes the
+ * widget from the home screen. Uses [BroadcastReceiver.goAsync] so the
+ * receiver stays alive while the DataStore writes complete.
+ */
+fun clearWidgetConfigOnDelete(
+    receiver: BroadcastReceiver,
+    context: Context,
+    appWidgetIds: IntArray
+) {
+    val pending = receiver.goAsync()
+    cleanupScope.launch {
+        try {
+            appWidgetIds.forEach { WidgetConfigDataStore.clearForWidget(context, it) }
+        } finally {
+            pending.finish()
+        }
+    }
 }

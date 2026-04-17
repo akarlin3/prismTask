@@ -2,6 +2,7 @@ package com.averycorp.prismtask.smoke
 
 import com.averycorp.prismtask.data.calendar.CalendarPushDispatcher
 import com.averycorp.prismtask.data.local.converter.RecurrenceConverter
+import com.averycorp.prismtask.data.local.database.DatabaseTransactionRunner
 import com.averycorp.prismtask.data.local.entity.TaskEntity
 import com.averycorp.prismtask.data.remote.SyncTracker
 import com.averycorp.prismtask.data.repository.TaskCompletionRepository
@@ -25,6 +26,7 @@ import org.junit.Test
 @HiltAndroidTest
 class RecurrenceSmokeTest : SmokeTestBase() {
     private fun buildRepository(): TaskRepository = TaskRepository(
+        transactionRunner = DatabaseTransactionRunner(database),
         taskDao = database.taskDao(),
         tagDao = database.tagDao(),
         syncTracker = mockk<SyncTracker>(relaxed = true),

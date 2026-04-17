@@ -13,7 +13,8 @@
 - **Focus Release & ND-friendly modes**: `FocusReleaseLogEntity`, `GoodEnoughTimerManager`, `ParalysisBreaker`, `EnergyAwarePomodoro`, and `ShipItCelebrationManager` provide neurodivergence-friendly focus flows; `NdPreferences` + `NdFeatureGate` gate these features, with Brain Mode / UI Complexity / Forgiveness-Streak / Shake-to-capture settings sections.
 - **Medication refills, clinical report, conversation extraction**: `MedicationRefillEntity` + `RefillCalculator` project refill dates; `ClinicalReportGenerator` exports a therapist-friendly summary; `ConversationTaskExtractor` pulls tasks out of chat transcripts (new `extract/` screen).
 - **Custom notification sounds + escalation**: `CustomSoundEntity`, `SoundResolver`, `EscalationScheduler`, and `VibrationAdapter` power per-profile custom sounds, vibration patterns, and escalation chains; `ReminderProfile*` was renamed to `NotificationProfile*` and moved under `domain/model/notifications/`.
-- **Database**: Current Room version is **42** with 41 cumulative migrations (`MIGRATION_1_2` through `MIGRATION_41_42`) wired into `PrismTaskDatabase`.
+- **Database**: Current Room version is **45** with 44 cumulative migrations (`MIGRATION_1_2` through `MIGRATION_44_45`) wired into `PrismTaskDatabase`. v44→v45 (data-integrity hardening) backfills `ON DELETE SET NULL` foreign keys on `study_logs.course_pick`, `study_logs.assignment_pick`, and `focus_release_logs.task_id`.
+- **Daily Essentials**: `DailyEssentialsUseCase` + `DailyEssentialsPreferences` surface a daily housework + schoolwork card on Today; `housework_habit_id` / `schoolwork_habit_id` point to user-chosen habits and the use case hides the card gracefully when the habit is deleted or archived.
 
 ## Tech Stack
 

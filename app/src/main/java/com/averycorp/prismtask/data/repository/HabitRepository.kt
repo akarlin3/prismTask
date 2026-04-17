@@ -4,6 +4,7 @@ import com.averycorp.prismtask.data.local.dao.HabitCompletionDao
 import com.averycorp.prismtask.data.local.dao.HabitDao
 import com.averycorp.prismtask.data.local.dao.HabitLogDao
 import com.averycorp.prismtask.data.local.dao.TaskDao
+import com.averycorp.prismtask.data.local.database.DatabaseTransactionRunner
 import com.averycorp.prismtask.data.local.entity.HabitCompletionEntity
 import com.averycorp.prismtask.data.local.entity.HabitEntity
 import com.averycorp.prismtask.data.local.entity.HabitLogEntity
@@ -43,6 +44,7 @@ data class HabitWithStatus(
 class HabitRepository
 @Inject
 constructor(
+    private val transactionRunner: DatabaseTransactionRunner,
     private val habitDao: HabitDao,
     private val completionDao: HabitCompletionDao,
     private val habitLogDao: HabitLogDao,
@@ -126,47 +128,53 @@ constructor(
 
     suspend fun completeHabit(habitId: Long, date: Long, notes: String? = null) {
         val normalizedDate = normalizeForToday(date)
-        val habit = habitDao.getHabitByIdOnce(habitId)
-        val hasMedInterval = habit?.reminderIntervalMillis != null
-        val timesPerDay = habit?.reminderTimesPerDay ?: 1
-        val target = if (habit?.frequencyPeriod == "daily") habit.targetFrequency else 1
-        val currentCount = completionDao.getCompletionCountForDateOnce(habitId, normalizedDate)
+        val now = System.currentTimeMillis()
 
-        // Allow completion if under target, or up to timesPerDay for medication-interval habits
-        if (hasMedInterval) {
-            if (currentCount >= timesPerDay) return
-        } else {
-            if (currentCount >= target) return
+        // Atomically read the existing count and insert the new completion so two
+        // near-simultaneous taps cannot both see `count == target - 1` and both insert.
+        data class CompletionResult(val newId: Long?, val habit: HabitEntity?, val newCount: Int)
+
+        val result = transactionRunner.withTransaction {
+            val habit = habitDao.getHabitByIdOnce(habitId)
+            val hasMedInterval = habit?.reminderIntervalMillis != null
+            val timesPerDay = habit?.reminderTimesPerDay ?: 1
+            val target = if (habit?.frequencyPeriod == "daily") habit.targetFrequency else 1
+            val currentCount = completionDao.getCompletionCountForDateOnce(habitId, normalizedDate)
+
+            val cap = if (hasMedInterval) timesPerDay else target
+            if (currentCount >= cap) {
+                CompletionResult(null, habit, currentCount)
+            } else {
+                val newId = completionDao.insert(
+                    HabitCompletionEntity(
+                        habitId = habitId,
+                        completedDate = normalizedDate,
+                        completedAt = now,
+                        notes = notes?.trim()?.ifEmpty { null }
+                    )
+                )
+                CompletionResult(newId, habit, currentCount + 1)
+            }
         }
 
-        val now = System.currentTimeMillis()
+        if (result.newId == null) return
+
         // Cancel any pending follow-up now that the habit is completed
         medicationReminderScheduler.cancelFollowUp(habitId)
-
-        val id = completionDao.insert(
-            HabitCompletionEntity(
-                habitId = habitId,
-                completedDate = normalizedDate,
-                completedAt = now,
-                notes = notes?.trim()?.ifEmpty { null }
-            )
-        )
-        syncTracker.trackCreate(id, "habit_completion")
+        syncTracker.trackCreate(result.newId, "habit_completion")
         widgetUpdateManager.updateHabitWidgets()
 
-        if (habit != null && habit.reminderIntervalMillis != null) {
-            val newCount = currentCount + 1
-            if (newCount < timesPerDay) {
-                medicationReminderScheduler.scheduleNext(
-                    habitId,
-                    habit.name,
-                    habit.description,
-                    now,
-                    habit.reminderIntervalMillis,
-                    doseNumber = newCount + 1,
-                    totalDoses = timesPerDay
-                )
-            }
+        val habit = result.habit
+        if (habit?.reminderIntervalMillis != null && result.newCount < habit.reminderTimesPerDay) {
+            medicationReminderScheduler.scheduleNext(
+                habitId,
+                habit.name,
+                habit.description,
+                now,
+                habit.reminderIntervalMillis,
+                doseNumber = result.newCount + 1,
+                totalDoses = habit.reminderTimesPerDay
+            )
         }
     }
 
@@ -227,27 +235,26 @@ constructor(
             date = date,
             notes = notes?.trim()?.ifEmpty { null }
         )
-        val logId = habitLogDao.insertLog(log)
-        syncTracker.trackCreate(logId, "habit_log")
-
-        val habit = habitDao.getHabitByIdOnce(habitId)
-        if (habit != null) {
-            if (habit.isBooked) {
-                // Fulfilling the booking — reset booking fields
-                habitDao.update(
+        val (logId, habitTouched) = transactionRunner.withTransaction {
+            val newLogId = habitLogDao.insertLog(log)
+            val habit = habitDao.getHabitByIdOnce(habitId)
+            if (habit != null) {
+                val updated = if (habit.isBooked) {
                     habit.copy(
                         isBooked = false,
                         bookedDate = null,
                         bookedNote = null,
                         updatedAt = System.currentTimeMillis()
                     )
-                )
-            } else {
-                // Touch updatedAt so the active-habits flow re-emits and lastLogDate refreshes
-                habitDao.update(habit.copy(updatedAt = System.currentTimeMillis()))
+                } else {
+                    habit.copy(updatedAt = System.currentTimeMillis())
+                }
+                habitDao.update(updated)
             }
-            syncTracker.trackUpdate(habitId, "habit")
+            newLogId to (habit != null)
         }
+        syncTracker.trackCreate(logId, "habit_log")
+        if (habitTouched) syncTracker.trackUpdate(habitId, "habit")
         widgetUpdateManager.updateHabitWidgets()
         return logId
     }

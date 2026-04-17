@@ -4,6 +4,7 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.averycorp.prismtask.data.local.converter.RecurrenceConverter
+import com.averycorp.prismtask.data.local.database.DatabaseTransactionRunner
 import com.averycorp.prismtask.data.local.database.PrismTaskDatabase
 import com.averycorp.prismtask.data.local.entity.TaskEntity
 import com.averycorp.prismtask.data.repository.TaskRepository
@@ -40,11 +41,14 @@ class RecurrenceIntegrationTest {
             .build()
 
         repository = TaskRepository(
+            transactionRunner = DatabaseTransactionRunner(database),
             taskDao = database.taskDao(),
             tagDao = database.tagDao(),
             syncTracker = mockk(relaxed = true),
-            calendarSyncService = mockk(relaxed = true),
-            reminderScheduler = mockk(relaxed = true)
+            calendarPushDispatcher = mockk(relaxed = true),
+            reminderScheduler = mockk(relaxed = true),
+            widgetUpdateManager = mockk(relaxed = true),
+            taskCompletionRepository = mockk(relaxed = true)
         )
     }
 

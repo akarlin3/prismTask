@@ -2,6 +2,8 @@ package com.averycorp.prismtask.data.local.entity
 
 import androidx.room.ColumnInfo
 import androidx.room.Entity
+import androidx.room.ForeignKey
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
 /**
@@ -9,7 +11,18 @@ import androidx.room.PrimaryKey
  * Tracks stuck-detection triggers, breaker choices, celebration fires, etc.
  * This data is NEVER sent to the backend — it is sensitive behavioral data.
  */
-@Entity(tableName = "focus_release_logs")
+@Entity(
+    tableName = "focus_release_logs",
+    foreignKeys = [
+        ForeignKey(
+            entity = TaskEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["task_id"],
+            onDelete = ForeignKey.SET_NULL
+        )
+    ],
+    indices = [Index("task_id")]
+)
 data class FocusReleaseLogEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
