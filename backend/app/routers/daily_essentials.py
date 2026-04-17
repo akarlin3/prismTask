@@ -67,6 +67,13 @@ async def _upsert_slot(
             slot_key=slot_key,
             med_ids_json=med_ids_json,
             taken_at=now if taken else None,
+            # Set created_at / updated_at explicitly so they're known to the
+            # ORM without a post-flush SELECT refresh. Without this, the
+            # ``server_default=func.now()`` columns come back expired and
+            # accessing them from the sync response serializer blows up
+            # with ``MissingGreenlet``.
+            created_at=now,
+            updated_at=now,
         )
         db.add(row)
         await db.flush()
@@ -78,6 +85,9 @@ async def _upsert_slot(
         if med_ids:
             row.med_ids_json = med_ids_json
         row.taken_at = now if taken else None
+        # Mirror the ``onupdate=func.now()`` hook in Python so we don't
+        # trigger an async refresh on the sync ``_to_response`` read path.
+        row.updated_at = now
         await db.flush()
     return row
 
