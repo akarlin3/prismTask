@@ -2,7 +2,9 @@ package com.averycorp.prismtask.data.local.dao
 
 import androidx.room.Dao
 import androidx.room.Insert
+import androidx.room.Query
 import com.averycorp.prismtask.data.local.entity.FocusReleaseLogEntity
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface FocusReleaseLogDao {
