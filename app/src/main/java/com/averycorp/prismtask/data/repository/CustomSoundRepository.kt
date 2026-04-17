@@ -39,7 +39,18 @@ constructor(
     suspend fun getById(id: Long): CustomSoundEntity? = dao.getById(id)
 
     suspend fun delete(sound: CustomSoundEntity) {
-        runCatching { File(Uri.parse(sound.uri).path ?: "").delete() }
+        // Resolve the file-system path defensively. Sounds saved via import()
+        // are stored as `file://…` URIs (Uri.fromFile), so `.path` is non-null.
+        // Older or hand-edited rows might use `content://` URIs which have no
+        // usable path — skip file deletion there rather than silently deleting
+        // File("") (a no-op that leaves the real file orphaned).
+        runCatching {
+            val parsed = Uri.parse(sound.uri)
+            val path = parsed.path
+            if (parsed.scheme == "file" && !path.isNullOrBlank()) {
+                File(path).delete()
+            }
+        }
         dao.delete(sound)
     }
 

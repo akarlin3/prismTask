@@ -68,6 +68,17 @@ constructor(
     private val tokenPreferences: AuthTokenPreferences,
     private val gson: Gson
 ) : Authenticator {
+    // Reuse a single OkHttpClient for all refresh calls. Previously a new
+    // client was created per 401, which spins up a fresh connection pool
+    // each time — a slow leak under refresh storms.
+    private val refreshClient: OkHttpClient by lazy {
+        OkHttpClient
+            .Builder()
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .build()
+    }
+
     override fun authenticate(route: Route?, response: Response): Request? {
         // Avoid infinite retry loops: only attempt refresh once.
         if (responseCount(response) >= 2) return null
@@ -117,15 +128,9 @@ constructor(
                 .post(body)
                 .build()
 
-            // Use a bare client (no auth interceptor / no authenticator) to
-            // avoid recursing back into this Authenticator.
-            val bareClient = OkHttpClient
-                .Builder()
-                .connectTimeout(30, TimeUnit.SECONDS)
-                .readTimeout(30, TimeUnit.SECONDS)
-                .build()
-
-            bareClient.newCall(request).execute().use { refreshResponse ->
+            // Use the bare refresh client (no auth interceptor / no
+            // authenticator) to avoid recursing back into this Authenticator.
+            refreshClient.newCall(request).execute().use { refreshResponse ->
                 if (!refreshResponse.isSuccessful) return@use null
                 val responseBody = refreshResponse.body?.string() ?: return@use null
                 gson.fromJson(responseBody, TokenResponse::class.java)

@@ -25,10 +25,21 @@ class RateLimiter:
         cutoff = now - self.window_seconds
         self._requests[key] = [t for t in self._requests[key] if t > cutoff]
 
+    def _evict_stale(self, now: float) -> None:
+        """Drop keys whose entries are all outside the window. Prevents the
+        defaultdict from growing unboundedly as unique IPs come and go."""
+        cutoff = now - self.window_seconds
+        stale = [k for k, timestamps in self._requests.items() if not timestamps or timestamps[-1] <= cutoff]
+        for k in stale:
+            del self._requests[k]
+
     def check(self, request: Request) -> None:
         now = time.monotonic()
         key = self._client_ip(request)
         with self._lock:
+            # Periodic sweep keeps the dict bounded under churn.
+            if len(self._requests) > 1024:
+                self._evict_stale(now)
             self._cleanup(key, now)
             if len(self._requests[key]) >= self.max_requests:
                 raise HTTPException(
@@ -113,9 +124,17 @@ class UserRateLimiter:
         cutoff = now - self.window_seconds
         self._requests[user_id] = [t for t in self._requests[user_id] if t > cutoff]
 
+    def _evict_stale(self, now: float) -> None:
+        cutoff = now - self.window_seconds
+        stale = [k for k, timestamps in self._requests.items() if not timestamps or timestamps[-1] <= cutoff]
+        for k in stale:
+            del self._requests[k]
+
     def check(self, user_id: int) -> None:
         now = time.monotonic()
         with self._lock:
+            if len(self._requests) > 1024:
+                self._evict_stale(now)
             self._cleanup(user_id, now)
             if len(self._requests[user_id]) >= self.max_requests:
                 raise HTTPException(

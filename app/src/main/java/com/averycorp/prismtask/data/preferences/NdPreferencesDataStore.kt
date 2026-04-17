@@ -301,41 +301,56 @@ class NdPreferencesDataStore(
      * Updates a single ND preference by key name. Intended for use by the Settings
      * UI where toggle keys are passed dynamically.
      *
+     * Uses safe `as?` casts: a mistyped value (e.g. from settings-import JSON
+     * where an Int arrives as a Double) is logged and silently skipped rather
+     * than throwing ClassCastException.
+     *
      * @throws IllegalArgumentException if [key] is not a recognized ND preference key.
      */
     suspend fun updateNdPreference(key: String, value: Any) {
+        fun bool(): Boolean? = value as? Boolean
+        fun int(): Int? = (value as? Int) ?: (value as? Number)?.toInt()
+        fun str(): String? = value as? String
         when (key) {
-            "adhd_mode_enabled" -> setAdhdMode(value as Boolean)
-            "calm_mode_enabled" -> setCalmMode(value as Boolean)
-            "focus_release_mode_enabled" -> setFocusReleaseMode(value as Boolean)
-            "reduce_animations" -> setReduceAnimations(value as Boolean)
-            "muted_color_palette" -> setMutedColorPalette(value as Boolean)
-            "quiet_mode" -> setQuietMode(value as Boolean)
-            "reduce_haptics" -> setReduceHaptics(value as Boolean)
-            "soft_contrast" -> setSoftContrast(value as Boolean)
-            "task_decomposition" -> setTaskDecomposition(value as Boolean)
-            "focus_guard" -> setFocusGuard(value as Boolean)
-            "body_doubling" -> setBodyDoubling(value as Boolean)
-            "check_in_interval_minutes" -> setCheckInIntervalMinutes(value as Int)
-            "completion_animations" -> setCompletionAnimations(value as Boolean)
-            "streak_celebrations" -> setStreakCelebrations(value as Boolean)
-            "show_progress_bars" -> setShowProgressBars(value as Boolean)
-            "forgiveness_streaks" -> setForgivenessStreaks(value as Boolean)
-            "good_enough_timers_enabled" -> setGoodEnoughTimersEnabled(value as Boolean)
-            "default_good_enough_minutes" -> setDefaultGoodEnoughMinutes(value as Int)
-            "good_enough_escalation" -> setGoodEnoughEscalation(GoodEnoughEscalation.valueOf(value as String))
-            "anti_rework_enabled" -> setAntiReworkEnabled(value as Boolean)
-            "soft_warning_enabled" -> setSoftWarningEnabled(value as Boolean)
-            "cooling_off_enabled" -> setCoolingOffEnabled(value as Boolean)
-            "cooling_off_minutes" -> setCoolingOffMinutes(value as Int)
-            "revision_counter_enabled" -> setRevisionCounterEnabled(value as Boolean)
-            "max_revisions" -> setMaxRevisions(value as Int)
-            "ship_it_celebrations_enabled" -> setShipItCelebrationsEnabled(value as Boolean)
-            "celebration_intensity" -> setCelebrationIntensity(CelebrationIntensity.valueOf(value as String))
-            "paralysis_breakers_enabled" -> setParalysisBreakersEnabled(value as Boolean)
-            "auto_suggest_enabled" -> setAutoSuggestEnabled(value as Boolean)
-            "simplify_choices_enabled" -> setSimplifyChoicesEnabled(value as Boolean)
-            "stuck_detection_minutes" -> setStuckDetectionMinutes(value as Int)
+            "adhd_mode_enabled" -> bool()?.let { setAdhdMode(it) }
+            "calm_mode_enabled" -> bool()?.let { setCalmMode(it) }
+            "focus_release_mode_enabled" -> bool()?.let { setFocusReleaseMode(it) }
+            "reduce_animations" -> bool()?.let { setReduceAnimations(it) }
+            "muted_color_palette" -> bool()?.let { setMutedColorPalette(it) }
+            "quiet_mode" -> bool()?.let { setQuietMode(it) }
+            "reduce_haptics" -> bool()?.let { setReduceHaptics(it) }
+            "soft_contrast" -> bool()?.let { setSoftContrast(it) }
+            "task_decomposition" -> bool()?.let { setTaskDecomposition(it) }
+            "focus_guard" -> bool()?.let { setFocusGuard(it) }
+            "body_doubling" -> bool()?.let { setBodyDoubling(it) }
+            "check_in_interval_minutes" -> int()?.let { setCheckInIntervalMinutes(it) }
+            "completion_animations" -> bool()?.let { setCompletionAnimations(it) }
+            "streak_celebrations" -> bool()?.let { setStreakCelebrations(it) }
+            "show_progress_bars" -> bool()?.let { setShowProgressBars(it) }
+            "forgiveness_streaks" -> bool()?.let { setForgivenessStreaks(it) }
+            "good_enough_timers_enabled" -> bool()?.let { setGoodEnoughTimersEnabled(it) }
+            "default_good_enough_minutes" -> int()?.let { setDefaultGoodEnoughMinutes(it) }
+            "good_enough_escalation" -> str()?.let {
+                runCatching { GoodEnoughEscalation.valueOf(it) }
+                    .getOrNull()
+                    ?.let(::setGoodEnoughEscalation)
+            }
+            "anti_rework_enabled" -> bool()?.let { setAntiReworkEnabled(it) }
+            "soft_warning_enabled" -> bool()?.let { setSoftWarningEnabled(it) }
+            "cooling_off_enabled" -> bool()?.let { setCoolingOffEnabled(it) }
+            "cooling_off_minutes" -> int()?.let { setCoolingOffMinutes(it) }
+            "revision_counter_enabled" -> bool()?.let { setRevisionCounterEnabled(it) }
+            "max_revisions" -> int()?.let { setMaxRevisions(it) }
+            "ship_it_celebrations_enabled" -> bool()?.let { setShipItCelebrationsEnabled(it) }
+            "celebration_intensity" -> str()?.let {
+                runCatching { CelebrationIntensity.valueOf(it) }
+                    .getOrNull()
+                    ?.let(::setCelebrationIntensity)
+            }
+            "paralysis_breakers_enabled" -> bool()?.let { setParalysisBreakersEnabled(it) }
+            "auto_suggest_enabled" -> bool()?.let { setAutoSuggestEnabled(it) }
+            "simplify_choices_enabled" -> bool()?.let { setSimplifyChoicesEnabled(it) }
+            "stuck_detection_minutes" -> int()?.let { setStuckDetectionMinutes(it) }
             else -> throw IllegalArgumentException("Unknown ND preference key: $key")
         }
     }

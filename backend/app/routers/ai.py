@@ -200,7 +200,10 @@ async def daily_briefing(
     tier = current_user.effective_tier
     daily_ai_rate_limiter.check(current_user.id, tier)
 
-    target_date = date.fromisoformat(data.date) if data.date else date.today()
+    try:
+        target_date = date.fromisoformat(data.date) if data.date else date.today()
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid date format; expected YYYY-MM-DD")
 
     # Fetch overdue tasks (past due, not completed)
     overdue_query = select(Task).where(
@@ -294,7 +297,10 @@ async def weekly_plan(
     daily_ai_rate_limiter.check(current_user.id, tier)
 
     if data.week_start:
-        week_start = date.fromisoformat(data.week_start)
+        try:
+            week_start = date.fromisoformat(data.week_start)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid week_start format; expected YYYY-MM-DD")
     else:
         # Default to next Monday
         today = date.today()
@@ -364,7 +370,10 @@ async def time_block(
     tier = current_user.effective_tier
     daily_ai_rate_limiter.check(current_user.id, tier)
 
-    target_date = date.fromisoformat(data.date) if data.date else date.today()
+    try:
+        target_date = date.fromisoformat(data.date) if data.date else date.today()
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid date format; expected YYYY-MM-DD")
 
     # Fetch tasks for the date: due today, planned today, or overdue
     tasks_query = select(Task).where(

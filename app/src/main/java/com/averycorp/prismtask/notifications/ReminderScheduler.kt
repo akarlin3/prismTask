@@ -21,7 +21,11 @@ constructor(
     @ApplicationContext private val context: Context,
     private val taskDao: TaskDao
 ) {
-    private val alarmManager: AlarmManager
+    // Android's AlarmManager service is platform-defined as non-null in
+    // practice, but the framework API returns a nullable getSystemService.
+    // Stripped-down OEM ROMs have been observed returning null. Guard here
+    // so downstream scheduler code can no-op instead of NPE'ing.
+    private val alarmManager: AlarmManager?
         get() = context.getSystemService(AlarmManager::class.java)
 
     fun scheduleReminder(
@@ -89,7 +93,7 @@ constructor(
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-        alarmManager.cancel(pendingIntent)
+        alarmManager?.cancel(pendingIntent)
     }
 
     suspend fun rescheduleAllReminders() {

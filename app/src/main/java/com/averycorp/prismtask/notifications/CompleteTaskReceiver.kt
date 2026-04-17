@@ -4,10 +4,13 @@ import android.app.NotificationManager
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.util.Log
 import com.averycorp.prismtask.data.repository.TaskRepository
 import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.components.SingletonComponent
-import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 
 class CompleteTaskReceiver : BroadcastReceiver() {
@@ -27,12 +30,22 @@ class CompleteTaskReceiver : BroadcastReceiver() {
         )
         val repository = entryPoint.taskRepository()
 
-        val manager = context.getSystemService(NotificationManager::class.java)
-        manager.cancel(taskId.toInt())
+        context.getSystemService(NotificationManager::class.java)?.cancel(taskId.toInt())
 
-        @Suppress("GlobalCoroutineUsage")
-        GlobalScope.launch {
-            repository.completeTask(taskId)
+        // Extend the receiver's lifetime until completeTask() finishes so the
+        // coroutine isn't killed when Android tears down the receiver process.
+        // Using an app-scoped SupervisorJob + goAsync() is the recommended
+        // pattern for async work from a BroadcastReceiver.
+        val pendingResult = goAsync()
+        val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+        scope.launch {
+            try {
+                repository.completeTask(taskId)
+            } catch (e: Exception) {
+                Log.e("CompleteTaskReceiver", "Failed to complete task $taskId", e)
+            } finally {
+                pendingResult.finish()
+            }
         }
     }
 }
