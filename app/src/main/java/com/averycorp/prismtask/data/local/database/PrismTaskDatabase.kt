@@ -52,6 +52,7 @@ import com.averycorp.prismtask.data.local.entity.ProjectTemplateEntity
 import com.averycorp.prismtask.data.local.entity.SavedFilterEntity
 import com.averycorp.prismtask.data.local.entity.SelfCareLogEntity
 import com.averycorp.prismtask.data.local.entity.SelfCareStepEntity
+import com.averycorp.prismtask.data.local.entity.StudyLogEntity
 import com.averycorp.prismtask.data.local.entity.SyncMetadataEntity
 import com.averycorp.prismtask.data.local.entity.TagEntity
 import com.averycorp.prismtask.data.local.entity.TaskCompletionEntity
@@ -80,6 +81,7 @@ import com.averycorp.prismtask.data.local.entity.WeeklyReviewEntity
         CourseCompletionEntity::class,
         SelfCareLogEntity::class,
         SelfCareStepEntity::class,
+        StudyLogEntity::class,
         TaskTemplateEntity::class,
         NlpShortcutEntity::class,
         SavedFilterEntity::class,
