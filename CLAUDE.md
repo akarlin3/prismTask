@@ -41,7 +41,7 @@ app/src/main/java/com/averycorp/prismtask/
 ├── PrismTaskApplication.kt             # @HiltAndroidApp
 ├── data/
 │   ├── billing/
-│   │   └── BillingManager.kt           # Google Play Billing: Pro purchase flow, restore, cached status
+│   │   └── BillingManager.kt           # Google Play Billing: two-tier purchase flow, restore, cached status
 │   ├── calendar/
 │   │   ├── CalendarManager.kt          # Device calendar provider wrapper
 │   │   └── CalendarSyncPreferences.kt
@@ -225,7 +225,7 @@ app/src/main/java/com/averycorp/prismtask/
 - **Tabbed Editor**: Bottom sheet with Details/Schedule/Organize tabs (extracted into `addedittask/tabs/`)
 - **Sort Memory**: Per-screen sort preferences via DataStore
 - **Drag-to-Reorder**: Custom sort mode with persistent task order
-- **Pricing**: ProFeatureGate checks BillingManager tier (Free/Pro); Pro is $7.99/mo or $4.99/mo billed annually ($59.88/year, with a 7-day free trial on the annual plan). Free gets core task/habit management, templates, calendar sync, widgets, and NLP quick-add; Pro unlocks cloud sync, AI productivity tools (Eisenhower, Smart Pomodoro, daily briefing, time blocking), AI weekly planner (Claude Sonnet), full analytics, shared projects, integrations, and unlimited saved filters / custom templates
+- **Two-Tier Pricing**: ProFeatureGate checks BillingManager tier (Free/Pro $3.99); Free gets core features, Pro unlocks everything else (cloud sync, AI Eisenhower/Pomodoro, analytics, briefing/planner, time blocking, collaboration, integrations, Drive backup)
 - **Billing**: Google Play Billing via BillingManager singleton; tier cached in DataStore for offline access; debug tier override in Settings
 - **Voice Input**: `VoiceInputManager` wraps Android SpeechRecognizer for dictation and continuous hands-free mode; `VoiceCommandParser` parses command grammar; `TextToSpeechManager` reads tasks and briefings
 - **Accessibility**: `ui/a11y/` helpers expose TalkBack labels, dynamic font scaling, high-contrast mode, keyboard focus traversal, and reduced-motion animation gates
