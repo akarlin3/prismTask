@@ -66,11 +66,7 @@ fun BrainModeScreen(
                 onRevisionCounterChange = viewModel::setRevisionCounterEnabled,
                 onMaxRevisionsChange = viewModel::setMaxRevisions,
                 onShipItCelebrationsChange = viewModel::setShipItCelebrationsEnabled,
-                onCelebrationIntensityChange = viewModel::setCelebrationIntensity,
-                onParalysisBreakersChange = viewModel::setParalysisBreakersEnabled,
-                onAutoSuggestChange = viewModel::setAutoSuggestEnabled,
-                onSimplifyChoicesChange = viewModel::setSimplifyChoicesEnabled,
-                onStuckDetectionMinutesChange = viewModel::setStuckDetectionMinutes
+                onCelebrationIntensityChange = viewModel::setCelebrationIntensity
             )
             Spacer(modifier = Modifier.height(32.dp))
         }

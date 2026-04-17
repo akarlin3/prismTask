@@ -23,7 +23,6 @@ import com.averycorp.prismtask.data.local.entity.ProjectTemplateEntity
 import com.averycorp.prismtask.data.local.entity.SavedFilterEntity
 import com.averycorp.prismtask.data.local.entity.SelfCareLogEntity
 import com.averycorp.prismtask.data.local.entity.SelfCareStepEntity
-import com.averycorp.prismtask.data.local.entity.StudyLogEntity
 import com.averycorp.prismtask.data.local.entity.SyncMetadataEntity
 import com.averycorp.prismtask.data.local.entity.TagEntity
 import com.averycorp.prismtask.data.local.entity.TaskCompletionEntity
@@ -49,7 +48,7 @@ import org.junit.Test
  */
 class DatabaseEntityRegistrationTest {
     /**
-     * The 30 entity classes listed in PrismTaskDatabase's @Database annotation.
+     * The entity classes listed in PrismTaskDatabase's @Database annotation.
      * If this list doesn't match PrismTaskDatabase, the test should be updated.
      */
     private val expectedEntityClasses: List<Class<*>> = listOf(
@@ -67,7 +66,6 @@ class DatabaseEntityRegistrationTest {
         LeisureLogEntity::class.java,
         CourseEntity::class.java,
         AssignmentEntity::class.java,
-        StudyLogEntity::class.java,
         CourseCompletionEntity::class.java,
         SelfCareLogEntity::class.java,
         SelfCareStepEntity::class.java,
@@ -101,14 +99,14 @@ class DatabaseEntityRegistrationTest {
     }
 
     @Test
-    fun `exactly 32 entities are registered`() {
-        // PrismTaskDatabase @Database annotation lists 32 entities.
+    fun `exactly 31 entities are registered`() {
+        // PrismTaskDatabase @Database annotation lists 31 entities.
         // If someone adds or removes one, both this test and the annotation
         // must be updated together.
         assertTrue(
-            "Expected 32 entity classes, found ${expectedEntityClasses.size}. " +
+            "Expected 31 entity classes, found ${expectedEntityClasses.size}. " +
                 "Update this test AND PrismTaskDatabase.kt if entities were added/removed.",
-            expectedEntityClasses.size == 32
+            expectedEntityClasses.size == 31
         )
     }
 

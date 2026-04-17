@@ -6,8 +6,7 @@ import androidx.room.PrimaryKey
 
 /**
  * A reusable project blueprint. Child task definitions are stored as a JSON
- * blob (see ProjectTemplateRepository) so the task schema can evolve without
- * a Room migration.
+ * blob so the task schema can evolve without a Room migration.
  *
  * Added in v1.3.0 (P15).
  */

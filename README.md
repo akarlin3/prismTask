@@ -19,22 +19,24 @@ A cross-platform task manager with a Python API backend featuring AI-powered nat
 <!-- TODO: Replace with actual Play Store link once published -->
 [<img src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" alt="Get it on Google Play" height="80">](https://play.google.com/store/apps/details?id=com.averycorp.prismtask)
 
-## Free vs Pro vs Premium
+## Free vs Pro
 
-PrismTask ships with a three-tier pricing model (introduced in v1.3.0).
+PrismTask ships with a two-tier pricing model.
 
-| Feature | Free | Pro ($3.99/mo) | Premium ($7.99/mo) |
-|---------|------|----------------|--------------------|
-| Task management, projects, tags, subtasks | Yes | Yes | Yes |
-| Habit tracking with streaks & analytics | Yes | Yes | Yes |
-| Templates, widgets, voice, accessibility | Yes | Yes | Yes |
-| Work-Life Balance Engine (v1.4.0) | Yes | Yes | Yes |
-| Cloud sync across devices | -- | Yes | Yes |
-| AI Eisenhower & Pomodoro | -- | Yes | Yes |
-| Analytics & time tracking | -- | Yes | Yes |
-| AI briefing, planner, time blocking | -- | -- | Yes |
-| Collaboration & integrations | -- | -- | Yes |
-| Google Drive backup/restore | -- | -- | Yes |
+| Feature | Free | Pro |
+|---------|------|-----|
+| Task management, projects, tags, subtasks | Yes | Yes |
+| Habit tracking with streaks | Yes | Yes |
+| Templates, widgets, voice, accessibility | Yes | Yes |
+| Work-Life Balance Engine | Yes | Yes |
+| Cloud sync across devices | -- | Yes |
+| AI Eisenhower & Pomodoro | -- | Yes |
+| AI briefing, weekly planner, time blocking | -- | Yes |
+| AI coach, task breakdown, daily planning | -- | Yes |
+| Syllabus import | -- | Yes |
+
+Pro is available as an annual subscription ($4.99/mo billed $59.88/year with a
+7-day free trial) or month-to-month at $7.99/mo.
 
 AI features run on Claude Haiku; the weekly planner and monthly review use
 Claude Sonnet for higher-quality output. Debug builds expose a tier override

@@ -129,9 +129,8 @@ private fun ProFeatureBullets() {
         ProBullet("Cloud sync across all devices")
         ProBullet("AI productivity tools (Eisenhower, Pomodoro, Briefing)")
         ProBullet("AI Weekly Planner powered by Claude Sonnet")
-        ProBullet("Full analytics, time tracking, and Drive backup")
-        ProBullet("Collaboration and Integrations")
-        ProBullet("Unlimited saved filters and custom templates")
+        ProBullet("AI Coach and Task Breakdown")
+        ProBullet("Syllabus Import for Schoolwork")
     }
 }
 
@@ -183,17 +182,8 @@ enum class ProFeature(
     val label: String,
     val description: String
 ) {
-    AI("AI Features", "Let AI organize your tasks and plan focus sessions"),
-    SYNC("Cloud Sync", "Sync your tasks across devices with cloud backup"),
-    COLLABORATION("Collaboration", "Share projects and work with your team"),
-    DRIVE_BACKUP("Google Drive Backup", "Back up your data to Google Drive"),
     AI_BRIEFING("AI Briefing", "Get AI-powered daily briefings and task prioritization"),
     AI_WEEKLY_PLAN("AI Weekly Planner", "Let AI plan your week for optimal productivity"),
-    AI_TIME_BLOCK("AI Time Blocking", "AI-powered automatic schedule optimization"),
     AI_CHAT("AI Coach", "Get personalized coaching and task help through natural conversation"),
-    AI_COACHING("AI Coaching", "Get personalized help when you're stuck on a task"),
-    AI_TASK_BREAKDOWN("AI Task Breakdown", "Unlimited AI-powered task breakdown into subtasks"),
-    AI_DAILY_PLANNING("AI Daily Planning", "AI-powered daily planning that adapts to your energy"),
-    AI_REENGAGEMENT("AI Welcome Back", "Personalized re-engagement after time away"),
     SYLLABUS_IMPORT("Syllabus Import", "Import your course syllabus and auto-create tasks, events, and schedules")
 }

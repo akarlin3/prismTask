@@ -344,22 +344,6 @@ constructor(
         viewModelScope.launch { ndPreferencesDataStore.setCelebrationIntensity(i) }
     }
 
-    fun setParalysisBreakersEnabled(e: Boolean) {
-        viewModelScope.launch { ndPreferencesDataStore.setParalysisBreakersEnabled(e) }
-    }
-
-    fun setAutoSuggestEnabled(e: Boolean) {
-        viewModelScope.launch { ndPreferencesDataStore.setAutoSuggestEnabled(e) }
-    }
-
-    fun setSimplifyChoicesEnabled(e: Boolean) {
-        viewModelScope.launch { ndPreferencesDataStore.setSimplifyChoicesEnabled(e) }
-    }
-
-    fun setStuckDetectionMinutes(m: Int) {
-        viewModelScope.launch { ndPreferencesDataStore.setStuckDetectionMinutes(m) }
-    }
-
     /** Forgiveness-first streak preferences (v1.4.0 V5). */
     val forgivenessPrefs: StateFlow<com.averycorp.prismtask.data.preferences.ForgivenessPrefs> =
         userPreferencesDataStore.forgivenessFlow

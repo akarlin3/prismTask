@@ -36,17 +36,12 @@ class ProFeatureGateTest {
             ProFeatureGate.CLOUD_SYNC, ProFeatureGate.TEMPLATE_SYNC,
             ProFeatureGate.AI_EISENHOWER, ProFeatureGate.AI_POMODORO,
             ProFeatureGate.AI_NLP,
-            ProFeatureGate.ANALYTICS_BASIC, ProFeatureGate.TIME_TRACKING,
             ProFeatureGate.AI_EVENING_SUMMARY,
             ProFeatureGate.AI_COACHING, ProFeatureGate.AI_TASK_BREAKDOWN,
             ProFeatureGate.AI_BRIEFING, ProFeatureGate.AI_WEEKLY_PLAN,
             ProFeatureGate.AI_TIME_BLOCK, ProFeatureGate.AI_CONVERSATIONAL,
-            ProFeatureGate.COLLABORATION,
-            ProFeatureGate.INTEGRATIONS, ProFeatureGate.ANALYTICS_FULL,
-            ProFeatureGate.ANALYTICS_CORRELATIONS,
-            ProFeatureGate.DRIVE_BACKUP,
             ProFeatureGate.AI_DAILY_PLANNING, ProFeatureGate.AI_REENGAGEMENT,
-            ProFeatureGate.AI_WEEKLY_INSIGHTS -> UserTier.PRO
+            ProFeatureGate.SYLLABUS_IMPORT -> UserTier.PRO
 
             else -> UserTier.FREE
         }
@@ -63,8 +58,6 @@ class ProFeatureGateTest {
         ProFeatureGate.AI_EISENHOWER,
         ProFeatureGate.AI_POMODORO,
         ProFeatureGate.AI_NLP,
-        ProFeatureGate.ANALYTICS_BASIC,
-        ProFeatureGate.TIME_TRACKING,
         ProFeatureGate.AI_EVENING_SUMMARY,
         ProFeatureGate.AI_COACHING,
         ProFeatureGate.AI_TASK_BREAKDOWN,
@@ -72,14 +65,9 @@ class ProFeatureGateTest {
         ProFeatureGate.AI_WEEKLY_PLAN,
         ProFeatureGate.AI_TIME_BLOCK,
         ProFeatureGate.AI_CONVERSATIONAL,
-        ProFeatureGate.COLLABORATION,
-        ProFeatureGate.INTEGRATIONS,
-        ProFeatureGate.ANALYTICS_FULL,
-        ProFeatureGate.ANALYTICS_CORRELATIONS,
-        ProFeatureGate.DRIVE_BACKUP,
         ProFeatureGate.AI_DAILY_PLANNING,
         ProFeatureGate.AI_REENGAGEMENT,
-        ProFeatureGate.AI_WEEKLY_INSIGHTS
+        ProFeatureGate.SYLLABUS_IMPORT
     )
 
     // --- Tier ordering ---

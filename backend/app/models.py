@@ -423,7 +423,6 @@ class IntegrationConfig(Base):
     config_json = Column(Text, nullable=True)
     last_scan_at = Column(DateTime, nullable=True)
     scan_frequency_minutes = Column(Integer, default=120)
-    webhook_token = Column(String(64), nullable=True, unique=True)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 

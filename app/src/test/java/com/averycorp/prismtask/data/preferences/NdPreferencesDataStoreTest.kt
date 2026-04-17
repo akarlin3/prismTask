@@ -57,9 +57,6 @@ class NdPreferencesDataStoreTest {
         assertFalse(prefs.quietMode)
         assertFalse(prefs.reduceHaptics)
         assertFalse(prefs.softContrast)
-        assertFalse(prefs.taskDecompositionEnabled)
-        assertFalse(prefs.focusGuardEnabled)
-        assertFalse(prefs.bodyDoublingEnabled)
         assertEquals(25, prefs.checkInIntervalMinutes)
         assertFalse(prefs.completionAnimations)
         assertFalse(prefs.streakCelebrations)
@@ -76,9 +73,6 @@ class NdPreferencesDataStoreTest {
         ndPrefs.setAdhdMode(true)
         val prefs = ndPrefs.ndPreferencesFlow.first()
         assertTrue(prefs.adhdModeEnabled)
-        assertTrue(prefs.taskDecompositionEnabled)
-        assertTrue(prefs.focusGuardEnabled)
-        assertTrue(prefs.bodyDoublingEnabled)
         assertTrue(prefs.completionAnimations)
         assertTrue(prefs.streakCelebrations)
         assertTrue(prefs.showProgressBars)
@@ -103,9 +97,6 @@ class NdPreferencesDataStoreTest {
         ndPrefs.setAdhdMode(false)
         val prefs = ndPrefs.ndPreferencesFlow.first()
         assertFalse(prefs.adhdModeEnabled)
-        assertFalse(prefs.taskDecompositionEnabled)
-        assertFalse(prefs.focusGuardEnabled)
-        assertFalse(prefs.bodyDoublingEnabled)
         assertFalse(prefs.completionAnimations)
         assertFalse(prefs.streakCelebrations)
         assertFalse(prefs.showProgressBars)
@@ -133,9 +124,6 @@ class NdPreferencesDataStoreTest {
         ndPrefs.setCalmMode(true)
         val prefs = ndPrefs.ndPreferencesFlow.first()
         assertFalse(prefs.adhdModeEnabled)
-        assertFalse(prefs.taskDecompositionEnabled)
-        assertFalse(prefs.focusGuardEnabled)
-        assertFalse(prefs.bodyDoublingEnabled)
         assertFalse(prefs.completionAnimations)
         assertFalse(prefs.streakCelebrations)
         assertFalse(prefs.showProgressBars)
@@ -167,7 +155,7 @@ class NdPreferencesDataStoreTest {
         val prefs = ndPrefs.ndPreferencesFlow.first()
         // ADHD off
         assertFalse(prefs.adhdModeEnabled)
-        assertFalse(prefs.taskDecompositionEnabled)
+        assertFalse(prefs.completionAnimations)
         // Calm still on
         assertTrue(prefs.calmModeEnabled)
         assertTrue(prefs.reduceAnimations)
@@ -188,7 +176,6 @@ class NdPreferencesDataStoreTest {
         assertFalse(prefs.reduceAnimations)
         // ADHD still on
         assertTrue(prefs.adhdModeEnabled)
-        assertTrue(prefs.taskDecompositionEnabled)
         assertTrue(prefs.completionAnimations)
     }
 
@@ -288,8 +275,8 @@ class NdPreferencesDataStoreTest {
         ndPrefs.updateNdPreference("adhd_mode_enabled", true)
         val prefs = ndPrefs.ndPreferencesFlow.first()
         assertTrue(prefs.adhdModeEnabled)
-        assertTrue(prefs.taskDecompositionEnabled)
-        assertTrue(prefs.focusGuardEnabled)
+        assertTrue(prefs.completionAnimations)
+        assertTrue(prefs.streakCelebrations)
     }
 
     @Test
