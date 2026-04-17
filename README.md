@@ -19,22 +19,26 @@ A cross-platform task manager with a Python API backend featuring AI-powered nat
 <!-- TODO: Replace with actual Play Store link once published -->
 [<img src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" alt="Get it on Google Play" height="80">](https://play.google.com/store/apps/details?id=com.averycorp.prismtask)
 
-## Free vs Pro vs Premium
+## Free vs Pro
 
-PrismTask ships with a three-tier pricing model (introduced in v1.3.0).
+PrismTask ships with a two-tier pricing model. Pro is $7.99/mo, or $4.99/mo
+billed annually ($59.88/year) with a 7-day free trial on the annual plan.
 
-| Feature | Free | Pro ($3.99/mo) | Premium ($7.99/mo) |
-|---------|------|----------------|--------------------|
-| Task management, projects, tags, subtasks | Yes | Yes | Yes |
-| Habit tracking with streaks & analytics | Yes | Yes | Yes |
-| Templates, widgets, voice, accessibility | Yes | Yes | Yes |
-| Work-Life Balance Engine (v1.4.0) | Yes | Yes | Yes |
-| Cloud sync across devices | -- | Yes | Yes |
-| AI Eisenhower & Pomodoro | -- | Yes | Yes |
-| Analytics & time tracking | -- | Yes | Yes |
-| AI briefing, planner, time blocking | -- | -- | Yes |
-| Collaboration & integrations | -- | -- | Yes |
-| Google Drive backup/restore | -- | -- | Yes |
+| Feature | Free | Pro |
+|---------|------|-----|
+| Task management, projects, tags, subtasks | Yes | Yes |
+| Habit tracking with streaks & analytics | Yes | Yes |
+| Templates, widgets, voice, accessibility | Yes | Yes |
+| NLP quick-add & calendar sync | Yes | Yes |
+| Work-Life Balance Engine (v1.4.0) | Yes | Yes |
+| Cloud sync across devices | -- | Yes |
+| AI Eisenhower & Smart Pomodoro | -- | Yes |
+| AI daily briefing, weekly planner, time blocking | -- | Yes |
+| Full analytics & time tracking | -- | Yes |
+| Shared projects & collaboration | -- | Yes |
+| Gmail, Slack, Zapier integrations | -- | Yes |
+| Unlimited saved filters & custom templates | -- | Yes |
+| Google Drive backup/restore | -- | Yes |
 
 AI features run on Claude Haiku; the weekly planner and monthly review use
 Claude Sonnet for higher-quality output. Debug builds expose a tier override
