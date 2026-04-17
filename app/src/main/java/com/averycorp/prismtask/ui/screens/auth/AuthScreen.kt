@@ -112,10 +112,23 @@ fun AuthScreen(
 
         if (authState !is AuthState.Loading) {
             Button(
-                onClick = {
+                onClick = onClick@{
+                    // Unwrap ContextWrapper chain to find the hosting Activity;
+                    // a direct `context as Activity` cast breaks if the composable
+                    // is hosted inside a ContextWrapper (dialogs, tooltips).
+                    val activity = run {
+                        var ctx = context
+                        while (ctx is android.content.ContextWrapper && ctx !is Activity) {
+                            ctx = ctx.baseContext
+                        }
+                        ctx as? Activity
+                    }
+                    if (activity == null) {
+                        viewModel.onSignInError("Could not locate hosting Activity")
+                        return@onClick
+                    }
                     scope.launch {
                         val credentialManager = CredentialManager.create(context)
-                        val activity = context as Activity
 
                         suspend fun requestAuthorized(): GetCredentialResponse {
                             val googleIdOption = GetGoogleIdOption

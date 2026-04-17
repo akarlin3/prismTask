@@ -37,6 +37,7 @@ import com.google.gson.Gson
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import com.google.gson.reflect.TypeToken
+import androidx.room.withTransaction
 import kotlinx.coroutines.flow.first
 import java.time.DayOfWeek
 import javax.inject.Inject
@@ -94,6 +95,7 @@ constructor(
     private val leisureDao: LeisureDao,
     private val selfCareDao: SelfCareDao,
     private val schoolworkDao: SchoolworkDao,
+    private val database: com.averycorp.prismtask.data.local.database.PrismTaskDatabase,
     private val themePreferences: ThemePreferences,
     private val archivePreferences: ArchivePreferences,
     private val dashboardPreferences: DashboardPreferences,
@@ -151,39 +153,46 @@ constructor(
         try {
             val root = JsonParser.parseString(jsonString).asJsonObject
 
-            if (mode == ImportMode.REPLACE) {
-                taskDao.getAllTasksOnce().forEach { taskDao.deleteById(it.id) }
-                projectDao.getAllProjectsOnce().forEach { projectDao.delete(it) }
-                tagDao.getAllTagsOnce().forEach { tagDao.delete(it) }
-                habitCompletionDao.getAllCompletionsOnce().forEach {
-                    habitCompletionDao.deleteByHabitAndDate(it.habitId, it.completedDate)
+            // DB mutations are wrapped in a single transaction so a mid-import
+            // failure rolls back cleanly — no orphan rows, no half-imported
+            // tasks missing their tag/subtask links. Config (DataStore) writes
+            // happen outside the transaction because DataStore has its own
+            // atomicity model.
+            database.withTransaction {
+                if (mode == ImportMode.REPLACE) {
+                    taskDao.getAllTasksOnce().forEach { taskDao.deleteById(it.id) }
+                    projectDao.getAllProjectsOnce().forEach { projectDao.delete(it) }
+                    tagDao.getAllTagsOnce().forEach { tagDao.delete(it) }
+                    habitCompletionDao.getAllCompletionsOnce().forEach {
+                        habitCompletionDao.deleteByHabitAndDate(it.habitId, it.completedDate)
+                    }
+                    habitDao.getAllHabitsOnce().forEach { habitDao.delete(it) }
+                    taskCompletionDao.getAllCompletionsOnce().forEach {
+                        taskCompletionDao.deleteByTaskId(it.taskId ?: -1)
+                    }
                 }
-                habitDao.getAllHabitsOnce().forEach { habitDao.delete(it) }
-                taskCompletionDao.getAllCompletionsOnce().forEach {
-                    taskCompletionDao.deleteByTaskId(it.taskId ?: -1)
-                }
+
+                val existingProjects = projectDao.getAllProjectsOnce()
+                val existingTags = tagDao.getAllTagsOnce()
+                val existingTasks = taskDao.getAllTasksOnce()
+
+                val projectNameToId = importProjects(ctx, root, mode, existingProjects)
+                val tagNameToId = importTags(ctx, root, mode, existingTags)
+                importTasks(ctx, root, mode, existingTasks, projectNameToId, tagNameToId)
+                importTaskCompletions(ctx, root, mode)
+
+                val habitNameToId = importHabits(ctx, root, mode)
+                importHabitCompletions(ctx, root, habitNameToId)
+                importHabitLogs(ctx, root, habitNameToId)
+
+                importLeisureLogs(ctx, root)
+                importSelfCareLogs(ctx, root)
+                importSelfCareSteps(ctx, root)
+
+                val courseNameToId = importCourses(ctx, root, mode)
+                importAssignments(ctx, root, courseNameToId)
+                importCourseCompletions(ctx, root, courseNameToId)
             }
-
-            val existingProjects = projectDao.getAllProjectsOnce()
-            val existingTags = tagDao.getAllTagsOnce()
-            val existingTasks = taskDao.getAllTasksOnce()
-
-            val projectNameToId = importProjects(ctx, root, mode, existingProjects)
-            val tagNameToId = importTags(ctx, root, mode, existingTags)
-            importTasks(ctx, root, mode, existingTasks, projectNameToId, tagNameToId)
-            importTaskCompletions(ctx, root, mode)
-
-            val habitNameToId = importHabits(ctx, root, mode)
-            importHabitCompletions(ctx, root, habitNameToId)
-            importHabitLogs(ctx, root, habitNameToId)
-
-            importLeisureLogs(ctx, root)
-            importSelfCareLogs(ctx, root)
-            importSelfCareSteps(ctx, root)
-
-            val courseNameToId = importCourses(ctx, root, mode)
-            importAssignments(ctx, root, courseNameToId)
-            importCourseCompletions(ctx, root, courseNameToId)
 
             importConfig(ctx, root)
         } catch (e: Exception) {

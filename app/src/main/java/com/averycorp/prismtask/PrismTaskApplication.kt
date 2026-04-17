@@ -76,8 +76,17 @@ class PrismTaskApplication :
                 // Firebase not available
             }
         }
-        seedBuiltInHabits()
-        seedBuiltInTemplates()
+        try {
+            seedBuiltInHabits()
+            seedBuiltInTemplates()
+        } catch (e: Exception) {
+            android.util.Log.e("PrismTaskApp", "Seeding kickoff failed", e)
+            try {
+                FirebaseCrashlytics.getInstance().recordException(e)
+            } catch (_: Exception) {
+                // Firebase not available
+            }
+        }
     }
 
     private fun configureCrashlytics() {
@@ -149,9 +158,18 @@ class PrismTaskApplication :
      * Applies calendar-sync preferences on startup. Uses a unique-periodic
      * work request with UPDATE policy inside [CalendarSyncScheduler] so
      * restarts don't pile up duplicate jobs.
+     *
+     * The underlying scheduler uses runBlocking to read DataStore, which can
+     * ANR if DataStore is slow on cold start. Dispatch off Main to be safe.
      */
     private fun scheduleCalendarSync() {
-        calendarSyncScheduler.applyPreferences()
+        appScope.launch {
+            try {
+                calendarSyncScheduler.applyPreferences()
+            } catch (e: Exception) {
+                android.util.Log.e("PrismTaskApp", "Calendar sync scheduling failed", e)
+            }
+        }
     }
 
     private fun scheduleAutoArchive() {

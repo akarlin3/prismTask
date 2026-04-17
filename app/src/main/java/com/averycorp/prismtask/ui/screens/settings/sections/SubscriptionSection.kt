@@ -68,7 +68,11 @@ fun SubscriptionSection(
                     val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
                         data = android.net.Uri.parse("https://play.google.com/store/account/subscriptions")
                     }
-                    context.startActivity(intent)
+                    try {
+                        context.startActivity(intent)
+                    } catch (_: android.content.ActivityNotFoundException) {
+                        // No browser / Play Store installed — silent no-op.
+                    }
                 },
                 modifier = Modifier.fillMaxWidth()
             ) {

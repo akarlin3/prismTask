@@ -40,6 +40,9 @@ constructor(
     fun getSubtasks(parentTaskId: Long): Flow<List<TaskEntity>> = taskDao.getSubtasks(parentTaskId)
 
     suspend fun deleteTasksByProjectId(projectId: Long) {
+        taskDao.getTasksByProjectOnce(projectId).forEach {
+            reminderScheduler.cancelReminder(it.id)
+        }
         taskDao.deleteTasksByProjectId(projectId)
         widgetUpdateManager.updateTaskWidgets()
     }
@@ -260,6 +263,13 @@ constructor(
     }
 
     suspend fun deleteTask(id: Long) {
+        // Cancel pending reminder alarm; the child task_tag / subtask rows
+        // are wiped by the ON DELETE CASCADE foreign keys, but AlarmManager
+        // alarms are out-of-band and must be cancelled explicitly.
+        reminderScheduler.cancelReminder(id)
+        taskDao.getSubtasksOnce(id).forEach {
+            reminderScheduler.cancelReminder(it.id)
+        }
         calendarPushDispatcher.enqueueDeleteTaskEvent(id)
         syncTracker.trackDelete(id, "task")
         taskDao.deleteById(id)
@@ -283,6 +293,10 @@ constructor(
     }
 
     suspend fun permanentlyDeleteTask(id: Long) {
+        reminderScheduler.cancelReminder(id)
+        taskDao.getSubtasksOnce(id).forEach {
+            reminderScheduler.cancelReminder(it.id)
+        }
         calendarPushDispatcher.enqueueDeleteTaskEvent(id)
         syncTracker.trackDelete(id, "task")
         taskDao.permanentlyDelete(id)

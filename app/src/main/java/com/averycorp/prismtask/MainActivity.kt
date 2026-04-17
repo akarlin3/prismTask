@@ -167,8 +167,12 @@ class MainActivity : ComponentActivity() {
             var updateInfo by remember { mutableStateOf<VersionInfo?>(null) }
 
             LaunchedEffect(Unit) {
-                val checker = UpdateChecker(this@MainActivity)
-                updateInfo = checker.checkForUpdate()
+                try {
+                    val checker = UpdateChecker(this@MainActivity)
+                    updateInfo = checker.checkForUpdate()
+                } catch (e: Exception) {
+                    Log.w("MainActivity", "Update check failed", e)
+                }
             }
 
             updateInfo?.let { info ->

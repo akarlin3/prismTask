@@ -3,9 +3,12 @@ package com.averycorp.prismtask.notifications
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.util.Log
 import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.components.SingletonComponent
-import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 
 class MedicationReminderReceiver : BroadcastReceiver() {
@@ -32,30 +35,37 @@ class MedicationReminderReceiver : BroadcastReceiver() {
             MedReminderEntryPoint::class.java
         )
 
-        @Suppress("GlobalCoroutineUsage")
-        GlobalScope.launch {
-            val scheduler = entryPoint.medicationReminderScheduler()
-            val habit = entryPoint.habitDao().getHabitByIdOnce(habitId)
+        val pendingResult = goAsync()
+        val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+        scope.launch {
+            try {
+                val scheduler = entryPoint.medicationReminderScheduler()
+                val habit = entryPoint.habitDao().getHabitByIdOnce(habitId)
 
-            // Check if nag should be suppressed in favor of a delayed follow-up
-            if (habit != null) {
-                val followUpTime = scheduler.getFollowUpTimeIfSuppressed(habit)
-                if (followUpTime != null) {
-                    scheduler.scheduleDelayedHabitFollowUp(habitId, name, followUpTime)
-                    return@launch
+                // Check if nag should be suppressed in favor of a delayed follow-up
+                if (habit != null) {
+                    val followUpTime = scheduler.getFollowUpTimeIfSuppressed(habit)
+                    if (followUpTime != null) {
+                        scheduler.scheduleDelayedHabitFollowUp(habitId, name, followUpTime)
+                        return@launch
+                    }
                 }
-            }
 
-            // No suppression — fire the nag notification as normal
-            NotificationHelper.showMedicationReminder(
-                context,
-                habitId,
-                name,
-                description,
-                intervalMillis,
-                doseNumber,
-                totalDoses
-            )
+                // No suppression — fire the nag notification as normal
+                NotificationHelper.showMedicationReminder(
+                    context,
+                    habitId,
+                    name,
+                    description,
+                    intervalMillis,
+                    doseNumber,
+                    totalDoses
+                )
+            } catch (e: Exception) {
+                Log.e("MedReminderReceiver", "Failed to process med reminder $habitId", e)
+            } finally {
+                pendingResult.finish()
+            }
         }
     }
 }

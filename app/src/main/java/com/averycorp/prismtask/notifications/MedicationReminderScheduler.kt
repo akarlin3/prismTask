@@ -38,7 +38,7 @@ constructor(
     private val calendarManager: CalendarManager,
     private val calendarSyncRepository: CalendarSyncRepository
 ) {
-    private val alarmManager: AlarmManager
+    private val alarmManager: AlarmManager?
         get() = context.getSystemService(AlarmManager::class.java)
 
     fun scheduleNext(
@@ -109,7 +109,7 @@ constructor(
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-        alarmManager.cancel(pendingIntent)
+        alarmManager?.cancel(pendingIntent)
     }
 
     fun cancel(habitId: Long) {
@@ -120,7 +120,7 @@ constructor(
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-        alarmManager.cancel(pendingIntent)
+        alarmManager?.cancel(pendingIntent)
     }
 
     /** Schedule alarms for all specific times that haven't passed yet today. */
