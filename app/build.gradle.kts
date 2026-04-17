@@ -113,7 +113,19 @@ android {
         unitTests {
             isIncludeAndroidResources = true
             all {
-                it.jvmArgs("-Xshare:off")
+                // Parallelize across test classes. Each fork is a separate JVM,
+                // so keep the count at half the host's CPU count to leave
+                // headroom for Robolectric's per-JVM memory footprint.
+                it.maxParallelForks = (Runtime.getRuntime().availableProcessors() / 2)
+                    .coerceAtLeast(1)
+                it.maxHeapSize = "1536m"
+                // TieredStopAtLevel=1 skips C2 JIT compilation — tests are
+                // short-lived, so the C2 compile time never pays off.
+                it.jvmArgs(
+                    "-XX:TieredStopAtLevel=1",
+                    "-XX:+UseParallelGC",
+                    "-noverify"
+                )
             }
         }
     }
