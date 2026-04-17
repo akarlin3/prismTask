@@ -35,6 +35,7 @@ fun FocusTimerScreen(
     val timerLongBreakSeconds by viewModel.timerLongBreakDurationSeconds.collectAsStateWithLifecycle()
     val pomodoroAvailableMinutes by viewModel.pomodoroAvailableMinutes.collectAsStateWithLifecycle()
     val pomodoroFocusPreference by viewModel.pomodoroFocusPreference.collectAsStateWithLifecycle()
+    val timerBuzzUntilDismissed by viewModel.timerBuzzUntilDismissed.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
@@ -61,11 +62,13 @@ fun FocusTimerScreen(
                 timerLongBreakSeconds = timerLongBreakSeconds,
                 pomodoroAvailableMinutes = pomodoroAvailableMinutes,
                 pomodoroFocusPreference = pomodoroFocusPreference,
+                buzzUntilDismissed = timerBuzzUntilDismissed,
                 onTimerWorkMinutesChange = viewModel::setTimerWorkDurationMinutes,
                 onTimerBreakMinutesChange = viewModel::setTimerBreakDurationMinutes,
                 onTimerLongBreakMinutesChange = viewModel::setTimerLongBreakDurationMinutes,
                 onPomodoroAvailableMinutesChange = viewModel::setPomodoroAvailableMinutes,
-                onPomodoroFocusPreferenceChange = viewModel::setPomodoroFocusPreference
+                onPomodoroFocusPreferenceChange = viewModel::setPomodoroFocusPreference,
+                onBuzzUntilDismissedChange = viewModel::setTimerBuzzUntilDismissed
             )
             Spacer(modifier = Modifier.height(32.dp))
         }

@@ -29,6 +29,7 @@ import com.averycorp.prismtask.data.preferences.TimerPreferences
 import com.averycorp.prismtask.ui.components.settings.DurationPickerDialog
 import com.averycorp.prismtask.ui.components.settings.SectionHeader
 import com.averycorp.prismtask.ui.components.settings.SettingsRowWithSubtitle
+import com.averycorp.prismtask.ui.components.settings.SettingsToggleRow
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -38,11 +39,13 @@ fun TimerSection(
     timerLongBreakSeconds: Int,
     pomodoroAvailableMinutes: Int,
     pomodoroFocusPreference: String,
+    buzzUntilDismissed: Boolean,
     onTimerWorkMinutesChange: (Int) -> Unit,
     onTimerBreakMinutesChange: (Int) -> Unit,
     onTimerLongBreakMinutesChange: (Int) -> Unit,
     onPomodoroAvailableMinutesChange: (Int) -> Unit,
-    onPomodoroFocusPreferenceChange: (String) -> Unit
+    onPomodoroFocusPreferenceChange: (String) -> Unit,
+    onBuzzUntilDismissedChange: (Boolean) -> Unit
 ) {
     var showTimerWorkDialog by remember { mutableStateOf(false) }
     var showTimerBreakDialog by remember { mutableStateOf(false) }
@@ -134,6 +137,12 @@ fun TimerSection(
         title = "Focus Style",
         subtitle = focusStyleLabel(pomodoroFocusPreference),
         onClick = { showFocusDialog = true }
+    )
+    SettingsToggleRow(
+        title = "Buzz Until Dismissed",
+        subtitle = "Vibrate continuously when the timer ends until you tap or swipe the notification.",
+        checked = buzzUntilDismissed,
+        onCheckedChange = onBuzzUntilDismissedChange
     )
 
     HorizontalDivider()

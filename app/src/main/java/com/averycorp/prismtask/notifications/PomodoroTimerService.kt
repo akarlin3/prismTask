@@ -13,13 +13,16 @@ import android.os.IBinder
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.averycorp.prismtask.MainActivity
+import com.averycorp.prismtask.data.preferences.TimerPreferences
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 
 /**
  * Foreground service that runs a Pomodoro focus/break countdown. A plain
@@ -107,8 +110,17 @@ class PomodoroTimerService : Service() {
         val manager = getSystemService(NotificationManager::class.java)
         manager?.cancel(NOTIFICATION_ID_ONGOING)
 
-        val completion = buildCompletionNotification()
+        val buzzUntilDismissed = runBlocking {
+            TimerPreferences(this@PomodoroTimerService)
+                .getBuzzUntilDismissed()
+                .first()
+        }
+        val completion = buildCompletionNotification(buzzUntilDismissed)
         manager?.notify(NOTIFICATION_ID_COMPLETE, completion)
+
+        if (buzzUntilDismissed) {
+            NotificationHelper.startContinuousBuzz(this)
+        }
 
         sendBroadcast(
             Intent(ACTION_COMPLETE).apply {
@@ -173,7 +185,7 @@ class PomodoroTimerService : Service() {
             ).build()
     }
 
-    private fun buildCompletionNotification(): Notification {
+    private fun buildCompletionNotification(buzzUntilDismissed: Boolean): Notification {
         val tapIntent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }
@@ -188,21 +200,39 @@ class PomodoroTimerService : Service() {
             SESSION_TYPE_BREAK, SESSION_TYPE_LONG_BREAK -> "Break Complete!"
             else -> "Session Complete!"
         }
-        val body = when (sessionType) {
-            SESSION_TYPE_BREAK, SESSION_TYPE_LONG_BREAK -> "Ready to get back to focus?"
+        val body = when {
+            buzzUntilDismissed -> TimerBuzzerDismissReceiver.BUZZ_BODY_TEXT
+            sessionType == SESSION_TYPE_BREAK ||
+                sessionType == SESSION_TYPE_LONG_BREAK -> "Ready to get back to focus?"
             else -> "Nice work \u2014 time for a break."
         }
 
-        return NotificationCompat
+        val builder = NotificationCompat
             .Builder(this, CHANNEL_ID_COMPLETE)
             .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
             .setContentTitle(title)
             .setContentText(body)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setDefaults(NotificationCompat.DEFAULT_ALL)
             .setAutoCancel(true)
-            .setContentIntent(tapPending)
-            .build()
+
+        if (buzzUntilDismissed) {
+            val tapDismissPending = TimerBuzzerDismissReceiver
+                .pendingIntent(this, NOTIFICATION_ID_COMPLETE, launchApp = true)
+            val swipeDismissPending = TimerBuzzerDismissReceiver
+                .pendingIntent(this, NOTIFICATION_ID_COMPLETE, launchApp = false)
+            builder.setContentIntent(tapDismissPending)
+            builder.setDeleteIntent(swipeDismissPending)
+            builder.addAction(
+                android.R.drawable.ic_lock_silent_mode,
+                "Stop",
+                swipeDismissPending
+            )
+        } else {
+            builder.setContentIntent(tapPending)
+            builder.setDefaults(NotificationCompat.DEFAULT_ALL)
+        }
+
+        return builder.build()
     }
 
     private fun broadcastTick(seconds: Int) {

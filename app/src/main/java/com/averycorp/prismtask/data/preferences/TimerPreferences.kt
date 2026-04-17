@@ -3,6 +3,7 @@ package com.averycorp.prismtask.data.preferences
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -31,6 +32,7 @@ constructor(
         private val AUTO_START_WORK = intPreferencesKey("auto_start_work")
         private val POMODORO_AVAILABLE_MINUTES = intPreferencesKey("pomodoro_available_minutes")
         private val POMODORO_FOCUS_PREFERENCE = stringPreferencesKey("pomodoro_focus_preference")
+        private val BUZZ_UNTIL_DISMISSED = booleanPreferencesKey("timer_buzz_until_dismissed")
 
         const val DEFAULT_WORK_SECONDS = 25 * 60
         const val DEFAULT_BREAK_SECONDS = 5 * 60
@@ -135,6 +137,16 @@ constructor(
         val sanitized = if (preference in VALID_FOCUS_PREFERENCES) preference else DEFAULT_FOCUS_PREFERENCE
         context.timerDataStore.edit { prefs ->
             prefs[POMODORO_FOCUS_PREFERENCE] = sanitized
+        }
+    }
+
+    fun getBuzzUntilDismissed(): Flow<Boolean> = context.timerDataStore.data.map { prefs ->
+        prefs[BUZZ_UNTIL_DISMISSED] ?: false
+    }
+
+    suspend fun setBuzzUntilDismissed(enabled: Boolean) {
+        context.timerDataStore.edit { prefs ->
+            prefs[BUZZ_UNTIL_DISMISSED] = enabled
         }
     }
 }

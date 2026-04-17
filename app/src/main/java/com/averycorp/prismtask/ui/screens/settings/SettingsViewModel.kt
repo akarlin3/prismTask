@@ -757,6 +757,10 @@ constructor(
         .getPomodoroFocusPreference()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), TimerPreferences.DEFAULT_FOCUS_PREFERENCE)
 
+    val timerBuzzUntilDismissed: StateFlow<Boolean> = timerPreferences
+        .getBuzzUntilDismissed()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
     fun setTimerWorkDurationMinutes(minutes: Int) {
         viewModelScope.launch { timerPreferences.setWorkDurationSeconds(minutes * 60) }
     }
@@ -775,6 +779,10 @@ constructor(
 
     fun setPomodoroFocusPreference(preference: String) {
         viewModelScope.launch { timerPreferences.setPomodoroFocusPreference(preference) }
+    }
+
+    fun setTimerBuzzUntilDismissed(enabled: Boolean) {
+        viewModelScope.launch { timerPreferences.setBuzzUntilDismissed(enabled) }
     }
 
     // --- Habits / Streaks ---
