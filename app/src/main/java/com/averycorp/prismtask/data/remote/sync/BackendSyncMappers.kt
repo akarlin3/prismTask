@@ -239,7 +239,9 @@ internal fun millisToIso(millis: Long): String =
  * server-side ``date`` column matches the user's local day.
  */
 internal fun millisToLocalDate(millis: Long): String =
-    LocalDate.ofInstant(Instant.ofEpochMilli(millis), ZoneId.systemDefault())
+    Instant.ofEpochMilli(millis)
+        .atZone(ZoneId.systemDefault())
+        .toLocalDate()
         .toString()
 
 /**
