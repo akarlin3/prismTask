@@ -249,7 +249,7 @@ constructor(
             true
         } catch (e: Exception) {
             Log.e("AddEditTemplateVM", "Failed to save template", e)
-            _errorMessages.emit("Something went wrong")
+            _errorMessages.emit("Couldn't save template")
             false
         }
     }
@@ -259,7 +259,7 @@ constructor(
             templateId?.let { templateRepository.deleteTemplate(it) }
         } catch (e: Exception) {
             Log.e("AddEditTemplateVM", "Failed to delete template", e)
-            _errorMessages.emit("Something went wrong")
+            _errorMessages.emit("Couldn't delete template")
         }
     }
 

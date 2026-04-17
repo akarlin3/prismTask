@@ -135,7 +135,7 @@ fun ArchiveScreen(
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { viewModel.onSearchQueryChanged(it) },
-                placeholder = { Text("Search Archived Tasks...") },
+                placeholder = { Text("Search Archived Tasks\u2026") },
                 singleLine = true,
                 modifier = Modifier
                     .fillMaxWidth()

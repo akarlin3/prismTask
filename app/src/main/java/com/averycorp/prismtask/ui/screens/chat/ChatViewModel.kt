@@ -103,7 +103,7 @@ constructor(
             } catch (e: java.net.ConnectException) {
                 _error.value = "I need an internet connection to chat. Your tasks are still available offline."
             } catch (e: Exception) {
-                _error.value = e.message ?: "Something went wrong. Try again."
+                _error.value = "Chat is unavailable right now. Try again."
             } finally {
                 _isTyping.value = false
             }
@@ -128,14 +128,14 @@ constructor(
                     "complete" -> {
                         val taskId = action.taskId?.toLongOrNull() ?: return@launch
                         taskRepository.completeTask(taskId)
-                        _toastMessage.emit("Task completed")
+                        _toastMessage.emit("Task Completed")
                     }
 
                     "reschedule" -> {
                         val taskId = action.taskId?.toLongOrNull() ?: return@launch
                         val newDate = resolveDate(action.to)
                         taskRepository.rescheduleTask(taskId, newDate)
-                        _toastMessage.emit("Task rescheduled")
+                        _toastMessage.emit("Task Rescheduled")
                     }
 
                     "reschedule_batch" -> {
@@ -159,7 +159,7 @@ constructor(
                     "archive" -> {
                         val taskId = action.taskId?.toLongOrNull() ?: return@launch
                         taskRepository.archiveTask(taskId)
-                        _toastMessage.emit("Task archived")
+                        _toastMessage.emit("Task Archived")
                     }
 
                     "start_timer" -> {
@@ -180,11 +180,11 @@ constructor(
                             updatedAt = now
                         )
                         taskDao.insert(task)
-                        _toastMessage.emit("Task created: $title")
+                        _toastMessage.emit("Task Created: $title")
                     }
                 }
             } catch (e: Exception) {
-                _toastMessage.emit("Action failed: ${e.message}")
+                _toastMessage.emit("Action failed")
             }
         }
     }

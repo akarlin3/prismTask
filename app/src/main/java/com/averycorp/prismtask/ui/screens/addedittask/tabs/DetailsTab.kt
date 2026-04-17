@@ -254,7 +254,7 @@ internal fun DetailsTabContent(
         OutlinedTextField(
             value = viewModel.description,
             onValueChange = viewModel::onDescriptionChange,
-            placeholder = { Text("Add Description...") },
+            placeholder = { Text("Add Description\u2026") },
             minLines = 2,
             maxLines = 6,
             modifier = Modifier.fillMaxWidth()
@@ -281,7 +281,7 @@ internal fun DetailsTabContent(
         OutlinedTextField(
             value = viewModel.notes,
             onValueChange = viewModel::onNotesChange,
-            placeholder = { Text("Private Notes...") },
+            placeholder = { Text("Private Notes\u2026") },
             minLines = 2,
             maxLines = 4,
             colors = OutlinedTextFieldDefaults.colors(
@@ -458,7 +458,7 @@ internal fun SubtasksInlineSection(viewModel: AddEditTaskViewModel) {
         OutlinedTextField(
             value = newText,
             onValueChange = { newText = it },
-            placeholder = { Text("Add Subtask...") },
+            placeholder = { Text("Add Subtask\u2026") },
             singleLine = true,
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
             keyboardActions = KeyboardActions(onNext = { submit() }),

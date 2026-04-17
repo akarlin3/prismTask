@@ -260,7 +260,7 @@ constructor(
                 val savedTask = taskRepository.getTaskByIdOnce(taskId) ?: return@launch
                 taskRepository.deleteTask(taskId)
                 val result = snackbarHostState.showSnackbar(
-                    message = "Task deleted",
+                    message = "Task Deleted",
                     actionLabel = "UNDO",
                     duration = SnackbarDuration.Short
                 )
@@ -278,7 +278,7 @@ constructor(
             try {
                 val newId = taskRepository.duplicateTask(taskId, includeSubtasks = false)
                 if (newId <= 0L) {
-                    snackbarHostState.showSnackbar("Something went wrong")
+                    snackbarHostState.showSnackbar("Couldn't duplicate task")
                     return@launch
                 }
                 snackbarHostState.showSnackbar(

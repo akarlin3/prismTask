@@ -403,7 +403,7 @@ constructor(
             true
         } catch (e: Exception) {
             Log.e("AddEditHabitVM", "Failed to save habit", e)
-            _errorMessages.emit("Something went wrong")
+            _errorMessages.emit("Couldn't save habit")
             false
         }
     }
@@ -413,7 +413,7 @@ constructor(
             habitId?.let { habitRepository.deleteHabit(it) }
         } catch (e: Exception) {
             Log.e("AddEditHabitVM", "Failed to delete habit", e)
-            _errorMessages.emit("Something went wrong")
+            _errorMessages.emit("Couldn't delete habit")
         }
     }
 

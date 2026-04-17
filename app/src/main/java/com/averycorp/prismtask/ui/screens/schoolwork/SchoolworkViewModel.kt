@@ -71,7 +71,7 @@ constructor(
 
                 importContent(content)
             } catch (e: Exception) {
-                _snackbar.emit("Import failed: ${e.message}")
+                _snackbar.emit("Import failed")
             } finally {
                 _isImporting.value = false
             }
@@ -84,7 +84,7 @@ constructor(
             try {
                 importContent(content)
             } catch (e: Exception) {
-                _snackbar.emit("Import failed: ${e.message}")
+                _snackbar.emit("Import failed")
             } finally {
                 _isImporting.value = false
             }

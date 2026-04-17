@@ -61,7 +61,7 @@ constructor(
                     syncService.startAutoSync()
                 },
                 onFailure = {
-                    _signInState.value = SignInState.Error(it.message ?: "Sign-in failed")
+                    _signInState.value = SignInState.Error("Sign-in failed")
                 }
             )
         }

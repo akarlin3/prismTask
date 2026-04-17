@@ -236,7 +236,7 @@ internal fun PlanForTodaySheet(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp),
-                placeholder = { Text("Search tasks...") },
+                placeholder = { Text("Search tasks\u2026") },
                 leadingIcon = {
                     Icon(
                         Icons.Default.Search,

@@ -205,9 +205,9 @@ fun DataSection(
         if (isResetting) {
             CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.error)
             Spacer(modifier = Modifier.width(8.dp))
-            Text("Resetting...", color = MaterialTheme.colorScheme.error)
+            Text("Resetting\u2026", color = MaterialTheme.colorScheme.error)
         } else {
-            Text("Reset App Data...", color = MaterialTheme.colorScheme.error)
+            Text("Reset App Data\u2026", color = MaterialTheme.colorScheme.error)
         }
     }
 

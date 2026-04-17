@@ -1,1 +1,1 @@
-PrismTask - Smart To-Do & Habits
+PrismTask: Tasks & Habits

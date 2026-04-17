@@ -378,7 +378,7 @@ fun BugReportScreen(
                             ContextLine("Storage Free", "${info.freeStorageMb} MB")
                             ContextLine("Network", info.networkType)
                             ContextLine("Battery", "${info.batteryPercent}%${if (info.isCharging) " (charging)" else ""}")
-                        } ?: Text("Collecting...", style = MaterialTheme.typography.bodySmall)
+                        } ?: Text("Collecting\u2026", style = MaterialTheme.typography.bodySmall)
                     }
                 }
 

@@ -181,7 +181,7 @@ constructor(
                 )
                 _selectedDayIndex.value = 0
             } catch (e: Exception) {
-                _error.value = e.message ?: "Failed to generate plan"
+                _error.value = "Couldn't generate plan"
             } finally {
                 _isLoading.value = false
             }
@@ -236,7 +236,7 @@ constructor(
                 }
                 _planApplied.value = true
             } catch (e: Exception) {
-                _error.value = e.message ?: "Failed to apply plan"
+                _error.value = "Couldn't apply plan"
             }
         }
     }

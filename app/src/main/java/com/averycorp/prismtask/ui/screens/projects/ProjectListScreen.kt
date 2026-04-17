@@ -101,7 +101,7 @@ fun ProjectListScreen(
                 OutlinedTextField(
                     value = pasteContent,
                     onValueChange = { pasteContent = it },
-                    placeholder = { Text("Paste JSX / markdown list here...") },
+                    placeholder = { Text("Paste JSX / markdown list here\u2026") },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(200.dp),

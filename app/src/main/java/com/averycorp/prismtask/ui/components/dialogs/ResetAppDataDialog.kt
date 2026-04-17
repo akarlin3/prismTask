@@ -216,7 +216,7 @@ fun ResetAppDataDialog(
                                 color = MaterialTheme.colorScheme.onError
                             )
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Resetting...")
+                            Text("Resetting\u2026")
                         } else {
                             Text("Reset Selected Data")
                         }

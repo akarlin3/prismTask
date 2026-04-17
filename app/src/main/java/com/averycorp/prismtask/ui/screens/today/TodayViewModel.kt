@@ -776,7 +776,7 @@ constructor(
             try {
                 taskRepository.completeTask(taskId)
                 val result = snackbarHostState.showSnackbar(
-                    message = "Task completed",
+                    message = "Task Completed",
                     actionLabel = "UNDO",
                     duration = SnackbarDuration.Short
                 )
@@ -795,7 +795,7 @@ constructor(
                 val savedTask = taskRepository.getTaskByIdOnce(taskId) ?: return@launch
                 taskRepository.deleteTask(taskId)
                 val result = snackbarHostState.showSnackbar(
-                    message = "Task deleted",
+                    message = "Task Deleted",
                     actionLabel = "UNDO",
                     duration = SnackbarDuration.Short
                 )
@@ -847,7 +847,7 @@ constructor(
             try {
                 val newId = taskRepository.duplicateTask(taskId, includeSubtasks = false)
                 if (newId <= 0L) {
-                    snackbarHostState.showSnackbar("Something went wrong")
+                    snackbarHostState.showSnackbar("Couldn't duplicate task")
                     return@launch
                 }
                 snackbarHostState.showSnackbar(
@@ -919,7 +919,7 @@ constructor(
                 }
             } catch (e: Exception) {
                 Log.e("TodayVM", "Failed to move task to project", e)
-                snackbarHostState.showSnackbar("Something went wrong")
+                snackbarHostState.showSnackbar("Couldn't move task")
             }
         }
     }
@@ -940,7 +940,7 @@ constructor(
                 onMoveToProject(taskId, newId, cascadeSubtasks)
             } catch (e: Exception) {
                 Log.e("TodayVM", "Failed to create project", e)
-                snackbarHostState.showSnackbar("Something went wrong")
+                snackbarHostState.showSnackbar("Couldn't create project")
             }
         }
     }
@@ -1023,7 +1023,7 @@ constructor(
                 )
             } catch (e: Exception) {
                 Log.e("TodayVM", "Failed to create task from template", e)
-                snackbarHostState.showSnackbar("Something went wrong")
+                snackbarHostState.showSnackbar("Couldn't create task from template")
             }
         }
     }

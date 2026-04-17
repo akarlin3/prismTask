@@ -722,7 +722,7 @@ constructor(
             true
         } catch (e: Exception) {
             Log.e("AddEditTaskVM", "Failed to save task", e)
-            _errorMessages.emit("Something went wrong")
+            _errorMessages.emit("Couldn't save task")
             false
         }
     }
@@ -732,7 +732,7 @@ constructor(
             currentTaskId?.let { taskRepository.deleteTask(it) }
         } catch (e: Exception) {
             Log.e("AddEditTaskVM", "Failed to delete task", e)
-            _errorMessages.emit("Something went wrong")
+            _errorMessages.emit("Couldn't delete task")
         }
     }
 
@@ -751,7 +751,7 @@ constructor(
         return try {
             val newId = taskRepository.duplicateTask(id, includeSubtasks, copyDueDate)
             if (newId <= 0L) {
-                _errorMessages.emit("Something went wrong")
+                _errorMessages.emit("Couldn't duplicate task")
                 null
             } else {
                 // Reseed the form from the new copy. projectId / initialDate
@@ -762,7 +762,7 @@ constructor(
             }
         } catch (e: Exception) {
             Log.e("AddEditTaskVM", "Failed to duplicate task", e)
-            _errorMessages.emit("Something went wrong")
+            _errorMessages.emit("Couldn't duplicate task")
             null
         }
     }

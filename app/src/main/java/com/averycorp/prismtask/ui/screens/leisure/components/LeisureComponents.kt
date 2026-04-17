@@ -159,7 +159,7 @@ internal fun ProgressCard(doneCount: Int, progress: Float, allDone: Boolean) {
             if (allDone) {
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    "\u2713 Leisure day complete. Nice work, Avery.",
+                    "\u2713 Leisure day complete. Nice work.",
                     style = MaterialTheme.typography.bodySmall,
                     fontWeight = FontWeight.Bold,
                     color = successColor,

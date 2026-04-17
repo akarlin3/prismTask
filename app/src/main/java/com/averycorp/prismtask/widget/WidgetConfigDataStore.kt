@@ -95,7 +95,7 @@ object WidgetConfigDataStore {
     fun quickAddConfigFlow(context: Context, appWidgetId: Int): Flow<QuickAddConfig> =
         context.widgetConfigDataStore.data.map { prefs ->
             QuickAddConfig(
-                placeholder = prefs[stringPreferencesKey("widget_${appWidgetId}_placeholder")] ?: "Add a task...",
+                placeholder = prefs[stringPreferencesKey("widget_${appWidgetId}_placeholder")] ?: "Add a task\u2026",
                 defaultProjectId = prefs[longPreferencesKey("widget_${appWidgetId}_default_project")]
                     ?.takeIf { it >= 0 }
             )

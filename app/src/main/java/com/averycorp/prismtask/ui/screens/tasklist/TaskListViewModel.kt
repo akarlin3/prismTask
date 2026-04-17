@@ -405,7 +405,7 @@ constructor(
                 }
             } catch (e: Exception) {
                 Log.e("TaskListVM", "Failed to move task to project", e)
-                snackbarHostState.showSnackbar("Something went wrong")
+                snackbarHostState.showSnackbar("Couldn't move task")
             }
         }
     }
@@ -422,7 +422,7 @@ constructor(
                 onMoveToProject(taskId, newId, cascadeSubtasks)
             } catch (e: Exception) {
                 Log.e("TaskListVM", "Failed to create project", e)
-                snackbarHostState.showSnackbar("Something went wrong")
+                snackbarHostState.showSnackbar("Couldn't create project")
             }
         }
     }
@@ -564,7 +564,7 @@ constructor(
                 taskRepository.addTask(title = title, dueDate = dueDate, priority = priority, projectId = projectId)
             } catch (e: Exception) {
                 Log.e("TaskListVM", "Failed to add task", e)
-                snackbarHostState.showSnackbar("Something went wrong")
+                snackbarHostState.showSnackbar("Couldn't add task")
             }
         }
     }
@@ -575,7 +575,7 @@ constructor(
                 taskRepository.addSubtask(title = title, parentTaskId = parentTaskId, priority = priority)
             } catch (e: Exception) {
                 Log.e("TaskListVM", "Failed to add subtask", e)
-                snackbarHostState.showSnackbar("Something went wrong")
+                snackbarHostState.showSnackbar("Couldn't add subtask")
             }
         }
     }
@@ -595,7 +595,7 @@ constructor(
                 }
             } catch (e: Exception) {
                 Log.e("TaskListVM", "Failed to delete subtask", e)
-                snackbarHostState.showSnackbar("Something went wrong")
+                snackbarHostState.showSnackbar("Couldn't delete subtask")
             }
         }
     }
@@ -606,7 +606,7 @@ constructor(
                 taskRepository.reorderSubtasks(parentTaskId, orderedIds)
             } catch (e: Exception) {
                 Log.e("TaskListVM", "Failed to reorder subtasks", e)
-                snackbarHostState.showSnackbar("Something went wrong")
+                snackbarHostState.showSnackbar("Couldn't reorder subtasks")
             }
         }
     }
@@ -642,7 +642,7 @@ constructor(
                 }
             } catch (e: Exception) {
                 Log.e("TaskListVM", "Failed to reorder tasks", e)
-                snackbarHostState.showSnackbar("Something went wrong")
+                snackbarHostState.showSnackbar("Couldn't reorder tasks")
             }
         }
     }
@@ -657,7 +657,7 @@ constructor(
                 }
             } catch (e: Exception) {
                 Log.e("TaskListVM", "Failed to toggle complete", e)
-                snackbarHostState.showSnackbar("Something went wrong")
+                snackbarHostState.showSnackbar("Couldn't update task")
             }
         }
     }
@@ -672,7 +672,7 @@ constructor(
                 }
             } catch (e: Exception) {
                 Log.e("TaskListVM", "Failed to toggle subtask", e)
-                snackbarHostState.showSnackbar("Something went wrong")
+                snackbarHostState.showSnackbar("Couldn't update subtask")
             }
         }
     }
@@ -683,7 +683,7 @@ constructor(
                 taskRepository.deleteTask(taskId)
             } catch (e: Exception) {
                 Log.e("TaskListVM", "Failed to delete task", e)
-                snackbarHostState.showSnackbar("Something went wrong")
+                snackbarHostState.showSnackbar("Couldn't delete task")
             }
         }
     }
@@ -693,7 +693,7 @@ constructor(
             try {
                 taskRepository.completeTask(taskId)
                 val result = snackbarHostState.showSnackbar(
-                    message = "Task completed",
+                    message = "Task Completed",
                     actionLabel = "UNDO",
                     duration = SnackbarDuration.Short
                 )
@@ -702,7 +702,7 @@ constructor(
                 }
             } catch (e: Exception) {
                 Log.e("TaskListVM", "Failed to complete task", e)
-                snackbarHostState.showSnackbar("Something went wrong")
+                snackbarHostState.showSnackbar("Couldn't complete task")
             }
         }
     }
@@ -713,7 +713,7 @@ constructor(
                 val savedTask = taskRepository.getTaskByIdOnce(taskId) ?: return@launch
                 taskRepository.deleteTask(taskId)
                 val result = snackbarHostState.showSnackbar(
-                    message = "Task deleted",
+                    message = "Task Deleted",
                     actionLabel = "UNDO",
                     duration = SnackbarDuration.Short
                 )
@@ -722,7 +722,7 @@ constructor(
                 }
             } catch (e: Exception) {
                 Log.e("TaskListVM", "Failed to delete task", e)
-                snackbarHostState.showSnackbar("Something went wrong")
+                snackbarHostState.showSnackbar("Couldn't delete task")
             }
         }
     }
@@ -744,7 +744,7 @@ constructor(
                 }
             } catch (e: Exception) {
                 Log.e("TaskListVM", "Failed to move to tomorrow", e)
-                snackbarHostState.showSnackbar("Something went wrong")
+                snackbarHostState.showSnackbar("Couldn't reschedule task")
             }
         }
     }
@@ -765,7 +765,7 @@ constructor(
                 }
             } catch (e: Exception) {
                 Log.e("TaskListVM", "Failed to reschedule", e)
-                snackbarHostState.showSnackbar("Something went wrong")
+                snackbarHostState.showSnackbar("Couldn't reschedule task")
             }
         }
     }
@@ -787,7 +787,7 @@ constructor(
             try {
                 val newId = taskRepository.duplicateTask(taskId, includeSubtasks, copyDueDate)
                 if (newId <= 0L) {
-                    snackbarHostState.showSnackbar("Something went wrong")
+                    snackbarHostState.showSnackbar("Couldn't duplicate task")
                     return@launch
                 }
                 val result = snackbarHostState.showSnackbar(
@@ -800,7 +800,7 @@ constructor(
                 }
             } catch (e: Exception) {
                 Log.e("TaskListVM", "Failed to duplicate task", e)
-                snackbarHostState.showSnackbar("Something went wrong")
+                snackbarHostState.showSnackbar("Couldn't duplicate task")
             }
         }
     }
@@ -815,7 +815,7 @@ constructor(
                 )
             } catch (e: Exception) {
                 Log.e("TaskListVM", "Failed to plan for today", e)
-                snackbarHostState.showSnackbar("Something went wrong")
+                snackbarHostState.showSnackbar("Couldn't add to today's plan")
             }
         }
     }
@@ -835,7 +835,7 @@ constructor(
                     }
                 importContent(content)
             } catch (e: Exception) {
-                snackbarHostState.showSnackbar("Import failed: ${e.message}")
+                snackbarHostState.showSnackbar("Import failed")
             }
         }
     }
@@ -845,7 +845,7 @@ constructor(
             try {
                 importContent(content)
             } catch (e: Exception) {
-                snackbarHostState.showSnackbar("Import failed: ${e.message}")
+                snackbarHostState.showSnackbar("Import failed")
             }
         }
     }

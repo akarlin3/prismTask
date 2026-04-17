@@ -93,7 +93,7 @@ constructor(
             true
         } catch (e: Exception) {
             Log.e("AddEditProjectVM", "Failed to save project", e)
-            _errorMessages.emit("Something went wrong")
+            _errorMessages.emit("Couldn't save project")
             false
         }
     }
@@ -103,7 +103,7 @@ constructor(
             existingProject?.let { projectRepository.deleteProject(it) }
         } catch (e: Exception) {
             Log.e("AddEditProjectVM", "Failed to delete project", e)
-            _errorMessages.emit("Something went wrong")
+            _errorMessages.emit("Couldn't delete project")
         }
     }
 }

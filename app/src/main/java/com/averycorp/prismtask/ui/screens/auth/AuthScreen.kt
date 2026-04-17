@@ -97,7 +97,7 @@ fun AuthScreen(
             is AuthState.Loading -> {
                 CircularProgressIndicator()
                 Spacer(modifier = Modifier.height(16.dp))
-                Text("Signing in...", style = MaterialTheme.typography.bodyMedium)
+                Text("Signing in\u2026", style = MaterialTheme.typography.bodyMedium)
             }
             is AuthState.Error -> {
                 Text(
@@ -184,7 +184,7 @@ fun AuthScreen(
                             viewModel.onSignInError("Sign-in cancelled")
                         } catch (e: GetCredentialException) {
                             Log.e("AuthScreen", "Sign-in failed", e)
-                            viewModel.onSignInError(e.message ?: "Google Sign-In failed")
+                            viewModel.onSignInError("Google sign-in failed")
                         }
                     }
                 },

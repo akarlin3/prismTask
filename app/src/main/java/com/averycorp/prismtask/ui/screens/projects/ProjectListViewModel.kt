@@ -60,7 +60,7 @@ constructor(
                 projectRepository.deleteProject(project)
             } catch (e: Exception) {
                 Log.e("ProjectListVM", "Failed to delete project", e)
-                snackbarHostState.showSnackbar("Something went wrong")
+                snackbarHostState.showSnackbar("Couldn't delete project")
             }
         }
     }
@@ -80,7 +80,7 @@ constructor(
                     }
                 importContent(content)
             } catch (e: Exception) {
-                snackbarHostState.showSnackbar("Import failed: ${e.message}")
+                snackbarHostState.showSnackbar("Import failed")
             }
         }
     }
@@ -90,7 +90,7 @@ constructor(
             try {
                 importContent(content)
             } catch (e: Exception) {
-                snackbarHostState.showSnackbar("Import failed: ${e.message}")
+                snackbarHostState.showSnackbar("Import failed")
             }
         }
     }

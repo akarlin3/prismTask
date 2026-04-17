@@ -90,7 +90,7 @@ constructor(
                 }
                 _lastCategorizedAt.value = now
             } catch (e: Exception) {
-                _error.value = e.message ?: "Failed to categorize tasks"
+                _error.value = "Couldn't categorize tasks"
             } finally {
                 _isLoading.value = false
             }

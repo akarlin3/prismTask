@@ -292,7 +292,7 @@ constructor(
                     skippedTasks = response.skippedTasks.map { SkippedTask(it.taskId, it.reason) }
                 )
             } catch (e: Exception) {
-                _error.value = e.message ?: "Failed to generate plan"
+                _error.value = "Couldn't generate plan"
             } finally {
                 _isLoading.value = false
             }

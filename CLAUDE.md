@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-**PrismTask** (`com.averycorp.prismtask`) is a native Android todo list app built with Kotlin and Jetpack Compose. v1.3.0 includes full task management, projects, subtasks, tags, recurrence, reminders, notifications, NLP quick-add, voice input (speech-to-task, voice commands, TTS, hands-free mode), accessibility (TalkBack, font scaling, high-contrast, keyboard nav, reduced motion), Today focus screen (compact header, collapsible sections, customizable layout), tabbed task editor (Details/Schedule/Organize), week/month/timeline views, urgency scoring with user-configurable weights, smart suggestions, drag-to-reorder with custom sort, quick reschedule, duplicate task, bulk edit (priority/date/tags/project), configurable swipe actions, flagged tasks, task templates with built-ins and NLP shortcuts, project and habit templates, saved filter presets, advanced recurrence (weekday/biweekly/custom month days/after-completion), notification profiles with quiet hours and daily digest, three-tier pricing (Free/Pro/Premium) with Google Play Billing, Firebase cloud sync, Google Sign-In, JSON/CSV data export/import, Google Drive backup/restore, habit tracking with streaks/analytics, bookable habits, productivity dashboard with burndown charts and heatmap, time tracking per task, 7 home-screen widgets (Today, Habit Streak, Quick-Add, Calendar, Productivity, Timer, Upcoming) with per-instance config, Gmail/Slack/Calendar/Zapier integrations, app self-update, and a FastAPI web backend with Claude Haiku-powered NLP parsing.
+**PrismTask** (`com.averycorp.prismtask`) is a native Android todo list app built with Kotlin and Jetpack Compose. v1.3.0 includes full task management, projects, subtasks, tags, recurrence, reminders, notifications, NLP quick-add, voice input (speech-to-task, voice commands, TTS, hands-free mode), accessibility (TalkBack, font scaling, high-contrast, keyboard nav, reduced motion), Today focus screen (compact header, collapsible sections, customizable layout), tabbed task editor (Details/Schedule/Organize), week/month/timeline views, urgency scoring with user-configurable weights, smart suggestions, drag-to-reorder with custom sort, quick reschedule, duplicate task, bulk edit (priority/date/tags/project), configurable swipe actions, flagged tasks, task templates with built-ins and NLP shortcuts, project and habit templates, saved filter presets, advanced recurrence (weekday/biweekly/custom month days/after-completion), notification profiles with quiet hours and daily digest, two-tier pricing (Free/Pro) with Google Play Billing, Firebase cloud sync, Google Sign-In, JSON/CSV data export/import, Google Drive backup/restore, habit tracking with streaks/analytics, bookable habits, productivity dashboard with burndown charts and heatmap, time tracking per task, 7 home-screen widgets (Today, Habit Streak, Quick-Add, Calendar, Productivity, Timer, Upcoming) with per-instance config, Gmail/Slack/Calendar/Zapier integrations, app self-update, and a FastAPI web backend with Claude Haiku-powered NLP parsing.
 
 **v1.4.0 (in progress):** The release expands PrismTask into a wellness-aware productivity layer on top of the v1.3 core:
 
@@ -40,7 +40,7 @@ app/src/main/java/com/averycorp/prismtask/
 ├── PrismTaskApplication.kt             # @HiltAndroidApp
 ├── data/
 │   ├── billing/
-│   │   └── BillingManager.kt           # Google Play Billing: three-tier purchase flow, restore, cached status
+│   │   └── BillingManager.kt           # Google Play Billing: Pro purchase flow, restore, cached status
 │   ├── calendar/
 │   │   ├── CalendarManager.kt          # Device calendar provider wrapper
 │   │   └── CalendarSyncPreferences.kt
@@ -225,7 +225,7 @@ app/src/main/java/com/averycorp/prismtask/
 - **Tabbed Editor**: Bottom sheet with Details/Schedule/Organize tabs (extracted into `addedittask/tabs/`)
 - **Sort Memory**: Per-screen sort preferences via DataStore
 - **Drag-to-Reorder**: Custom sort mode with persistent task order
-- **Three-Tier Pricing**: ProFeatureGate checks BillingManager tier (Free/Pro $3.99/Premium $7.99); Free gets core features, Pro unlocks AI Eisenhower/Pomodoro + cloud sync + analytics, Premium adds briefing/planner/integrations/collaboration
+- **Pricing**: ProFeatureGate checks BillingManager tier (Free/Pro); Pro is $7.99/mo or $4.99/mo billed annually ($59.88/year, with a 7-day free trial on the annual plan). Free gets core task/habit management, templates, calendar sync, widgets, and NLP quick-add; Pro unlocks cloud sync, AI productivity tools (Eisenhower, Smart Pomodoro, daily briefing, time blocking), AI weekly planner (Claude Sonnet), full analytics, shared projects, integrations, and unlimited saved filters / custom templates
 - **Billing**: Google Play Billing via BillingManager singleton; tier cached in DataStore for offline access; debug tier override in Settings
 - **Voice Input**: `VoiceInputManager` wraps Android SpeechRecognizer for dictation and continuous hands-free mode; `VoiceCommandParser` parses command grammar; `TextToSpeechManager` reads tasks and briefings
 - **Accessibility**: `ui/a11y/` helpers expose TalkBack labels, dynamic font scaling, high-contrast mode, keyboard focus traversal, and reduced-motion animation gates

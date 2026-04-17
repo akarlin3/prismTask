@@ -196,7 +196,7 @@ internal fun OrganizeTabContent(
         AlertDialog(
             onDismissRequest = { showDeleteConfirm = false },
             title = { Text("Delete Task") },
-            text = { Text("Delete '$taskTitle'? This cannot be undone.") },
+            text = { Text("Delete \"$taskTitle\"? This cannot be undone.") },
             confirmButton = {
                 TextButton(
                     onClick = {

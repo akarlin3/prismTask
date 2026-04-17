@@ -29,7 +29,7 @@ internal fun TaskListViewModel.onBulkComplete() {
             }
         } catch (e: Exception) {
             Log.e("TaskListVM", "Failed to bulk complete", e)
-            snackbarHostState.showSnackbar("Something went wrong")
+            snackbarHostState.showSnackbar("Couldn't complete tasks")
         }
     }
 }
@@ -51,7 +51,7 @@ internal fun TaskListViewModel.onBulkDelete() {
             }
         } catch (e: Exception) {
             Log.e("TaskListVM", "Failed to bulk delete", e)
-            snackbarHostState.showSnackbar("Something went wrong")
+            snackbarHostState.showSnackbar("Couldn't delete tasks")
         }
     }
 }
@@ -78,7 +78,7 @@ internal fun TaskListViewModel.onBulkSetPriority(priority: Int) {
             }
         } catch (e: Exception) {
             Log.e("TaskListVM", "Failed to bulk set priority", e)
-            snackbarHostState.showSnackbar("Something went wrong")
+            snackbarHostState.showSnackbar("Couldn't update priority")
         }
     }
 }
@@ -106,7 +106,7 @@ internal fun TaskListViewModel.onBulkReschedule(newDueDate: Long?) {
             }
         } catch (e: Exception) {
             Log.e("TaskListVM", "Failed to bulk reschedule", e)
-            snackbarHostState.showSnackbar("Something went wrong")
+            snackbarHostState.showSnackbar("Couldn't reschedule tasks")
         }
     }
 }
@@ -136,7 +136,7 @@ internal fun TaskListViewModel.onBulkMoveToProject(newProjectId: Long?) {
             }
         } catch (e: Exception) {
             Log.e("TaskListVM", "Failed to bulk move", e)
-            snackbarHostState.showSnackbar("Something went wrong")
+            snackbarHostState.showSnackbar("Couldn't move tasks")
         }
     }
 }
@@ -178,7 +178,7 @@ internal fun TaskListViewModel.onBulkApplyTags(addIds: Set<Long>, removeIds: Set
             }
         } catch (e: Exception) {
             Log.e("TaskListVM", "Failed to bulk apply tags", e)
-            snackbarHostState.showSnackbar("Something went wrong")
+            snackbarHostState.showSnackbar("Couldn't update tags")
         }
     }
 }
@@ -191,7 +191,7 @@ internal fun TaskListViewModel.onBulkCreateProjectAndMove(name: String) {
             onBulkMoveToProject(newId)
         } catch (e: Exception) {
             Log.e("TaskListVM", "Failed to create project", e)
-            snackbarHostState.showSnackbar("Something went wrong")
+            snackbarHostState.showSnackbar("Couldn't create project")
         }
     }
 }

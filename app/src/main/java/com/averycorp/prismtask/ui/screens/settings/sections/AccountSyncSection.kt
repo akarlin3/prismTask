@@ -55,7 +55,7 @@ fun AccountSyncSection(
                 if (isSyncing) {
                     CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Syncing...")
+                    Text("Syncing\u2026")
                 } else {
                     Icon(Icons.Default.Sync, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(4.dp))

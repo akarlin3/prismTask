@@ -159,7 +159,7 @@ fun TemplateListScreen(
                     OutlinedTextField(
                         value = searchQuery,
                         onValueChange = viewModel::setSearchQuery,
-                        placeholder = { Text("Search Templates...") },
+                        placeholder = { Text("Search Templates\u2026") },
                         singleLine = true,
                         leadingIcon = {
                             Icon(Icons.Default.Search, contentDescription = null)

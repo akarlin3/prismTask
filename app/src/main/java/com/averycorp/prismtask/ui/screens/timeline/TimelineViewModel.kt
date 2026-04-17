@@ -316,7 +316,7 @@ constructor(
                 val savedTask = taskRepository.getTaskByIdOnce(taskId) ?: return@launch
                 taskRepository.deleteTask(taskId)
                 val result = snackbarHostState.showSnackbar(
-                    message = "Task deleted",
+                    message = "Task Deleted",
                     actionLabel = "UNDO",
                     duration = SnackbarDuration.Short
                 )
@@ -334,7 +334,7 @@ constructor(
             try {
                 val newId = taskRepository.duplicateTask(taskId, includeSubtasks = false)
                 if (newId <= 0L) {
-                    snackbarHostState.showSnackbar("Something went wrong")
+                    snackbarHostState.showSnackbar("Couldn't duplicate task")
                     return@launch
                 }
                 snackbarHostState.showSnackbar(
@@ -412,7 +412,7 @@ constructor(
                     )
                 )
             } catch (e: Exception) {
-                _scheduleError.value = e.message ?: "Failed to generate schedule"
+                _scheduleError.value = "Couldn't generate schedule"
             } finally {
                 _isGeneratingSchedule.value = false
             }
@@ -448,7 +448,7 @@ constructor(
                 }
                 snackbarHostState.showSnackbar("Schedule applied!", duration = SnackbarDuration.Short)
             } catch (e: Exception) {
-                _scheduleError.value = e.message ?: "Failed to apply schedule"
+                _scheduleError.value = "Couldn't apply schedule"
             }
         }
     }

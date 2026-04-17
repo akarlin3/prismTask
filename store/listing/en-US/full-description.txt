@@ -25,7 +25,7 @@ CLOUD SYNC (PRO)
 Sync tasks across devices. Never lose your data with automatic cloud backup.
 
 AI BRIEFING & WEEKLY PLANNER (PRO)
-Get AI-powered daily briefings, plus a premium AI weekly planner backed by Claude Sonnet. AI time blocking automatically schedules your day for optimal productivity.
+Get AI-powered daily briefings, plus a premium AI weekly planner backed by Claude Sonnet.
 
 COLLABORATION (PRO)
 Share projects with teammates or family. Assign tasks, leave comments, and track activity — all in real-time.
@@ -44,7 +44,7 @@ FREE:
 • Habit tracking with streaks and analytics
 • Task templates (6 built-in + custom)
 • Google Calendar sync
-• All views and widgets
+• All non-AI views and all widgets
 • NLP quick-add
 • ADHD Mode and Calm Mode
 • Export/import

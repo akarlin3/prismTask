@@ -60,9 +60,7 @@ constructor(
                 // cached credential so the next attempt shows the account
                 // picker instead of silently reusing the bad one.
                 authManager.clearCredentialState()
-                _authState.value = AuthState.Error(
-                    result.exceptionOrNull()?.message ?: "Sign-in failed"
-                )
+                _authState.value = AuthState.Error("Sign-in failed")
             }
         }
     }

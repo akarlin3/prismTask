@@ -926,7 +926,7 @@ constructor(
                     _messages.emit("Google Calendar connected")
                 }
                 .onFailure { e ->
-                    _messages.emit(e.message ?: "Failed to connect Google Calendar")
+                    _messages.emit("Couldn't connect Google Calendar")
                 }
         }
     }
@@ -1009,10 +1009,10 @@ constructor(
                 if (result.isSuccess) {
                     _messages.emit("Google Calendar sync complete")
                 } else {
-                    _messages.emit("Sync failed: ${result.exceptionOrNull()?.message ?: "unknown error"}")
+                    _messages.emit("Calendar sync failed")
                 }
             } catch (e: Exception) {
-                _messages.emit("Sync failed: ${e.message}")
+                _messages.emit("Calendar sync failed")
             } finally {
                 _isGCalSyncing.value = false
             }
@@ -1157,7 +1157,7 @@ constructor(
                 _messages.emit("Sync complete")
             } catch (e: Exception) {
                 Log.e("SettingsVM", "Sync failed", e)
-                _messages.emit("Sync failed: ${e.message}")
+                _messages.emit("Sync failed")
             } finally {
                 _isSyncing.value = false
             }
@@ -1215,7 +1215,7 @@ constructor(
             } catch (e: Exception) {
                 Log.e("SettingsVM", "Duplicate scan failed", e)
                 _duplicateCleanupState.value = DuplicateCleanupState()
-                _messages.emit("Could not scan for duplicates: ${e.message}")
+                _messages.emit("Couldn't scan for duplicates")
             }
         }
     }
@@ -1238,7 +1238,7 @@ constructor(
                 )
             } catch (e: Exception) {
                 Log.e("SettingsVM", "Duplicate cleanup failed", e)
-                _messages.emit("Cleanup failed: ${e.message}")
+                _messages.emit("Duplicate cleanup failed")
             } finally {
                 _duplicateCleanupState.value = DuplicateCleanupState()
             }
@@ -1353,7 +1353,7 @@ constructor(
                 onDone(options.restartOnboarding)
             } catch (e: Exception) {
                 Log.e("SettingsVM", "Reset failed", e)
-                _messages.emit("Reset failed: ${e.message}")
+                _messages.emit("Reset failed")
             } finally {
                 _isResetting.value = false
             }
@@ -1365,7 +1365,7 @@ constructor(
             try {
                 billingManager.launchPurchaseFlow(activity, period)
             } catch (e: Exception) {
-                _messages.emit("Could not start purchase: ${e.message}")
+                _messages.emit("Couldn't start purchase")
             }
         }
     }
@@ -1376,7 +1376,7 @@ constructor(
                 billingManager.restorePurchases()
                 _messages.emit("Purchases restored")
             } catch (e: Exception) {
-                _messages.emit("Could not restore purchases: ${e.message}")
+                _messages.emit("Couldn't restore purchases")
             }
         }
     }
@@ -1403,7 +1403,7 @@ constructor(
                 _messages.emit("Tutorial Reset — Showing Now")
                 onDone()
             } catch (e: Exception) {
-                _messages.emit("Could not reset tutorial: ${e.message}")
+                _messages.emit("Couldn't reset tutorial")
             }
         }
     }

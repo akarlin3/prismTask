@@ -92,7 +92,7 @@ fun HabitAnalyticsScreen(
                 modifier = Modifier.fillMaxSize().padding(padding),
                 contentAlignment = Alignment.Center
             ) {
-                Text("Loading...", style = MaterialTheme.typography.bodyLarge)
+                Text("Loading Habit Data\u2026", style = MaterialTheme.typography.bodyLarge)
             }
             return@Scaffold
         }

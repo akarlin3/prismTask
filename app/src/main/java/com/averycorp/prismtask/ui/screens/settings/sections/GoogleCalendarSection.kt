@@ -244,7 +244,7 @@ fun GoogleCalendarSection(
                             strokeWidth = 2.dp
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Syncing...")
+                        Text("Syncing\u2026")
                     } else {
                         Icon(
                             imageVector = Icons.Default.Sync,

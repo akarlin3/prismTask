@@ -676,7 +676,7 @@ internal fun RecurrenceRow(
 ) {
     if (rule == null) {
         TextButton(onClick = onEdit) {
-            Text("Set Recurrence...")
+            Text("Set Recurrence\u2026")
         }
     } else {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -753,7 +753,7 @@ internal fun SubtasksEditor(
         OutlinedTextField(
             value = newText,
             onValueChange = { newText = it },
-            placeholder = { Text("Add Subtask...") },
+            placeholder = { Text("Add Subtask\u2026") },
             singleLine = true,
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
             keyboardActions = KeyboardActions(onDone = { submit() }),

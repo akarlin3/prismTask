@@ -109,7 +109,7 @@ fun TemplatePickerSheet(
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = viewModel::setSearchQuery,
-                placeholder = { Text("Search Templates...") },
+                placeholder = { Text("Search Templates\u2026") },
                 leadingIcon = {
                     Icon(Icons.Default.Search, contentDescription = null)
                 },

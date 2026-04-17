@@ -65,7 +65,7 @@ fun WeeklyReviewScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             if (stats == null) {
-                Text("Aggregating your week...", style = MaterialTheme.typography.bodyMedium)
+                Text("Aggregating your week\u2026", style = MaterialTheme.typography.bodyMedium)
                 return@Column
             }
             Text(

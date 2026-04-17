@@ -169,7 +169,7 @@ fun SchoolworkScreen(
                 OutlinedTextField(
                     value = pasteContent,
                     onValueChange = { pasteContent = it },
-                    placeholder = { Text("Paste JSX file contents here...") },
+                    placeholder = { Text("Paste JSX file contents here\u2026") },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(200.dp),

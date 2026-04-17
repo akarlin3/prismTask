@@ -134,7 +134,7 @@ internal fun ScheduleTabContent(viewModel: AddEditTaskViewModel) {
             ) {
                 Icon(Icons.Default.CalendarMonth, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(6.dp))
-                Text("Pick Date...")
+                Text("Pick Date\u2026")
             }
 
             if (dueDate != null) {
@@ -257,7 +257,7 @@ internal fun ScheduleTabContent(viewModel: AddEditTaskViewModel) {
                         onClick = { showRecurrenceDialog = true },
                         contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
                     ) {
-                        Text("Set Recurrence...")
+                        Text("Set Recurrence\u2026")
                     }
                 }
             } else {

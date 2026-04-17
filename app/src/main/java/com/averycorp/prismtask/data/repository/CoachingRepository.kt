@@ -399,10 +399,10 @@ constructor(
         if (e.code() == 403) {
             CoachingResult.UpgradeRequired(UserTier.PRO)
         } else {
-            CoachingResult.Error(e.message ?: "Server error")
+            CoachingResult.Error("Coach is unavailable right now")
         }
     } catch (e: Exception) {
-        CoachingResult.Error(e.message ?: "Something went wrong")
+        CoachingResult.Error("Couldn't reach coach")
     }
 
     // endregion

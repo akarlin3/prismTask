@@ -290,9 +290,9 @@ fun SelfCareScreen(
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
                                 text = when (routineType) {
-                                    "morning" -> "All done \u2014 go get it, Avery."
+                                    "morning" -> "All done \u2014 go get it."
                                     "housework" -> "All done \u2014 house is looking great!"
-                                    else -> "All done \u2014 lights out. Sleep well, Avery."
+                                    else -> "All done \u2014 lights out. Sleep well."
                                 },
                                 style = MaterialTheme.typography.bodySmall,
                                 fontWeight = FontWeight.Bold,

@@ -18,7 +18,7 @@ internal fun SettingsViewModel.onExportJson() {
             _pendingJsonExport.value = dataExporter.exportToJson()
         } catch (e: Exception) {
             Log.e("SettingsVM", "JSON export failed", e)
-            _messages.emit("Export failed: ${e.message}")
+            _messages.emit("Export failed")
         } finally {
             _isExporting.value = false
         }
@@ -32,7 +32,7 @@ internal fun SettingsViewModel.onExportCsv() {
             _pendingCsvExport.value = dataExporter.exportToCsv()
         } catch (e: Exception) {
             Log.e("SettingsVM", "CSV export failed", e)
-            _messages.emit("Export failed: ${e.message}")
+            _messages.emit("Export failed")
         } finally {
             _isExporting.value = false
         }
@@ -67,7 +67,7 @@ internal fun SettingsViewModel.onImportJson(jsonString: String) {
             _messages.emit("$summary$dupInfo")
         } catch (e: Exception) {
             Log.e("SettingsVM", "Import failed", e)
-            _messages.emit("Import failed: ${e.message}")
+            _messages.emit("Import failed")
         } finally {
             _isImporting.value = false
         }

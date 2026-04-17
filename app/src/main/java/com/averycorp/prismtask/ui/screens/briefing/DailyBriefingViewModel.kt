@@ -101,7 +101,7 @@ constructor(
                 )
                 cachedDate = targetDate
             } catch (e: Exception) {
-                _error.value = e.message ?: "Failed to generate briefing"
+                _error.value = "Couldn't generate briefing"
             } finally {
                 _isLoading.value = false
             }
@@ -127,7 +127,7 @@ constructor(
                 }
                 _orderApplied.value = true
             } catch (e: Exception) {
-                _error.value = e.message ?: "Failed to apply order"
+                _error.value = "Couldn't apply order"
             }
         }
     }
