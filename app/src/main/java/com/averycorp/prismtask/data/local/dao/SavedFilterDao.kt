@@ -34,4 +34,7 @@ interface SavedFilterDao {
 
     @Query("SELECT COUNT(*) FROM saved_filters")
     suspend fun count(): Int
+
+    @Query("DELETE FROM saved_filters")
+    suspend fun deleteAll()
 }

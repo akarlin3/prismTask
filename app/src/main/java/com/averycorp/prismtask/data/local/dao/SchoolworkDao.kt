@@ -124,4 +124,10 @@ interface SchoolworkDao {
 
     @Update
     suspend fun updateLog(log: StudyLogEntity)
+
+    @Query("SELECT * FROM study_logs ORDER BY date DESC")
+    suspend fun getAllStudyLogsOnce(): List<StudyLogEntity>
+
+    @Query("DELETE FROM study_logs")
+    suspend fun deleteAllStudyLogs()
 }

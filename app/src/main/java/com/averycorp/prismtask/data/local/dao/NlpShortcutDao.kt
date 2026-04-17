@@ -34,4 +34,7 @@ interface NlpShortcutDao {
 
     @Query("SELECT COUNT(*) FROM nlp_shortcuts")
     suspend fun count(): Int
+
+    @Query("DELETE FROM nlp_shortcuts")
+    suspend fun deleteAll()
 }

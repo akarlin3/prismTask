@@ -27,4 +27,7 @@ interface BoundaryRuleDao {
 
     @Query("DELETE FROM boundary_rules WHERE id = :id")
     suspend fun delete(id: Long)
+
+    @Query("DELETE FROM boundary_rules")
+    suspend fun deleteAll()
 }

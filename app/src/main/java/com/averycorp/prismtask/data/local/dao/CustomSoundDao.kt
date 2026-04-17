@@ -27,4 +27,10 @@ interface CustomSoundDao {
 
     @Query("SELECT COUNT(*) FROM custom_sounds")
     suspend fun count(): Int
+
+    @Query("SELECT * FROM custom_sounds ORDER BY created_at DESC")
+    suspend fun getAllOnce(): List<CustomSoundEntity>
+
+    @Query("DELETE FROM custom_sounds")
+    suspend fun deleteAll()
 }

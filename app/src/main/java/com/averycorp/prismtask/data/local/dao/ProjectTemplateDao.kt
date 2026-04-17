@@ -34,4 +34,7 @@ interface ProjectTemplateDao {
 
     @Query("DELETE FROM project_templates")
     suspend fun deleteAll()
+
+    @Query("SELECT * FROM project_templates")
+    suspend fun getAllOnce(): List<ProjectTemplateEntity>
 }

@@ -19,4 +19,10 @@ interface FocusReleaseLogDao {
 
     @Query("DELETE FROM focus_release_logs WHERE created_at < :beforeTimestamp")
     suspend fun deleteOlderThan(beforeTimestamp: Long)
+
+    @Query("SELECT * FROM focus_release_logs ORDER BY created_at DESC")
+    suspend fun getAllOnce(): List<FocusReleaseLogEntity>
+
+    @Query("DELETE FROM focus_release_logs")
+    suspend fun deleteAll()
 }

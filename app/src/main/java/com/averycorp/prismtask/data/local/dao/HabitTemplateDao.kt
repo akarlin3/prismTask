@@ -34,4 +34,7 @@ interface HabitTemplateDao {
 
     @Query("DELETE FROM habit_templates")
     suspend fun deleteAll()
+
+    @Query("SELECT * FROM habit_templates")
+    suspend fun getAllOnce(): List<HabitTemplateEntity>
 }

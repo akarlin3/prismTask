@@ -23,4 +23,10 @@ interface CheckInLogDao {
 
     @Query("SELECT * FROM check_in_logs WHERE date >= :start ORDER BY date DESC")
     suspend fun getSince(start: Long): List<CheckInLogEntity>
+
+    @Query("SELECT * FROM check_in_logs ORDER BY date DESC")
+    suspend fun getAllOnce(): List<CheckInLogEntity>
+
+    @Query("DELETE FROM check_in_logs")
+    suspend fun deleteAll()
 }

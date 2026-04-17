@@ -27,4 +27,7 @@ interface AttachmentDao {
 
     @Query("DELETE FROM attachments")
     suspend fun deleteAll()
+
+    @Query("SELECT * FROM attachments")
+    suspend fun getAllOnce(): List<AttachmentEntity>
 }

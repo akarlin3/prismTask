@@ -23,4 +23,10 @@ interface WeeklyReviewDao {
 
     @Query("DELETE FROM weekly_reviews WHERE id = :id")
     suspend fun delete(id: Long)
+
+    @Query("SELECT * FROM weekly_reviews ORDER BY week_start_date DESC")
+    suspend fun getAllOnce(): List<WeeklyReviewEntity>
+
+    @Query("DELETE FROM weekly_reviews")
+    suspend fun deleteAll()
 }

@@ -27,4 +27,7 @@ interface MedicationRefillDao {
 
     @Query("DELETE FROM medication_refills WHERE id = :id")
     suspend fun delete(id: Long)
+
+    @Query("DELETE FROM medication_refills")
+    suspend fun deleteAll()
 }

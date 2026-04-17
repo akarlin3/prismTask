@@ -40,4 +40,10 @@ interface NotificationProfileDao {
 
     @Query("SELECT COUNT(*) FROM reminder_profiles WHERE is_built_in = 0")
     suspend fun countUserCreated(): Int
+
+    @Query("SELECT * FROM reminder_profiles ORDER BY is_built_in DESC, name ASC")
+    suspend fun getAllOnce(): List<NotificationProfileEntity>
+
+    @Query("DELETE FROM reminder_profiles WHERE is_built_in = 0")
+    suspend fun deleteAllUserCreated()
 }

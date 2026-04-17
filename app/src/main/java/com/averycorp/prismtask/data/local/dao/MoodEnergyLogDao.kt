@@ -33,4 +33,7 @@ interface MoodEnergyLogDao {
 
     @Query("DELETE FROM mood_energy_logs WHERE id = :id")
     suspend fun delete(id: Long)
+
+    @Query("DELETE FROM mood_energy_logs")
+    suspend fun deleteAll()
 }
