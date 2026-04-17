@@ -563,7 +563,12 @@ fun TodayScreen(
                                         navController.navigate(PrismTaskRoute.Leisure.route)
                                     },
                                     onToggleFlexDone = { viewModel.onToggleFlexDone() },
-                                    onMarkMedicationTaken = { viewModel.onMarkNextMedicationTaken() },
+                                    onToggleMedicationSlot = { slot, checked ->
+                                        viewModel.onToggleMedicationSlot(slot, checked)
+                                    },
+                                    onToggleMedicationDose = { slot, dose, checked ->
+                                        viewModel.onToggleMedicationDose(slot, dose, checked)
+                                    },
                                     onDismissHint = { viewModel.onDismissDailyEssentialsHint() },
                                     onOpenSettings = {
                                         navController.navigate("settings/layout")

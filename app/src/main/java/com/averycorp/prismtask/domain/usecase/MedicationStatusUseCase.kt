@@ -52,7 +52,13 @@ data class MedicationDose(
      * for interval-based doses that have no fixed clock time. ``null`` when a
      * caller hasn't opted into the grouping layer (back-compat).
      */
-    val slotKey: String? = null
+    val slotKey: String? = null,
+    /**
+     * For [DoseSource.SELF_CARE_STEP] doses, the originating
+     * [data.local.entity.SelfCareStepEntity.stepId]. Needed so slot-level
+     * toggles can round-trip through [data.repository.SelfCareRepository.toggleStep].
+     */
+    val selfCareStepId: String? = null
 ) {
     /** Stable synthetic identifier the slot layer uses inside ``med_ids_json``. */
     val doseKey: String
@@ -140,7 +146,8 @@ constructor(
             scheduledAt = null,
             takenToday = step.stepId in takenStepIds,
             linkedHabitId = null,
-            slotKey = MedicationSlotGrouper.slotKeyForTimeOfDay(step.timeOfDay)
+            slotKey = MedicationSlotGrouper.slotKeyForTimeOfDay(step.timeOfDay),
+            selfCareStepId = step.stepId
         )
     }
 
