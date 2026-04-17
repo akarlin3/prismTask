@@ -124,7 +124,7 @@ android {
                 it.jvmArgs(
                     "-XX:TieredStopAtLevel=1",
                     "-XX:+UseParallelGC",
-                    "-noverify",
+                    "-noverify"
                 )
             }
         }
