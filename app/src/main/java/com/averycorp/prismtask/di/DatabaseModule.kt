@@ -7,6 +7,7 @@ import com.averycorp.prismtask.data.local.dao.BoundaryRuleDao
 import com.averycorp.prismtask.data.local.dao.CalendarSyncDao
 import com.averycorp.prismtask.data.local.dao.CheckInLogDao
 import com.averycorp.prismtask.data.local.dao.CustomSoundDao
+import com.averycorp.prismtask.data.local.dao.DailyEssentialSlotCompletionDao
 import com.averycorp.prismtask.data.local.dao.FocusReleaseLogDao
 import com.averycorp.prismtask.data.local.dao.HabitCompletionDao
 import com.averycorp.prismtask.data.local.dao.HabitDao
@@ -142,6 +143,11 @@ object DatabaseModule {
 
     @Provides
     fun provideFocusReleaseLogDao(database: PrismTaskDatabase): FocusReleaseLogDao = database.focusReleaseLogDao()
+
+    @Provides
+    fun provideDailyEssentialSlotCompletionDao(
+        database: PrismTaskDatabase
+    ): DailyEssentialSlotCompletionDao = database.dailyEssentialSlotCompletionDao()
 }
 
 /**

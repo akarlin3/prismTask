@@ -861,6 +861,31 @@ val MIGRATION_44_45 = object : Migration(44, 45) {
     }
 }
 
+// Add materialized slot completions for Daily Essentials medication time
+// slots. Rows are inserted lazily the first time the user interacts with a
+// slot on a given day; reads merge these with the live virtual derivation.
+// No FK to parent medication tables — dose keys inside ``med_ids_json`` are
+// synthetic identifiers that survive refill renames.
+val MIGRATION_45_46 = object : Migration(45, 46) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """CREATE TABLE IF NOT EXISTS `daily_essential_slot_completions` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `date` INTEGER NOT NULL,
+                `slot_key` TEXT NOT NULL,
+                `med_ids_json` TEXT NOT NULL DEFAULT '[]',
+                `taken_at` INTEGER,
+                `created_at` INTEGER NOT NULL,
+                `updated_at` INTEGER NOT NULL
+            )"""
+        )
+        db.execSQL(
+            "CREATE UNIQUE INDEX IF NOT EXISTS `index_daily_essential_slot_completions_date_slot_key` " +
+                "ON `daily_essential_slot_completions` (`date`, `slot_key`)"
+        )
+    }
+}
+
 val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_1_2,
     MIGRATION_2_3,
@@ -905,5 +930,6 @@ val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_41_42,
     MIGRATION_42_43,
     MIGRATION_43_44,
-    MIGRATION_44_45
+    MIGRATION_44_45,
+    MIGRATION_45_46
 )

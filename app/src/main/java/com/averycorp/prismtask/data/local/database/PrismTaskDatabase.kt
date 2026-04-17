@@ -7,6 +7,7 @@ import com.averycorp.prismtask.data.local.dao.BoundaryRuleDao
 import com.averycorp.prismtask.data.local.dao.CalendarSyncDao
 import com.averycorp.prismtask.data.local.dao.CheckInLogDao
 import com.averycorp.prismtask.data.local.dao.CustomSoundDao
+import com.averycorp.prismtask.data.local.dao.DailyEssentialSlotCompletionDao
 import com.averycorp.prismtask.data.local.dao.FocusReleaseLogDao
 import com.averycorp.prismtask.data.local.dao.HabitCompletionDao
 import com.averycorp.prismtask.data.local.dao.HabitDao
@@ -37,6 +38,7 @@ import com.averycorp.prismtask.data.local.entity.CheckInLogEntity
 import com.averycorp.prismtask.data.local.entity.CourseCompletionEntity
 import com.averycorp.prismtask.data.local.entity.CourseEntity
 import com.averycorp.prismtask.data.local.entity.CustomSoundEntity
+import com.averycorp.prismtask.data.local.entity.DailyEssentialSlotCompletionEntity
 import com.averycorp.prismtask.data.local.entity.FocusReleaseLogEntity
 import com.averycorp.prismtask.data.local.entity.HabitCompletionEntity
 import com.averycorp.prismtask.data.local.entity.HabitEntity
@@ -95,9 +97,10 @@ import com.averycorp.prismtask.data.local.entity.WeeklyReviewEntity
         CheckInLogEntity::class,
         WeeklyReviewEntity::class,
         TaskCompletionEntity::class,
-        FocusReleaseLogEntity::class
+        FocusReleaseLogEntity::class,
+        DailyEssentialSlotCompletionEntity::class
     ],
-    version = 45,
+    version = 46,
     exportSchema = false
 )
 abstract class PrismTaskDatabase : RoomDatabase() {
@@ -154,4 +157,6 @@ abstract class PrismTaskDatabase : RoomDatabase() {
     abstract fun taskCompletionDao(): TaskCompletionDao
 
     abstract fun focusReleaseLogDao(): FocusReleaseLogDao
+
+    abstract fun dailyEssentialSlotCompletionDao(): DailyEssentialSlotCompletionDao
 }

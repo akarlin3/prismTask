@@ -1,11 +1,13 @@
 package com.averycorp.prismtask.domain.usecase
 
+import com.averycorp.prismtask.data.local.dao.DailyEssentialSlotCompletionDao
 import com.averycorp.prismtask.data.local.dao.HabitCompletionDao
 import com.averycorp.prismtask.data.local.dao.HabitDao
 import com.averycorp.prismtask.data.local.dao.SchoolworkDao
 import com.averycorp.prismtask.data.local.dao.SelfCareDao
 import com.averycorp.prismtask.data.local.entity.AssignmentEntity
 import com.averycorp.prismtask.data.local.entity.CourseEntity
+import com.averycorp.prismtask.data.local.entity.DailyEssentialSlotCompletionEntity
 import com.averycorp.prismtask.data.local.entity.HabitEntity
 import com.averycorp.prismtask.data.local.entity.LeisureLogEntity
 import com.averycorp.prismtask.data.preferences.DailyEssentialsPreferences
@@ -73,7 +75,13 @@ data class LeisureCardState(
 data class MedicationCardState(
     val totalDueToday: Int,
     val nextDose: MedicationDose,
-    val otherDoses: List<MedicationDose>
+    val otherDoses: List<MedicationDose>,
+    /**
+     * Slot-grouped view of the same dose list. One entry per distinct clock
+     * time (plus an optional trailing "anytime" bucket). UI renders this as
+     * one row per slot with the "{time} meds: {a, b, c}" label.
+     */
+    val slots: List<MedicationSlot> = emptyList()
 )
 
 /**
@@ -129,6 +137,7 @@ constructor(
     private val habitCompletionDao: HabitCompletionDao,
     private val leisureRepository: LeisureRepository,
     private val medicationStatusUseCase: MedicationStatusUseCase,
+    private val slotCompletionDao: DailyEssentialSlotCompletionDao,
     private val dailyEssentialsPreferences: DailyEssentialsPreferences,
     private val taskBehaviorPreferences: TaskBehaviorPreferences
 ) {
@@ -151,6 +160,7 @@ constructor(
                 observeSchoolworkCard(todayStart, windowStart, windowEnd),
                 leisureRepository.getTodayLog(),
                 medicationStatusUseCase.observeDueDosesToday(),
+                slotCompletionDao.observeForDate(todayStart),
                 dailyEssentialsPreferences.hasSeenHint
             ) { args -> combineDailyEssentials(args) }
         }
@@ -164,7 +174,26 @@ constructor(
         val schoolwork = args[4] as SchoolworkCardState?
         val leisureLog = args[5] as LeisureLogEntity?
         val dueDoses = args[6] as List<MedicationDose>
-        val seenHint = args[7] as Boolean
+        val materializedSlots = args[7] as List<DailyEssentialSlotCompletionEntity>
+        val seenHint = args[8] as Boolean
+
+        val allSlots = MedicationSlotGrouper.group(dueDoses, materializedSlots)
+        // The "medication card" should collapse when there are no pending
+        // doses AND no materialized slot is still checked. A materialized
+        // ``taken_at != null`` row for a slot whose doses were all taken
+        // virtually would otherwise flicker the card away prematurely; the
+        // virtual list already filters out taken interval/self-care doses,
+        // so ``dueDoses.isEmpty`` is the right signal here.
+        val medicationState = if (dueDoses.isEmpty()) {
+            null
+        } else {
+            MedicationCardState(
+                totalDueToday = dueDoses.size,
+                nextDose = dueDoses.first(),
+                otherDoses = dueDoses.drop(1),
+                slots = allSlots
+            )
+        }
 
         return DailyEssentialsUiState(
             morning = morning,
@@ -182,13 +211,7 @@ constructor(
                 pickedForToday = leisureLog?.flexPick,
                 doneForToday = leisureLog?.flexDone == true
             ),
-            medication = dueDoses.firstOrNull()?.let { first ->
-                MedicationCardState(
-                    totalDueToday = dueDoses.size,
-                    nextDose = first,
-                    otherDoses = dueDoses.drop(1)
-                )
-            },
+            medication = medicationState,
             hasSeenHint = seenHint
         )
     }

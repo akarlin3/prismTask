@@ -44,8 +44,20 @@ data class MedicationDose(
     /** null for interval-based schedules; wall-clock millis for scheduled doses */
     val scheduledAt: Long?,
     val takenToday: Boolean,
-    val linkedHabitId: Long?
-)
+    val linkedHabitId: Long?,
+    /**
+     * Time-slot identity used by the Daily Essentials grouping layer. Either a
+     * ``"HH:mm"`` wall-clock time (for specific-time doses or self-care steps
+     * with a known time-of-day bucket) or [MedicationSlotGrouper.ANYTIME_KEY]
+     * for interval-based doses that have no fixed clock time. ``null`` when a
+     * caller hasn't opted into the grouping layer (back-compat).
+     */
+    val slotKey: String? = null
+) {
+    /** Stable synthetic identifier the slot layer uses inside ``med_ids_json``. */
+    val doseKey: String
+        get() = "${source.name.lowercase()}:${medicationName.trim().lowercase()}"
+}
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @Singleton
@@ -110,7 +122,8 @@ constructor(
                 source = DoseSource.INTERVAL_HABIT,
                 scheduledAt = null,
                 takenToday = takenCount >= target,
-                linkedHabitId = habit.id
+                linkedHabitId = habit.id,
+                slotKey = MedicationSlotGrouper.ANYTIME_KEY
             )
         }
 
@@ -126,7 +139,8 @@ constructor(
             source = DoseSource.SELF_CARE_STEP,
             scheduledAt = null,
             takenToday = step.stepId in takenStepIds,
-            linkedHabitId = null
+            linkedHabitId = null,
+            slotKey = MedicationSlotGrouper.slotKeyForTimeOfDay(step.timeOfDay)
         )
     }
 
@@ -146,7 +160,8 @@ constructor(
                 source = DoseSource.SPECIFIC_TIME,
                 scheduledAt = null,
                 takenToday = index < completionCount,
-                linkedHabitId = medicationHabit?.id
+                linkedHabitId = medicationHabit?.id,
+                slotKey = MedicationSlotGrouper.normalizeTimeKey(time)
             )
         }
     }
@@ -192,7 +207,11 @@ constructor(
             )
             val picked = mutableMapOf<String, MedicationDose>()
             for (dose in doses) {
-                val key = dose.medicationName.trim().lowercase()
+                // Dedup is scoped to (name, slotKey) so two distinct specific-time
+                // slots of the same medication stay separate rows; only
+                // cross-source duplicates of the *same* slot collapse.
+                val slotPart = dose.slotKey ?: ""
+                val key = "${dose.medicationName.trim().lowercase()}|$slotPart"
                 val existing = picked[key]
                 val keep = when {
                     existing == null -> true
