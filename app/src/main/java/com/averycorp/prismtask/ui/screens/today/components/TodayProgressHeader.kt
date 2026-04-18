@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BarChart
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -33,20 +32,30 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.averycorp.prismtask.ui.theme.LocalPrismAttrs
 import com.averycorp.prismtask.ui.theme.LocalPrismColors
 import com.averycorp.prismtask.ui.theme.LocalPrismFonts
 import com.averycorp.prismtask.ui.theme.LocalPrismTheme
 import com.averycorp.prismtask.ui.theme.PrismTheme
+import com.averycorp.prismtask.ui.theme.drawCyberpunkTimerTicks
 import com.averycorp.prismtask.ui.theme.prismDisplayFont
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.sin
 
 /**
  * Sticky compact header bar shown in the Scaffold topBar slot.
@@ -68,6 +77,7 @@ internal fun CompactProgressHeader(
     }
     val colors = LocalPrismColors.current
     val fonts = LocalPrismFonts.current
+    val attrs = LocalPrismAttrs.current
     val prismTheme = LocalPrismTheme.current
     val displayFont = prismDisplayFont(prismTheme)
 
@@ -90,10 +100,6 @@ internal fun CompactProgressHeader(
         animationSpec = tween(400),
         label = "headerBarColor"
     )
-    // Cyberpunk / Synthwave themes get a primary→secondary gradient fill
-    // on the linear progress indicator; Matrix / Void render a solid
-    // primary fill. The brush is used only by the linear style — the
-    // ring indicator always takes a single color.
     val useGradient = prismTheme == PrismTheme.CYBERPUNK || prismTheme == PrismTheme.SYNTHWAVE
     val progressBrush = remember(prismTheme, colors.primary, colors.secondary) {
         if (useGradient) {
@@ -141,22 +147,90 @@ internal fun CompactProgressHeader(
 
             when (progressStyle) {
                 "ring" -> {
+                    val ringSize = (36f * barScale).dp
                     Box(
-                        modifier = Modifier.size((36f * barScale).dp),
+                        modifier = Modifier.size(ringSize),
                         contentAlignment = Alignment.Center
                     ) {
-                        CircularProgressIndicator(
-                            progress = { 1f },
-                            modifier = Modifier.fillMaxSize(),
-                            color = colors.surface,
-                            strokeWidth = 4.dp
-                        )
-                        CircularProgressIndicator(
-                            progress = { animatedProgress.coerceIn(0f, 1f) },
-                            modifier = Modifier.fillMaxSize(),
-                            color = barColor,
-                            strokeWidth = 4.dp
-                        )
+                        androidx.compose.foundation.Canvas(
+                            modifier = Modifier.fillMaxSize()
+                        ) {
+                            val stroke = 4.dp.toPx()
+                            val diameter = size.width
+                            val radius = diameter / 2f - stroke / 2f
+                            val topLeft = Offset(stroke / 2f, stroke / 2f)
+                            val arcSize = Size(diameter - stroke, diameter - stroke)
+                            val sweepAngle = animatedProgress.coerceIn(0f, 1f) * 360f
+
+                            // Cyberpunk: tick marks outside the mini ring
+                            if (attrs.brackets) {
+                                val tickCount = 12
+                                val outerR = radius + stroke / 2f + 2f
+                                val center = Offset(size.width / 2f, size.height / 2f)
+                                for (i in 0 until tickCount) {
+                                    val angle = (i.toFloat() / tickCount) * 2f * PI.toFloat()
+                                    val x1 = center.x + cos(angle).toFloat() * outerR
+                                    val y1 = center.y + sin(angle).toFloat() * outerR
+                                    val x2 = center.x + cos(angle).toFloat() * (outerR + 3f)
+                                    val y2 = center.y + sin(angle).toFloat() * (outerR + 3f)
+                                    drawLine(
+                                        color = colors.primary.copy(alpha = 0.4f),
+                                        start = Offset(x1, y1),
+                                        end = Offset(x2, y2),
+                                        strokeWidth = 0.8.dp.toPx()
+                                    )
+                                }
+                            }
+
+                            // Track ring — dashed for Matrix
+                            val trackPathEffect = if (attrs.terminal) {
+                                PathEffect.dashPathEffect(floatArrayOf(2.dp.toPx(), 3.dp.toPx()), 0f)
+                            } else null
+                            drawArc(
+                                color = colors.surface,
+                                startAngle = -90f,
+                                sweepAngle = 360f,
+                                useCenter = false,
+                                topLeft = topLeft,
+                                size = arcSize,
+                                style = Stroke(
+                                    width = stroke,
+                                    cap = StrokeCap.Square,
+                                    pathEffect = trackPathEffect
+                                )
+                            )
+
+                            // Progress arc — Synthwave uses gradient
+                            if (sweepAngle > 0f) {
+                                if (attrs.sunset) {
+                                    drawArc(
+                                        brush = Brush.sweepGradient(
+                                            colors = listOf(colors.primary, colors.secondary, colors.primary),
+                                            center = Offset(size.width / 2f, size.height / 2f)
+                                        ),
+                                        startAngle = -90f,
+                                        sweepAngle = sweepAngle,
+                                        useCenter = false,
+                                        topLeft = topLeft,
+                                        size = arcSize,
+                                        style = Stroke(width = stroke, cap = StrokeCap.Round)
+                                    )
+                                } else {
+                                    drawArc(
+                                        color = barColor,
+                                        startAngle = -90f,
+                                        sweepAngle = sweepAngle,
+                                        useCenter = false,
+                                        topLeft = topLeft,
+                                        size = arcSize,
+                                        style = Stroke(
+                                            width = stroke,
+                                            cap = if (attrs.terminal || attrs.brackets) StrokeCap.Square else StrokeCap.Round
+                                        )
+                                    )
+                                }
+                            }
+                        }
                         Text(
                             text = "$completed",
                             style = MaterialTheme.typography.labelSmall,
@@ -179,10 +253,6 @@ internal fun CompactProgressHeader(
                     Spacer(modifier = Modifier.weight(1f))
                 }
                 else -> {
-                    // Gradient (Cyberpunk / Synthwave) uses a Box-based fill
-                    // since Material's LinearProgressIndicator only accepts a
-                    // single Color. Matrix / Void render a solid-primary
-                    // LinearProgressIndicator for the standard look.
                     if (useGradient) {
                         Box(
                             modifier = Modifier

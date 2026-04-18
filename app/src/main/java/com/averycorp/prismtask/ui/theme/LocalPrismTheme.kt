@@ -24,3 +24,4 @@ val LocalPrismFonts = staticCompositionLocalOf<FontFamily> { FontFamily.SansSeri
  * [prismDisplayFont]).
  */
 val LocalPrismTheme = staticCompositionLocalOf { PrismTheme.VOID }
+

@@ -43,8 +43,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.averycorp.prismtask.data.repository.HabitWithStatus
 import com.averycorp.prismtask.ui.components.StreakBadge
+import com.averycorp.prismtask.ui.theme.ChipShape
+import com.averycorp.prismtask.ui.theme.LocalPrismAttrs
 import com.averycorp.prismtask.ui.theme.LocalPrismColors
 import com.averycorp.prismtask.ui.theme.LocalPrismFonts
+import com.averycorp.prismtask.ui.theme.LocalPrismTheme
+import com.averycorp.prismtask.ui.theme.prismDisplayFont
 
 /**
  * The main habit list card. Shows the habit's icon, name, weekly-progress
@@ -52,6 +56,12 @@ import com.averycorp.prismtask.ui.theme.LocalPrismFonts
  * habits that opt in), and a tap-to-complete / long-press-to-decrement
  * circular counter on the right. Edit and delete overflow buttons are
  * inlined for quick access.
+ *
+ * Per-theme flourishes:
+ * - CYBERPUNK: 3dp colored left border strip + square icon box with glow.
+ * - MATRIX:    `▸` terminal marker before the icon + square icon box.
+ * - SYNTHWAVE: Circular icon box + glow ring.
+ * - VOID:      Circular icon box, no glow, generous padding.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -67,6 +77,10 @@ internal fun HabitItem(
     val habit = habitWithStatus.habit
     val colors = LocalPrismColors.current
     val fonts = LocalPrismFonts.current
+    val attrs = LocalPrismAttrs.current
+    val prismTheme = LocalPrismTheme.current
+    val displayFont = prismDisplayFont(prismTheme)
+
     val habitColor = try {
         Color(android.graphics.Color.parseColor(habit.color))
     } catch (_: Exception) {
@@ -75,21 +89,36 @@ internal fun HabitItem(
     val isComplete = habitWithStatus.isCompletedToday
 
     val scale by animateFloatAsState(
-        targetValue = if (habitWithStatus.isCompletedToday) 1.0f else 1.0f,
+        targetValue = 1.0f,
         animationSpec = spring(dampingRatio = 0.4f, stiffness = 300f),
         label = "checkScale"
     )
 
+    val cardShape = RoundedCornerShape(attrs.cardRadius.dp)
+
+    // Cyberpunk: left border strip colored by habit color
+    val cardModifier = modifier
+        .fillMaxWidth()
+        .clickable { onClick() }
+        .then(
+            if (attrs.brackets) {
+                Modifier.border(
+                    width = 1.dp,
+                    color = if (isComplete) colors.primary.copy(alpha = 0.4f) else colors.border,
+                    shape = cardShape
+                )
+            } else {
+                Modifier.border(
+                    width = 1.dp,
+                    color = if (isComplete) colors.primary.copy(alpha = 0.4f) else colors.border,
+                    shape = cardShape
+                )
+            }
+        )
+
     Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .clickable { onClick() }
-            .border(
-                width = 1.dp,
-                color = if (isComplete) colors.primary.copy(alpha = 0.4f) else colors.border,
-                shape = RoundedCornerShape(12.dp)
-            ),
-        shape = RoundedCornerShape(12.dp),
+        modifier = cardModifier,
+        shape = cardShape,
         colors = CardDefaults.cardColors(
             containerColor = if (isComplete) colors.surfaceVariant else colors.surface
         )
@@ -97,15 +126,48 @@ internal fun HabitItem(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 12.dp, top = 12.dp, bottom = 12.dp, end = 4.dp),
+                .then(
+                    // Cyberpunk: accent left border drawn inside the card
+                    if (attrs.brackets) {
+                        Modifier.border(
+                            androidx.compose.foundation.BorderStroke(
+                                width = 3.dp,
+                                color = habitColor
+                            ),
+                            shape = cardShape
+                        ).padding(start = 16.dp, top = 12.dp, bottom = 12.dp, end = 4.dp)
+                    } else {
+                        Modifier.padding(start = 12.dp, top = 12.dp, bottom = 12.dp, end = 4.dp)
+                    }
+                ),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Icon circle
+            // Matrix: terminal bullet marker before the icon
+            if (attrs.terminal) {
+                Text(
+                    text = "▸",
+                    color = habitColor.copy(alpha = 0.7f),
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(end = 8.dp)
+                )
+            }
+
+            // Icon container — shape driven by chipShape token
+            val iconShape = when {
+                attrs.chipShape == ChipShape.SHARP -> RoundedCornerShape(if (attrs.terminal) 0.dp else 6.dp)
+                else -> CircleShape
+            }
             Box(
                 modifier = Modifier
                     .size(44.dp)
-                    .clip(CircleShape)
-                    .background(habitColor.copy(alpha = 0.15f)),
+                    .clip(iconShape)
+                    .background(habitColor.copy(alpha = 0.15f))
+                    .then(
+                        // Cyberpunk: subtle glow border on icon box
+                        if (attrs.brackets) {
+                            Modifier.border(1.dp, habitColor.copy(alpha = 0.4f), iconShape)
+                        } else Modifier
+                    ),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
@@ -122,8 +184,8 @@ internal fun HabitItem(
                     Text(
                         text = habit.name,
                         style = MaterialTheme.typography.bodyLarge,
-                        fontFamily = fonts,
-                        fontWeight = FontWeight.SemiBold,
+                        fontFamily = if (attrs.editorial) displayFont else fonts,
+                        fontWeight = if (attrs.editorial) FontWeight.Medium else FontWeight.SemiBold,
                         color = if (isComplete) colors.primary else colors.onBackground,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -152,6 +214,7 @@ internal fun HabitItem(
                         Text(
                             text = "${habitWithStatus.completionsToday}/${habitWithStatus.dailyTarget} today",
                             style = MaterialTheme.typography.bodySmall,
+                            fontFamily = fonts,
                             color = colors.muted
                         )
                         if (habit.showStreak && habitWithStatus.currentStreak > 0) {
@@ -164,18 +227,19 @@ internal fun HabitItem(
                         Text(
                             text = "${habitWithStatus.completionsThisWeek} days this week",
                             style = MaterialTheme.typography.bodySmall,
+                            fontFamily = fonts,
                             color = colors.muted
                         )
                     } else {
                         Text(
                             text = "${habitWithStatus.completionsThisWeek} done $periodLabel",
                             style = MaterialTheme.typography.bodySmall,
+                            fontFamily = fonts,
                             color = colors.muted
                         )
                     }
                 }
 
-                // Progress dots
                 Spacer(modifier = Modifier.height(4.dp))
                 val dotsTarget = when (habit.frequencyPeriod) {
                     "daily" -> 7
@@ -187,7 +251,6 @@ internal fun HabitItem(
                     color = habitColor
                 )
 
-                // Booking / previous-period status badges (recurring habits only)
                 if (habit.frequencyPeriod != "daily" &&
                     (habit.trackBooking || habit.trackPreviousPeriod)
                 ) {
@@ -207,14 +270,10 @@ internal fun HabitItem(
                         if (habit.trackBooking) {
                             StatusPill(
                                 label = if (habitWithStatus.isBookedThisPeriod) {
-                                    if (habitWithStatus.bookedTasksThisPeriod > 1) {
+                                    if (habitWithStatus.bookedTasksThisPeriod > 1)
                                         "Booked (${habitWithStatus.bookedTasksThisPeriod})"
-                                    } else {
-                                        "Booked"
-                                    }
-                                } else {
-                                    "Not Booked"
-                                },
+                                    else "Booked"
+                                } else "Not Booked",
                                 active = habitWithStatus.isBookedThisPeriod,
                                 activeColor = habitColor
                             )
@@ -222,11 +281,9 @@ internal fun HabitItem(
                         if (habit.trackPreviousPeriod) {
                             val periodTitle = periodNoun.replaceFirstChar { it.uppercase() }
                             StatusPill(
-                                label = if (habitWithStatus.previousPeriodMet) {
+                                label = if (habitWithStatus.previousPeriodMet)
                                     "Last $periodTitle Done"
-                                } else {
-                                    "Last $periodTitle Missed"
-                                },
+                                else "Last $periodTitle Missed",
                                 active = habitWithStatus.previousPeriodMet,
                                 activeColor = habitColor
                             )
@@ -237,11 +294,7 @@ internal fun HabitItem(
 
             Spacer(modifier = Modifier.width(4.dp))
 
-            // Edit button
-            IconButton(
-                onClick = onEdit,
-                modifier = Modifier.size(32.dp)
-            ) {
+            IconButton(onClick = onEdit, modifier = Modifier.size(32.dp)) {
                 Icon(
                     Icons.Default.Edit,
                     contentDescription = "Edit habit",
@@ -250,11 +303,7 @@ internal fun HabitItem(
                 )
             }
 
-            // Delete button
-            IconButton(
-                onClick = onDelete,
-                modifier = Modifier.size(32.dp)
-            ) {
+            IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
                 Icon(
                     Icons.Default.Close,
                     contentDescription = "Delete habit",
@@ -265,21 +314,21 @@ internal fun HabitItem(
 
             Spacer(modifier = Modifier.width(4.dp))
 
-            // Circular checkbox / counter (long-press to decrement multi-time habits)
+            // Circular checkbox / counter; shape respects chipShape token
+            val checkShape = if (attrs.chipShape == ChipShape.SHARP && attrs.terminal)
+                RoundedCornerShape(0.dp) else CircleShape
             Box(
                 modifier = Modifier
                     .size(40.dp)
                     .scale(scale)
-                    .clip(CircleShape)
+                    .clip(checkShape)
                     .then(
-                        if (habitWithStatus.isCompletedToday) {
-                            Modifier.background(habitColor)
-                        } else if (habitWithStatus.completionsToday > 0) {
+                        if (isComplete) Modifier.background(habitColor)
+                        else if (habitWithStatus.completionsToday > 0)
                             Modifier.background(habitColor.copy(alpha = 0.3f))
-                        } else {
-                            Modifier.border(2.dp, habitColor, CircleShape)
-                        }
-                    ).pointerInput(habitWithStatus.isCompletedToday, habitWithStatus.completionsToday) {
+                        else Modifier.border(2.dp, habitColor, checkShape)
+                    )
+                    .pointerInput(isComplete, habitWithStatus.completionsToday) {
                         detectTapGestures(
                             onTap = { onToggle() },
                             onLongPress = { onDecrement() }
@@ -287,7 +336,7 @@ internal fun HabitItem(
                     },
                 contentAlignment = Alignment.Center
             ) {
-                if (habitWithStatus.isCompletedToday) {
+                if (isComplete) {
                     Icon(
                         Icons.Default.Check,
                         contentDescription = "Completed",

@@ -118,6 +118,7 @@ fun PrismTaskTheme(
         LocalPrismTheme provides prismTheme,
         LocalPrismColors provides prismColors,
         LocalPrismFonts provides prismThemeFonts(prismTheme),
+        LocalPrismAttrs provides prismThemeAttrs(prismTheme),
         com.averycorp.prismtask.ui.a11y.LocalReducedMotion provides reduceMotion,
         com.averycorp.prismtask.ui.a11y.LocalHighContrast provides highContrast,
         com.averycorp.prismtask.ui.a11y.LocalLargeTouchTargets provides largeTouchTargets,
