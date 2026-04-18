@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -20,20 +21,31 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.Button
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -44,7 +56,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.averycorp.prismtask.ui.theme.LocalPrismColors
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Locale
 
 private val presetColors = listOf(
     "#E86F3C",
@@ -83,19 +98,26 @@ fun AddEditProjectScreen(
     viewModel: AddEditProjectViewModel = hiltViewModel()
 ) {
     val scope = rememberCoroutineScope()
+    val prismColors = LocalPrismColors.current
 
     Scaffold(
+        containerColor = prismColors.background,
         topBar = {
             TopAppBar(
                 title = {
                     Text(
                         text = if (viewModel.isEditMode) "Edit Project" else "New Project",
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        color = prismColors.onSurface
                     )
                 },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            tint = prismColors.onSurface
+                        )
                     }
                 },
                 actions = {
@@ -109,13 +131,13 @@ fun AddEditProjectScreen(
                             Icon(
                                 Icons.Default.Delete,
                                 contentDescription = "Delete",
-                                tint = MaterialTheme.colorScheme.error
+                                tint = prismColors.urgentAccent
                             )
                         }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
+                    containerColor = prismColors.surface
                 )
             )
         }
@@ -143,6 +165,34 @@ fun AddEditProjectScreen(
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
+
+            OutlinedTextField(
+                value = viewModel.description,
+                onValueChange = viewModel::onDescriptionChange,
+                label = { Text("Description (Optional)") },
+                minLines = 2,
+                maxLines = 5,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            SectionLabel("Dates (Optional)")
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                DateField(
+                    label = "Start",
+                    dateMillis = viewModel.startDate,
+                    onChange = viewModel::onStartDateChange,
+                    modifier = Modifier.weight(1f)
+                )
+                DateField(
+                    label = "End",
+                    dateMillis = viewModel.endDate,
+                    onChange = viewModel::onEndDateChange,
+                    modifier = Modifier.weight(1f)
+                )
+            }
 
             SectionLabel("Color")
             FlowRow(
@@ -199,20 +249,88 @@ fun AddEditProjectScreen(
 
 @Composable
 private fun SectionLabel(text: String) {
+    val prismColors = LocalPrismColors.current
     Text(
         text = text,
         style = MaterialTheme.typography.labelLarge,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        color = prismColors.muted,
         fontWeight = FontWeight.SemiBold
     )
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DateField(
+    label: String,
+    dateMillis: Long?,
+    onChange: (Long?) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val prismColors = LocalPrismColors.current
+    var showPicker by remember { mutableStateOf(false) }
+    val formatted = remember(dateMillis) {
+        dateMillis?.let { SimpleDateFormat("MMM d, yyyy", Locale.getDefault()).format(it) }
+    }
+
+    OutlinedButton(
+        onClick = { showPicker = true },
+        modifier = modifier,
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Icon(
+            Icons.Default.CalendarMonth,
+            contentDescription = null,
+            modifier = Modifier.size(18.dp),
+            tint = prismColors.primary
+        )
+        Spacer(modifier = Modifier.size(8.dp))
+        Text(
+            text = formatted ?: label,
+            style = MaterialTheme.typography.bodyMedium,
+            color = if (formatted != null) prismColors.onSurface else prismColors.muted,
+            modifier = Modifier.weight(1f, fill = false)
+        )
+        if (dateMillis != null) {
+            IconButton(
+                onClick = { onChange(null) },
+                modifier = Modifier.size(24.dp)
+            ) {
+                Icon(
+                    Icons.Default.Clear,
+                    contentDescription = "Clear $label date",
+                    modifier = Modifier.size(14.dp),
+                    tint = prismColors.muted
+                )
+            }
+        }
+    }
+
+    if (showPicker) {
+        val state = rememberDatePickerState(initialSelectedDateMillis = dateMillis)
+        DatePickerDialog(
+            onDismissRequest = { showPicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    onChange(state.selectedDateMillis)
+                    showPicker = false
+                }) { Text("OK") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showPicker = false }) { Text("Cancel") }
+            }
+        ) {
+            DatePicker(state = state)
+        }
+    }
+}
+
 @Composable
 private fun ColorCircle(hex: String, selected: Boolean, onClick: () -> Unit) {
+    val prismColors = LocalPrismColors.current
     val color = try {
         Color(android.graphics.Color.parseColor(hex))
     } catch (_: Exception) {
-        Color.Gray
+        prismColors.muted
     }
 
     Box(
@@ -222,7 +340,7 @@ private fun ColorCircle(hex: String, selected: Boolean, onClick: () -> Unit) {
             .background(color)
             .then(
                 if (selected) {
-                    Modifier.border(3.dp, MaterialTheme.colorScheme.onSurface, CircleShape)
+                    Modifier.border(3.dp, prismColors.onSurface, CircleShape)
                 } else {
                     Modifier
                 }
@@ -233,7 +351,7 @@ private fun ColorCircle(hex: String, selected: Boolean, onClick: () -> Unit) {
             Icon(
                 Icons.Default.Check,
                 contentDescription = "Selected",
-                tint = Color.White,
+                tint = prismColors.onBackground,
                 modifier = Modifier.size(20.dp)
             )
         }
@@ -242,6 +360,7 @@ private fun ColorCircle(hex: String, selected: Boolean, onClick: () -> Unit) {
 
 @Composable
 private fun IconOption(emoji: String, selected: Boolean, onClick: () -> Unit) {
+    val prismColors = LocalPrismColors.current
     Box(
         modifier = Modifier
             .size(48.dp)
@@ -249,10 +368,10 @@ private fun IconOption(emoji: String, selected: Boolean, onClick: () -> Unit) {
             .then(
                 if (selected) {
                     Modifier
-                        .background(MaterialTheme.colorScheme.primaryContainer)
-                        .border(2.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(10.dp))
+                        .background(prismColors.tagSurface)
+                        .border(2.dp, prismColors.primary, RoundedCornerShape(10.dp))
                 } else {
-                    Modifier.background(MaterialTheme.colorScheme.surfaceContainerLow)
+                    Modifier.background(prismColors.surfaceVariant)
                 }
             ).clickable(onClick = onClick),
         contentAlignment = Alignment.Center

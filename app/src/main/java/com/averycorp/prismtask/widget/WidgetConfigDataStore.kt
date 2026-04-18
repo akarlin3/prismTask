@@ -91,6 +91,29 @@ object WidgetConfigDataStore {
         }
     }
 
+    // ---- Project widget (v1.4.0 Projects feature Phase 3) ----
+    data class ProjectConfig(
+        /** `null` when the user hasn't picked a project yet — widget shows a "Tap to configure" state. */
+        val projectId: Long? = null
+    )
+
+    fun projectConfigFlow(context: Context, appWidgetId: Int): Flow<ProjectConfig> =
+        context.widgetConfigDataStore.data.map { prefs ->
+            ProjectConfig(
+                projectId = prefs[longPreferencesKey("widget_${appWidgetId}_project_id")]
+                    ?.takeIf { it > 0 }
+            )
+        }
+
+    suspend fun setProjectConfig(context: Context, appWidgetId: Int, config: ProjectConfig) {
+        context.widgetConfigDataStore.edit { prefs ->
+            prefs[longPreferencesKey("widget_${appWidgetId}_project_id")] = config.projectId ?: -1L
+        }
+    }
+
+    suspend fun snapshotProjectConfig(context: Context, appWidgetId: Int): ProjectConfig =
+        projectConfigFlow(context, appWidgetId).first()
+
     // ---- Quick add widget ----
     data class QuickAddConfig(
         val placeholder: String = "Add a task...",

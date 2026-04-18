@@ -52,6 +52,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -59,6 +62,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -85,6 +89,7 @@ import com.averycorp.prismtask.ui.components.TaskListSkeleton
 import com.averycorp.prismtask.ui.components.computeInitialTagStates
 import com.averycorp.prismtask.ui.navigation.PrismTaskRoute
 import com.averycorp.prismtask.ui.screens.addedittask.AddEditTaskSheetHost
+import com.averycorp.prismtask.ui.screens.projects.ProjectsPane
 import com.averycorp.prismtask.ui.screens.tasklist.components.ActiveFilterPills
 import com.averycorp.prismtask.ui.screens.tasklist.components.DuplicateDialogState
 import com.averycorp.prismtask.ui.screens.tasklist.components.GroupHeader
@@ -103,6 +108,15 @@ import java.util.Date
 import java.util.Locale
 
 private val TodayOrange = Color(0xFFE8872A)
+
+/**
+ * Segmented toggle sides for the Tasks tab. Persisted via [rememberSaveable]
+ * so process death restores the user's last-selected side. Stored as a
+ * string rather than an enum because rememberSaveable can't round-trip
+ * enums without a custom saver.
+ */
+private const val PANE_TASKS = "tasks"
+private const val PANE_PROJECTS = "projects"
 
 private data class TaskEditorSheetState(
     val taskId: Long? = null,
@@ -139,6 +153,12 @@ fun TaskListScreen(
     var expandedTaskIds by remember { mutableStateOf(setOf<Long>()) }
     var focusSubtaskForId by remember { mutableStateOf<Long?>(null) }
     var showSortMenu by remember { mutableStateOf(false) }
+    /**
+     * Segmented toggle side. `rememberSaveable` persists it across process
+     * death so the user returns to the same side on cold start.
+     */
+    var selectedPane by rememberSaveable { mutableStateOf(PANE_TASKS) }
+
     var showFilterSheet by remember { mutableStateOf(false) }
     var showBatchReschedulePopup by remember { mutableStateOf(false) }
     var showBatchTagsDialog by remember { mutableStateOf(false) }
@@ -624,7 +644,10 @@ fun TaskListScreen(
             }
         },
         floatingActionButton = {
-            if (!isMultiSelectMode) {
+            // Hide the task FABs when the Projects pane is active — the pane
+            // renders its own FAB for "new project" so the screen only ever
+            // shows one primary action at a time.
+            if (!isMultiSelectMode && selectedPane == PANE_TASKS) {
                 Column(
                     horizontalAlignment = Alignment.End,
                     verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -665,6 +688,26 @@ fun TaskListScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
+            // Segmented [Tasks | Projects] toggle lives above both panes so
+            // it never scrolls out of reach. Side is persisted via
+            // rememberSaveable on the parent screen.
+            if (!isMultiSelectMode) {
+                TasksProjectsToggle(
+                    selected = selectedPane,
+                    onSelect = { selectedPane = it },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                )
+            }
+
+            if (selectedPane == PANE_PROJECTS) {
+                // Project pane owns its own scroll/filter state via
+                // ProjectsPaneViewModel — switching sides preserves it.
+                ProjectsPane(navController = navController)
+                return@Column
+            }
+
             if (isLoading) {
                 TaskListSkeleton(count = 8)
                 return@Column
@@ -960,5 +1003,26 @@ fun TaskListScreen(
                 }) { Text("No, Just This") }
             }
         )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TasksProjectsToggle(
+    selected: String,
+    onSelect: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val options = listOf(PANE_TASKS to "Tasks", PANE_PROJECTS to "Projects")
+    SingleChoiceSegmentedButtonRow(modifier = modifier) {
+        options.forEachIndexed { index, (key, label) ->
+            SegmentedButton(
+                selected = selected == key,
+                onClick = { onSelect(key) },
+                shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size)
+            ) {
+                Text(label)
+            }
+        }
     }
 }

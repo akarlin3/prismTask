@@ -15,10 +15,13 @@ import com.averycorp.prismtask.data.repository.TaskRepository
 import com.averycorp.prismtask.data.repository.TaskTemplateRepository
 import com.averycorp.prismtask.domain.model.LifeCategory
 import com.averycorp.prismtask.domain.usecase.LifeCategoryClassifier
+import com.averycorp.prismtask.domain.model.ProjectStatus
 import com.averycorp.prismtask.domain.usecase.NaturalLanguageParser
 import com.averycorp.prismtask.domain.usecase.ParsedTask
 import com.averycorp.prismtask.domain.usecase.ParsedTaskResolver
 import com.averycorp.prismtask.domain.usecase.ProFeatureGate
+import com.averycorp.prismtask.domain.usecase.ProjectIntent
+import com.averycorp.prismtask.domain.usecase.ProjectIntentParser
 import com.averycorp.prismtask.domain.usecase.TextToSpeechManager
 import com.averycorp.prismtask.domain.usecase.VoiceCommand
 import com.averycorp.prismtask.domain.usecase.VoiceCommandParser
@@ -46,6 +49,7 @@ class QuickAddViewModel
 @Inject
 constructor(
     private val parser: NaturalLanguageParser,
+    private val intentParser: ProjectIntentParser,
     private val resolver: ParsedTaskResolver,
     private val taskRepository: TaskRepository,
     private val tagRepository: TagRepository,
@@ -325,6 +329,31 @@ constructor(
             return
         }
 
+        // v1.4.0 Projects feature intent pre-pass. Only CreateTask flows
+        // fall through to the task-creation path below — project/milestone
+        // intents short-circuit here. See ProjectIntentParser for the regex
+        // set and the fallback rules.
+        val intent = intentParser.parse(text)
+        if (intent is ProjectIntent.CreateProject ||
+            intent is ProjectIntent.CompleteProject ||
+            intent is ProjectIntent.AddMilestone
+        ) {
+            viewModelScope.launch {
+                _isSubmitting.value = true
+                try {
+                    handleProjectIntent(intent)
+                    inputText.value = ""
+                } catch (e: Exception) {
+                    Log.e("QuickAddVM", "Failed to handle project intent: $intent", e)
+                } finally {
+                    _isSubmitting.value = false
+                }
+            }
+            return
+        }
+
+        val projectHintFromIntent = (intent as? ProjectIntent.CreateTask)?.projectHint
+
         viewModelScope.launch {
             _isSubmitting.value = true
             try {
@@ -346,6 +375,13 @@ constructor(
                 var projectId = resolved.projectId
                 if (projectId == null && resolved.unmatchedProject != null) {
                     projectId = projectRepository.addProject(name = resolved.unmatchedProject)
+                }
+
+                // If the NLP parser didn't pick up a project but the
+                // intent parser found a trailing "for the X project"
+                // hint, resolve (or auto-create) by name.
+                if (projectId == null && projectHintFromIntent != null) {
+                    projectId = findOrCreateProjectByName(projectHintFromIntent)
                 }
 
                 // Build recurrence JSON
@@ -415,6 +451,58 @@ constructor(
                 _isSubmitting.value = false
             }
         }
+    }
+
+    /**
+     * Dispatches a project-management intent. Projects feature Phase 4.
+     * All branches are idempotent-ish: creating a project with the same
+     * name twice yields two projects (matching the rest of the app's
+     * current no-dedup behavior), and "complete/add milestone" fail
+     * silently when the named project doesn't exist yet — surfacing a
+     * user-facing error channel is a follow-up polish item.
+     */
+    private suspend fun handleProjectIntent(intent: ProjectIntent) {
+        when (intent) {
+            is ProjectIntent.CreateProject -> {
+                projectRepository.addProject(
+                    name = intent.name,
+                    description = null,
+                    status = ProjectStatus.ACTIVE,
+                    startDate = null,
+                    endDate = null,
+                    themeColorKey = null
+                )
+            }
+            is ProjectIntent.CompleteProject -> {
+                val match = findProjectByName(intent.projectName) ?: return
+                projectRepository.completeProject(match)
+            }
+            is ProjectIntent.AddMilestone -> {
+                val projectId = findOrCreateProjectByName(intent.projectName)
+                projectRepository.addMilestone(projectId, intent.milestoneTitle)
+            }
+            is ProjectIntent.CreateTask -> Unit // handled by the main onSubmit path
+        }
+    }
+
+    private suspend fun findProjectByName(name: String): Long? {
+        val query = name.trim().lowercase()
+        if (query.isEmpty()) return null
+        val all = try {
+            projectRepository.getAllProjects().first()
+        } catch (e: Exception) {
+            Log.e("QuickAddVM", "Project lookup failed", e)
+            return null
+        }
+        // Exact case-insensitive match first, then contains fallback.
+        all.firstOrNull { it.name.lowercase() == query }?.let { return it.id }
+        return all.firstOrNull { it.name.lowercase().contains(query) }?.id
+    }
+
+    private suspend fun findOrCreateProjectByName(name: String): Long {
+        val existing = findProjectByName(name)
+        if (existing != null) return existing
+        return projectRepository.addProject(name = name.trim())
     }
 
     /**

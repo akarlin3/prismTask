@@ -3,6 +3,7 @@ package com.averycorp.prismtask.data.remote.mapper
 import com.averycorp.prismtask.data.local.entity.HabitCompletionEntity
 import com.averycorp.prismtask.data.local.entity.HabitEntity
 import com.averycorp.prismtask.data.local.entity.HabitLogEntity
+import com.averycorp.prismtask.data.local.entity.MilestoneEntity
 import com.averycorp.prismtask.data.local.entity.ProjectEntity
 import com.averycorp.prismtask.data.local.entity.TagEntity
 import com.averycorp.prismtask.data.local.entity.TaskCompletionEntity
@@ -82,8 +83,15 @@ object SyncMapper {
     fun projectToMap(project: ProjectEntity): Map<String, Any?> = mapOf(
         "localId" to project.id,
         "name" to project.name,
+        "description" to project.description,
         "color" to project.color,
         "icon" to project.icon,
+        "themeColorKey" to project.themeColorKey,
+        "status" to project.status,
+        "startDate" to project.startDate,
+        "endDate" to project.endDate,
+        "completedAt" to project.completedAt,
+        "archivedAt" to project.archivedAt,
         "createdAt" to project.createdAt,
         "updatedAt" to project.updatedAt
     )
@@ -91,11 +99,49 @@ object SyncMapper {
     fun mapToProject(data: Map<String, Any?>, localId: Long = 0): ProjectEntity = ProjectEntity(
         id = localId,
         name = data["name"] as? String ?: "",
+        description = data["description"] as? String,
         color = data["color"] as? String ?: "#4A90D9",
         icon = data["icon"] as? String ?: "\uD83D\uDCC1",
+        themeColorKey = data["themeColorKey"] as? String,
+        // v1.3 projects synced before the Phase 1 migration landed won't have
+        // a status field — default to ACTIVE so the post-pull row is a
+        // well-formed v1.4 project.
+        status = (data["status"] as? String) ?: "ACTIVE",
+        startDate = (data["startDate"] as? Number)?.toLong(),
+        endDate = (data["endDate"] as? Number)?.toLong(),
+        completedAt = (data["completedAt"] as? Number)?.toLong(),
+        archivedAt = (data["archivedAt"] as? Number)?.toLong(),
         createdAt = (data["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
         updatedAt = (data["updatedAt"] as? Number)?.toLong() ?: System.currentTimeMillis()
     )
+
+    /**
+     * Milestones are a child collection under a project (mirrors how habit
+     * completions reference their parent habit's cloud ID). [projectCloudId]
+     * is the Firestore document ID from `sync_metadata`.
+     */
+    fun milestoneToMap(milestone: MilestoneEntity, projectCloudId: String): Map<String, Any?> = mapOf(
+        "localId" to milestone.id,
+        "projectCloudId" to projectCloudId,
+        "title" to milestone.title,
+        "isCompleted" to milestone.isCompleted,
+        "completedAt" to milestone.completedAt,
+        "orderIndex" to milestone.orderIndex,
+        "createdAt" to milestone.createdAt,
+        "updatedAt" to milestone.updatedAt
+    )
+
+    fun mapToMilestone(data: Map<String, Any?>, projectLocalId: Long, localId: Long = 0): MilestoneEntity =
+        MilestoneEntity(
+            id = localId,
+            projectId = projectLocalId,
+            title = data["title"] as? String ?: "",
+            isCompleted = data["isCompleted"] as? Boolean ?: false,
+            completedAt = (data["completedAt"] as? Number)?.toLong(),
+            orderIndex = (data["orderIndex"] as? Number)?.toInt() ?: 0,
+            createdAt = (data["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
+            updatedAt = (data["updatedAt"] as? Number)?.toLong() ?: System.currentTimeMillis()
+        )
 
     fun tagToMap(tag: TagEntity): Map<String, Any?> = mapOf(
         "localId" to tag.id,

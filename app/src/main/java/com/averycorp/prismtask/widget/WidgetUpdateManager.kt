@@ -32,8 +32,9 @@ constructor(
     private var habitWidgetsJob: Job? = null
     private var timerWidgetJob: Job? = null
     private var productivityWidgetJob: Job? = null
+    private var projectWidgetJob: Job? = null
 
-    /** Refreshes all 7 widgets (debounced). */
+    /** Refreshes every registered widget (debounced). */
     suspend fun updateAllWidgets() {
         allWidgetsJob?.cancel()
         allWidgetsJob = scope.launch {
@@ -45,6 +46,20 @@ constructor(
             safeUpdate { ProductivityWidget().updateAll(context) }
             safeUpdate { TimerWidget().updateAll(context) }
             safeUpdate { UpcomingWidget().updateAll(context) }
+            safeUpdate { ProjectWidget().updateAll(context) }
+        }
+    }
+
+    /**
+     * Refreshes the [ProjectWidget] only (debounced). Called from project
+     * / milestone / project-task mutations so widget instances track the
+     * latest state without waiting on the 15-min periodic worker.
+     */
+    suspend fun updateProjectWidget() {
+        projectWidgetJob?.cancel()
+        projectWidgetJob = scope.launch {
+            delay(DEBOUNCE_MILLIS)
+            safeUpdate { ProjectWidget().updateAll(context) }
         }
     }
 

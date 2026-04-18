@@ -85,6 +85,28 @@ data class TemplateShortcut(
     val icon: String
 )
 
+/**
+ * Snapshot of a single project for the [ProjectWidget]. `nextDueTaskTitle`
+ * is only populated when the project has no upcoming milestones — the
+ * widget falls back to it per Phase 3 spec.
+ */
+data class ProjectWidgetData(
+    val projectId: Long,
+    val name: String,
+    val icon: String,
+    val themeColorHex: String,
+    val status: String,
+    val milestoneProgress: Float,
+    val completedMilestones: Int,
+    val totalMilestones: Int,
+    val upcomingMilestoneTitle: String?,
+    val nextDueTaskTitle: String?,
+    val totalTasks: Int,
+    val openTasks: Int,
+    val streak: Int,
+    val daysSinceActivity: Int?
+)
+
 object WidgetDataProvider {
     @EntryPoint
     @InstallIn(SingletonComponent::class)
@@ -219,6 +241,67 @@ object WidgetDataProvider {
         val prevCompleted = taskDao.getCompletedTodayOnce(yesterdayStart).count { (it.completedAt ?: 0) < startOfDay }
         val prevScore = if (total > 0) ((prevCompleted * 100f) / total).toInt() else 0
         return ProductivityWidgetData(score = score, completed = done, total = total, trendPoints = score - prevScore)
+    }
+
+    /**
+     * Snapshot of the configured project for [ProjectWidget]. Returns null
+     * when the project doesn't exist (e.g. user deleted it after placing
+     * the widget) — the widget renders an empty state in that case.
+     */
+    suspend fun getProjectData(context: Context, projectId: Long): ProjectWidgetData? {
+        if (projectId <= 0) return null
+        val db = getDb(context)
+        val project = db.projectDao().getProjectByIdOnce(projectId) ?: return null
+        val aggregate = db.projectDao().getAggregateRow(projectId)
+        val milestoneTimestamps = db.milestoneDao().getCompletedTimestamps(projectId)
+        val taskDates = db.projectDao().getTaskActivityDates(projectId)
+
+        val activityDates = (taskDates + milestoneTimestamps)
+            .map { java.time.Instant.ofEpochMilli(it).atZone(java.time.ZoneId.systemDefault()).toLocalDate() }
+            .toSet()
+        val streak = com.averycorp.prismtask.domain.usecase.DailyForgivenessStreakCore
+            .calculate(activityDates).resilientStreak
+
+        val lastActivity = (taskDates + milestoneTimestamps).maxOrNull()
+        val daysSince = lastActivity?.let {
+            val diff = System.currentTimeMillis() - it
+            if (diff <= 0) 0 else (diff / DayBoundary.DAY_MILLIS).toInt()
+        }
+
+        // Fallback: if the project has no upcoming milestones, surface the
+        // earliest open task on the project as the widget's headline item.
+        val upcomingMilestoneTitle = aggregate?.upcomingMilestoneTitle
+        val nextDueTaskTitle = if (upcomingMilestoneTitle == null) {
+            db.taskDao().getTasksByProjectOnce(projectId)
+                .asSequence()
+                .filter { !it.isCompleted && it.parentTaskId == null && it.archivedAt == null }
+                .sortedWith(compareBy({ it.dueDate ?: Long.MAX_VALUE }, { -it.priority }))
+                .firstOrNull()
+                ?.title
+        } else {
+            null
+        }
+
+        return ProjectWidgetData(
+            projectId = project.id,
+            name = project.name,
+            icon = project.icon,
+            themeColorHex = project.themeColorKey ?: project.color,
+            status = project.status,
+            milestoneProgress = if ((aggregate?.totalMilestones ?: 0) == 0) {
+                0f
+            } else {
+                (aggregate!!.completedMilestones.toFloat() / aggregate.totalMilestones).coerceIn(0f, 1f)
+            },
+            completedMilestones = aggregate?.completedMilestones ?: 0,
+            totalMilestones = aggregate?.totalMilestones ?: 0,
+            upcomingMilestoneTitle = upcomingMilestoneTitle,
+            nextDueTaskTitle = nextDueTaskTitle,
+            totalTasks = aggregate?.totalTasks ?: 0,
+            openTasks = aggregate?.openTasks ?: 0,
+            streak = streak,
+            daysSinceActivity = daysSince
+        )
     }
 
     suspend fun getTopTemplates(context: Context, limit: Int = 3): List<TemplateShortcut> {

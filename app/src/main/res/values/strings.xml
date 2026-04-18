@@ -8,4 +8,5 @@
     <string name="upcoming_widget_description">3-day task preview \u2014 today, tomorrow, and the day after</string>
     <string name="timer_widget_description">Live Pomodoro timer with play, pause, and skip controls</string>
     <string name="calendar_widget_description">Today\'s schedule \u2014 tasks and calendar events merged in one view</string>
+    <string name="project_widget_description">Follow one project\'s progress \u2014 milestones, streak, and upcoming work</string>
 </resources>

@@ -85,6 +85,11 @@ sealed class PrismTaskRoute(
             if (projectId != null) "add_edit_project?projectId=$projectId" else "add_edit_project"
     }
 
+    /** v1.4.0 Projects feature detail screen (Overview / Milestones / Tasks). */
+    data object ProjectDetail : PrismTaskRoute("project_detail?projectId={projectId}") {
+        fun createRoute(projectId: Long): String = "project_detail?projectId=$projectId"
+    }
+
     data object Settings : PrismTaskRoute("settings")
 
     data object TagManagement : PrismTaskRoute("tag_management")
