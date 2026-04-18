@@ -4,6 +4,7 @@ import android.util.Log
 import com.averycorp.prismtask.data.local.dao.HabitCompletionDao
 import com.averycorp.prismtask.data.local.dao.HabitDao
 import com.averycorp.prismtask.data.local.dao.HabitLogDao
+import com.averycorp.prismtask.data.local.dao.MilestoneDao
 import com.averycorp.prismtask.data.local.dao.ProjectDao
 import com.averycorp.prismtask.data.local.dao.SyncMetadataDao
 import com.averycorp.prismtask.data.local.dao.TagDao
@@ -36,6 +37,7 @@ constructor(
     private val habitCompletionDao: HabitCompletionDao,
     private val habitLogDao: HabitLogDao,
     private val taskTemplateDao: TaskTemplateDao,
+    private val milestoneDao: MilestoneDao,
     private val proFeatureGate: ProFeatureGate
 ) {
     private val firestore by lazy { FirebaseFirestore.getInstance() }
@@ -67,6 +69,31 @@ constructor(
                 )
             } catch (e: Exception) {
                 Log.e("SyncService", "Failed to upload project ${project.id}: ${project.name}", e)
+            }
+        }
+
+        // Upload milestones (v1.4.0 Projects Phase 5). Must come AFTER the
+        // projects block so the cloud IDs for each project are registered
+        // in sync_metadata and we can attach the milestone to its parent.
+        Log.d("SyncService", "Uploading milestones...")
+        for (project in projects) {
+            val projectCloudId = syncMetadataDao.getCloudId(project.id, "project") ?: continue
+            val milestones = milestoneDao.getMilestonesOnce(project.id)
+            for (milestone in milestones) {
+                try {
+                    val docRef = userCollection("milestones")?.document() ?: continue
+                    docRef.set(SyncMapper.milestoneToMap(milestone, projectCloudId)).await()
+                    syncMetadataDao.upsert(
+                        SyncMetadataEntity(
+                            localId = milestone.id,
+                            entityType = "milestone",
+                            cloudId = docRef.id,
+                            lastSyncedAt = System.currentTimeMillis()
+                        )
+                    )
+                } catch (e: Exception) {
+                    Log.e("SyncService", "Failed to upload milestone ${milestone.id}: ${milestone.title}", e)
+                }
             }
         }
 
