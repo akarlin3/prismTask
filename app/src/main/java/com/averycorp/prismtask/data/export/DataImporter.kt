@@ -1,6 +1,7 @@
 package com.averycorp.prismtask.data.export
 
 import androidx.room.withTransaction
+import com.averycorp.prismtask.data.calendar.CalendarSyncPreferences
 import com.averycorp.prismtask.data.local.dao.HabitCompletionDao
 import com.averycorp.prismtask.data.local.dao.HabitDao
 import com.averycorp.prismtask.data.local.dao.LeisureDao
@@ -22,18 +23,29 @@ import com.averycorp.prismtask.data.local.entity.TagEntity
 import com.averycorp.prismtask.data.local.entity.TaskCompletionEntity
 import com.averycorp.prismtask.data.local.entity.TaskEntity
 import com.averycorp.prismtask.data.local.entity.TaskTagCrossRef
+import com.averycorp.prismtask.data.preferences.A11yPreferences
 import com.averycorp.prismtask.data.preferences.ArchivePreferences
 import com.averycorp.prismtask.data.preferences.BuiltInSortOrders
 import com.averycorp.prismtask.data.preferences.CustomLeisureActivity
+import com.averycorp.prismtask.data.preferences.DailyEssentialsPreferences
 import com.averycorp.prismtask.data.preferences.DashboardPreferences
+import com.averycorp.prismtask.data.preferences.ForgivenessPrefs
 import com.averycorp.prismtask.data.preferences.HabitListPreferences
 import com.averycorp.prismtask.data.preferences.LeisurePreferences
 import com.averycorp.prismtask.data.preferences.MedicationPreferences
 import com.averycorp.prismtask.data.preferences.MedicationScheduleMode
+import com.averycorp.prismtask.data.preferences.MorningCheckInPreferences
+import com.averycorp.prismtask.data.preferences.NdPreferencesDataStore
+import com.averycorp.prismtask.data.preferences.NotificationPreferences
+import com.averycorp.prismtask.data.preferences.ShakePreferences
 import com.averycorp.prismtask.data.preferences.TabPreferences
 import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
+import com.averycorp.prismtask.data.preferences.TemplatePreferences
 import com.averycorp.prismtask.data.preferences.ThemePreferences
+import com.averycorp.prismtask.data.preferences.TimerPreferences
 import com.averycorp.prismtask.data.preferences.UrgencyWeights
+import com.averycorp.prismtask.data.preferences.VoicePreferences
+import com.averycorp.prismtask.domain.model.UiComplexityTier
 import com.google.gson.Gson
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
@@ -45,6 +57,45 @@ import javax.inject.Singleton
 import kotlin.math.abs
 
 enum class ImportMode { MERGE, REPLACE }
+
+/**
+ * Top-level sections that can be selectively wiped when importing in
+ * [ImportMode.REPLACE]. When no explicit scope is passed, all sections are
+ * wiped (matches pre-v5 behavior).
+ *
+ *  - [TASKS_PROJECTS]: tasks, projects, tags, attachments, study logs, usage logs
+ *  - [HABITS_AND_HISTORY]: habits, habit completions, habit logs
+ *  - [TASK_COMPLETIONS]: task completion history
+ *  - [SCHOOLWORK]: courses, assignments, course completions
+ *  - [CONFIG]: all preferences (theme, notifications, ND modes, etc.)
+ */
+enum class ReplaceSection {
+    TASKS_PROJECTS,
+    HABITS_AND_HISTORY,
+    TASK_COMPLETIONS,
+    SCHOOLWORK,
+    CONFIG;
+
+    companion object {
+        val ALL: Set<ReplaceSection> = values().toSet()
+    }
+}
+
+/**
+ * Options controlling import behavior.
+ *
+ * @property restoreDerivedData When false, derived collections (completions,
+ *   logs, usage, calendar sync mappings) in the export are silently skipped
+ *   even if present. Streak values on habits are recomputed from history on
+ *   next read rather than trusted from the import.
+ * @property replaceScope In [ImportMode.REPLACE], limits the wipe to the
+ *   listed sections so a user can replace their task list while preserving
+ *   habit history. Ignored in [ImportMode.MERGE].
+ */
+data class ImportOptions(
+    val restoreDerivedData: Boolean = true,
+    val replaceScope: Set<ReplaceSection> = ReplaceSection.ALL
+)
 
 data class ImportResult(
     val tasksImported: Int = 0,
@@ -62,6 +113,10 @@ data class ImportResult(
     val courseCompletionsImported: Int = 0,
     val configImported: Boolean = false,
     val duplicatesSkipped: Int = 0,
+    val lwwOverwrites: Int = 0,
+    val orphansSkipped: Int = 0,
+    val derivedDataSkipped: Boolean = false,
+    val schemaVersion: Int = 0,
     val errors: List<String> = emptyList()
 )
 
@@ -104,12 +159,23 @@ constructor(
     private val habitListPreferences: HabitListPreferences,
     private val leisurePreferences: LeisurePreferences,
     private val medicationPreferences: MedicationPreferences,
-    private val userPreferencesDataStore: com.averycorp.prismtask.data.preferences.UserPreferencesDataStore
+    private val userPreferencesDataStore: com.averycorp.prismtask.data.preferences.UserPreferencesDataStore,
+    // v5 additions — see audit doc
+    private val a11yPreferences: A11yPreferences,
+    private val voicePreferences: VoicePreferences,
+    private val shakePreferences: ShakePreferences,
+    private val timerPreferences: TimerPreferences,
+    private val notificationPreferences: NotificationPreferences,
+    private val ndPreferencesDataStore: NdPreferencesDataStore,
+    private val dailyEssentialsPreferences: DailyEssentialsPreferences,
+    private val morningCheckInPreferences: MorningCheckInPreferences,
+    private val calendarSyncPreferences: CalendarSyncPreferences,
+    private val templatePreferences: TemplatePreferences
 ) {
     private val gson = Gson()
 
     /** Mutable accumulator for import counts, shared across sub-methods. */
-    private class ImportContext {
+    private class ImportContext(val options: ImportOptions) {
         val errors = mutableListOf<String>()
         var tasksImported = 0
         var projectsImported = 0
@@ -126,6 +192,10 @@ constructor(
         var courseCompletionsImported = 0
         var configImported = false
         var duplicatesSkipped = 0
+        var lwwOverwrites = 0
+        var orphansSkipped = 0
+        var schemaVersion = 0
+        var derivedDataSkipped = false
 
         fun toResult() = ImportResult(
             tasksImported = tasksImported,
@@ -143,15 +213,34 @@ constructor(
             courseCompletionsImported = courseCompletionsImported,
             configImported = configImported,
             duplicatesSkipped = duplicatesSkipped,
+            lwwOverwrites = lwwOverwrites,
+            orphansSkipped = orphansSkipped,
+            derivedDataSkipped = derivedDataSkipped,
+            schemaVersion = schemaVersion,
             errors = errors
         )
     }
 
-    suspend fun importFromJson(jsonString: String, mode: ImportMode): ImportResult {
-        val ctx = ImportContext()
+    /**
+     * Back-compat entry point. Equivalent to
+     * `importFromJson(jsonString, mode, ImportOptions())`.
+     */
+    suspend fun importFromJson(jsonString: String, mode: ImportMode): ImportResult =
+        importFromJson(jsonString, mode, ImportOptions())
+
+    suspend fun importFromJson(
+        jsonString: String,
+        mode: ImportMode,
+        options: ImportOptions
+    ): ImportResult {
+        val ctx = ImportContext(options)
 
         try {
             val root = JsonParser.parseString(jsonString).asJsonObject
+            ctx.schemaVersion =
+                root.get("schemaVersion")?.takeIf { !it.isJsonNull }?.asInt
+                    ?: root.get("version")?.takeIf { !it.isJsonNull }?.asInt
+                    ?: 0
 
             // DB mutations are wrapped in a single transaction so a mid-import
             // failure rolls back cleanly — no orphan rows, no half-imported
@@ -160,15 +249,22 @@ constructor(
             // atomicity model.
             database.withTransaction {
                 if (mode == ImportMode.REPLACE) {
-                    taskDao.getAllTasksOnce().forEach { taskDao.deleteById(it.id) }
-                    projectDao.getAllProjectsOnce().forEach { projectDao.delete(it) }
-                    tagDao.getAllTagsOnce().forEach { tagDao.delete(it) }
-                    habitCompletionDao.getAllCompletionsOnce().forEach {
-                        habitCompletionDao.deleteByHabitAndDate(it.habitId, it.completedDate)
+                    val scope = options.replaceScope
+                    if (ReplaceSection.TASKS_PROJECTS in scope) {
+                        taskDao.getAllTasksOnce().forEach { taskDao.deleteById(it.id) }
+                        projectDao.getAllProjectsOnce().forEach { projectDao.delete(it) }
+                        tagDao.getAllTagsOnce().forEach { tagDao.delete(it) }
                     }
-                    habitDao.getAllHabitsOnce().forEach { habitDao.delete(it) }
-                    taskCompletionDao.getAllCompletionsOnce().forEach {
-                        taskCompletionDao.deleteByTaskId(it.taskId ?: -1)
+                    if (ReplaceSection.HABITS_AND_HISTORY in scope) {
+                        habitCompletionDao.getAllCompletionsOnce().forEach {
+                            habitCompletionDao.deleteByHabitAndDate(it.habitId, it.completedDate)
+                        }
+                        habitDao.getAllHabitsOnce().forEach { habitDao.delete(it) }
+                    }
+                    if (ReplaceSection.TASK_COMPLETIONS in scope) {
+                        taskCompletionDao.getAllCompletionsOnce().forEach {
+                            taskCompletionDao.deleteByTaskId(it.taskId ?: -1)
+                        }
                     }
                 }
 
@@ -179,11 +275,19 @@ constructor(
                 val projectNameToId = importProjects(ctx, root, mode, existingProjects)
                 val tagNameToId = importTags(ctx, root, mode, existingTags)
                 importTasks(ctx, root, mode, existingTasks, projectNameToId, tagNameToId)
-                importTaskCompletions(ctx, root, mode)
+                if (options.restoreDerivedData) {
+                    importTaskCompletions(ctx, root, mode)
+                } else {
+                    ctx.derivedDataSkipped = true
+                }
 
                 val habitNameToId = importHabits(ctx, root, mode)
-                importHabitCompletions(ctx, root, habitNameToId)
-                importHabitLogs(ctx, root, habitNameToId)
+                if (options.restoreDerivedData) {
+                    importHabitCompletions(ctx, root, habitNameToId)
+                    importHabitLogs(ctx, root, habitNameToId)
+                } else {
+                    ctx.derivedDataSkipped = true
+                }
 
                 importLeisureLogs(ctx, root)
                 importSelfCareLogs(ctx, root)
@@ -191,7 +295,9 @@ constructor(
 
                 val courseNameToId = importCourses(ctx, root, mode)
                 importAssignments(ctx, root, courseNameToId)
-                importCourseCompletions(ctx, root, courseNameToId)
+                if (options.restoreDerivedData) {
+                    importCourseCompletions(ctx, root, courseNameToId)
+                }
             }
 
             importConfig(ctx, root)
@@ -209,13 +315,25 @@ constructor(
         existingProjects: List<ProjectEntity>
     ): MutableMap<String, Long> {
         val projectNameToId = mutableMapOf<String, Long>()
+        val existingByNameLower = existingProjects.associateBy { it.name.lowercase() }
         existingProjects.forEach { projectNameToId[it.name.lowercase()] = it.id }
 
         root.getAsJsonArray("projects")?.forEach { elem ->
             val obj = elem.asJsonObject
             val name = obj.get("name")?.takeIf { !it.isJsonNull }?.asString ?: return@forEach
-            if (mode == ImportMode.MERGE && name.lowercase() in projectNameToId) {
-                ctx.duplicatesSkipped++
+            val existing = existingByNameLower[name.lowercase()]
+            if (mode == ImportMode.MERGE && existing != null) {
+                // Last-write-wins: if the incoming row is newer than what we
+                // already have, overlay the imported fields onto the existing
+                // row (keeping its DB id). Otherwise count as a duplicate.
+                val incomingUpdatedAt = obj.get("updatedAt")?.takeIf { !it.isJsonNull }?.asLong ?: 0L
+                if (incomingUpdatedAt > existing.updatedAt) {
+                    val merged = mergeEntityWithDefaults(ProjectEntity(name = name), obj)
+                    projectDao.update(merged.copy(id = existing.id))
+                    ctx.lwwOverwrites++
+                } else {
+                    ctx.duplicatesSkipped++
+                }
             } else {
                 val default = ProjectEntity(name = name)
                 val merged = mergeEntityWithDefaults(default, obj)
@@ -318,16 +436,28 @@ constructor(
         mode: ImportMode
     ): MutableMap<String, Long> {
         val habitNameToId = mutableMapOf<String, Long>()
+        val existingByNameLower = mutableMapOf<String, HabitEntity>()
         if (mode == ImportMode.MERGE) {
-            habitDao.getAllHabitsOnce().forEach { habitNameToId[it.name.lowercase()] = it.id }
+            habitDao.getAllHabitsOnce().forEach {
+                habitNameToId[it.name.lowercase()] = it.id
+                existingByNameLower[it.name.lowercase()] = it
+            }
         }
 
         root.getAsJsonArray("habits")?.forEach { elem ->
             try {
                 val obj = elem.asJsonObject
                 val name = obj.get("name")?.takeIf { !it.isJsonNull }?.asString ?: return@forEach
-                if (mode == ImportMode.MERGE && name.lowercase() in habitNameToId) {
-                    ctx.duplicatesSkipped++
+                val existing = existingByNameLower[name.lowercase()]
+                if (mode == ImportMode.MERGE && existing != null) {
+                    val incomingUpdatedAt = obj.get("updatedAt")?.takeIf { !it.isJsonNull }?.asLong ?: 0L
+                    if (incomingUpdatedAt > existing.updatedAt) {
+                        val merged = mergeEntityWithDefaults(HabitEntity(name = name), obj)
+                        habitDao.update(merged.copy(id = existing.id))
+                        ctx.lwwOverwrites++
+                    } else {
+                        ctx.duplicatesSkipped++
+                    }
                     return@forEach
                 }
                 val default = HabitEntity(name = name)
@@ -343,12 +473,20 @@ constructor(
         return habitNameToId
     }
 
+    /**
+     * Finds a derived collection by name. Prefers `derived.<name>` (v5+)
+     * and falls back to the top-level key (v3/v4 back-compat).
+     */
+    private fun derivedArray(root: JsonObject, name: String) =
+        root.getAsJsonObject("derived")?.getAsJsonArray(name)
+            ?: root.getAsJsonArray(name)
+
     private suspend fun importTaskCompletions(
         ctx: ImportContext,
         root: JsonObject,
         mode: ImportMode
     ) {
-        root.getAsJsonArray("taskCompletions")?.forEach { elem ->
+        derivedArray(root, "taskCompletions")?.forEach { elem ->
             try {
                 val obj = elem.asJsonObject
                 val completedDate = obj.get("completedDate")?.takeIf { !it.isJsonNull }?.asLong
@@ -373,13 +511,23 @@ constructor(
             .getAllCompletionsOnce()
             .map { it.habitId to it.completedDate }
             .toMutableSet()
-        root.getAsJsonArray("habitCompletions")?.forEach { elem ->
+        derivedArray(root, "habitCompletions")?.forEach { elem ->
             try {
                 val obj = elem.asJsonObject
                 val habitName = (obj.get("_habitName") ?: obj.get("habitName"))
                     ?.takeIf { !it.isJsonNull }
-                    ?.asString ?: return@forEach
-                val habitId = habitNameToId[habitName.lowercase()] ?: return@forEach
+                    ?.asString
+                if (habitName == null) {
+                    ctx.orphansSkipped++
+                    ctx.errors.add("Skipped habit completion: no _habitName")
+                    return@forEach
+                }
+                val habitId = habitNameToId[habitName.lowercase()]
+                if (habitId == null) {
+                    ctx.orphansSkipped++
+                    ctx.errors.add("Skipped habit completion: unknown habit '$habitName'")
+                    return@forEach
+                }
                 val completedDate = obj.get("completedDate")?.takeIf { !it.isJsonNull }?.asLong
                     ?: return@forEach
                 val key = habitId to completedDate
@@ -408,7 +556,7 @@ constructor(
             .getAllLogsOnce()
             .map { it.habitId to it.date }
             .toMutableSet()
-        root.getAsJsonArray("habitLogs")?.forEach { elem ->
+        derivedArray(root, "habitLogs")?.forEach { elem ->
             try {
                 val obj = elem.asJsonObject
                 val habitName = obj.get("_habitName")?.takeIf { !it.isJsonNull }?.asString
@@ -590,7 +738,7 @@ constructor(
             .getAllCompletionsOnce()
             .map { it.courseId to it.date }
             .toMutableSet()
-        root.getAsJsonArray("courseCompletions")?.forEach { elem ->
+        derivedArray(root, "courseCompletions")?.forEach { elem ->
             try {
                 val obj = elem.asJsonObject
                 val courseName = (obj.get("_courseName") ?: obj.get("courseName"))
@@ -626,6 +774,17 @@ constructor(
                 importLeisureConfig(ctx, config)
                 importMedicationConfig(config)
                 importUserPreferencesConfig(config)
+                // --- v5 additions ---
+                importA11yConfig(config)
+                importVoiceConfig(config)
+                importShakeConfig(config)
+                importTimerConfig(config)
+                importNotificationConfig(config)
+                importNdConfig(config)
+                importDailyEssentialsConfig(config)
+                importMorningCheckInConfig(config)
+                importCalendarSyncConfig(config)
+                importTemplatesConfig(config)
                 ctx.configImported = true
             } catch (e: Exception) {
                 ctx.errors.add("Failed to import config: ${e.message}")
@@ -690,6 +849,14 @@ constructor(
                 ?.takeIf { !it.isJsonNull }
                 ?.asString
                 ?.let { themePreferences.setPriorityColor(4, it) }
+            theme.getAsJsonArray("recentCustomColors")?.forEach { elem ->
+                if (!elem.isJsonNull) themePreferences.addRecentCustomColor(elem.asString)
+            }
+            theme
+                .get("prismTheme")
+                ?.takeIf { !it.isJsonNull }
+                ?.asString
+                ?.let { themePreferences.setPrismTheme(it) }
         }
     }
 
@@ -716,6 +883,11 @@ constructor(
                 ?.takeIf { !it.isJsonNull }
                 ?.asString
                 ?.let { dashboardPreferences.setProgressStyle(it) }
+            dashboard.getAsJsonArray("collapsedSections")?.forEach { elem ->
+                if (!elem.isJsonNull) {
+                    dashboardPreferences.setSectionCollapsed(elem.asString, true)
+                }
+            }
         }
     }
 
@@ -801,6 +973,21 @@ constructor(
                 ?.takeIf { !it.isJsonNull }
                 ?.asBoolean
                 ?.let { habitListPreferences.setHouseworkEnabled(it) }
+            hl
+                .get("streakMaxMissedDays")
+                ?.takeIf { !it.isJsonNull }
+                ?.asInt
+                ?.let { habitListPreferences.setStreakMaxMissedDays(it) }
+            hl
+                .get("todaySkipAfterCompleteDays")
+                ?.takeIf { !it.isJsonNull }
+                ?.asInt
+                ?.let { habitListPreferences.setTodaySkipAfterCompleteDays(it) }
+            hl
+                .get("todaySkipBeforeScheduleDays")
+                ?.takeIf { !it.isJsonNull }
+                ?.asInt
+                ?.let { habitListPreferences.setTodaySkipBeforeScheduleDays(it) }
         }
     }
 
@@ -869,6 +1056,64 @@ constructor(
             importTaskDefaultsPrefs(userPrefs)
             importQuickAddPrefs(userPrefs)
             importWorkLifeBalancePrefs(userPrefs)
+            importForgivenessPrefs(userPrefs)
+            importUiTierPrefs(userPrefs)
+            importTaskMenuActionsPrefs(userPrefs)
+            importTaskCardDisplayPrefs(userPrefs)
+        }
+    }
+
+    private suspend fun importForgivenessPrefs(userPrefs: JsonObject) {
+        userPrefs.getAsJsonObject("forgiveness")?.let { f ->
+            val current = userPreferencesDataStore.forgivenessFlow.first()
+            userPreferencesDataStore.setForgivenessPrefs(
+                ForgivenessPrefs(
+                    enabled = f.get("enabled")?.takeIf { !it.isJsonNull }?.asBoolean ?: current.enabled,
+                    gracePeriodDays = f.get("gracePeriodDays")?.takeIf { !it.isJsonNull }?.asInt
+                        ?: current.gracePeriodDays,
+                    allowedMisses = f.get("allowedMisses")?.takeIf { !it.isJsonNull }?.asInt
+                        ?: current.allowedMisses
+                )
+            )
+        }
+    }
+
+    private suspend fun importUiTierPrefs(userPrefs: JsonObject) {
+        userPrefs.get("uiComplexityTier")?.takeIf { !it.isJsonNull }?.asString?.let { raw ->
+            runCatching { UiComplexityTier.valueOf(raw) }
+                .getOrNull()
+                ?.let { userPreferencesDataStore.setUiComplexityTier(it) }
+        }
+        if (userPrefs.get("tierOnboardingShown")?.takeIf { !it.isJsonNull }?.asBoolean == true) {
+            userPreferencesDataStore.markTierOnboardingShown()
+        }
+    }
+
+    private suspend fun importTaskMenuActionsPrefs(userPrefs: JsonObject) {
+        val arr = userPrefs.getAsJsonArray("taskMenuActions") ?: return
+        try {
+            val listType = TypeToken.getParameterized(
+                List::class.java,
+                com.averycorp.prismtask.domain.model.TaskMenuAction::class.java
+            ).type
+            val actions: List<com.averycorp.prismtask.domain.model.TaskMenuAction> =
+                gson.fromJson(arr, listType)
+            userPreferencesDataStore.setTaskMenuActions(actions)
+        } catch (_: Exception) {
+            // Malformed — fall back to defaults (already the DataStore behavior).
+        }
+    }
+
+    private suspend fun importTaskCardDisplayPrefs(userPrefs: JsonObject) {
+        val obj = userPrefs.getAsJsonObject("taskCardDisplay") ?: return
+        try {
+            val cfg = gson.fromJson(
+                obj,
+                com.averycorp.prismtask.domain.model.TaskCardDisplayConfig::class.java
+            )
+            if (cfg != null) userPreferencesDataStore.setTaskCardDisplay(cfg)
+        } catch (_: Exception) {
+            // Malformed — ignore.
         }
     }
 
@@ -953,5 +1198,256 @@ constructor(
                 )
             )
         }
+    }
+
+    // ---------------------------------------------------------------------
+    // v5 preference importers
+    // ---------------------------------------------------------------------
+
+    private suspend fun importA11yConfig(config: JsonObject) {
+        config.getAsJsonObject("a11y")?.let { a ->
+            a.get("reduceMotion")?.takeIf { !it.isJsonNull }?.asBoolean?.let {
+                a11yPreferences.setReduceMotion(it)
+            }
+            a.get("highContrast")?.takeIf { !it.isJsonNull }?.asBoolean?.let {
+                a11yPreferences.setHighContrast(it)
+            }
+            a.get("largeTouchTargets")?.takeIf { !it.isJsonNull }?.asBoolean?.let {
+                a11yPreferences.setLargeTouchTargets(it)
+            }
+        }
+    }
+
+    private suspend fun importVoiceConfig(config: JsonObject) {
+        config.getAsJsonObject("voice")?.let { v ->
+            v.get("voiceInputEnabled")?.takeIf { !it.isJsonNull }?.asBoolean?.let {
+                voicePreferences.setVoiceInputEnabled(it)
+            }
+            v.get("voiceFeedbackEnabled")?.takeIf { !it.isJsonNull }?.asBoolean?.let {
+                voicePreferences.setVoiceFeedbackEnabled(it)
+            }
+            v.get("continuousModeEnabled")?.takeIf { !it.isJsonNull }?.asBoolean?.let {
+                voicePreferences.setContinuousModeEnabled(it)
+            }
+        }
+    }
+
+    private suspend fun importShakeConfig(config: JsonObject) {
+        config.getAsJsonObject("shake")?.let { s ->
+            s.get("enabled")?.takeIf { !it.isJsonNull }?.asBoolean?.let {
+                shakePreferences.setEnabled(it)
+            }
+            s.get("sensitivity")?.takeIf { !it.isJsonNull }?.asString?.let {
+                shakePreferences.setSensitivity(it)
+            }
+        }
+    }
+
+    private suspend fun importTimerConfig(config: JsonObject) {
+        config.getAsJsonObject("timer")?.let { t ->
+            t.get("workDurationSeconds")?.takeIf { !it.isJsonNull }?.asInt?.let {
+                timerPreferences.setWorkDurationSeconds(it)
+            }
+            t.get("breakDurationSeconds")?.takeIf { !it.isJsonNull }?.asInt?.let {
+                timerPreferences.setBreakDurationSeconds(it)
+            }
+            t.get("longBreakDurationSeconds")?.takeIf { !it.isJsonNull }?.asInt?.let {
+                timerPreferences.setLongBreakDurationSeconds(it)
+            }
+            t.get("customDurationSeconds")?.takeIf { !it.isJsonNull }?.asInt?.let {
+                timerPreferences.setCustomDurationSeconds(it)
+            }
+            t.get("pomodoroEnabled")?.takeIf { !it.isJsonNull }?.asBoolean?.let {
+                timerPreferences.setPomodoroEnabled(it)
+            }
+            t.get("sessionsUntilLongBreak")?.takeIf { !it.isJsonNull }?.asInt?.let {
+                timerPreferences.setSessionsUntilLongBreak(it)
+            }
+            t.get("autoStartBreaks")?.takeIf { !it.isJsonNull }?.asBoolean?.let {
+                timerPreferences.setAutoStartBreaks(it)
+            }
+            t.get("autoStartWork")?.takeIf { !it.isJsonNull }?.asBoolean?.let {
+                timerPreferences.setAutoStartWork(it)
+            }
+            t.get("pomodoroAvailableMinutes")?.takeIf { !it.isJsonNull }?.asInt?.let {
+                timerPreferences.setPomodoroAvailableMinutes(it)
+            }
+            t.get("pomodoroFocusPreference")?.takeIf { !it.isJsonNull }?.asString?.let {
+                timerPreferences.setPomodoroFocusPreference(it)
+            }
+            t.get("buzzUntilDismissed")?.takeIf { !it.isJsonNull }?.asBoolean?.let {
+                timerPreferences.setBuzzUntilDismissed(it)
+            }
+        }
+    }
+
+    private suspend fun importNotificationConfig(config: JsonObject) {
+        val n = config.getAsJsonObject("notification") ?: return
+        fun b(k: String): Boolean? = n.get(k)?.takeIf { !it.isJsonNull }?.asBoolean
+        fun i(k: String): Int? = n.get(k)?.takeIf { !it.isJsonNull }?.asInt
+        fun l(k: String): Long? = n.get(k)?.takeIf { !it.isJsonNull }?.asLong
+        fun s(k: String): String? = n.get(k)?.takeIf { !it.isJsonNull }?.asString
+        val p = notificationPreferences
+        b("taskRemindersEnabled")?.let { p.setTaskRemindersEnabled(it) }
+        b("timerAlertsEnabled")?.let { p.setTimerAlertsEnabled(it) }
+        b("medicationRemindersEnabled")?.let { p.setMedicationRemindersEnabled(it) }
+        b("dailyBriefingEnabled")?.let { p.setDailyBriefingEnabled(it) }
+        b("eveningSummaryEnabled")?.let { p.setEveningSummaryEnabled(it) }
+        b("weeklySummaryEnabled")?.let { p.setWeeklySummaryEnabled(it) }
+        b("overloadAlertsEnabled")?.let { p.setOverloadAlertsEnabled(it) }
+        b("reengagementEnabled")?.let { p.setReengagementEnabled(it) }
+        b("fullScreenNotificationsEnabled")?.let { p.setFullScreenNotificationsEnabled(it) }
+        b("overrideVolumeEnabled")?.let { p.setOverrideVolumeEnabled(it) }
+        b("repeatingVibrationEnabled")?.let { p.setRepeatingVibrationEnabled(it) }
+        s("importance")?.let { p.setImportance(it) }
+        l("defaultReminderOffset")?.let { p.setDefaultReminderOffset(it) }
+        l("activeProfileId")?.let { p.setActiveProfileId(it) }
+        n.getAsJsonObject("categoryProfileOverrides")?.entrySet()?.forEach { (k, v) ->
+            if (!v.isJsonNull) p.setCategoryProfileOverride(k, v.asLong)
+        }
+        b("streakAlertsEnabled")?.let { p.setStreakAlertsEnabled(it) }
+        i("streakAtRiskLeadHours")?.let { p.setStreakAtRiskLeadHours(it) }
+        i("briefingMorningHour")?.let { p.setBriefingMorningHour(it) }
+        b("briefingMiddayEnabled")?.let { p.setBriefingMiddayEnabled(it) }
+        i("briefingEveningHour")?.let { p.setBriefingEveningHour(it) }
+        s("briefingTone")?.let { p.setBriefingTone(it) }
+        n.getAsJsonArray("briefingSections")?.let { arr ->
+            p.setBriefingSections(arr.mapNotNull { if (it.isJsonNull) null else it.asString }.toSet())
+        }
+        b("briefingReadAloud")?.let { p.setBriefingReadAloudEnabled(it) }
+        s("collabDigestMode")?.let { p.setCollabDigestMode(it) }
+        b("collabAssignedEnabled")?.let { p.setCollabAssignedEnabled(it) }
+        b("collabMentionedEnabled")?.let { p.setCollabMentionedEnabled(it) }
+        b("collabStatusEnabled")?.let { p.setCollabStatusEnabled(it) }
+        b("collabCommentEnabled")?.let { p.setCollabCommentEnabled(it) }
+        b("collabDueSoonEnabled")?.let { p.setCollabDueSoonEnabled(it) }
+        s("watchSyncMode")?.let { p.setWatchSyncMode(it) }
+        i("watchVolumePercent")?.let { p.setWatchVolumePercent(it) }
+        s("watchHapticIntensity")?.let { p.setWatchHapticIntensity(it) }
+        s("badgeMode")?.let { p.setBadgeMode(it) }
+        s("toastPosition")?.let { p.setToastPosition(it) }
+        b("highContrastNotifications")?.let { p.setHighContrastNotificationsEnabled(it) }
+        i("habitNagSuppressionDays")?.let { p.setHabitNagSuppressionDays(it) }
+        n.getAsJsonArray("snoozeDurationsMinutes")?.let { arr ->
+            p.setSnoozeDurationsMinutes(arr.mapNotNull { if (it.isJsonNull) null else it.asInt })
+        }
+    }
+
+    private suspend fun importNdConfig(config: JsonObject) {
+        val nd = config.getAsJsonObject("nd") ?: return
+        // Route every known ND key through updateNdPreference so validation,
+        // enum coercion, and coupling (mode toggles flip sub-settings) live in
+        // one place. Unknown keys are skipped silently.
+        nd.entrySet().forEach { (key, value) ->
+            if (value.isJsonNull) return@forEach
+            val primitive = value.takeIf { it.isJsonPrimitive }?.asJsonPrimitive ?: return@forEach
+            // Map our camelCase data-class field names to the keys
+            // updateNdPreference() expects (snake_case + "_enabled" suffixes).
+            val mapped = NdCamelToUpdateKey[key] ?: return@forEach
+            val coerced: Any? = when {
+                primitive.isBoolean -> primitive.asBoolean
+                primitive.isNumber -> primitive.asNumber.toInt()
+                primitive.isString -> primitive.asString
+                else -> null
+            }
+            if (coerced != null) {
+                runCatching { ndPreferencesDataStore.updateNdPreference(mapped, coerced) }
+            }
+        }
+    }
+
+    private suspend fun importDailyEssentialsConfig(config: JsonObject) {
+        config.getAsJsonObject("dailyEssentials")?.let { d ->
+            d.get("houseworkHabitId")?.takeIf { !it.isJsonNull }?.asLong?.let {
+                dailyEssentialsPreferences.setHouseworkHabit(it)
+            }
+            d.get("schoolworkHabitId")?.takeIf { !it.isJsonNull }?.asLong?.let {
+                dailyEssentialsPreferences.setSchoolworkHabit(it)
+            }
+            if (d.get("hasSeenHint")?.takeIf { !it.isJsonNull }?.asBoolean == true) {
+                dailyEssentialsPreferences.markHintSeen()
+            }
+        }
+    }
+
+    private suspend fun importMorningCheckInConfig(config: JsonObject) {
+        config.getAsJsonObject("morningCheckIn")?.let { m ->
+            m.get("featureEnabled")?.takeIf { !it.isJsonNull }?.asBoolean?.let {
+                morningCheckInPreferences.setFeatureEnabled(it)
+            }
+        }
+    }
+
+    private suspend fun importCalendarSyncConfig(config: JsonObject) {
+        config.getAsJsonObject("calendarSync")?.let { c ->
+            c.get("calendarSyncEnabled")?.takeIf { !it.isJsonNull }?.asBoolean?.let {
+                calendarSyncPreferences.setCalendarSyncEnabled(it)
+            }
+            c.get("syncCalendarId")?.takeIf { !it.isJsonNull }?.asString?.let {
+                calendarSyncPreferences.setSyncCalendarId(it)
+            }
+            c.get("syncDirection")?.takeIf { !it.isJsonNull }?.asString?.let {
+                calendarSyncPreferences.setSyncDirection(it)
+            }
+            c.get("showCalendarEvents")?.takeIf { !it.isJsonNull }?.asBoolean?.let {
+                calendarSyncPreferences.setShowCalendarEvents(it)
+            }
+            c.getAsJsonArray("selectedDisplayCalendarIds")?.let { arr ->
+                calendarSyncPreferences.setSelectedDisplayCalendarIds(
+                    arr.mapNotNull { if (it.isJsonNull) null else it.asString }.toSet()
+                )
+            }
+            c.get("syncFrequency")?.takeIf { !it.isJsonNull }?.asString?.let {
+                calendarSyncPreferences.setSyncFrequency(it)
+            }
+            c.get("syncCompletedTasks")?.takeIf { !it.isJsonNull }?.asBoolean?.let {
+                calendarSyncPreferences.setSyncCompletedTasks(it)
+            }
+        }
+    }
+
+    private suspend fun importTemplatesConfig(config: JsonObject) {
+        config.getAsJsonObject("templates")?.let { t ->
+            t.get("templatesSeeded")?.takeIf { !it.isJsonNull }?.asBoolean?.let {
+                templatePreferences.setSeeded(it)
+            }
+            t.get("templatesFirstSyncDone")?.takeIf { !it.isJsonNull }?.asBoolean?.let {
+                templatePreferences.setFirstSyncDone(it)
+            }
+        }
+    }
+
+    companion object {
+        /**
+         * Maps serialized `NdPreferences` field names (camelCase) to the keys
+         * accepted by [NdPreferencesDataStore.updateNdPreference] (snake_case,
+         * some with an "_enabled" suffix).
+         */
+        private val NdCamelToUpdateKey: Map<String, String> = mapOf(
+            "adhdModeEnabled" to "adhd_mode_enabled",
+            "calmModeEnabled" to "calm_mode_enabled",
+            "focusReleaseModeEnabled" to "focus_release_mode_enabled",
+            "reduceAnimations" to "reduce_animations",
+            "mutedColorPalette" to "muted_color_palette",
+            "quietMode" to "quiet_mode",
+            "reduceHaptics" to "reduce_haptics",
+            "softContrast" to "soft_contrast",
+            "checkInIntervalMinutes" to "check_in_interval_minutes",
+            "completionAnimations" to "completion_animations",
+            "streakCelebrations" to "streak_celebrations",
+            "showProgressBars" to "show_progress_bars",
+            "forgivenessStreaks" to "forgiveness_streaks",
+            "goodEnoughTimersEnabled" to "good_enough_timers_enabled",
+            "defaultGoodEnoughMinutes" to "default_good_enough_minutes",
+            "goodEnoughEscalation" to "good_enough_escalation",
+            "antiReworkEnabled" to "anti_rework_enabled",
+            "softWarningEnabled" to "soft_warning_enabled",
+            "coolingOffEnabled" to "cooling_off_enabled",
+            "coolingOffMinutes" to "cooling_off_minutes",
+            "revisionCounterEnabled" to "revision_counter_enabled",
+            "maxRevisions" to "max_revisions",
+            "shipItCelebrationsEnabled" to "ship_it_celebrations_enabled",
+            "celebrationIntensity" to "celebration_intensity"
+        )
     }
 }

@@ -63,6 +63,16 @@ class DataImporterTest {
     private lateinit var medicationPreferences: MedicationPreferences
     private lateinit var userPreferencesDataStore: UserPreferencesDataStore
     private lateinit var taskCompletionDao: com.averycorp.prismtask.data.local.dao.TaskCompletionDao
+    private lateinit var a11yPreferences: com.averycorp.prismtask.data.preferences.A11yPreferences
+    private lateinit var voicePreferences: com.averycorp.prismtask.data.preferences.VoicePreferences
+    private lateinit var shakePreferences: com.averycorp.prismtask.data.preferences.ShakePreferences
+    private lateinit var timerPreferences: com.averycorp.prismtask.data.preferences.TimerPreferences
+    private lateinit var notificationPreferences: com.averycorp.prismtask.data.preferences.NotificationPreferences
+    private lateinit var ndPreferencesDataStore: com.averycorp.prismtask.data.preferences.NdPreferencesDataStore
+    private lateinit var dailyEssentialsPreferences: com.averycorp.prismtask.data.preferences.DailyEssentialsPreferences
+    private lateinit var morningCheckInPreferences: com.averycorp.prismtask.data.preferences.MorningCheckInPreferences
+    private lateinit var calendarSyncPreferences: com.averycorp.prismtask.data.calendar.CalendarSyncPreferences
+    private lateinit var templatePreferences: com.averycorp.prismtask.data.preferences.TemplatePreferences
     private lateinit var importer: DataImporter
 
     @Before
@@ -87,6 +97,16 @@ class DataImporterTest {
         leisurePreferences = mockk(relaxed = true)
         medicationPreferences = mockk(relaxed = true)
         userPreferencesDataStore = mockk(relaxed = true)
+        a11yPreferences = mockk(relaxed = true)
+        voicePreferences = mockk(relaxed = true)
+        shakePreferences = mockk(relaxed = true)
+        timerPreferences = mockk(relaxed = true)
+        notificationPreferences = mockk(relaxed = true)
+        ndPreferencesDataStore = mockk(relaxed = true)
+        dailyEssentialsPreferences = mockk(relaxed = true)
+        morningCheckInPreferences = mockk(relaxed = true)
+        calendarSyncPreferences = mockk(relaxed = true)
+        templatePreferences = mockk(relaxed = true)
 
         // Default: no pre-existing data in any DAO.
         stubEmptyDaos()
@@ -111,7 +131,17 @@ class DataImporterTest {
             habitListPreferences,
             leisurePreferences,
             medicationPreferences,
-            userPreferencesDataStore
+            userPreferencesDataStore,
+            a11yPreferences,
+            voicePreferences,
+            shakePreferences,
+            timerPreferences,
+            notificationPreferences,
+            ndPreferencesDataStore,
+            dailyEssentialsPreferences,
+            morningCheckInPreferences,
+            calendarSyncPreferences,
+            templatePreferences
         )
     }
 

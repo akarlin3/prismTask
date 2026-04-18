@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased — v1.4.0 Vision Deck Rollout
 
+### Changed — Export/Import Completeness Audit (2026-04-18)
+- Bumped the JSON export format from `v4` to `v5`.
+- Export now carries `schemaVersion`, `exportedAtIso`, `deviceModel`, and an
+  `includeDerivedData` flag in the top-level metadata.
+- Backups now round-trip a much larger preference surface: accessibility toggles,
+  voice input, shake-to-bug-report, Pomodoro timer, the full 40+ key
+  notification preferences, all neurodivergent-mode toggles, daily essentials,
+  morning check-in, calendar sync config, onboarding flags, template seeding
+  flags, theme recent-custom-colors, dashboard collapsed sections,
+  habit-list streak/skip windows, and user-prefs task menu / card display /
+  forgiveness / UI complexity tier.
+- Added `daily_essential_slot_completions`, `usage_logs`, and `calendar_sync`
+  to the exported entity set. The last two are opt-in under `derived`.
+- New `ExportOptions(includeDerivedData)` and `ImportOptions(restoreDerivedData,
+  replaceScope)` structs; legacy no-arg overloads preserved for call-site
+  back-compat.
+- `ReplaceSection` enum lets users replace tasks without losing habit history
+  (and vice versa) in REPLACE mode.
+- Projects and habits now merge with **last-write-wins** via `updatedAt` so
+  "export → tweak locally → import" no longer silently drops the newer row.
+- Orphan rows (habit completions with an unknown habit name, etc.) are counted
+  as `orphansSkipped` and surfaced in `ImportResult.errors` instead of being
+  dropped silently.
+- See `docs/export_import_audit_2026-04-18.md` for the full diff, intentional
+  exclusions (auth tokens, Firestore state, Play Billing cache), and known
+  limitations (binary attachment/sound files remain out-of-band).
+
+
+
 ### Added — Daily Essentials Section
 - New "Daily Essentials" section on the Today screen aggregating seven virtual
   cards (Morning Routine, Medication, Housework, Schoolwork, Music Leisure,

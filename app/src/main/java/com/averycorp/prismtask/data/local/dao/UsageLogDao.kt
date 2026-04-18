@@ -64,4 +64,7 @@ interface UsageLogDao {
     """
     )
     fun getProjectsForKeyword(keyword: String): Flow<List<EntityFrequency>>
+
+    @Query("SELECT * FROM usage_logs ORDER BY timestamp ASC")
+    suspend fun getAllOnce(): List<UsageLogEntity>
 }

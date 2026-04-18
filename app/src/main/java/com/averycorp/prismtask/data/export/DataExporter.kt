@@ -1,5 +1,6 @@
 package com.averycorp.prismtask.data.export
 
+import com.averycorp.prismtask.data.calendar.CalendarSyncPreferences
 import com.averycorp.prismtask.data.local.dao.HabitCompletionDao
 import com.averycorp.prismtask.data.local.dao.HabitDao
 import com.averycorp.prismtask.data.local.dao.LeisureDao
@@ -10,15 +11,26 @@ import com.averycorp.prismtask.data.local.dao.TagDao
 import com.averycorp.prismtask.data.local.dao.TaskCompletionDao
 import com.averycorp.prismtask.data.local.dao.TaskDao
 import com.averycorp.prismtask.data.local.database.PrismTaskDatabase
+import com.averycorp.prismtask.data.preferences.A11yPreferences
 import com.averycorp.prismtask.data.preferences.ArchivePreferences
+import com.averycorp.prismtask.data.preferences.DailyEssentialsPreferences
 import com.averycorp.prismtask.data.preferences.DashboardPreferences
 import com.averycorp.prismtask.data.preferences.HabitListPreferences
 import com.averycorp.prismtask.data.preferences.LeisurePreferences
 import com.averycorp.prismtask.data.preferences.MedicationPreferences
+import com.averycorp.prismtask.data.preferences.MorningCheckInPreferences
+import com.averycorp.prismtask.data.preferences.NdPreferencesDataStore
+import com.averycorp.prismtask.data.preferences.NotificationPreferences
+import com.averycorp.prismtask.data.preferences.OnboardingPreferences
+import com.averycorp.prismtask.data.preferences.ShakePreferences
 import com.averycorp.prismtask.data.preferences.TabPreferences
 import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
+import com.averycorp.prismtask.data.preferences.TemplatePreferences
 import com.averycorp.prismtask.data.preferences.ThemePreferences
+import com.averycorp.prismtask.data.preferences.TimerPreferences
 import com.averycorp.prismtask.data.preferences.UserPreferencesDataStore
+import com.averycorp.prismtask.data.preferences.VoicePreferences
+import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import com.google.gson.JsonArray
 import com.google.gson.JsonObject
@@ -30,33 +42,52 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
+ * Options controlling what a backup includes.
+ *
+ * @property includeDerivedData If true, includes historical/derived collections
+ *   (task completions, habit completions, habit logs, course completions, usage
+ *   logs, calendar sync mappings, focus-release logs) under a `derived` block.
+ *   If false, only user-authored core data is exported and streak fields are
+ *   expected to be recomputed from history on import (see [DataImporter]).
+ */
+data class ExportOptions(
+    val includeDerivedData: Boolean = true
+)
+
+/**
  * Exports all app data to JSON.
  *
- * === Export format (version 4) ===
- * As of v3, every entity is serialized using [com.google.gson.Gson.toJsonTree] directly
- * on the entity object. This means that whenever a new field is added to any `*Entity`
- * class, it is automatically included in the export without any changes to this file.
+ * === Export format (version 5) ===
+ * Every entity is serialized using [com.google.gson.Gson.toJsonTree] directly on
+ * the entity object. Whenever a new field is added to any `*Entity` class, it is
+ * automatically included in the export without any changes to this file.
  *
- * v4 adds the following entity collections that were previously dropped on export:
- * `attachments`, `boundaryRules`, `checkInLogs`, `customSounds`, `focusReleaseLogs`,
- * `moodEnergyLogs`, `notificationProfiles`, `studyLogs`, `weeklyReviews`,
- * `medicationRefills`, `taskTemplates`, `habitTemplates`, `projectTemplates`,
- * `nlpShortcuts`, `savedFilters`. v4 also writes the original primary key as
- * `_oldId` on tasks, courses, and assignments so cross-table foreign-key
- * references (subtasks, attachments, study logs, etc.) survive a round trip.
+ * v5 expands coverage to close gaps flagged by the 2026-04 audit:
+ *   - new preferences: accessibility, voice, shake, timer, notifications,
+ *     neurodivergent modes, daily essentials, morning check-in, calendar sync,
+ *     onboarding, templates, theme extras, habit-list extras, dashboard
+ *     collapsed sections, user-preferences extras (task menu, card display,
+ *     forgiveness, UI tier);
+ *   - new entities: `daily_essential_slot_completions`, `usage_logs`,
+ *     `calendar_sync` (the last two are derived/opt-in);
+ *   - an [ExportOptions.includeDerivedData] knob that segregates
+ *     history/analytics data under a top-level `derived` block so users can
+ *     ship a minimal core-only backup.
  *
- * Foreign-key relationships (which reference auto-generated IDs that won't match after
- * import) are written as sibling helper fields prefixed with an underscore, e.g.
- * `_projectName`, `_tagNames`, `_habitName`, `_courseName`, `_taskOldId`. Helper
- * fields are resolved back to the correct IDs on import.
+ * Foreign-key relationships (which reference auto-generated IDs that won't
+ * match after import) are written as sibling helper fields prefixed with an
+ * underscore, e.g. `_projectName`, `_tagNames`, `_habitName`, `_courseName`,
+ * `_taskOldId`. Helper fields are resolved back to the correct IDs on import.
  *
  * === Backwards compatibility ===
- * Older exports (v1 and v2) use a hand-rolled flat field mapping. [DataImporter] detects
- * the `version` field and falls back to the legacy import path for those files.
+ * Older exports (v1–v4) continue to import: the `version` field is detected
+ * and the top-level layout is a strict superset. v3+ uses a generic Gson path
+ * that tolerates missing or extra entity fields via [mergeEntityWithDefaults].
  *
- * When evolving an entity, prefer additive changes (add nullable fields or fields with
- * defaults). Gson merges imported JSON onto a default instance, so missing fields in an
- * older export automatically pick up the new Kotlin constructor defaults on import.
+ * === Intentional exclusions ===
+ * Cloud-sync state, backend JWTs, Firebase auth, Play Billing cache, and
+ * running-timer transient state are *not* exported by design. See
+ * `docs/export_import_audit_2026-04-18.md` for the rationale.
  */
 @Singleton
 class DataExporter
@@ -81,15 +112,44 @@ constructor(
     private val habitListPreferences: HabitListPreferences,
     private val leisurePreferences: LeisurePreferences,
     private val medicationPreferences: MedicationPreferences,
-    private val userPreferencesDataStore: UserPreferencesDataStore
+    private val userPreferencesDataStore: UserPreferencesDataStore,
+    // v5 additions — see audit doc
+    private val a11yPreferences: A11yPreferences,
+    private val voicePreferences: VoicePreferences,
+    private val shakePreferences: ShakePreferences,
+    private val timerPreferences: TimerPreferences,
+    private val notificationPreferences: NotificationPreferences,
+    private val ndPreferencesDataStore: NdPreferencesDataStore,
+    private val dailyEssentialsPreferences: DailyEssentialsPreferences,
+    private val morningCheckInPreferences: MorningCheckInPreferences,
+    private val calendarSyncPreferences: CalendarSyncPreferences,
+    private val onboardingPreferences: OnboardingPreferences,
+    private val templatePreferences: TemplatePreferences
 ) {
     private val gson = GsonBuilder().serializeNulls().setPrettyPrinting().create()
+    private val compactGson = Gson()
 
-    suspend fun exportToJson(): String {
+    /**
+     * Exports the full backup with default options (derived data included).
+     * Preserved as a no-arg overload so existing callers and tests continue to
+     * compile without passing [ExportOptions].
+     */
+    suspend fun exportToJson(): String = exportToJson(ExportOptions())
+
+    suspend fun exportToJson(options: ExportOptions): String {
         val root = JsonObject()
         root.addProperty("version", EXPORT_VERSION)
+        root.addProperty("schemaVersion", EXPORT_VERSION)
         root.addProperty("exportedAt", System.currentTimeMillis())
+        root.addProperty(
+            "exportedAtIso",
+            SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US).apply {
+                timeZone = java.util.TimeZone.getTimeZone("UTC")
+            }.format(Date())
+        )
         root.addProperty("appVersion", "0.7.1")
+        root.addProperty("deviceModel", android.os.Build.MODEL ?: "")
+        root.addProperty("includeDerivedData", options.includeDerivedData)
 
         // === Tasks ===
         val tasks = taskDao.getAllTasksOnce()
@@ -118,33 +178,10 @@ constructor(
         root.add("projects", gson.toJsonTree(projects))
         root.add("tags", gson.toJsonTree(tags))
 
-        // === Task Completions ===
-        root.add("taskCompletions", gson.toJsonTree(taskCompletionDao.getAllCompletionsOnce()))
-
-        // === Habits ===
+        // === Habits (core) ===
         val habits = habitDao.getAllHabitsOnce()
         root.add("habits", gson.toJsonTree(habits))
-
-        // === Habit Completions ===
         val habitNameById = habits.associate { it.id to it.name }
-        val habitCompletions = habitCompletionDao.getAllCompletionsOnce()
-        val completionsArr = JsonArray()
-        for (c in habitCompletions) {
-            val obj = gson.toJsonTree(c).asJsonObject
-            obj.addProperty("_habitName", habitNameById[c.habitId])
-            completionsArr.add(obj)
-        }
-        root.add("habitCompletions", completionsArr)
-
-        // === Habit Logs ===
-        val habitLogs = habitLogDao.getAllLogsOnce()
-        val logsArr = JsonArray()
-        for (log in habitLogs) {
-            val obj = gson.toJsonTree(log).asJsonObject
-            obj.addProperty("_habitName", habitNameById[log.habitId])
-            logsArr.add(obj)
-        }
-        root.add("habitLogs", logsArr)
 
         // === Leisure Logs ===
         root.add("leisureLogs", gson.toJsonTree(leisureDao.getAllLogsOnce()))
@@ -153,7 +190,7 @@ constructor(
         root.add("selfCareLogs", gson.toJsonTree(selfCareDao.getAllLogsOnce()))
         root.add("selfCareSteps", gson.toJsonTree(selfCareDao.getAllStepsOnce()))
 
-        // === Courses / Assignments / Course Completions ===
+        // === Courses / Assignments ===
         val courses = schoolworkDao.getAllCoursesOnce()
         val courseNameById = courses.associate { it.id to it.name }
         // Tag courses with their original ID so study_logs can rebuild the FK on import.
@@ -175,19 +212,63 @@ constructor(
         }
         root.add("assignments", assignmentsArr)
 
-        val courseCompletions = schoolworkDao.getAllCompletionsOnce()
-        val courseCompletionsArr = JsonArray()
-        for (c in courseCompletions) {
-            val obj = gson.toJsonTree(c).asJsonObject
-            obj.addProperty("_courseName", courseNameById[c.courseId])
-            courseCompletionsArr.add(obj)
-        }
-        root.add("courseCompletions", courseCompletionsArr)
+        // === Derived / historical data ===
+        //
+        // Grouped under a top-level `derived` object when users opt in. The
+        // individual collections are also mirrored at the top level for back-
+        // compat with v3/v4 imports — new importers prefer `derived.*` but
+        // fall back to the top-level keys when absent.
+        val derived = JsonObject()
+        if (options.includeDerivedData) {
+            derived.add("taskCompletions", gson.toJsonTree(taskCompletionDao.getAllCompletionsOnce()))
 
-        // === v4: previously omitted entities ===
+            val habitCompletions = habitCompletionDao.getAllCompletionsOnce()
+            val completionsArr = JsonArray()
+            for (c in habitCompletions) {
+                val obj = gson.toJsonTree(c).asJsonObject
+                obj.addProperty("_habitName", habitNameById[c.habitId])
+                completionsArr.add(obj)
+            }
+            derived.add("habitCompletions", completionsArr)
+
+            val habitLogs = habitLogDao.getAllLogsOnce()
+            val logsArr = JsonArray()
+            for (log in habitLogs) {
+                val obj = gson.toJsonTree(log).asJsonObject
+                obj.addProperty("_habitName", habitNameById[log.habitId])
+                logsArr.add(obj)
+            }
+            derived.add("habitLogs", logsArr)
+
+            val courseCompletions = schoolworkDao.getAllCompletionsOnce()
+            val courseCompletionsArr = JsonArray()
+            for (c in courseCompletions) {
+                val obj = gson.toJsonTree(c).asJsonObject
+                obj.addProperty("_courseName", courseNameById[c.courseId])
+                courseCompletionsArr.add(obj)
+            }
+            derived.add("courseCompletions", courseCompletionsArr)
+
+            derived.add("focusReleaseLogs", exportFocusReleaseLogs())
+            derived.add("studyLogs", exportStudyLogs(courseNameById, assignments.associate { it.id to it.title }))
+            derived.add("usageLogs", gson.toJsonTree(database.usageLogDao().getAllOnce()))
+            derived.add("calendarSync", gson.toJsonTree(database.calendarSyncDao().getAllOnce()))
+            derived.add(
+                "dailyEssentialSlotCompletions",
+                gson.toJsonTree(database.dailyEssentialSlotCompletionDao().getAllOnce())
+            )
+
+            // Mirror at top level for v3/v4 backwards-compatible imports.
+            root.add("taskCompletions", derived.get("taskCompletions"))
+            root.add("habitCompletions", derived.get("habitCompletions"))
+            root.add("habitLogs", derived.get("habitLogs"))
+            root.add("courseCompletions", derived.get("courseCompletions"))
+            root.add("focusReleaseLogs", derived.get("focusReleaseLogs"))
+            root.add("studyLogs", derived.get("studyLogs"))
+        }
+
+        // === v4: previously omitted entities (core) ===
         root.add("attachments", exportAttachments())
-        root.add("focusReleaseLogs", exportFocusReleaseLogs())
-        root.add("studyLogs", exportStudyLogs(courseNameById, assignments.associate { it.id to it.title }))
         root.add("boundaryRules", gson.toJsonTree(database.boundaryRuleDao().getAll()))
         root.add("checkInLogs", gson.toJsonTree(database.checkInLogDao().getAllOnce()))
         root.add("moodEnergyLogs", gson.toJsonTree(database.moodEnergyLogDao().getAll()))
@@ -222,6 +303,8 @@ constructor(
         theme.addProperty("priorityColorMedium", themePreferences.getPriorityColorMedium().first())
         theme.addProperty("priorityColorHigh", themePreferences.getPriorityColorHigh().first())
         theme.addProperty("priorityColorUrgent", themePreferences.getPriorityColorUrgent().first())
+        theme.add("recentCustomColors", gson.toJsonTree(themePreferences.getRecentCustomColors().first()))
+        theme.addProperty("prismTheme", themePreferences.getPrismTheme().first())
         config.add("theme", theme)
 
         // Archive
@@ -234,6 +317,7 @@ constructor(
         dashboard.addProperty("sectionOrder", dashboardPreferences.getSectionOrder().first().joinToString(","))
         dashboard.add("hiddenSections", gson.toJsonTree(dashboardPreferences.getHiddenSections().first()))
         dashboard.addProperty("progressStyle", dashboardPreferences.getProgressStyle().first())
+        dashboard.add("collapsedSections", gson.toJsonTree(dashboardPreferences.getCollapsedSections().first()))
         config.add("dashboard", dashboard)
 
         // Tabs
@@ -270,6 +354,15 @@ constructor(
         habitList.addProperty("schoolEnabled", habitListPreferences.isSchoolEnabled().first())
         habitList.addProperty("leisureEnabled", habitListPreferences.isLeisureEnabled().first())
         habitList.addProperty("houseworkEnabled", habitListPreferences.isHouseworkEnabled().first())
+        habitList.addProperty("streakMaxMissedDays", habitListPreferences.getStreakMaxMissedDays().first())
+        habitList.addProperty(
+            "todaySkipAfterCompleteDays",
+            habitListPreferences.getTodaySkipAfterCompleteDays().first()
+        )
+        habitList.addProperty(
+            "todaySkipBeforeScheduleDays",
+            habitListPreferences.getTodaySkipBeforeScheduleDays().first()
+        )
         config.add("habitList", habitList)
 
         // Leisure
@@ -324,11 +417,169 @@ constructor(
         wlb.addProperty("showBalanceBar", snapshot.workLifeBalance.showBalanceBar)
         wlb.addProperty("overloadThresholdPct", snapshot.workLifeBalance.overloadThresholdPct)
         userPrefs.add("workLifeBalance", wlb)
+
+        // --- v5: previously-omitted user prefs ---
+        val forgiveness = userPreferencesDataStore.forgivenessFlow.first()
+        val forgivenessJson = JsonObject()
+        forgivenessJson.addProperty("enabled", forgiveness.enabled)
+        forgivenessJson.addProperty("gracePeriodDays", forgiveness.gracePeriodDays)
+        forgivenessJson.addProperty("allowedMisses", forgiveness.allowedMisses)
+        userPrefs.add("forgiveness", forgivenessJson)
+
+        userPrefs.addProperty("uiComplexityTier", userPreferencesDataStore.uiComplexityTier.first().name)
+        userPrefs.addProperty("tierOnboardingShown", userPreferencesDataStore.tierOnboardingShown.first())
+
+        userPrefs.add(
+            "taskMenuActions",
+            compactGson.toJsonTree(userPreferencesDataStore.taskMenuActionsFlow.first())
+        )
+        userPrefs.add(
+            "taskCardDisplay",
+            compactGson.toJsonTree(userPreferencesDataStore.taskCardDisplayFlow.first())
+        )
+
         config.add("userPreferences", userPrefs)
+
+        // --- v5: net-new preference groups ---
+        config.add("a11y", exportA11yConfig())
+        config.add("voice", exportVoiceConfig())
+        config.add("shake", exportShakeConfig())
+        config.add("timer", exportTimerConfig())
+        config.add("notification", exportNotificationConfig())
+        config.add("nd", exportNdConfig())
+        config.add("dailyEssentials", exportDailyEssentialsConfig())
+        config.add("morningCheckIn", exportMorningCheckInConfig())
+        config.add("calendarSync", exportCalendarSyncConfig())
+        config.add("onboarding", exportOnboardingConfig())
+        config.add("templates", exportTemplateConfig())
 
         root.add("config", config)
 
+        if (options.includeDerivedData) {
+            root.add("derived", derived)
+        }
+
         return gson.toJson(root)
+    }
+
+    // --- v5 preference export helpers ---
+
+    private suspend fun exportA11yConfig(): JsonObject = JsonObject().apply {
+        addProperty("reduceMotion", a11yPreferences.getReduceMotion().first())
+        addProperty("highContrast", a11yPreferences.getHighContrast().first())
+        addProperty("largeTouchTargets", a11yPreferences.getLargeTouchTargets().first())
+    }
+
+    private suspend fun exportVoiceConfig(): JsonObject = JsonObject().apply {
+        addProperty("voiceInputEnabled", voicePreferences.getVoiceInputEnabled().first())
+        addProperty("voiceFeedbackEnabled", voicePreferences.getVoiceFeedbackEnabled().first())
+        addProperty("continuousModeEnabled", voicePreferences.getContinuousModeEnabled().first())
+    }
+
+    private suspend fun exportShakeConfig(): JsonObject = JsonObject().apply {
+        addProperty("enabled", shakePreferences.getEnabled().first())
+        addProperty("sensitivity", shakePreferences.getSensitivity().first())
+    }
+
+    private suspend fun exportTimerConfig(): JsonObject = JsonObject().apply {
+        addProperty("workDurationSeconds", timerPreferences.getWorkDurationSeconds().first())
+        addProperty("breakDurationSeconds", timerPreferences.getBreakDurationSeconds().first())
+        addProperty("longBreakDurationSeconds", timerPreferences.getLongBreakDurationSeconds().first())
+        addProperty("customDurationSeconds", timerPreferences.getCustomDurationSeconds().first())
+        addProperty("pomodoroEnabled", timerPreferences.getPomodoroEnabled().first())
+        addProperty("sessionsUntilLongBreak", timerPreferences.getSessionsUntilLongBreak().first())
+        addProperty("autoStartBreaks", timerPreferences.getAutoStartBreaks().first())
+        addProperty("autoStartWork", timerPreferences.getAutoStartWork().first())
+        addProperty("pomodoroAvailableMinutes", timerPreferences.getPomodoroAvailableMinutes().first())
+        addProperty("pomodoroFocusPreference", timerPreferences.getPomodoroFocusPreference().first())
+        addProperty("buzzUntilDismissed", timerPreferences.getBuzzUntilDismissed().first())
+    }
+
+    private suspend fun exportNotificationConfig(): JsonObject = JsonObject().apply {
+        val p = notificationPreferences
+        addProperty("taskRemindersEnabled", p.taskRemindersEnabled.first())
+        addProperty("timerAlertsEnabled", p.timerAlertsEnabled.first())
+        addProperty("medicationRemindersEnabled", p.medicationRemindersEnabled.first())
+        addProperty("dailyBriefingEnabled", p.dailyBriefingEnabled.first())
+        addProperty("eveningSummaryEnabled", p.eveningSummaryEnabled.first())
+        addProperty("weeklySummaryEnabled", p.weeklySummaryEnabled.first())
+        addProperty("overloadAlertsEnabled", p.overloadAlertsEnabled.first())
+        addProperty("reengagementEnabled", p.reengagementEnabled.first())
+        addProperty("fullScreenNotificationsEnabled", p.fullScreenNotificationsEnabled.first())
+        addProperty("overrideVolumeEnabled", p.overrideVolumeEnabled.first())
+        addProperty("repeatingVibrationEnabled", p.repeatingVibrationEnabled.first())
+        addProperty("importance", p.importance.first())
+        addProperty("defaultReminderOffset", p.defaultReminderOffset.first())
+        addProperty("activeProfileId", p.activeProfileId.first())
+        add("categoryProfileOverrides", gson.toJsonTree(p.categoryProfileOverrides.first()))
+        addProperty("streakAlertsEnabled", p.streakAlertsEnabled.first())
+        addProperty("streakAtRiskLeadHours", p.streakAtRiskLeadHours.first())
+        addProperty("briefingMorningHour", p.briefingMorningHour.first())
+        addProperty("briefingMiddayEnabled", p.briefingMiddayEnabled.first())
+        addProperty("briefingEveningHour", p.briefingEveningHour.first())
+        addProperty("briefingTone", p.briefingTone.first())
+        add("briefingSections", gson.toJsonTree(p.briefingSections.first()))
+        addProperty("briefingReadAloud", p.briefingReadAloudEnabled.first())
+        addProperty("collabDigestMode", p.collabDigestMode.first())
+        addProperty("collabAssignedEnabled", p.collabAssignedEnabled.first())
+        addProperty("collabMentionedEnabled", p.collabMentionedEnabled.first())
+        addProperty("collabStatusEnabled", p.collabStatusEnabled.first())
+        addProperty("collabCommentEnabled", p.collabCommentEnabled.first())
+        addProperty("collabDueSoonEnabled", p.collabDueSoonEnabled.first())
+        addProperty("watchSyncMode", p.watchSyncMode.first())
+        addProperty("watchVolumePercent", p.watchVolumePercent.first())
+        addProperty("watchHapticIntensity", p.watchHapticIntensity.first())
+        addProperty("badgeMode", p.badgeMode.first())
+        addProperty("toastPosition", p.toastPosition.first())
+        addProperty("highContrastNotifications", p.highContrastNotificationsEnabled.first())
+        addProperty("habitNagSuppressionDays", p.habitNagSuppressionDays.first())
+        add("snoozeDurationsMinutes", gson.toJsonTree(p.snoozeDurationsMinutes.first()))
+    }
+
+    private suspend fun exportNdConfig(): JsonObject {
+        // The NdPreferences data class is the single source of truth; serialize it
+        // directly so new fields flow through automatically.
+        val nd = ndPreferencesDataStore.ndPreferencesFlow.first()
+        return gson.toJsonTree(nd).asJsonObject
+    }
+
+    private suspend fun exportDailyEssentialsConfig(): JsonObject = JsonObject().apply {
+        dailyEssentialsPreferences.houseworkHabitId.first()?.let { addProperty("houseworkHabitId", it) }
+        dailyEssentialsPreferences.schoolworkHabitId.first()?.let { addProperty("schoolworkHabitId", it) }
+        addProperty("hasSeenHint", dailyEssentialsPreferences.hasSeenHint.first())
+    }
+
+    private suspend fun exportMorningCheckInConfig(): JsonObject = JsonObject().apply {
+        addProperty("featureEnabled", morningCheckInPreferences.featureEnabled().first())
+    }
+
+    private suspend fun exportCalendarSyncConfig(): JsonObject = JsonObject().apply {
+        addProperty("calendarSyncEnabled", calendarSyncPreferences.isCalendarSyncEnabled().first())
+        addProperty("syncCalendarId", calendarSyncPreferences.getSyncCalendarId().first())
+        addProperty("syncDirection", calendarSyncPreferences.getSyncDirection().first())
+        addProperty("showCalendarEvents", calendarSyncPreferences.getShowCalendarEvents().first())
+        add(
+            "selectedDisplayCalendarIds",
+            gson.toJsonTree(calendarSyncPreferences.getSelectedDisplayCalendarIds().first())
+        )
+        addProperty("syncFrequency", calendarSyncPreferences.getSyncFrequency().first())
+        addProperty("syncCompletedTasks", calendarSyncPreferences.getSyncCompletedTasks().first())
+        // lastSyncTimestamp is intentionally excluded — derived watermark that
+        // would suppress real deltas if restored.
+    }
+
+    private suspend fun exportOnboardingConfig(): JsonObject = JsonObject().apply {
+        addProperty("hasCompletedOnboarding", onboardingPreferences.hasCompletedOnboarding().first())
+        addProperty("onboardingCompletedAt", onboardingPreferences.getOnboardingCompletedAt().first())
+        addProperty(
+            "hasShownBatteryOptimizationPrompt",
+            onboardingPreferences.hasShownBatteryOptimizationPrompt().first()
+        )
+    }
+
+    private suspend fun exportTemplateConfig(): JsonObject = JsonObject().apply {
+        addProperty("templatesSeeded", templatePreferences.isSeeded())
+        addProperty("templatesFirstSyncDone", templatePreferences.isFirstSyncDone())
     }
 
     private suspend fun exportAttachments(): JsonArray {
@@ -436,8 +687,13 @@ constructor(
          *
          * Bump this only for breaking structural changes. Purely additive changes
          * (new entity fields, new entity collections) do NOT require a version bump
-         * because [DataImporter] tolerates missing fields via [DataImporter.mergeWithDefaults].
+         * because [DataImporter] tolerates missing fields via
+         * [mergeEntityWithDefaults].
+         *
+         * - v5 (2026-04-18): audit pass — adds the `includeDerivedData` flag,
+         *   `derived` split, `schemaVersion`/`exportedAtIso`/`deviceModel`
+         *   metadata, and fills gaps in preference and entity coverage.
          */
-        const val EXPORT_VERSION = 4
+        const val EXPORT_VERSION = 5
     }
 }

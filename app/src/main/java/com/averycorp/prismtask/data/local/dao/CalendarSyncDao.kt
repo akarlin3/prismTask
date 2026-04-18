@@ -34,4 +34,7 @@ interface CalendarSyncDao {
 
     @Query("DELETE FROM calendar_sync")
     suspend fun deleteAll()
+
+    @Query("SELECT * FROM calendar_sync")
+    suspend fun getAllOnce(): List<CalendarSyncEntity>
 }
