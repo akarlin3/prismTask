@@ -432,6 +432,32 @@ async def time_block(
 # ---------------------------------------------------------------------------
 
 
+_WEEKLY_REVIEW_OPEN_TASK_CAP = 20
+
+
+def _rank_open_tasks_for_review(tasks: list[TaskDTO]) -> list[TaskDTO]:
+    """Rank + cap open tasks for the weekly-review prompt.
+
+    Ordering: priority DESC, then due_date ASC with nulls last, then
+    sort_order ASC as a stable tiebreaker. Capped at 20 items to keep
+    Sonnet token usage bounded. If there are <=20 open tasks, we skip the
+    ranking and return them all (still applying the stable sort so the
+    prompt is deterministic).
+    """
+    # date.max keeps null due dates at the end of the ASC sort.
+    far_future = date.max
+
+    def sort_key(t: TaskDTO):
+        return (
+            -int(t.priority or 0),
+            t.due_date_obj or far_future,
+            int(t.sort_order or 0),
+        )
+
+    ranked = sorted(tasks, key=sort_key)
+    return ranked[:_WEEKLY_REVIEW_OPEN_TASK_CAP]
+
+
 @router.post("/weekly-review", response_model=WeeklyReviewResponse)
 async def weekly_review(
     data: WeeklyReviewRequest,
@@ -439,32 +465,51 @@ async def weekly_review(
     current_user: User = Depends(get_current_user),
 ):
     """
-    Generate an ADHD-friendly weekly review narrative from anonymized
-    aggregate stats. No individual task titles are sent — the Android
-    client computes counts + category ratios + burnout score locally
-    and forwards only those numbers.
+    Generate an ADHD-friendly weekly review narrative using a hybrid
+    input pattern:
+      * The client sends per-task summaries for completed and slipped tasks
+        plus optional opaque habit/pomodoro aggregates and free-form notes.
+      * The backend enriches with the user's current open tasks from
+        Firestore so the "going forward" section of the review is grounded
+        in live data.
 
-    The response has three short bullet lists (wins, slips, suggestions)
-    plus a tone marker. The Android WeeklyReviewScreen replaces its
-    rule-based narrative with this output when the user is on Premium
-    and the request succeeds; the rule-based fallback stays for Free
-    users and network failures.
+    Schema v2 — breaking change from the aggregate-counts v1 schema. Old
+    clients posting the v1 body shape will get 422 until their prompts
+    land. See WeeklyReviewRequest in schemas/ai.py for the v2 contract.
     """
     weekly_review_rate_limiter.check(request)
     tier = current_user.effective_tier
     daily_ai_rate_limiter.check(current_user.id, tier)
 
+    uid = _require_firebase_uid(current_user)
+    open_dtos = await fetch_incomplete_tasks(uid)
+    top_open = _rank_open_tasks_for_review(open_dtos)
+
+    logger.info(
+        "AI weekly_review: user_id=%s endpoint=weekly_review "
+        "completed=%d slipped=%d open_total=%d open_included=%d",
+        current_user.id,
+        len(data.completed_tasks),
+        len(data.slipped_tasks),
+        len(open_dtos),
+        len(top_open),
+    )
+
+    completed_dicts = [t.model_dump() for t in data.completed_tasks]
+    slipped_dicts = [t.model_dump() for t in data.slipped_tasks]
+    open_dicts = [t.to_briefing_dict() for t in top_open]
+
     try:
         from app.services.ai_productivity import generate_weekly_review as ai_review
         result = ai_review(
-            week_start=data.week_start,
-            week_end=data.week_end,
-            completed=data.completed,
-            slipped=data.slipped,
-            rescheduled=data.rescheduled,
-            category_counts=data.category_counts,
-            burnout_score=data.burnout_score,
-            medication_adherence=data.medication_adherence,
+            week_start=data.week_start.isoformat(),
+            week_end=data.week_end.isoformat(),
+            completed_tasks=completed_dicts,
+            slipped_tasks=slipped_dicts,
+            open_tasks=open_dicts,
+            habit_summary=data.habit_summary,
+            pomodoro_summary=data.pomodoro_summary,
+            notes=data.notes,
             tier=tier,
         )
     except RuntimeError:
@@ -473,10 +518,13 @@ async def weekly_review(
         raise HTTPException(status_code=500, detail="AI returned an invalid response")
 
     return WeeklyReviewResponse(
+        week_start=data.week_start,
+        week_end=data.week_end,
         wins=result.get("wins", []),
         slips=result.get("slips", []),
-        suggestions=result.get("suggestions", []),
-        tone=result.get("tone", "gentle"),
+        patterns=result.get("patterns", []),
+        next_week_focus=result.get("next_week_focus", []),
+        narrative=result.get("narrative", ""),
     )
 
 

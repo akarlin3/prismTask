@@ -575,3 +575,122 @@ class TestNewAIEndpoints:
                 headers=auth_headers,
             )
             assert resp2.status_code == 429
+
+
+class TestWeeklyReviewService:
+    """The prompt assembly is the only non-trivial logic here — verify that
+    all four input sections land in the Sonnet prompt."""
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "sk-test-key"})
+    def test_prompt_includes_all_four_sections(self):
+        from app.services.ai_productivity import generate_weekly_review
+
+        with patch("app.services.ai_productivity.anthropic") as mock_anthropic:
+            mock_client = MagicMock()
+            mock_anthropic.Anthropic.return_value = mock_client
+            mock_client.messages.create.return_value = _make_mock_response({
+                "wins": ["Shipped the payment fix"],
+                "slips": ["Dishes never got done"],
+                "patterns": ["Q2 work slipped"],
+                "next_week_focus": ["Block Tuesday AM for the migration"],
+                "narrative": "Solid week, with one recurring slip pattern.",
+            })
+
+            completed = [
+                {"task_id": "c1", "title": "Ship payment fix", "priority": 3,
+                 "eisenhower_quadrant": "Q1", "life_category": "work",
+                 "completed_at": "2026-04-15T10:00:00"},
+            ]
+            slipped = [
+                {"task_id": "s1", "title": "Do the dishes", "priority": 1,
+                 "life_category": "personal"},
+            ]
+            open_tasks = [
+                {"task_id": "o1", "title": "Finish DB migration", "priority": 4,
+                 "eisenhower_quadrant": "Q2", "due_date": "2026-04-22"},
+            ]
+
+            result = generate_weekly_review(
+                week_start="2026-04-13",
+                week_end="2026-04-19",
+                completed_tasks=completed,
+                slipped_tasks=slipped,
+                open_tasks=open_tasks,
+                habit_summary={"exercise_streak": 4, "meditation_rate": 0.71},
+                pomodoro_summary={"total_minutes": 480, "sessions": 12},
+                notes="Felt scattered on Wednesday but recovered.",
+                tier="PRO",
+            )
+
+            assert result["narrative"].startswith("Solid week")
+            assert result["patterns"] == ["Q2 work slipped"]
+            assert result["next_week_focus"] == ["Block Tuesday AM for the migration"]
+
+            # Inspect the prompt Sonnet received.
+            call_args = mock_client.messages.create.call_args
+            prompt = call_args.kwargs["messages"][0]["content"]
+
+            # Section 1: week bounds
+            assert "2026-04-13 to 2026-04-19" in prompt
+
+            # Section 2: completed tasks (header with count + the task title)
+            assert "completed 1 task" in prompt
+            assert "Ship payment fix" in prompt
+            assert "Q1" in prompt  # quadrant metadata
+
+            # Section 3: slipped tasks
+            assert "1 task(s) that slipped" in prompt
+            assert "Do the dishes" in prompt
+
+            # Section 4: open tasks
+            assert "Currently open on their plate" in prompt
+            assert "Finish DB migration" in prompt
+            assert "due 2026-04-22" in prompt
+
+            # Opaque pass-through blocks
+            assert "exercise_streak" in prompt
+            assert "total_minutes" in prompt
+
+            # User notes
+            assert "Felt scattered on Wednesday" in prompt
+
+            # Sonnet, not Haiku (weekly review runs on monthly_review model).
+            from app.services.ai_productivity import MODEL_SONNET
+            assert call_args.kwargs["model"] == MODEL_SONNET
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "sk-test-key"})
+    def test_prompt_handles_empty_inputs_gracefully(self):
+        """A week with no completed/slipped/open tasks and no summaries
+        should still produce a valid prompt (no KeyError, no crash)."""
+        from app.services.ai_productivity import generate_weekly_review
+
+        with patch("app.services.ai_productivity.anthropic") as mock_anthropic:
+            mock_client = MagicMock()
+            mock_anthropic.Anthropic.return_value = mock_client
+            mock_client.messages.create.return_value = _make_mock_response({
+                "wins": [],
+                "slips": [],
+                "patterns": [],
+                "next_week_focus": [],
+                "narrative": "A quiet week with nothing logged.",
+            })
+
+            generate_weekly_review(
+                week_start="2026-04-13",
+                week_end="2026-04-19",
+                completed_tasks=[],
+                slipped_tasks=[],
+                open_tasks=[],
+                habit_summary=None,
+                pomodoro_summary=None,
+                notes=None,
+                tier="PRO",
+            )
+
+            prompt = mock_client.messages.create.call_args.kwargs["messages"][0]["content"]
+            # Empty sections render as "(none)" / "(not provided)" so the
+            # model doesn't see dangling headers.
+            assert "completed 0 task" in prompt
+            assert "0 task(s) that slipped" in prompt
+            assert "(none)" in prompt
+            assert "(not provided)" in prompt

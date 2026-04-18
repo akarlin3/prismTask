@@ -344,26 +344,96 @@ Respond ONLY with valid JSON:
 # v1.4.0 V6 -- AI weekly review
 # ---------------------------------------------------------------------------
 
-def generate_weekly_review(week_start: str, week_end: str, completed: int, slipped: int, rescheduled: int, category_counts: dict[str, int], burnout_score: int, medication_adherence: float | None = None, tier: str = "FREE") -> dict:
-    """Generate a forgiveness-first weekly review narrative via Claude."""
+def _format_task_bullets(tasks: list[dict]) -> str:
+    """Render a task list as terse bullets for inclusion in the weekly-review prompt."""
+    if not tasks:
+        return "(none)"
+    lines = []
+    for t in tasks:
+        parts = [f"- {t.get('title', '').strip() or '(untitled)'}"]
+        meta: list[str] = []
+        if t.get("priority") is not None:
+            meta.append(f"p{t['priority']}")
+        if t.get("eisenhower_quadrant"):
+            meta.append(str(t["eisenhower_quadrant"]))
+        if t.get("life_category"):
+            meta.append(str(t["life_category"]))
+        if t.get("due_date"):
+            meta.append(f"due {t['due_date']}")
+        if t.get("completed_at"):
+            meta.append(f"done {t['completed_at']}")
+        if meta:
+            parts.append(f"  [{', '.join(meta)}]")
+        lines.append(" ".join(parts))
+    return "\n".join(lines)
+
+
+def generate_weekly_review(
+    week_start: str,
+    week_end: str,
+    completed_tasks: list[dict],
+    slipped_tasks: list[dict],
+    open_tasks: list[dict],
+    habit_summary: dict | None = None,
+    pomodoro_summary: dict | None = None,
+    notes: str | None = None,
+    tier: str = "FREE",
+) -> dict:
+    """Generate a forgiveness-first weekly review narrative via Claude.
+
+    Inputs are four structured lists plus optional opaque summaries:
+      * completed_tasks — what shipped this week (from client body)
+      * slipped_tasks   — due/planned but not completed (from client body)
+      * open_tasks      — what's currently on the user's plate (Firestore,
+                          ranked by priority DESC, due_date ASC (nulls last),
+                          sort_order ASC, capped to 20 upstream)
+      * habit_summary / pomodoro_summary — opaque dicts forwarded verbatim
+      * notes — free-form text the user wrote about their week
+
+    Uses Sonnet via the ``monthly_review`` feature flag for higher-quality
+    narrative output — do not change without coordinating pricing.
+    """
     client = _get_client()
-    prompt = f"""You are a compassionate productivity coach writing a weekly review for someone with ADHD. Use a forgiveness-first, supportive tone.
 
-Week: {week_start} to {week_end}
-Completed tasks: {completed}
-Slipped / not done: {slipped}
-Rescheduled: {rescheduled}
-Task category breakdown: {json.dumps(category_counts)}
-Burnout composite score (0-100): {burnout_score}
-{"Medication adherence: " + str(int((medication_adherence or 0) * 100)) + "%" if medication_adherence is not None else ""}
+    completed_block = _format_task_bullets(completed_tasks)
+    slipped_block = _format_task_bullets(slipped_tasks)
+    open_block = _format_task_bullets(open_tasks)
+    habit_block = json.dumps(habit_summary, default=str) if habit_summary else "(not provided)"
+    pomodoro_block = json.dumps(pomodoro_summary, default=str) if pomodoro_summary else "(not provided)"
+    notes_block = notes.strip() if notes and notes.strip() else "(none)"
 
-Respond ONLY with valid JSON:
-{{"wins": ["You completed X tasks this week."], "slips": ["A few tasks got rescheduled."], "suggestions": ["Try blocking Tuesday morning for deep work."], "tone": "gentle"}}
+    prompt = f"""You are a compassionate productivity coach writing a weekly review for someone with ADHD. Use a forgiveness-first, supportive tone. Ground every observation in the specifics below — don't invent tasks or metrics.
 
-Keep each list to 2-3 bullets max."""
+Week under review: {week_start} to {week_end}
 
-    # Weekly review uses Sonnet via the monthly_review feature flag for
-    # higher-quality narrative output.
+This week the user completed {len(completed_tasks)} task(s):
+{completed_block}
+
+They had {len(slipped_tasks)} task(s) that slipped (due or planned this week but not completed):
+{slipped_block}
+
+Currently open on their plate going forward: {len(open_tasks)} task(s) (top 20 by priority and due date):
+{open_block}
+
+Habit summary (opaque client-provided aggregate):
+{habit_block}
+
+Pomodoro summary (opaque client-provided aggregate):
+{pomodoro_block}
+
+User's notes about the week:
+{notes_block}
+
+Write a review with:
+- wins: 2-3 specific accomplishments, citing completed tasks by name where possible.
+- slips: 2-3 honest, non-judgmental observations on what didn't happen, citing slipped task titles where they make the point land.
+- patterns: 2-3 trends you notice across completed/slipped/open (e.g. "Q2 tasks consistently get deferred", "self-care category dominated completions").
+- next_week_focus: 2-3 concrete suggestions for next week, anchored in what's currently open.
+- narrative: 2-3 sentence prose summary capturing the overall arc and emotional tone of the week.
+
+Respond ONLY with valid JSON in this exact shape:
+{{"wins": ["..."], "slips": ["..."], "patterns": ["..."], "next_week_focus": ["..."], "narrative": "..."}}"""
+
     model = get_model("monthly_review")
     max_tokens = 2048
     last_error_wr = None
