@@ -11,6 +11,9 @@ import com.averycorp.prismtask.data.local.entity.DailyEssentialSlotCompletionEnt
 import com.averycorp.prismtask.data.local.entity.HabitEntity
 import com.averycorp.prismtask.data.local.entity.LeisureLogEntity
 import com.averycorp.prismtask.data.preferences.DailyEssentialsPreferences
+import com.averycorp.prismtask.data.preferences.LeisurePreferences
+import com.averycorp.prismtask.data.preferences.LeisureSlotConfig
+import com.averycorp.prismtask.data.preferences.LeisureSlotId
 import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
 import com.averycorp.prismtask.data.repository.LeisureRepository
 import com.averycorp.prismtask.domain.model.SelfCareRoutines
@@ -69,7 +72,12 @@ data class SchoolworkCardState(
 data class LeisureCardState(
     val kind: LeisureKind,
     val pickedForToday: String?,
-    val doneForToday: Boolean
+    val doneForToday: Boolean,
+    val label: String = when (kind) {
+        LeisureKind.MUSIC -> "Music"
+        LeisureKind.FLEX -> "Flex Leisure"
+    },
+    val enabled: Boolean = true
 )
 
 data class MedicationCardState(
@@ -139,7 +147,8 @@ constructor(
     private val medicationStatusUseCase: MedicationStatusUseCase,
     private val slotCompletionDao: DailyEssentialSlotCompletionDao,
     private val dailyEssentialsPreferences: DailyEssentialsPreferences,
-    private val taskBehaviorPreferences: TaskBehaviorPreferences
+    private val taskBehaviorPreferences: TaskBehaviorPreferences,
+    private val leisurePreferences: LeisurePreferences
 ) {
     /**
      * Composite feed for the Daily Essentials section. All time windows use
@@ -161,7 +170,9 @@ constructor(
                 leisureRepository.getTodayLog(),
                 medicationStatusUseCase.observeDueDosesToday(),
                 slotCompletionDao.observeForDate(todayStart),
-                dailyEssentialsPreferences.hasSeenHint
+                dailyEssentialsPreferences.hasSeenHint,
+                leisurePreferences.getSlotConfig(LeisureSlotId.MUSIC),
+                leisurePreferences.getSlotConfig(LeisureSlotId.FLEX)
             ) { args -> combineDailyEssentials(args) }
         }
 
@@ -176,6 +187,8 @@ constructor(
         val dueDoses = args[6] as List<MedicationDose>
         val materializedSlots = args[7] as List<DailyEssentialSlotCompletionEntity>
         val seenHint = args[8] as Boolean
+        val musicConfig = args[9] as LeisureSlotConfig
+        val flexConfig = args[10] as LeisureSlotConfig
 
         val allSlots = MedicationSlotGrouper.group(dueDoses, materializedSlots)
         // The "medication card" should collapse when there are no pending
@@ -203,13 +216,17 @@ constructor(
             schoolwork = schoolwork,
             musicLeisure = LeisureCardState(
                 kind = LeisureKind.MUSIC,
-                pickedForToday = leisureLog?.musicPick,
-                doneForToday = leisureLog?.musicDone == true
+                pickedForToday = if (musicConfig.enabled) leisureLog?.musicPick else null,
+                doneForToday = musicConfig.enabled && leisureLog?.musicDone == true,
+                label = musicConfig.label,
+                enabled = musicConfig.enabled
             ),
             flexLeisure = LeisureCardState(
                 kind = LeisureKind.FLEX,
-                pickedForToday = leisureLog?.flexPick,
-                doneForToday = leisureLog?.flexDone == true
+                pickedForToday = if (flexConfig.enabled) leisureLog?.flexPick else null,
+                doneForToday = flexConfig.enabled && leisureLog?.flexDone == true,
+                label = flexConfig.label,
+                enabled = flexConfig.enabled
             ),
             medication = medicationState,
             hasSeenHint = seenHint

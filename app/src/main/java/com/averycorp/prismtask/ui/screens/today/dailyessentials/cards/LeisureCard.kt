@@ -32,10 +32,7 @@ fun LeisureCard(
         LeisureKind.MUSIC -> Color(0xFF8B5CF6)
         LeisureKind.FLEX -> Color(0xFF10B981)
     }
-    val title = when (state.kind) {
-        LeisureKind.MUSIC -> "Music"
-        LeisureKind.FLEX -> "Flex Leisure"
-    }
+    val title = state.label
     val pick = state.pickedForToday
     val description = if (pick == null) {
         "$title — no pick for today"

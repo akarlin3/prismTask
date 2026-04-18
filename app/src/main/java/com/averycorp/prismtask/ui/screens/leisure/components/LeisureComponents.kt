@@ -109,7 +109,7 @@ internal fun AddActivityDialog(
 }
 
 @Composable
-internal fun ProgressCard(doneCount: Int, progress: Float, allDone: Boolean) {
+internal fun ProgressCard(doneCount: Int, target: Int, progress: Float, allDone: Boolean) {
     val animatedProgress by animateFloatAsState(
         targetValue = progress,
         animationSpec = tween(400),
@@ -135,7 +135,7 @@ internal fun ProgressCard(doneCount: Int, progress: Float, allDone: Boolean) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    "$doneCount / 2 daily minimum",
+                    "$doneCount / $target daily minimum",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

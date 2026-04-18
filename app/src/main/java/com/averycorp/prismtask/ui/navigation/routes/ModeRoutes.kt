@@ -7,6 +7,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.averycorp.prismtask.ui.navigation.PrismTaskRoute
 import com.averycorp.prismtask.ui.screens.leisure.LeisureScreen
+import com.averycorp.prismtask.ui.screens.leisure.settings.LeisureSettingsScreen
 import com.averycorp.prismtask.ui.screens.medication.MedicationLogScreen
 import com.averycorp.prismtask.ui.screens.medication.MedicationRefillScreen
 import com.averycorp.prismtask.ui.screens.medication.MedicationScreen
@@ -22,6 +23,10 @@ import com.averycorp.prismtask.ui.screens.selfcare.SelfCareScreen
 internal fun NavGraphBuilder.modeRoutes(navController: NavHostController) {
     simpleSlideComposable(PrismTaskRoute.Leisure.route) {
         LeisureScreen(navController)
+    }
+
+    horizontalSlideComposable(PrismTaskRoute.LeisureSettings.route) {
+        LeisureSettingsScreen(navController)
     }
 
     simpleSlideComposable(PrismTaskRoute.Schoolwork.route) {

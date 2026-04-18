@@ -130,6 +130,8 @@ sealed class PrismTaskRoute(
 
     data object Leisure : PrismTaskRoute("leisure")
 
+    data object LeisureSettings : PrismTaskRoute("leisure_settings")
+
     data object Schoolwork : PrismTaskRoute("schoolwork")
 
     data object SyllabusReview : PrismTaskRoute("syllabus_review?uri={uri}") {
