@@ -38,49 +38,97 @@ private fun googleFontFamilyOrFallback(
     fallback
 }
 
+/**
+ * Builds a display-only [FontFamily] from a single-weight Google Font. Many
+ * display faces (Monoton, VT323, Audiowide) ship only as Regular, so we avoid
+ * the multi-weight path that would silently fall back to a system font for the
+ * missing weights.
+ */
+private fun singleWeightGoogleFontOrFallback(
+    name: String,
+    fallback: FontFamily
+): FontFamily = try {
+    val font = GoogleFont(name)
+    FontFamily(
+        Font(googleFont = font, fontProvider = googleFontProvider, weight = FontWeight.Normal)
+    )
+} catch (_: Throwable) {
+    fallback
+}
+
 // Google Fonts used by the four PrismThemes. Resolved lazily so we don't pay
 // the construction cost (or crash in previews that lack the Play Services
 // provider) until a screen actually asks for the family.
+
+// Matrix body: monospaced terminal face.
 private val ShareTechMono: FontFamily by lazy {
     googleFontFamilyOrFallback("Share Tech Mono", FontFamily.Monospace)
 }
 
+// Matrix display: pixelated CRT terminal face (single weight).
+private val Vt323: FontFamily by lazy {
+    singleWeightGoogleFontOrFallback("VT323", FontFamily.Monospace)
+}
+
+// Cyberpunk body: angular techno sans-serif with sci-fi flair.
+private val ChakraPetch: FontFamily by lazy {
+    googleFontFamilyOrFallback("Chakra Petch", FontFamily.SansSerif)
+}
+
+// Cyberpunk display: wide futurist face with strong geometric forms.
+private val Audiowide: FontFamily by lazy {
+    singleWeightGoogleFontOrFallback("Audiowide", FontFamily.SansSerif)
+}
+
+// Synthwave body: condensed sans-serif that reads cleanly next to heavy display type.
 private val Rajdhani: FontFamily by lazy {
     googleFontFamilyOrFallback("Rajdhani", FontFamily.SansSerif)
 }
 
-private val DmSans: FontFamily by lazy {
-    googleFontFamilyOrFallback("DM Sans", FontFamily.SansSerif)
+// Synthwave display: iconic 80s neon-stripe letters.
+private val Monoton: FontFamily by lazy {
+    singleWeightGoogleFontOrFallback("Monoton", FontFamily.SansSerif)
 }
 
-private val Orbitron: FontFamily by lazy {
-    googleFontFamilyOrFallback("Orbitron", FontFamily.SansSerif)
+// Void body: geometric sans-serif with quiet technical character.
+private val SpaceGrotesk: FontFamily by lazy {
+    googleFontFamilyOrFallback("Space Grotesk", FontFamily.SansSerif)
+}
+
+// Void display: serif counterpoint for minimal, editorial hero text.
+private val Fraunces: FontFamily by lazy {
+    googleFontFamilyOrFallback("Fraunces", FontFamily.Serif)
 }
 
 /**
- * Body / UI font family for the given [theme].
+ * Body / UI font family for the given [theme]. Each PrismTheme uses a
+ * distinct body face so the running UI feels unmistakably tied to its
+ * aesthetic:
  *
- * - CYBERPUNK, MATRIX: Share Tech Mono (monospaced, terminal feel)
- * - SYNTHWAVE:         Rajdhani (condensed sans-serif display)
- * - VOID:              DM Sans (clean geometric sans-serif)
+ * - CYBERPUNK: Chakra Petch (angular techno sans-serif)
+ * - MATRIX:    Share Tech Mono (terminal monospace)
+ * - SYNTHWAVE: Rajdhani (condensed 80s-inflected sans)
+ * - VOID:      Space Grotesk (quiet geometric sans)
  */
 fun prismThemeFonts(theme: PrismTheme): FontFamily = when (theme) {
-    PrismTheme.CYBERPUNK -> ShareTechMono
+    PrismTheme.CYBERPUNK -> ChakraPetch
     PrismTheme.MATRIX -> ShareTechMono
     PrismTheme.SYNTHWAVE -> Rajdhani
-    PrismTheme.VOID -> DmSans
+    PrismTheme.VOID -> SpaceGrotesk
 }
 
 /**
  * Display / headline font family for the given [theme]. Pairs with
- * [prismThemeFonts] but leans more decorative for hero text.
+ * [prismThemeFonts] but leans decorative and unique per theme:
  *
- * - CYBERPUNK, MATRIX, SYNTHWAVE: Orbitron (geometric futurist display)
- * - VOID:                         DM Sans (reuses body face for a minimal look)
+ * - CYBERPUNK: Audiowide (wide futurist hero face)
+ * - MATRIX:    VT323 (pixelated CRT terminal)
+ * - SYNTHWAVE: Monoton (neon-stripe 80s display)
+ * - VOID:      Fraunces (editorial serif counterpoint)
  */
 fun prismDisplayFont(theme: PrismTheme): FontFamily = when (theme) {
-    PrismTheme.CYBERPUNK -> Orbitron
-    PrismTheme.MATRIX -> Orbitron
-    PrismTheme.SYNTHWAVE -> Orbitron
-    PrismTheme.VOID -> DmSans
+    PrismTheme.CYBERPUNK -> Audiowide
+    PrismTheme.MATRIX -> Vt323
+    PrismTheme.SYNTHWAVE -> Monoton
+    PrismTheme.VOID -> Fraunces
 }
