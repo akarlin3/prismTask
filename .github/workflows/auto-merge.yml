@@ -17,6 +17,7 @@ on:
   pull_request:
     types: [opened, reopened, ready_for_review, synchronize]
     branches: [main]
+  workflow_dispatch:
 
 env:
   WAIT_INTERVAL: 30  # seconds between CI check polls

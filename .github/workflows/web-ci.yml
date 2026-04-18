@@ -13,6 +13,7 @@ on:
       - 'web/**'
       - '.github/workflows/web-ci.yml'
       - '.github/actions/setup-node-web/**'
+  workflow_dispatch:
 
 concurrency:
   group: web-ci-${{ github.ref }}
