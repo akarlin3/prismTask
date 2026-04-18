@@ -1,11 +1,12 @@
 package com.averycorp.prismtask.domain.usecase
 
 import com.averycorp.prismtask.data.local.entity.HabitEntity
+import com.averycorp.prismtask.data.local.entity.ProjectEntity
 import com.averycorp.prismtask.data.local.entity.TaskEntity
 
 /**
- * Plans which tasks and habits should be removed to clean up accidental
- * duplicates ("repeat tasks and habits put in by mistake").
+ * Plans which tasks, habits, and projects should be removed to clean up
+ * accidental duplicates.
  *
  * Detection rule:
  *  - Tasks: grouped by (normalized title, dueDate). Only active, non-archived,
@@ -14,6 +15,7 @@ import com.averycorp.prismtask.data.local.entity.TaskEntity
  *    completed/archived work is preserved.
  *  - Habits: grouped by (normalized name, frequencyPeriod, targetFrequency).
  *    Archived habits are skipped.
+ *  - Projects: grouped by normalized name. Archived projects are skipped.
  *
  * Keep rule: for each group of size > 1, the "most complete" entry is kept
  * (highest completeness score). Ties are broken by oldest createdAt, then by
@@ -76,6 +78,22 @@ object DuplicateCleanupPlanner {
             }
     }
 
+    fun findProjectDuplicatesToDelete(projects: List<ProjectEntity>): List<Long> {
+        val candidates = projects.filter { it.archivedAt == null }
+        return candidates
+            .groupBy { normalize(it.name) }
+            .values
+            .filter { it.size > 1 }
+            .flatMap { group ->
+                val keeper = group.maxWithOrNull(
+                    compareBy<ProjectEntity> { scoreProject(it) }
+                        .thenByDescending { it.createdAt }
+                        .thenByDescending { it.id }
+                ) ?: return@flatMap emptyList()
+                group.filter { it.id != keeper.id }.map { it.id }
+            }
+    }
+
     private fun normalize(text: String): String = text.trim().lowercase()
 
     private fun scoreTask(task: TaskEntity, extras: TaskExtras?): Int {
@@ -100,6 +118,15 @@ object DuplicateCleanupPlanner {
         if (habit.reminderIntervalMillis != null) score++
         score += extras?.completionCount ?: 0
         score += extras?.logCount ?: 0
+        return score
+    }
+
+    private fun scoreProject(project: ProjectEntity): Int {
+        var score = 0
+        if (!project.description.isNullOrBlank()) score++
+        if (project.themeColorKey != null) score++
+        if (project.startDate != null) score++
+        if (project.endDate != null) score++
         return score
     }
 }

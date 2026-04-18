@@ -1,6 +1,7 @@
 package com.averycorp.prismtask.domain.usecase
 
 import com.averycorp.prismtask.data.local.entity.HabitEntity
+import com.averycorp.prismtask.data.local.entity.ProjectEntity
 import com.averycorp.prismtask.data.local.entity.TaskEntity
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -277,5 +278,105 @@ class DuplicateCleanupPlannerTest {
         )
         val result = DuplicateCleanupPlanner.findHabitDuplicatesToDelete(habits, emptyMap())
         assertEquals(listOf(2L), result)
+    }
+
+    // ---------------- Projects ----------------
+
+    private fun project(
+        id: Long,
+        name: String,
+        description: String? = null,
+        themeColorKey: String? = null,
+        startDate: Long? = null,
+        endDate: Long? = null,
+        archivedAt: Long? = null,
+        createdAt: Long = 1_000L
+    ): ProjectEntity = ProjectEntity(
+        id = id,
+        name = name,
+        description = description,
+        themeColorKey = themeColorKey,
+        startDate = startDate,
+        endDate = endDate,
+        archivedAt = archivedAt,
+        createdAt = createdAt,
+        updatedAt = createdAt
+    )
+
+    @Test
+    fun `empty project list returns empty`() {
+        val result = DuplicateCleanupPlanner.findProjectDuplicatesToDelete(emptyList())
+        assertTrue(result.isEmpty())
+    }
+
+    @Test
+    fun `unique projects are not flagged`() {
+        val projects = listOf(
+            project(1, "Work"),
+            project(2, "Personal")
+        )
+        val result = DuplicateCleanupPlanner.findProjectDuplicatesToDelete(projects)
+        assertTrue(result.isEmpty())
+    }
+
+    @Test
+    fun `exact duplicate project is dropped`() {
+        val projects = listOf(
+            project(1, "Work"),
+            project(2, "Work")
+        )
+        val result = DuplicateCleanupPlanner.findProjectDuplicatesToDelete(projects)
+        assertEquals(1, result.size)
+    }
+
+    @Test
+    fun `project name match normalizes whitespace and case`() {
+        val projects = listOf(
+            project(1, "My Project"),
+            project(2, "  my project  ")
+        )
+        val result = DuplicateCleanupPlanner.findProjectDuplicatesToDelete(projects)
+        assertEquals(1, result.size)
+    }
+
+    @Test
+    fun `archived projects are excluded from duplicate detection`() {
+        val projects = listOf(
+            project(1, "Work", archivedAt = 500L),
+            project(2, "Work")
+        )
+        val result = DuplicateCleanupPlanner.findProjectDuplicatesToDelete(projects)
+        assertTrue(result.isEmpty())
+    }
+
+    @Test
+    fun `most complete project is kept`() {
+        val projects = listOf(
+            project(1, "Work"),
+            project(2, "Work", description = "Day job tasks", themeColorKey = "blue")
+        )
+        val result = DuplicateCleanupPlanner.findProjectDuplicatesToDelete(projects)
+        assertEquals(listOf(1L), result)
+    }
+
+    @Test
+    fun `project tie breaks on oldest createdAt`() {
+        val projects = listOf(
+            project(1, "Work", createdAt = 3_000L),
+            project(2, "Work", createdAt = 1_000L)
+        )
+        val result = DuplicateCleanupPlanner.findProjectDuplicatesToDelete(projects)
+        assertEquals(listOf(1L), result)
+    }
+
+    @Test
+    fun `three duplicate projects drop two`() {
+        val projects = listOf(
+            project(1, "Work", createdAt = 1_000L),
+            project(2, "Work", createdAt = 2_000L),
+            project(3, "Work", createdAt = 3_000L)
+        )
+        val result = DuplicateCleanupPlanner.findProjectDuplicatesToDelete(projects)
+        assertEquals(listOf<Long>(2L, 3L).sorted(), result.sorted())
     }
 }

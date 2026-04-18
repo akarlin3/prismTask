@@ -142,9 +142,9 @@ fun DataSection(
             title = { Text("No Duplicates Found") },
             text = {
                 Text(
-                    "No duplicate tasks or habits were detected. Duplicates are " +
-                        "matched by the same title and due date (or same habit name " +
-                        "and frequency)."
+                    "No duplicate tasks, habits, or projects were detected. Duplicates " +
+                        "are matched by the same title and due date (tasks), same name " +
+                        "and frequency (habits), or same name (projects)."
                 )
             }
         )
@@ -181,7 +181,12 @@ fun DataSection(
                         1 -> "1 duplicate habit"
                         else -> "${preview.habitCount} duplicate habits"
                     }
-                    val parts = listOfNotNull(taskLine, habitLine).joinToString(" and ")
+                    val projectLine = when (preview.projectCount) {
+                        0 -> null
+                        1 -> "1 duplicate project"
+                        else -> "${preview.projectCount} duplicate projects"
+                    }
+                    val parts = listOfNotNull(taskLine, habitLine, projectLine).joinToString(" and ")
                     Text("Found $parts.")
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(

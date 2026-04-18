@@ -1185,8 +1185,8 @@ constructor(
         val pendingPreview: Preview? = null,
         val noDuplicatesFound: Boolean = false
     ) {
-        data class Preview(val taskCount: Int, val habitCount: Int) {
-            val total: Int get() = taskCount + habitCount
+        data class Preview(val taskCount: Int, val habitCount: Int, val projectCount: Int) {
+            val total: Int get() = taskCount + habitCount + projectCount
         }
     }
 
@@ -1204,14 +1204,17 @@ constructor(
         viewModelScope.launch {
             _duplicateCleanupState.value = DuplicateCleanupState(isScanning = true)
             try {
-                val (taskIds, habitIds) = findDuplicateIds()
-                _duplicateCleanupState.value = if (taskIds.isEmpty() && habitIds.isEmpty()) {
-                    DuplicateCleanupState(noDuplicatesFound = true)
-                } else {
-                    DuplicateCleanupState(
-                        pendingPreview = DuplicateCleanupState.Preview(taskIds.size, habitIds.size)
-                    )
-                }
+                val (taskIds, habitIds, projectIds) = findDuplicateIds()
+                _duplicateCleanupState.value =
+                    if (taskIds.isEmpty() && habitIds.isEmpty() && projectIds.isEmpty()) {
+                        DuplicateCleanupState(noDuplicatesFound = true)
+                    } else {
+                        DuplicateCleanupState(
+                            pendingPreview = DuplicateCleanupState.Preview(
+                                taskIds.size, habitIds.size, projectIds.size
+                            )
+                        )
+                    }
             } catch (e: Exception) {
                 Log.e("SettingsVM", "Duplicate scan failed", e)
                 _duplicateCleanupState.value = DuplicateCleanupState()
@@ -1230,11 +1233,20 @@ constructor(
         viewModelScope.launch {
             _duplicateCleanupState.value = current.copy(isDeleting = true)
             try {
-                val (taskIds, habitIds) = findDuplicateIds()
+                val (taskIds, habitIds, projectIds) = findDuplicateIds()
                 taskIds.forEach { taskRepository.deleteTask(it) }
                 habitIds.forEach { habitRepository.deleteHabit(it) }
+                projectIds.forEach { database.projectDao().deleteById(it) }
                 _messages.emit(
-                    "Deleted ${taskIds.size} duplicate tasks and ${habitIds.size} duplicate habits"
+                    buildString {
+                        val parts = listOfNotNull(
+                            if (taskIds.isNotEmpty()) "${taskIds.size} duplicate task${if (taskIds.size == 1) "" else "s"}" else null,
+                            if (habitIds.isNotEmpty()) "${habitIds.size} duplicate habit${if (habitIds.size == 1) "" else "s"}" else null,
+                            if (projectIds.isNotEmpty()) "${projectIds.size} duplicate project${if (projectIds.size == 1) "" else "s"}" else null
+                        )
+                        append("Deleted ")
+                        append(parts.joinToString(" and "))
+                    }
                 )
             } catch (e: Exception) {
                 Log.e("SettingsVM", "Duplicate cleanup failed", e)
@@ -1250,13 +1262,14 @@ constructor(
         _duplicateCleanupState.value = DuplicateCleanupState()
     }
 
-    private suspend fun findDuplicateIds(): Pair<List<Long>, List<Long>> =
+    private suspend fun findDuplicateIds(): Triple<List<Long>, List<Long>, List<Long>> =
         withContext(Dispatchers.IO) {
             val taskDao = database.taskDao()
             val tagDao = database.tagDao()
             val habitDao = database.habitDao()
             val completionDao = database.habitCompletionDao()
             val logDao = database.habitLogDao()
+            val projectDao = database.projectDao()
 
             val tasks = taskDao.getAllTasksOnce()
             val taskCandidates = tasks.filter {
@@ -1285,7 +1298,11 @@ constructor(
             val habitIds = com.averycorp.prismtask.domain.usecase.DuplicateCleanupPlanner
                 .findHabitDuplicatesToDelete(habits, habitExtras)
 
-            taskIds to habitIds
+            val projects = projectDao.getAllProjectsOnce()
+            val projectIds = com.averycorp.prismtask.domain.usecase.DuplicateCleanupPlanner
+                .findProjectDuplicatesToDelete(projects)
+
+            Triple(taskIds, habitIds, projectIds)
         }
 
     /**
