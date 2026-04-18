@@ -29,6 +29,8 @@ const TimelineScreen = lazy(() => import('@/features/calendar/TimelineScreen').t
 const CalendarRedirect = lazy(() => import('@/features/calendar/CalendarRedirect').then(m => ({ default: m.CalendarRedirect })));
 const EisenhowerScreen = lazy(() => import('@/features/eisenhower/EisenhowerScreen').then(m => ({ default: m.EisenhowerScreen })));
 const PomodoroScreen = lazy(() => import('@/features/pomodoro/PomodoroScreen').then(m => ({ default: m.PomodoroScreen })));
+const TimeBlockScreen = lazy(() => import('@/features/timeblock/TimeBlockScreen').then(m => ({ default: m.TimeBlockScreen })));
+const WeeklyReviewScreen = lazy(() => import('@/features/weeklyreview/WeeklyReviewScreen').then(m => ({ default: m.WeeklyReviewScreen })));
 const TemplateListScreen = lazy(() => import('@/features/templates/TemplateListScreen').then(m => ({ default: m.TemplateListScreen })));
 const ArchiveScreen = lazy(() => import('@/features/archive/ArchiveScreen').then(m => ({ default: m.ArchiveScreen })));
 const SettingsScreen = lazy(() => import('@/features/settings/SettingsScreen').then(m => ({ default: m.SettingsScreen })));
@@ -78,6 +80,8 @@ const routes: RouteObject[] = [
       { path: 'calendar/timeline', element: <LazyRoute Component={TimelineScreen} /> },
       { path: 'eisenhower', element: <LazyRoute Component={EisenhowerScreen} /> },
       { path: 'pomodoro', element: <LazyRoute Component={PomodoroScreen} /> },
+      { path: 'timeblock', element: <LazyRoute Component={TimeBlockScreen} /> },
+      { path: 'weekly-review', element: <LazyRoute Component={WeeklyReviewScreen} /> },
       { path: 'templates', element: <LazyRoute Component={TemplateListScreen} /> },
       { path: 'schoolwork', element: <LazyRoute Component={SchoolworkScreen} /> },
       { path: 'archive', element: <LazyRoute Component={ArchiveScreen} /> },

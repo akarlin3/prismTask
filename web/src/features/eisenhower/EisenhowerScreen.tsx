@@ -5,6 +5,7 @@ import {
   Plus,
   GripVertical,
   Lock,
+  X,
 } from 'lucide-react';
 import {
   DndContext,
@@ -333,6 +334,17 @@ export function EisenhowerScreen() {
   const [createQuadrant, setCreateQuadrant] = useState<Quadrant | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
 
+  // Indicates the source of the currently-rendered quadrant placement:
+  //   - 'none' = nothing categorized this session (default local classification)
+  //   - 'local' = rule-based fallback via classifyTask()
+  //   - 'ai'   = backend returned at least one categorization and we applied it
+  // Ephemeral: resets on mount, not persisted.
+  const [gridSource, setGridSource] = useState<'none' | 'local' | 'ai'>('none');
+
+  // Dismissible empty-state banner for the auto-categorize action.
+  // Null = hidden; string = banner body text.
+  const [emptyBanner, setEmptyBanner] = useState<string | null>(null);
+
   const projectMap = useMemo(
     () => new Map(projects.map((p) => [p.id, { title: p.title }])),
     [projects],
@@ -426,9 +438,23 @@ export function EisenhowerScreen() {
       return;
     }
     setCategorizing(true);
+    setEmptyBanner(null);
     try {
       const taskIds = allTasks.map((t) => t.id);
       const response = await aiApi.eisenhowerCategorize(taskIds);
+
+      // Empty-response path. Do NOT setAllTasks — the old code applied
+      // an empty Map and toast-fired "Categorized: Q1:0 Q2:0 Q3:0 Q4:0",
+      // which was meaningless. Leave the grid in its previous state and
+      // surface a dismissible banner (primary signal) + a neutral toast
+      // (secondary / transient).
+      if (response.categorizations.length === 0) {
+        setEmptyBanner(
+          'No incomplete tasks to categorize. Add a task and try again.',
+        );
+        toast.message('No incomplete tasks to categorize.');
+        return;
+      }
 
       // Apply categorizations to local state
       const catMap = new Map(
@@ -452,11 +478,16 @@ export function EisenhowerScreen() {
         ),
       );
 
+      setGridSource('ai');
       const summary = response.summary;
       toast.success(
         `Categorized: Q1:${summary.Q1 ?? 0} Q2:${summary.Q2 ?? 0} Q3:${summary.Q3 ?? 0} Q4:${summary.Q4 ?? 0}`,
       );
     } catch {
+      // Don't blow away whatever grid state we had. The local classifier
+      // keeps rendering; the user gets both a toast and an inline-able
+      // source pill signalling the content is local-fallback.
+      setGridSource('local');
       toast.error('AI categorization failed. Try again later.');
     } finally {
       setCategorizing(false);
@@ -540,21 +571,65 @@ export function EisenhowerScreen() {
           </span>
         </div>
 
-        <Button
-          variant={isPro ? 'primary' : 'secondary'}
-          size="sm"
-          onClick={handleAutoCategorize}
-          loading={categorizing}
-          disabled={categorizing || allTasks.length === 0}
-        >
-          {isPro ? (
-            <Sparkles className="h-4 w-4" />
-          ) : (
-            <Lock className="h-4 w-4" />
+        <div className="flex items-center gap-2">
+          {gridSource === 'ai' && (
+            <span
+              className="rounded-full bg-[var(--color-accent)]/10 px-2 py-0.5 text-[10px] font-medium text-[var(--color-accent)]"
+              title="Quadrants filled by backend AI this session"
+            >
+              AI
+            </span>
           )}
-          Auto-Categorize
-        </Button>
+          {gridSource === 'local' && (
+            <span
+              className="rounded-full bg-[var(--color-bg-secondary)] px-2 py-0.5 text-[10px] font-medium text-[var(--color-text-secondary)]"
+              title="Showing local rule-based classification (AI unavailable)"
+            >
+              Local
+            </span>
+          )}
+
+          <Button
+            variant={isPro ? 'primary' : 'secondary'}
+            size="sm"
+            onClick={handleAutoCategorize}
+            loading={categorizing}
+            disabled={categorizing || allTasks.length === 0}
+          >
+            {isPro ? (
+              <Sparkles className="h-4 w-4" />
+            ) : (
+              <Lock className="h-4 w-4" />
+            )}
+            Auto-Categorize
+          </Button>
+        </div>
       </div>
+
+      {/* Empty-state banner (primary signal for empty responses). */}
+      {emptyBanner && (
+        <div
+          role="status"
+          className="mb-4 flex items-start justify-between gap-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-card)] px-4 py-3"
+        >
+          <div className="flex flex-col">
+            <span className="text-sm font-semibold text-[var(--color-text-primary)]">
+              Nothing to categorize
+            </span>
+            <span className="text-xs text-[var(--color-text-secondary)]">
+              {emptyBanner}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setEmptyBanner(null)}
+            className="shrink-0 rounded p-1 text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)] hover:text-[var(--color-text-primary)]"
+            aria-label="Dismiss"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
 
       {/* 2x2 Grid */}
       <DndContext

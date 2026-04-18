@@ -34,6 +34,98 @@ export interface PomodoroResponse {
   skipped_tasks: SkippedTask[];
 }
 
+// --- Time Block ---
+//
+// Backend schema: backend/app/schemas/ai.py:142-172. The request field is
+// `date` (not `target_date` as some prompts suggested) and the response's
+// unscheduled list is `unscheduled_tasks`.
+//
+// TODO(weekly-followup): task_id in ScheduleBlock / UnscheduledTask is
+// still Long on the backend side for this endpoint. Kept as string here
+// since Firestore doc IDs are strings; if the backend ever sends numeric
+// JSON, Gson-style coercion on the browser will silently coerce to a
+// decimal string which is fine for rendering. Real fix lands with the
+// Long -> String audit.
+
+export interface TimeBlockRequest {
+  date: string; // ISO date (YYYY-MM-DD)
+  day_start?: string; // HH:mm, default 09:00
+  day_end?: string; // HH:mm, default 18:00
+  block_size_minutes?: number;
+  include_breaks?: boolean;
+  break_frequency_minutes?: number;
+  break_duration_minutes?: number;
+}
+
+export interface ScheduleBlock {
+  start: string; // HH:mm
+  end: string; // HH:mm
+  type: 'task' | 'event' | 'break';
+  task_id: string | null;
+  title: string;
+  reason: string;
+}
+
+export interface TimeBlockUnscheduledTask {
+  task_id: string;
+  title: string;
+  reason: string;
+}
+
+export interface TimeBlockStats {
+  total_work_minutes: number;
+  total_break_minutes: number;
+  total_free_minutes: number;
+  tasks_scheduled: number;
+  tasks_deferred: number;
+}
+
+export interface TimeBlockResponse {
+  schedule: ScheduleBlock[];
+  unscheduled_tasks: TimeBlockUnscheduledTask[];
+  stats: TimeBlockStats;
+}
+
+// --- Weekly Review (schema v2) ---
+//
+// Hybrid pattern: the client sends completed + slipped task lists and the
+// backend enriches with open tasks from Firestore. See
+// backend/app/schemas/ai.py for the authoritative schema.
+
+export interface WeeklyTaskSummary {
+  task_id: string;
+  title: string;
+  /** ISO datetime for completed_tasks; null for slipped_tasks. */
+  completed_at: string | null;
+  priority: number;
+  eisenhower_quadrant: string | null;
+  life_category: string | null;
+  project_id: string | null;
+}
+
+export interface WeeklyReviewRequest {
+  /** ISO date (YYYY-MM-DD) — Monday of the week being reviewed. */
+  week_start: string;
+  /** ISO date — Sunday, inclusive. */
+  week_end: string;
+  completed_tasks: WeeklyTaskSummary[];
+  slipped_tasks: WeeklyTaskSummary[];
+  /** Opaque pass-through. Omit when unavailable rather than sending {}. */
+  habit_summary?: Record<string, unknown>;
+  pomodoro_summary?: Record<string, unknown>;
+  notes?: string | null;
+}
+
+export interface WeeklyReviewResponse {
+  week_start: string;
+  week_end: string;
+  wins: string[];
+  slips: string[];
+  patterns: string[];
+  next_week_focus: string[];
+  narrative: string;
+}
+
 export const aiApi = {
   eisenhowerCategorize(taskIds?: string[]): Promise<EisenhowerResponse> {
     return apiClient
@@ -44,6 +136,18 @@ export const aiApi = {
   pomodoroPlan(data: PomodoroRequest): Promise<PomodoroResponse> {
     return apiClient
       .post('/ai/pomodoro-plan', data)
+      .then((r) => r.data);
+  },
+
+  timeBlock(data: TimeBlockRequest): Promise<TimeBlockResponse> {
+    return apiClient
+      .post('/ai/time-block', data)
+      .then((r) => r.data);
+  },
+
+  weeklyReview(data: WeeklyReviewRequest): Promise<WeeklyReviewResponse> {
+    return apiClient
+      .post('/ai/weekly-review', data)
       .then((r) => r.data);
   },
 };

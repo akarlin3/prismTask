@@ -25,7 +25,10 @@ import { Spinner } from '@/components/ui/Spinner';
 import type { Task } from '@/types/task';
 
 type WorkStyle = 'balanced' | 'deep_work' | 'quick_wins' | 'deadline_driven';
-type SessionPhase = 'idle' | 'planning' | 'work' | 'break' | 'done';
+// 'empty' is a dedicated phase for "API returned no sessions to plan". Prior
+// to this the empty case fell into 'planning' with sessions.length === 0,
+// which rendered "Your Focus Plan — 0 sessions" and no session cards.
+type SessionPhase = 'idle' | 'planning' | 'empty' | 'work' | 'break' | 'done';
 
 const WORK_STYLES: { value: WorkStyle; label: string; desc: string }[] = [
   {
@@ -174,6 +177,14 @@ export function PomodoroScreen() {
         break_length: breakLength,
         focus_preference: workStyle,
       });
+      if (response.sessions.length === 0) {
+        // Explicit empty phase. Previous behavior silently rendered a
+        // "0 sessions" plan card; now the user sees an empty-state
+        // message with the CTA still available for retry.
+        setSessions([]);
+        setPhase('empty');
+        return;
+      }
       setSessions(response.sessions);
       setPhase('planning');
       if (response.skipped_tasks.length > 0) {
@@ -383,6 +394,36 @@ export function PomodoroScreen() {
                   )}
                 </label>
               ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* EMPTY: API returned no sessions. Keep the "Generate Plan" CTA
+          visible so the user can retry after adding tasks or fixing
+          sync. "Start Session" intentionally doesn't render here. */}
+      {phase === 'empty' && (
+        <div className="flex flex-col gap-4">
+          <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-card)] p-6 text-center">
+            <h2 className="text-base font-semibold text-[var(--color-text-primary)]">
+              No Tasks To Plan Around
+            </h2>
+            <p className="mt-2 text-sm text-[var(--color-text-secondary)]">
+              Add a task or check that your tasks are synced, then try again.
+            </p>
+            <div className="mt-4 flex items-center justify-center gap-2">
+              <Button
+                onClick={handleGeneratePlan}
+                loading={generating}
+                disabled={generating || !isPro}
+              >
+                <Sparkles className="h-4 w-4" />
+                Generate Plan
+              </Button>
+              <Button variant="ghost" onClick={handleReset}>
+                <RotateCcw className="h-4 w-4" />
+                Back
+              </Button>
             </div>
           </div>
         </div>
