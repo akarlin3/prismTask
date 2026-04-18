@@ -15,6 +15,7 @@ import com.averycorp.prismtask.data.local.dao.HabitLogDao
 import com.averycorp.prismtask.data.local.dao.HabitTemplateDao
 import com.averycorp.prismtask.data.local.dao.LeisureDao
 import com.averycorp.prismtask.data.local.dao.MedicationRefillDao
+import com.averycorp.prismtask.data.local.dao.MilestoneDao
 import com.averycorp.prismtask.data.local.dao.MoodEnergyLogDao
 import com.averycorp.prismtask.data.local.dao.NlpShortcutDao
 import com.averycorp.prismtask.data.local.dao.NotificationProfileDao
@@ -46,6 +47,7 @@ import com.averycorp.prismtask.data.local.entity.HabitLogEntity
 import com.averycorp.prismtask.data.local.entity.HabitTemplateEntity
 import com.averycorp.prismtask.data.local.entity.LeisureLogEntity
 import com.averycorp.prismtask.data.local.entity.MedicationRefillEntity
+import com.averycorp.prismtask.data.local.entity.MilestoneEntity
 import com.averycorp.prismtask.data.local.entity.MoodEnergyLogEntity
 import com.averycorp.prismtask.data.local.entity.NlpShortcutEntity
 import com.averycorp.prismtask.data.local.entity.NotificationProfileEntity
@@ -98,9 +100,10 @@ import com.averycorp.prismtask.data.local.entity.WeeklyReviewEntity
         WeeklyReviewEntity::class,
         TaskCompletionEntity::class,
         FocusReleaseLogEntity::class,
-        DailyEssentialSlotCompletionEntity::class
+        DailyEssentialSlotCompletionEntity::class,
+        MilestoneEntity::class
     ],
-    version = 47,
+    version = 48,
     exportSchema = false
 )
 abstract class PrismTaskDatabase : RoomDatabase() {
@@ -159,4 +162,6 @@ abstract class PrismTaskDatabase : RoomDatabase() {
     abstract fun focusReleaseLogDao(): FocusReleaseLogDao
 
     abstract fun dailyEssentialSlotCompletionDao(): DailyEssentialSlotCompletionDao
+
+    abstract fun milestoneDao(): MilestoneDao
 }

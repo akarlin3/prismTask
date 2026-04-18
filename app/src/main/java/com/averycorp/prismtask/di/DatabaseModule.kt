@@ -15,6 +15,7 @@ import com.averycorp.prismtask.data.local.dao.HabitLogDao
 import com.averycorp.prismtask.data.local.dao.HabitTemplateDao
 import com.averycorp.prismtask.data.local.dao.LeisureDao
 import com.averycorp.prismtask.data.local.dao.MedicationRefillDao
+import com.averycorp.prismtask.data.local.dao.MilestoneDao
 import com.averycorp.prismtask.data.local.dao.MoodEnergyLogDao
 import com.averycorp.prismtask.data.local.dao.NlpShortcutDao
 import com.averycorp.prismtask.data.local.dao.NotificationProfileDao
@@ -148,6 +149,9 @@ object DatabaseModule {
     fun provideDailyEssentialSlotCompletionDao(
         database: PrismTaskDatabase
     ): DailyEssentialSlotCompletionDao = database.dailyEssentialSlotCompletionDao()
+
+    @Provides
+    fun provideMilestoneDao(database: PrismTaskDatabase): MilestoneDao = database.milestoneDao()
 }
 
 /**

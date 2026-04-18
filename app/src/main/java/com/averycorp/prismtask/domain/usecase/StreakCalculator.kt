@@ -71,18 +71,14 @@ object StreakCalculator {
     /**
      * Forgiveness-aware streak calculation for daily habits.
      *
-     * Walks backwards from today building a consecutive "met" run. When a
-     * miss is encountered, checks whether it fits inside the rolling grace
-     * window ([ForgivenessConfig.gracePeriodDays]) against the previously
-     * tolerated misses. If yes, the miss is absorbed into [StreakResult.resilientStreak]
-     * and the walk continues; if no, the walk terminates.
-     *
-     * The strict streak is the number of consecutive met days *before* the
-     * first miss — equivalent to the classic [calculateCurrentStreak] path.
+     * Turns `completions` into a [Set] of dates where the habit hit its
+     * target frequency, then delegates to [DailyForgivenessStreakCore].
+     * This sharing is why the Projects feature can reuse the same streak
+     * logic without importing habit entities.
      *
      * Currently only daily habits are supported. Weekly, monthly, and the
      * other period variants fall back to strict streaks (see
-     * [calculateResilientStreak]). Those can be wired up in a follow-up pass.
+     * [calculateResilientStreak]).
      */
     fun calculateResilientDailyStreak(
         completions: List<HabitCompletionEntity>,
@@ -91,90 +87,11 @@ object StreakCalculator {
         config: ForgivenessConfig = ForgivenessConfig.DEFAULT
     ): StreakResult {
         val target = habit.targetFrequency
-        val completionsByDate = completions
+        val metDates = completions
             .groupBy { it.completedDate.toLocalDate() }
-            .mapValues { it.value.size }
-
-        // Classic strict streak: the prefix of consecutive met days.
-        val strict = calculateDailyStreak(completions, habit, today, longest = false)
-        if (!config.enabled) {
-            return StreakResult(
-                strictStreak = strict,
-                resilientStreak = strict,
-                missesInWindow = 0,
-                gracePeriodRemaining = 0,
-                forgivenDates = emptyList()
-            )
-        }
-
-        val allowed = config.allowedMisses.coerceAtLeast(0)
-        val window = config.gracePeriodDays.coerceAtLeast(1)
-
-        // Determine the starting cursor: if today isn't complete yet, count
-        // from yesterday so the user isn't penalized mid-day.
-        val start = if ((completionsByDate[today] ?: 0) >= target) today else today.minusDays(1)
-
-        // Hard reset: if the starting cursor itself is a miss (meaning
-        // today AND yesterday are both missed), the user's current run has
-        // already broken — return EMPTY regardless of strict streak value.
-        if ((completionsByDate[start] ?: 0) < target) {
-            return StreakResult(
-                strictStreak = strict,
-                resilientStreak = 0,
-                missesInWindow = 0,
-                gracePeriodRemaining = allowed,
-                forgivenDates = emptyList()
-            )
-        }
-
-        // Don't walk past the earliest known completion — we have no data
-        // before then, so counting those days as "misses" would penalize
-        // the user for the period before the habit existed.
-        val earliestCompletion = completionsByDate.keys.minOrNull()
-
-        var cursor = start
-        var metDays = 0
-        val missDates = mutableListOf<LocalDate>()
-
-        // Walk backwards. At each step, decide whether the day's miss is
-        // tolerable under the rolling window rule: a miss is tolerable iff
-        // the number of misses already inside the last [window] days
-        // (relative to the cursor) is less than [allowed].
-        while (true) {
-            val met = (completionsByDate[cursor] ?: 0) >= target
-            if (met) {
-                metDays++
-            } else {
-                // Count existing misses that would still be in the window
-                // if we were to "absorb" this one. The window is anchored
-                // to `cursor`, so a previous miss counts if its date is
-                // within `window - 1` days ahead of the cursor.
-                val windowStart = cursor
-                val windowEnd = cursor.plusDays((window - 1).toLong())
-                val priorMissesInWindow = missDates.count { !it.isBefore(windowStart) && !it.isAfter(windowEnd) }
-                if (priorMissesInWindow >= allowed) {
-                    // No more grace left — stop here.
-                    break
-                }
-                missDates.add(cursor)
-            }
-            // Guard against absurdly long histories in case of bad data.
-            if (metDays + missDates.size > 10_000) break
-            cursor = cursor.minusDays(1)
-            // Stop once we go past the earliest known completion — we have
-            // no observation data before that point.
-            if (earliestCompletion != null && cursor.isBefore(earliestCompletion)) break
-        }
-
-        val resilient = metDays + missDates.size
-        val remaining = (allowed - missDates.size).coerceAtLeast(0)
-        return StreakResult(
-            strictStreak = strict,
-            resilientStreak = resilient,
-            missesInWindow = missDates.size,
-            gracePeriodRemaining = remaining,
-            forgivenDates = missDates.toList()
-        )
+            .filterValues { it.size >= target }
+            .keys
+        return DailyForgivenessStreakCore.calculate(metDates, today, config)
     }
 
     /**

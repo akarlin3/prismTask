@@ -896,6 +896,43 @@ val MIGRATION_46_47 = object : Migration(46, 47) {
     }
 }
 
+// v1.4.0 Projects feature (Phase 1). Expands `projects` beyond a name+color
+// container into a lifecycle-aware project-management entity (status, dates,
+// completion / archive timestamps, theme-color token) and introduces the
+// `milestones` child table with a CASCADE FK back to the project.
+//
+// Existing rows are preserved — new columns all default safely
+// (status='ACTIVE', everything else NULL). No backfill; legacy tasks stay
+// orphan-capable and the existing `tasks.project_id SET_NULL` FK is
+// untouched.
+val MIGRATION_47_48 = object : Migration(47, 48) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE projects ADD COLUMN description TEXT")
+        db.execSQL("ALTER TABLE projects ADD COLUMN theme_color_key TEXT")
+        db.execSQL("ALTER TABLE projects ADD COLUMN status TEXT NOT NULL DEFAULT 'ACTIVE'")
+        db.execSQL("ALTER TABLE projects ADD COLUMN start_date INTEGER")
+        db.execSQL("ALTER TABLE projects ADD COLUMN end_date INTEGER")
+        db.execSQL("ALTER TABLE projects ADD COLUMN completed_at INTEGER")
+        db.execSQL("ALTER TABLE projects ADD COLUMN archived_at INTEGER")
+
+        db.execSQL(
+            """CREATE TABLE IF NOT EXISTS `milestones` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `project_id` INTEGER NOT NULL,
+                `title` TEXT NOT NULL,
+                `is_completed` INTEGER NOT NULL DEFAULT 0,
+                `completed_at` INTEGER,
+                `order_index` INTEGER NOT NULL DEFAULT 0,
+                `created_at` INTEGER NOT NULL,
+                `updated_at` INTEGER NOT NULL,
+                FOREIGN KEY(`project_id`) REFERENCES `projects`(`id`) ON DELETE CASCADE
+            )"""
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_milestones_project_id` ON `milestones` (`project_id`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_milestones_is_completed` ON `milestones` (`is_completed`)")
+    }
+}
+
 val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_1_2,
     MIGRATION_2_3,
@@ -942,5 +979,6 @@ val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_43_44,
     MIGRATION_44_45,
     MIGRATION_45_46,
-    MIGRATION_46_47
+    MIGRATION_46_47,
+    MIGRATION_47_48
 )

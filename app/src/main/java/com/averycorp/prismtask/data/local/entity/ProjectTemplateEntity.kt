@@ -9,6 +9,13 @@ import androidx.room.PrimaryKey
  * blob so the task schema can evolve without a Room migration.
  *
  * Added in v1.3.0 (P15).
+ *
+ * **Naming note (v1.4.0):** this entity predates the v1.4.0 Projects feature
+ * and is orthogonal to it. `ProjectTemplateEntity` is a *scaffold* for
+ * spawning a project-with-tasks bundle from a fixed blueprint — it is not
+ * a project-management entity. See `docs/projects-feature.md` for the
+ * v1.4.0 model ([ProjectEntity] with status/milestones/streak) which does
+ * not share any code with this class.
  */
 @Entity(tableName = "project_templates")
 data class ProjectTemplateEntity(
