@@ -71,7 +71,12 @@
 
 ---
 
-## 2. Data Model
+## 2. Backend Data Model (FastAPI / PostgreSQL)
+
+The FastAPI backend uses SQLAlchemy 2.0 with a hierarchical
+`User → Goal → Project → Task` model. Priority uses the Todoist/Linear
+convention (1 = Urgent, 4 = Low), which is the inverse of the Android
+app convention (0 = None, 4 = Urgent) — mapping happens in the API client.
 
 ### Entity Relationship Diagram
 
@@ -96,7 +101,7 @@
 │ description│
 │ status    │  (active / achieved / archived)
 │ target_date│
-│ color     │  (for UI grouping)
+│ color     │  (hex, for UI grouping)
 │ sort_order│
 │ created   │
 │ updated   │
@@ -133,149 +138,116 @@
 │ due_date     │
 │ completed_at │
 │ sort_order   │
-│ depth        │  (0=task, 1=subtask — enforced max depth of 1)
+│ depth        │  (0=task, 1=subtask — max depth 1)
 │ created      │
 │ updated      │
 └──────────────┘
 ```
 
-### Design Decisions
+The backend has expanded beyond this core model to support task templates,
+NLP parsing, calendar integration, export/import, and search. See the
+`backend/app/` directory for current SQLAlchemy models and Alembic
+migrations.
 
-**Why self-referential Tasks instead of a separate Subtask table?**
-- Simpler queries — one table, one endpoint, one set of CRUD logic
-- `parent_id` is null for top-level tasks, points to another Task for subtasks
-- `depth` column enforced at max 1 (no sub-sub-tasks — keeps UI clean)
-- Same data model pattern used by Todoist, Linear, and Asana
+---
 
-**Why `sort_order` everywhere?**
-- Lets you drag-and-drop reorder within each level
-- Integer field, rebalanced on move (e.g., 100, 200, 300 → insert at 150)
+## 2b. Android Local Database (Room / SQLite)
 
-**Why `user_id` on every entity (not just Goal)?**
-- Enables direct queries without joins for common operations ("all my tasks due today")
-- Slight denormalization, but worth it for query performance and API simplicity
+The Android app maintains a local Room database that is significantly richer
+than the backend model. The Android app is the primary data store;
+Firebase Firestore provides cross-device cloud sync for core entities.
 
-### SQLAlchemy Models (Python)
+**Current schema version: 48** (47 cumulative migrations,
+`MIGRATION_1_2` through `MIGRATION_47_48`)
 
-```python
-# models.py
+### Entity Groups
 
-from datetime import datetime, date
-from enum import Enum as PyEnum
-from sqlalchemy import (
-    Column, Integer, String, Text, DateTime, Date,
-    ForeignKey, Enum, CheckConstraint
-)
-from sqlalchemy.orm import relationship, DeclarativeBase
-from sqlalchemy.sql import func
+**Core Tasks & Projects**
 
+| Table | Key columns | Notes |
+|---|---|---|
+| `tasks` | title, priority (0–4), due_date, life_category, recurrence_rule (JSON), project_id (SET NULL), parent_task_id (CASCADE) | Priority 0=None…4=Urgent |
+| `task_completions` | task_id (CASCADE), completed_date | Completion history; added migration 37→38 with backfill |
+| `projects` | name, color, icon, description†, status†, start_date†, end_date†, theme_color_key†, completed_at†, archived_at† | †Added migration 47→48 |
+| `milestones` | project_id (CASCADE), title, is_completed, order_index | Added migration 47→48 |
+| `tags` | name, color | |
+| `task_tag_cross_ref` | task_id (CASCADE), tag_id (CASCADE) | Many-to-many |
+| `attachments` | task_id, uri, type | File/link attachments |
 
-class Base(DeclarativeBase):
-    pass
+**Habits**
 
+| Table | Notes |
+|---|---|
+| `habits` | Daily/weekly frequency, color, icon, category, target_frequency |
+| `habit_completions` | Daily check-off records |
+| `habit_logs` | Bookable activity history |
 
-class GoalStatus(str, PyEnum):
-    ACTIVE = "active"
-    ACHIEVED = "achieved"
-    ARCHIVED = "archived"
+**Wellness & Work-Life Balance**
 
+| Table | Notes |
+|---|---|
+| `mood_energy_logs` | (date, time_of_day) unique index; mood 1–5, energy 1–5. Migration 33→34 |
+| `check_in_logs` | Morning check-in history |
+| `weekly_reviews` | Guided weekly review records |
+| `boundary_rules` | Work-hours / category limit rule definitions |
+| `focus_release_logs` | Focus session history; task_id SET NULL on delete (migration 44→45) |
 
-class ProjectStatus(str, PyEnum):
-    ACTIVE = "active"
-    COMPLETED = "completed"
-    ON_HOLD = "on_hold"
-    ARCHIVED = "archived"
+**Notifications**
 
+| Table | Notes |
+|---|---|
+| `reminder_profiles` | `NotificationProfileEntity` — offsets_csv, sound, vibration, display, escalation chain, quiet hours, auto-switch rules |
+| `custom_sounds` | User-uploaded audio metadata (≤10 MB, ≤30 s) |
 
-class TaskStatus(str, PyEnum):
-    TODO = "todo"
-    IN_PROGRESS = "in_progress"
-    DONE = "done"
-    CANCELLED = "cancelled"
+**Medication & Self-Care**
 
+| Table | Notes |
+|---|---|
+| `medication_refills` | Pill count, dosage, pharmacy, refill forecast. Migration 34→35 |
+| `self_care_logs` | Self-care routine tracking |
+| `self_care_steps` | Individual steps within a self-care routine |
 
-class TaskPriority(int, PyEnum):
-    URGENT = 1
-    HIGH = 2
-    MEDIUM = 3
-    LOW = 4
+**Learning, Leisure & Daily Essentials**
 
+| Table | Notes |
+|---|---|
+| `study_logs` | Schoolwork tracking; course_pick and assignment_pick SET NULL (migration 44→45) |
+| `courses` | Course definitions |
+| `assignments` | Assignment records |
+| `course_completions` | Course completion records |
+| `leisure_logs` | Music + flex leisure tracking; custom_sections_state added migration 46→47 |
+| `daily_essential_slot_completions` | Seven virtual Today-screen cards. Migration 45→46 |
 
-class User(Base):
-    __tablename__ = "users"
+**Templates & NLP**
 
-    id = Column(Integer, primary_key=True)
-    email = Column(String(255), unique=True, nullable=False, index=True)
-    hashed_password = Column(String(255), nullable=False)
-    name = Column(String(255), nullable=False)
-    created_at = Column(DateTime, server_default=func.now())
+| Table | Notes |
+|---|---|
+| `task_templates` | Reusable task blueprints |
+| `habit_templates` | Reusable habit blueprints |
+| `project_templates` | JSON blueprint for spawning project+task bundles (orthogonal to v1.4 Projects feature) |
+| `nlp_shortcuts` | Custom quick-add aliases |
+| `saved_filters` | Filter preset bookmarks |
 
-    goals = relationship("Goal", back_populates="user", cascade="all, delete-orphan")
+**Sync & Analytics**
 
+| Table | Notes |
+|---|---|
+| `sync_metadata` | Local ↔ Firestore cloud ID mapping |
+| `calendar_sync` | Google Calendar event sync records |
+| `usage_logs` | Keyword-based suggestion engine input |
 
-class Goal(Base):
-    __tablename__ = "goals"
+### Migration History (selected)
 
-    id = Column(Integer, primary_key=True)
-    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
-    title = Column(String(255), nullable=False)
-    description = Column(Text, nullable=True)
-    status = Column(Enum(GoalStatus), default=GoalStatus.ACTIVE, nullable=False)
-    target_date = Column(Date, nullable=True)
-    color = Column(String(7), nullable=True)  # hex color, e.g. "#3B82F6"
-    sort_order = Column(Integer, default=0)
-    created_at = Column(DateTime, server_default=func.now())
-    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
-
-    user = relationship("User", back_populates="goals")
-    projects = relationship("Project", back_populates="goal", cascade="all, delete-orphan")
-
-
-class Project(Base):
-    __tablename__ = "projects"
-
-    id = Column(Integer, primary_key=True)
-    goal_id = Column(Integer, ForeignKey("goals.id", ondelete="CASCADE"), nullable=False, index=True)
-    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
-    title = Column(String(255), nullable=False)
-    description = Column(Text, nullable=True)
-    status = Column(Enum(ProjectStatus), default=ProjectStatus.ACTIVE, nullable=False)
-    due_date = Column(Date, nullable=True)
-    sort_order = Column(Integer, default=0)
-    created_at = Column(DateTime, server_default=func.now())
-    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
-
-    goal = relationship("Goal", back_populates="projects")
-    user = relationship("User")
-    tasks = relationship("Task", back_populates="project", cascade="all, delete-orphan")
-
-
-class Task(Base):
-    __tablename__ = "tasks"
-    __table_args__ = (
-        CheckConstraint("depth >= 0 AND depth <= 1", name="check_depth_range"),
-    )
-
-    id = Column(Integer, primary_key=True)
-    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
-    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
-    parent_id = Column(Integer, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=True, index=True)
-    title = Column(String(500), nullable=False)
-    description = Column(Text, nullable=True)
-    status = Column(Enum(TaskStatus), default=TaskStatus.TODO, nullable=False)
-    priority = Column(Integer, default=TaskPriority.MEDIUM)
-    due_date = Column(Date, nullable=True)
-    completed_at = Column(DateTime, nullable=True)
-    sort_order = Column(Integer, default=0)
-    depth = Column(Integer, default=0)
-    created_at = Column(DateTime, server_default=func.now())
-    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
-
-    project = relationship("Project", back_populates="tasks")
-    user = relationship("User")
-    parent = relationship("Task", remote_side=[id], back_populates="subtasks")
-    subtasks = relationship("Task", back_populates="parent", cascade="all, delete-orphan")
-```
+| Migration | What changed |
+|---|---|
+| 32→33 | `tasks.life_category` (Work-Life Balance Engine) |
+| 33→34 | `mood_energy_logs` table |
+| 34→35 | `medication_refills` table |
+| 37→38 | `task_completions` table with historical backfill |
+| 44→45 | Data-integrity hardening: `ON DELETE SET NULL` for `study_logs.course_pick`, `study_logs.assignment_pick`, `focus_release_logs.task_id` |
+| 45→46 | `daily_essential_slot_completions` table |
+| 46→47 | `leisure_logs.custom_sections_state` column |
+| 47→48 | `projects` lifecycle columns + `milestones` table (Projects Phase 1) |
 
 ---
 
@@ -433,74 +405,119 @@ Input: "{user_input}"
 prismTask/
 ├── backend/
 │   ├── app/
-│   │   ├── __init__.py
-│   │   ├── main.py              # FastAPI app, CORS, lifespan
-│   │   ├── config.py            # Settings (env vars)
-│   │   ├── database.py          # Engine, session factory
-│   │   ├── models.py            # SQLAlchemy models
-│   │   ├── schemas/             # Pydantic request/response models
-│   │   │   ├── auth.py
-│   │   │   ├── goal.py
-│   │   │   ├── project.py
-│   │   │   ├── task.py
-│   │   │   └── dashboard.py
-│   │   ├── routers/             # API route handlers
-│   │   │   ├── auth.py
-│   │   │   ├── goals.py
-│   │   │   ├── projects.py
-│   │   │   ├── tasks.py
-│   │   │   └── dashboard.py
-│   │   ├── services/            # Business logic
-│   │   │   ├── auth.py
-│   │   │   ├── nlp_parser.py   # Claude integration
-│   │   │   └── task_service.py
+│   │   ├── main.py                  # FastAPI app, CORS, lifespan
+│   │   ├── config.py                # Settings (env vars)
+│   │   ├── database.py              # Engine, session factory
+│   │   ├── models.py                # SQLAlchemy models
+│   │   ├── schemas/                 # Pydantic request/response models
+│   │   │   ├── auth.py, goal.py, project.py, task.py
+│   │   │   ├── dashboard.py, template.py, nlp.py
+│   │   ├── routers/                 # API route handlers
+│   │   │   ├── auth.py, goals.py, projects.py, tasks.py
+│   │   │   ├── dashboard.py, export.py, search.py
+│   │   │   ├── app_update.py, calendar.py, ai.py
+│   │   │   └── integrations/        # Gmail, Slack, webhook handlers
+│   │   ├── services/                # Business logic
+│   │   │   ├── auth.py, task_service.py, recurrence.py
+│   │   │   ├── urgency.py, nlp_parser.py  # Claude Haiku integration
+│   │   │   └── integrations/        # calendar_integration.py, gmail_integration.py
 │   │   └── middleware/
-│   │       └── auth.py          # JWT dependency
-│   ├── alembic/                 # Database migrations
-│   ├── tests/
-│   │   ├── test_auth.py
-│   │   ├── test_goals.py
-│   │   ├── test_tasks.py
-│   │   └── test_nlp_parser.py
+│   │       └── auth.py              # JWT dependency
+│   ├── alembic/                     # Database migrations
+│   ├── tests/                       # 25 pytest files
+│   │   ├── routers/                 # dashboard, export, search, app_update, projects
+│   │   ├── services/                # recurrence, urgency, NLP edge cases
+│   │   └── integration/             # end-to-end workflows + stress tests
 │   ├── Dockerfile
 │   ├── requirements.txt
 │   └── alembic.ini
 │
-├── app/                             # Android app module (Kotlin / Jetpack Compose)
+├── app/                             # Android app module (Kotlin 2.3.20 / Jetpack Compose)
 │   ├── src/main/java/com/averycorp/prismtask/
-│   │   ├── data/                    # Room DB, DAOs, entities, repositories
-│   │   ├── domain/                  # Use cases and business logic
-│   │   ├── ui/                      # Compose screens and components
-│   │   ├── di/                      # Hilt DI modules
-│   │   ├── notifications/           # Reminders, workers, receivers
-│   │   └── widget/                  # Glance home-screen widgets
-│   └── src/test/                    # 121 unit test files (see CLAUDE.md)
+│   │   ├── MainActivity.kt          # Single-activity entry point
+│   │   ├── PrismTaskApplication.kt  # @HiltAndroidApp
+│   │   ├── data/
+│   │   │   ├── billing/             # BillingManager — two-tier Free/Pro
+│   │   │   ├── calendar/            # CalendarManager, CalendarSyncPreferences
+│   │   │   ├── export/              # DataExporter (JSON v5 + CSV), DataImporter
+│   │   │   ├── local/
+│   │   │   │   ├── dao/             # 25+ Room DAOs
+│   │   │   │   ├── database/        # PrismTaskDatabase (v48), Migrations.kt
+│   │   │   │   └── entity/          # 32 Room entities
+│   │   │   ├── preferences/         # 25+ DataStore preference files
+│   │   │   ├── remote/              # Firebase Auth/Firestore, Google Drive,
+│   │   │   │                        #   ClaudeParserService, BackendSyncService
+│   │   │   └── repository/          # 20+ repositories
+│   │   ├── di/                      # Hilt modules (Database, Billing, Network, Prefs)
+│   │   ├── domain/
+│   │   │   ├── model/               # RecurrenceRule, TaskFilter, LifeCategory,
+│   │   │   │                        #   BoundaryRule, NotificationProfile, etc.
+│   │   │   └── usecase/             # 35+ use cases (NLP, urgency, streak,
+│   │   │                            #   balance, mood, burnout, pomodoro, etc.)
+│   │   ├── notifications/           # NotificationHelper, ReminderScheduler,
+│   │   │                            #   EscalationScheduler, SoundResolver,
+│   │   │                            #   WorkManager workers, BroadcastReceivers
+│   │   ├── widget/                  # 7 Glance widgets with per-instance config
+│   │   │                            #   (Today, HabitStreak, QuickAdd, Calendar,
+│   │   │                            #    Productivity, Timer, Upcoming, Project)
+│   │   ├── workers/                 # Background WorkManager workers
+│   │   ├── util/, utils/            # Shared helpers
+│   │   └── ui/
+│   │       ├── a11y/                # TalkBack, font scaling, contrast helpers
+│   │       ├── components/          # Shared composables + settings sections
+│   │       ├── navigation/          # NavGraph.kt, FeatureRoutes.kt
+│   │       ├── screens/             # 40+ feature screens:
+│   │       │   ├── today/, tasklist/, addedittask/, projects/
+│   │       │   ├── habits/, settings/, templates/, tags/
+│   │       │   ├── weekview/, monthview/, timeline/, search/, archive/
+│   │       │   ├── analytics/, balance/, mood/, checkin/, review/
+│   │       │   ├── notifications/, extract/, pomodoro/, eisenhower/
+│   │       │   ├── leisure/, selfcare/, medication/, schoolwork/
+│   │       │   ├── briefing/, chat/, coaching/, onboarding/
+│   │       │   └── auth/, feedback/, debug/
+│   │       └── theme/               # Color, Type, PriorityColors, LifeCategoryColors
+│   ├── src/test/                    # 150+ unit test files (see CLAUDE.md)
+│   └── src/androidTest/             # 28 instrumentation test files
 │
-├── web/                             # Web client (React + TypeScript + Vite)
+├── web/                             # Web client (React 19 + TypeScript + Vite)
 │   ├── src/
 │   │   ├── api/                     # Axios API client modules
-│   │   ├── components/              # Layout, shared, and UI primitives
-│   │   ├── features/                # Feature screens (auth, today, tasks,
-│   │   │                            #   projects, habits, calendar, etc.)
+│   │   ├── components/              # Layout, shared UI primitives
+│   │   ├── features/                # Feature screens (auth, tasks, projects,
+│   │   │                            #   habits, calendar, eisenhower, etc.)
 │   │   ├── hooks/                   # Custom React hooks
 │   │   ├── routes/                  # React Router definitions
-│   │   ├── stores/                  # Zustand state stores
+│   │   ├── stores/                  # Zustand 5 state stores
 │   │   ├── types/                   # TypeScript type definitions
 │   │   └── utils/                   # Helpers and utility tests
 │   ├── package.json
 │   ├── vite.config.ts
-│   └── playwright.config.ts        # E2E test config
+│   └── playwright.config.ts         # E2E test config
+│
+├── docs/                            # Design and architecture docs
+│   ├── ARCHITECTURE.md              # This document
+│   ├── NOTIFICATIONS_DESIGN.md      # Cross-platform notification system
+│   ├── ADR-calendar-sync.md         # Architecture decision: backend-mediated calendar sync
+│   ├── projects-feature.md          # Projects Phase 1 deep-dive
+│   ├── export_import_audit_*.md     # Export/import audit snapshots
+│   ├── PRIVACY_POLICY.md / TERMS_OF_SERVICE.md
+│   └── RELEASE.md                   # Release checklist
+│
+├── store/listing/                   # Play Store assets + data safety / content rating
 │
 ├── .github/
 │   └── workflows/
-│       ├── android-ci.yml       # Android build + unit tests
-│       ├── ci.yml               # Backend pytest + lint
-│       ├── web-ci.yml           # Web lint + Vitest + Playwright
-│       └── release.yml          # Release AAB build
+│       ├── android-ci.yml           # Android build + unit tests
+│       ├── backend-ci.yml           # Backend pytest + lint
+│       ├── web-ci.yml               # Web lint + Vitest + Playwright
+│       └── release.yml              # Release AAB build
 │
-├── docker-compose.yml           # Local dev (backend + postgres)
+├── docker-compose.yml               # Local dev (backend + postgres)
 ├── README.md
-└── ARCHITECTURE.md              # This document
+├── CHANGELOG.md
+├── CONTRIBUTING.md
+├── SECURITY.md
+└── CLAUDE.md                        # AI-assistant codebase guide
 ```
 
 ---

@@ -12,9 +12,9 @@ Thank you for your interest in contributing. This document covers development se
 
 ### Android
 
-2. Open the project in Android Studio Ladybug (2024.2.1) or later.
+2. Open the project in Android Studio Meerkat (2024.3.1) or later.
 
-3. Ensure you have JDK 17 and Android SDK 35 installed.
+3. Ensure you have JDK 21 and Android SDK 35 installed.
 
 4. Build and run:
    ```bash
