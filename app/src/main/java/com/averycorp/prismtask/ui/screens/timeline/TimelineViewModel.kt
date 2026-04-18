@@ -75,6 +75,19 @@ data class AiSchedule(
     val stats: AiTimeBlockStats
 )
 
+/**
+ * Sealed UI state for the Auto-Schedule action. Prevents the old failure
+ * mode where an empty schedule silently rendered "0 tasks • 0h work" —
+ * the [Empty] variant drives an explicit "Nothing to schedule" message.
+ */
+sealed interface AiScheduleUiState {
+    data object Idle : AiScheduleUiState
+    data object Loading : AiScheduleUiState
+    data class Success(val schedule: AiSchedule) : AiScheduleUiState
+    data class Empty(val reason: String) : AiScheduleUiState
+    data class Error(val message: String) : AiScheduleUiState
+}
+
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class TimelineViewModel
@@ -92,11 +105,18 @@ constructor(
     private val _timeBlockConfig = MutableStateFlow(TimeBlockConfig())
     val timeBlockConfig: StateFlow<TimeBlockConfig> = _timeBlockConfig
 
-    private val _aiSchedule = MutableStateFlow<AiSchedule?>(null)
-    val aiSchedule: StateFlow<AiSchedule?> = _aiSchedule
+    private val _scheduleUiState = MutableStateFlow<AiScheduleUiState>(AiScheduleUiState.Idle)
+    val scheduleUiState: StateFlow<AiScheduleUiState> = _scheduleUiState
 
-    private val _isGeneratingSchedule = MutableStateFlow(false)
-    val isGeneratingSchedule: StateFlow<Boolean> = _isGeneratingSchedule
+    // Back-compat derived views so existing screen call sites reading
+    // "is there a schedule?" and "is a generate in flight?" keep working.
+    val aiSchedule: StateFlow<AiSchedule?> = _scheduleUiState
+        .map { (it as? AiScheduleUiState.Success)?.schedule }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    val isGeneratingSchedule: StateFlow<Boolean> = _scheduleUiState
+        .map { it is AiScheduleUiState.Loading }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     private val _showTimeBlockSheet = MutableStateFlow(false)
     val showTimeBlockSheet: StateFlow<Boolean> = _showTimeBlockSheet
@@ -374,7 +394,7 @@ constructor(
 
     fun generateTimeBlocks() {
         viewModelScope.launch {
-            _isGeneratingSchedule.value = true
+            _scheduleUiState.value = AiScheduleUiState.Loading
             _scheduleError.value = null
             _showTimeBlockSheet.value = false
             try {
@@ -391,7 +411,7 @@ constructor(
                         breakDurationMinutes = cfg.breakDurationMinutes
                     )
                 )
-                _aiSchedule.value = AiSchedule(
+                val schedule = AiSchedule(
                     blocks = response.schedule.map { block ->
                         AiScheduleBlock(
                             start = block.start,
@@ -411,10 +431,23 @@ constructor(
                         tasksDeferred = response.stats.tasksDeferred
                     )
                 )
+                // Empty in both senses: nothing was scheduled and nothing
+                // was explicitly deferred. Treat as "Nothing to schedule
+                // right now" rather than silently rendering "0 tasks
+                // • 0h work • 0m breaks • 0m free".
+                if (schedule.blocks.isEmpty() && schedule.unscheduledTasks.isEmpty()) {
+                    _scheduleUiState.value = AiScheduleUiState.Empty(
+                        "Nothing to schedule right now."
+                    )
+                    return@launch
+                }
+                _scheduleUiState.value = AiScheduleUiState.Success(schedule)
             } catch (e: Exception) {
+                Log.w("TimelineVM", "Generate time blocks failed", e)
+                _scheduleUiState.value = AiScheduleUiState.Error(
+                    e.message ?: "Couldn't generate schedule"
+                )
                 _scheduleError.value = "Couldn't generate schedule"
-            } finally {
-                _isGeneratingSchedule.value = false
             }
         }
     }
@@ -454,10 +487,18 @@ constructor(
     }
 
     fun resetAiSchedule() {
-        _aiSchedule.value = null
+        _scheduleUiState.value = AiScheduleUiState.Idle
+        _scheduleError.value = null
     }
 
     fun clearScheduleError() {
         _scheduleError.value = null
+        // Also clear a transient Error/Empty banner so it stops rendering.
+        when (_scheduleUiState.value) {
+            is AiScheduleUiState.Error, is AiScheduleUiState.Empty -> {
+                _scheduleUiState.value = AiScheduleUiState.Idle
+            }
+            else -> Unit
+        }
     }
 }

@@ -26,6 +26,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -35,6 +36,25 @@ enum class PomodoroState {
     SESSION_ACTIVE,
     ON_BREAK,
     COMPLETE
+}
+
+/**
+ * Sealed UI state for the "plan my sessions" action. Orthogonal to the
+ * [PomodoroState] session-flow machine (which tracks PLANNING / ACTIVE /
+ * BREAK / COMPLETE); this one tracks what happened to the API call that
+ * feeds the plan into that machine.
+ *
+ * Pre-sealed-state, we used parallel `_isLoading` / `_error` flags and
+ * `_plan` could be a PomodoroPlan with zero sessions — which silently
+ * rendered "0 sessions • 0 min work • 0 min breaks". [Empty] closes that
+ * hole with a proper screen-level empty message.
+ */
+sealed interface PomodoroPlanUiState {
+    data object Idle : PomodoroPlanUiState
+    data object Loading : PomodoroPlanUiState
+    data class Success(val plan: PomodoroPlan) : PomodoroPlanUiState
+    data class Empty(val reason: String) : PomodoroPlanUiState
+    data class Error(val message: String) : PomodoroPlanUiState
 }
 
 data class PomodoroConfig(
@@ -140,14 +160,20 @@ constructor(
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), PomodoroConfig())
 
-    private val _plan = MutableStateFlow<PomodoroPlan?>(null)
-    val plan: StateFlow<PomodoroPlan?> = _plan
+    private val _planUiState = MutableStateFlow<PomodoroPlanUiState>(PomodoroPlanUiState.Idle)
+    val planUiState: StateFlow<PomodoroPlanUiState> = _planUiState
 
-    private val _isLoading = MutableStateFlow(false)
-    val isLoading: StateFlow<Boolean> = _isLoading
+    // Back-compat derived views so the active-session / completion
+    // rendering can keep reading "the current plan" and "loading in
+    // flight" without knowing about the sealed type. These are
+    // computed, not independently mutated.
+    val plan: StateFlow<PomodoroPlan?> = _planUiState
+        .map { (it as? PomodoroPlanUiState.Success)?.plan }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
-    private val _error = MutableStateFlow<String?>(null)
-    val error: StateFlow<String?> = _error
+    val isLoading: StateFlow<Boolean> = _planUiState
+        .map { it is PomodoroPlanUiState.Loading }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     private val _currentSessionIndex = MutableStateFlow(0)
     val currentSessionIndex: StateFlow<Int> = _currentSessionIndex
@@ -264,8 +290,7 @@ constructor(
             return
         }
         viewModelScope.launch {
-            _isLoading.value = true
-            _error.value = null
+            _planUiState.value = PomodoroPlanUiState.Loading
             try {
                 val cfg = config.value
                 val response = api.planPomodoro(
@@ -277,7 +302,16 @@ constructor(
                         focusPreference = cfg.focusPreference
                     )
                 )
-                _plan.value = PomodoroPlan(
+                if (response.sessions.isEmpty()) {
+                    // Don't render the "0 sessions • 0 min" summary card;
+                    // show an explicit empty state so the user can take
+                    // action (add a task, re-sync, re-plan).
+                    _planUiState.value = PomodoroPlanUiState.Empty(
+                        "No tasks to plan around. Add a task or check that your tasks are synced."
+                    )
+                    return@launch
+                }
+                val built = PomodoroPlan(
                     sessions = response.sessions.map { s ->
                         PomodoroSession(
                             sessionNumber = s.sessionNumber,
@@ -291,10 +325,12 @@ constructor(
                     totalBreakMinutes = response.totalBreakMinutes,
                     skippedTasks = response.skippedTasks.map { SkippedTask(it.taskId, it.reason) }
                 )
+                _planUiState.value = PomodoroPlanUiState.Success(built)
             } catch (e: Exception) {
-                _error.value = "Couldn't generate plan"
-            } finally {
-                _isLoading.value = false
+                Log.w("PomodoroVM", "Plan generation failed", e)
+                _planUiState.value = PomodoroPlanUiState.Error(
+                    e.message ?: "Couldn't generate plan"
+                )
             }
         }
     }
@@ -386,15 +422,24 @@ constructor(
     fun resetToPlanning() {
         PomodoroTimerService.stop(appContext)
         _screenState.value = PomodoroState.PLANNING
-        _plan.value = null
+        _planUiState.value = PomodoroPlanUiState.Idle
         _currentSessionIndex.value = 0
         _completedTaskIds.value = emptySet()
         _stats.value = FocusStats()
         _isTimerRunning.value = false
     }
 
-    fun clearError() {
-        _error.value = null
+    /**
+     * Clear a transient Error/Empty message (snackbar auto-dismiss + banner
+     * dismiss). Idempotent for Idle/Loading/Success.
+     */
+    fun dismissPlanUiMessage() {
+        when (_planUiState.value) {
+            is PomodoroPlanUiState.Error, is PomodoroPlanUiState.Empty -> {
+                _planUiState.value = PomodoroPlanUiState.Idle
+            }
+            else -> Unit
+        }
     }
 
     private fun startTimer(durationSeconds: Int, sessionType: String) {

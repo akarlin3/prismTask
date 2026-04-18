@@ -99,6 +99,7 @@ fun TimelineScreen(
     var moveToProjectSheetTask by remember { mutableStateOf<TaskEntity?>(null) }
     val aiSchedule by viewModel.aiSchedule.collectAsStateWithLifecycle()
     val isGeneratingSchedule by viewModel.isGeneratingSchedule.collectAsStateWithLifecycle()
+    val scheduleUiState by viewModel.scheduleUiState.collectAsStateWithLifecycle()
     val showUpgradePrompt by viewModel.showUpgradePrompt.collectAsStateWithLifecycle()
     var cascadeConfirmState by remember { mutableStateOf<Pair<TaskEntity, Long?>?>(null) }
     val projects by viewModel.projects.collectAsStateWithLifecycle()
@@ -164,40 +165,56 @@ fun TimelineScreen(
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
             )
 
-            // AI schedule stats (when generated)
-            if (aiSchedule != null) {
-                val currentAiSchedule = aiSchedule!!
-                val stats = currentAiSchedule.stats
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f))
-                        .padding(horizontal = 16.dp, vertical = 6.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        text = "${stats.tasksScheduled} tasks \u00B7 " +
-                            "${stats.totalWorkMinutes / 60}h work \u00B7 " +
-                            "${stats.totalBreakMinutes}m breaks \u00B7 " +
-                            "${stats.totalFreeMinutes}m free",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TextButton(
-                            onClick = { viewModel.applyAiSchedule() },
-                            modifier = Modifier.height(28.dp)
-                        ) {
-                            Text("Apply", style = MaterialTheme.typography.labelSmall)
-                        }
-                        TextButton(
-                            onClick = { viewModel.resetAiSchedule() },
-                            modifier = Modifier.height(28.dp)
-                        ) {
-                            Text("Reset", style = MaterialTheme.typography.labelSmall)
+            // AI schedule state row. Success renders the stats + Apply/Reset
+            // buttons; Empty and Error render a dismissible banner in the
+            // same slot so the user always sees an explicit outcome from
+            // the Auto-Schedule action. Idle/Loading render nothing here
+            // (Loading spinner is in the top bar).
+            when (val s = scheduleUiState) {
+                is AiScheduleUiState.Success -> {
+                    val stats = s.schedule.stats
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f))
+                            .padding(horizontal = 16.dp, vertical = 6.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = "${stats.tasksScheduled} tasks \u00B7 " +
+                                "${stats.totalWorkMinutes / 60}h work \u00B7 " +
+                                "${stats.totalBreakMinutes}m breaks \u00B7 " +
+                                "${stats.totalFreeMinutes}m free",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            TextButton(
+                                onClick = { viewModel.applyAiSchedule() },
+                                modifier = Modifier.height(28.dp)
+                            ) {
+                                Text("Apply", style = MaterialTheme.typography.labelSmall)
+                            }
+                            TextButton(
+                                onClick = { viewModel.resetAiSchedule() },
+                                modifier = Modifier.height(28.dp)
+                            ) {
+                                Text("Reset", style = MaterialTheme.typography.labelSmall)
+                            }
                         }
                     }
                 }
+                is AiScheduleUiState.Empty -> ScheduleBannerRow(
+                    body = s.reason,
+                    isError = false,
+                    onDismiss = { viewModel.clearScheduleError() }
+                )
+                is AiScheduleUiState.Error -> ScheduleBannerRow(
+                    body = s.message,
+                    isError = true,
+                    onDismiss = { viewModel.clearScheduleError() }
+                )
+                else -> Unit
             }
 
             // Timeline area
@@ -699,6 +716,44 @@ private fun TimeBlockConfigSheet(
             }
 
             Spacer(Modifier.height(16.dp))
+        }
+    }
+}
+
+@Composable
+private fun ScheduleBannerRow(
+    body: String,
+    isError: Boolean,
+    onDismiss: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(
+                if (isError) {
+                    MaterialTheme.colorScheme.errorContainer
+                } else {
+                    MaterialTheme.colorScheme.secondaryContainer
+                }
+            )
+            .padding(horizontal = 16.dp, vertical = 6.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = body,
+            style = MaterialTheme.typography.labelSmall,
+            color = if (isError) {
+                MaterialTheme.colorScheme.onErrorContainer
+            } else {
+                MaterialTheme.colorScheme.onSecondaryContainer
+            }
+        )
+        TextButton(
+            onClick = onDismiss,
+            modifier = Modifier.height(28.dp)
+        ) {
+            Text("Dismiss", style = MaterialTheme.typography.labelSmall)
         }
     }
 }

@@ -64,8 +64,8 @@ fun SmartPomodoroScreen(
     val config by viewModel.config.collectAsState()
     val energyAwareConfig by viewModel.energyAwareConfig.collectAsState()
     val plan by viewModel.plan.collectAsState()
+    val planUiState by viewModel.planUiState.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
-    val error by viewModel.error.collectAsState()
     val currentSessionIndex by viewModel.currentSessionIndex.collectAsState()
     val timerSeconds by viewModel.timerSecondsRemaining.collectAsState()
     val isTimerRunning by viewModel.isTimerRunning.collectAsState()
@@ -74,10 +74,12 @@ fun SmartPomodoroScreen(
     val incompleteTaskCount by viewModel.incompleteTaskCount.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    LaunchedEffect(error) {
-        error?.let {
-            snackbarHostState.showSnackbar(it)
-            viewModel.clearError()
+    // Error state also gets a snackbar as a secondary signal. Primary
+    // rendering is the screen-level banner inside PlanningView.
+    LaunchedEffect(planUiState) {
+        when (val s = planUiState) {
+            is PomodoroPlanUiState.Error -> snackbarHostState.showSnackbar(s.message)
+            else -> Unit
         }
     }
 
@@ -124,10 +126,12 @@ fun SmartPomodoroScreen(
                 PlanningView(
                     config = config,
                     plan = plan,
+                    planUiState = planUiState,
                     isLoading = isLoading,
                     incompleteTaskCount = incompleteTaskCount,
                     onGeneratePlan = { viewModel.generatePlan() },
                     onStartSession = { viewModel.startSession() },
+                    onDismissMessage = { viewModel.dismissPlanUiMessage() },
                     modifier = Modifier
                 )
             }
@@ -170,10 +174,12 @@ fun SmartPomodoroScreen(
 private fun PlanningView(
     config: PomodoroConfig,
     plan: PomodoroPlan?,
+    planUiState: PomodoroPlanUiState,
     isLoading: Boolean,
     incompleteTaskCount: Int,
     onGeneratePlan: () -> Unit,
     onStartSession: () -> Unit,
+    onDismissMessage: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     LazyColumn(
@@ -182,6 +188,29 @@ private fun PlanningView(
             .padding(horizontal = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        // Empty / Error banner — the primary user-facing signal for
+        // "no tasks to plan" or "couldn't reach the planner". The
+        // summary card below suppresses itself when empty so we never
+        // render "0 sessions • 0 min".
+        when (val s = planUiState) {
+            is PomodoroPlanUiState.Empty -> item {
+                PlanUiStateBanner(
+                    title = "No Tasks to Plan",
+                    body = s.reason,
+                    isError = false,
+                    onDismiss = onDismissMessage
+                )
+            }
+            is PomodoroPlanUiState.Error -> item {
+                PlanUiStateBanner(
+                    title = "Couldn't Generate Plan",
+                    body = s.message,
+                    isError = true,
+                    onDismiss = onDismissMessage
+                )
+            }
+            else -> Unit
+        }
         item {
             Spacer(Modifier.height(8.dp))
 
@@ -221,6 +250,12 @@ private fun PlanningView(
 
         item {
             // Generate/Start button
+            //
+            // Shown when there's no successfully-planned session on screen,
+            // which now covers Idle, Empty ("no tasks"), and Error. Per the
+            // empty-state UX refactor, the label stays "Plan My Sessions"
+            // across these variants — "Re-Plan" is reserved for the
+            // post-success re-do button below.
             if (plan == null) {
                 Button(
                     onClick = onGeneratePlan,
@@ -242,8 +277,8 @@ private fun PlanningView(
             }
         }
 
-        // Session plan display
-        if (plan != null) {
+        // Session plan display — only when we have a real non-empty plan.
+        if (plan != null && plan.sessions.isNotEmpty()) {
             itemsIndexed(plan.sessions) { index, session ->
                 SessionPlanCard(session = session, index = index)
 
@@ -678,5 +713,56 @@ private fun StatRow(label: String, value: String) {
     ) {
         Text(label, style = MaterialTheme.typography.bodyMedium)
         Text(value, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+    }
+}
+
+@Composable
+private fun PlanUiStateBanner(
+    title: String,
+    body: String,
+    isError: Boolean,
+    onDismiss: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isError) {
+                MaterialTheme.colorScheme.errorContainer
+            } else {
+                MaterialTheme.colorScheme.secondaryContainer
+            }
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    title,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = if (isError) {
+                        MaterialTheme.colorScheme.onErrorContainer
+                    } else {
+                        MaterialTheme.colorScheme.onSecondaryContainer
+                    }
+                )
+                Text(
+                    body,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (isError) {
+                        MaterialTheme.colorScheme.onErrorContainer
+                    } else {
+                        MaterialTheme.colorScheme.onSecondaryContainer
+                    }
+                )
+            }
+            TextButton(onClick = onDismiss) {
+                Text("Dismiss")
+            }
+        }
     }
 }

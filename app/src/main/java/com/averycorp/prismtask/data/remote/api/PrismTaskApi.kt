@@ -79,6 +79,11 @@ interface PrismTaskApi {
         @Body request: WeeklyPlanRequest
     ): WeeklyPlanResponse
 
+    @POST("api/v1/ai/weekly-review")
+    suspend fun getWeeklyReview(
+        @Body request: WeeklyReviewRequest
+    ): WeeklyReviewResponse
+
     @POST("api/v1/ai/time-block")
     suspend fun getTimeBlock(
         @Body request: TimeBlockRequest

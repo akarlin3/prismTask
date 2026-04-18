@@ -23,8 +23,16 @@ import java.util.TimeZone
  *                       `updatedAt > dueDate`; exact tracking would need
  *                       a separate reschedule log).
  * @property byCategory Number of completed tasks per [LifeCategory].
- * @property carryForward Slipped tasks that the "Carry Forward" UI will
- *                        offer for quick reschedule.
+ * @property completedTasks Full [TaskEntity]s completed during the window,
+ *                          available to callers that need titles /
+ *                          completion timestamps (e.g. the AI weekly
+ *                          review sending per-task summaries to the
+ *                          backend). Count-only consumers can keep using
+ *                          [completed].
+ * @property slippedTasks Full [TaskEntity]s that were due/planned this
+ *                        week but remain open. Powers the "Carry Forward"
+ *                        UI and the slipped-task list sent to the AI
+ *                        weekly review.
  */
 data class WeeklyReviewStats(
     val weekStart: Long,
@@ -33,11 +41,16 @@ data class WeeklyReviewStats(
     val slipped: Int,
     val rescheduled: Int,
     val byCategory: Map<LifeCategory, Int>,
-    val carryForward: List<TaskEntity>
+    val completedTasks: List<TaskEntity>,
+    val slippedTasks: List<TaskEntity>
 ) {
     val total: Int get() = completed + slipped
     val completionRate: Float
         get() = if (total == 0) 0f else completed.toFloat() / total.toFloat()
+
+    /** Back-compat alias for [slippedTasks] — the list the "Carry Forward"
+     *  UI has always consumed. Kept so existing callers compile. */
+    val carryForward: List<TaskEntity> get() = slippedTasks
 }
 
 /**
@@ -66,12 +79,14 @@ class WeeklyReviewAggregator {
         var slipped = 0
         var rescheduled = 0
         val categoryCounts = LifeCategory.TRACKED.associateWith { 0 }.toMutableMap()
-        val carryForward = mutableListOf<TaskEntity>()
+        val completedTasks = mutableListOf<TaskEntity>()
+        val slippedTasks = mutableListOf<TaskEntity>()
 
         for (task in tasks) {
             val completedAt = task.completedAt
             if (task.isCompleted && completedAt != null && completedAt in weekStart until weekEnd) {
                 completed++
+                completedTasks.add(task)
                 val category = LifeCategory.fromStorage(task.lifeCategory)
                 if (category in LifeCategory.TRACKED) {
                     categoryCounts[category] = (categoryCounts[category] ?: 0) + 1
@@ -84,7 +99,7 @@ class WeeklyReviewAggregator {
             val isStillOpen = !task.isCompleted && task.archivedAt == null
             if (wasDueThisWeek && isStillOpen) {
                 slipped++
-                carryForward.add(task)
+                slippedTasks.add(task)
                 continue
             }
 
@@ -102,7 +117,8 @@ class WeeklyReviewAggregator {
             slipped = slipped,
             rescheduled = rescheduled,
             byCategory = categoryCounts,
-            carryForward = carryForward.toList()
+            completedTasks = completedTasks.toList(),
+            slippedTasks = slippedTasks.toList()
         )
     }
 

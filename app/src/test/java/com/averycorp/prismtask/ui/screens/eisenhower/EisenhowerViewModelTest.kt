@@ -30,7 +30,9 @@ import org.junit.Test
 
 /**
  * Unit tests for [EisenhowerViewModel]. Covers the Pro feature gate,
- * manual quadrant moves, completion, and AI categorize-task wiring.
+ * manual quadrant moves, completion, AI categorize wiring, and the
+ * new sealed [EisenhowerUiState] including the Empty state for
+ * empty-response UX.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class EisenhowerViewModelTest {
@@ -70,6 +72,8 @@ class EisenhowerViewModelTest {
 
         assertTrue(vm.showUpgradePrompt.value)
         coVerify(exactly = 0) { api.categorizeEisenhower(any()) }
+        // No API call attempted, so state stays Idle.
+        assertEquals(EisenhowerUiState.Idle, vm.uiState.value)
     }
 
     @Test
@@ -77,8 +81,12 @@ class EisenhowerViewModelTest {
         every { proFeatureGate.hasAccess(ProFeatureGate.AI_EISENHOWER) } returns true
         coEvery { api.categorizeEisenhower(any()) } returns EisenhowerResponse(
             categorizations = listOf(
-                EisenhowerCategorization(taskId = 1L, quadrant = "Q1", reason = "Due today"),
-                EisenhowerCategorization(taskId = 2L, quadrant = "Q2", reason = "Important")
+                // Numeric string task IDs so the toLongOrNull() path still
+                // writes to the DAO. See the TODO(weekly-followup) in the
+                // ViewModel — alphanumeric Firestore IDs are skipped for
+                // now with a warning.
+                EisenhowerCategorization(taskId = "1", quadrant = "Q1", reason = "Due today"),
+                EisenhowerCategorization(taskId = "2", quadrant = "Q2", reason = "Important")
             ),
             summary = EisenhowerSummary()
         )
@@ -95,12 +103,33 @@ class EisenhowerViewModelTest {
         coVerify {
             taskDao.updateEisenhowerQuadrant(id = 2L, quadrant = "Q2", reason = "Important", updatedAt = any())
         }
-        assertFalse(vm.isLoading.value)
-        assertNull(vm.error.value)
+        val state = vm.uiState.value
+        assertTrue("expected Success, got $state", state is EisenhowerUiState.Success)
     }
 
     @Test
-    fun categorize_apiFailurePopulatesErrorAndClearsLoading() = runTest(dispatcher) {
+    fun categorize_emptyResponseEmitsEmptyState() = runTest(dispatcher) {
+        every { proFeatureGate.hasAccess(ProFeatureGate.AI_EISENHOWER) } returns true
+        coEvery { api.categorizeEisenhower(any()) } returns EisenhowerResponse(
+            categorizations = emptyList(),
+            summary = EisenhowerSummary()
+        )
+
+        val vm = newViewModel()
+        advanceUntilIdle()
+        vm.categorize()
+        advanceUntilIdle()
+
+        val state = vm.uiState.value
+        assertTrue("expected Empty, got $state", state is EisenhowerUiState.Empty)
+        assertEquals(
+            "No incomplete tasks to categorize. Add a task and try again.",
+            (state as EisenhowerUiState.Empty).reason
+        )
+    }
+
+    @Test
+    fun categorize_apiFailureEmitsErrorState() = runTest(dispatcher) {
         every { proFeatureGate.hasAccess(ProFeatureGate.AI_EISENHOWER) } returns true
         coEvery { api.categorizeEisenhower(any()) } throws RuntimeException("network down")
 
@@ -110,8 +139,9 @@ class EisenhowerViewModelTest {
         vm.categorize()
         advanceUntilIdle()
 
-        assertFalse(vm.isLoading.value)
-        assertEquals("Couldn't categorize tasks", vm.error.value)
+        val state = vm.uiState.value
+        assertTrue("expected Error, got $state", state is EisenhowerUiState.Error)
+        assertEquals("Couldn't categorize tasks", (state as EisenhowerUiState.Error).message)
     }
 
     @Test
@@ -156,7 +186,7 @@ class EisenhowerViewModelTest {
     }
 
     @Test
-    fun clearError_resetsErrorToNull() = runTest(dispatcher) {
+    fun dismissUiMessage_returnsErrorStateToIdle() = runTest(dispatcher) {
         every { proFeatureGate.hasAccess(ProFeatureGate.AI_EISENHOWER) } returns true
         coEvery { api.categorizeEisenhower(any()) } throws RuntimeException("boom")
 
@@ -164,10 +194,10 @@ class EisenhowerViewModelTest {
         advanceUntilIdle()
         vm.categorize()
         advanceUntilIdle()
-        assertEquals("Couldn't categorize tasks", vm.error.value)
+        assertTrue(vm.uiState.value is EisenhowerUiState.Error)
 
-        vm.clearError()
-        assertNull(vm.error.value)
+        vm.dismissUiMessage()
+        assertEquals(EisenhowerUiState.Idle, vm.uiState.value)
     }
 
     @Test

@@ -56,7 +56,7 @@ constructor(
         TEMPLATE_SYNC, AI_EISENHOWER, AI_POMODORO,
         AI_NLP,
         AI_EVENING_SUMMARY, AI_COACHING, AI_TASK_BREAKDOWN,
-        AI_BRIEFING, AI_WEEKLY_PLAN, AI_TIME_BLOCK,
+        AI_BRIEFING, AI_WEEKLY_PLAN, AI_WEEKLY_REVIEW, AI_TIME_BLOCK,
         AI_CONVERSATIONAL,
         AI_REENGAGEMENT, AI_DAILY_PLANNING,
         CLOUD_SYNC,
@@ -76,6 +76,7 @@ constructor(
         const val AI_TASK_BREAKDOWN = "ai_task_breakdown"
         const val AI_BRIEFING = "ai_briefing"
         const val AI_WEEKLY_PLAN = "ai_weekly_plan"
+        const val AI_WEEKLY_REVIEW = "ai_weekly_review"
         const val AI_TIME_BLOCK = "ai_time_block"
         const val AI_CONVERSATIONAL = "ai_conversational"
         const val AI_DAILY_PLANNING = "ai_daily_planning"

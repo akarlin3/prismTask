@@ -84,11 +84,13 @@ data class VersionResponse(
 // region AI Productivity
 
 data class EisenhowerRequest(
-    @SerializedName("task_ids") val taskIds: List<Long>? = null
+    // Backend now expects Firestore document IDs as strings (task_ids: list[str]).
+    @SerializedName("task_ids") val taskIds: List<String>? = null
 )
 
 data class EisenhowerCategorization(
-    @SerializedName("task_id") val taskId: Long,
+    // String to match Firestore document IDs echoed back by the server.
+    @SerializedName("task_id") val taskId: String,
     val quadrant: String,
     val reason: String
 )
@@ -114,6 +116,9 @@ data class PomodoroRequest(
 )
 
 data class SessionTaskResponse(
+    // TODO(weekly-followup): backend now sends Firestore doc IDs (strings).
+    // Flip to String when the full Long -> String audit lands alongside a
+    // firestoreId lookup on TaskEntity.
     @SerializedName("task_id") val taskId: Long,
     val title: String,
     @SerializedName("allocated_minutes") val allocatedMinutes: Int
@@ -126,6 +131,8 @@ data class PomodoroSessionResponse(
 )
 
 data class SkippedTaskResponse(
+    // TODO(weekly-followup): flip to String once Pomodoro response ships with
+    // Firestore doc IDs end-to-end.
     @SerializedName("task_id") val taskId: Long,
     val reason: String
 )
@@ -147,12 +154,14 @@ data class DailyBriefingRequest(
 )
 
 data class BriefingPriorityResponse(
+    // TODO(weekly-followup): flip to String when briefing response is audited.
     @SerializedName("task_id") val taskId: Long,
     val title: String,
     val reason: String
 )
 
 data class SuggestedTaskResponse(
+    // TODO(weekly-followup): flip to String when briefing response is audited.
     @SerializedName("task_id") val taskId: Long,
     val title: String,
     @SerializedName("suggested_time") val suggestedTime: String,
@@ -184,6 +193,7 @@ data class WeeklyPlanRequest(
 )
 
 data class PlannedTaskResponse(
+    // TODO(weekly-followup): flip to String when weekly-plan response is audited.
     @SerializedName("task_id") val taskId: Long,
     val title: String,
     @SerializedName("suggested_time") val suggestedTime: String,
@@ -200,6 +210,7 @@ data class DayPlanResponse(
 )
 
 data class UnscheduledTaskResponse(
+    // TODO(weekly-followup): flip to String when weekly-plan/time-block are audited.
     @SerializedName("task_id") val taskId: Long,
     val title: String,
     val reason: String
@@ -210,6 +221,50 @@ data class WeeklyPlanResponse(
     val unscheduled: List<UnscheduledTaskResponse> = emptyList(),
     @SerializedName("week_summary") val weekSummary: String,
     val tips: List<String> = emptyList()
+)
+
+// endregion
+
+// region AI Weekly Review (schema v2 — hybrid: client-provided task lists
+// + server-side Firestore enrichment)
+
+/**
+ * Per-task summary sent to the backend for a weekly review. Matches the
+ * backend WeeklyTaskSummary schema. Task IDs are strings because they
+ * originate from Firestore.
+ */
+data class WeeklyTaskSummary(
+    @SerializedName("task_id") val taskId: String,
+    val title: String,
+    // ISO-8601 datetime; null for slipped tasks.
+    @SerializedName("completed_at") val completedAt: String? = null,
+    val priority: Int,
+    @SerializedName("eisenhower_quadrant") val eisenhowerQuadrant: String? = null,
+    @SerializedName("life_category") val lifeCategory: String? = null,
+    @SerializedName("project_id") val projectId: String? = null
+)
+
+data class WeeklyReviewRequest(
+    // ISO dates. Backend rejects if end < start or span > 14 days.
+    @SerializedName("week_start") val weekStart: String,
+    @SerializedName("week_end") val weekEnd: String,
+    @SerializedName("completed_tasks") val completedTasks: List<WeeklyTaskSummary> = emptyList(),
+    @SerializedName("slipped_tasks") val slippedTasks: List<WeeklyTaskSummary> = emptyList(),
+    // Opaque pass-through maps; the backend forwards them into the prompt
+    // verbatim. Keep flexible so the client controls the shape.
+    @SerializedName("habit_summary") val habitSummary: Map<String, @JvmSuppressWildcards Any?>? = null,
+    @SerializedName("pomodoro_summary") val pomodoroSummary: Map<String, @JvmSuppressWildcards Any?>? = null,
+    val notes: String? = null
+)
+
+data class WeeklyReviewResponse(
+    @SerializedName("week_start") val weekStart: String,
+    @SerializedName("week_end") val weekEnd: String,
+    val wins: List<String> = emptyList(),
+    val slips: List<String> = emptyList(),
+    val patterns: List<String> = emptyList(),
+    @SerializedName("next_week_focus") val nextWeekFocus: List<String> = emptyList(),
+    val narrative: String = ""
 )
 
 // endregion
@@ -230,6 +285,7 @@ data class ScheduleBlockResponse(
     val start: String,
     val end: String,
     val type: String,
+    // TODO(weekly-followup): flip to String when time-block response is audited.
     @SerializedName("task_id") val taskId: Long?,
     val title: String,
     val reason: String

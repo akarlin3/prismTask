@@ -1,11 +1,14 @@
 package com.averycorp.prismtask.ui.screens.eisenhower
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.averycorp.prismtask.data.billing.UserTier
 import com.averycorp.prismtask.data.local.dao.TaskDao
 import com.averycorp.prismtask.data.local.entity.TaskEntity
+import com.averycorp.prismtask.data.remote.api.EisenhowerCategorization
 import com.averycorp.prismtask.data.remote.api.EisenhowerRequest
+import com.averycorp.prismtask.data.remote.api.EisenhowerSummary
 import com.averycorp.prismtask.data.remote.api.PrismTaskApi
 import com.averycorp.prismtask.domain.usecase.ProFeatureGate
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -16,6 +19,39 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+
+/**
+ * Sealed UI state for the Eisenhower categorize action.
+ *
+ * Replaces the old parallel `isLoading` / `error` flags so the screen
+ * can't render an inconsistent combination (e.g. spinner + error toast +
+ * stale grid). The per-task [quadrants] StateFlow is Room-sourced and
+ * lives alongside this state — [quadrants] drives what renders in the
+ * cells, while [EisenhowerUiState] drives the categorize-action UX.
+ */
+sealed interface EisenhowerUiState {
+    /** No categorize action in flight and none completed this session. */
+    data object Idle : EisenhowerUiState
+
+    /** Categorize action in flight. */
+    data object Loading : EisenhowerUiState
+
+    /** Categorize returned at least one quadrant assignment. */
+    data class Success(
+        val categorizations: List<EisenhowerCategorization>,
+        val summary: EisenhowerSummary
+    ) : EisenhowerUiState
+
+    /**
+     * Categorize returned an empty response — usually because the user
+     * has no incomplete tasks. Surfaces a friendly screen-level empty
+     * state instead of leaving the grid silently unchanged.
+     */
+    data class Empty(val reason: String) : EisenhowerUiState
+
+    /** Categorize failed (network, 5xx, parse). */
+    data class Error(val message: String) : EisenhowerUiState
+}
 
 @HiltViewModel
 class EisenhowerViewModel
@@ -40,14 +76,11 @@ constructor(
             )
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
-    private val _isLoading = MutableStateFlow(false)
-    val isLoading: StateFlow<Boolean> = _isLoading
+    private val _uiState = MutableStateFlow<EisenhowerUiState>(EisenhowerUiState.Idle)
+    val uiState: StateFlow<EisenhowerUiState> = _uiState
 
     private val _lastCategorizedAt = MutableStateFlow<Long?>(null)
     val lastCategorizedAt: StateFlow<Long?> = _lastCategorizedAt
-
-    private val _error = MutableStateFlow<String?>(null)
-    val error: StateFlow<String?> = _error
 
     private val _expandedQuadrant = MutableStateFlow<String?>(null)
     val expandedQuadrant: StateFlow<String?> = _expandedQuadrant
@@ -75,24 +108,48 @@ constructor(
             return
         }
         viewModelScope.launch {
-            _isLoading.value = true
-            _error.value = null
+            _uiState.value = EisenhowerUiState.Loading
             try {
                 val response = api.categorizeEisenhower(EisenhowerRequest())
+                if (response.categorizations.isEmpty()) {
+                    _uiState.value = EisenhowerUiState.Empty(
+                        "No incomplete tasks to categorize. Add a task and try again."
+                    )
+                    return@launch
+                }
                 val now = System.currentTimeMillis()
                 for (cat in response.categorizations) {
+                    // TODO(weekly-followup): TaskEntity PK is Long but the
+                    // backend now returns Firestore document IDs (strings).
+                    // Until the Room schema gains a firestoreId column and a
+                    // lookup by that column, try to parse as Long so the
+                    // app continues to work for the Postgres-numeric-ID
+                    // migration window. Alphanumeric IDs are skipped with a
+                    // warning; the user will see the backend's response
+                    // echoed but Room won't update until the follow-up.
+                    val localId = cat.taskId.toLongOrNull()
+                    if (localId == null) {
+                        Log.w(
+                            "EisenhowerVM",
+                            "Skipping quadrant write for non-numeric task id: ${cat.taskId}"
+                        )
+                        continue
+                    }
                     taskDao.updateEisenhowerQuadrant(
-                        id = cat.taskId,
+                        id = localId,
                         quadrant = cat.quadrant,
                         reason = cat.reason,
                         updatedAt = now
                     )
                 }
                 _lastCategorizedAt.value = now
+                _uiState.value = EisenhowerUiState.Success(
+                    categorizations = response.categorizations,
+                    summary = response.summary
+                )
             } catch (e: Exception) {
-                _error.value = "Couldn't categorize tasks"
-            } finally {
-                _isLoading.value = false
+                Log.w("EisenhowerVM", "Categorize failed", e)
+                _uiState.value = EisenhowerUiState.Error("Couldn't categorize tasks")
             }
         }
     }
@@ -117,7 +174,16 @@ constructor(
         _expandedQuadrant.value = quadrant
     }
 
-    fun clearError() {
-        _error.value = null
+    /**
+     * Clear a transient Error/Empty state and return to Idle so the screen
+     * stops rendering the banner. Idempotent for Idle/Loading/Success.
+     */
+    fun dismissUiMessage() {
+        when (_uiState.value) {
+            is EisenhowerUiState.Error, is EisenhowerUiState.Empty -> {
+                _uiState.value = EisenhowerUiState.Idle
+            }
+            else -> Unit
+        }
     }
 }

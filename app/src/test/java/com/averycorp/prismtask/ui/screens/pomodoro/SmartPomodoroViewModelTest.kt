@@ -114,7 +114,7 @@ class SmartPomodoroViewModelTest {
         advanceUntilIdle()
 
         assertTrue(vm.showUpgradePrompt.value)
-        assertNull(vm.plan.value)
+        assertEquals(PomodoroPlanUiState.Idle, vm.planUiState.value)
         coVerify(exactly = 0) { api.planPomodoro(any()) }
     }
 
@@ -139,15 +139,38 @@ class SmartPomodoroViewModelTest {
         vm.generatePlan()
         advanceUntilIdle()
 
-        val plan = vm.plan.value
-        assertNotNull(plan)
-        assertEquals(1, plan!!.sessions.size)
+        val state = vm.planUiState.value
+        assertTrue("expected Success, got $state", state is PomodoroPlanUiState.Success)
+        val plan = (state as PomodoroPlanUiState.Success).plan
+        assertEquals(1, plan.sessions.size)
         assertEquals(25, plan.totalWorkMinutes)
-        assertFalse(vm.isLoading.value)
     }
 
     @Test
-    fun generatePlan_apiFailureSurfacesError() = runTest(dispatcher) {
+    fun generatePlan_emptySessionsEmitsEmptyState() = runTest(dispatcher) {
+        every { proFeatureGate.hasAccess(ProFeatureGate.AI_POMODORO) } returns true
+        coEvery { api.planPomodoro(any()) } returns PomodoroResponse(
+            sessions = emptyList(),
+            totalSessions = 0,
+            totalWorkMinutes = 0,
+            totalBreakMinutes = 0,
+            skippedTasks = emptyList()
+        )
+
+        val vm = newViewModel()
+        vm.generatePlan()
+        advanceUntilIdle()
+
+        val state = vm.planUiState.value
+        assertTrue("expected Empty, got $state", state is PomodoroPlanUiState.Empty)
+        assertEquals(
+            "No tasks to plan around. Add a task or check that your tasks are synced.",
+            (state as PomodoroPlanUiState.Empty).reason
+        )
+    }
+
+    @Test
+    fun generatePlan_apiFailureEmitsErrorState() = runTest(dispatcher) {
         every { proFeatureGate.hasAccess(ProFeatureGate.AI_POMODORO) } returns true
         coEvery { api.planPomodoro(any()) } throws RuntimeException("upstream down")
 
@@ -155,8 +178,9 @@ class SmartPomodoroViewModelTest {
         vm.generatePlan()
         advanceUntilIdle()
 
-        assertFalse(vm.isLoading.value)
-        assertEquals("upstream down", vm.error.value)
+        val state = vm.planUiState.value
+        assertTrue("expected Error, got $state", state is PomodoroPlanUiState.Error)
+        assertEquals("upstream down", (state as PomodoroPlanUiState.Error).message)
     }
 
     @Test
@@ -195,7 +219,7 @@ class SmartPomodoroViewModelTest {
         vm.resetToPlanning()
 
         assertEquals(PomodoroState.PLANNING, vm.screenState.value)
-        assertNull(vm.plan.value)
+        assertEquals(PomodoroPlanUiState.Idle, vm.planUiState.value)
         assertTrue(vm.completedTaskIds.value.isEmpty())
     }
 }

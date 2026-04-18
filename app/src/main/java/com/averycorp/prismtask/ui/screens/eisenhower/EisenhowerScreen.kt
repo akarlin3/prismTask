@@ -86,16 +86,20 @@ fun EisenhowerScreen(
     viewModel: EisenhowerViewModel = hiltViewModel()
 ) {
     val quadrants by viewModel.quadrants.collectAsState()
-    val isLoading by viewModel.isLoading.collectAsState()
+    val uiState by viewModel.uiState.collectAsState()
     val lastCategorizedAt by viewModel.lastCategorizedAt.collectAsState()
-    val error by viewModel.error.collectAsState()
     val expandedQuadrant by viewModel.expandedQuadrant.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    LaunchedEffect(error) {
-        error?.let {
-            snackbarHostState.showSnackbar(it)
-            viewModel.clearError()
+    val isLoading = uiState is EisenhowerUiState.Loading
+
+    // Also surface Error/Empty via snackbar as a secondary signal; the
+    // primary rendering is the screen-level banner below so the user
+    // can't miss it even after the snackbar auto-dismisses.
+    LaunchedEffect(uiState) {
+        when (val s = uiState) {
+            is EisenhowerUiState.Error -> snackbarHostState.showSnackbar(s.message)
+            else -> Unit
         }
     }
 
@@ -153,6 +157,25 @@ fun EisenhowerScreen(
                     .padding(padding)
                     .padding(horizontal = 8.dp, vertical = 4.dp)
             ) {
+                // Screen-level banner for Empty and Error states. Renders
+                // above the grid so the user sees it even when the grid
+                // itself has stale/old categorizations from a previous run.
+                when (val s = uiState) {
+                    is EisenhowerUiState.Empty -> UiStateBanner(
+                        title = "Nothing to Categorize",
+                        body = s.reason,
+                        isError = false,
+                        onDismiss = { viewModel.dismissUiMessage() }
+                    )
+                    is EisenhowerUiState.Error -> UiStateBanner(
+                        title = "Couldn't Categorize",
+                        body = s.message,
+                        isError = true,
+                        onDismiss = { viewModel.dismissUiMessage() }
+                    )
+                    else -> Unit
+                }
+
                 // Top row: Q1 and Q2
                 Row(
                     modifier = Modifier
@@ -533,6 +556,59 @@ private fun ExpandedQuadrantView(
                         onMoveTask = { quadrant -> onMoveTask(task.id, quadrant) }
                     )
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun UiStateBanner(
+    title: String,
+    body: String,
+    isError: Boolean,
+    onDismiss: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isError) {
+                MaterialTheme.colorScheme.errorContainer
+            } else {
+                MaterialTheme.colorScheme.secondaryContainer
+            }
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    title,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = if (isError) {
+                        MaterialTheme.colorScheme.onErrorContainer
+                    } else {
+                        MaterialTheme.colorScheme.onSecondaryContainer
+                    }
+                )
+                Text(
+                    body,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (isError) {
+                        MaterialTheme.colorScheme.onErrorContainer
+                    } else {
+                        MaterialTheme.colorScheme.onSecondaryContainer
+                    }
+                )
+            }
+            TextButton(onClick = onDismiss) {
+                Text("Dismiss")
             }
         }
     }
