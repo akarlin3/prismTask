@@ -356,7 +356,7 @@ fun SettingsScreen(
                     }
                 }
 
-                if (isAdmin && uiTier == UiComplexityTier.POWER) {
+                if (isAdmin) {
                     item {
                         DebugTierSection(
                             debugTierOverride = debugTierOverride,
