@@ -22,6 +22,13 @@ data class LeisureLogEntity(
     val flexPick: String? = null,
     @ColumnInfo(name = "flex_done")
     val flexDone: Boolean = false,
+    /**
+     * JSON map `{ sectionId: { "pick": String?, "done": Boolean } }` holding
+     * daily state for user-added custom sections. Null when the user has no
+     * custom sections or hasn't interacted with any yet today.
+     */
+    @ColumnInfo(name = "custom_sections_state")
+    val customSectionsState: String? = null,
     @ColumnInfo(name = "started_at")
     val startedAt: Long? = null,
     @ColumnInfo(name = "created_at")

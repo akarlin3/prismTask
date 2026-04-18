@@ -886,6 +886,16 @@ val MIGRATION_45_46 = object : Migration(45, 46) {
     }
 }
 
+// Allow users to add custom leisure sections (beyond the built-in music and
+// flex slots). Their per-day pick/done state lives in this nullable JSON
+// column; null means the user has no custom sections or hasn't interacted
+// with any yet today.
+val MIGRATION_46_47 = object : Migration(46, 47) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE leisure_logs ADD COLUMN custom_sections_state TEXT")
+    }
+}
+
 val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_1_2,
     MIGRATION_2_3,
@@ -931,5 +941,6 @@ val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_42_43,
     MIGRATION_43_44,
     MIGRATION_44_45,
-    MIGRATION_45_46
+    MIGRATION_45_46,
+    MIGRATION_46_47
 )

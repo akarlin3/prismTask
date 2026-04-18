@@ -44,6 +44,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import com.averycorp.prismtask.data.preferences.CustomLeisureSection
 import com.averycorp.prismtask.data.preferences.LeisurePreferences
 import com.averycorp.prismtask.data.preferences.LeisureSlotId
 import com.averycorp.prismtask.ui.screens.leisure.components.AddActivityDialog
@@ -56,9 +57,13 @@ fun LeisureSettingsScreen(
 ) {
     val musicState by viewModel.musicState.collectAsStateWithLifecycle()
     val flexState by viewModel.flexState.collectAsStateWithLifecycle()
+    val customSections by viewModel.customSections.collectAsStateWithLifecycle()
 
     var addDialogSlot by remember { mutableStateOf<LeisureSlotId?>(null) }
     var resetConfirm by remember { mutableStateOf<LeisureSlotId?>(null) }
+    var addActivityForCustomSection by remember { mutableStateOf<String?>(null) }
+    var removeCustomSectionConfirm by remember { mutableStateOf<CustomLeisureSection?>(null) }
+    var showAddSectionDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -81,8 +86,8 @@ fun LeisureSettingsScreen(
         ) {
             Spacer(Modifier.height(8.dp))
             Text(
-                "Two leisure sections \u2014 music and flexible \u2014 are fully customizable. " +
-                    "Disable a section to remove it from the daily target.",
+                "Music and flexible are the built-in leisure sections, fully customizable below. " +
+                    "Add your own sections for anything else you want to rotate through each day.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -102,6 +107,16 @@ fun LeisureSettingsScreen(
                 viewModel = viewModel,
                 onRequestAdd = { addDialogSlot = LeisureSlotId.FLEX },
                 onRequestReset = { resetConfirm = LeisureSlotId.FLEX }
+            )
+
+            Spacer(Modifier.height(24.dp))
+
+            CustomSectionsBlock(
+                sections = customSections,
+                viewModel = viewModel,
+                onRequestAddActivity = { sectionId -> addActivityForCustomSection = sectionId },
+                onRequestRemove = { section -> removeCustomSectionConfirm = section },
+                onRequestAddSection = { showAddSectionDialog = true }
             )
 
             Spacer(Modifier.height(32.dp))
@@ -138,6 +153,290 @@ fun LeisureSettingsScreen(
             }
         )
     }
+
+    addActivityForCustomSection?.let { sectionId ->
+        val section = customSections.firstOrNull { it.id == sectionId }
+        AddActivityDialog(
+            category = section?.label ?: "Section",
+            onDismiss = { addActivityForCustomSection = null },
+            onConfirm = { label, icon ->
+                viewModel.addCustomSectionActivity(sectionId, label, icon)
+                addActivityForCustomSection = null
+            }
+        )
+    }
+
+    if (showAddSectionDialog) {
+        AddSectionDialog(
+            onDismiss = { showAddSectionDialog = false },
+            onConfirm = { label, emoji ->
+                viewModel.addCustomSection(label, emoji)
+                showAddSectionDialog = false
+            }
+        )
+    }
+
+    removeCustomSectionConfirm?.let { section ->
+        AlertDialog(
+            onDismissRequest = { removeCustomSectionConfirm = null },
+            title = { Text("Remove Section?") },
+            text = { Text("\"${section.label}\" and its activities will be deleted. Past logs are kept.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.removeCustomSection(section.id)
+                    removeCustomSectionConfirm = null
+                }) {
+                    Text("Remove", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { removeCustomSectionConfirm = null }) { Text("Cancel") }
+            }
+        )
+    }
+}
+
+@Composable
+private fun CustomSectionsBlock(
+    sections: List<CustomLeisureSection>,
+    viewModel: LeisureSettingsViewModel,
+    onRequestAddActivity: (String) -> Unit,
+    onRequestRemove: (CustomLeisureSection) -> Unit,
+    onRequestAddSection: () -> Unit
+) {
+    Column {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                "Custom Sections",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+            TextButton(onClick = onRequestAddSection) {
+                Icon(Icons.Default.Add, contentDescription = null)
+                Spacer(Modifier.width(4.dp))
+                Text("Add Section")
+            }
+        }
+
+        if (sections.isEmpty()) {
+            Spacer(Modifier.height(4.dp))
+            Text(
+                "Add sections like Reading, Movement, or Social to round out your daily leisure.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        } else {
+            Spacer(Modifier.height(8.dp))
+            sections.forEachIndexed { index, section ->
+                CustomSectionEditor(
+                    section = section,
+                    viewModel = viewModel,
+                    onRequestAddActivity = { onRequestAddActivity(section.id) },
+                    onRequestRemove = { onRequestRemove(section) }
+                )
+                if (index != sections.lastIndex) Spacer(Modifier.height(16.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun CustomSectionEditor(
+    section: CustomLeisureSection,
+    viewModel: LeisureSettingsViewModel,
+    onRequestAddActivity: () -> Unit,
+    onRequestRemove: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        section.label,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        "Custom section",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Switch(
+                    checked = section.enabled,
+                    onCheckedChange = { viewModel.setCustomSectionEnabled(section.id, it) }
+                )
+            }
+
+            Spacer(Modifier.height(12.dp))
+
+            LabelEmojiRow(
+                label = section.label,
+                emoji = section.emoji,
+                onLabelChange = { viewModel.setCustomSectionLabel(section.id, it) },
+                onEmojiChange = { viewModel.setCustomSectionEmoji(section.id, it) }
+            )
+
+            Spacer(Modifier.height(12.dp))
+
+            StepperRow(
+                title = "Duration",
+                value = section.durationMinutes,
+                min = LeisurePreferences.MIN_DURATION_MINUTES,
+                max = LeisurePreferences.MAX_DURATION_MINUTES,
+                step = 5,
+                valueLabel = "${section.durationMinutes} min",
+                onChange = { viewModel.setCustomSectionDuration(section.id, it) }
+            )
+
+            Spacer(Modifier.height(8.dp))
+
+            StepperRow(
+                title = "Grid columns",
+                value = section.gridColumns,
+                min = LeisurePreferences.MIN_GRID_COLUMNS,
+                max = LeisurePreferences.MAX_GRID_COLUMNS,
+                step = 1,
+                valueLabel = "${section.gridColumns}",
+                onChange = { viewModel.setCustomSectionColumns(section.id, it) }
+            )
+
+            Spacer(Modifier.height(12.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Auto-complete when timer hits duration", style = MaterialTheme.typography.bodyMedium)
+                    Text(
+                        "Off lets you finish manually whenever you want.",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Switch(
+                    checked = section.autoComplete,
+                    onCheckedChange = { viewModel.setCustomSectionAutoComplete(section.id, it) }
+                )
+            }
+
+            Spacer(Modifier.height(16.dp))
+            HorizontalDivider()
+            Spacer(Modifier.height(12.dp))
+
+            Text(
+                "Activities",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold
+            )
+            Spacer(Modifier.height(8.dp))
+
+            if (section.customActivities.isEmpty()) {
+                Text(
+                    "No activities yet. Add at least one so this section can be picked.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            } else {
+                section.customActivities.forEach { activity ->
+                    ActivityRow(
+                        icon = activity.icon,
+                        label = activity.label,
+                        subtitle = "Custom",
+                        struck = false,
+                        trailing = {
+                            IconButton(onClick = {
+                                viewModel.removeCustomSectionActivity(section.id, activity.id)
+                            }) {
+                                Icon(Icons.Default.Close, contentDescription = "Remove ${activity.label}")
+                            }
+                        }
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(8.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                TextButton(onClick = onRequestAddActivity) {
+                    Icon(Icons.Default.Add, contentDescription = null)
+                    Spacer(Modifier.width(4.dp))
+                    Text("Add Activity")
+                }
+                Spacer(Modifier.weight(1f))
+                TextButton(onClick = onRequestRemove) {
+                    Text("Remove Section", color = MaterialTheme.colorScheme.error)
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AddSectionDialog(
+    onDismiss: () -> Unit,
+    onConfirm: (label: String, emoji: String) -> Unit
+) {
+    var name by remember { mutableStateOf("") }
+    var emoji by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Add Leisure Section") },
+        text = {
+            Column {
+                Text(
+                    "Create a new section to track activities like reading, movement, or social time.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.height(12.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = emoji,
+                        onValueChange = { if (it.length <= 2) emoji = it },
+                        label = { Text("Icon") },
+                        singleLine = true,
+                        modifier = Modifier.width(96.dp)
+                    )
+                    OutlinedTextField(
+                        value = name,
+                        onValueChange = { name = it },
+                        label = { Text("Section Name") },
+                        singleLine = true,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                enabled = name.isNotBlank(),
+                onClick = { onConfirm(name.trim(), emoji.trim()) }
+            ) { Text("Add") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        }
+    )
 }
 
 @Composable

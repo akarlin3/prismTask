@@ -58,6 +58,22 @@ data class LeisureSlotConfig(
     }
 }
 
+/**
+ * User-added leisure section that lives alongside the built-in MUSIC / FLEX
+ * slots. Unlike built-ins, a custom section has no seeded activity list — its
+ * options are only the user-added [customActivities].
+ */
+data class CustomLeisureSection(
+    val id: String,
+    val label: String,
+    val emoji: String,
+    val enabled: Boolean,
+    val durationMinutes: Int,
+    val gridColumns: Int,
+    val autoComplete: Boolean,
+    val customActivities: List<CustomLeisureActivity>
+)
+
 private val Context.leisureDataStore: DataStore<Preferences> by preferencesDataStore(name = "leisure_prefs")
 
 @Singleton
@@ -69,10 +85,12 @@ constructor(
     private val gson = Gson()
     private val activityListType = object : TypeToken<List<CustomLeisureActivity>>() {}.type
     private val stringListType = object : TypeToken<List<String>>() {}.type
+    private val sectionListType = object : TypeToken<List<CustomLeisureSection>>() {}.type
 
     companion object {
         private val CUSTOM_MUSIC_KEY = stringPreferencesKey("custom_music_activities")
         private val CUSTOM_FLEX_KEY = stringPreferencesKey("custom_flex_activities")
+        private val CUSTOM_SECTIONS_KEY = stringPreferencesKey("custom_sections")
 
         private val MUSIC_ENABLED_KEY = stringPreferencesKey("music_enabled")
         private val FLEX_ENABLED_KEY = stringPreferencesKey("flex_enabled")
@@ -219,6 +237,107 @@ constructor(
     suspend fun removeMusicActivity(id: String) = removeActivity(LeisureSlotId.MUSIC, id)
 
     suspend fun removeFlexActivity(id: String) = removeActivity(LeisureSlotId.FLEX, id)
+
+    fun getCustomSections(): Flow<List<CustomLeisureSection>> =
+        context.leisureDataStore.data.map { prefs -> readCustomSections(prefs) }
+
+    private fun readCustomSections(prefs: Preferences): List<CustomLeisureSection> =
+        prefs[CUSTOM_SECTIONS_KEY]?.let {
+            runCatching { gson.fromJson<List<CustomLeisureSection>>(it, sectionListType) }
+                .getOrNull()
+        } ?: emptyList()
+
+    /**
+     * Adds a new custom section. Returns the generated id so callers can
+     * immediately reference it.
+     */
+    suspend fun addCustomSection(label: String, emoji: String): String {
+        val trimmedLabel = label.trim().ifEmpty { "New Section" }
+        val trimmedEmoji = emoji.trim().ifEmpty { "\u2728" }
+        val id = "custom_section_${System.currentTimeMillis()}"
+        context.leisureDataStore.edit { prefs ->
+            val current = readCustomSections(prefs)
+            val section = CustomLeisureSection(
+                id = id,
+                label = trimmedLabel,
+                emoji = trimmedEmoji,
+                enabled = true,
+                durationMinutes = 15,
+                gridColumns = 2,
+                autoComplete = true,
+                customActivities = emptyList()
+            )
+            prefs[CUSTOM_SECTIONS_KEY] = gson.toJson(current + section)
+        }
+        return id
+    }
+
+    suspend fun removeCustomSection(id: String) {
+        context.leisureDataStore.edit { prefs ->
+            val current = readCustomSections(prefs)
+            prefs[CUSTOM_SECTIONS_KEY] = gson.toJson(current.filter { it.id != id })
+        }
+    }
+
+    suspend fun updateCustomSection(
+        id: String,
+        enabled: Boolean? = null,
+        label: String? = null,
+        emoji: String? = null,
+        durationMinutes: Int? = null,
+        gridColumns: Int? = null,
+        autoComplete: Boolean? = null
+    ) {
+        context.leisureDataStore.edit { prefs ->
+            val current = readCustomSections(prefs)
+            val updated = current.map { section ->
+                if (section.id != id) return@map section
+                section.copy(
+                    enabled = enabled ?: section.enabled,
+                    label = label?.trim()?.takeIf { it.isNotEmpty() } ?: section.label,
+                    emoji = emoji?.trim()?.takeIf { it.isNotEmpty() } ?: section.emoji,
+                    durationMinutes = durationMinutes
+                        ?.coerceIn(MIN_DURATION_MINUTES, MAX_DURATION_MINUTES)
+                        ?: section.durationMinutes,
+                    gridColumns = gridColumns
+                        ?.coerceIn(MIN_GRID_COLUMNS, MAX_GRID_COLUMNS)
+                        ?: section.gridColumns,
+                    autoComplete = autoComplete ?: section.autoComplete
+                )
+            }
+            prefs[CUSTOM_SECTIONS_KEY] = gson.toJson(updated)
+        }
+    }
+
+    suspend fun addCustomSectionActivity(sectionId: String, label: String, icon: String) {
+        val trimmedLabel = label.trim()
+        val trimmedIcon = icon.trim()
+        if (trimmedLabel.isEmpty() || trimmedIcon.isEmpty()) return
+        context.leisureDataStore.edit { prefs ->
+            val current = readCustomSections(prefs)
+            val updated = current.map { section ->
+                if (section.id != sectionId) return@map section
+                val activity = CustomLeisureActivity(
+                    id = "custom_${sectionId}_${System.currentTimeMillis()}",
+                    label = trimmedLabel,
+                    icon = trimmedIcon
+                )
+                section.copy(customActivities = section.customActivities + activity)
+            }
+            prefs[CUSTOM_SECTIONS_KEY] = gson.toJson(updated)
+        }
+    }
+
+    suspend fun removeCustomSectionActivity(sectionId: String, activityId: String) {
+        context.leisureDataStore.edit { prefs ->
+            val current = readCustomSections(prefs)
+            val updated = current.map { section ->
+                if (section.id != sectionId) return@map section
+                section.copy(customActivities = section.customActivities.filter { it.id != activityId })
+            }
+            prefs[CUSTOM_SECTIONS_KEY] = gson.toJson(updated)
+        }
+    }
 
     suspend fun clearAll() {
         context.leisureDataStore.edit { it.clear() }

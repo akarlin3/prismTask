@@ -58,16 +58,17 @@ fun LeisureScreen(
 ) {
     val musicState by viewModel.musicSlot.collectAsStateWithLifecycle()
     val flexState by viewModel.flexSlot.collectAsStateWithLifecycle()
+    val customStates by viewModel.customSlots.collectAsStateWithLifecycle()
 
     // Active slots in display order. Disabled slots are hidden entirely.
-    val slots = listOf(musicState, flexState).filter { it.config.enabled }
+    val slots = (listOf(musicState, flexState) + customStates).filter { it.config.enabled }
     val doneCount = slots.count { it.done }
     val targetCount = slots.size
     val allDone = targetCount > 0 && doneCount == targetCount
     val progress = if (targetCount == 0) 0f else doneCount / targetCount.toFloat()
 
-    var showAddDialog by remember { mutableStateOf<LeisureSlotId?>(null) }
-    var activityToDelete by remember { mutableStateOf<Pair<LeisureSlotId, LeisureOption>?>(null) }
+    var showAddDialog by remember { mutableStateOf<LeisureSectionKey?>(null) }
+    var activityToDelete by remember { mutableStateOf<Pair<LeisureSectionKey, LeisureOption>?>(null) }
 
     Scaffold(
         topBar = {
@@ -134,12 +135,12 @@ fun LeisureScreen(
                 slots.forEachIndexed { index, state ->
                     SlotBlock(
                         state = state,
-                        accentColor = if (state.slot == LeisureSlotId.MUSIC) musicColor else MaterialTheme.colorScheme.primary,
-                        onPick = { viewModel.pickActivity(state.slot, it) },
-                        onToggleDone = { viewModel.toggleDone(state.slot, true) },
-                        onClearPick = { viewModel.clearPick(state.slot) },
-                        onRequestAdd = { showAddDialog = state.slot },
-                        onRequestDelete = { opt -> activityToDelete = state.slot to opt },
+                        accentColor = if (state.builtInSlot == LeisureSlotId.MUSIC) musicColor else MaterialTheme.colorScheme.primary,
+                        onPick = { viewModel.pickActivity(state.key, it) },
+                        onToggleDone = { viewModel.toggleDone(state.key, true) },
+                        onClearPick = { viewModel.clearPick(state.key) },
+                        onRequestAdd = { showAddDialog = state.key },
+                        onRequestDelete = { opt -> activityToDelete = state.key to opt },
                         isCustom = { viewModel.isCustomActivity(it) }
                     )
                     if (index != slots.lastIndex) Spacer(Modifier.height(20.dp))
@@ -171,28 +172,33 @@ fun LeisureScreen(
         }
     }
 
-    showAddDialog?.let { slot ->
+    showAddDialog?.let { key ->
+        val categoryLabel = slots.firstOrNull { it.key == key }?.config?.label
+            ?: when (key) {
+                is LeisureSectionKey.BuiltIn -> when (key.slot) {
+                    LeisureSlotId.MUSIC -> musicState.config.label
+                    LeisureSlotId.FLEX -> flexState.config.label
+                }
+                is LeisureSectionKey.Custom -> "Section"
+            }
         AddActivityDialog(
-            category = when (slot) {
-                LeisureSlotId.MUSIC -> musicState.config.label
-                LeisureSlotId.FLEX -> flexState.config.label
-            },
+            category = categoryLabel,
             onDismiss = { showAddDialog = null },
             onConfirm = { label, icon ->
-                viewModel.addActivity(slot, label, icon)
+                viewModel.addActivity(key, label, icon)
                 showAddDialog = null
             }
         )
     }
 
-    activityToDelete?.let { (slot, option) ->
+    activityToDelete?.let { (key, option) ->
         AlertDialog(
             onDismissRequest = { activityToDelete = null },
             title = { Text("Remove Activity") },
             text = { Text("Remove \"${option.label}\" from the list?") },
             confirmButton = {
                 TextButton(onClick = {
-                    viewModel.removeActivity(slot, option.id)
+                    viewModel.removeActivity(key, option.id)
                     activityToDelete = null
                 }) {
                     Text("Remove", color = MaterialTheme.colorScheme.error)
@@ -222,11 +228,11 @@ private fun SlotBlock(
 
     // Per-slot stopwatch state, rekeyed when the duration config changes so the
     // threshold effect picks up the new value.
-    var running by remember(state.slot) { mutableStateOf(false) }
-    var base by remember(state.slot) { mutableLongStateOf(0L) }
-    var accumulated by remember(state.slot) { mutableLongStateOf(0L) }
-    var display by remember(state.slot) { mutableLongStateOf(0L) }
-    var autoStarted by remember(state.slot) { mutableStateOf(false) }
+    var running by remember(state.key) { mutableStateOf(false) }
+    var base by remember(state.key) { mutableLongStateOf(0L) }
+    var accumulated by remember(state.key) { mutableLongStateOf(0L) }
+    var display by remember(state.key) { mutableLongStateOf(0L) }
+    var autoStarted by remember(state.key) { mutableStateOf(false) }
 
     LaunchedEffect(state.picked, state.done) {
         if (state.picked != null && !state.done && !autoStarted) {

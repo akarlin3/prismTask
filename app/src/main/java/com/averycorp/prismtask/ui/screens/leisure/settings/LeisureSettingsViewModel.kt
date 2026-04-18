@@ -2,6 +2,7 @@ package com.averycorp.prismtask.ui.screens.leisure.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.averycorp.prismtask.data.preferences.CustomLeisureSection
 import com.averycorp.prismtask.data.preferences.LeisurePreferences
 import com.averycorp.prismtask.data.preferences.LeisureSlotConfig
 import com.averycorp.prismtask.data.preferences.LeisureSlotId
@@ -35,6 +36,12 @@ constructor(
 
     val musicState: StateFlow<LeisureSlotEditState> = editStateFlow(LeisureSlotId.MUSIC)
     val flexState: StateFlow<LeisureSlotEditState> = editStateFlow(LeisureSlotId.FLEX)
+    val customSections: StateFlow<List<CustomLeisureSection>> =
+        preferences.getCustomSections().stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5000),
+            emptyList()
+        )
 
     private fun editStateFlow(slot: LeisureSlotId): StateFlow<LeisureSlotEditState> =
         preferences.getSlotConfig(slot).map { config ->
@@ -93,5 +100,45 @@ constructor(
 
     fun resetSlot(slot: LeisureSlotId) {
         viewModelScope.launch { preferences.resetSlotConfig(slot) }
+    }
+
+    fun addCustomSection(label: String, emoji: String) {
+        viewModelScope.launch { preferences.addCustomSection(label, emoji) }
+    }
+
+    fun removeCustomSection(id: String) {
+        viewModelScope.launch { preferences.removeCustomSection(id) }
+    }
+
+    fun setCustomSectionEnabled(id: String, enabled: Boolean) {
+        viewModelScope.launch { preferences.updateCustomSection(id, enabled = enabled) }
+    }
+
+    fun setCustomSectionLabel(id: String, label: String) {
+        viewModelScope.launch { preferences.updateCustomSection(id, label = label) }
+    }
+
+    fun setCustomSectionEmoji(id: String, emoji: String) {
+        viewModelScope.launch { preferences.updateCustomSection(id, emoji = emoji) }
+    }
+
+    fun setCustomSectionDuration(id: String, minutes: Int) {
+        viewModelScope.launch { preferences.updateCustomSection(id, durationMinutes = minutes) }
+    }
+
+    fun setCustomSectionColumns(id: String, columns: Int) {
+        viewModelScope.launch { preferences.updateCustomSection(id, gridColumns = columns) }
+    }
+
+    fun setCustomSectionAutoComplete(id: String, autoComplete: Boolean) {
+        viewModelScope.launch { preferences.updateCustomSection(id, autoComplete = autoComplete) }
+    }
+
+    fun addCustomSectionActivity(sectionId: String, label: String, icon: String) {
+        viewModelScope.launch { preferences.addCustomSectionActivity(sectionId, label, icon) }
+    }
+
+    fun removeCustomSectionActivity(sectionId: String, activityId: String) {
+        viewModelScope.launch { preferences.removeCustomSectionActivity(sectionId, activityId) }
     }
 }

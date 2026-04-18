@@ -3,6 +3,7 @@ package com.averycorp.prismtask.ui.screens.leisure
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.averycorp.prismtask.data.local.entity.LeisureLogEntity
+import com.averycorp.prismtask.data.preferences.CustomLeisureSection
 import com.averycorp.prismtask.data.preferences.LeisurePreferences
 import com.averycorp.prismtask.data.preferences.LeisureSlotConfig
 import com.averycorp.prismtask.data.preferences.LeisureSlotId
@@ -17,16 +18,29 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
+ * Identifies which leisure section a [LeisureSlotState] belongs to. Built-in
+ * music / flex keep their enum; user-added sections carry a string id.
+ */
+sealed class LeisureSectionKey {
+    data class BuiltIn(val slot: LeisureSlotId) : LeisureSectionKey()
+
+    data class Custom(val id: String) : LeisureSectionKey()
+}
+
+/**
  * UI state for one leisure slot. [options] is the fully-merged activity list
  * (built-ins minus hidden + user-added customs), ready to render.
  */
 data class LeisureSlotState(
-    val slot: LeisureSlotId,
+    val key: LeisureSectionKey,
     val config: LeisureSlotConfig,
     val options: List<LeisureOption>,
     val picked: String?,
     val done: Boolean
-)
+) {
+    /** Convenience accessor for code paths that only handle built-ins. */
+    val builtInSlot: LeisureSlotId? = (key as? LeisureSectionKey.BuiltIn)?.slot
+}
 
 @HiltViewModel
 class LeisureViewModel
@@ -39,17 +53,25 @@ constructor(
         .getTodayLog()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
-    val musicSlot: StateFlow<LeisureSlotState> = slotStateFlow(LeisureSlotId.MUSIC)
-    val flexSlot: StateFlow<LeisureSlotState> = slotStateFlow(LeisureSlotId.FLEX)
+    val musicSlot: StateFlow<LeisureSlotState> = builtInSlotFlow(LeisureSlotId.MUSIC)
+    val flexSlot: StateFlow<LeisureSlotState> = builtInSlotFlow(LeisureSlotId.FLEX)
 
-    private fun slotStateFlow(slot: LeisureSlotId): StateFlow<LeisureSlotState> = combine(
+    val customSlots: StateFlow<List<LeisureSlotState>> = combine(
+        leisurePreferences.getCustomSections(),
+        repository.getTodayLog()
+    ) { sections, log ->
+        val states = repository.readCustomSectionStates(log)
+        sections.map { section -> section.toSlotState(states[section.id]) }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    private fun builtInSlotFlow(slot: LeisureSlotId): StateFlow<LeisureSlotState> = combine(
         leisurePreferences.getSlotConfig(slot),
         repository.getTodayLog()
     ) { config, log ->
         val defaults = defaultsFor(slot).filter { it.id !in config.hiddenBuiltInIds }
         val customs = config.customActivities.map { LeisureOption(it.id, it.label, it.icon) }
         LeisureSlotState(
-            slot = slot,
+            key = LeisureSectionKey.BuiltIn(slot),
             config = config,
             options = defaults + customs,
             picked = if (slot == LeisureSlotId.MUSIC) log?.musicPick else log?.flexPick,
@@ -59,7 +81,7 @@ constructor(
         viewModelScope,
         SharingStarted.WhileSubscribed(5000),
         LeisureSlotState(
-            slot = slot,
+            key = LeisureSectionKey.BuiltIn(slot),
             config = LeisureSlotConfig.defaultFor(slot),
             options = defaultsFor(slot),
             picked = null,
@@ -67,29 +89,38 @@ constructor(
         )
     )
 
-    fun pickActivity(slot: LeisureSlotId, activityId: String) {
+    fun pickActivity(key: LeisureSectionKey, activityId: String) {
         viewModelScope.launch {
-            when (slot) {
-                LeisureSlotId.MUSIC -> repository.setMusicPick(activityId)
-                LeisureSlotId.FLEX -> repository.setFlexPick(activityId)
+            when (key) {
+                is LeisureSectionKey.BuiltIn -> when (key.slot) {
+                    LeisureSlotId.MUSIC -> repository.setMusicPick(activityId)
+                    LeisureSlotId.FLEX -> repository.setFlexPick(activityId)
+                }
+                is LeisureSectionKey.Custom -> repository.setCustomSectionPick(key.id, activityId)
             }
         }
     }
 
-    fun toggleDone(slot: LeisureSlotId, done: Boolean) {
+    fun toggleDone(key: LeisureSectionKey, done: Boolean) {
         viewModelScope.launch {
-            when (slot) {
-                LeisureSlotId.MUSIC -> repository.toggleMusicDone(done)
-                LeisureSlotId.FLEX -> repository.toggleFlexDone(done)
+            when (key) {
+                is LeisureSectionKey.BuiltIn -> when (key.slot) {
+                    LeisureSlotId.MUSIC -> repository.toggleMusicDone(done)
+                    LeisureSlotId.FLEX -> repository.toggleFlexDone(done)
+                }
+                is LeisureSectionKey.Custom -> repository.toggleCustomSectionDone(key.id, done)
             }
         }
     }
 
-    fun clearPick(slot: LeisureSlotId) {
+    fun clearPick(key: LeisureSectionKey) {
         viewModelScope.launch {
-            when (slot) {
-                LeisureSlotId.MUSIC -> repository.clearMusicPick()
-                LeisureSlotId.FLEX -> repository.clearFlexPick()
+            when (key) {
+                is LeisureSectionKey.BuiltIn -> when (key.slot) {
+                    LeisureSlotId.MUSIC -> repository.clearMusicPick()
+                    LeisureSlotId.FLEX -> repository.clearFlexPick()
+                }
+                is LeisureSectionKey.Custom -> repository.clearCustomSectionPick(key.id)
             }
         }
     }
@@ -98,15 +129,44 @@ constructor(
         viewModelScope.launch { repository.resetToday() }
     }
 
-    fun addActivity(slot: LeisureSlotId, label: String, icon: String) {
-        viewModelScope.launch { leisurePreferences.addActivity(slot, label, icon) }
+    fun addActivity(key: LeisureSectionKey, label: String, icon: String) {
+        viewModelScope.launch {
+            when (key) {
+                is LeisureSectionKey.BuiltIn -> leisurePreferences.addActivity(key.slot, label, icon)
+                is LeisureSectionKey.Custom -> leisurePreferences.addCustomSectionActivity(key.id, label, icon)
+            }
+        }
     }
 
-    fun removeActivity(slot: LeisureSlotId, id: String) {
-        viewModelScope.launch { leisurePreferences.removeActivity(slot, id) }
+    fun removeActivity(key: LeisureSectionKey, id: String) {
+        viewModelScope.launch {
+            when (key) {
+                is LeisureSectionKey.BuiltIn -> leisurePreferences.removeActivity(key.slot, id)
+                is LeisureSectionKey.Custom -> leisurePreferences.removeCustomSectionActivity(key.id, id)
+            }
+        }
     }
 
     fun isCustomActivity(id: String): Boolean = id.startsWith("custom_")
+
+    private fun CustomLeisureSection.toSlotState(
+        state: LeisureRepository.CustomSectionState?
+    ): LeisureSlotState = LeisureSlotState(
+        key = LeisureSectionKey.Custom(id),
+        config = LeisureSlotConfig(
+            enabled = enabled,
+            label = label,
+            emoji = emoji,
+            durationMinutes = durationMinutes,
+            gridColumns = gridColumns,
+            autoComplete = autoComplete,
+            hiddenBuiltInIds = emptyList(),
+            customActivities = customActivities
+        ),
+        options = customActivities.map { LeisureOption(it.id, it.label, it.icon) },
+        picked = state?.pick,
+        done = state?.done == true
+    )
 
     companion object {
         val DEFAULT_INSTRUMENTS = listOf(
