@@ -19,6 +19,8 @@ import com.averycorp.prismtask.data.local.entity.TaskTemplateEntity
 import com.averycorp.prismtask.data.preferences.AuthTokenPreferences
 import com.averycorp.prismtask.data.preferences.BackendSyncPreferences
 import com.averycorp.prismtask.data.preferences.TemplatePreferences
+import com.averycorp.prismtask.data.remote.AuthManager
+import com.averycorp.prismtask.data.remote.api.FirebaseTokenRequest
 import com.averycorp.prismtask.data.remote.api.PrismTaskApi
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -52,7 +54,8 @@ constructor(
     private val authTokenPreferences: AuthTokenPreferences,
     private val backendSyncPreferences: BackendSyncPreferences,
     private val templatePreferences: TemplatePreferences,
-    private val billingManager: BillingManager
+    private val billingManager: BillingManager,
+    private val authManager: AuthManager
 ) {
     /**
      * True when the user has backend JWTs stored (i.e. they've logged into or
@@ -92,12 +95,35 @@ constructor(
      * next manual sync. Safely no-ops when the user has no backend JWT.
      */
     suspend fun checkAdminStatus() {
-        if (!isConnected()) return
+        if (!ensureBackendAuth()) return
         try {
             val userInfo = api.getMe()
             billingManager.setAdminStatus(userInfo.isAdmin)
         } catch (e: Exception) {
             Log.w(TAG, "Could not fetch admin status", e)
+        }
+    }
+
+    /**
+     * Ensures a backend JWT is stored, exchanging the current Firebase ID
+     * token for one via `/auth/firebase` if the user is Firebase-signed-in
+     * but has no backend tokens yet. Returns true when a backend JWT is
+     * available after the attempt.
+     *
+     * Without this bootstrap, admin-only UI (and any other backend-gated
+     * feature) never appears on fresh installs, because `AuthInterceptor`
+     * can't attach a Bearer token to `/auth/me`.
+     */
+    private suspend fun ensureBackendAuth(): Boolean {
+        if (isConnected()) return true
+        val firebaseToken = authManager.getFirebaseIdToken() ?: return false
+        return try {
+            val tokens = api.firebaseLogin(FirebaseTokenRequest(firebaseToken = firebaseToken))
+            authTokenPreferences.saveTokens(tokens.accessToken, tokens.refreshToken)
+            true
+        } catch (e: Exception) {
+            Log.w(TAG, "Firebase → backend token exchange failed", e)
+            false
         }
     }
 

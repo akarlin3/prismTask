@@ -54,6 +54,24 @@ constructor(
 
     val userId: String? get() = auth?.currentUser?.uid
 
+    /**
+     * Fetches a fresh Firebase ID token for the current user, or null if the
+     * user is signed out (or the token request fails).
+     *
+     * Used by [com.averycorp.prismtask.data.remote.sync.BackendSyncService] to
+     * exchange the Firebase identity for a backend JWT the first time the
+     * user hits a backend endpoint after Firebase sign-in.
+     */
+    suspend fun getFirebaseIdToken(forceRefresh: Boolean = false): String? {
+        val user = auth?.currentUser ?: return null
+        return try {
+            user.getIdToken(forceRefresh).await().token
+        } catch (e: Exception) {
+            Log.w("AuthManager", "Failed to fetch Firebase ID token", e)
+            null
+        }
+    }
+
     suspend fun signInWithGoogle(idToken: String): Result<FirebaseUser> = try {
         val firebaseAuth = auth
             ?: return Result.failure(IllegalStateException("Firebase Auth not available"))
