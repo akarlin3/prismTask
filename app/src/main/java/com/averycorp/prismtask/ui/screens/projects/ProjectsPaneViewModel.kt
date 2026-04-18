@@ -38,7 +38,7 @@ constructor(
     }
 
     /** `null` = All. Otherwise one of [ProjectStatus]. */
-    private val _statusFilter = MutableStateFlow(
+    private val _statusFilter = MutableStateFlow<ProjectStatus?>(
         savedStateHandle.get<String?>(KEY_STATUS_FILTER)
             ?.let { raw -> runCatching { ProjectStatus.valueOf(raw) }.getOrNull() }
             ?: ProjectStatus.ACTIVE

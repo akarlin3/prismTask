@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -471,7 +472,7 @@ private fun MilestonesSection(
                 contentPadding = PaddingValues(vertical = 4.dp),
                 modifier = Modifier.fillMaxSize()
             ) {
-                androidx.compose.foundation.lazy.items(
+                items(
                     items = draftOrder,
                     key = { it.id }
                 ) { milestone ->
@@ -623,7 +624,7 @@ private fun TasksSection(
         verticalArrangement = Arrangement.spacedBy(4.dp),
         modifier = Modifier.fillMaxSize()
     ) {
-        androidx.compose.foundation.lazy.items(tasks, key = { it.id }) { task ->
+        items(tasks, key = { it.id }) { task ->
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
