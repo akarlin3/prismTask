@@ -64,29 +64,41 @@ async def auth_headers(client: AsyncClient) -> dict:
     return {"Authorization": f"Bearer {token}"}
 
 
-async def _elevate_tier(email: str, tier: str) -> None:
-    """Directly set a user's tier in the test DB.
+async def _elevate_tier(email: str, tier: str, firebase_uid: str | None = None) -> None:
+    """Directly set a user's tier (and optionally firebase_uid) in the test DB.
 
     AI endpoints enforce the tier gate server-side, so tests that exercise
-    them need to upgrade the default test user from FREE.
+    them need to upgrade the default test user from FREE. They also now
+    require a ``firebase_uid`` because tasks live in Firestore under
+    ``users/{uid}/tasks``.
     """
     from sqlalchemy import update as sqla_update
 
     from app.models import User as UserModel
 
+    values: dict = {"tier": tier}
+    if firebase_uid is not None:
+        values["firebase_uid"] = firebase_uid
+
     async with TestSessionLocal() as session:
         await session.execute(
-            sqla_update(UserModel).where(UserModel.email == email).values(tier=tier)
+            sqla_update(UserModel).where(UserModel.email == email).values(**values)
         )
         await session.commit()
 
 
+TEST_FIREBASE_UID = "test-firebase-uid"
+
+
 @pytest_asyncio.fixture
 async def pro_auth_headers(client: AsyncClient, auth_headers: dict) -> dict:
-    """Same as ``auth_headers`` but with the user elevated to PRO.
+    """Same as ``auth_headers`` but with the user elevated to PRO and linked
+    to a Firebase UID.
 
     Use this for tests that hit AI endpoints protected by
-    ``DailyAIRateLimiter`` / ``ProFeatureGate``.
+    ``DailyAIRateLimiter`` / ``ProFeatureGate``. The ``firebase_uid`` is
+    required by AI endpoints (they query Firestore); tests that don't need
+    AI endpoints can keep using ``auth_headers``.
     """
-    await _elevate_tier("test@example.com", "PRO")
+    await _elevate_tier("test@example.com", "PRO", firebase_uid=TEST_FIREBASE_UID)
     return auth_headers

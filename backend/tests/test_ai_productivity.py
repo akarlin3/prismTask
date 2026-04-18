@@ -2,7 +2,7 @@ import json
 import sys
 import types
 from datetime import date
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from httpx import AsyncClient
@@ -14,6 +14,29 @@ def _make_mock_response(data) -> MagicMock:
     message = MagicMock()
     message.content = [content_block]
     return message
+
+
+def _fake_task_dto(task_id: str = "task-1", title: str = "Test task", **overrides):
+    """Build a TaskDTO with sensible defaults for router-level tests."""
+    from app.services.firestore_tasks import TaskDTO
+
+    fields = {
+        "task_id": task_id,
+        "title": title,
+        "description": None,
+        "due_date": None,
+        "due_time": None,
+        "planned_date": None,
+        "priority": 0,
+        "project_id": None,
+        "eisenhower_quadrant": None,
+        "urgency_score": 0.0,
+        "sort_order": 0,
+        "is_recurring": False,
+        "completed_at": None,
+    }
+    fields.update(overrides)
+    return TaskDTO(**fields)
 
 
 @pytest.fixture(autouse=True)
@@ -150,85 +173,60 @@ class TestAIEndpoints:
     @pytest.mark.asyncio
     async def test_eisenhower_endpoint(self, client: AsyncClient, pro_auth_headers: dict):
         auth_headers = pro_auth_headers
-        # Create a goal and project first
-        goal_resp = await client.post(
-            "/api/v1/goals",
-            json={"title": "Test Goal"},
-            headers=auth_headers,
-        )
-        goal_id = goal_resp.json()["id"]
-        proj_resp = await client.post(
-            f"/api/v1/goals/{goal_id}/projects",
-            json={"title": "Test Project"},
-            headers=auth_headers,
-        )
-        project_id = proj_resp.json()["id"]
-        await client.post(
-            f"/api/v1/projects/{project_id}/tasks",
-            json={"title": "Test task"},
-            headers=auth_headers,
-        )
+        fake_tasks = [_fake_task_dto(task_id="abc123", title="Test task")]
 
-        with patch("app.routers.ai.ai_rate_limiter"):
-            with patch("app.services.ai_productivity.categorize_eisenhower") as mock_cat:
-                mock_cat.return_value = [
-                    {"task_id": 1, "quadrant": "Q1", "reason": "Urgent task"},
-                ]
-                resp = await client.post(
-                    "/api/v1/ai/eisenhower",
-                    json={},
-                    headers=auth_headers,
-                )
-                assert resp.status_code == 200
-                data = resp.json()
-                assert "categorizations" in data
-                assert "summary" in data
+        with patch("app.routers.ai.ai_rate_limiter"), \
+             patch(
+                 "app.routers.ai.fetch_incomplete_tasks",
+                 new=AsyncMock(return_value=fake_tasks),
+             ), \
+             patch("app.services.ai_productivity.categorize_eisenhower") as mock_cat:
+            mock_cat.return_value = [
+                {"task_id": "abc123", "quadrant": "Q1", "reason": "Urgent task"},
+            ]
+            resp = await client.post(
+                "/api/v1/ai/eisenhower",
+                json={},
+                headers=auth_headers,
+            )
+            assert resp.status_code == 200, resp.text
+            data = resp.json()
+            assert "categorizations" in data
+            assert "summary" in data
+            assert data["categorizations"][0]["task_id"] == "abc123"
 
     @pytest.mark.asyncio
     async def test_pomodoro_endpoint(self, client: AsyncClient, pro_auth_headers: dict):
         auth_headers = pro_auth_headers
-        # Create a goal and project first
-        goal_resp = await client.post(
-            "/api/v1/goals",
-            json={"title": "Test Goal 2"},
-            headers=auth_headers,
-        )
-        goal_id = goal_resp.json()["id"]
-        proj_resp = await client.post(
-            f"/api/v1/goals/{goal_id}/projects",
-            json={"title": "Test Project 2"},
-            headers=auth_headers,
-        )
-        project_id = proj_resp.json()["id"]
-        await client.post(
-            f"/api/v1/projects/{project_id}/tasks",
-            json={"title": "Focus task"},
-            headers=auth_headers,
-        )
+        fake_tasks = [_fake_task_dto(task_id="pom-1", title="Focus task")]
 
-        with patch("app.routers.ai.ai_rate_limiter"):
-            with patch("app.services.ai_productivity.plan_pomodoro") as mock_plan:
-                mock_plan.return_value = {
-                    "sessions": [
-                        {
-                            "session_number": 1,
-                            "tasks": [{"task_id": 1, "title": "Focus task", "allocated_minutes": 25}],
-                            "rationale": "Only task available",
-                        }
-                    ],
-                    "total_sessions": 1,
-                    "total_work_minutes": 25,
-                    "total_break_minutes": 0,
-                    "skipped_tasks": [],
-                }
-                resp = await client.post(
-                    "/api/v1/ai/pomodoro-plan",
-                    json={"available_minutes": 60},
-                    headers=auth_headers,
-                )
-                assert resp.status_code == 200
-                data = resp.json()
-                assert data["total_sessions"] == 1
+        with patch("app.routers.ai.ai_rate_limiter"), \
+             patch(
+                 "app.routers.ai.fetch_incomplete_tasks",
+                 new=AsyncMock(return_value=fake_tasks),
+             ), \
+             patch("app.services.ai_productivity.plan_pomodoro") as mock_plan:
+            mock_plan.return_value = {
+                "sessions": [
+                    {
+                        "session_number": 1,
+                        "tasks": [{"task_id": "pom-1", "title": "Focus task", "allocated_minutes": 25}],
+                        "rationale": "Only task available",
+                    }
+                ],
+                "total_sessions": 1,
+                "total_work_minutes": 25,
+                "total_break_minutes": 0,
+                "skipped_tasks": [],
+            }
+            resp = await client.post(
+                "/api/v1/ai/pomodoro-plan",
+                json={"available_minutes": 60},
+                headers=auth_headers,
+            )
+            assert resp.status_code == 200, resp.text
+            data = resp.json()
+            assert data["total_sessions"] == 1
 
     @pytest.mark.asyncio
     async def test_rate_limiting(self, client: AsyncClient, pro_auth_headers: dict):
@@ -236,21 +234,25 @@ class TestAIEndpoints:
         from app.routers.ai import ai_rate_limiter
         ai_rate_limiter._requests.clear()
 
-        # First call should work (even with no tasks)
-        resp = await client.post(
-            "/api/v1/ai/eisenhower",
-            json={},
-            headers=auth_headers,
-        )
-        assert resp.status_code == 200
+        with patch(
+            "app.routers.ai.fetch_incomplete_tasks",
+            new=AsyncMock(return_value=[]),
+        ):
+            # First call should work (empty-tasks short-circuit returns 200)
+            resp = await client.post(
+                "/api/v1/ai/eisenhower",
+                json={},
+                headers=auth_headers,
+            )
+            assert resp.status_code == 200, resp.text
 
-        # Second call within window should be rate limited
-        resp2 = await client.post(
-            "/api/v1/ai/eisenhower",
-            json={},
-            headers=auth_headers,
-        )
-        assert resp2.status_code == 429
+            # Second call within window should be rate limited
+            resp2 = await client.post(
+                "/api/v1/ai/eisenhower",
+                json={},
+                headers=auth_headers,
+            )
+            assert resp2.status_code == 429
 
 
 class TestDailyBriefingService:
@@ -499,21 +501,28 @@ class TestNewAIEndpoints:
         from app.routers.ai import briefing_rate_limiter
         briefing_rate_limiter._requests.clear()
 
-        # First call should succeed (empty briefing)
-        resp = await client.post(
-            "/api/v1/ai/daily-briefing",
-            json={},
-            headers=auth_headers,
-        )
-        assert resp.status_code == 200
+        with patch(
+            "app.routers.ai.fetch_incomplete_tasks",
+            new=AsyncMock(return_value=[]),
+        ), patch(
+            "app.routers.ai.fetch_recently_completed_tasks",
+            new=AsyncMock(return_value=[]),
+        ):
+            # First call should succeed (empty briefing)
+            resp = await client.post(
+                "/api/v1/ai/daily-briefing",
+                json={},
+                headers=auth_headers,
+            )
+            assert resp.status_code == 200, resp.text
 
-        # Second call within 1-hour window should be rate limited
-        resp2 = await client.post(
-            "/api/v1/ai/daily-briefing",
-            json={},
-            headers=auth_headers,
-        )
-        assert resp2.status_code == 429
+            # Second call within 1-hour window should be rate limited
+            resp2 = await client.post(
+                "/api/v1/ai/daily-briefing",
+                json={},
+                headers=auth_headers,
+            )
+            assert resp2.status_code == 429
 
     @pytest.mark.asyncio
     async def test_weekly_plan_rate_limiting(self, client: AsyncClient, pro_auth_headers: dict):
@@ -521,21 +530,25 @@ class TestNewAIEndpoints:
         from app.routers.ai import weekly_plan_rate_limiter
         weekly_plan_rate_limiter._requests.clear()
 
-        # First call should succeed (empty plan)
-        resp = await client.post(
-            "/api/v1/ai/weekly-plan",
-            json={},
-            headers=auth_headers,
-        )
-        assert resp.status_code == 200
+        with patch(
+            "app.routers.ai.fetch_incomplete_tasks",
+            new=AsyncMock(return_value=[]),
+        ):
+            # First call should succeed (empty plan)
+            resp = await client.post(
+                "/api/v1/ai/weekly-plan",
+                json={},
+                headers=auth_headers,
+            )
+            assert resp.status_code == 200, resp.text
 
-        # Second call within 30-min window should be rate limited
-        resp2 = await client.post(
-            "/api/v1/ai/weekly-plan",
-            json={},
-            headers=auth_headers,
-        )
-        assert resp2.status_code == 429
+            # Second call within 30-min window should be rate limited
+            resp2 = await client.post(
+                "/api/v1/ai/weekly-plan",
+                json={},
+                headers=auth_headers,
+            )
+            assert resp2.status_code == 429
 
     @pytest.mark.asyncio
     async def test_time_block_rate_limiting(self, client: AsyncClient, pro_auth_headers: dict):
@@ -543,18 +556,22 @@ class TestNewAIEndpoints:
         from app.routers.ai import time_block_rate_limiter
         time_block_rate_limiter._requests.clear()
 
-        # First call should succeed (empty schedule)
-        resp = await client.post(
-            "/api/v1/ai/time-block",
-            json={},
-            headers=auth_headers,
-        )
-        assert resp.status_code == 200
+        with patch(
+            "app.routers.ai.fetch_incomplete_tasks",
+            new=AsyncMock(return_value=[]),
+        ):
+            # First call should succeed (empty schedule)
+            resp = await client.post(
+                "/api/v1/ai/time-block",
+                json={},
+                headers=auth_headers,
+            )
+            assert resp.status_code == 200, resp.text
 
-        # Second call within 15-min window should be rate limited
-        resp2 = await client.post(
-            "/api/v1/ai/time-block",
-            json={},
-            headers=auth_headers,
-        )
-        assert resp2.status_code == 429
+            # Second call within 15-min window should be rate limited
+            resp2 = await client.post(
+                "/api/v1/ai/time-block",
+                json={},
+                headers=auth_headers,
+            )
+            assert resp2.status_code == 429

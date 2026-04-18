@@ -7,11 +7,11 @@ from pydantic import BaseModel, Field
 
 
 class EisenhowerRequest(BaseModel):
-    task_ids: Optional[list[int]] = None
+    task_ids: Optional[list[str]] = None
 
 
 class EisenhowerCategorization(BaseModel):
-    task_id: int
+    task_id: str
     quadrant: str
     reason: str
 
@@ -40,7 +40,7 @@ class PomodoroRequest(BaseModel):
 
 
 class SessionTask(BaseModel):
-    task_id: int
+    task_id: str
     title: str
     allocated_minutes: int
 
@@ -52,7 +52,7 @@ class PomodoroSession(BaseModel):
 
 
 class SkippedTask(BaseModel):
-    task_id: int
+    task_id: str
     reason: str
 
 
@@ -72,13 +72,13 @@ class DailyBriefingRequest(BaseModel):
 
 
 class BriefingPriority(BaseModel):
-    task_id: int
+    task_id: str
     title: str
     reason: str
 
 
 class SuggestedTask(BaseModel):
-    task_id: int
+    task_id: str
     title: str
     suggested_time: str
     reason: str
@@ -108,7 +108,7 @@ class WeeklyPlanRequest(BaseModel):
 
 
 class PlannedTask(BaseModel):
-    task_id: int
+    task_id: str
     title: str
     suggested_time: str
     duration_minutes: int
@@ -124,7 +124,7 @@ class DayPlan(BaseModel):
 
 
 class UnscheduledTask(BaseModel):
-    task_id: int
+    task_id: str
     title: str
     reason: str
 
@@ -153,7 +153,7 @@ class ScheduleBlock(BaseModel):
     start: str
     end: str
     type: str  # "task", "event", "break"
-    task_id: Optional[int] = None
+    task_id: Optional[str] = None
     title: str
     reason: str
 
