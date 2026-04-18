@@ -40,6 +40,7 @@ import com.averycorp.prismtask.ui.components.settings.SettingsGroup
 import com.averycorp.prismtask.ui.components.settings.SettingsNavRow
 import com.averycorp.prismtask.ui.navigation.PrismTaskRoute
 import com.averycorp.prismtask.ui.screens.settings.sections.AboutSection
+import com.averycorp.prismtask.ui.screens.settings.sections.AdminBugReportsSection
 import com.averycorp.prismtask.ui.screens.settings.sections.DebugLogAdminSection
 import com.averycorp.prismtask.ui.screens.settings.sections.DebugOnboardingSection
 import com.averycorp.prismtask.ui.screens.settings.sections.DebugTierSection
@@ -377,6 +378,12 @@ fun SettingsScreen(
                         DebugLogAdminSection(
                             onViewDebugLog = {
                                 navController.navigate(PrismTaskRoute.DebugLog.route)
+                            }
+                        )
+
+                        AdminBugReportsSection(
+                            onViewBugReports = {
+                                navController.navigate(PrismTaskRoute.AdminBugReports.route)
                             }
                         )
                     }

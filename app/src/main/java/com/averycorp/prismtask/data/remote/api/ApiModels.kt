@@ -443,6 +443,43 @@ data class BugReportMirrorResponse(
     val status: String
 )
 
+data class AdminBugReportResponse(
+    val id: Int,
+    @SerializedName("report_id") val reportId: String,
+    @SerializedName("user_id") val userId: Int? = null,
+    val category: String,
+    val description: String,
+    val severity: String,
+    val steps: String = "[]",
+    @SerializedName("screenshot_uris") val screenshotUris: String = "[]",
+    @SerializedName("device_model") val deviceModel: String = "",
+    @SerializedName("device_manufacturer") val deviceManufacturer: String = "",
+    @SerializedName("android_version") val androidVersion: Int = 0,
+    @SerializedName("app_version") val appVersion: String = "",
+    @SerializedName("app_version_code") val appVersionCode: Int = 0,
+    @SerializedName("build_type") val buildType: String = "",
+    @SerializedName("user_tier") val userTier: String = "",
+    @SerializedName("current_screen") val currentScreen: String = "",
+    @SerializedName("task_count") val taskCount: Int = 0,
+    @SerializedName("habit_count") val habitCount: Int = 0,
+    @SerializedName("available_ram_mb") val availableRamMb: Int = 0,
+    @SerializedName("free_storage_mb") val freeStorageMb: Int = 0,
+    @SerializedName("network_type") val networkType: String = "",
+    @SerializedName("battery_percent") val batteryPercent: Int = 0,
+    @SerializedName("is_charging") val isCharging: Boolean = false,
+    val status: String,
+    @SerializedName("admin_notes") val adminNotes: String? = null,
+    @SerializedName("diagnostic_log") val diagnosticLog: String? = null,
+    @SerializedName("submitted_via") val submittedVia: String = "",
+    @SerializedName("created_at") val createdAt: String? = null,
+    @SerializedName("updated_at") val updatedAt: String? = null
+)
+
+data class BugReportStatusUpdateRequest(
+    val status: String,
+    @SerializedName("admin_notes") val adminNotes: String? = null
+)
+
 // endregion
 
 // region AI Import Parse

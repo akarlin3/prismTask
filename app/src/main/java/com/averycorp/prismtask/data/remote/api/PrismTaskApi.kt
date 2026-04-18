@@ -8,8 +8,10 @@ import okhttp3.ResponseBody
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.Multipart
+import retrofit2.http.PATCH
 import retrofit2.http.POST
 import retrofit2.http.Part
+import retrofit2.http.Path
 import retrofit2.http.Query
 
 /**
@@ -144,4 +146,18 @@ interface PrismTaskApi {
     suspend fun submitBugReport(
         @Body body: Map<String, @JvmSuppressWildcards Any?>
     ): BugReportMirrorResponse
+
+    @GET("api/v1/feedback/bug-reports")
+    suspend fun listBugReports(
+        @Query("status_filter") statusFilter: String? = null,
+        @Query("severity") severity: String? = null,
+        @Query("page") page: Int = 1,
+        @Query("limit") limit: Int = 20
+    ): List<AdminBugReportResponse>
+
+    @PATCH("api/v1/feedback/bug-reports/{reportId}")
+    suspend fun updateBugReportStatus(
+        @Path("reportId") reportId: String,
+        @Body body: BugReportStatusUpdateRequest
+    ): AdminBugReportResponse
 }

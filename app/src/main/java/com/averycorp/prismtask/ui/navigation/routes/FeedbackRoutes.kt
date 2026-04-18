@@ -8,6 +8,7 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.averycorp.prismtask.ui.navigation.PrismTaskRoute
+import com.averycorp.prismtask.ui.screens.admin.AdminBugReportsScreen
 import com.averycorp.prismtask.ui.screens.debug.DebugLogScreen
 import com.averycorp.prismtask.ui.screens.feedback.BugReportScreen
 import com.averycorp.prismtask.ui.screens.feedback.BugReportViewModel
@@ -55,5 +56,9 @@ internal fun NavGraphBuilder.feedbackRoutes(navController: NavHostController) {
 
     horizontalSlideComposable(PrismTaskRoute.DebugLog.route) {
         DebugLogScreen(navController)
+    }
+
+    horizontalSlideComposable(PrismTaskRoute.AdminBugReports.route) {
+        AdminBugReportsScreen(navController)
     }
 }
