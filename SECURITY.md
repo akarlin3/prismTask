@@ -14,7 +14,7 @@ PrismTask is a cross-platform task manager consisting of a native Android app, a
 
 ## Data Storage
 
-- **Android:** Task data is stored on-device in a Room (SQLite) database. Optional cloud sync uses Firebase Firestore. Google Drive backup/restore is available for Premium subscribers.
+- **Android:** Task data is stored on-device in a Room (SQLite) database. Optional cloud sync uses Firebase Firestore. Google Drive backup/restore is available for Pro subscribers.
 - **Web:** All data is fetched from and persisted to the FastAPI backend. No sensitive data is stored in the browser beyond JWT tokens.
 - **Backend:** User data is stored in a PostgreSQL database hosted on Railway. Passwords are hashed with bcrypt. Authentication uses JWT access tokens (short-lived) and refresh tokens.
 

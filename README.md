@@ -12,11 +12,10 @@
 [![Web CI](https://github.com/akarlin3/prismTask/actions/workflows/web-ci.yml/badge.svg?branch=main)](https://github.com/akarlin3/prismTask/actions/workflows/web-ci.yml)
 [![Release](https://github.com/akarlin3/prismTask/actions/workflows/release.yml/badge.svg)](https://github.com/akarlin3/prismTask/actions/workflows/release.yml)
 
-A cross-platform task manager with a Python API backend featuring AI-powered natural language processing, voice input, full accessibility support, deep customization, productivity analytics, and first-class integrations with Gmail, Slack, and Google Calendar. Available as a native Android app (Kotlin/Jetpack Compose) and a web app (React/TypeScript/Vite), both powered by a shared FastAPI/PostgreSQL backend.
+A cross-platform task manager and wellness-aware productivity layer with a Python API backend. Features AI-powered NLP, voice input, full accessibility, deep customization, productivity analytics, Work-Life Balance Engine, mood and energy tracking, morning check-in, boundary rules, burnout detection, ND-friendly focus modes, medication refill tracking, and first-class integrations with Gmail, Slack, and Google Calendar. Available as a native Android app (Kotlin/Jetpack Compose) and a web app (React/TypeScript/Vite), both powered by a shared FastAPI/PostgreSQL backend.
 
 ## Download
 
-<!-- TODO: Replace with actual Play Store link once published -->
 [<img src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" alt="Get it on Google Play" height="80">](https://play.google.com/store/apps/details?id=com.averycorp.prismtask)
 
 ## Free vs Pro
@@ -28,13 +27,19 @@ PrismTask ships with a two-tier pricing model.
 | Task management, projects, tags, subtasks | Yes | Yes |
 | Habit tracking with streaks & analytics | Yes | Yes |
 | Templates, widgets, voice, accessibility | Yes | Yes |
-| Work-Life Balance Engine (v1.4.0) | Yes | Yes |
-| Cloud sync across devices | -- | Yes |
-| AI Eisenhower & Pomodoro | -- | Yes |
-| Analytics & time tracking | -- | Yes |
-| AI briefing, planner, time blocking | -- | Yes |
-| Collaboration & integrations | -- | Yes |
-| Google Drive backup/restore | -- | Yes |
+| Work-Life Balance Engine | Yes | Yes |
+| Mood & energy tracking | Yes | Yes |
+| Morning check-in & weekly review | Yes | Yes |
+| Boundary rules & burnout detection | Yes | Yes |
+| ND-friendly focus modes | Yes | Yes |
+| Medication refill tracking | Yes | Yes |
+| Cloud sync across devices | — | Yes |
+| AI Eisenhower & Pomodoro | — | Yes |
+| Analytics & time tracking | — | Yes |
+| AI briefing, planner, time blocking | — | Yes |
+| Collaboration & integrations | — | Yes |
+| Google Drive backup/restore | — | Yes |
+| Clinical health report export | — | Yes |
 
 AI features run on Claude Haiku; the weekly planner and monthly review use
 Claude Sonnet for higher-quality output. Debug builds expose a tier override

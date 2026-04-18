@@ -5,7 +5,65 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased — v1.4.0 Vision Deck Rollout
+## Unreleased — v1.4.0 Wellness-Aware Productivity Layer
+
+### Changed — Pricing: Two-Tier Consolidation
+- Consolidated three-tier pricing (Free / Pro $3.99 / Premium $7.99) into
+  two-tier pricing (Free / Pro $3.99).
+- All Premium-exclusive features (AI briefing/planner/time blocking,
+  collaboration, integrations, full analytics, Google Drive backup) merged
+  into the Pro tier.
+- `ProFeatureGate` and `BillingManager` updated accordingly; the `PREMIUM`
+  tier enum and all Premium-gating call sites removed.
+- `prismtask_pro_monthly` is the only Play Store subscription product.
+
+### Added — Projects Phase 1 (DB Migration 47→48)
+- `ProjectEntity` extended with lifecycle columns: `description`, `status`
+  (ACTIVE / COMPLETED / ARCHIVED), `start_date`, `end_date`,
+  `theme_color_key`, `completed_at`, `archived_at`. Existing rows default to
+  `status='ACTIVE'` with nulls — no backfill needed.
+- New `MilestoneEntity` + `MilestoneDao`: title, `is_completed`, `order_index`,
+  FK → `projects.id` ON DELETE CASCADE. Milestone CRUD + user-controlled
+  reorder via `order_index`.
+- `ProjectRepository` extended with status-aware streams, milestone CRUD,
+  and `ProjectWithProgress` / `ProjectDetail` projections.
+- Forgiveness-first project streak via `DailyForgivenessStreakCore` (shared
+  with `StreakCalculator.calculateResilientDailyStreak` for habits). A
+  project has *activity* on a day when any task completion, subtask
+  completion (inherited via SQL join), or milestone completion occurred.
+  `TaskCompletionEntity` rows are never deleted on reopen — activity is an
+  event log, not derived state.
+- `ProjectDao.getTaskActivityDates` SQL join that inherits subtask
+  completions from their parent's `project_id` at read time.
+- Tasks-tab `[Tasks | Projects]` segmented toggle with `ProjectsPaneViewModel`;
+  filter selection persisted via `SavedStateHandle`.
+- NLP project intents (`ProjectIntentParser`): `CreateProject`,
+  `CompleteProject`, `AddMilestone`, `CreateTask`-with-project-hint.
+- Project home-screen widget (one user-picked project per instance) mirroring
+  `ProjectCard` layout; `ProjectWidgetConfigActivity` for placement-time
+  project selection.
+- Firestore sync for projects + milestones under `users/{uid}/projects/` and
+  `users/{uid}/milestones/`; upload order enforces projects before milestones.
+- `SyncMapper` defaults all post-v1.3 fields to null/`ACTIVE` for backward-
+  compatible reads of pre-v1.4 Firestore documents.
+- Room migration **47 → 48**: adds lifecycle columns to `projects`, creates
+  `milestones` table.
+- New unit tests: `DailyForgivenessStreakCoreTest`, `ProjectRepositoryTest`,
+  `ProjectDaoTest` (extended), `Migration47To48Test`,
+  `ProjectsPaneViewModelTest`, `ProjectIntentParserTest`.
+
+### Changed — Room Database Migrations (v44–v48)
+- **44→45** — Data-integrity hardening: `ON DELETE SET NULL` foreign keys
+  backfilled for `study_logs.course_pick`, `study_logs.assignment_pick`, and
+  `focus_release_logs.task_id`. Previously these columns used a default
+  constraint that could leave orphan references after parent deletion.
+- **45→46** — New `daily_essential_slot_completions` table for the Daily
+  Essentials Today-screen section (seven virtual cards: Morning Routine,
+  Medication, Housework, Schoolwork, Music Leisure, Flex Leisure, Bedtime
+  Routine).
+- **46→47** — `leisure_logs.custom_sections_state` TEXT column for
+  per-slot `LeisureSlotConfig` persistence.
+- **47→48** — See "Projects Phase 1" entry above.
 
 ### Changed — Export/Import Completeness Audit (2026-04-18)
 - Bumped the JSON export format from `v4` to `v5`.
@@ -419,7 +477,7 @@ Skips the v1.2.0 tag and ships everything developed since v1.1.0 together.
 - Daily digest notification
 - Project and habit template systems with built-in templates
 
-### Added — Three-Tier Pricing
+### Added — Three-Tier Pricing *(consolidated to two-tier in v1.4.0)*
 - Free: core tasks, habits, templates (local), calendar sync, widgets, all views
 - Pro ($3.99/mo): + cloud sync, template sync, AI Eisenhower, AI Pomodoro,
   basic analytics, time tracking, smart defaults, notification profiles,
@@ -427,6 +485,7 @@ Skips the v1.2.0 tag and ships everything developed since v1.1.0 together.
 - Premium ($7.99/mo): + AI briefing/planner/time blocking, collaboration,
   integrations, full analytics, Drive backup
 - Debug tier override in Settings (debug builds only)
+- **Note:** Premium tier merged into Pro in v1.4.0; see Unreleased section.
 
 ### Added — Bookable Habits
 - Booking status tracking for habit logs
