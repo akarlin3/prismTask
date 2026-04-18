@@ -241,10 +241,30 @@ jobs:
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           git add app/build.gradle.kts
-          git diff --cached --quiet && echo "No version bump to commit" || (
-            git commit -m "chore: bump to v${{ steps.version.outputs.version_name }} (build ${{ steps.version.outputs.version_code }}) [skip ci]" &&
-            git push
-          )
+          if git diff --cached --quiet; then
+            echo "No version bump to commit"
+            exit 0
+          fi
+          git commit -m "chore: bump to v${{ steps.version.outputs.version_name }} (build ${{ steps.version.outputs.version_code }}) [skip ci]"
+          # Another PR merge can push to main while the build+Firebase upload is
+          # running, so a straight `git push` here races and silently loses the
+          # bump commit. Rebase onto the current main tip and retry on rejection.
+          for attempt in 1 2 3 4 5; do
+            if git push origin "HEAD:${GITHUB_REF_NAME}"; then
+              echo "Pushed version bump on attempt $attempt"
+              exit 0
+            fi
+            echo "Push rejected on attempt $attempt; rebasing onto origin/${GITHUB_REF_NAME} and retrying"
+            git fetch origin "${GITHUB_REF_NAME}"
+            if ! git rebase "origin/${GITHUB_REF_NAME}"; then
+              git rebase --abort || true
+              echo "::error::Rebase conflict while replaying version bump; aborting."
+              exit 1
+            fi
+            sleep $((attempt * 2))
+          done
+          echo "::error::Failed to push version bump after 5 attempts."
+          exit 1
 
   capture-failure-log:
     needs: [auto-merge, version-bump-and-distribute]
