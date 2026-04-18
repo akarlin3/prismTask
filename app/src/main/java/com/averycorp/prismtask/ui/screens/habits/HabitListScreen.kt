@@ -33,6 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
@@ -82,22 +83,51 @@ fun HabitListScreen(
         }
     }
 
-    val screenTitle = if (filter == "daily") "Daily Habits" else "Recurring Habits"
+    val baseTitle = if (filter == "daily") "Daily Habits" else "Recurring Habits"
     val prismColors = LocalPrismColors.current
     val prismTheme = LocalPrismTheme.current
     val displayFont = prismDisplayFont(prismTheme)
+    val prismAttrs = com.averycorp.prismtask.ui.theme.LocalPrismAttrs.current
+
+    // Per-theme title: Matrix uppercases and prefixes; Void adds a colored dot;
+    // Cyberpunk uppercases; Synthwave uses the base title with glow.
+    val screenTitle = when {
+        prismAttrs.terminal  -> baseTitle.uppercase()
+        prismAttrs.displayUpper -> baseTitle.uppercase()
+        else -> baseTitle
+    }
 
     Scaffold(
         containerColor = prismColors.background,
         topBar = {
             TopAppBar(
                 title = {
-                    Text(
-                        screenTitle,
-                        fontFamily = displayFont,
-                        fontWeight = FontWeight.Bold,
-                        color = prismColors.onBackground
-                    )
+                    if (prismAttrs.editorial) {
+                        // Void: "Daily Habits." — trailing dot in primary color
+                        androidx.compose.foundation.text.BasicText(
+                            text = androidx.compose.ui.text.buildAnnotatedString {
+                                append(screenTitle)
+                                pushStyle(
+                                    androidx.compose.ui.text.SpanStyle(color = prismColors.primary)
+                                )
+                                append(".")
+                                pop()
+                            },
+                            style = MaterialTheme.typography.titleLarge.copy(
+                                fontFamily = displayFont,
+                                fontWeight = FontWeight.Bold,
+                                color = prismColors.onBackground
+                            )
+                        )
+                    } else {
+                        Text(
+                            screenTitle,
+                            fontFamily = displayFont,
+                            fontWeight = FontWeight.Bold,
+                            color = prismColors.onBackground,
+                            letterSpacing = prismAttrs.displayTracking.sp
+                        )
+                    }
                 },
                 actions = {
                     SyncIndicatorHost(modifier = Modifier.padding(end = 12.dp))
