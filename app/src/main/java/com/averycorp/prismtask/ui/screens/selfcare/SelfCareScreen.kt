@@ -306,6 +306,36 @@ fun SelfCareScreen(
                 }
             }
 
+            // Empty state when the user hasn't picked any starter steps.
+            if (allSteps.isEmpty() && !editMode) {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(MaterialTheme.colorScheme.surfaceContainerLow)
+                            .padding(20.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                text = if (isHousework) "No Housework Steps Yet" else "No Routine Steps Yet",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = "Add starter steps from Settings \u2192 Life Modes \u2192 Browse Templates, or tap the pencil then + to create your own.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
+            }
+
             // Phase-grouped steps
             phaseGroups.forEach { (phaseName, phaseSteps) ->
                 if (phaseSteps.isNotEmpty()) {

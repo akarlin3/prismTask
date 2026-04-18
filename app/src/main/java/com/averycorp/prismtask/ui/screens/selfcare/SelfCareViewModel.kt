@@ -35,10 +35,6 @@ constructor(
     private val _editMode = MutableStateFlow(false)
     val editMode: StateFlow<Boolean> = _editMode
 
-    init {
-        viewModelScope.launch { repository.ensureDefaultStepsSeeded() }
-    }
-
     @OptIn(ExperimentalCoroutinesApi::class)
     val todayLog: StateFlow<SelfCareLogEntity?> = _routineType
         .flatMapLatest { type ->

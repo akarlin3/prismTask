@@ -153,6 +153,8 @@ sealed class PrismTaskRoute(
 
     data object TemplateList : PrismTaskRoute("templates")
 
+    data object TemplateBrowser : PrismTaskRoute("templates/browse")
+
     data object AddEditTemplate : PrismTaskRoute("templates/edit?templateId={templateId}") {
         fun createRoute(templateId: Long? = null): String =
             if (templateId != null) "templates/edit?templateId=$templateId" else "templates/edit"

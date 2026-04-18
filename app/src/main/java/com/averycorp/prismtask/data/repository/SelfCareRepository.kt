@@ -230,6 +230,65 @@ constructor(
         selfCareDao.insertSteps(houseworkEntities)
     }
 
+    /**
+     * Seed every default step included in [tier] for the given [routineType],
+     * using the cumulative tier semantics from [SelfCareRoutines.tierIncludes]
+     * (picking "solid" also seeds "survival" steps). The matching habit row
+     * is created if missing. Idempotent: existing stepIds are skipped and
+     * the method is safe to call repeatedly.
+     *
+     * Accepted [routineType] values: "morning", "bedtime", "housework".
+     * "medication" has no default steps and is a no-op.
+     */
+    suspend fun seedSelfCareTier(routineType: String, tier: String) {
+        val source = SelfCareRoutines.getSteps(routineType)
+        if (source.isEmpty()) return
+        val tierOrder = SelfCareRoutines.getTierOrder(routineType)
+        if (tier !in tierOrder) return
+        val stepIds = source
+            .filter { SelfCareRoutines.tierIncludes(tierOrder, tier, it.tier) }
+            .map { it.id }
+        seedSelfCareSteps(routineType, stepIds)
+    }
+
+    /**
+     * Seed a specific subset of default steps for [routineType] by their
+     * canonical [stepIds] (as defined in [SelfCareRoutines]). Steps already
+     * present in the database are skipped. The matching habit row is
+     * created if missing. Unknown ids are silently ignored so the caller
+     * can safely pass a mixed list.
+     */
+    suspend fun seedSelfCareSteps(routineType: String, stepIds: List<String>) {
+        if (stepIds.isEmpty()) return
+        val source = SelfCareRoutines.getSteps(routineType)
+        if (source.isEmpty()) return
+        val existingIds = selfCareDao
+            .getStepsForRoutineOnce(routineType)
+            .map { it.stepId }
+            .toSet()
+        val requested = stepIds.toSet()
+        val toInsert = source.filter { it.id in requested && it.id !in existingIds }
+        if (toInsert.isEmpty()) {
+            getOrCreateHabit(routineType)
+            return
+        }
+        val baseSort = selfCareDao.getMaxSortOrder(routineType) + 1
+        val entities = toInsert.mapIndexed { i, step ->
+            SelfCareStepEntity(
+                stepId = step.id,
+                routineType = routineType,
+                label = step.label,
+                duration = step.duration,
+                tier = step.tier,
+                note = step.note,
+                phase = step.phase,
+                sortOrder = baseSort + i
+            )
+        }
+        selfCareDao.insertSteps(entities)
+        getOrCreateHabit(routineType)
+    }
+
     suspend fun addStep(
         routineType: String,
         label: String,

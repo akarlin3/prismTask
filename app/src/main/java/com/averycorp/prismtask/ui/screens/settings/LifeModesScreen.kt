@@ -19,9 +19,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.Color
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import com.averycorp.prismtask.ui.components.settings.SettingsGroup
+import com.averycorp.prismtask.ui.components.settings.SettingsNavRow
+import com.averycorp.prismtask.ui.navigation.PrismTaskRoute
 import com.averycorp.prismtask.ui.screens.settings.sections.ModesSection
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -67,6 +71,15 @@ fun LifeModesScreen(
                 onSchoolChange = viewModel::setSchoolEnabled,
                 onLeisureChange = viewModel::setLeisureEnabled
             )
+            SettingsGroup(label = "Templates") {
+                SettingsNavRow(
+                    title = "Browse Templates",
+                    subtitle = "Add starter self-care, housework, and leisure picks",
+                    iconEmoji = "\uD83D\uDCCB",
+                    iconBgColor = Color(0xFFE6F1FB),
+                    onClick = { navController.navigate(PrismTaskRoute.TemplateBrowser.route) }
+                )
+            }
             Spacer(modifier = Modifier.height(32.dp))
         }
     }

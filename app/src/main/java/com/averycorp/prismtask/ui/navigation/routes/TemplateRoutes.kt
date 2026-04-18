@@ -7,6 +7,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.averycorp.prismtask.ui.navigation.PrismTaskRoute
 import com.averycorp.prismtask.ui.screens.templates.AddEditTemplateScreen
+import com.averycorp.prismtask.ui.screens.templates.TemplateBrowserScreen
 import com.averycorp.prismtask.ui.screens.templates.TemplateListScreen
 
 /**
@@ -15,6 +16,10 @@ import com.averycorp.prismtask.ui.screens.templates.TemplateListScreen
 internal fun NavGraphBuilder.templateRoutes(navController: NavHostController) {
     horizontalSlideComposable(PrismTaskRoute.TemplateList.route) {
         TemplateListScreen(navController)
+    }
+
+    horizontalSlideComposable(PrismTaskRoute.TemplateBrowser.route) {
+        TemplateBrowserScreen(navController)
     }
 
     composable(

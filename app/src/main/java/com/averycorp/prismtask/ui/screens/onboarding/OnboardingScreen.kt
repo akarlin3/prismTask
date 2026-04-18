@@ -28,8 +28,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -69,12 +71,15 @@ import androidx.credentials.CredentialManager
 import androidx.credentials.GetCredentialRequest
 import androidx.credentials.exceptions.GetCredentialCancellationException
 import com.averycorp.prismtask.BuildConfig
+import com.averycorp.prismtask.ui.screens.templates.TemplatePickerContent
+import com.averycorp.prismtask.ui.screens.templates.TemplateSelections
 import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-private const val TOTAL_PAGES = 7
+private const val TOTAL_PAGES = 8
+private const val LAST_PAGE_INDEX = TOTAL_PAGES - 1
 
 private val accentColors = listOf(
     "#2563EB",
@@ -109,9 +114,10 @@ fun OnboardingScreen(
                 1 -> SmartTasksPage()
                 2 -> NaturalLanguagePage()
                 3 -> HabitsPage()
-                4 -> ViewsPage()
-                5 -> BrainModePage(viewModel = viewModel)
-                6 -> SetupPage(
+                4 -> TemplatesPage(viewModel = viewModel)
+                5 -> ViewsPage()
+                6 -> BrainModePage(viewModel = viewModel)
+                LAST_PAGE_INDEX -> SetupPage(
                     viewModel = viewModel,
                     onComplete = {
                         viewModel.completeOnboarding()
@@ -121,11 +127,11 @@ fun OnboardingScreen(
             }
         }
 
-        // Skip button (pages 0-4)
-        if (pagerState.currentPage < 6) {
+        // Skip button — available until the final setup page.
+        if (pagerState.currentPage < LAST_PAGE_INDEX) {
             TextButton(
                 onClick = {
-                    coroutineScope.launch { pagerState.animateScrollToPage(6) }
+                    coroutineScope.launch { pagerState.animateScrollToPage(LAST_PAGE_INDEX) }
                 },
                 modifier = Modifier
                     .align(Alignment.TopEnd)
@@ -135,8 +141,8 @@ fun OnboardingScreen(
             }
         }
 
-        // Bottom controls
-        if (pagerState.currentPage < 6) {
+        // Bottom controls — hidden on the final page which carries its own.
+        if (pagerState.currentPage < LAST_PAGE_INDEX) {
             Column(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
@@ -447,6 +453,59 @@ private fun HabitsPage() {
                 Spacer(modifier = Modifier.weight(1f))
             }
         }
+    }
+}
+
+@Composable
+private fun TemplatesPage(viewModel: OnboardingViewModel) {
+    val selections by viewModel.templateSelections
+        .let { flow ->
+            val state = remember { mutableStateOf(TemplateSelections()) }
+            LaunchedEffect(Unit) { flow.collect { state.value = it } }
+            state
+        }
+
+    var visible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { visible = true }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(top = 48.dp, start = 16.dp, end = 16.dp, bottom = 140.dp)
+            .verticalScroll(rememberScrollState()),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        AnimatedVisibility(
+            visible = visible,
+            enter = fadeIn(tween(400)) + slideInVertically(tween(400)) { 30 }
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.padding(horizontal = 8.dp)
+            ) {
+                Text("\uD83D\uDCCB", fontSize = 40.sp)
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = "Pick Your Starting Templates",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Everything is optional — you can add or change these anytime in Settings.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
+        Spacer(modifier = Modifier.height(16.dp))
+        TemplatePickerContent(
+            state = selections,
+            onChange = viewModel::updateTemplateSelections,
+            modifier = Modifier.fillMaxWidth()
+        )
     }
 }
 

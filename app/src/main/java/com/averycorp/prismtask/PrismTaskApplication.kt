@@ -9,7 +9,6 @@ import androidx.work.WorkManager
 import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
 import com.averycorp.prismtask.data.repository.LeisureRepository
 import com.averycorp.prismtask.data.repository.SchoolworkRepository
-import com.averycorp.prismtask.data.repository.SelfCareRepository
 import com.averycorp.prismtask.data.seed.TemplateSeeder
 import com.averycorp.prismtask.notifications.OverloadCheckWorker
 import com.averycorp.prismtask.widget.WidgetRefreshWorker
@@ -38,9 +37,6 @@ class PrismTaskApplication :
 
     @Inject
     lateinit var leisureRepository: LeisureRepository
-
-    @Inject
-    lateinit var selfCareRepository: SelfCareRepository
 
     @Inject
     lateinit var taskBehaviorPreferences: TaskBehaviorPreferences
@@ -77,7 +73,7 @@ class PrismTaskApplication :
             }
         }
         try {
-            seedBuiltInHabits()
+            seedStructuralHabits()
             seedBuiltInTemplates()
         } catch (e: Exception) {
             android.util.Log.e("PrismTaskApp", "Seeding kickoff failed", e)
@@ -142,11 +138,19 @@ class PrismTaskApplication :
         }
     }
 
-    private fun seedBuiltInHabits() {
+    /**
+     * Ensures the schoolwork and leisure habit "shells" exist on app start.
+     * Self-care / housework / medication habits are no longer auto-created —
+     * users opt into them via the onboarding template picker or the Browse
+     * Templates entry in Settings. Existing installs keep their pre-seeded
+     * self-care habits because the self-care repository's habit creation is
+     * idempotent and still runs the next time the user actively picks a
+     * self-care template.
+     */
+    private fun seedStructuralHabits() {
         appScope.launch {
             schoolworkRepository.ensureHabitExists()
             leisureRepository.ensureHabitExists()
-            selfCareRepository.ensureHabitsExist()
         }
     }
 
