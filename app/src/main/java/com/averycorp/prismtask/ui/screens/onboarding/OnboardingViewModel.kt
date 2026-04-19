@@ -9,6 +9,7 @@ import com.averycorp.prismtask.data.preferences.OnboardingPreferences
 import com.averycorp.prismtask.data.preferences.ThemePreferences
 import com.averycorp.prismtask.data.remote.AuthManager
 import com.averycorp.prismtask.data.remote.SyncService
+import com.averycorp.prismtask.data.remote.sync.PrismSyncLogger
 import com.averycorp.prismtask.data.repository.SelfCareRepository
 import com.averycorp.prismtask.data.repository.TaskRepository
 import com.averycorp.prismtask.ui.screens.leisure.LeisureViewModel
@@ -33,7 +34,8 @@ constructor(
     private val syncService: SyncService,
     private val taskRepository: TaskRepository,
     private val selfCareRepository: SelfCareRepository,
-    private val leisurePreferences: LeisurePreferences
+    private val leisurePreferences: LeisurePreferences,
+    private val logger: PrismSyncLogger
 ) : ViewModel() {
     val hasCompletedOnboarding: StateFlow<Boolean> = onboardingPreferences
         .hasCompletedOnboarding()
@@ -110,8 +112,22 @@ constructor(
 
     fun completeOnboarding() {
         viewModelScope.launch {
-            applyTemplateSelections(_templateSelections.value)
-            onboardingPreferences.setOnboardingCompleted()
+            // Write the flag first so it is durable before viewModelScope is
+            // cancelled by the navigation that fires immediately after this call.
+            try {
+                onboardingPreferences.setOnboardingCompleted()
+                logger.info(operation = "onboarding.flag_written", status = "success")
+            } catch (e: Exception) {
+                logger.error(operation = "onboarding.flag_written", throwable = e)
+            }
+            // Template selections are non-critical — if viewModelScope is
+            // cancelled here the user sees default prefs, not an onboarding loop.
+            try {
+                applyTemplateSelections(_templateSelections.value)
+                logger.info(operation = "onboarding.templates_applied", status = "success")
+            } catch (e: Exception) {
+                logger.error(operation = "onboarding.templates_applied", throwable = e)
+            }
         }
     }
 
