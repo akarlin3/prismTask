@@ -3,6 +3,7 @@ package com.averycorp.prismtask.data.preferences
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -70,6 +71,7 @@ class SortPreferences(
     suspend fun setSortMode(screenKey: String, sortMode: String) {
         dataStore.edit { prefs ->
             prefs[stringPreferencesKey(screenKey)] = sortMode
+            prefs[PREFS_UPDATED_AT_KEY] = System.currentTimeMillis()
         }
     }
 
@@ -97,6 +99,7 @@ class SortPreferences(
     suspend fun setSortDirection(screenKey: String, direction: SortDirection) {
         dataStore.edit { prefs ->
             prefs[stringPreferencesKey(directionKey(screenKey))] = direction.name
+            prefs[PREFS_UPDATED_AT_KEY] = System.currentTimeMillis()
         }
     }
 
@@ -113,7 +116,45 @@ class SortPreferences(
 
     private fun directionKey(screenKey: String): String = "sort_direction_${screenKey.removePrefix("sort_")}"
 
+    // --- Sync support -----------------------------------------------------------
+
+    /** Emits Unit whenever any sort preference (or sync metadata) changes. */
+    val flowOfChanges: Flow<Unit> = dataStore.data.map { }
+
+    /** Returns all currently-stored sort keys as a flat map, excluding internal sync metadata. */
+    suspend fun snapshot(): Map<String, Any> =
+        dataStore.data.first().asMap()
+            .mapKeys { (key, _) -> key.name }
+            .filterKeys { it.startsWith("sort_") }
+
+    suspend fun getPrefsUpdatedAt(): Long = dataStore.data.first()[PREFS_UPDATED_AT_KEY] ?: 0L
+
+    suspend fun getLastSyncedAt(): Long = dataStore.data.first()[LAST_SYNCED_AT_KEY] ?: 0L
+
+    /** Sets LAST_SYNCED_AT without bumping PREFS_UPDATED_AT (used after a successful push). */
+    internal suspend fun setLastSyncedAt(timestamp: Long) {
+        dataStore.edit { prefs -> prefs[LAST_SYNCED_AT_KEY] = timestamp }
+    }
+
+    /**
+     * Writes a remote snapshot to DataStore atomically, setting both
+     * PREFS_UPDATED_AT and LAST_SYNCED_AT to [updatedAt] so the push observer
+     * sees them as equal and skips an unnecessary round-trip.
+     */
+    internal suspend fun applyRemoteSnapshot(sortKeys: Map<String, String>, updatedAt: Long) {
+        dataStore.edit { prefs ->
+            for ((key, value) in sortKeys) {
+                prefs[stringPreferencesKey(key)] = value
+            }
+            prefs[PREFS_UPDATED_AT_KEY] = updatedAt
+            prefs[LAST_SYNCED_AT_KEY] = updatedAt
+        }
+    }
+
     companion object {
+        private val PREFS_UPDATED_AT_KEY = longPreferencesKey("prefs_updated_at")
+        private val LAST_SYNCED_AT_KEY = longPreferencesKey("prefs_last_synced_at")
+
         /**
          * Default sort direction for a given sort mode. Descending for
          * ranking-style modes (priority, urgency, date_created), ascending for

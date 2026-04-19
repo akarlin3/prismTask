@@ -231,6 +231,7 @@ constructor(
 
     suspend fun updateSortOrders(habits: List<HabitEntity>) {
         habitDao.updateAll(habits)
+        habits.forEach { habit -> syncTracker.trackUpdate(habit.id, "habit") }
     }
 
     // --- Bookable habit log methods ---
