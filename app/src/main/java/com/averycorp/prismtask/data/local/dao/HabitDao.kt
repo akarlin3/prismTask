@@ -68,6 +68,12 @@ interface HabitDao {
     @Query("SELECT DISTINCT category FROM habits WHERE category IS NOT NULL AND category != '' ORDER BY category ASC")
     suspend fun getAllCategories(): List<String>
 
+    @Query("SELECT * FROM habits WHERE is_built_in = 1 ORDER BY name ASC")
+    suspend fun getBuiltInHabitsOnce(): List<HabitEntity>
+
+    @Query("SELECT * FROM habits WHERE template_key = :key LIMIT 1")
+    suspend fun getByTemplateKeyOnce(key: String): HabitEntity?
+
     @Query("DELETE FROM habits")
     suspend fun deleteAll()
 }

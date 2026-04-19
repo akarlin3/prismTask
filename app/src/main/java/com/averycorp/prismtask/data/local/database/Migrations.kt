@@ -933,6 +933,22 @@ val MIGRATION_47_48 = object : Migration(47, 48) {
     }
 }
 
+// Built-in habit identity: add is_built_in flag and template_key so devices can
+// reconcile independently-seeded built-in habits across a shared Firestore account.
+// Backfills known built-in names so existing installs are covered immediately.
+val MIGRATION_48_49 = object : Migration(48, 49) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE habits ADD COLUMN is_built_in INTEGER NOT NULL DEFAULT 0")
+        db.execSQL("ALTER TABLE habits ADD COLUMN template_key TEXT")
+        db.execSQL("UPDATE habits SET is_built_in = 1, template_key = 'builtin_school' WHERE name = 'School'")
+        db.execSQL("UPDATE habits SET is_built_in = 1, template_key = 'builtin_leisure' WHERE name = 'Leisure'")
+        db.execSQL("UPDATE habits SET is_built_in = 1, template_key = 'builtin_morning_selfcare' WHERE name = 'Morning Self-Care'")
+        db.execSQL("UPDATE habits SET is_built_in = 1, template_key = 'builtin_bedtime_selfcare' WHERE name = 'Bedtime Self-Care'")
+        db.execSQL("UPDATE habits SET is_built_in = 1, template_key = 'builtin_medication' WHERE name = 'Medication'")
+        db.execSQL("UPDATE habits SET is_built_in = 1, template_key = 'builtin_housework' WHERE name = 'Housework'")
+    }
+}
+
 val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_1_2,
     MIGRATION_2_3,
@@ -980,5 +996,6 @@ val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_44_45,
     MIGRATION_45_46,
     MIGRATION_46_47,
-    MIGRATION_47_48
+    MIGRATION_47_48,
+    MIGRATION_48_49
 )

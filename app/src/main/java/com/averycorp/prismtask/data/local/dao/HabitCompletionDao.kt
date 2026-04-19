@@ -84,6 +84,12 @@ interface HabitCompletionDao {
     @Query("SELECT * FROM habit_completions ORDER BY completed_date DESC")
     suspend fun getAllCompletionsOnce(): List<HabitCompletionEntity>
 
+    @Query("UPDATE habit_completions SET habit_id = :newHabitId WHERE habit_id = :oldHabitId")
+    suspend fun reassignHabitId(oldHabitId: Long, newHabitId: Long)
+
+    @Query("SELECT COUNT(*) FROM habit_completions WHERE habit_id = :habitId")
+    suspend fun countByHabitOnce(habitId: Long): Int
+
     @Query("DELETE FROM habit_completions")
     suspend fun deleteAll()
 }

@@ -49,7 +49,8 @@ constructor(
     private val proFeatureGate: ProFeatureGate,
     private val logger: PrismSyncLogger,
     private val syncStateRepository: SyncStateRepository,
-    private val taskBehaviorPreferences: TaskBehaviorPreferences
+    private val taskBehaviorPreferences: TaskBehaviorPreferences,
+    private val builtInHabitReconciler: BuiltInHabitReconciler
 ) {
     private val firestore by lazy { FirebaseFirestore.getInstance() }
     private val listeners = mutableListOf<ListenerRegistration>()
@@ -833,6 +834,7 @@ constructor(
         try {
             pushed = pushLocalChanges()
             pulled = pullRemoteChanges()
+            builtInHabitReconciler.reconcileAfterSyncIfNeeded()
             syncStateRepository.markSyncCompleted(
                 source = SOURCE_FIREBASE,
                 success = true,

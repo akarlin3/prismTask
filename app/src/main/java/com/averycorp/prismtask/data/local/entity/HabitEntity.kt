@@ -66,6 +66,10 @@ data class HabitEntity(
      */
     @ColumnInfo(name = "today_skip_before_schedule_days", defaultValue = "-1")
     val todaySkipBeforeScheduleDays: Int = -1,
+    @ColumnInfo(name = "is_built_in", defaultValue = "0")
+    val isBuiltIn: Boolean = false,
+    @ColumnInfo(name = "template_key")
+    val templateKey: String? = null,
     @ColumnInfo(name = "created_at")
     val createdAt: Long = System.currentTimeMillis(),
     @ColumnInfo(name = "updated_at")

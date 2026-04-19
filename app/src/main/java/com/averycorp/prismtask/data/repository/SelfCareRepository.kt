@@ -876,6 +876,12 @@ constructor(
             else -> "Complete bedtime self-care routine"
         }
 
+        val templateKey = when (routineType) {
+            "morning" -> "builtin_morning_selfcare"
+            "medication" -> "builtin_medication"
+            "housework" -> "builtin_housework"
+            else -> "builtin_bedtime_selfcare"
+        }
         val id = habitDao.insert(
             HabitEntity(
                 name = name,
@@ -884,7 +890,9 @@ constructor(
                 color = color,
                 category = category,
                 targetFrequency = 1,
-                frequencyPeriod = "daily"
+                frequencyPeriod = "daily",
+                isBuiltIn = true,
+                templateKey = templateKey
             )
         )
         return habitDao.getHabitByIdOnce(id)
