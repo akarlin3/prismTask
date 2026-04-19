@@ -3,20 +3,25 @@
 Firestore FK audit script for PrismTask / averytask-50dc5.
 
 Usage:
-    GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json python3 firestore_audit.py
+    python3 firestore_audit.py <key.json> [uid] [--database <db-id>]
 
-Or pass the key path as the first argument:
-    python3 firestore_audit.py /path/to/service-account.json
+Examples:
+    python3 firestore_audit.py prismtask-sa.json
+    python3 firestore_audit.py prismtask-sa.json abc123uid
+    python3 firestore_audit.py prismtask-sa.json abc123uid --database prismtask
 """
 
 import re
 import sys
 import os
+import argparse
 from datetime import datetime, timezone
 from collections import defaultdict
 
 import firebase_admin
 from firebase_admin import credentials, firestore
+from google.cloud import firestore as gcloud_firestore
+from google.oauth2 import service_account
 
 PROJECT_ID = "averytask-50dc5"
 MAX_SAMPLE = 20
@@ -150,105 +155,128 @@ def status_label(counts, sampled, field_name):
     return 'MIXED'
 
 
-def main():
-    # Locate credentials
-    key_path = None
-    if len(sys.argv) > 1:
-        key_path = sys.argv[1]
-    elif os.environ.get('GOOGLE_APPLICATION_CREDENTIALS'):
-        key_path = os.environ['GOOGLE_APPLICATION_CREDENTIALS']
+def make_db(key_path, database_id='(default)'):
+    """Return a google-cloud-firestore Client using a service account key file."""
+    sa_creds = service_account.Credentials.from_service_account_file(
+        key_path,
+        scopes=["https://www.googleapis.com/auth/cloud-platform"]
+    )
+    return gcloud_firestore.Client(
+        project=PROJECT_ID,
+        credentials=sa_creds,
+        database=database_id
+    )
 
-    if not key_path or not os.path.exists(key_path):
-        print("ERROR: No service account key found.")
-        print("  Set GOOGLE_APPLICATION_CREDENTIALS=/path/to/key.json")
-        print("  or pass the path as: python3 firestore_audit.py /path/to/key.json")
-        print(f"\n  To get a key: Firebase Console → Project Settings →")
-        print(f"  Service Accounts → Generate new private key")
-        print(f"  Project: {PROJECT_ID}")
+
+def main():
+    parser = argparse.ArgumentParser(description='Firestore FK audit for PrismTask')
+    parser.add_argument('key', help='Path to service account JSON key')
+    parser.add_argument('uid', nargs='?', default=None,
+                        help='Firebase Auth UID to audit (skip auto-discovery)')
+    parser.add_argument('--database', default=None,
+                        help='Named Firestore database (default: tries (default) then common names)')
+    args = parser.parse_args()
+
+    key_path = args.key
+    if not os.path.exists(key_path):
+        print(f"ERROR: Key file not found: {key_path}")
         sys.exit(1)
 
     print(f"Using credentials: {key_path}")
-    cred = credentials.Certificate(key_path)
-    firebase_admin.initialize_app(cred, {'projectId': PROJECT_ID})
-    db = firestore.client()
 
-    # Discover top-level collections
-    print("Discovering top-level Firestore collections...")
-    top_collections = list(db.collections())
-    top_names = [c.id for c in top_collections]
-    print(f"  Found: {top_names}")
+    # Determine which database(s) to try
+    databases_to_try = [args.database] if args.database else ['(default)', 'prismtask', 'averytask']
 
-    # Find the user document — try /users/ first, then look for any collection
-    # that contains a document with sub-collections matching our audit plan.
+    db = None
+    used_database = None
+    for db_id in databases_to_try:
+        print(f"Connecting to Firestore database: {db_id!r} ...")
+        try:
+            candidate = make_db(key_path, db_id)
+            # Try a quick probe — list top-level collections
+            cols = list(candidate.collections())
+            col_names = [c.id for c in cols]
+            print(f"  Top-level collections: {col_names}")
+            if col_names:  # found something
+                db = candidate
+                used_database = db_id
+                break
+            else:
+                print(f"  (empty — trying next)")
+        except Exception as e:
+            print(f"  Error connecting to {db_id!r}: {e}")
+
+    if db is None:
+        print("\nERROR: Could not connect to any Firestore database.")
+        print("  Try: python3 firestore_audit.py key.json --database YOUR_DB_NAME")
+        print("  Find the database name in Firebase Console → Firestore → database dropdown.")
+        sys.exit(1)
+
+    # Locate user document
     user_ref = None
-    uid = None
+    uid = args.uid
 
-    if 'users' in top_names:
-        users_ref = db.collection('users')
-        user_docs = list(users_ref.limit(10).stream())
+    if uid:
+        user_ref = db.collection('users').document(uid)
+        print(f"Using provided UID: {uid}")
+    else:
+        print("Auto-discovering user UID...")
+        AUDIT_COLLECTIONS = {p[0] for p in AUDIT_PLAN}
+
+        # Strategy 1: stream /users/ directly
+        try:
+            user_docs = list(db.collection('users').limit(10).stream())
+        except Exception as e:
+            user_docs = []
+            print(f"  WARNING: streaming /users/ raised {e}")
+
         if user_docs:
             if len(user_docs) == 1:
                 uid = user_docs[0].id
                 user_ref = db.collection('users').document(uid)
-                print(f"Found 1 user under /users/: {uid}")
+                print(f"  Found 1 user under /users/: {uid}")
             else:
-                print("Multiple users found under /users/:")
+                print("  Multiple users found:")
                 for i, d in enumerate(user_docs):
-                    print(f"  [{i}] {d.id}")
-                idx = int(input("Enter index to audit: "))
+                    print(f"    [{i}] {d.id}")
+                idx = int(input("  Enter index: "))
                 uid = user_docs[idx].id
                 user_ref = db.collection('users').document(uid)
-
-    # If /users/ didn't work, dump everything we can find for diagnosis
-    if user_ref is None:
-        AUDIT_COLLECTIONS = {p[0] for p in AUDIT_PLAN}
-        print("  /users/ collection exists but streaming returned no documents.")
-        print("  This can happen if the collection has documents but no direct fields.")
-        print("\n  Attempting to probe /users/ document IDs via sub-collection listing...")
-
-        # Try listing sub-collections of the /users/ path directly via REST isn't
-        # possible, but we can try known UIDs from auth if the user provides one.
-        # Instead, dump every top-level collection's documents and their sub-collections.
-        for col in top_collections:
-            print(f"\n  Probing /{col.id}/...")
-            sample = list(col.limit(5).stream())
-            if not sample:
-                print(f"    (no documents returned)")
-                continue
-            for doc in sample:
-                sub_cols = [s.id for s in doc.reference.collections()]
-                print(f"    doc: {doc.id}  sub-collections: {sub_cols}")
-                # Check if any sub-collection matches our audit plan
-                if set(sub_cols) & AUDIT_COLLECTIONS:
-                    uid = doc.id
-                    user_ref = doc.reference
-                    print(f"    ✓ Matched! Using /{col.id}/{uid}/ as user root.")
-                    break
-                # Even if no exact match, pick the first doc with ANY sub-collections
-                # and let the user confirm
-                elif sub_cols and user_ref is None:
-                    print(f"    Sub-collections don't match audit plan but may be renamed.")
-                    print(f"    Candidate: /{col.id}/{doc.id}/ with subs: {sub_cols}")
-                    answer = input(f"    Use this as user root? [y/N]: ").strip().lower()
-                    if answer == 'y':
+        else:
+            # Strategy 2: probe all top-level collections for sub-collection matches
+            print("  /users/ stream returned nothing. Probing all collections...")
+            for col in db.collections():
+                try:
+                    sample = list(col.limit(5).stream())
+                except Exception as e:
+                    print(f"  /{col.id}/: stream error — {e}")
+                    continue
+                if not sample:
+                    print(f"  /{col.id}/: (no documents)")
+                    continue
+                for doc in sample:
+                    try:
+                        sub_cols = [s.id for s in doc.reference.collections()]
+                    except Exception:
+                        sub_cols = []
+                    print(f"  /{col.id}/{doc.id}/ → sub-collections: {sub_cols}")
+                    if set(sub_cols) & AUDIT_COLLECTIONS:
                         uid = doc.id
                         user_ref = doc.reference
-                        # Update audit plan collection names to match actual names
-                        actual = set(sub_cols)
-                        print(f"    Actual sub-collections: {actual}")
+                        print(f"  ✓ Matched! Using /{col.id}/{uid}/")
                         break
-            if user_ref:
-                break
+                if user_ref:
+                    break
 
     if user_ref is None:
-        print("\nERROR: Could not locate user data.")
-        print(f"  Top-level collections found: {top_names}")
-        print("\n  Possible causes:")
-        print("  1. The app has never synced — run a full sync on Device A first")
-        print("  2. Data lives in a named Firestore database (not '(default)')")
-        print("  3. Security rules block the service account — check IAM: needs")
-        print("     'Cloud Datastore User' or 'Firebase Admin' role")
-        print("\n  Check Firebase Console → Firestore → Data tab to see the actual structure.")
+        print("\nERROR: Could not find user data.")
+        print("  Options:")
+        print("  A) Pass your UID directly:")
+        print("     python3 firestore_audit.py key.json YOUR_FIREBASE_UID")
+        print("     (Find UID in Firebase Console → Authentication → Users)")
+        print("  B) Pass a named database:")
+        print("     python3 firestore_audit.py key.json --database YOUR_DB_NAME")
+        print("     (Find in Firebase Console → Firestore → database name dropdown)")
         sys.exit(1)
     now_str = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')
 
