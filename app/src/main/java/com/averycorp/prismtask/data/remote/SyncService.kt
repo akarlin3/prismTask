@@ -46,7 +46,8 @@ constructor(
     private val proFeatureGate: ProFeatureGate,
     private val logger: PrismSyncLogger,
     private val syncStateRepository: SyncStateRepository,
-    private val builtInHabitReconciler: BuiltInHabitReconciler
+    private val builtInHabitReconciler: BuiltInHabitReconciler,
+    private val sortPreferencesSyncService: SortPreferencesSyncService
 ) {
     private val firestore by lazy { FirebaseFirestore.getInstance() }
     private val listeners = mutableListOf<ListenerRegistration>()
@@ -532,6 +533,8 @@ constructor(
                         lastSyncedAt = System.currentTimeMillis()
                     )
                 )
+                // Resolve any sort preference that was stashed while waiting for this project.
+                sortPreferencesSyncService.notifyProjectSynced(cloudId)
             } else {
                 val project = SyncMapper.mapToProject(data, localId)
                 projectDao.update(project)

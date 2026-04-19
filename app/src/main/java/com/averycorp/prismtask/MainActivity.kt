@@ -49,6 +49,7 @@ import com.averycorp.prismtask.data.preferences.TabPreferences
 import com.averycorp.prismtask.data.preferences.ThemePreferences
 import com.averycorp.prismtask.data.preferences.UserPreferencesDataStore
 import com.averycorp.prismtask.data.remote.AuthManager
+import com.averycorp.prismtask.data.remote.SortPreferencesSyncService
 import com.averycorp.prismtask.data.remote.SyncService
 import com.averycorp.prismtask.data.remote.UpdateChecker
 import com.averycorp.prismtask.data.remote.VersionInfo
@@ -80,6 +81,9 @@ class MainActivity : ComponentActivity() {
 
     @Inject
     lateinit var syncService: SyncService
+
+    @Inject
+    lateinit var sortPreferencesSyncService: SortPreferencesSyncService
 
     @Inject
     lateinit var onboardingPreferences: OnboardingPreferences
@@ -144,6 +148,11 @@ class MainActivity : ComponentActivity() {
             syncService.startAutoSync()
         } catch (e: Exception) {
             Log.e("MainActivity", "Auto-sync failed to start", e)
+        }
+        try {
+            sortPreferencesSyncService.startPushObserver()
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Sort prefs push observer failed to start", e)
         }
         try {
             billingManager.initialize(this)
