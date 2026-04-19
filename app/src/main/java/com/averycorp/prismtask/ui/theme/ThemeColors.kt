@@ -58,8 +58,8 @@ private val SynthwaveColors = PrismThemeColors(
     background = Color(0xFF0D0717),
     surface = Color(0xFF130820),
     surfaceVariant = Color(0xFF1A0F2E),
-    // #6e3fff at 10% alpha -> 0x1A6E3FFF
-    border = Color(0x1A6E3FFF),
+    // #6e3fff at 18% alpha -> 0x2E6E3FFF (themes.js: rgba(110,63,255,0.18))
+    border = Color(0x2E6E3FFF),
     primary = Color(0xFFFF2D87),
     secondary = Color(0xFF6E3FFF),
     onBackground = Color(0xFFF0D0FF),
@@ -75,8 +75,8 @@ private val MatrixColors = PrismThemeColors(
     background = Color(0xFF010D03),
     surface = Color(0xFF010F04),
     surfaceVariant = Color(0xFF021206),
-    // #00ff41 at 10% alpha -> 0x1A00FF41
-    border = Color(0x1A00FF41),
+    // #00ff41 at 14% alpha -> 0x2300FF41 (themes.js: rgba(0,255,65,0.14))
+    border = Color(0x2300FF41),
     primary = Color(0xFF00FF41),
     secondary = Color(0xFFAAFF00),
     onBackground = Color(0xFFB0FFB8),

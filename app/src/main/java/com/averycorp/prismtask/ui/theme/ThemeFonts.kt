@@ -132,3 +132,19 @@ fun prismDisplayFont(theme: PrismTheme): FontFamily = when (theme) {
     PrismTheme.SYNTHWAVE -> Monoton
     PrismTheme.VOID -> Fraunces
 }
+
+/**
+ * Monospace / code font family for the given [theme]. Used for code blocks,
+ * badges, bracket labels, and any inline fixed-width text:
+ *
+ * - CYBERPUNK: Chakra Petch (techno fixed-pitch feel)
+ * - MATRIX:    Share Tech Mono (native terminal monospace)
+ * - SYNTHWAVE: Rajdhani (condensed sans doubles as mono accent)
+ * - VOID:      Space Grotesk (neutral geometric mono fallback)
+ */
+fun prismMonoFont(theme: PrismTheme): FontFamily = when (theme) {
+    PrismTheme.CYBERPUNK -> ChakraPetch
+    PrismTheme.MATRIX -> ShareTechMono
+    PrismTheme.SYNTHWAVE -> Rajdhani
+    PrismTheme.VOID -> SpaceGrotesk
+}
