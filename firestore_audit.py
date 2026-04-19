@@ -172,23 +172,55 @@ def main():
     firebase_admin.initialize_app(cred, {'projectId': PROJECT_ID})
     db = firestore.client()
 
-    # Find user UID
-    users_ref = db.collection('users')
-    user_docs = list(users_ref.limit(10).stream())
-    if not user_docs:
-        print("ERROR: No documents found under /users/. Is this the right project?")
-        sys.exit(1)
-    if len(user_docs) == 1:
-        uid = user_docs[0].id
-        print(f"Found 1 user: {uid}")
-    else:
-        print("Multiple users found:")
-        for i, d in enumerate(user_docs):
-            print(f"  [{i}] {d.id}")
-        idx = int(input("Enter index to audit: "))
-        uid = user_docs[idx].id
+    # Discover top-level collections
+    print("Discovering top-level Firestore collections...")
+    top_collections = list(db.collections())
+    top_names = [c.id for c in top_collections]
+    print(f"  Found: {top_names}")
 
-    user_ref = db.collection('users').document(uid)
+    # Find the user document — try /users/ first, then look for any collection
+    # that contains a document with sub-collections matching our audit plan.
+    user_ref = None
+    uid = None
+
+    if 'users' in top_names:
+        users_ref = db.collection('users')
+        user_docs = list(users_ref.limit(10).stream())
+        if user_docs:
+            if len(user_docs) == 1:
+                uid = user_docs[0].id
+                user_ref = db.collection('users').document(uid)
+                print(f"Found 1 user under /users/: {uid}")
+            else:
+                print("Multiple users found under /users/:")
+                for i, d in enumerate(user_docs):
+                    print(f"  [{i}] {d.id}")
+                idx = int(input("Enter index to audit: "))
+                uid = user_docs[idx].id
+                user_ref = db.collection('users').document(uid)
+
+    # If /users/ didn't work, probe each top-level collection for our sub-collections
+    if user_ref is None:
+        AUDIT_COLLECTIONS = {p[0] for p in AUDIT_PLAN}
+        print("  /users/ empty — probing other collections for task/habit data...")
+        for col in top_collections:
+            sample = list(col.limit(3).stream())
+            for doc in sample:
+                sub_names = {s.id for s in doc.reference.collections()}
+                if sub_names & AUDIT_COLLECTIONS:
+                    uid = doc.id
+                    user_ref = doc.reference
+                    print(f"  Found user data under /{col.id}/{uid}/ (sub-collections: {sub_names & AUDIT_COLLECTIONS})")
+                    break
+            if user_ref:
+                break
+
+    if user_ref is None:
+        print("\nERROR: Could not locate user data.")
+        print(f"  Top-level collections: {top_names}")
+        print("  None contained sub-collections matching the audit plan.")
+        print("  Please inspect Firestore Console and check the data path.")
+        sys.exit(1)
     now_str = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')
 
     # Run audit
