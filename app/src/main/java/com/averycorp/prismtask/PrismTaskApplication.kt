@@ -6,7 +6,6 @@ import androidx.work.Configuration
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
-import com.averycorp.prismtask.data.local.dao.HabitDao
 import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
 import com.averycorp.prismtask.data.remote.BuiltInHabitReconciler
 import com.averycorp.prismtask.data.repository.LeisureRepository
@@ -52,10 +51,6 @@ class PrismTaskApplication :
     @Inject
     lateinit var calendarSyncScheduler: CalendarSyncScheduler
 
-    // TEMPORARY DEBUG — remove after verifying built-in habit field state
-    @Inject
-    lateinit var habitDao: HabitDao
-
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override val workManagerConfiguration: Configuration
@@ -81,7 +76,6 @@ class PrismTaskApplication :
                 // Firebase not available
             }
         }
-        logBuiltInHabitState() // TEMPORARY DEBUG — remove after verifying
         try {
             seedStructuralHabits()
             seedBuiltInTemplates()
@@ -202,30 +196,6 @@ class PrismTaskApplication :
                 calendarSyncScheduler.applyPreferences()
             } catch (e: Exception) {
                 android.util.Log.e("PrismTaskApp", "Calendar sync scheduling failed", e)
-            }
-        }
-    }
-
-    // TEMPORARY DEBUG — remove after verifying built-in habit field state
-    private fun logBuiltInHabitState() {
-        val builtInNames = setOf(
-            "School", "Leisure", "Morning Self-Care",
-            "Bedtime Self-Care", "Medication", "Housework"
-        )
-        appScope.launch {
-            try {
-                val matches = habitDao.getAllHabitsOnce().filter { it.name in builtInNames }
-                if (matches.isEmpty()) {
-                    android.util.Log.i("PrismDebug", "habit.state | no rows found matching built-in names")
-                }
-                for (habit in matches) {
-                    android.util.Log.i(
-                        "PrismDebug",
-                        "habit.state | name=${habit.name} | id=${habit.id} | is_built_in=${habit.isBuiltIn} | template_key=${habit.templateKey}"
-                    )
-                }
-            } catch (e: Exception) {
-                android.util.Log.e("PrismDebug", "habit.state query failed", e)
             }
         }
     }
