@@ -203,39 +203,43 @@ object SyncMapper {
         "updatedAt" to habit.updatedAt
     )
 
-    fun mapToHabit(data: Map<String, Any?>, localId: Long = 0): HabitEntity = HabitEntity(
-        id = localId,
-        name = data["name"] as? String ?: "",
-        description = data["description"] as? String,
-        targetFrequency = (data["targetFrequency"] as? Number)?.toInt() ?: 1,
-        frequencyPeriod = data["frequencyPeriod"] as? String ?: "daily",
-        activeDays = data["activeDays"] as? String,
-        color = data["color"] as? String ?: "#4A90D9",
-        icon = data["icon"] as? String ?: "\u2B50",
-        reminderTime = (data["reminderTime"] as? Number)?.toLong(),
-        sortOrder = (data["sortOrder"] as? Number)?.toInt() ?: 0,
-        isArchived = data["isArchived"] as? Boolean ?: false,
-        category = data["category"] as? String,
-        createDailyTask = data["createDailyTask"] as? Boolean ?: false,
-        reminderIntervalMillis = (data["reminderIntervalMillis"] as? Number)?.toLong(),
-        reminderTimesPerDay = (data["reminderTimesPerDay"] as? Number)?.toInt() ?: 1,
-        hasLogging = data["hasLogging"] as? Boolean ?: false,
-        trackBooking = data["trackBooking"] as? Boolean ?: false,
-        trackPreviousPeriod = data["trackPreviousPeriod"] as? Boolean ?: false,
-        isBookable = data["isBookable"] as? Boolean ?: false,
-        isBooked = data["isBooked"] as? Boolean ?: false,
-        bookedDate = (data["bookedDate"] as? Number)?.toLong(),
-        bookedNote = data["bookedNote"] as? String,
-        showStreak = data["showStreak"] as? Boolean ?: false,
-        nagSuppressionOverrideEnabled = data["nagSuppressionOverrideEnabled"] as? Boolean ?: false,
-        nagSuppressionDaysOverride = (data["nagSuppressionDaysOverride"] as? Number)?.toInt() ?: -1,
-        todaySkipAfterCompleteDays = (data["todaySkipAfterCompleteDays"] as? Number)?.toInt() ?: -1,
-        todaySkipBeforeScheduleDays = (data["todaySkipBeforeScheduleDays"] as? Number)?.toInt() ?: -1,
-        isBuiltIn = data["isBuiltIn"] as? Boolean ?: false,
-        templateKey = data["templateKey"] as? String,
-        createdAt = (data["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
-        updatedAt = (data["updatedAt"] as? Number)?.toLong() ?: System.currentTimeMillis()
-    )
+    fun mapToHabit(data: Map<String, Any?>, localId: Long = 0): HabitEntity {
+        val templateKey = data["templateKey"] as? String
+        val isBuiltIn = (data["isBuiltIn"] as? Boolean) ?: (templateKey != null)
+        return HabitEntity(
+            id = localId,
+            name = data["name"] as? String ?: "",
+            description = data["description"] as? String,
+            targetFrequency = (data["targetFrequency"] as? Number)?.toInt() ?: 1,
+            frequencyPeriod = data["frequencyPeriod"] as? String ?: "daily",
+            activeDays = data["activeDays"] as? String,
+            color = data["color"] as? String ?: "#4A90D9",
+            icon = data["icon"] as? String ?: "\u2B50",
+            reminderTime = (data["reminderTime"] as? Number)?.toLong(),
+            sortOrder = (data["sortOrder"] as? Number)?.toInt() ?: 0,
+            isArchived = data["isArchived"] as? Boolean ?: false,
+            category = data["category"] as? String,
+            createDailyTask = data["createDailyTask"] as? Boolean ?: false,
+            reminderIntervalMillis = (data["reminderIntervalMillis"] as? Number)?.toLong(),
+            reminderTimesPerDay = (data["reminderTimesPerDay"] as? Number)?.toInt() ?: 1,
+            hasLogging = data["hasLogging"] as? Boolean ?: false,
+            trackBooking = data["trackBooking"] as? Boolean ?: false,
+            trackPreviousPeriod = data["trackPreviousPeriod"] as? Boolean ?: false,
+            isBookable = data["isBookable"] as? Boolean ?: false,
+            isBooked = data["isBooked"] as? Boolean ?: false,
+            bookedDate = (data["bookedDate"] as? Number)?.toLong(),
+            bookedNote = data["bookedNote"] as? String,
+            showStreak = data["showStreak"] as? Boolean ?: false,
+            nagSuppressionOverrideEnabled = data["nagSuppressionOverrideEnabled"] as? Boolean ?: false,
+            nagSuppressionDaysOverride = (data["nagSuppressionDaysOverride"] as? Number)?.toInt() ?: -1,
+            todaySkipAfterCompleteDays = (data["todaySkipAfterCompleteDays"] as? Number)?.toInt() ?: -1,
+            todaySkipBeforeScheduleDays = (data["todaySkipBeforeScheduleDays"] as? Number)?.toInt() ?: -1,
+            isBuiltIn = isBuiltIn,
+            templateKey = templateKey,
+            createdAt = (data["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
+            updatedAt = (data["updatedAt"] as? Number)?.toLong() ?: System.currentTimeMillis()
+        )
+    }
 
     fun habitCompletionToMap(completion: HabitCompletionEntity, habitCloudId: String): Map<String, Any?> = mapOf(
         "localId" to completion.id,
