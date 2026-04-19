@@ -20,6 +20,7 @@ import com.google.firebase.firestore.ListenerRegistration
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
@@ -677,6 +678,44 @@ constructor(
                 } catch (_: Exception) {
                 }
             }
+        }
+        scope.launch {
+            syncMetadataDao.observePending()
+                .debounce(500L)
+                .collect { entries ->
+                    if (entries.isEmpty()) {
+                        logger.debug(operation = "reactive.push.skipped", detail = "reason=queue_empty")
+                        return@collect
+                    }
+                    if (isSyncing) {
+                        logger.debug(operation = "reactive.push.skipped", detail = "reason=already_syncing")
+                        return@collect
+                    }
+                    if (!syncStateRepository.isOnline.value) {
+                        logger.debug(operation = "reactive.push.skipped", detail = "reason=offline")
+                        return@collect
+                    }
+                    if (authManager.userId == null) {
+                        logger.debug(operation = "reactive.push.skipped", detail = "reason=not_signed_in")
+                        return@collect
+                    }
+                    isSyncing = true
+                    logger.info(operation = "reactive.push.triggered", detail = "pendingCount=${entries.size}")
+                    try {
+                        pushLocalChanges()
+                        logger.info(operation = "reactive.push.completed", detail = "pendingCount=${entries.size}")
+                    } catch (e: Exception) {
+                        logger.error(operation = "reactive.push.error", throwable = e)
+                        try {
+                            com.google.firebase.crashlytics.FirebaseCrashlytics
+                                .getInstance()
+                                .recordException(e)
+                        } catch (_: Exception) {
+                        }
+                    } finally {
+                        isSyncing = false
+                    }
+                }
         }
     }
 
