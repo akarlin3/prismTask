@@ -10,6 +10,8 @@ import com.averycorp.prismtask.data.preferences.ThemePreferences
 import com.averycorp.prismtask.data.remote.AuthManager
 import com.averycorp.prismtask.data.remote.SyncService
 import com.averycorp.prismtask.data.remote.sync.PrismSyncLogger
+import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.tasks.await
 import com.averycorp.prismtask.data.repository.SelfCareRepository
 import com.averycorp.prismtask.data.repository.TaskRepository
 import com.averycorp.prismtask.ui.screens.leisure.LeisureViewModel
@@ -71,11 +73,35 @@ constructor(
                 onSuccess = { user ->
                     _signInState.value = SignInState.SignedIn(user.email ?: "")
                     syncService.startAutoSync()
+                    checkExistingUserAndMaybeSkip()
                 },
                 onFailure = {
                     _signInState.value = SignInState.Error("Sign-in failed")
                 }
             )
+        }
+    }
+
+    private suspend fun checkExistingUserAndMaybeSkip() {
+        val uid = authManager.userId ?: return
+        try {
+            val snapshot = FirebaseFirestore.getInstance()
+                .collection("users").document(uid).collection("tasks")
+                .limit(1).get().await()
+            if (!snapshot.isEmpty) {
+                logger.info(operation = "onboarding.check", detail = "existing=true skipping")
+                onboardingPreferences.setOnboardingCompleted()
+                _signInState.value = SignInState.ExistingUserDetected
+            } else {
+                logger.info(operation = "onboarding.check", detail = "existing=false routing=onboarding")
+            }
+        } catch (e: Exception) {
+            logger.error(
+                operation = "onboarding.check",
+                detail = "failed fallback=onboarding error=${e.message}",
+                throwable = e
+            )
+            // Remain in SignedIn state — user proceeds through normal onboarding.
         }
     }
 
@@ -183,4 +209,6 @@ sealed class SignInState {
     data class Error(
         val message: String
     ) : SignInState()
+
+    data object ExistingUserDetected : SignInState()
 }

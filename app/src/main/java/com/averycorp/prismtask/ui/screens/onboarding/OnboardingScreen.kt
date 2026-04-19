@@ -104,13 +104,23 @@ fun OnboardingScreen(
     val pagerState = rememberPagerState(pageCount = { TOTAL_PAGES })
     val coroutineScope = rememberCoroutineScope()
 
+    // Navigate straight to the main app when sign-in detects an existing user
+    // (from either the Welcome page sign-in link or the Setup page sign-in card).
+    LaunchedEffect(Unit) {
+        viewModel.signInState.collect { state ->
+            if (state is SignInState.ExistingUserDetected) {
+                onComplete()
+            }
+        }
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
         HorizontalPager(
             state = pagerState,
             modifier = Modifier.fillMaxSize()
         ) { page ->
             when (page) {
-                0 -> WelcomePage()
+                0 -> WelcomePage(viewModel = viewModel)
                 1 -> SmartTasksPage()
                 2 -> NaturalLanguagePage()
                 3 -> HabitsPage()
@@ -210,7 +220,12 @@ fun OnboardingScreen(
 }
 
 @Composable
-private fun WelcomePage() {
+private fun WelcomePage(viewModel: OnboardingViewModel) {
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+    val signInState = remember { mutableStateOf<SignInState>(SignInState.NotSignedIn) }
+    LaunchedEffect(Unit) { viewModel.signInState.collect { signInState.value = it } }
+
     val scale = remember { Animatable(0.5f) }
     var visible by remember { mutableStateOf(false) }
 
@@ -266,6 +281,67 @@ private fun WelcomePage() {
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center
                     )
+                }
+            }
+            // "Already have an account?" sign-in link — lets returning users on a
+            // new device skip the walkthrough by detecting existing Firestore data.
+            AnimatedVisibility(
+                visible = visible,
+                enter = fadeIn(tween(400, delayMillis = 400))
+            ) {
+                when (val state = signInState.value) {
+                    is SignInState.Loading -> {
+                        Spacer(modifier = Modifier.height(24.dp))
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            strokeWidth = 2.dp
+                        )
+                    }
+                    is SignInState.SignedIn, is SignInState.ExistingUserDetected -> {
+                        // Signed in — navigation handled by OnboardingScreen LaunchedEffect
+                        // or user continues through onboarding as a new user.
+                    }
+                    else -> {
+                        Spacer(modifier = Modifier.height(20.dp))
+                        TextButton(
+                            onClick = {
+                                val activity = run {
+                                    var ctx = context
+                                    while (ctx is android.content.ContextWrapper && ctx !is Activity) {
+                                        ctx = ctx.baseContext
+                                    }
+                                    ctx as? Activity
+                                } ?: return@TextButton
+                                coroutineScope.launch {
+                                    try {
+                                        val option = GetSignInWithGoogleOption.Builder(BuildConfig.WEB_CLIENT_ID).build()
+                                        val request = GetCredentialRequest.Builder().addCredentialOption(option).build()
+                                        val result = CredentialManager.create(context).getCredential(activity, request)
+                                        val idToken = GoogleIdTokenCredential.createFrom(result.credential.data).idToken
+                                        viewModel.onGoogleSignIn(idToken)
+                                    } catch (_: GetCredentialCancellationException) {
+                                        // User cancelled — leave state unchanged.
+                                    } catch (_: Exception) {
+                                        // Credential error — leave state unchanged.
+                                    }
+                                }
+                            }
+                        ) {
+                            Text(
+                                text = "Already have an account? Sign in",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        if (state is SignInState.Error) {
+                            Text(
+                                text = "Sign-in failed. Tap to try again.",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.padding(top = 4.dp)
+                            )
+                        }
+                    }
                 }
             }
         }
