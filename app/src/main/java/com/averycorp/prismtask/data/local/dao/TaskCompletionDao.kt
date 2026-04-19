@@ -74,6 +74,9 @@ interface TaskCompletionDao {
     )
     fun getOverdueRate(startDate: Long, endDate: Long): Flow<Double?>
 
+    @Query("DELETE FROM task_completions WHERE id = :id")
+    suspend fun deleteById(id: Long)
+
     @Query("DELETE FROM task_completions WHERE task_id = :taskId")
     suspend fun deleteByTaskId(taskId: Long)
 

@@ -4,6 +4,7 @@ import com.averycorp.prismtask.data.local.dao.TaskCompletionDao
 import com.averycorp.prismtask.data.local.entity.TagEntity
 import com.averycorp.prismtask.data.local.entity.TaskCompletionEntity
 import com.averycorp.prismtask.data.local.entity.TaskEntity
+import com.averycorp.prismtask.data.remote.SyncTracker
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import java.time.DayOfWeek
@@ -34,7 +35,8 @@ data class TaskCompletionStats(
 class TaskCompletionRepository
 @Inject
 constructor(
-    private val taskCompletionDao: TaskCompletionDao
+    private val taskCompletionDao: TaskCompletionDao,
+    private val syncTracker: SyncTracker
 ) {
     suspend fun recordCompletion(task: TaskEntity, tags: List<TagEntity>) {
         val now = System.currentTimeMillis()
@@ -52,7 +54,16 @@ constructor(
             daysToComplete = daysToComplete,
             tags = if (tags.isNotEmpty()) tags.joinToString(",") { it.name } else null
         )
-        taskCompletionDao.insert(completion)
+        val completionId = taskCompletionDao.insert(completion)
+        syncTracker.trackCreate(completionId, "task_completion")
+    }
+
+    suspend fun deleteCompletionsForTask(taskId: Long) {
+        val completions = taskCompletionDao.getAllCompletionsOnce().filter { it.taskId == taskId }
+        for (completion in completions) {
+            syncTracker.trackDelete(completion.id, "task_completion")
+        }
+        taskCompletionDao.deleteByTaskId(taskId)
     }
 
     fun getCompletionStats(days: Int): Flow<TaskCompletionStats> {

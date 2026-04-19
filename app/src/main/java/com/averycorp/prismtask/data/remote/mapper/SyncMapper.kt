@@ -293,10 +293,14 @@ object SyncMapper {
         "updatedAt" to template.updatedAt
     )
 
-    fun taskCompletionToMap(completion: TaskCompletionEntity): Map<String, Any?> = mapOf(
+    fun taskCompletionToMap(
+        completion: TaskCompletionEntity,
+        taskCloudId: String? = null,
+        projectCloudId: String? = null
+    ): Map<String, Any?> = mapOf(
         "localId" to completion.id,
-        "taskId" to completion.taskId,
-        "projectId" to completion.projectId,
+        "taskId" to taskCloudId,
+        "projectId" to projectCloudId,
         "completedDate" to completion.completedDate,
         "completedAtTime" to completion.completedAtTime,
         "priority" to completion.priority,
@@ -305,11 +309,16 @@ object SyncMapper {
         "tags" to completion.tags
     )
 
-    fun mapToTaskCompletion(data: Map<String, Any?>, localId: Long = 0): TaskCompletionEntity =
+    fun mapToTaskCompletion(
+        data: Map<String, Any?>,
+        localId: Long = 0,
+        taskLocalId: Long? = null,
+        projectLocalId: Long? = null
+    ): TaskCompletionEntity =
         TaskCompletionEntity(
             id = localId,
-            taskId = (data["taskId"] as? Number)?.toLong(),
-            projectId = (data["projectId"] as? Number)?.toLong(),
+            taskId = taskLocalId,
+            projectId = projectLocalId,
             completedDate = (data["completedDate"] as? Number)?.toLong() ?: 0,
             completedAtTime = (data["completedAtTime"] as? Number)?.toLong() ?: System.currentTimeMillis(),
             priority = (data["priority"] as? Number)?.toInt() ?: 0,

@@ -7,6 +7,7 @@ import com.averycorp.prismtask.data.local.dao.MilestoneDao
 import com.averycorp.prismtask.data.local.dao.ProjectDao
 import com.averycorp.prismtask.data.local.dao.SyncMetadataDao
 import com.averycorp.prismtask.data.local.dao.TagDao
+import com.averycorp.prismtask.data.local.dao.TaskCompletionDao
 import com.averycorp.prismtask.data.local.dao.TaskDao
 import com.averycorp.prismtask.data.local.dao.TaskTemplateDao
 import com.averycorp.prismtask.data.local.entity.SyncMetadataEntity
@@ -44,6 +45,7 @@ constructor(
     private val habitLogDao: HabitLogDao,
     private val taskTemplateDao: TaskTemplateDao,
     private val milestoneDao: MilestoneDao,
+    private val taskCompletionDao: TaskCompletionDao,
     private val proFeatureGate: ProFeatureGate,
     private val logger: PrismSyncLogger,
     private val syncStateRepository: SyncStateRepository,
@@ -252,6 +254,33 @@ constructor(
             }
         }
 
+        // task_completions after tasks so task cloud IDs are available for FK serialization.
+        val taskCompletions = taskCompletionDao.getAllCompletionsOnce()
+        logger.debug("upload.task_completions", status = "begin", detail = "count=${taskCompletions.size}")
+        for (completion in taskCompletions) {
+            try {
+                val taskCloudId = completion.taskId?.let { syncMetadataDao.getCloudId(it, "task") }
+                val projectCloudId = completion.projectId?.let { syncMetadataDao.getCloudId(it, "project") }
+                val docRef = userCollection("task_completions")?.document() ?: continue
+                docRef.set(SyncMapper.taskCompletionToMap(completion, taskCloudId, projectCloudId)).await()
+                syncMetadataDao.upsert(
+                    SyncMetadataEntity(
+                        localId = completion.id,
+                        entityType = "task_completion",
+                        cloudId = docRef.id,
+                        lastSyncedAt = System.currentTimeMillis()
+                    )
+                )
+            } catch (e: Exception) {
+                logger.error(
+                    operation = "upload.task_completion",
+                    entity = "task_completion",
+                    id = completion.id.toString(),
+                    throwable = e
+                )
+            }
+        }
+
         val templates = taskTemplateDao.getAllTemplatesOnce()
         logger.debug("upload.task_templates", status = "begin", detail = "count=${templates.size}")
         for (template in templates) {
@@ -306,11 +335,13 @@ constructor(
      */
     suspend fun pushLocalChanges(): Int {
         val pending = syncMetadataDao.getPendingActions()
-        // Process in order: projects → tags → tasks
+        // Process in order: projects → tags → everything else → task_completions
+        // task_completions must go last because they reference task cloud IDs.
         val ordered = pending.sortedBy {
             when (it.entityType) {
                 "project" -> 0
                 "tag" -> 1
+                "task_completion" -> 3
                 else -> 2
             }
         }
@@ -366,6 +397,7 @@ constructor(
     private fun collectionNameFor(entityType: String): String = when (entityType) {
         "habit_completion" -> "habit_completions"
         "habit_log" -> "habit_logs"
+        "task_completion" -> "task_completions"
         "task_template" -> "task_templates"
         else -> entityType + "s"
     }
@@ -414,6 +446,13 @@ constructor(
                 val log = logs.find { it.id == meta.localId } ?: return
                 val habitCloudId = syncMetadataDao.getCloudId(log.habitId, "habit") ?: return
                 SyncMapper.habitLogToMap(log, habitCloudId)
+            }
+            "task_completion" -> {
+                val completion = taskCompletionDao.getAllCompletionsOnce().find { it.id == meta.localId }
+                    ?: return
+                val taskCloudId = completion.taskId?.let { syncMetadataDao.getCloudId(it, "task") }
+                val projectCloudId = completion.projectId?.let { syncMetadataDao.getCloudId(it, "project") }
+                SyncMapper.taskCompletionToMap(completion, taskCloudId, projectCloudId)
             }
             "task_template" -> {
                 val template = taskTemplateDao.getTemplateById(meta.localId) ?: return
@@ -476,8 +515,8 @@ constructor(
      *
      * Pull order is dependency-first so FK resolution always finds a
      * registered cloud→local mapping when it is needed:
-     *   projects → tags → habits → tasks → habit_completions →
-     *   habit_logs → milestones → task_templates
+     *   projects → tags → habits → tasks → task_completions →
+     *   habit_completions → habit_logs → milestones → task_templates
      */
     suspend fun pullRemoteChanges(): Int {
         var applied = 0
@@ -588,6 +627,30 @@ constructor(
         }
         applied += tasksResult.applied
         skipped += tasksResult.skipped
+
+        // task_completions after tasks and projects so FK cloud IDs can be resolved.
+        val taskCompletionsResult = pullCollection("task_completions") { data, cloudId ->
+            val localId = syncMetadataDao.getLocalId(cloudId, "task_completion")
+            val taskCloudId = data["taskId"] as? String
+            val taskLocalId = taskCloudId?.let { syncMetadataDao.getLocalId(it, "task") }
+            val projectCloudId = data["projectId"] as? String
+            val projectLocalId = projectCloudId?.let { syncMetadataDao.getLocalId(it, "project") }
+            if (localId == null) {
+                val completion = SyncMapper.mapToTaskCompletion(data, 0, taskLocalId, projectLocalId)
+                val newId = taskCompletionDao.insert(completion)
+                syncMetadataDao.upsert(
+                    SyncMetadataEntity(
+                        localId = newId,
+                        entityType = "task_completion",
+                        cloudId = cloudId,
+                        lastSyncedAt = System.currentTimeMillis()
+                    )
+                )
+            }
+            true
+        }
+        applied += taskCompletionsResult.applied
+        skipped += taskCompletionsResult.skipped
 
         val localDayStartHour = taskBehaviorPreferences.getDayStartHour().first()
         val habitCompletionsResult = pullCollection("habit_completions") { data, cloudId ->
@@ -850,7 +913,7 @@ constructor(
 
     fun startRealtimeListeners() {
         stopRealtimeListeners()
-        listOf("tasks", "projects", "tags", "habits", "habit_completions", "habit_logs", "milestones", "task_templates").forEach { collection ->
+        listOf("tasks", "projects", "tags", "habits", "habit_completions", "habit_logs", "task_completions", "milestones", "task_templates").forEach { collection ->
             val reg = userCollection(collection)?.addSnapshotListener { snapshot, error ->
                 if (error != null) {
                     logger.warn(
@@ -912,6 +975,7 @@ constructor(
             "habits" -> "habit"
             "habit_completions" -> "habit_completion"
             "habit_logs" -> "habit_log"
+            "task_completions" -> "task_completion"
             "milestones" -> "milestone"
             "task_templates" -> "task_template"
             else -> return
@@ -927,6 +991,7 @@ constructor(
                     "habit" -> habitDao.deleteById(localId)
                     "habit_completion" -> { /* HabitCompletionDao has no by-ID delete; metadata is still cleaned up below */ }
                     "habit_log" -> { /* HabitLogDao has no by-ID delete; metadata is still cleaned up below */ }
+                    "task_completion" -> taskCompletionDao.deleteById(localId)
                     "milestone" -> milestoneDao.deleteById(localId)
                     "task_template" -> taskTemplateDao.deleteTemplate(localId)
                 }
