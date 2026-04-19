@@ -1,0 +1,42 @@
+﻿=== PrismTask Sync Diagnostic Report v2 ===
+Captured: 2026-04-18 20:29:18
+Device A: adb-R5CXC2CR4MT-Lm6SCP._adb-tls-connect._tcp
+Device B: adb-R52WC0A90JX-zm4lMp._adb-tls-connect._tcp
+
+--- Timing ---
+Capture started:      20:28:00.439
+Baseline ended:       20:28:10.446
+Task created (~):     20:28:36.968
+Observation ended:    20:29:06.977
+
+--- Result ---
+Task appeared on Device B: n
+If yes, how:               
+
+--- Log sizes ---
+Device A: 2357762 bytes
+Device B: 2178996 bytes
+
+--- Total PrismSync line counts (whole capture) ---
+Device A: 1
+Device B: 0
+
+--- Key signals (whole capture) ---
+Device A write/push events:     0
+Device B listener snapshots:    0
+Device B sync.started events:   0
+Device A error lines:           0
+Device B error lines:           0
+
+--- Device A PrismSync lines around/after task creation ---
+(All lines from ~2 seconds before task creation onward)
+Count: 1
+
+04-18 20:28:49.194 D/PrismSync(29875): [PrismSync] queue.track | task=985 | status=create
+
+
+--- Device B PrismSync lines around/after task creation ---
+(All lines from ~2 seconds before task creation onward)
+Count: 0
+
+
