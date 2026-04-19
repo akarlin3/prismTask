@@ -27,6 +27,7 @@ constructor(
     companion object {
         private val BUILT_INS_RECONCILED = booleanPreferencesKey("built_ins_reconciled")
         private val DRIFT_CLEANUP_DONE = booleanPreferencesKey("drift_cleanup_done")
+        private val BUILT_IN_BACKFILL_DONE = booleanPreferencesKey("built_in_backfill_done")
     }
 
     suspend fun isBuiltInsReconciled(): Boolean =
@@ -41,5 +42,12 @@ constructor(
 
     suspend fun setDriftCleanupDone(done: Boolean) {
         context.builtInSyncDataStore.edit { it[DRIFT_CLEANUP_DONE] = done }
+    }
+
+    suspend fun isBuiltInBackfillDone(): Boolean =
+        context.builtInSyncDataStore.data.first()[BUILT_IN_BACKFILL_DONE] ?: false
+
+    suspend fun setBuiltInBackfillDone(done: Boolean) {
+        context.builtInSyncDataStore.edit { it[BUILT_IN_BACKFILL_DONE] = done }
     }
 }

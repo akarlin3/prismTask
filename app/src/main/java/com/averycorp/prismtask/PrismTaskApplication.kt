@@ -85,6 +85,7 @@ class PrismTaskApplication :
         try {
             seedStructuralHabits()
             seedBuiltInTemplates()
+            runBuiltInBackfill()
             runDriftCleanup()
         } catch (e: Exception) {
             android.util.Log.e("PrismTaskApp", "Seeding kickoff failed", e)
@@ -155,6 +156,12 @@ class PrismTaskApplication :
      * The post-sync reconciliation in [BuiltInHabitReconciler] handles the
      * cloud-vs-local case after the first successful sign-in sync.
      */
+    private fun runBuiltInBackfill() {
+        appScope.launch {
+            builtInHabitReconciler.runBackfillIfNeeded()
+        }
+    }
+
     private fun runDriftCleanup() {
         appScope.launch {
             builtInHabitReconciler.runDriftCleanupIfNeeded()

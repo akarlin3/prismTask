@@ -9,6 +9,8 @@ import com.averycorp.prismtask.data.remote.sync.PrismSyncLogger
 import javax.inject.Inject
 import javax.inject.Singleton
 
+private const val REPAIR_TAG = "PrismRepair"
+
 /**
  * Reconciles built-in habits that were independently seeded on multiple devices.
  *
@@ -34,8 +36,24 @@ constructor(
     private val habitCompletionDao: HabitCompletionDao,
     private val syncMetadataDao: SyncMetadataDao,
     private val builtInSyncPreferences: BuiltInSyncPreferences,
+    private val syncTracker: SyncTracker,
     private val logger: PrismSyncLogger
 ) {
+    suspend fun runBackfillIfNeeded() {
+        if (builtInSyncPreferences.isBuiltInBackfillDone()) return
+        try {
+            val count = habitDao.backfillAllBuiltIns()
+            // Queue updated habits for Firestore push so the cloud document
+            // also gets isBuiltIn/templateKey populated.
+            habitDao.getBuiltInHabitsOnce().forEach { syncTracker.trackUpdate(it.id, "habit") }
+            android.util.Log.i(REPAIR_TAG, "builtin_backfill | status=success | detail=updated=$count")
+            builtInSyncPreferences.setBuiltInBackfillDone(true)
+        } catch (e: Exception) {
+            android.util.Log.e(REPAIR_TAG, "builtin_backfill | status=failed | exception=${e.message}")
+            // Flag intentionally NOT set — retry on next app start.
+        }
+    }
+
     suspend fun runDriftCleanupIfNeeded() {
         if (builtInSyncPreferences.isDriftCleanupDone()) return
         try {

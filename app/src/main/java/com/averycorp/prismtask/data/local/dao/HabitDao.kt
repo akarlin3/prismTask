@@ -5,6 +5,7 @@ import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import androidx.room.Update
 import com.averycorp.prismtask.data.local.entity.HabitEntity
 import kotlinx.coroutines.flow.Flow
@@ -73,6 +74,24 @@ interface HabitDao {
 
     @Query("SELECT * FROM habits WHERE template_key = :key LIMIT 1")
     suspend fun getByTemplateKeyOnce(key: String): HabitEntity?
+
+    @Query(
+        "UPDATE habits SET is_built_in = 1, template_key = :templateKey " +
+            "WHERE name = :name AND (template_key IS NULL OR template_key = '')"
+    )
+    suspend fun backfillBuiltIn(name: String, templateKey: String): Int
+
+    @Transaction
+    suspend fun backfillAllBuiltIns(): Int {
+        var count = 0
+        count += backfillBuiltIn("School", "builtin_school")
+        count += backfillBuiltIn("Leisure", "builtin_leisure")
+        count += backfillBuiltIn("Morning Self-Care", "builtin_morning_selfcare")
+        count += backfillBuiltIn("Bedtime Self-Care", "builtin_bedtime_selfcare")
+        count += backfillBuiltIn("Medication", "builtin_medication")
+        count += backfillBuiltIn("Housework", "builtin_housework")
+        return count
+    }
 
     @Query("DELETE FROM habits")
     suspend fun deleteAll()
