@@ -228,8 +228,11 @@ constructor(
                 val tagIds = tagDao.getTagIdsForTaskOnce(task.id).mapNotNull { tagId ->
                     syncMetadataDao.getCloudId(tagId, "tag")
                 }
+                val projectCloudId = task.projectId?.let { syncMetadataDao.getCloudId(it, "project") }
+                val parentTaskCloudId = task.parentTaskId?.let { syncMetadataDao.getCloudId(it, "task") }
+                val sourceHabitCloudId = task.sourceHabitId?.let { syncMetadataDao.getCloudId(it, "habit") }
                 val docRef = userCollection("tasks")?.document() ?: continue
-                docRef.set(SyncMapper.taskToMap(task, tagIds)).await()
+                docRef.set(SyncMapper.taskToMap(task, tagIds, projectCloudId, parentTaskCloudId, sourceHabitCloudId)).await()
                 syncMetadataDao.upsert(
                     SyncMetadataEntity(
                         localId = task.id,
@@ -253,8 +256,9 @@ constructor(
         logger.debug("upload.task_templates", status = "begin", detail = "count=${templates.size}")
         for (template in templates) {
             try {
+                val templateProjectCloudId = template.templateProjectId?.let { syncMetadataDao.getCloudId(it, "project") }
                 val docRef = userCollection("task_templates")?.document() ?: continue
-                docRef.set(SyncMapper.taskTemplateToMap(template)).await()
+                docRef.set(SyncMapper.taskTemplateToMap(template, templateProjectCloudId)).await()
                 syncMetadataDao.upsert(
                     SyncMetadataEntity(
                         localId = template.id,
@@ -373,7 +377,10 @@ constructor(
             "task" -> {
                 val task = taskDao.getTaskByIdOnce(meta.localId) ?: return
                 val tagIds = tagDao.getTagIdsForTaskOnce(task.id).mapNotNull { syncMetadataDao.getCloudId(it, "tag") }
-                SyncMapper.taskToMap(task, tagIds)
+                val projectCloudId = task.projectId?.let { syncMetadataDao.getCloudId(it, "project") }
+                val parentTaskCloudId = task.parentTaskId?.let { syncMetadataDao.getCloudId(it, "task") }
+                val sourceHabitCloudId = task.sourceHabitId?.let { syncMetadataDao.getCloudId(it, "habit") }
+                SyncMapper.taskToMap(task, tagIds, projectCloudId, parentTaskCloudId, sourceHabitCloudId)
             }
             "project" -> {
                 val project = projectDao.getProjectByIdOnce(meta.localId) ?: return
@@ -410,7 +417,8 @@ constructor(
             }
             "task_template" -> {
                 val template = taskTemplateDao.getTemplateById(meta.localId) ?: return
-                SyncMapper.taskTemplateToMap(template)
+                val templateProjectCloudId = template.templateProjectId?.let { syncMetadataDao.getCloudId(it, "project") }
+                SyncMapper.taskTemplateToMap(template, templateProjectCloudId)
             }
             else -> return
         }
@@ -428,7 +436,10 @@ constructor(
             "task" -> {
                 val task = taskDao.getTaskByIdOnce(meta.localId) ?: return
                 val tagIds = tagDao.getTagIdsForTaskOnce(task.id).mapNotNull { syncMetadataDao.getCloudId(it, "tag") }
-                SyncMapper.taskToMap(task, tagIds)
+                val projectCloudId = task.projectId?.let { syncMetadataDao.getCloudId(it, "project") }
+                val parentTaskCloudId = task.parentTaskId?.let { syncMetadataDao.getCloudId(it, "task") }
+                val sourceHabitCloudId = task.sourceHabitId?.let { syncMetadataDao.getCloudId(it, "habit") }
+                SyncMapper.taskToMap(task, tagIds, projectCloudId, parentTaskCloudId, sourceHabitCloudId)
             }
             "project" -> {
                 val project = projectDao.getProjectByIdOnce(meta.localId) ?: return
@@ -444,7 +455,8 @@ constructor(
             }
             "task_template" -> {
                 val template = taskTemplateDao.getTemplateById(meta.localId) ?: return
-                SyncMapper.taskTemplateToMap(template)
+                val templateProjectCloudId = template.templateProjectId?.let { syncMetadataDao.getCloudId(it, "project") }
+                SyncMapper.taskTemplateToMap(template, templateProjectCloudId)
             }
             else -> return
         }
@@ -461,10 +473,17 @@ constructor(
     /**
      * Returns the number of remote documents applied locally across all
      * collections.
+     *
+     * Pull order is dependency-first so FK resolution always finds a
+     * registered cloud→local mapping when it is needed:
+     *   projects → tags → habits → tasks → habit_completions →
+     *   habit_logs → milestones → task_templates
      */
     suspend fun pullRemoteChanges(): Int {
         var applied = 0
-        applied += pullCollection("projects") { data, cloudId ->
+        var skipped = 0
+
+        val projectsResult = pullCollection("projects") { data, cloudId ->
             val localId = syncMetadataDao.getLocalId(cloudId, "project")
             if (localId == null) {
                 val project = SyncMapper.mapToProject(data)
@@ -482,9 +501,12 @@ constructor(
                 projectDao.update(project)
                 syncMetadataDao.clearPendingAction(localId, "project")
             }
+            true
         }
+        applied += projectsResult.applied
+        skipped += projectsResult.skipped
 
-        applied += pullCollection("tags") { data, cloudId ->
+        val tagsResult = pullCollection("tags") { data, cloudId ->
             val localId = syncMetadataDao.getLocalId(cloudId, "tag")
             if (localId == null) {
                 val tag = SyncMapper.mapToTag(data)
@@ -502,35 +524,13 @@ constructor(
                 tagDao.update(tag)
                 syncMetadataDao.clearPendingAction(localId, "tag")
             }
+            true
         }
+        applied += tagsResult.applied
+        skipped += tagsResult.skipped
 
-        applied += pullCollection("tasks") { data, cloudId ->
-            val localId = syncMetadataDao.getLocalId(cloudId, "task")
-            if (localId == null) {
-                val task = SyncMapper.mapToTask(data)
-                val newId = taskDao.insert(task)
-                syncMetadataDao.upsert(
-                    SyncMetadataEntity(
-                        localId = newId,
-                        entityType = "task",
-                        cloudId = cloudId,
-                        lastSyncedAt = System.currentTimeMillis()
-                    )
-                )
-                @Suppress("UNCHECKED_CAST")
-                val cloudTagIds = data["tags"] as? List<String> ?: emptyList()
-                for (cloudTagId in cloudTagIds) {
-                    val tagLocalId = syncMetadataDao.getLocalId(cloudTagId, "tag") ?: continue
-                    tagDao.addTagToTask(TaskTagCrossRef(taskId = newId, tagId = tagLocalId))
-                }
-            } else {
-                val task = SyncMapper.mapToTask(data, localId)
-                taskDao.update(task)
-                syncMetadataDao.clearPendingAction(localId, "task")
-            }
-        }
-
-        applied += pullCollection("habits") { data, cloudId ->
+        // Habits before tasks: tasks may reference habits via sourceHabitId.
+        val habitsResult = pullCollection("habits") { data, cloudId ->
             val localId = syncMetadataDao.getLocalId(cloudId, "habit")
             if (localId == null) {
                 val habit = SyncMapper.mapToHabit(data)
@@ -548,13 +548,54 @@ constructor(
                 habitDao.update(habit)
                 syncMetadataDao.clearPendingAction(localId, "habit")
             }
+            true
         }
+        applied += habitsResult.applied
+        skipped += habitsResult.skipped
+
+        val tasksResult = pullCollection("tasks") { data, cloudId ->
+            val localId = syncMetadataDao.getLocalId(cloudId, "task")
+            val projectCloudId = data["projectId"] as? String
+            val projectLocalId = projectCloudId?.let { syncMetadataDao.getLocalId(it, "project") }
+            // parentTaskId is a self-reference; parent may not be landed yet on first pull — accept null.
+            val parentTaskCloudId = data["parentTaskId"] as? String
+            val parentTaskLocalId = parentTaskCloudId?.let { syncMetadataDao.getLocalId(it, "task") }
+            val sourceHabitCloudId = data["sourceHabitId"] as? String
+            val sourceHabitLocalId = sourceHabitCloudId?.let { syncMetadataDao.getLocalId(it, "habit") }
+            if (localId == null) {
+                val task = SyncMapper.mapToTask(data, 0, projectLocalId, parentTaskLocalId, sourceHabitLocalId)
+                val newId = taskDao.insert(task)
+                syncMetadataDao.upsert(
+                    SyncMetadataEntity(
+                        localId = newId,
+                        entityType = "task",
+                        cloudId = cloudId,
+                        lastSyncedAt = System.currentTimeMillis()
+                    )
+                )
+                @Suppress("UNCHECKED_CAST")
+                val cloudTagIds = data["tags"] as? List<String> ?: emptyList()
+                for (cloudTagId in cloudTagIds) {
+                    val tagLocalId = syncMetadataDao.getLocalId(cloudTagId, "tag") ?: continue
+                    tagDao.addTagToTask(TaskTagCrossRef(taskId = newId, tagId = tagLocalId))
+                }
+            } else {
+                val task = SyncMapper.mapToTask(data, localId, projectLocalId, parentTaskLocalId, sourceHabitLocalId)
+                taskDao.update(task)
+                syncMetadataDao.clearPendingAction(localId, "task")
+            }
+            true
+        }
+        applied += tasksResult.applied
+        skipped += tasksResult.skipped
 
         val localDayStartHour = taskBehaviorPreferences.getDayStartHour().first()
-        applied += pullCollection("habit_completions") { data, cloudId ->
+        val habitCompletionsResult = pullCollection("habit_completions") { data, cloudId ->
             val localId = syncMetadataDao.getLocalId(cloudId, "habit_completion")
-            val habitCloudId = data["habitCloudId"] as? String ?: return@pullCollection
-            val habitLocalId = syncMetadataDao.getLocalId(habitCloudId, "habit") ?: return@pullCollection
+            val habitCloudId = data["habitCloudId"] as? String
+                ?: return@pullCollection false
+            val habitLocalId = syncMetadataDao.getLocalId(habitCloudId, "habit")
+                ?: return@pullCollection false
             if (localId == null) {
                 val completion = SyncMapper.mapToHabitCompletion(data, habitLocalId = habitLocalId)
                 val normalizedDate = DayBoundary.normalizeToDayStart(completion.completedDate, localDayStartHour)
@@ -574,12 +615,17 @@ constructor(
                     )
                 )
             }
+            true
         }
+        applied += habitCompletionsResult.applied
+        skipped += habitCompletionsResult.skipped
 
-        applied += pullCollection("habit_logs") { data, cloudId ->
+        val habitLogsResult = pullCollection("habit_logs") { data, cloudId ->
             val localId = syncMetadataDao.getLocalId(cloudId, "habit_log")
-            val habitCloudId = data["habitCloudId"] as? String ?: return@pullCollection
-            val habitLocalId = syncMetadataDao.getLocalId(habitCloudId, "habit") ?: return@pullCollection
+            val habitCloudId = data["habitCloudId"] as? String
+                ?: return@pullCollection false
+            val habitLocalId = syncMetadataDao.getLocalId(habitCloudId, "habit")
+                ?: return@pullCollection false
             if (localId == null) {
                 val log = SyncMapper.mapToHabitLog(data, habitLocalId = habitLocalId)
                 val newId = habitLogDao.insertLog(log)
@@ -592,12 +638,45 @@ constructor(
                     )
                 )
             }
+            true
         }
+        applied += habitLogsResult.applied
+        skipped += habitLogsResult.skipped
 
-        applied += pullCollection("task_templates") { data, cloudId ->
-            val localId = syncMetadataDao.getLocalId(cloudId, "task_template")
+        // Milestones after projects: projectCloudId must already be in sync_metadata.
+        val milestonesResult = pullCollection("milestones") { data, cloudId ->
+            val localId = syncMetadataDao.getLocalId(cloudId, "milestone")
+            val projectCloudId = data["projectCloudId"] as? String
+                ?: return@pullCollection false
+            val projectLocalId = syncMetadataDao.getLocalId(projectCloudId, "project")
+                ?: return@pullCollection false
             if (localId == null) {
-                val template = SyncMapper.mapToTaskTemplate(data)
+                val milestone = SyncMapper.mapToMilestone(data, projectLocalId)
+                val newId = milestoneDao.insert(milestone)
+                syncMetadataDao.upsert(
+                    SyncMetadataEntity(
+                        localId = newId,
+                        entityType = "milestone",
+                        cloudId = cloudId,
+                        lastSyncedAt = System.currentTimeMillis()
+                    )
+                )
+            } else {
+                val milestone = SyncMapper.mapToMilestone(data, projectLocalId, localId)
+                milestoneDao.update(milestone)
+                syncMetadataDao.clearPendingAction(localId, "milestone")
+            }
+            true
+        }
+        applied += milestonesResult.applied
+        skipped += milestonesResult.skipped
+
+        val taskTemplatesResult = pullCollection("task_templates") { data, cloudId ->
+            val localId = syncMetadataDao.getLocalId(cloudId, "task_template")
+            val templateProjectCloudId = data["templateProjectId"] as? String
+            val templateProjectLocalId = templateProjectCloudId?.let { syncMetadataDao.getLocalId(it, "project") }
+            if (localId == null) {
+                val template = SyncMapper.mapToTaskTemplate(data, 0, templateProjectLocalId)
                 val newId = taskTemplateDao.insertTemplate(template)
                 syncMetadataDao.upsert(
                     SyncMetadataEntity(
@@ -608,26 +687,51 @@ constructor(
                     )
                 )
             } else {
-                val template = SyncMapper.mapToTaskTemplate(data, localId)
+                val template = SyncMapper.mapToTaskTemplate(data, localId, templateProjectLocalId)
                 taskTemplateDao.updateTemplate(template)
                 syncMetadataDao.clearPendingAction(localId, "task_template")
             }
+            true
+        }
+        applied += taskTemplatesResult.applied
+        skipped += taskTemplatesResult.skipped
+
+        if (skipped > 0) {
+            logger.warn(
+                operation = "pull.summary",
+                entity = "all",
+                status = "warning",
+                detail = "applied=$applied skipped=$skipped — check pull.apply status=failed logs for details"
+            )
+        } else {
+            logger.info(
+                operation = "pull.summary",
+                entity = "all",
+                status = "success",
+                detail = "applied=$applied skipped=0"
+            )
         }
         return applied
     }
 
+    /**
+     * Handler returns `true` if the document was applied, `false` if it was
+     * intentionally skipped (e.g. missing FK reference). Exceptions are
+     * caught and counted as skipped.
+     */
     private suspend fun pullCollection(
         name: String,
-        handler: suspend (Map<String, Any?>, String) -> Unit
-    ): Int {
-        val snapshot = userCollection(name)?.get()?.await() ?: return 0
+        handler: suspend (Map<String, Any?>, String) -> Boolean
+    ): PullResult {
+        val snapshot = userCollection(name)?.get()?.await() ?: return PullResult(0, 0)
         var applied = 0
+        var skipped = 0
         for (doc in snapshot.documents) {
             val data = doc.data ?: continue
             try {
-                handler(data, doc.id)
-                applied++
+                if (handler(data, doc.id)) applied++ else skipped++
             } catch (e: Exception) {
+                skipped++
                 logger.error(
                     operation = "pull.apply",
                     entity = name,
@@ -642,8 +746,10 @@ constructor(
                 }
             }
         }
-        return applied
+        return PullResult(applied, skipped)
     }
+
+    private data class PullResult(val applied: Int, val skipped: Int)
 
     suspend fun fullSync(trigger: String = "manual") {
         if (isSyncing) {
@@ -744,7 +850,7 @@ constructor(
 
     fun startRealtimeListeners() {
         stopRealtimeListeners()
-        listOf("tasks", "projects", "tags", "habits", "habit_completions", "task_templates").forEach { collection ->
+        listOf("tasks", "projects", "tags", "habits", "habit_completions", "habit_logs", "milestones", "task_templates").forEach { collection ->
             val reg = userCollection(collection)?.addSnapshotListener { snapshot, error ->
                 if (error != null) {
                     logger.warn(
@@ -805,6 +911,8 @@ constructor(
             "tags" -> "tag"
             "habits" -> "habit"
             "habit_completions" -> "habit_completion"
+            "habit_logs" -> "habit_log"
+            "milestones" -> "milestone"
             "task_templates" -> "task_template"
             else -> return
         }
@@ -818,6 +926,8 @@ constructor(
                     "tag" -> tagDao.getTagByIdOnce(localId)?.let { tagDao.delete(it) }
                     "habit" -> habitDao.deleteById(localId)
                     "habit_completion" -> { /* HabitCompletionDao has no by-ID delete; metadata is still cleaned up below */ }
+                    "habit_log" -> { /* HabitLogDao has no by-ID delete; metadata is still cleaned up below */ }
+                    "milestone" -> milestoneDao.deleteById(localId)
                     "task_template" -> taskTemplateDao.deleteTemplate(localId)
                 }
                 syncMetadataDao.delete(localId, entityType)

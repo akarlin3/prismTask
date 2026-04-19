@@ -11,7 +11,13 @@ import com.averycorp.prismtask.data.local.entity.TaskEntity
 import com.averycorp.prismtask.data.local.entity.TaskTemplateEntity
 
 object SyncMapper {
-    fun taskToMap(task: TaskEntity, tagIds: List<String> = emptyList()): Map<String, Any?> = mapOf(
+    fun taskToMap(
+        task: TaskEntity,
+        tagIds: List<String> = emptyList(),
+        projectCloudId: String? = null,
+        parentTaskCloudId: String? = null,
+        sourceHabitCloudId: String? = null
+    ): Map<String, Any?> = mapOf(
         "localId" to task.id,
         "title" to task.title,
         "description" to task.description,
@@ -19,15 +25,15 @@ object SyncMapper {
         "dueTime" to task.dueTime,
         "priority" to task.priority,
         "isCompleted" to task.isCompleted,
-        "projectId" to task.projectId?.toString(),
-        "parentTaskId" to task.parentTaskId?.toString(),
+        "projectId" to projectCloudId,
+        "parentTaskId" to parentTaskCloudId,
         "recurrenceRule" to task.recurrenceRule,
         "reminderOffset" to task.reminderOffset,
         "tags" to tagIds,
         "plannedDate" to task.plannedDate,
         "estimatedDuration" to task.estimatedDuration,
         "scheduledStartTime" to task.scheduledStartTime,
-        "sourceHabitId" to task.sourceHabitId,
+        "sourceHabitId" to sourceHabitCloudId,
         "notes" to task.notes,
         "eisenhowerQuadrant" to task.eisenhowerQuadrant,
         "eisenhowerUpdatedAt" to task.eisenhowerUpdatedAt,
@@ -46,7 +52,13 @@ object SyncMapper {
         "archivedAt" to task.archivedAt
     )
 
-    fun mapToTask(data: Map<String, Any?>, localId: Long = 0): TaskEntity = TaskEntity(
+    fun mapToTask(
+        data: Map<String, Any?>,
+        localId: Long = 0,
+        projectLocalId: Long? = null,
+        parentTaskLocalId: Long? = null,
+        sourceHabitLocalId: Long? = null
+    ): TaskEntity = TaskEntity(
         id = localId,
         title = data["title"] as? String ?: "",
         description = data["description"] as? String,
@@ -54,14 +66,14 @@ object SyncMapper {
         dueTime = (data["dueTime"] as? Number)?.toLong(),
         priority = (data["priority"] as? Number)?.toInt() ?: 0,
         isCompleted = data["isCompleted"] as? Boolean ?: false,
-        projectId = (data["projectId"] as? String)?.toLongOrNull(),
-        parentTaskId = (data["parentTaskId"] as? String)?.toLongOrNull(),
+        projectId = projectLocalId,
+        parentTaskId = parentTaskLocalId,
         recurrenceRule = data["recurrenceRule"] as? String,
         reminderOffset = (data["reminderOffset"] as? Number)?.toLong(),
         plannedDate = (data["plannedDate"] as? Number)?.toLong(),
         estimatedDuration = (data["estimatedDuration"] as? Number)?.toInt(),
         scheduledStartTime = (data["scheduledStartTime"] as? Number)?.toLong(),
-        sourceHabitId = (data["sourceHabitId"] as? Number)?.toLong(),
+        sourceHabitId = sourceHabitLocalId,
         notes = data["notes"] as? String,
         eisenhowerQuadrant = data["eisenhowerQuadrant"] as? String,
         eisenhowerUpdatedAt = (data["eisenhowerUpdatedAt"] as? Number)?.toLong(),
@@ -255,7 +267,10 @@ object SyncMapper {
             createdAt = (data["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis()
         )
 
-    fun taskTemplateToMap(template: TaskTemplateEntity): Map<String, Any?> = mapOf(
+    fun taskTemplateToMap(
+        template: TaskTemplateEntity,
+        templateProjectCloudId: String? = null
+    ): Map<String, Any?> = mapOf(
         "localId" to template.id,
         "userId" to template.userId,
         "remoteId" to template.remoteId,
@@ -266,7 +281,7 @@ object SyncMapper {
         "templateTitle" to template.templateTitle,
         "templateDescription" to template.templateDescription,
         "templatePriority" to template.templatePriority,
-        "templateProjectId" to template.templateProjectId?.toString(),
+        "templateProjectId" to templateProjectCloudId,
         "templateTagsJson" to template.templateTagsJson,
         "templateRecurrenceJson" to template.templateRecurrenceJson,
         "templateDuration" to template.templateDuration,
@@ -303,7 +318,11 @@ object SyncMapper {
             tags = data["tags"] as? String
         )
 
-    fun mapToTaskTemplate(data: Map<String, Any?>, localId: Long = 0): TaskTemplateEntity = TaskTemplateEntity(
+    fun mapToTaskTemplate(
+        data: Map<String, Any?>,
+        localId: Long = 0,
+        templateProjectLocalId: Long? = null
+    ): TaskTemplateEntity = TaskTemplateEntity(
         id = localId,
         userId = data["userId"] as? String,
         remoteId = (data["remoteId"] as? Number)?.toInt(),
@@ -314,8 +333,7 @@ object SyncMapper {
         templateTitle = data["templateTitle"] as? String,
         templateDescription = data["templateDescription"] as? String,
         templatePriority = (data["templatePriority"] as? Number)?.toInt(),
-        templateProjectId = (data["templateProjectId"] as? String)?.toLongOrNull()
-            ?: (data["templateProjectId"] as? Number)?.toLong(),
+        templateProjectId = templateProjectLocalId,
         templateTagsJson = data["templateTagsJson"] as? String,
         templateRecurrenceJson = data["templateRecurrenceJson"] as? String,
         templateDuration = (data["templateDuration"] as? Number)?.toInt(),
