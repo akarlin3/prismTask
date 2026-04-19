@@ -18,7 +18,8 @@ import androidx.room.PrimaryKey
     ],
     indices = [
         Index("habit_id"),
-        Index("completed_date")
+        Index("completed_date"),
+        Index("completed_date_local")
     ]
 )
 data class HabitCompletionEntity(
@@ -30,5 +31,10 @@ data class HabitCompletionEntity(
     val completedDate: Long,
     @ColumnInfo(name = "completed_at")
     val completedAt: Long = System.currentTimeMillis(),
-    val notes: String? = null
+    val notes: String? = null,
+    // ISO LocalDate string ("yyyy-MM-dd") in the device's local timezone at write
+    // time. Timezone-neutral successor to [completedDate]; nullable only for
+    // legacy rows prior to migration 49→50.
+    @ColumnInfo(name = "completed_date_local")
+    val completedDateLocal: String? = null
 )

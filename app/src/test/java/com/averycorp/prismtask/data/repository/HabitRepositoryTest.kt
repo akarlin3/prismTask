@@ -385,8 +385,12 @@ class HabitRepositoryTest {
         override suspend fun getCompletionsForHabitOnce(habitId: Long): List<HabitCompletionEntity> =
             completions.filter { it.habitId == habitId }
 
+        @Suppress("DEPRECATION")
         override fun getCompletionsForDate(date: Long): Flow<List<HabitCompletionEntity>> =
             flowOf(completions.filter { it.completedDate == date })
+
+        override fun getCompletionsForDateLocal(date: String): Flow<List<HabitCompletionEntity>> =
+            flowOf(completions.filter { it.completedDateLocal == date })
 
         override fun getCompletionsInRange(habitId: Long, startDate: Long, endDate: Long): Flow<List<HabitCompletionEntity>> =
             flowOf(completions.filter { it.habitId == habitId && it.completedDate in startDate..endDate })
@@ -394,25 +398,54 @@ class HabitRepositoryTest {
         override fun getCompletionCountInRange(habitId: Long, startDate: Long, endDate: Long): Flow<Int> =
             flowOf(completions.count { it.habitId == habitId && it.completedDate in startDate..endDate })
 
+        @Suppress("DEPRECATION")
         override fun isCompletedOnDate(habitId: Long, date: Long): Flow<Boolean> =
             flowOf(completions.any { it.habitId == habitId && it.completedDate == date })
 
+        override fun isCompletedOnDateLocal(habitId: Long, date: String): Flow<Boolean> =
+            flowOf(completions.any { it.habitId == habitId && it.completedDateLocal == date })
+
+        @Suppress("DEPRECATION")
         override suspend fun isCompletedOnDateOnce(habitId: Long, date: Long): Boolean =
             completions.any { it.habitId == habitId && it.completedDate == date }
 
+        override suspend fun isCompletedOnDateLocalOnce(habitId: Long, date: String): Boolean =
+            completions.any { it.habitId == habitId && it.completedDateLocal == date }
+
+        @Suppress("DEPRECATION")
         override suspend fun getCompletionCountForDateOnce(habitId: Long, date: Long): Int =
             completions.count { it.habitId == habitId && it.completedDate == date }
 
+        override suspend fun getCompletionCountForDateLocalOnce(habitId: Long, date: String): Int =
+            completions.count { it.habitId == habitId && it.completedDateLocal == date }
+
+        @Suppress("DEPRECATION")
         override suspend fun getByHabitAndDate(habitId: Long, date: Long): HabitCompletionEntity? =
             completions.firstOrNull { it.habitId == habitId && it.completedDate == date }
 
+        override suspend fun getByHabitAndDateLocal(habitId: Long, date: String): HabitCompletionEntity? =
+            completions.firstOrNull { it.habitId == habitId && it.completedDateLocal == date }
+
+        @Suppress("DEPRECATION")
         override suspend fun deleteByHabitAndDate(habitId: Long, date: Long) {
             completions.removeAll { it.habitId == habitId && it.completedDate == date }
         }
 
+        override suspend fun deleteByHabitAndDateLocal(habitId: Long, date: String) {
+            completions.removeAll { it.habitId == habitId && it.completedDateLocal == date }
+        }
+
+        @Suppress("DEPRECATION")
         override suspend fun deleteLatestByHabitAndDate(habitId: Long, date: Long) {
             val latest = completions
                 .filter { it.habitId == habitId && it.completedDate == date }
+                .maxByOrNull { it.completedAt }
+            if (latest != null) completions.remove(latest)
+        }
+
+        override suspend fun deleteLatestByHabitAndDateLocal(habitId: Long, date: String) {
+            val latest = completions
+                .filter { it.habitId == habitId && it.completedDateLocal == date }
                 .maxByOrNull { it.completedAt }
             if (latest != null) completions.remove(latest)
         }

@@ -1,5 +1,8 @@
 package com.averycorp.prismtask.util
 
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
 import java.util.Calendar
 
 /**
@@ -98,6 +101,29 @@ object DayBoundary {
         val start = startOfCurrentDay(dayStartHour, now, dayStartMinute)
         return start + DAY_MILLIS
     }
+
+    /**
+     * Local calendar date of the current logical day, in the device's default zone.
+     *
+     * Derived from [startOfCurrentDay] so a pre-[dayStartHour] instant resolves to
+     * the previous calendar date. Used to stamp habit-completion rows with a
+     * timezone-neutral key (see `completed_date_local`).
+     */
+    fun currentLocalDate(
+        dayStartHour: Int,
+        now: Long = System.currentTimeMillis(),
+        dayStartMinute: Int = 0
+    ): LocalDate =
+        Instant.ofEpochMilli(startOfCurrentDay(dayStartHour, now, dayStartMinute))
+            .atZone(ZoneId.systemDefault())
+            .toLocalDate()
+
+    /** ISO ("yyyy-MM-dd") form of [currentLocalDate]. */
+    fun currentLocalDateString(
+        dayStartHour: Int,
+        now: Long = System.currentTimeMillis(),
+        dayStartMinute: Int = 0
+    ): String = currentLocalDate(dayStartHour, now, dayStartMinute).toString()
 
     const val DAY_MILLIS: Long = 24L * 60L * 60L * 1000L
 }
