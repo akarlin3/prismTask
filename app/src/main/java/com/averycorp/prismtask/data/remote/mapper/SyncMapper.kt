@@ -197,6 +197,8 @@ object SyncMapper {
         "nagSuppressionDaysOverride" to habit.nagSuppressionDaysOverride,
         "todaySkipAfterCompleteDays" to habit.todaySkipAfterCompleteDays,
         "todaySkipBeforeScheduleDays" to habit.todaySkipBeforeScheduleDays,
+        "isBuiltIn" to habit.isBuiltIn,
+        "templateKey" to habit.templateKey,
         "createdAt" to habit.createdAt,
         "updatedAt" to habit.updatedAt
     )
@@ -229,6 +231,8 @@ object SyncMapper {
         nagSuppressionDaysOverride = (data["nagSuppressionDaysOverride"] as? Number)?.toInt() ?: -1,
         todaySkipAfterCompleteDays = (data["todaySkipAfterCompleteDays"] as? Number)?.toInt() ?: -1,
         todaySkipBeforeScheduleDays = (data["todaySkipBeforeScheduleDays"] as? Number)?.toInt() ?: -1,
+        isBuiltIn = data["isBuiltIn"] as? Boolean ?: false,
+        templateKey = data["templateKey"] as? String,
         createdAt = (data["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
         updatedAt = (data["updatedAt"] as? Number)?.toLong() ?: System.currentTimeMillis()
     )

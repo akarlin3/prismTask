@@ -197,7 +197,9 @@ constructor(
                 color = "#8B5CF6",
                 category = "Leisure",
                 targetFrequency = 1,
-                frequencyPeriod = "daily"
+                frequencyPeriod = "daily",
+                isBuiltIn = true,
+                templateKey = "builtin_leisure"
             )
         )
         return habitDao.getHabitByIdOnce(id)

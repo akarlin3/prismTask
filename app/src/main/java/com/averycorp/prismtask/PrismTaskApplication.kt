@@ -7,6 +7,7 @@ import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
+import com.averycorp.prismtask.data.remote.BuiltInHabitReconciler
 import com.averycorp.prismtask.data.repository.LeisureRepository
 import com.averycorp.prismtask.data.repository.SchoolworkRepository
 import com.averycorp.prismtask.data.seed.TemplateSeeder
@@ -45,6 +46,9 @@ class PrismTaskApplication :
     lateinit var templateSeeder: TemplateSeeder
 
     @Inject
+    lateinit var builtInHabitReconciler: BuiltInHabitReconciler
+
+    @Inject
     lateinit var calendarSyncScheduler: CalendarSyncScheduler
 
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -75,6 +79,7 @@ class PrismTaskApplication :
         try {
             seedStructuralHabits()
             seedBuiltInTemplates()
+            runDriftCleanup()
         } catch (e: Exception) {
             android.util.Log.e("PrismTaskApp", "Seeding kickoff failed", e)
             try {
@@ -135,6 +140,18 @@ class PrismTaskApplication :
             taskBehaviorPreferences.getDayStartHour().collectLatest { hour ->
                 DailyResetWorker.schedule(this@PrismTaskApplication, hour)
             }
+        }
+    }
+
+    /**
+     * Collapses any duplicate built-in habits that exist locally (e.g. from
+     * a prior partial sync). Runs once per install, gated by a DataStore flag.
+     * The post-sync reconciliation in [BuiltInHabitReconciler] handles the
+     * cloud-vs-local case after the first successful sign-in sync.
+     */
+    private fun runDriftCleanup() {
+        appScope.launch {
+            builtInHabitReconciler.runDriftCleanupIfNeeded()
         }
     }
 
