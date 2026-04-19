@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -33,39 +34,70 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.averycorp.prismtask.data.local.entity.ProjectEntity
+import com.averycorp.prismtask.ui.theme.LocalPrismAttrs
+import com.averycorp.prismtask.ui.theme.LocalPrismColors
 
 /**
- * Plain section header shown above a group of tasks — e.g. "Today",
- * "Tomorrow", or "From Earlier" (renamed from "Overdue"). "Today"
- * sections pick up the [TodayOrange] accent.
+ * Per-theme section header shown above a group of tasks (e.g. "Today",
+ * "Tomorrow", "From Earlier").
+ *
+ * - Matrix:  `# from_earlier [count]` in lowercase monospace
+ * - Void:    short decorative line before the label + no trailing divider
+ * - Others:  label in primary color + count + trailing divider hairline
  */
 @Composable
 internal fun GroupHeader(group: String, count: Int) {
     val displayGroup = if (group == "Overdue") "From Earlier" else group
-    val color = when (group) {
+    val prismColors = LocalPrismColors.current
+    val attrs = LocalPrismAttrs.current
+
+    val accentColor = when (group) {
         "Today" -> TodayOrange
-        else -> MaterialTheme.colorScheme.onSurface
+        else -> prismColors.primary
     }
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = 8.dp, bottom = 2.dp),
+            .padding(top = if (attrs.editorial) 20.dp else 14.dp, bottom = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        if (attrs.editorial) {
+            Box(
+                modifier = Modifier
+                    .width(14.dp)
+                    .height(1.dp)
+                    .background(prismColors.onSurface)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+        }
         Text(
-            text = displayGroup,
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.Bold,
-            color = color
-        )
-        Spacer(modifier = Modifier.width(8.dp))
-        Text(
-            text = "$count",
+            text = when {
+                attrs.terminal -> "# ${displayGroup.lowercase()} [$count]"
+                else -> displayGroup
+            },
             style = MaterialTheme.typography.labelMedium,
-            color = color.copy(alpha = 0.7f)
+            fontWeight = FontWeight.SemiBold,
+            letterSpacing = if (attrs.editorial) 2.sp else 1.4.sp,
+            color = accentColor
         )
+        if (!attrs.terminal) {
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = if (attrs.terminal) "" else count.toString(),
+                style = MaterialTheme.typography.labelSmall,
+                color = accentColor.copy(alpha = 0.6f)
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(1.dp)
+                    .background(prismColors.border)
+            )
+        }
     }
 }
 

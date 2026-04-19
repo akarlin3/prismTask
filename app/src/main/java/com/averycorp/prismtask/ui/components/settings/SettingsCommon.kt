@@ -23,9 +23,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import com.averycorp.prismtask.ui.components.ThemedSwitch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -105,7 +105,7 @@ fun SettingsToggleRow(
             Text(text = title, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
             Text(text = subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        Switch(checked = checked, onCheckedChange = onCheckedChange)
+        ThemedSwitch(checked = checked, onCheckedChange = onCheckedChange)
     }
 }
 
@@ -254,7 +254,7 @@ fun ModeToggleRow(label: String, enabled: Boolean, onToggle: (Boolean) -> Unit) 
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(label, style = MaterialTheme.typography.bodyLarge)
-        Switch(
+        ThemedSwitch(
             checked = enabled,
             onCheckedChange = onToggle
         )
