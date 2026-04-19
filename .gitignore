@@ -69,3 +69,7 @@ compile-log.txt
 
 # Nested bare git repo
 averyTask.git/
+
+# Throwaway diagnostic scripts (not for version control)
+firestore_audit.py
+firestore_audit.md
