@@ -720,6 +720,10 @@ constructor(
         .getDayStartHour()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
+    val dayStartMinute: StateFlow<Int> = taskBehaviorPreferences
+        .getDayStartMinute()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
     // --- Timer / Pomodoro ---
     val timerWorkDurationSeconds: StateFlow<Int> = timerPreferences
         .getWorkDurationSeconds()
@@ -1137,6 +1141,18 @@ constructor(
 
     fun setDayStartHour(hour: Int) {
         viewModelScope.launch { taskBehaviorPreferences.setDayStartHour(hour) }
+    }
+
+    fun setStartOfDay(hour: Int, minute: Int) {
+        viewModelScope.launch {
+            taskBehaviorPreferences.setStartOfDay(hour, minute)
+            // Reschedule the daily rollover worker to fire at the new boundary.
+            com.averycorp.prismtask.workers.DailyResetWorker.schedule(
+                appContext,
+                hour,
+                minute
+            )
+        }
     }
 
     fun resetTaskBehaviorDefaults() {

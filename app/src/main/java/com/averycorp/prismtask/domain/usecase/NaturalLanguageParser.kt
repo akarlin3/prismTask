@@ -1,9 +1,15 @@
 package com.averycorp.prismtask.domain.usecase
 
+import com.averycorp.prismtask.core.time.DayBoundary as LogicalDayBoundary
+import com.averycorp.prismtask.core.time.SystemTimeProvider
+import com.averycorp.prismtask.core.time.TimeProvider
+import com.averycorp.prismtask.data.preferences.StartOfDay
+import com.averycorp.prismtask.data.preferences.StartOfDayProvider
 import com.averycorp.prismtask.data.remote.api.ParseRequest
 import com.averycorp.prismtask.data.remote.api.ParsedTaskResponse
 import com.averycorp.prismtask.data.remote.api.PrismTaskApi
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import java.time.DayOfWeek
 import java.time.LocalDate
@@ -46,9 +52,34 @@ data class ParsedTask(
 class NaturalLanguageParser
 @Inject
 constructor(
-    private val api: PrismTaskApi
+    private val api: PrismTaskApi,
+    private val startOfDayProvider: StartOfDayProvider = DefaultStartOfDayProvider,
+    private val timeProvider: TimeProvider = SystemTimeProvider()
 ) {
     private val zone: ZoneId = ZoneId.systemDefault()
+
+    /**
+     * Reads the user's current Start of Day synchronously. Used from the
+     * offline regex [parse] code path which cannot suspend. DataStore reads
+     * are in-memory once the cache is warm, which it always is by the time
+     * NLP runs (MainActivity reads SoD at startup), so the `runBlocking`
+     * here does not actually block on I/O.
+     */
+    private fun currentStartOfDay(): StartOfDay = runBlocking {
+        startOfDayProvider.current()
+    }
+
+    companion object {
+        /**
+         * Fallback provider used when [NaturalLanguageParser] is constructed
+         * without DI (e.g. in unit tests that only exercise the offline regex
+         * parser with its default midnight SoD). Returns
+         * [StartOfDay] with hour=0, minute=0.
+         */
+        private val DefaultStartOfDayProvider = object : StartOfDayProvider {
+            override suspend fun current(): StartOfDay = StartOfDay()
+        }
+    }
 
     /**
      * API-first parse: calls the backend `/api/v1/tasks/parse` endpoint, and
@@ -101,8 +132,22 @@ constructor(
         } catch (_: DateTimeParseException) {
             return null
         }
-        val effectiveDate = date ?: LocalDate.now()
-        return effectiveDate
+        if (date == null) {
+            // Time-only Haiku result — anchor it to the user's *logical* day
+            // using the configured Start of Day, not to the calendar today.
+            // This makes "remind me at 2 AM" with SoD=4 AM correctly stay in
+            // today's logical day instead of getting flipped to tomorrow.
+            val sod = currentStartOfDay()
+            return LogicalDayBoundary.resolveAmbiguousTime(
+                now = timeProvider.now(),
+                targetHour = parsedTime.hour,
+                targetMinute = parsedTime.minute,
+                sodHour = sod.hour,
+                sodMinute = sod.minute,
+                zone = zone
+            ).toEpochMilli()
+        }
+        return date
             .atTime(parsedTime)
             .atZone(zone)
             .toInstant()
@@ -408,21 +453,39 @@ constructor(
             }
         }
 
-        // If time parsed but no date, default to today
-        if (parsedTime != null && parsedDate == null) {
-            parsedDate = today
+        // If time parsed but no date, anchor it via the logical-day SoD rule
+        // rather than naively defaulting to the calendar today. This preserves
+        // "remind me at 2 AM" as today's logical day even when the wall clock
+        // has already crossed midnight.
+        val anchoredTimeInstant = if (parsedTime != null && parsedDate == null) {
+            val sod = currentStartOfDay()
+            LogicalDayBoundary.resolveAmbiguousTime(
+                now = timeProvider.now(),
+                targetHour = parsedTime.hour,
+                targetMinute = parsedTime.minute,
+                sodHour = sod.hour,
+                sodMinute = sod.minute,
+                zone = zone
+            )
+        } else {
+            null
+        }
+
+        if (anchoredTimeInstant != null) {
+            parsedDate = anchoredTimeInstant.atZone(zone).toLocalDate()
         }
 
         // Convert to epoch millis
         val dueDateMillis = parsedDate?.atStartOfDay(zone)?.toInstant()?.toEpochMilli()
-        val dueTimeMillis = parsedTime?.let { time ->
-            val date = parsedDate ?: today
-            date
-                .atTime(time)
-                .atZone(zone)
-                .toInstant()
-                .toEpochMilli()
-        }
+        val dueTimeMillis = anchoredTimeInstant?.toEpochMilli()
+            ?: parsedTime?.let { time ->
+                val date = parsedDate ?: today
+                date
+                    .atTime(time)
+                    .atZone(zone)
+                    .toInstant()
+                    .toEpochMilli()
+            }
 
         // 7. Clean up title
         val title = text.trim().replace(Regex("""\s{2,}"""), " ").replaceFirstChar {

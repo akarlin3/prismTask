@@ -35,6 +35,7 @@ fun TaskDefaultsScreen(
     val urgencyWeights by viewModel.urgencyWeights.collectAsStateWithLifecycle()
     val firstDayOfWeek by viewModel.firstDayOfWeek.collectAsStateWithLifecycle()
     val dayStartHour by viewModel.dayStartHour.collectAsStateWithLifecycle()
+    val dayStartMinute by viewModel.dayStartMinute.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
@@ -60,11 +61,12 @@ fun TaskDefaultsScreen(
                 defaultViewMode = defaultViewMode,
                 firstDayOfWeek = firstDayOfWeek,
                 dayStartHour = dayStartHour,
+                dayStartMinute = dayStartMinute,
                 urgencyWeights = urgencyWeights,
                 onDefaultSortChange = viewModel::setDefaultSort,
                 onDefaultViewModeChange = viewModel::setDefaultViewMode,
                 onFirstDayOfWeekChange = viewModel::setFirstDayOfWeek,
-                onDayStartHourChange = viewModel::setDayStartHour,
+                onStartOfDayChange = viewModel::setStartOfDay,
                 onUrgencyWeightsChange = viewModel::setUrgencyWeights,
                 onResetTaskBehaviorDefaults = viewModel::resetTaskBehaviorDefaults
             )

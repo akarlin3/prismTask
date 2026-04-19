@@ -32,6 +32,8 @@ import com.averycorp.prismtask.data.local.entity.TaskEntity
 import com.averycorp.prismtask.data.preferences.UrgencyWeights
 import com.averycorp.prismtask.domain.usecase.UrgencyLevel
 import com.averycorp.prismtask.domain.usecase.UrgencyScorer
+import com.averycorp.prismtask.ui.components.StartOfDayPickerDialog
+import com.averycorp.prismtask.ui.components.formatStartOfDay
 import com.averycorp.prismtask.ui.components.settings.AdvancedToggle
 import com.averycorp.prismtask.ui.components.settings.SectionHeader
 import com.averycorp.prismtask.ui.components.settings.SettingsRowWithSubtitle
@@ -48,15 +50,17 @@ fun TaskDefaultsSection(
     defaultViewMode: String,
     firstDayOfWeek: DayOfWeek,
     dayStartHour: Int,
+    dayStartMinute: Int,
     urgencyWeights: UrgencyWeights,
     onDefaultSortChange: (String) -> Unit,
     onDefaultViewModeChange: (String) -> Unit,
     onFirstDayOfWeekChange: (DayOfWeek) -> Unit,
-    onDayStartHourChange: (Int) -> Unit,
+    onStartOfDayChange: (hour: Int, minute: Int) -> Unit,
     onUrgencyWeightsChange: (UrgencyWeights) -> Unit,
     onResetTaskBehaviorDefaults: () -> Unit
 ) {
     var showTaskAdvanced by remember { mutableStateOf(false) }
+    var showSodPicker by remember { mutableStateOf(false) }
 
     SectionHeader("Global Defaults")
 
@@ -88,27 +92,27 @@ fun TaskDefaultsSection(
         }
     )
     SettingsRowWithSubtitle(
-        title = "Day Start Hour",
-        subtitle = if (dayStartHour == 0) {
+        title = "Start of Day",
+        subtitle = if (dayStartHour == 0 && dayStartMinute == 0) {
             "Midnight"
         } else {
-            String.format(
-                "%d:00 %s",
-                if (dayStartHour > 12) {
-                    dayStartHour - 12
-                } else if (dayStartHour == 0) {
-                    12
-                } else {
-                    dayStartHour
-                },
-                if (dayStartHour < 12) "AM" else "PM"
-            )
+            formatStartOfDay(dayStartHour, dayStartMinute)
         },
-        onClick = {
-            val next = (dayStartHour + 1) % 24
-            onDayStartHourChange(next)
-        }
+        onClick = { showSodPicker = true }
     )
+
+    if (showSodPicker) {
+        StartOfDayPickerDialog(
+            initialHour = dayStartHour,
+            initialMinute = dayStartMinute,
+            dismissable = true,
+            onConfirm = { h, m ->
+                showSodPicker = false
+                onStartOfDayChange(h, m)
+            },
+            onDismiss = { showSodPicker = false }
+        )
+    }
 
     AdvancedToggle(expanded = showTaskAdvanced, onToggle = { showTaskAdvanced = !showTaskAdvanced })
     AnimatedVisibility(visible = showTaskAdvanced) {

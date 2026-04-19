@@ -16,11 +16,15 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
 private val DAY_START_HOUR_KEY = intPreferencesKey("day_start_hour")
+private val DAY_START_MINUTE_KEY = intPreferencesKey("day_start_minute")
 private val ACCENT_COLOR_KEY = stringPreferencesKey("accent_color")
 private val THEME_MODE_KEY = stringPreferencesKey("theme_mode")
 
 private suspend fun Context.readDayStartHour(): Int =
     taskBehaviorDataStore.data.map { it[DAY_START_HOUR_KEY] ?: 0 }.first()
+
+private suspend fun Context.readDayStartMinute(): Int =
+    taskBehaviorDataStore.data.map { it[DAY_START_MINUTE_KEY] ?: 0 }.first()
 
 /** Reads the user's configured accent color hex for use in widgets. */
 suspend fun Context.readAccentColor(): String =
@@ -135,7 +139,11 @@ object WidgetDataProvider {
     suspend fun getTodayData(context: Context): TodayWidgetData {
         val db = getDb(context)
         val dayStartHour = context.readDayStartHour()
-        val startOfDay = DayBoundary.startOfCurrentDay(dayStartHour)
+        val dayStartMinute = context.readDayStartMinute()
+        val startOfDay = DayBoundary.startOfCurrentDay(
+            dayStartHour = dayStartHour,
+            dayStartMinute = dayStartMinute
+        )
         val endOfDay = startOfDay + DayBoundary.DAY_MILLIS
         val taskDao = db.taskDao()
         val todayTasks = taskDao.getTodayTasksOnce(startOfDay, endOfDay)
@@ -170,7 +178,11 @@ object WidgetDataProvider {
         val completionDao = db.habitCompletionDao()
         val habits = habitDao.getActiveHabitsOnce()
         val dayStartHour = context.readDayStartHour()
-        val startOfDay = DayBoundary.startOfCurrentDay(dayStartHour)
+        val dayStartMinute = context.readDayStartMinute()
+        val startOfDay = DayBoundary.startOfCurrentDay(
+            dayStartHour = dayStartHour,
+            dayStartMinute = dayStartMinute
+        )
         var longestStreak = 0
         val items = habits.take(12).map { habit ->
             val isCompleted = completionDao.isCompletedOnDateOnce(habit.id, startOfDay)
@@ -207,7 +219,11 @@ object WidgetDataProvider {
     suspend fun getUpcomingData(context: Context): UpcomingWidgetData {
         val db = getDb(context)
         val dayStartHour = context.readDayStartHour()
-        val startOfDay = DayBoundary.startOfCurrentDay(dayStartHour)
+        val dayStartMinute = context.readDayStartMinute()
+        val startOfDay = DayBoundary.startOfCurrentDay(
+            dayStartHour = dayStartHour,
+            dayStartMinute = dayStartMinute
+        )
         val endOfDay = startOfDay + DayBoundary.DAY_MILLIS
         val taskDao = db.taskDao()
         return UpcomingWidgetData(
@@ -223,7 +239,11 @@ object WidgetDataProvider {
     suspend fun getProductivityData(context: Context): ProductivityWidgetData {
         val db = getDb(context)
         val dayStartHour = context.readDayStartHour()
-        val startOfDay = DayBoundary.startOfCurrentDay(dayStartHour)
+        val dayStartMinute = context.readDayStartMinute()
+        val startOfDay = DayBoundary.startOfCurrentDay(
+            dayStartHour = dayStartHour,
+            dayStartMinute = dayStartMinute
+        )
         val endOfDay = startOfDay + DayBoundary.DAY_MILLIS
         val taskDao = db.taskDao()
         val todayTasks = taskDao.getTodayTasksOnce(startOfDay, endOfDay)
@@ -322,7 +342,11 @@ object WidgetDataProvider {
     suspend fun toggleHabitCompletion(context: Context, habitId: Long) {
         val db = getDb(context)
         val dayStartHour = context.readDayStartHour()
-        val startOfDay = DayBoundary.startOfCurrentDay(dayStartHour)
+        val dayStartMinute = context.readDayStartMinute()
+        val startOfDay = DayBoundary.startOfCurrentDay(
+            dayStartHour = dayStartHour,
+            dayStartMinute = dayStartMinute
+        )
         val completionDao = db.habitCompletionDao()
         if (completionDao.isCompletedOnDateOnce(habitId, startOfDay)) {
             completionDao.deleteByHabitAndDate(habitId, startOfDay)

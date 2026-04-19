@@ -47,9 +47,10 @@ constructor(
             // Best-effort: don't fail the worker if widget update throws.
         }
 
-        // Reschedule for the next day boundary.
+        // Reschedule for the next day boundary using hour + minute.
         val dayStartHour = taskBehaviorPreferences.getDayStartHour().first()
-        schedule(appContext, dayStartHour)
+        val dayStartMinute = taskBehaviorPreferences.getDayStartMinute().first()
+        schedule(appContext, dayStartHour, dayStartMinute)
         return Result.success()
     }
 
@@ -58,12 +59,20 @@ constructor(
 
         /**
          * Schedules the next run for the next occurrence of the configured
-         * day-start hour. Replaces any previously scheduled run so a settings
-         * change immediately takes effect.
+         * start of day (hour + minute). Replaces any previously scheduled run
+         * so a settings change immediately takes effect.
+         *
+         * The `dayStartMinute` parameter defaults to 0 for back-compat with
+         * callers that still only know about the hour.
          */
-        fun schedule(context: Context, dayStartHour: Int) {
+        @JvmOverloads
+        fun schedule(context: Context, dayStartHour: Int, dayStartMinute: Int = 0) {
             val now = System.currentTimeMillis()
-            val nextBoundary = DayBoundary.nextBoundary(dayStartHour, now)
+            val nextBoundary = DayBoundary.nextBoundary(
+                dayStartHour = dayStartHour,
+                now = now,
+                dayStartMinute = dayStartMinute
+            )
             val delay = (nextBoundary - now).coerceAtLeast(0L)
 
             val request = OneTimeWorkRequestBuilder<DailyResetWorker>()

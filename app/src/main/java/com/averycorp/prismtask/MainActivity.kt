@@ -85,6 +85,9 @@ class MainActivity : ComponentActivity() {
     lateinit var onboardingPreferences: OnboardingPreferences
 
     @Inject
+    lateinit var taskBehaviorPreferences: com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
+
+    @Inject
     lateinit var billingManager: BillingManager
 
     @Inject
@@ -335,6 +338,34 @@ class MainActivity : ComponentActivity() {
                             androidx.compose.material3.Text("Not Now")
                         }
                     }
+                )
+            }
+
+            // Start of Day first-launch prompt. Only shown after the user has
+            // completed onboarding, and only once. The user can still change the
+            // value later from Settings -> Global Defaults -> Start of Day.
+            var showStartOfDayPrompt by remember { mutableStateOf(false) }
+            LaunchedEffect(hasCompletedOnboarding) {
+                if (hasCompletedOnboarding != true) return@LaunchedEffect
+                val alreadySet = taskBehaviorPreferences.getHasSetStartOfDay().first()
+                if (!alreadySet) showStartOfDayPrompt = true
+            }
+            if (showStartOfDayPrompt) {
+                com.averycorp.prismtask.ui.components.StartOfDayPickerDialog(
+                    // Default the picker to 4 AM as the spec's recommended
+                    // starting value. The user can still pick anything.
+                    initialHour = 4,
+                    initialMinute = 0,
+                    dismissable = false,
+                    onConfirm = { h, m ->
+                        showStartOfDayPrompt = false
+                        notificationSnackbarScope.launch {
+                            taskBehaviorPreferences.setStartOfDay(h, m)
+                            com.averycorp.prismtask.workers.DailyResetWorker
+                                .schedule(this@MainActivity, h, m)
+                        }
+                    },
+                    onDismiss = { }
                 )
             }
 

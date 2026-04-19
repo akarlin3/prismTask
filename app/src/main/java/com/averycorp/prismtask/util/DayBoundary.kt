@@ -14,23 +14,37 @@ object DayBoundary {
      * Returns the timestamp of the start of the current day, taking [dayStartHour]
      * into account. If the current wall-clock hour is before [dayStartHour], the
      * "current day" is considered to have started yesterday.
+     *
+     * Minute-aware callers (widgets, NLP, daily rollover worker) should pass
+     * [dayStartMinute]; legacy callers that only know about the hour can omit
+     * it and behave exactly as before.
      */
-    fun startOfCurrentDay(dayStartHour: Int, now: Long = System.currentTimeMillis()): Long {
+    fun startOfCurrentDay(
+        dayStartHour: Int,
+        now: Long = System.currentTimeMillis(),
+        dayStartMinute: Int = 0
+    ): Long {
         val cal = Calendar.getInstance().apply { timeInMillis = now }
-        val hour = cal.get(Calendar.HOUR_OF_DAY)
+        val currentMinutesSinceMidnight = cal.get(Calendar.HOUR_OF_DAY) * 60 +
+            cal.get(Calendar.MINUTE)
+        val sodMinutesSinceMidnight = dayStartHour * 60 + dayStartMinute
         cal.set(Calendar.HOUR_OF_DAY, dayStartHour)
-        cal.set(Calendar.MINUTE, 0)
+        cal.set(Calendar.MINUTE, dayStartMinute)
         cal.set(Calendar.SECOND, 0)
         cal.set(Calendar.MILLISECOND, 0)
-        if (hour < dayStartHour) {
+        if (currentMinutesSinceMidnight < sodMinutesSinceMidnight) {
             cal.add(Calendar.DAY_OF_YEAR, -1)
         }
         return cal.timeInMillis
     }
 
     /** End of the current day (exclusive upper bound). */
-    fun endOfCurrentDay(dayStartHour: Int, now: Long = System.currentTimeMillis()): Long =
-        startOfCurrentDay(dayStartHour, now) + DAY_MILLIS
+    fun endOfCurrentDay(
+        dayStartHour: Int,
+        now: Long = System.currentTimeMillis(),
+        dayStartMinute: Int = 0
+    ): Long =
+        startOfCurrentDay(dayStartHour, now, dayStartMinute) + DAY_MILLIS
 
     /**
      * Calendar midnight of the "effective current day" — i.e. the same calendar
@@ -76,8 +90,12 @@ object DayBoundary {
      * Used by [com.averycorp.prismtask.workers.DailyResetWorker] to schedule
      * itself.
      */
-    fun nextBoundary(dayStartHour: Int, now: Long = System.currentTimeMillis()): Long {
-        val start = startOfCurrentDay(dayStartHour, now)
+    fun nextBoundary(
+        dayStartHour: Int,
+        now: Long = System.currentTimeMillis(),
+        dayStartMinute: Int = 0
+    ): Long {
+        val start = startOfCurrentDay(dayStartHour, now, dayStartMinute)
         return start + DAY_MILLIS
     }
 
