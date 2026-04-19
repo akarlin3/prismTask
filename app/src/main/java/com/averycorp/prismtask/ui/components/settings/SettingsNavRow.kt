@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -26,28 +27,60 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.averycorp.prismtask.ui.theme.LocalPrismAttrs
+import com.averycorp.prismtask.ui.theme.LocalPrismColors
 
 /**
  * A labeled group header for the top-level settings list.
- * Renders a muted uppercase label + a divider above, then its [content].
+ * Uses [LocalPrismColors] for the group label and divider so every theme's
+ * accent color is reflected in the section separators.
+ *
+ * - Void: a short decorative horizontal line precedes the label text
+ * - Matrix: label is prefixed with `# ` and lowercased
+ * - Others: label is uppercased in primary accent color
  */
 @Composable
 fun SettingsGroup(
     label: String,
     content: @Composable ColumnScope.() -> Unit
 ) {
+    val prismColors = LocalPrismColors.current
+    val attrs = LocalPrismAttrs.current
+
     Column(modifier = Modifier.fillMaxWidth()) {
         HorizontalDivider(
-            color = MaterialTheme.colorScheme.outlineVariant,
+            color = prismColors.border,
             modifier = Modifier.padding(top = 16.dp)
         )
-        Text(
-            text = label.uppercase(),
-            style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.padding(top = 12.dp, bottom = 4.dp)
-        )
+        ) {
+            if (attrs.editorial) {
+                Box(
+                    modifier = Modifier
+                        .width(14.dp)
+                        .height(1.dp)
+                        .background(prismColors.onSurface)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+            }
+            Text(
+                text = when {
+                    attrs.terminal -> "# ${label.lowercase()}"
+                    else -> label.uppercase()
+                },
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = prismColors.primary,
+                letterSpacing = if (attrs.editorial) 2.sp else 1.4.sp
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            HorizontalDivider(
+                color = prismColors.border,
+                modifier = Modifier.weight(1f)
+            )
+        }
         content()
     }
 }
@@ -56,6 +89,8 @@ fun SettingsGroup(
  * A single tappable row on the top-level settings list.
  * Shows an icon container, a title, an optional subtitle,
  * an optional Pro badge, and a trailing chevron.
+ *
+ * The icon badge corner radius respects the active theme's [PrismThemeAttrs.cardRadius].
  */
 @Composable
 fun SettingsNavRow(
@@ -66,6 +101,10 @@ fun SettingsNavRow(
     isPro: Boolean = false,
     onClick: () -> Unit
 ) {
+    val prismColors = LocalPrismColors.current
+    val attrs = LocalPrismAttrs.current
+    val badgeRadius = (attrs.cardRadius / 2).coerceAtLeast(4).dp
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -76,7 +115,7 @@ fun SettingsNavRow(
         Box(
             modifier = Modifier
                 .size(32.dp)
-                .clip(RoundedCornerShape(8.dp))
+                .clip(RoundedCornerShape(badgeRadius))
                 .background(iconBgColor),
             contentAlignment = Alignment.Center
         ) {
@@ -89,9 +128,9 @@ fun SettingsNavRow(
         Column(modifier = Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = title,
+                    text = if (attrs.terminal) title.lowercase() else title,
                     style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = prismColors.onBackground
                 )
                 if (isPro) {
                     Spacer(modifier = Modifier.width(6.dp))
@@ -102,14 +141,14 @@ fun SettingsNavRow(
                 Text(
                     text = subtitle,
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = prismColors.muted
                 )
             }
         }
         Icon(
             imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
             contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            tint = prismColors.muted,
             modifier = Modifier.size(20.dp)
         )
     }
@@ -117,16 +156,18 @@ fun SettingsNavRow(
 
 @Composable
 private fun ProPill() {
+    val prismColors = LocalPrismColors.current
+    val attrs = LocalPrismAttrs.current
     Box(
         modifier = Modifier
-            .clip(RoundedCornerShape(6.dp))
-            .background(MaterialTheme.colorScheme.tertiaryContainer)
+            .clip(RoundedCornerShape(if (attrs.terminal) 0.dp else 6.dp))
+            .background(prismColors.primary.copy(alpha = 0.15f))
             .padding(horizontal = 6.dp, vertical = 2.dp)
     ) {
         Text(
-            text = "Pro",
+            text = if (attrs.terminal) "pro" else "Pro",
             fontSize = 10.sp,
-            color = MaterialTheme.colorScheme.onTertiaryContainer,
+            color = prismColors.primary,
             fontWeight = FontWeight.SemiBold
         )
     }

@@ -28,9 +28,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.text.BasicText
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
@@ -40,6 +45,10 @@ import com.averycorp.prismtask.ui.components.settings.SettingsGroup
 import com.averycorp.prismtask.ui.components.settings.SettingsNavRow
 import com.averycorp.prismtask.ui.navigation.PrismTaskRoute
 import com.averycorp.prismtask.ui.screens.settings.sections.AboutSection
+import com.averycorp.prismtask.ui.theme.LocalPrismAttrs
+import com.averycorp.prismtask.ui.theme.LocalPrismColors
+import com.averycorp.prismtask.ui.theme.LocalPrismTheme
+import com.averycorp.prismtask.ui.theme.prismDisplayFont
 import com.averycorp.prismtask.ui.screens.settings.sections.AdminBugReportsSection
 import com.averycorp.prismtask.ui.screens.settings.sections.DebugLogAdminSection
 import com.averycorp.prismtask.ui.screens.settings.sections.DebugOnboardingSection
@@ -100,12 +109,45 @@ fun SettingsScreen(
 
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
+    val prismColors = LocalPrismColors.current
+    val prismAttrs = LocalPrismAttrs.current
+    val prismTheme = LocalPrismTheme.current
+    val displayFont = prismDisplayFont(prismTheme)
 
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
+        containerColor = prismColors.background,
         topBar = {
             TopAppBar(
-                title = { Text("Settings", fontWeight = FontWeight.Bold) },
+                title = {
+                    when {
+                        prismAttrs.editorial -> {
+                            // Void: "Settings." with trailing dot in primary color
+                            BasicText(
+                                text = buildAnnotatedString {
+                                    append("Settings")
+                                    withStyle(SpanStyle(color = prismColors.primary)) { append(".") }
+                                },
+                                style = MaterialTheme.typography.headlineSmall.copy(
+                                    fontFamily = displayFont,
+                                    fontWeight = FontWeight.Medium,
+                                    color = prismColors.onBackground
+                                )
+                            )
+                        }
+                        else -> Text(
+                            text = when {
+                                prismAttrs.terminal -> "SETTINGS"
+                                prismAttrs.displayUpper -> "SETTINGS"
+                                else -> "Settings"
+                            },
+                            fontFamily = displayFont,
+                            fontWeight = FontWeight.Bold,
+                            color = prismColors.onBackground,
+                            letterSpacing = prismAttrs.displayTracking.sp
+                        )
+                    }
+                },
                 actions = {
                     AssistChip(
                         onClick = {
@@ -133,8 +175,8 @@ fun SettingsScreen(
                     )
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    titleContentColor = MaterialTheme.colorScheme.onSurface
+                    containerColor = prismColors.background,
+                    titleContentColor = prismColors.onBackground
                 )
             )
         }

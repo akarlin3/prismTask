@@ -22,6 +22,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.averycorp.prismtask.data.local.entity.ProjectEntity
 import com.averycorp.prismtask.data.local.entity.TagEntity
+import com.averycorp.prismtask.ui.theme.ChipShape
+import com.averycorp.prismtask.ui.theme.LocalPrismAttrs
 import com.averycorp.prismtask.ui.theme.LocalPriorityColors
 
 /*
@@ -31,14 +33,20 @@ import com.averycorp.prismtask.ui.theme.LocalPriorityColors
  */
 
 /**
- * Solid 10dp circle in the task's priority color.
+ * Priority indicator in the task's priority color. Shape follows the active
+ * theme: Matrix/Cyberpunk use a sharp square; other themes use a circle.
  */
 @Composable
 internal fun PriorityDot(priority: Int) {
+    val attrs = LocalPrismAttrs.current
+    val dotShape = when (attrs.chipShape) {
+        ChipShape.SHARP -> RoundedCornerShape(0.dp)
+        else -> CircleShape
+    }
     Box(
         modifier = Modifier
             .size(10.dp)
-            .clip(CircleShape)
+            .clip(dotShape)
             .background(LocalPriorityColors.current.forLevel(priority))
     )
 }

@@ -35,6 +35,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
@@ -43,6 +45,8 @@ import com.averycorp.prismtask.data.local.entity.ProjectEntity
 import com.averycorp.prismtask.data.local.entity.TagEntity
 import com.averycorp.prismtask.data.local.entity.TaskEntity
 import com.averycorp.prismtask.ui.components.CircularCheckbox
+import com.averycorp.prismtask.ui.theme.LocalPrismAttrs
+import com.averycorp.prismtask.ui.theme.LocalPrismColors
 
 /**
  * The main task card composable shown in every task list: renders the
@@ -79,6 +83,9 @@ internal fun TaskItem(
     var showOverflowMenu by remember { mutableStateOf(false) }
     val hasOverflowActions =
         !isMultiSelectMode && (onReschedule != null || onMoveToProject != null || onDuplicate != null || onDelete != null)
+    val prismColors = LocalPrismColors.current
+    val prismAttrs = LocalPrismAttrs.current
+    val cardShape = RoundedCornerShape(prismAttrs.cardRadius.dp)
 
     Card(
         modifier = modifier
@@ -87,18 +94,37 @@ internal fun TaskItem(
                 onClick = onClick,
                 onLongClick = onLongClick
             ),
-        shape = RoundedCornerShape(12.dp),
+        shape = cardShape,
         colors = CardDefaults.cardColors(
             containerColor = when {
-                isSelected -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
-                else -> MaterialTheme.colorScheme.surfaceContainerLow
+                isSelected -> prismColors.primary.copy(alpha = 0.12f)
+                else -> prismColors.surface
             }
         )
     ) {
+        // Cyberpunk: 3dp colored left strip for high/urgent priority tasks
+        val urgentStripColor = when {
+            prismAttrs.brackets && task.priority == 4 -> prismColors.urgentAccent
+            prismAttrs.brackets && task.priority == 3 -> prismColors.primary
+            else -> null
+        }
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 4.dp, end = 4.dp, top = 8.dp, bottom = 8.dp),
+                .then(
+                    if (urgentStripColor != null) {
+                        val c = urgentStripColor
+                        Modifier.drawBehind {
+                            drawRect(c, size = Size(3.dp.toPx(), size.height))
+                        }
+                    } else Modifier
+                )
+                .padding(
+                    start = if (urgentStripColor != null) 7.dp else 4.dp,
+                    end = 4.dp,
+                    top = 8.dp,
+                    bottom = 8.dp
+                ),
             verticalAlignment = Alignment.CenterVertically
         ) {
             if (showDragHandle) {
