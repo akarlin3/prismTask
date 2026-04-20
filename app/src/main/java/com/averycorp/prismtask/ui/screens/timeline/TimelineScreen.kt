@@ -314,7 +314,7 @@ fun TimelineScreen(
                                     }
                                 }
                             ),
-                        shape = RoundedCornerShape(6.dp),
+                        shape = MaterialTheme.shapes.medium,
                         colors = CardDefaults.cardColors(
                             containerColor = LocalPriorityColors.current.forLevel(block.priority).copy(alpha = 0.2f)
                         )
@@ -403,7 +403,7 @@ fun TimelineScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable { scheduleDialogTask = task },
-                            shape = RoundedCornerShape(8.dp),
+                            shape = MaterialTheme.shapes.medium,
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
                         ) {
                             Row(

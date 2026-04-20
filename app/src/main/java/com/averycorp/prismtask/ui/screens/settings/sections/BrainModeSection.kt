@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -108,7 +107,7 @@ private fun InfoChip(text: String) {
             .padding(vertical = 8.dp)
             .background(
                 MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.5f),
-                RoundedCornerShape(8.dp)
+                MaterialTheme.shapes.medium
             ).padding(12.dp)
             .semantics { contentDescription = text },
         verticalAlignment = Alignment.CenterVertically

@@ -257,7 +257,7 @@ private fun TemplatePickerRow(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onUse),
-        shape = RoundedCornerShape(12.dp),
+        shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow
         )

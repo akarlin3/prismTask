@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Slider
@@ -420,7 +419,7 @@ private fun SubInfoChip(text: String) {
             .padding(vertical = 6.dp)
             .background(
                 MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                RoundedCornerShape(6.dp)
+                MaterialTheme.shapes.medium
             ).padding(8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {

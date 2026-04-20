@@ -23,7 +23,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
+import com.averycorp.prismtask.ui.theme.LocalPrismShapes
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
@@ -442,7 +442,7 @@ private fun TemplateCard(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onQuickUse),
-        shape = RoundedCornerShape(12.dp),
+        shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow
         )
@@ -506,7 +506,7 @@ private fun TemplateCard(
             // Usage badge — "Used Nx" at a glance.
             Box(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(10.dp))
+                    .clip(LocalPrismShapes.current.chip)
                     .background(MaterialTheme.colorScheme.surfaceContainerHighest)
                     .padding(horizontal = 8.dp, vertical = 4.dp)
             ) {
@@ -606,7 +606,7 @@ private fun QuickUseSnackbar(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 16.dp),
-        shape = RoundedCornerShape(8.dp),
+        shape = MaterialTheme.shapes.medium,
         color = MaterialTheme.colorScheme.inverseSurface,
         tonalElevation = 6.dp,
         shadowElevation = 6.dp
