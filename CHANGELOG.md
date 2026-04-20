@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Fixed — Theme & Appearance Sync
+- **Theme mode (light/dark/system)** now syncs across devices. Previously the
+  `theme_mode` preference was written only to local DataStore with no Firestore
+  write path or listener; changing it on Device A had no effect on Device B.
+- **Accent color, font scale, priority colors, and color overrides**
+  (background/surface/error) now sync across devices via the same
+  `ThemePreferencesSyncService` that already synced the PrismTheme selection.
+- **Theme sync now works on every cold start.** Previously the Firestore pull
+  listener was registered only when the user completed an interactive sign-in
+  (`AuthViewModel.onGoogleSignIn`); restarting the app while already signed in
+  left the pull listener unregistered, so remote changes were never received.
+  `MainActivity.onCreate` now calls `ensurePullListener()` so the listener is
+  active regardless of how the session began.
+
 ### Changed — Default Templates & Routine Steps
 - Expanded starter content for the five built-in habit-template categories:
   **School** and **Leisure** now land as parent-with-subtasks templates

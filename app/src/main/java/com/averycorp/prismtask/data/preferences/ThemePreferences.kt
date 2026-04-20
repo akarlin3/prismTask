@@ -17,6 +17,9 @@ import javax.inject.Singleton
 
 internal val Context.themePrefsDataStore: DataStore<Preferences> by preferencesDataStore(name = "theme_prefs")
 
+// TODO: Any new key added here that belongs in the sync payload must also be added to
+//  ThemePreferencesSyncService.pushNow() (push) and applyRemoteSnapshot() (pull).
+//  Full per-user DataStore scoping + unified AppearanceSettingsSyncService deferred to Option C.
 @Singleton
 class ThemePreferences
 @Inject
@@ -67,7 +70,10 @@ constructor(
     }
 
     suspend fun setThemeMode(mode: String) {
-        context.themePrefsDataStore.edit { prefs -> prefs[THEME_MODE_KEY] = mode }
+        context.themePrefsDataStore.edit { prefs ->
+            prefs[THEME_MODE_KEY] = mode
+            prefs[THEME_UPDATED_AT_KEY] = System.currentTimeMillis()
+        }
     }
 
     fun getAccentColor(): Flow<String> = context.themePrefsDataStore.data.map { prefs ->
@@ -75,7 +81,10 @@ constructor(
     }
 
     suspend fun setAccentColor(hex: String) {
-        context.themePrefsDataStore.edit { prefs -> prefs[ACCENT_COLOR_KEY] = hex }
+        context.themePrefsDataStore.edit { prefs ->
+            prefs[ACCENT_COLOR_KEY] = hex
+            prefs[THEME_UPDATED_AT_KEY] = System.currentTimeMillis()
+        }
     }
 
     fun getBackgroundColor(): Flow<String> = context.themePrefsDataStore.data.map { prefs ->
@@ -83,7 +92,10 @@ constructor(
     }
 
     suspend fun setBackgroundColor(hex: String) {
-        context.themePrefsDataStore.edit { prefs -> prefs[BACKGROUND_COLOR_KEY] = hex }
+        context.themePrefsDataStore.edit { prefs ->
+            prefs[BACKGROUND_COLOR_KEY] = hex
+            prefs[THEME_UPDATED_AT_KEY] = System.currentTimeMillis()
+        }
     }
 
     fun getSurfaceColor(): Flow<String> = context.themePrefsDataStore.data.map { prefs ->
@@ -91,7 +103,10 @@ constructor(
     }
 
     suspend fun setSurfaceColor(hex: String) {
-        context.themePrefsDataStore.edit { prefs -> prefs[SURFACE_COLOR_KEY] = hex }
+        context.themePrefsDataStore.edit { prefs ->
+            prefs[SURFACE_COLOR_KEY] = hex
+            prefs[THEME_UPDATED_AT_KEY] = System.currentTimeMillis()
+        }
     }
 
     fun getErrorColor(): Flow<String> = context.themePrefsDataStore.data.map { prefs ->
@@ -99,7 +114,10 @@ constructor(
     }
 
     suspend fun setErrorColor(hex: String) {
-        context.themePrefsDataStore.edit { prefs -> prefs[ERROR_COLOR_KEY] = hex }
+        context.themePrefsDataStore.edit { prefs ->
+            prefs[ERROR_COLOR_KEY] = hex
+            prefs[THEME_UPDATED_AT_KEY] = System.currentTimeMillis()
+        }
     }
 
     fun getFontScale(): Flow<Float> = context.themePrefsDataStore.data.map { prefs ->
@@ -107,7 +125,10 @@ constructor(
     }
 
     suspend fun setFontScale(scale: Float) {
-        context.themePrefsDataStore.edit { prefs -> prefs[FONT_SCALE_KEY] = scale }
+        context.themePrefsDataStore.edit { prefs ->
+            prefs[FONT_SCALE_KEY] = scale
+            prefs[THEME_UPDATED_AT_KEY] = System.currentTimeMillis()
+        }
     }
 
     fun getPriorityColorNone(): Flow<String> = context.themePrefsDataStore.data.map { prefs ->
@@ -139,7 +160,10 @@ constructor(
             4 -> PRIORITY_COLOR_URGENT_KEY
             else -> return
         }
-        context.themePrefsDataStore.edit { prefs -> prefs[key] = hex }
+        context.themePrefsDataStore.edit { prefs ->
+            prefs[key] = hex
+            prefs[THEME_UPDATED_AT_KEY] = System.currentTimeMillis()
+        }
     }
 
     fun getRecentCustomColors(): Flow<List<String>> = context.themePrefsDataStore.data.map { prefs ->
@@ -160,6 +184,7 @@ constructor(
                 ?: emptyList()
             val updated = addToRecentColors(current, hex)
             prefs[RECENT_CUSTOM_COLORS_KEY] = updated.joinToString(",")
+            prefs[THEME_UPDATED_AT_KEY] = System.currentTimeMillis()
         }
     }
 
@@ -182,6 +207,25 @@ constructor(
         }
     }
 
+    suspend fun resetColorOverrides() {
+        context.themePrefsDataStore.edit { prefs ->
+            prefs.remove(BACKGROUND_COLOR_KEY)
+            prefs.remove(SURFACE_COLOR_KEY)
+            prefs.remove(ERROR_COLOR_KEY)
+            prefs.remove(FONT_SCALE_KEY)
+            prefs.remove(PRIORITY_COLOR_NONE_KEY)
+            prefs.remove(PRIORITY_COLOR_LOW_KEY)
+            prefs.remove(PRIORITY_COLOR_MEDIUM_KEY)
+            prefs.remove(PRIORITY_COLOR_HIGH_KEY)
+            prefs.remove(PRIORITY_COLOR_URGENT_KEY)
+            prefs[THEME_UPDATED_AT_KEY] = System.currentTimeMillis()
+        }
+    }
+
+    suspend fun clearAll() {
+        context.themePrefsDataStore.edit { it.clear() }
+    }
+
     // --- Sync support -----------------------------------------------------------
 
     /** Emits Unit whenever any theme preference changes. */
@@ -197,30 +241,52 @@ constructor(
         context.themePrefsDataStore.edit { prefs -> prefs[THEME_LAST_SYNCED_AT_KEY] = timestamp }
     }
 
-    /** Applies a remote theme value, setting both timestamps so the push observer skips a round-trip. */
-    internal suspend fun applyRemoteTheme(themeName: String, updatedAt: Long) {
+    /**
+     * Returns all sync-payload fields as a flat map using Firestore field names as keys.
+     * Absent optional fields (background_color, priority colors, etc.) fall back to their
+     * defaults so the push always sends a complete document.
+     */
+    internal suspend fun snapshot(): Map<String, Any> {
+        val prefs = context.themePrefsDataStore.data.first()
+        return buildMap {
+            put("prism_theme", prefs[PRISM_THEME_KEY] ?: DEFAULT_PRISM_THEME)
+            put("theme_mode", prefs[THEME_MODE_KEY] ?: "system")
+            put("accent_color", prefs[ACCENT_COLOR_KEY] ?: "#2563EB")
+            put("background_color", prefs[BACKGROUND_COLOR_KEY] ?: "")
+            put("surface_color", prefs[SURFACE_COLOR_KEY] ?: "")
+            put("error_color", prefs[ERROR_COLOR_KEY] ?: "")
+            put("font_scale", prefs[FONT_SCALE_KEY] ?: 1.0f)
+            put("priority_color_none", prefs[PRIORITY_COLOR_NONE_KEY] ?: "")
+            put("priority_color_low", prefs[PRIORITY_COLOR_LOW_KEY] ?: "")
+            put("priority_color_medium", prefs[PRIORITY_COLOR_MEDIUM_KEY] ?: "")
+            put("priority_color_high", prefs[PRIORITY_COLOR_HIGH_KEY] ?: "")
+            put("priority_color_urgent", prefs[PRIORITY_COLOR_URGENT_KEY] ?: "")
+            put("recent_custom_colors", prefs[RECENT_CUSTOM_COLORS_KEY] ?: "")
+        }
+    }
+
+    /**
+     * Applies fields from a remote Firestore snapshot into DataStore atomically.
+     * Only fields present in [remote] are written; absent fields preserve their local values.
+     * Both timestamps are set to [updatedAt] so the push observer does not echo the write.
+     */
+    internal suspend fun applyRemoteSnapshot(remote: Map<String, Any?>, updatedAt: Long) {
         context.themePrefsDataStore.edit { prefs ->
-            prefs[PRISM_THEME_KEY] = themeName
+            (remote["prism_theme"] as? String)?.let { prefs[PRISM_THEME_KEY] = it }
+            (remote["theme_mode"] as? String)?.let { prefs[THEME_MODE_KEY] = it }
+            (remote["accent_color"] as? String)?.let { prefs[ACCENT_COLOR_KEY] = it }
+            (remote["background_color"] as? String)?.let { prefs[BACKGROUND_COLOR_KEY] = it }
+            (remote["surface_color"] as? String)?.let { prefs[SURFACE_COLOR_KEY] = it }
+            (remote["error_color"] as? String)?.let { prefs[ERROR_COLOR_KEY] = it }
+            (remote["font_scale"] as? Number)?.let { prefs[FONT_SCALE_KEY] = it.toFloat() }
+            (remote["priority_color_none"] as? String)?.let { prefs[PRIORITY_COLOR_NONE_KEY] = it }
+            (remote["priority_color_low"] as? String)?.let { prefs[PRIORITY_COLOR_LOW_KEY] = it }
+            (remote["priority_color_medium"] as? String)?.let { prefs[PRIORITY_COLOR_MEDIUM_KEY] = it }
+            (remote["priority_color_high"] as? String)?.let { prefs[PRIORITY_COLOR_HIGH_KEY] = it }
+            (remote["priority_color_urgent"] as? String)?.let { prefs[PRIORITY_COLOR_URGENT_KEY] = it }
+            (remote["recent_custom_colors"] as? String)?.let { prefs[RECENT_CUSTOM_COLORS_KEY] = it }
             prefs[THEME_UPDATED_AT_KEY] = updatedAt
             prefs[THEME_LAST_SYNCED_AT_KEY] = updatedAt
         }
-    }
-
-    suspend fun resetColorOverrides() {
-        context.themePrefsDataStore.edit { prefs ->
-            prefs.remove(BACKGROUND_COLOR_KEY)
-            prefs.remove(SURFACE_COLOR_KEY)
-            prefs.remove(ERROR_COLOR_KEY)
-            prefs.remove(FONT_SCALE_KEY)
-            prefs.remove(PRIORITY_COLOR_NONE_KEY)
-            prefs.remove(PRIORITY_COLOR_LOW_KEY)
-            prefs.remove(PRIORITY_COLOR_MEDIUM_KEY)
-            prefs.remove(PRIORITY_COLOR_HIGH_KEY)
-            prefs.remove(PRIORITY_COLOR_URGENT_KEY)
-        }
-    }
-
-    suspend fun clearAll() {
-        context.themePrefsDataStore.edit { it.clear() }
     }
 }

@@ -9,21 +9,31 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.debounce
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Syncs the selected PrismTheme to/from Firestore at
+ * Syncs all ThemePreferences keys to/from Firestore at
  * /users/{uid}/settings/theme_preferences.
  *
  * Push: observes [ThemePreferences.flowOfThemeChanges], debounces 500 ms,
- * writes { prism_theme, updated_at } with merge semantics.
+ * compares updated_at vs last_synced_at, writes the full payload with merge
+ * semantics when local is newer.
  *
- * Pull: Firestore snapshot listener applies remote value when remote
- * updated_at is newer than local (last-write-wins).
+ * Pull: Firestore snapshot listener applies remote fields when remote
+ * updated_at is newer than local (last-write-wins). Missing remote fields
+ * preserve local values.
+ *
+ * Lifecycle:
+ * - [startPushObserver] is called from MainActivity.onCreate() on every cold
+ *   start to register the push side.
+ * - [ensurePullListener] is also called from MainActivity.onCreate() so the
+ *   pull listener is active on cold start for already-signed-in users.
+ * - [startAfterSignIn] is called from AuthViewModel on interactive sign-in;
+ *   it registers the pull listener AND force-pushes local state to Firestore.
+ * - [stopAfterSignOut] removes the listener. Local DataStore is not cleared.
  */
 @Singleton
 class ThemePreferencesSyncService @Inject constructor(
@@ -54,6 +64,17 @@ class ThemePreferencesSyncService @Inject constructor(
                     pushNow()
                 }
         }
+    }
+
+    /**
+     * Registers the Firestore pull listener if the user is signed in and no
+     * listener is currently active. Called from MainActivity.onCreate() so
+     * already-signed-in users get the pull listener on every cold start.
+     */
+    fun ensurePullListener() {
+        if (authManager.userId == null) return
+        if (settingsListener != null) return
+        startPullListener()
     }
 
     /** Called from AuthViewModel after a successful sign-in. */
@@ -90,11 +111,10 @@ class ThemePreferencesSyncService @Inject constructor(
         val localUpdatedAt = themePreferences.getThemeUpdatedAt()
         if (remoteUpdatedAt <= localUpdatedAt) return
 
-        val themeName = data["prism_theme"] as? String ?: return
-        themePreferences.applyRemoteTheme(themeName, remoteUpdatedAt)
+        themePreferences.applyRemoteSnapshot(data, remoteUpdatedAt)
         logger.info(
             operation = "[ThemeSync] pull",
-            detail = "theme=$themeName | status=success"
+            detail = "fields=${data.size - 1} | status=success"
         )
     }
 
@@ -107,9 +127,9 @@ class ThemePreferencesSyncService @Inject constructor(
             if (updatedAt <= lastSynced) return
         }
 
-        val themeName = themePreferences.getPrismTheme().first()
+        val payload = themePreferences.snapshot().toMutableMap<String, Any>()
         val now = System.currentTimeMillis()
-        val payload = mapOf("prism_theme" to themeName, "updated_at" to now)
+        payload["updated_at"] = now
 
         val ref = firestore.collection("users").document(uid)
             .collection("settings").document("theme_preferences")
@@ -118,7 +138,7 @@ class ThemePreferencesSyncService @Inject constructor(
             themePreferences.setThemeLastSyncedAt(now)
             logger.info(
                 operation = "[ThemeSync] push",
-                detail = "theme=$themeName | status=success"
+                detail = "fields=${payload.size - 1} | status=success"
             )
         } catch (e: Exception) {
             logger.error(
