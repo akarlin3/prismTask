@@ -67,7 +67,7 @@ constructor(
      * notification appears in the tray with a fixed title so users can
      * tell it apart from real reminders.
      */
-    fun fireTestNotification(profile: NotificationProfile) {
+    suspend fun fireTestNotification(profile: NotificationProfile) {
         NotificationHelper.showTaskReminderFor(
             context = context,
             profile = profile,

@@ -217,6 +217,14 @@ constructor(
         val task = taskDao.getTaskById(id).firstOrNull()
         val tags = if (task != null) tagDao.getTagsForTask(id).first() else emptyList()
 
+        // Cancel the scheduled reminder for the task we're marking complete
+        // so a stale alarm doesn't fire for a finished task. The PendingIntent
+        // request code matches the one registered by ReminderScheduler
+        // (taskId.toInt()), so this reliably targets the correct alarm.
+        // Covers all three completion entry points (single tap / bulk /
+        // subtask) because they all funnel through this function.
+        reminderScheduler.cancelReminder(id)
+
         val nextRecurrenceId = transactionRunner.withTransaction {
             if (task != null) {
                 taskCompletionRepository.recordCompletion(task, tags)
@@ -249,6 +257,22 @@ constructor(
         if (nextRecurrenceId != null) {
             syncTracker.trackCreate(nextRecurrenceId, "task")
             calendarPushDispatcher.enqueuePushTask(nextRecurrenceId)
+            // Re-register the alarm against the newly-inserted recurrence
+            // instance. Without this, recurring tasks lose their reminder
+            // after the first completion because the reminder_offset field
+            // alone doesn't schedule anything.
+            val nextTask = taskDao.getTaskByIdOnce(nextRecurrenceId)
+            val offset = nextTask?.reminderOffset
+            val nextDueDate = nextTask?.dueDate
+            if (nextTask != null && offset != null && nextDueDate != null) {
+                reminderScheduler.scheduleReminder(
+                    taskId = nextRecurrenceId,
+                    taskTitle = nextTask.title,
+                    taskDescription = nextTask.description,
+                    dueDate = ReminderScheduler.combineDateAndTime(nextDueDate, nextTask.dueTime),
+                    reminderOffset = offset
+                )
+            }
         }
         syncTracker.trackUpdate(id, "task")
         calendarPushDispatcher.enqueueDeleteTaskEvent(id)
@@ -259,6 +283,21 @@ constructor(
         taskDao.markIncomplete(id, System.currentTimeMillis())
         syncTracker.trackUpdate(id, "task")
         calendarPushDispatcher.enqueuePushTask(id)
+        // Restore the reminder that completeTask cancelled so an Undo
+        // snackbar (single or bulk complete) brings back the alarm the
+        // user originally set.
+        val task = taskDao.getTaskByIdOnce(id)
+        val offset = task?.reminderOffset
+        val dueDate = task?.dueDate
+        if (task != null && offset != null && dueDate != null) {
+            reminderScheduler.scheduleReminder(
+                taskId = id,
+                taskTitle = task.title,
+                taskDescription = task.description,
+                dueDate = ReminderScheduler.combineDateAndTime(dueDate, task.dueTime),
+                reminderOffset = offset
+            )
+        }
         widgetUpdateManager.updateTaskWidgets()
     }
 

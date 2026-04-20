@@ -40,6 +40,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.lifecycleScope
 import com.averycorp.prismtask.data.billing.BillingManager
 import com.averycorp.prismtask.data.diagnostics.DiagnosticLogger
 import com.averycorp.prismtask.data.preferences.AppearancePrefs
@@ -68,6 +69,7 @@ import com.averycorp.prismtask.ui.theme.themeOverlay
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -143,10 +145,17 @@ class MainActivity : ComponentActivity() {
         installSplashScreen()
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        try {
-            NotificationHelper.createNotificationChannel(this)
-        } catch (e: Exception) {
-            Log.e("MainActivity", "Failed to create notification channel", e)
+        // Channel creation reads DataStore preferences, so it runs off the
+        // Main thread via lifecycleScope + IO dispatcher. Users see the app
+        // before the channel finishes registering; that's fine because any
+        // notification posted before it completes will lazily trigger its
+        // own channel creation via the same suspend path.
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                NotificationHelper.createNotificationChannel(this@MainActivity)
+            } catch (e: Exception) {
+                Log.e("MainActivity", "Failed to create notification channel", e)
+            }
         }
         try {
             syncService.startAutoSync()
@@ -454,11 +463,22 @@ class MainActivity : ComponentActivity() {
                     onDismissRequest = dismissAndRecord,
                     title = { androidx.compose.material3.Text("Improve Reminder Reliability") },
                     text = {
-                        androidx.compose.material3.Text(
-                            "Samsung devices may delay notifications. Tap below to " +
-                                "disable battery optimization for PrismTask so " +
-                                "reminders fire on time."
-                        )
+                        androidx.compose.material3.Column {
+                            androidx.compose.material3.Text(
+                                "Samsung devices may delay notifications. Tap below to " +
+                                    "disable battery optimization for PrismTask so " +
+                                    "reminders fire on time."
+                            )
+                            androidx.compose.foundation.layout.Spacer(
+                                modifier = Modifier.size(8.dp)
+                            )
+                            androidx.compose.material3.Text(
+                                "Samsung also keeps \"Put Unused Apps to Sleep\" and " +
+                                    "\"Deep Sleeping Apps\" lists under Settings \u2192 " +
+                                    "Battery. If reminders still miss, make sure " +
+                                    "PrismTask isn't on those lists."
+                            )
+                        }
                     },
                     confirmButton = {
                         androidx.compose.material3.TextButton(onClick = {

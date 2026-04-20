@@ -19,7 +19,6 @@ import com.averycorp.prismtask.domain.model.notifications.NotificationProfile
 import com.averycorp.prismtask.domain.model.notifications.UrgencyTier
 import com.averycorp.prismtask.domain.model.notifications.VibrationIntensity
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.runBlocking
 
 object NotificationHelper {
     private const val BASE_CHANNEL_ID = "prismtask_reminders"
@@ -84,9 +83,9 @@ object NotificationHelper {
         val repeatingVibration: Boolean
     )
 
-    private fun currentStyle(context: Context): Style = runBlocking {
+    private suspend fun currentStyle(context: Context): Style {
         val prefs = NotificationPreferences.from(context)
-        Style(
+        return Style(
             importance = prefs.getImportanceOnce(),
             fullScreen = prefs.getFullScreenNotificationsEnabledOnce(),
             overrideVolume = prefs.getOverrideVolumeEnabledOnce(),
@@ -94,10 +93,8 @@ object NotificationHelper {
         )
     }
 
-    private fun recordImportance(context: Context, importance: String) {
-        runBlocking {
-            NotificationPreferences.from(context).setPreviousImportance(importance)
-        }
+    private suspend fun recordImportance(context: Context, importance: String) {
+        NotificationPreferences.from(context).setPreviousImportance(importance)
     }
 
     private fun channelSuffix(style: Style): String = buildString {
@@ -196,7 +193,7 @@ object NotificationHelper {
         }
     }
 
-    fun createNotificationChannel(context: Context) {
+    suspend fun createNotificationChannel(context: Context) {
         val manager = context.getSystemService(NotificationManager::class.java)
         migrateOldChannels(context)
         val style = currentStyle(context)
@@ -240,14 +237,14 @@ object NotificationHelper {
         }
     }
 
-    fun showTaskReminder(
+    suspend fun showTaskReminder(
         context: Context,
         taskId: Long,
         taskTitle: String,
         taskDescription: String?
     ) {
         val prefs = NotificationPreferences.from(context)
-        val enabled = runBlocking { prefs.taskRemindersEnabled.first() }
+        val enabled = prefs.taskRemindersEnabled.first()
         if (!enabled) {
             Log.d("NotificationHelper", "Task reminders disabled — skipping task=$taskId")
             return
@@ -296,7 +293,7 @@ object NotificationHelper {
         manager.notify(taskId.toInt(), builder.build())
     }
 
-    private fun createMedicationChannel(context: Context) {
+    private suspend fun createMedicationChannel(context: Context) {
         val manager = context.getSystemService(NotificationManager::class.java)
         val style = currentStyle(context)
         deleteStaleChannels(context, BASE_MED_CHANNEL_ID, style)
@@ -310,7 +307,7 @@ object NotificationHelper {
         recordImportance(context, style.importance)
     }
 
-    fun showMedicationReminder(
+    suspend fun showMedicationReminder(
         context: Context,
         habitId: Long,
         habitName: String,
@@ -320,7 +317,7 @@ object NotificationHelper {
         totalDoses: Int = 1
     ) {
         val prefs = NotificationPreferences.from(context)
-        val enabled = runBlocking { prefs.medicationRemindersEnabled.first() }
+        val enabled = prefs.medicationRemindersEnabled.first()
         if (!enabled) {
             Log.d("NotificationHelper", "Medication reminders disabled — skipping habit=$habitId")
             return
@@ -383,14 +380,14 @@ object NotificationHelper {
         manager.notify(habitId.toInt() + 200_000, builder.build())
     }
 
-    fun showMedStepReminder(
+    suspend fun showMedStepReminder(
         context: Context,
         stepId: String,
         medName: String,
         medNote: String
     ) {
         val prefs = NotificationPreferences.from(context)
-        val enabled = runBlocking { prefs.medicationRemindersEnabled.first() }
+        val enabled = prefs.medicationRemindersEnabled.first()
         if (!enabled) {
             Log.d("NotificationHelper", "Medication reminders disabled — skipping step=$stepId")
             return
@@ -425,7 +422,7 @@ object NotificationHelper {
         manager.notify(stepId.hashCode() + 400_000, builder.build())
     }
 
-    private fun createTimerChannel(context: Context) {
+    private suspend fun createTimerChannel(context: Context) {
         val manager = context.getSystemService(NotificationManager::class.java)
         val style = currentStyle(context)
         deleteStaleChannels(context, BASE_TIMER_CHANNEL_ID, style)
@@ -439,9 +436,9 @@ object NotificationHelper {
         recordImportance(context, style.importance)
     }
 
-    fun showTimerCompleteNotification(context: Context, mode: String) {
+    suspend fun showTimerCompleteNotification(context: Context, mode: String) {
         val prefs = NotificationPreferences.from(context)
-        val enabled = runBlocking { prefs.timerAlertsEnabled.first() }
+        val enabled = prefs.timerAlertsEnabled.first()
         if (!enabled) {
             Log.d("NotificationHelper", "Timer alerts disabled — skipping mode=$mode")
             return
@@ -452,9 +449,7 @@ object NotificationHelper {
 
         val isBreak = mode.equals("BREAK", ignoreCase = true)
         val title = if (isBreak) "Break Complete!" else "Timer Complete!"
-        val buzzUntilDismissed = runBlocking {
-            TimerPreferences(context).getBuzzUntilDismissed().first()
-        }
+        val buzzUntilDismissed = TimerPreferences(context).getBuzzUntilDismissed().first()
         val body = when {
             buzzUntilDismissed -> TimerBuzzerDismissReceiver.BUZZ_BODY_TEXT
             isBreak -> "Ready to get back to focus?"
@@ -550,7 +545,7 @@ object NotificationHelper {
      * - The channel ID is namespaced by profile.id so two profiles can
      *   have distinct immutable delivery settings side-by-side.
      */
-    fun showTaskReminderFor(
+    suspend fun showTaskReminderFor(
         context: Context,
         profile: NotificationProfile,
         taskId: Long,
@@ -558,7 +553,7 @@ object NotificationHelper {
         taskDescription: String?
     ) {
         val prefs = NotificationPreferences.from(context)
-        val enabled = runBlocking { prefs.taskRemindersEnabled.first() }
+        val enabled = prefs.taskRemindersEnabled.first()
         if (!enabled) {
             Log.d("NotificationHelper", "Task reminders disabled — skipping task=$taskId")
             return
