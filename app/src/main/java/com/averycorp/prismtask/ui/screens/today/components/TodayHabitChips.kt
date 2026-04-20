@@ -87,7 +87,7 @@ internal fun BookableHabitReminderCard(
 ) {
     val habit = habitWithStatus.habit
     val colors = LocalPrismColors.current
-    val fonts = LocalPrismFonts.current
+    val fonts = LocalPrismFonts.current.body
     val habitColor = remember(habit.color, colors.primary) {
         try {
             Color(android.graphics.Color.parseColor(habit.color))
@@ -147,7 +147,7 @@ private fun HabitChip(
 ) {
     val habit = habitWithStatus.habit
     val colors = LocalPrismColors.current
-    val fonts = LocalPrismFonts.current
+    val fonts = LocalPrismFonts.current.body
     val habitColor = remember(habit.color, colors.primary) {
         try {
             Color(android.graphics.Color.parseColor(habit.color))
@@ -247,7 +247,7 @@ private fun HabitChip(
 @Composable
 private fun SeeAllChip(onClick: () -> Unit) {
     val colors = LocalPrismColors.current
-    val fonts = LocalPrismFonts.current
+    val fonts = LocalPrismFonts.current.body
     Card(
         modifier = Modifier
             .width(96.dp)

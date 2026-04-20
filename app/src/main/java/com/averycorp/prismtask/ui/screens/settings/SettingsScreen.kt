@@ -47,8 +47,7 @@ import com.averycorp.prismtask.ui.navigation.PrismTaskRoute
 import com.averycorp.prismtask.ui.screens.settings.sections.AboutSection
 import com.averycorp.prismtask.ui.theme.LocalPrismAttrs
 import com.averycorp.prismtask.ui.theme.LocalPrismColors
-import com.averycorp.prismtask.ui.theme.LocalPrismTheme
-import com.averycorp.prismtask.ui.theme.prismDisplayFont
+import com.averycorp.prismtask.ui.theme.LocalPrismFonts
 import com.averycorp.prismtask.ui.screens.settings.sections.AdminBugReportsSection
 import com.averycorp.prismtask.ui.screens.settings.sections.DebugLogAdminSection
 import com.averycorp.prismtask.ui.screens.settings.sections.DebugOnboardingSection
@@ -111,8 +110,7 @@ fun SettingsScreen(
     val scope = rememberCoroutineScope()
     val prismColors = LocalPrismColors.current
     val prismAttrs = LocalPrismAttrs.current
-    val prismTheme = LocalPrismTheme.current
-    val displayFont = prismDisplayFont(prismTheme)
+    val displayFont = LocalPrismFonts.current.display
 
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },

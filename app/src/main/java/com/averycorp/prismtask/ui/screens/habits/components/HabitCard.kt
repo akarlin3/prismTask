@@ -47,8 +47,6 @@ import com.averycorp.prismtask.ui.theme.ChipShape
 import com.averycorp.prismtask.ui.theme.LocalPrismAttrs
 import com.averycorp.prismtask.ui.theme.LocalPrismColors
 import com.averycorp.prismtask.ui.theme.LocalPrismFonts
-import com.averycorp.prismtask.ui.theme.LocalPrismTheme
-import com.averycorp.prismtask.ui.theme.prismDisplayFont
 
 /**
  * The main habit list card. Shows the habit's icon, name, weekly-progress
@@ -76,10 +74,9 @@ internal fun HabitItem(
 ) {
     val habit = habitWithStatus.habit
     val colors = LocalPrismColors.current
-    val fonts = LocalPrismFonts.current
+    val fonts = LocalPrismFonts.current.body
     val attrs = LocalPrismAttrs.current
-    val prismTheme = LocalPrismTheme.current
-    val displayFont = prismDisplayFont(prismTheme)
+    val displayFont = LocalPrismFonts.current.display
 
     val habitColor = try {
         Color(android.graphics.Color.parseColor(habit.color))

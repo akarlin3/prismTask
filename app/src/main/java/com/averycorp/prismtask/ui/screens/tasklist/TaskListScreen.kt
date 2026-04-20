@@ -99,8 +99,7 @@ import com.averycorp.prismtask.ui.screens.tasklist.components.draggableTaskItemW
 import com.averycorp.prismtask.ui.screens.tasklist.components.reorderableTaskItemWithSubtasks
 import com.averycorp.prismtask.ui.screens.tasklist.components.taskItemWithSubtasks
 import com.averycorp.prismtask.ui.theme.LocalPrismColors
-import com.averycorp.prismtask.ui.theme.LocalPrismTheme
-import com.averycorp.prismtask.ui.theme.prismDisplayFont
+import com.averycorp.prismtask.ui.theme.LocalPrismFonts
 import kotlinx.coroutines.launch
 import sh.calvin.reorderable.rememberReorderableLazyListState
 import java.text.SimpleDateFormat
@@ -400,8 +399,7 @@ fun TaskListScreen(
     }
 
     val prismColors = LocalPrismColors.current
-    val prismTheme = LocalPrismTheme.current
-    val displayFont = prismDisplayFont(prismTheme)
+    val displayFont = LocalPrismFonts.current.display
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = viewModel.snackbarHostState) },
         containerColor = prismColors.background,

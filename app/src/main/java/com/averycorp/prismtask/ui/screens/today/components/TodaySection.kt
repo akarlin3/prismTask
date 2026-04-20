@@ -87,7 +87,7 @@ private fun SectionHeaderRow(
         label = "chevronRotation"
     )
     val colors = LocalPrismColors.current
-    val fonts = LocalPrismFonts.current
+    val fonts = LocalPrismFonts.current.body
     Row(
         modifier = Modifier
             .fillMaxWidth()

@@ -390,7 +390,7 @@ fun PrismTaskNavGraph(
         }
 
     val prismColors = LocalPrismColors.current
-    val prismFonts = LocalPrismFonts.current
+    val prismFonts = LocalPrismFonts.current.body
 
     Scaffold(
         modifier = shortcutModifier,

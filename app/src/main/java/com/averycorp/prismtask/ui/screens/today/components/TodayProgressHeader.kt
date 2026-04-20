@@ -48,7 +48,6 @@ import com.averycorp.prismtask.ui.theme.LocalPrismFonts
 import com.averycorp.prismtask.ui.theme.LocalPrismTheme
 import com.averycorp.prismtask.ui.theme.PrismTheme
 import com.averycorp.prismtask.ui.theme.drawCyberpunkTimerTicks
-import com.averycorp.prismtask.ui.theme.prismDisplayFont
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -76,10 +75,10 @@ internal fun CompactProgressHeader(
         SimpleDateFormat("EEEE, MMMM d", Locale.getDefault()).format(Date())
     }
     val colors = LocalPrismColors.current
-    val fonts = LocalPrismFonts.current
+    val fonts = LocalPrismFonts.current.body
     val attrs = LocalPrismAttrs.current
     val prismTheme = LocalPrismTheme.current
-    val displayFont = prismDisplayFont(prismTheme)
+    val displayFont = LocalPrismFonts.current.display
 
     val animatedProgress by animateFloatAsState(
         targetValue = progress,

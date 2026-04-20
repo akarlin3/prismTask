@@ -49,8 +49,7 @@ import com.averycorp.prismtask.ui.screens.habits.components.HabitItem
 import com.averycorp.prismtask.ui.screens.habits.components.HabitLogDialog
 import com.averycorp.prismtask.ui.screens.habits.components.SelfCareRoutineCard
 import com.averycorp.prismtask.ui.theme.LocalPrismColors
-import com.averycorp.prismtask.ui.theme.LocalPrismTheme
-import com.averycorp.prismtask.ui.theme.prismDisplayFont
+import com.averycorp.prismtask.ui.theme.LocalPrismFonts
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 
@@ -85,8 +84,7 @@ fun HabitListScreen(
 
     val baseTitle = if (filter == "daily") "Daily Habits" else "Recurring Habits"
     val prismColors = LocalPrismColors.current
-    val prismTheme = LocalPrismTheme.current
-    val displayFont = prismDisplayFont(prismTheme)
+    val displayFont = LocalPrismFonts.current.display
     val prismAttrs = com.averycorp.prismtask.ui.theme.LocalPrismAttrs.current
 
     // Per-theme title: Matrix uppercases and prefixes; Void adds a colored dot;

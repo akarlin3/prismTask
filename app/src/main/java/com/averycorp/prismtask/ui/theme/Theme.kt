@@ -96,8 +96,10 @@ fun PrismTaskTheme(
         inversePrimary = accent
     )
 
-    val scaledTypography = remember(fontScale) {
-        scaledTypography(Typography, fontScale)
+    val prismFonts = prismThemeFonts(prismTheme)
+    val prismAttrs = prismThemeAttrs(prismTheme)
+    val scaledTypography = remember(fontScale, prismTheme) {
+        scaledTypography(prismTypography(prismFonts, prismAttrs), fontScale)
     }
 
     // High-contrast mode: boost text contrast on the dark PrismTheme canvas
@@ -117,8 +119,8 @@ fun PrismTaskTheme(
         LocalPriorityColors provides priorityColors,
         LocalPrismTheme provides prismTheme,
         LocalPrismColors provides prismColors,
-        LocalPrismFonts provides prismThemeFonts(prismTheme),
-        LocalPrismAttrs provides prismThemeAttrs(prismTheme),
+        LocalPrismFonts provides prismFonts,
+        LocalPrismAttrs provides prismAttrs,
         com.averycorp.prismtask.ui.a11y.LocalReducedMotion provides reduceMotion,
         com.averycorp.prismtask.ui.a11y.LocalHighContrast provides highContrast,
         com.averycorp.prismtask.ui.a11y.LocalLargeTouchTargets provides largeTouchTargets,

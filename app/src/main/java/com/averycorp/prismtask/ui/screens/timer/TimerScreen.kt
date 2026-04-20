@@ -74,7 +74,6 @@ import com.averycorp.prismtask.ui.theme.LocalPrismTheme
 import com.averycorp.prismtask.ui.theme.PrismTheme
 import com.averycorp.prismtask.ui.theme.PrismThemeAttrs
 import com.averycorp.prismtask.ui.theme.drawCyberpunkTimerTicks
-import com.averycorp.prismtask.ui.theme.prismDisplayFont
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -85,7 +84,7 @@ fun TimerScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val colors = LocalPrismColors.current
     val prismTheme = LocalPrismTheme.current
-    val displayFont = prismDisplayFont(prismTheme)
+    val displayFont = LocalPrismFonts.current.display
     val attrs = LocalPrismAttrs.current
 
     val topBarLabel = when {
@@ -149,8 +148,8 @@ private fun TimerContent(
 ) {
     val colors = LocalPrismColors.current
     val prismTheme = LocalPrismTheme.current
-    val displayFont = prismDisplayFont(prismTheme)
-    val bodyFont = LocalPrismFonts.current
+    val displayFont = LocalPrismFonts.current.display
+    val bodyFont = LocalPrismFonts.current.body
     val attrs = LocalPrismAttrs.current
 
     val accent = colors.primary
@@ -295,8 +294,8 @@ private fun ThemedTimerRing(
 ) {
     val colors = LocalPrismColors.current
     val prismTheme = LocalPrismTheme.current
-    val displayFont = prismDisplayFont(prismTheme)
-    val bodyFont = LocalPrismFonts.current
+    val displayFont = LocalPrismFonts.current.display
+    val bodyFont = LocalPrismFonts.current.body
 
     val progress = if (totalSeconds > 0) remainingSeconds.toFloat() / totalSeconds.toFloat() else 0f
     val animatedProgress by animateFloatAsState(
@@ -416,7 +415,7 @@ private fun ThemedStartButton(
     onClick: () -> Unit
 ) {
     val colors = LocalPrismColors.current
-    val displayFont = prismDisplayFont(LocalPrismTheme.current)
+    val displayFont = LocalPrismFonts.current.display
 
     val buttonShape = when {
         attrs.terminal -> RoundedCornerShape(0.dp)
@@ -491,7 +490,7 @@ private fun ThemedModeSelector(
             ) {
                 Text(
                     text = displayLabel,
-                    fontFamily = LocalPrismFonts.current,
+                    fontFamily = LocalPrismFonts.current.body,
                     letterSpacing = attrs.displayTracking.sp
                 )
             }
@@ -531,7 +530,7 @@ private fun PomodoroSettings(
     onSetCustomDurationMinutes: (Int) -> Unit
 ) {
     val colors = LocalPrismColors.current
-    val bodyFont = LocalPrismFonts.current
+    val bodyFont = LocalPrismFonts.current.body
     var showCustomDurationDialog by remember { mutableStateOf(false) }
 
     if (showCustomDurationDialog) {
@@ -587,7 +586,7 @@ private fun PomodoroSettings(
 @Composable
 private fun SettingsClickableRow(label: String, description: String, onClick: () -> Unit) {
     val colors = LocalPrismColors.current
-    val bodyFont = LocalPrismFonts.current
+    val bodyFont = LocalPrismFonts.current.body
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -609,7 +608,7 @@ private fun SettingsClickableRow(label: String, description: String, onClick: ()
 @Composable
 private fun SettingsToggleRow(label: String, description: String, checked: Boolean, onToggle: () -> Unit) {
     val colors = LocalPrismColors.current
-    val bodyFont = LocalPrismFonts.current
+    val bodyFont = LocalPrismFonts.current.body
     Row(
         modifier = Modifier
             .fillMaxWidth()

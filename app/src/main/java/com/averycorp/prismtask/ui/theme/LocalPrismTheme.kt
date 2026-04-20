@@ -1,7 +1,6 @@
 package com.averycorp.prismtask.ui.theme
 
 import androidx.compose.runtime.staticCompositionLocalOf
-import androidx.compose.ui.text.font.FontFamily
 
 /**
  * CompositionLocal exposing the active [PrismThemeColors] palette. Consumers
@@ -11,11 +10,11 @@ import androidx.compose.ui.text.font.FontFamily
 val LocalPrismColors = staticCompositionLocalOf { prismThemeColors(PrismTheme.VOID) }
 
 /**
- * CompositionLocal exposing the active body [FontFamily] for the selected
- * [PrismTheme]. Defaults to [FontFamily.SansSerif] for previews or any
- * composable that renders outside the normal theme scope.
+ * CompositionLocal exposing the active [PrismThemeFonts] trio (body, display,
+ * mono) for the selected [PrismTheme]. Use `.body`, `.display`, or `.mono`
+ * to access the individual [FontFamily] values.
  */
-val LocalPrismFonts = staticCompositionLocalOf<FontFamily> { FontFamily.SansSerif }
+val LocalPrismFonts = staticCompositionLocalOf { prismThemeFonts(PrismTheme.VOID) }
 
 /**
  * CompositionLocal exposing the currently-selected [PrismTheme]. This lets

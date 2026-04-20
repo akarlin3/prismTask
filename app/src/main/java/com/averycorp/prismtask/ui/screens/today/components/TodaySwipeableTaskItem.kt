@@ -83,7 +83,7 @@ internal fun SwipeableTaskItem(
     var showOverflowMenu by remember { mutableStateOf(false) }
     val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
     val colors = LocalPrismColors.current
-    val fonts = LocalPrismFonts.current
+    val fonts = LocalPrismFonts.current.body
     val tomorrowBlue = colors.secondary
     val dismissState = rememberSwipeToDismissBoxState(
         confirmValueChange = { value ->
@@ -328,7 +328,7 @@ internal fun SwipeableTaskItem(
 @Composable
 internal fun CompletedTaskItem(task: TaskEntity, onUncomplete: () -> Unit) {
     val colors = LocalPrismColors.current
-    val fonts = LocalPrismFonts.current
+    val fonts = LocalPrismFonts.current.body
     Card(
         modifier = Modifier
             .fillMaxWidth()
