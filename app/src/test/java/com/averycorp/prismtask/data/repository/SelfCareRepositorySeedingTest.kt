@@ -253,5 +253,10 @@ class SelfCareRepositorySeedingTest {
         override suspend fun deleteStepsByStepIds(routineType: String, stepIds: List<String>) {
             steps.removeAll { it.routineType == routineType && it.stepId in stepIds }
         }
+
+        override suspend fun getLogById(id: Long): SelfCareLogEntity? = null
+
+        override suspend fun getStepById(id: Long): SelfCareStepEntity? =
+            steps.firstOrNull { it.id == id }
     }
 }

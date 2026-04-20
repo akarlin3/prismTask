@@ -837,15 +837,31 @@ constructor(
                 // (either from the Firestore doc or derived from the epoch for
                 // legacy docs), so no post-hoc re-normalization is needed.
                 val completion = SyncMapper.mapToHabitCompletion(data, habitLocalId = habitLocalId)
-                val newId = habitCompletionDao.insert(completion)
-                syncMetadataDao.upsert(
-                    SyncMetadataEntity(
-                        localId = newId,
-                        entityType = "habit_completion",
-                        cloudId = cloudId,
-                        lastSyncedAt = System.currentTimeMillis()
+                // Dedup by natural key (habitId, completedDateLocal) to avoid
+                // duplicating completions seeded locally on both devices before sign-in.
+                val existingByNaturalKey = completion.completedDateLocal?.let {
+                    habitCompletionDao.getByHabitAndDateLocal(habitLocalId, it)
+                }
+                if (existingByNaturalKey != null) {
+                    syncMetadataDao.upsert(
+                        SyncMetadataEntity(
+                            localId = existingByNaturalKey.id,
+                            entityType = "habit_completion",
+                            cloudId = cloudId,
+                            lastSyncedAt = System.currentTimeMillis()
+                        )
                     )
-                )
+                } else {
+                    val newId = habitCompletionDao.insert(completion)
+                    syncMetadataDao.upsert(
+                        SyncMetadataEntity(
+                            localId = newId,
+                            entityType = "habit_completion",
+                            cloudId = cloudId,
+                            lastSyncedAt = System.currentTimeMillis()
+                        )
+                    )
+                }
             }
             true
         }

@@ -428,7 +428,6 @@ constructor(
                 selfCareDao.updateLog(
                     existing.copy(
                         selectedTier = tier,
-                        completedSteps = "[]",
                         isComplete = false,
                         startedAt = null,
                         updatedAt = System.currentTimeMillis()
