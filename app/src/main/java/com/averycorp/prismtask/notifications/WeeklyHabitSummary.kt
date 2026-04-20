@@ -120,6 +120,10 @@ constructor(
             .setContentIntent(tapPending)
             .build()
 
-        manager.notify(NOTIFICATION_ID, notification)
+        try {
+            manager.notify(NOTIFICATION_ID, notification)
+        } catch (_: SecurityException) {
+            // POST_NOTIFICATIONS denied — drop silently.
+        }
     }
 }

@@ -11,7 +11,7 @@ import com.averycorp.prismtask.data.remote.BuiltInHabitReconciler
 import com.averycorp.prismtask.data.repository.LeisureRepository
 import com.averycorp.prismtask.data.repository.SchoolworkRepository
 import com.averycorp.prismtask.data.seed.TemplateSeeder
-import com.averycorp.prismtask.notifications.OverloadCheckWorker
+import com.averycorp.prismtask.notifications.NotificationWorkerScheduler
 import com.averycorp.prismtask.widget.WidgetRefreshWorker
 import com.averycorp.prismtask.workers.AutoArchiveWorker
 import com.averycorp.prismtask.workers.CalendarSyncScheduler
@@ -51,6 +51,9 @@ class PrismTaskApplication :
     @Inject
     lateinit var calendarSyncScheduler: CalendarSyncScheduler
 
+    @Inject
+    lateinit var notificationWorkerScheduler: NotificationWorkerScheduler
+
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override val workManagerConfiguration: Configuration
@@ -65,7 +68,7 @@ class PrismTaskApplication :
         try {
             scheduleAutoArchive()
             scheduleDailyReset()
-            scheduleOverloadCheck()
+            scheduleNotificationWorkers()
             scheduleWidgetRefresh()
             scheduleCalendarSync()
         } catch (e: Exception) {
@@ -102,22 +105,20 @@ class PrismTaskApplication :
     }
 
     /**
-     * Schedules the v1.4.0 V2 daily overload check worker. Fires once per
-     * 24h window; if the user's balance state is still overloaded at the
-     * time the worker runs, a "work-life balance is skewing" notification
-     * is posted. Uses KEEP policy so the schedule is stable across app
-     * restarts and config changes.
+     * Applies the user's summary-worker toggles to WorkManager on cold
+     * start. Covers daily briefing, evening summary, weekly summary,
+     * overload check, and re-engagement — each gated on its own
+     * [NotificationPreferences] flag. Uses UPDATE policy inside the
+     * scheduler so a hot toggle or schedule change doesn't duplicate jobs.
      */
-    private fun scheduleOverloadCheck() {
-        val workRequest = PeriodicWorkRequestBuilder<OverloadCheckWorker>(
-            24,
-            TimeUnit.HOURS
-        ).build()
-        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
-            OverloadCheckWorker.UNIQUE_WORK_NAME,
-            ExistingPeriodicWorkPolicy.KEEP,
-            workRequest
-        )
+    private fun scheduleNotificationWorkers() {
+        appScope.launch {
+            try {
+                notificationWorkerScheduler.applyAll()
+            } catch (e: Exception) {
+                android.util.Log.e("PrismTaskApp", "Notification worker scheduling failed", e)
+            }
+        }
     }
 
     /**

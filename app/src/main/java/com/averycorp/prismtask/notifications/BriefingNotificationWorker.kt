@@ -92,7 +92,13 @@ constructor(
             .setAutoCancel(true)
             .build()
 
-        manager.notify(NOTIFICATION_ID, notification)
+        // POST_NOTIFICATIONS may be denied on API 33+; let the worker finish
+        // its data-gathering run and silently drop the notification rather
+        // than crashing the worker.
+        try {
+            manager.notify(NOTIFICATION_ID, notification)
+        } catch (_: SecurityException) {
+        }
     }
 
     companion object {

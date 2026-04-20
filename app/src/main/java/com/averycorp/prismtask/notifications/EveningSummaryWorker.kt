@@ -125,7 +125,11 @@ constructor(
             .setAutoCancel(true)
             .build()
 
-        manager.notify(NOTIFICATION_ID, notification)
+        try {
+            manager.notify(NOTIFICATION_ID, notification)
+        } catch (_: SecurityException) {
+            // POST_NOTIFICATIONS denied — data gathering ran, notification dropped.
+        }
     }
 
     companion object {

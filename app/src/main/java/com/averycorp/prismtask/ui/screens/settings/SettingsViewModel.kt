@@ -104,6 +104,7 @@ constructor(
     private val widgetUpdateManager: com.averycorp.prismtask.widget.WidgetUpdateManager,
     private val ndPreferencesDataStore: com.averycorp.prismtask.data.preferences.NdPreferencesDataStore,
     private val notificationPreferences: NotificationPreferences,
+    private val notificationWorkerScheduler: com.averycorp.prismtask.notifications.NotificationWorkerScheduler,
     private val templateSeeder: com.averycorp.prismtask.data.seed.TemplateSeeder,
     private val selfCareRepository: com.averycorp.prismtask.data.repository.SelfCareRepository
 ) : ViewModel() {
@@ -552,47 +553,35 @@ constructor(
     fun setDailyBriefingEnabled(enabled: Boolean) {
         viewModelScope.launch {
             notificationPreferences.setDailyBriefingEnabled(enabled)
-            if (enabled) {
-                com.averycorp.prismtask.notifications.BriefingNotificationWorker
-                    .schedule(appContext)
-            } else {
-                com.averycorp.prismtask.notifications.BriefingNotificationWorker
-                    .cancel(appContext)
-            }
+            notificationWorkerScheduler.applyBriefing(enabled)
         }
     }
 
     fun setEveningSummaryEnabled(enabled: Boolean) {
         viewModelScope.launch {
             notificationPreferences.setEveningSummaryEnabled(enabled)
-            if (enabled) {
-                com.averycorp.prismtask.notifications.EveningSummaryWorker
-                    .schedule(appContext)
-            } else {
-                com.averycorp.prismtask.notifications.EveningSummaryWorker
-                    .cancel(appContext)
-            }
+            notificationWorkerScheduler.applyEveningSummary(enabled)
         }
     }
 
     fun setWeeklySummaryEnabled(enabled: Boolean) {
-        viewModelScope.launch { notificationPreferences.setWeeklySummaryEnabled(enabled) }
+        viewModelScope.launch {
+            notificationPreferences.setWeeklySummaryEnabled(enabled)
+            notificationWorkerScheduler.applyWeeklySummary(enabled)
+        }
     }
 
     fun setOverloadAlertsEnabled(enabled: Boolean) {
-        viewModelScope.launch { notificationPreferences.setOverloadAlertsEnabled(enabled) }
+        viewModelScope.launch {
+            notificationPreferences.setOverloadAlertsEnabled(enabled)
+            notificationWorkerScheduler.applyOverloadCheck(enabled)
+        }
     }
 
     fun setReengagementEnabled(enabled: Boolean) {
         viewModelScope.launch {
             notificationPreferences.setReengagementEnabled(enabled)
-            if (enabled) {
-                com.averycorp.prismtask.notifications.ReengagementWorker
-                    .schedule(appContext)
-            } else {
-                com.averycorp.prismtask.notifications.ReengagementWorker
-                    .cancel(appContext)
-            }
+            notificationWorkerScheduler.applyReengagement(enabled)
         }
     }
 

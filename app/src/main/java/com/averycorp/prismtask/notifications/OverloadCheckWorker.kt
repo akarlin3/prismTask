@@ -8,6 +8,9 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
+import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.averycorp.prismtask.R
 import com.averycorp.prismtask.data.preferences.NotificationPreferences
@@ -18,6 +21,8 @@ import com.averycorp.prismtask.domain.usecase.BalanceTracker
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.flow.first
+import java.util.Calendar
+import java.util.concurrent.TimeUnit
 
 /**
  * Daily overload check worker (v1.4.0 V2).
@@ -99,5 +104,38 @@ constructor(
         const val CHANNEL_ID = "balance_alerts"
         const val NOTIFICATION_ID = 9401
         const val UNIQUE_WORK_NAME = "overload_check_daily"
+
+        /**
+         * Schedules the daily overload check. Aligns the first run with
+         * [hourOfDay] (default 4 PM) so the notification lands at a
+         * predictable late-afternoon time rather than whenever the app
+         * happened to start.
+         */
+        fun schedule(context: Context, hourOfDay: Int = 16, minute: Int = 0) {
+            val now = Calendar.getInstance()
+            val target = Calendar.getInstance().apply {
+                set(Calendar.HOUR_OF_DAY, hourOfDay)
+                set(Calendar.MINUTE, minute)
+                set(Calendar.SECOND, 0)
+                if (before(now)) add(Calendar.DAY_OF_YEAR, 1)
+            }
+            val delay = target.timeInMillis - now.timeInMillis
+
+            val request = PeriodicWorkRequestBuilder<OverloadCheckWorker>(1, TimeUnit.DAYS)
+                .setInitialDelay(delay, TimeUnit.MILLISECONDS)
+                .build()
+
+            WorkManager
+                .getInstance(context)
+                .enqueueUniquePeriodicWork(
+                    UNIQUE_WORK_NAME,
+                    ExistingPeriodicWorkPolicy.UPDATE,
+                    request
+                )
+        }
+
+        fun cancel(context: Context) {
+            WorkManager.getInstance(context).cancelUniqueWork(UNIQUE_WORK_NAME)
+        }
     }
 }
