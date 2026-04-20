@@ -20,3 +20,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "PrismTask"
 include(":app")
+include(":detekt-rules")

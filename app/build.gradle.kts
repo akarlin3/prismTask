@@ -341,4 +341,6 @@ dependencies {
 
     // detekt — formatting rules (ktlint wrapper) so detekt can auto-correct formatting issues
     detektPlugins("io.gitlab.arturbosch.detekt:detekt-formatting:1.23.6")
+    // detekt — custom rules for PrismTask theme token enforcement
+    detektPlugins(project(":detekt-rules"))
 }

@@ -266,3 +266,24 @@ formatting:
   PackageName:
     active: true
     autoCorrect: true
+
+# ─── PrismTask custom rules ───────────────────────────────────────────────────
+#
+# HardcodedColorLiteral: warns when Color(0xAARRGGBB) literals appear outside
+# the theme layer and user-facing color pickers.
+#
+# Severity is WARNING — warningsAsErrors is false, so this never fails CI.
+#
+PrismTaskCustom:
+  HardcodedColorLiteral:
+    active: true
+    excludes:
+      - '**/ui/theme/ThemeColors.kt'
+      - '**/ui/theme/PriorityColors.kt'
+      - '**/ui/theme/LifeCategoryColors.kt'
+      - '**/ui/theme/Color.kt'
+      - '**/widget/WidgetColors.kt'
+      - '**/settings/sections/AppearanceSection.kt'
+      - '**/settings/sections/PrismThemeSection.kt'
+      - '**/ui/theme/Theme.kt'
+      - '**/schoolwork/AddEditCourseScreen.kt'
