@@ -32,5 +32,7 @@ data class LeisureLogEntity(
     @ColumnInfo(name = "started_at")
     val startedAt: Long? = null,
     @ColumnInfo(name = "created_at")
-    val createdAt: Long = System.currentTimeMillis()
+    val createdAt: Long = System.currentTimeMillis(),
+    @ColumnInfo(name = "updated_at")
+    val updatedAt: Long = 0L
 )

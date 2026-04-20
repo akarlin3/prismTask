@@ -13,5 +13,6 @@ data class CourseEntity(
     @ColumnInfo(name = "icon") val icon: String = "\uD83D\uDCDA",
     @ColumnInfo(name = "active") val active: Boolean = true,
     @ColumnInfo(name = "sort_order") val sortOrder: Int = 0,
-    @ColumnInfo(name = "created_at") val createdAt: Long = System.currentTimeMillis()
+    @ColumnInfo(name = "created_at") val createdAt: Long = System.currentTimeMillis(),
+    @ColumnInfo(name = "updated_at") val updatedAt: Long = 0L
 )

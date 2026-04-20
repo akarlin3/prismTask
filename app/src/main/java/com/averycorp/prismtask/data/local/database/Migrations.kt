@@ -972,6 +972,16 @@ val MIGRATION_49_50 = object : Migration(49, 50) {
     }
 }
 
+val MIGRATION_50_51 = object : Migration(50, 51) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE self_care_logs ADD COLUMN updated_at INTEGER NOT NULL DEFAULT 0")
+        db.execSQL("ALTER TABLE leisure_logs ADD COLUMN updated_at INTEGER NOT NULL DEFAULT 0")
+        db.execSQL("ALTER TABLE self_care_steps ADD COLUMN updated_at INTEGER NOT NULL DEFAULT 0")
+        db.execSQL("ALTER TABLE courses ADD COLUMN updated_at INTEGER NOT NULL DEFAULT 0")
+        db.execSQL("ALTER TABLE course_completions ADD COLUMN updated_at INTEGER NOT NULL DEFAULT 0")
+    }
+}
+
 val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_1_2,
     MIGRATION_2_3,
@@ -1021,5 +1031,6 @@ val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_46_47,
     MIGRATION_47_48,
     MIGRATION_48_49,
-    MIGRATION_49_50
+    MIGRATION_49_50,
+    MIGRATION_50_51
 )

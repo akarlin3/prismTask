@@ -949,9 +949,12 @@ constructor(
                     )
                 )
             } else {
-                val course = SyncMapper.mapToCourse(data, localId)
-                schoolworkDao.updateCourse(course)
-                syncMetadataDao.clearPendingAction(localId, "course")
+                val localCourse = schoolworkDao.getCourseById(localId)
+                val remoteUpdatedAt = (data["updatedAt"] as? Number)?.toLong() ?: 0L
+                if (localCourse == null || remoteUpdatedAt > localCourse.updatedAt) {
+                    schoolworkDao.updateCourse(SyncMapper.mapToCourse(data, localId))
+                    syncMetadataDao.clearPendingAction(localId, "course")
+                }
             }
             true
         }
@@ -976,9 +979,12 @@ constructor(
                     )
                 )
             } else {
-                val completion = SyncMapper.mapToCourseCompletion(data, localId, courseLocalId)
-                schoolworkDao.updateCompletion(completion)
-                syncMetadataDao.clearPendingAction(localId, "course_completion")
+                val localCompletion = schoolworkDao.getCompletionById(localId)
+                val remoteUpdatedAt = (data["updatedAt"] as? Number)?.toLong() ?: 0L
+                if (localCompletion == null || remoteUpdatedAt > localCompletion.updatedAt) {
+                    schoolworkDao.updateCompletion(SyncMapper.mapToCourseCompletion(data, localId, courseLocalId))
+                    syncMetadataDao.clearPendingAction(localId, "course_completion")
+                }
             }
             true
         }
@@ -999,9 +1005,12 @@ constructor(
                     )
                 )
             } else {
-                val log = SyncMapper.mapToLeisureLog(data, localId)
-                leisureDao.updateLog(log)
-                syncMetadataDao.clearPendingAction(localId, "leisure_log")
+                val localLog = leisureDao.getLogById(localId)
+                val remoteUpdatedAt = (data["updatedAt"] as? Number)?.toLong() ?: 0L
+                if (localLog == null || remoteUpdatedAt > localLog.updatedAt) {
+                    leisureDao.updateLog(SyncMapper.mapToLeisureLog(data, localId))
+                    syncMetadataDao.clearPendingAction(localId, "leisure_log")
+                }
             }
             true
         }
@@ -1041,9 +1050,12 @@ constructor(
                     )
                 }
             } else {
-                val step = SyncMapper.mapToSelfCareStep(data, localId)
-                selfCareDao.updateStep(step)
-                syncMetadataDao.clearPendingAction(localId, "self_care_step")
+                val localStep = selfCareDao.getStepById(localId)
+                val remoteUpdatedAt = (data["updatedAt"] as? Number)?.toLong() ?: 0L
+                if (localStep == null || remoteUpdatedAt > localStep.updatedAt) {
+                    selfCareDao.updateStep(SyncMapper.mapToSelfCareStep(data, localId))
+                    syncMetadataDao.clearPendingAction(localId, "self_care_step")
+                }
             }
             true
         }
@@ -1064,9 +1076,12 @@ constructor(
                     )
                 )
             } else {
-                val log = SyncMapper.mapToSelfCareLog(data, localId)
-                selfCareDao.updateLog(log)
-                syncMetadataDao.clearPendingAction(localId, "self_care_log")
+                val localLog = selfCareDao.getLogById(localId)
+                val remoteUpdatedAt = (data["updatedAt"] as? Number)?.toLong() ?: 0L
+                if (localLog == null || remoteUpdatedAt > localLog.updatedAt) {
+                    selfCareDao.updateLog(SyncMapper.mapToSelfCareLog(data, localId))
+                    syncMetadataDao.clearPendingAction(localId, "self_care_log")
+                }
             }
             true
         }

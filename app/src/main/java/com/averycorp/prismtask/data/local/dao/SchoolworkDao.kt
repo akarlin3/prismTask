@@ -96,6 +96,9 @@ interface SchoolworkDao {
     @Query("SELECT * FROM course_completions WHERE date = :date AND course_id = :courseId LIMIT 1")
     suspend fun getCompletionOnce(date: Long, courseId: Long): CourseCompletionEntity?
 
+    @Query("SELECT * FROM course_completions WHERE id = :id LIMIT 1")
+    suspend fun getCompletionById(id: Long): CourseCompletionEntity?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertCompletion(completion: CourseCompletionEntity): Long
 

@@ -27,5 +27,6 @@ data class CourseCompletionEntity(
     @ColumnInfo(name = "course_id") val courseId: Long,
     @ColumnInfo(name = "completed") val completed: Boolean = false,
     @ColumnInfo(name = "completed_at") val completedAt: Long? = null,
-    @ColumnInfo(name = "created_at") val createdAt: Long = System.currentTimeMillis()
+    @ColumnInfo(name = "created_at") val createdAt: Long = System.currentTimeMillis(),
+    @ColumnInfo(name = "updated_at") val updatedAt: Long = 0L
 )

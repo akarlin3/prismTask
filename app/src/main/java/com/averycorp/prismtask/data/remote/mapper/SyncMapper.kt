@@ -398,7 +398,7 @@ object SyncMapper {
         "active" to course.active,
         "sortOrder" to course.sortOrder,
         "createdAt" to course.createdAt,
-        "updatedAt" to System.currentTimeMillis()
+        "updatedAt" to course.updatedAt
     )
 
     fun mapToCourse(data: Map<String, Any?>, localId: Long = 0): CourseEntity = CourseEntity(
@@ -409,7 +409,8 @@ object SyncMapper {
         icon = data["icon"] as? String ?: "\uD83D\uDCDA",
         active = data["active"] as? Boolean ?: true,
         sortOrder = (data["sortOrder"] as? Number)?.toInt() ?: 0,
-        createdAt = (data["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis()
+        createdAt = (data["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
+        updatedAt = (data["updatedAt"] as? Number)?.toLong() ?: 0L
     )
 
     // [courseCloudId] is the Firestore document ID of the parent CourseEntity from sync_metadata.
@@ -423,7 +424,7 @@ object SyncMapper {
         "completed" to completion.completed,
         "completedAt" to completion.completedAt,
         "createdAt" to completion.createdAt,
-        "updatedAt" to System.currentTimeMillis()
+        "updatedAt" to completion.updatedAt
     )
 
     fun mapToCourseCompletion(
@@ -436,7 +437,8 @@ object SyncMapper {
         courseId = courseLocalId,
         completed = data["completed"] as? Boolean ?: false,
         completedAt = (data["completedAt"] as? Number)?.toLong(),
-        createdAt = (data["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis()
+        createdAt = (data["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
+        updatedAt = (data["updatedAt"] as? Number)?.toLong() ?: 0L
     )
 
     // ── Leisure logs ──────────────────────────────────────────────────────────
@@ -451,7 +453,7 @@ object SyncMapper {
         "customSectionsState" to log.customSectionsState,
         "startedAt" to log.startedAt,
         "createdAt" to log.createdAt,
-        "updatedAt" to System.currentTimeMillis()
+        "updatedAt" to log.updatedAt
     )
 
     fun mapToLeisureLog(data: Map<String, Any?>, localId: Long = 0): LeisureLogEntity = LeisureLogEntity(
@@ -463,7 +465,8 @@ object SyncMapper {
         flexDone = data["flexDone"] as? Boolean ?: false,
         customSectionsState = data["customSectionsState"] as? String,
         startedAt = (data["startedAt"] as? Number)?.toLong(),
-        createdAt = (data["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis()
+        createdAt = (data["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
+        updatedAt = (data["updatedAt"] as? Number)?.toLong() ?: 0L
     )
 
     // ── Self-care steps ───────────────────────────────────────────────────────
@@ -481,7 +484,7 @@ object SyncMapper {
         "reminderDelayMillis" to step.reminderDelayMillis,
         "timeOfDay" to step.timeOfDay,
         "medicationName" to step.medicationName,
-        "updatedAt" to System.currentTimeMillis()
+        "updatedAt" to step.updatedAt
     )
 
     fun mapToSelfCareStep(data: Map<String, Any?>, localId: Long = 0): SelfCareStepEntity = SelfCareStepEntity(
@@ -496,7 +499,8 @@ object SyncMapper {
         sortOrder = (data["sortOrder"] as? Number)?.toInt() ?: 0,
         reminderDelayMillis = (data["reminderDelayMillis"] as? Number)?.toLong(),
         timeOfDay = data["timeOfDay"] as? String ?: "morning",
-        medicationName = data["medicationName"] as? String
+        medicationName = data["medicationName"] as? String,
+        updatedAt = (data["updatedAt"] as? Number)?.toLong() ?: 0L
     )
 
     // ── Self-care logs ────────────────────────────────────────────────────────
@@ -511,7 +515,7 @@ object SyncMapper {
         "isComplete" to log.isComplete,
         "startedAt" to log.startedAt,
         "createdAt" to log.createdAt,
-        "updatedAt" to System.currentTimeMillis()
+        "updatedAt" to log.updatedAt
     )
 
     fun mapToSelfCareLog(data: Map<String, Any?>, localId: Long = 0): SelfCareLogEntity = SelfCareLogEntity(
@@ -523,6 +527,7 @@ object SyncMapper {
         tiersByTime = data["tiersByTime"] as? String ?: "{}",
         isComplete = data["isComplete"] as? Boolean ?: false,
         startedAt = (data["startedAt"] as? Number)?.toLong(),
-        createdAt = (data["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis()
+        createdAt = (data["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
+        updatedAt = (data["updatedAt"] as? Number)?.toLong() ?: 0L
     )
 }
