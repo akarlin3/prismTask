@@ -1,0 +1,147 @@
+// PrismTask theme tokens — mirrors
+// app/src/main/java/com/averycorp/prismtask/ui/theme/ThemeColors.kt + ThemeFonts.kt
+const PRISM_THEMES = {
+  CYBERPUNK: {
+    id: 'CYBERPUNK',
+    label: 'Cyberpunk',
+    tagline: 'Neon terminal · cyan / magenta',
+    colors: {
+      background: '#0A0A0F',
+      surface: '#0D0D18',
+      surfaceVariant: '#111120',
+      border: 'rgba(0,245,255,0.10)',
+      primary: '#00F5FF',
+      secondary: '#FF00AA',
+      onBackground: '#E0F8FF',
+      onSurface: '#A0CCD4',
+      muted: '#4A8A9A',
+      urgentAccent: '#FF00AA',
+      urgentSurface: '#1A0010',
+      tagSurface: '#001A1A',
+      tagText: '#00F5FF',
+    },
+    fonts: {
+      body: '"Chakra Petch", system-ui, sans-serif',
+      display: '"Audiowide", "Chakra Petch", sans-serif',
+      mono: '"Chakra Petch", monospace',
+    },
+    displayUpper: true,
+    displayTracking: '0.06em',
+    scanlines: true,
+    chipShape: 'sharp',
+    radius: 2,
+    cardRadius: 4,
+    glow: 'strong',
+    brackets: true,       // corner brackets on hero cards
+    hudDividers: true,    // dashed separator lines
+    density: 'tight',
+  },
+  SYNTHWAVE: {
+    id: 'SYNTHWAVE',
+    label: 'Synthwave',
+    tagline: 'Neon sunset · pink / purple',
+    colors: {
+      background: '#0D0717',
+      surface: '#130820',
+      surfaceVariant: '#1A0F2E',
+      border: 'rgba(110,63,255,0.18)',
+      primary: '#FF2D87',
+      secondary: '#6E3FFF',
+      onBackground: '#F0D0FF',
+      onSurface: '#B080D0',
+      muted: '#5E3A7A',
+      urgentAccent: '#FF2D87',
+      urgentSurface: '#1F0015',
+      tagSurface: '#12082A',
+      tagText: '#6E3FFF',
+    },
+    fonts: {
+      body: '"Rajdhani", system-ui, sans-serif',
+      display: '"Monoton", "Rajdhani", sans-serif',
+      mono: '"Rajdhani", monospace',
+    },
+    displayUpper: true,
+    displayTracking: '0.08em',
+    gridFloor: true,
+    chipShape: 'pill',
+    radius: 18,
+    cardRadius: 22,
+    glow: 'heavy',
+    sunset: true,         // radial sunset behind hero cards
+    density: 'airy',
+  },
+  MATRIX: {
+    id: 'MATRIX',
+    label: 'Matrix',
+    tagline: 'Terminal green · monospace CRT',
+    colors: {
+      background: '#010D03',
+      surface: '#010F04',
+      surfaceVariant: '#021206',
+      border: 'rgba(0,255,65,0.14)',
+      primary: '#00FF41',
+      secondary: '#AAFF00',
+      onBackground: '#B0FFB8',
+      onSurface: '#70CC80',
+      muted: '#1A5E25',
+      urgentAccent: '#AAFF00',
+      urgentSurface: '#0A1400',
+      tagSurface: '#001A06',
+      tagText: '#00FF41',
+    },
+    fonts: {
+      body: '"Share Tech Mono", ui-monospace, monospace',
+      display: '"VT323", "Share Tech Mono", monospace',
+      mono: '"Share Tech Mono", ui-monospace, monospace',
+    },
+    displayUpper: false,
+    displayTracking: '0.02em',
+    scanlines: true,
+    chipShape: 'sharp',
+    radius: 0,
+    cardRadius: 0,
+    glow: 'soft',
+    terminal: true,       // > prompts, caret cursor, rain backdrop
+    density: 'tight',
+  },
+  VOID: {
+    id: 'VOID',
+    label: 'Void',
+    tagline: 'Editorial minimal · serif + sans',
+    colors: {
+      background: '#111113',
+      surface: '#161618',
+      surfaceVariant: '#1E1E22',
+      border: 'rgba(46,46,52,0.5)',
+      primary: '#C8B8FF',
+      secondary: '#8888CC',
+      onBackground: '#DCDCE4',
+      onSurface: '#A0A0AB',
+      muted: '#3E3E4A',
+      urgentAccent: '#E8A0A0',
+      urgentSurface: '#261616',
+      tagSurface: '#1A1A26',
+      tagText: '#8888CC',
+    },
+    fonts: {
+      body: '"Space Grotesk", system-ui, sans-serif',
+      display: '"Fraunces", "Space Grotesk", serif',
+      mono: '"Space Grotesk", monospace',
+    },
+    displayUpper: false,
+    displayTracking: '-0.02em',
+    chipShape: 'pill',
+    radius: 10,
+    cardRadius: 14,
+    glow: 'none',
+    editorial: true,      // hairlines, serif numerals, generous space
+    density: 'airy',
+  },
+};
+
+const THEME_ORDER = ['CYBERPUNK', 'SYNTHWAVE', 'MATRIX', 'VOID'];
+const SCREEN_ORDER = ['today', 'tasks', 'daily', 'recurring', 'timer', 'settings'];
+
+window.PRISM_THEMES = PRISM_THEMES;
+window.THEME_ORDER = THEME_ORDER;
+window.SCREEN_ORDER = SCREEN_ORDER;

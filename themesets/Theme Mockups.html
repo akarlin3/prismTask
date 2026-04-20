@@ -1,0 +1,506 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>PrismTask · Theme Mockups</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Audiowide&family=Chakra+Petch:wght@400;500;600;700&family=Fraunces:wght@400;500;600;700&family=Monoton&family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&family=Space+Grotesk:wght@400;500;600;700&family=VT323&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  html, body { margin: 0; padding: 0; background: #07070a; color: #d8d8e0; font-family: 'JetBrains Mono', ui-monospace, monospace; }
+  * { box-sizing: border-box; }
+  ::selection { background: rgba(200, 184, 255, 0.3); }
+  .toolbar-btn { transition: all .15s ease; cursor: pointer; user-select: none; }
+  .toolbar-btn:hover { border-color: rgba(255,255,255,0.28) !important; }
+  .phone-stage::-webkit-scrollbar { height: 10px; width: 10px; }
+  .phone-stage::-webkit-scrollbar-thumb { background: #1a1a22; border-radius: 5px; }
+  .phone-stage::-webkit-scrollbar-track { background: transparent; }
+  /* Hide scrollbars inside every phone frame */
+  .no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+  .no-scrollbar::-webkit-scrollbar { display: none; width: 0; height: 0; }
+  @keyframes blink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
+</style>
+</head>
+<body>
+
+<div id="root"></div>
+
+<!-- EDITMODE state -->
+<script>
+  window.__TWEAKS__ = /*EDITMODE-BEGIN*/{
+    "view": "showcase",
+    "screen": "today",
+    "theme": "MATRIX",
+    "showLabels": true
+  }/*EDITMODE-END*/;
+</script>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script src="themes.js"></script>
+<script type="text/babel" src="phone.jsx"></script>
+<script type="text/babel" src="screen-today.jsx"></script>
+<script type="text/babel" src="screen-tasks.jsx"></script>
+<script type="text/babel" src="screen-daily.jsx"></script>
+<script type="text/babel" src="screen-recurring.jsx"></script>
+<script type="text/babel" src="screen-timer.jsx"></script>
+<script type="text/babel" src="screen-settings.jsx"></script>
+<script type="text/babel" src="screen-settings-helpers.jsx"></script>
+<script type="text/babel" src="screen-taskdetail.jsx"></script>
+<script type="text/babel" src="screen-addtask.jsx"></script>
+<script type="text/babel" src="screen-templates.jsx"></script>
+<script type="text/babel" src="screen-onboarding.jsx"></script>
+<script type="text/babel" src="screen-pro.jsx"></script>
+<script type="text/babel" src="screen-bugreport.jsx"></script>
+<script type="text/babel" src="screen-settings-appearance.jsx"></script>
+<script type="text/babel" src="screen-settings-a11y.jsx"></script>
+<script type="text/babel" src="screen-settings-sync.jsx"></script>
+<script type="text/babel" src="screen-settings-shake.jsx"></script>
+
+<script type="text/babel">
+const { useState, useEffect, useMemo } = React;
+
+const SCREENS = {
+  today:     { label: 'Today',     comp: window.TodayScreen     },
+  tasks:     { label: 'Tasks',     comp: window.TasksScreen     },
+  daily:     { label: 'Daily',     comp: window.DailyScreen     },
+  recurring: { label: 'Recurring', comp: window.RecurringScreen },
+  timer:     { label: 'Timer',     comp: window.TimerScreen     },
+  settings:  { label: 'Settings',  comp: window.SettingsScreen  },
+};
+
+// Modals, flows, and settings subpages — shown in a secondary section.
+const MODAL_SCREENS = [
+  { id: 'taskdetail',  label: 'Task Detail',       comp: () => window.TaskDetailScreen,  group: 'Flows' },
+  { id: 'addtask',     label: 'Add Task Sheet',    comp: () => window.AddTaskSheet,      group: 'Flows' },
+  { id: 'templates',   label: 'Templates',         comp: () => window.TemplatesScreen,   group: 'Flows' },
+  { id: 'onboarding',  label: 'Onboarding',        comp: () => window.OnboardingScreen,  group: 'Flows' },
+  { id: 'pro',         label: 'Pro Upgrade',       comp: () => window.ProScreen,         group: 'Flows' },
+  { id: 'bugreport',   label: 'Bug Report',        comp: () => window.BugReportScreen,   group: 'Flows' },
+  { id: 'appearance',  label: 'Appearance',        comp: () => window.AppearanceScreen,  group: 'Settings' },
+  { id: 'a11y',        label: 'Accessibility',     comp: () => window.A11yScreen,        group: 'Settings' },
+  { id: 'sync',        label: 'Sync & Account',    comp: () => window.SyncScreen,        group: 'Settings' },
+  { id: 'shake',       label: 'Shake to Report',   comp: () => window.ShakeScreen,       group: 'Settings' },
+];
+
+function renderScreen(screenId, theme) {
+  const S = SCREENS[screenId].comp;
+  return <S theme={theme} />;
+}
+
+function ThemeLabel({ theme }) {
+  return (
+    <div style={{
+      fontFamily: 'JetBrains Mono, monospace',
+      fontSize: 11, letterSpacing: 1.2,
+      color: '#6b6b78',
+      textTransform: 'uppercase',
+      textAlign: 'center',
+    }}>
+      <div style={{
+        color: theme.colors.primary,
+        fontSize: 13, fontWeight: 600, letterSpacing: 1.8,
+        marginBottom: 3,
+      }}>
+        {theme.label}
+      </div>
+      <div>{theme.tagline}</div>
+    </div>
+  );
+}
+
+function ScreenLabel({ screenId, theme }) {
+  return (
+    <div style={{
+      fontFamily: 'JetBrains Mono, monospace',
+      fontSize: 11, letterSpacing: 1.4,
+      color: theme.colors.primary,
+      textTransform: 'uppercase',
+      textAlign: 'center',
+      fontWeight: 600,
+    }}>
+      {SCREENS[screenId].label}
+    </div>
+  );
+}
+
+function Header({ tweaks, setTweak }) {
+  const Btn = ({ active, onClick, children, title }) => (
+    <div
+      className="toolbar-btn"
+      onClick={onClick}
+      title={title}
+      style={{
+        padding: '8px 14px',
+        borderRadius: 8,
+        background: active ? 'rgba(200, 184, 255, 0.12)' : 'transparent',
+        border: `1px solid ${active ? 'rgba(200, 184, 255, 0.35)' : 'rgba(255,255,255,0.08)'}`,
+        color: active ? '#E0D8FF' : '#9898a8',
+        fontFamily: 'JetBrains Mono, monospace',
+        fontSize: 12,
+        letterSpacing: 0.5,
+        textTransform: 'uppercase',
+        fontWeight: 500,
+      }}
+    >
+      {children}
+    </div>
+  );
+  return (
+    <div style={{
+      borderBottom: '1px solid rgba(255,255,255,0.06)',
+      padding: '22px 40px 20px',
+      display: 'flex', alignItems: 'center', gap: 32, flexWrap: 'wrap',
+      background: 'rgba(12, 12, 16, 0.7)',
+      backdropFilter: 'blur(10px)',
+      position: 'sticky', top: 0, zIndex: 10,
+    }}>
+      <div>
+        <div style={{
+          fontFamily: 'Fraunces, serif',
+          fontSize: 24, fontWeight: 600, color: '#e8e8f0',
+          letterSpacing: -0.3,
+        }}>
+          PrismTask · Theme Mockups
+        </div>
+        <div style={{ fontSize: 11, color: '#6b6b78', letterSpacing: 1.2, textTransform: 'uppercase', marginTop: 2 }}>
+          v1.4 · 4 palettes × 6 screens
+        </div>
+      </div>
+
+      <div style={{ flex: 1 }}/>
+
+      {/* View mode */}
+      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+        <span style={{ fontSize: 10, color: '#555560', letterSpacing: 1.4, textTransform: 'uppercase', marginRight: 6 }}>Layout</span>
+        <Btn active={tweaks.view === 'grid'} onClick={() => setTweak('view', 'grid')}>
+          All themes
+        </Btn>
+        <Btn active={tweaks.view === 'showcase'} onClick={() => setTweak('view', 'showcase')}>
+          Single theme · all screens
+        </Btn>
+        <Btn active={tweaks.view === 'focus'} onClick={() => setTweak('view', 'focus')}>
+          Focus
+        </Btn>
+      </div>
+    </div>
+  );
+}
+
+function SubToolbar({ tweaks, setTweak }) {
+  const viewIsGrid = tweaks.view === 'grid';
+  const viewIsShowcase = tweaks.view === 'showcase';
+  const viewIsFocus = tweaks.view === 'focus';
+
+  const Chip = ({ active, onClick, children, color }) => (
+    <div
+      className="toolbar-btn"
+      onClick={onClick}
+      style={{
+        padding: '7px 13px',
+        borderRadius: 6,
+        background: active ? (color ? `${color}22` : 'rgba(255,255,255,0.06)') : 'transparent',
+        border: `1px solid ${active ? (color || 'rgba(255,255,255,0.25)') : 'rgba(255,255,255,0.08)'}`,
+        color: active ? (color || '#e8e8f0') : '#9898a8',
+        fontSize: 11, letterSpacing: 0.9, textTransform: 'uppercase',
+        fontFamily: 'JetBrains Mono, monospace', fontWeight: 500,
+      }}
+    >{children}</div>
+  );
+
+  return (
+    <div style={{
+      padding: '14px 40px',
+      display: 'flex', gap: 24, flexWrap: 'wrap', alignItems: 'center',
+      borderBottom: '1px solid rgba(255,255,255,0.04)',
+    }}>
+      {/* Screen picker — shown when layout is "All themes" or "Focus" */}
+      {(viewIsGrid || viewIsFocus) && (
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          <span style={{ fontSize: 10, color: '#555560', letterSpacing: 1.4, textTransform: 'uppercase', marginRight: 6 }}>Screen</span>
+          {window.SCREEN_ORDER.map(s => (
+            <Chip key={s} active={tweaks.screen === s} onClick={() => setTweak('screen', s)}>
+              {SCREENS[s].label}
+            </Chip>
+          ))}
+        </div>
+      )}
+
+      {/* Theme picker — shown when layout is "Single theme" or "Focus", OR for modals-section theming */}
+      {(viewIsShowcase || viewIsFocus || viewIsGrid) && (
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          <span style={{ fontSize: 10, color: '#555560', letterSpacing: 1.4, textTransform: 'uppercase', marginRight: 6 }}>Theme</span>
+          {window.THEME_ORDER.map(t => {
+            const th = window.PRISM_THEMES[t];
+            return (
+              <Chip key={t} active={tweaks.theme === t} onClick={() => setTweak('theme', t)} color={th.colors.primary}>
+                {th.label}
+              </Chip>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function GridView({ screenId }) {
+  // 4 themes × 1 screen, 2×2 grid
+  return (
+    <div style={{
+      display: 'grid',
+      gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))',
+      gap: 56,
+      padding: '48px 40px 80px',
+      justifyItems: 'center',
+      maxWidth: 2000,
+      margin: '0 auto',
+    }}>
+      {window.THEME_ORDER.map(id => {
+        const theme = window.PRISM_THEMES[id];
+        return (
+          <window.PhoneFrame
+            key={id}
+            theme={theme}
+            active={screenId}
+            scale={0.82}
+            label={<ThemeLabel theme={theme}/>}
+          >
+            {renderScreen(screenId, theme)}
+          </window.PhoneFrame>
+        );
+      })}
+    </div>
+  );
+}
+
+function ShowcaseView({ themeId }) {
+  const theme = window.PRISM_THEMES[themeId];
+  return (
+    <div>
+      {/* Theme intro panel */}
+      <div style={{
+        padding: '40px 40px 12px',
+        maxWidth: 1400, margin: '0 auto',
+      }}>
+        <div style={{
+          fontFamily: theme.fonts.display,
+          fontSize: 62, fontWeight: 700,
+          color: theme.colors.primary,
+          textTransform: theme.displayUpper ? 'uppercase' : 'none',
+          letterSpacing: theme.displayTracking, lineHeight: 1,
+        }}>
+          {theme.label}
+        </div>
+        <div style={{ marginTop: 12, display: 'flex', gap: 18, flexWrap: 'wrap', alignItems: 'center' }}>
+          <div style={{ fontSize: 13, color: '#9898a8', letterSpacing: 0.3 }}>
+            {theme.tagline}
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {['background','surface','primary','secondary','urgentAccent'].map(k => (
+              <div key={k} title={k} style={{
+                width: 22, height: 22, borderRadius: 4,
+                background: theme.colors[k],
+                border: '1px solid rgba(255,255,255,0.08)',
+              }}/>
+            ))}
+          </div>
+          <div style={{ fontSize: 11, color: '#6b6b78', letterSpacing: 1.2, textTransform: 'uppercase' }}>
+            Body · {theme.fonts.body.split(',')[0].replace(/"/g, '')} &nbsp;·&nbsp; Display · {theme.fonts.display.split(',')[0].replace(/"/g, '')}
+          </div>
+        </div>
+      </div>
+
+      {/* 3 screens side by side */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))',
+        gap: 48,
+        padding: '32px 40px 80px',
+        justifyItems: 'center',
+        maxWidth: 1800, margin: '0 auto',
+      }}>
+        {window.SCREEN_ORDER.map(s => (
+          <window.PhoneFrame
+            key={s}
+            theme={theme}
+            active={s}
+            scale={0.82}
+            label={<ScreenLabel screenId={s} theme={theme}/>}
+          >
+            {renderScreen(s, theme)}
+          </window.PhoneFrame>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// —— Modals & Flows section ——
+// Renders each secondary screen (task detail, add-task sheet, templates,
+// onboarding, pro upgrade, bug report, settings subpages) in a chosen theme.
+// Users can pick which theme via the SubToolbar theme chips; defaults to VOID.
+function ModalsSection({ themeId }) {
+  const theme = window.PRISM_THEMES[themeId] || window.PRISM_THEMES.VOID;
+  const groups = ['Flows', 'Settings'];
+
+  return (
+    <div style={{ padding: '24px 40px 40px', maxWidth: 2000, margin: '0 auto' }}>
+      {/* Section header */}
+      <div style={{
+        display: 'flex', alignItems: 'baseline', gap: 16, flexWrap: 'wrap',
+        padding: '32px 0 8px',
+        borderTop: '1px solid rgba(255,255,255,0.06)',
+        marginTop: 24,
+      }}>
+        <div style={{
+          fontFamily: 'JetBrains Mono, monospace',
+          fontSize: 11, letterSpacing: 2, textTransform: 'uppercase',
+          color: '#6b6b78', fontWeight: 600,
+        }}>
+          § 02
+        </div>
+        <div style={{
+          fontFamily: 'Space Grotesk, system-ui, sans-serif',
+          fontSize: 28, fontWeight: 700, color: '#e8e8f0',
+          letterSpacing: -0.5,
+        }}>
+          Modals &amp; flows
+        </div>
+        <div style={{
+          fontSize: 12, color: '#7a7a88',
+          fontFamily: 'JetBrains Mono, monospace',
+          letterSpacing: 0.3,
+        }}>
+          rendered in <span style={{ color: theme.colors.primary, fontWeight: 600 }}>{theme.label}</span> — switch theme in the toolbar above
+        </div>
+      </div>
+
+      {groups.map(group => {
+        const items = MODAL_SCREENS.filter(m => m.group === group);
+        return (
+          <div key={group} style={{ marginTop: 28 }}>
+            <div style={{
+              fontFamily: 'JetBrains Mono, monospace',
+              fontSize: 10, letterSpacing: 1.8, textTransform: 'uppercase',
+              color: '#555560', fontWeight: 600,
+              paddingBottom: 18,
+            }}>
+              {group === 'Flows' ? '— Primary flows' : '— Settings subpages'}
+            </div>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))',
+              gap: 48,
+              justifyItems: 'center',
+            }}>
+              {items.map(m => {
+                const Comp = m.comp();
+                if (!Comp) {
+                  // graceful placeholder if a screen file failed to register
+                  return (
+                    <div key={m.id} style={{
+                      width: 380, height: 600,
+                      border: '1px dashed rgba(255,255,255,0.12)',
+                      borderRadius: 32,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontFamily: 'JetBrains Mono, monospace',
+                      fontSize: 11, color: '#555560', letterSpacing: 1.2, textTransform: 'uppercase',
+                    }}>
+                      {m.label} · missing
+                    </div>
+                  );
+                }
+                return (
+                  <window.PhoneFrame
+                    key={m.id}
+                    theme={theme}
+                    active={null}
+                    scale={0.78}
+                    label={
+                      <div style={{
+                        fontFamily: 'JetBrains Mono, monospace',
+                        fontSize: 11, letterSpacing: 1.4,
+                        color: theme.colors.primary,
+                        textTransform: 'uppercase',
+                        textAlign: 'center',
+                        fontWeight: 600,
+                      }}>
+                        {m.label}
+                      </div>
+                    }
+                  >
+                    <Comp theme={theme}/>
+                  </window.PhoneFrame>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function FocusView({ themeId, screenId }) {
+  const theme = window.PRISM_THEMES[themeId];
+  return (
+    <div style={{ padding: '48px 40px 80px', display: 'flex', justifyContent: 'center' }}>
+      <window.PhoneFrame
+        theme={theme}
+        active={screenId}
+        scale={1}
+        label={<ThemeLabel theme={theme}/>}
+      >
+        {renderScreen(screenId, theme)}
+      </window.PhoneFrame>
+    </div>
+  );
+}
+
+function App() {
+  const [tweaks, setTweaksState] = useState(() => ({ ...(window.__TWEAKS__ || {}) }));
+
+  const setTweak = (k, v) => {
+    setTweaksState(prev => {
+      const next = { ...prev, [k]: v };
+      try { window.parent.postMessage({ type: '__edit_mode_set_keys', edits: { [k]: v } }, '*'); } catch {}
+      return next;
+    });
+  };
+
+  // Edit-mode protocol (register first, then announce)
+  useEffect(() => {
+    const onMsg = (e) => {
+      const d = e.data;
+      if (!d || !d.type) return;
+      if (d.type === '__activate_edit_mode')   { /* panel is always inline; nothing to do */ }
+      if (d.type === '__deactivate_edit_mode') { /* same */ }
+    };
+    window.addEventListener('message', onMsg);
+    try { window.parent.postMessage({ type: '__edit_mode_available' }, '*'); } catch {}
+    return () => window.removeEventListener('message', onMsg);
+  }, []);
+
+  return (
+    <div style={{ minHeight: '100vh' }}>
+      <Header tweaks={tweaks} setTweak={setTweak}/>
+      <SubToolbar tweaks={tweaks} setTweak={setTweak}/>
+      {tweaks.view === 'grid' && <GridView screenId={tweaks.screen}/>}
+      {tweaks.view === 'showcase' && <ShowcaseView themeId={tweaks.theme}/>}
+      {tweaks.view === 'focus' && <FocusView themeId={tweaks.theme} screenId={tweaks.screen}/>}
+      <ModalsSection themeId={tweaks.theme}/>
+      <div style={{ textAlign: 'center', padding: '30px 0 60px', color: '#444452', fontSize: 10, letterSpacing: 1.5, textTransform: 'uppercase' }}>
+        Palettes + fonts pulled from ThemeColors.kt / ThemeFonts.kt · PrismTask v1.4
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
