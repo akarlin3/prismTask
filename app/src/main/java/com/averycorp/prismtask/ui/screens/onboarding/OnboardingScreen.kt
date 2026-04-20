@@ -61,6 +61,8 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -72,6 +74,8 @@ import androidx.credentials.GetCredentialRequest
 import androidx.credentials.exceptions.GetCredentialCancellationException
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.averycorp.prismtask.BuildConfig
+import com.averycorp.prismtask.ui.a11y.asHeading
+import com.averycorp.prismtask.ui.a11y.politeLiveRegion
 import com.averycorp.prismtask.ui.screens.templates.TemplatePickerContent
 import com.averycorp.prismtask.ui.screens.templates.TemplateSelections
 import com.averycorp.prismtask.ui.theme.LocalPrismAttrs
@@ -156,9 +160,14 @@ fun OnboardingScreen(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 // Page indicators
+                val currentPagePosition = pagerState.currentPage + 1
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.padding(bottom = 24.dp)
+                    modifier = Modifier
+                        .padding(bottom = 24.dp)
+                        .semantics {
+                            contentDescription = "Page $currentPagePosition of $TOTAL_PAGES"
+                        }
                 ) {
                     repeat(TOTAL_PAGES) { index ->
                         val isSelected = pagerState.currentPage == index
@@ -274,7 +283,8 @@ private fun WelcomePage(viewModel: OnboardingViewModel) {
                         text = "Welcome to PrismTask",
                         style = MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.Bold,
-                        textAlign = TextAlign.Center
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.asHeading()
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
@@ -292,7 +302,7 @@ private fun WelcomePage(viewModel: OnboardingViewModel) {
                 enter = fadeIn(tween(400, delayMillis = 400))
             ) {
                 when (val state = signInState.value) {
-                    is SignInState.Loading -> {
+                    is SignInState.Loading, is SignInState.CheckingExistingUser -> {
                         Spacer(modifier = Modifier.height(24.dp))
                         CircularProgressIndicator(
                             modifier = Modifier.size(20.dp),
@@ -302,6 +312,18 @@ private fun WelcomePage(viewModel: OnboardingViewModel) {
                     is SignInState.SignedIn, is SignInState.ExistingUserDetected -> {
                         // Signed in — navigation handled by OnboardingScreen LaunchedEffect
                         // or user continues through onboarding as a new user.
+                    }
+                    is SignInState.ExistingUserCheckFailed -> {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = "Couldn't check for existing account — continuing with setup.",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.error,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier
+                                .padding(horizontal = 16.dp)
+                                .politeLiveRegion()
+                        )
                     }
                     else -> {
                         Spacer(modifier = Modifier.height(20.dp))
@@ -340,7 +362,9 @@ private fun WelcomePage(viewModel: OnboardingViewModel) {
                                 text = "Sign-in failed. Tap to try again.",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.error,
-                                modifier = Modifier.padding(top = 4.dp)
+                                modifier = Modifier
+                                    .padding(top = 4.dp)
+                                    .politeLiveRegion()
                             )
                         }
                     }
@@ -567,7 +591,8 @@ private fun TemplatesPage(viewModel: OnboardingViewModel) {
                     text = "Pick Your Starting Templates",
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.asHeading()
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
@@ -667,7 +692,8 @@ private fun BrainModePage(viewModel: OnboardingViewModel) {
                     text = "How Does Your Brain Work?",
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.asHeading()
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
@@ -814,7 +840,7 @@ private fun BrainModeCard(
                     if (isSelected) {
                         Icon(
                             Icons.Default.Check,
-                            contentDescription = "$title selected",
+                            contentDescription = "Selected",
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(24.dp)
                         )
@@ -867,7 +893,8 @@ private fun SetupPage(
         Text(
             text = "Let's Get You Started",
             style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.asHeading()
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
@@ -893,7 +920,7 @@ private fun SetupPage(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(modifier = Modifier.height(12.dp))
-                when (signInState) {
+                when (val state = signInState) {
                     is SignInState.SignedIn -> {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
@@ -903,46 +930,74 @@ private fun SetupPage(
                                 modifier = Modifier.size(20.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text((signInState as? SignInState.SignedIn)?.email ?: "", style = MaterialTheme.typography.bodySmall)
+                            Text(state.email, style = MaterialTheme.typography.bodySmall)
                         }
                     }
                     is SignInState.Loading -> {
                         CircularProgressIndicator(modifier = Modifier.size(24.dp))
                     }
+                    is SignInState.CheckingExistingUser -> {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                strokeWidth = 2.dp
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                "Checking for existing account…",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                    is SignInState.ExistingUserCheckFailed -> {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                Icons.Default.Check,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(state.email, style = MaterialTheme.typography.bodySmall)
+                        }
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = "Couldn't check for existing account — continuing with setup.",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.politeLiveRegion()
+                        )
+                    }
                     else -> {
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            FilledTonalButton(
-                                onClick = {
-                                    // Unwrap ContextWrapper chain rather than
-                                    // casting directly — a wrapped context from
-                                    // a tooltip/dialog host would ClassCastException.
-                                    val activity = run {
-                                        var ctx = context
-                                        while (ctx is android.content.ContextWrapper && ctx !is Activity) {
-                                            ctx = ctx.baseContext
-                                        }
-                                        ctx as? Activity
-                                    } ?: return@FilledTonalButton
-                                    coroutineScope.launch {
-                                        try {
-                                            val option = GetSignInWithGoogleOption.Builder(BuildConfig.WEB_CLIENT_ID).build()
-                                            val request = GetCredentialRequest.Builder().addCredentialOption(option).build()
-                                            val result = CredentialManager.create(context).getCredential(activity, request)
-                                            val idToken = GoogleIdTokenCredential.createFrom(result.credential.data).idToken
-                                            viewModel.onGoogleSignIn(idToken)
-                                        } catch (_: GetCredentialCancellationException) {
-                                            // User cancelled
-                                        } catch (_: Exception) {
-                                            // Handle error silently for onboarding
-                                        }
+                        FilledTonalButton(
+                            onClick = {
+                                // Unwrap ContextWrapper chain rather than
+                                // casting directly — a wrapped context from
+                                // a tooltip/dialog host would ClassCastException.
+                                val activity = run {
+                                    var ctx = context
+                                    while (ctx is android.content.ContextWrapper && ctx !is Activity) {
+                                        ctx = ctx.baseContext
+                                    }
+                                    ctx as? Activity
+                                } ?: return@FilledTonalButton
+                                coroutineScope.launch {
+                                    try {
+                                        val option = GetSignInWithGoogleOption.Builder(BuildConfig.WEB_CLIENT_ID).build()
+                                        val request = GetCredentialRequest.Builder().addCredentialOption(option).build()
+                                        val result = CredentialManager.create(context).getCredential(activity, request)
+                                        val idToken = GoogleIdTokenCredential.createFrom(result.credential.data).idToken
+                                        viewModel.onGoogleSignIn(idToken)
+                                    } catch (_: GetCredentialCancellationException) {
+                                        // User cancelled
+                                    } catch (_: Exception) {
+                                        // Handle error silently for onboarding
                                     }
                                 }
-                            ) {
-                                Text("Sign In")
                             }
-                            TextButton(onClick = { /* skip — do nothing */ }) {
-                                Text("Set Up Later")
-                            }
+                        ) {
+                            Text("Sign In")
                         }
                     }
                 }
@@ -1045,7 +1100,8 @@ private fun OnboardingPageLayout(
                     text = headline,
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.asHeading()
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 Text(
@@ -1108,7 +1164,8 @@ private fun ThemePickerPage() {
                     fontFamily = FontFamily.Default,
                     fontWeight = FontWeight.Bold,
                     color = ThemePickerText
-                )
+                ),
+                modifier = Modifier.asHeading()
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(

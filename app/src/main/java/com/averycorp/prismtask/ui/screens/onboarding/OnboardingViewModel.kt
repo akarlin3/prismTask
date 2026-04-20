@@ -88,6 +88,10 @@ constructor(
 
     private suspend fun checkExistingUserAndMaybeSkip() {
         val uid = authManager.userId ?: return
+        val signedInEmail = (_signInState.value as? SignInState.SignedIn)?.email
+            ?: authManager.currentUser.value?.email
+            ?: ""
+        _signInState.value = SignInState.CheckingExistingUser
         try {
             val snapshot = FirebaseFirestore.getInstance()
                 .collection("users").document(uid).collection("tasks")
@@ -109,6 +113,7 @@ constructor(
                 _signInState.value = SignInState.ExistingUserDetected
             } else {
                 logger.info(operation = "onboarding.check", detail = "existing=false routing=onboarding")
+                _signInState.value = SignInState.SignedIn(signedInEmail)
             }
         } catch (e: Exception) {
             logger.error(
@@ -116,7 +121,9 @@ constructor(
                 detail = "failed fallback=onboarding error=${e.message}",
                 throwable = e
             )
-            // Remain in SignedIn state — user proceeds through normal onboarding.
+            // Surface the failure so the UI can show a non-blocking message,
+            // but keep the signed-in email so the flow can continue normally.
+            _signInState.value = SignInState.ExistingUserCheckFailed(signedInEmail)
         }
     }
 
@@ -226,4 +233,21 @@ sealed class SignInState {
     ) : SignInState()
 
     data object ExistingUserDetected : SignInState()
+
+    /**
+     * Transient state while the post-sign-in Firestore lookup that decides
+     * whether to skip onboarding for returning users is in flight. UI observes
+     * this to render a spinner; the ViewModel clears it on success or failure.
+     */
+    data object CheckingExistingUser : SignInState()
+
+    /**
+     * Firestore existing-user check failed (network, permissions, etc.). The
+     * flow is NOT blocked — the user continues through onboarding, but the UI
+     * surfaces a non-blocking message so the failure isn't silent. [email] is
+     * preserved so downstream UI can still show the signed-in account.
+     */
+    data class ExistingUserCheckFailed(
+        val email: String
+    ) : SignInState()
 }

@@ -7,6 +7,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Accessibility — Onboarding Polish (Phase 2)
+- Page indicator dots now announce the current page position to TalkBack
+  ("Page X of 9") via a `contentDescription` on the indicator `Row`.
+- Primary page titles on every onboarding page are now marked as headings so
+  TalkBack users can jump between them with heading navigation.
+- The sign-in error `Text` on the Welcome page is now a polite live region so
+  it is auto-announced when it appears.
+- The brain-mode "selected" check icon now carries a meaningful
+  `contentDescription` ("Selected") instead of being redundant with the card
+  title.
+
+### Fixed — Firestore Existing-User Check No Longer Fails Silently
+- When the post-sign-in Firestore lookup that decides whether to skip
+  onboarding for returning users fails (e.g., airplane mode, transient
+  network), the UI now surfaces a non-blocking message
+  ("Couldn't check for existing account — continuing with setup.") instead
+  of silently falling through. The flow is never blocked — users can
+  continue through onboarding and retry later by signing out and back in.
+- A new `SignInState.ExistingUserCheckFailed` variant carries the signed-in
+  email so downstream UI can still render the account badge.
+
+### Fixed — Loading Indicator During Existing-User Check
+- During the 1–3 second Firestore lookup after sign-in, the Welcome and
+  Setup pages now show an inline spinner (and, on the Setup page, a
+  "Checking for existing account…" label) instead of appearing frozen.
+  Backed by a new `SignInState.CheckingExistingUser` variant that the
+  ViewModel sets before the lookup and clears after success or failure.
+
+### Fixed — Whitespace-Only Input on Onboarding Task Field
+- Verified that the Setup-page "Create Your First Task" field correctly
+  rejects whitespace-only input (both the UI `KeyboardActions.onDone` guard
+  and `OnboardingViewModel.createQuickTask` use `isBlank`-family checks, so
+  whitespace never reaches task creation).
+
+### Removed — "Set Up Later" Button
+- The literal no-op "Set Up Later" button on the Setup-page sign-in card has
+  been removed. The page still has a clear forward affordance via the
+  "Start Using PrismTask" button at the bottom; users who don't want to
+  sign in simply skip the Sign-In card.
+
 ### Fixed — Start-of-Day Prompt on Skip Onboarding (pre-fix install race)
 - Start-of-day prompt no longer appears on first launch after skipping
   onboarding for pre-fix installs. The earlier two-`LaunchedEffect`
