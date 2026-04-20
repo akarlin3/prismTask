@@ -177,7 +177,7 @@ private fun DonutChartSection(stats: WeeklyReviewStats) {
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
+        shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
     ) {
         Column(
@@ -324,7 +324,7 @@ private fun FourWeekTrendSection(
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
+        shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
     ) {
         Column(
@@ -477,7 +477,7 @@ private fun StatsCardsSection(stats: WeeklyReviewStats) {
         val ratePct = (rate * 100f).toInt()
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
+            shape = MaterialTheme.shapes.medium,
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
@@ -511,7 +511,7 @@ private fun StatsCardsSection(stats: WeeklyReviewStats) {
 private fun MetricCard(label: String, value: String, modifier: Modifier = Modifier) {
     Card(
         modifier = modifier,
-        shape = RoundedCornerShape(16.dp),
+        shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
@@ -543,7 +543,7 @@ private fun BurnoutSection(score: Int, band: BurnoutBand) {
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
+        shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -591,7 +591,7 @@ private fun BurnoutSection(score: Int, band: BurnoutBand) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
+                        .clip(MaterialTheme.shapes.medium)
                         .background(LifeCategoryColor.SELF_CARE.copy(alpha = 0.12f))
                         .padding(12.dp)
                 ) {
@@ -616,7 +616,7 @@ private fun BurnoutSection(score: Int, band: BurnoutBand) {
 private fun CarryForwardSection(tasks: List<TaskEntity>) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
+        shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {

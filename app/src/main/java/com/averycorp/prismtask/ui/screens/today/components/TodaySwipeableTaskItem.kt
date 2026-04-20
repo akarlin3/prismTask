@@ -54,6 +54,7 @@ import com.averycorp.prismtask.data.local.entity.TagEntity
 import com.averycorp.prismtask.data.local.entity.TaskEntity
 import com.averycorp.prismtask.ui.components.CircularCheckbox
 import com.averycorp.prismtask.ui.theme.LocalPrismColors
+import com.averycorp.prismtask.ui.theme.LocalPrismShapes
 import com.averycorp.prismtask.ui.theme.LocalPrismFonts
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -336,9 +337,9 @@ internal fun CompletedTaskItem(task: TaskEntity, onUncomplete: () -> Unit) {
             .border(
                 width = 1.dp,
                 color = colors.border,
-                shape = RoundedCornerShape(12.dp)
+                shape = MaterialTheme.shapes.medium
             ),
-        shape = RoundedCornerShape(12.dp),
+        shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(
             containerColor = colors.surface.copy(alpha = 0.6f)
         )

@@ -61,6 +61,7 @@ import com.averycorp.prismtask.data.local.entity.ProjectEntity
 import com.averycorp.prismtask.data.local.entity.TaskEntity
 import com.averycorp.prismtask.data.local.entity.TaskTemplateEntity
 import com.averycorp.prismtask.ui.components.CircularCheckbox
+import com.averycorp.prismtask.ui.theme.LocalPrismShapes
 import com.averycorp.prismtask.ui.components.QuickAddBar
 import com.averycorp.prismtask.ui.theme.LocalPriorityColors
 import java.text.SimpleDateFormat
@@ -514,7 +515,7 @@ private fun TemplateQuickChip(
 ) {
     Surface(
         modifier = Modifier.clickable(onClick = onClick),
-        shape = RoundedCornerShape(20.dp),
+        shape = LocalPrismShapes.current.chip,
         color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
         tonalElevation = 0.dp
     ) {
@@ -607,7 +608,7 @@ private fun SheetTaskCard(
                 onClick = onTap,
                 onLongClick = onLongPress
             ),
-        shape = RoundedCornerShape(10.dp),
+        shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(containerColor = containerColor)
     ) {
         Row(
@@ -653,7 +654,7 @@ private fun SheetTaskCard(
                 Spacer(modifier = Modifier.width(6.dp))
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(6.dp))
+                        .clip(LocalPrismShapes.current.chip)
                         .background(MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.6f))
                         .padding(horizontal = 6.dp, vertical = 2.dp)
                 ) {
@@ -670,7 +671,7 @@ private fun SheetTaskCard(
                 Spacer(modifier = Modifier.width(6.dp))
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(6.dp))
+                        .clip(LocalPrismShapes.current.chip)
                         .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f))
                         .padding(horizontal = 6.dp, vertical = 2.dp)
                 ) {

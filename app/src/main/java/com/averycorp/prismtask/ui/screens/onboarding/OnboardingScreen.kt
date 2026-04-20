@@ -30,7 +30,7 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
+import com.averycorp.prismtask.ui.theme.LocalPrismShapes
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -452,7 +452,7 @@ private fun NaturalLanguagePage() {
 private fun ChipLabel(text: String, color: Color) {
     Box(
         modifier = Modifier
-            .background(color.copy(alpha = 0.15f), RoundedCornerShape(16.dp))
+            .background(color.copy(alpha = 0.15f), LocalPrismShapes.current.chip)
             .padding(horizontal = 12.dp, vertical = 6.dp)
     ) {
         Text(

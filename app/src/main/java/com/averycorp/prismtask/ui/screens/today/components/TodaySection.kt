@@ -31,6 +31,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.averycorp.prismtask.ui.theme.LocalPrismColors
+import com.averycorp.prismtask.ui.theme.LocalPrismShapes
 import com.averycorp.prismtask.ui.theme.LocalPrismFonts
 
 /**
@@ -115,7 +116,7 @@ private fun SectionHeaderRow(
 
         Box(
             modifier = Modifier
-                .clip(RoundedCornerShape(10.dp))
+                .clip(LocalPrismShapes.current.chip)
                 .background(accentColor.copy(alpha = 0.16f))
                 .padding(horizontal = 8.dp, vertical = 2.dp)
         ) {

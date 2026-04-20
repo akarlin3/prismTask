@@ -451,7 +451,7 @@ private fun MilestonesSection(
                     }
                 },
                 enabled = newTitle.isNotBlank(),
-                shape = RoundedCornerShape(10.dp)
+                shape = MaterialTheme.shapes.small
             ) {
                 Text("Add")
             }
@@ -535,7 +535,7 @@ private fun MilestoneRow(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(10.dp))
+            .clip(MaterialTheme.shapes.medium)
             .background(if (isDragging) prismColors.surfaceVariant else prismColors.surface)
             .padding(horizontal = 8.dp, vertical = 6.dp)
     ) {
@@ -629,7 +629,7 @@ private fun TasksSection(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(10.dp))
+                    .clip(MaterialTheme.shapes.medium)
                     .background(prismColors.surface)
                     .clickable { onTaskClick(task.id) }
                     .padding(horizontal = 12.dp, vertical = 10.dp)

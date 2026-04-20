@@ -22,6 +22,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import com.averycorp.prismtask.ui.theme.LocalPrismShapes
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -180,7 +181,7 @@ fun MedicationScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
+                            .clip(MaterialTheme.shapes.medium)
                             .background(MaterialTheme.colorScheme.surfaceContainerLow)
                             .padding(12.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -334,7 +335,7 @@ fun MedicationScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(8.dp))
+                            .clip(MaterialTheme.shapes.medium)
                             .background(MaterialTheme.colorScheme.surfaceContainerLow)
                             .padding(12.dp)
                     ) {
@@ -426,7 +427,7 @@ fun MedicationScreen(
                                                 Box(
                                                     modifier = Modifier
                                                         .weight(1f)
-                                                        .clip(RoundedCornerShape(10.dp))
+                                                        .clip(LocalPrismShapes.current.chip)
                                                         .background(
                                                             if (isPicked) {
                                                                 tierC.copy(alpha = 0.18f)
@@ -617,7 +618,7 @@ fun MedicationScreen(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
+                            .clip(MaterialTheme.shapes.medium)
                             .background(MaterialTheme.colorScheme.surfaceContainerLow)
                             .padding(24.dp),
                         contentAlignment = Alignment.Center

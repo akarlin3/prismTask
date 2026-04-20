@@ -20,6 +20,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import com.averycorp.prismtask.ui.theme.LocalPrismShapes
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
@@ -571,7 +572,7 @@ internal fun TagToggleChip(
     val borderColor = tagColor
     Box(
         modifier = Modifier
-            .clip(RoundedCornerShape(16.dp))
+            .clip(LocalPrismShapes.current.chip)
             .background(bg)
             .border(
                 width = 1.5.dp,
@@ -595,7 +596,7 @@ internal fun NewTagChip(onClick: () -> Unit) {
     val color = MaterialTheme.colorScheme.primary
     Row(
         modifier = Modifier
-            .clip(RoundedCornerShape(16.dp))
+            .clip(LocalPrismShapes.current.chip)
             .border(
                 width = 1.5.dp,
                 color = color,
@@ -625,7 +626,7 @@ internal fun ShowMoreChip(count: Int, onClick: () -> Unit) {
     val color = MaterialTheme.colorScheme.onSurfaceVariant
     Box(
         modifier = Modifier
-            .clip(RoundedCornerShape(16.dp))
+            .clip(LocalPrismShapes.current.chip)
             .border(
                 width = 1.5.dp,
                 color = MaterialTheme.colorScheme.outlineVariant,
@@ -820,7 +821,7 @@ private fun LifeCategoryChip(
     val textColor = if (selected) Color.White else color
     Box(
         modifier = Modifier
-            .clip(RoundedCornerShape(16.dp))
+            .clip(LocalPrismShapes.current.chip)
             .background(bg)
             .border(
                 width = 1.5.dp,

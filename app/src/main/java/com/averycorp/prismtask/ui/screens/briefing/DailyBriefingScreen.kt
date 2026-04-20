@@ -19,6 +19,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import com.averycorp.prismtask.ui.theme.LocalPrismShapes
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
@@ -278,7 +279,7 @@ private fun DayTypeChip(dayType: String) {
     }
     Box(
         modifier = Modifier
-            .clip(RoundedCornerShape(16.dp))
+            .clip(LocalPrismShapes.current.chip)
             .background(color.copy(alpha = 0.15f))
             .padding(horizontal = 12.dp, vertical = 6.dp)
     ) {
@@ -303,7 +304,7 @@ private fun PriorityCard(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() },
-        shape = RoundedCornerShape(12.dp),
+        shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {

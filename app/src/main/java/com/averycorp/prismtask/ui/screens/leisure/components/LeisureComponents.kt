@@ -124,7 +124,7 @@ internal fun ProgressCard(doneCount: Int, target: Int, progress: Float, allDone:
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant
         ),
-        shape = RoundedCornerShape(12.dp)
+        shape = MaterialTheme.shapes.medium
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
@@ -269,7 +269,7 @@ internal fun OptionCard(option: LeisureOption, onClick: () -> Unit, onLongClick:
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant
         ),
-        shape = RoundedCornerShape(12.dp)
+        shape = MaterialTheme.shapes.medium
     ) {
         Column(
             modifier = Modifier
@@ -298,7 +298,7 @@ internal fun AddOptionCard(onClick: () -> Unit) {
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
         ),
-        shape = RoundedCornerShape(12.dp)
+        shape = MaterialTheme.shapes.medium
     ) {
         Column(
             modifier = Modifier
@@ -345,9 +345,9 @@ internal fun SelectedItem(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onDone)
-            .border(1.dp, borderColor, RoundedCornerShape(12.dp)),
+            .border(1.dp, borderColor, MaterialTheme.shapes.medium),
         colors = CardDefaults.cardColors(containerColor = bgColor),
-        shape = RoundedCornerShape(12.dp)
+        shape = MaterialTheme.shapes.medium
     ) {
         Row(
             modifier = Modifier
@@ -438,7 +438,7 @@ internal fun SectionTimer(
         colors = CardDefaults.cardColors(
             containerColor = accentColor.copy(alpha = 0.08f)
         ),
-        shape = RoundedCornerShape(10.dp)
+        shape = MaterialTheme.shapes.medium
     ) {
         Column(
             modifier = Modifier
@@ -477,7 +477,7 @@ internal fun SectionTimer(
                 OutlinedButton(
                     onClick = onReset,
                     enabled = elapsedMs > 0,
-                    shape = RoundedCornerShape(20.dp),
+                    shape = MaterialTheme.shapes.small,
                     modifier = Modifier.height(34.dp)
                 ) {
                     Text("Reset", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
@@ -486,7 +486,7 @@ internal fun SectionTimer(
                     Button(
                         onClick = onPause,
                         colors = ButtonDefaults.buttonColors(containerColor = LocalPrismColors.current.destructiveColor),
-                        shape = RoundedCornerShape(20.dp),
+                        shape = MaterialTheme.shapes.small,
                         modifier = Modifier.height(34.dp)
                     ) {
                         Text("Pause", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
@@ -495,7 +495,7 @@ internal fun SectionTimer(
                     Button(
                         onClick = onResume,
                         colors = ButtonDefaults.buttonColors(containerColor = accentColor),
-                        shape = RoundedCornerShape(20.dp),
+                        shape = MaterialTheme.shapes.small,
                         modifier = Modifier.height(34.dp)
                     ) {
                         Text("Resume", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
