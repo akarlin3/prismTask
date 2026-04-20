@@ -19,16 +19,17 @@ import org.junit.Test
 import java.time.DayOfWeek
 
 /**
- * Unit tests for [WeeklyHabitSummary.generateWeeklySummary]. The rendering
- * side that talks to [android.app.NotificationManager] is not tested here;
- * it needs instrumentation to do anything meaningful. The aggregation logic
- * is pure enough to verify with mocked DAOs.
+ * Unit tests for the weekly habit summary aggregation logic. The
+ * renaming in v1.4.0 moved the logic from a `@Singleton WeeklyHabitSummary`
+ * helper into [WeeklyHabitSummaryCalculator], which is the pure
+ * data-aggregation object that [WeeklyHabitSummaryWorker.doWork] calls.
+ * The rendering side that talks to [android.app.NotificationManager] is
+ * not tested here; it needs instrumentation to do anything meaningful.
  */
-class WeeklyHabitSummaryTest {
+class WeeklyHabitSummaryWorkerTest {
     private lateinit var habitDao: HabitDao
     private lateinit var completionDao: HabitCompletionDao
     private lateinit var taskBehaviorPreferences: TaskBehaviorPreferences
-    private lateinit var summary: WeeklyHabitSummary
 
     @Before
     fun setUp() {
@@ -36,14 +37,20 @@ class WeeklyHabitSummaryTest {
         completionDao = mockk(relaxed = true)
         taskBehaviorPreferences = mockk(relaxed = true)
         every { taskBehaviorPreferences.getFirstDayOfWeek() } returns flowOf(DayOfWeek.MONDAY)
-        summary = WeeklyHabitSummary(habitDao, completionDao, taskBehaviorPreferences)
     }
+
+    private suspend fun generate(): WeeklySummaryData =
+        WeeklyHabitSummaryCalculator.generateWeeklySummary(
+            habitDao = habitDao,
+            completionDao = completionDao,
+            taskBehaviorPreferences = taskBehaviorPreferences
+        )
 
     @Test
     fun generateWeeklySummary_emptyHabitsYieldsZeroedData() = runBlocking {
         coEvery { habitDao.getActiveHabitsOnce() } returns emptyList()
 
-        val data = summary.generateWeeklySummary()
+        val data = generate()
 
         assertEquals(0, data.totalHabits)
         assertEquals(0, data.totalCompletions)
@@ -68,7 +75,7 @@ class WeeklyHabitSummaryTest {
             HabitCompletionEntity(habitId = 1L, completedDate = weekEnd + 1L)
         )
 
-        val data = summary.generateWeeklySummary()
+        val data = generate()
         assertEquals(1, data.totalHabits)
         assertEquals(2, data.totalCompletions)
     }
@@ -88,7 +95,7 @@ class WeeklyHabitSummaryTest {
         )
         coEvery { completionDao.getCompletionsForHabitOnce(2L) } returns emptyList()
 
-        val data = summary.generateWeeklySummary()
+        val data = generate()
         assertEquals("Water", data.bestHabit)
         assertEquals("Stretch", data.worstHabit)
         assertEquals(3, data.totalCompletions)
@@ -111,7 +118,7 @@ class WeeklyHabitSummaryTest {
             HabitCompletionEntity(habitId = 1L, completedDate = weekStart)
         )
 
-        val data = summary.generateWeeklySummary()
+        val data = generate()
         // Target = targetFrequency (1) * 7 = 7; completions = 7 → 100%.
         assertEquals(1f, data.completionRate, 0.0001f)
     }
@@ -125,7 +132,7 @@ class WeeklyHabitSummaryTest {
         )
         coEvery { completionDao.getCompletionsForHabitOnce(any()) } returns emptyList()
 
-        val data = summary.generateWeeklySummary()
+        val data = generate()
         assertEquals(3, data.totalHabits)
         // With zero completions in the week, rate collapses to 0.
         assertTrue(data.completionRate == 0f)

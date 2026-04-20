@@ -120,7 +120,7 @@ fun NotificationTypesScreen(
             onCheckedChange = viewModel::setEveningSummaryEnabled
         )
         SettingsToggleRow(
-            title = "Weekly Summary",
+            title = "Weekly Habit Summary",
             subtitle = "Weekly habit recap (Sunday 7 PM)",
             checked = weekly,
             onCheckedChange = viewModel::setWeeklySummaryEnabled

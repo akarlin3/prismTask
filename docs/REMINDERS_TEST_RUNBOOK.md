@@ -215,7 +215,7 @@ AI-gated workers (debug tier override in Settings).
 
 **Steps:**
 1. Settings → Notifications. Confirm all five toggles show ON:
-   **Daily Briefing**, **Evening Summary**, **Weekly Summary**,
+   **Daily Briefing**, **Evening Summary**, **Weekly Habit Summary**,
    **Balance Alerts**, **Re-engagement**.
 2. Toggle each OFF then back ON, watch for stack traces in logcat.
 3. Adb-force-run each worker:
@@ -242,7 +242,7 @@ AI-gated workers (debug tier override in Settings).
 **Checklist:**
 - ☐ Daily Briefing fired at configured morning hour
 - ☐ Evening Summary fired at configured evening hour
-- ☐ Weekly Summary fired on a forced run
+- ☐ Weekly Habit Summary fired on a forced run
 - ☐ Overload Check fired with a hot balance state
 - ☐ Re-engagement scheduled after 2 days of absence (log check)
 - ☐ Toggling OFF → `dumpsys jobscheduler` no longer shows the job
@@ -267,7 +267,7 @@ AI-gated workers (debug tier override in Settings).
 - `NotificationManager.notify()` is wrapped in try/catch; worker still
   returns `Result.success()` (not `failure` or `retry`).
 - No crash in logcat.
-- Repeat for Evening, Reengagement, WeeklyHabitSummary —
+- Repeat for Evening, Reengagement, WeeklyHabitSummaryWorker —
   OverloadCheckWorker already had this wrapping.
 
 **Checklist:**

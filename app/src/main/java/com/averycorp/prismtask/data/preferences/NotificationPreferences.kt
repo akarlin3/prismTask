@@ -119,6 +119,13 @@ class NotificationPreferences(
         // Snooze options (CSV of minute integers)
         private val SNOOZE_DURATIONS_CSV = stringPreferencesKey("snooze_durations_csv")
 
+        // One-time flag for the v1.4.0 WeeklySummaryWorker ->
+        // WeeklyHabitSummaryWorker rename migration. Set to true after
+        // the scheduler cancels the stale pre-rename unique work so
+        // re-enqueue under the new class can bind cleanly.
+        private val WEEKLY_HABIT_SUMMARY_MIGRATION_RUN =
+            booleanPreferencesKey("weekly_habit_summary_migration_run_v14")
+
         const val IMPORTANCE_MINIMAL = "minimal"
         const val IMPORTANCE_STANDARD = "standard"
         const val IMPORTANCE_URGENT = "urgent"
@@ -568,6 +575,17 @@ class NotificationPreferences(
         dataStore.edit {
             it[SNOOZE_DURATIONS_CSV] = minutes.joinToString(",")
         }
+    }
+
+    // endregion
+
+    // region Internal migration flags
+
+    suspend fun getWeeklyHabitSummaryMigrationRunOnce(): Boolean =
+        dataStore.data.first()[WEEKLY_HABIT_SUMMARY_MIGRATION_RUN] ?: false
+
+    suspend fun setWeeklyHabitSummaryMigrationRun() {
+        dataStore.edit { it[WEEKLY_HABIT_SUMMARY_MIGRATION_RUN] = true }
     }
 
     // endregion

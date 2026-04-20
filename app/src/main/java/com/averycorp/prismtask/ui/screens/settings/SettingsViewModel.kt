@@ -564,10 +564,10 @@ constructor(
         }
     }
 
-    fun setWeeklySummaryEnabled(enabled: Boolean) {
+    fun setWeeklyHabitSummaryEnabled(enabled: Boolean) {
         viewModelScope.launch {
             notificationPreferences.setWeeklySummaryEnabled(enabled)
-            notificationWorkerScheduler.applyWeeklySummary(enabled)
+            notificationWorkerScheduler.applyWeeklyHabitSummary(enabled)
         }
     }
 

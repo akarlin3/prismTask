@@ -122,7 +122,7 @@ fun NotificationsScreen(
                 onHabitNagSuppressionDaysChange = viewModel::setHabitNagSuppressionDays,
                 onDailyBriefingToggle = viewModel::setDailyBriefingEnabled,
                 onEveningSummaryToggle = viewModel::setEveningSummaryEnabled,
-                onWeeklySummaryToggle = viewModel::setWeeklySummaryEnabled,
+                onWeeklySummaryToggle = viewModel::setWeeklyHabitSummaryEnabled,
                 onOverloadAlertsToggle = viewModel::setOverloadAlertsEnabled,
                 onReengagementToggle = viewModel::setReengagementEnabled,
                 onFullScreenNotificationsToggle = viewModel::setFullScreenNotificationsEnabled,

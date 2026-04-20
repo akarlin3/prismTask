@@ -64,6 +64,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `docs/REMINDERS_TEST_RUNBOOK.md` with 10 on-device scenarios
   covering every change above. Target devices: Samsung Galaxy S25
   Ultra + one Pixel.
+- Refactored: the weekly habit summary worker was renamed and
+  inlined from its former `WeeklyHabitSummary` helper. The
+  `WeeklySummaryWorker` wrapper is gone; `WeeklyHabitSummaryWorker`
+  is now a proper `@HiltWorker` with its data-aggregation logic
+  extracted to a testable `WeeklyHabitSummaryCalculator` object.
+  The toggle is labeled "Weekly Habit Summary" and its channel
+  keeps the existing ID `prismtask_weekly_summary`, so user OS
+  channel customizations and the persisted preference key survive
+  the rename. A one-time WorkManager cleanup cancels the stale
+  pre-rename unique work so the new class binds cleanly on first
+  scheduler run. No user-facing behavior change. A TODO anchor is
+  left in the new worker for a future `WeeklyTaskSummaryWorker`
+  complement (Phase A2 / v2.1).
 
 ### Accessibility — Onboarding Polish (Phase 2)
 - Page indicator dots now announce the current page position to TalkBack
