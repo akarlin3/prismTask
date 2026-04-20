@@ -11,9 +11,8 @@ Use these answers when filling out the Google Play Console content rating questi
 - **Gambling:** No
 
 ## User Interaction
-- **Users can interact or exchange information:** Yes (only when collaboration is enabled)
-  - Users can share task content with invited collaborators in shared projects
-  - Users can leave comments on shared tasks
+- **Users can interact or exchange information:** No
+  - No user-to-user interaction of any kind
   - No public-facing user-generated content
   - No location sharing
 
