@@ -23,11 +23,13 @@ import androidx.compose.ui.unit.sp
 // ─── TerminalLabel ────────────────────────────────────────────────────────────
 
 /**
- * Renders [text] prefixed with `// ` in [PrismThemeColors.primary] at 60%
- * alpha when the active theme has [PrismThemeAttrs.terminal] set (Matrix).
+ * Renders secondary [text] with per-theme styling:
  *
- * All other themes render [text] as a plain [Text] using [style] and [color],
- * so callers can replace secondary text unconditionally without branching.
+ * - **Void (editorial)**: text uppercased with 1.4sp letter-spacing — the
+ *   spaced small-caps feel from the print/magazine reference.
+ * - **Matrix (terminal)**: text prefixed with `// ` in mono at 60% primary
+ *   alpha — inline comment convention.
+ * - **All other themes**: plain [Text] using [style] and [color] unchanged.
  *
  * Targets: Today stat lines, header date labels, task row dates, habit stats,
  * settings row subtitles — ~15 callsites across 5 screen files.
@@ -40,6 +42,15 @@ fun TerminalLabel(
     color: Color = MaterialTheme.colorScheme.onSurfaceVariant
 ) {
     val attrs = LocalPrismAttrs.current
+    if (attrs.editorial) {
+        Text(
+            text = text.uppercase(),
+            modifier = modifier,
+            style = style.copy(letterSpacing = 1.4.sp),
+            color = color
+        )
+        return
+    }
     if (!attrs.terminal) {
         Text(text = text, modifier = modifier, style = style, color = color)
         return

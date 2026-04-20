@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -27,6 +28,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import com.averycorp.prismtask.ui.components.ThemedSwitch
 import com.averycorp.prismtask.ui.theme.LocalPrismAttrs
+import com.averycorp.prismtask.ui.theme.LocalPrismColors
 import com.averycorp.prismtask.ui.theme.PrismBracket
 import com.averycorp.prismtask.ui.theme.TerminalLabel
 import com.averycorp.prismtask.ui.theme.TerminalSectionHeader
@@ -40,6 +42,7 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun SectionHeader(title: String) {
     val attrs = LocalPrismAttrs.current
+    val colors = LocalPrismColors.current
     if (attrs.terminal) {
         TerminalSectionHeader(
             title = title,
@@ -54,6 +57,15 @@ fun SectionHeader(title: String) {
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.primary
         )
+        if (attrs.editorial) {
+            Spacer(modifier = Modifier.width(8.dp))
+            Box(
+                modifier = Modifier
+                    .width(18.dp)
+                    .height(1.dp)
+                    .background(colors.onSurface.copy(alpha = 0.6f))
+            )
+        }
     }
 }
 
