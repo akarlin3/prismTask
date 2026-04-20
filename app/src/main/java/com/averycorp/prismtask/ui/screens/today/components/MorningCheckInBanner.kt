@@ -36,8 +36,14 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import com.averycorp.prismtask.ui.theme.LocalPrismAttrs
+import com.averycorp.prismtask.ui.theme.LocalPrismColors
 
 /**
  * Polished morning check-in banner (v1.4.0 banner polish).
@@ -115,8 +121,26 @@ fun MorningCheckInBanner(
                 }
                 Spacer(modifier = Modifier.size(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
+                    val attrs = LocalPrismAttrs.current
+                    val prismColors = LocalPrismColors.current
+                    val greetingText = if (attrs.editorial) {
+                        // Void: italicise + primary-color the time-of-day word
+                        // Greeting format: "Good Morning!" or "Good Afternoon!"
+                        val parts = greeting.split(" ")
+                        val prefix = parts.getOrElse(0) { "Good" }
+                        val keyWord = parts.getOrElse(1) { "" }.trimEnd('!')
+                        buildAnnotatedString {
+                            append("$prefix ")
+                            withStyle(SpanStyle(fontStyle = FontStyle.Italic, color = prismColors.primary)) {
+                                append(keyWord)
+                            }
+                            append("!")
+                        }
+                    } else {
+                        buildAnnotatedString { append(greeting) }
+                    }
                     Text(
-                        text = greeting,
+                        text = greetingText,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurface
