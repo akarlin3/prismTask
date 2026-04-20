@@ -25,5 +25,7 @@ data class SelfCareStepEntity(
      * via [com.averycorp.prismtask.domain.usecase.RefillCalculator.applyDailyDose].
      */
     @ColumnInfo(name = "medication_name")
-    val medicationName: String? = null
+    val medicationName: String? = null,
+    @ColumnInfo(name = "updated_at")
+    val updatedAt: Long = 0L
 )

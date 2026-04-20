@@ -54,7 +54,8 @@ constructor(
             val updated = existing.copy(
                 musicPick = activityId,
                 musicDone = false,
-                startedAt = existing.startedAt ?: System.currentTimeMillis()
+                startedAt = existing.startedAt ?: System.currentTimeMillis(),
+                updatedAt = System.currentTimeMillis()
             )
             leisureDao.updateLog(updated)
             syncTracker.trackUpdate(existing.id, "leisure_log")
@@ -64,7 +65,8 @@ constructor(
                 LeisureLogEntity(
                     date = today,
                     musicPick = activityId,
-                    startedAt = System.currentTimeMillis()
+                    startedAt = System.currentTimeMillis(),
+                    updatedAt = System.currentTimeMillis()
                 )
             )
             syncTracker.trackCreate(id, "leisure_log")
@@ -78,7 +80,8 @@ constructor(
             val updated = existing.copy(
                 flexPick = activityId,
                 flexDone = false,
-                startedAt = existing.startedAt ?: System.currentTimeMillis()
+                startedAt = existing.startedAt ?: System.currentTimeMillis(),
+                updatedAt = System.currentTimeMillis()
             )
             leisureDao.updateLog(updated)
             syncTracker.trackUpdate(existing.id, "leisure_log")
@@ -88,7 +91,8 @@ constructor(
                 LeisureLogEntity(
                     date = today,
                     flexPick = activityId,
-                    startedAt = System.currentTimeMillis()
+                    startedAt = System.currentTimeMillis(),
+                    updatedAt = System.currentTimeMillis()
                 )
             )
             syncTracker.trackCreate(id, "leisure_log")
@@ -97,7 +101,7 @@ constructor(
 
     suspend fun toggleMusicDone(done: Boolean) {
         val existing = leisureDao.getLogForDateOnce(startOfToday()) ?: return
-        val updated = existing.copy(musicDone = done)
+        val updated = existing.copy(musicDone = done, updatedAt = System.currentTimeMillis())
         leisureDao.updateLog(updated)
         syncTracker.trackUpdate(existing.id, "leisure_log")
         syncHabitCompletion(updated)
@@ -105,7 +109,7 @@ constructor(
 
     suspend fun toggleFlexDone(done: Boolean) {
         val existing = leisureDao.getLogForDateOnce(startOfToday()) ?: return
-        val updated = existing.copy(flexDone = done)
+        val updated = existing.copy(flexDone = done, updatedAt = System.currentTimeMillis())
         leisureDao.updateLog(updated)
         syncTracker.trackUpdate(existing.id, "leisure_log")
         syncHabitCompletion(updated)
@@ -113,7 +117,7 @@ constructor(
 
     suspend fun clearMusicPick() {
         val existing = leisureDao.getLogForDateOnce(startOfToday()) ?: return
-        val updated = existing.copy(musicPick = null, musicDone = false)
+        val updated = existing.copy(musicPick = null, musicDone = false, updatedAt = System.currentTimeMillis())
         leisureDao.updateLog(updated)
         syncTracker.trackUpdate(existing.id, "leisure_log")
         syncHabitCompletion(updated)
@@ -121,7 +125,7 @@ constructor(
 
     suspend fun clearFlexPick() {
         val existing = leisureDao.getLogForDateOnce(startOfToday()) ?: return
-        val updated = existing.copy(flexPick = null, flexDone = false)
+        val updated = existing.copy(flexPick = null, flexDone = false, updatedAt = System.currentTimeMillis())
         leisureDao.updateLog(updated)
         syncTracker.trackUpdate(existing.id, "leisure_log")
         syncHabitCompletion(updated)
@@ -135,7 +139,8 @@ constructor(
             flexPick = null,
             flexDone = false,
             customSectionsState = null,
-            startedAt = null
+            startedAt = null,
+            updatedAt = System.currentTimeMillis()
         )
         leisureDao.updateLog(updated)
         syncTracker.trackUpdate(existing.id, "leisure_log")
@@ -179,7 +184,8 @@ constructor(
         if (existing != null) {
             val updated = existing.copy(
                 customSectionsState = serialized,
-                startedAt = existing.startedAt ?: System.currentTimeMillis()
+                startedAt = existing.startedAt ?: System.currentTimeMillis(),
+                updatedAt = System.currentTimeMillis()
             )
             leisureDao.updateLog(updated)
             syncTracker.trackUpdate(updated.id, "leisure_log")
@@ -189,7 +195,8 @@ constructor(
                 LeisureLogEntity(
                     date = today,
                     customSectionsState = serialized,
-                    startedAt = System.currentTimeMillis()
+                    startedAt = System.currentTimeMillis(),
+                    updatedAt = System.currentTimeMillis()
                 )
             )
             syncTracker.trackCreate(id, "leisure_log")

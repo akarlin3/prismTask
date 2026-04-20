@@ -339,14 +339,15 @@ constructor(
                 phase = phase,
                 sortOrder = nextOrder,
                 reminderDelayMillis = reminderDelayMillis,
-                timeOfDay = timeOfDay
+                timeOfDay = timeOfDay,
+                updatedAt = System.currentTimeMillis()
             )
         )
         syncTracker.trackCreate(id, "self_care_step")
     }
 
     suspend fun updateStep(step: SelfCareStepEntity) {
-        selfCareDao.updateStep(step)
+        selfCareDao.updateStep(step.copy(updatedAt = System.currentTimeMillis()))
         syncTracker.trackUpdate(step.id, "self_care_step")
     }
 
@@ -364,10 +365,11 @@ constructor(
 
         val current = allSteps[index]
         val target = allSteps[targetIndex]
+        val now = System.currentTimeMillis()
         selfCareDao.updateSteps(
             listOf(
-                current.copy(sortOrder = target.sortOrder),
-                target.copy(sortOrder = current.sortOrder)
+                current.copy(sortOrder = target.sortOrder, updatedAt = now),
+                target.copy(sortOrder = current.sortOrder, updatedAt = now)
             )
         )
         syncTracker.trackUpdate(current.id, "self_care_step")
@@ -419,16 +421,16 @@ constructor(
                 val dbSteps = selfCareDao.getStepsForRoutineOnce(routineType)
                 val visibleSteps = getVisibleStepsFromEntities(dbSteps, tier, routineType)
                 val allDone = allMedsFullyLogged(logs, visibleSteps)
-                selfCareDao.updateLog(existing.copy(selectedTier = tier, isComplete = allDone))
+                selfCareDao.updateLog(existing.copy(selectedTier = tier, isComplete = allDone, updatedAt = System.currentTimeMillis()))
                 syncTracker.trackUpdate(existing.id, "self_care_log")
                 syncHabitCompletion(routineType, allDone)
             } else {
                 selfCareDao.updateLog(
                     existing.copy(
                         selectedTier = tier,
-                        completedSteps = "[]",
                         isComplete = false,
-                        startedAt = null
+                        startedAt = null,
+                        updatedAt = System.currentTimeMillis()
                     )
                 )
                 syncTracker.trackUpdate(existing.id, "self_care_log")
@@ -439,7 +441,8 @@ constructor(
                 SelfCareLogEntity(
                     routineType = routineType,
                     date = today,
-                    selectedTier = tier
+                    selectedTier = tier,
+                    updatedAt = System.currentTimeMillis()
                 )
             )
             syncTracker.trackCreate(id, "self_care_log")
@@ -484,7 +487,8 @@ constructor(
             existing.copy(
                 completedSteps = serializeMedStepLogs(logs),
                 isComplete = allDone,
-                startedAt = existing.startedAt ?: now
+                startedAt = existing.startedAt ?: now,
+                updatedAt = now
             )
         )
         syncTracker.trackUpdate(existing.id, "self_care_log")
@@ -518,7 +522,8 @@ constructor(
         selfCareDao.updateLog(
             existing.copy(
                 completedSteps = serializeMedStepLogs(logs),
-                isComplete = allDone
+                isComplete = allDone,
+                updatedAt = System.currentTimeMillis()
             )
         )
         syncTracker.trackUpdate(existing.id, "self_care_log")
@@ -600,7 +605,8 @@ constructor(
             val updated = existing.copy(
                 completedSteps = completedStepsJson,
                 isComplete = allDone,
-                startedAt = existing.startedAt ?: System.currentTimeMillis()
+                startedAt = existing.startedAt ?: System.currentTimeMillis(),
+                updatedAt = System.currentTimeMillis()
             )
             selfCareDao.updateLog(updated)
             syncTracker.trackUpdate(existing.id, "self_care_log")
@@ -621,7 +627,8 @@ constructor(
             val updated = existing.copy(
                 completedSteps = gson.toJson(steps.toList()),
                 isComplete = allDone,
-                startedAt = existing.startedAt ?: System.currentTimeMillis()
+                startedAt = existing.startedAt ?: System.currentTimeMillis(),
+                updatedAt = System.currentTimeMillis()
             )
             selfCareDao.updateLog(updated)
             syncTracker.trackUpdate(existing.id, "self_care_log")
@@ -639,7 +646,8 @@ constructor(
             completedSteps = "[]",
             tiersByTime = if (routineType == "medication") "{}" else existing.tiersByTime,
             isComplete = false,
-            startedAt = null
+            startedAt = null,
+            updatedAt = System.currentTimeMillis()
         )
         selfCareDao.updateLog(updated)
         syncTracker.trackUpdate(existing.id, "self_care_log")
@@ -788,7 +796,8 @@ constructor(
                 tiersByTime = serializeTiersByTime(tiersByTime),
                 completedSteps = serializeMedStepLogs(resultLogs),
                 isComplete = allDone,
-                startedAt = existing.startedAt ?: now
+                startedAt = existing.startedAt ?: now,
+                updatedAt = now
             )
         )
         syncTracker.trackUpdate(existing.id, "self_care_log")
@@ -969,7 +978,8 @@ constructor(
             }.thenBy { it.sortOrder }
         )
 
-        val updated = sorted.mapIndexed { i, step -> step.copy(sortOrder = i) }
+        val now = System.currentTimeMillis()
+        val updated = sorted.mapIndexed { i, step -> step.copy(sortOrder = i, updatedAt = now) }
         selfCareDao.updateSteps(updated)
         updated.forEach { syncTracker.trackUpdate(it.id, "self_care_step") }
     }

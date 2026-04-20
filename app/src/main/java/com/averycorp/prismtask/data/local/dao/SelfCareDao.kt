@@ -18,6 +18,12 @@ interface SelfCareDao {
     @Query("SELECT * FROM self_care_logs WHERE routine_type = :routineType AND date = :date LIMIT 1")
     suspend fun getLogForDateOnce(routineType: String, date: Long): SelfCareLogEntity?
 
+    @Query("SELECT * FROM self_care_logs WHERE id = :id LIMIT 1")
+    suspend fun getLogById(id: Long): SelfCareLogEntity?
+
+    @Query("SELECT * FROM self_care_steps WHERE id = :id LIMIT 1")
+    suspend fun getStepById(id: Long): SelfCareStepEntity?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertLog(log: SelfCareLogEntity): Long
 

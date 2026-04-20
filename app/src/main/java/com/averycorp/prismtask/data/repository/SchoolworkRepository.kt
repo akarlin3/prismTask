@@ -44,13 +44,13 @@ constructor(
     suspend fun getCourseById(id: Long): CourseEntity? = dao.getCourseById(id)
 
     suspend fun insertCourse(course: CourseEntity): Long {
-        val id = dao.insertCourse(course)
+        val id = dao.insertCourse(course.copy(updatedAt = System.currentTimeMillis()))
         syncTracker.trackCreate(id, "course")
         return id
     }
 
     suspend fun updateCourse(course: CourseEntity) {
-        dao.updateCourse(course)
+        dao.updateCourse(course.copy(updatedAt = System.currentTimeMillis()))
         syncTracker.trackUpdate(course.id, "course")
     }
 
@@ -103,7 +103,8 @@ constructor(
                 dao.updateCompletion(
                     existing.copy(
                         completed = true,
-                        completedAt = System.currentTimeMillis()
+                        completedAt = System.currentTimeMillis(),
+                        updatedAt = System.currentTimeMillis()
                     )
                 )
                 syncTracker.trackUpdate(existing.id, "course_completion")
@@ -114,7 +115,8 @@ constructor(
                     date = today,
                     courseId = courseId,
                     completed = true,
-                    completedAt = System.currentTimeMillis()
+                    completedAt = System.currentTimeMillis(),
+                    updatedAt = System.currentTimeMillis()
                 )
             )
             syncTracker.trackCreate(id, "course_completion")

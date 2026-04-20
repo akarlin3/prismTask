@@ -16,6 +16,9 @@ interface LeisureDao {
     @Query("SELECT * FROM leisure_logs WHERE date = :date LIMIT 1")
     suspend fun getLogForDateOnce(date: Long): LeisureLogEntity?
 
+    @Query("SELECT * FROM leisure_logs WHERE id = :id LIMIT 1")
+    suspend fun getLogById(id: Long): LeisureLogEntity?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertLog(log: LeisureLogEntity): Long
 
