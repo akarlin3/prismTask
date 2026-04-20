@@ -29,6 +29,7 @@ class MedicationReminderReceiver : BroadcastReceiver() {
         val intervalMillis = intent.getLongExtra("intervalMillis", 0L)
         val doseNumber = intent.getIntExtra("doseNumber", 0)
         val totalDoses = intent.getIntExtra("totalDoses", 1)
+        val alarmKind = intent.getStringExtra(MedicationReminderScheduler.EXTRA_ALARM_KIND)
 
         val entryPoint = EntryPointAccessors.fromApplication(
             context.applicationContext,
@@ -41,6 +42,22 @@ class MedicationReminderReceiver : BroadcastReceiver() {
             try {
                 val scheduler = entryPoint.medicationReminderScheduler()
                 val habit = entryPoint.habitDao().getHabitByIdOnce(habitId)
+
+                // Daily-time alarms re-register tomorrow's occurrence as
+                // soon as they fire, since AlarmManager exact alarms are
+                // one-shot. If the habit was archived or had its reminder
+                // cleared between scheduling and firing, the re-read
+                // above surfaces the current state and we skip the
+                // re-register.
+                if (alarmKind == MedicationReminderScheduler.ALARM_KIND_DAILY_TIME) {
+                    if (habit != null &&
+                        !habit.isArchived &&
+                        habit.reminderTime != null &&
+                        habit.reminderIntervalMillis == null
+                    ) {
+                        scheduler.scheduleDailyTime(habit)
+                    }
+                }
 
                 // Check if nag should be suppressed in favor of a delayed follow-up
                 if (habit != null) {

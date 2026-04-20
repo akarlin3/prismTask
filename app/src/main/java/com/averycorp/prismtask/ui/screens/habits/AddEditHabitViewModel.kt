@@ -368,12 +368,14 @@ constructor(
                         todaySkipBeforeScheduleDays = effectiveSkipBeforeSchedule
                     )
                 )
-                // Cancel or reschedule medication reminder on edit
-                if (reminderIntervalMillis == null) {
-                    medicationReminderScheduler.cancel(existing.id)
-                } else {
-                    medicationReminderScheduler.rescheduleAll()
-                }
+                // Cancel every alarm previously registered for this habit
+                // (covers both interval and daily-time modes), then let
+                // rescheduleAll() re-register the modes that are still
+                // enabled on the updated entity. Using cancel+reschedule
+                // instead of branching on which field changed keeps the
+                // two modes decoupled.
+                medicationReminderScheduler.cancelAll(existing.id)
+                medicationReminderScheduler.rescheduleAll()
             } else {
                 habitRepository.addHabit(
                     HabitEntity(
@@ -399,6 +401,11 @@ constructor(
                         todaySkipBeforeScheduleDays = effectiveSkipBeforeSchedule
                     )
                 )
+                // New habit may have a daily-time reminder that needs an
+                // alarm registered right away. Interval-mode habits will
+                // schedule on first completion via HabitRepository, so
+                // rescheduleAll covers both paths uniformly.
+                medicationReminderScheduler.rescheduleAll()
             }
             true
         } catch (e: Exception) {

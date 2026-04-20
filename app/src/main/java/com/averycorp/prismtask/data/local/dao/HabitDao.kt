@@ -66,6 +66,12 @@ interface HabitDao {
     @Query("SELECT * FROM habits WHERE reminder_interval_millis IS NOT NULL AND is_archived = 0")
     suspend fun getHabitsWithIntervalReminder(): List<HabitEntity>
 
+    @Query(
+        "SELECT * FROM habits WHERE reminder_time IS NOT NULL " +
+            "AND reminder_interval_millis IS NULL AND is_archived = 0"
+    )
+    suspend fun getHabitsWithDailyTimeReminder(): List<HabitEntity>
+
     @Query("SELECT DISTINCT category FROM habits WHERE category IS NOT NULL AND category != '' ORDER BY category ASC")
     suspend fun getAllCategories(): List<String>
 

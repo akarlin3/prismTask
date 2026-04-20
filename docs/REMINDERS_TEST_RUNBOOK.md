@@ -315,13 +315,6 @@ AI-gated workers (debug tier override in Settings).
 
 **Preconditions:** permissions granted.
 
-> **⚠️ Known logic-level gap surfaced by the Checkpoint 3 audit:**
-> daily-time habit reminders (`HabitEntity.reminderTime` with no
-> `reminderIntervalMillis`) are written by the editor but no scheduler
-> currently registers an alarm for them. Expect this scenario to FAIL
-> until the gap is fixed in a follow-up. Still run it so the failure
-> mode is documented on the actual test devices.
-
 **Steps:**
 1. Create habit "S10-daily" with:
    - Daily Reminder = ON
@@ -329,14 +322,31 @@ AI-gated workers (debug tier override in Settings).
    - Repeat after logging = OFF
 2. Save. Lock device.
 
-**Expected (when fix lands):** notification fires at the chosen time.
+**Expected:** notification fires at the chosen time.
 
-**Observed (today):** likely no notification.
+**Additional checks after the first fire:**
+3. Wait past the fire time. Confirm a new alarm is registered for
+   tomorrow at the same time via
+   `adb shell dumpsys alarm | grep prismtask` (request code offset
+   `habitId + 900_000`).
+4. Edit the habit → toggle Daily Reminder OFF → Save. Confirm the
+   registered alarm is gone from `dumpsys alarm`.
+5. Edit the habit → toggle Daily Reminder back ON → Save. Confirm
+   the alarm is re-registered.
+6. Reboot the device. Unlock. Confirm the alarm is re-registered
+   (BootReceiver → `rescheduleAllDailyTime`).
 
 **Checklist:**
-- ☐ S25 Ultra: fired at configured time (FAIL expected)
-- ☐ Pixel: fired at configured time (FAIL expected)
-- ☐ Logcat captured; attach snippet if the behavior changed
+- ☐ S25 Ultra: fired at configured time
+- ☐ S25 Ultra: tomorrow's alarm registered after fire
+- ☐ S25 Ultra: disable cancels the alarm
+- ☐ S25 Ultra: re-enable re-registers the alarm
+- ☐ S25 Ultra: alarm survives reboot
+- ☐ Pixel: fired at configured time
+- ☐ Pixel: tomorrow's alarm registered after fire
+- ☐ Pixel: disable cancels the alarm
+- ☐ Pixel: re-enable re-registers the alarm
+- ☐ Pixel: alarm survives reboot
 
 ---
 

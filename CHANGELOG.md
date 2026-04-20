@@ -49,11 +49,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Habit reminder editor verified: `AddEditHabitScreen` writes
   `reminderTime`, `reminderIntervalMillis`, and `reminderTimesPerDay`
   correctly, and interval-mode edits trigger
-  `MedicationReminderScheduler.rescheduleAll()`. **Known gap:** the
-  daily-time-only mode (`reminderTime` set, `reminderIntervalMillis`
-  null) is UI-complete but no scheduler registers an alarm for it —
-  logic-level gap deferred to a follow-up. Interval mode and the
-  medication step/dose flow are not affected.
+  `MedicationReminderScheduler.rescheduleAll()`.
+- Fixed: daily-time habit reminders now fire. Previously
+  `MedicationReminderScheduler.rescheduleAll()` only scheduled
+  interval-mode habits, so `HabitEntity.reminderTime` was written by
+  the editor but no alarm was ever registered. Added a per-habit
+  daily-time branch (`scheduleDailyTime`, `cancelDailyTime`,
+  `rescheduleAllDailyTime`) and taught the existing
+  `MedicationReminderReceiver` to re-register the next day's
+  occurrence when a daily-time alarm fires (distinguished from
+  interval alarms via an `alarmKind` intent extra). Boot
+  re-registration, habit delete/archive, and habit editor save all
+  cover the new branch via the new `cancelAll` umbrella method.
 - Added `docs/REMINDERS_TEST_RUNBOOK.md` with 10 on-device scenarios
   covering every change above. Target devices: Samsung Galaxy S25
   Ultra + one Pixel.

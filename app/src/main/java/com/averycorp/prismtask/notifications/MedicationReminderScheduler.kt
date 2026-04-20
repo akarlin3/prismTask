@@ -59,6 +59,7 @@ constructor(
             putExtra("intervalMillis", intervalMillis)
             putExtra("doseNumber", doseNumber)
             putExtra("totalDoses", totalDoses)
+            putExtra(EXTRA_ALARM_KIND, ALARM_KIND_INTERVAL)
         }
         val pendingIntent = PendingIntent.getBroadcast(
             context,
@@ -68,6 +69,54 @@ constructor(
         )
 
         scheduleExactOrFallback(triggerTime, pendingIntent)
+    }
+
+    /**
+     * Registers an exact alarm that fires at the habit's configured
+     * daily reminder time ([HabitEntity.reminderTime], stored as
+     * milliseconds since local midnight). The alarm re-registers the
+     * next day's occurrence from the receiver when it fires — see
+     * [MedicationReminderReceiver.onReceive]'s daily-time branch.
+     *
+     * Uses a distinct request-code offset ([DAILY_TIME_REQUEST_OFFSET])
+     * so the alarm doesn't collide with interval-mode alarms on the same
+     * habit, and tags the intent with [EXTRA_ALARM_KIND] so the receiver
+     * can distinguish the two paths without re-reading the habit.
+     */
+    fun scheduleDailyTime(habit: HabitEntity) {
+        val reminderTime = habit.reminderTime ?: return
+        val triggerTime = computeNextDailyTrigger(
+            reminderMillisSinceMidnight = reminderTime,
+            now = System.currentTimeMillis()
+        )
+        val intent = Intent(context, MedicationReminderReceiver::class.java).apply {
+            putExtra("habitId", habit.id)
+            putExtra("habitName", habit.name)
+            putExtra("habitDescription", habit.description)
+            putExtra("intervalMillis", 0L)
+            putExtra("doseNumber", 0)
+            putExtra("totalDoses", 1)
+            putExtra(EXTRA_ALARM_KIND, ALARM_KIND_DAILY_TIME)
+            putExtra(EXTRA_REMINDER_TIME_MS, reminderTime)
+        }
+        val pendingIntent = PendingIntent.getBroadcast(
+            context,
+            habit.id.toInt() + DAILY_TIME_REQUEST_OFFSET,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        scheduleExactOrFallback(triggerTime, pendingIntent)
+    }
+
+    fun cancelDailyTime(habitId: Long) {
+        val intent = Intent(context, MedicationReminderReceiver::class.java)
+        val pendingIntent = PendingIntent.getBroadcast(
+            context,
+            habitId.toInt() + DAILY_TIME_REQUEST_OFFSET,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        alarmManager?.cancel(pendingIntent)
     }
 
     /**
@@ -112,6 +161,13 @@ constructor(
         alarmManager?.cancel(pendingIntent)
     }
 
+    /**
+     * Cancels the interval-mode alarm for [habitId]. Does NOT touch the
+     * habit's daily-time alarm — callers that want to cancel both should
+     * call [cancelAll] (or [cancelDailyTime] explicitly). Keeping the two
+     * separate matters for the uncomplete path, which cancels the next
+     * interval dose without disturbing the independent daily-time alarm.
+     */
     fun cancel(habitId: Long) {
         val intent = Intent(context, MedicationReminderReceiver::class.java)
         val pendingIntent = PendingIntent.getBroadcast(
@@ -121,6 +177,16 @@ constructor(
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         alarmManager?.cancel(pendingIntent)
+    }
+
+    /**
+     * Cancels every per-habit alarm this scheduler owns (interval +
+     * daily-time). Called from delete / archive / habit-editor-save so
+     * the subsequent [rescheduleAll] can re-register from a clean slate.
+     */
+    fun cancelAll(habitId: Long) {
+        cancel(habitId)
+        cancelDailyTime(habitId)
     }
 
     /** Schedule alarms for all specific times that haven't passed yet today. */
@@ -140,6 +206,11 @@ constructor(
     }
 
     suspend fun rescheduleAll() {
+        // Daily-time habits (reminderTime set, no interval) are per-habit
+        // and independent of the global medication schedule mode, so they
+        // run unconditionally before the mode-dispatch below.
+        rescheduleAllDailyTime()
+
         val mode = medicationPreferences.getScheduleModeOnce()
         if (mode == MedicationScheduleMode.SPECIFIC_TIMES) {
             scheduleSpecificTimes()
@@ -163,6 +234,19 @@ constructor(
                 doseNumber = todayCount + 1,
                 totalDoses = timesPerDay
             )
+        }
+    }
+
+    /**
+     * Registers a daily alarm for every active habit whose
+     * [HabitEntity.reminderTime] is set but [HabitEntity.reminderIntervalMillis]
+     * is not. Used by [rescheduleAll] (startup + after settings changes)
+     * and BootReceiver (alarms don't survive reboot).
+     */
+    suspend fun rescheduleAllDailyTime() {
+        val habits = habitDao.getHabitsWithDailyTimeReminder()
+        for (habit in habits) {
+            scheduleDailyTime(habit)
         }
     }
 
@@ -282,12 +366,50 @@ constructor(
     }
 
     companion object {
+        /** Request-code offset for the per-habit daily-time alarm. */
+        const val DAILY_TIME_REQUEST_OFFSET = 900_000
+
+        /**
+         * Intent extra tagging which alarm branch fired. Lets
+         * [MedicationReminderReceiver] re-register next-day alarms only
+         * for daily-time alarms without having to re-read the habit to
+         * classify it.
+         */
+        const val EXTRA_ALARM_KIND = "alarmKind"
+        const val ALARM_KIND_INTERVAL = "interval"
+        const val ALARM_KIND_DAILY_TIME = "daily_time"
+
+        /** Echo of [HabitEntity.reminderTime] for re-registration on fire. */
+        const val EXTRA_REMINDER_TIME_MS = "reminderTimeMs"
+
         /** Convert "HH:mm" to next trigger timestamp (today if not passed, tomorrow if passed). */
         fun timeStringToNextTrigger(timeStr: String, now: Long): Long {
             val parts = timeStr.split(":")
             val hour = parts.getOrNull(0)?.toIntOrNull() ?: 8
             val minute = parts.getOrNull(1)?.toIntOrNull() ?: 0
 
+            val cal = Calendar.getInstance().apply {
+                timeInMillis = now
+                set(Calendar.HOUR_OF_DAY, hour)
+                set(Calendar.MINUTE, minute)
+                set(Calendar.SECOND, 0)
+                set(Calendar.MILLISECOND, 0)
+            }
+            if (cal.timeInMillis <= now) {
+                cal.add(Calendar.DAY_OF_YEAR, 1)
+            }
+            return cal.timeInMillis
+        }
+
+        /**
+         * Given [HabitEntity.reminderTime] (milliseconds since local
+         * midnight) and the current wall-clock [now], returns the
+         * absolute timestamp of the next occurrence — today if the
+         * time hasn't passed, tomorrow otherwise.
+         */
+        fun computeNextDailyTrigger(reminderMillisSinceMidnight: Long, now: Long): Long {
+            val hour = (reminderMillisSinceMidnight / (60 * 60 * 1000)).toInt()
+            val minute = ((reminderMillisSinceMidnight % (60 * 60 * 1000)) / (60 * 1000)).toInt()
             val cal = Calendar.getInstance().apply {
                 timeInMillis = now
                 set(Calendar.HOUR_OF_DAY, hour)
