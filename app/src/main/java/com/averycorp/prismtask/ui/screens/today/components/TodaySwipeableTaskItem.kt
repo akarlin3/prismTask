@@ -58,6 +58,7 @@ import com.averycorp.prismtask.ui.theme.LocalPrismColors
 import com.averycorp.prismtask.ui.theme.LocalPrismFonts
 import com.averycorp.prismtask.ui.theme.LocalPrismShapes
 import com.averycorp.prismtask.ui.theme.cornerBrackets
+import com.averycorp.prismtask.ui.theme.prismCardBackground
 import com.averycorp.prismtask.ui.theme.prismGlow
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -189,10 +190,11 @@ internal fun SwipeableTaskItem(
                     color = colors.border,
                     shape = MaterialTheme.shapes.medium
                 )
+                .prismCardBackground()
                 .cornerBrackets(colors.primary, attrs),
             shape = MaterialTheme.shapes.medium,
             colors = CardDefaults.cardColors(
-                containerColor = colors.surface
+                containerColor = if (attrs.sunset) Color.Transparent else colors.surface
             )
         ) {
             Row(

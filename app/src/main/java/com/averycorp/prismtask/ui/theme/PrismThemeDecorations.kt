@@ -199,29 +199,41 @@ fun PrismBracket(
 @Composable
 fun PrismHudDivider(modifier: Modifier = Modifier) {
     val attrs = LocalPrismAttrs.current
-    if (!attrs.hudDividers) {
-        HorizontalDivider(
-            modifier = modifier,
-            color = MaterialTheme.colorScheme.outlineVariant
-        )
-        return
-    }
-    val lineColor = LocalPrismColors.current.primary.copy(alpha = 0.6f)
-    Canvas(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(1.dp)
-    ) {
-        drawLine(
-            color = lineColor,
-            start = Offset(0f, size.height / 2f),
-            end = Offset(size.width, size.height / 2f),
-            strokeWidth = 1.dp.toPx(),
-            pathEffect = PathEffect.dashPathEffect(
-                floatArrayOf(6.dp.toPx(), 4.dp.toPx()),
-                0f
+    val prismColors = LocalPrismColors.current
+    when {
+        attrs.hudDividers -> {
+            // Cyberpunk: dashed primary line at 60% alpha
+            val lineColor = prismColors.primary.copy(alpha = 0.6f)
+            Canvas(
+                modifier = modifier
+                    .fillMaxWidth()
+                    .height(1.dp)
+            ) {
+                drawLine(
+                    color = lineColor,
+                    start = Offset(0f, size.height / 2f),
+                    end = Offset(size.width, size.height / 2f),
+                    strokeWidth = 1.dp.toPx(),
+                    pathEffect = PathEffect.dashPathEffect(
+                        floatArrayOf(6.dp.toPx(), 4.dp.toPx()),
+                        0f
+                    )
+                )
+            }
+        }
+        attrs.sunset -> {
+            // Synthwave: solid primary line at 18% alpha
+            HorizontalDivider(
+                modifier = modifier,
+                color = prismColors.primary.copy(alpha = 0.18f)
             )
-        )
+        }
+        else -> {
+            HorizontalDivider(
+                modifier = modifier,
+                color = MaterialTheme.colorScheme.outlineVariant
+            )
+        }
     }
 }
 
@@ -324,6 +336,44 @@ fun Modifier.gridFloor(): Modifier = composed {
         }
     }
 }
+
+// ─── Sunset card gradient (Synthwave) ─────────────────────────────────────
+
+/**
+ * Paints a diagonal sunset gradient (surface → surfaceVariant, ~135°) as the
+ * background of the receiver. Active only when [PrismThemeAttrs.sunset] is true.
+ *
+ * Use this on any composable where you want the Synthwave card wash. Callers
+ * that use it on a Material3 [Card] must pair it with
+ * `containerColor = Color.Transparent` so the Card surface does not occlude
+ * the gradient.
+ */
+fun Modifier.sunsetBackground(): Modifier = composed {
+    val attrs = LocalPrismAttrs.current
+    if (!attrs.sunset) return@composed Modifier
+    val surface = LocalPrismColors.current.surface
+    val surfaceVariant = LocalPrismColors.current.surfaceVariant
+    this.then(
+        Modifier.drawBehind {
+            drawRect(
+                brush = Brush.linearGradient(
+                    colors = listOf(surface, surfaceVariant),
+                    start = Offset(0f, 0f),
+                    end = Offset(size.width, size.height)
+                )
+            )
+        }
+    )
+}
+
+/**
+ * Convenience alias for [sunsetBackground] intended for use inside Card
+ * `modifier` chains. Returns the sunset gradient modifier when Synthwave is
+ * active; returns [Modifier] unchanged otherwise. Callers should set
+ * `containerColor = if (attrs.sunset) Color.Transparent else colors.surface`
+ * so the Card surface does not hide the gradient.
+ */
+fun Modifier.prismCardBackground(): Modifier = sunsetBackground()
 
 // ─── Timer / progress ring helpers ────────────────────────────────────────
 
