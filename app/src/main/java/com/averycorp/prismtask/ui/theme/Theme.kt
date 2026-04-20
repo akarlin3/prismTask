@@ -1,6 +1,7 @@
 package com.averycorp.prismtask.ui.theme
 
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Shapes
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -98,9 +99,18 @@ fun PrismTaskTheme(
 
     val prismFonts = prismThemeFonts(prismTheme)
     val prismAttrs = prismThemeAttrs(prismTheme)
+    val prismShapes = prismAttrs.toShapes()
+    val prismDensity = prismAttrs.toDensity()
     val scaledTypography = remember(fontScale, prismTheme) {
         scaledTypography(prismTypography(prismFonts, prismAttrs), fontScale)
     }
+    val materialShapes = Shapes(
+        extraSmall = prismShapes.extraSmall,
+        small = prismShapes.button,
+        medium = prismShapes.card,
+        large = prismShapes.large,
+        extraLarge = prismShapes.large
+    )
 
     // High-contrast mode: boost text contrast on the dark PrismTheme canvas
     // by pinning onSurface/onBackground to fully opaque white and tightening
@@ -121,6 +131,8 @@ fun PrismTaskTheme(
         LocalPrismColors provides prismColors,
         LocalPrismFonts provides prismFonts,
         LocalPrismAttrs provides prismAttrs,
+        LocalPrismShapes provides prismShapes,
+        LocalPrismDensity provides prismDensity,
         com.averycorp.prismtask.ui.a11y.LocalReducedMotion provides reduceMotion,
         com.averycorp.prismtask.ui.a11y.LocalHighContrast provides highContrast,
         com.averycorp.prismtask.ui.a11y.LocalLargeTouchTargets provides largeTouchTargets,
@@ -131,6 +143,7 @@ fun PrismTaskTheme(
         MaterialTheme(
             colorScheme = effectiveScheme,
             typography = scaledTypography,
+            shapes = materialShapes,
             content = content
         )
     }
