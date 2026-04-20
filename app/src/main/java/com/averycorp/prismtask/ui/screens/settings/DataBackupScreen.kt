@@ -33,6 +33,7 @@ import androidx.navigation.NavController
 import com.averycorp.prismtask.ui.navigation.PrismTaskRoute
 import com.averycorp.prismtask.ui.screens.settings.sections.BackupExportSection
 import com.averycorp.prismtask.ui.screens.settings.sections.DataSection
+import com.averycorp.prismtask.ui.theme.ThemedSubScreenTitle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -103,7 +104,7 @@ fun DataBackupScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Data & Backup") },
+                title = { ThemedSubScreenTitle("Data title = { Text("Data & Backup") } Backup") },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")

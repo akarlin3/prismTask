@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.AlertDialog
@@ -48,6 +47,7 @@ import com.averycorp.prismtask.ui.screens.habits.components.BuiltInHabitCard
 import com.averycorp.prismtask.ui.screens.habits.components.HabitItem
 import com.averycorp.prismtask.ui.screens.habits.components.HabitLogDialog
 import com.averycorp.prismtask.ui.screens.habits.components.SelfCareRoutineCard
+import com.averycorp.prismtask.ui.theme.gridFloor
 import com.averycorp.prismtask.ui.theme.LocalPrismColors
 import com.averycorp.prismtask.ui.theme.LocalPrismFonts
 import sh.calvin.reorderable.ReorderableItem
@@ -162,6 +162,7 @@ fun HabitListScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
+                    .gridFloor()
                     .padding(padding),
                 contentAlignment = Alignment.Center
             ) {
@@ -181,6 +182,7 @@ fun HabitListScreen(
                 state = lazyListState,
                 modifier = Modifier
                     .fillMaxSize()
+                    .gridFloor()
                     .padding(padding)
                     .padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -209,7 +211,7 @@ fun HabitListScreen(
                                         },
                                         onDelete = { habitToDelete = listItem.habitWithStatus },
                                         modifier = Modifier
-                                            .shadow(elevation, RoundedCornerShape(12.dp))
+                                            .shadow(elevation, MaterialTheme.shapes.medium)
                                             .longPressDraggableHandle()
                                     )
                                 } else {
@@ -245,7 +247,7 @@ fun HabitListScreen(
                                         },
                                         onDelete = { habitToDelete = listItem.habitWithStatus },
                                         modifier = Modifier
-                                            .shadow(elevation, RoundedCornerShape(12.dp))
+                                            .shadow(elevation, MaterialTheme.shapes.medium)
                                             .longPressDraggableHandle()
                                     )
                                 }
@@ -263,7 +265,7 @@ fun HabitListScreen(
                                         }
                                     },
                                     modifier = Modifier
-                                        .shadow(elevation, RoundedCornerShape(12.dp))
+                                        .shadow(elevation, MaterialTheme.shapes.medium)
                                         .longPressDraggableHandle()
                                 )
                             }
@@ -278,7 +280,7 @@ fun HabitListScreen(
                                         }
                                     },
                                     modifier = Modifier
-                                        .shadow(elevation, RoundedCornerShape(12.dp))
+                                        .shadow(elevation, MaterialTheme.shapes.medium)
                                         .longPressDraggableHandle()
                                 )
                             }

@@ -295,7 +295,7 @@ private fun ProjectFilterDropdown(
 private fun StatCard(label: String, value: String, color: Color, modifier: Modifier = Modifier) {
     Card(
         modifier = modifier.width(120.dp),
-        shape = RoundedCornerShape(12.dp),
+        shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
     ) {
         Column(
@@ -318,7 +318,7 @@ private fun StatCard(label: String, value: String, color: Color, modifier: Modif
 private fun StreakStatCard(label: String, streak: Int) {
     Card(
         modifier = Modifier.width(120.dp),
-        shape = RoundedCornerShape(12.dp),
+        shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
     ) {
         Column(
@@ -348,7 +348,7 @@ private fun OnTimeRateCard(overdueRate: Double?) {
     }
     Card(
         modifier = Modifier.width(120.dp),
-        shape = RoundedCornerShape(12.dp),
+        shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
     ) {
         Column(
@@ -372,7 +372,7 @@ private fun DailyTrendChart(data: List<Int>, color: Color, modifier: Modifier = 
     val maxVal = data.maxOrNull()?.coerceAtLeast(1) ?: 1
     Card(
         modifier = modifier,
-        shape = RoundedCornerShape(12.dp),
+        shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
     ) {
         Canvas(modifier = Modifier.fillMaxSize().padding(16.dp)) {
@@ -416,7 +416,7 @@ private fun DayOfWeekBarChart(
 
     Card(
         modifier = modifier,
-        shape = RoundedCornerShape(12.dp),
+        shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
     ) {
         Row(
@@ -461,7 +461,7 @@ private fun TimeOfDayChart(
 
     Card(
         modifier = modifier,
-        shape = RoundedCornerShape(12.dp),
+        shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
     ) {
         Column(modifier = Modifier.fillMaxSize().padding(12.dp)) {
@@ -502,7 +502,7 @@ private fun TimeOfDayChart(
 @Composable
 private fun InsightsCard(stats: com.averycorp.prismtask.data.repository.TaskCompletionStats) {
     Card(
-        shape = RoundedCornerShape(12.dp),
+        shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
         modifier = Modifier.fillMaxWidth()
     ) {

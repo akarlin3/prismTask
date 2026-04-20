@@ -142,7 +142,7 @@ internal fun LazyListScope.reorderableTaskItemWithSubtasks(
                         onDragStopped = { onDragEnd() }
                     ),
                     modifier = Modifier
-                        .shadow(elevation, RoundedCornerShape(12.dp))
+                        .shadow(elevation, MaterialTheme.shapes.medium)
                         .scale(scale)
                         .alpha(alpha)
                 )
@@ -477,7 +477,7 @@ internal fun LazyListScope.draggableTaskItemWithSubtasks(
                     event.mimeTypes().contains(ClipDescription.MIMETYPE_TEXT_PLAIN)
                 },
                 target = dropTarget
-            ).shadow(if (isHovered) 6.dp else 0.dp, RoundedCornerShape(12.dp))
+            ).shadow(if (isHovered) 6.dp else 0.dp, MaterialTheme.shapes.medium)
             .scale(scale)
 
         if (isMultiSelectMode) {

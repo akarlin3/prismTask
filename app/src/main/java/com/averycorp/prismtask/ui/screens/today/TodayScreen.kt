@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.Add
@@ -83,7 +82,10 @@ import com.averycorp.prismtask.ui.screens.today.components.SwipeableTaskItem
 import com.averycorp.prismtask.ui.screens.today.components.TodayBalanceSection
 import com.averycorp.prismtask.ui.screens.today.dailyessentials.DailyEssentialsActions
 import com.averycorp.prismtask.ui.screens.today.dailyessentials.DailyEssentialsSection
+import com.averycorp.prismtask.ui.theme.LocalPrismAttrs
 import com.averycorp.prismtask.ui.theme.LocalPrismColors
+import com.averycorp.prismtask.ui.theme.gridFloor
+import com.averycorp.prismtask.ui.theme.prismGlow
 
 private const val SECTION_OVERDUE = "overdue"
 private const val SECTION_TODAY_TASKS = "today_tasks"
@@ -187,6 +189,7 @@ fun TodayScreen(
     }
 
     val prismColors = LocalPrismColors.current
+    val attrs = LocalPrismAttrs.current
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = viewModel.snackbarHostState) },
         containerColor = prismColors.background,
@@ -231,6 +234,7 @@ fun TodayScreen(
                         editorSheetTaskId = null
                         showEditorSheet = true
                     },
+                    modifier = Modifier.prismGlow(prismColors.primary, attrs.glow),
                     containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary
                 ) {
@@ -242,7 +246,7 @@ fun TodayScreen(
     ) { padding ->
         androidx.compose.animation.Crossfade(targetState = isLoading, label = "today_loading") { loading ->
             if (loading) {
-                Column(modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp)) {
+                Column(modifier = Modifier.fillMaxSize().gridFloor().padding(padding).padding(horizontal = 16.dp)) {
                     ProgressHeaderSkeleton()
                     Spacer(modifier = Modifier.height(16.dp))
                     TaskListSkeleton(count = 3)
@@ -253,6 +257,7 @@ fun TodayScreen(
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxSize()
+                        .gridFloor()
                         .padding(padding)
                         .padding(horizontal = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -624,7 +629,7 @@ fun TodayScreen(
                                             PrismTaskRoute.HabitDetail.createRoute(hws.habit.id)
                                         )
                                     },
-                                shape = RoundedCornerShape(8.dp),
+                                shape = MaterialTheme.shapes.medium,
                                 colors = CardDefaults.cardColors(
                                     containerColor = MaterialTheme.colorScheme.surfaceContainerLow
                                 )

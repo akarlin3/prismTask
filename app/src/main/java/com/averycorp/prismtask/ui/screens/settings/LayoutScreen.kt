@@ -25,6 +25,7 @@ import androidx.navigation.NavController
 import com.averycorp.prismtask.ui.screens.settings.sections.DashboardSection
 import com.averycorp.prismtask.ui.screens.settings.sections.NavigationSection
 import com.averycorp.prismtask.ui.screens.settings.sections.SwipeActionsSection
+import com.averycorp.prismtask.ui.theme.ThemedSubScreenTitle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -42,7 +43,7 @@ fun LayoutScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Layout & Navigation") },
+                title = { ThemedSubScreenTitle("Layout title = { Text("Layout & Navigation") } Navigation") },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")

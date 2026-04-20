@@ -34,6 +34,7 @@ import com.averycorp.prismtask.ui.screens.settings.sections.BoundariesSection
 import com.averycorp.prismtask.ui.screens.settings.sections.ClinicalReportSection
 import com.averycorp.prismtask.ui.screens.settings.sections.WorkLifeBalanceSection
 import kotlinx.coroutines.launch
+import com.averycorp.prismtask.ui.theme.ThemedSubScreenTitle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -82,7 +83,7 @@ fun WellbeingScreen(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text("Wellbeing") },
+                title = { ThemedSubScreenTitle("Wellbeing") },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")

@@ -26,6 +26,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import com.averycorp.prismtask.ui.theme.LocalPrismShapes
+import com.averycorp.prismtask.ui.theme.ThemedSubScreenTitle
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -108,10 +110,7 @@ fun AddEditTaskScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Text(
-                        text = if (viewModel.isEditMode) "Edit Task" else "New Task",
-                        fontWeight = FontWeight.Bold
-                    )
+                    ThemedSubScreenTitle(if (viewModel.isEditMode) "Edit Task" else "New Task")
                 },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
@@ -160,7 +159,7 @@ fun AddEditTaskScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(50.dp),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = MaterialTheme.shapes.small
                 ) {
                     Text(
                         text = if (viewModel.isEditMode) "Update Task" else "Save Task",
@@ -652,7 +651,7 @@ private enum class PriorityOption(
 private fun PriorityChip(label: String, color: Color, selected: Boolean, onClick: () -> Unit) {
     Box(
         modifier = Modifier
-            .clip(RoundedCornerShape(8.dp))
+            .clip(LocalPrismShapes.current.chip)
             .then(
                 if (selected) {
                     Modifier.background(color.copy(alpha = 0.2f))

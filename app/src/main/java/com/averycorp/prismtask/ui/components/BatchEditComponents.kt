@@ -19,6 +19,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import com.averycorp.prismtask.ui.theme.LocalPrismShapes
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Label
 import androidx.compose.material.icons.filled.Add
@@ -385,7 +386,7 @@ private fun BatchTagChip(
 
     Row(
         modifier = Modifier
-            .clip(RoundedCornerShape(16.dp))
+            .clip(LocalPrismShapes.current.chip)
             .border(1.dp, border, RoundedCornerShape(16.dp))
             .background(bg)
             .clickable(onClick = onClick)

@@ -267,11 +267,11 @@ private fun ReportRow(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(10.dp))
+            .clip(MaterialTheme.shapes.medium)
             .border(
                 width = 1.dp,
                 color = MaterialTheme.colorScheme.outlineVariant,
-                shape = RoundedCornerShape(10.dp)
+                shape = MaterialTheme.shapes.medium
             )
             .clickable(onClick = onClick)
             .padding(12.dp)

@@ -25,6 +25,7 @@ import androidx.navigation.NavController
 import com.averycorp.prismtask.ui.screens.settings.sections.AccessibilitySection
 import com.averycorp.prismtask.ui.screens.settings.sections.ShakeSection
 import com.averycorp.prismtask.ui.screens.settings.sections.VoiceInputSection
+import com.averycorp.prismtask.ui.theme.ThemedSubScreenTitle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -46,7 +47,7 @@ fun AccessibilityScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Accessibility") },
+                title = { ThemedSubScreenTitle("Accessibility") },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")

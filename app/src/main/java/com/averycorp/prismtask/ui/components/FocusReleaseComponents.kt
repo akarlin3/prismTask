@@ -27,7 +27,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
+import com.averycorp.prismtask.ui.theme.LocalPrismShapes
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Lock
@@ -391,7 +391,7 @@ fun RevisionLockedBadge(modifier: Modifier = Modifier) {
         modifier = modifier
             .background(
                 MaterialTheme.colorScheme.tertiaryContainer,
-                RoundedCornerShape(4.dp)
+                LocalPrismShapes.current.chip
             ).padding(horizontal = 6.dp, vertical = 2.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -453,7 +453,7 @@ private fun SubtleCelebration(message: String, onDismiss: () -> Unit) {
                     .scale(scale.value)
                     .background(
                         MaterialTheme.colorScheme.primaryContainer,
-                        RoundedCornerShape(24.dp)
+                        LocalPrismShapes.current.chip
                     ).padding(horizontal = 20.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {

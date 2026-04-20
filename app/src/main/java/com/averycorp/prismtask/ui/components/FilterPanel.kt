@@ -36,7 +36,10 @@ import com.averycorp.prismtask.domain.model.LifeCategory
 import com.averycorp.prismtask.domain.model.TagFilterMode
 import com.averycorp.prismtask.domain.model.TaskFilter
 import com.averycorp.prismtask.ui.theme.LifeCategoryColor
+import com.averycorp.prismtask.ui.theme.LocalPrismAttrs
+import com.averycorp.prismtask.ui.theme.LocalPrismColors
 import com.averycorp.prismtask.ui.theme.LocalPriorityColors
+import com.averycorp.prismtask.ui.theme.prismGlow
 import java.util.Calendar
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -48,6 +51,8 @@ fun FilterPanel(
     onFilterChanged: (TaskFilter) -> Unit,
     onClearAll: () -> Unit
 ) {
+    val prismColors = LocalPrismColors.current
+    val attrs = LocalPrismAttrs.current
     var workingFilter by remember(currentFilter) { mutableStateOf(currentFilter) }
 
     val calendar = Calendar.getInstance().apply {
@@ -109,7 +114,9 @@ fun FilterPanel(
                         workingFilter = workingFilter.copy(tagFilterMode = TagFilterMode.ANY)
                     },
                     label = { Text("OR", style = MaterialTheme.typography.labelSmall) },
-                    modifier = Modifier.height(28.dp)
+                    modifier = Modifier
+                        .height(28.dp)
+                        .then(if (workingFilter.tagFilterMode == TagFilterMode.ANY) Modifier.prismGlow(prismColors.primary, attrs.glow) else Modifier)
                 )
                 FilterChip(
                     selected = workingFilter.tagFilterMode == TagFilterMode.ALL,
@@ -117,7 +124,9 @@ fun FilterPanel(
                         workingFilter = workingFilter.copy(tagFilterMode = TagFilterMode.ALL)
                     },
                     label = { Text("AND", style = MaterialTheme.typography.labelSmall) },
-                    modifier = Modifier.height(28.dp)
+                    modifier = Modifier
+                        .height(28.dp)
+                        .then(if (workingFilter.tagFilterMode == TagFilterMode.ALL) Modifier.prismGlow(prismColors.primary, attrs.glow) else Modifier)
                 )
             }
 
@@ -148,7 +157,8 @@ fun FilterPanel(
                         colors = FilterChipDefaults.filterChipColors(
                             selectedContainerColor = tagColor.copy(alpha = 0.2f),
                             selectedLabelColor = tagColor
-                        )
+                        ),
+                        modifier = if (isSelected) Modifier.prismGlow(tagColor, attrs.glow) else Modifier
                     )
                 }
             }
@@ -171,6 +181,7 @@ fun FilterPanel(
             val priorityLabels = listOf("None" to 0, "Low" to 1, "Medium" to 2, "High" to 3, "Urgent" to 4)
             priorityLabels.forEach { (label, level) ->
                 val isSelected = level in workingFilter.selectedPriorities
+                val priorityColor = LocalPriorityColors.current.forLevel(level)
                 FilterChip(
                     selected = isSelected,
                     onClick = {
@@ -183,9 +194,10 @@ fun FilterPanel(
                     },
                     label = { Text(label) },
                     colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = LocalPriorityColors.current.forLevel(level).copy(alpha = 0.2f),
-                        selectedLabelColor = LocalPriorityColors.current.forLevel(level)
-                    )
+                        selectedContainerColor = priorityColor.copy(alpha = 0.2f),
+                        selectedLabelColor = priorityColor
+                    ),
+                    modifier = if (isSelected) Modifier.prismGlow(priorityColor, attrs.glow) else Modifier
                 )
             }
         }
@@ -220,7 +232,8 @@ fun FilterPanel(
                     colors = FilterChipDefaults.filterChipColors(
                         selectedContainerColor = color.copy(alpha = 0.2f),
                         selectedLabelColor = color
-                    )
+                    ),
+                    modifier = if (isSelected) Modifier.prismGlow(color, attrs.glow) else Modifier
                 )
             }
         }
@@ -259,7 +272,8 @@ fun FilterPanel(
                             dateRange = if (isSelected) null else option.range
                         )
                     },
-                    label = { Text(option.label) }
+                    label = { Text(option.label) },
+                    modifier = if (isSelected) Modifier.prismGlow(prismColors.primary, attrs.glow) else Modifier
                 )
             }
         }

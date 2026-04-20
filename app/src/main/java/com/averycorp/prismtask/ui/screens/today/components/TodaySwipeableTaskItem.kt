@@ -53,8 +53,14 @@ import androidx.compose.ui.unit.dp
 import com.averycorp.prismtask.data.local.entity.TagEntity
 import com.averycorp.prismtask.data.local.entity.TaskEntity
 import com.averycorp.prismtask.ui.components.CircularCheckbox
+import com.averycorp.prismtask.ui.theme.LocalPrismAttrs
 import com.averycorp.prismtask.ui.theme.LocalPrismColors
 import com.averycorp.prismtask.ui.theme.LocalPrismFonts
+import com.averycorp.prismtask.ui.theme.LocalPrismShapes
+import com.averycorp.prismtask.ui.theme.TerminalLabel
+import com.averycorp.prismtask.ui.theme.cornerBrackets
+import com.averycorp.prismtask.ui.theme.prismCardBackground
+import com.averycorp.prismtask.ui.theme.prismGlow
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -83,6 +89,7 @@ internal fun SwipeableTaskItem(
     var showOverflowMenu by remember { mutableStateOf(false) }
     val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
     val colors = LocalPrismColors.current
+    val attrs = LocalPrismAttrs.current
     val fonts = LocalPrismFonts.current.body
     val tomorrowBlue = colors.secondary
     val dismissState = rememberSwipeToDismissBoxState(
@@ -141,6 +148,7 @@ internal fun SwipeableTaskItem(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
+                    .then(if (backgroundColor != Color.Transparent) Modifier.prismGlow(backgroundColor, attrs.glow) else Modifier)
                     .clip(RoundedCornerShape(12.dp))
                     .background(backgroundColor)
                     .padding(horizontal = 20.dp),
@@ -181,11 +189,13 @@ internal fun SwipeableTaskItem(
                 .border(
                     width = 1.dp,
                     color = colors.border,
-                    shape = RoundedCornerShape(12.dp)
-                ),
-            shape = RoundedCornerShape(12.dp),
+                    shape = MaterialTheme.shapes.medium
+                )
+                .prismCardBackground()
+                .cornerBrackets(colors.primary, attrs),
+            shape = MaterialTheme.shapes.medium,
             colors = CardDefaults.cardColors(
-                containerColor = colors.surface
+                containerColor = if (attrs.sunset) Color.Transparent else colors.surface
             )
         ) {
             Row(
@@ -225,19 +235,17 @@ internal fun SwipeableTaskItem(
                         }
                         if (isOverdue && task.dueDate != null) {
                             val fmt = SimpleDateFormat("MMM d", Locale.getDefault())
-                            Text(
+                            TerminalLabel(
                                 text = fmt.format(Date(task.dueDate)),
                                 style = MaterialTheme.typography.labelSmall,
-                                fontFamily = fonts,
                                 color = colors.muted
                             )
                         }
                         if (isPlanned && task.dueDate != null) {
                             val fmt = SimpleDateFormat("MMM d", Locale.getDefault())
-                            Text(
+                            TerminalLabel(
                                 text = "Due: ${fmt.format(Date(task.dueDate))}",
                                 style = MaterialTheme.typography.labelSmall,
-                                fontFamily = fonts,
                                 color = colors.muted
                             )
                         }
@@ -255,7 +263,7 @@ internal fun SwipeableTaskItem(
                             val pillFg = if (tagIsUrgent) colors.urgentAccent else colors.tagText
                             Box(
                                 modifier = Modifier
-                                    .clip(RoundedCornerShape(6.dp))
+                                    .clip(LocalPrismShapes.current.chip)
                                     .background(pillBg)
                                     .padding(horizontal = 6.dp, vertical = 2.dp)
                             ) {
@@ -336,9 +344,9 @@ internal fun CompletedTaskItem(task: TaskEntity, onUncomplete: () -> Unit) {
             .border(
                 width = 1.dp,
                 color = colors.border,
-                shape = RoundedCornerShape(12.dp)
+                shape = MaterialTheme.shapes.medium
             ),
-        shape = RoundedCornerShape(12.dp),
+        shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(
             containerColor = colors.surface.copy(alpha = 0.6f)
         )

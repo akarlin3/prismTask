@@ -36,6 +36,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.averycorp.prismtask.domain.usecase.BurnoutBand
+import com.averycorp.prismtask.ui.theme.LocalPrismShapes
 import com.averycorp.prismtask.domain.usecase.BurnoutResult
 
 /**
@@ -90,7 +91,7 @@ internal fun BurnoutBadge(
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
-            .clip(RoundedCornerShape(10.dp))
+            .clip(LocalPrismShapes.current.chip)
             .background(style.background)
             .clickable(onClick = onClick)
             .padding(horizontal = 8.dp, vertical = 4.dp)

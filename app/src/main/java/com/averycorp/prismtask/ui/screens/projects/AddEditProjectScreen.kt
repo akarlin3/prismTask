@@ -233,7 +233,7 @@ fun AddEditProjectScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(50.dp),
-                shape = RoundedCornerShape(12.dp)
+                shape = MaterialTheme.shapes.small
             ) {
                 Text(
                     text = if (viewModel.isEditMode) "Update Project" else "Save Project",
@@ -275,7 +275,7 @@ private fun DateField(
     OutlinedButton(
         onClick = { showPicker = true },
         modifier = modifier,
-        shape = RoundedCornerShape(12.dp)
+        shape = MaterialTheme.shapes.small
     ) {
         Icon(
             Icons.Default.CalendarMonth,

@@ -342,7 +342,7 @@ private fun WeekTaskCard(
                 onClick = onClick,
                 onLongClick = { showOverflowMenu = true }
             ),
-        shape = RoundedCornerShape(6.dp),
+        shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow
         )

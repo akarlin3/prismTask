@@ -159,7 +159,7 @@ fun BugReportScreen(
                         .fillMaxWidth()
                         .background(
                             MaterialTheme.colorScheme.errorContainer,
-                            RoundedCornerShape(8.dp)
+                            MaterialTheme.shapes.medium
                         ).padding(12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {

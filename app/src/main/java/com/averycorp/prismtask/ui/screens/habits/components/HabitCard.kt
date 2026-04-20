@@ -47,6 +47,7 @@ import com.averycorp.prismtask.ui.theme.ChipShape
 import com.averycorp.prismtask.ui.theme.LocalPrismAttrs
 import com.averycorp.prismtask.ui.theme.LocalPrismColors
 import com.averycorp.prismtask.ui.theme.LocalPrismFonts
+import com.averycorp.prismtask.ui.theme.TerminalLabel
 
 /**
  * The main habit list card. Shows the habit's icon, name, weekly-progress
@@ -208,10 +209,9 @@ internal fun HabitItem(
                         else -> "this week"
                     }
                     if (habit.frequencyPeriod == "daily" && habitWithStatus.dailyTarget > 1) {
-                        Text(
+                        TerminalLabel(
                             text = "${habitWithStatus.completionsToday}/${habitWithStatus.dailyTarget} today",
                             style = MaterialTheme.typography.bodySmall,
-                            fontFamily = fonts,
                             color = colors.muted
                         )
                         if (habit.showStreak && habitWithStatus.currentStreak > 0) {
@@ -221,17 +221,15 @@ internal fun HabitItem(
                     } else if (habit.showStreak && habitWithStatus.currentStreak > 0) {
                         StreakBadge(streak = habitWithStatus.currentStreak)
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text(
+                        TerminalLabel(
                             text = "${habitWithStatus.completionsThisWeek} days this week",
                             style = MaterialTheme.typography.bodySmall,
-                            fontFamily = fonts,
                             color = colors.muted
                         )
                     } else {
-                        Text(
+                        TerminalLabel(
                             text = "${habitWithStatus.completionsThisWeek} done $periodLabel",
                             style = MaterialTheme.typography.bodySmall,
-                            fontFamily = fonts,
                             color = colors.muted
                         )
                     }

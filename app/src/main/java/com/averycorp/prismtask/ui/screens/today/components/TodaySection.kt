@@ -30,8 +30,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.averycorp.prismtask.ui.theme.LocalPrismAttrs
 import com.averycorp.prismtask.ui.theme.LocalPrismColors
 import com.averycorp.prismtask.ui.theme.LocalPrismFonts
+import com.averycorp.prismtask.ui.theme.LocalPrismShapes
+import com.averycorp.prismtask.ui.theme.PrismBracket
+import com.averycorp.prismtask.ui.theme.terminalCount
 
 /**
  * Collapsible section wrapper used throughout the Today screen — e.g.
@@ -88,6 +92,8 @@ private fun SectionHeaderRow(
     )
     val colors = LocalPrismColors.current
     val fonts = LocalPrismFonts.current.body
+    val attrs = LocalPrismAttrs.current
+    val monoFont = LocalPrismFonts.current.mono
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -98,31 +104,43 @@ private fun SectionHeaderRow(
     ) {
         Text(text = emoji, fontSize = 18.sp)
         Spacer(modifier = Modifier.width(8.dp))
-        // Section headers ("TODAY", "HABITS", etc.) use the active theme
-        // font at 10sp / letterSpacing 1.5sp / Medium weight per the
-        // design spec, rendered uppercase so the terminal-style themes
-        // (Cyberpunk / Matrix) read as command labels.
-        Text(
-            text = title.uppercase(),
-            style = MaterialTheme.typography.titleSmall,
-            fontFamily = fonts,
-            fontWeight = FontWeight.Medium,
-            fontSize = 10.sp,
-            letterSpacing = 1.5.sp,
-            color = accentColor
-        )
+        // Section headers: Matrix → "# label [n]" in mono; others → PrismBracket.
+        if (attrs.terminal) {
+            Text(
+                text = "# ${title.lowercase()}",
+                style = MaterialTheme.typography.titleSmall,
+                fontFamily = monoFont,
+                fontWeight = FontWeight.Medium,
+                fontSize = 10.sp,
+                letterSpacing = 1.5.sp,
+                color = accentColor
+            )
+        } else {
+            PrismBracket {
+                Text(
+                    text = title.uppercase(),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontFamily = fonts,
+                    fontWeight = FontWeight.Medium,
+                    fontSize = 10.sp,
+                    letterSpacing = 1.5.sp,
+                    color = accentColor
+                )
+            }
+        }
         Spacer(modifier = Modifier.width(8.dp))
 
         Box(
             modifier = Modifier
-                .clip(RoundedCornerShape(10.dp))
-                .background(accentColor.copy(alpha = 0.16f))
+                .clip(LocalPrismShapes.current.chip)
+                .background(if (attrs.terminal) accentColor.copy(alpha = 0.08f) else accentColor.copy(alpha = 0.16f))
                 .padding(horizontal = 8.dp, vertical = 2.dp)
         ) {
             Text(
-                text = countLabel ?: "$count",
+                text = if (attrs.terminal) terminalCount(count, true)
+                       else (countLabel ?: "$count"),
                 style = MaterialTheme.typography.labelSmall,
-                fontFamily = fonts,
+                fontFamily = if (attrs.terminal) monoFont else fonts,
                 fontWeight = FontWeight.SemiBold,
                 color = accentColor
             )

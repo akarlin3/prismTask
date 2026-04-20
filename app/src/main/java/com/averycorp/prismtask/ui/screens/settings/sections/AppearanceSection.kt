@@ -20,7 +20,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
-import androidx.compose.material3.HorizontalDivider
+import com.averycorp.prismtask.ui.theme.PrismHudDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
@@ -313,5 +313,5 @@ fun AppearanceSection(
     }
 
     Spacer(modifier = Modifier.height(8.dp))
-    HorizontalDivider()
+    PrismHudDivider()
 }

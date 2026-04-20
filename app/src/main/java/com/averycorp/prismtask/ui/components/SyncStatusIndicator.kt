@@ -8,7 +8,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
+import com.averycorp.prismtask.ui.theme.LocalPrismShapes
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CloudOff
@@ -143,7 +143,7 @@ private fun StatusChip(
     }
     Row(
         modifier = modifier
-            .clip(RoundedCornerShape(12.dp))
+            .clip(LocalPrismShapes.current.chip)
             .background(color.copy(alpha = 0.12f))
             .then(gestureModifier)
             .padding(horizontal = 10.dp, vertical = 4.dp)

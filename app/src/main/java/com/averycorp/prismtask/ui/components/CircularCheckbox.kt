@@ -13,6 +13,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -23,12 +24,20 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.averycorp.prismtask.ui.theme.LocalPrismAttrs
+import com.averycorp.prismtask.ui.theme.LocalPrismColors
+import com.averycorp.prismtask.ui.theme.LocalPrismFonts
 
 /**
  * A circular checkbox that follows Android/Material Design aesthetics.
  *
  * When unchecked: shows an empty circle outline.
  * When checked: shows a filled circle with a check mark.
+ *
+ * Matrix theme ([PrismThemeAttrs.terminal]): renders `[x]` / `[ ]` bracket
+ * notation in the mono font instead of the circle, matching the terminal
+ * checkbox spec from the mockup. Tap behaviour is identical in all themes.
  */
 @Composable
 fun CircularCheckbox(
@@ -41,6 +50,36 @@ fun CircularCheckbox(
     checkmarkColor: Color = Color.White,
     size: Dp = 24.dp
 ) {
+    val attrs = LocalPrismAttrs.current
+    if (attrs.terminal) {
+        val prismColors = LocalPrismColors.current
+        val monoFont = LocalPrismFonts.current.mono
+        val label = if (checked) "[x]" else "[ ]"
+        val textColor = if (checked) prismColors.primary else prismColors.muted
+        Box(
+            modifier = modifier
+                .size(size)
+                .then(
+                    if (onCheckedChange != null && enabled) {
+                        Modifier.clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            role = Role.Checkbox
+                        ) { onCheckedChange(!checked) }
+                    } else Modifier
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = label,
+                color = textColor,
+                fontFamily = monoFont,
+                fontSize = (size.value * 0.55f).sp
+            )
+        }
+        return
+    }
+
     val backgroundColor by animateColorAsState(
         targetValue = if (checked) checkedColor else Color.Transparent,
         animationSpec = tween(durationMillis = 150),

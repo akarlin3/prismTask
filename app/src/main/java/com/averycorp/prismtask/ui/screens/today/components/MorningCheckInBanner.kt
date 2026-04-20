@@ -15,7 +15,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
+import com.averycorp.prismtask.ui.theme.LocalPrismShapes
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.WbSunny
@@ -36,8 +36,14 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import com.averycorp.prismtask.ui.theme.LocalPrismAttrs
+import com.averycorp.prismtask.ui.theme.LocalPrismColors
 
 /**
  * Polished morning check-in banner (v1.4.0 banner polish).
@@ -67,7 +73,7 @@ fun MorningCheckInBanner(
             .fillMaxWidth()
             .padding(vertical = 4.dp)
             .semantics { contentDescription = "Morning check-in card. $summary" },
-        shape = RoundedCornerShape(16.dp),
+        shape = MaterialTheme.shapes.medium,
         border = BorderStroke(1.dp, accent.copy(alpha = 0.20f)),
         colors = CardDefaults.outlinedCardColors(containerColor = Color.Transparent)
     ) {
@@ -115,8 +121,26 @@ fun MorningCheckInBanner(
                 }
                 Spacer(modifier = Modifier.size(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
+                    val attrs = LocalPrismAttrs.current
+                    val prismColors = LocalPrismColors.current
+                    val greetingText = if (attrs.editorial) {
+                        // Void: italicise + primary-color the time-of-day word
+                        // Greeting format: "Good Morning!" or "Good Afternoon!"
+                        val parts = greeting.split(" ")
+                        val prefix = parts.getOrElse(0) { "Good" }
+                        val keyWord = parts.getOrElse(1) { "" }.trimEnd('!')
+                        buildAnnotatedString {
+                            append("$prefix ")
+                            withStyle(SpanStyle(fontStyle = FontStyle.Italic, color = prismColors.primary)) {
+                                append(keyWord)
+                            }
+                            append("!")
+                        }
+                    } else {
+                        buildAnnotatedString { append(greeting) }
+                    }
                     Text(
-                        text = greeting,
+                        text = greetingText,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurface
@@ -132,7 +156,7 @@ fun MorningCheckInBanner(
                     Spacer(modifier = Modifier.height(10.dp))
                     Button(
                         onClick = onStart,
-                        shape = RoundedCornerShape(10.dp),
+                        shape = MaterialTheme.shapes.small,
                         colors = ButtonDefaults.buttonColors(
                             containerColor = accent,
                             contentColor = MaterialTheme.colorScheme.onPrimary
@@ -179,7 +203,7 @@ fun CheckInCompleteChip(
         ) {
             Box(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(20.dp))
+                    .clip(LocalPrismShapes.current.chip)
                     .background(accent.copy(alpha = 0.14f))
                     .padding(horizontal = 14.dp, vertical = 8.dp)
             ) {

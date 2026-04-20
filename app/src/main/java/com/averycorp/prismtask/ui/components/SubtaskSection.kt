@@ -177,7 +177,7 @@ fun SubtaskSection(
                         onToggleComplete = { onToggleComplete(subtask.id, subtask.isCompleted) },
                         onDelete = { onDeleteSubtask(subtask.id) },
                         dragHandleModifier = dragHandle,
-                        modifier = Modifier.shadow(elevation, RoundedCornerShape(8.dp))
+                        modifier = Modifier.shadow(elevation, MaterialTheme.shapes.medium)
                     )
                 }
                 AddSubtaskRow(

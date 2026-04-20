@@ -25,6 +25,7 @@ import androidx.navigation.NavController
 import com.averycorp.prismtask.ui.screens.settings.sections.CheckInStreakSection
 import com.averycorp.prismtask.ui.screens.settings.sections.ForgivenessStreakSection
 import com.averycorp.prismtask.ui.screens.settings.sections.HabitsSection
+import com.averycorp.prismtask.ui.theme.ThemedSubScreenTitle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -41,7 +42,7 @@ fun HabitsStreaksScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Habits & Streaks") },
+                title = { ThemedSubScreenTitle("Habits title = { Text("Habits & Streaks") } Streaks") },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")

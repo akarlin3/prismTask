@@ -66,6 +66,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.averycorp.prismtask.ui.components.settings.DurationPickerDialog
 import com.averycorp.prismtask.ui.theme.ChipShape
+import com.averycorp.prismtask.ui.theme.LocalPrismShapes
 import com.averycorp.prismtask.ui.theme.GlowLevel
 import com.averycorp.prismtask.ui.theme.LocalPrismAttrs
 import com.averycorp.prismtask.ui.theme.LocalPrismColors
@@ -74,6 +75,8 @@ import com.averycorp.prismtask.ui.theme.LocalPrismTheme
 import com.averycorp.prismtask.ui.theme.PrismTheme
 import com.averycorp.prismtask.ui.theme.PrismThemeAttrs
 import com.averycorp.prismtask.ui.theme.drawCyberpunkTimerTicks
+import com.averycorp.prismtask.ui.theme.gridFloor
+import com.averycorp.prismtask.ui.theme.prismGlow
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -159,6 +162,7 @@ private fun TimerContent(
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .gridFloor()
             .padding(padding)
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 24.dp),
@@ -218,11 +222,7 @@ private fun TimerContent(
             horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            val iconButtonShape = when {
-                attrs.terminal -> RoundedCornerShape(0.dp)
-                attrs.chipShape == ChipShape.SHARP -> RoundedCornerShape(attrs.radius.dp)
-                else -> CircleShape
-            }
+            val iconButtonShape = if (attrs.chipShape == ChipShape.PILL) CircleShape else LocalPrismShapes.current.button
             FilledIconButton(
                 onClick = if (uiState.pomodoroEnabled) onResetPomodoro else onReset,
                 modifier = Modifier.size(56.dp),
@@ -431,7 +431,8 @@ private fun ThemedStartButton(
         onClick = onClick,
         modifier = Modifier
             .height(64.dp)
-            .width(160.dp),
+            .width(160.dp)
+            .prismGlow(activeColor, attrs.glow),
         shape = buttonShape,
         colors = ButtonDefaults.buttonColors(
             containerColor = containerColor,

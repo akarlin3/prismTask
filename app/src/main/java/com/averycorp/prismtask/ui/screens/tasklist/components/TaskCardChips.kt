@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import com.averycorp.prismtask.ui.theme.LocalPrismShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -97,7 +98,7 @@ internal fun TagChip(tag: TagEntity) {
 
     Row(
         modifier = Modifier
-            .clip(RoundedCornerShape(4.dp))
+            .clip(LocalPrismShapes.current.chip)
             .background(chipColor.copy(alpha = 0.15f))
             .padding(horizontal = 5.dp, vertical = 1.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -134,7 +135,7 @@ internal fun ProjectChip(project: ProjectEntity) {
 
     Box(
         modifier = Modifier
-            .clip(RoundedCornerShape(4.dp))
+            .clip(LocalPrismShapes.current.chip)
             .background(chipColor.copy(alpha = 0.15f))
             .padding(horizontal = 6.dp, vertical = 2.dp)
     ) {

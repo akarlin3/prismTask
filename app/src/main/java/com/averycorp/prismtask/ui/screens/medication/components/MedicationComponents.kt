@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import com.averycorp.prismtask.ui.theme.LocalPrismShapes
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
@@ -187,7 +188,7 @@ internal fun MedDialog(
                         Box(
                             modifier = Modifier
                                 .weight(1f)
-                                .clip(RoundedCornerShape(8.dp))
+                                .clip(LocalPrismShapes.current.chip)
                                 .background(
                                     if (selected) {
                                         chipColor.copy(alpha = 0.15f)
@@ -269,12 +270,12 @@ internal fun EditableMedItem(
         modifier = Modifier
             .fillMaxWidth()
             .padding(bottom = 6.dp)
-            .clip(RoundedCornerShape(12.dp))
+            .clip(MaterialTheme.shapes.medium)
             .background(MaterialTheme.colorScheme.surfaceContainerLow)
             .border(
                 width = 1.dp,
                 color = MaterialTheme.colorScheme.outlineVariant,
-                shape = RoundedCornerShape(12.dp)
+                shape = MaterialTheme.shapes.medium
             ).clickable(onClick = onEdit)
             .padding(horizontal = 8.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -337,7 +338,7 @@ internal fun EditableMedItem(
         }
         Box(
             modifier = Modifier
-                .clip(RoundedCornerShape(6.dp))
+                .clip(LocalPrismShapes.current.chip)
                 .background(tierColor.copy(alpha = 0.12f))
                 .padding(horizontal = 7.dp, vertical = 2.dp),
             contentAlignment = Alignment.Center
@@ -378,7 +379,7 @@ internal fun MedItem(
         modifier = Modifier
             .fillMaxWidth()
             .padding(bottom = 6.dp)
-            .clip(RoundedCornerShape(12.dp))
+            .clip(MaterialTheme.shapes.medium)
             .background(
                 if (isDone) {
                     tierColor.copy(alpha = 0.07f)
@@ -388,7 +389,7 @@ internal fun MedItem(
             ).border(
                 width = 1.dp,
                 color = if (isDone) tierColor.copy(alpha = 0.25f) else MaterialTheme.colorScheme.outlineVariant,
-                shape = RoundedCornerShape(12.dp)
+                shape = MaterialTheme.shapes.medium
             ).padding(12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -442,7 +443,7 @@ internal fun MedItem(
         }
         Box(
             modifier = Modifier
-                .clip(RoundedCornerShape(6.dp))
+                .clip(LocalPrismShapes.current.chip)
                 .background(tierColor.copy(alpha = 0.12f))
                 .padding(horizontal = 7.dp, vertical = 2.dp),
             contentAlignment = Alignment.Center

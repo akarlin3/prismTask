@@ -857,7 +857,7 @@ fun AddEditHabitScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(50.dp),
-                shape = RoundedCornerShape(12.dp)
+                shape = MaterialTheme.shapes.small
             ) {
                 Text(
                     text = if (viewModel.isEditMode) "Update Habit" else "Save Habit",

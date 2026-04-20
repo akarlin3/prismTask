@@ -22,6 +22,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.foundation.text.BasicText
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -38,8 +39,11 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.averycorp.prismtask.ui.theme.LocalPrismAttrs
@@ -47,6 +51,7 @@ import com.averycorp.prismtask.ui.theme.LocalPrismColors
 import com.averycorp.prismtask.ui.theme.LocalPrismFonts
 import com.averycorp.prismtask.ui.theme.LocalPrismTheme
 import com.averycorp.prismtask.ui.theme.PrismTheme
+import com.averycorp.prismtask.ui.theme.TerminalLabel
 import com.averycorp.prismtask.ui.theme.drawCyberpunkTimerTicks
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
@@ -125,20 +130,31 @@ internal fun CompactProgressHeader(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.width(120.dp)) {
-                Text(
-                    text = "Today",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontFamily = displayFont,
-                    fontWeight = FontWeight.Bold,
-                    color = colors.onBackground
-                )
-                Text(
+                if (attrs.editorial) {
+                    BasicText(
+                        text = buildAnnotatedString {
+                            append("Today")
+                            withStyle(SpanStyle(color = colors.primary)) { append(".") }
+                        },
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontFamily = displayFont,
+                            fontWeight = FontWeight.Medium,
+                            color = colors.onBackground
+                        )
+                    )
+                } else {
+                    Text(
+                        text = "Today",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontFamily = displayFont,
+                        fontWeight = FontWeight.Bold,
+                        color = colors.onBackground
+                    )
+                }
+                TerminalLabel(
                     text = dateLabel,
                     style = MaterialTheme.typography.labelSmall,
-                    fontFamily = fonts,
-                    color = colors.muted,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    color = colors.muted
                 )
             }
 
@@ -284,11 +300,9 @@ internal fun CompactProgressHeader(
 
             Spacer(modifier = Modifier.width(12.dp))
 
-            Text(
+            TerminalLabel(
                 text = "$completed done",
                 style = MaterialTheme.typography.titleSmall,
-                fontFamily = fonts,
-                fontWeight = FontWeight.SemiBold,
                 color = colors.primary
             )
 
