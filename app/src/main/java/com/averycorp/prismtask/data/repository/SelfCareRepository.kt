@@ -294,6 +294,28 @@ constructor(
         getOrCreateHabit(routineType)
     }
 
+    /**
+     * Debug-only escape hatch invoked by the Settings screen long-press on the
+     * app version label. For the three categories being expanded in v1.4.0
+     * (Self-Care / Housework / Medication), deletes only the steps whose
+     * `stepId` comes from [SelfCareRoutines] — so manually-added steps (with
+     * `custom_<uuid>` ids) survive — then re-seeds from the current
+     * [SelfCareRoutines] source lists.
+     */
+    suspend fun reseedBuiltInDefaults() {
+        val routineTypes = listOf("morning", "housework", "medication")
+        for (routineType in routineTypes) {
+            val seededIds = SelfCareRoutines.getSteps(routineType).map { it.id }
+            if (seededIds.isNotEmpty()) {
+                selfCareDao.deleteStepsByStepIds(routineType, seededIds)
+            }
+            val sourceIds = SelfCareRoutines.getSteps(routineType).map { it.id }
+            if (sourceIds.isNotEmpty()) {
+                seedSelfCareSteps(routineType, sourceIds)
+            }
+        }
+    }
+
     suspend fun addStep(
         routineType: String,
         label: String,

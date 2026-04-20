@@ -1,5 +1,7 @@
 package com.averycorp.prismtask.ui.screens.settings.sections
 
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
@@ -8,6 +10,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.averycorp.prismtask.BuildConfig
@@ -16,15 +19,35 @@ import com.averycorp.prismtask.ui.components.settings.SectionHeader
 @Composable
 fun AboutSection(
     latestReleaseTag: String?,
-    onRefreshWidgets: (() -> Unit)? = null
+    onRefreshWidgets: (() -> Unit)? = null,
+    onDebugReseed: (() -> Unit)? = null
 ) {
     SectionHeader("About")
 
+    // Long-press on the version label re-runs the built-in template + self-care
+    // step seeders. Debug-only: the release build gets a plain Text with no
+    // gesture modifier so the pathway can't be discovered or triggered by end
+    // users. The ViewModel also gates the action on BuildConfig.DEBUG, so even
+    // a mis-wired caller can't wipe seeded data in a release build.
+    val versionText = "PrismTask v${BuildConfig.VERSION_NAME}"
+    val versionModifier = if (BuildConfig.DEBUG && onDebugReseed != null) {
+        val interactionSource = remember { MutableInteractionSource() }
+        Modifier
+            .padding(vertical = 4.dp)
+            .combinedClickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = {},
+                onLongClick = onDebugReseed
+            )
+    } else {
+        Modifier.padding(vertical = 4.dp)
+    }
     Text(
-        text = "PrismTask v${BuildConfig.VERSION_NAME}",
+        text = versionText,
         style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.onSurface,
-        modifier = Modifier.padding(vertical = 4.dp)
+        modifier = versionModifier
     )
     Text(
         text = "Latest GitHub Release: ${latestReleaseTag ?: "Loading..."}",

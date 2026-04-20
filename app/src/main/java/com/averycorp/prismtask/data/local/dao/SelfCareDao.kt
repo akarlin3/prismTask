@@ -95,4 +95,14 @@ interface SelfCareDao {
      */
     @Query("SELECT * FROM self_care_steps WHERE medication_name = :name LIMIT 1")
     suspend fun getStepByMedicationName(name: String): SelfCareStepEntity?
+
+    /**
+     * Debug-only: removes every step for [routineType] whose `step_id` appears
+     * in [stepIds]. Used by the Settings long-press re-seed action to wipe
+     * seeded starter steps without touching user-added ones (which have
+     * fresh UUID-shaped step_ids rather than the hardcoded ones in
+     * [com.averycorp.prismtask.domain.model.SelfCareRoutines]).
+     */
+    @Query("DELETE FROM self_care_steps WHERE routine_type = :routineType AND step_id IN (:stepIds)")
+    suspend fun deleteStepsByStepIds(routineType: String, stepIds: List<String>)
 }

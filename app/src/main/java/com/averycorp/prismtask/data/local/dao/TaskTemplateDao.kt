@@ -51,4 +51,14 @@ interface TaskTemplateDao {
 
     @Query("DELETE FROM task_templates")
     suspend fun deleteAll()
+
+    /**
+     * Debug-only: removes every template whose `isBuiltIn` flag is still set.
+     * Used by the Settings long-press re-seed action to wipe seeded starter
+     * templates without touching user-created or user-edited ones
+     * ([TaskTemplateRepository.updateTemplate] flips `isBuiltIn` to `false` on
+     * first edit).
+     */
+    @Query("DELETE FROM task_templates WHERE is_built_in = 1")
+    suspend fun deleteAllBuiltIn()
 }

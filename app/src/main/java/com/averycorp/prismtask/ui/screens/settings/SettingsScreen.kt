@@ -394,7 +394,8 @@ fun SettingsScreen(
                         )
                         AboutSection(
                             latestReleaseTag = latestReleaseTag,
-                            onRefreshWidgets = viewModel::refreshWidgets
+                            onRefreshWidgets = viewModel::refreshWidgets,
+                            onDebugReseed = viewModel::debugReseedDefaults
                         )
                     }
                 }

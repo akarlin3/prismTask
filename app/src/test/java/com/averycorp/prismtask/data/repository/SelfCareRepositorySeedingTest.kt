@@ -119,22 +119,24 @@ class SelfCareRepositorySeedingTest {
 
     @Test
     fun seedSelfCareSteps_onlyInsertsRequestedIds() = runBlocking {
-        repo.seedSelfCareSteps("housework", listOf("dishes", "trash"))
+        repo.seedSelfCareSteps("housework", listOf("hw_dishwasher", "hw_trash"))
 
         val inserted = selfCareDao.stepsForRoutine("housework").map { it.stepId }
-        assertEquals(setOf("dishes", "trash"), inserted.toSet())
+        assertEquals(setOf("hw_dishwasher", "hw_trash"), inserted.toSet())
     }
 
     @Test
     fun seedSelfCareSteps_ignoresUnknownIds() = runBlocking {
-        repo.seedSelfCareSteps("morning", listOf("cleanser", "bogus_step_that_does_not_exist"))
+        repo.seedSelfCareSteps("morning", listOf("sc_water", "bogus_step_that_does_not_exist"))
 
         val inserted = selfCareDao.stepsForRoutine("morning").map { it.stepId }
-        assertEquals(listOf("cleanser"), inserted)
+        assertEquals(listOf("sc_water"), inserted)
     }
 
     @Test
     fun seedSelfCareSteps_isIdempotent() = runBlocking {
+        // "bedtime" still uses the skincare-flavored defaults, which are
+        // untouched by the v1.4.0 default-template expansion.
         repo.seedSelfCareSteps("bedtime", listOf("cleanser", "moisturizer"))
         val first = selfCareDao.stepsForRoutine("bedtime").map { it.stepId }.toSet()
 
@@ -147,7 +149,7 @@ class SelfCareRepositorySeedingTest {
     @Test
     fun seedSelfCareSteps_createsHabitOnce() = runBlocking {
         // First call: habit doesn't exist, so insert is triggered.
-        repo.seedSelfCareSteps("morning", listOf("cleanser"))
+        repo.seedSelfCareSteps("morning", listOf("sc_water"))
         coVerify(atLeast = 1) { habitDao.insert(any()) }
     }
 
@@ -233,5 +235,23 @@ class SelfCareRepositorySeedingTest {
 
         override suspend fun getStepByMedicationName(name: String): SelfCareStepEntity? =
             steps.firstOrNull { it.medicationName == name }
+
+        override suspend fun getStepByStepIdOnce(
+            stepId: String,
+            routineType: String
+        ): SelfCareStepEntity? =
+            steps.firstOrNull { it.stepId == stepId && it.routineType == routineType }
+
+        override suspend fun deleteStepById(id: Long) {
+            steps.removeAll { it.id == id }
+        }
+
+        override suspend fun deleteLogById(id: Long) {
+            // Logs aren't tracked in this fake.
+        }
+
+        override suspend fun deleteStepsByStepIds(routineType: String, stepIds: List<String>) {
+            steps.removeAll { it.routineType == routineType && it.stepId in stepIds }
+        }
     }
 }

@@ -55,13 +55,17 @@ class TemplateSelectionsTest {
 
     @Test
     fun withStepToggled_materializesCustomFromTier() {
+        // Use a step id that actually lives in the survival tier so the toggle
+        // removes it from the expanded set (post v1.4.0 default-template
+        // expansion the morning routine is the broader Self-Care list).
+        val toggledId = "sc_water"
         val s = TemplateSelections(morningTier = "survival")
-            .withStepToggled("morning", "cleanser")
+            .withStepToggled("morning", toggledId)
 
-        // Tier-expanded set included cleanser; toggling it should drop it
+        // Tier-expanded set included toggledId; toggling it should drop it
         // while materializing the rest of the survival set as the base.
         val expected = SelfCareRoutines.morningSteps
-            .filter { it.tier == "survival" && it.id != "cleanser" }
+            .filter { it.tier == "survival" && it.id != toggledId }
             .map { it.id }
             .toSet()
         assertEquals(expected, s.morningCustomStepIds)

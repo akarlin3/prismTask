@@ -28,15 +28,19 @@ object SelfCareRoutines {
         RoutineTier("full", "Full", "~8 min", 0xFF8B5CF6)
     )
 
+    // v1.4.0 default-template expansion: "morning" is the Self-Care category.
+    // Replaced the prior skincare-focused default list with a broader daily
+    // wellbeing set. All entries live under a single "Self-Care" phase and the
+    // lowest tier so they always render regardless of the user's tier picker.
     val morningSteps = listOf(
-        RoutineStep("cleanser", "Cleanser", "~1 min", "survival", phase = "Skincare"),
-        RoutineStep("moisturizer", "Moisturizer", "~30 sec", "survival", phase = "Skincare"),
-        RoutineStep("deodorant", "Deodorant", "~15 sec", "survival", phase = "Hygiene"),
-        RoutineStep("teeth", "Brush teeth", "~2 min", "solid", phase = "Hygiene"),
-        RoutineStep("toner", "Toner", "~30 sec", "solid", phase = "Skincare"),
-        RoutineStep("hair", "Hair styling", "~2 min", "solid", phase = "Grooming"),
-        RoutineStep("serum", "Serum / treatment", "~30 sec", "full", phase = "Skincare"),
-        RoutineStep("eyecream", "Eye cream", "~30 sec", "full", phase = "Skincare")
+        RoutineStep("sc_stretches", "Morning Stretches Or Movement", "~5 min", "survival", phase = "Self-Care"),
+        RoutineStep("sc_water", "Drink Water Throughout The Day", "Ongoing", "survival", phase = "Self-Care"),
+        RoutineStep("sc_meal", "Prep A Balanced Meal", "~20 min", "survival", phase = "Self-Care"),
+        RoutineStep("sc_walk", "Take A Walk Outside", "~15 min", "survival", phase = "Self-Care"),
+        RoutineStep("sc_evening_skincare", "Evening Skincare", "~5 min", "survival", phase = "Self-Care"),
+        RoutineStep("sc_bedtime", "Go To Bed On Time", "—", "survival", phase = "Self-Care"),
+        RoutineStep("sc_mindful_break", "Mindful Break Or Breathing", "~5 min", "survival", phase = "Self-Care"),
+        RoutineStep("sc_weekly_reflection", "Weekly Reflection", "~10 min", "survival", phase = "Self-Care")
     )
 
     val morningTierOrder = listOf("survival", "solid", "full")
@@ -113,7 +117,16 @@ object SelfCareRoutines {
         RoutineTier("skipped", "Skipped", "—", 0xFF6B7280)
     )
 
-    val medicationSteps = emptyList<RoutineStep>()
+    // v1.4.0 default-template expansion: Medication category now seeds four
+    // generic daily doses. Previously empty by design (user-added only); flat
+    // seed is safe because SelfCareRepository.getStepsByPhase() buckets every
+    // medication step under a single "Medications" group regardless of phase.
+    val medicationSteps = listOf(
+        RoutineStep("med_morning", "Morning Medication", "—", "essential", phase = "Medication"),
+        RoutineStep("med_afternoon", "Afternoon Medication", "—", "essential", phase = "Medication"),
+        RoutineStep("med_evening", "Evening Medication", "—", "essential", phase = "Medication"),
+        RoutineStep("med_pill_organizer", "Weekly Pill Organizer Refill", "~10 min", "essential", phase = "Medication")
+    )
 
     // Note: "skipped" is intentionally excluded from the tier order so it never
     // marks any medication as visible/logged via the cumulative tier logic.
@@ -127,18 +140,21 @@ object SelfCareRoutines {
         RoutineTier("deep", "Deep", "~60+ min", 0xFF8B5CF6)
     )
 
+    // v1.4.0 default-template expansion: Housework category replaces the prior
+    // 11-step tiered skincare-style list with 9 universal chores. All entries
+    // sit at the lowest tier so they always render. Phases reuse the existing
+    // Kitchen / Living Areas / Bathroom / Laundry bucket ordering in
+    // SelfCareRepository.getStepsByPhase().
     val houseworkSteps = listOf(
-        RoutineStep("dishes", "Dishes", "~10 min", "quick", phase = "Kitchen"),
-        RoutineStep("wipe_counters", "Wipe counters", "~3 min", "quick", phase = "Kitchen"),
-        RoutineStep("tidy_up", "Tidy up", "~5 min", "quick", phase = "Living Areas"),
-        RoutineStep("vacuum_sweep", "Vacuum / sweep", "~10 min", "regular", phase = "Living Areas"),
-        RoutineStep("trash", "Take out trash", "~3 min", "regular", phase = "Kitchen"),
-        RoutineStep("start_laundry", "Start laundry", "~5 min", "regular", phase = "Laundry"),
-        RoutineStep("clean_sink", "Clean bathroom sink", "~5 min", "deep", phase = "Bathroom"),
-        RoutineStep("clean_toilet", "Clean toilet", "~5 min", "deep", phase = "Bathroom"),
-        RoutineStep("dust", "Dust surfaces", "~10 min", "deep", phase = "Living Areas"),
-        RoutineStep("mop", "Mop floors", "~10 min", "deep", phase = "Living Areas"),
-        RoutineStep("fold_laundry", "Fold laundry", "~10 min", "deep", phase = "Laundry")
+        RoutineStep("hw_dishwasher", "Load And Run Dishwasher", "~5 min", "quick", phase = "Kitchen"),
+        RoutineStep("hw_trash", "Take Out Trash And Recycling", "~5 min", "quick", phase = "Kitchen"),
+        RoutineStep("hw_vacuum", "Vacuum Main Living Areas", "~15 min", "quick", phase = "Living Areas"),
+        RoutineStep("hw_wipe_counters", "Wipe Kitchen Counters", "~3 min", "quick", phase = "Kitchen"),
+        RoutineStep("hw_laundry_load", "Do One Load Of Laundry", "~10 min", "quick", phase = "Laundry"),
+        RoutineStep("hw_clean_bathroom", "Clean Bathroom", "~15 min", "quick", phase = "Bathroom"),
+        RoutineStep("hw_bedsheets", "Change Bedsheets", "~10 min", "quick", phase = "Living Areas"),
+        RoutineStep("hw_water_plants", "Water Plants", "~5 min", "quick", phase = "Living Areas"),
+        RoutineStep("hw_tidy_desk", "Tidy Desk Or Workspace", "~10 min", "quick", phase = "Living Areas")
     )
 
     val houseworkTierOrder = listOf("quick", "regular", "deep")

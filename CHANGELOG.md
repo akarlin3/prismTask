@@ -7,7 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
-_No unreleased changes._
+### Changed — Default Templates & Routine Steps
+- Expanded starter content for the five built-in habit-template categories:
+  **School** and **Leisure** now land as parent-with-subtasks templates
+  (`School Daily` with 8 subtasks, `Leisure Time` with 7) in
+  `TemplateSeeder.BUILT_IN_TEMPLATES`. **Self-Care**, **Housework**, and
+  **Medication** now seed as flat `SelfCareStepEntity` rows in
+  `SelfCareRoutines` (8 / 9 / 4 steps respectively; Medication was previously
+  empty by design).
+- Replaced three prior seeds in the process: removed `Assignment` (School),
+  `Deep Clean` (Housework), and `Morning Routine` (Self-Care) from
+  `TemplateSeeder.BUILT_IN_TEMPLATES`. Housework's prior tiered skincare-style
+  `houseworkSteps` list is also replaced by the new 9-chore flat list.
+- All new entries use Title Case per CLAUDE.md convention.
+
+### Added — Debug Re-Seed Trigger
+- Long-press on the **PrismTask v…** version label in Settings → About now
+  wipes seeded built-in templates + Self-Care / Housework / Medication steps
+  and re-runs the seeders. `BuildConfig.DEBUG`-gated at both the gesture
+  (no `combinedClickable` attached on release builds) and the ViewModel
+  handler, so the release APK is unaffected.
+- User-created templates and user-added Self-Care steps are untouched —
+  built-ins are identified by the existing `isBuiltIn` flag (templates) and
+  the hardcoded `stepId` set in `SelfCareRoutines` (steps).
 
 ## v1.4.0 — Wellness-Aware Productivity Layer (April 2026)
 

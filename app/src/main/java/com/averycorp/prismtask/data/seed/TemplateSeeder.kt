@@ -27,7 +27,7 @@ constructor(
 }
 
 /**
- * Seeds the app's six built-in starter templates on first launch.
+ * Seeds the app's built-in starter templates on first launch.
  *
  * Seeding is gated by the `templates_seeded` flag in [TemplatePreferences] —
  * once the flag is set we never re-insert the built-ins, even if the user has
@@ -79,6 +79,23 @@ constructor(
         seededFlag.setSeeded(true)
     }
 
+    /**
+     * Debug-only escape hatch invoked by the Settings screen long-press on the
+     * app version label. Deletes any templates still flagged `isBuiltIn` and
+     * re-inserts the current [BUILT_IN_TEMPLATES] list. User-edited templates
+     * (which have their `isBuiltIn` flipped to `false` by
+     * [com.averycorp.prismtask.data.repository.TaskTemplateRepository.updateTemplate])
+     * and purely user-created templates are left untouched.
+     */
+    suspend fun reseedBuiltIns() {
+        templateDao.deleteAllBuiltIn()
+        val now = System.currentTimeMillis()
+        BUILT_IN_TEMPLATES.forEach { spec ->
+            templateDao.insertTemplate(spec.toEntity(now))
+        }
+        seededFlag.setSeeded(true)
+    }
+
     companion object {
         private val gson = Gson()
 
@@ -117,25 +134,14 @@ constructor(
          * The canonical list of built-in templates. Ordered the way we want
          * them to appear in the list right after first launch (before the user
          * starts using them and the "most used" sort kicks in).
+         *
+         * v1.4.0 default-template expansion: "Assignment" (School), "Deep Clean"
+         * (Housework), and "Morning Routine" (Self-Care) were removed from this
+         * seed source. Housework and Self-Care are now seeded as flat
+         * `SelfCareStepEntity` rows in [com.averycorp.prismtask.domain.model.SelfCareRoutines];
+         * School and Leisure remain here as parent-with-subtasks templates.
          */
         val BUILT_IN_TEMPLATES: List<BuiltInTemplateSpec> = listOf(
-            BuiltInTemplateSpec(
-                name = "Morning Routine",
-                // 🌅
-                icon = "\uD83C\uDF05",
-                category = "Routines",
-                templateTitle = "Morning Routine",
-                templatePriority = 2,
-                templateSubtasks = listOf(
-                    "Wake Up & Hydrate",
-                    "Exercise (30 Min)",
-                    "Shower",
-                    "Breakfast",
-                    "Review Today's Plan"
-                ),
-                templateRecurrence = RecurrenceRule(type = RecurrenceType.DAILY),
-                templateDuration = 90
-            ),
             BuiltInTemplateSpec(
                 name = "Weekly Review",
                 // 📊
@@ -188,38 +194,42 @@ constructor(
                 templateDuration = 60
             ),
             BuiltInTemplateSpec(
-                name = "Assignment",
+                name = "School Daily",
                 // 📚
                 icon = "\uD83D\uDCDA",
                 category = "School",
-                templateTitle = "Complete Assignment",
+                templateTitle = "School Daily",
                 templatePriority = 3,
                 templateSubtasks = listOf(
-                    "Research Topic",
-                    "Create Outline",
-                    "Write First Draft",
-                    "Revise & Edit",
-                    "Proofread",
-                    "Submit"
+                    "Review Today's Lecture Notes",
+                    "Check Course Portal For New Assignments",
+                    "Read Assigned Chapter",
+                    "Work On In-Progress Assignment",
+                    "Study Session (Pick One Topic)",
+                    "Submit Due Assignments",
+                    "Office Hours Or Study Group",
+                    "Plan Next Week's Schedule"
                 ),
+                templateRecurrence = RecurrenceRule(type = RecurrenceType.DAILY),
                 templateDuration = 120
             ),
             BuiltInTemplateSpec(
-                name = "Deep Clean",
-                // 🧹
-                icon = "\uD83E\uDDF9",
-                category = "Home",
-                templateTitle = "Deep Clean",
-                templatePriority = 2,
+                name = "Leisure Time",
+                // 🎮
+                icon = "\uD83C\uDFAE",
+                category = "Personal",
+                templateTitle = "Leisure Time",
+                templatePriority = 1,
                 templateSubtasks = listOf(
-                    "Kitchen: Counters, Appliances, Floor",
-                    "Bathroom: Scrub, Mirrors, Toilet",
-                    "Vacuum All Rooms",
-                    "Dust Surfaces",
-                    "Take Out Trash & Recycling",
-                    "Laundry"
+                    "Read 20 Pages",
+                    "Watch An Episode",
+                    "Play A Game (30 Minutes)",
+                    "Listen To An Album Or Podcast",
+                    "Practice Instrument",
+                    "Journal Or Creative Writing",
+                    "Call Or Message A Friend"
                 ),
-                templateDuration = 120
+                templateDuration = 60
             )
         )
     }

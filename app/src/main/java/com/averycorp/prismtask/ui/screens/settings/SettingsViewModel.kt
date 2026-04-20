@@ -103,7 +103,9 @@ constructor(
     private val onboardingPreferences: OnboardingPreferences,
     private val widgetUpdateManager: com.averycorp.prismtask.widget.WidgetUpdateManager,
     private val ndPreferencesDataStore: com.averycorp.prismtask.data.preferences.NdPreferencesDataStore,
-    private val notificationPreferences: NotificationPreferences
+    private val notificationPreferences: NotificationPreferences,
+    private val templateSeeder: com.averycorp.prismtask.data.seed.TemplateSeeder,
+    private val selfCareRepository: com.averycorp.prismtask.data.repository.SelfCareRepository
 ) : ViewModel() {
     private val _checkInStreak = kotlinx.coroutines.flow.MutableStateFlow(0)
     val checkInStreak: StateFlow<Int> = _checkInStreak
@@ -455,6 +457,28 @@ constructor(
     // --- Widgets ---
     fun refreshWidgets() {
         viewModelScope.launch { widgetUpdateManager.updateAllWidgets() }
+    }
+
+    /**
+     * Debug-only: re-runs the built-in starter seeders, replacing any
+     * templates/steps still flagged as built-in with the current source-of-truth
+     * lists. Triggered by long-pressing the version label on the Settings About
+     * section — the UI wraps the call in a `BuildConfig.DEBUG` check, but the
+     * side effects are gated here too so a mis-wired caller can't wipe user
+     * data in a release build.
+     */
+    fun debugReseedDefaults() {
+        if (!com.averycorp.prismtask.BuildConfig.DEBUG) return
+        viewModelScope.launch {
+            try {
+                templateSeeder.reseedBuiltIns()
+                selfCareRepository.reseedBuiltInDefaults()
+                _messages.emit("Re-seeded built-in templates and routine steps.")
+            } catch (e: Exception) {
+                Log.e("SettingsVM", "Debug re-seed failed", e)
+                _messages.emit("Re-seed failed: ${e.message ?: e::class.java.simpleName}")
+            }
+        }
     }
 
     // --- Subscription ---
