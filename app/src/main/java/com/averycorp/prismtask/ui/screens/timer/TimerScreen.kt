@@ -75,6 +75,7 @@ import com.averycorp.prismtask.ui.theme.LocalPrismTheme
 import com.averycorp.prismtask.ui.theme.PrismTheme
 import com.averycorp.prismtask.ui.theme.PrismThemeAttrs
 import com.averycorp.prismtask.ui.theme.drawCyberpunkTimerTicks
+import com.averycorp.prismtask.ui.theme.gridFloor
 import com.averycorp.prismtask.ui.theme.prismGlow
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -161,6 +162,7 @@ private fun TimerContent(
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .gridFloor()
             .padding(padding)
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 24.dp),

@@ -47,6 +47,7 @@ import com.averycorp.prismtask.ui.screens.habits.components.BuiltInHabitCard
 import com.averycorp.prismtask.ui.screens.habits.components.HabitItem
 import com.averycorp.prismtask.ui.screens.habits.components.HabitLogDialog
 import com.averycorp.prismtask.ui.screens.habits.components.SelfCareRoutineCard
+import com.averycorp.prismtask.ui.theme.gridFloor
 import com.averycorp.prismtask.ui.theme.LocalPrismColors
 import com.averycorp.prismtask.ui.theme.LocalPrismFonts
 import sh.calvin.reorderable.ReorderableItem
@@ -161,6 +162,7 @@ fun HabitListScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
+                    .gridFloor()
                     .padding(padding),
                 contentAlignment = Alignment.Center
             ) {
@@ -180,6 +182,7 @@ fun HabitListScreen(
                 state = lazyListState,
                 modifier = Modifier
                     .fillMaxSize()
+                    .gridFloor()
                     .padding(padding)
                     .padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)

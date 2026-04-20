@@ -98,6 +98,7 @@ import com.averycorp.prismtask.ui.screens.tasklist.components.ProjectGroupHeader
 import com.averycorp.prismtask.ui.screens.tasklist.components.draggableTaskItemWithSubtasks
 import com.averycorp.prismtask.ui.screens.tasklist.components.reorderableTaskItemWithSubtasks
 import com.averycorp.prismtask.ui.screens.tasklist.components.taskItemWithSubtasks
+import com.averycorp.prismtask.ui.theme.gridFloor
 import com.averycorp.prismtask.ui.theme.LocalPrismColors
 import com.averycorp.prismtask.ui.theme.LocalPrismFonts
 import kotlinx.coroutines.launch
@@ -683,6 +684,7 @@ fun TaskListScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .gridFloor()
                 .padding(padding)
         ) {
             // Segmented [Tasks | Projects] toggle lives above both panes so

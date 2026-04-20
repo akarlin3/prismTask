@@ -84,6 +84,7 @@ import com.averycorp.prismtask.ui.screens.today.dailyessentials.DailyEssentialsA
 import com.averycorp.prismtask.ui.screens.today.dailyessentials.DailyEssentialsSection
 import com.averycorp.prismtask.ui.theme.LocalPrismAttrs
 import com.averycorp.prismtask.ui.theme.LocalPrismColors
+import com.averycorp.prismtask.ui.theme.gridFloor
 import com.averycorp.prismtask.ui.theme.prismGlow
 
 private const val SECTION_OVERDUE = "overdue"
@@ -245,7 +246,7 @@ fun TodayScreen(
     ) { padding ->
         androidx.compose.animation.Crossfade(targetState = isLoading, label = "today_loading") { loading ->
             if (loading) {
-                Column(modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp)) {
+                Column(modifier = Modifier.fillMaxSize().gridFloor().padding(padding).padding(horizontal = 16.dp)) {
                     ProgressHeaderSkeleton()
                     Spacer(modifier = Modifier.height(16.dp))
                     TaskListSkeleton(count = 3)
@@ -256,6 +257,7 @@ fun TodayScreen(
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxSize()
+                        .gridFloor()
                         .padding(padding)
                         .padding(horizontal = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)

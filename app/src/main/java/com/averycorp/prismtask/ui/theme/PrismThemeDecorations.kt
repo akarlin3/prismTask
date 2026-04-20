@@ -12,15 +12,20 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.composed
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.LinearGradientShader
 import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.RadialGradientShader
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
@@ -217,6 +222,106 @@ fun PrismHudDivider(modifier: Modifier = Modifier) {
                 0f
             )
         )
+    }
+}
+
+// ─── Synthwave perspective grid floor ─────────────────────────────────────
+
+/**
+ * Draws a Synthwave-style perspective grid floor as a background decoration.
+ * Active only when [PrismThemeAttrs.gridFloor] is true (Synthwave theme).
+ *
+ * Visual spec (matches JS `perspective(380px) rotateX(62°)` CSS transform):
+ * - 260dp grid region, bottom-anchored; 20dp world-space line spacing.
+ * - Horizontal lines projected via `screenY = H − worldY·cosT·p/(p + worldY·sinT)`.
+ * - Vertical lines converge from equal x-steps at the bottom to the vanishing
+ *   point at `(width/2, H − p·cosT/sinT)`.
+ * - Sun glow: blurred radial gradient (primary→secondary→transparent) at the horizon.
+ * - Gradient fade mask (transparent→opaque bottom-up) via DstIn saveLayer.
+ * - Line color: `primary.copy(alpha = 0.21f)`, 1dp stroke.
+ */
+fun Modifier.gridFloor(): Modifier = composed {
+    val attrs = LocalPrismAttrs.current
+    if (!attrs.gridFloor) return@composed Modifier
+    val primary = LocalPrismColors.current.primary
+    val secondary = LocalPrismColors.current.secondary
+    drawBehind {
+        val perspPx = 380.dp.toPx()
+        val tRad = 62f * (PI.toFloat() / 180f)
+        val cosT = cos(tRad)
+        val sinT = sin(tRad)
+        val gridHeightPx = 260.dp.toPx()
+        if (size.height < gridHeightPx) return@drawBehind
+        val worldSpacingPx = 20.dp.toPx()
+        val vanishingX = size.width / 2f
+        val vanishingY = size.height - perspPx * cosT / sinT
+        val gridTopY = size.height - gridHeightPx
+        val gridColor = primary.copy(alpha = 0.21f)
+        val strokePx = 1.dp.toPx()
+
+        drawIntoCanvas { canvas ->
+            val layerBounds = Rect(0f, gridTopY, size.width, size.height)
+            canvas.saveLayer(layerBounds, Paint())
+
+            // Sun glow at the horizon (top of grid region)
+            val sunPaint = Paint().apply {
+                asFrameworkPaint().maskFilter =
+                    BlurMaskFilter(18.dp.toPx(), BlurMaskFilter.Blur.NORMAL)
+                shader = RadialGradientShader(
+                    center = Offset(size.width / 2f, gridTopY),
+                    radius = 190.dp.toPx(),
+                    colors = listOf(
+                        primary.copy(alpha = 0.25f),
+                        secondary.copy(alpha = 0.15f),
+                        Color.Transparent
+                    ),
+                    colorStops = listOf(0f, 0.5f, 1f),
+                    tileMode = TileMode.Clamp
+                )
+            }
+            canvas.drawRect(layerBounds, sunPaint)
+
+            // Grid line paint
+            val gridPaint = Paint().apply {
+                color = gridColor
+                strokeWidth = strokePx
+                isAntiAlias = true
+            }
+
+            // Horizontal lines (perspective projected from world-space rows)
+            var worldY = 0f
+            while (worldY <= gridHeightPx) {
+                val screenY = size.height - worldY * cosT * perspPx / (perspPx + worldY * sinT)
+                if (screenY < vanishingY) break
+                canvas.drawLine(Offset(0f, screenY), Offset(size.width, screenY), gridPaint)
+                worldY += worldSpacingPx
+            }
+
+            // Vertical lines: equal x-spacing at bottom, converge to vanishing point
+            var xBottom = 0f
+            while (xBottom <= size.width) {
+                canvas.drawLine(
+                    Offset(xBottom, size.height),
+                    Offset(vanishingX, vanishingY),
+                    gridPaint
+                )
+                xBottom += worldSpacingPx
+            }
+
+            // Gradient fade: transparent at grid top → opaque at grid bottom (DstIn)
+            val maskPaint = Paint().apply {
+                blendMode = BlendMode.DstIn
+                shader = LinearGradientShader(
+                    from = Offset(0f, gridTopY),
+                    to = Offset(0f, size.height),
+                    colors = listOf(Color.Transparent, Color.Black),
+                    tileMode = TileMode.Clamp
+                )
+            }
+            canvas.drawRect(layerBounds, maskPaint)
+
+            canvas.restore()
+        }
     }
 }
 
