@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.AlertDialog
@@ -209,7 +208,7 @@ fun HabitListScreen(
                                         },
                                         onDelete = { habitToDelete = listItem.habitWithStatus },
                                         modifier = Modifier
-                                            .shadow(elevation, RoundedCornerShape(12.dp))
+                                            .shadow(elevation, MaterialTheme.shapes.medium)
                                             .longPressDraggableHandle()
                                     )
                                 } else {
@@ -245,7 +244,7 @@ fun HabitListScreen(
                                         },
                                         onDelete = { habitToDelete = listItem.habitWithStatus },
                                         modifier = Modifier
-                                            .shadow(elevation, RoundedCornerShape(12.dp))
+                                            .shadow(elevation, MaterialTheme.shapes.medium)
                                             .longPressDraggableHandle()
                                     )
                                 }
@@ -263,7 +262,7 @@ fun HabitListScreen(
                                         }
                                     },
                                     modifier = Modifier
-                                        .shadow(elevation, RoundedCornerShape(12.dp))
+                                        .shadow(elevation, MaterialTheme.shapes.medium)
                                         .longPressDraggableHandle()
                                 )
                             }
@@ -278,7 +277,7 @@ fun HabitListScreen(
                                         }
                                     },
                                     modifier = Modifier
-                                        .shadow(elevation, RoundedCornerShape(12.dp))
+                                        .shadow(elevation, MaterialTheme.shapes.medium)
                                         .longPressDraggableHandle()
                                 )
                             }

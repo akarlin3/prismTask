@@ -228,7 +228,7 @@ fun HabitAnalyticsScreen(
 private fun StatCard(label: String, value: String, color: Color, modifier: Modifier = Modifier) {
     Card(
         modifier = modifier,
-        shape = RoundedCornerShape(12.dp),
+        shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
     ) {
         Column(
@@ -265,7 +265,7 @@ private fun WeeklyTrendChart(data: List<Int>, color: Color, modifier: Modifier =
     val maxVal = data.maxOrNull()?.coerceAtLeast(1) ?: 1
     Card(
         modifier = modifier,
-        shape = RoundedCornerShape(12.dp),
+        shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
     ) {
         Canvas(modifier = Modifier.fillMaxSize().padding(16.dp)) {
@@ -302,7 +302,7 @@ private fun DayOfWeekChart(
 
     Card(
         modifier = modifier,
-        shape = RoundedCornerShape(12.dp),
+        shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
     ) {
         Row(
