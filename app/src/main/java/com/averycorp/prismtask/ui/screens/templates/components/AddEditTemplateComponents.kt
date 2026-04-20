@@ -66,6 +66,7 @@ import com.averycorp.prismtask.domain.model.RecurrenceType
 import com.averycorp.prismtask.ui.components.RecurrenceDialog
 import com.averycorp.prismtask.ui.screens.templates.AddEditTemplateViewModel
 import com.averycorp.prismtask.ui.theme.LocalPriorityColors
+import com.averycorp.prismtask.ui.theme.LocalPrismShapes
 
 /**
  * Emoji set used for the template icon picker. Curated to cover the common
@@ -575,7 +576,7 @@ internal fun TagToggleChip(
     val textColor = if (selected) Color.White else tagColor
     Box(
         modifier = Modifier
-            .clip(RoundedCornerShape(16.dp))
+            .clip(LocalPrismShapes.current.chip)
             .background(bg)
             .border(
                 width = 1.5.dp,
