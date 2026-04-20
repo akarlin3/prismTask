@@ -59,6 +59,7 @@ import com.averycorp.prismtask.ui.screens.selfcare.components.EditableStepItem
 import com.averycorp.prismtask.ui.screens.selfcare.components.PhaseOrderDialog
 import com.averycorp.prismtask.ui.screens.selfcare.components.StepDialog
 import com.averycorp.prismtask.ui.screens.selfcare.components.StepItem
+import com.averycorp.prismtask.ui.theme.LocalPrismColors
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -243,7 +244,7 @@ fun SelfCareScreen(
                 // Progress bar
                 item {
                     val progressColor by animateColorAsState(
-                        targetValue = if (allDone) Color(0xFF10B981) else tierColor,
+                        targetValue = if (allDone) LocalPrismColors.current.successColor else tierColor,
                         animationSpec = tween(300),
                         label = "progressColor"
                     )
@@ -296,7 +297,7 @@ fun SelfCareScreen(
                                 },
                                 style = MaterialTheme.typography.bodySmall,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF10B981),
+                                color = LocalPrismColors.current.successColor,
                                 modifier = Modifier.fillMaxWidth(),
                                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
                             )

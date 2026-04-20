@@ -52,15 +52,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.averycorp.prismtask.ui.theme.LocalPrismColors
 
 data class LeisureOption(
     val id: String,
     val label: String,
     val icon: String
 )
-
-private val musicColor = Color(0xFF8B5CF6)
-private val successColor = Color(0xFF10B981)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -116,7 +114,7 @@ internal fun ProgressCard(doneCount: Int, target: Int, progress: Float, allDone:
         label = "progress"
     )
     val progressColor by animateColorAsState(
-        targetValue = if (allDone) successColor else MaterialTheme.colorScheme.primary,
+        targetValue = if (allDone) LocalPrismColors.current.successColor else MaterialTheme.colorScheme.primary,
         animationSpec = tween(400),
         label = "progressColor"
     )
@@ -162,7 +160,7 @@ internal fun ProgressCard(doneCount: Int, target: Int, progress: Float, allDone:
                     "\u2713 Leisure day complete. Nice work.",
                     style = MaterialTheme.typography.bodySmall,
                     fontWeight = FontWeight.Bold,
-                    color = successColor,
+                    color = LocalPrismColors.current.successColor,
                     modifier = Modifier.fillMaxWidth(),
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center
                 )
@@ -487,7 +485,7 @@ internal fun SectionTimer(
                 if (running) {
                     Button(
                         onClick = onPause,
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF4444)),
+                        colors = ButtonDefaults.buttonColors(containerColor = LocalPrismColors.current.destructiveColor),
                         shape = RoundedCornerShape(20.dp),
                         modifier = Modifier.height(34.dp)
                     ) {

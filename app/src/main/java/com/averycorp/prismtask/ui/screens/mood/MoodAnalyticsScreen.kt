@@ -37,6 +37,7 @@ import androidx.navigation.NavController
 import com.averycorp.prismtask.domain.usecase.CorrelationResult
 import com.averycorp.prismtask.domain.usecase.CorrelationStrength
 import com.averycorp.prismtask.domain.usecase.MoodCorrelationEngine
+import com.averycorp.prismtask.ui.theme.LocalPrismColors
 
 /**
  * Mood + Energy analytics screen (v1.4.0 V7).
@@ -99,7 +100,7 @@ fun MoodAnalyticsScreen(
                     values = state.averageByDay.entries
                         .sortedBy { it.key }
                         .map { it.value.first },
-                    baseColor = Color(0xFF8A4FCF)
+                    baseColor = LocalPrismColors.current.dataVisualizationPalette.getOrElse(0) { LocalPrismColors.current.primary }
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text("Energy Trend (30 Days)", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
@@ -107,7 +108,7 @@ fun MoodAnalyticsScreen(
                     values = state.averageByDay.entries
                         .sortedBy { it.key }
                         .map { it.value.second },
-                    baseColor = Color(0xFFE68A00)
+                    baseColor = LocalPrismColors.current.dataVisualizationPalette.getOrElse(1) { LocalPrismColors.current.warningColor }
                 )
             }
 

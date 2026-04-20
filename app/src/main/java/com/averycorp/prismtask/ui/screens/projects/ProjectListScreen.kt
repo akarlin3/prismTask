@@ -66,6 +66,7 @@ import com.averycorp.prismtask.data.local.entity.ProjectEntity
 import com.averycorp.prismtask.ui.components.CircularCheckbox
 import com.averycorp.prismtask.ui.components.RichEmptyState
 import com.averycorp.prismtask.ui.navigation.PrismTaskRoute
+import com.averycorp.prismtask.ui.theme.LocalPrismColors
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -292,7 +293,7 @@ private fun ProjectItem(
     val projectColor = try {
         Color(android.graphics.Color.parseColor(project.color))
     } catch (_: Exception) {
-        Color(0xFF4A90D9)
+        LocalPrismColors.current.primary
     }
 
     Card(

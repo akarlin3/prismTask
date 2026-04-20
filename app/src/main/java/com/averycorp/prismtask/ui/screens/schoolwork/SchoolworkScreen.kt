@@ -81,12 +81,13 @@ import com.averycorp.prismtask.domain.usecase.ProFeatureGate
 import com.averycorp.prismtask.ui.components.ProFeature
 import com.averycorp.prismtask.ui.components.ProUpgradePrompt
 import com.averycorp.prismtask.ui.navigation.PrismTaskRoute
+import com.averycorp.prismtask.ui.theme.LocalPrismColors
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-private val accentColor = Color(0xFFCFB87C)
-private val successColor = Color(0xFF10B981)
+@Composable private fun schoolAccent(): Color = LocalPrismColors.current.dataVisualizationPalette.getOrElse(0) { LocalPrismColors.current.primary }
+@Composable private fun doneGreen(): Color = LocalPrismColors.current.doneGreen()
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -248,7 +249,7 @@ fun SchoolworkScreen(
                             showUpgradePrompt = true
                         }
                     },
-                    containerColor = accentColor
+                    containerColor = schoolAccent()
                 ) {
                     Icon(
                         Icons.Default.UploadFile,
@@ -283,7 +284,7 @@ fun SchoolworkScreen(
             AnimatedVisibility(visible = isImporting) {
                 LinearProgressIndicator(
                     modifier = Modifier.fillMaxWidth(),
-                    color = accentColor
+                    color = schoolAccent()
                 )
             }
 
@@ -384,7 +385,7 @@ private fun ProgressCard(doneCount: Int, totalCount: Int, progress: Float, allDo
         label = "progress"
     )
     val progressColor by animateColorAsState(
-        targetValue = if (allDone) successColor else accentColor,
+        targetValue = if (allDone) doneGreen() else schoolAccent(),
         animationSpec = tween(400),
         label = "progressColor"
     )
@@ -428,7 +429,7 @@ private fun ProgressCard(doneCount: Int, totalCount: Int, progress: Float, allDo
                     "\u2713 All courses done for today. Solid work.",
                     style = MaterialTheme.typography.bodySmall,
                     fontWeight = FontWeight.Bold,
-                    color = successColor,
+                    color = doneGreen(),
                     modifier = Modifier.fillMaxWidth(),
                     textAlign = TextAlign.Center
                 )
@@ -459,11 +460,11 @@ private fun CourseCheckItem(
     onToggle: () -> Unit
 ) {
     val borderColor by animateColorAsState(
-        targetValue = if (done) accentColor.copy(alpha = 0.27f) else MaterialTheme.colorScheme.outline,
+        targetValue = if (done) schoolAccent().copy(alpha = 0.27f) else MaterialTheme.colorScheme.outline,
         label = "border"
     )
     val bgColor by animateColorAsState(
-        targetValue = if (done) accentColor.copy(alpha = 0.07f) else MaterialTheme.colorScheme.surfaceVariant,
+        targetValue = if (done) schoolAccent().copy(alpha = 0.07f) else MaterialTheme.colorScheme.surfaceVariant,
         label = "bg"
     )
 
@@ -485,10 +486,10 @@ private fun CourseCheckItem(
                 modifier = Modifier
                     .size(24.dp)
                     .clip(RoundedCornerShape(6.dp))
-                    .background(if (done) accentColor else Color.Transparent)
+                    .background(if (done) schoolAccent() else Color.Transparent)
                     .border(
                         2.dp,
-                        if (done) accentColor else MaterialTheme.colorScheme.outline,
+                        if (done) schoolAccent() else MaterialTheme.colorScheme.outline,
                         RoundedCornerShape(6.dp)
                     ),
                 contentAlignment = Alignment.Center
@@ -578,14 +579,14 @@ private fun CourseCard(
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(10.dp))
-                            .background(accentColor.copy(alpha = 0.2f))
+                            .background(schoolAccent().copy(alpha = 0.2f))
                             .padding(horizontal = 8.dp, vertical = 2.dp)
                     ) {
                         Text(
                             "$activeCount",
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
-                            color = accentColor
+                            color = schoolAccent()
                         )
                     }
                     Spacer(Modifier.width(4.dp))
@@ -610,10 +611,10 @@ private fun CourseCard(
                             modifier = Modifier
                                 .size(20.dp)
                                 .clip(RoundedCornerShape(4.dp))
-                                .background(if (assignment.completed) successColor else Color.Transparent)
+                                .background(if (assignment.completed) doneGreen() else Color.Transparent)
                                 .border(
                                     1.5.dp,
-                                    if (assignment.completed) successColor else MaterialTheme.colorScheme.outline,
+                                    if (assignment.completed) doneGreen() else MaterialTheme.colorScheme.outline,
                                     RoundedCornerShape(4.dp)
                                 ),
                             contentAlignment = Alignment.Center

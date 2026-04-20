@@ -30,6 +30,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.averycorp.prismtask.data.repository.HabitWithStatus
 import com.averycorp.prismtask.ui.components.StreakBadge
+import com.averycorp.prismtask.ui.theme.LocalPrismColors
 
 /**
  * Card variant for built-in life-mode habits (schoolwork, leisure, etc.).
@@ -54,10 +55,12 @@ internal fun BuiltInHabitCard(
         "leisure" -> "\uD83C\uDFB5"
         else -> "\u2B50"
     }
+    val palette = LocalPrismColors.current.dataVisualizationPalette
+    val prismColors = LocalPrismColors.current
     val color = when (type) {
-        "school" -> Color(0xFFCFB87C)
-        "leisure" -> Color(0xFF8B5CF6)
-        else -> Color(0xFF4A90D9)
+        "school" -> palette.getOrElse(0) { prismColors.primary }
+        "leisure" -> palette.getOrElse(1) { prismColors.primary }
+        else -> prismColors.primary
     }
 
     Card(
@@ -111,7 +114,7 @@ internal fun BuiltInHabitCard(
                     modifier = Modifier
                         .size(40.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFF10B981)),
+                        .background(LocalPrismColors.current.successColor),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(

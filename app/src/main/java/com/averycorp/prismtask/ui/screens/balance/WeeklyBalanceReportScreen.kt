@@ -53,6 +53,7 @@ import com.averycorp.prismtask.domain.model.LifeCategory
 import com.averycorp.prismtask.domain.usecase.BurnoutBand
 import com.averycorp.prismtask.domain.usecase.WeeklyReviewStats
 import com.averycorp.prismtask.ui.theme.LifeCategoryColor
+import com.averycorp.prismtask.ui.theme.LocalPrismColors
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -534,8 +535,8 @@ private fun MetricCard(label: String, value: String, modifier: Modifier = Modifi
 private fun BurnoutSection(score: Int, band: BurnoutBand) {
     val bandColor = when (band) {
         BurnoutBand.BALANCED -> LifeCategoryColor.PERSONAL
-        BurnoutBand.MONITOR -> Color(0xFFF2A93B)
-        BurnoutBand.CAUTION -> Color(0xFFE08331)
+        BurnoutBand.MONITOR -> LocalPrismColors.current.warningColor
+        BurnoutBand.CAUTION -> LocalPrismColors.current.urgentAccent
         BurnoutBand.HIGH_RISK -> LifeCategoryColor.HEALTH
     }
     val showNudge = band == BurnoutBand.CAUTION || band == BurnoutBand.HIGH_RISK

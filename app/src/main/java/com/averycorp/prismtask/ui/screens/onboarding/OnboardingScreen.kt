@@ -73,6 +73,7 @@ import androidx.credentials.exceptions.GetCredentialCancellationException
 import com.averycorp.prismtask.BuildConfig
 import com.averycorp.prismtask.ui.screens.templates.TemplatePickerContent
 import com.averycorp.prismtask.ui.screens.templates.TemplateSelections
+import com.averycorp.prismtask.ui.theme.LocalPrismColors
 import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import kotlinx.coroutines.delay
@@ -439,7 +440,7 @@ private fun NaturalLanguagePage() {
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     ChipLabel("Tomorrow", MaterialTheme.colorScheme.primary)
-                    ChipLabel("High", Color(0xFFE86F3C))
+                    ChipLabel("High", LocalPrismColors.current.urgentAccent)
                     ChipLabel("#errands", MaterialTheme.colorScheme.tertiary)
                 }
             }

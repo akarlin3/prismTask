@@ -46,9 +46,8 @@ import com.averycorp.prismtask.ui.screens.leisure.components.AddActivityDialog
 import com.averycorp.prismtask.ui.screens.leisure.components.LeisureOption
 import com.averycorp.prismtask.ui.screens.leisure.components.ProgressCard
 import com.averycorp.prismtask.ui.screens.leisure.components.SectionHeader
+import com.averycorp.prismtask.ui.theme.LocalPrismColors
 import kotlinx.coroutines.delay
-
-private val musicColor = Color(0xFF8B5CF6)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -135,7 +134,11 @@ fun LeisureScreen(
                 slots.forEachIndexed { index, state ->
                     SlotBlock(
                         state = state,
-                        accentColor = if (state.builtInSlot == LeisureSlotId.MUSIC) musicColor else MaterialTheme.colorScheme.primary,
+                        accentColor = if (state.builtInSlot == LeisureSlotId.MUSIC) {
+                            LocalPrismColors.current.dataVisualizationPalette.getOrElse(1) { LocalPrismColors.current.primary }
+                        } else {
+                            MaterialTheme.colorScheme.primary
+                        },
                         onPick = { viewModel.pickActivity(state.key, it) },
                         onToggleDone = { viewModel.toggleDone(state.key, true) },
                         onClearPick = { viewModel.clearPick(state.key) },

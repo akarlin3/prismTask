@@ -46,6 +46,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.averycorp.prismtask.data.repository.HabitWithStatus
+import com.averycorp.prismtask.ui.theme.LocalPrismColors
 import com.averycorp.prismtask.ui.components.RichEmptyState
 import com.averycorp.prismtask.ui.screens.habits.components.ActivityLogDialog
 import com.averycorp.prismtask.ui.screens.habits.components.BookingDialog
@@ -73,7 +74,7 @@ fun HabitDetailScreen(
     val habitColor = try {
         Color(android.graphics.Color.parseColor(h.color))
     } catch (_: Exception) {
-        Color(0xFF4A90D9)
+        LocalPrismColors.current.primary
     }
 
     Scaffold(
@@ -137,7 +138,7 @@ fun HabitDetailScreen(
                                 text = "\uD83D\uDCC5 Booked: $bookedDateStr",
                                 style = MaterialTheme.typography.bodyLarge,
                                 fontWeight = FontWeight.SemiBold,
-                                color = Color(0xFF10B981)
+                                color = LocalPrismColors.current.successColor
                             )
                             if (!h.bookedNote.isNullOrBlank()) {
                                 Text(
@@ -151,7 +152,7 @@ fun HabitDetailScreen(
                                 text = "\u23F3 Not Booked",
                                 style = MaterialTheme.typography.bodyLarge,
                                 fontWeight = FontWeight.SemiBold,
-                                color = Color(0xFFF59E0B)
+                                color = LocalPrismColors.current.warningColor
                             )
                         }
                     }

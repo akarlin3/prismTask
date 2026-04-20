@@ -29,6 +29,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.averycorp.prismtask.ui.screens.habits.SelfCareCardData
+import com.averycorp.prismtask.ui.theme.LocalPrismColors
 
 /**
  * Composite "card" for a self-care routine surfaced on the habit list
@@ -55,11 +56,12 @@ internal fun SelfCareRoutineCard(
         "housework" -> "\uD83C\uDFE0"
         else -> "\uD83C\uDF19"
     }
+    val c = LocalPrismColors.current
     val color = when (routineType) {
-        "morning" -> Color(0xFFF59E0B)
-        "medication" -> Color(0xFFEF4444)
-        "housework" -> Color(0xFF10B981)
-        else -> Color(0xFF8B5CF6)
+        "morning" -> c.warningColor
+        "medication" -> c.destructiveColor
+        "housework" -> c.successColor
+        else -> c.primary
     }
 
     Card(
@@ -118,7 +120,7 @@ internal fun SelfCareRoutineCard(
                     modifier = Modifier
                         .size(40.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFF10B981)),
+                        .background(LocalPrismColors.current.successColor),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(

@@ -43,6 +43,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.averycorp.prismtask.data.repository.HabitWithStatus
+import com.averycorp.prismtask.ui.theme.LocalPrismColors
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -70,7 +71,7 @@ internal fun BookableHabitItem(
     val habitColor = try {
         Color(android.graphics.Color.parseColor(habit.color))
     } catch (_: Exception) {
-        Color(0xFF4A90D9)
+        LocalPrismColors.current.primary
     }
     val dateFormat = remember { SimpleDateFormat("MMM d", Locale.getDefault()) }
 
@@ -122,7 +123,7 @@ internal fun BookableHabitItem(
                     Text(
                         text = "\uD83D\uDCC5 Booked: $bookedDateStr$noteStr",
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFF10B981),
+                        color = LocalPrismColors.current.successColor,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -130,7 +131,7 @@ internal fun BookableHabitItem(
                     Text(
                         text = "\u23F3 Not Booked",
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFFF59E0B)
+                        color = LocalPrismColors.current.warningColor
                     )
                 }
 

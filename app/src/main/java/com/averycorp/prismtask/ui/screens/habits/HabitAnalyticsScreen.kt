@@ -47,6 +47,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.averycorp.prismtask.ui.theme.LocalPrismColors
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
@@ -69,7 +70,7 @@ fun HabitAnalyticsScreen(
     val habitColor = try {
         Color(android.graphics.Color.parseColor(habit?.color ?: "#4A90D9"))
     } catch (_: Exception) {
-        Color(0xFF4A90D9)
+        LocalPrismColors.current.primary
     }
 
     Scaffold(
@@ -312,9 +313,10 @@ private fun DayOfWeekChart(
             days.forEachIndexed { i, day ->
                 val avg = averages[day] ?: 0f
                 val heightFraction = (avg / maxVal).coerceIn(0.05f, 1f)
+                val prismColors = LocalPrismColors.current
                 val barColor = when (day) {
-                    bestDay -> Color(0xFF4CAF50)
-                    worstDay -> Color(0xFFFF9800)
+                    bestDay -> prismColors.successColor
+                    worstDay -> prismColors.warningColor
                     else -> color
                 }
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {

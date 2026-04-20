@@ -58,9 +58,9 @@ import androidx.navigation.NavController
 import com.averycorp.prismtask.data.remote.api.SyllabusEventResponse
 import com.averycorp.prismtask.data.remote.api.SyllabusRecurringItemResponse
 import com.averycorp.prismtask.data.remote.api.SyllabusTaskResponse
+import com.averycorp.prismtask.ui.theme.LocalPrismColors
 
-private val accentColor = Color(0xFFCFB87C)
-private val successColor = Color(0xFF10B981)
+@Composable private fun schoolAccent(): Color = LocalPrismColors.current.dataVisualizationPalette.getOrElse(0) { LocalPrismColors.current.primary }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -134,7 +134,7 @@ fun SyllabusReviewScreen(
                             modifier = Modifier.fillMaxWidth(),
                             enabled = totalChecked > 0,
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = accentColor,
+                                containerColor = schoolAccent(),
                                 contentColor = Color.Black
                             ),
                             shape = RoundedCornerShape(12.dp)
@@ -158,7 +158,7 @@ fun SyllabusReviewScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        CircularProgressIndicator(color = accentColor)
+                        CircularProgressIndicator(color = schoolAccent())
                         Spacer(Modifier.height(16.dp))
                         Text(
                             "Analyzing Your Syllabus...",
@@ -175,7 +175,7 @@ fun SyllabusReviewScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        CircularProgressIndicator(color = accentColor)
+                        CircularProgressIndicator(color = schoolAccent())
                         Spacer(Modifier.height(16.dp))
                         Text(
                             "Adding Items...",
@@ -323,10 +323,10 @@ private fun CheckBox(checked: Boolean, onClick: () -> Unit) {
         modifier = Modifier
             .size(24.dp)
             .clip(RoundedCornerShape(6.dp))
-            .background(if (checked) accentColor else Color.Transparent)
+            .background(if (checked) schoolAccent() else Color.Transparent)
             .border(
                 2.dp,
-                if (checked) accentColor else MaterialTheme.colorScheme.outline,
+                if (checked) schoolAccent() else MaterialTheme.colorScheme.outline,
                 RoundedCornerShape(6.dp)
             )
             .clickable(onClick = onClick),
@@ -617,7 +617,7 @@ private fun SyllabusRecurringItem(
                         Text(
                             item.dayOfWeek.replaceFirstChar { it.uppercase() },
                             style = MaterialTheme.typography.bodySmall,
-                            color = accentColor,
+                            color = schoolAccent(),
                             fontWeight = FontWeight.Bold
                         )
                         val timeStr = buildString {
@@ -672,7 +672,7 @@ private fun ItemCard(
     content: @Composable () -> Unit
 ) {
     val borderColor = if (checked) {
-        accentColor.copy(alpha = 0.3f)
+        schoolAccent().copy(alpha = 0.3f)
     } else {
         MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
     }
@@ -695,12 +695,13 @@ private fun ItemCard(
 
 @Composable
 private fun TypeChip(type: String) {
+    val c = LocalPrismColors.current
     val chipColor = when (type) {
-        "exam" -> Color(0xFFEF4444)
-        "quiz" -> Color(0xFFF59E0B)
-        "project" -> Color(0xFF8B5CF6)
-        "assignment" -> Color(0xFF4A90D9)
-        "reading" -> Color(0xFF10B981)
+        "exam" -> c.destructiveColor
+        "quiz" -> c.warningColor
+        "project" -> c.dataVisualizationPalette.getOrElse(2) { c.primary }
+        "assignment" -> c.primary
+        "reading" -> c.successColor
         else -> MaterialTheme.colorScheme.outline
     }
 
