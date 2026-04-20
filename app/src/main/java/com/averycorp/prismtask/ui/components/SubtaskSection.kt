@@ -57,6 +57,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.averycorp.prismtask.data.local.entity.TaskEntity
 import com.averycorp.prismtask.ui.theme.LocalPriorityColors
+import com.averycorp.prismtask.ui.theme.LocalPrismColors
 import sh.calvin.reorderable.ReorderableColumn
 
 /**
@@ -222,9 +223,10 @@ private fun SwipeableSubtaskRow(
         modifier = modifier.fillMaxWidth(),
         backgroundContent = {
             val direction = dismissState.dismissDirection
+            val prismColors = LocalPrismColors.current
             val backgroundColor = when (direction) {
-                SwipeToDismissBoxValue.StartToEnd -> Color(0xFF4CAF50)
-                SwipeToDismissBoxValue.EndToStart -> Color(0xFFE53935)
+                SwipeToDismissBoxValue.StartToEnd -> prismColors.swipeComplete
+                SwipeToDismissBoxValue.EndToStart -> prismColors.swipeDelete
                 else -> Color.Transparent
             }
             val icon = when (direction) {

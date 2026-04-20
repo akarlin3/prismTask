@@ -56,6 +56,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.contentDescription
+import com.averycorp.prismtask.ui.theme.LocalPrismColors
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -78,10 +79,11 @@ fun GoodEnoughTimerIndicator(
     modifier: Modifier = Modifier,
     onClick: () -> Unit = {}
 ) {
+    val prismColors = LocalPrismColors.current
     val color = when {
-        progress < 0.5f -> Color(0xFF4CAF50) // Green
-        progress < 0.8f -> Color(0xFFFFC107) // Yellow
-        else -> Color(0xFFFF9800) // Orange
+        progress < 0.5f -> prismColors.successColor
+        progress < 0.8f -> prismColors.warningColor
+        else -> prismColors.urgentAccent
     }
 
     val animatedProgress by animateFloatAsState(
@@ -572,20 +574,14 @@ private fun FullSendCelebration(
  */
 @Composable
 private fun ConfettiCanvas(modifier: Modifier = Modifier) {
+    val palette = LocalPrismColors.current.dataVisualizationPalette
     val particles = remember {
         List(30) {
             ConfettiParticle(
                 x = (Math.random() * 1000).toFloat(),
                 y = (-Math.random() * 500).toFloat(),
                 size = (4 + Math.random() * 8).toFloat(),
-                color = listOf(
-                    Color(0xFFFF6B6B),
-                    Color(0xFF4ECDC4),
-                    Color(0xFF45B7D1),
-                    Color(0xFFFFA726),
-                    Color(0xFFAB47BC),
-                    Color(0xFF66BB6A)
-                ).random(),
+                color = palette.random(),
                 speed = (2 + Math.random() * 4).toFloat()
             )
         }

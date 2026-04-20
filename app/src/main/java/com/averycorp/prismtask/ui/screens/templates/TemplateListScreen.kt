@@ -61,6 +61,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import com.averycorp.prismtask.ui.theme.LocalPrismColors
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -708,18 +709,10 @@ internal fun isStaleTemplate(template: TaskTemplateEntity, now: Long): Boolean {
  * background and category label on template cards so categories are
  * visually distinguishable at a glance.
  */
+@Composable
 private fun colorForCategory(category: String?): Color {
-    if (category.isNullOrBlank()) return Color(0xFF4A90D9)
-    val palette = listOf(
-        Color(0xFF4A90D9),
-        Color(0xFF7B61FF),
-        Color(0xFFE8872A),
-        Color(0xFFD93025),
-        Color(0xFF2E7D32),
-        Color(0xFF00897B),
-        Color(0xFFF4B400),
-        Color(0xFF8E24AA)
-    )
+    val palette = LocalPrismColors.current.dataVisualizationPalette
+    if (category.isNullOrBlank()) return palette[0]
     val index = (category.hashCode() and Int.MAX_VALUE) % palette.size
     return palette[index]
 }

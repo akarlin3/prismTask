@@ -41,6 +41,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
+import com.averycorp.prismtask.ui.theme.LocalPrismColors
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -318,29 +320,10 @@ private fun TemplatePickerRow(
     }
 }
 
-private fun colorForCategoryHash(category: String?): androidx.compose.ui.graphics.Color {
-    if (category.isNullOrBlank()) {
-        return androidx.compose.ui.graphics
-            .Color(0xFF4A90D9)
-    }
-    val palette = listOf(
-        androidx.compose.ui.graphics
-            .Color(0xFF4A90D9),
-        androidx.compose.ui.graphics
-            .Color(0xFF7B61FF),
-        androidx.compose.ui.graphics
-            .Color(0xFFE8872A),
-        androidx.compose.ui.graphics
-            .Color(0xFFD93025),
-        androidx.compose.ui.graphics
-            .Color(0xFF2E7D32),
-        androidx.compose.ui.graphics
-            .Color(0xFF00897B),
-        androidx.compose.ui.graphics
-            .Color(0xFFF4B400),
-        androidx.compose.ui.graphics
-            .Color(0xFF8E24AA)
-    )
+@Composable
+private fun colorForCategoryHash(category: String?): Color {
+    val palette = LocalPrismColors.current.dataVisualizationPalette
+    if (category.isNullOrBlank()) return palette[0]
     val index = (category.hashCode() and Int.MAX_VALUE) % palette.size
     return palette[index]
 }
