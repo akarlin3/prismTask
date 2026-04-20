@@ -63,7 +63,7 @@ internal fun FloatingQuickAddBar(
             }
         }
 
-        // Synthwave — gradient tint behind the bar
+        // Synthwave — subtle gradient tint behind the bar (alpha=24/255≈0.094)
         attrs.sunset -> {
             Box(
                 modifier = Modifier
@@ -71,12 +71,11 @@ internal fun FloatingQuickAddBar(
                     .background(
                         brush = Brush.horizontalGradient(
                             listOf(
-                                colors.primary.copy(alpha = 0.12f),
-                                colors.secondary.copy(alpha = 0.12f)
+                                colors.primary.copy(alpha = 0.094f),
+                                colors.secondary.copy(alpha = 0.094f)
                             )
                         )
                     )
-                    .background(colors.background.copy(alpha = 0.82f))
                     .padding(vertical = 6.dp)
             ) {
                 QuickAddBar(autoStartVoice = autoStartVoice, onVoiceMessage = {})
