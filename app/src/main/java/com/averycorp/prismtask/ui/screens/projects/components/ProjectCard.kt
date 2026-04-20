@@ -55,7 +55,7 @@ fun ProjectCard(
     Card(
         onClick = onClick,
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(14.dp),
+        shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(
             containerColor = prismColors.surface,
             contentColor = prismColors.onSurface

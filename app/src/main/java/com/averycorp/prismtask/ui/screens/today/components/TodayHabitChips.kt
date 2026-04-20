@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material3.Card
@@ -106,9 +105,9 @@ internal fun BookableHabitReminderCard(
             .border(
                 width = 1.dp,
                 color = colors.border,
-                shape = RoundedCornerShape(8.dp)
+                shape = MaterialTheme.shapes.medium
             ),
-        shape = RoundedCornerShape(8.dp),
+        shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(
             containerColor = habitColor.copy(alpha = 0.1f)
         )
@@ -187,9 +186,9 @@ private fun HabitChip(
             .border(
                 width = 1.dp,
                 color = borderColor,
-                shape = RoundedCornerShape(14.dp)
+                shape = MaterialTheme.shapes.medium
             ),
-        shape = RoundedCornerShape(14.dp),
+        shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(containerColor = containerColor)
     ) {
         Column(
@@ -255,9 +254,9 @@ private fun SeeAllChip(onClick: () -> Unit) {
             .border(
                 width = 1.dp,
                 color = colors.border,
-                shape = RoundedCornerShape(14.dp)
+                shape = MaterialTheme.shapes.medium
             ),
-        shape = RoundedCornerShape(14.dp),
+        shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(containerColor = colors.surface)
     ) {
         Column(

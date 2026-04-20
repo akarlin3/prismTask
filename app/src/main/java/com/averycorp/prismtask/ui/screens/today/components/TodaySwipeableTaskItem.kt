@@ -181,9 +181,9 @@ internal fun SwipeableTaskItem(
                 .border(
                     width = 1.dp,
                     color = colors.border,
-                    shape = RoundedCornerShape(12.dp)
+                    shape = MaterialTheme.shapes.medium
                 ),
-            shape = RoundedCornerShape(12.dp),
+            shape = MaterialTheme.shapes.medium,
             colors = CardDefaults.cardColors(
                 containerColor = colors.surface
             )
@@ -255,7 +255,7 @@ internal fun SwipeableTaskItem(
                             val pillFg = if (tagIsUrgent) colors.urgentAccent else colors.tagText
                             Box(
                                 modifier = Modifier
-                                    .clip(RoundedCornerShape(6.dp))
+                                    .clip(LocalPrismShapes.current.chip)
                                     .background(pillBg)
                                     .padding(horizontal = 6.dp, vertical = 2.dp)
                             ) {
