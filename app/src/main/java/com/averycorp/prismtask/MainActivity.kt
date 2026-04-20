@@ -463,7 +463,7 @@ class MainActivity : ComponentActivity() {
                     onDismissRequest = dismissAndRecord,
                     title = { androidx.compose.material3.Text("Improve Reminder Reliability") },
                     text = {
-                        androidx.compose.material3.Column {
+                        androidx.compose.foundation.layout.Column {
                             androidx.compose.material3.Text(
                                 "Samsung devices may delay notifications. Tap below to " +
                                     "disable battery optimization for PrismTask so " +
