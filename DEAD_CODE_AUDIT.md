@@ -1,5 +1,26 @@
 # Dead Code & Abandoned Work Audit — 2026-04-17
 
+---
+
+## Resolution Addendum — 2026-04-18/19
+
+Items resolved or changed since original audit. Original findings are preserved below.
+
+| Finding | Original severity | Status | Notes |
+|---------|------------------|--------|-------|
+| README/CLAUDE.md advertise three-tier pricing; `UserTier` only has two tiers | CRITICAL | ✅ Fixed | Three-tier pricing consolidated to two-tier (Free/Pro) in CHANGELOG and all docs. `UserTier` now matches marketed model. |
+| DB version stale across CLAUDE.md, ARCHITECTURE.md, DATA_INTEGRITY_AUDIT.md | — | ✅ Fixed | All docs now reflect Room version 50 (see docs refresh PR). |
+
+Items **not yet resolved** (carry-forwards from original audit):
+- `ProUpgradePrompt.kt` advertising Collaboration and Google Drive Backup features that have no backing implementation (CRITICAL — pre-launch trust risk).
+- `GoogleDriveService` not injected anywhere (CRITICAL).
+- ND-mode sub-toggles persisted but never read (HIGH).
+- Four repositories never injected (`NlpShortcutRepository`, `SavedFilterRepository`, `ProjectTemplateRepository`, `HabitTemplateRepository`) (MEDIUM).
+
+---
+
+
+
 ## Summary
 
 Two sharply different pictures emerge.

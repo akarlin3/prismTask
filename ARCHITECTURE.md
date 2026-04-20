@@ -157,8 +157,8 @@ The Android app maintains a local Room database that is significantly richer
 than the backend model. The Android app is the primary data store;
 Firebase Firestore provides cross-device cloud sync for core entities.
 
-**Current schema version: 48** (47 cumulative migrations,
-`MIGRATION_1_2` through `MIGRATION_47_48`)
+**Current schema version: 50** (49 cumulative migrations,
+`MIGRATION_1_2` through `MIGRATION_49_50`)
 
 ### Entity Groups
 
@@ -178,8 +178,8 @@ Firebase Firestore provides cross-device cloud sync for core entities.
 
 | Table | Notes |
 |---|---|
-| `habits` | Daily/weekly frequency, color, icon, category, target_frequency |
-| `habit_completions` | Daily check-off records |
+| `habits` | Daily/weekly frequency, color, icon, category, target_frequency, is_built_in†, template_key† | †Added migration 48→49 |
+| `habit_completions` | Daily check-off records; completed_date_local† (migration 49→50) | †Timezone-neutral local date string |
 | `habit_logs` | Bookable activity history |
 
 **Wellness & Work-Life Balance**
@@ -248,6 +248,8 @@ Firebase Firestore provides cross-device cloud sync for core entities.
 | 45→46 | `daily_essential_slot_completions` table |
 | 46→47 | `leisure_logs.custom_sections_state` column |
 | 47→48 | `projects` lifecycle columns + `milestones` table (Projects Phase 1) |
+| 48→49 | `habits.is_built_in` + `habits.template_key`; backfills 6 built-in habit names |
+| 49→50 | `habit_completions.completed_date_local` TEXT + index; strftime backfill for timezone-neutral day queries |
 
 ---
 
@@ -442,7 +444,7 @@ prismTask/
 │   │   │   ├── export/              # DataExporter (JSON v5 + CSV), DataImporter
 │   │   │   ├── local/
 │   │   │   │   ├── dao/             # 25+ Room DAOs
-│   │   │   │   ├── database/        # PrismTaskDatabase (v48), Migrations.kt
+│   │   │   │   ├── database/        # PrismTaskDatabase (v50), Migrations.kt
 │   │   │   │   └── entity/          # 32 Room entities
 │   │   │   ├── preferences/         # 25+ DataStore preference files
 │   │   │   ├── remote/              # Firebase Auth/Firestore, Google Drive,

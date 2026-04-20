@@ -1,5 +1,28 @@
 # Data Integrity Audit — 2026-04-17
 
+---
+
+## Resolution Addendum — 2026-04-18/19
+
+Items resolved since original audit. Original findings are preserved below.
+
+| Finding | Original severity | Status | Resolution |
+|---------|------------------|--------|------------|
+| Habit uncheck not propagated cross-device | CRITICAL | ✅ Fixed | `processRemoteDeletions()` wired to `HabitCompletionDao.deleteById()` (PR #557) |
+| Habit completion push uses wrong row ID | HIGH | ✅ Fixed | `pushCreate()` now looks up by completion `id`; `uncompleteHabit` uses `getLatestByHabitAndDateLocal` (PR #540, #557) |
+| Cross-device deletion not propagated (all entity types) | HIGH | ✅ Fixed | REMOVED document events now processed in real-time listener (PR #539) |
+| Habit completion dates misalign across timezones | HIGH | ✅ Fixed | `completed_date_local` column added (migration 49→50); all day-boundary queries use pre-computed local date string (PR #556) |
+| Push only fires at app launch (stale reads on slow networks) | HIGH | ✅ Fixed | Reactive `observePending()` debounce; edits push within ~500 ms (PR #536) |
+| Task completions not synced | HIGH | ✅ Fixed | `TaskCompletionEntity` wired into push/pull pipeline (PR #543) |
+| Onboarding flag written after template work (survives process-death) | MEDIUM | ✅ Fixed | Flag written before seeding begins (PR #538) |
+| Built-in habit identity lost on sync (duplicate cloud rows) | HIGH | ✅ Fixed | `is_built_in`/`template_key` columns + `BuiltInHabitReconciler` one-time repair (PR #549–553) |
+
+All other original findings (export/import gaps, remaining FK orphan vectors, migration ordering, `exportSchema=false`) are carry-forwards — see original text below.
+
+---
+
+
+
 ## Summary
 
 Scope: 32 Room entities, 43 migrations (DB v44 — CLAUDE.md is two versions stale), Firebase + backend sync, JSON/CSV export, FastAPI SQLAlchemy backend, calendar sync (push partly built, pull stub).
