@@ -1,5 +1,6 @@
 package com.averycorp.prismtask.ui.screens.settings.sections
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.padding
@@ -16,6 +17,7 @@ import androidx.compose.ui.unit.dp
 import com.averycorp.prismtask.BuildConfig
 import com.averycorp.prismtask.ui.components.settings.SectionHeader
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun AboutSection(
     latestReleaseTag: String?,
