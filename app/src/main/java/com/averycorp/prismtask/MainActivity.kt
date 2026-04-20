@@ -164,6 +164,11 @@ class MainActivity : ComponentActivity() {
             Log.e("MainActivity", "Theme prefs push observer failed to start", e)
         }
         try {
+            themePreferencesSyncService.ensurePullListener()
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Theme prefs pull listener failed to start", e)
+        }
+        try {
             billingManager.initialize(this)
         } catch (e: Exception) {
             Log.e("MainActivity", "Billing init failed", e)
