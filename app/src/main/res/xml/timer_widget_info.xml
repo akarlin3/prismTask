@@ -6,5 +6,7 @@
     android:resizeMode="horizontal|vertical"
     android:targetCellWidth="2"
     android:targetCellHeight="2"
+    <!-- 30-second refresh is aggressive (most task widgets use 15–30 min).
+         Receiver disabled in manifest for v1.0 — reconsider rate when re-enabling in v1.2. -->
     android:updatePeriodMillis="30000"
     android:widgetCategory="home_screen|keyguard" />

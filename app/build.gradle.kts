@@ -33,6 +33,8 @@ android {
             "WEB_CLIENT_ID",
             "\"${System.getenv("WEB_CLIENT_ID") ?: "403186103462-j09m2o9781jgnpb2eqotn65jdcg7qgqj.apps.googleusercontent.com"}\""
         )
+        // Widgets disabled for v1.0 — re-enable in v1.2 (Phase G).
+        buildConfigField("boolean", "WIDGETS_ENABLED", "false")
     }
 
     val keystorePath = System.getenv("KEYSTORE_PATH")

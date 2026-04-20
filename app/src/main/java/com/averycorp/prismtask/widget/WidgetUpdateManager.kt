@@ -3,6 +3,7 @@ package com.averycorp.prismtask.widget
 import android.content.Context
 import android.util.Log
 import androidx.glance.appwidget.updateAll
+import com.averycorp.prismtask.BuildConfig
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -36,6 +37,7 @@ constructor(
 
     /** Refreshes every registered widget (debounced). */
     suspend fun updateAllWidgets() {
+        if (!BuildConfig.WIDGETS_ENABLED) return
         allWidgetsJob?.cancel()
         allWidgetsJob = scope.launch {
             delay(DEBOUNCE_MILLIS)
@@ -56,6 +58,7 @@ constructor(
      * latest state without waiting on the 15-min periodic worker.
      */
     suspend fun updateProjectWidget() {
+        if (!BuildConfig.WIDGETS_ENABLED) return
         projectWidgetJob?.cancel()
         projectWidgetJob = scope.launch {
             delay(DEBOUNCE_MILLIS)
@@ -65,6 +68,7 @@ constructor(
 
     /** Refreshes task-related widgets: Today, Upcoming, Calendar, Productivity (debounced). */
     suspend fun updateTaskWidgets() {
+        if (!BuildConfig.WIDGETS_ENABLED) return
         taskWidgetsJob?.cancel()
         taskWidgetsJob = scope.launch {
             delay(DEBOUNCE_MILLIS)
@@ -77,6 +81,7 @@ constructor(
 
     /** Refreshes habit-related widgets: HabitStreak + Today (habits appear on Today) (debounced). */
     suspend fun updateHabitWidgets() {
+        if (!BuildConfig.WIDGETS_ENABLED) return
         habitWidgetsJob?.cancel()
         habitWidgetsJob = scope.launch {
             delay(DEBOUNCE_MILLIS)
@@ -87,6 +92,7 @@ constructor(
 
     /** Refreshes the TimerWidget only (debounced). */
     suspend fun updateTimerWidget() {
+        if (!BuildConfig.WIDGETS_ENABLED) return
         timerWidgetJob?.cancel()
         timerWidgetJob = scope.launch {
             delay(DEBOUNCE_MILLIS)
@@ -96,6 +102,7 @@ constructor(
 
     /** Refreshes the ProductivityWidget only (debounced). */
     suspend fun updateProductivityWidget() {
+        if (!BuildConfig.WIDGETS_ENABLED) return
         productivityWidgetJob?.cancel()
         productivityWidgetJob = scope.launch {
             delay(DEBOUNCE_MILLIS)
@@ -132,6 +139,7 @@ constructor(
          * but runs synchronously without debounce.
          */
         suspend fun refreshHabitWidgets(context: Context) {
+            if (!BuildConfig.WIDGETS_ENABLED) return
             try {
                 HabitStreakWidget().updateAll(context)
             } catch (e: Exception) {

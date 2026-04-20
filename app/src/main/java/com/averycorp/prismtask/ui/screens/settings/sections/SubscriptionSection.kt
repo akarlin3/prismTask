@@ -176,7 +176,7 @@ private fun SubscriptionComparisonCard() {
             HorizontalDivider()
             ComparisonRow("Core Tasks & Habits", free = true, pro = true)
             ComparisonRow("All Views (Today/Week/Month/Timeline/Eisenhower)", free = true, pro = true)
-            ComparisonRow("Templates, Widgets, NLP", free = true, pro = true)
+            ComparisonRow("Templates, NLP, Widgets (soon)", free = true, pro = true)
             ComparisonRow("Google Calendar Sync", free = true, pro = true)
             ComparisonRow("ADHD Mode & Calm Mode", free = true, pro = true)
             ComparisonRow("Cloud Sync & Template Sync", free = false, pro = true)

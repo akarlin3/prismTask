@@ -7,6 +7,7 @@ import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
+import com.averycorp.prismtask.BuildConfig
 import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
 import com.averycorp.prismtask.util.DayBoundary
 import com.averycorp.prismtask.widget.WidgetUpdateManager
@@ -41,10 +42,12 @@ constructor(
 ) : CoroutineWorker(appContext, workerParams) {
     override suspend fun doWork(): Result {
         // Refresh widgets so the new day's tasks/habits are visible immediately.
-        try {
-            widgetUpdateManager.updateAllWidgets()
-        } catch (_: Throwable) {
-            // Best-effort: don't fail the worker if widget update throws.
+        if (BuildConfig.WIDGETS_ENABLED) {
+            try {
+                widgetUpdateManager.updateAllWidgets()
+            } catch (_: Throwable) {
+                // Best-effort: don't fail the worker if widget update throws.
+            }
         }
 
         // Reschedule for the next day boundary using hour + minute.

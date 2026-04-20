@@ -38,7 +38,8 @@ fun AboutSection(
         color = MaterialTheme.colorScheme.onSurfaceVariant
     )
 
-    if (onRefreshWidgets != null) {
+    // Hidden for v1.0 — widgets disabled until v1.2 re-enable
+    if (BuildConfig.WIDGETS_ENABLED && onRefreshWidgets != null) {
         TextButton(onClick = onRefreshWidgets) {
             Icon(
                 imageVector = Icons.Default.Refresh,

@@ -163,9 +163,11 @@
             </intent-filter>
         </receiver>
 
+        <!-- Disabled for v1.0 release. Re-enable in v1.2 (Phase G: widget expansion). -->
         <receiver
             android:name=".widget.TodayWidgetReceiver"
-            android:exported="true">
+            android:enabled="false"
+            android:exported="false">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
@@ -174,9 +176,11 @@
                 android:resource="@xml/today_widget_info" />
         </receiver>
 
+        <!-- Disabled for v1.0 release. Re-enable in v1.2 (Phase G: widget expansion). -->
         <receiver
             android:name=".widget.HabitStreakWidgetReceiver"
-            android:exported="true">
+            android:enabled="false"
+            android:exported="false">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
@@ -185,9 +189,11 @@
                 android:resource="@xml/habit_streak_widget_info" />
         </receiver>
 
+        <!-- Disabled for v1.0 release. Re-enable in v1.2 (Phase G: widget expansion). -->
         <receiver
             android:name=".widget.ProjectWidgetReceiver"
-            android:exported="true">
+            android:enabled="false"
+            android:exported="false">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
@@ -205,9 +211,11 @@
             </intent-filter>
         </activity>
 
+        <!-- Disabled for v1.0 release. Re-enable in v1.2 (Phase G: widget expansion). -->
         <receiver
             android:name=".widget.QuickAddWidgetReceiver"
-            android:exported="true">
+            android:enabled="false"
+            android:exported="false">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
@@ -216,9 +224,11 @@
                 android:resource="@xml/quick_add_widget_info" />
         </receiver>
 
+        <!-- Disabled for v1.0 release. Re-enable in v1.2 (Phase G: widget expansion). -->
         <receiver
             android:name=".widget.ProductivityWidgetReceiver"
-            android:exported="true">
+            android:enabled="false"
+            android:exported="false">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
@@ -227,9 +237,11 @@
                 android:resource="@xml/productivity_widget_info" />
         </receiver>
 
+        <!-- Disabled for v1.0 release. Re-enable in v1.2 (Phase G: widget expansion). -->
         <receiver
             android:name=".widget.UpcomingWidgetReceiver"
-            android:exported="true">
+            android:enabled="false"
+            android:exported="false">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
@@ -238,9 +250,11 @@
                 android:resource="@xml/upcoming_widget_info" />
         </receiver>
 
+        <!-- Disabled for v1.0 release. Re-enable in v1.2 (Phase G: widget expansion). -->
         <receiver
             android:name=".widget.TimerWidgetReceiver"
-            android:exported="true">
+            android:enabled="false"
+            android:exported="false">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
@@ -249,9 +263,11 @@
                 android:resource="@xml/timer_widget_info" />
         </receiver>
 
+        <!-- Disabled for v1.0 release. Re-enable in v1.2 (Phase G: widget expansion). -->
         <receiver
             android:name=".widget.CalendarWidgetReceiver"
-            android:exported="true">
+            android:enabled="false"
+            android:exported="false">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>

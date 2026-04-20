@@ -185,7 +185,9 @@ class PrismTaskApplication :
     }
 
     private fun scheduleWidgetRefresh() {
-        WidgetRefreshWorker.schedule(WorkManager.getInstance(this))
+        // Widgets disabled for v1.0 — cancel periodic refresh worker instead of scheduling.
+        // Re-enable in v1.2: replace cancelUniqueWork with WidgetRefreshWorker.schedule(...)
+        WorkManager.getInstance(this).cancelUniqueWork("widget_refresh_periodic")
     }
 
     /**
