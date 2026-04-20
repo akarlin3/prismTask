@@ -94,9 +94,18 @@ constructor(
                 .limit(1).get().await()
             if (!snapshot.isEmpty) {
                 logger.info(operation = "onboarding.check", detail = "existing=true skipping")
-                onboardingPreferences.setOnboardingCompleted()
-                userPreferencesDataStore.markTierOnboardingShown()
+                // Write ordering invariant (v1.4.0 SoD skip-race fix):
+                // `onboardingPreferences.setOnboardingCompleted()` is the write whose
+                // DataStore emission flips `hasCompletedOnboarding` to true in
+                // MainActivity and re-keys the SoD / tier-onboarding gate
+                // LaunchedEffects. Any preference those gates read MUST already be
+                // persisted by the time that emission fires — which means any such
+                // flag write MUST come before `setOnboardingCompleted()` in this
+                // block. Keep `setOnboardingCompleted()` last among the preference
+                // writes; `_signInState` stays at the very end.
                 taskBehaviorPreferences.setHasSetStartOfDay(true)
+                userPreferencesDataStore.markTierOnboardingShown()
+                onboardingPreferences.setOnboardingCompleted()
                 _signInState.value = SignInState.ExistingUserDetected
             } else {
                 logger.info(operation = "onboarding.check", detail = "existing=false routing=onboarding")
