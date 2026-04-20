@@ -47,6 +47,7 @@ import com.averycorp.prismtask.ui.theme.LocalPrismColors
 import com.averycorp.prismtask.ui.theme.LocalPrismFonts
 import com.averycorp.prismtask.ui.theme.LocalPrismTheme
 import com.averycorp.prismtask.ui.theme.PrismTheme
+import com.averycorp.prismtask.ui.theme.TerminalLabel
 import com.averycorp.prismtask.ui.theme.drawCyberpunkTimerTicks
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
@@ -132,13 +133,10 @@ internal fun CompactProgressHeader(
                     fontWeight = FontWeight.Bold,
                     color = colors.onBackground
                 )
-                Text(
+                TerminalLabel(
                     text = dateLabel,
                     style = MaterialTheme.typography.labelSmall,
-                    fontFamily = fonts,
-                    color = colors.muted,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    color = colors.muted
                 )
             }
 
@@ -284,11 +282,9 @@ internal fun CompactProgressHeader(
 
             Spacer(modifier = Modifier.width(12.dp))
 
-            Text(
+            TerminalLabel(
                 text = "$completed done",
                 style = MaterialTheme.typography.titleSmall,
-                fontFamily = fonts,
-                fontWeight = FontWeight.SemiBold,
                 color = colors.primary
             )
 

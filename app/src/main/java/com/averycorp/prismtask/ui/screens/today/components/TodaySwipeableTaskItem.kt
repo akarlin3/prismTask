@@ -57,6 +57,7 @@ import com.averycorp.prismtask.ui.theme.LocalPrismAttrs
 import com.averycorp.prismtask.ui.theme.LocalPrismColors
 import com.averycorp.prismtask.ui.theme.LocalPrismFonts
 import com.averycorp.prismtask.ui.theme.LocalPrismShapes
+import com.averycorp.prismtask.ui.theme.TerminalLabel
 import com.averycorp.prismtask.ui.theme.cornerBrackets
 import com.averycorp.prismtask.ui.theme.prismCardBackground
 import com.averycorp.prismtask.ui.theme.prismGlow
@@ -234,19 +235,17 @@ internal fun SwipeableTaskItem(
                         }
                         if (isOverdue && task.dueDate != null) {
                             val fmt = SimpleDateFormat("MMM d", Locale.getDefault())
-                            Text(
+                            TerminalLabel(
                                 text = fmt.format(Date(task.dueDate)),
                                 style = MaterialTheme.typography.labelSmall,
-                                fontFamily = fonts,
                                 color = colors.muted
                             )
                         }
                         if (isPlanned && task.dueDate != null) {
                             val fmt = SimpleDateFormat("MMM d", Locale.getDefault())
-                            Text(
+                            TerminalLabel(
                                 text = "Due: ${fmt.format(Date(task.dueDate))}",
                                 style = MaterialTheme.typography.labelSmall,
-                                fontFamily = fonts,
                                 color = colors.muted
                             )
                         }

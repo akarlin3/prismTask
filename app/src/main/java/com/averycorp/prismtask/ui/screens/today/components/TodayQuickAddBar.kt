@@ -4,13 +4,17 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.unit.dp
@@ -18,6 +22,8 @@ import com.averycorp.prismtask.ui.components.QuickAddBar
 import com.averycorp.prismtask.ui.theme.ChipShape
 import com.averycorp.prismtask.ui.theme.LocalPrismAttrs
 import com.averycorp.prismtask.ui.theme.LocalPrismColors
+import com.averycorp.prismtask.ui.theme.TerminalCursor
+import com.averycorp.prismtask.ui.theme.TerminalPrompt
 
 /**
  * Floating variant of [QuickAddBar] used on the Today screen — sits in the
@@ -82,16 +88,25 @@ internal fun FloatingQuickAddBar(
             }
         }
 
-        // Matrix — solid thin primary border, dark background
+        // Matrix — solid thin primary border + "$  _" prompt prefix
         attrs.terminal -> {
-            Box(
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(colors.background)
                     .border(1.dp, colors.primary.copy(alpha = 0.5f), barShape)
-                    .padding(vertical = 6.dp)
+                    .padding(start = 10.dp, end = 4.dp, top = 6.dp, bottom = 6.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                QuickAddBar(autoStartVoice = autoStartVoice, onVoiceMessage = {})
+                TerminalPrompt()
+                Spacer(modifier = Modifier.width(4.dp))
+                TerminalCursor()
+                Spacer(modifier = Modifier.width(4.dp))
+                QuickAddBar(
+                    autoStartVoice = autoStartVoice,
+                    onVoiceMessage = {},
+                    modifier = Modifier.weight(1f)
+                )
             }
         }
 

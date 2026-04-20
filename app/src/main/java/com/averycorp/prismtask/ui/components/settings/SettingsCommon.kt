@@ -26,7 +26,10 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import com.averycorp.prismtask.ui.components.ThemedSwitch
+import com.averycorp.prismtask.ui.theme.LocalPrismAttrs
 import com.averycorp.prismtask.ui.theme.PrismBracket
+import com.averycorp.prismtask.ui.theme.TerminalLabel
+import com.averycorp.prismtask.ui.theme.TerminalSectionHeader
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -36,6 +39,14 @@ import androidx.compose.ui.unit.dp
 
 @Composable
 fun SectionHeader(title: String) {
+    val attrs = LocalPrismAttrs.current
+    if (attrs.terminal) {
+        TerminalSectionHeader(
+            title = title,
+            modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)
+        )
+        return
+    }
     PrismBracket(modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)) {
         Text(
             text = title,
@@ -78,7 +89,7 @@ fun SettingsRowWithSubtitle(title: String, subtitle: String, onClick: () -> Unit
     ) {
         Column {
             Text(text = title, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
-            Text(text = subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            TerminalLabel(text = subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Icon(
             Icons.Default.ChevronRight,
@@ -105,7 +116,7 @@ fun SettingsToggleRow(
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(text = title, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
-            Text(text = subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            TerminalLabel(text = subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         ThemedSwitch(checked = checked, onCheckedChange = onCheckedChange)
     }
