@@ -66,6 +66,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.averycorp.prismtask.ui.components.settings.DurationPickerDialog
 import com.averycorp.prismtask.ui.theme.ChipShape
+import com.averycorp.prismtask.ui.theme.LocalPrismShapes
 import com.averycorp.prismtask.ui.theme.GlowLevel
 import com.averycorp.prismtask.ui.theme.LocalPrismAttrs
 import com.averycorp.prismtask.ui.theme.LocalPrismColors
@@ -218,11 +219,7 @@ private fun TimerContent(
             horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            val iconButtonShape = when {
-                attrs.terminal -> RoundedCornerShape(0.dp)
-                attrs.chipShape == ChipShape.SHARP -> RoundedCornerShape(attrs.radius.dp)
-                else -> CircleShape
-            }
+            val iconButtonShape = if (attrs.chipShape == ChipShape.PILL) CircleShape else LocalPrismShapes.current.button
             FilledIconButton(
                 onClick = if (uiState.pomodoroEnabled) onResetPomodoro else onReset,
                 modifier = Modifier.size(56.dp),

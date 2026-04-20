@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -97,8 +96,8 @@ fun QuickReschedulePopup(
         Surface(
             modifier = modifier
                 .width(260.dp)
-                .shadow(8.dp, RoundedCornerShape(12.dp)),
-            shape = RoundedCornerShape(12.dp),
+                .shadow(8.dp, MaterialTheme.shapes.medium),
+            shape = MaterialTheme.shapes.medium,
             color = MaterialTheme.colorScheme.surfaceContainerHigh,
             tonalElevation = 6.dp
         ) {
