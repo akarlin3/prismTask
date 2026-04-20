@@ -326,7 +326,8 @@ fun SelfCareScreen(
                             )
                             Spacer(modifier = Modifier.height(6.dp))
                             Text(
-                                text = "Add starter steps from Settings \u2192 Life Modes \u2192 Browse Templates, or tap the pencil then + to create your own.",
+                                text = "Add starter steps from Settings \u2192 Life Modes \u2192 Browse " +
+                                    "Templates, or tap the pencil then + to create your own.",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 textAlign = androidx.compose.ui.text.style.TextAlign.Center

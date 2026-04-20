@@ -60,7 +60,8 @@ import com.averycorp.prismtask.data.remote.api.SyllabusRecurringItemResponse
 import com.averycorp.prismtask.data.remote.api.SyllabusTaskResponse
 import com.averycorp.prismtask.ui.theme.LocalPrismColors
 
-@Composable private fun schoolAccent(): Color = LocalPrismColors.current.dataVisualizationPalette.getOrElse(0) { LocalPrismColors.current.primary }
+@Composable private fun schoolAccent(): Color =
+    LocalPrismColors.current.dataVisualizationPalette.getOrElse(0) { LocalPrismColors.current.primary }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

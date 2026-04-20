@@ -88,7 +88,10 @@ class Migration47To48Test {
         MIGRATION_47_48.migrate(db)
 
         // Existing project row survives with the original fields intact.
-        db.query("SELECT id, name, color, icon, description, theme_color_key, status, start_date, end_date, completed_at, archived_at FROM projects").use { cursor ->
+        db.query(
+            "SELECT id, name, color, icon, description, theme_color_key, " +
+                "status, start_date, end_date, completed_at, archived_at FROM projects"
+        ).use { cursor ->
             assertTrue("legacy project row should still exist", cursor.moveToFirst())
             assertEquals(1L, cursor.getLong(0))
             assertEquals("Legacy", cursor.getString(1))

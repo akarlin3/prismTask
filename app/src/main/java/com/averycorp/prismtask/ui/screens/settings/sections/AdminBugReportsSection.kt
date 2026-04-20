@@ -26,7 +26,8 @@ fun AdminBugReportsSection(
     )
 
     Text(
-        text = "Browse bug reports submitted by all users. Filter by status or severity, view device and diagnostic context, and mark reports as acknowledged or fixed.",
+        text = "Browse bug reports submitted by all users. Filter by status or severity, " +
+            "view device and diagnostic context, and mark reports as acknowledged or fixed.",
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.padding(bottom = 8.dp)

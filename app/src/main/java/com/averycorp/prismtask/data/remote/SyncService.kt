@@ -335,7 +335,12 @@ constructor(
             try {
                 val docRef = userCollection("courses")?.document() ?: continue
                 docRef.set(SyncMapper.courseToMap(course)).await()
-                syncMetadataDao.upsert(SyncMetadataEntity(localId = course.id, entityType = "course", cloudId = docRef.id, lastSyncedAt = System.currentTimeMillis()))
+                syncMetadataDao.upsert(
+                    SyncMetadataEntity(
+                        localId = course.id, entityType = "course",
+                        cloudId = docRef.id, lastSyncedAt = System.currentTimeMillis()
+                    )
+                )
             } catch (e: Exception) {
                 logger.error(operation = "upload.course", entity = "course", id = course.id.toString(), detail = course.name, throwable = e)
             }
@@ -349,9 +354,17 @@ constructor(
                 val courseCloudId = syncMetadataDao.getCloudId(completion.courseId, "course") ?: continue
                 val docRef = userCollection("course_completions")?.document() ?: continue
                 docRef.set(SyncMapper.courseCompletionToMap(completion, courseCloudId)).await()
-                syncMetadataDao.upsert(SyncMetadataEntity(localId = completion.id, entityType = "course_completion", cloudId = docRef.id, lastSyncedAt = System.currentTimeMillis()))
+                syncMetadataDao.upsert(
+                    SyncMetadataEntity(
+                        localId = completion.id, entityType = "course_completion",
+                        cloudId = docRef.id, lastSyncedAt = System.currentTimeMillis()
+                    )
+                )
             } catch (e: Exception) {
-                logger.error(operation = "upload.course_completion", entity = "course_completion", id = completion.id.toString(), throwable = e)
+                logger.error(
+                    operation = "upload.course_completion", entity = "course_completion",
+                    id = completion.id.toString(), throwable = e
+                )
             }
         }
 
@@ -361,7 +374,12 @@ constructor(
             try {
                 val docRef = userCollection("leisure_logs")?.document() ?: continue
                 docRef.set(SyncMapper.leisureLogToMap(log)).await()
-                syncMetadataDao.upsert(SyncMetadataEntity(localId = log.id, entityType = "leisure_log", cloudId = docRef.id, lastSyncedAt = System.currentTimeMillis()))
+                syncMetadataDao.upsert(
+                    SyncMetadataEntity(
+                        localId = log.id, entityType = "leisure_log",
+                        cloudId = docRef.id, lastSyncedAt = System.currentTimeMillis()
+                    )
+                )
             } catch (e: Exception) {
                 logger.error(operation = "upload.leisure_log", entity = "leisure_log", id = log.id.toString(), throwable = e)
             }
@@ -373,7 +391,12 @@ constructor(
             try {
                 val docRef = userCollection("self_care_steps")?.document() ?: continue
                 docRef.set(SyncMapper.selfCareStepToMap(step)).await()
-                syncMetadataDao.upsert(SyncMetadataEntity(localId = step.id, entityType = "self_care_step", cloudId = docRef.id, lastSyncedAt = System.currentTimeMillis()))
+                syncMetadataDao.upsert(
+                    SyncMetadataEntity(
+                        localId = step.id, entityType = "self_care_step",
+                        cloudId = docRef.id, lastSyncedAt = System.currentTimeMillis()
+                    )
+                )
             } catch (e: Exception) {
                 logger.error(operation = "upload.self_care_step", entity = "self_care_step", id = step.id.toString(), throwable = e)
             }
@@ -386,7 +409,12 @@ constructor(
             try {
                 val docRef = userCollection("self_care_logs")?.document() ?: continue
                 docRef.set(SyncMapper.selfCareLogToMap(log)).await()
-                syncMetadataDao.upsert(SyncMetadataEntity(localId = log.id, entityType = "self_care_log", cloudId = docRef.id, lastSyncedAt = System.currentTimeMillis()))
+                syncMetadataDao.upsert(
+                    SyncMetadataEntity(
+                        localId = log.id, entityType = "self_care_log",
+                        cloudId = docRef.id, lastSyncedAt = System.currentTimeMillis()
+                    )
+                )
             } catch (e: Exception) {
                 logger.error(operation = "upload.self_care_log", entity = "self_care_log", id = log.id.toString(), throwable = e)
             }
@@ -494,6 +522,7 @@ constructor(
         else -> entityType + "s"
     }
 
+    @Suppress("ReturnCount") // TODO: refactor pushCreate to reduce early return statements
     private suspend fun pushCreate(meta: SyncMetadataEntity) {
         val collection = userCollection(collectionNameFor(meta.entityType)) ?: return
         val docRef = collection.document()
@@ -1197,7 +1226,11 @@ constructor(
 
     fun startRealtimeListeners() {
         stopRealtimeListeners()
-        listOf("tasks", "projects", "tags", "habits", "habit_completions", "habit_logs", "task_completions", "milestones", "task_templates", "courses", "course_completions", "leisure_logs", "self_care_steps", "self_care_logs").forEach { collection ->
+        listOf(
+            "tasks", "projects", "tags", "habits", "habit_completions",
+            "habit_logs", "task_completions", "milestones", "task_templates",
+            "courses", "course_completions", "leisure_logs", "self_care_steps", "self_care_logs"
+        ).forEach { collection ->
             val reg = userCollection(collection)?.addSnapshotListener { snapshot, error ->
                 if (error != null) {
                     logger.warn(
