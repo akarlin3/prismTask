@@ -364,6 +364,29 @@ class MainActivity : ComponentActivity() {
                 )
             }
 
+            // v1.4.0 SoD skip-race migration backfill. Heals any install that
+            // landed in the transitional state `hasCompletedOnboarding = true`
+            // with `hasSetStartOfDay = false` — either because it shipped before
+            // the `OnboardingViewModel.checkExistingUserAndMaybeSkip` write
+            // reorder fix, or because a variant of the cross-DataStore observer
+            // race slipped through. Runs ahead of the SoD prompt gate below so
+            // the gate never sees the stale-flag state on this cold start.
+            //
+            // Guarded on `completed == true` so mid-onboarding users (onboarding
+            // flag false) are untouched. The prompt itself is `dismissable =
+            // false`, so a user who genuinely answered it has both flags true
+            // and this backfill is a no-op for them.
+            //
+            // TODO(v2.1): revisit and remove once the pre-fix install population
+            // has rolled over — keeping it long-term is harmless but noisy.
+            LaunchedEffect(Unit) {
+                val completed = onboardingPreferences.hasCompletedOnboarding().first()
+                val sodSet = taskBehaviorPreferences.getHasSetStartOfDay().first()
+                if (completed && !sodSet) {
+                    taskBehaviorPreferences.setHasSetStartOfDay(true)
+                }
+            }
+
             // Start of Day first-launch prompt. Only shown after the user has
             // completed onboarding, and only once. The user can still change the
             // value later from Settings -> Global Defaults -> Start of Day.
