@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Fixed — Theme Sync Timestamp Race
+- **Theme sync no longer breaks when devices have minor clock skew.** The pull
+  path previously overwrote `THEME_UPDATED_AT_KEY` with the remote device's
+  timestamp; if the remote clock was slightly ahead, subsequent local changes on
+  this device produced smaller timestamps and the push guard silently suppressed
+  them. The fix removes that write: `THEME_UPDATED_AT_KEY` is now exclusively
+  written by user-action setters, while `THEME_LAST_SYNCED_AT_KEY` is the only
+  timestamp advanced on pull.
+
 ### Fixed — Theme & Appearance Sync
 - **Theme mode (light/dark/system)** now syncs across devices. Previously the
   `theme_mode` preference was written only to local DataStore with no Firestore

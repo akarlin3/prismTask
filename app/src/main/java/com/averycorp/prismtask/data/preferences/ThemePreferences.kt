@@ -268,7 +268,7 @@ constructor(
     /**
      * Applies fields from a remote Firestore snapshot into DataStore atomically.
      * Only fields present in [remote] are written; absent fields preserve their local values.
-     * Both timestamps are set to [updatedAt] so the push observer does not echo the write.
+     * Only [THEME_LAST_SYNCED_AT_KEY] is updated — never [THEME_UPDATED_AT_KEY].
      */
     internal suspend fun applyRemoteSnapshot(remote: Map<String, Any?>, updatedAt: Long) {
         context.themePrefsDataStore.edit { prefs ->
@@ -285,7 +285,12 @@ constructor(
             (remote["priority_color_high"] as? String)?.let { prefs[PRIORITY_COLOR_HIGH_KEY] = it }
             (remote["priority_color_urgent"] as? String)?.let { prefs[PRIORITY_COLOR_URGENT_KEY] = it }
             (remote["recent_custom_colors"] as? String)?.let { prefs[RECENT_CUSTOM_COLORS_KEY] = it }
-            prefs[THEME_UPDATED_AT_KEY] = updatedAt
+            // Do NOT touch THEME_UPDATED_AT_KEY here. That key is the local "user last changed
+            // something" timestamp and is only written by ThemePreferences setters. Writing it
+            // from the pull path would overwrite a device's local clock with a remote device's
+            // clock on self-echoes, causing the push guard (updatedAt > lastSynced) to suppress
+            // subsequent user changes whenever the other device's clock is slightly ahead.
+            // Only THEME_LAST_SYNCED_AT_KEY moves forward on pull.
             prefs[THEME_LAST_SYNCED_AT_KEY] = updatedAt
         }
     }
