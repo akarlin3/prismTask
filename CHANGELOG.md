@@ -7,6 +7,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Reminders — v1.4.0 Pass 1
+- Verified task + habit-interval reminder happy paths; fixed
+  cancel-on-complete across recurrence, bulk-complete, and subtask
+  paths. `TaskRepository.completeTask` now cancels the task's alarm
+  before the completion transaction and re-registers an alarm for the
+  newly-inserted recurrence instance so recurring tasks keep their
+  reminder. `uncompleteTask` restores the cancelled alarm so Undo
+  (single or bulk) brings it back.
+- Scheduled 6 summary workers with per-worker Settings toggles,
+  default on: daily briefing (morning hour pref), evening summary
+  (evening hour pref), weekly summary (Sunday 7 PM), overload check
+  (daily 4 PM), re-engagement (daily, fires conditionally after 2+
+  days of absence), and the `WeeklyHabitSummary` helper that
+  `WeeklySummaryWorker` delegates to. Added `NotificationWorkerScheduler`
+  (@Singleton) to apply toggle state at app startup and on every
+  per-worker Settings change; all five workers use UPDATE policy so
+  hot toggles don't stack jobs.
+- Workers are permission-aware: when POST_NOTIFICATIONS is denied the
+  worker still runs its data-gathering logic but silently drops
+  `NotificationManager.notify()` via a `SecurityException` try/catch.
+  Workers never self-cancel on permission denial.
+- Added Samsung battery-optimization guidance. The existing one-time
+  onboarding dialog now includes Samsung "Put Unused Apps to Sleep" /
+  "Deep Sleeping Apps" sleep-list text. A persistent
+  battery-optimization banner in Settings → Notifications surfaces
+  the same guidance on every device, with Samsung-specific copy and
+  a best-effort Battery Settings deep-link on Samsung builds.
+- Added a POST_NOTIFICATIONS denial explainer banner at the top of
+  Settings → Notifications (API 33+). Surfaces Allow and Open Settings
+  actions and re-checks permission state on resume so granting in
+  system Settings hides the banner immediately.
+- Refactored `NotificationHelper` to remove Main-thread blocking on
+  DataStore preference reads. `showTaskReminder`,
+  `showMedicationReminder`, `showMedStepReminder`,
+  `showTimerCompleteNotification`, `showTaskReminderFor`, and the
+  channel-creation helpers are now `suspend`. `MainActivity`,
+  `ReminderBroadcastReceiver`, `MedStepReminderReceiver`, and
+  `HabitFollowUpReceiver` were updated to call them from coroutines
+  (lifecycleScope or `goAsync` + IO dispatcher).
+- Habit reminder editor verified: `AddEditHabitScreen` writes
+  `reminderTime`, `reminderIntervalMillis`, and `reminderTimesPerDay`
+  correctly, and interval-mode edits trigger
+  `MedicationReminderScheduler.rescheduleAll()`. **Known gap:** the
+  daily-time-only mode (`reminderTime` set, `reminderIntervalMillis`
+  null) is UI-complete but no scheduler registers an alarm for it —
+  logic-level gap deferred to a follow-up. Interval mode and the
+  medication step/dose flow are not affected.
+- Added `docs/REMINDERS_TEST_RUNBOOK.md` with 10 on-device scenarios
+  covering every change above. Target devices: Samsung Galaxy S25
+  Ultra + one Pixel.
+
 ### Accessibility — Onboarding Polish (Phase 2)
 - Page indicator dots now announce the current page position to TalkBack
   ("Page X of 9") via a `contentDescription` on the indicator `Row`.
