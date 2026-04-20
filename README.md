@@ -59,6 +59,12 @@ React + TypeScript + Vite web client with TailwindCSS. Connects to the same Fast
 
 FastAPI server with PostgreSQL, JWT authentication, and Claude-powered NLP parsing. Deployed on Railway. See [`ARCHITECTURE.md`](ARCHITECTURE.md) for API docs and data model.
 
+## Development
+
+### Firebase Emulator (local testing)
+
+Debug builds connect to a local Firebase Emulator Suite (Firestore + Auth) by default — not production Firestore. Start it with `firebase emulators:start --import=./firebase-emulator-data --export-on-exit=./firebase-emulator-data` before launching a debug APK, or you will see "no data syncing" because the app is talking to `10.0.2.2:8080`. See [`docs/FIREBASE_EMULATOR.md`](docs/FIREBASE_EMULATOR.md) for setup, two-device configs, and troubleshooting. To use production Firestore in a debug build, flip `USE_FIREBASE_EMULATOR` to `false` in `app/build.gradle.kts` before building.
+
 ## Roadmap
 
 ### v1.4.0 — In Progress

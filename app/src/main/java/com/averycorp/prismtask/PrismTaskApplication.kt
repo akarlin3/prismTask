@@ -1,6 +1,7 @@
 package com.averycorp.prismtask
 
 import android.app.Application
+import android.os.Build
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import androidx.work.ExistingPeriodicWorkPolicy
@@ -16,7 +17,10 @@ import com.averycorp.prismtask.widget.WidgetRefreshWorker
 import com.averycorp.prismtask.workers.AutoArchiveWorker
 import com.averycorp.prismtask.workers.CalendarSyncScheduler
 import com.averycorp.prismtask.workers.DailyResetWorker
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.crashlytics.FirebaseCrashlytics
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.FirebaseFirestoreSettings
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -56,6 +60,11 @@ class PrismTaskApplication :
 
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
+    private companion object {
+        const val FIRESTORE_EMULATOR_PORT = 8080
+        const val AUTH_EMULATOR_PORT = 9099
+    }
+
     override val workManagerConfiguration: Configuration
         get() = Configuration
             .Builder()
@@ -64,6 +73,7 @@ class PrismTaskApplication :
 
     override fun onCreate() {
         super.onCreate()
+        configureFirebaseEmulator()
         configureCrashlytics()
         try {
             scheduleAutoArchive()
@@ -103,6 +113,58 @@ class PrismTaskApplication :
             android.util.Log.e("PrismTaskApp", "Crashlytics init failed — Firebase may not be configured", e)
         }
     }
+
+    /**
+     * Routes Firestore and Auth at the local Firebase Emulator Suite when the
+     * compile-time [BuildConfig.USE_FIREBASE_EMULATOR] flag is on (debug-only
+     * by default). `useEmulator` must run BEFORE any Firestore / Auth
+     * operation — all existing call sites use `by lazy` or read Firebase
+     * inside functions, so running this at the top of `onCreate()` is safe.
+     *
+     * Host selection:
+     *  - Android emulator: `10.0.2.2` (alias for host loopback).
+     *  - Physical device:  `localhost`, which relies on the developer running
+     *    `adb reverse tcp:8080 tcp:8080 && adb reverse tcp:9099 tcp:9099`
+     *    after connecting the device. See docs/FIREBASE_EMULATOR.md.
+     */
+    private fun configureFirebaseEmulator() {
+        if (!BuildConfig.USE_FIREBASE_EMULATOR) return
+        val host = if (isAndroidEmulator()) "10.0.2.2" else "localhost"
+        try {
+            FirebaseFirestore.getInstance().useEmulator(host, FIRESTORE_EMULATOR_PORT)
+            // Disable persistent cache so the emulator always reflects the
+            // fresh server state — makes two-device sync tests deterministic.
+            FirebaseFirestore.getInstance().firestoreSettings =
+                FirebaseFirestoreSettings
+                    .Builder()
+                    .setPersistenceEnabled(false)
+                    .build()
+            FirebaseAuth.getInstance().useEmulator(host, AUTH_EMULATOR_PORT)
+            android.util.Log.i(
+                "PrismTaskApp",
+                "Firebase emulator routing active: firestore=$host:$FIRESTORE_EMULATOR_PORT " +
+                    "auth=$host:$AUTH_EMULATOR_PORT"
+            )
+        } catch (e: Exception) {
+            // useEmulator throws if called after the first Firestore op. If
+            // that ever happens we want to fail loudly in debug rather than
+            // silently talk to production.
+            android.util.Log.e("PrismTaskApp", "Firebase emulator wiring failed", e)
+        }
+    }
+
+    private fun isAndroidEmulator(): Boolean =
+        Build.FINGERPRINT.startsWith("generic") ||
+            Build.FINGERPRINT.startsWith("unknown") ||
+            Build.MODEL.contains("google_sdk") ||
+            Build.MODEL.contains("Emulator") ||
+            Build.MODEL.contains("Android SDK built for x86") ||
+            Build.MANUFACTURER.contains("Genymotion") ||
+            Build.BRAND.startsWith("generic") && Build.DEVICE.startsWith("generic") ||
+            Build.PRODUCT == "google_sdk" ||
+            Build.PRODUCT == "sdk_google_phone_x86" ||
+            Build.HARDWARE.contains("goldfish") ||
+            Build.HARDWARE.contains("ranchu")
 
     /**
      * Applies the user's summary-worker toggles to WorkManager on cold

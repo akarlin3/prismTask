@@ -71,6 +71,11 @@ android {
             val debugApiUrl = System.getenv("API_BASE_URL_DEBUG")
                 ?: "https://averytask-production.up.railway.app"
             buildConfigField("String", "API_BASE_URL", "\"$debugApiUrl\"")
+            // Route Firebase clients at the local Firebase Emulator Suite.
+            // Debug builds default to emulator ON — flip to "false" here (and
+            // rebuild) to point a debug APK at production Firestore/Auth.
+            // See docs/FIREBASE_EMULATOR.md for the full workflow.
+            buildConfigField("boolean", "USE_FIREBASE_EMULATOR", "true")
             // Speed up debug builds
             isDebuggable = true
             signingConfig = signingConfigs.getByName("debug")
@@ -84,6 +89,7 @@ android {
         }
         release {
             buildConfigField("String", "API_BASE_URL", "\"https://averytask-production.up.railway.app\"")
+            buildConfigField("boolean", "USE_FIREBASE_EMULATOR", "false")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(

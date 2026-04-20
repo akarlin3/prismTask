@@ -69,3 +69,9 @@ compile-log.txt
 
 # Nested bare git repo
 averyTask.git/
+
+# Firebase emulator data + logs
+firebase-emulator-data/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
