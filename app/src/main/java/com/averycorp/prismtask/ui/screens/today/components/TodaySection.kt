@@ -31,8 +31,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.averycorp.prismtask.ui.theme.LocalPrismColors
-import com.averycorp.prismtask.ui.theme.LocalPrismShapes
 import com.averycorp.prismtask.ui.theme.LocalPrismFonts
+import com.averycorp.prismtask.ui.theme.LocalPrismShapes
+import com.averycorp.prismtask.ui.theme.PrismBracket
 
 /**
  * Collapsible section wrapper used throughout the Today screen — e.g.
@@ -103,15 +104,17 @@ private fun SectionHeaderRow(
         // font at 10sp / letterSpacing 1.5sp / Medium weight per the
         // design spec, rendered uppercase so the terminal-style themes
         // (Cyberpunk / Matrix) read as command labels.
-        Text(
-            text = title.uppercase(),
-            style = MaterialTheme.typography.titleSmall,
-            fontFamily = fonts,
-            fontWeight = FontWeight.Medium,
-            fontSize = 10.sp,
-            letterSpacing = 1.5.sp,
-            color = accentColor
-        )
+        PrismBracket {
+            Text(
+                text = title.uppercase(),
+                style = MaterialTheme.typography.titleSmall,
+                fontFamily = fonts,
+                fontWeight = FontWeight.Medium,
+                fontSize = 10.sp,
+                letterSpacing = 1.5.sp,
+                color = accentColor
+            )
+        }
         Spacer(modifier = Modifier.width(8.dp))
 
         Box(

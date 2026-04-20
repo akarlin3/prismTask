@@ -1,11 +1,13 @@
 package com.averycorp.prismtask.ui.theme
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 
@@ -140,11 +142,29 @@ fun PrismTaskTheme(
         LocalCardCornerRadius provides cardCornerRadius.coerceIn(0, 24).dp,
         LocalShowCardBorders provides showCardBorders
     ) {
+        val scanSpacing = when (prismTheme) {
+            PrismTheme.CYBERPUNK -> 3.dp
+            PrismTheme.MATRIX -> 2.dp
+            else -> 3.dp
+        }
+        val scanOuterAlpha = when (prismTheme) {
+            PrismTheme.CYBERPUNK -> 0.55f
+            PrismTheme.MATRIX -> 0.70f
+            else -> 0f
+        }
         MaterialTheme(
             colorScheme = effectiveScheme,
             typography = scaledTypography,
             shapes = materialShapes,
-            content = content
-        )
+        ) {
+            Box(
+                modifier = if (prismAttrs.scanlines)
+                    Modifier.scanlines(prismColors.primary, scanSpacing, scanOuterAlpha)
+                else
+                    Modifier
+            ) {
+                content()
+            }
+        }
     }
 }

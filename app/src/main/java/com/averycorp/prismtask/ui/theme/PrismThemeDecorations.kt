@@ -150,6 +150,39 @@ fun Modifier.cornerBrackets(
     }
 }
 
+// ─── PrismBracket composable (Cyberpunk section headers) ──────────────────
+
+/**
+ * Wraps [content] with a `[` … `]` bracket pair in [PrismThemeColors.primary]
+ * and the mono font. The brackets are only rendered when [PrismThemeAttrs.brackets]
+ * is true (Cyberpunk theme); all other themes render a plain [Row] no-op so
+ * callers don't need to branch.
+ *
+ * Apply sparingly — only at major screen-level section headers (Today sections,
+ * Settings section headers). Do NOT apply to every sub-heading or card title.
+ */
+@Composable
+fun PrismBracket(
+    modifier: Modifier = Modifier,
+    content: @Composable RowScope.() -> Unit
+) {
+    val attrs = LocalPrismAttrs.current
+    if (!attrs.brackets) {
+        Row(modifier = modifier, content = content)
+        return
+    }
+    val prismColors = LocalPrismColors.current
+    val monoFont = LocalPrismFonts.current.mono
+    Row(
+        modifier = modifier,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(text = "[", color = prismColors.primary, fontFamily = monoFont)
+        content()
+        Text(text = "]", color = prismColors.primary, fontFamily = monoFont)
+    }
+}
+
 // ─── Timer / progress ring helpers ────────────────────────────────────────
 
 /**
