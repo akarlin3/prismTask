@@ -87,7 +87,7 @@ import java.util.Date
 import java.util.Locale
 
 @Composable private fun schoolAccent(): Color = LocalPrismColors.current.dataVisualizationPalette.getOrElse(0) { LocalPrismColors.current.primary }
-@Composable private fun doneGreen(): Color = LocalPrismColors.current.doneGreen()
+@Composable private fun doneGreen(): Color = LocalPrismColors.current.successColor
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

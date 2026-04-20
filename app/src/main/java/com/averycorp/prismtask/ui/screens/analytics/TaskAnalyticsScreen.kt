@@ -457,6 +457,7 @@ private fun TimeOfDayChart(
     modifier: Modifier = Modifier
 ) {
     val maxVal = completionsByHour.values.maxOrNull()?.coerceAtLeast(1) ?: 1
+    val peakHourColor = LocalPrismColors.current.successColor
 
     Card(
         modifier = modifier,
@@ -474,7 +475,7 @@ private fun TimeOfDayChart(
                     val count = completionsByHour[hour] ?: 0
                     val heightFraction = count.toFloat() / maxVal
                     val barHeight = heightFraction * size.height
-                    val barColor = if (hour == peakHour) LocalPrismColors.current.successColor else color
+                    val barColor = if (hour == peakHour) peakHourColor else color
                     drawRect(
                         color = barColor,
                         topLeft = Offset(hour * barWidth, size.height - barHeight),

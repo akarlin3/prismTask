@@ -54,7 +54,7 @@ internal fun GroupHeader(group: String, count: Int) {
     val attrs = LocalPrismAttrs.current
 
     val accentColor = when (group) {
-        "Today" -> TodayOrange
+        "Today" -> prismColors.warningColor
         else -> prismColors.primary
     }
 
