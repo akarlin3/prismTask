@@ -74,7 +74,7 @@ function TaskTag({ theme, label, color }) {
   );
 }
 
-function TaskRow({ theme, task, first, last }) {
+function TaskRow({ theme, task, first, last, swipeState }) {
   const isMatrix = theme.terminal;
   const isVoid = theme.editorial;
   const isCyber = theme.brackets;
@@ -84,18 +84,46 @@ function TaskRow({ theme, task, first, last }) {
     : theme.colors.muted;
   const textColor = task.done ? theme.colors.muted : theme.colors.onBackground;
 
+  // swipeState: { side: 'left'|'right', color, label, icon, offset }
+  // Renders a revealed gutter behind the row; row itself is translated.
+  const swipe = swipeState || null;
+  const rowOffset = swipe ? (swipe.side === 'left' ? swipe.offset : -swipe.offset) : 0;
+  const up = theme.displayUpper ? 'uppercase' : 'none';
+
   return (
-    <div style={{
-      display: 'flex', alignItems: 'stretch', gap: 0,
-      background: theme.colors.surface,
-      border: `1px solid ${theme.colors.border}`,
-      borderRadius: theme.cardRadius,
-      marginBottom: isVoid ? 14 : 8,
-      overflow: 'hidden',
-      ...(isCyber && task.priority === 'urgent'
-        ? { borderLeft: `3px solid ${theme.colors.urgentAccent}`, boxShadow: `0 0 10px ${theme.colors.urgentAccent}30` }
-        : {}),
-    }}>
+    <div style={{ position: 'relative', marginBottom: isVoid ? 14 : 8 }}>
+      {/* Revealed swipe gutter */}
+      {swipe && (
+        <div style={{
+          position: 'absolute', inset: 0,
+          borderRadius: theme.cardRadius,
+          background: swipe.color,
+          display: 'flex',
+          justifyContent: swipe.side === 'left' ? 'flex-start' : 'flex-end',
+          alignItems: 'center',
+          padding: '0 18px',
+          gap: 8,
+          color: swipe.fg || '#0b0b10',
+          fontFamily: theme.fonts.body,
+          fontSize: 12, fontWeight: 700,
+          letterSpacing: 1.4, textTransform: up,
+          ...(isMatrix ? { border: `1px solid ${swipe.color}`, color: swipe.fg || theme.colors.background } : {}),
+        }}>
+          <Icon name={swipe.icon} size={18} color={swipe.fg || '#0b0b10'} strokeWidth={2.4}/>
+          <span>{swipe.label}</span>
+        </div>
+      )}
+      <div style={{
+        transform: `translateX(${rowOffset}px)`,
+        display: 'flex', alignItems: 'stretch', gap: 0,
+        background: theme.colors.surface,
+        border: `1px solid ${theme.colors.border}`,
+        borderRadius: theme.cardRadius,
+        overflow: 'hidden',
+        ...(isCyber && task.priority === 'urgent'
+          ? { borderLeft: `3px solid ${theme.colors.urgentAccent}`, boxShadow: `0 0 10px ${theme.colors.urgentAccent}30` }
+          : {}),
+      }}>
       <PriorityFlag theme={theme} priority={task.priority}/>
       <div style={{
         display: 'flex', alignItems: 'flex-start', gap: 12,
@@ -171,6 +199,7 @@ function TaskRow({ theme, task, first, last }) {
             </div>
           )}
         </div>
+      </div>
       </div>
     </div>
   );
@@ -306,13 +335,16 @@ function TasksScreen({ theme }) {
 
       <div className="no-scrollbar" style={{ flex: 1, overflow: 'auto', padding: '4px 18px 90px' }}>
         <TaskGroupHeader theme={theme} label="Overdue" count={1}/>
-        {tasks.overdue.map((t, i) => <TaskRow key={i} theme={theme} task={t}/>)}
+        {tasks.overdue.map((t, i) => <TaskRow key={i} theme={theme} task={t} swipeState={{ side: 'right', color: theme.colors.swipeDelete, label: 'Delete', icon: 'trash', offset: 92, fg: '#fff' }}/>)}
 
         <TaskGroupHeader theme={theme} label="Today" count={3}/>
-        {tasks.today.map((t, i) => <TaskRow key={i} theme={theme} task={t}/>)}
+        <TaskRow theme={theme} task={tasks.today[0]} swipeState={{ side: 'left', color: theme.colors.swipeComplete, label: 'Complete', icon: 'check', offset: 96, fg: '#0b0b10' }}/>
+        <TaskRow theme={theme} task={tasks.today[1]} swipeState={{ side: 'right', color: theme.colors.swipeReschedule, label: 'Later', icon: 'clock', offset: 88, fg: '#0b0b10' }}/>
+        <TaskRow theme={theme} task={tasks.today[2]}/>
 
         <TaskGroupHeader theme={theme} label="Upcoming" count={2}/>
-        {tasks.upcoming.map((t, i) => <TaskRow key={i} theme={theme} task={t}/>)}
+        <TaskRow theme={theme} task={tasks.upcoming[0]} swipeState={{ side: 'left', color: theme.colors.swipeFlag, label: 'Flag', icon: 'flag', offset: 80, fg: '#0b0b10' }}/>
+        <TaskRow theme={theme} task={tasks.upcoming[1]} swipeState={{ side: 'right', color: theme.colors.swipeArchive, label: 'Archive', icon: 'archive', offset: 84, fg: '#fff' }}/>
       </div>
 
       {/* FAB */}

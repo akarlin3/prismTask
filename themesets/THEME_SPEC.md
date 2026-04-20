@@ -28,6 +28,7 @@ NEW_THEME_ID: {
 
   // ── 1. COLOR SYSTEM ────────────────────────────────────────────
   colors: {
+    // ─── 1a. Core surface + brand (13 keys) ────────────────
     background:     '#...',  // app background
     surface:        '#...',  // card / sheet background
     surfaceVariant: '#...',  // raised surface, input fields
@@ -45,6 +46,44 @@ NEW_THEME_ID: {
 
     tagSurface:     '#...',  // tag chip background
     tagText:        '#...',  // tag chip foreground
+
+    // ─── 1b. Semantic state (4 keys) ────────────────────────
+    // Render each theme in its OWN language — do NOT reuse Material green/red.
+    // Cyberpunk → electric neons; Matrix → green-spectrum variations + single alarm red;
+    // Synthwave → vibrant retro/sunset palette; Void → muted editorial pigments.
+    successColor:     '#...',  // completion, positive outcomes
+    warningColor:     '#...',  // caution, moderate urgency
+    destructiveColor: '#...',  // delete, critical failures, overdue
+    infoColor:        '#...',  // neutral informational states
+
+    // ─── 1c. Swipe action backgrounds (6 keys) ─────────────
+    // Used as the revealed-gutter color behind list rows. Should be
+    // SATURATED enough to read at a glance while swiping, and feel
+    // like they belong to this theme (not generic material greens).
+    swipeComplete:    '#...',  // swipe-to-complete background
+    swipeDelete:      '#...',  // swipe-to-delete background
+    swipeReschedule:  '#...',  // swipe-to-reschedule background
+    swipeArchive:     '#...',  // swipe-to-archive background
+    swipeMove:        '#...',  // swipe-to-move background
+    swipeFlag:        '#...',  // swipe-to-flag background
+
+    // ─── 1d. Eisenhower matrix quadrants (4 keys) ──────────
+    // Four distinct hues for the 2×2 urgency/importance grid.
+    // Q1 is the attention-demanding color (usually destructive/warm),
+    // Q2 is the theme's signature (important work to invest in),
+    // Q3 is a caution/warn hue, Q4 is muted/recedes.
+    quadrantQ1:       '#...',  // urgent + important  (do now)
+    quadrantQ2:       '#...',  // important + not urgent  (schedule)
+    quadrantQ3:       '#...',  // urgent + not important  (delegate)
+    quadrantQ4:       '#...',  // neither  (eliminate)
+
+    // ─── 1e. Data-visualization palette (8 colors) ─────────
+    // Categorical chart palette. Order matters — index 0 is the
+    // primary series, 1 is secondary, etc. Must be DISTINGUISHABLE
+    // at small sizes (bar/pie segments) against `surface`. Stay in
+    // the theme's palette language.
+    dataVisualizationPalette: ['#...', '#...', '#...', '#...',
+                               '#...', '#...', '#...', '#...'],
   },
 
   // ── 2. TYPOGRAPHY ──────────────────────────────────────────────
@@ -115,7 +154,11 @@ Key branches to check:
 Run through this list before declaring a theme done:
 
 - [ ] `id` / `label` / `tagline` set
-- [ ] All 13 `colors` keys present
+- [ ] All **36 color keys** present: 13 core surface/brand + 4 semantic state + 6 swipe actions + 4 Eisenhower quadrants + 1 `dataVisualizationPalette` array (length 8) = 28 properties on `colors`
+- [ ] Semantic state colors match theme language (no generic Material green/red)
+- [ ] Swipe colors are saturated enough to read at a glance while revealed
+- [ ] Eisenhower quadrant colors are 4 DISTINCT hues (not 4 shades of the same)
+- [ ] `dataVisualizationPalette` has exactly 8 entries, distinguishable at chart-size
 - [ ] `fonts.body` / `fonts.display` / `fonts.mono` all set (with fallbacks)
 - [ ] Google Fonts link added to `Theme Mockups.html` `<head>` for any new families
 - [ ] `displayUpper` + `displayTracking` set
@@ -135,7 +178,10 @@ Run through this list before declaring a theme done:
 - ❌ **Two personality flags at once** (e.g. `brackets: true` AND `terminal: true`). Components will stack treatments and look broken. Pick one.
 - ❌ **Missing `displayTracking`.** Display headlines will render with browser default spacing, breaking the intended rhythm.
 - ❌ **Missing font fallbacks.** Always list at least one system fallback after the primary family.
-- ❌ **New color outside the 13-key schema.** If you need a new semantic color, add it to the schema in **every** theme — do not one-off.
+- ❌ **New color outside the documented schema.** If you need a new semantic color, add it to the schema in **every** theme AND this document — do not one-off.
+- ❌ **Copying Material Design's semantic state colors** (green=success, red=error). Each theme has its own language: Matrix expresses success through brightness within the green spectrum; Void expresses it through a muted sage; Cyberpunk through an icy mint next to its cyan primary. Follow the theme.
+- ❌ **Using the same hue for all 4 Eisenhower quadrants.** They must be four DISTINCT hues — users scan them as a 2×2 grid.
+- ❌ **`dataVisualizationPalette` with <8 entries or duplicates.** Charts need 8 categorical slots; duplicates make adjacent bars/slices merge.
 
 ---
 

@@ -6,6 +6,7 @@ const PRISM_THEMES = {
     label: 'Cyberpunk',
     tagline: 'Neon terminal · cyan / magenta',
     colors: {
+      // ── core 13 ─────────────────────────────────────────
       background: '#0A0A0F',
       surface: '#0D0D18',
       surfaceVariant: '#111120',
@@ -19,6 +20,38 @@ const PRISM_THEMES = {
       urgentSurface: '#1A0010',
       tagSurface: '#001A1A',
       tagText: '#00F5FF',
+
+      // ── semantic state (electric neons) ────────────────
+      successColor:     '#00FFB3', // icy mint, hums alongside cyan primary
+      warningColor:     '#FFD100', // hazard yellow, reads as a caution bar
+      destructiveColor: '#FF2E6C', // hot magenta-red, hotter than urgentAccent
+      infoColor:        '#66E0FF', // washed cyan — neutral, not the primary
+
+      // ── swipe actions (saturated flat backgrounds) ─────
+      swipeComplete:    '#00D48C', // deep emerald — decisive completion
+      swipeDelete:      '#FF1A55', // "alarm red" for destructive reveal
+      swipeReschedule:  '#FFB020', // amber — time-shift
+      swipeArchive:     '#3E6B7A', // muted teal — out of sight
+      swipeMove:        '#B84DFF', // violet — to another bucket
+      swipeFlag:        '#FF5AF0', // hot pink flag
+
+      // ── Eisenhower quadrants ───────────────────────────
+      quadrantQ1:       '#FF2E6C', // urgent+important: alarm red
+      quadrantQ2:       '#00F5FF', // important: signature cyan
+      quadrantQ3:       '#FFD100', // urgent: hazard yellow
+      quadrantQ4:       '#4A8A9A', // neither: muted cyan-grey
+
+      // ── data-viz (8 categorical colors) ────────────────
+      dataVisualizationPalette: [
+        '#00F5FF', // signal cyan
+        '#FF00AA', // hot magenta
+        '#FFD100', // hazard yellow
+        '#00FFB3', // mint
+        '#B84DFF', // violet
+        '#FF7A00', // warning orange
+        '#66E0FF', // ice cyan
+        '#FF2E6C', // alarm red
+      ],
     },
     fonts: {
       body: '"Chakra Petch", system-ui, sans-serif',
@@ -54,6 +87,38 @@ const PRISM_THEMES = {
       urgentSurface: '#1F0015',
       tagSurface: '#12082A',
       tagText: '#6E3FFF',
+
+      // ── semantic state (retrowave vibrance) ────────────
+      successColor:     '#3EE8B8', // turquoise — Miami aqua
+      warningColor:     '#FFB347', // sunset amber
+      destructiveColor: '#FF3D5A', // sun-hot coral red
+      infoColor:        '#8ED1FF', // cold neon sky
+
+      // ── swipe actions (VHS gradients, saturated) ───────
+      swipeComplete:    '#1FC9A0', // aqua gradient base
+      swipeDelete:      '#E81F48', // coral/crimson
+      swipeReschedule:  '#FF8C3B', // sunset orange
+      swipeArchive:     '#4A3E82', // dusk purple
+      swipeMove:        '#8B5AFF', // lavender
+      swipeFlag:        '#FF6AC8', // bubblegum flag
+
+      // ── Eisenhower quadrants ───────────────────────────
+      quadrantQ1:       '#FF3D5A', // sun-hot coral
+      quadrantQ2:       '#6E3FFF', // purple signature
+      quadrantQ3:       '#FFB347', // sunset amber
+      quadrantQ4:       '#5E3A7A', // dusk — recedes
+
+      // ── data-viz (8 categorical colors) ────────────────
+      dataVisualizationPalette: [
+        '#FF2D87', // hot pink
+        '#6E3FFF', // electric purple
+        '#FFB347', // sunset amber
+        '#3EE8B8', // miami aqua
+        '#FF6AC8', // bubblegum
+        '#8ED1FF', // neon sky
+        '#FF3D5A', // coral
+        '#B080D0', // dusty lilac
+      ],
     },
     fonts: {
       body: '"Rajdhani", system-ui, sans-serif',
@@ -88,6 +153,41 @@ const PRISM_THEMES = {
       urgentSurface: '#0A1400',
       tagSurface: '#001A06',
       tagText: '#00FF41',
+
+      // ── semantic state (green hue variations) ──────────
+      // Matrix is monochrome-green on principle. Semantic states
+      // differ by BRIGHTNESS / TINT within the green spectrum, plus
+      // a rare amber-green for warning and a phosphor-red for destruct.
+      successColor:     '#00FF41', // full phosphor green = completion
+      warningColor:     '#E6FF3C', // chartreuse — edge of green spectrum
+      destructiveColor: '#FF3C3C', // CRT alarm red — the only non-green
+      infoColor:        '#7FFFB2', // pale mint — dim/muted informational
+
+      // ── swipe actions (green CRT cells) ────────────────
+      swipeComplete:    '#008F24', // dark green cell w/ bright text
+      swipeDelete:      '#8F0000', // phosphor-dim red
+      swipeReschedule:  '#7A8F00', // olive-green
+      swipeArchive:     '#063A12', // archive — near black with green tint
+      swipeMove:        '#1A5E25', // terminal muted green
+      swipeFlag:        '#AAFF00', // bright yellow-green
+
+      // ── Eisenhower quadrants ───────────────────────────
+      quadrantQ1:       '#FF3C3C', // alarm red (the only break from green)
+      quadrantQ2:       '#00FF41', // phosphor primary
+      quadrantQ3:       '#AAFF00', // yellow-green warn
+      quadrantQ4:       '#1A5E25', // dim terminal green
+
+      // ── data-viz (8 categorical — green ladder + breaks) ─
+      dataVisualizationPalette: [
+        '#00FF41', // phosphor bright
+        '#AAFF00', // yellow-green
+        '#00B82D', // mid green
+        '#7FFFB2', // pale mint
+        '#E6FF3C', // chartreuse
+        '#008F24', // dark green
+        '#00FFAA', // cyan-green
+        '#FF3C3C', // alarm red (break — for final/outlier category)
+      ],
     },
     fonts: {
       body: '"Share Tech Mono", ui-monospace, monospace',
@@ -122,6 +222,39 @@ const PRISM_THEMES = {
       urgentSurface: '#261616',
       tagSurface: '#1A1A26',
       tagText: '#8888CC',
+
+      // ── semantic state (muted editorial) ───────────────
+      // Void avoids saturation. All states are desaturated, print-inspired.
+      successColor:     '#8FB896', // sage / eucalyptus
+      warningColor:     '#D4A87A', // warm sand / burnished gold
+      destructiveColor: '#C68888', // dusty rose (not alarm red)
+      infoColor:        '#8A9CC0', // slate blue
+
+      // ── swipe actions (dusty, paperback book jacket) ───
+      swipeComplete:    '#4A6B52', // forest
+      swipeDelete:      '#8B4545', // oxblood
+      swipeReschedule:  '#8B6A3A', // mustard
+      swipeArchive:     '#38383F', // ink — darker than surface
+      swipeMove:        '#5A5378', // indigo
+      swipeFlag:        '#A86B82', // plum
+
+      // ── Eisenhower quadrants ───────────────────────────
+      quadrantQ1:       '#C68888', // dusty rose
+      quadrantQ2:       '#C8B8FF', // lilac primary
+      quadrantQ3:       '#D4A87A', // burnished gold
+      quadrantQ4:       '#3E3E4A', // muted ink
+
+      // ── data-viz (8 editorial tones — pigments, not neons) ─
+      dataVisualizationPalette: [
+        '#C8B8FF', // lilac
+        '#8FB896', // sage
+        '#D4A87A', // burnished gold
+        '#8A9CC0', // slate blue
+        '#C68888', // dusty rose
+        '#B8A4D4', // grape
+        '#7FA89E', // eucalyptus
+        '#A89876', // khaki
+      ],
     },
     fonts: {
       body: '"Space Grotesk", system-ui, sans-serif',
@@ -140,7 +273,7 @@ const PRISM_THEMES = {
 };
 
 const THEME_ORDER = ['CYBERPUNK', 'SYNTHWAVE', 'MATRIX', 'VOID'];
-const SCREEN_ORDER = ['today', 'tasks', 'daily', 'recurring', 'timer', 'settings'];
+const SCREEN_ORDER = ['today', 'tasks', 'matrix', 'insights', 'daily', 'recurring', 'timer', 'settings'];
 
 window.PRISM_THEMES = PRISM_THEMES;
 window.THEME_ORDER = THEME_ORDER;

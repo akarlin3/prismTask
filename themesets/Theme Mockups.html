@@ -59,6 +59,8 @@
 <script type="text/babel" src="screen-settings-a11y.jsx"></script>
 <script type="text/babel" src="screen-settings-sync.jsx"></script>
 <script type="text/babel" src="screen-settings-shake.jsx"></script>
+<script type="text/babel" src="screen-eisenhower.jsx"></script>
+<script type="text/babel" src="screen-insights.jsx"></script>
 
 <script type="text/babel">
 const { useState, useEffect, useMemo } = React;
@@ -70,6 +72,8 @@ const SCREENS = {
   recurring: { label: 'Recurring', comp: window.RecurringScreen },
   timer:     { label: 'Timer',     comp: window.TimerScreen     },
   settings:  { label: 'Settings',  comp: window.SettingsScreen  },
+  matrix:    { label: 'Matrix',    comp: window.EisenhowerScreen },
+  insights:  { label: 'Insights',  comp: window.InsightsScreen  },
 };
 
 // Modals, flows, and settings subpages — shown in a secondary section.
@@ -167,7 +171,7 @@ function Header({ tweaks, setTweak }) {
           PrismTask · Theme Mockups
         </div>
         <div style={{ fontSize: 11, color: '#6b6b78', letterSpacing: 1.2, textTransform: 'uppercase', marginTop: 2 }}>
-          v1.4 · 4 palettes × 6 screens
+          v1.5 · 4 palettes × 8 screens · semantic + viz tokens
         </div>
       </div>
 
