@@ -234,7 +234,7 @@ fun TodayScreen(
                         editorSheetTaskId = null
                         showEditorSheet = true
                     },
-                    modifier = Modifier.prismGlow(MaterialTheme.colorScheme.primary, attrs.glow),
+                    modifier = Modifier.prismGlow(prismColors.primary, attrs.glow),
                     containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary
                 ) {
