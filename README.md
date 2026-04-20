@@ -58,3 +58,21 @@ React + TypeScript + Vite web client with TailwindCSS. Connects to the same Fast
 ### Backend
 
 FastAPI server with PostgreSQL, JWT authentication, and Claude-powered NLP parsing. Deployed on Railway. See [`ARCHITECTURE.md`](ARCHITECTURE.md) for API docs and data model.
+
+## Roadmap
+
+### v1.4.0 — In Progress
+
+| Status | Area | Feature |
+|--------|------|---------|
+| ✅ Done | Sync | Reactive push queue, cross-device deletions, task completion sync |
+| ✅ Done | Habits | Timezone-neutral completion dates, built-in habit identity + reconciliation |
+| ✅ Done | Theme | Four PrismTheme palettes (Cyberpunk, Synthwave, Matrix, Void) with 13 design tokens |
+| ✅ Done | UX | Configurable Start-of-Day (SoD) with first-launch picker and NLP anchoring |
+| ✅ Done | Projects | Lifecycle status, milestones, forgiveness streak, Firestore sync, widget, NLP intents |
+| ✅ Done | Wellness | Work-Life Balance Engine, mood tracking, burnout detection, boundary rules, ND modes |
+| ✅ Done | Notifications | Custom sounds, escalation chains, vibration patterns, 40+ DataStore keys |
+| ✅ Done | Export/Import | v5 format; 13 new entity families, 15 new preference groups, last-write-wins upsert |
+| 🔜 Planned | Import | v6 import paths for `DailyEssentialSlotCompletions`, `UsageLogs`, `CalendarSync` |
+| 🔜 Planned | Calendar | Backend-mediated Google Calendar sync (see `docs/ADR-calendar-sync.md`) |
+| 🔜 Planned | Projects | Phases 2–5 (widget, NLP v2, Firestore full round-trip with milestone sync) |

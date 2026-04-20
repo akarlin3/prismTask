@@ -67,6 +67,20 @@ Thank you for your interest in contributing. This document covers development se
 - Use `PrismTaskTheme` as the root wrapper in all previews and the main content.
 - Extract reusable composables into dedicated files under `ui/components/`.
 
+### Theme Tokens
+
+PrismTask ships four visual themes (Cyberpunk, Synthwave, Matrix, Void). Do not
+hardcode `Color(0xFF…)` literals in composables. Instead:
+
+- Read semantic tokens from `LocalPrismColors.current` (a `PrismThemeColors` instance).
+- The 13 available tokens are: `background`, `surface`, `surfaceVariant`, `border`,
+  `primary`, `secondary`, `onBackground`, `onSurface`, `muted`, `urgentAccent`,
+  `urgentSurface`, `tagSurface`, `tagText`.
+- For Material slots fall back to `MaterialTheme.colorScheme.*`, which is already
+  mapped from the active `PrismThemeColors` in `PrismTaskTheme`.
+- Access the current theme enum via `LocalPrismTheme.current` when per-theme
+  decorative logic (glow, gradient, overlay) is needed.
+
 ### TypeScript / React (Web)
 
 - Use functional components with hooks — no class components.

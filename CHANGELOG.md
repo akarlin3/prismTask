@@ -7,6 +7,84 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased — v1.4.0 Wellness-Aware Productivity Layer
 
+### Fixed — Sync Reliability (Apr 18–19, PRs #536–557)
+- **Habit uncheck cross-device sync**: `processRemoteDeletions()` in `SyncService` was a
+  no-op for `habit_completion` entities — remote deletions were acknowledged but the local
+  row was never removed. Fixed by adding `HabitCompletionDao.deleteById()` and wiring it
+  into the REMOVED-document handler. (PR #557)
+- **Habit uncheck ID consistency**: `uncompleteHabit()` in `HabitRepository` used
+  `getByHabitAndDateLocal` (returns oldest row) to fetch the ID to track, while
+  `deleteLatestByHabitAndDateLocal` deletes the newest row. For multi-dose habits this
+  produced a mismatch. Fixed by introducing `getLatestByHabitAndDateLocal` (ORDER BY
+  `completed_at` DESC LIMIT 1) and using it in both places. (PR #557)
+- **Habit completion pull normalization**: completion dates pulled from Firestore are now
+  re-normalized through the device's `dayStartHour` before upsert, preventing mismatched
+  local dates when start-of-day is non-midnight. (PR #541)
+- **Habit completion push ID lookup**: `pushCreate()` for `habit_completion` now looks up
+  completions by their own Room `id` instead of by `(habitId, date)`, eliminating silent
+  pushes of the wrong row when a habit has multiple completions on the same day. (PR #540)
+- **Cross-device deletion propagation**: real-time Firestore listener now processes
+  REMOVED document changes for all entity types, not just MODIFIED. (PR #539)
+- **Task completions added to sync pipeline**: `TaskCompletionEntity` records are now
+  pushed and pulled through the standard `SyncService` pipeline under
+  `users/{uid}/task_completions/`. (PR #543)
+- **Reactive push queue**: `SyncService` now observes `sync_metadata` writes reactively
+  via `observePending()` with a 500 ms debounce instead of only flushing at app launch.
+  Edits on one device appear on the other within seconds. (PR #536)
+
+### Fixed — Onboarding
+- Onboarding completion flag is written to `OnboardingPreferences` before template-seeding
+  work begins, so a process-death mid-seeding no longer re-shows onboarding on next launch.
+  (PR #538)
+
+### Fixed — DB Migration 49→50 — Timezone-neutral habit completion dates (PR #556)
+- Added `completed_date_local TEXT` column to `habit_completions`. Backfilled via
+  `strftime('%Y-%m-%d', completed_date/1000, 'unixepoch', 'localtime')`. Indexed under
+  `index_habit_completions_completed_date_local`.
+- All `HabitRepository` queries that previously used epoch-millis `completed_date` for
+  day-boundary comparisons now use the pre-computed `completed_date_local` string. This
+  fixes a class of bugs where users whose clock crossed midnight between 00:00 and their
+  configured start-of-day would see double completions or missing completions.
+
+### Added — DB Migration 48→49 — Built-in habit identity (PR #549–553)
+- Added `is_built_in INTEGER NOT NULL DEFAULT 0` and `template_key TEXT` to `habits`.
+  Backfills `is_built_in=1` and a stable `template_key` for the six known built-in habits
+  (School, Leisure, Morning Self-Care, Bedtime Self-Care, Medication, Housework) on
+  upgrade.
+- `BuiltInHabitReconciler` runs once after a successful full sync via
+  `BuiltInSyncPreferences.builtInsReconciled` guard. It deduplicates built-in habits
+  that may have been pulled as duplicate cloud documents and backfills any missing
+  `is_built_in` / `template_key` fields. Three one-time flags
+  (`builtInsReconciled`, `driftCleanupDone`, `builtInBackfillDone`) in
+  `BuiltInSyncPreferences` ensure each repair runs at most once.
+- `SyncMapper` infers `isBuiltIn` from `templateKey` when the field is absent in older
+  Firestore documents, providing forward-compatible reads of pre-migration cloud data.
+
+### Added — Start-of-Day (SoD) Configurable Day Boundary (PRs #554–555)
+- New `DayBoundary` utility (`util/DayBoundary.kt`) that resolves "today" relative to a
+  configurable `dayStartHour` (0–23, default 0). A logical day runs from
+  `dayStartHour:00` to the same hour the next calendar day, regardless of wall-clock
+  midnight.
+- `startOfDay` preference added to `UserPreferencesDataStore`; a first-launch picker
+  (shown once at onboarding) lets the user pick their preferred day start (midnight,
+  3 AM, 4 AM, 5 AM, 6 AM, or a custom hour).
+- Habits, streaks, Today-screen task filter, Pomodoro session stats, widgets, and the
+  Haiku NLP date parser all derive "today" from `DayBoundary` rather than from the
+  device calendar, so tasks due at "tonight 2 AM" stay in today's column until the user's
+  configured day flips.
+- `MaterialDatePicker` selection (which returns UTC midnight in millis) is corrected to
+  local midnight before storage so due-date display matches what the user selected.
+
+### Changed — Per-Theme Visual Design & Palette Reconciliation (PRs #530–537)
+- Four `PrismTheme` palettes (Cyberpunk, Synthwave, Matrix, Void) now carry 13 named
+  design tokens (`PrismThemeColors`: background, surface, surfaceVariant, border, primary,
+  secondary, onBackground, onSurface, muted, urgentAccent, urgentSurface, tagSurface,
+  tagText) reconciled against the `themes.js` design spec. Each token maps to a distinct
+  Material `ColorScheme` slot so theme-switching is lossless. (PR #537)
+- Per-theme visual flourishes (glow effects, gradient headers, decorative overlays) applied
+  to Today, Task list, Settings, and shared components. (PRs #530, #534–535)
+- Each `PrismTheme` has a dedicated body + display `FontFamily` pairing via `prismThemeFonts`.
+
 ### Changed — Pricing: Two-Tier Consolidation
 - Consolidated three-tier pricing (Free / Pro $3.99 / Premium $7.99) into
   two-tier pricing (Free / Pro $3.99).
