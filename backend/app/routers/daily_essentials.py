@@ -85,10 +85,12 @@ async def _upsert_slot(
         if med_ids:
             row.med_ids_json = med_ids_json
         row.taken_at = now if taken else None
-        # Mirror the ``onupdate=func.now()`` hook in Python so we don't
-        # trigger an async refresh on the sync ``_to_response`` read path.
         row.updated_at = now
         await db.flush()
+        # Reload all attributes within the async session so that
+        # _to_response() can access them without triggering a lazy load
+        # (which would raise MissingGreenlet in the sync serializer path).
+        await db.refresh(row)
     return row
 
 
