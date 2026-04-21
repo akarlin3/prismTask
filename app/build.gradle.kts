@@ -120,6 +120,12 @@ android {
     testOptions {
         unitTests {
             isIncludeAndroidResources = true
+            // Return default values (nulls, zeros, empty strings) for any
+            // Android framework method the tests don't explicitly mock —
+            // e.g. `android.util.Log.i(...)`. Without this, any production
+            // code path that calls a framework method from a plain JVM
+            // unit test throws "Method X not mocked" and the test fails.
+            isReturnDefaultValues = true
             all {
                 // Parallelize across test classes. Each fork is a separate JVM,
                 // so keep the count at half the host's CPU count to leave
