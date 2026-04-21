@@ -87,3 +87,11 @@ averytask.db-wal
 
 # Fix D working snapshot (read-only DB copies)
 .fixd-workspace/
+
+# Local dev tooling (gh CLI, etc.)
+.tools/
+
+# Firestore ad-hoc audit / dedup output reports and logs (scripts are committed; generated reports are not)
+firestore_audit_v*.md
+firestore_state_check_*.md
+dedup_*.log
