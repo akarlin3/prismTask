@@ -84,3 +84,6 @@ prismtask-sa.json
 averytask.db
 averytask.db-shm
 averytask.db-wal
+
+# Fix D working snapshot (read-only DB copies)
+.fixd-workspace/
