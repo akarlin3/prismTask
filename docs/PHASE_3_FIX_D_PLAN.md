@@ -23,25 +23,26 @@ Fix D collapses the Room database in place so every natural-key group of duplica
 
 **Expected row-count reductions.** Pre-execution counts come from a read-only snapshot of the production device pulled 2026-04-21 at 01:42 UTC (see [Pre-execution snapshot](#pre-execution-snapshot--2026-04-21)). **Winner target** = the row count Fix D produces after collapsing on the natural key stated in the winner rule — NOT `sync_metadata.cloud_id` distinctness, which is a separate and higher number (cloud_id-distinct counts are recorded in the snapshot section for sanity). The earlier Firestore audit numbers are kept in the third column for reference but are stale; the Room-side corruption has continued growing since the audit was taken.
 
-| Table              | Live rows | Winner target | Audit reference | Notes                                         |
-|--------------------|----------:|--------------:|----------------:|-----------------------------------------------|
-| tasks              |     5,144 |          ~12† |         4,843→12 | Canonical by `(lower(trim(title)), createdAt)`. `†` Could drift up if new cloud pulls introduced distinct titles since audit — verify post-run via `GROUP BY lower(trim(title)) HAVING n > 1` |
-| tags               |     9,656 |           ~3† |         2,165→3 | Lex-smallest cloud_id wins within each `lower(trim(name))` group |
-| projects           |        93 |           ~2† |            16→2 | Lex-smallest cloud_id wins within each `trim(name)` group |
-| habits             |     1,248 |           ~3† |            14→3 | Prefer `is_built_in=1`, then lex-smallest cloud_id within each `COALESCE(template_key, lower(trim(name)))` group |
-| task_completions   |     6,966 |          ~77† |        1,170→77 | After quarantining 2,353 null-taskId rows, remaining 4,613 dedupe by `(task_id, completed_date)` with winner = smallest `completed_at_time`. Winner target scales with surviving task count (~12), so ~77 still plausible |
-| task_templates     |       317 |           ~8† |            34→8 | Prefer `is_built_in=1`, then lex-smallest cloud_id within each `lower(trim(name))` group |
-| habit_completions  |         8 |             0 |               7 | All dangling → drop                           |
-| habit_logs         |       835 |             0 |             137 | All dangling → drop                           |
-| courses            |        44 |       ~small† |             n/a | Collapse by `trim(name)`. Snapshot has 4 distinct cloud_ids — target is ≤ 4 (may be fewer if names collide) |
-| course_completions |        66 |       ~small† |             n/a | Repoint `course_id`, then dedupe by `(date, course_id)`; snapshot has 6 distinct cloud_ids |
-| leisure_logs       |         3 |             3 |             n/a | **Verified zero duplicate groups on snapshot — Step 5 executes as verify-only** |
-| self_care_logs     |        38 |            38 |             n/a | **Verified zero duplicate groups on snapshot — Step 6 executes as verify-only** |
-| self_care_steps    |        36 |            36 |             n/a | **Verified zero duplicate groups on snapshot — Step 7 executes as verify-only** |
-| milestones         |         0 |             0 |             n/a | Empty; no work                                |
-| task_tags          |         0 |             0 |               0 | Empty per Room audit — nothing to do          |
+| Table              | Live rows | Dry-run result | Audit reference | Notes                                         |
+|--------------------|----------:|---------------:|----------------:|-----------------------------------------------|
+| tasks              |     5,144 |        **19**‡ |         4,843→12 | Canonical by `(lower(trim(title)), createdAt)`. Audit said ~12; ~5,140 rows of growth introduced ~7 new distinct natural-key groups. Expect live run to land in 12–30 range. |
+| tags               |     9,656 |         **3**‡ |         2,165→3 | Lex-smallest cloud_id wins within each `lower(trim(name))` group. Matches audit exactly. |
+| projects           |        93 |         **2**‡ |            16→2 | Lex-smallest cloud_id wins within each `trim(name)` group. Matches audit exactly. |
+| habits             |     1,248 |        **12**‡ |            14→3 | Prefer `is_built_in=1`, then lex-smallest cloud_id within each `COALESCE(template_key, lower(trim(name)))` group. Dry-run landed at 12 (6 built-in + 6 user) vs. audit's "~3" — difference is genuinely-new habits authored between audit and snapshot. |
+| task_completions   |     6,966 |        **12**‡ |        1,170→77 | After quarantining 2,353 null-taskId rows, remaining 4,613 dedupe by `(task_id, completed_date)` with winner = smallest `completed_at_time`. Dry-run at 12 is much lower than audit's 77 because surviving task count (19) × active days (~3) is smaller than what audit's denominator implied. |
+| task_templates     |       317 |         **8**‡ |            34→8 | Prefer `is_built_in=1`, then lex-smallest cloud_id within each `lower(trim(name))` group. Matches audit exactly. |
+| habit_completions  |         8 |              0 |               7 | All dangling → drop                           |
+| habit_logs         |       835 |              0 |             137 | All dangling → drop                           |
+| courses            |        44 |         **2**‡ |             n/a | Collapse by `trim(name)` (see Steps 8+9 merged below) |
+| course_completions |         6 |         **3**‡ |             n/a | Deduped on `(date, target_course_id)` before repoint — 3 distinct dates, 1 surviving course name, so 3 completions survive |
+| leisure_logs       |         3 |              3 |             n/a | **Verified zero duplicate groups on snapshot — Step 5 executes as verify-only** |
+| self_care_logs     |        38 |             38 |             n/a | **Verified zero duplicate groups on snapshot — Step 6 executes as verify-only** |
+| self_care_steps    |        36 |             36 |             n/a | **Verified zero duplicate groups on snapshot — Step 7 executes as verify-only** |
+| milestones         |         0 |              0 |             n/a | Empty; no work                                |
+| task_tags          |         0 |              0 |               0 | Empty per Room audit — nothing to do          |
+| quarantine (new)   |         — |      **2,353** |             n/a | Null-taskId task_completions isolated for optional future triage |
 
-`†` = natural-key collapse target carried forward from the original audit, with current-snapshot context annotated. These are the authoritative post-Fix-D row counts the verify queries should match.
+`‡` = actual row count from the **2026-04-21 dry-run** executed against `.fixd-workspace/averytask.fixd.db` (host-side copy of the post-migration snapshot). All 15 steps executed in <1 second total with `PRAGMA integrity_check = ok` and zero FK violations. These are the authoritative expected counts for the live execution.
 
 **What Fix D does:**
 - Reduce duplicates in Room to canonical rows per the winner rules below.
@@ -195,8 +196,10 @@ Because every collapse step (a) repoints children to the winner, then (b) delete
  5. leisure_logs                                       (leaf)
  6. self_care_logs                                     (leaf; already has (routine_type,date) unique index)
  7. self_care_steps                                    (leaf)
- 8. courses                                            (before course_completions because its FK CASCADEs)
- 9. course_completions                                 (depends on courses)
+ 8. courses + course_completions                       (MERGED into one transaction — see Steps 8+9 below. Pre-dedupe
+                                                        completions on target-course_id BEFORE repoint to avoid
+                                                        UNIQUE(date, course_id) collision.)
+ 9. (merged into Step 8)
 10. projects                                           (before tasks/milestones/task_completions — they reference projects.id)
 11. habits                                             (before tasks — tasks.source_habit_id references habits.id)
 12. milestones                                         (depends on projects; after projects are collapsed)
@@ -474,14 +477,16 @@ COMMIT;
 
 ---
 
-### Step 8 — `courses` (group by `trim(name)`, winner = smallest cloud_id)
+### Steps 8 + 9 — `courses` + `course_completions` (merged — single transaction)
 
-Must repoint `course_completions.course_id` before delete because the FK is `ON DELETE CASCADE`.
+> **Why merged:** The original plan separated these into Step 8 (courses + repoint completions) and Step 9 (dedupe completions on `(date, course_id)`). That order fails in practice because `course_completions` has a `UNIQUE(date, course_id)` index — if two completions with the same `date` point at different losing course_ids that would both collapse to the same winner, Step 8's `UPDATE course_completions SET course_id = winner_id` fires a `UNIQUE constraint failed` and aborts. Verified empirically against the 2026-04-21 snapshot: 6 completions, 3 distinct dates, 2 course_ids (1 and 23) both collapsing to the same name group → 3 pre-collision pairs. All three UPDATEs failed.
+>
+> The fix is to compute each completion's *would-be* target course_id BEFORE touching anything, deduplicate the completions on `(date, target_course_id)` using Step 15's winner rule (smallest `completed_at`, tiebreak smallest id), delete losers, *then* run the UPDATE and the course-winner DELETE. All in one transaction so a failure anywhere rolls the whole thing back. Also means we use `completed_at` (not `MIN(id)`) as the completion winner rule for consistency with Step 15.
 
 ```sql
 BEGIN IMMEDIATE;
 
--- Identify:
+-- Identify course dup groups:
 SELECT trim(name) AS norm_name, COUNT(*) AS n,
        GROUP_CONCAT(id) AS local_ids,
        GROUP_CONCAT(cloud_id) AS cloud_ids
@@ -489,6 +494,7 @@ FROM courses
 GROUP BY trim(name)
 HAVING n > 1;
 
+-- 1. Stage course winners (lex-smallest cloud_id, then smallest id):
 DROP TABLE IF EXISTS _course_winners;
 CREATE TEMP TABLE _course_winners AS
 SELECT trim(c.name) AS norm_name,
@@ -499,7 +505,32 @@ SELECT trim(c.name) AS norm_name,
 FROM courses c
 GROUP BY trim(c.name);
 
--- Repoint course_completions BEFORE deleting loser courses (FK is CASCADE):
+-- 2. Annotate each completion with its would-be target course_id after collapse:
+DROP TABLE IF EXISTS _cc_targets;
+CREATE TEMP TABLE _cc_targets AS
+SELECT cc.id AS cc_id,
+       cc.date AS date,
+       cc.completed_at AS completed_at,
+       (SELECT winner_id FROM _course_winners w
+         WHERE w.norm_name = (SELECT trim(name) FROM courses WHERE id = cc.course_id)) AS target_course_id
+FROM course_completions cc;
+
+-- 3. For each (date, target_course_id), pick one winning completion
+--    (smallest completed_at, tiebreak smallest cc_id — same rule as Step 15):
+DROP TABLE IF EXISTS _cc_keep;
+CREATE TEMP TABLE _cc_keep AS
+SELECT date, target_course_id,
+       (SELECT cc_id FROM _cc_targets x
+         WHERE x.date = t.date AND x.target_course_id = t.target_course_id
+         ORDER BY x.completed_at ASC, x.cc_id ASC LIMIT 1) AS winner_cc_id
+FROM _cc_targets t
+WHERE target_course_id IS NOT NULL
+GROUP BY date, target_course_id;
+
+-- 4. Delete loser completions BEFORE the UPDATE fires UNIQUE(date, course_id):
+DELETE FROM course_completions WHERE id NOT IN (SELECT winner_cc_id FROM _cc_keep);
+
+-- 5. Now safe to repoint surviving completions:
 UPDATE course_completions
    SET course_id = (
        SELECT winner_id FROM _course_winners w
@@ -507,52 +538,22 @@ UPDATE course_completions
    )
  WHERE course_id NOT IN (SELECT winner_id FROM _course_winners);
 
--- Delete loser courses:
+-- 6. Drop loser courses:
 DELETE FROM courses WHERE id NOT IN (SELECT winner_id FROM _course_winners);
 
--- Verify no orphaned course_completions (should be 0; FK would have prevented but sanity check):
-SELECT COUNT(*) FROM course_completions cc
- LEFT JOIN courses c ON c.id = cc.course_id
- WHERE c.id IS NULL;  -- expect 0
+-- Verify:
+SELECT 'courses_after', COUNT(*) FROM courses;           -- expect = row count in _course_winners
+SELECT 'cc_after', COUNT(*) FROM course_completions;     -- expect = row count in _cc_keep
+SELECT 'cc_orphans', COUNT(*) FROM course_completions cc -- expect 0
+ LEFT JOIN courses c ON c.id = cc.course_id WHERE c.id IS NULL;
 
 DROP TABLE _course_winners;
+DROP TABLE _cc_targets;
+DROP TABLE _cc_keep;
 COMMIT;
 ```
 
----
-
-### Step 9 — `course_completions`
-
-After Step 8, `course_completions.course_id` points at winners. The existing `UNIQUE(date, course_id)` index will have collapsed any duplicates implicitly if the repoint produced collisions — SQLite will raise a constraint violation, not silently dedupe. Handle defensively by pre-deduping the repoint target.
-
-```sql
-BEGIN IMMEDIATE;
-
--- Identify potential duplicates after Step 8's repoint:
-SELECT date, course_id, COUNT(*) AS n, GROUP_CONCAT(id) AS local_ids
-FROM course_completions
-GROUP BY date, course_id
-HAVING n > 1;
-
-DROP TABLE IF EXISTS _cc_winners;
-CREATE TEMP TABLE _cc_winners AS
-SELECT date, course_id, MIN(id) AS winner_id
-FROM course_completions
-GROUP BY date, course_id;
-
-DELETE FROM course_completions
- WHERE id NOT IN (SELECT winner_id FROM _cc_winners);
-
--- Verify:
-SELECT COUNT(*) AS n_rows,
-       COUNT(DISTINCT date || '|' || course_id) AS n_pairs
-FROM course_completions;
-
-DROP TABLE _cc_winners;
-COMMIT;
-```
-
-> **Note:** If Step 8's repoint would have triggered a constraint violation mid-update (two losers with same `date` but different `course_id` pointing at the same winner), it will have aborted Step 8's transaction. In that case, run Step 9's dedupe first on the raw pre-repoint state, then retry Step 8. Flagged in [Unresolved Questions](#unresolved-questions).
+On the 2026-04-21 dry-run: courses 44 → 2, course_completions 6 → 3, zero orphans, executed cleanly. The original Step 8 / Step 9 SQL is retained in git history (pre-amendment version of this doc) for reference if needed.
 
 ---
 
@@ -919,20 +920,22 @@ Every block above ends in a verification `SELECT COUNT(*)`. A discrepancy betwee
 
 **Trigger rollback if any of these fires:**
 
-Targets below are *approximate* — exact values depend on the natural-key distribution at execution time, which may drift from the audit if post-audit pulls introduced genuinely-new distinct natural keys. Treat large deviations (>2×) as hard halts; small deviations (say, tasks landing at 14 instead of 12 because two new distinct titles were authored) should be investigated but are not automatic rollback triggers.
+Expected values below are the **2026-04-21 dry-run actuals**; halt thresholds are set wide enough to tolerate natural drift (new rows authored between snapshot and live run) while still catching genuine disasters.
 
-| Stage          | Verification query                                                | Expected                            | Halt if                                         |
+| Stage          | Verification query                                                | Expected (dry-run)                  | Halt if                                         |
 |----------------|-------------------------------------------------------------------|-------------------------------------|-------------------------------------------------|
 | Pre-step       | `SELECT COUNT(*) FROM task_completions WHERE task_id IS NULL;`    | 0                                   | ≠ 0 (quarantine incomplete)                     |
 | Step 2         | `SELECT COUNT(*) FROM habit_completions;`                         | 0                                   | ≠ 0                                             |
 | Step 3         | `SELECT COUNT(*) FROM habit_logs;`                                | 0                                   | ≠ 0                                             |
-| Step 4         | `SELECT COUNT(*) FROM tags;`                                      | ~3 (audit target)                   | > 50 or < 1                                     |
-| Step 10        | `SELECT COUNT(*) FROM projects;`                                  | ~2 (audit target)                   | > 20 or < 1                                     |
+| Step 4         | `SELECT COUNT(*) FROM tags;`                                      | 3                                   | > 20 or < 1                                     |
+| Steps 8+9      | `SELECT COUNT(*) FROM courses; SELECT COUNT(*) FROM course_completions;` | courses=2, cc=3            | courses > 10 or cc > 20                         |
+| Step 10        | `SELECT COUNT(*) FROM projects;`                                  | 2                                   | > 20 or < 1                                     |
 | Step 10 orphan | `SELECT COUNT(*) FROM tasks WHERE project_id IS NOT NULL AND project_id NOT IN (SELECT id FROM projects);` | 0 | ≠ 0 |
-| Step 11        | `SELECT COUNT(*) FROM habits;`                                    | ~3 (audit target; ≤ 26 cap)         | > 50 or < 1                                     |
-| Step 13        | `SELECT COUNT(*) FROM task_templates;`                            | ~8 (audit target; ≤ 34 cap)         | > 50 or < 1                                     |
-| Step 14        | `SELECT COUNT(*) FROM tasks;`                                     | ~12 (audit target)                  | > 100 or < 1                                    |
-| Step 15        | `SELECT COUNT(*) FROM task_completions;`                          | ~77 (audit target; scales with Step 14) | > 10× Step-14 row count |
+| Step 11        | `SELECT COUNT(*) FROM habits;`                                    | 12                                  | > 50 or < 1                                     |
+| Step 13        | `SELECT COUNT(*) FROM task_templates;`                            | 8                                   | > 50 or < 1                                     |
+| Step 14        | `SELECT COUNT(*) FROM tasks;`                                     | 19                                  | > 100 or < 1                                    |
+| Step 15        | `SELECT COUNT(*) FROM task_completions;`                          | 12                                  | > 10× Step-14 row count or < 0                  |
+| Post-run       | `PRAGMA integrity_check; PRAGMA foreign_key_check;`               | `ok`, no rows                       | any other output                                |
 
 On halt: do **not** run the next block. Decide whether to investigate live (with the in-block transaction already rolled back, the DB is only as far along as the prior block's successful commit) or restore from backup.
 
@@ -991,23 +994,22 @@ adb shell "run-as com.averycorp.prismtask sh -c 'cat /sdcard/block_10_projects.s
 
 | Step                       | Rows touched           | Estimate |
 |----------------------------|-----------------------:|---------:|
-Estimates below are rescaled to the 2026-04-21 snapshot (snapshot counts, not audit counts):
+Estimates below reflect the **2026-04-21 dry-run actuals** against a host-side copy of the post-migration DB. Total wall-clock time across all 15 steps was under 1 second on host hardware; the live device will be ~2–5× slower depending on I/O, so expect well under 10 seconds total.
 
-| Pre-step (quarantine ~2,353) |                  2,353 |     ~1 s |
-| Step 2 (habit_completions)   |                      8 |     <1 s |
-| Step 3 (habit_logs)          |                    835 |     <1 s |
-| Step 4 (tags)                |                  9,656 |     ~3 s |
-| Steps 5–7 (verify-only, zero dup groups) | ~80 rows scanned | <1 s |
-| Step 8 (courses)             |                     44 |     <1 s |
-| Step 9 (course_completions)  |                     66 |     <1 s |
-| Step 10 (projects + repoints across 5144 tasks, ~4613 completions, 317 templates) | ~10 k update cells | ~4 s |
-| Step 11 (habits + repoint 5144 tasks)  |      ~6 k update cells | ~3 s |
-| Step 12 (milestones)         |                      0 |     <1 s |
-| Step 13 (task_templates)     |                    317 |     <1 s |
-| Step 14 (tasks, the big one) | 5,144 grouped, ~4,613 + 5,144 + 0 repoints | ~30–60 s |
-| Step 15 (task_completions)   |                  4,613 |     ~3 s |
+| Pre-step (quarantine ~2,353)                   |  2,353 rows | <1 s (actual: <100 ms) |
+| Step 2 (habit_completions drop)                |      8 rows | <1 s                   |
+| Step 3 (habit_logs drop)                       |    835 rows | <1 s                   |
+| Step 4 (tags collapse 9,656→3)                 |  9,656 rows | <1 s                   |
+| Steps 5–7 (leisure/self-care verify-only)      | 77 rows scanned | <1 s (no deletes)  |
+| Steps 8+9 merged (courses + course_completions)|  44 + 6 rows | <1 s                  |
+| Step 10 (projects + 4-way repoint)             |     93 rows | <1 s                   |
+| Step 11 (habits + source_habit_id repoint)     |   1,248 rows | <1 s                  |
+| Step 12 (milestones)                           |      0 rows | <1 s                   |
+| Step 13 (task_templates collapse 317→8)        |    317 rows | <1 s                   |
+| **Step 14 (tasks, the big one — 5,144→19)**    |  5,144 rows | **~125 ms actual**     |
+| Step 15 (task_completions collapse 4,613→12)   |  4,613 rows | <1 s                   |
 
-**Total estimate: 1–2 minutes on the device.** A run that takes over 5 minutes is almost certainly stuck on a missing index — halt and investigate.
+**Total dry-run wall-clock: <1 s on host.** Expect 2–10 s on-device. A live run that takes over 1 minute is almost certainly stuck on a missing index — halt and investigate.
 
 ### Stop-and-report triggers
 
@@ -1023,26 +1025,80 @@ Estimates below are rescaled to the 2026-04-21 snapshot (snapshot counts, not au
 
 ## Post-Execution State
 
+### Mandatory post-execution verification
+
+After Step 15 commits, **run this verification suite before re-launching the app**. Any failure or deviation beyond the halt thresholds means the DB is in an unexpected state — restore from backup rather than letting the app sync the bad state up to Firestore.
+
+```sql
+-- 1. Integrity and FK sanity.
+PRAGMA integrity_check;       -- expect: ok
+PRAGMA foreign_key_check;     -- expect: no rows returned
+PRAGMA user_version;          -- expect: 52 (unchanged by Fix D)
+
+-- 2. All-table row counts (compare against "Expected row counts" table below).
+SELECT 'tasks'              AS t, COUNT(*) FROM tasks
+UNION ALL SELECT 'projects',           COUNT(*) FROM projects
+UNION ALL SELECT 'tags',               COUNT(*) FROM tags
+UNION ALL SELECT 'habits',             COUNT(*) FROM habits
+UNION ALL SELECT 'task_completions',   COUNT(*) FROM task_completions
+UNION ALL SELECT 'task_templates',     COUNT(*) FROM task_templates
+UNION ALL SELECT 'habit_completions',  COUNT(*) FROM habit_completions
+UNION ALL SELECT 'habit_logs',         COUNT(*) FROM habit_logs
+UNION ALL SELECT 'milestones',         COUNT(*) FROM milestones
+UNION ALL SELECT 'courses',            COUNT(*) FROM courses
+UNION ALL SELECT 'course_completions', COUNT(*) FROM course_completions
+UNION ALL SELECT 'leisure_logs',       COUNT(*) FROM leisure_logs
+UNION ALL SELECT 'self_care_logs',     COUNT(*) FROM self_care_logs
+UNION ALL SELECT 'self_care_steps',    COUNT(*) FROM self_care_steps
+UNION ALL SELECT 'task_tags',          COUNT(*) FROM task_tags
+UNION ALL SELECT 'quarantine',         COUNT(*) FROM quarantine_task_completions_null_taskid
+UNION ALL SELECT 'sync_metadata',      COUNT(*) FROM sync_metadata;
+
+-- 3. Orphan-reference scans — every row must be zero.
+SELECT 'tasks→projects'           AS rel, COUNT(*) FROM tasks             WHERE project_id       IS NOT NULL AND project_id       NOT IN (SELECT id FROM projects)
+UNION ALL SELECT 'tasks→habits',           COUNT(*) FROM tasks             WHERE source_habit_id  IS NOT NULL AND source_habit_id  NOT IN (SELECT id FROM habits)
+UNION ALL SELECT 'tasks→parent_task',      COUNT(*) FROM tasks             WHERE parent_task_id   IS NOT NULL AND parent_task_id   NOT IN (SELECT id FROM tasks)
+UNION ALL SELECT 'task_completions→tasks', COUNT(*) FROM task_completions  WHERE task_id          IS NOT NULL AND task_id          NOT IN (SELECT id FROM tasks)
+UNION ALL SELECT 'task_completions→projects', COUNT(*) FROM task_completions WHERE project_id    IS NOT NULL AND project_id       NOT IN (SELECT id FROM projects)
+UNION ALL SELECT 'milestones→projects',    COUNT(*) FROM milestones        WHERE                              project_id       NOT IN (SELECT id FROM projects)
+UNION ALL SELECT 'task_templates→projects',COUNT(*) FROM task_templates    WHERE templateProjectId IS NOT NULL AND templateProjectId NOT IN (SELECT id FROM projects)
+UNION ALL SELECT 'course_completions→courses', COUNT(*) FROM course_completions WHERE                          course_id         NOT IN (SELECT id FROM courses)
+UNION ALL SELECT 'task_tags→tasks',        COUNT(*) FROM task_tags         WHERE                              taskId            NOT IN (SELECT id FROM tasks)
+UNION ALL SELECT 'task_tags→tags',         COUNT(*) FROM task_tags         WHERE                              tagId             NOT IN (SELECT id FROM tags);
+
+-- 4. cloud_id uniqueness not violated (unique index would have prevented this, but confirm).
+SELECT 'tasks_cloud_dup'            AS t, COUNT(*) FROM (SELECT cloud_id FROM tasks            WHERE cloud_id IS NOT NULL GROUP BY cloud_id HAVING COUNT(*) > 1)
+UNION ALL SELECT 'tags_cloud_dup',             COUNT(*) FROM (SELECT cloud_id FROM tags             WHERE cloud_id IS NOT NULL GROUP BY cloud_id HAVING COUNT(*) > 1)
+UNION ALL SELECT 'projects_cloud_dup',         COUNT(*) FROM (SELECT cloud_id FROM projects         WHERE cloud_id IS NOT NULL GROUP BY cloud_id HAVING COUNT(*) > 1)
+UNION ALL SELECT 'habits_cloud_dup',           COUNT(*) FROM (SELECT cloud_id FROM habits           WHERE cloud_id IS NOT NULL GROUP BY cloud_id HAVING COUNT(*) > 1)
+UNION ALL SELECT 'tc_cloud_dup',               COUNT(*) FROM (SELECT cloud_id FROM task_completions WHERE cloud_id IS NOT NULL GROUP BY cloud_id HAVING COUNT(*) > 1)
+UNION ALL SELECT 'task_templates_cloud_dup',   COUNT(*) FROM (SELECT cloud_id FROM task_templates   WHERE cloud_id IS NOT NULL GROUP BY cloud_id HAVING COUNT(*) > 1);
+```
+
+On the 2026-04-21 host dry-run: all three sections returned the expected values — `integrity_check = ok`, zero FK violations, zero orphan references across all 10 relationships, zero cloud_id duplicates across all 6 checked tables.
+
 ### Expected row counts
+
+Counts below are from the **2026-04-21 dry-run** against the host-side copy of the post-migration snapshot. Live-execution values should land within ±30% of these (tasks/habits may drift upward by a few rows if the user authored new items between snapshot and live run).
 
 | Table              |  After |
 |--------------------|-------:|
-| tasks              |    ~12 |
-| tags               |     ~3 |
-| projects           |     ~2 |
-| habits             |     ~3 |
-| task_completions   |    ~77 |
-| task_templates     |     ~8 |
+| tasks              |     19 |
+| tags               |      3 |
+| projects           |      2 |
+| habits             |     12 |
+| task_completions   |     12 |
+| task_templates     |      8 |
 | habit_completions  |      0 |
 | habit_logs         |      0 |
-| milestones         | deduped per `(project_id, title)` |
-| courses            | deduped per `trim(name)` |
-| course_completions | deduped per `(date, course_id)` |
-| leisure_logs       | deduped per `date` |
-| self_care_logs     | deduped per `(routine_type, date)` |
-| self_care_steps    | deduped per `(step_id, routine_type)` |
+| courses            |      2 |
+| course_completions |      3 |
+| milestones         |      0 |
+| leisure_logs       |      3 |
+| self_care_logs     |     38 |
+| self_care_steps    |     36 |
 | task_tags          |      0 |
-| quarantine_task_completions_null_taskid | ~2,353 (snapshot) |
+| quarantine_task_completions_null_taskid | 2,353 |
 
 ### `sync_metadata` state
 
@@ -1051,12 +1107,12 @@ Estimates below are rescaled to the 2026-04-21 snapshot (snapshot counts, not au
 
 ### UI changes the user should see
 
-- Task list: ~5,140 duplicates collapse to ~12 canonical tasks.
-- Projects screen: 93 duplicates collapse to ~2.
-- Tags editor: 9,656 collapse to ~3.
-- Habits: 1,248 collapse to ~3. Previously-orphaned `habit_completions` / `habit_logs` that were driving phantom streaks are gone, so habit streak counts may drop to 0 until the user records new completions.
+- Task list: ~5,140 duplicates collapse to **19 canonical tasks** (per dry-run).
+- Projects screen: 93 duplicates collapse to **2** (`Cynics and Dreamers`, `PrismTask`).
+- Tags editor: 9,656 collapse to **3** (`assignment`, `code`, `video`).
+- Habits: 1,248 collapse to **12** (6 built-in: Bedtime/Morning Self-Care, Housework, Leisure, Medication, School; 6 user: Cynics and Dreamers, Job Search, Ketamine Therapy, Laundry, Spa, Theater). Previously-orphaned `habit_completions` / `habit_logs` that were driving phantom streaks are gone, so habit streak counts may drop to 0 until the user records new completions.
 - Today screen: the balance bar, overdue count, and "planned" count will reflect the collapsed, authoritative task set.
-- Analytics / dashboard: completion history drops from ~6,966 visible rows to ~77 (with ~2,353 held aside in quarantine). Expect a sharp drop in the contribution grid and completion-rate metrics. This is correct — the prior inflation was the bug.
+- Analytics / dashboard: completion history drops from ~6,966 visible rows to **12** surviving completions (with 2,353 held aside in quarantine and ~4,600 losers deleted). Expect a sharp drop in the contribution grid and completion-rate metrics. This is correct — the prior inflation was the bug.
 
 ---
 
