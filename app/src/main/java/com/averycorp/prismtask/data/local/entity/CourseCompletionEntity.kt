@@ -10,7 +10,8 @@ import androidx.room.PrimaryKey
     tableName = "course_completions",
     indices = [
         Index(value = ["date", "course_id"], unique = true),
-        Index(value = ["course_id"])
+        Index(value = ["course_id"]),
+        Index(value = ["cloud_id"], unique = true)
     ],
     foreignKeys = [
         ForeignKey(
@@ -23,6 +24,7 @@ import androidx.room.PrimaryKey
 )
 data class CourseCompletionEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    @ColumnInfo(name = "cloud_id") val cloudId: String? = null,
     @ColumnInfo(name = "date") val date: Long,
     @ColumnInfo(name = "course_id") val courseId: Long,
     @ColumnInfo(name = "completed") val completed: Boolean = false,

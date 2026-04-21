@@ -29,6 +29,7 @@ constructor(
         private val DRIFT_CLEANUP_DONE = booleanPreferencesKey("drift_cleanup_done")
         private val BUILT_IN_BACKFILL_DONE = booleanPreferencesKey("built_in_backfill_done")
         private val NEW_ENTITIES_BACKFILL_DONE = booleanPreferencesKey("new_entities_backfill_done")
+        private val INITIAL_UPLOAD_DONE = booleanPreferencesKey("initial_upload_done")
     }
 
     suspend fun isBuiltInsReconciled(): Boolean =
@@ -57,5 +58,19 @@ constructor(
 
     suspend fun setNewEntitiesBackfillDone(done: Boolean) {
         context.builtInSyncDataStore.edit { it[NEW_ENTITIES_BACKFILL_DONE] = done }
+    }
+
+    /**
+     * Guard for [com.averycorp.prismtask.data.remote.SyncService.initialUpload].
+     * Set to true only after the upload loop finishes successfully; stays false
+     * on failure so a retry can happen on the next sign-in. Prevents the
+     * duplication spiral where every sign-in re-uploaded every local row as a
+     * brand-new Firestore doc.
+     */
+    suspend fun isInitialUploadDone(): Boolean =
+        context.builtInSyncDataStore.data.first()[INITIAL_UPLOAD_DONE] ?: false
+
+    suspend fun setInitialUploadDone(done: Boolean) {
+        context.builtInSyncDataStore.edit { it[INITIAL_UPLOAD_DONE] = done }
     }
 }

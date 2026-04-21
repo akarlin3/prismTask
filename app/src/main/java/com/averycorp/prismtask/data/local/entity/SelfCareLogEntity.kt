@@ -8,12 +8,15 @@ import androidx.room.PrimaryKey
 @Entity(
     tableName = "self_care_logs",
     indices = [
-        Index(value = ["routine_type", "date"], unique = true)
+        Index(value = ["routine_type", "date"], unique = true),
+        Index(value = ["cloud_id"], unique = true)
     ]
 )
 data class SelfCareLogEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
+    @ColumnInfo(name = "cloud_id")
+    val cloudId: String? = null,
     @ColumnInfo(name = "routine_type")
     val routineType: String,
     val date: Long,

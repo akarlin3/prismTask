@@ -56,12 +56,7 @@ constructor(
             val result = authManager.signInWithGoogle(idToken)
             if (result.isSuccess) {
                 _authState.value = AuthState.SignedIn
-                // Initial upload on first sign-in (launched in SyncService's own scope
-                // so it survives navigation away from AuthScreen)
-                syncService.launchInitialUpload()
-                syncService.startRealtimeListeners()
-                sortPreferencesSyncService.startAfterSignIn()
-                themePreferencesSyncService.startAfterSignIn()
+                runPostSignInSync()
             } else {
                 // Firebase rejected the token (commonly a stale/revoked
                 // credential from Credential Manager auto-select). Clear the
@@ -90,10 +85,7 @@ constructor(
             try {
                 EmulatorAuthHelper.signInAsTestUser()
                 _authState.value = AuthState.SignedIn
-                syncService.launchInitialUpload()
-                syncService.startRealtimeListeners()
-                sortPreferencesSyncService.startAfterSignIn()
-                themePreferencesSyncService.startAfterSignIn()
+                runPostSignInSync()
             } catch (e: Exception) {
                 _authState.value = AuthState.Error(
                     "Emulator sign-in failed: ${e.message ?: e.javaClass.simpleName}"
@@ -110,6 +102,49 @@ constructor(
             authManager.signOut()
             _authState.value = AuthState.SignedOut
         }
+    }
+
+    /**
+     * Fix B — pull-before-upload post-sign-in sequence.
+     *
+     * The former flow launched initialUpload and startRealtimeListeners
+     * back-to-back on the same scope. Firestore's initial snapshot for the
+     * just-registered listener then raced the upload loop: the upload's
+     * `tagDao.getAllTagsOnce()` / `taskDao.getAllTasksOnce()` picked up
+     * rows the concurrent pull had just inserted, and re-uploaded them as
+     * brand-new cloud docs. That produced the 403× tasks / 722× tags /
+     * 15× task_completions Firestore corruption.
+     *
+     * New order:
+     *   1. fullSync — pushes nothing on first sign-in (no pending actions)
+     *      and pulls the canonical cloud state into Room. Holds isSyncing,
+     *      so any in-flight listener pull (if one somehow arrives) defers.
+     *   2. initialUpload — guarded by
+     *      [com.averycorp.prismtask.data.preferences.BuiltInSyncPreferences.isInitialUploadDone]
+     *      via Fix A. Repeat sign-ins become no-ops here. On first sign-in,
+     *      uploads local-only rows to the cloud and sets the flag.
+     *   3. startRealtimeListeners last — at this point, local and cloud
+     *      are already in agreement, so the listener's initial snapshot
+     *      produces at most a benign duplicate-detection pull.
+     *
+     * Each step swallows exceptions locally (they're already logged inside
+     * the sync service). Continuing past a failure lets the user operate
+     * locally-only while a retry happens on the next sign-in or app boot.
+     */
+    private suspend fun runPostSignInSync() {
+        try {
+            syncService.fullSync(trigger = "signIn")
+        } catch (_: Exception) {
+            // Error already logged by fullSync/markSyncCompleted.
+        }
+        try {
+            syncService.initialUpload()
+        } catch (_: Exception) {
+            // Error already logged by initialUpload.
+        }
+        syncService.startRealtimeListeners()
+        sortPreferencesSyncService.startAfterSignIn()
+        themePreferencesSyncService.startAfterSignIn()
     }
 
     fun onSkipSignIn() {

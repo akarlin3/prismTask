@@ -2,12 +2,18 @@ package com.averycorp.prismtask.data.local.entity
 
 import androidx.room.ColumnInfo
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "projects")
+@Entity(
+    tableName = "projects",
+    indices = [Index(value = ["cloud_id"], unique = true)]
+)
 data class ProjectEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
+    @ColumnInfo(name = "cloud_id")
+    val cloudId: String? = null,
     val name: String,
     val description: String? = null,
     /** Legacy hex color field; kept dual-written alongside [themeColorKey] for back-compat. */

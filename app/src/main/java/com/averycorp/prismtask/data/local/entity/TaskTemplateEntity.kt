@@ -16,14 +16,22 @@ import androidx.room.PrimaryKey
             onDelete = ForeignKey.SET_NULL
         )
     ],
-    indices = [Index("templateProjectId"), Index("userId")]
+    indices = [
+        Index("templateProjectId"),
+        Index("userId"),
+        Index(value = ["cloud_id"], unique = true)
+    ]
 )
 data class TaskTemplateEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
+    // Firestore document ID (v52+). Populated by sync pull; unique index enforces
+    // one local row per cloud doc. NULL for rows not yet synced.
+    @ColumnInfo(name = "cloud_id")
+    val cloudId: String? = null,
     // Firebase UID for sync
     val userId: String? = null,
-    // Backend ID for sync
+    // Backend API numeric ID (distinct from cloudId above)
     val remoteId: Int? = null,
     val name: String,
     val description: String? = null,

@@ -982,6 +982,118 @@ val MIGRATION_50_51 = object : Migration(50, 51) {
     }
 }
 
+// v51→v52 adds a nullable `cloud_id` column + unique index on every syncable
+// entity, backfilled from sync_metadata.cloud_id. Fix E of the sync-duplication
+// remediation: the Firestore document ID becomes a first-class, uniqueness-
+// enforced column on the entity instead of living only in the separate
+// sync_metadata table. Duplicate (entity_type, cloud_id) mappings in
+// sync_metadata (a symptom of the pre-fix duplication race) are resolved by
+// keeping the mapping with the lowest local_id and nulling the column on the
+// rest. sync_metadata is NOT touched by this migration — the cleanup of that
+// table comes in a later phase. The table/entity_type pairs below must mirror
+// `SyncService.collectionNameFor` to stay consistent with the rest of sync.
+val MIGRATION_51_52 = object : Migration(51, 52) {
+    private val syncableTables = listOf(
+        "tasks"              to "task",
+        "projects"           to "project",
+        "tags"               to "tag",
+        "habits"             to "habit",
+        "habit_completions"  to "habit_completion",
+        "habit_logs"         to "habit_log",
+        "task_completions"   to "task_completion",
+        "task_templates"     to "task_template",
+        "milestones"         to "milestone",
+        "courses"            to "course",
+        "course_completions" to "course_completion",
+        "leisure_logs"       to "leisure_log",
+        "self_care_steps"    to "self_care_step",
+        "self_care_logs"     to "self_care_log"
+    )
+
+    override fun migrate(db: SupportSQLiteDatabase) {
+        for ((table, entityType) in syncableTables) {
+            // A. Add nullable TEXT column. No DEFAULT — new rows pass NULL.
+            db.execSQL("ALTER TABLE `$table` ADD COLUMN `cloud_id` TEXT")
+
+            // B. Backfill from sync_metadata. NULLIF maps the sentinel empty
+            //    string (SyncMetadataEntity.cloudId defaults to "") to NULL so
+            //    unmapped rows don't collide on the unique index.
+            db.execSQL(
+                """
+                UPDATE `$table` SET `cloud_id` = (
+                    SELECT NULLIF(sm.cloud_id, '')
+                    FROM sync_metadata sm
+                    WHERE sm.local_id = `$table`.id
+                      AND sm.entity_type = '$entityType'
+                )
+                """.trimIndent()
+            )
+
+            // C. Detect duplicate (entity_type, cloud_id) mappings. Keep the
+            //    mapping whose local_id is smallest; NULL cloud_id on the
+            //    others so the unique index can be created without
+            //    constraint violations.
+            val collisionCursor = db.query(
+                """
+                SELECT cloud_id, GROUP_CONCAT(local_id) AS local_ids, COUNT(*) AS n
+                FROM sync_metadata
+                WHERE entity_type = '$entityType' AND cloud_id != ''
+                GROUP BY cloud_id
+                HAVING n > 1
+                """.trimIndent()
+            )
+            var collisionCount = 0
+            collisionCursor.use { c ->
+                while (c.moveToNext()) {
+                    collisionCount++
+                    val cid = c.getString(0)
+                    val ids = c.getString(1)
+                    val n = c.getInt(2)
+                    android.util.Log.w(
+                        "PrismSync.Migration_51_52",
+                        "collision: entity_type=$entityType cloudId=$cid " +
+                            "local_ids=[$ids] n=$n — keeping lowest local_id, " +
+                            "nulling cloud_id on rest"
+                    )
+                }
+            }
+            if (collisionCount > 0) {
+                db.execSQL(
+                    """
+                    UPDATE `$table` SET `cloud_id` = NULL
+                    WHERE id IN (
+                        SELECT sm.local_id
+                        FROM sync_metadata sm
+                        JOIN (
+                            SELECT cloud_id, MIN(local_id) AS keep_id
+                            FROM sync_metadata
+                            WHERE entity_type = '$entityType' AND cloud_id != ''
+                            GROUP BY cloud_id
+                            HAVING COUNT(*) > 1
+                        ) winners ON winners.cloud_id = sm.cloud_id
+                        WHERE sm.entity_type = '$entityType'
+                          AND sm.local_id <> winners.keep_id
+                    )
+                    """.trimIndent()
+                )
+                android.util.Log.w(
+                    "PrismSync.Migration_51_52",
+                    "entity_type=$entityType: $collisionCount colliding cloudId(s) resolved"
+                )
+            }
+
+            // D. Create unique index AFTER collision resolution so inserts
+            //    can safely multiply NULLs (SQLite treats each NULL as
+            //    distinct in a UNIQUE index) while rejecting duplicate
+            //    non-null cloudIds.
+            db.execSQL(
+                "CREATE UNIQUE INDEX IF NOT EXISTS `index_${table}_cloud_id` " +
+                    "ON `$table` (`cloud_id`)"
+            )
+        }
+    }
+}
+
 val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_1_2,
     MIGRATION_2_3,
@@ -1032,5 +1144,6 @@ val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_47_48,
     MIGRATION_48_49,
     MIGRATION_49_50,
-    MIGRATION_50_51
+    MIGRATION_50_51,
+    MIGRATION_51_52
 )

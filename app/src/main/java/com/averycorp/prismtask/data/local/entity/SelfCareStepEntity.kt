@@ -2,11 +2,16 @@ package com.averycorp.prismtask.data.local.entity
 
 import androidx.room.ColumnInfo
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "self_care_steps")
+@Entity(
+    tableName = "self_care_steps",
+    indices = [Index(value = ["cloud_id"], unique = true)]
+)
 data class SelfCareStepEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    @ColumnInfo(name = "cloud_id") val cloudId: String? = null,
     @ColumnInfo(name = "step_id") val stepId: String,
     @ColumnInfo(name = "routine_type") val routineType: String,
     val label: String,

@@ -2,11 +2,16 @@ package com.averycorp.prismtask.data.local.entity
 
 import androidx.room.ColumnInfo
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "courses")
+@Entity(
+    tableName = "courses",
+    indices = [Index(value = ["cloud_id"], unique = true)]
+)
 data class CourseEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    @ColumnInfo(name = "cloud_id") val cloudId: String? = null,
     @ColumnInfo(name = "name") val name: String,
     @ColumnInfo(name = "code") val code: String,
     @ColumnInfo(name = "color") val color: Int = 0,

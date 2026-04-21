@@ -19,12 +19,15 @@ import androidx.room.PrimaryKey
     indices = [
         Index("habit_id"),
         Index("completed_date"),
-        Index("completed_date_local")
+        Index("completed_date_local"),
+        Index(value = ["cloud_id"], unique = true)
     ]
 )
 data class HabitCompletionEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
+    @ColumnInfo(name = "cloud_id")
+    val cloudId: String? = null,
     @ColumnInfo(name = "habit_id")
     val habitId: Long,
     @ColumnInfo(name = "completed_date")

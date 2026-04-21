@@ -75,3 +75,12 @@ firebase-emulator-data/
 firebase-debug.log
 firestore-debug.log
 ui-debug.log
+audit/
+
+# Local-only artifacts from sync audit — never commit
+# (service-account keys = full admin access; DB dumps = user data)
+prismtask-sa.json
+*-firebase-adminsdk-*.json
+averytask.db
+averytask.db-shm
+averytask.db-wal

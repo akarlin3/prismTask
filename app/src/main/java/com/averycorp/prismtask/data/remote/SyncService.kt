@@ -67,12 +67,88 @@ constructor(
         authManager.userId?.let { firestore.collection("users").document(it).collection(collection) }
 
     suspend fun initialUpload() {
-        val userId = authManager.userId ?: return
+        if (authManager.userId == null) return
 
+        // Fix A — one-shot guard. Every sign-in used to re-run the entire
+        // upload loop and mint brand-new Firestore docs for every local row,
+        // fueling the duplication spiral. The flag is only set on successful
+        // completion so a mid-run failure stays retryable on the next sign-in.
+        if (builtInSyncPreferences.isInitialUploadDone()) {
+            logger.info(operation = "initialUpload.skipped", detail = "reason=already_done")
+            return
+        }
+
+        // Fix B — hold [isSyncing] for the duration of the upload loop so
+        // listener-triggered pulls defer (they already check this flag at
+        // line ~1300). Mirrors the pattern used by [fullSync]. AuthViewModel
+        // serializes fullSync → initialUpload so there is normally no
+        // contention here, but the guard is kept as a defense-in-depth.
+        if (isSyncing) {
+            logger.info(
+                operation = "initialUpload.deferred",
+                detail = "reason=another_sync_running"
+            )
+            return
+        }
+        isSyncing = true
+        logger.info(operation = "initialUpload.started")
+        val uploadStart = System.currentTimeMillis()
+        var success = false
+        try {
+            doInitialUpload()
+            builtInSyncPreferences.setInitialUploadDone(true)
+            success = true
+            logger.info(
+                operation = "initialUpload.completed",
+                status = "success",
+                durationMs = System.currentTimeMillis() - uploadStart
+            )
+        } catch (e: Throwable) {
+            logger.error(
+                operation = "initialUpload.failed",
+                durationMs = System.currentTimeMillis() - uploadStart,
+                throwable = e
+            )
+            throw e
+        } finally {
+            isSyncing = false
+        }
+
+        // Fix B mitigation — while [isSyncing] was held above, any
+        // listener-triggered pull callback short-circuited at
+        // `if (isSyncing) return@launch` (line ~1298). Those callbacks are
+        // fire-and-forget; once dropped, they don't re-run by themselves.
+        // Run exactly one pullRemoteChanges() after release so any cloud
+        // state that changed during the upload window still lands locally.
+        // Realtime listeners keep firing normally for everything after this.
+        if (success) {
+            try {
+                val applied = pullRemoteChanges()
+                logger.debug(
+                    operation = "initialUpload.post_release_pull",
+                    status = "success",
+                    detail = "applied=$applied"
+                )
+            } catch (e: Throwable) {
+                logger.error(
+                    operation = "initialUpload.post_release_pull",
+                    throwable = e
+                )
+            }
+        }
+    }
+
+    private suspend fun doInitialUpload() {
         val projects = projectDao.getAllProjectsOnce()
         logger.debug("upload.projects", status = "begin", detail = "count=${projects.size}")
         for (project in projects) {
             try {
+                // Fix C — skip rows that already have a cloud mapping. On
+                // fresh-install after a fullSync pull, every local row already
+                // has a sync_metadata entry from the pull path; without this
+                // guard initialUpload would re-upload all of them as new
+                // auto-ID docs and duplicate the cloud state.
+                if (syncMetadataDao.getCloudId(project.id, "project") != null) continue
                 val docRef = userCollection("projects")?.document() ?: continue
                 docRef.set(SyncMapper.projectToMap(project)).await()
                 syncMetadataDao.upsert(
@@ -103,6 +179,7 @@ constructor(
             val milestones = milestoneDao.getMilestonesOnce(project.id)
             for (milestone in milestones) {
                 try {
+                    if (syncMetadataDao.getCloudId(milestone.id, "milestone") != null) continue
                     val docRef = userCollection("milestones")?.document() ?: continue
                     docRef.set(SyncMapper.milestoneToMap(milestone, projectCloudId)).await()
                     syncMetadataDao.upsert(
@@ -129,6 +206,7 @@ constructor(
         logger.debug("upload.tags", status = "begin", detail = "count=${tags.size}")
         for (tag in tags) {
             try {
+                if (syncMetadataDao.getCloudId(tag.id, "tag") != null) continue
                 val docRef = userCollection("tags")?.document() ?: continue
                 docRef.set(SyncMapper.tagToMap(tag)).await()
                 syncMetadataDao.upsert(
@@ -154,6 +232,7 @@ constructor(
         logger.debug("upload.habits", status = "begin", detail = "count=${habits.size}")
         for (habit in habits) {
             try {
+                if (syncMetadataDao.getCloudId(habit.id, "habit") != null) continue
                 val docRef = userCollection("habits")?.document() ?: continue
                 docRef.set(SyncMapper.habitToMap(habit)).await()
                 syncMetadataDao.upsert(
@@ -181,6 +260,7 @@ constructor(
             val habitCloudId = syncMetadataDao.getCloudId(habit.id, "habit") ?: continue
             for (completion in completions) {
                 try {
+                    if (syncMetadataDao.getCloudId(completion.id, "habit_completion") != null) continue
                     val docRef = userCollection("habit_completions")?.document() ?: continue
                     docRef.set(SyncMapper.habitCompletionToMap(completion, habitCloudId)).await()
                     syncMetadataDao.upsert(
@@ -208,6 +288,7 @@ constructor(
             val habitCloudId = syncMetadataDao.getCloudId(habit.id, "habit") ?: continue
             for (log in logs) {
                 try {
+                    if (syncMetadataDao.getCloudId(log.id, "habit_log") != null) continue
                     val docRef = userCollection("habit_logs")?.document() ?: continue
                     docRef.set(SyncMapper.habitLogToMap(log, habitCloudId)).await()
                     syncMetadataDao.upsert(
@@ -233,6 +314,7 @@ constructor(
         logger.debug("upload.tasks", status = "begin", detail = "count=${tasks.size}")
         for (task in tasks) {
             try {
+                if (syncMetadataDao.getCloudId(task.id, "task") != null) continue
                 val tagIds = tagDao.getTagIdsForTaskOnce(task.id).mapNotNull { tagId ->
                     syncMetadataDao.getCloudId(tagId, "tag")
                 }
@@ -265,6 +347,7 @@ constructor(
         logger.debug("upload.task_completions", status = "begin", detail = "count=${taskCompletions.size}")
         for (completion in taskCompletions) {
             try {
+                if (syncMetadataDao.getCloudId(completion.id, "task_completion") != null) continue
                 val taskCloudId = completion.taskId?.let { syncMetadataDao.getCloudId(it, "task") }
                 val projectCloudId = completion.projectId?.let { syncMetadataDao.getCloudId(it, "project") }
                 val docRef = userCollection("task_completions")?.document() ?: continue
@@ -291,6 +374,7 @@ constructor(
         logger.debug("upload.task_templates", status = "begin", detail = "count=${templates.size}")
         for (template in templates) {
             try {
+                if (syncMetadataDao.getCloudId(template.id, "task_template") != null) continue
                 val templateProjectCloudId = template.templateProjectId?.let { syncMetadataDao.getCloudId(it, "project") }
                 val docRef = userCollection("task_templates")?.document() ?: continue
                 docRef.set(SyncMapper.taskTemplateToMap(template, templateProjectCloudId)).await()
@@ -333,6 +417,7 @@ constructor(
         logger.debug("upload.courses", status = "begin", detail = "count=${courses.size}")
         for (course in courses) {
             try {
+                if (syncMetadataDao.getCloudId(course.id, "course") != null) continue
                 val docRef = userCollection("courses")?.document() ?: continue
                 docRef.set(SyncMapper.courseToMap(course)).await()
                 syncMetadataDao.upsert(
@@ -351,6 +436,7 @@ constructor(
         logger.debug("upload.course_completions", status = "begin", detail = "count=${courseCompletions.size}")
         for (completion in courseCompletions) {
             try {
+                if (syncMetadataDao.getCloudId(completion.id, "course_completion") != null) continue
                 val courseCloudId = syncMetadataDao.getCloudId(completion.courseId, "course") ?: continue
                 val docRef = userCollection("course_completions")?.document() ?: continue
                 docRef.set(SyncMapper.courseCompletionToMap(completion, courseCloudId)).await()
@@ -372,6 +458,7 @@ constructor(
         logger.debug("upload.leisure_logs", status = "begin", detail = "count=${leisureLogs.size}")
         for (log in leisureLogs) {
             try {
+                if (syncMetadataDao.getCloudId(log.id, "leisure_log") != null) continue
                 val docRef = userCollection("leisure_logs")?.document() ?: continue
                 docRef.set(SyncMapper.leisureLogToMap(log)).await()
                 syncMetadataDao.upsert(
@@ -389,6 +476,7 @@ constructor(
         logger.debug("upload.self_care_steps", status = "begin", detail = "count=${selfCareSteps.size}")
         for (step in selfCareSteps) {
             try {
+                if (syncMetadataDao.getCloudId(step.id, "self_care_step") != null) continue
                 val docRef = userCollection("self_care_steps")?.document() ?: continue
                 docRef.set(SyncMapper.selfCareStepToMap(step)).await()
                 syncMetadataDao.upsert(
@@ -407,6 +495,7 @@ constructor(
         logger.debug("upload.self_care_logs", status = "begin", detail = "count=${selfCareLogs.size}")
         for (log in selfCareLogs) {
             try {
+                if (syncMetadataDao.getCloudId(log.id, "self_care_log") != null) continue
                 val docRef = userCollection("self_care_logs")?.document() ?: continue
                 docRef.set(SyncMapper.selfCareLogToMap(log)).await()
                 syncMetadataDao.upsert(

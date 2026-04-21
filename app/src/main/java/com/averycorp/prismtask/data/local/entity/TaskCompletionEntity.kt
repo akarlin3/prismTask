@@ -25,12 +25,15 @@ import androidx.room.PrimaryKey
     indices = [
         Index("completed_date"),
         Index("project_id"),
-        Index("task_id")
+        Index("task_id"),
+        Index(value = ["cloud_id"], unique = true)
     ]
 )
 data class TaskCompletionEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
+    @ColumnInfo(name = "cloud_id")
+    val cloudId: String? = null,
     @ColumnInfo(name = "task_id")
     val taskId: Long? = null,
     @ColumnInfo(name = "project_id")

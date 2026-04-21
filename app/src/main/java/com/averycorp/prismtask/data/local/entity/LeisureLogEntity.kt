@@ -7,11 +7,16 @@ import androidx.room.PrimaryKey
 
 @Entity(
     tableName = "leisure_logs",
-    indices = [Index("date", unique = true)]
+    indices = [
+        Index("date", unique = true),
+        Index(value = ["cloud_id"], unique = true)
+    ]
 )
 data class LeisureLogEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
+    @ColumnInfo(name = "cloud_id")
+    val cloudId: String? = null,
     @ColumnInfo(name = "date")
     val date: Long,
     @ColumnInfo(name = "music_pick")

@@ -24,12 +24,15 @@ import androidx.room.PrimaryKey
     ],
     indices = [
         Index("project_id"),
-        Index("is_completed")
+        Index("is_completed"),
+        Index(value = ["cloud_id"], unique = true)
     ]
 )
 data class MilestoneEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
+    @ColumnInfo(name = "cloud_id")
+    val cloudId: String? = null,
     @ColumnInfo(name = "project_id")
     val projectId: Long,
     val title: String,

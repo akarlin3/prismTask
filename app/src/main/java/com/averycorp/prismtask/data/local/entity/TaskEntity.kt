@@ -27,12 +27,15 @@ import androidx.room.PrimaryKey
         Index("parent_task_id"),
         Index("due_date"),
         Index("is_completed"),
-        Index("priority")
+        Index("priority"),
+        Index(value = ["cloud_id"], unique = true)
     ]
 )
 data class TaskEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
+    @ColumnInfo(name = "cloud_id")
+    val cloudId: String? = null,
     val title: String,
     val description: String? = null,
     @ColumnInfo(name = "due_date")
