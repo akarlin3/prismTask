@@ -14,6 +14,8 @@ import com.averycorp.prismtask.data.local.entity.TaskEntity
  *    along via foreign-key CASCADE when their parent is deleted, and
  *    completed/archived work is preserved.
  *  - Habits: grouped by (normalized name, frequencyPeriod, targetFrequency).
+ *    Built-in habits (isBuiltIn && templateKey != null) are additionally
+ *    grouped by templateKey so that name-drifted duplicates are caught too.
  *    Archived habits are skipped.
  *  - Projects: grouped by normalized name. Archived projects are skipped.
  *
@@ -38,6 +40,16 @@ object DuplicateCleanupPlanner {
         val logCount: Int
     )
 
+    /**
+     * Describes a merge operation: the habit with [keeperId] is kept and
+     * all habits in [loserIds] should have their completions reassigned to
+     * [keeperId] before being deleted.
+     */
+    data class HabitMerge(
+        val keeperId: Long,
+        val loserIds: List<Long>
+    )
+
     fun findTaskDuplicatesToDelete(
         tasks: List<TaskEntity>,
         extras: Map<Long, TaskExtras>
@@ -59,24 +71,66 @@ object DuplicateCleanupPlanner {
             }
     }
 
-    fun findHabitDuplicatesToDelete(
+    /**
+     * Returns the full merge plan for duplicate habits: each [HabitMerge]
+     * names the keeper and the losers (whose completions should be reassigned
+     * to the keeper before deletion).
+     *
+     * Duplicate detection runs two passes:
+     *  1. Name-based: habits with the same (normalized name, frequencyPeriod,
+     *     targetFrequency) are duplicates.
+     *  2. Template-key-based: built-in habits (isBuiltIn = true) that share
+     *     the same non-null templateKey are duplicates even when their names
+     *     have drifted.
+     *
+     * A habit already covered by the template-key pass is excluded from the
+     * name-based pass to prevent it appearing in two separate merge groups.
+     */
+    fun planHabitDuplicates(
         habits: List<HabitEntity>,
         extras: Map<Long, HabitExtras>
-    ): List<Long> {
+    ): List<HabitMerge> {
         val candidates = habits.filter { !it.isArchived }
-        return candidates
+
+        val groups = mutableListOf<List<HabitEntity>>()
+        val coveredByTemplateKey = mutableSetOf<Long>()
+
+        // Pass 1: group built-in habits by templateKey.
+        candidates
+            .filter { it.isBuiltIn && it.templateKey != null }
+            .groupBy { it.templateKey!! }
+            .values
+            .filter { it.size > 1 }
+            .forEach { group ->
+                groups.add(group)
+                group.forEach { coveredByTemplateKey.add(it.id) }
+            }
+
+        // Pass 2: group remaining habits by (name, frequencyPeriod, targetFrequency).
+        candidates
+            .filter { it.id !in coveredByTemplateKey }
             .groupBy { Triple(normalize(it.name), it.frequencyPeriod, it.targetFrequency) }
             .values
             .filter { it.size > 1 }
-            .flatMap { group ->
-                val keeper = group.maxWithOrNull(
-                    compareBy<HabitEntity> { scoreHabit(it, extras[it.id]) }
-                        .thenByDescending { it.createdAt }
-                        .thenByDescending { it.id }
-                ) ?: return@flatMap emptyList()
-                group.filter { it.id != keeper.id }.map { it.id }
-            }
+            .forEach { groups.add(it) }
+
+        return groups.map { group ->
+            val keeper = group.maxWith(
+                compareBy<HabitEntity> { scoreHabit(it, extras[it.id]) }
+                    .thenByDescending { it.createdAt }
+                    .thenByDescending { it.id }
+            )
+            HabitMerge(
+                keeperId = keeper.id,
+                loserIds = group.filter { it.id != keeper.id }.map { it.id }
+            )
+        }
     }
+
+    fun findHabitDuplicatesToDelete(
+        habits: List<HabitEntity>,
+        extras: Map<Long, HabitExtras>
+    ): List<Long> = planHabitDuplicates(habits, extras).flatMap { it.loserIds }
 
     fun findProjectDuplicatesToDelete(projects: List<ProjectEntity>): List<Long> {
         val candidates = projects.filter { it.archivedAt == null }

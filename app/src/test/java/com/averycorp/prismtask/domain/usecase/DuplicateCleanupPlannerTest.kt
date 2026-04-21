@@ -51,6 +51,8 @@ class DuplicateCleanupPlannerTest {
         category: String? = null,
         reminderIntervalMillis: Long? = null,
         isArchived: Boolean = false,
+        isBuiltIn: Boolean = false,
+        templateKey: String? = null,
         createdAt: Long = 1_000L
     ): HabitEntity = HabitEntity(
         id = id,
@@ -62,6 +64,8 @@ class DuplicateCleanupPlannerTest {
         category = category,
         reminderIntervalMillis = reminderIntervalMillis,
         isArchived = isArchived,
+        isBuiltIn = isBuiltIn,
+        templateKey = templateKey,
         createdAt = createdAt,
         updatedAt = createdAt
     )
@@ -278,6 +282,75 @@ class DuplicateCleanupPlannerTest {
         )
         val result = DuplicateCleanupPlanner.findHabitDuplicatesToDelete(habits, emptyMap())
         assertEquals(listOf(2L), result)
+    }
+
+    // --- Built-in habit templateKey-based detection ---
+
+    @Test
+    fun `built-in habits with same templateKey are duplicates even with different names`() {
+        val habits = listOf(
+            habit(1, "Drink Water", isBuiltIn = true, templateKey = "drink_water"),
+            habit(2, "Drink 8 Glasses", isBuiltIn = true, templateKey = "drink_water")
+        )
+        val result = DuplicateCleanupPlanner.findHabitDuplicatesToDelete(habits, emptyMap())
+        assertEquals(1, result.size)
+    }
+
+    @Test
+    fun `built-in habits with different templateKeys are not duplicates`() {
+        val habits = listOf(
+            habit(1, "Meditate", isBuiltIn = true, templateKey = "meditate"),
+            habit(2, "Exercise", isBuiltIn = true, templateKey = "exercise")
+        )
+        val result = DuplicateCleanupPlanner.findHabitDuplicatesToDelete(habits, emptyMap())
+        assertTrue(result.isEmpty())
+    }
+
+    @Test
+    fun `non-built-in habits with same name as built-in are not grouped by templateKey`() {
+        val habits = listOf(
+            habit(1, "Meditate", isBuiltIn = true, templateKey = "meditate"),
+            habit(2, "Meditate", isBuiltIn = false, templateKey = null)
+        )
+        // Same name → caught by name-based pass, not templateKey pass
+        val result = DuplicateCleanupPlanner.findHabitDuplicatesToDelete(habits, emptyMap())
+        assertEquals(1, result.size)
+    }
+
+    @Test
+    fun `planHabitDuplicates exposes keeperId for built-in templateKey group`() {
+        val habits = listOf(
+            habit(1, "Drink Water", isBuiltIn = true, templateKey = "drink_water"),
+            habit(2, "Drink 8 Glasses", isBuiltIn = true, templateKey = "drink_water",
+                description = "stay hydrated")
+        )
+        // Habit 2 has a description so it scores higher and is the keeper.
+        val merges = DuplicateCleanupPlanner.planHabitDuplicates(habits, emptyMap())
+        assertEquals(1, merges.size)
+        assertEquals(2L, merges[0].keeperId)
+        assertEquals(listOf(1L), merges[0].loserIds)
+    }
+
+    @Test
+    fun `built-in habits with same templateKey not double-counted in name pass`() {
+        // Both habits share templateKey AND same name — should produce exactly one merge group.
+        val habits = listOf(
+            habit(1, "Meditate", isBuiltIn = true, templateKey = "meditate"),
+            habit(2, "Meditate", isBuiltIn = true, templateKey = "meditate")
+        )
+        val merges = DuplicateCleanupPlanner.planHabitDuplicates(habits, emptyMap())
+        assertEquals(1, merges.size)
+        assertEquals(1, merges[0].loserIds.size)
+    }
+
+    @Test
+    fun `archived built-in habit with same templateKey is excluded`() {
+        val habits = listOf(
+            habit(1, "Drink Water", isBuiltIn = true, templateKey = "drink_water", isArchived = true),
+            habit(2, "Drink 8 Glasses", isBuiltIn = true, templateKey = "drink_water")
+        )
+        val result = DuplicateCleanupPlanner.findHabitDuplicatesToDelete(habits, emptyMap())
+        assertTrue(result.isEmpty())
     }
 
     // ---------------- Projects ----------------
