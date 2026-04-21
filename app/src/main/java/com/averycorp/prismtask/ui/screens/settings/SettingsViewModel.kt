@@ -1224,23 +1224,24 @@ constructor(
 
     /**
      * Scans active tasks and habits for duplicates (same title + due date /
-     * same name + frequency). Updates [duplicateCleanupState] with the
-     * result so the UI can show a confirmation dialog or a "no duplicates"
-     * message.
+     * same name + frequency, or same templateKey for built-in habits). Updates
+     * [duplicateCleanupState] with the result so the UI can show a confirmation
+     * dialog or a "no duplicates" message.
      */
     fun scanForDuplicates() {
         if (_duplicateCleanupState.value.isScanning || _duplicateCleanupState.value.isDeleting) return
         viewModelScope.launch {
             _duplicateCleanupState.value = DuplicateCleanupState(isScanning = true)
             try {
-                val (taskIds, habitIds, projectIds) = findDuplicateIds()
+                val result = findDuplicateIds()
+                val habitCount = result.habitMerges.sumOf { it.loserIds.size }
                 _duplicateCleanupState.value =
-                    if (taskIds.isEmpty() && habitIds.isEmpty() && projectIds.isEmpty()) {
+                    if (result.taskIds.isEmpty() && habitCount == 0 && result.projectIds.isEmpty()) {
                         DuplicateCleanupState(noDuplicatesFound = true)
                     } else {
                         DuplicateCleanupState(
                             pendingPreview = DuplicateCleanupState.Preview(
-                                taskIds.size, habitIds.size, projectIds.size
+                                result.taskIds.size, habitCount, result.projectIds.size
                             )
                         )
                     }
@@ -1253,8 +1254,10 @@ constructor(
     }
 
     /**
-     * Re-runs detection and deletes every duplicate task/habit found,
-     * keeping the "most complete" entry in each group.
+     * Re-runs detection and deletes every duplicate task/habit/project found,
+     * keeping the "most complete" entry in each group. For habits, completions
+     * are reassigned to the keeper before deletion so streak history is
+     * preserved.
      */
     fun confirmDeleteDuplicates() {
         val current = _duplicateCleanupState.value
@@ -1262,17 +1265,27 @@ constructor(
         viewModelScope.launch {
             _duplicateCleanupState.value = current.copy(isDeleting = true)
             try {
-                val (taskIds, habitIds, projectIds) = findDuplicateIds()
-                taskIds.forEach { taskRepository.deleteTask(it) }
-                habitIds.forEach { habitRepository.deleteHabit(it) }
-                projectIds.forEach { database.projectDao().deleteById(it) }
+                val result = findDuplicateIds()
+                val completionDao = database.habitCompletionDao()
+                result.taskIds.forEach { taskRepository.deleteTask(it) }
+                for (merge in result.habitMerges) {
+                    for (loserId in merge.loserIds) {
+                        completionDao.reassignHabitId(
+                            oldHabitId = loserId,
+                            newHabitId = merge.keeperId
+                        )
+                        habitRepository.deleteHabit(loserId)
+                    }
+                }
+                result.projectIds.forEach { database.projectDao().deleteById(it) }
+                val habitCount = result.habitMerges.sumOf { it.loserIds.size }
                 _messages.emit(
                     buildString {
                         val parts = listOfNotNull(
-                            if (taskIds.isNotEmpty()) "${taskIds.size} duplicate task${if (taskIds.size == 1) "" else "s"}" else null,
-                            if (habitIds.isNotEmpty()) "${habitIds.size} duplicate habit${if (habitIds.size == 1) "" else "s"}" else null,
-                            if (projectIds.isNotEmpty())
-                                "${projectIds.size} duplicate project${if (projectIds.size == 1) "" else "s"}"
+                            if (result.taskIds.isNotEmpty()) "${result.taskIds.size} duplicate task${if (result.taskIds.size == 1) "" else "s"}" else null,
+                            if (habitCount > 0) "$habitCount duplicate habit${if (habitCount == 1) "" else "s"}" else null,
+                            if (result.projectIds.isNotEmpty())
+                                "${result.projectIds.size} duplicate project${if (result.projectIds.size == 1) "" else "s"}"
                             else null
                         )
                         append("Deleted ")
@@ -1293,7 +1306,13 @@ constructor(
         _duplicateCleanupState.value = DuplicateCleanupState()
     }
 
-    private suspend fun findDuplicateIds(): Triple<List<Long>, List<Long>, List<Long>> =
+    private data class DuplicateScanResult(
+        val taskIds: List<Long>,
+        val habitMerges: List<com.averycorp.prismtask.domain.usecase.DuplicateCleanupPlanner.HabitMerge>,
+        val projectIds: List<Long>
+    )
+
+    private suspend fun findDuplicateIds(): DuplicateScanResult =
         withContext(Dispatchers.IO) {
             val taskDao = database.taskDao()
             val tagDao = database.tagDao()
@@ -1326,14 +1345,14 @@ constructor(
                     logCount = logsByHabit[h.id]?.size ?: 0
                 )
             }
-            val habitIds = com.averycorp.prismtask.domain.usecase.DuplicateCleanupPlanner
-                .findHabitDuplicatesToDelete(habits, habitExtras)
+            val habitMerges = com.averycorp.prismtask.domain.usecase.DuplicateCleanupPlanner
+                .planHabitDuplicates(habits, habitExtras)
 
             val projects = projectDao.getAllProjectsOnce()
             val projectIds = com.averycorp.prismtask.domain.usecase.DuplicateCleanupPlanner
                 .findProjectDuplicatesToDelete(projects)
 
-            Triple(taskIds, habitIds, projectIds)
+            DuplicateScanResult(taskIds, habitMerges, projectIds)
         }
 
     /**
