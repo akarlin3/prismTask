@@ -31,6 +31,9 @@ constructor(
         private val NEW_ENTITIES_BACKFILL_DONE = booleanPreferencesKey("new_entities_backfill_done")
         private val INITIAL_UPLOAD_DONE = booleanPreferencesKey("initial_upload_done")
         private val CLOUD_ID_RESTORE_DONE = booleanPreferencesKey("cloud_id_restore_done")
+        private val LIFE_CATEGORY_BACKFILL_DONE = booleanPreferencesKey("life_category_backfill_done")
+        private val BUILT_IN_TASK_TEMPLATES_RECONCILED =
+            booleanPreferencesKey("built_in_task_templates_reconciled")
     }
 
     suspend fun isBuiltInsReconciled(): Boolean =
@@ -90,5 +93,30 @@ constructor(
 
     suspend fun setCloudIdRestoreDone(done: Boolean) {
         context.builtInSyncDataStore.edit { it[CLOUD_ID_RESTORE_DONE] = done }
+    }
+
+    /**
+     * Guard for the one-shot backfill that runs the life-category classifier
+     * against every task row whose `life_category` is still NULL (legacy rows
+     * from before the centralized resolver landed in [TaskRepository]). Set
+     * only after the pass succeeds so a mid-run crash stays retryable.
+     */
+    suspend fun isLifeCategoryBackfillDone(): Boolean =
+        context.builtInSyncDataStore.data.first()[LIFE_CATEGORY_BACKFILL_DONE] ?: false
+
+    suspend fun setLifeCategoryBackfillDone(done: Boolean) {
+        context.builtInSyncDataStore.edit { it[LIFE_CATEGORY_BACKFILL_DONE] = done }
+    }
+
+    /**
+     * Guard for the post-sync built-in task-template reconciliation pass
+     * (parity with [BUILT_INS_RECONCILED] but for `task_templates` — see
+     * [com.averycorp.prismtask.data.remote.BuiltInTaskTemplateReconciler]).
+     */
+    suspend fun isBuiltInTaskTemplatesReconciled(): Boolean =
+        context.builtInSyncDataStore.data.first()[BUILT_IN_TASK_TEMPLATES_RECONCILED] ?: false
+
+    suspend fun setBuiltInTaskTemplatesReconciled(done: Boolean) {
+        context.builtInSyncDataStore.edit { it[BUILT_IN_TASK_TEMPLATES_RECONCILED] = done }
     }
 }

@@ -179,7 +179,7 @@ constructor(
                             createdAt = now,
                             updatedAt = now
                         )
-                        taskDao.insert(task)
+                        taskRepository.insertTask(task)
                         _toastMessage.emit("Task Created: $title")
                     }
                 }

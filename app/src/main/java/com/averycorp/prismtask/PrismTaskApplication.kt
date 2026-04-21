@@ -9,6 +9,7 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
 import com.averycorp.prismtask.data.remote.BuiltInHabitReconciler
+import com.averycorp.prismtask.data.remote.LifeCategoryBackfiller
 import com.averycorp.prismtask.data.repository.LeisureRepository
 import com.averycorp.prismtask.data.repository.SchoolworkRepository
 import com.averycorp.prismtask.data.seed.TemplateSeeder
@@ -53,6 +54,9 @@ class PrismTaskApplication :
     lateinit var builtInHabitReconciler: BuiltInHabitReconciler
 
     @Inject
+    lateinit var lifeCategoryBackfiller: LifeCategoryBackfiller
+
+    @Inject
     lateinit var calendarSyncScheduler: CalendarSyncScheduler
 
     @Inject
@@ -94,6 +98,7 @@ class PrismTaskApplication :
             seedBuiltInTemplates()
             runBuiltInBackfill()
             runDriftCleanup()
+            runLifeCategoryBackfill()
         } catch (e: Exception) {
             android.util.Log.e("PrismTaskApp", "Seeding kickoff failed", e)
             try {
@@ -222,6 +227,17 @@ class PrismTaskApplication :
     private fun runDriftCleanup() {
         appScope.launch {
             builtInHabitReconciler.runDriftCleanupIfNeeded()
+        }
+    }
+
+    /**
+     * Runs the one-shot life-category classifier pass over every legacy
+     * `tasks.life_category IS NULL` row. Gated by a DataStore flag so it
+     * fires at most once per install. Details: [LifeCategoryBackfiller].
+     */
+    private fun runLifeCategoryBackfill() {
+        appScope.launch {
+            lifeCategoryBackfiller.runIfNeeded()
         }
     }
 

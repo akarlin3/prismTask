@@ -1094,6 +1094,37 @@ val MIGRATION_51_52 = object : Migration(51, 52) {
     }
 }
 
+// v52→v53 adds a nullable `template_key` column to `task_templates` so that
+// built-in templates have a stable, rename-proof identity string (parity with
+// the `habits.template_key` column added in v48→v49). Backfills the known
+// built-in names — including the three v1.3-era entries (`Assignment`,
+// `Deep Clean`, `Morning Routine`) that are no longer seeded but may still
+// live in Room from earlier installs — so the post-sync reconciler can group
+// duplicate built-ins by key. User-created templates keep template_key NULL.
+val MIGRATION_52_53 = object : Migration(52, 53) {
+    private val builtInKeyMap = mapOf(
+        "Weekly Review"   to "builtin_weekly_review",
+        "Meeting Prep"    to "builtin_meeting_prep",
+        "Grocery Run"     to "builtin_grocery_run",
+        "School Daily"    to "builtin_school_daily",
+        "Leisure Time"    to "builtin_leisure_time",
+        "Assignment"      to "builtin_assignment",
+        "Deep Clean"      to "builtin_deep_clean",
+        "Morning Routine" to "builtin_morning_routine"
+    )
+
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE task_templates ADD COLUMN template_key TEXT")
+        for ((name, key) in builtInKeyMap) {
+            db.execSQL(
+                "UPDATE task_templates SET template_key = ? " +
+                    "WHERE is_built_in = 1 AND template_key IS NULL AND name = ?",
+                arrayOf(key, name)
+            )
+        }
+    }
+}
+
 val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_1_2,
     MIGRATION_2_3,
@@ -1145,5 +1176,6 @@ val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_48_49,
     MIGRATION_49_50,
     MIGRATION_50_51,
-    MIGRATION_51_52
+    MIGRATION_51_52,
+    MIGRATION_52_53
 )

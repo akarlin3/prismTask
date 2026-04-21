@@ -464,15 +464,15 @@ constructor(
      * Resolve the final life_category value to persist:
      *  - If the user picked one, use it.
      *  - Otherwise run the keyword classifier on title + description.
-     *  - UNCATEGORIZED maps to `null` so old exports stay round-trippable.
+     *  - No keyword match maps to UNCATEGORIZED.name (explicit "tried and
+     *    didn't match") rather than null (which now means "never classified").
      */
-    internal fun resolveLifeCategoryForSave(autoClassifyEnabled: Boolean = true): String? {
+    internal fun resolveLifeCategoryForSave(): String {
         if (lifeCategoryManuallySet && lifeCategory != null) {
-            return lifeCategory?.name
+            return lifeCategory?.name ?: LifeCategory.UNCATEGORIZED.name
         }
-        if (!autoClassifyEnabled) return null
         val guess = lifeCategoryClassifier.classify(title, description.ifBlank { null })
-        return if (guess == LifeCategory.UNCATEGORIZED) null else guess.name
+        return guess.name
     }
 
     /**

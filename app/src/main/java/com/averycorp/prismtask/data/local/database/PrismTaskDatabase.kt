@@ -103,7 +103,7 @@ import com.averycorp.prismtask.data.local.entity.WeeklyReviewEntity
         DailyEssentialSlotCompletionEntity::class,
         MilestoneEntity::class
     ],
-    version = 52,
+    version = 53,
     exportSchema = false
 )
 abstract class PrismTaskDatabase : RoomDatabase() {

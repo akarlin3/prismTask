@@ -414,7 +414,6 @@ constructor(
         wlb.addProperty("personalTarget", snapshot.workLifeBalance.personalTarget)
         wlb.addProperty("selfCareTarget", snapshot.workLifeBalance.selfCareTarget)
         wlb.addProperty("healthTarget", snapshot.workLifeBalance.healthTarget)
-        wlb.addProperty("autoClassifyEnabled", snapshot.workLifeBalance.autoClassifyEnabled)
         wlb.addProperty("showBalanceBar", snapshot.workLifeBalance.showBalanceBar)
         wlb.addProperty("overloadThresholdPct", snapshot.workLifeBalance.overloadThresholdPct)
         userPrefs.add("workLifeBalance", wlb)

@@ -59,6 +59,14 @@ data class TaskTemplateEntity(
     val templateSubtasksJson: String? = null,
     @ColumnInfo(name = "is_built_in")
     val isBuiltIn: Boolean = false,
+    /**
+     * Stable identity for built-in templates (parity with [HabitEntity.templateKey]).
+     * Populated by the built-in template seeder; the post-sync reconciler groups
+     * duplicate built-ins by this key so rename drift doesn't fork them.
+     * NULL for user-created templates.
+     */
+    @ColumnInfo(name = "template_key")
+    val templateKey: String? = null,
     @ColumnInfo(name = "usage_count")
     val usageCount: Int = 0,
     @ColumnInfo(name = "last_used_at")

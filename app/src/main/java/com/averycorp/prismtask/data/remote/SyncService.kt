@@ -51,6 +51,7 @@ constructor(
     private val logger: PrismSyncLogger,
     private val syncStateRepository: SyncStateRepository,
     private val builtInHabitReconciler: BuiltInHabitReconciler,
+    private val builtInTaskTemplateReconciler: BuiltInTaskTemplateReconciler,
     private val sortPreferencesSyncService: SortPreferencesSyncService,
     private val schoolworkDao: SchoolworkDao,
     private val leisureDao: LeisureDao,
@@ -1269,6 +1270,7 @@ constructor(
             pushed = pushLocalChanges()
             pulled = pullRemoteChanges()
             builtInHabitReconciler.reconcileAfterSyncIfNeeded()
+            builtInTaskTemplateReconciler.reconcileAfterSyncIfNeeded()
             syncStateRepository.markSyncCompleted(
                 source = SOURCE_FIREBASE,
                 success = true,

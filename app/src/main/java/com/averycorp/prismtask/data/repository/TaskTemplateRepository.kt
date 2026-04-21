@@ -6,7 +6,9 @@ import com.averycorp.prismtask.data.local.dao.TaskTemplateDao
 import com.averycorp.prismtask.data.local.entity.TaskEntity
 import com.averycorp.prismtask.data.local.entity.TaskTagCrossRef
 import com.averycorp.prismtask.data.local.entity.TaskTemplateEntity
+import com.averycorp.prismtask.domain.model.LifeCategory
 import com.averycorp.prismtask.domain.usecase.DateShortcuts
+import com.averycorp.prismtask.domain.usecase.LifeCategoryClassifier
 import com.google.gson.Gson
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
@@ -20,6 +22,18 @@ constructor(
     private val taskDao: TaskDao,
     private val tagDao: TagDao
 ) {
+    private val lifeCategoryClassifier = LifeCategoryClassifier()
+
+    private fun resolveTemplateLifeCategory(title: String, description: String?, taskId: Long): String {
+        val guess = lifeCategoryClassifier.classify(title, description)
+        val source = if (guess == LifeCategory.UNCATEGORIZED) "default" else "classifier"
+        android.util.Log.i(
+            "PrismSync",
+            "lifeCategory.resolved | taskId=$taskId | source=$source | result=${guess.name}"
+        )
+        return guess.name
+    }
+
     fun getAllTemplates(): Flow<List<TaskTemplateEntity>> = templateDao.getAllTemplates()
 
     fun getTemplatesByCategory(category: String): Flow<List<TaskTemplateEntity>> =
@@ -95,7 +109,10 @@ constructor(
 
         val now = System.currentTimeMillis()
         val effectiveDueDate = dueDateOverride ?: if (quickUse) DateShortcuts.today(now) else null
-        val task = buildTaskFromTemplate(template, effectiveDueDate, projectIdOverride, now)
+        val rawTask = buildTaskFromTemplate(template, effectiveDueDate, projectIdOverride, now)
+        val task = rawTask.copy(
+            lifeCategory = resolveTemplateLifeCategory(rawTask.title, rawTask.description, taskId = 0)
+        )
         val taskId = taskDao.insert(task)
 
         // Create subtasks if template has them
@@ -105,6 +122,7 @@ constructor(
                 title = title,
                 parentTaskId = taskId,
                 sortOrder = index,
+                lifeCategory = resolveTemplateLifeCategory(title, description = null, taskId = 0),
                 createdAt = now,
                 updatedAt = now
             )

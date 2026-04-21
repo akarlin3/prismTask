@@ -8,6 +8,8 @@ import com.averycorp.prismtask.data.local.database.DatabaseTransactionRunner
 import com.averycorp.prismtask.data.local.entity.TaskEntity
 import com.averycorp.prismtask.data.local.entity.TaskTagCrossRef
 import com.averycorp.prismtask.data.remote.SyncTracker
+import com.averycorp.prismtask.domain.model.LifeCategory
+import com.averycorp.prismtask.domain.usecase.LifeCategoryClassifier
 import com.averycorp.prismtask.domain.usecase.RecurrenceEngine
 import com.averycorp.prismtask.notifications.ReminderScheduler
 import com.averycorp.prismtask.util.DayBoundary
@@ -33,6 +35,35 @@ constructor(
     private val widgetUpdateManager: WidgetUpdateManager,
     private val taskCompletionRepository: TaskCompletionRepository
 ) {
+    private val lifeCategoryClassifier = LifeCategoryClassifier()
+
+    /**
+     * Centralized life-category fallback applied on every insert path so that
+     * no task reaches Room with a null `life_category`. Null means "never
+     * classified"; a non-null value means either "user picked" or "classifier
+     * ran." A classifier miss resolves to [LifeCategory.UNCATEGORIZED] rather
+     * than null so downstream readers (balance bar, weekly report) can tell
+     * the difference between "we tried" and "nobody's looked at this row
+     * yet."
+     */
+    fun resolveLifeCategoryForInsert(task: TaskEntity): String {
+        val existing = task.lifeCategory
+        if (!existing.isNullOrBlank()) {
+            android.util.Log.i(
+                "PrismSync",
+                "lifeCategory.resolved | taskId=${task.id} | source=preserved | result=$existing"
+            )
+            return existing
+        }
+        val guess = lifeCategoryClassifier.classify(task.title, task.description)
+        val source = if (guess == LifeCategory.UNCATEGORIZED) "default" else "classifier"
+        android.util.Log.i(
+            "PrismSync",
+            "lifeCategory.resolved | taskId=${task.id} | source=$source | result=${guess.name}"
+        )
+        return guess.name
+    }
+
     fun getAllTasks(): Flow<List<TaskEntity>> = taskDao.getAllTasks()
 
     fun getTasksByProject(projectId: Long): Flow<List<TaskEntity>> = taskDao.getTasksByProject(projectId)
@@ -59,7 +90,7 @@ constructor(
         val now = System.currentTimeMillis()
         val parent = taskDao.getTaskById(parentTaskId).firstOrNull()
         val nextSortOrder = taskDao.getMaxSubtaskSortOrder(parentTaskId) + 1
-        val task =
+        val draft =
             TaskEntity(
                 title = title,
                 parentTaskId = parentTaskId,
@@ -67,9 +98,11 @@ constructor(
                 dueDate = parent?.dueDate,
                 priority = priority,
                 sortOrder = nextSortOrder,
+                lifeCategory = parent?.lifeCategory,
                 createdAt = now,
                 updatedAt = now
             )
+        val task = draft.copy(lifeCategory = resolveLifeCategoryForInsert(draft))
         val id = taskDao.insert(task)
         syncTracker.trackCreate(id, "task")
         calendarPushDispatcher.enqueuePushTask(id)
@@ -99,17 +132,18 @@ constructor(
     suspend fun getTaskByIdOnce(id: Long): TaskEntity? = taskDao.getTaskByIdOnce(id)
 
     suspend fun insertTask(task: TaskEntity): Long {
-        val id = taskDao.insert(task)
+        val resolved = task.copy(lifeCategory = resolveLifeCategoryForInsert(task))
+        val id = taskDao.insert(resolved)
         syncTracker.trackCreate(id, "task")
         calendarPushDispatcher.enqueuePushTask(id)
         widgetUpdateManager.updateTaskWidgets()
-        if (task.reminderOffset != null && task.dueDate != null) {
+        if (resolved.reminderOffset != null && resolved.dueDate != null) {
             reminderScheduler.scheduleReminder(
                 taskId = id,
-                taskTitle = task.title,
-                taskDescription = task.description,
-                dueDate = ReminderScheduler.combineDateAndTime(task.dueDate, task.dueTime),
-                reminderOffset = task.reminderOffset
+                taskTitle = resolved.title,
+                taskDescription = resolved.description,
+                dueDate = ReminderScheduler.combineDateAndTime(resolved.dueDate, resolved.dueTime),
+                reminderOffset = resolved.reminderOffset
             )
         }
         return id
@@ -130,7 +164,7 @@ constructor(
     ): Long {
         val now = System.currentTimeMillis()
         val nextSortOrder = if (parentTaskId == null) taskDao.getMaxRootSortOrder() + 1 else 0
-        val task =
+        val draft =
             TaskEntity(
                 title = title,
                 description = description,
@@ -147,6 +181,7 @@ constructor(
                 createdAt = now,
                 updatedAt = now
             )
+        val task = draft.copy(lifeCategory = resolveLifeCategoryForInsert(draft))
         val id = taskDao.insert(task)
         syncTracker.trackCreate(id, "task")
         calendarPushDispatcher.enqueuePushTask(id)
@@ -234,7 +269,7 @@ constructor(
                 val nextDueDate = rule?.let { RecurrenceEngine.calculateNextDueDate(task.dueDate, it) }
                 if (rule != null && nextDueDate != null) {
                     val updatedRule = rule.copy(occurrenceCount = rule.occurrenceCount + 1)
-                    val nextTask = task.copy(
+                    val nextDraft = task.copy(
                         id = 0,
                         isCompleted = false,
                         dueDate = nextDueDate,
@@ -243,6 +278,7 @@ constructor(
                         createdAt = now,
                         updatedAt = now
                     )
+                    val nextTask = nextDraft.copy(lifeCategory = resolveLifeCategoryForInsert(nextDraft))
                     taskDao.insert(nextTask)
                 } else {
                     null

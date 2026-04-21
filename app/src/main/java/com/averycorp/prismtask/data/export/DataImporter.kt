@@ -1207,8 +1207,6 @@ constructor(
                     personalTarget = w.get("personalTarget")?.takeIf { !it.isJsonNull }?.asInt ?: current.personalTarget,
                     selfCareTarget = w.get("selfCareTarget")?.takeIf { !it.isJsonNull }?.asInt ?: current.selfCareTarget,
                     healthTarget = w.get("healthTarget")?.takeIf { !it.isJsonNull }?.asInt ?: current.healthTarget,
-                    autoClassifyEnabled =
-                    w.get("autoClassifyEnabled")?.takeIf { !it.isJsonNull }?.asBoolean ?: current.autoClassifyEnabled,
                     showBalanceBar = w.get("showBalanceBar")?.takeIf { !it.isJsonNull }?.asBoolean ?: current.showBalanceBar,
                     overloadThresholdPct =
                     w.get("overloadThresholdPct")?.takeIf { !it.isJsonNull }?.asInt ?: current.overloadThresholdPct

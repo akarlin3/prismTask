@@ -61,4 +61,15 @@ interface TaskTemplateDao {
      */
     @Query("DELETE FROM task_templates WHERE is_built_in = 1")
     suspend fun deleteAllBuiltIn()
+
+    /**
+     * One-shot snapshot of every row still flagged `is_built_in = 1`. Used by
+     * [com.averycorp.prismtask.data.remote.BuiltInTaskTemplateReconciler] to
+     * group duplicates by [TaskTemplateEntity.templateKey].
+     */
+    @Query("SELECT * FROM task_templates WHERE is_built_in = 1")
+    suspend fun getBuiltInTemplatesOnce(): List<TaskTemplateEntity>
+
+    @Query("DELETE FROM task_templates WHERE id = :id")
+    suspend fun deleteById(id: Long)
 }

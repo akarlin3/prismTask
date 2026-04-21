@@ -71,8 +71,9 @@ data class ForgivenessPrefs(
  * Work-Life Balance Engine preferences (v1.4.0 V1).
  *
  * Target ratios are stored as Int percentages (0..100) and should sum to 100.
- * [autoClassifyEnabled] controls whether the [com.averycorp.prismtask.domain.usecase.LifeCategoryClassifier]
- * runs on task creation when the user hasn't picked a category manually.
+ * Classifier auto-classification is always on — the keyword classifier runs
+ * on every task creation path via `TaskRepository.resolveLifeCategoryForInsert`.
+ * A classifier miss resolves to `LifeCategory.UNCATEGORIZED`, not null.
  * [showBalanceBar] toggles the Today screen balance bar visibility.
  */
 data class WorkLifeBalancePrefs(
@@ -80,7 +81,6 @@ data class WorkLifeBalancePrefs(
     val personalTarget: Int = 25,
     val selfCareTarget: Int = 20,
     val healthTarget: Int = 15,
-    val autoClassifyEnabled: Boolean = true,
     val showBalanceBar: Boolean = true,
     val overloadThresholdPct: Int = 10
 ) {
@@ -158,7 +158,6 @@ class UserPreferencesDataStore(
         val KEY_WLB_PERSONAL_TARGET = intPreferencesKey("wlb_personal_target")
         val KEY_WLB_SELFCARE_TARGET = intPreferencesKey("wlb_selfcare_target")
         val KEY_WLB_HEALTH_TARGET = intPreferencesKey("wlb_health_target")
-        val KEY_WLB_AUTO_CLASSIFY = booleanPreferencesKey("wlb_auto_classify")
         val KEY_WLB_SHOW_BAR = booleanPreferencesKey("wlb_show_bar")
         val KEY_WLB_OVERLOAD_THRESHOLD = intPreferencesKey("wlb_overload_threshold")
 
@@ -294,7 +293,6 @@ class UserPreferencesDataStore(
             personalTarget = (prefs[KEY_WLB_PERSONAL_TARGET] ?: 25).coerceIn(0, 100),
             selfCareTarget = (prefs[KEY_WLB_SELFCARE_TARGET] ?: 20).coerceIn(0, 100),
             healthTarget = (prefs[KEY_WLB_HEALTH_TARGET] ?: 15).coerceIn(0, 100),
-            autoClassifyEnabled = prefs[KEY_WLB_AUTO_CLASSIFY] ?: true,
             showBalanceBar = prefs[KEY_WLB_SHOW_BAR] ?: true,
             overloadThresholdPct = (prefs[KEY_WLB_OVERLOAD_THRESHOLD] ?: 10).coerceIn(5, 25)
         )
@@ -384,14 +382,9 @@ class UserPreferencesDataStore(
             it[KEY_WLB_PERSONAL_TARGET] = prefs.personalTarget.coerceIn(0, 100)
             it[KEY_WLB_SELFCARE_TARGET] = prefs.selfCareTarget.coerceIn(0, 100)
             it[KEY_WLB_HEALTH_TARGET] = prefs.healthTarget.coerceIn(0, 100)
-            it[KEY_WLB_AUTO_CLASSIFY] = prefs.autoClassifyEnabled
             it[KEY_WLB_SHOW_BAR] = prefs.showBalanceBar
             it[KEY_WLB_OVERLOAD_THRESHOLD] = prefs.overloadThresholdPct.coerceIn(5, 25)
         }
-    }
-
-    suspend fun setAutoClassifyEnabled(enabled: Boolean) {
-        dataStore.edit { it[KEY_WLB_AUTO_CLASSIFY] = enabled }
     }
 
     suspend fun setShowBalanceBar(enabled: Boolean) {

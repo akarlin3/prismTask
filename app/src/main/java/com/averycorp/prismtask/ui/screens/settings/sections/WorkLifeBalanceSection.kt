@@ -56,13 +56,6 @@ fun WorkLifeBalanceSection(
     }
 
     SettingsToggleRow(
-        title = "Auto-Classify Tasks",
-        subtitle = "Guess a life category from the task title",
-        checked = prefs.autoClassifyEnabled,
-        onCheckedChange = { onPrefsChange(prefs.copy(autoClassifyEnabled = it)) }
-    )
-
-    SettingsToggleRow(
         title = "Show Balance Bar on Today",
         subtitle = "Render the stacked category bar above your task list",
         checked = prefs.showBalanceBar,

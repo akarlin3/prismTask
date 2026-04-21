@@ -107,6 +107,7 @@ constructor(
          */
         data class BuiltInTemplateSpec(
             val name: String,
+            val templateKey: String,
             val icon: String,
             val category: String,
             val templateTitle: String,
@@ -125,6 +126,7 @@ constructor(
                 templateDuration = templateDuration,
                 templateSubtasksJson = gson.toJson(templateSubtasks),
                 isBuiltIn = true,
+                templateKey = templateKey,
                 createdAt = now,
                 updatedAt = now
             )
@@ -144,6 +146,7 @@ constructor(
         val BUILT_IN_TEMPLATES: List<BuiltInTemplateSpec> = listOf(
             BuiltInTemplateSpec(
                 name = "Weekly Review",
+                templateKey = "builtin_weekly_review",
                 // 📊
                 icon = "\uD83D\uDCCA",
                 category = "Routines",
@@ -165,6 +168,7 @@ constructor(
             ),
             BuiltInTemplateSpec(
                 name = "Meeting Prep",
+                templateKey = "builtin_meeting_prep",
                 // 🤝
                 icon = "\uD83E\uDD1D",
                 category = "Work",
@@ -180,6 +184,7 @@ constructor(
             ),
             BuiltInTemplateSpec(
                 name = "Grocery Run",
+                templateKey = "builtin_grocery_run",
                 // 🛒
                 icon = "\uD83D\uDED2",
                 category = "Personal",
@@ -195,6 +200,7 @@ constructor(
             ),
             BuiltInTemplateSpec(
                 name = "School Daily",
+                templateKey = "builtin_school_daily",
                 // 📚
                 icon = "\uD83D\uDCDA",
                 category = "School",
@@ -215,6 +221,7 @@ constructor(
             ),
             BuiltInTemplateSpec(
                 name = "Leisure Time",
+                templateKey = "builtin_leisure_time",
                 // 🎮
                 icon = "\uD83C\uDFAE",
                 category = "Personal",
