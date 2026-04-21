@@ -155,7 +155,7 @@ fun PrismTaskTheme(
         MaterialTheme(
             colorScheme = effectiveScheme,
             typography = scaledTypography,
-            shapes = materialShapes,
+            shapes = materialShapes
         ) {
             Box(
                 modifier = if (prismAttrs.scanlines) {
