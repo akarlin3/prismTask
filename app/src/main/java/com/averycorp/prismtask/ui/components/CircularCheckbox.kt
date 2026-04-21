@@ -66,7 +66,9 @@ fun CircularCheckbox(
                             indication = null,
                             role = Role.Checkbox
                         ) { onCheckedChange(!checked) }
-                    } else Modifier
+                    } else {
+                        Modifier
+                    }
                 ),
             contentAlignment = Alignment.Center
         ) {

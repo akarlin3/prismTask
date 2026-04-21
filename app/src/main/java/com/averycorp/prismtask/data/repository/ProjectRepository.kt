@@ -122,9 +122,12 @@ constructor(
         forgiveness: ForgivenessConfig = ForgivenessConfig.DEFAULT
     ): Flow<ProjectDetail?> =
         projectDao.getProjectById(id).flatMapLatest { project ->
-            if (project == null) flowOf(null)
-            else milestoneDao.observeMilestones(id).map { milestones ->
-                buildDetail(project, milestones, today, forgiveness)
+            if (project == null) {
+                flowOf(null)
+            } else {
+                milestoneDao.observeMilestones(id).map { milestones ->
+                    buildDetail(project, milestones, today, forgiveness)
+                }
             }
         }
 

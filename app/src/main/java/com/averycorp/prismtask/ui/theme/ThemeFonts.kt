@@ -82,15 +82,18 @@ private val Vt323: FontFamily by lazy {
 private val SpaceGrotesk: FontFamily by lazy {
     FontFamily(
         Font(
-            R.font.space_grotesk, FontWeight.Normal,
+            R.font.space_grotesk,
+            FontWeight.Normal,
             variationSettings = FontVariation.Settings(FontVariation.weight(400))
         ),
         Font(
-            R.font.space_grotesk, FontWeight.Medium,
+            R.font.space_grotesk,
+            FontWeight.Medium,
             variationSettings = FontVariation.Settings(FontVariation.weight(500))
         ),
         Font(
-            R.font.space_grotesk, FontWeight.Bold,
+            R.font.space_grotesk,
+            FontWeight.Bold,
             variationSettings = FontVariation.Settings(FontVariation.weight(700))
         )
     )
@@ -103,15 +106,19 @@ private val SpaceGrotesk: FontFamily by lazy {
 private val Fraunces: FontFamily by lazy {
     FontFamily(
         Font(
-            R.font.fraunces, FontWeight.Normal,
+            R.font.fraunces,
+            FontWeight.Normal,
             variationSettings = FontVariation.Settings(FontVariation.weight(400))
         ),
         Font(
-            R.font.fraunces, FontWeight.Bold,
+            R.font.fraunces,
+            FontWeight.Bold,
             variationSettings = FontVariation.Settings(FontVariation.weight(700))
         ),
         Font(
-            R.font.fraunces_italic, FontWeight.Normal, FontStyle.Italic,
+            R.font.fraunces_italic,
+            FontWeight.Normal,
+            FontStyle.Italic,
             variationSettings = FontVariation.Settings(FontVariation.weight(400))
         )
     )
@@ -120,27 +127,27 @@ private val Fraunces: FontFamily by lazy {
 // ── Per-theme font sets ──────────────────────────────────────────────────────
 
 private val CyberpunkFonts = PrismThemeFonts(
-    body    = ChakraPetch,
+    body = ChakraPetch,
     display = Audiowide,
-    mono    = ChakraPetch
+    mono = ChakraPetch
 )
 
 private val SynthwaveFonts = PrismThemeFonts(
-    body    = Rajdhani,
+    body = Rajdhani,
     display = Monoton,
-    mono    = Rajdhani
+    mono = Rajdhani
 )
 
 private val MatrixFonts = PrismThemeFonts(
-    body    = ShareTechMono,
+    body = ShareTechMono,
     display = Vt323,
-    mono    = ShareTechMono
+    mono = ShareTechMono
 )
 
 private val VoidFonts = PrismThemeFonts(
-    body    = SpaceGrotesk,
+    body = SpaceGrotesk,
     display = Fraunces,
-    mono    = SpaceGrotesk
+    mono = SpaceGrotesk
 )
 
 /**
@@ -150,8 +157,8 @@ private val VoidFonts = PrismThemeFonts(
 fun prismThemeFonts(theme: PrismTheme): PrismThemeFonts = when (theme) {
     PrismTheme.CYBERPUNK -> CyberpunkFonts
     PrismTheme.SYNTHWAVE -> SynthwaveFonts
-    PrismTheme.MATRIX    -> MatrixFonts
-    PrismTheme.VOID      -> VoidFonts
+    PrismTheme.MATRIX -> MatrixFonts
+    PrismTheme.VOID -> VoidFonts
 }
 
 @Deprecated(

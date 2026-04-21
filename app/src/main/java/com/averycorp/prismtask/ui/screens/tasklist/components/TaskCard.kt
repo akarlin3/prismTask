@@ -117,7 +117,9 @@ internal fun TaskItem(
                         Modifier.drawBehind {
                             drawRect(c, size = Size(3.dp.toPx(), size.height))
                         }
-                    } else Modifier
+                    } else {
+                        Modifier
+                    }
                 )
                 .padding(
                     start = if (urgentStripColor != null) 7.dp else 4.dp,

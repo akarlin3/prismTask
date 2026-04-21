@@ -164,7 +164,9 @@ internal fun HabitItem(
                         // Cyberpunk: subtle glow border on icon box
                         if (attrs.brackets) {
                             Modifier.border(1.dp, habitColor.copy(alpha = 0.4f), iconShape)
-                        } else Modifier
+                        } else {
+                            Modifier
+                        }
                     ),
                 contentAlignment = Alignment.Center
             ) {
@@ -265,10 +267,14 @@ internal fun HabitItem(
                         if (habit.trackBooking) {
                             StatusPill(
                                 label = if (habitWithStatus.isBookedThisPeriod) {
-                                    if (habitWithStatus.bookedTasksThisPeriod > 1)
+                                    if (habitWithStatus.bookedTasksThisPeriod > 1) {
                                         "Booked (${habitWithStatus.bookedTasksThisPeriod})"
-                                    else "Booked"
-                                } else "Not Booked",
+                                    } else {
+                                        "Booked"
+                                    }
+                                } else {
+                                    "Not Booked"
+                                },
                                 active = habitWithStatus.isBookedThisPeriod,
                                 activeColor = habitColor
                             )
@@ -276,9 +282,11 @@ internal fun HabitItem(
                         if (habit.trackPreviousPeriod) {
                             val periodTitle = periodNoun.replaceFirstChar { it.uppercase() }
                             StatusPill(
-                                label = if (habitWithStatus.previousPeriodMet)
+                                label = if (habitWithStatus.previousPeriodMet) {
                                     "Last $periodTitle Done"
-                                else "Last $periodTitle Missed",
+                                } else {
+                                    "Last $periodTitle Missed"
+                                },
                                 active = habitWithStatus.previousPeriodMet,
                                 activeColor = habitColor
                             )
@@ -310,18 +318,24 @@ internal fun HabitItem(
             Spacer(modifier = Modifier.width(4.dp))
 
             // Circular checkbox / counter; shape respects chipShape token
-            val checkShape = if (attrs.chipShape == ChipShape.SHARP && attrs.terminal)
-                RoundedCornerShape(0.dp) else CircleShape
+            val checkShape = if (attrs.chipShape == ChipShape.SHARP && attrs.terminal) {
+                RoundedCornerShape(0.dp)
+            } else {
+                CircleShape
+            }
             Box(
                 modifier = Modifier
                     .size(40.dp)
                     .scale(scale)
                     .clip(checkShape)
                     .then(
-                        if (isComplete) Modifier.background(habitColor)
-                        else if (habitWithStatus.completionsToday > 0)
+                        if (isComplete) {
+                            Modifier.background(habitColor)
+                        } else if (habitWithStatus.completionsToday > 0) {
                             Modifier.background(habitColor.copy(alpha = 0.3f))
-                        else Modifier.border(2.dp, habitColor, checkShape)
+                        } else {
+                            Modifier.border(2.dp, habitColor, checkShape)
+                        }
                     )
                     .pointerInput(isComplete, habitWithStatus.completionsToday) {
                         detectTapGestures(

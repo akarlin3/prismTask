@@ -56,7 +56,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -66,13 +65,12 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.averycorp.prismtask.ui.components.settings.DurationPickerDialog
 import com.averycorp.prismtask.ui.theme.ChipShape
-import com.averycorp.prismtask.ui.theme.LocalPrismShapes
 import com.averycorp.prismtask.ui.theme.GlowLevel
 import com.averycorp.prismtask.ui.theme.LocalPrismAttrs
 import com.averycorp.prismtask.ui.theme.LocalPrismColors
 import com.averycorp.prismtask.ui.theme.LocalPrismFonts
+import com.averycorp.prismtask.ui.theme.LocalPrismShapes
 import com.averycorp.prismtask.ui.theme.LocalPrismTheme
-import com.averycorp.prismtask.ui.theme.PrismTheme
 import com.averycorp.prismtask.ui.theme.PrismThemeAttrs
 import com.averycorp.prismtask.ui.theme.drawCyberpunkTimerTicks
 import com.averycorp.prismtask.ui.theme.gridFloor
@@ -93,8 +91,8 @@ fun TimerScreen(
     val topBarLabel = when {
         attrs.terminal -> "◉ pomodoro.sh"
         attrs.brackets -> "// FOCUS.CORE"
-        attrs.sunset   -> "◆ POMODORO"
-        else           -> "Focus Timer"
+        attrs.sunset -> "◆ POMODORO"
+        else -> "Focus Timer"
     }
 
     Scaffold(
@@ -106,8 +104,11 @@ fun TimerScreen(
                         fontFamily = displayFont,
                         fontWeight = FontWeight.Bold,
                         letterSpacing = attrs.displayTracking.sp,
-                        color = if (attrs.terminal || attrs.brackets || attrs.sunset)
-                            colors.muted else colors.onBackground
+                        color = if (attrs.terminal || attrs.brackets || attrs.sunset) {
+                            colors.muted
+                        } else {
+                            colors.onBackground
+                        }
                     )
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -201,7 +202,7 @@ private fun TimerContent(
         }
 
         val modeLabel = when {
-            !uiState.pomodoroEnabled && uiState.mode == TimerMode.WORK  -> "Focus"
+            !uiState.pomodoroEnabled && uiState.mode == TimerMode.WORK -> "Focus"
             !uiState.pomodoroEnabled && uiState.mode == TimerMode.CUSTOM -> "Custom"
             !uiState.pomodoroEnabled -> "Break"
             uiState.mode == TimerMode.WORK -> "Focus"
@@ -336,7 +337,9 @@ private fun ThemedTimerRing(
             // Track ring — dashed for Matrix
             val trackPathEffect = if (attrs.terminal) {
                 PathEffect.dashPathEffect(floatArrayOf(3.dp.toPx(), 4.dp.toPx()), 0f)
-            } else null
+            } else {
+                null
+            }
             drawArc(
                 color = trackColor,
                 startAngle = -90f,
@@ -598,10 +601,18 @@ private fun SettingsClickableRow(label: String, description: String, onClick: ()
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            Text(text = label, style = MaterialTheme.typography.bodyLarge,
-                fontFamily = bodyFont, color = colors.onSurface)
-            Text(text = description, style = MaterialTheme.typography.bodySmall,
-                fontFamily = bodyFont, color = colors.muted)
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyLarge,
+                fontFamily = bodyFont,
+                color = colors.onSurface
+            )
+            Text(
+                text = description,
+                style = MaterialTheme.typography.bodySmall,
+                fontFamily = bodyFont,
+                color = colors.muted
+            )
         }
     }
 }
@@ -618,10 +629,18 @@ private fun SettingsToggleRow(label: String, description: String, checked: Boole
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            Text(text = label, style = MaterialTheme.typography.bodyLarge,
-                fontFamily = bodyFont, color = colors.onSurface)
-            Text(text = description, style = MaterialTheme.typography.bodySmall,
-                fontFamily = bodyFont, color = colors.muted)
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyLarge,
+                fontFamily = bodyFont,
+                color = colors.onSurface
+            )
+            Text(
+                text = description,
+                style = MaterialTheme.typography.bodySmall,
+                fontFamily = bodyFont,
+                color = colors.muted
+            )
         }
         Switch(checked = checked, onCheckedChange = { onToggle() })
     }

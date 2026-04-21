@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
-import com.averycorp.prismtask.ui.theme.LocalPrismShapes
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -60,6 +59,7 @@ import com.averycorp.prismtask.data.remote.api.SyllabusEventResponse
 import com.averycorp.prismtask.data.remote.api.SyllabusRecurringItemResponse
 import com.averycorp.prismtask.data.remote.api.SyllabusTaskResponse
 import com.averycorp.prismtask.ui.theme.LocalPrismColors
+import com.averycorp.prismtask.ui.theme.LocalPrismShapes
 
 @Composable private fun schoolAccent(): Color =
     LocalPrismColors.current.dataVisualizationPalette.getOrElse(0) { LocalPrismColors.current.primary }

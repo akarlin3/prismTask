@@ -158,10 +158,11 @@ fun PrismTaskTheme(
             shapes = materialShapes,
         ) {
             Box(
-                modifier = if (prismAttrs.scanlines)
+                modifier = if (prismAttrs.scanlines) {
                     Modifier.scanlines(prismColors.primary, scanSpacing, scanOuterAlpha)
-                else
+                } else {
                     Modifier
+                }
             ) {
                 content()
             }

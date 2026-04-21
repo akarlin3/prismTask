@@ -46,15 +46,15 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -67,7 +67,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -98,15 +97,14 @@ import com.averycorp.prismtask.ui.screens.tasklist.components.ProjectGroupHeader
 import com.averycorp.prismtask.ui.screens.tasklist.components.draggableTaskItemWithSubtasks
 import com.averycorp.prismtask.ui.screens.tasklist.components.reorderableTaskItemWithSubtasks
 import com.averycorp.prismtask.ui.screens.tasklist.components.taskItemWithSubtasks
-import com.averycorp.prismtask.ui.theme.gridFloor
 import com.averycorp.prismtask.ui.theme.LocalPrismColors
 import com.averycorp.prismtask.ui.theme.LocalPrismFonts
+import com.averycorp.prismtask.ui.theme.gridFloor
 import kotlinx.coroutines.launch
 import sh.calvin.reorderable.rememberReorderableLazyListState
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-
 
 /**
  * Segmented toggle sides for the Tasks tab. Persisted via [rememberSaveable]
@@ -152,6 +150,7 @@ fun TaskListScreen(
     var expandedTaskIds by remember { mutableStateOf(setOf<Long>()) }
     var focusSubtaskForId by remember { mutableStateOf<Long?>(null) }
     var showSortMenu by remember { mutableStateOf(false) }
+
     /**
      * Segmented toggle side. `rememberSaveable` persists it across process
      * death so the user returns to the same side on cold start.

@@ -50,8 +50,11 @@ constructor(
     /** Top-level tasks linked to this project (subtasks are hidden from the detail list). */
     val tasks: StateFlow<List<TaskEntity>> = detail
         .flatMapLatest { d ->
-            if (d == null) flowOf(emptyList())
-            else taskDao.getTasksByProject(d.project.id)
+            if (d == null) {
+                flowOf(emptyList())
+            } else {
+                taskDao.getTasksByProject(d.project.id)
+            }
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 

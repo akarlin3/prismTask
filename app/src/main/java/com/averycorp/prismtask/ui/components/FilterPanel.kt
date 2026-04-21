@@ -36,9 +36,9 @@ import com.averycorp.prismtask.domain.model.LifeCategory
 import com.averycorp.prismtask.domain.model.TagFilterMode
 import com.averycorp.prismtask.domain.model.TaskFilter
 import com.averycorp.prismtask.ui.theme.LifeCategoryColor
+import com.averycorp.prismtask.ui.theme.LocalPriorityColors
 import com.averycorp.prismtask.ui.theme.LocalPrismAttrs
 import com.averycorp.prismtask.ui.theme.LocalPrismColors
-import com.averycorp.prismtask.ui.theme.LocalPriorityColors
 import com.averycorp.prismtask.ui.theme.prismGlow
 import java.util.Calendar
 
@@ -116,7 +116,16 @@ fun FilterPanel(
                     label = { Text("OR", style = MaterialTheme.typography.labelSmall) },
                     modifier = Modifier
                         .height(28.dp)
-                        .then(if (workingFilter.tagFilterMode == TagFilterMode.ANY) Modifier.prismGlow(prismColors.primary, attrs.glow) else Modifier)
+                        .then(
+                            if (workingFilter.tagFilterMode == TagFilterMode.ANY) {
+                                Modifier.prismGlow(
+                                    prismColors.primary,
+                                    attrs.glow
+                                )
+                            } else {
+                                Modifier
+                            }
+                        )
                 )
                 FilterChip(
                     selected = workingFilter.tagFilterMode == TagFilterMode.ALL,
@@ -126,7 +135,16 @@ fun FilterPanel(
                     label = { Text("AND", style = MaterialTheme.typography.labelSmall) },
                     modifier = Modifier
                         .height(28.dp)
-                        .then(if (workingFilter.tagFilterMode == TagFilterMode.ALL) Modifier.prismGlow(prismColors.primary, attrs.glow) else Modifier)
+                        .then(
+                            if (workingFilter.tagFilterMode == TagFilterMode.ALL) {
+                                Modifier.prismGlow(
+                                    prismColors.primary,
+                                    attrs.glow
+                                )
+                            } else {
+                                Modifier
+                            }
+                        )
                 )
             }
 

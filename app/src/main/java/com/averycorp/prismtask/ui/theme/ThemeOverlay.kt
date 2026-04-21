@@ -8,8 +8,6 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
-import kotlin.math.PI
-import kotlin.math.tan
 
 /**
  * Apply a per-theme decorative backdrop to the receiver [Modifier].
@@ -29,9 +27,9 @@ fun Modifier.themeOverlay(theme: PrismTheme): Modifier {
     val colors = LocalPrismColors.current
     return when (theme) {
         PrismTheme.CYBERPUNK -> scanLineOverlay(colors.primary, alpha = 0.07f, spacingDp = 4)
-        PrismTheme.MATRIX    -> matrixRainOverlay(colors.primary)
+        PrismTheme.MATRIX -> matrixRainOverlay(colors.primary)
         PrismTheme.SYNTHWAVE -> synthwaveBackdrop(colors.primary, colors.secondary)
-        PrismTheme.VOID      -> this
+        PrismTheme.VOID -> this
     }
 }
 
@@ -117,7 +115,7 @@ private fun Modifier.synthwaveBackdrop(primaryColor: Color, secondaryColor: Colo
         val lineCount = 8
         for (i in 0..lineCount) {
             val t = i.toFloat() / lineCount
-            val curveT = t * t   // ease-in: lines bunch up near horizon
+            val curveT = t * t // ease-in: lines bunch up near horizon
             val y = vanishY + curveT * (h - vanishY)
             val alpha = 0.05f + t * 0.17f
             drawLine(

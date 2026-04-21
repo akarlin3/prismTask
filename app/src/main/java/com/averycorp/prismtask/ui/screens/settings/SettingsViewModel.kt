@@ -1284,9 +1284,11 @@ constructor(
                         val parts = listOfNotNull(
                             if (result.taskIds.isNotEmpty()) "${result.taskIds.size} duplicate task${if (result.taskIds.size == 1) "" else "s"}" else null,
                             if (habitCount > 0) "$habitCount duplicate habit${if (habitCount == 1) "" else "s"}" else null,
-                            if (result.projectIds.isNotEmpty())
+                            if (result.projectIds.isNotEmpty()) {
                                 "${result.projectIds.size} duplicate project${if (result.projectIds.size == 1) "" else "s"}"
-                            else null
+                            } else {
+                                null
+                            }
                         )
                         append("Deleted ")
                         append(parts.joinToString(" and "))

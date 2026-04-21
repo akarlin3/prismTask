@@ -321,8 +321,13 @@ class DuplicateCleanupPlannerTest {
     fun `planHabitDuplicates exposes keeperId for built-in templateKey group`() {
         val habits = listOf(
             habit(1, "Drink Water", isBuiltIn = true, templateKey = "drink_water"),
-            habit(2, "Drink 8 Glasses", isBuiltIn = true, templateKey = "drink_water",
-                description = "stay hydrated")
+            habit(
+                2,
+                "Drink 8 Glasses",
+                isBuiltIn = true,
+                templateKey = "drink_water",
+                description = "stay hydrated"
+            )
         )
         // Habit 2 has a description so it scores higher and is the keeper.
         val merges = DuplicateCleanupPlanner.planHabitDuplicates(habits, emptyMap())

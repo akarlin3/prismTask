@@ -22,7 +22,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import com.averycorp.prismtask.ui.theme.LocalPrismShapes
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -69,12 +68,13 @@ import com.averycorp.prismtask.data.local.entity.SelfCareStepEntity
 import com.averycorp.prismtask.data.preferences.MedicationScheduleMode
 import com.averycorp.prismtask.domain.model.SelfCareRoutines
 import com.averycorp.prismtask.ui.navigation.PrismTaskRoute
-import com.averycorp.prismtask.ui.theme.LocalPrismColors
 import com.averycorp.prismtask.ui.screens.medication.components.EditableMedItem
 import com.averycorp.prismtask.ui.screens.medication.components.MedDialog
 import com.averycorp.prismtask.ui.screens.medication.components.MedItem
 import com.averycorp.prismtask.ui.screens.medication.components.TimePickerDialog
 import com.averycorp.prismtask.ui.screens.medication.components.formatTime24to12
+import com.averycorp.prismtask.ui.theme.LocalPrismColors
+import com.averycorp.prismtask.ui.theme.LocalPrismShapes
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)

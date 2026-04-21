@@ -49,7 +49,9 @@ class DailyForgivenessStreakCoreTest {
         // Today met, yesterday miss, two days ago met, three days ago met.
         val dates = setOf(today, today.minusDays(2), today.minusDays(3))
         val result = DailyForgivenessStreakCore.calculate(
-            dates, today, ForgivenessConfig(enabled = true, gracePeriodDays = 7, allowedMisses = 1)
+            dates,
+            today,
+            ForgivenessConfig(enabled = true, gracePeriodDays = 7, allowedMisses = 1)
         )
         // Strict: today is met (1), yesterday miss → strict stops at 1.
         assertEquals(1, result.strictStreak)
@@ -66,7 +68,9 @@ class DailyForgivenessStreakCoreTest {
         // tolerates the first miss but not the second.
         val dates = setOf(today, today.minusDays(3), today.minusDays(4))
         val result = DailyForgivenessStreakCore.calculate(
-            dates, today, ForgivenessConfig(enabled = true, gracePeriodDays = 7, allowedMisses = 1)
+            dates,
+            today,
+            ForgivenessConfig(enabled = true, gracePeriodDays = 7, allowedMisses = 1)
         )
         assertEquals(1, result.strictStreak)
         // Absorbs yesterday (1 miss), hits -2 miss — rolling window (yesterday
@@ -88,7 +92,9 @@ class DailyForgivenessStreakCoreTest {
             today.minusDays(6)
         )
         val result = DailyForgivenessStreakCore.calculate(
-            dates, today, ForgivenessConfig(enabled = true, gracePeriodDays = 7, allowedMisses = 2)
+            dates,
+            today,
+            ForgivenessConfig(enabled = true, gracePeriodDays = 7, allowedMisses = 2)
         )
         // Walk absorbs yesterday miss (1) and -3 miss (2), then the walk
         // continues through -4, -5, -6. Total = today + 1 + -2 + 1 + -4 + -5 + -6 = 7.
@@ -103,7 +109,9 @@ class DailyForgivenessStreakCoreTest {
     fun forgivenessDisabled_resilientCollapsesToStrict() {
         val dates = setOf(today, today.minusDays(2))
         val result = DailyForgivenessStreakCore.calculate(
-            dates, today, ForgivenessConfig.STRICT
+            dates,
+            today,
+            ForgivenessConfig.STRICT
         )
         assertEquals(1, result.strictStreak)
         assertEquals(1, result.resilientStreak)
@@ -116,7 +124,9 @@ class DailyForgivenessStreakCoreTest {
     fun walkStopsAtEarliestKnownActivity_noPunishmentForPreHistory() {
         val dates = setOf(today, today.minusDays(1), today.minusDays(2))
         val result = DailyForgivenessStreakCore.calculate(
-            dates, today, ForgivenessConfig(enabled = true, gracePeriodDays = 7, allowedMisses = 1)
+            dates,
+            today,
+            ForgivenessConfig(enabled = true, gracePeriodDays = 7, allowedMisses = 1)
         )
         // Walk hits today-2 (met), then next cursor today-3 is before earliest
         // known → stop. No phantom miss on today-3.
@@ -131,7 +141,9 @@ class DailyForgivenessStreakCoreTest {
         // the prefix of consecutive met days from today.
         val dates = setOf(today, today.minusDays(1), today.minusDays(4))
         val result = DailyForgivenessStreakCore.calculate(
-            dates, today, ForgivenessConfig(enabled = true, gracePeriodDays = 7, allowedMisses = 3)
+            dates,
+            today,
+            ForgivenessConfig(enabled = true, gracePeriodDays = 7, allowedMisses = 3)
         )
         assertEquals(2, result.strictStreak) // today + yesterday, break at -2
     }

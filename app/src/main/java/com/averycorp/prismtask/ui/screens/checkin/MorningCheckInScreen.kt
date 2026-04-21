@@ -19,7 +19,6 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import com.averycorp.prismtask.ui.theme.LocalPrismShapes
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Close
@@ -63,6 +62,7 @@ import com.averycorp.prismtask.domain.usecase.BurnoutResult
 import com.averycorp.prismtask.domain.usecase.CheckInStep
 import com.averycorp.prismtask.domain.usecase.RefillUrgency
 import com.averycorp.prismtask.ui.theme.LifeCategoryColor
+import com.averycorp.prismtask.ui.theme.LocalPrismShapes
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date

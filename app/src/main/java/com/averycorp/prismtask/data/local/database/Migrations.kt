@@ -994,20 +994,20 @@ val MIGRATION_50_51 = object : Migration(50, 51) {
 // `SyncService.collectionNameFor` to stay consistent with the rest of sync.
 val MIGRATION_51_52 = object : Migration(51, 52) {
     private val syncableTables = listOf(
-        "tasks"              to "task",
-        "projects"           to "project",
-        "tags"               to "tag",
-        "habits"             to "habit",
-        "habit_completions"  to "habit_completion",
-        "habit_logs"         to "habit_log",
-        "task_completions"   to "task_completion",
-        "task_templates"     to "task_template",
-        "milestones"         to "milestone",
-        "courses"            to "course",
+        "tasks" to "task",
+        "projects" to "project",
+        "tags" to "tag",
+        "habits" to "habit",
+        "habit_completions" to "habit_completion",
+        "habit_logs" to "habit_log",
+        "task_completions" to "task_completion",
+        "task_templates" to "task_template",
+        "milestones" to "milestone",
+        "courses" to "course",
         "course_completions" to "course_completion",
-        "leisure_logs"       to "leisure_log",
-        "self_care_steps"    to "self_care_step",
-        "self_care_logs"     to "self_care_log"
+        "leisure_logs" to "leisure_log",
+        "self_care_steps" to "self_care_step",
+        "self_care_logs" to "self_care_log"
     )
 
     override fun migrate(db: SupportSQLiteDatabase) {
@@ -1103,13 +1103,13 @@ val MIGRATION_51_52 = object : Migration(51, 52) {
 // duplicate built-ins by key. User-created templates keep template_key NULL.
 val MIGRATION_52_53 = object : Migration(52, 53) {
     private val builtInKeyMap = mapOf(
-        "Weekly Review"   to "builtin_weekly_review",
-        "Meeting Prep"    to "builtin_meeting_prep",
-        "Grocery Run"     to "builtin_grocery_run",
-        "School Daily"    to "builtin_school_daily",
-        "Leisure Time"    to "builtin_leisure_time",
-        "Assignment"      to "builtin_assignment",
-        "Deep Clean"      to "builtin_deep_clean",
+        "Weekly Review" to "builtin_weekly_review",
+        "Meeting Prep" to "builtin_meeting_prep",
+        "Grocery Run" to "builtin_grocery_run",
+        "School Daily" to "builtin_school_daily",
+        "Leisure Time" to "builtin_leisure_time",
+        "Assignment" to "builtin_assignment",
+        "Deep Clean" to "builtin_deep_clean",
         "Morning Routine" to "builtin_morning_routine"
     )
 

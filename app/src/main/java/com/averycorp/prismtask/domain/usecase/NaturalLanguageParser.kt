@@ -1,6 +1,5 @@
 package com.averycorp.prismtask.domain.usecase
 
-import com.averycorp.prismtask.core.time.DayBoundary as LogicalDayBoundary
 import com.averycorp.prismtask.core.time.SystemTimeProvider
 import com.averycorp.prismtask.core.time.TimeProvider
 import com.averycorp.prismtask.data.preferences.StartOfDay
@@ -22,6 +21,7 @@ import java.time.temporal.TemporalAdjusters
 import java.util.Locale
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.averycorp.prismtask.core.time.DayBoundary as LogicalDayBoundary
 
 data class ParsedTask(
     val title: String,
