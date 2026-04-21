@@ -43,8 +43,7 @@ object TestNetworkModule {
     // instrumentation suite, so a mockk(relaxed) is sufficient.
     @Provides
     @Singleton
-    fun provideCalendarBackendApi():
-        com.averycorp.prismtask.data.remote.api.CalendarBackendApi =
+    fun provideCalendarBackendApi(): com.averycorp.prismtask.data.remote.api.CalendarBackendApi =
         io.mockk.mockk(relaxed = true)
 }
 
