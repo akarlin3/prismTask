@@ -30,6 +30,7 @@ constructor(
         private val BUILT_IN_BACKFILL_DONE = booleanPreferencesKey("built_in_backfill_done")
         private val NEW_ENTITIES_BACKFILL_DONE = booleanPreferencesKey("new_entities_backfill_done")
         private val INITIAL_UPLOAD_DONE = booleanPreferencesKey("initial_upload_done")
+        private val CLOUD_ID_RESTORE_DONE = booleanPreferencesKey("cloud_id_restore_done")
     }
 
     suspend fun isBuiltInsReconciled(): Boolean =
@@ -72,5 +73,22 @@ constructor(
 
     suspend fun setInitialUploadDone(done: Boolean) {
         context.builtInSyncDataStore.edit { it[INITIAL_UPLOAD_DONE] = done }
+    }
+
+    /**
+     * Guard for the one-shot `cloud_id` column backfill in
+     * [com.averycorp.prismtask.data.remote.SyncService.restoreCloudIdFromMetadata].
+     * Phase 2's Migration_51_52 populated `cloud_id` on every syncable entity
+     * at upgrade time, but subsequent `pullRemoteChanges` calls nulled the
+     * column because `SyncMapper.mapToX` didn't yet accept a `cloudId`
+     * parameter. The Phase 2.5 patch adds that parameter AND this one-shot
+     * restore pass that re-populates the column from `sync_metadata` on the
+     * first boot after the patch lands. Set only on successful completion.
+     */
+    suspend fun isCloudIdRestoreDone(): Boolean =
+        context.builtInSyncDataStore.data.first()[CLOUD_ID_RESTORE_DONE] ?: false
+
+    suspend fun setCloudIdRestoreDone(done: Boolean) {
+        context.builtInSyncDataStore.edit { it[CLOUD_ID_RESTORE_DONE] = done }
     }
 }

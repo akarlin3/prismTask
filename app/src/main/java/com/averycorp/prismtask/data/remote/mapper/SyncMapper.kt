@@ -62,9 +62,11 @@ object SyncMapper {
         localId: Long = 0,
         projectLocalId: Long? = null,
         parentTaskLocalId: Long? = null,
-        sourceHabitLocalId: Long? = null
+        sourceHabitLocalId: Long? = null,
+        cloudId: String? = null
     ): TaskEntity = TaskEntity(
         id = localId,
+        cloudId = cloudId,
         title = data["title"] as? String ?: "",
         description = data["description"] as? String,
         dueDate = (data["dueDate"] as? Number)?.toLong(),
@@ -113,8 +115,13 @@ object SyncMapper {
         "updatedAt" to project.updatedAt
     )
 
-    fun mapToProject(data: Map<String, Any?>, localId: Long = 0): ProjectEntity = ProjectEntity(
+    fun mapToProject(
+        data: Map<String, Any?>,
+        localId: Long = 0,
+        cloudId: String? = null
+    ): ProjectEntity = ProjectEntity(
         id = localId,
+        cloudId = cloudId,
         name = data["name"] as? String ?: "",
         description = data["description"] as? String,
         color = data["color"] as? String ?: "#4A90D9",
@@ -148,9 +155,15 @@ object SyncMapper {
         "updatedAt" to milestone.updatedAt
     )
 
-    fun mapToMilestone(data: Map<String, Any?>, projectLocalId: Long, localId: Long = 0): MilestoneEntity =
+    fun mapToMilestone(
+        data: Map<String, Any?>,
+        projectLocalId: Long,
+        localId: Long = 0,
+        cloudId: String? = null
+    ): MilestoneEntity =
         MilestoneEntity(
             id = localId,
+            cloudId = cloudId,
             projectId = projectLocalId,
             title = data["title"] as? String ?: "",
             isCompleted = data["isCompleted"] as? Boolean ?: false,
@@ -167,8 +180,13 @@ object SyncMapper {
         "createdAt" to tag.createdAt
     )
 
-    fun mapToTag(data: Map<String, Any?>, localId: Long = 0): TagEntity = TagEntity(
+    fun mapToTag(
+        data: Map<String, Any?>,
+        localId: Long = 0,
+        cloudId: String? = null
+    ): TagEntity = TagEntity(
         id = localId,
+        cloudId = cloudId,
         name = data["name"] as? String ?: "",
         color = data["color"] as? String ?: "#6B7280",
         createdAt = (data["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis()
@@ -208,11 +226,16 @@ object SyncMapper {
         "updatedAt" to habit.updatedAt
     )
 
-    fun mapToHabit(data: Map<String, Any?>, localId: Long = 0): HabitEntity {
+    fun mapToHabit(
+        data: Map<String, Any?>,
+        localId: Long = 0,
+        cloudId: String? = null
+    ): HabitEntity {
         val templateKey = data["templateKey"] as? String
         val isBuiltIn = (data["isBuiltIn"] as? Boolean) ?: (templateKey != null)
         return HabitEntity(
             id = localId,
+            cloudId = cloudId,
             name = data["name"] as? String ?: "",
             description = data["description"] as? String,
             targetFrequency = (data["targetFrequency"] as? Number)?.toInt() ?: 1,
@@ -258,7 +281,12 @@ object SyncMapper {
         "notes" to completion.notes
     )
 
-    fun mapToHabitCompletion(data: Map<String, Any?>, localId: Long = 0, habitLocalId: Long = 0): HabitCompletionEntity {
+    fun mapToHabitCompletion(
+        data: Map<String, Any?>,
+        localId: Long = 0,
+        habitLocalId: Long = 0,
+        cloudId: String? = null
+    ): HabitCompletionEntity {
         val completedDate = (data["completedDate"] as? Number)?.toLong() ?: 0
         // Prefer the timezone-neutral string field. Fall back to epoch-derived
         // LocalDate in the pulling device's zone for legacy Firestore docs
@@ -269,6 +297,7 @@ object SyncMapper {
             ?: epochToLocalDateString(completedDate)
         return HabitCompletionEntity(
             id = localId,
+            cloudId = cloudId,
             habitId = habitLocalId,
             completedDate = completedDate,
             completedAt = (data["completedAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
@@ -291,9 +320,15 @@ object SyncMapper {
         "createdAt" to log.createdAt
     )
 
-    fun mapToHabitLog(data: Map<String, Any?>, localId: Long = 0, habitLocalId: Long = 0): HabitLogEntity =
+    fun mapToHabitLog(
+        data: Map<String, Any?>,
+        localId: Long = 0,
+        habitLocalId: Long = 0,
+        cloudId: String? = null
+    ): HabitLogEntity =
         HabitLogEntity(
             id = localId,
+            cloudId = cloudId,
             habitId = habitLocalId,
             date = (data["date"] as? Number)?.toLong() ?: 0,
             notes = data["notes"] as? String,
@@ -346,10 +381,12 @@ object SyncMapper {
         data: Map<String, Any?>,
         localId: Long = 0,
         taskLocalId: Long? = null,
-        projectLocalId: Long? = null
+        projectLocalId: Long? = null,
+        cloudId: String? = null
     ): TaskCompletionEntity =
         TaskCompletionEntity(
             id = localId,
+            cloudId = cloudId,
             taskId = taskLocalId,
             projectId = projectLocalId,
             completedDate = (data["completedDate"] as? Number)?.toLong() ?: 0,
@@ -363,9 +400,11 @@ object SyncMapper {
     fun mapToTaskTemplate(
         data: Map<String, Any?>,
         localId: Long = 0,
-        templateProjectLocalId: Long? = null
+        templateProjectLocalId: Long? = null,
+        cloudId: String? = null
     ): TaskTemplateEntity = TaskTemplateEntity(
         id = localId,
+        cloudId = cloudId,
         userId = data["userId"] as? String,
         remoteId = (data["remoteId"] as? Number)?.toInt(),
         name = data["name"] as? String ?: "",
@@ -401,8 +440,13 @@ object SyncMapper {
         "updatedAt" to course.updatedAt
     )
 
-    fun mapToCourse(data: Map<String, Any?>, localId: Long = 0): CourseEntity = CourseEntity(
+    fun mapToCourse(
+        data: Map<String, Any?>,
+        localId: Long = 0,
+        cloudId: String? = null
+    ): CourseEntity = CourseEntity(
         id = localId,
+        cloudId = cloudId,
         name = data["name"] as? String ?: "",
         code = data["code"] as? String ?: "",
         color = (data["color"] as? Number)?.toInt() ?: 0,
@@ -430,9 +474,11 @@ object SyncMapper {
     fun mapToCourseCompletion(
         data: Map<String, Any?>,
         localId: Long = 0,
-        courseLocalId: Long
+        courseLocalId: Long,
+        cloudId: String? = null
     ): CourseCompletionEntity = CourseCompletionEntity(
         id = localId,
+        cloudId = cloudId,
         date = (data["date"] as? Number)?.toLong() ?: 0L,
         courseId = courseLocalId,
         completed = data["completed"] as? Boolean ?: false,
@@ -456,8 +502,13 @@ object SyncMapper {
         "updatedAt" to log.updatedAt
     )
 
-    fun mapToLeisureLog(data: Map<String, Any?>, localId: Long = 0): LeisureLogEntity = LeisureLogEntity(
+    fun mapToLeisureLog(
+        data: Map<String, Any?>,
+        localId: Long = 0,
+        cloudId: String? = null
+    ): LeisureLogEntity = LeisureLogEntity(
         id = localId,
+        cloudId = cloudId,
         date = (data["date"] as? Number)?.toLong() ?: 0L,
         musicPick = data["musicPick"] as? String,
         musicDone = data["musicDone"] as? Boolean ?: false,
@@ -487,8 +538,13 @@ object SyncMapper {
         "updatedAt" to step.updatedAt
     )
 
-    fun mapToSelfCareStep(data: Map<String, Any?>, localId: Long = 0): SelfCareStepEntity = SelfCareStepEntity(
+    fun mapToSelfCareStep(
+        data: Map<String, Any?>,
+        localId: Long = 0,
+        cloudId: String? = null
+    ): SelfCareStepEntity = SelfCareStepEntity(
         id = localId,
+        cloudId = cloudId,
         stepId = data["stepId"] as? String ?: "",
         routineType = data["routineType"] as? String ?: "",
         label = data["label"] as? String ?: "",
@@ -518,8 +574,13 @@ object SyncMapper {
         "updatedAt" to log.updatedAt
     )
 
-    fun mapToSelfCareLog(data: Map<String, Any?>, localId: Long = 0): SelfCareLogEntity = SelfCareLogEntity(
+    fun mapToSelfCareLog(
+        data: Map<String, Any?>,
+        localId: Long = 0,
+        cloudId: String? = null
+    ): SelfCareLogEntity = SelfCareLogEntity(
         id = localId,
+        cloudId = cloudId,
         routineType = data["routineType"] as? String ?: "",
         date = (data["date"] as? Number)?.toLong() ?: 0L,
         selectedTier = data["selectedTier"] as? String ?: "solid",

@@ -55,7 +55,8 @@ constructor(
     private val schoolworkDao: SchoolworkDao,
     private val leisureDao: LeisureDao,
     private val selfCareDao: SelfCareDao,
-    private val builtInSyncPreferences: BuiltInSyncPreferences
+    private val builtInSyncPreferences: BuiltInSyncPreferences,
+    private val database: com.averycorp.prismtask.data.local.database.PrismTaskDatabase
 ) {
     private val firestore by lazy { FirebaseFirestore.getInstance() }
     private val listeners = mutableListOf<ListenerRegistration>()
@@ -777,7 +778,7 @@ constructor(
         val projectsResult = pullCollection("projects") { data, cloudId ->
             val localId = syncMetadataDao.getLocalId(cloudId, "project")
             if (localId == null) {
-                val project = SyncMapper.mapToProject(data)
+                val project = SyncMapper.mapToProject(data, cloudId = cloudId)
                 val newId = projectDao.insert(project)
                 syncMetadataDao.upsert(
                     SyncMetadataEntity(
@@ -793,7 +794,7 @@ constructor(
                 val localProject = projectDao.getProjectByIdOnce(localId)
                 val remoteUpdatedAt = (data["updatedAt"] as? Number)?.toLong() ?: 0L
                 if (localProject == null || remoteUpdatedAt > localProject.updatedAt) {
-                    projectDao.update(SyncMapper.mapToProject(data, localId))
+                    projectDao.update(SyncMapper.mapToProject(data, localId, cloudId = cloudId))
                     syncMetadataDao.clearPendingAction(localId, "project")
                 }
             }
@@ -805,7 +806,7 @@ constructor(
         val tagsResult = pullCollection("tags") { data, cloudId ->
             val localId = syncMetadataDao.getLocalId(cloudId, "tag")
             if (localId == null) {
-                val tag = SyncMapper.mapToTag(data)
+                val tag = SyncMapper.mapToTag(data, cloudId = cloudId)
                 val newId = tagDao.insert(tag)
                 syncMetadataDao.upsert(
                     SyncMetadataEntity(
@@ -816,7 +817,7 @@ constructor(
                     )
                 )
             } else {
-                val tag = SyncMapper.mapToTag(data, localId)
+                val tag = SyncMapper.mapToTag(data, localId, cloudId = cloudId)
                 tagDao.update(tag)
                 syncMetadataDao.clearPendingAction(localId, "tag")
             }
@@ -829,7 +830,7 @@ constructor(
         val habitsResult = pullCollection("habits") { data, cloudId ->
             val localId = syncMetadataDao.getLocalId(cloudId, "habit")
             if (localId == null) {
-                val habit = SyncMapper.mapToHabit(data)
+                val habit = SyncMapper.mapToHabit(data, cloudId = cloudId)
                 val newId = habitDao.insert(habit)
                 syncMetadataDao.upsert(
                     SyncMetadataEntity(
@@ -843,7 +844,7 @@ constructor(
                 val localHabit = habitDao.getHabitByIdOnce(localId)
                 val remoteUpdatedAt = (data["updatedAt"] as? Number)?.toLong() ?: 0L
                 if (localHabit == null || remoteUpdatedAt > localHabit.updatedAt) {
-                    habitDao.update(SyncMapper.mapToHabit(data, localId))
+                    habitDao.update(SyncMapper.mapToHabit(data, localId, cloudId = cloudId))
                     syncMetadataDao.clearPendingAction(localId, "habit")
                 }
             }
@@ -862,7 +863,7 @@ constructor(
             val sourceHabitCloudId = data["sourceHabitId"] as? String
             val sourceHabitLocalId = sourceHabitCloudId?.let { syncMetadataDao.getLocalId(it, "habit") }
             if (localId == null) {
-                val task = SyncMapper.mapToTask(data, 0, projectLocalId, parentTaskLocalId, sourceHabitLocalId)
+                val task = SyncMapper.mapToTask(data, 0, projectLocalId, parentTaskLocalId, sourceHabitLocalId, cloudId = cloudId)
                 val newId = taskDao.insert(task)
                 syncMetadataDao.upsert(
                     SyncMetadataEntity(
@@ -882,7 +883,7 @@ constructor(
                 val localTask = taskDao.getTaskByIdOnce(localId)
                 val remoteUpdatedAt = (data["updatedAt"] as? Number)?.toLong() ?: 0L
                 if (localTask == null || remoteUpdatedAt > localTask.updatedAt) {
-                    taskDao.update(SyncMapper.mapToTask(data, localId, projectLocalId, parentTaskLocalId, sourceHabitLocalId))
+                    taskDao.update(SyncMapper.mapToTask(data, localId, projectLocalId, parentTaskLocalId, sourceHabitLocalId, cloudId = cloudId))
                     syncMetadataDao.clearPendingAction(localId, "task")
                 }
             }
@@ -899,7 +900,7 @@ constructor(
             val projectCloudId = data["projectId"] as? String
             val projectLocalId = projectCloudId?.let { syncMetadataDao.getLocalId(it, "project") }
             if (localId == null) {
-                val completion = SyncMapper.mapToTaskCompletion(data, 0, taskLocalId, projectLocalId)
+                val completion = SyncMapper.mapToTaskCompletion(data, 0, taskLocalId, projectLocalId, cloudId = cloudId)
                 val newId = taskCompletionDao.insert(completion)
                 syncMetadataDao.upsert(
                     SyncMetadataEntity(
@@ -925,7 +926,7 @@ constructor(
                 // mapToHabitCompletion always produces a non-null completedDateLocal
                 // (either from the Firestore doc or derived from the epoch for
                 // legacy docs), so no post-hoc re-normalization is needed.
-                val completion = SyncMapper.mapToHabitCompletion(data, habitLocalId = habitLocalId)
+                val completion = SyncMapper.mapToHabitCompletion(data, habitLocalId = habitLocalId, cloudId = cloudId)
                 // Dedup by natural key (habitId, completedDateLocal) to avoid
                 // duplicating completions seeded locally on both devices before sign-in.
                 val existingByNaturalKey = completion.completedDateLocal?.let {
@@ -964,7 +965,7 @@ constructor(
             val habitLocalId = syncMetadataDao.getLocalId(habitCloudId, "habit")
                 ?: return@pullCollection false
             if (localId == null) {
-                val log = SyncMapper.mapToHabitLog(data, habitLocalId = habitLocalId)
+                val log = SyncMapper.mapToHabitLog(data, habitLocalId = habitLocalId, cloudId = cloudId)
                 val newId = habitLogDao.insertLog(log)
                 syncMetadataDao.upsert(
                     SyncMetadataEntity(
@@ -988,7 +989,7 @@ constructor(
             val projectLocalId = syncMetadataDao.getLocalId(projectCloudId, "project")
                 ?: return@pullCollection false
             if (localId == null) {
-                val milestone = SyncMapper.mapToMilestone(data, projectLocalId)
+                val milestone = SyncMapper.mapToMilestone(data, projectLocalId, cloudId = cloudId)
                 val newId = milestoneDao.insert(milestone)
                 syncMetadataDao.upsert(
                     SyncMetadataEntity(
@@ -1002,7 +1003,7 @@ constructor(
                 val localMilestone = milestoneDao.getByIdOnce(localId)
                 val remoteUpdatedAt = (data["updatedAt"] as? Number)?.toLong() ?: 0L
                 if (localMilestone == null || remoteUpdatedAt > localMilestone.updatedAt) {
-                    milestoneDao.update(SyncMapper.mapToMilestone(data, projectLocalId, localId))
+                    milestoneDao.update(SyncMapper.mapToMilestone(data, projectLocalId, localId, cloudId = cloudId))
                     syncMetadataDao.clearPendingAction(localId, "milestone")
                 }
             }
@@ -1016,7 +1017,7 @@ constructor(
             val templateProjectCloudId = data["templateProjectId"] as? String
             val templateProjectLocalId = templateProjectCloudId?.let { syncMetadataDao.getLocalId(it, "project") }
             if (localId == null) {
-                val template = SyncMapper.mapToTaskTemplate(data, 0, templateProjectLocalId)
+                val template = SyncMapper.mapToTaskTemplate(data, 0, templateProjectLocalId, cloudId = cloudId)
                 val newId = taskTemplateDao.insertTemplate(template)
                 syncMetadataDao.upsert(
                     SyncMetadataEntity(
@@ -1030,7 +1031,7 @@ constructor(
                 val localTemplate = taskTemplateDao.getTemplateById(localId)
                 val remoteUpdatedAt = (data["updatedAt"] as? Number)?.toLong() ?: 0L
                 if (localTemplate == null || remoteUpdatedAt > localTemplate.updatedAt) {
-                    taskTemplateDao.updateTemplate(SyncMapper.mapToTaskTemplate(data, localId, templateProjectLocalId))
+                    taskTemplateDao.updateTemplate(SyncMapper.mapToTaskTemplate(data, localId, templateProjectLocalId, cloudId = cloudId))
                     syncMetadataDao.clearPendingAction(localId, "task_template")
                 }
             }
@@ -1043,7 +1044,7 @@ constructor(
         val coursesResult = pullCollection("courses") { data, cloudId ->
             val localId = syncMetadataDao.getLocalId(cloudId, "course")
             if (localId == null) {
-                val course = SyncMapper.mapToCourse(data)
+                val course = SyncMapper.mapToCourse(data, cloudId = cloudId)
                 val newId = schoolworkDao.insertCourse(course)
                 syncMetadataDao.upsert(
                     SyncMetadataEntity(
@@ -1057,7 +1058,7 @@ constructor(
                 val localCourse = schoolworkDao.getCourseById(localId)
                 val remoteUpdatedAt = (data["updatedAt"] as? Number)?.toLong() ?: 0L
                 if (localCourse == null || remoteUpdatedAt > localCourse.updatedAt) {
-                    schoolworkDao.updateCourse(SyncMapper.mapToCourse(data, localId))
+                    schoolworkDao.updateCourse(SyncMapper.mapToCourse(data, localId, cloudId = cloudId))
                     syncMetadataDao.clearPendingAction(localId, "course")
                 }
             }
@@ -1073,7 +1074,7 @@ constructor(
             val courseLocalId = syncMetadataDao.getLocalId(courseCloudId, "course")
                 ?: return@pullCollection false
             if (localId == null) {
-                val completion = SyncMapper.mapToCourseCompletion(data, courseLocalId = courseLocalId)
+                val completion = SyncMapper.mapToCourseCompletion(data, courseLocalId = courseLocalId, cloudId = cloudId)
                 val newId = schoolworkDao.insertCompletion(completion)
                 syncMetadataDao.upsert(
                     SyncMetadataEntity(
@@ -1087,7 +1088,7 @@ constructor(
                 val localCompletion = schoolworkDao.getCompletionById(localId)
                 val remoteUpdatedAt = (data["updatedAt"] as? Number)?.toLong() ?: 0L
                 if (localCompletion == null || remoteUpdatedAt > localCompletion.updatedAt) {
-                    schoolworkDao.updateCompletion(SyncMapper.mapToCourseCompletion(data, localId, courseLocalId))
+                    schoolworkDao.updateCompletion(SyncMapper.mapToCourseCompletion(data, localId, courseLocalId, cloudId = cloudId))
                     syncMetadataDao.clearPendingAction(localId, "course_completion")
                 }
             }
@@ -1099,7 +1100,7 @@ constructor(
         val leisureLogsResult = pullCollection("leisure_logs") { data, cloudId ->
             val localId = syncMetadataDao.getLocalId(cloudId, "leisure_log")
             if (localId == null) {
-                val log = SyncMapper.mapToLeisureLog(data)
+                val log = SyncMapper.mapToLeisureLog(data, cloudId = cloudId)
                 val newId = leisureDao.insertLog(log)
                 syncMetadataDao.upsert(
                     SyncMetadataEntity(
@@ -1113,7 +1114,7 @@ constructor(
                 val localLog = leisureDao.getLogById(localId)
                 val remoteUpdatedAt = (data["updatedAt"] as? Number)?.toLong() ?: 0L
                 if (localLog == null || remoteUpdatedAt > localLog.updatedAt) {
-                    leisureDao.updateLog(SyncMapper.mapToLeisureLog(data, localId))
+                    leisureDao.updateLog(SyncMapper.mapToLeisureLog(data, localId, cloudId = cloudId))
                     syncMetadataDao.clearPendingAction(localId, "leisure_log")
                 }
             }
@@ -1143,7 +1144,7 @@ constructor(
                         )
                     )
                 } else {
-                    val step = SyncMapper.mapToSelfCareStep(data)
+                    val step = SyncMapper.mapToSelfCareStep(data, cloudId = cloudId)
                     val newId = selfCareDao.insertStep(step)
                     syncMetadataDao.upsert(
                         SyncMetadataEntity(
@@ -1158,7 +1159,7 @@ constructor(
                 val localStep = selfCareDao.getStepById(localId)
                 val remoteUpdatedAt = (data["updatedAt"] as? Number)?.toLong() ?: 0L
                 if (localStep == null || remoteUpdatedAt > localStep.updatedAt) {
-                    selfCareDao.updateStep(SyncMapper.mapToSelfCareStep(data, localId))
+                    selfCareDao.updateStep(SyncMapper.mapToSelfCareStep(data, localId, cloudId = cloudId))
                     syncMetadataDao.clearPendingAction(localId, "self_care_step")
                 }
             }
@@ -1170,7 +1171,7 @@ constructor(
         val selfCareLogsResult = pullCollection("self_care_logs") { data, cloudId ->
             val localId = syncMetadataDao.getLocalId(cloudId, "self_care_log")
             if (localId == null) {
-                val log = SyncMapper.mapToSelfCareLog(data)
+                val log = SyncMapper.mapToSelfCareLog(data, cloudId = cloudId)
                 val newId = selfCareDao.insertLog(log)
                 syncMetadataDao.upsert(
                     SyncMetadataEntity(
@@ -1184,7 +1185,7 @@ constructor(
                 val localLog = selfCareDao.getLogById(localId)
                 val remoteUpdatedAt = (data["updatedAt"] as? Number)?.toLong() ?: 0L
                 if (localLog == null || remoteUpdatedAt > localLog.updatedAt) {
-                    selfCareDao.updateLog(SyncMapper.mapToSelfCareLog(data, localId))
+                    selfCareDao.updateLog(SyncMapper.mapToSelfCareLog(data, localId, cloudId = cloudId))
                     syncMetadataDao.clearPendingAction(localId, "self_care_log")
                 }
             }
@@ -1290,10 +1291,100 @@ constructor(
         }
     }
 
+    /**
+     * Phase 2.5 one-shot restore. Migration_51_52 backfilled
+     * `cloud_id` on every syncable entity table from `sync_metadata` at
+     * upgrade time, but every subsequent `pullRemoteChanges` then NULLed
+     * the column because `SyncMapper.mapToX` didn't yet accept a `cloudId`
+     * parameter. This patch fixes the mapper AND runs this restore once
+     * to re-populate the column on rows that were pre-existing when the
+     * patch landed. Gated by [BuiltInSyncPreferences.isCloudIdRestoreDone]
+     * so it runs exactly once; flag only flips to true on success.
+     *
+     * Uses `UPDATE OR IGNORE` so any row that would collide with the
+     * unique index on `cloud_id` (if two local rows still point at the
+     * same cloud doc via `sync_metadata`) is silently skipped — a belt-
+     * and-suspenders for collision cases beyond what Migration_51_52
+     * already resolved. Collisions are logged per-table as the `updated`
+     * count being less than the null-cloud_id row count; the skipped
+     * row keeps `cloud_id = NULL` and a later sync cycle can mend it.
+     *
+     * Does NOT mutate `sync_metadata` (read-only) and does NOT write to
+     * Firestore.
+     */
+    private suspend fun restoreCloudIdFromMetadata() {
+        if (builtInSyncPreferences.isCloudIdRestoreDone()) return
+
+        // Mirrors [Migration_51_52.syncableTables] — the two must stay in
+        // sync. If a new syncable entity is added in a future release,
+        // extend both lists.
+        val syncableTables = listOf(
+            "tasks"              to "task",
+            "projects"           to "project",
+            "tags"               to "tag",
+            "habits"             to "habit",
+            "habit_completions"  to "habit_completion",
+            "habit_logs"         to "habit_log",
+            "task_completions"   to "task_completion",
+            "task_templates"     to "task_template",
+            "milestones"         to "milestone",
+            "courses"            to "course",
+            "course_completions" to "course_completion",
+            "leisure_logs"       to "leisure_log",
+            "self_care_steps"    to "self_care_step",
+            "self_care_logs"     to "self_care_log"
+        )
+
+        val db = database.openHelper.writableDatabase
+        var totalUpdated = 0
+        try {
+            for ((table, entityType) in syncableTables) {
+                val sql = """
+                    UPDATE OR IGNORE `$table` SET `cloud_id` = (
+                        SELECT NULLIF(sm.cloud_id, '')
+                        FROM sync_metadata sm
+                        WHERE sm.local_id = `$table`.id
+                          AND sm.entity_type = '$entityType'
+                    )
+                    WHERE cloud_id IS NULL
+                """.trimIndent()
+                val updated = db.compileStatement(sql).use { it.executeUpdateDelete() }
+                totalUpdated += updated
+                logger.info(
+                    operation = "cloudId.restore",
+                    entity = entityType,
+                    status = "success",
+                    detail = "table=$table updated=$updated"
+                )
+            }
+            builtInSyncPreferences.setCloudIdRestoreDone(true)
+            logger.info(
+                operation = "cloudId.restore",
+                status = "success",
+                detail = "total_updated=$totalUpdated"
+            )
+        } catch (e: Throwable) {
+            logger.error(operation = "cloudId.restore", throwable = e)
+            // Flag intentionally NOT set — retry on next boot.
+        }
+    }
+
     fun startAutoSync() {
         if (authManager.userId == null) return
         startRealtimeListeners()
         scope.launch {
+            // Phase 2.5 — re-populate `cloud_id` on pre-existing rows
+            // before any pull activity. Runs once; see [restoreCloudIdFromMetadata].
+            try {
+                restoreCloudIdFromMetadata()
+            } catch (e: Exception) {
+                try {
+                    com.google.firebase.crashlytics.FirebaseCrashlytics
+                        .getInstance()
+                        .recordException(e)
+                } catch (_: Exception) {
+                }
+            }
             if (!builtInSyncPreferences.isNewEntitiesBackfillDone()) {
                 logger.info(operation = "backfill.triggered", detail = "source=startAutoSync reason=already_signed_in")
                 try {
