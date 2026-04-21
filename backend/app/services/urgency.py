@@ -55,10 +55,8 @@ def compute_urgency(
 
     # Age factor (20% weight)
     if created_at:
-        if created_at.tzinfo is None:
-            age_days = (datetime.now() - created_at).days
-        else:
-            age_days = (datetime.now(timezone.utc) - created_at).days
+        reference = created_at if created_at.tzinfo else created_at.replace(tzinfo=timezone.utc)
+        age_days = (datetime.now(timezone.utc) - reference).days
         age_factor = min(age_days / 30.0, 1.0)
         score += age_factor * 0.2
 

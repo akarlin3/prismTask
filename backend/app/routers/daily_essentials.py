@@ -58,7 +58,7 @@ async def _upsert_slot(
         )
     )
     row = result.scalar_one_or_none()
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    now = datetime.now(timezone.utc)
     med_ids_json = json.dumps(med_ids) if med_ids else None
     if row is None:
         row = DailyEssentialSlotCompletion(

@@ -88,8 +88,8 @@ class User(Base):
     firebase_uid = Column(String(255), unique=True, nullable=True)
     tier = Column(String(20), nullable=False, server_default="FREE")
     is_admin = Column(Boolean, nullable=False, default=False, server_default="0")
-    created_at = Column(DateTime, server_default=func.now())
-    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     @property
     def effective_tier(self) -> str:
@@ -116,8 +116,8 @@ class Goal(Base):
     target_date = Column(Date, nullable=True)
     color = Column(String(7), nullable=True)
     sort_order = Column(Integer, default=0)
-    created_at = Column(DateTime, server_default=func.now())
-    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     user = relationship("User", back_populates="goals")
     projects = relationship("Project", back_populates="goal", cascade="all, delete-orphan")
@@ -134,8 +134,8 @@ class Project(Base):
     status = Column(Enum(ProjectStatus, values_callable=lambda x: [e.value for e in x]), default=ProjectStatus.ACTIVE, nullable=False)
     due_date = Column(Date, nullable=True)
     sort_order = Column(Integer, default=0)
-    created_at = Column(DateTime, server_default=func.now())
-    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     goal = relationship("Goal", back_populates="projects")
     user = relationship("User")
@@ -150,7 +150,7 @@ class Tag(Base):
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     name = Column(String(100), nullable=False)
     color = Column(String(7), nullable=True)
-    created_at = Column(DateTime, server_default=func.now())
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     user = relationship("User", back_populates="tags")
     task_tags = relationship("TaskTag", back_populates="tag", cascade="all, delete-orphan")
@@ -174,17 +174,17 @@ class Task(Base):
     due_date = Column(Date, nullable=True)
     due_time = Column(Time, nullable=True)
     planned_date = Column(Date, nullable=True)
-    completed_at = Column(DateTime, nullable=True)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
     urgency_score = Column(Float, default=0.0)
     recurrence_json = Column(Text, nullable=True)
     eisenhower_quadrant = Column(String(2), nullable=True)  # Q1, Q2, Q3, Q4
-    eisenhower_updated_at = Column(DateTime, nullable=True)
+    eisenhower_updated_at = Column(DateTime(timezone=True), nullable=True)
     estimated_duration = Column(Integer, nullable=True)  # minutes
     actual_duration = Column(Integer, nullable=True)  # minutes
     sort_order = Column(Integer, default=0)
     depth = Column(Integer, default=0)
-    created_at = Column(DateTime, server_default=func.now())
-    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     project = relationship("Project", back_populates="tasks")
     user = relationship("User")
@@ -217,7 +217,7 @@ class Attachment(Base):
     name = Column(String(255), nullable=False)
     uri = Column(Text, nullable=False)
     type = Column(String(50), nullable=False)
-    created_at = Column(DateTime, server_default=func.now())
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     task = relationship("Task", back_populates="attachments")
 
@@ -240,8 +240,8 @@ class Habit(Base):
     nag_suppression_days_override = Column(Integer, default=-1)
     today_skip_after_complete_days = Column(Integer, default=-1)
     today_skip_before_schedule_days = Column(Integer, default=-1)
-    created_at = Column(DateTime, server_default=func.now())
-    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     user = relationship("User", back_populates="habits")
     completions = relationship("HabitCompletion", back_populates="habit", cascade="all, delete-orphan")
@@ -257,7 +257,7 @@ class HabitCompletion(Base):
     habit_id = Column(Integer, ForeignKey("habits.id", ondelete="CASCADE"), nullable=False, index=True)
     date = Column(Date, nullable=False)
     count = Column(Integer, default=1)
-    created_at = Column(DateTime, server_default=func.now())
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     habit = relationship("Habit", back_populates="completions")
 
@@ -284,10 +284,10 @@ class TaskTemplate(Base):
 
     is_built_in = Column(Boolean, default=False)
     usage_count = Column(Integer, default=0)
-    last_used_at = Column(DateTime, nullable=True)
+    last_used_at = Column(DateTime(timezone=True), nullable=True)
 
-    created_at = Column(DateTime, server_default=func.now())
-    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     user = relationship("User", back_populates="templates")
     project = relationship("Project", foreign_keys=[template_project_id])
@@ -303,7 +303,7 @@ class ProjectMember(Base):
     project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     role = Column(String(20), nullable=False, default="editor")  # "owner", "editor", "viewer"
-    joined_at = Column(DateTime, server_default=func.now())
+    joined_at = Column(DateTime(timezone=True), server_default=func.now())
 
     project = relationship("Project", back_populates="members")
     user = relationship("User", back_populates="project_memberships")
@@ -319,8 +319,8 @@ class ProjectInvite(Base):
     role = Column(String(20), nullable=False, default="editor")
     token = Column(String(64), unique=True, nullable=False, index=True)
     status = Column(String(20), nullable=False, default="pending")  # pending, accepted, declined, expired
-    created_at = Column(DateTime, server_default=func.now())
-    expires_at = Column(DateTime, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    expires_at = Column(DateTime(timezone=True), nullable=False)
 
     project = relationship("Project")
     inviter = relationship("User", foreign_keys=[inviter_id])
@@ -341,7 +341,7 @@ class ActivityLog(Base):
     entity_id = Column(Integer, nullable=True)
     entity_title = Column(String(255), nullable=True)
     metadata_json = Column(Text, nullable=True)
-    created_at = Column(DateTime, server_default=func.now(), index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
 
     project = relationship("Project")
     user = relationship("User")
@@ -354,8 +354,8 @@ class TaskComment(Base):
     task_id = Column(Integer, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False, index=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     content = Column(Text, nullable=False)
-    created_at = Column(DateTime, server_default=func.now())
-    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     task = relationship("Task", back_populates="comments")
     user = relationship("User")
@@ -372,7 +372,7 @@ class AppRelease(Base):
     apk_size_bytes = Column(Integer, nullable=True)
     sha256 = Column(String(64), nullable=True)
     min_sdk = Column(Integer, default=26)
-    created_at = Column(DateTime, server_default=func.now())
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
     is_mandatory = Column(Boolean, default=False)
 
 
@@ -403,9 +403,9 @@ class SuggestedTask(Base):
         default=SuggestionStatus.PENDING,
         nullable=False,
     )
-    extracted_at = Column(DateTime, server_default=func.now())
-    created_at = Column(DateTime, server_default=func.now())
-    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    extracted_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     user = relationship("User")
 
@@ -421,10 +421,10 @@ class IntegrationConfig(Base):
     source = Column(String(20), nullable=False)
     is_enabled = Column(Boolean, default=False)
     config_json = Column(Text, nullable=True)
-    last_scan_at = Column(DateTime, nullable=True)
+    last_scan_at = Column(DateTime(timezone=True), nullable=True)
     scan_frequency_minutes = Column(Integer, default=120)
-    created_at = Column(DateTime, server_default=func.now())
-    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     user = relationship("User")
 
@@ -451,11 +451,11 @@ class CalendarSyncSettings(Base):
     display_calendar_ids_json = Column(Text, nullable=False, default="[]")
     show_events = Column(Boolean, nullable=False, default=True)
     sync_completed_tasks = Column(Boolean, nullable=False, default=False)
-    last_sync_at = Column(DateTime, nullable=True)
+    last_sync_at = Column(DateTime(timezone=True), nullable=True)
     last_sync_token_per_calendar_json = Column(Text, nullable=False, default="{}")
     timezone = Column(String(64), nullable=False, default="UTC")
-    created_at = Column(DateTime, server_default=func.now())
-    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     user = relationship("User")
 
@@ -497,8 +497,8 @@ class BugReportModel(Base):
     admin_notes = Column(Text, nullable=True)
     diagnostic_log = Column(Text, nullable=True)
     submitted_via = Column(String(20), nullable=True, default="backend")
-    created_at = Column(DateTime, server_default=func.now())
-    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     user = relationship("User", foreign_keys=[user_id])
 
@@ -530,8 +530,8 @@ class NdPreferencesModel(Base):
     show_progress_bars = Column(Boolean, nullable=False, default=False)
     forgiveness_streaks = Column(Boolean, nullable=False, default=False)
 
-    created_at = Column(DateTime, server_default=func.now())
-    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     user = relationship("User")
 
@@ -561,8 +561,8 @@ class DailyEssentialSlotCompletion(Base):
     date = Column(Date, nullable=False)
     slot_key = Column(String(16), nullable=False)
     med_ids_json = Column(Text, nullable=True)
-    taken_at = Column(DateTime, nullable=True)
-    created_at = Column(DateTime, server_default=func.now())
-    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    taken_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     user = relationship("User")

@@ -295,7 +295,7 @@ async def parse_import_list(
             detail="AI import parsing is unavailable — server ANTHROPIC_API_KEY is not configured",
         )
 
-    year = datetime.now().year
+    year = datetime.now(timezone.utc).year
     system_prompt = f"""You are a structured data extractor. The user will give you the contents of a JSX/TSX file or a text list that contains a to-do list, schedule, or checklist.
 
 Extract all actionable items and return ONLY a JSON object with this exact schema (no other text):
@@ -360,7 +360,7 @@ async def parse_checklist(
             detail="AI import parsing is unavailable — server ANTHROPIC_API_KEY is not configured",
         )
 
-    year = datetime.now().year
+    year = datetime.now(timezone.utc).year
     system_prompt = f"""You are a structured data extractor for a task management app. The user will give you the contents of a JSX/TSX file, a text list, schedule, syllabus, or other content.
 
 Your job is to extract EVERY actionable item, preserving ALL detail from the original. Do not summarize or skip anything. Replicate every aspect of the source material.
