@@ -12,6 +12,20 @@ Usage:
     python firestore_dedup_fix_d.py <key.json> <uid> --keep-db <path> [--execute]
     python firestore_dedup_fix_d.py sa.json 2Bg... --keep-db live.fixd.db
     python firestore_dedup_fix_d.py sa.json 2Bg... --keep-db live.fixd.db --execute
+
+IMPORTANT — Firestore SDK offline cache:
+    Deleting docs server-side does NOT delete queued writes in the
+    Firestore SDK's per-device offline cache. If any connected device
+    has a pending write (e.g. "mark task complete") queued from before
+    the dedup ran, opening the app replays that write and RESURRECTS
+    the deleted doc. After running this script, clear the Firestore
+    SDK cache file on every connected device BEFORE opening the app:
+
+        adb shell "run-as <pkg> rm -f \\
+          /data/data/<pkg>/databases/'firestore.%5BDEFAULT%5D.<project>.%28default%29' \\
+          /data/data/<pkg>/databases/'firestore.%5BDEFAULT%5D.<project>.%28default%29-journal'"
+
+    See docs/PHASE_3_FIRESTORE_CLEANUP_RUNBOOK.md for the full sequence.
 """
 
 import sys
