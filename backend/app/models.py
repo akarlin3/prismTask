@@ -1,5 +1,6 @@
 import enum
 import secrets
+from datetime import datetime, timezone
 
 from sqlalchemy import (
     Boolean,
@@ -89,7 +90,7 @@ class User(Base):
     tier = Column(String(20), nullable=False, server_default="FREE")
     is_admin = Column(Boolean, nullable=False, default=False, server_default="0")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=lambda: datetime.now(timezone.utc))
 
     @property
     def effective_tier(self) -> str:
@@ -117,7 +118,7 @@ class Goal(Base):
     color = Column(String(7), nullable=True)
     sort_order = Column(Integer, default=0)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=lambda: datetime.now(timezone.utc))
 
     user = relationship("User", back_populates="goals")
     projects = relationship("Project", back_populates="goal", cascade="all, delete-orphan")
@@ -135,7 +136,7 @@ class Project(Base):
     due_date = Column(Date, nullable=True)
     sort_order = Column(Integer, default=0)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=lambda: datetime.now(timezone.utc))
 
     goal = relationship("Goal", back_populates="projects")
     user = relationship("User")
@@ -184,7 +185,7 @@ class Task(Base):
     sort_order = Column(Integer, default=0)
     depth = Column(Integer, default=0)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=lambda: datetime.now(timezone.utc))
 
     project = relationship("Project", back_populates="tasks")
     user = relationship("User")
@@ -241,7 +242,7 @@ class Habit(Base):
     today_skip_after_complete_days = Column(Integer, default=-1)
     today_skip_before_schedule_days = Column(Integer, default=-1)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=lambda: datetime.now(timezone.utc))
 
     user = relationship("User", back_populates="habits")
     completions = relationship("HabitCompletion", back_populates="habit", cascade="all, delete-orphan")
@@ -287,7 +288,7 @@ class TaskTemplate(Base):
     last_used_at = Column(DateTime(timezone=True), nullable=True)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=lambda: datetime.now(timezone.utc))
 
     user = relationship("User", back_populates="templates")
     project = relationship("Project", foreign_keys=[template_project_id])
@@ -355,7 +356,7 @@ class TaskComment(Base):
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     content = Column(Text, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=lambda: datetime.now(timezone.utc))
 
     task = relationship("Task", back_populates="comments")
     user = relationship("User")
@@ -405,7 +406,7 @@ class SuggestedTask(Base):
     )
     extracted_at = Column(DateTime(timezone=True), server_default=func.now())
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=lambda: datetime.now(timezone.utc))
 
     user = relationship("User")
 
@@ -424,7 +425,7 @@ class IntegrationConfig(Base):
     last_scan_at = Column(DateTime(timezone=True), nullable=True)
     scan_frequency_minutes = Column(Integer, default=120)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=lambda: datetime.now(timezone.utc))
 
     user = relationship("User")
 
@@ -455,7 +456,7 @@ class CalendarSyncSettings(Base):
     last_sync_token_per_calendar_json = Column(Text, nullable=False, default="{}")
     timezone = Column(String(64), nullable=False, default="UTC")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=lambda: datetime.now(timezone.utc))
 
     user = relationship("User")
 
@@ -498,7 +499,7 @@ class BugReportModel(Base):
     diagnostic_log = Column(Text, nullable=True)
     submitted_via = Column(String(20), nullable=True, default="backend")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=lambda: datetime.now(timezone.utc))
 
     user = relationship("User", foreign_keys=[user_id])
 
@@ -531,7 +532,7 @@ class NdPreferencesModel(Base):
     forgiveness_streaks = Column(Boolean, nullable=False, default=False)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=lambda: datetime.now(timezone.utc))
 
     user = relationship("User")
 
@@ -563,6 +564,6 @@ class DailyEssentialSlotCompletion(Base):
     med_ids_json = Column(Text, nullable=True)
     taken_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=lambda: datetime.now(timezone.utc))
 
     user = relationship("User")
