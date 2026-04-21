@@ -314,7 +314,8 @@ class NaturalLanguageParserTest {
     // tests. Tracked with re-enable-android-ci.
 
     @Ignore(
-        "CI-RE-ENABLE: time-of-day tests assume parser returns today at HH:mm; parser now rolls past times to tomorrow. Needs an injectable clock."
+        "CI-RE-ENABLE: time-of-day tests assume parser returns today at HH:mm; " +
+            "parser now rolls past times to tomorrow. Needs an injectable clock."
     )
     @Test
     fun test_atTime() {

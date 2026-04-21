@@ -112,7 +112,10 @@ class SelfCareRepositorySeedingTest {
     }
 
     @Ignore(
-        "CI-RE-ENABLE: test comment says 'medication has no default-steps list' but SelfCareRoutines.getSteps(\"medication\") now returns 4 steps. Either the test expectation or the production list needs to be realigned. Tracked with re-enable-android-ci."
+        "CI-RE-ENABLE: test comment says 'medication has no default-steps list' " +
+            "but SelfCareRoutines.getSteps(\"medication\") now returns 4 steps. " +
+            "Either the test expectation or the production list needs to be " +
+            "realigned. Tracked with re-enable-android-ci."
     )
     @Test
     fun seedSelfCareTier_medicationRoutine_isNoop() = runBlocking {

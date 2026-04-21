@@ -220,7 +220,12 @@ class AddEditTaskViewModelTest {
     }
 
     @Ignore(
-        "CI-RE-ENABLE: mockk verification fails because the call now passes lifeCategory=UNCATEGORIZED where the expectation has no matcher for that argument slot. TaskRepository.addTask gained a new lifeCategory parameter after this test was written. Update the verify block to match the new signature. Tracked with re-enable-android-ci."
+        "CI-RE-ENABLE: mockk verification fails because the call now passes " +
+            "lifeCategory=UNCATEGORIZED where the expectation has no matcher " +
+            "for that argument slot. TaskRepository.addTask gained a new " +
+            "lifeCategory parameter after this test was written. Update the " +
+            "verify block to match the new signature. Tracked with " +
+            "re-enable-android-ci."
     )
     @Test
     fun saveTask_createMode_invokesRepositoryWithFields() = runTest {
