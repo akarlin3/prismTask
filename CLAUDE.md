@@ -27,7 +27,7 @@
 - **Database**: Room 2.8.4 with KSP 2.3.6
 - **Navigation**: Jetpack Navigation Compose 2.8.5
 - **Serialization**: Gson 2.11.0 (for RecurrenceRule JSON)
-- **Cloud**: Firebase Auth + Firestore + Storage (BOM 33.12.0), Google Drive API v3
+- **Cloud**: Firebase Auth + Firestore + Storage (BOM 33.16.0), Google Drive API v3
 - **Auth**: Credential Manager + Google Identity
 - **Drag-to-Reorder**: sh.calvin.reorderable 2.4.3
 - **Widgets**: Glance for Compose 1.1.0
