@@ -6,9 +6,11 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.averycorp.prismtask.data.local.dao.TagDao
 import com.averycorp.prismtask.data.local.dao.TaskDao
+import com.averycorp.prismtask.data.local.dao.TaskTemplateDao
 import com.averycorp.prismtask.data.local.database.PrismTaskDatabase
 import com.averycorp.prismtask.data.local.entity.TagEntity
 import com.averycorp.prismtask.data.local.entity.TaskEntity
+import com.averycorp.prismtask.data.local.entity.TaskTemplateEntity
 import com.averycorp.prismtask.data.remote.mapper.SyncMapper
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -30,8 +32,10 @@ import org.junit.runner.RunWith
  * cycle overwrote the Room row with `cloudId = null`, and
  * Migration_51_52's backfill was effectively erased on first sync.
  *
- * Covers tasks (baseline shape) and tags (the most-duplicated entity
- * in the production corruption, so particularly valuable to lock down).
+ * Covers tasks (baseline shape), tags (the most-duplicated entity in
+ * the production corruption), and task_templates (included because its
+ * sync handler has both an INSERT and an UPDATE mapToX callsite, and the
+ * cloud audit flagged 34× duplication on this table).
  */
 @RunWith(AndroidJUnit4::class)
 class SyncMapperCloudIdTest {
@@ -41,6 +45,7 @@ class SyncMapperCloudIdTest {
     private lateinit var database: PrismTaskDatabase
     private lateinit var taskDao: TaskDao
     private lateinit var tagDao: TagDao
+    private lateinit var taskTemplateDao: TaskTemplateDao
 
     @Before
     fun setup() {
@@ -51,6 +56,7 @@ class SyncMapperCloudIdTest {
             .build()
         taskDao = database.taskDao()
         tagDao = database.tagDao()
+        taskTemplateDao = database.taskTemplateDao()
     }
 
     @After
@@ -135,6 +141,54 @@ class SyncMapperCloudIdTest {
             "cloud_work_Z9",
             getTagCloudId(seededId)
         )
+    }
+
+    @Test
+    fun mapToTaskTemplate_populatesCloudId_andSurvivesRoomRoundTrip() = runTest {
+        // task_templates has the same Room @Update regression shape as
+        // tasks/tags. Its sync handler (SyncService.pullCollection for
+        // "task_templates") calls mapToTaskTemplate on both the INSERT and
+        // UPDATE paths, and the UPDATE path was the last of the 11 pull
+        // callsites to land cloudId=cloudId in the Phase 2.5 patch, so
+        // lock it down explicitly.
+        val seededId = taskTemplateDao.insertTemplate(
+            TaskTemplateEntity(
+                name = "Weekly 1:1",
+                cloudId = "tmpl-cloud-99"
+            )
+        )
+        assertEquals("tmpl-cloud-99", taskTemplateDao.getTemplateById(seededId)?.cloudId)
+
+        val firestoreData: Map<String, Any?> = mapOf(
+            "name" to "Weekly 1:1 (renamed)",
+            "description" to "sync-touched",
+            "isBuiltIn" to false,
+            "usageCount" to 3,
+            "createdAt" to 1_000L,
+            "updatedAt" to 2_000L
+        )
+        val mapped = SyncMapper.mapToTaskTemplate(
+            firestoreData,
+            localId = seededId,
+            cloudId = "tmpl-cloud-99"
+        )
+        assertEquals(
+            "mapper must place cloudId from the parameter onto the entity",
+            "tmpl-cloud-99",
+            mapped.cloudId
+        )
+        assertEquals("Weekly 1:1 (renamed)", mapped.name)
+
+        taskTemplateDao.updateTemplate(mapped)
+
+        val reread = taskTemplateDao.getTemplateById(seededId)
+        assertNotNull(reread)
+        assertEquals(
+            "cloudId must still be set after an @Update on task_templates",
+            "tmpl-cloud-99",
+            reread?.cloudId
+        )
+        assertEquals("Weekly 1:1 (renamed)", reread?.name)
     }
 
     @Test
