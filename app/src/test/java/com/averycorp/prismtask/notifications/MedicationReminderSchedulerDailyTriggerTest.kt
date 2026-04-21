@@ -48,7 +48,11 @@ class MedicationReminderSchedulerDailyTriggerTest {
     }
 
     private fun millisAt(
-        year: Int, month: Int, day: Int, hour: Int, minute: Int = 0
+        year: Int,
+        month: Int,
+        day: Int,
+        hour: Int,
+        minute: Int = 0
     ): Long = Calendar.getInstance().apply {
         clear()
         set(year, month - 1, day, hour, minute, 0)
