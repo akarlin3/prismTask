@@ -35,6 +35,17 @@ object TestNetworkModule {
     @Provides
     @Singleton
     fun providePrismTaskApi(fake: FakePrismTaskApi): PrismTaskApi = fake
+
+    // CalendarBackendApi is bound by the production NetworkModule; since we
+    // replace that module, tests that @Inject a CalendarBackendApi (directly
+    // or transitively via CalendarSyncRepository) fail to resolve unless we
+    // provide a stub here. Real calendar traffic is never exercised in the
+    // instrumentation suite, so a mockk(relaxed) is sufficient.
+    @Provides
+    @Singleton
+    fun provideCalendarBackendApi():
+        com.averycorp.prismtask.data.remote.api.CalendarBackendApi =
+        io.mockk.mockk(relaxed = true)
 }
 
 /**

@@ -145,7 +145,14 @@ android {
     }
 
     packaging {
-        resources { excludes += "/META-INF/{AL2.0,LGPL2.1,INDEX.LIST,DEPENDENCIES}" }
+        resources {
+            excludes += "/META-INF/{AL2.0,LGPL2.1,INDEX.LIST,DEPENDENCIES}"
+            // JUnit Jupiter ships LICENSE.md + LICENSE-notice.md across six
+            // jars (junit-jupiter / -api / -params / -engine / -platform
+            // commons / -engine); without these excludes the androidTest
+            // APK merge fails with "6 files found with path 'META-INF/LICENSE.md'".
+            excludes += "/META-INF/{LICENSE.md,LICENSE-notice.md}"
+        }
     }
 }
 

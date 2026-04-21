@@ -66,6 +66,52 @@ object TestDatabaseModule {
     @Provides
     fun provideTaskTemplateDao(database: PrismTaskDatabase) = database.taskTemplateDao()
 
+    // The DAOs below were missing from this test module when the
+    // corresponding production entities shipped (tier-2 WLB, milestones,
+    // notifications, daily-essentials). Without them, Hilt fails to build
+    // the androidTest component graph because DatabaseModule is replaced
+    // by this module and any @Inject on one of these DAOs from production
+    // code becomes unresolvable.
+    @Provides
+    fun provideHabitLogDao(database: PrismTaskDatabase) = database.habitLogDao()
+
+    @Provides
+    fun provideTaskCompletionDao(database: PrismTaskDatabase) = database.taskCompletionDao()
+
+    @Provides
+    fun provideMilestoneDao(database: PrismTaskDatabase) = database.milestoneDao()
+
+    @Provides
+    fun provideDailyEssentialSlotCompletionDao(database: PrismTaskDatabase) =
+        database.dailyEssentialSlotCompletionDao()
+
+    @Provides
+    fun provideNotificationProfileDao(database: PrismTaskDatabase) =
+        database.notificationProfileDao()
+
+    @Provides
+    fun provideCustomSoundDao(database: PrismTaskDatabase) = database.customSoundDao()
+
+    @Provides
+    fun provideMoodEnergyLogDao(database: PrismTaskDatabase) = database.moodEnergyLogDao()
+
+    @Provides
+    fun provideMedicationRefillDao(database: PrismTaskDatabase) =
+        database.medicationRefillDao()
+
+    @Provides
+    fun provideBoundaryRuleDao(database: PrismTaskDatabase) = database.boundaryRuleDao()
+
+    @Provides
+    fun provideCheckInLogDao(database: PrismTaskDatabase) = database.checkInLogDao()
+
+    @Provides
+    fun provideWeeklyReviewDao(database: PrismTaskDatabase) = database.weeklyReviewDao()
+
+    @Provides
+    fun provideFocusReleaseLogDao(database: PrismTaskDatabase) =
+        database.focusReleaseLogDao()
+
     @Provides
     @Singleton
     fun provideGson(): com.google.gson.Gson = com.google.gson.Gson()
