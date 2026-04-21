@@ -1,5 +1,6 @@
 package com.averycorp.prismtask.domain
 
+import com.averycorp.prismtask.core.time.TimeProvider
 import com.averycorp.prismtask.data.remote.api.AdminBugReportResponse
 import com.averycorp.prismtask.data.remote.api.BugReportMirrorResponse
 import com.averycorp.prismtask.data.remote.api.BugReportStatusUpdateRequest
@@ -39,7 +40,6 @@ import com.averycorp.prismtask.data.remote.api.UserInfoResponse
 import com.averycorp.prismtask.data.remote.api.VersionResponse
 import com.averycorp.prismtask.data.remote.api.WeeklyPlanRequest
 import com.averycorp.prismtask.data.remote.api.WeeklyPlanResponse
-import com.averycorp.prismtask.core.time.TimeProvider
 import com.averycorp.prismtask.data.remote.api.WeeklyReviewRequest
 import com.averycorp.prismtask.data.remote.api.WeeklyReviewResponse
 import com.averycorp.prismtask.data.remote.sync.SyncPullResponse

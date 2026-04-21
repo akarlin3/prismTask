@@ -61,6 +61,7 @@ class DataImporterV5Test {
     private lateinit var leisureDao: LeisureDao
     private lateinit var selfCareDao: SelfCareDao
     private lateinit var schoolworkDao: SchoolworkDao
+
     // Inline transaction runner — tests don't need real Room transactions,
     // just faithful block execution so every DAO call still happens.
     private val transactionRunner =
