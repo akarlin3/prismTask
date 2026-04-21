@@ -106,7 +106,14 @@ class SyncMapperTier2Test {
 
     @Test
     fun selfCareStep_inputMapper_missingUpdatedAt_defaultsZero() {
-        val map = mapOf<String, Any?>("stepId" to "x", "routineType" to "morning", "label" to "L", "duration" to "1 min", "tier" to "survival", "phase" to "P")
+        val map = mapOf<String, Any?>(
+            "stepId" to "x",
+            "routineType" to "morning",
+            "label" to "L",
+            "duration" to "1 min",
+            "tier" to "survival",
+            "phase" to "P"
+        )
         val entity = SyncMapper.mapToSelfCareStep(map)
         assertEquals(0L, entity.updatedAt)
     }
@@ -231,7 +238,7 @@ class SyncMapperTier2Test {
         assertEquals("outputMapper must use entity.updatedAt, not current time", knownTimestamp, map["updatedAt"])
         assertTrue(
             "entity.updatedAt must not be overwritten with system clock",
-            map["updatedAt"] as Long < System.currentTimeMillis()
+            (map["updatedAt"] as Long) < System.currentTimeMillis()
         )
     }
 }

@@ -140,6 +140,7 @@ constructor(
         }
     }
 
+    @Suppress("CyclomaticComplexMethod", "LongMethod")
     private suspend fun doInitialUpload() {
         val projects = projectDao.getAllProjectsOnce()
         logger.debug("upload.projects", status = "begin", detail = "count=${projects.size}")
@@ -424,8 +425,10 @@ constructor(
                 docRef.set(SyncMapper.courseToMap(course)).await()
                 syncMetadataDao.upsert(
                     SyncMetadataEntity(
-                        localId = course.id, entityType = "course",
-                        cloudId = docRef.id, lastSyncedAt = System.currentTimeMillis()
+                        localId = course.id,
+                        entityType = "course",
+                        cloudId = docRef.id,
+                        lastSyncedAt = System.currentTimeMillis()
                     )
                 )
             } catch (e: Exception) {
@@ -444,14 +447,18 @@ constructor(
                 docRef.set(SyncMapper.courseCompletionToMap(completion, courseCloudId)).await()
                 syncMetadataDao.upsert(
                     SyncMetadataEntity(
-                        localId = completion.id, entityType = "course_completion",
-                        cloudId = docRef.id, lastSyncedAt = System.currentTimeMillis()
+                        localId = completion.id,
+                        entityType = "course_completion",
+                        cloudId = docRef.id,
+                        lastSyncedAt = System.currentTimeMillis()
                     )
                 )
             } catch (e: Exception) {
                 logger.error(
-                    operation = "upload.course_completion", entity = "course_completion",
-                    id = completion.id.toString(), throwable = e
+                    operation = "upload.course_completion",
+                    entity = "course_completion",
+                    id = completion.id.toString(),
+                    throwable = e
                 )
             }
         }
@@ -465,8 +472,10 @@ constructor(
                 docRef.set(SyncMapper.leisureLogToMap(log)).await()
                 syncMetadataDao.upsert(
                     SyncMetadataEntity(
-                        localId = log.id, entityType = "leisure_log",
-                        cloudId = docRef.id, lastSyncedAt = System.currentTimeMillis()
+                        localId = log.id,
+                        entityType = "leisure_log",
+                        cloudId = docRef.id,
+                        lastSyncedAt = System.currentTimeMillis()
                     )
                 )
             } catch (e: Exception) {
@@ -483,8 +492,10 @@ constructor(
                 docRef.set(SyncMapper.selfCareStepToMap(step)).await()
                 syncMetadataDao.upsert(
                     SyncMetadataEntity(
-                        localId = step.id, entityType = "self_care_step",
-                        cloudId = docRef.id, lastSyncedAt = System.currentTimeMillis()
+                        localId = step.id,
+                        entityType = "self_care_step",
+                        cloudId = docRef.id,
+                        lastSyncedAt = System.currentTimeMillis()
                     )
                 )
             } catch (e: Exception) {
@@ -502,8 +513,10 @@ constructor(
                 docRef.set(SyncMapper.selfCareLogToMap(log)).await()
                 syncMetadataDao.upsert(
                     SyncMetadataEntity(
-                        localId = log.id, entityType = "self_care_log",
-                        cloudId = docRef.id, lastSyncedAt = System.currentTimeMillis()
+                        localId = log.id,
+                        entityType = "self_care_log",
+                        cloudId = docRef.id,
+                        lastSyncedAt = System.currentTimeMillis()
                     )
                 )
             } catch (e: Exception) {
@@ -772,6 +785,7 @@ constructor(
      *   projects → tags → habits → tasks → task_completions →
      *   habit_completions → habit_logs → milestones → task_templates
      */
+    @Suppress("CyclomaticComplexMethod", "LongMethod")
     suspend fun pullRemoteChanges(): Int {
         var applied = 0
         var skipped = 0
@@ -884,7 +898,9 @@ constructor(
                 val localTask = taskDao.getTaskByIdOnce(localId)
                 val remoteUpdatedAt = (data["updatedAt"] as? Number)?.toLong() ?: 0L
                 if (localTask == null || remoteUpdatedAt > localTask.updatedAt) {
-                    taskDao.update(SyncMapper.mapToTask(data, localId, projectLocalId, parentTaskLocalId, sourceHabitLocalId, cloudId = cloudId))
+                    taskDao.update(
+                        SyncMapper.mapToTask(data, localId, projectLocalId, parentTaskLocalId, sourceHabitLocalId, cloudId = cloudId)
+                    )
                     syncMetadataDao.clearPendingAction(localId, "task")
                 }
             }
@@ -1132,8 +1148,11 @@ constructor(
             if (localId == null) {
                 val stepId = data["stepId"] as? String
                 val routineType = data["routineType"] as? String
-                val existingByStepId = if (stepId != null && routineType != null)
-                    selfCareDao.getStepByStepIdOnce(stepId, routineType) else null
+                val existingByStepId = if (stepId != null && routineType != null) {
+                    selfCareDao.getStepByStepIdOnce(stepId, routineType)
+                } else {
+                    null
+                }
                 if (existingByStepId != null) {
                     // Link existing local step to this cloud doc instead of duplicating.
                     syncMetadataDao.upsert(
@@ -1321,20 +1340,20 @@ constructor(
         // sync. If a new syncable entity is added in a future release,
         // extend both lists.
         val syncableTables = listOf(
-            "tasks"              to "task",
-            "projects"           to "project",
-            "tags"               to "tag",
-            "habits"             to "habit",
-            "habit_completions"  to "habit_completion",
-            "habit_logs"         to "habit_log",
-            "task_completions"   to "task_completion",
-            "task_templates"     to "task_template",
-            "milestones"         to "milestone",
-            "courses"            to "course",
+            "tasks" to "task",
+            "projects" to "project",
+            "tags" to "tag",
+            "habits" to "habit",
+            "habit_completions" to "habit_completion",
+            "habit_logs" to "habit_log",
+            "task_completions" to "task_completion",
+            "task_templates" to "task_template",
+            "milestones" to "milestone",
+            "courses" to "course",
             "course_completions" to "course_completion",
-            "leisure_logs"       to "leisure_log",
-            "self_care_steps"    to "self_care_step",
-            "self_care_logs"     to "self_care_log"
+            "leisure_logs" to "leisure_log",
+            "self_care_steps" to "self_care_step",
+            "self_care_logs" to "self_care_log"
         )
 
         val db = database.openHelper.writableDatabase

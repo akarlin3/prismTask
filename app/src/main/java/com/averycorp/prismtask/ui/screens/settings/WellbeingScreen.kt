@@ -15,7 +15,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -33,8 +32,8 @@ import com.averycorp.prismtask.ui.screens.settings.sections.AddBoundaryRuleSheet
 import com.averycorp.prismtask.ui.screens.settings.sections.BoundariesSection
 import com.averycorp.prismtask.ui.screens.settings.sections.ClinicalReportSection
 import com.averycorp.prismtask.ui.screens.settings.sections.WorkLifeBalanceSection
-import kotlinx.coroutines.launch
 import com.averycorp.prismtask.ui.theme.ThemedSubScreenTitle
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

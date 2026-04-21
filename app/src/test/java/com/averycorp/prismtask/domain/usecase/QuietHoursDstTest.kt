@@ -94,13 +94,15 @@ class QuietHoursDstTest {
     @Test
     fun `deferring across dst transition never emits a past timestamp`() {
         // Property-style guard: regardless of DST status, defer(fire) >= fire.
+        // Dates cover: day before spring-forward, spring-forward itself,
+        // day after, day before fall-back, fall-back, day after.
         val interestingDates = listOf(
-            LocalDate.of(2026, 3, 7),   // day before spring-forward
-            LocalDate.of(2026, 3, 8),   // spring-forward
-            LocalDate.of(2026, 3, 9),   // day after
-            LocalDate.of(2026, 10, 31), // day before fall-back
-            LocalDate.of(2026, 11, 1),  // fall-back
-            LocalDate.of(2026, 11, 2)   // day after
+            LocalDate.of(2026, 3, 7),
+            LocalDate.of(2026, 3, 8),
+            LocalDate.of(2026, 3, 9),
+            LocalDate.of(2026, 10, 31),
+            LocalDate.of(2026, 11, 1),
+            LocalDate.of(2026, 11, 2)
         )
         val fireTimes = listOf(LocalTime.of(23, 0), LocalTime.of(2, 30), LocalTime.of(6, 45))
 

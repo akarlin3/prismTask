@@ -26,8 +26,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import com.averycorp.prismtask.ui.theme.LocalPrismShapes
-import com.averycorp.prismtask.ui.theme.ThemedSubScreenTitle
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -92,6 +90,8 @@ import com.averycorp.prismtask.domain.model.isAtLeast
 import com.averycorp.prismtask.ui.components.RecurrenceSelector
 import com.averycorp.prismtask.ui.components.TagSelector
 import com.averycorp.prismtask.ui.theme.LocalPriorityColors
+import com.averycorp.prismtask.ui.theme.LocalPrismShapes
+import com.averycorp.prismtask.ui.theme.ThemedSubScreenTitle
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Calendar

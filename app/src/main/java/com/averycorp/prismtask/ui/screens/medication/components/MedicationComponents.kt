@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import com.averycorp.prismtask.ui.theme.LocalPrismShapes
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
@@ -49,6 +48,7 @@ import androidx.compose.ui.unit.dp
 import com.averycorp.prismtask.data.local.entity.SelfCareStepEntity
 import com.averycorp.prismtask.data.repository.MedStepLog
 import com.averycorp.prismtask.domain.model.SelfCareRoutines
+import com.averycorp.prismtask.ui.theme.LocalPrismShapes
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale

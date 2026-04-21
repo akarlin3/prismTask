@@ -174,9 +174,10 @@ fun TerminalCursor(modifier: Modifier = Modifier) {
 // ─── terminalCount ────────────────────────────────────────────────────────────
 
 /**
- * Returns `"[$count]"` when [terminal] is true, `count.toString()` otherwise.
- * Use for badge counts, task/habit counts, and any numeric label that should
- * adopt the Matrix bracket-notation style.
+ * Returns the count wrapped in square brackets (e.g. "[3]") when [terminal]
+ * is true, or the plain `count.toString()` otherwise. Use for badge counts,
+ * task/habit counts, and any numeric label that should adopt the Matrix
+ * bracket-notation style.
  */
 fun terminalCount(count: Int, terminal: Boolean): String =
     if (terminal) "[$count]" else count.toString()

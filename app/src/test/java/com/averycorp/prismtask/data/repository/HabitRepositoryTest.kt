@@ -355,8 +355,31 @@ class HabitRepositoryTest {
         override suspend fun getHabitsWithIntervalReminder(): List<HabitEntity> =
             habits.filter { it.reminderIntervalMillis != null && !it.isArchived }
 
+        override suspend fun getHabitsWithDailyTimeReminder(): List<HabitEntity> =
+            habits.filter {
+                it.reminderTime != null && it.reminderIntervalMillis == null && !it.isArchived
+            }
+
         override suspend fun getAllCategories(): List<String> =
             habits.mapNotNull { it.category }.distinct().sorted()
+
+        override suspend fun getBuiltInHabitsOnce(): List<HabitEntity> =
+            habits.filter { it.isBuiltIn }
+
+        override suspend fun getByTemplateKeyOnce(key: String): HabitEntity? =
+            habits.firstOrNull { it.templateKey == key }
+
+        override suspend fun backfillBuiltIn(name: String, templateKey: String): Int {
+            var count = 0
+            habits.indices.forEach { i ->
+                val h = habits[i]
+                if (h.name == name && !h.isBuiltIn) {
+                    habits[i] = h.copy(isBuiltIn = true, templateKey = templateKey)
+                    count++
+                }
+            }
+            return count
+        }
 
         override suspend fun deleteAll() {
             habits.clear()
@@ -467,6 +490,29 @@ class HabitRepositoryTest {
 
         override suspend fun getAllCompletionsOnce(): List<HabitCompletionEntity> =
             completions.toList()
+
+        override suspend fun getLatestByHabitAndDateLocal(
+            habitId: Long,
+            date: String
+        ): HabitCompletionEntity? =
+            completions
+                .filter { it.habitId == habitId && it.completedDateLocal == date }
+                .maxByOrNull { it.completedAt }
+
+        override suspend fun reassignHabitId(oldHabitId: Long, newHabitId: Long) {
+            completions.indices.forEach { i ->
+                if (completions[i].habitId == oldHabitId) {
+                    completions[i] = completions[i].copy(habitId = newHabitId)
+                }
+            }
+        }
+
+        override suspend fun countByHabitOnce(habitId: Long): Int =
+            completions.count { it.habitId == habitId }
+
+        override suspend fun deleteById(id: Long) {
+            completions.removeAll { it.id == id }
+        }
 
         override suspend fun deleteAll() {
             completions.clear()

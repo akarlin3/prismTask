@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import com.averycorp.prismtask.ui.theme.LocalPrismShapes
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
@@ -22,6 +21,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.averycorp.prismtask.data.billing.UserTier
 import com.averycorp.prismtask.ui.components.settings.SectionHeader
+import com.averycorp.prismtask.ui.theme.LocalPrismShapes
 
 @Composable
 fun DebugTierSection(

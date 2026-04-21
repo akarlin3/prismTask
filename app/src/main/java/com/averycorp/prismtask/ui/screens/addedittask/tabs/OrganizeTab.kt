@@ -20,7 +20,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import com.averycorp.prismtask.ui.theme.LocalPrismShapes
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
@@ -63,6 +62,7 @@ import com.averycorp.prismtask.ui.screens.addedittask.SectionLabel
 import com.averycorp.prismtask.ui.screens.addedittask.TAG_COLORS
 import com.averycorp.prismtask.ui.screens.addedittask.parseColorOr
 import com.averycorp.prismtask.ui.theme.LifeCategoryColor
+import com.averycorp.prismtask.ui.theme.LocalPrismShapes
 import kotlinx.coroutines.launch
 
 @Composable

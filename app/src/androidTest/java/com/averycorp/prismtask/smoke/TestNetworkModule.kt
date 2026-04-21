@@ -169,4 +169,33 @@ class FakePrismTaskApi : PrismTaskApi {
     override suspend fun submitBugReport(
         body: Map<String, Any?>
     ): BugReportMirrorResponse = error("Not used in offline tests")
+
+    override suspend fun getWeeklyReview(
+        request: com.averycorp.prismtask.data.remote.api.WeeklyReviewRequest
+    ): com.averycorp.prismtask.data.remote.api.WeeklyReviewResponse =
+        error("Not used in offline tests")
+
+    override suspend fun listBugReports(
+        statusFilter: String?,
+        severity: String?,
+        page: Int,
+        limit: Int
+    ): List<com.averycorp.prismtask.data.remote.api.AdminBugReportResponse> =
+        error("Not used in offline tests")
+
+    override suspend fun updateBugReportStatus(
+        reportId: String,
+        body: com.averycorp.prismtask.data.remote.api.BugReportStatusUpdateRequest
+    ): com.averycorp.prismtask.data.remote.api.AdminBugReportResponse =
+        error("Not used in offline tests")
+
+    override suspend fun parseSyllabus(
+        file: MultipartBody.Part
+    ): com.averycorp.prismtask.data.remote.api.SyllabusParseResponse =
+        error("Not used in offline tests")
+
+    override suspend fun confirmSyllabus(
+        request: com.averycorp.prismtask.data.remote.api.SyllabusConfirmRequest
+    ): com.averycorp.prismtask.data.remote.api.SyllabusConfirmResponse =
+        error("Not used in offline tests")
 }

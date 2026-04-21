@@ -47,9 +47,9 @@ import com.averycorp.prismtask.ui.screens.habits.components.BuiltInHabitCard
 import com.averycorp.prismtask.ui.screens.habits.components.HabitItem
 import com.averycorp.prismtask.ui.screens.habits.components.HabitLogDialog
 import com.averycorp.prismtask.ui.screens.habits.components.SelfCareRoutineCard
-import com.averycorp.prismtask.ui.theme.gridFloor
 import com.averycorp.prismtask.ui.theme.LocalPrismColors
 import com.averycorp.prismtask.ui.theme.LocalPrismFonts
+import com.averycorp.prismtask.ui.theme.gridFloor
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 
@@ -90,7 +90,7 @@ fun HabitListScreen(
     // Per-theme title: Matrix uppercases and prefixes; Void adds a colored dot;
     // Cyberpunk uppercases; Synthwave uses the base title with glow.
     val screenTitle = when {
-        prismAttrs.terminal  -> baseTitle.uppercase()
+        prismAttrs.terminal -> baseTitle.uppercase()
         prismAttrs.displayUpper -> baseTitle.uppercase()
         else -> baseTitle
     }

@@ -1,31 +1,29 @@
 name: Android CI
 
-# Temporarily disabled: auto-merge should proceed without waiting for Android
-# checks. Re-enable by restoring the push/pull_request triggers below.
 on:
   workflow_dispatch:
-  # push:
-  #   branches: [main]
-  #   paths:
-  #     - 'app/**'
-  #     - 'gradlew'
-  #     - 'gradlew.bat'
-  #     - 'gradle/**'
-  #     - 'build.gradle.kts'
-  #     - 'settings.gradle.kts'
-  #     - '.github/workflows/android-ci.yml'
-  #     - '.github/actions/setup-android/**'
-  # pull_request:
-  #   branches: [main]
-  #   paths:
-  #     - 'app/**'
-  #     - 'gradlew'
-  #     - 'gradlew.bat'
-  #     - 'gradle/**'
-  #     - 'build.gradle.kts'
-  #     - 'settings.gradle.kts'
-  #     - '.github/workflows/android-ci.yml'
-  #     - '.github/actions/setup-android/**'
+  push:
+    branches: [main]
+    paths:
+      - 'app/**'
+      - 'gradlew'
+      - 'gradlew.bat'
+      - 'gradle/**'
+      - 'build.gradle.kts'
+      - 'settings.gradle.kts'
+      - '.github/workflows/android-ci.yml'
+      - '.github/actions/setup-android/**'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'app/**'
+      - 'gradlew'
+      - 'gradlew.bat'
+      - 'gradle/**'
+      - 'build.gradle.kts'
+      - 'settings.gradle.kts'
+      - '.github/workflows/android-ci.yml'
+      - '.github/actions/setup-android/**'
 
 concurrency:
   group: android-ci-${{ github.ref }}
@@ -95,10 +93,15 @@ jobs:
         # make it explicit so a regression in the shell config can't hide a
         # non-zero Gradle exit behind `tee`. `--continue` lets Gradle finish
         # every test task so the XML reports we inspect below are complete.
+        # `-i` (info) makes Gradle print each test class as it starts, so a
+        # hung test shows which class it was on. 20-minute step timeout
+        # turns an indefinite hang into a reported failure (the codebase's
+        # historical test runtime is ~5 min).
+        timeout-minutes: 20
         shell: bash
         run: |
           set -euo pipefail
-          ./gradlew testDebugUnitTest --continue 2>&1 | tee unit-test-output.log
+          ./gradlew testDebugUnitTest --continue -i 2>&1 | tee unit-test-output.log
       - name: Verify unit-test results (XML)
         # Belt-and-suspenders: even if Gradle's exit code somehow ends up zero,
         # a single <testsuite> reporting non-zero `failures` or `errors` fails

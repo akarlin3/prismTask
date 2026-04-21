@@ -36,8 +36,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.averycorp.prismtask.domain.usecase.BurnoutBand
-import com.averycorp.prismtask.ui.theme.LocalPrismShapes
 import com.averycorp.prismtask.domain.usecase.BurnoutResult
+import com.averycorp.prismtask.ui.theme.LocalPrismShapes
 
 /**
  * Styling bundle for [BurnoutBadge] / [BurnoutDetailSheet]. Pulled from

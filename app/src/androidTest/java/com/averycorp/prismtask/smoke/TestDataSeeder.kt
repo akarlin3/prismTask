@@ -180,7 +180,7 @@ object TestDataSeeder {
         )
 
         // Templates
-        val templateMorningId = templateDao.insert(
+        val templateMorningId = templateDao.insertTemplate(
             TaskTemplateEntity(
                 name = "Morning Routine",
                 icon = "\u2600\uFE0F",
@@ -191,7 +191,7 @@ object TestDataSeeder {
                 isBuiltIn = true
             )
         )
-        val templateMeetingId = templateDao.insert(
+        val templateMeetingId = templateDao.insertTemplate(
             TaskTemplateEntity(
                 name = "Meeting Prep",
                 icon = "\uD83D\uDCCB",

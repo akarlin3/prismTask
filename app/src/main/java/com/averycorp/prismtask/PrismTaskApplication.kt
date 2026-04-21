@@ -14,7 +14,6 @@ import com.averycorp.prismtask.data.repository.LeisureRepository
 import com.averycorp.prismtask.data.repository.SchoolworkRepository
 import com.averycorp.prismtask.data.seed.TemplateSeeder
 import com.averycorp.prismtask.notifications.NotificationWorkerScheduler
-import com.averycorp.prismtask.widget.WidgetRefreshWorker
 import com.averycorp.prismtask.workers.AutoArchiveWorker
 import com.averycorp.prismtask.workers.CalendarSyncScheduler
 import com.averycorp.prismtask.workers.DailyResetWorker

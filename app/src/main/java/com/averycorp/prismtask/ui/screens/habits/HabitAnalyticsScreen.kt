@@ -47,13 +47,13 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.averycorp.prismtask.ui.theme.LocalPrismColors
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.averycorp.prismtask.ui.components.ContributionGrid
 import com.averycorp.prismtask.ui.components.StreakBadge
 import com.averycorp.prismtask.ui.navigation.PrismTaskRoute
+import com.averycorp.prismtask.ui.theme.LocalPrismColors
 import java.time.DayOfWeek
 import java.time.format.TextStyle
 import java.util.Locale

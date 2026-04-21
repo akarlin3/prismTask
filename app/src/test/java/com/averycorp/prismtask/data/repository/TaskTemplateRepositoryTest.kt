@@ -487,6 +487,18 @@ class TaskTemplateRepositoryTest {
         override suspend fun deleteAll() {
             store.clear()
         }
+
+        override suspend fun deleteAllBuiltIn() {
+            val builtInIds = store.entries.filter { it.value.isBuiltIn }.map { it.key }
+            builtInIds.forEach { store.remove(it) }
+        }
+
+        override suspend fun getBuiltInTemplatesOnce(): List<TaskTemplateEntity> =
+            store.values.filter { it.isBuiltIn }
+
+        override suspend fun deleteById(id: Long) {
+            store.remove(id)
+        }
     }
 
     /** In-memory fake of [TaskDao]. Implements only the handful of calls the template repo uses. */

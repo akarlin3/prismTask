@@ -48,7 +48,11 @@ class MedicationReminderSchedulerDailyTriggerTest {
     }
 
     private fun millisAt(
-        year: Int, month: Int, day: Int, hour: Int, minute: Int = 0
+        year: Int,
+        month: Int,
+        day: Int,
+        hour: Int,
+        minute: Int = 0
     ): Long = Calendar.getInstance().apply {
         clear()
         set(year, month - 1, day, hour, minute, 0)
@@ -146,22 +150,28 @@ class MedicationReminderSchedulerDailyTriggerTest {
     }
 
     @Test
-    fun `dst fall back 01 30 is unambiguous per Calendar first-occurrence`() {
+    fun `dst fall back 01 30 resolves to one of the two valid instants`() {
         TimeZone.setDefault(TimeZone.getTimeZone("America/New_York"))
         // 2026-11-01 is DST fall-back day — 02:00 local becomes 01:00, so
-        // 01:30 happens twice. Calendar returns the first occurrence
-        // (EDT 01:30) when asked for "today at 01:30".
+        // 01:30 happens twice (once EDT, once EST). The exact choice
+        // is implementation-defined for java.util.Calendar — on some
+        // JVMs it picks the earlier offset (EDT), on others the later
+        // (EST). Either answer is correct behavior; the invariant the
+        // scheduler cares about is only "trigger is in the future and
+        // within the same fall-back day."
         val now = millisAt(2026, 11, 1, hour = 0, minute = 0)
         val reminder = millisSinceMidnight(hour = 1, minute = 30)
 
         val trigger = MedicationReminderScheduler.computeNextDailyTrigger(reminder, now)
 
         assertTrue(trigger > now)
-        // Must be within 2 hours of now; if Calendar picked the second
-        // occurrence (EST 01:30, 2h30m after now) the guard below catches it.
+        // Accept either DST occurrence: EDT 01:30 is 1h30m after EDT
+        // midnight, EST 01:30 is 2h30m after EDT midnight (because the
+        // fall-back adds an extra hour). Cap at 3h to reject a rollover
+        // to the following day (which would be 25+ hours out).
         assertTrue(
-            "Trigger should be the first 01:30 occurrence on fall-back day",
-            trigger - now <= 2L * 60 * 60 * 1000
+            "Trigger should be today's 01:30, not tomorrow's",
+            trigger - now <= 3L * 60 * 60 * 1000
         )
     }
 

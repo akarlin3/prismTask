@@ -135,7 +135,9 @@ class ReminderSchedulerAlarmInstrumentedTest {
      */
     @Ignore("Covered separately in ReminderBroadcastInstrumentedTest")
     @Test
-    fun alarmFiresAndPostsNotification() = Unit
+    fun alarmFiresAndPostsNotification() {
+        // Intentionally empty — documentation-only placeholder.
+    }
 
     private fun dumpsys(service: String): String {
         val instrumentation = InstrumentationRegistry.getInstrumentation()

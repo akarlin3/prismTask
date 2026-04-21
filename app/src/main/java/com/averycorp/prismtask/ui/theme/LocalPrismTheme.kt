@@ -23,4 +23,3 @@ val LocalPrismFonts = staticCompositionLocalOf { prismThemeFonts(PrismTheme.VOID
  * [prismDisplayFont]).
  */
 val LocalPrismTheme = staticCompositionLocalOf { PrismTheme.VOID }
-

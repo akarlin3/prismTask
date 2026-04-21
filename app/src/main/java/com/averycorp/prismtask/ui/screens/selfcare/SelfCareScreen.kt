@@ -19,7 +19,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import com.averycorp.prismtask.ui.theme.LocalPrismShapes
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Sort
@@ -61,6 +60,7 @@ import com.averycorp.prismtask.ui.screens.selfcare.components.PhaseOrderDialog
 import com.averycorp.prismtask.ui.screens.selfcare.components.StepDialog
 import com.averycorp.prismtask.ui.screens.selfcare.components.StepItem
 import com.averycorp.prismtask.ui.theme.LocalPrismColors
+import com.averycorp.prismtask.ui.theme.LocalPrismShapes
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

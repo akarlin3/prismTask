@@ -27,18 +27,18 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import com.averycorp.prismtask.ui.components.ThemedSwitch
-import com.averycorp.prismtask.ui.theme.LocalPrismAttrs
-import com.averycorp.prismtask.ui.theme.LocalPrismColors
-import com.averycorp.prismtask.ui.theme.PrismBracket
-import com.averycorp.prismtask.ui.theme.TerminalLabel
-import com.averycorp.prismtask.ui.theme.TerminalSectionHeader
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.averycorp.prismtask.ui.components.ThemedSwitch
+import com.averycorp.prismtask.ui.theme.LocalPrismAttrs
+import com.averycorp.prismtask.ui.theme.LocalPrismColors
+import com.averycorp.prismtask.ui.theme.PrismBracket
+import com.averycorp.prismtask.ui.theme.TerminalLabel
+import com.averycorp.prismtask.ui.theme.TerminalSectionHeader
 
 @Composable
 fun SectionHeader(title: String) {
@@ -112,7 +112,11 @@ fun SettingsRowWithSubtitle(title: String, subtitle: String, onClick: () -> Unit
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(text = title, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
-                TerminalLabel(text = subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                TerminalLabel(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
             Icon(
                 Icons.Default.ChevronRight,
@@ -146,7 +150,11 @@ fun SettingsToggleRow(
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(text = title, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
-                TerminalLabel(text = subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                TerminalLabel(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
             ThemedSwitch(checked = checked, onCheckedChange = onCheckedChange)
         }

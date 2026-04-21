@@ -20,7 +20,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
-import com.averycorp.prismtask.ui.theme.PrismHudDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
@@ -45,6 +44,7 @@ import com.averycorp.prismtask.ui.components.settings.PriorityColorRow
 import com.averycorp.prismtask.ui.components.settings.SectionHeader
 import com.averycorp.prismtask.ui.screens.settings.accentColors
 import com.averycorp.prismtask.ui.theme.PriorityColors
+import com.averycorp.prismtask.ui.theme.PrismHudDivider
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable

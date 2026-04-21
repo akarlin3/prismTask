@@ -93,7 +93,7 @@ private fun DrawScope.drawGlowCircle(color: Color, blurPx: Float, alpha: Float) 
  *   blend mode     = [BlendMode.Screen]         (additive highlight)
  *
  * Cyberpunk: [spacingDp]=3dp, [outerAlpha]=0.55 → effective α ≈ 0.035
- * Matrix:    [spacingDp]=2dp, [outerAlpha]=0.70 → effective α ≈ 0.044
+ * Matrix: [spacingDp]=2dp, [outerAlpha]=0.70 → effective α ≈ 0.044
  *
  * Only the [PrismTaskTheme] root calls this; individual composables should
  * never apply it directly.
@@ -412,7 +412,9 @@ fun DrawScope.drawThemedProgressRing(
     // Track ring
     val trackPathEffect = if (attrs.terminal) {
         PathEffect.dashPathEffect(floatArrayOf(3f.dp.toPx(), 4f.dp.toPx()), 0f)
-    } else null
+    } else {
+        null
+    }
 
     drawArc(
         color = trackColor,

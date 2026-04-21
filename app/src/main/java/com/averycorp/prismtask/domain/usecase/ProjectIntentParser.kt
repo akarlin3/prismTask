@@ -31,7 +31,10 @@ class ProjectIntentParser @Inject constructor() {
 
     private val createProjectPatterns = listOf(
         // "start a project called X" / "start a new project called X"
-        Regex("""^(?:please\s+)?start\s+(?:a\s+)?(?:new\s+)?project\s+(?:called\s+|named\s+|titled\s+)?["']?(.+?)["']?\s*$""", RegexOption.IGNORE_CASE),
+        Regex(
+            """^(?:please\s+)?start\s+(?:a\s+)?(?:new\s+)?project\s+(?:called\s+|named\s+|titled\s+)?["']?(.+?)["']?\s*$""",
+            RegexOption.IGNORE_CASE
+        ),
         // "create (a/new) project X" / "create project: X"
         Regex("""^(?:please\s+)?create\s+(?:a\s+)?(?:new\s+)?project\s*[:\-]?\s*["']?(.+?)["']?\s*$""", RegexOption.IGNORE_CASE),
         // "new project: X" / "new project X"

@@ -137,8 +137,11 @@ private fun SectionHeaderRow(
                 .padding(horizontal = 8.dp, vertical = 2.dp)
         ) {
             Text(
-                text = if (attrs.terminal) terminalCount(count, true)
-                       else (countLabel ?: "$count"),
+                text = if (attrs.terminal) {
+                    terminalCount(count, true)
+                } else {
+                    (countLabel ?: "$count")
+                },
                 style = MaterialTheme.typography.labelSmall,
                 fontFamily = if (attrs.terminal) monoFont else fonts,
                 fontWeight = FontWeight.SemiBold,
