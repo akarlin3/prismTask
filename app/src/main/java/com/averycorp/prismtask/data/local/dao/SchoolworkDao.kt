@@ -136,4 +136,24 @@ interface SchoolworkDao {
 
     @Query("DELETE FROM study_logs")
     suspend fun deleteAllStudyLogs()
+
+    // --- Sync plumbing (v1.4.38) ---
+
+    @Query("SELECT * FROM assignments WHERE cloud_id = :cloudId LIMIT 1")
+    suspend fun getAssignmentByCloudIdOnce(cloudId: String): AssignmentEntity?
+
+    @Query("UPDATE assignments SET cloud_id = :cloudId, updated_at = :now WHERE id = :id")
+    suspend fun setAssignmentCloudId(id: Long, cloudId: String?, now: Long)
+
+    @Query("SELECT * FROM study_logs WHERE id = :id LIMIT 1")
+    suspend fun getStudyLogByIdOnce(id: Long): StudyLogEntity?
+
+    @Query("SELECT * FROM study_logs WHERE cloud_id = :cloudId LIMIT 1")
+    suspend fun getStudyLogByCloudIdOnce(cloudId: String): StudyLogEntity?
+
+    @Query("UPDATE study_logs SET cloud_id = :cloudId, updated_at = :now WHERE id = :id")
+    suspend fun setStudyLogCloudId(id: Long, cloudId: String?, now: Long)
+
+    @Query("DELETE FROM study_logs WHERE id = :id")
+    suspend fun deleteStudyLogById(id: Long)
 }

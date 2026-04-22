@@ -25,7 +25,8 @@ import androidx.room.PrimaryKey
     indices = [
         Index("date", unique = true),
         Index("course_pick"),
-        Index("assignment_pick")
+        Index("assignment_pick"),
+        Index(value = ["cloud_id"], unique = true)
     ]
 )
 data class StudyLogEntity(
@@ -36,5 +37,7 @@ data class StudyLogEntity(
     @ColumnInfo(name = "assignment_pick") val assignmentPick: Long? = null,
     @ColumnInfo(name = "assignment_done") val assignmentDone: Boolean = false,
     @ColumnInfo(name = "started_at") val startedAt: Long? = null,
-    @ColumnInfo(name = "created_at") val createdAt: Long = System.currentTimeMillis()
+    @ColumnInfo(name = "created_at") val createdAt: Long = System.currentTimeMillis(),
+    @ColumnInfo(name = "cloud_id") val cloudId: String? = null,
+    @ColumnInfo(name = "updated_at", defaultValue = "0") val updatedAt: Long = 0L
 )

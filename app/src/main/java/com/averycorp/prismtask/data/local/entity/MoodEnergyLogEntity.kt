@@ -20,7 +20,8 @@ import androidx.room.PrimaryKey
     tableName = "mood_energy_logs",
     indices = [
         Index("date"),
-        Index(value = ["date", "time_of_day"], unique = true)
+        Index(value = ["date", "time_of_day"], unique = true),
+        Index(value = ["cloud_id"], unique = true)
     ]
 )
 data class MoodEnergyLogEntity(
@@ -38,5 +39,9 @@ data class MoodEnergyLogEntity(
     @ColumnInfo(name = "time_of_day", defaultValue = "'morning'")
     val timeOfDay: String = "morning",
     @ColumnInfo(name = "created_at")
-    val createdAt: Long = System.currentTimeMillis()
+    val createdAt: Long = System.currentTimeMillis(),
+    @ColumnInfo(name = "cloud_id")
+    val cloudId: String? = null,
+    @ColumnInfo(name = "updated_at", defaultValue = "0")
+    val updatedAt: Long = 0L
 )

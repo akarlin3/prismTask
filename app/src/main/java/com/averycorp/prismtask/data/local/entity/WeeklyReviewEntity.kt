@@ -17,7 +17,10 @@ import androidx.room.PrimaryKey
  */
 @Entity(
     tableName = "weekly_reviews",
-    indices = [Index(value = ["week_start_date"], unique = true)]
+    indices = [
+        Index(value = ["week_start_date"], unique = true),
+        Index(value = ["cloud_id"], unique = true)
+    ]
 )
 data class WeeklyReviewEntity(
     @PrimaryKey(autoGenerate = true)
@@ -30,5 +33,9 @@ data class WeeklyReviewEntity(
     @ColumnInfo(name = "ai_insights_json")
     val aiInsightsJson: String? = null,
     @ColumnInfo(name = "created_at")
-    val createdAt: Long = System.currentTimeMillis()
+    val createdAt: Long = System.currentTimeMillis(),
+    @ColumnInfo(name = "cloud_id")
+    val cloudId: String? = null,
+    @ColumnInfo(name = "updated_at", defaultValue = "0")
+    val updatedAt: Long = 0L
 )

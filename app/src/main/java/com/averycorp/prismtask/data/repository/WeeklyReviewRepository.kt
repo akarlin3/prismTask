@@ -2,6 +2,7 @@ package com.averycorp.prismtask.data.repository
 
 import com.averycorp.prismtask.data.local.dao.WeeklyReviewDao
 import com.averycorp.prismtask.data.local.entity.WeeklyReviewEntity
+import com.averycorp.prismtask.data.remote.SyncTracker
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -18,7 +19,8 @@ import javax.inject.Singleton
 class WeeklyReviewRepository
 @Inject
 constructor(
-    private val dao: WeeklyReviewDao
+    private val dao: WeeklyReviewDao,
+    private val syncTracker: SyncTracker
 ) {
     suspend fun save(
         weekStart: Long,
@@ -31,9 +33,17 @@ constructor(
             weekStartDate = weekStart,
             metricsJson = metricsJson,
             aiInsightsJson = aiInsightsJson,
-            createdAt = existing?.createdAt ?: System.currentTimeMillis()
+            createdAt = existing?.createdAt ?: System.currentTimeMillis(),
+            cloudId = existing?.cloudId,
+            updatedAt = System.currentTimeMillis()
         )
-        return dao.upsert(row)
+        val id = dao.upsert(row)
+        if (existing == null) {
+            syncTracker.trackCreate(id, "weekly_review")
+        } else {
+            syncTracker.trackUpdate(id, "weekly_review")
+        }
+        return id
     }
 
     suspend fun getForWeek(weekStart: Long): WeeklyReviewEntity? = dao.getByWeek(weekStart)
@@ -42,5 +52,8 @@ constructor(
 
     fun observeAll(): Flow<List<WeeklyReviewEntity>> = dao.observeAll()
 
-    suspend fun delete(id: Long) = dao.delete(id)
+    suspend fun delete(id: Long) {
+        dao.delete(id)
+        syncTracker.trackDelete(id, "weekly_review")
+    }
 }

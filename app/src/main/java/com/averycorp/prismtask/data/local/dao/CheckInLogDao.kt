@@ -29,4 +29,16 @@ interface CheckInLogDao {
 
     @Query("DELETE FROM check_in_logs")
     suspend fun deleteAll()
+
+    @Query("SELECT * FROM check_in_logs WHERE id = :id LIMIT 1")
+    suspend fun getByIdOnce(id: Long): CheckInLogEntity?
+
+    @Query("SELECT * FROM check_in_logs WHERE cloud_id = :cloudId LIMIT 1")
+    suspend fun getByCloudIdOnce(cloudId: String): CheckInLogEntity?
+
+    @Query("UPDATE check_in_logs SET cloud_id = :cloudId, updated_at = :now WHERE id = :id")
+    suspend fun setCloudId(id: Long, cloudId: String?, now: Long)
+
+    @Query("DELETE FROM check_in_logs WHERE id = :id")
+    suspend fun deleteById(id: Long)
 }
