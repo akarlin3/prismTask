@@ -4,6 +4,9 @@ import com.averycorp.prismtask.data.calendar.CalendarPushDispatcher
 import com.averycorp.prismtask.data.local.converter.RecurrenceConverter
 import com.averycorp.prismtask.data.local.database.DatabaseTransactionRunner
 import com.averycorp.prismtask.data.local.entity.TaskEntity
+import com.averycorp.prismtask.data.preferences.EisenhowerPrefs
+import com.averycorp.prismtask.data.preferences.UserPreferencesDataStore
+import com.averycorp.prismtask.data.remote.EisenhowerClassifier
 import com.averycorp.prismtask.data.remote.SyncTracker
 import com.averycorp.prismtask.data.repository.TaskCompletionRepository
 import com.averycorp.prismtask.data.repository.TaskRepository
@@ -12,8 +15,10 @@ import com.averycorp.prismtask.domain.model.RecurrenceType
 import com.averycorp.prismtask.notifications.ReminderScheduler
 import com.averycorp.prismtask.widget.WidgetUpdateManager
 import dagger.hilt.android.testing.HiltAndroidTest
+import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
 import org.junit.Test
 
@@ -33,7 +38,11 @@ class RecurrenceSmokeTest : SmokeTestBase() {
         calendarPushDispatcher = mockk<CalendarPushDispatcher>(relaxed = true),
         reminderScheduler = mockk<ReminderScheduler>(relaxed = true),
         widgetUpdateManager = mockk<WidgetUpdateManager>(relaxed = true),
-        taskCompletionRepository = mockk<TaskCompletionRepository>(relaxed = true)
+        taskCompletionRepository = mockk<TaskCompletionRepository>(relaxed = true),
+        eisenhowerClassifier = mockk<EisenhowerClassifier>(relaxed = true),
+        userPreferences = mockk<UserPreferencesDataStore> {
+            every { eisenhowerFlow } returns flowOf(EisenhowerPrefs(autoClassifyEnabled = false))
+        }
     )
 
     @Test

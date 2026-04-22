@@ -24,11 +24,12 @@ class EisenhowerClassifierTest {
     private lateinit var authTokenPreferences: AuthTokenPreferences
     private lateinit var classifier: EisenhowerClassifier
 
+    // dueDate is a fixed ms-since-epoch value; exact instant doesn't matter for these tests
     private val sampleTask = TaskEntity(
         id = 1L,
         title = "Ship the launch post",
         description = "Blog + social",
-        dueDate = 1_800_000_000_000L, // some fixed ms
+        dueDate = 1_800_000_000_000L,
         priority = 3
     )
 
