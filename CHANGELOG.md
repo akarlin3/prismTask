@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+
 ### Sync — Room content entities cross-device (v1.4.38)
 - **Migration 55 → 56** adds `cloud_id TEXT` (UNIQUE-indexed) to all nine
   remaining user-authored content tables, plus `updated_at INTEGER NOT
