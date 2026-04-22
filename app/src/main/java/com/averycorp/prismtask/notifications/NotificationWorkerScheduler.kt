@@ -61,6 +61,13 @@ constructor(
         applyWeeklyTaskSummary(notificationPreferences.weeklyTaskSummaryEnabled.first())
         applyOverloadCheck(notificationPreferences.overloadAlertsEnabled.first())
         applyReengagement(notificationPreferences.reengagementEnabled.first())
+
+        // Weekly review worker (A2). Gated by its own preference toggle;
+        // the seed migration just guarantees first-launch-after-update
+        // gets the periodic work enqueued exactly once before the
+        // preference-driven apply below takes over on subsequent boots.
+        WeeklyReviewSchedulerMigration.runIfNeeded(context, notificationPreferences)
+        applyWeeklyReview(notificationPreferences.weeklyReviewAutoGenerateEnabled.first())
     }
 
     suspend fun applyBriefing(enabled: Boolean) {
@@ -110,6 +117,14 @@ constructor(
             ReengagementWorker.schedule(context)
         } else {
             ReengagementWorker.cancel(context)
+        }
+    }
+
+    fun applyWeeklyReview(enabled: Boolean) {
+        if (enabled) {
+            WeeklyReviewWorker.schedule(context)
+        } else {
+            WeeklyReviewWorker.cancel(context)
         }
     }
 }
@@ -166,5 +181,26 @@ private object WeeklyTaskSummaryMigration {
             // where this left off if the enqueue failed here.
         }
         prefs.setHasSeededWeeklyTaskSummaryWorker()
+    }
+}
+
+/**
+ * One-time seed for the v1.4.39 [WeeklyReviewWorker]. Unlike
+ * [WeeklyHabitSummaryMigration] this isn't healing a class rename —
+ * there's no stale unique work to cancel — it's just guaranteeing
+ * existing users who update past the release get the periodic work
+ * enqueued once. After this fires, [NotificationWorkerScheduler.applyAll]
+ * keeps the schedule in sync with the user's preference on every
+ * subsequent boot.
+ *
+ * Gated by a one-shot preference flag so re-runs are no-ops.
+ */
+private object WeeklyReviewSchedulerMigration {
+    suspend fun runIfNeeded(context: Context, prefs: NotificationPreferences) {
+        if (prefs.getWeeklyReviewWorkerSeededOnce()) return
+        if (prefs.weeklyReviewAutoGenerateEnabled.first()) {
+            WeeklyReviewWorker.schedule(context)
+        }
+        prefs.setWeeklyReviewWorkerSeeded()
     }
 }

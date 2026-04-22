@@ -72,6 +72,10 @@ constructor(
     val dailyBriefingEnabled = prefs.dailyBriefingEnabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
     val eveningSummaryEnabled = prefs.eveningSummaryEnabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
     val weeklySummaryEnabled = prefs.weeklySummaryEnabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+    val weeklyReviewAutoGenerateEnabled = prefs.weeklyReviewAutoGenerateEnabled
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+    val weeklyReviewNotificationEnabled = prefs.weeklyReviewNotificationEnabled
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
     val weeklyTaskSummaryEnabled = prefs.weeklyTaskSummaryEnabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
     val streakAlertsEnabled = prefs.streakAlertsEnabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
     val reengagementEnabled = prefs.reengagementEnabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
@@ -184,6 +188,19 @@ constructor(
 
     fun setWeeklyTaskSummaryEnabled(enabled: Boolean) = viewModelScope.launch { prefs.setWeeklyTaskSummaryEnabled(enabled) }
 
+    // Auto-generated weekly reviews (A2). Pref-only flip; the
+    // WeeklyReviewWorker checks [NotificationPreferences.weeklyReviewAutoGenerateEnabled]
+    // inside doWork() on its next Sunday run, so stale schedules
+    // no-op until [NotificationWorkerScheduler.applyAll] re-aligns
+    // WorkManager on the next app launch.
+    fun setWeeklyReviewAutoGenerateEnabled(enabled: Boolean) = viewModelScope.launch {
+        prefs.setWeeklyReviewAutoGenerateEnabled(enabled)
+    }
+
+    fun setWeeklyReviewNotificationEnabled(enabled: Boolean) = viewModelScope.launch {
+        prefs.setWeeklyReviewNotificationEnabled(enabled)
+    }
+
     fun setStreakAlertsEnabled(enabled: Boolean) = viewModelScope.launch { prefs.setStreakAlertsEnabled(enabled) }
 
     fun setReengagementEnabled(enabled: Boolean) = viewModelScope.launch { prefs.setReengagementEnabled(enabled) }
@@ -279,6 +296,7 @@ constructor(
         eveningSummaryEnabled,
         weeklySummaryEnabled,
         weeklyTaskSummaryEnabled,
+        weeklyReviewAutoGenerateEnabled,
         streakAlertsEnabled,
         reengagementEnabled
     ) { flags: Array<Boolean> -> flags.count { it } }
