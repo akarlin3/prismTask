@@ -72,6 +72,7 @@ constructor(
     val dailyBriefingEnabled = prefs.dailyBriefingEnabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
     val eveningSummaryEnabled = prefs.eveningSummaryEnabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
     val weeklySummaryEnabled = prefs.weeklySummaryEnabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+    val weeklyTaskSummaryEnabled = prefs.weeklyTaskSummaryEnabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
     val streakAlertsEnabled = prefs.streakAlertsEnabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
     val reengagementEnabled = prefs.reengagementEnabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
     val overloadAlertsEnabled = prefs.overloadAlertsEnabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
@@ -181,6 +182,8 @@ constructor(
 
     fun setWeeklySummaryEnabled(enabled: Boolean) = viewModelScope.launch { prefs.setWeeklySummaryEnabled(enabled) }
 
+    fun setWeeklyTaskSummaryEnabled(enabled: Boolean) = viewModelScope.launch { prefs.setWeeklyTaskSummaryEnabled(enabled) }
+
     fun setStreakAlertsEnabled(enabled: Boolean) = viewModelScope.launch { prefs.setStreakAlertsEnabled(enabled) }
 
     fun setReengagementEnabled(enabled: Boolean) = viewModelScope.launch { prefs.setReengagementEnabled(enabled) }
@@ -275,6 +278,7 @@ constructor(
         dailyBriefingEnabled,
         eveningSummaryEnabled,
         weeklySummaryEnabled,
+        weeklyTaskSummaryEnabled,
         streakAlertsEnabled,
         reengagementEnabled
     ) { flags: Array<Boolean> -> flags.count { it } }

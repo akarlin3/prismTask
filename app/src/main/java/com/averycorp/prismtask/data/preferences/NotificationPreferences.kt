@@ -47,6 +47,8 @@ class NotificationPreferences(
         private val DAILY_BRIEFING_ENABLED = booleanPreferencesKey("daily_briefing_enabled")
         private val EVENING_SUMMARY_ENABLED = booleanPreferencesKey("evening_summary_enabled")
         private val WEEKLY_SUMMARY_ENABLED = booleanPreferencesKey("weekly_summary_enabled")
+        private val WEEKLY_TASK_SUMMARY_ENABLED =
+            booleanPreferencesKey("weekly_task_summary_enabled")
         private val OVERLOAD_ALERTS_ENABLED = booleanPreferencesKey("overload_alerts_enabled")
         private val REENGAGEMENT_ENABLED = booleanPreferencesKey("reengagement_enabled")
 
@@ -125,6 +127,13 @@ class NotificationPreferences(
         // re-enqueue under the new class can bind cleanly.
         private val WEEKLY_HABIT_SUMMARY_MIGRATION_RUN =
             booleanPreferencesKey("weekly_habit_summary_migration_run_v14")
+
+        // One-shot flag for seeding the WeeklyTaskSummaryWorker unique
+        // work on first launch post-update. Mirrors the habit-summary
+        // migration flag, but keyed independently so the two migrations
+        // don't share state.
+        private val HAS_SEEDED_WEEKLY_TASK_SUMMARY_WORKER =
+            booleanPreferencesKey("has_seeded_weekly_task_summary_worker_v1438")
 
         const val IMPORTANCE_MINIMAL = "minimal"
         const val IMPORTANCE_STANDARD = "standard"
@@ -246,6 +255,13 @@ class NotificationPreferences(
 
     suspend fun setWeeklySummaryEnabled(enabled: Boolean) {
         dataStore.edit { it[WEEKLY_SUMMARY_ENABLED] = enabled }
+    }
+
+    val weeklyTaskSummaryEnabled: Flow<Boolean> = dataStore.data
+        .map { it[WEEKLY_TASK_SUMMARY_ENABLED] ?: true }
+
+    suspend fun setWeeklyTaskSummaryEnabled(enabled: Boolean) {
+        dataStore.edit { it[WEEKLY_TASK_SUMMARY_ENABLED] = enabled }
     }
 
     val overloadAlertsEnabled: Flow<Boolean> = dataStore.data
@@ -586,6 +602,13 @@ class NotificationPreferences(
 
     suspend fun setWeeklyHabitSummaryMigrationRun() {
         dataStore.edit { it[WEEKLY_HABIT_SUMMARY_MIGRATION_RUN] = true }
+    }
+
+    suspend fun getHasSeededWeeklyTaskSummaryWorkerOnce(): Boolean =
+        dataStore.data.first()[HAS_SEEDED_WEEKLY_TASK_SUMMARY_WORKER] ?: false
+
+    suspend fun setHasSeededWeeklyTaskSummaryWorker() {
+        dataStore.edit { it[HAS_SEEDED_WEEKLY_TASK_SUMMARY_WORKER] = true }
     }
 
     // endregion

@@ -505,6 +505,9 @@ constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
     val weeklySummaryEnabled: StateFlow<Boolean> = notificationPreferences.weeklySummaryEnabled
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+    val weeklyTaskSummaryEnabled: StateFlow<Boolean> =
+        notificationPreferences.weeklyTaskSummaryEnabled
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
     val overloadAlertsEnabled: StateFlow<Boolean> = notificationPreferences.overloadAlertsEnabled
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
     val reengagementEnabled: StateFlow<Boolean> = notificationPreferences.reengagementEnabled
@@ -568,6 +571,13 @@ constructor(
         viewModelScope.launch {
             notificationPreferences.setWeeklySummaryEnabled(enabled)
             notificationWorkerScheduler.applyWeeklyHabitSummary(enabled)
+        }
+    }
+
+    fun setWeeklyTaskSummaryEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            notificationPreferences.setWeeklyTaskSummaryEnabled(enabled)
+            notificationWorkerScheduler.applyWeeklyTaskSummary(enabled)
         }
     }
 
