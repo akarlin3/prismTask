@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Medications — Top-level entity (PR 5 / 5 — Unit tests)
+- `BuiltInMedicationReconcilerTest` — covers the post-sync dedup-by-name
+  pass: no-duplicate case, duplicate-collapse with dose-count winner
+  rule, tiebreak on smallest id, case/whitespace-insensitive grouping,
+  dose-history reassignment to the keeper, flag idempotency, single-row
+  no-op, empty-DB no-op.
+- Full-chain instrumentation tests deferred. The spec's two-device
+  convergence test + API-26 JSON1 migration test + Robolectric
+  reminder-continuity test deserve a dedicated PR — emulator setup and
+  test-harness scaffolding are non-trivial and better landed separately
+  from unit coverage.
+
 ### Medications — Top-level entity (PR 4 / 5 — Nav tile + toggle wiring)
 - **New bottom-nav tile.** `Meds` (Material `LocalPharmacy` icon) added
   between `Recurring` and `Timer` in `ALL_BOTTOM_NAV_ITEMS`. Taps route
