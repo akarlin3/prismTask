@@ -72,10 +72,17 @@ android {
                 ?: "https://averytask-production.up.railway.app"
             buildConfigField("String", "API_BASE_URL", "\"$debugApiUrl\"")
             // Route Firebase clients at the local Firebase Emulator Suite.
-            // Debug builds default to emulator OFF — flip to "true" here (and
-            // rebuild) to point a debug APK at the local Firestore/Auth
-            // emulator. See docs/FIREBASE_EMULATOR.md for the full workflow.
-            buildConfigField("boolean", "USE_FIREBASE_EMULATOR", "false")
+            // Debug builds default to emulator OFF; read USE_FIREBASE_EMULATOR
+            // from the environment so CI (see
+            // .github/workflows/android-integration.yml) can flip it on for
+            // instrumented tests without hand-editing this file. Accepts
+            // "true"/"false"; anything else falls back to false. See
+            // docs/FIREBASE_EMULATOR.md for the local-dev workflow.
+            val useEmulator = when (System.getenv("USE_FIREBASE_EMULATOR")?.lowercase()) {
+                "true" -> "true"
+                else -> "false"
+            }
+            buildConfigField("boolean", "USE_FIREBASE_EMULATOR", useEmulator)
             // Speed up debug builds
             isDebuggable = true
             signingConfig = signingConfigs.getByName("debug")
