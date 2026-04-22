@@ -1,5 +1,6 @@
 package com.averycorp.prismtask.domain.usecase
 
+import com.averycorp.prismtask.data.local.entity.MedicationEntity
 import com.averycorp.prismtask.data.local.entity.MedicationRefillEntity
 import kotlin.math.max
 
@@ -104,4 +105,66 @@ object RefillCalculator {
         daysRemaining <= 7 -> RefillUrgency.UPCOMING
         else -> RefillUrgency.HEALTHY
     }
+
+    // --- MedicationEntity overloads (v1.4 top-level refactor) ---
+    //
+    // The top-level [MedicationEntity] subsumed the old
+    // [MedicationRefillEntity] fields inline. Refill tracking on the new
+    // entity is optional (pillCount is nullable), so the MedicationEntity
+    // overloads return null / no-op when pill tracking isn't enabled.
+
+    /**
+     * Refill forecast for a [MedicationEntity]. Returns `null` when the
+     * medication doesn't participate in refill tracking
+     * (`pillCount == null`).
+     */
+    fun forecast(
+        med: MedicationEntity,
+        now: Long = System.currentTimeMillis()
+    ): RefillForecast? {
+        val pillCount = med.pillCount ?: return null
+        val dailyUsage = max(1, med.pillsPerDose * med.dosesPerDay)
+        val daysRemaining = (pillCount / dailyUsage).coerceAtLeast(0)
+        val anchor = med.lastRefillDate ?: now
+        val refillDate = anchor + daysRemaining.toLong() * MILLIS_PER_DAY
+        val reminderDate = refillDate - med.reminderDaysBefore.toLong() * MILLIS_PER_DAY
+        val urgency = urgencyFor(daysRemaining, pillCount)
+        return RefillForecast(
+            daysRemaining = daysRemaining,
+            refillDateMillis = refillDate,
+            reminderDateMillis = reminderDate,
+            urgency = urgency
+        )
+    }
+
+    /**
+     * Decrement the pill count by one daily dose on a [MedicationEntity].
+     * Returns the medication unchanged when `pillCount` is null
+     * (no refill tracking) — caller should gate on nullability.
+     */
+    fun applyDailyDose(
+        med: MedicationEntity,
+        now: Long = System.currentTimeMillis()
+    ): MedicationEntity {
+        val pillCount = med.pillCount ?: return med
+        val dose = med.pillsPerDose * med.dosesPerDay
+        val newCount = (pillCount - dose).coerceAtLeast(0)
+        return med.copy(pillCount = newCount, updatedAt = now)
+    }
+
+    /**
+     * Reset the pill count to [newSupply] and stamp `lastRefillDate`.
+     * Works on every medication regardless of prior tracking state —
+     * calling this enables refill tracking on a medication that didn't
+     * have `pillCount` set before.
+     */
+    fun applyRefill(
+        med: MedicationEntity,
+        newSupply: Int,
+        now: Long = System.currentTimeMillis()
+    ): MedicationEntity = med.copy(
+        pillCount = newSupply.coerceAtLeast(0),
+        lastRefillDate = now,
+        updatedAt = now
+    )
 }

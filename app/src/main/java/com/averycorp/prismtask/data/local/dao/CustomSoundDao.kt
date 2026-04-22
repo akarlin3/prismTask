@@ -5,6 +5,7 @@ import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Update
 import com.averycorp.prismtask.data.local.entity.CustomSoundEntity
 import kotlinx.coroutines.flow.Flow
 
@@ -33,4 +34,13 @@ interface CustomSoundDao {
 
     @Query("DELETE FROM custom_sounds")
     suspend fun deleteAll()
+
+    @Query("SELECT * FROM custom_sounds WHERE cloud_id = :cloudId LIMIT 1")
+    suspend fun getByCloudIdOnce(cloudId: String): CustomSoundEntity?
+
+    @Query("UPDATE custom_sounds SET cloud_id = :cloudId, updated_at = :now WHERE id = :id")
+    suspend fun setCloudId(id: Long, cloudId: String?, now: Long)
+
+    @Update
+    suspend fun update(sound: CustomSoundEntity)
 }

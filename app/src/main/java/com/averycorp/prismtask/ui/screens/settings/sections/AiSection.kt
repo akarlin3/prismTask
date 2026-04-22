@@ -9,6 +9,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.averycorp.prismtask.ui.components.settings.SectionHeader
 import com.averycorp.prismtask.ui.components.settings.SettingsRowWithSubtitle
+import com.averycorp.prismtask.ui.components.settings.SettingsToggleRow
 
 @Composable
 fun AiSection(
@@ -16,7 +17,9 @@ fun AiSection(
     onNavigateToSmartPomodoro: () -> Unit,
     onNavigateToDailyBriefing: () -> Unit,
     onNavigateToWeeklyPlanner: () -> Unit,
-    onNavigateToTimeline: () -> Unit
+    onNavigateToTimeline: () -> Unit,
+    eisenhowerAutoClassifyEnabled: Boolean = true,
+    onEisenhowerAutoClassifyChanged: (Boolean) -> Unit = {}
 ) {
     SectionHeader("AI Features")
 
@@ -25,6 +28,13 @@ fun AiSection(
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+    )
+
+    SettingsToggleRow(
+        title = "Auto-Classify Tasks (Eisenhower)",
+        subtitle = "Automatically assign an Eisenhower quadrant when you create a task. Manual moves are always preserved.",
+        checked = eisenhowerAutoClassifyEnabled,
+        onCheckedChange = onEisenhowerAutoClassifyChanged
     )
 
     SettingsRowWithSubtitle(

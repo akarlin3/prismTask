@@ -11,7 +11,7 @@ import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 import javax.inject.Singleton
 
-private val Context.templateDataStore: DataStore<Preferences> by preferencesDataStore(name = "template_prefs")
+internal val Context.templateDataStore: DataStore<Preferences> by preferencesDataStore(name = "template_prefs")
 
 /**
  * Persisted flags for the template subsystem:

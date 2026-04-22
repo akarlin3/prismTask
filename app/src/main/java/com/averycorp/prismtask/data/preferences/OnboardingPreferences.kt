@@ -13,7 +13,7 @@ import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
 
-private val Context.onboardingDataStore: DataStore<Preferences> by preferencesDataStore(name = "onboarding_prefs")
+internal val Context.onboardingDataStore: DataStore<Preferences> by preferencesDataStore(name = "onboarding_prefs")
 
 @Singleton
 class OnboardingPreferences
@@ -56,6 +56,24 @@ constructor(
     suspend fun setBatteryOptimizationPromptShown() {
         context.onboardingDataStore.edit { prefs ->
             prefs[HAS_SHOWN_BATTERY_OPTIMIZATION_PROMPT] = true
+        }
+    }
+
+    /**
+     * Restores onboarding state from a JSON backup. Unlike [setOnboardingCompleted]
+     * (which stamps `completed_at` to `now`), this writes the exact original
+     * timestamp so a restored install doesn't look like it just finished
+     * onboarding. Used by [com.averycorp.prismtask.data.export.DataImporter].
+     */
+    suspend fun restoreImportedState(
+        hasCompletedOnboarding: Boolean,
+        onboardingCompletedAt: Long,
+        hasShownBatteryOptimizationPrompt: Boolean
+    ) {
+        context.onboardingDataStore.edit { prefs ->
+            prefs[HAS_COMPLETED_ONBOARDING] = hasCompletedOnboarding
+            prefs[ONBOARDING_COMPLETED_AT] = onboardingCompletedAt
+            prefs[HAS_SHOWN_BATTERY_OPTIMIZATION_PROMPT] = hasShownBatteryOptimizationPrompt
         }
     }
 

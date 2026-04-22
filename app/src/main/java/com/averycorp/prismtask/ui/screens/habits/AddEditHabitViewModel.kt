@@ -12,7 +12,7 @@ import com.averycorp.prismtask.data.local.entity.HabitEntity
 import com.averycorp.prismtask.data.preferences.HabitListPreferences
 import com.averycorp.prismtask.data.preferences.NotificationPreferences
 import com.averycorp.prismtask.data.repository.HabitRepository
-import com.averycorp.prismtask.notifications.MedicationReminderScheduler
+import com.averycorp.prismtask.notifications.HabitReminderScheduler
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -26,7 +26,7 @@ class AddEditHabitViewModel
 @Inject
 constructor(
     private val habitRepository: HabitRepository,
-    private val medicationReminderScheduler: MedicationReminderScheduler,
+    private val medicationReminderScheduler: HabitReminderScheduler,
     private val notificationPreferences: NotificationPreferences,
     private val habitListPreferences: HabitListPreferences,
     savedStateHandle: SavedStateHandle

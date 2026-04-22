@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-**PrismTask** (`com.averycorp.prismtask`) is a native Android todo list app built with Kotlin and Jetpack Compose. v1.3.0 includes full task management, projects, subtasks, tags, recurrence, reminders, notifications, NLP quick-add, voice input (speech-to-task, voice commands, TTS, hands-free mode), accessibility (TalkBack, font scaling, high-contrast, keyboard nav, reduced motion), Today focus screen (compact header, collapsible sections, customizable layout), tabbed task editor (Details/Schedule/Organize), week/month/timeline views, urgency scoring with user-configurable weights, smart suggestions, drag-to-reorder with custom sort, quick reschedule, duplicate task, bulk edit (priority/date/tags/project), configurable swipe actions, flagged tasks, task templates with built-ins and NLP shortcuts, project and habit templates, saved filter presets, advanced recurrence (weekday/biweekly/custom month days/after-completion), notification profiles with quiet hours and daily digest, two-tier pricing (Free/Pro) with Google Play Billing, Firebase cloud sync, Google Sign-In, JSON/CSV data export/import, Google Drive backup/restore, habit tracking with streaks/analytics, bookable habits, productivity dashboard with burndown charts and heatmap, time tracking per task, 7 home-screen widgets (Today, Habit Streak, Quick-Add, Calendar, Productivity, Timer, Upcoming) with per-instance config, Gmail/Slack/Calendar/Zapier integrations, app self-update, and a FastAPI web backend with Claude Haiku-powered NLP parsing.
+**PrismTask** (`com.averycorp.prismtask`) is a native Android todo list app built with Kotlin and Jetpack Compose. v1.3.0 includes full task management, projects, subtasks, tags, recurrence, reminders, notifications, NLP quick-add, voice input (speech-to-task, voice commands, TTS, hands-free mode), accessibility (TalkBack, font scaling, high-contrast, keyboard nav, reduced motion), Today focus screen (compact header, collapsible sections, customizable layout), tabbed task editor (Details/Schedule/Organize), week/month/timeline views, urgency scoring with user-configurable weights, smart suggestions, drag-to-reorder with custom sort, quick reschedule, duplicate task, bulk edit (priority/date/tags/project), configurable swipe actions, flagged tasks, task templates with built-ins and NLP shortcuts, project and habit templates, saved filter presets, advanced recurrence (weekday/biweekly/custom month days/after-completion), notification profiles with quiet hours and daily digest, two-tier pricing (Free/Pro) with Google Play Billing, Firebase cloud sync, Google Sign-In, JSON/CSV data export/import, Google Drive backup/restore, habit tracking with streaks/analytics, bookable habits, productivity dashboard with burndown charts and heatmap, time tracking per task, 8 home-screen widgets (Today, Habit Streak, Quick-Add, Calendar, Productivity, Timer, Upcoming, Project) with per-instance config, Gmail/Slack/Calendar/Zapier integrations, app self-update, and a FastAPI web backend with Claude Haiku-powered NLP parsing.
 
 **v1.4.0 (in progress):** The release expands PrismTask into a wellness-aware productivity layer on top of the v1.3 core:
 
@@ -14,7 +14,7 @@
 - **Medication refills, clinical report, conversation extraction**: `MedicationRefillEntity` + `RefillCalculator` project refill dates; `ClinicalReportGenerator` exports a therapist-friendly summary; `ConversationTaskExtractor` pulls tasks out of chat transcripts (new `extract/` screen).
 - **Custom notification sounds + escalation**: `CustomSoundEntity`, `SoundResolver`, `EscalationScheduler`, and `VibrationAdapter` power per-profile custom sounds, vibration patterns, and escalation chains; `ReminderProfile*` was renamed to `NotificationProfile*` and moved under `domain/model/notifications/`.
 - **Projects (Phase 1)**: `ProjectEntity` extended with lifecycle columns (`description`, `status`, `start_date`, `end_date`, `theme_color_key`, `completed_at`, `archived_at`); new `MilestoneEntity` + `MilestoneDao` (CASCADE FK to projects); `ProjectRepository` extended additively with status-aware streams, milestone CRUD + reorder, and `ProjectWithProgress` / `ProjectDetail` projections powered by a forgiveness-first project streak. The streak reuses a freshly extracted `DailyForgivenessStreakCore` that `StreakCalculator.calculateResilientDailyStreak` now also delegates to — projects and habits share one implementation. Activity dates for projects are computed at read time via `ProjectDao.getTaskActivityDates`, which joins `task_completions` through `tasks` so subtask completions inherit from their parent's project. Note: the pre-existing `ProjectTemplateEntity` (a scaffold for spawning project-with-tasks bundles) is orthogonal to this feature despite the name overlap.
-- **Database**: Current Room version is **51** with 50 cumulative migrations (`MIGRATION_1_2` through `MIGRATION_50_51`) wired into `PrismTaskDatabase`. v44→v45 (data-integrity hardening) backfills `ON DELETE SET NULL` foreign keys on `study_logs.course_pick`, `study_logs.assignment_pick`, and `focus_release_logs.task_id`. v45→v46 adds `daily_essential_slot_completions`. v46→v47 adds `leisure_logs.custom_sections_state`. v47→v48 expands `projects` with lifecycle columns and creates the `milestones` table (CASCADE FK to projects). v48→v49 adds `is_built_in` and `template_key` to `habits` (backfills 6 known built-in habit names). v49→v50 adds `completed_date_local TEXT` to `habit_completions` with a `strftime` backfill and index, enabling timezone-neutral day comparisons. v50→v51 adds `updated_at INTEGER NOT NULL DEFAULT 0` to `self_care_logs`, `leisure_logs`, `self_care_steps`, `courses`, and `course_completions` for last-write-wins conflict resolution.
+- **Database**: Current Room version is **54** with 53 cumulative migrations (`MIGRATION_1_2` through `MIGRATION_53_54`) wired into `PrismTaskDatabase`. v44→v45 (data-integrity hardening) backfills `ON DELETE SET NULL` foreign keys on `study_logs.course_pick`, `study_logs.assignment_pick`, and `focus_release_logs.task_id`. v45→v46 adds `daily_essential_slot_completions`. v46→v47 adds `leisure_logs.custom_sections_state`. v47→v48 expands `projects` with lifecycle columns and creates the `milestones` table (CASCADE FK to projects). v48→v49 adds `is_built_in` and `template_key` to `habits` (backfills 6 known built-in habit names). v49→v50 adds `completed_date_local TEXT` to `habit_completions` with a `strftime` backfill and index, enabling timezone-neutral day comparisons. v50→v51 adds `updated_at INTEGER NOT NULL DEFAULT 0` to `self_care_logs`, `leisure_logs`, `self_care_steps`, `courses`, and `course_completions` for last-write-wins conflict resolution. v51→v52 adds a `cloud_id TEXT` unique-indexed column to every syncable entity, backfilled from `sync_metadata` (Phase 2 sync-duplication fix). v52→v53 adds `template_key` to `task_templates` (parity with habits). v53→v54 creates `medications` + `medication_doses` as a new top-level entity — backfilled from `self_care_steps WHERE routine_type='medication'` with duplicate-name collapse via `GROUP_CONCAT(DISTINCT label, ' / ')`, refill data merged inline from `medication_refills`. Source tables (self_care_steps, self_care_logs, medication_refills, the built-in 'Medication' habit) are preserved in quarantine tables and NOT deleted — Phase 2 cleanup migration drops them after a 2+ week convergence window.
 - **Start-of-Day (SoD)**: `DayBoundary` utility (`util/DayBoundary.kt`) resolves "today" relative to a user-configurable `startOfDay` hour (stored in `UserPreferencesDataStore`). Habits, streaks, Today-screen task filter, Pomodoro stats, widgets, and NLP date parsing all derive the logical day from `DayBoundary`.
 - **Built-in habit identity**: `HabitEntity` carries `isBuiltIn` and `templateKey` fields (migration 48→49). `BuiltInHabitReconciler` deduplicates cloud-pulled built-in habits after sync; one-time repair flags live in `BuiltInSyncPreferences`.
 - **Daily Essentials**: `DailyEssentialsUseCase` + `DailyEssentialsPreferences` surface a daily housework + schoolwork card on Today; `housework_habit_id` / `schoolwork_habit_id` point to user-chosen habits and the use case hides the card gracefully when the habit is deleted or archived.
@@ -67,8 +67,8 @@ app/src/main/java/com/averycorp/prismtask/
 │   │   │   ├── FocusReleaseLogDao.kt, MedicationRefillDao.kt
 │   │   │   ├── MoodEnergyLogDao.kt, WeeklyReviewDao.kt
 │   │   ├── database/
-│   │   │   ├── PrismTaskDatabase.kt    # Room DB (@Database version = 51)
-│   │   │   └── Migrations.kt           # MIGRATION_1_2 … MIGRATION_50_51
+│   │   │   ├── PrismTaskDatabase.kt    # Room DB (@Database version = 54)
+│   │   │   └── Migrations.kt           # MIGRATION_1_2 … MIGRATION_53_54
 │   │   └── entity/                     # Room entities
 │   │       ├── TaskEntity.kt, ProjectEntity.kt, TagEntity.kt
 │   │       ├── TaskTagCrossRef.kt, TaskWithTags.kt, AttachmentEntity.kt
@@ -152,9 +152,10 @@ app/src/main/java/com/averycorp/prismtask/
 │   ├── BriefingNotificationWorker.kt, EveningSummaryWorker.kt, ReengagementWorker.kt
 │   ├── MedicationReminderScheduler.kt, MedicationReminderReceiver.kt
 │   ├── MedStepReminderReceiver.kt, LogMedicationReceiver.kt, PomodoroTimerService.kt
-├── widget/                             # 7 Glance widgets with per-instance config
+├── widget/                             # 8 Glance widgets with per-instance config
 │   ├── TodayWidget.kt, HabitStreakWidget.kt, QuickAddWidget.kt
 │   ├── CalendarWidget.kt, ProductivityWidget.kt, TimerWidget.kt, UpcomingWidget.kt
+│   ├── ProjectWidget.kt
 │   ├── WidgetActions.kt, WidgetColors.kt, WidgetTextStyles.kt, WidgetEmptyState.kt
 │   ├── WidgetConfigDataStore.kt, WidgetDataProvider.kt, WidgetUpdateManager.kt
 │   ├── WidgetRefreshWorker.kt, TimerStateDataStore.kt
@@ -222,7 +223,7 @@ app/src/main/java/com/averycorp/prismtask/
 - **Timeline**: Daily view with scheduled time blocks, duration management, current time indicator
 - **Export/Import**: JSON full backup (tasks, habits, habit completions, self-care logs/steps, leisure logs, courses, assignments, course completions, all preferences/config) + CSV tasks export; JSON import with merge/replace modes
 - **Habits**: Habit tracking with daily/weekly frequency, streaks, analytics, contribution grid, weekly summary notification
-- **Widgets**: 7 Glance-based home screen widgets (Today, Habit Streak, Quick-Add, Calendar, Productivity, Timer, Upcoming) with per-instance configuration
+- **Widgets**: 8 Glance-based home screen widgets (Today, Habit Streak, Quick-Add, Calendar, Productivity, Timer, Upcoming, Project) with per-instance configuration
 - **Dashboard**: Customizable Today section order and visibility via DashboardPreferences DataStore
 - **Task Templates**: Reusable blueprints with backend sync
 - **Tabbed Editor**: Bottom sheet with Details/Schedule/Organize tabs (extracted into `addedittask/tabs/`)
@@ -235,7 +236,7 @@ app/src/main/java/com/averycorp/prismtask/
 - **Customization**: `UserPreferencesDataStore` centralizes configurable swipe actions, urgency weights, task card fields, accent colors, card corner radius, compact mode, context menu ordering, and Today-screen layout
 - **Notification Profiles**: `NotificationProfileRepository` supports multi-reminder bundles with escalation chains (`EscalationScheduler`), custom per-profile sounds (`CustomSoundEntity` + `SoundResolver`), and vibration patterns (`VibrationAdapter`); `QuietHoursDeferrer` defers notifications during quiet hours; `ProfileAutoSwitcher` rotates active profile based on burnout signals; daily digest notification
 - **Analytics**: Productivity dashboard with daily/weekly/monthly views, burndown charts, habit-productivity correlation, heatmap visualization, per-task time tracking
-- **Task Analytics**: Contribution grid, streak tracking, day-of-week/hour-of-day distributions, completion rate, on-time rate, and per-project filtering for completed tasks via `TaskCompletionEntity` history table (added in migration 37→38 with backfill; DB is currently at version 50)
+- **Task Analytics**: Contribution grid, streak tracking, day-of-week/hour-of-day distributions, completion rate, on-time rate, and per-project filtering for completed tasks via `TaskCompletionEntity` history table (added in migration 37→38 with backfill; DB is currently at version 54)
 - **Integrations**: Google Calendar two-way sync (see `CalendarSyncRepository` / `CalendarSyncService`). Gmail / Slack / webhook endpoints exist on the backend but are not wired into the Android UI.
 - **Bookable Habits**: Habit logs carry booking state via `HabitLogEntity` for activity history
 - **Work-Life Balance**: `LifeCategory` enum on every task; `LifeCategoryClassifier` auto-tags tasks from keywords; `BalanceTracker` computes category ratios and detects overload; `OverloadCheckWorker` runs periodic checks; dedicated Today balance bar and `WeeklyBalanceReportScreen`
@@ -259,7 +260,21 @@ Historical failures: `ci-logs/<workflow-slug>/<timestamp>-<run-id>.log` on the s
 
 ## Build Commands
 
-**Note:** The Android SDK is not available in the Claude Code environment. Do not attempt local builds or tests. Instead, push your changes and wait for GitHub CI to build and report results.
+**Note:** The Android SDK and JBR (Java 21) are available locally — local
+builds and unit tests are supported and preferred for fast iteration. Before
+running Gradle from Git Bash, export the toolchain paths (they are installed
+but not on the default PATH):
+
+```bash
+export ANDROID_HOME="/c/Users/avery_yy1vm3l/AppData/Local/Android/Sdk"
+export ANDROID_SDK_ROOT="$ANDROID_HOME"
+export JAVA_HOME="/c/Program Files/Android/Android Studio/jbr"
+export PATH="$JAVA_HOME/bin:$ANDROID_HOME/platform-tools:/c/Program Files/GitHub CLI:$PATH"
+```
+
+Instrumentation tests (`connectedDebugAndroidTest`) require a running device
+or emulator; `adb devices` will list them. CI still runs on every push and
+remains the final verification gate.
 
 ```bash
 # Debug build
@@ -298,6 +313,6 @@ Historical failures: `ci-logs/<workflow-slug>/<timestamp>-<run-id>.log` on the s
 - `app/src/main/AndroidManifest.xml` — Activity, receivers, permissions
 - `app/google-services.json` — Firebase config (placeholder — replace with actual)
 - `gradle/wrapper/gradle-wrapper.properties` — Gradle 9.3.1
-- `app/src/test/` — unit test files covering NLP, recurrence, urgency, suggestion, streak, export/import, repositories (Task, Habit, Project, Tag, Coaching, NotificationProfile, MedLogReconcile, TaskCompletion), use cases (ParsedTaskResolver, ChecklistParser, TodoListParser, VoiceCommandParser, SmartDefaults, QuietHoursDeferrer, AdvancedRecurrence, TimeBlock, WeeklyPlanner, DailyBriefing, Eisenhower, SmartPomodoro, BookableHabit, BalanceTracker, LifeCategoryClassifier, BurnoutScorer, BoundaryEnforcer, MoodCorrelationEngine, WeeklyReviewAggregator, RefillCalculator, ConversationTaskExtractor, ShakeDetector), DataStore preferences, notification/reminder scheduling, ViewModels (Today, AddEditTask, TaskList, HabitList, Eisenhower, Onboarding, SmartPomodoro, Mood, CheckIn, Balance), TaskCardDisplayConfig/TaskMenuAction model tests, widget data/config-defaults, accessibility, theme, and calendar manager
+- `app/src/test/` — unit test files covering NLP, recurrence, urgency, suggestion, streak, export/import, repositories (Task, Habit, Project, Tag, Coaching, NotificationProfile, MedLogReconcile, Medication, TaskCompletion), use cases (ParsedTaskResolver, ChecklistParser, TodoListParser, VoiceCommandParser, SmartDefaults, QuietHoursDeferrer, AdvancedRecurrence, TimeBlock, WeeklyPlanner, DailyBriefing, Eisenhower, SmartPomodoro, BookableHabit, BalanceTracker, LifeCategoryClassifier, BurnoutScorer, BoundaryEnforcer, MoodCorrelationEngine, WeeklyReviewAggregator, RefillCalculator, ConversationTaskExtractor, ShakeDetector), DataStore preferences, notification/reminder scheduling, ViewModels (Today, AddEditTask, TaskList, HabitList, Eisenhower, Onboarding, SmartPomodoro, Mood, CheckIn, Balance), TaskCardDisplayConfig/TaskMenuAction model tests, widget data/config-defaults, accessibility, theme, and calendar manager
 - `app/src/androidTest/` — 28 instrumentation test files: Task/Project/Habit/Tag DAO tests, recurrence integration, and smoke suites for Navigation, QoL features, Task editor, Templates, Today screen, Data export/import, Views, Search/archive, Tags/projects, Settings, Recurrence, Multi-select/bulk edit, Habits, and Offline edge cases
 - `backend/tests/` — 25 pytest files covering dashboard, export, search, app_update, projects routers; recurrence/urgency/NLP edge-case services; and end-to-end integration workflows and stress tests

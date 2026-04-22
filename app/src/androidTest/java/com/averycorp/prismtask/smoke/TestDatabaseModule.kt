@@ -113,6 +113,12 @@ object TestDatabaseModule {
         database.focusReleaseLogDao()
 
     @Provides
+    fun provideMedicationDao(database: PrismTaskDatabase) = database.medicationDao()
+
+    @Provides
+    fun provideMedicationDoseDao(database: PrismTaskDatabase) = database.medicationDoseDao()
+
+    @Provides
     @Singleton
     fun provideGson(): com.google.gson.Gson = com.google.gson.Gson()
 }

@@ -70,6 +70,7 @@ fun NotificationsScreen(
     val dailyBriefingEnabled by viewModel.dailyBriefingEnabled.collectAsStateWithLifecycle()
     val eveningSummaryEnabled by viewModel.eveningSummaryEnabled.collectAsStateWithLifecycle()
     val weeklySummaryEnabled by viewModel.weeklySummaryEnabled.collectAsStateWithLifecycle()
+    val weeklyTaskSummaryEnabled by viewModel.weeklyTaskSummaryEnabled.collectAsStateWithLifecycle()
     val overloadAlertsEnabled by viewModel.overloadAlertsEnabled.collectAsStateWithLifecycle()
     val reengagementEnabled by viewModel.reengagementEnabled.collectAsStateWithLifecycle()
     val fullScreenNotificationsEnabled by viewModel.fullScreenNotificationsEnabled.collectAsStateWithLifecycle()
@@ -108,6 +109,7 @@ fun NotificationsScreen(
                 dailyBriefingEnabled = dailyBriefingEnabled,
                 eveningSummaryEnabled = eveningSummaryEnabled,
                 weeklySummaryEnabled = weeklySummaryEnabled,
+                weeklyTaskSummaryEnabled = weeklyTaskSummaryEnabled,
                 overloadAlertsEnabled = overloadAlertsEnabled,
                 reengagementEnabled = reengagementEnabled,
                 fullScreenNotificationsEnabled = fullScreenNotificationsEnabled,
@@ -123,6 +125,7 @@ fun NotificationsScreen(
                 onDailyBriefingToggle = viewModel::setDailyBriefingEnabled,
                 onEveningSummaryToggle = viewModel::setEveningSummaryEnabled,
                 onWeeklySummaryToggle = viewModel::setWeeklyHabitSummaryEnabled,
+                onWeeklyTaskSummaryToggle = viewModel::setWeeklyTaskSummaryEnabled,
                 onOverloadAlertsToggle = viewModel::setOverloadAlertsEnabled,
                 onReengagementToggle = viewModel::setReengagementEnabled,
                 onFullScreenNotificationsToggle = viewModel::setFullScreenNotificationsEnabled,

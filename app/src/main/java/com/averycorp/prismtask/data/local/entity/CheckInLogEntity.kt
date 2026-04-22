@@ -16,7 +16,10 @@ import androidx.room.PrimaryKey
  */
 @Entity(
     tableName = "check_in_logs",
-    indices = [Index(value = ["date"], unique = true)]
+    indices = [
+        Index(value = ["date"], unique = true),
+        Index(value = ["cloud_id"], unique = true)
+    ]
 )
 data class CheckInLogEntity(
     @PrimaryKey(autoGenerate = true)
@@ -33,5 +36,9 @@ data class CheckInLogEntity(
     @ColumnInfo(name = "habits_completed", defaultValue = "0")
     val habitsCompleted: Int = 0,
     @ColumnInfo(name = "created_at")
-    val createdAt: Long = System.currentTimeMillis()
+    val createdAt: Long = System.currentTimeMillis(),
+    @ColumnInfo(name = "cloud_id")
+    val cloudId: String? = null,
+    @ColumnInfo(name = "updated_at", defaultValue = "0")
+    val updatedAt: Long = 0L
 )

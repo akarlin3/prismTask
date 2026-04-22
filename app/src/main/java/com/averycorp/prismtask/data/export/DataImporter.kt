@@ -25,6 +25,7 @@ import com.averycorp.prismtask.data.local.entity.TaskTagCrossRef
 import com.averycorp.prismtask.data.preferences.A11yPreferences
 import com.averycorp.prismtask.data.preferences.ArchivePreferences
 import com.averycorp.prismtask.data.preferences.BuiltInSortOrders
+import com.averycorp.prismtask.data.preferences.CoachingPreferences
 import com.averycorp.prismtask.data.preferences.CustomLeisureActivity
 import com.averycorp.prismtask.data.preferences.DailyEssentialsPreferences
 import com.averycorp.prismtask.data.preferences.DashboardPreferences
@@ -36,7 +37,9 @@ import com.averycorp.prismtask.data.preferences.MedicationScheduleMode
 import com.averycorp.prismtask.data.preferences.MorningCheckInPreferences
 import com.averycorp.prismtask.data.preferences.NdPreferencesDataStore
 import com.averycorp.prismtask.data.preferences.NotificationPreferences
+import com.averycorp.prismtask.data.preferences.OnboardingPreferences
 import com.averycorp.prismtask.data.preferences.ShakePreferences
+import com.averycorp.prismtask.data.preferences.SortPreferences
 import com.averycorp.prismtask.data.preferences.TabPreferences
 import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
 import com.averycorp.prismtask.data.preferences.TemplatePreferences
@@ -103,6 +106,8 @@ data class ImportResult(
     val taskCompletionsImported: Int = 0,
     val habitsImported: Int = 0,
     val habitCompletionsImported: Int = 0,
+    val medicationsImported: Int = 0,
+    val medicationDosesImported: Int = 0,
     val habitLogsImported: Int = 0,
     val leisureLogsImported: Int = 0,
     val selfCareLogsImported: Int = 0,
@@ -149,6 +154,8 @@ constructor(
     private val leisureDao: LeisureDao,
     private val selfCareDao: SelfCareDao,
     private val schoolworkDao: SchoolworkDao,
+    private val medicationDao: com.averycorp.prismtask.data.local.dao.MedicationDao,
+    private val medicationDoseDao: com.averycorp.prismtask.data.local.dao.MedicationDoseDao,
     private val transactionRunner: com.averycorp.prismtask.data.local.database.DatabaseTransactionRunner,
     private val themePreferences: ThemePreferences,
     private val archivePreferences: ArchivePreferences,
@@ -169,7 +176,10 @@ constructor(
     private val dailyEssentialsPreferences: DailyEssentialsPreferences,
     private val morningCheckInPreferences: MorningCheckInPreferences,
     private val calendarSyncPreferences: CalendarSyncPreferences,
-    private val templatePreferences: TemplatePreferences
+    private val templatePreferences: TemplatePreferences,
+    private val onboardingPreferences: OnboardingPreferences,
+    private val coachingPreferences: CoachingPreferences,
+    private val sortPreferences: SortPreferences
 ) {
     private val gson = Gson()
 
@@ -183,6 +193,8 @@ constructor(
         var habitsImported = 0
         var habitCompletionsImported = 0
         var habitLogsImported = 0
+        var medicationsImported = 0
+        var medicationDosesImported = 0
         var leisureLogsImported = 0
         var selfCareLogsImported = 0
         var selfCareStepsImported = 0
@@ -204,6 +216,8 @@ constructor(
             habitsImported = habitsImported,
             habitCompletionsImported = habitCompletionsImported,
             habitLogsImported = habitLogsImported,
+            medicationsImported = medicationsImported,
+            medicationDosesImported = medicationDosesImported,
             leisureLogsImported = leisureLogsImported,
             selfCareLogsImported = selfCareLogsImported,
             selfCareStepsImported = selfCareStepsImported,
@@ -289,6 +303,16 @@ constructor(
                 importLeisureLogs(ctx, root)
                 importSelfCareLogs(ctx, root)
                 importSelfCareSteps(ctx, root)
+
+                // v1.4 medications — imported after self-care so the
+                // dual-write shim's later migration runs see the real
+                // names in place. medication_doses MUST come after
+                // medications because it FK's to medication_id; we use
+                // the export-side id as the join key via medIdRemap.
+                val medIdRemap = importMedications(ctx, root, mode)
+                if (options.restoreDerivedData) {
+                    importMedicationDoses(ctx, root, medIdRemap)
+                }
 
                 val courseNameToId = importCourses(ctx, root, mode)
                 importAssignments(ctx, root, courseNameToId)
@@ -680,6 +704,119 @@ constructor(
         }
     }
 
+    /**
+     * Imports top-level medications (v1.4+). Returns a map from the
+     * exported primary-key id → new local id so [importMedicationDoses]
+     * can remap the FK. MERGE mode dedups by unique normalized name
+     * (lower-cased); newer `updatedAt` overwrites the existing row in
+     * place.
+     */
+    private suspend fun importMedications(
+        ctx: ImportContext,
+        root: JsonObject,
+        mode: ImportMode
+    ): Map<Long, Long> {
+        val medIdRemap = mutableMapOf<Long, Long>()
+        val existingByNameLower = medicationDao.getAllOnce()
+            .associateBy { it.name.trim().lowercase() }
+
+        root.getAsJsonArray("medications")?.forEach { elem ->
+            try {
+                val obj = elem.asJsonObject
+                val name = obj.get("name")?.takeIf { !it.isJsonNull }?.asString
+                    ?: return@forEach
+                val exportedId = obj.get("id")?.takeIf { !it.isJsonNull }?.asLong ?: 0L
+                val existing = existingByNameLower[name.trim().lowercase()]
+
+                if (mode == ImportMode.MERGE && existing != null) {
+                    val incomingUpdatedAt =
+                        obj.get("updatedAt")?.takeIf { !it.isJsonNull }?.asLong ?: 0L
+                    if (incomingUpdatedAt > existing.updatedAt) {
+                        val merged = mergeEntityWithDefaults(
+                            com.averycorp.prismtask.data.local.entity.MedicationEntity(name = name),
+                            obj
+                        )
+                        medicationDao.update(merged.copy(id = existing.id))
+                        ctx.lwwOverwrites++
+                    } else {
+                        ctx.duplicatesSkipped++
+                    }
+                    if (exportedId != 0L) medIdRemap[exportedId] = existing.id
+                    return@forEach
+                }
+
+                val default =
+                    com.averycorp.prismtask.data.local.entity.MedicationEntity(name = name)
+                val merged = mergeEntityWithDefaults(default, obj)
+                val med = merged.copy(
+                    id = 0,
+                    // Drop the exported cloud_id so the UNIQUE(cloud_id)
+                    // index doesn't collide if this DB already has a
+                    // row with the same cloud_id from a prior sync.
+                    // Next sync push re-mints a cloud_id anyway.
+                    cloudId = null,
+                    updatedAt = System.currentTimeMillis()
+                )
+                val newId = medicationDao.insert(med)
+                if (exportedId != 0L) medIdRemap[exportedId] = newId
+                ctx.medicationsImported++
+            } catch (e: Exception) {
+                ctx.errors.add("Failed to import medication: ${e.message}")
+            }
+        }
+        return medIdRemap
+    }
+
+    /**
+     * Imports medication dose history. Skips any row whose
+     * `medication_id` can't be remapped through the provided map
+     * (parent row didn't import, likely due to an export-side data
+     * issue — counted under `orphansSkipped`).
+     */
+    private suspend fun importMedicationDoses(
+        ctx: ImportContext,
+        root: JsonObject,
+        medIdRemap: Map<Long, Long>
+    ) {
+        root.getAsJsonArray("medicationDoses")?.forEach { elem ->
+            try {
+                val obj = elem.asJsonObject
+                val exportedMedId = obj.get("medicationId")
+                    ?.takeIf { !it.isJsonNull }?.asLong
+                    ?: return@forEach
+                val localMedId = medIdRemap[exportedMedId]
+                if (localMedId == null) {
+                    ctx.orphansSkipped++
+                    return@forEach
+                }
+                val slotKey = obj.get("slotKey")?.takeIf { !it.isJsonNull }?.asString
+                    ?: "anytime"
+                val takenAt = obj.get("takenAt")?.takeIf { !it.isJsonNull }?.asLong
+                    ?: return@forEach
+                val takenDateLocal =
+                    obj.get("takenDateLocal")?.takeIf { !it.isJsonNull }?.asString
+                        ?: return@forEach
+                val default = com.averycorp.prismtask.data.local.entity.MedicationDoseEntity(
+                    medicationId = localMedId,
+                    slotKey = slotKey,
+                    takenAt = takenAt,
+                    takenDateLocal = takenDateLocal
+                )
+                val merged = mergeEntityWithDefaults(default, obj)
+                medicationDoseDao.insert(
+                    merged.copy(
+                        id = 0,
+                        cloudId = null,
+                        medicationId = localMedId
+                    )
+                )
+                ctx.medicationDosesImported++
+            } catch (e: Exception) {
+                ctx.errors.add("Failed to import medication dose: ${e.message}")
+            }
+        }
+    }
+
     private suspend fun importCourses(
         ctx: ImportContext,
         root: JsonObject,
@@ -801,6 +938,9 @@ constructor(
                 importMorningCheckInConfig(config)
                 importCalendarSyncConfig(config)
                 importTemplatesConfig(config)
+                importOnboardingConfig(config)
+                importCoachingConfig(config)
+                importSortConfig(config)
                 ctx.configImported = true
             } catch (e: Exception) {
                 ctx.errors.add("Failed to import config: ${e.message}")
@@ -1308,6 +1448,7 @@ constructor(
         b("dailyBriefingEnabled")?.let { p.setDailyBriefingEnabled(it) }
         b("eveningSummaryEnabled")?.let { p.setEveningSummaryEnabled(it) }
         b("weeklySummaryEnabled")?.let { p.setWeeklySummaryEnabled(it) }
+        b("weeklyTaskSummaryEnabled")?.let { p.setWeeklyTaskSummaryEnabled(it) }
         b("overloadAlertsEnabled")?.let { p.setOverloadAlertsEnabled(it) }
         b("reengagementEnabled")?.let { p.setReengagementEnabled(it) }
         b("fullScreenNotificationsEnabled")?.let { p.setFullScreenNotificationsEnabled(it) }
@@ -1427,6 +1568,64 @@ constructor(
             }
             t.get("templatesFirstSyncDone")?.takeIf { !it.isJsonNull }?.asBoolean?.let {
                 templatePreferences.setFirstSyncDone(it)
+            }
+        }
+    }
+
+    /**
+     * Restores onboarding state from a v5+ backup. Writes the original
+     * `completed_at` timestamp verbatim rather than re-stamping to `now`,
+     * so a restored install doesn't look like it just finished onboarding.
+     */
+    private suspend fun importOnboardingConfig(config: JsonObject) {
+        config.getAsJsonObject("onboarding")?.let { o ->
+            val completed = o.get("hasCompletedOnboarding")?.takeIf { !it.isJsonNull }?.asBoolean
+                ?: return
+            val completedAt = o.get("onboardingCompletedAt")?.takeIf { !it.isJsonNull }?.asLong ?: 0L
+            val batteryPromptShown =
+                o.get("hasShownBatteryOptimizationPrompt")?.takeIf { !it.isJsonNull }?.asBoolean
+                    ?: false
+            onboardingPreferences.restoreImportedState(
+                hasCompletedOnboarding = completed,
+                onboardingCompletedAt = completedAt,
+                hasShownBatteryOptimizationPrompt = batteryPromptShown
+            )
+        }
+    }
+
+    /**
+     * Restores coaching state from a v5+ backup. Most keys are day-scoped
+     * (today's AI-breakdown count, today's energy check-in, today's
+     * welcome-back dismissal) and effectively reset when the calendar date
+     * differs between export and import, but `last_app_open` carries real
+     * signal for welcome-back detection.
+     */
+    private suspend fun importCoachingConfig(config: JsonObject) {
+        config.getAsJsonObject("coaching")?.let { c ->
+            c.get("lastAppOpen")?.takeIf { !it.isJsonNull }?.asLong?.let {
+                coachingPreferences.setLastAppOpen(it)
+            }
+        }
+    }
+
+    /**
+     * Restores per-screen sort mode/direction selections from a v5+ backup.
+     * Uses [SortPreferences.applyRemoteSnapshot] so cloud-id keys
+     * (`sort_project_cloud_<cloudId>`) produced by
+     * [com.averycorp.prismtask.data.remote.SortPreferencesSyncService] push
+     * paths also round-trip correctly.
+     */
+    private suspend fun importSortConfig(config: JsonObject) {
+        config.getAsJsonObject("sort")?.let { s ->
+            val keys = mutableMapOf<String, String>()
+            for ((key, value) in s.entrySet()) {
+                if (value.isJsonNull) continue
+                val str = value.asString ?: continue
+                if (str.isBlank()) continue
+                keys[key] = str
+            }
+            if (keys.isNotEmpty()) {
+                sortPreferences.applyRemoteSnapshot(keys, System.currentTimeMillis())
             }
         }
     }

@@ -37,4 +37,13 @@ interface NlpShortcutDao {
 
     @Query("DELETE FROM nlp_shortcuts")
     suspend fun deleteAll()
+
+    @Query("SELECT * FROM nlp_shortcuts WHERE id = :id LIMIT 1")
+    suspend fun getByIdOnce(id: Long): NlpShortcutEntity?
+
+    @Query("SELECT * FROM nlp_shortcuts WHERE cloud_id = :cloudId LIMIT 1")
+    suspend fun getByCloudIdOnce(cloudId: String): NlpShortcutEntity?
+
+    @Query("UPDATE nlp_shortcuts SET cloud_id = :cloudId, updated_at = :now WHERE id = :id")
+    suspend fun setCloudId(id: Long, cloudId: String?, now: Long)
 }

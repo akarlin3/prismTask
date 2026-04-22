@@ -167,6 +167,5 @@ user preference.
 | `startOfDay` | `UserPreferencesDataStore` | First-launch SoD picker shown; hour stored (0–23) |
 
 These flags are intentionally excluded from the JSON export/import cycle
-(see `docs/export_import_audit_2026-04-18.md` §B Intentionally excluded)
 because restoring a backup to a new device should re-run the backfill against
 the freshly-pulled cloud data, not skip it.

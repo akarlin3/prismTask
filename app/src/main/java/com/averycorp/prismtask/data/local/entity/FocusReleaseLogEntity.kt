@@ -7,9 +7,12 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 
 /**
- * Local-only analytics log for Focus & Release Mode events.
+ * Analytics log for Focus & Release Mode events.
  * Tracks stuck-detection triggers, breaker choices, celebration fires, etc.
- * This data is NEVER sent to the backend — it is sensitive behavioral data.
+ *
+ * v1.4.38: this data now syncs across the user's own devices via
+ * Firestore (`users/{uid}/focus_release_logs`). It never leaves the
+ * user's own Firebase project — no third-party analytics backend.
  */
 @Entity(
     tableName = "focus_release_logs",
@@ -21,7 +24,10 @@ import androidx.room.PrimaryKey
             onDelete = ForeignKey.SET_NULL
         )
     ],
-    indices = [Index("task_id")]
+    indices = [
+        Index("task_id"),
+        Index(value = ["cloud_id"], unique = true)
+    ]
 )
 data class FocusReleaseLogEntity(
     @PrimaryKey(autoGenerate = true)
@@ -38,5 +44,9 @@ data class FocusReleaseLogEntity(
     @ColumnInfo(name = "context")
     val context: String? = null,
     @ColumnInfo(name = "created_at")
-    val createdAt: Long = System.currentTimeMillis()
+    val createdAt: Long = System.currentTimeMillis(),
+    @ColumnInfo(name = "cloud_id")
+    val cloudId: String? = null,
+    @ColumnInfo(name = "updated_at", defaultValue = "0")
+    val updatedAt: Long = 0L
 )

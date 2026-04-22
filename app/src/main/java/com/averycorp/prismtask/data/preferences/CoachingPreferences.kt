@@ -16,7 +16,7 @@ import java.time.format.DateTimeFormatter
 import javax.inject.Inject
 import javax.inject.Singleton
 
-private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "coaching_prefs")
+internal val Context.coachingDataStore: DataStore<Preferences> by preferencesDataStore(name = "coaching_prefs")
 
 /**
  * Persists AI coaching state: free-tier daily breakdown counter,
@@ -49,7 +49,7 @@ constructor(
      * Resets automatically when the date rolls over.
      */
     suspend fun getBreakdownCountToday(): Int {
-        val prefs = context.dataStore.data.first()
+        val prefs = context.coachingDataStore.data.first()
         val storedDate = prefs[BREAKDOWN_DATE_KEY] ?: ""
         return if (storedDate == todayString()) {
             prefs[BREAKDOWN_COUNT_KEY] ?: 0
@@ -69,7 +69,7 @@ constructor(
     suspend fun incrementBreakdownCount(): Int {
         val today = todayString()
         var newCount = 0
-        context.dataStore.edit { prefs ->
+        context.coachingDataStore.edit { prefs ->
             val storedDate = prefs[BREAKDOWN_DATE_KEY] ?: ""
             val currentCount = if (storedDate == today) {
                 prefs[BREAKDOWN_COUNT_KEY] ?: 0
@@ -92,13 +92,13 @@ constructor(
 
     // region Last app open (for welcome-back detection)
 
-    suspend fun getLastAppOpen(): Long = context.dataStore.data
+    suspend fun getLastAppOpen(): Long = context.coachingDataStore.data
         .map { prefs ->
             prefs[LAST_APP_OPEN_KEY] ?: 0L
         }.first()
 
     suspend fun setLastAppOpen(timestamp: Long) {
-        context.dataStore.edit { prefs -> prefs[LAST_APP_OPEN_KEY] = timestamp }
+        context.coachingDataStore.edit { prefs -> prefs[LAST_APP_OPEN_KEY] = timestamp }
     }
 
     /**
@@ -122,7 +122,7 @@ constructor(
      * Returns the energy level selected today, or null if no check-in yet.
      */
     suspend fun getTodayEnergyLevel(): String? {
-        val prefs = context.dataStore.data.first()
+        val prefs = context.coachingDataStore.data.first()
         val storedDate = prefs[ENERGY_CHECKIN_DATE_KEY] ?: ""
         return if (storedDate == todayString()) {
             prefs[ENERGY_LEVEL_KEY]
@@ -133,7 +133,7 @@ constructor(
 
     suspend fun setTodayEnergyLevel(level: String) {
         val today = todayString()
-        context.dataStore.edit { prefs ->
+        context.coachingDataStore.edit { prefs ->
             prefs[ENERGY_CHECKIN_DATE_KEY] = today
             prefs[ENERGY_LEVEL_KEY] = level
         }
@@ -150,12 +150,12 @@ constructor(
     // region Welcome-back dismissal
 
     suspend fun isWelcomeBackDismissedToday(): Boolean {
-        val prefs = context.dataStore.data.first()
+        val prefs = context.coachingDataStore.data.first()
         return prefs[WELCOME_BACK_DISMISSED_DATE_KEY] == todayString()
     }
 
     suspend fun dismissWelcomeBack() {
-        context.dataStore.edit { prefs ->
+        context.coachingDataStore.edit { prefs ->
             prefs[WELCOME_BACK_DISMISSED_DATE_KEY] = todayString()
         }
     }

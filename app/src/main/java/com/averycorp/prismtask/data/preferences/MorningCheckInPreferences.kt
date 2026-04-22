@@ -16,7 +16,7 @@ import java.time.format.DateTimeFormatter
 import javax.inject.Inject
 import javax.inject.Singleton
 
-private val Context.morningCheckInDataStore: DataStore<Preferences> by
+internal val Context.morningCheckInDataStore: DataStore<Preferences> by
     preferencesDataStore(name = "morning_checkin_prefs")
 
 /**

@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import com.averycorp.prismtask.data.local.dao.AttachmentDao
 import com.averycorp.prismtask.data.local.entity.AttachmentEntity
+import com.averycorp.prismtask.data.remote.SyncTracker
 import kotlinx.coroutines.flow.Flow
 import java.io.File
 import java.util.UUID
@@ -14,7 +15,8 @@ import javax.inject.Singleton
 class AttachmentRepository
 @Inject
 constructor(
-    private val attachmentDao: AttachmentDao
+    private val attachmentDao: AttachmentDao,
+    private val syncTracker: SyncTracker
 ) {
     suspend fun addImageAttachment(context: Context, taskId: Long, sourceUri: Uri): Long {
         val fileName = "img_${UUID.randomUUID()}"
@@ -32,9 +34,12 @@ constructor(
             taskId = taskId,
             type = "image",
             uri = destFile.absolutePath,
-            fileName = fileName
+            fileName = fileName,
+            updatedAt = System.currentTimeMillis()
         )
-        return attachmentDao.insert(entity)
+        val id = attachmentDao.insert(entity)
+        syncTracker.trackCreate(id, "attachment")
+        return id
     }
 
     suspend fun addLinkAttachment(taskId: Long, url: String): Long {
@@ -42,9 +47,12 @@ constructor(
             taskId = taskId,
             type = "link",
             uri = url,
-            fileName = url
+            fileName = url,
+            updatedAt = System.currentTimeMillis()
         )
-        return attachmentDao.insert(entity)
+        val id = attachmentDao.insert(entity)
+        syncTracker.trackCreate(id, "attachment")
+        return id
     }
 
     fun getAttachments(taskId: Long): Flow<List<AttachmentEntity>> =
@@ -59,5 +67,6 @@ constructor(
             if (file.exists()) file.delete()
         }
         attachmentDao.delete(attachment)
+        syncTracker.trackDelete(attachment.id, "attachment")
     }
 }
