@@ -2,6 +2,7 @@ package com.averycorp.prismtask.data.repository
 
 import com.averycorp.prismtask.data.local.dao.MoodEnergyLogDao
 import com.averycorp.prismtask.data.local.entity.MoodEnergyLogEntity
+import com.averycorp.prismtask.data.remote.SyncTracker
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -16,7 +17,8 @@ import javax.inject.Singleton
 class MoodEnergyRepository
 @Inject
 constructor(
-    private val dao: MoodEnergyLogDao
+    private val dao: MoodEnergyLogDao,
+    private val syncTracker: SyncTracker
 ) {
     suspend fun upsertForDate(
         date: Long,
@@ -25,25 +27,31 @@ constructor(
         notes: String? = null,
         timeOfDay: String = "morning"
     ): Long {
+        val now = System.currentTimeMillis()
         val existing = dao.getByDate(date).firstOrNull { it.timeOfDay == timeOfDay }
         return if (existing != null) {
             val updated = existing.copy(
                 mood = mood,
                 energy = energy,
-                notes = notes
+                notes = notes,
+                updatedAt = now
             )
             dao.update(updated)
+            syncTracker.trackUpdate(existing.id, "mood_energy_log")
             existing.id
         } else {
-            dao.insert(
+            val id = dao.insert(
                 MoodEnergyLogEntity(
                     date = date,
                     mood = mood,
                     energy = energy,
                     notes = notes,
-                    timeOfDay = timeOfDay
+                    timeOfDay = timeOfDay,
+                    updatedAt = now
                 )
             )
+            syncTracker.trackCreate(id, "mood_energy_log")
+            id
         }
     }
 
@@ -57,5 +65,8 @@ constructor(
 
     suspend fun getAll(): List<MoodEnergyLogEntity> = dao.getAll()
 
-    suspend fun delete(id: Long) = dao.delete(id)
+    suspend fun delete(id: Long) {
+        dao.delete(id)
+        syncTracker.trackDelete(id, "mood_energy_log")
+    }
 }

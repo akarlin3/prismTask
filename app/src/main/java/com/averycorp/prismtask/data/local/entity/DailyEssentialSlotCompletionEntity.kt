@@ -25,7 +25,10 @@ import androidx.room.PrimaryKey
  */
 @Entity(
     tableName = "daily_essential_slot_completions",
-    indices = [Index(value = ["date", "slot_key"], unique = true)]
+    indices = [
+        Index(value = ["date", "slot_key"], unique = true),
+        Index(value = ["cloud_id"], unique = true)
+    ]
 )
 data class DailyEssentialSlotCompletionEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -34,5 +37,6 @@ data class DailyEssentialSlotCompletionEntity(
     @ColumnInfo(name = "med_ids_json") val medIdsJson: String = "[]",
     @ColumnInfo(name = "taken_at") val takenAt: Long? = null,
     @ColumnInfo(name = "created_at") val createdAt: Long,
-    @ColumnInfo(name = "updated_at") val updatedAt: Long
+    @ColumnInfo(name = "updated_at") val updatedAt: Long,
+    @ColumnInfo(name = "cloud_id") val cloudId: String? = null
 )

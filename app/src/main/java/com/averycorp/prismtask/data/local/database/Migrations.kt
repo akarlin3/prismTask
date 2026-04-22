@@ -1341,6 +1341,58 @@ val MIGRATION_54_55 = object : Migration(54, 55) {
     }
 }
 
+/**
+ * v55 → v56: opt the nine remaining user-authored content entities into
+ * Firestore sync by adding `cloud_id TEXT` (unique-indexed). Seven of
+ * them also gain `updated_at INTEGER NOT NULL DEFAULT 0`; the two that
+ * already had `updated_at` (from earlier migrations) are left alone on
+ * that column.
+ *
+ * Tables:
+ * - `check_in_logs`                    (CheckInLogEntity)       — needs updated_at
+ * - `mood_energy_logs`                 (MoodEnergyLogEntity)    — needs updated_at
+ * - `focus_release_logs`               (FocusReleaseLogEntity)  — needs updated_at; FK task_id (SET_NULL)
+ * - `medication_refills`               (MedicationRefillEntity) — updated_at already present
+ * - `weekly_reviews`                   (WeeklyReviewEntity)     — needs updated_at
+ * - `daily_essential_slot_completions` (DailyEssentialSlotCompletionEntity) — updated_at already present
+ * - `assignments`                      (AssignmentEntity)       — needs updated_at; FK course_id (CASCADE)
+ * - `attachments`                      (AttachmentEntity)       — needs updated_at; FK taskId (CASCADE)
+ * - `study_logs`                       (StudyLogEntity)         — needs updated_at; FK course_pick + assignment_pick (SET_NULL)
+ *
+ * No backfill needed — none of these tables had any prior sync_metadata
+ * mappings. First sign-in post-migration runs `SyncService.doInitialUpload`
+ * which assigns cloud IDs.
+ */
+val MIGRATION_55_56 = object : Migration(55, 56) {
+    /** Tables that already have `updated_at` from earlier migrations. */
+    private val alreadyHaveUpdatedAt = setOf("medication_refills", "daily_essential_slot_completions")
+
+    private val syncableTables = listOf(
+        "check_in_logs",
+        "mood_energy_logs",
+        "focus_release_logs",
+        "medication_refills",
+        "weekly_reviews",
+        "daily_essential_slot_completions",
+        "assignments",
+        "attachments",
+        "study_logs"
+    )
+
+    override fun migrate(db: SupportSQLiteDatabase) {
+        for (table in syncableTables) {
+            db.execSQL("ALTER TABLE `$table` ADD COLUMN `cloud_id` TEXT")
+            if (table !in alreadyHaveUpdatedAt) {
+                db.execSQL("ALTER TABLE `$table` ADD COLUMN `updated_at` INTEGER NOT NULL DEFAULT 0")
+            }
+            db.execSQL(
+                "CREATE UNIQUE INDEX IF NOT EXISTS `index_${table}_cloud_id` " +
+                    "ON `$table` (`cloud_id`)"
+            )
+        }
+    }
+}
+
 val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_1_2,
     MIGRATION_2_3,
@@ -1395,5 +1447,6 @@ val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_51_52,
     MIGRATION_52_53,
     MIGRATION_53_54,
-    MIGRATION_54_55
+    MIGRATION_54_55,
+    MIGRATION_55_56
 )

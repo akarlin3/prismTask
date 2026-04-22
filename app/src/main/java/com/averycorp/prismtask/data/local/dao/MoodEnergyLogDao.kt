@@ -36,4 +36,19 @@ interface MoodEnergyLogDao {
 
     @Query("DELETE FROM mood_energy_logs")
     suspend fun deleteAll()
+
+    @Query("SELECT * FROM mood_energy_logs ORDER BY date DESC")
+    suspend fun getAllOnce(): List<MoodEnergyLogEntity>
+
+    @Query("SELECT * FROM mood_energy_logs WHERE id = :id LIMIT 1")
+    suspend fun getByIdOnce(id: Long): MoodEnergyLogEntity?
+
+    @Query("SELECT * FROM mood_energy_logs WHERE cloud_id = :cloudId LIMIT 1")
+    suspend fun getByCloudIdOnce(cloudId: String): MoodEnergyLogEntity?
+
+    @Query("UPDATE mood_energy_logs SET cloud_id = :cloudId, updated_at = :now WHERE id = :id")
+    suspend fun setCloudId(id: Long, cloudId: String?, now: Long)
+
+    @Query("DELETE FROM mood_energy_logs WHERE id = :id")
+    suspend fun deleteById(id: Long)
 }

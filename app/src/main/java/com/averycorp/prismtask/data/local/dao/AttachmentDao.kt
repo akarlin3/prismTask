@@ -30,4 +30,16 @@ interface AttachmentDao {
 
     @Query("SELECT * FROM attachments")
     suspend fun getAllOnce(): List<AttachmentEntity>
+
+    @Query("SELECT * FROM attachments WHERE id = :id LIMIT 1")
+    suspend fun getByIdOnce(id: Long): AttachmentEntity?
+
+    @Query("SELECT * FROM attachments WHERE cloud_id = :cloudId LIMIT 1")
+    suspend fun getByCloudIdOnce(cloudId: String): AttachmentEntity?
+
+    @Query("UPDATE attachments SET cloud_id = :cloudId, updated_at = :now WHERE id = :id")
+    suspend fun setCloudId(id: Long, cloudId: String?, now: Long)
+
+    @Query("DELETE FROM attachments WHERE id = :id")
+    suspend fun deleteById(id: Long)
 }

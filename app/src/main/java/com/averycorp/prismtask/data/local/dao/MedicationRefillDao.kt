@@ -30,4 +30,19 @@ interface MedicationRefillDao {
 
     @Query("DELETE FROM medication_refills")
     suspend fun deleteAll()
+
+    @Query("SELECT * FROM medication_refills")
+    suspend fun getAllOnce(): List<MedicationRefillEntity>
+
+    @Query("SELECT * FROM medication_refills WHERE id = :id LIMIT 1")
+    suspend fun getByIdOnce(id: Long): MedicationRefillEntity?
+
+    @Query("SELECT * FROM medication_refills WHERE cloud_id = :cloudId LIMIT 1")
+    suspend fun getByCloudIdOnce(cloudId: String): MedicationRefillEntity?
+
+    @Query("UPDATE medication_refills SET cloud_id = :cloudId, updated_at = :now WHERE id = :id")
+    suspend fun setCloudId(id: Long, cloudId: String?, now: Long)
+
+    @Query("DELETE FROM medication_refills WHERE id = :id")
+    suspend fun deleteById(id: Long)
 }

@@ -16,7 +16,10 @@ import androidx.room.PrimaryKey
  */
 @Entity(
     tableName = "medication_refills",
-    indices = [Index(value = ["medication_name"], unique = true)]
+    indices = [
+        Index(value = ["medication_name"], unique = true),
+        Index(value = ["cloud_id"], unique = true)
+    ]
 )
 data class MedicationRefillEntity(
     @PrimaryKey(autoGenerate = true)
@@ -48,5 +51,7 @@ data class MedicationRefillEntity(
     @ColumnInfo(name = "created_at")
     val createdAt: Long = System.currentTimeMillis(),
     @ColumnInfo(name = "updated_at")
-    val updatedAt: Long = System.currentTimeMillis()
+    val updatedAt: Long = System.currentTimeMillis(),
+    @ColumnInfo(name = "cloud_id")
+    val cloudId: String? = null
 )

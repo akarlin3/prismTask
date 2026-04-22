@@ -1,15 +1,22 @@
 package com.averycorp.prismtask.data.remote.mapper
 
+import com.averycorp.prismtask.data.local.entity.AssignmentEntity
+import com.averycorp.prismtask.data.local.entity.AttachmentEntity
 import com.averycorp.prismtask.data.local.entity.BoundaryRuleEntity
+import com.averycorp.prismtask.data.local.entity.CheckInLogEntity
 import com.averycorp.prismtask.data.local.entity.CourseCompletionEntity
 import com.averycorp.prismtask.data.local.entity.CourseEntity
 import com.averycorp.prismtask.data.local.entity.CustomSoundEntity
+import com.averycorp.prismtask.data.local.entity.DailyEssentialSlotCompletionEntity
+import com.averycorp.prismtask.data.local.entity.FocusReleaseLogEntity
 import com.averycorp.prismtask.data.local.entity.HabitCompletionEntity
 import com.averycorp.prismtask.data.local.entity.HabitEntity
 import com.averycorp.prismtask.data.local.entity.HabitLogEntity
 import com.averycorp.prismtask.data.local.entity.HabitTemplateEntity
 import com.averycorp.prismtask.data.local.entity.LeisureLogEntity
+import com.averycorp.prismtask.data.local.entity.MedicationRefillEntity
 import com.averycorp.prismtask.data.local.entity.MilestoneEntity
+import com.averycorp.prismtask.data.local.entity.MoodEnergyLogEntity
 import com.averycorp.prismtask.data.local.entity.NlpShortcutEntity
 import com.averycorp.prismtask.data.local.entity.NotificationProfileEntity
 import com.averycorp.prismtask.data.local.entity.ProjectEntity
@@ -17,10 +24,12 @@ import com.averycorp.prismtask.data.local.entity.ProjectTemplateEntity
 import com.averycorp.prismtask.data.local.entity.SavedFilterEntity
 import com.averycorp.prismtask.data.local.entity.SelfCareLogEntity
 import com.averycorp.prismtask.data.local.entity.SelfCareStepEntity
+import com.averycorp.prismtask.data.local.entity.StudyLogEntity
 import com.averycorp.prismtask.data.local.entity.TagEntity
 import com.averycorp.prismtask.data.local.entity.TaskCompletionEntity
 import com.averycorp.prismtask.data.local.entity.TaskEntity
 import com.averycorp.prismtask.data.local.entity.TaskTemplateEntity
+import com.averycorp.prismtask.data.local.entity.WeeklyReviewEntity
 
 @Suppress("TooManyFunctions") // Cohesive sync-surface object — one entityToMap + one mapToEntity per synced Room table.
 object SyncMapper {
@@ -879,6 +888,307 @@ object SyncMapper {
         activeDaysCsv = data["activeDaysCsv"] as? String ?: "",
         isEnabled = data["isEnabled"] as? Boolean ?: true,
         isBuiltIn = data["isBuiltIn"] as? Boolean ?: false,
+        createdAt = (data["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
+        updatedAt = (data["updatedAt"] as? Number)?.toLong() ?: 0L
+    )
+
+    // ── CheckIn Logs ─────────────────────────────────────────────────────────
+
+    fun checkInLogToMap(log: CheckInLogEntity): Map<String, Any?> = mapOf(
+        "localId" to log.id,
+        "date" to log.date,
+        "stepsCompletedCsv" to log.stepsCompletedCsv,
+        "medicationsConfirmed" to log.medicationsConfirmed,
+        "tasksReviewed" to log.tasksReviewed,
+        "habitsCompleted" to log.habitsCompleted,
+        "createdAt" to log.createdAt,
+        "updatedAt" to log.updatedAt
+    )
+
+    fun mapToCheckInLog(
+        data: Map<String, Any?>,
+        localId: Long = 0,
+        cloudId: String? = null
+    ): CheckInLogEntity = CheckInLogEntity(
+        id = localId,
+        cloudId = cloudId,
+        date = (data["date"] as? Number)?.toLong() ?: 0L,
+        stepsCompletedCsv = data["stepsCompletedCsv"] as? String ?: "",
+        medicationsConfirmed = (data["medicationsConfirmed"] as? Number)?.toInt() ?: 0,
+        tasksReviewed = (data["tasksReviewed"] as? Number)?.toInt() ?: 0,
+        habitsCompleted = (data["habitsCompleted"] as? Number)?.toInt() ?: 0,
+        createdAt = (data["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
+        updatedAt = (data["updatedAt"] as? Number)?.toLong() ?: 0L
+    )
+
+    // ── Mood/Energy Logs ─────────────────────────────────────────────────────
+
+    fun moodEnergyLogToMap(log: MoodEnergyLogEntity): Map<String, Any?> = mapOf(
+        "localId" to log.id,
+        "date" to log.date,
+        "mood" to log.mood,
+        "energy" to log.energy,
+        "notes" to log.notes,
+        "timeOfDay" to log.timeOfDay,
+        "createdAt" to log.createdAt,
+        "updatedAt" to log.updatedAt
+    )
+
+    fun mapToMoodEnergyLog(
+        data: Map<String, Any?>,
+        localId: Long = 0,
+        cloudId: String? = null
+    ): MoodEnergyLogEntity = MoodEnergyLogEntity(
+        id = localId,
+        cloudId = cloudId,
+        date = (data["date"] as? Number)?.toLong() ?: 0L,
+        mood = (data["mood"] as? Number)?.toInt() ?: 3,
+        energy = (data["energy"] as? Number)?.toInt() ?: 3,
+        notes = data["notes"] as? String,
+        timeOfDay = data["timeOfDay"] as? String ?: "morning",
+        createdAt = (data["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
+        updatedAt = (data["updatedAt"] as? Number)?.toLong() ?: 0L
+    )
+
+    // ── Focus-Release Logs ───────────────────────────────────────────────────
+    //
+    // `taskId` is a Long FK that must be translated at the call-site:
+    //   push: local id → cloud id via syncMetadataDao.getCloudId(id, "task")
+    //   pull: cloud id → local id via syncMetadataDao.getLocalId(id, "task")
+
+    fun focusReleaseLogToMap(
+        log: FocusReleaseLogEntity,
+        taskCloudId: String? = null
+    ): Map<String, Any?> = mapOf(
+        "localId" to log.id,
+        "eventType" to log.eventType,
+        "taskId" to taskCloudId,
+        "context" to log.context,
+        "createdAt" to log.createdAt,
+        "updatedAt" to log.updatedAt
+    )
+
+    fun mapToFocusReleaseLog(
+        data: Map<String, Any?>,
+        localId: Long = 0,
+        taskLocalId: Long? = null,
+        cloudId: String? = null
+    ): FocusReleaseLogEntity = FocusReleaseLogEntity(
+        id = localId,
+        cloudId = cloudId,
+        eventType = data["eventType"] as? String ?: "",
+        taskId = taskLocalId,
+        context = data["context"] as? String,
+        createdAt = (data["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
+        updatedAt = (data["updatedAt"] as? Number)?.toLong() ?: 0L
+    )
+
+    // ── Medication Refills ───────────────────────────────────────────────────
+
+    fun medicationRefillToMap(refill: MedicationRefillEntity): Map<String, Any?> = mapOf(
+        "localId" to refill.id,
+        "medicationName" to refill.medicationName,
+        "pillCount" to refill.pillCount,
+        "pillsPerDose" to refill.pillsPerDose,
+        "dosesPerDay" to refill.dosesPerDay,
+        "lastRefillDate" to refill.lastRefillDate,
+        "pharmacyName" to refill.pharmacyName,
+        "pharmacyPhone" to refill.pharmacyPhone,
+        "reminderDaysBefore" to refill.reminderDaysBefore,
+        "createdAt" to refill.createdAt,
+        "updatedAt" to refill.updatedAt
+    )
+
+    fun mapToMedicationRefill(
+        data: Map<String, Any?>,
+        localId: Long = 0,
+        cloudId: String? = null
+    ): MedicationRefillEntity = MedicationRefillEntity(
+        id = localId,
+        cloudId = cloudId,
+        medicationName = data["medicationName"] as? String ?: "",
+        pillCount = (data["pillCount"] as? Number)?.toInt() ?: 0,
+        pillsPerDose = (data["pillsPerDose"] as? Number)?.toInt() ?: 1,
+        dosesPerDay = (data["dosesPerDay"] as? Number)?.toInt() ?: 1,
+        lastRefillDate = (data["lastRefillDate"] as? Number)?.toLong(),
+        pharmacyName = data["pharmacyName"] as? String,
+        pharmacyPhone = data["pharmacyPhone"] as? String,
+        reminderDaysBefore = (data["reminderDaysBefore"] as? Number)?.toInt() ?: 3,
+        createdAt = (data["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
+        updatedAt = (data["updatedAt"] as? Number)?.toLong() ?: System.currentTimeMillis()
+    )
+
+    // ── Weekly Reviews ───────────────────────────────────────────────────────
+
+    fun weeklyReviewToMap(review: WeeklyReviewEntity): Map<String, Any?> = mapOf(
+        "localId" to review.id,
+        "weekStartDate" to review.weekStartDate,
+        "metricsJson" to review.metricsJson,
+        "aiInsightsJson" to review.aiInsightsJson,
+        "createdAt" to review.createdAt,
+        "updatedAt" to review.updatedAt
+    )
+
+    fun mapToWeeklyReview(
+        data: Map<String, Any?>,
+        localId: Long = 0,
+        cloudId: String? = null
+    ): WeeklyReviewEntity = WeeklyReviewEntity(
+        id = localId,
+        cloudId = cloudId,
+        weekStartDate = (data["weekStartDate"] as? Number)?.toLong() ?: 0L,
+        metricsJson = data["metricsJson"] as? String ?: "{}",
+        aiInsightsJson = data["aiInsightsJson"] as? String,
+        createdAt = (data["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
+        updatedAt = (data["updatedAt"] as? Number)?.toLong() ?: 0L
+    )
+
+    // ── Daily Essential Slot Completions ─────────────────────────────────────
+    //
+    // `medIdsJson` is a JSON array of synthetic dose keys — no FK translation
+    // needed; the keys survive cross-device lookup via name matching.
+
+    fun dailyEssentialSlotCompletionToMap(
+        row: DailyEssentialSlotCompletionEntity
+    ): Map<String, Any?> = mapOf(
+        "localId" to row.id,
+        "date" to row.date,
+        "slotKey" to row.slotKey,
+        "medIdsJson" to row.medIdsJson,
+        "takenAt" to row.takenAt,
+        "createdAt" to row.createdAt,
+        "updatedAt" to row.updatedAt
+    )
+
+    fun mapToDailyEssentialSlotCompletion(
+        data: Map<String, Any?>,
+        localId: Long = 0,
+        cloudId: String? = null
+    ): DailyEssentialSlotCompletionEntity = DailyEssentialSlotCompletionEntity(
+        id = localId,
+        cloudId = cloudId,
+        date = (data["date"] as? Number)?.toLong() ?: 0L,
+        slotKey = data["slotKey"] as? String ?: "",
+        medIdsJson = data["medIdsJson"] as? String ?: "[]",
+        takenAt = (data["takenAt"] as? Number)?.toLong(),
+        createdAt = (data["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
+        updatedAt = (data["updatedAt"] as? Number)?.toLong() ?: System.currentTimeMillis()
+    )
+
+    // ── Assignments ──────────────────────────────────────────────────────────
+    //
+    // `courseId` is a required Long FK; the caller must resolve cloud ↔ local
+    // before calling these. A missing courseCloudId at push time means the
+    // parent course hasn't synced yet — skip the row and retry on the next
+    // pass rather than inserting a dangling FK.
+
+    fun assignmentToMap(
+        assignment: AssignmentEntity,
+        courseCloudId: String
+    ): Map<String, Any?> = mapOf(
+        "localId" to assignment.id,
+        "courseId" to courseCloudId,
+        "title" to assignment.title,
+        "dueDate" to assignment.dueDate,
+        "completed" to assignment.completed,
+        "completedAt" to assignment.completedAt,
+        "notes" to assignment.notes,
+        "createdAt" to assignment.createdAt,
+        "updatedAt" to assignment.updatedAt
+    )
+
+    fun mapToAssignment(
+        data: Map<String, Any?>,
+        localId: Long = 0,
+        courseLocalId: Long,
+        cloudId: String? = null
+    ): AssignmentEntity = AssignmentEntity(
+        id = localId,
+        cloudId = cloudId,
+        courseId = courseLocalId,
+        title = data["title"] as? String ?: "",
+        dueDate = (data["dueDate"] as? Number)?.toLong(),
+        completed = data["completed"] as? Boolean ?: false,
+        completedAt = (data["completedAt"] as? Number)?.toLong(),
+        notes = data["notes"] as? String,
+        createdAt = (data["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
+        updatedAt = (data["updatedAt"] as? Number)?.toLong() ?: 0L
+    )
+
+    // ── Attachments ──────────────────────────────────────────────────────────
+    //
+    // `uri` is a per-device sandbox path for image attachments; the pointer
+    // round-trips but the bytes don't. For link attachments `uri` is the URL
+    // and round-trips cleanly.
+
+    fun attachmentToMap(
+        attachment: AttachmentEntity,
+        taskCloudId: String
+    ): Map<String, Any?> = mapOf(
+        "localId" to attachment.id,
+        "taskId" to taskCloudId,
+        "type" to attachment.type,
+        "uri" to attachment.uri,
+        "fileName" to attachment.fileName,
+        "thumbnailUri" to attachment.thumbnailUri,
+        "createdAt" to attachment.createdAt,
+        "updatedAt" to attachment.updatedAt
+    )
+
+    fun mapToAttachment(
+        data: Map<String, Any?>,
+        localId: Long = 0,
+        taskLocalId: Long,
+        cloudId: String? = null
+    ): AttachmentEntity = AttachmentEntity(
+        id = localId,
+        cloudId = cloudId,
+        taskId = taskLocalId,
+        type = data["type"] as? String ?: "link",
+        uri = data["uri"] as? String ?: "",
+        fileName = data["fileName"] as? String,
+        thumbnailUri = data["thumbnailUri"] as? String,
+        createdAt = (data["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
+        updatedAt = (data["updatedAt"] as? Number)?.toLong() ?: 0L
+    )
+
+    // ── Study Logs ───────────────────────────────────────────────────────────
+    //
+    // Two nullable FKs: `coursePick` and `assignmentPick`, both SET_NULL on
+    // parent delete. Translate each at the call-site; null-to-null is
+    // intentional (user hasn't picked yet).
+
+    fun studyLogToMap(
+        log: StudyLogEntity,
+        coursePickCloudId: String? = null,
+        assignmentPickCloudId: String? = null
+    ): Map<String, Any?> = mapOf(
+        "localId" to log.id,
+        "date" to log.date,
+        "coursePick" to coursePickCloudId,
+        "studyDone" to log.studyDone,
+        "assignmentPick" to assignmentPickCloudId,
+        "assignmentDone" to log.assignmentDone,
+        "startedAt" to log.startedAt,
+        "createdAt" to log.createdAt,
+        "updatedAt" to log.updatedAt
+    )
+
+    fun mapToStudyLog(
+        data: Map<String, Any?>,
+        localId: Long = 0,
+        coursePickLocalId: Long? = null,
+        assignmentPickLocalId: Long? = null,
+        cloudId: String? = null
+    ): StudyLogEntity = StudyLogEntity(
+        id = localId,
+        cloudId = cloudId,
+        date = (data["date"] as? Number)?.toLong() ?: 0L,
+        coursePick = coursePickLocalId,
+        studyDone = data["studyDone"] as? Boolean ?: false,
+        assignmentPick = assignmentPickLocalId,
+        assignmentDone = data["assignmentDone"] as? Boolean ?: false,
+        startedAt = (data["startedAt"] as? Number)?.toLong(),
         createdAt = (data["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
         updatedAt = (data["updatedAt"] as? Number)?.toLong() ?: 0L
     )

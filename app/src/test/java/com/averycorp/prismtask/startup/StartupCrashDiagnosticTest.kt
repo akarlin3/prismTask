@@ -32,11 +32,11 @@ class StartupCrashDiagnosticTest {
 
     @Test
     fun `ALL_MIGRATIONS covers every version from 1 to latest`() {
-        // The database is currently at version 55 (see PrismTaskDatabase).
+        // The database is currently at version 56 (see PrismTaskDatabase).
         // ALL_MIGRATIONS must have an entry for every consecutive pair.
-        val expectedCount = 54 // versions 1→2, 2→3, …, 54→55
+        val expectedCount = 55 // versions 1→2, 2→3, …, 55→56
         assertEquals(
-            "ALL_MIGRATIONS should contain exactly $expectedCount migrations (v1→v55)",
+            "ALL_MIGRATIONS should contain exactly $expectedCount migrations (v1→v56)",
             expectedCount,
             ALL_MIGRATIONS.size
         )
@@ -78,11 +78,11 @@ class StartupCrashDiagnosticTest {
     }
 
     @Test
-    fun `last migration ends at current database version 55`() {
+    fun `last migration ends at current database version 56`() {
         val maxEnd = ALL_MIGRATIONS.maxOf { it.endVersion }
         assertEquals(
-            "Latest migration should end at the current DB version (55)",
-            55,
+            "Latest migration should end at the current DB version (56)",
+            56,
             maxEnd
         )
     }
