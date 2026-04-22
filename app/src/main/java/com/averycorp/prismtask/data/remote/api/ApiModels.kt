@@ -107,6 +107,23 @@ data class EisenhowerResponse(
     val summary: EisenhowerSummary
 )
 
+/**
+ * Single-task text-based Eisenhower classification. Unlike the batch endpoint
+ * which loads tasks from server storage by id, this accepts raw task fields so
+ * it can run immediately on task creation before the local row has been synced.
+ */
+data class EisenhowerClassifyTextRequest(
+    val title: String,
+    val description: String? = null,
+    @SerializedName("due_date") val dueDate: String? = null,
+    val priority: Int = 0
+)
+
+data class EisenhowerClassifyTextResponse(
+    val quadrant: String,
+    val reason: String
+)
+
 data class PomodoroRequest(
     @SerializedName("available_minutes") val availableMinutes: Int = 120,
     @SerializedName("session_length") val sessionLength: Int = 25,

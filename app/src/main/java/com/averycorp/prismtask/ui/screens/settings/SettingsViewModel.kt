@@ -245,6 +245,20 @@ constructor(
         viewModelScope.launch { userPreferencesDataStore.setWorkLifeBalance(prefs) }
     }
 
+    /** Eisenhower auto-classification preferences (v1.4.x A2). */
+    val eisenhowerPrefs: StateFlow<com.averycorp.prismtask.data.preferences.EisenhowerPrefs> =
+        userPreferencesDataStore.eisenhowerFlow
+            .stateIn(
+                viewModelScope,
+                SharingStarted.WhileSubscribed(5000),
+                com.averycorp.prismtask.data.preferences
+                    .EisenhowerPrefs()
+            )
+
+    fun setEisenhowerAutoClassifyEnabled(enabled: Boolean) {
+        viewModelScope.launch { userPreferencesDataStore.setEisenhowerAutoClassifyEnabled(enabled) }
+    }
+
     /** Boundary rules (v1.4.0 V3). */
     val boundaryRules: StateFlow<List<com.averycorp.prismtask.domain.model.BoundaryRule>> =
         boundaryRuleRepository

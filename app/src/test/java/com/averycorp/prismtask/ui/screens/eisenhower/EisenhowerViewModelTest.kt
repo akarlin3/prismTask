@@ -6,6 +6,8 @@ import com.averycorp.prismtask.data.remote.api.EisenhowerCategorization
 import com.averycorp.prismtask.data.remote.api.EisenhowerResponse
 import com.averycorp.prismtask.data.remote.api.EisenhowerSummary
 import com.averycorp.prismtask.data.remote.api.PrismTaskApi
+import com.averycorp.prismtask.data.repository.TaskRepository
+import com.averycorp.prismtask.domain.model.EisenhowerQuadrant
 import com.averycorp.prismtask.domain.usecase.ProFeatureGate
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -40,6 +42,7 @@ class EisenhowerViewModelTest {
 
     private lateinit var taskDao: TaskDao
     private lateinit var api: PrismTaskApi
+    private lateinit var taskRepository: TaskRepository
     private lateinit var proFeatureGate: ProFeatureGate
 
     @Before
@@ -47,6 +50,7 @@ class EisenhowerViewModelTest {
         Dispatchers.setMain(dispatcher)
         taskDao = mockk(relaxed = true)
         api = mockk(relaxed = true)
+        taskRepository = mockk(relaxed = true)
         proFeatureGate = mockk(relaxed = true)
 
         coEvery { taskDao.getIncompleteRootTasks() } returns flowOf(emptyList())
@@ -58,7 +62,7 @@ class EisenhowerViewModelTest {
         Dispatchers.resetMain()
     }
 
-    private fun newViewModel() = EisenhowerViewModel(taskDao, api, proFeatureGate)
+    private fun newViewModel() = EisenhowerViewModel(taskDao, api, taskRepository, proFeatureGate)
 
     @Test
     fun categorize_freeTierShowsUpgradePromptAndSkipsApiCall() = runTest(dispatcher) {
@@ -145,7 +149,7 @@ class EisenhowerViewModelTest {
     }
 
     @Test
-    fun moveTaskToQuadrant_updatesEisenhowerQuadrantWithManualReason() = runTest(dispatcher) {
+    fun moveTaskToQuadrant_delegatesToRepositorySetQuadrantManual() = runTest(dispatcher) {
         val vm = newViewModel()
         advanceUntilIdle()
 
@@ -153,13 +157,22 @@ class EisenhowerViewModelTest {
         advanceUntilIdle()
 
         coVerify {
-            taskDao.updateEisenhowerQuadrant(
-                id = 42L,
-                quadrant = "Q3",
-                reason = "Manually moved",
-                updatedAt = any()
+            taskRepository.setQuadrantManual(
+                taskId = 42L,
+                quadrant = EisenhowerQuadrant.URGENT_NOT_IMPORTANT
             )
         }
+    }
+
+    @Test
+    fun reclassify_delegatesToRepository() = runTest(dispatcher) {
+        val vm = newViewModel()
+        advanceUntilIdle()
+
+        vm.reclassify(99L)
+        advanceUntilIdle()
+
+        coVerify { taskRepository.reclassify(99L) }
     }
 
     @Test

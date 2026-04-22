@@ -29,6 +29,25 @@ class EisenhowerResponse(BaseModel):
     summary: EisenhowerSummary
 
 
+class EisenhowerClassifyTextRequest(BaseModel):
+    """Single-task text-based Eisenhower classification.
+
+    Accepts raw task fields so the client can classify a freshly-created
+    task before the local row has been synced to the backend. Mirrors the
+    client's `EisenhowerClassifier.classify(task)` call shape.
+    """
+
+    title: str = Field(min_length=1, max_length=500)
+    description: Optional[str] = Field(default=None, max_length=4000)
+    due_date: Optional[str] = None  # ISO date (YYYY-MM-DD); null means no due date
+    priority: int = Field(default=0, ge=0, le=4)
+
+
+class EisenhowerClassifyTextResponse(BaseModel):
+    quadrant: str  # "Q1".."Q4"
+    reason: str
+
+
 # --- Pomodoro ---
 
 

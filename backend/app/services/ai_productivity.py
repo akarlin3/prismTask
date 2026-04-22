@@ -103,6 +103,79 @@ Respond ONLY with valid JSON:
     raise ValueError(f"Failed to parse AI response: {last_error}")
 
 
+def classify_eisenhower_text(
+    title: str,
+    description: str | None,
+    due_date: str | None,
+    priority: int,
+    today: date,
+    tier: str = "FREE",
+) -> dict:
+    """Classify a single task into an Eisenhower quadrant from raw text.
+
+    Returns ``{"quadrant": "Q1|Q2|Q3|Q4", "reason": "..."}``. Raises
+    ``ValueError`` on malformed AI response, ``RuntimeError`` when the
+    Anthropic client is unavailable — same pattern as ``categorize_eisenhower``.
+    """
+    client = _get_client()
+    model = get_model("eisenhower")
+    task_summary = {
+        "title": title,
+        "description": description or "",
+        "due_date": due_date,
+        "priority": priority,  # 0=None, 1=Low, 2=Medium, 3=High, 4=Urgent
+    }
+    prompt = f"""You are a productivity assistant. Categorize ONE task into an Eisenhower Matrix quadrant.
+
+Quadrants:
+- Q1 (Urgent + Important): Deadlines within 48 hours, high-priority blockers, critical issues
+- Q2 (Not Urgent + Important): Long-term goals, planning, skill building, health, relationships
+- Q3 (Urgent + Not Important): Most emails, some meetings, minor deadlines, others' priorities
+- Q4 (Not Urgent + Not Important): Time-wasters, excessive social media, busywork
+
+Consider: due date proximity, priority level (0-4), task description.
+A task with no due date but high priority (3-4) is likely Q2.
+A task due today with low priority (0-1) is likely Q3.
+
+Task:
+{json.dumps(task_summary, default=str, indent=2)}
+
+Today's date: {today.isoformat()}
+
+Respond ONLY with valid JSON (no markdown, no prose):
+{{"quadrant": "Q1", "reason": "brief reason"}}"""
+
+    last_error = None
+    for attempt in range(2):
+        try:
+            message = client.messages.create(
+                model=model,
+                max_tokens=256,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            content = message.content[0].text
+            result = _parse_ai_json(content)
+            if not isinstance(result, dict):
+                raise ValueError("Expected a JSON object")
+            quadrant = result.get("quadrant")
+            if quadrant not in {"Q1", "Q2", "Q3", "Q4"}:
+                raise ValueError(f"Invalid quadrant: {quadrant!r}")
+            return {
+                "quadrant": quadrant,
+                "reason": str(result.get("reason", ""))[:500],
+            }
+        except (json.JSONDecodeError, KeyError, TypeError, IndexError, ValueError) as e:
+            last_error = e
+            logger.error(f"Failed to parse text-classify response (attempt {attempt + 1}): {e}")
+            if attempt == 0:
+                continue
+            raise ValueError(f"Failed to parse AI response after retry: {e}") from e
+        except Exception as e:
+            logger.error(f"Eisenhower text-classify AI error: {type(e).__name__}: {e}")
+            raise
+    raise ValueError(f"Failed to parse AI response: {last_error}")
+
+
 def plan_pomodoro(tasks: list[dict], available_minutes: int, session_length: int, break_length: int, long_break_length: int, focus_preference: str, today: date, tier: str = "FREE") -> dict:
     """Call Claude to generate a Pomodoro focus session plan."""
     client = _get_client()

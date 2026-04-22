@@ -66,6 +66,11 @@ interface PrismTaskApi {
         @Body request: EisenhowerRequest
     ): EisenhowerResponse
 
+    @POST("api/v1/ai/eisenhower/classify_text")
+    suspend fun classifyEisenhowerText(
+        @Body request: EisenhowerClassifyTextRequest
+    ): EisenhowerClassifyTextResponse
+
     @POST("api/v1/ai/pomodoro-plan")
     suspend fun planPomodoro(
         @Body request: PomodoroRequest

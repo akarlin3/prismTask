@@ -7,17 +7,24 @@ import com.averycorp.prismtask.data.local.dao.TaskDao
 import com.averycorp.prismtask.data.local.database.DatabaseTransactionRunner
 import com.averycorp.prismtask.data.local.entity.TaskEntity
 import com.averycorp.prismtask.data.local.entity.TaskTagCrossRef
+import com.averycorp.prismtask.data.preferences.UserPreferencesDataStore
+import com.averycorp.prismtask.data.remote.EisenhowerClassifier
 import com.averycorp.prismtask.data.remote.SyncTracker
+import com.averycorp.prismtask.domain.model.EisenhowerQuadrant
 import com.averycorp.prismtask.domain.model.LifeCategory
 import com.averycorp.prismtask.domain.usecase.LifeCategoryClassifier
 import com.averycorp.prismtask.domain.usecase.RecurrenceEngine
 import com.averycorp.prismtask.notifications.ReminderScheduler
 import com.averycorp.prismtask.util.DayBoundary
 import com.averycorp.prismtask.widget.WidgetUpdateManager
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 import java.util.Calendar
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -33,9 +40,48 @@ constructor(
     private val calendarPushDispatcher: CalendarPushDispatcher,
     private val reminderScheduler: ReminderScheduler,
     private val widgetUpdateManager: WidgetUpdateManager,
-    private val taskCompletionRepository: TaskCompletionRepository
+    private val taskCompletionRepository: TaskCompletionRepository,
+    private val eisenhowerClassifier: EisenhowerClassifier,
+    private val userPreferences: UserPreferencesDataStore
 ) {
     private val lifeCategoryClassifier = LifeCategoryClassifier()
+
+    /**
+     * Background scope for fire-and-forget Eisenhower classification. A
+     * classification failure must never surface to the task-creation caller —
+     * offline / rate-limited / malformed-response all fall through and leave
+     * the task with its pre-existing quadrant (null on first create).
+     *
+     * SupervisorJob so one failed classify doesn't cancel future ones.
+     */
+    private val classifyScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+
+    /**
+     * Enqueue an async classification for a newly-created task. Respects the
+     * `eisenhowerAutoClassifyEnabled` preference and the per-task
+     * `userOverrodeQuadrant` guard — user moves are never clobbered by the
+     * auto-classifier.
+     */
+    private fun classifyInBackground(taskId: Long) {
+        classifyScope.launch {
+            val prefs = userPreferences.eisenhowerFlow.firstOrNull() ?: return@launch
+            if (!prefs.autoClassifyEnabled) return@launch
+            val task = taskDao.getTaskByIdOnce(taskId) ?: return@launch
+            if (task.userOverrodeQuadrant) return@launch
+            val result = eisenhowerClassifier.classify(task)
+            val classification = result.getOrNull() ?: return@launch
+            val code = classification.quadrant.code ?: return@launch
+            val updated = taskDao.updateEisenhowerQuadrantIfNotOverridden(
+                id = taskId,
+                quadrant = code,
+                reason = classification.reason
+            )
+            if (updated > 0) {
+                syncTracker.trackUpdate(taskId, "task")
+                widgetUpdateManager.updateTaskWidgets()
+            }
+        }
+    }
 
     /**
      * Centralized life-category fallback applied on every insert path so that
@@ -107,6 +153,7 @@ constructor(
         syncTracker.trackCreate(id, "task")
         calendarPushDispatcher.enqueuePushTask(id)
         widgetUpdateManager.updateTaskWidgets()
+        classifyInBackground(id)
         return id
     }
 
@@ -146,6 +193,7 @@ constructor(
                 reminderOffset = resolved.reminderOffset
             )
         }
+        classifyInBackground(id)
         return id
     }
 
@@ -195,6 +243,7 @@ constructor(
                 reminderOffset = reminderOffset
             )
         }
+        classifyInBackground(id)
         return id
     }
 
@@ -441,6 +490,34 @@ constructor(
         taskDao.batchUpdatePriority(taskIds, priority)
         taskIds.forEach { syncTracker.trackUpdate(it, "task") }
         widgetUpdateManager.updateTaskWidgets()
+    }
+
+    /**
+     * Apply a user's manual Eisenhower quadrant choice and stamp
+     * `user_overrode_quadrant = 1` so subsequent auto-classifications will
+     * skip this row. [quadrant] may be [EisenhowerQuadrant.UNCLASSIFIED],
+     * which clears the quadrant but still marks the row as user-overridden
+     * (user explicitly chose "no quadrant" — don't re-classify it).
+     */
+    suspend fun setQuadrantManual(taskId: Long, quadrant: EisenhowerQuadrant) {
+        taskDao.setManualQuadrant(
+            id = taskId,
+            quadrant = quadrant.code,
+            reason = "Manually moved"
+        )
+        syncTracker.trackUpdate(taskId, "task")
+        widgetUpdateManager.updateTaskWidgets()
+    }
+
+    /**
+     * Clear any prior manual override and fire a fresh classification. The
+     * classification is still fire-and-forget — the new quadrant lands via
+     * the background scope when the API responds. Returns immediately.
+     */
+    suspend fun reclassify(taskId: Long) {
+        taskDao.clearManualQuadrantOverride(taskId)
+        syncTracker.trackUpdate(taskId, "task")
+        classifyInBackground(taskId)
     }
 
     suspend fun batchReschedule(taskIds: List<Long>, newDueDate: Long?) {

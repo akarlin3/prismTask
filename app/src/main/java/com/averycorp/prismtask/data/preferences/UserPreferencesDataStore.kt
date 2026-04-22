@@ -100,7 +100,20 @@ data class UserPreferencesSnapshot(
     val swipe: SwipePrefs = SwipePrefs(),
     val taskDefaults: TaskDefaults = TaskDefaults(),
     val quickAdd: QuickAddPrefs = QuickAddPrefs(),
-    val workLifeBalance: WorkLifeBalancePrefs = WorkLifeBalancePrefs()
+    val workLifeBalance: WorkLifeBalancePrefs = WorkLifeBalancePrefs(),
+    val eisenhower: EisenhowerPrefs = EisenhowerPrefs()
+)
+
+/**
+ * Eisenhower matrix auto-classification preferences (v1.4.x A2).
+ *
+ * When [autoClassifyEnabled] is true, the client fires a fire-and-forget
+ * classification against the backend after every successful task create.
+ * Failures (offline, rate-limit, 5xx) leave the task's quadrant unchanged;
+ * the user can explicitly re-run classification from the Matrix screen.
+ */
+data class EisenhowerPrefs(
+    val autoClassifyEnabled: Boolean = true
 )
 
 /**
@@ -160,6 +173,9 @@ class UserPreferencesDataStore(
         val KEY_WLB_HEALTH_TARGET = intPreferencesKey("wlb_health_target")
         val KEY_WLB_SHOW_BAR = booleanPreferencesKey("wlb_show_bar")
         val KEY_WLB_OVERLOAD_THRESHOLD = intPreferencesKey("wlb_overload_threshold")
+
+        // Eisenhower auto-classification (v1.4.x A2)
+        val KEY_EISENHOWER_AUTO_CLASSIFY = booleanPreferencesKey("eisenhower_auto_classify")
 
         private const val DEFAULT_PROJECT_NULL_SENTINEL: Long = -1L
     }
@@ -298,15 +314,29 @@ class UserPreferencesDataStore(
         )
     }
 
+    val eisenhowerFlow: Flow<EisenhowerPrefs> = dataStore.data.map { prefs ->
+        EisenhowerPrefs(
+            autoClassifyEnabled = prefs[KEY_EISENHOWER_AUTO_CLASSIFY] ?: true
+        )
+    }
+
     /** Combined flow emitting the full preferences bundle. */
     val allFlow: Flow<UserPreferencesSnapshot> = combine(
         appearanceFlow,
         swipeFlow,
         taskDefaultsFlow,
         quickAddFlow,
-        workLifeBalanceFlow
-    ) { appearance, swipe, defaults, quickAdd, wlb ->
-        UserPreferencesSnapshot(appearance, swipe, defaults, quickAdd, wlb)
+        workLifeBalanceFlow,
+        eisenhowerFlow
+    ) { flows ->
+        UserPreferencesSnapshot(
+            appearance = flows[0] as AppearancePrefs,
+            swipe = flows[1] as SwipePrefs,
+            taskDefaults = flows[2] as TaskDefaults,
+            quickAdd = flows[3] as QuickAddPrefs,
+            workLifeBalance = flows[4] as WorkLifeBalancePrefs,
+            eisenhower = flows[5] as EisenhowerPrefs
+        )
     }
 
     // endregion
@@ -399,6 +429,10 @@ class UserPreferencesDataStore(
     /** Mark the tier onboarding bottom sheet as shown. */
     suspend fun markTierOnboardingShown() {
         dataStore.edit { it[KEY_TIER_ONBOARDING_SHOWN] = true }
+    }
+
+    suspend fun setEisenhowerAutoClassifyEnabled(enabled: Boolean) {
+        dataStore.edit { it[KEY_EISENHOWER_AUTO_CLASSIFY] = enabled }
     }
 
     suspend fun clearAll() {

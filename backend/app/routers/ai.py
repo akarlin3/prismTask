@@ -12,6 +12,8 @@ from app.models import Habit, User
 from app.schemas.ai import (
     DailyBriefingRequest,
     DailyBriefingResponse,
+    EisenhowerClassifyTextRequest,
+    EisenhowerClassifyTextResponse,
     EisenhowerRequest,
     EisenhowerResponse,
     EisenhowerSummary,
@@ -45,6 +47,12 @@ router = APIRouter(prefix="/ai", tags=["ai"])
 
 # Rate limiter: max 1 call per 5 minutes (300 seconds) per IP
 ai_rate_limiter = RateLimiter(max_requests=1, window_seconds=300)
+
+# Text-classify runs on every client-side task creation, so it needs a much
+# higher ceiling than the batch endpoint. 20/min per IP comfortably covers
+# normal burst creation (voice capture, paste-to-extract dumps) without
+# handing out free Claude calls.
+eisenhower_classify_text_rate_limiter = RateLimiter(max_requests=20, window_seconds=60)
 
 # Rate limiters for new AI endpoints
 briefing_rate_limiter = RateLimiter(max_requests=1, window_seconds=3600)  # 1 per hour
@@ -148,6 +156,47 @@ async def categorize_eisenhower(
             for c in cleaned
         ],
         summary=summary,
+    )
+
+
+@router.post("/eisenhower/classify_text", response_model=EisenhowerClassifyTextResponse)
+async def classify_eisenhower_text(
+    data: EisenhowerClassifyTextRequest,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+):
+    """Per-task text-based Eisenhower classification.
+
+    Called fire-and-forget from the Android client immediately after a task
+    is created locally, so the classification is present before the task
+    has been synced to the backend. Rate-limited separately from the batch
+    endpoint — see ``eisenhower_classify_text_rate_limiter``.
+    """
+    eisenhower_classify_text_rate_limiter.check(request)
+    tier = current_user.effective_tier
+    daily_ai_rate_limiter.check(current_user.id, tier)
+
+    try:
+        from app.services.ai_productivity import (
+            classify_eisenhower_text as ai_classify_text,
+        )
+
+        result = ai_classify_text(
+            title=data.title,
+            description=data.description,
+            due_date=data.due_date,
+            priority=data.priority,
+            today=date.today(),
+            tier=tier,
+        )
+    except RuntimeError:
+        raise HTTPException(status_code=503, detail="AI service temporarily unavailable")
+    except ValueError:
+        raise HTTPException(status_code=500, detail="AI returned an invalid response")
+
+    return EisenhowerClassifyTextResponse(
+        quadrant=result["quadrant"],
+        reason=result["reason"],
     )
 
 
