@@ -259,7 +259,21 @@ Historical failures: `ci-logs/<workflow-slug>/<timestamp>-<run-id>.log` on the s
 
 ## Build Commands
 
-**Note:** The Android SDK is not available in the Claude Code environment. Do not attempt local builds or tests. Instead, push your changes and wait for GitHub CI to build and report results.
+**Note:** The Android SDK and JBR (Java 21) are available locally — local
+builds and unit tests are supported and preferred for fast iteration. Before
+running Gradle from Git Bash, export the toolchain paths (they are installed
+but not on the default PATH):
+
+```bash
+export ANDROID_HOME="/c/Users/avery_yy1vm3l/AppData/Local/Android/Sdk"
+export ANDROID_SDK_ROOT="$ANDROID_HOME"
+export JAVA_HOME="/c/Program Files/Android/Android Studio/jbr"
+export PATH="$JAVA_HOME/bin:$ANDROID_HOME/platform-tools:/c/Program Files/GitHub CLI:$PATH"
+```
+
+Instrumentation tests (`connectedDebugAndroidTest`) require a running device
+or emulator; `adb devices` will list them. CI still runs on every push and
+remains the final verification gate.
 
 ```bash
 # Debug build
