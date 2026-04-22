@@ -470,7 +470,13 @@ constructor(
                         )
                     )
                 } catch (e: Exception) {
-                    logger.error(operation = "upload.course", entity = "course", id = course.id.toString(), detail = course.name, throwable = e)
+                    logger.error(
+                        operation = "upload.course",
+                        entity = "course",
+                        id = course.id.toString(),
+                        detail = course.name,
+                        throwable = e
+                    )
                 }
             }
             builtInSyncPreferences.setCoursesBackfillDone(true)

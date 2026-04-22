@@ -111,8 +111,10 @@ constructor(
     }
 
     private fun buildNameToKeyMap(): Map<String, String> =
-        (TemplateSeeder.BUILT_IN_TEMPLATES.associate { it.name.trim().lowercase() to it.templateKey } +
-            BUILT_IN_TEMPLATE_NAME_ALIASES)
+        (
+            TemplateSeeder.BUILT_IN_TEMPLATES.associate { it.name.trim().lowercase() to it.templateKey } +
+                BUILT_IN_TEMPLATE_NAME_ALIASES
+            )
 
     private data class BackfillResult(val updated: Int, val skipped: Int)
 

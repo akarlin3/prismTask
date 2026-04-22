@@ -6,7 +6,6 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.averycorp.prismtask.data.local.database.PrismTaskDatabase
 import com.averycorp.prismtask.data.local.entity.CourseEntity
 import com.averycorp.prismtask.data.local.entity.SelfCareStepEntity
-import com.averycorp.prismtask.data.local.entity.SyncMetadataEntity
 import com.averycorp.prismtask.data.remote.AuthManager
 import com.averycorp.prismtask.data.remote.CloudIdOrphanHealer
 import com.averycorp.prismtask.data.remote.sync.PrismSyncLogger

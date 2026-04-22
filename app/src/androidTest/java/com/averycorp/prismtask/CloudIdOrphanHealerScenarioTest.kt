@@ -102,7 +102,8 @@ class CloudIdOrphanHealerScenarioTest {
             )
             id
         }
-        val remoteState = mutableSetOf("firestore-doc-1", "firestore-doc-2", "firestore-doc-3", "firestore-doc-4", "firestore-doc-5")
+        val remoteState =
+            mutableSetOf("firestore-doc-1", "firestore-doc-2", "firestore-doc-3", "firestore-doc-4", "firestore-doc-5")
 
         healer.healOrphans(fetcher = { collection ->
             if (collection == "self_care_steps") remoteState.toSet() else emptySet()
