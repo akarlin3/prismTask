@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Medications — Top-level entity (PR 1 / 5 — Room layer only)
+- **Scope.** New Room entities `MedicationEntity` + `MedicationDoseEntity`
+  and matching DAOs. DB bumps v53 → v54 via `MIGRATION_53_54`. Spec:
+  `docs/SPEC_MEDICATIONS_TOP_LEVEL.md`. No user-visible change yet — the
+  existing Medication screen still reads from `SelfCareRepository`; PR 4
+  rewires it. Quarantine-style staging leaves all source data intact; a
+  future Phase 2 cleanup migration drops `self_care_steps`/`self_care_logs`
+  rows with `routine_type='medication'`, the `medication_refills` table,
+  and the built-in `"Medication"` habit row.
+- **Migration shape.** `medications` is name-unique with inline refill
+  columns (pharmacy / pill_count / reminder_days_before) subsumed from
+  `medication_refills`. `medication_doses` mirrors `habit_completions` —
+  `taken_date_local` ISO-8601 timezone-neutral column, FK CASCADE on
+  medication delete. Duplicate-name source rows collapse to one row with
+  `display_label` = `REPLACE(GROUP_CONCAT(DISTINCT label), ',', ' / ')`.
+- **Deferred from the spec's §3.2 to PR 2's Kotlin runner:**
+  JSON-parsing dose backfill (`json_each` / `->>` operator availability
+  is OEM-dependent on API 26) and schedule-mode preservation from
+  `MedicationPreferences` DataStore (Room migrations can't read DataStore).
+- **Tests.** `Migration53To54Test` (androidTest, JSON1-free SQL) covers
+  distinct-name backfill, duplicate-name collapse, blank-name → label
+  fallback, refill merge, quarantine contents, source-tables-unchanged,
+  unique(name) enforcement, empty source, non-medication routine filter,
+  deferred dose-table emptiness, and FK CASCADE on medication delete.
+- **Follow-ups.** PR 2: `MedicationRepository` + sync mapper + migration
+  runner + `BuiltInMedicationReconciler`. PR 3: scheduler split. PR 4:
+  UI + nav wiring. PR 5: full instrumentation suite.
+
 ### Sync — Duplication Fix (Phase 2 + Phase 2.5)
 - **Root cause.** Prior builds re-uploaded every local row on every
   sign-in because `initialUpload` had no "already ran" guard and
