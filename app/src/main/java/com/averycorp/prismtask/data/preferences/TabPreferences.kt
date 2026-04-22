@@ -13,7 +13,7 @@ import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
 
-private val Context.tabDataStore: DataStore<Preferences> by preferencesDataStore(name = "tab_prefs")
+internal val Context.tabDataStore: DataStore<Preferences> by preferencesDataStore(name = "tab_prefs")
 
 @Singleton
 class TabPreferences

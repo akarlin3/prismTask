@@ -38,6 +38,9 @@ object DailyForgivenessStreakCore {
         today: LocalDate = LocalDate.now(),
         config: ForgivenessConfig = ForgivenessConfig.DEFAULT
     ): StreakResult {
+        // No activity at all → no streak, no grace to spend. Short-circuit to
+        // the canonical empty result so callers can compare with StreakResult.EMPTY.
+        if (activityDates.isEmpty()) return StreakResult.EMPTY
         val strict = strictWalk(activityDates, today)
         if (!config.enabled) {
             return StreakResult(

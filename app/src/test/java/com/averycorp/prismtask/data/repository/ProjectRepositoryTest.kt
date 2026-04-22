@@ -20,7 +20,6 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
-import org.junit.Ignore
 import org.junit.Test
 
 /**
@@ -251,12 +250,6 @@ class ProjectRepositoryTest {
         assertNull(afterReopen.completedAt)
     }
 
-    @Ignore(
-        "CI-RE-ENABLE: expected orderIndex [0,1,2] but got [0,1,3]. " +
-            "Production reorderMilestones uses the input-list position as the index, " +
-            "so the unknown 9999 leaves a gap. Fix: either collapse gaps in the repo " +
-            "or relax the test. Tracked with re-enable-android-ci."
-    )
     @Test
     fun reorderMilestones_reindexesInGivenOrderAndIgnoresUnknownIds() = runBlocking {
         val projectId = repo.addProject("Reorder me", null, ProjectStatus.ACTIVE, null, null, null)
@@ -399,6 +392,9 @@ class ProjectRepositoryTest {
 
         override suspend fun getMilestonesOnce(projectId: Long): List<MilestoneEntity> =
             snapshot(projectId)
+
+        override suspend fun getAllMilestonesOnce(): List<MilestoneEntity> =
+            rows.toList()
 
         override suspend fun getByIdOnce(id: Long): MilestoneEntity? =
             rows.firstOrNull { it.id == id }

@@ -9,7 +9,6 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
-import org.junit.Ignore
 import org.junit.Test
 
 /**
@@ -18,12 +17,6 @@ import org.junit.Test
  * database or DataStore-backed [com.averycorp.prismtask.data.preferences.TemplatePreferences].
  */
 class TemplateSeederTest {
-    @Ignore(
-        "CI-RE-ENABLE: expected 6 built-in templates but TemplateSeeder now " +
-            "inserts 5. One of the template blueprints was dropped between " +
-            "2026-04-18 (CI disabled) and now. Reconcile the expected set with " +
-            "the current seeder contents. Tracked with re-enable-android-ci."
-    )
     @Test
     fun seedIfNeeded_insertsAllBuiltInTemplatesOnFirstRun() = runBlocking {
         val dao = FakeTemplateDao()
@@ -32,21 +25,16 @@ class TemplateSeederTest {
 
         seeder.seedIfNeeded()
 
-        // All six built-ins should land in the DB, and the flag should flip.
-        assertEquals(6, dao.templates.size)
+        // Every built-in spec in TemplateSeeder.BUILT_IN_TEMPLATES should land
+        // exactly once in the DB, and the flag should flip.
+        assertEquals(TemplateSeeder.BUILT_IN_TEMPLATES.size, dao.templates.size)
         assertTrue("flag should be set after seeding", flag.isSeeded())
 
-        // Every expected name is present — we don't hardcode the order since
-        // insertion order isn't semantically meaningful.
+        // Every spec name is present — we don't hardcode the list (that would
+        // rot whenever the seeder's blueprint roster changes). Instead, derive
+        // it from the production source of truth.
         val storedNames = dao.templates.map { it.name }.toSet()
-        val expectedNames = setOf(
-            "Morning Routine",
-            "Weekly Review",
-            "Meeting Prep",
-            "Grocery Run",
-            "Assignment",
-            "Deep Clean"
-        )
+        val expectedNames = TemplateSeeder.BUILT_IN_TEMPLATES.map { it.name }.toSet()
         assertEquals(expectedNames, storedNames)
 
         // Each seeded template must be marked as built-in so the UI can treat
@@ -57,30 +45,31 @@ class TemplateSeederTest {
         )
 
         // Spot-check a couple of fields that are easy to get wrong when
-        // copying specs over — the subtasks JSON and duration for two of the
-        // more elaborate templates.
-        val morning = dao.templates.first { it.name == "Morning Routine" }
-        assertEquals(2, morning.templatePriority)
-        assertEquals(90, morning.templateDuration)
-        assertNotNull(morning.templateSubtasksJson)
+        // copying specs over — the subtasks JSON + recurrence + duration for
+        // two of the more elaborate templates.
+        val weekly = dao.templates.first { it.name == "Weekly Review" }
+        assertEquals(2, weekly.templatePriority)
+        assertEquals(45, weekly.templateDuration)
+        assertNotNull(weekly.templateSubtasksJson)
         assertNotNull(
-            "daily recurrence should be serialized",
-            morning.templateRecurrenceJson
+            "weekly recurrence should be serialized",
+            weekly.templateRecurrenceJson
         )
 
-        val assignment = dao.templates.first { it.name == "Assignment" }
-        assertEquals(3, assignment.templatePriority)
-        assertEquals(120, assignment.templateDuration)
-        assertEquals("School", assignment.category)
+        val school = dao.templates.first { it.name == "School Daily" }
+        assertEquals(3, school.templatePriority)
+        assertEquals(120, school.templateDuration)
+        assertEquals("School", school.category)
     }
 
     @Test
     fun seedIfNeeded_isIdempotentWhenFlagAlreadySet() = runBlocking {
         val dao = FakeTemplateDao()
         // Simulate a previous successful seed — the flag is on and the DB
-        // already has the six rows from that run.
+        // already has the same count of rows from that run.
         val flag = FakeSeededFlagStore(initiallySeeded = true)
-        repeat(6) { index ->
+        val preSeededCount = TemplateSeeder.BUILT_IN_TEMPLATES.size
+        repeat(preSeededCount) { index ->
             dao.insertTemplate(
                 TaskTemplateEntity(
                     name = "Pre-Seeded $index",
@@ -93,9 +82,9 @@ class TemplateSeederTest {
 
         seeder(dao, flag).seedIfNeeded()
 
-        // No re-seeding: the existing six templates survive untouched, no
+        // No re-seeding: the pre-existing templates survive untouched, no
         // new ones are added.
-        assertEquals(6, dao.templates.size)
+        assertEquals(preSeededCount, dao.templates.size)
         assertTrue(dao.templates.all { it.name.startsWith("Pre-Seeded") })
     }
 

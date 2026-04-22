@@ -41,13 +41,20 @@ fun TimerSection(
     pomodoroAvailableMinutes: Int,
     pomodoroFocusPreference: String,
     buzzUntilDismissed: Boolean,
+    // A2 Pomodoro+ AI Coaching — each surface has its own toggle, all default on.
+    preSessionCoachingEnabled: Boolean,
+    breakCoachingEnabled: Boolean,
+    recapCoachingEnabled: Boolean,
     onTimerWorkMinutesChange: (Int) -> Unit,
     onTimerBreakMinutesChange: (Int) -> Unit,
     onTimerLongBreakMinutesChange: (Int) -> Unit,
     onTimerCustomMinutesChange: (Int) -> Unit,
     onPomodoroAvailableMinutesChange: (Int) -> Unit,
     onPomodoroFocusPreferenceChange: (String) -> Unit,
-    onBuzzUntilDismissedChange: (Boolean) -> Unit
+    onBuzzUntilDismissedChange: (Boolean) -> Unit,
+    onPreSessionCoachingChange: (Boolean) -> Unit,
+    onBreakCoachingChange: (Boolean) -> Unit,
+    onRecapCoachingChange: (Boolean) -> Unit
 ) {
     var showTimerWorkDialog by remember { mutableStateOf(false) }
     var showTimerBreakDialog by remember { mutableStateOf(false) }
@@ -163,6 +170,28 @@ fun TimerSection(
         subtitle = "Vibrate continuously when the timer ends until you tap or swipe the notification.",
         checked = buzzUntilDismissed,
         onCheckedChange = onBuzzUntilDismissedChange
+    )
+
+    // ---- A2 Pomodoro+ AI Coaching toggles ---------------------------
+    // Grouped with the other Pomodoro controls. Toggles are independent —
+    // a user can enable any subset of the three coaching surfaces.
+    SettingsToggleRow(
+        title = "AI Coaching Before Sessions",
+        subtitle = "Get a suggested approach from Claude before each focus session starts.",
+        checked = preSessionCoachingEnabled,
+        onCheckedChange = onPreSessionCoachingChange
+    )
+    SettingsToggleRow(
+        title = "AI Break Suggestions",
+        subtitle = "Contextual break activities during short and long breaks.",
+        checked = breakCoachingEnabled,
+        onCheckedChange = onBreakCoachingChange
+    )
+    SettingsToggleRow(
+        title = "AI Session Recap",
+        subtitle = "A quick recap and \"carry forward\" suggestion when a session ends.",
+        checked = recapCoachingEnabled,
+        onCheckedChange = onRecapCoachingChange
     )
 
     HorizontalDivider()

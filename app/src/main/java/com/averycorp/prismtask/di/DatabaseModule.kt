@@ -14,6 +14,8 @@ import com.averycorp.prismtask.data.local.dao.HabitDao
 import com.averycorp.prismtask.data.local.dao.HabitLogDao
 import com.averycorp.prismtask.data.local.dao.HabitTemplateDao
 import com.averycorp.prismtask.data.local.dao.LeisureDao
+import com.averycorp.prismtask.data.local.dao.MedicationDao
+import com.averycorp.prismtask.data.local.dao.MedicationDoseDao
 import com.averycorp.prismtask.data.local.dao.MedicationRefillDao
 import com.averycorp.prismtask.data.local.dao.MilestoneDao
 import com.averycorp.prismtask.data.local.dao.MoodEnergyLogDao
@@ -152,6 +154,14 @@ object DatabaseModule {
 
     @Provides
     fun provideMilestoneDao(database: PrismTaskDatabase): MilestoneDao = database.milestoneDao()
+
+    @Provides
+    fun provideMedicationDao(database: PrismTaskDatabase): MedicationDao = database.medicationDao()
+
+    @Provides
+    fun provideMedicationDoseDao(
+        database: PrismTaskDatabase
+    ): MedicationDoseDao = database.medicationDoseDao()
 }
 
 /**

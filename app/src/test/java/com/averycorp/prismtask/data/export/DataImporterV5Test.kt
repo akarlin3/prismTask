@@ -11,7 +11,7 @@ import com.averycorp.prismtask.data.local.dao.SelfCareDao
 import com.averycorp.prismtask.data.local.dao.TagDao
 import com.averycorp.prismtask.data.local.dao.TaskCompletionDao
 import com.averycorp.prismtask.data.local.dao.TaskDao
-import com.averycorp.prismtask.data.local.database.PrismTaskDatabase
+import com.averycorp.prismtask.data.local.database.DatabaseTransactionRunner
 import com.averycorp.prismtask.data.local.entity.HabitEntity
 import com.averycorp.prismtask.data.local.entity.ProjectEntity
 import com.averycorp.prismtask.data.preferences.A11yPreferences
@@ -41,7 +41,6 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
-import org.junit.Ignore
 import org.junit.Test
 
 /**
@@ -52,10 +51,6 @@ import org.junit.Test
  *  - orphan-row counting,
  *  - per-section `ReplaceScope`.
  */
-@Ignore(
-    "Hangs in CI at importFromJson() — see DataImporterTest for details. " +
-        "Re-enable once DataImporter is routed through DatabaseTransactionRunner."
-)
 class DataImporterV5Test {
     private lateinit var taskDao: TaskDao
     private lateinit var projectDao: ProjectDao
@@ -66,7 +61,13 @@ class DataImporterV5Test {
     private lateinit var leisureDao: LeisureDao
     private lateinit var selfCareDao: SelfCareDao
     private lateinit var schoolworkDao: SchoolworkDao
-    private lateinit var database: PrismTaskDatabase
+
+    // Inline transaction runner — tests don't need real Room transactions,
+    // just faithful block execution so every DAO call still happens.
+    private val transactionRunner =
+        object : DatabaseTransactionRunner(mockk(relaxed = true)) {
+            override suspend fun <R> withTransaction(block: suspend () -> R): R = block()
+        }
     private lateinit var themePreferences: ThemePreferences
     private lateinit var archivePreferences: ArchivePreferences
     private lateinit var dashboardPreferences: DashboardPreferences
@@ -101,7 +102,6 @@ class DataImporterV5Test {
         selfCareDao = mockk(relaxed = true)
         schoolworkDao = mockk(relaxed = true)
         taskCompletionDao = mockk(relaxed = true)
-        database = mockk(relaxed = true)
         themePreferences = mockk(relaxed = true)
         archivePreferences = mockk(relaxed = true)
         dashboardPreferences = mockk(relaxed = true)
@@ -139,12 +139,16 @@ class DataImporterV5Test {
         importer = DataImporter(
             taskDao, projectDao, tagDao, habitDao, habitCompletionDao,
             taskCompletionDao, habitLogDao, leisureDao, selfCareDao, schoolworkDao,
-            database, themePreferences, archivePreferences, dashboardPreferences,
+            // medicationDao + medicationDoseDao
+            mockk(relaxed = true),
+            mockk(relaxed = true),
+            transactionRunner, themePreferences, archivePreferences, dashboardPreferences,
             tabPreferences, taskBehaviorPreferences, habitListPreferences,
             leisurePreferences, medicationPreferences, userPreferencesDataStore,
             a11yPreferences, voicePreferences, shakePreferences, timerPreferences,
             notificationPreferences, ndPreferencesDataStore, dailyEssentialsPreferences,
-            morningCheckInPreferences, calendarSyncPreferences, templatePreferences
+            morningCheckInPreferences, calendarSyncPreferences, templatePreferences,
+            mockk(relaxed = true), mockk(relaxed = true), mockk(relaxed = true)
         )
     }
 

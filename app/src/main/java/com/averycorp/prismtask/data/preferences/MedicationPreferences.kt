@@ -15,7 +15,7 @@ import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
 
-private val Context.medicationDataStore: DataStore<Preferences> by preferencesDataStore(name = "medication_prefs")
+internal val Context.medicationDataStore: DataStore<Preferences> by preferencesDataStore(name = "medication_prefs")
 
 enum class MedicationScheduleMode { INTERVAL, SPECIFIC_TIMES }
 

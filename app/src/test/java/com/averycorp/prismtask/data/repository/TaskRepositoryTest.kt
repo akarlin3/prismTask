@@ -8,10 +8,15 @@ import com.averycorp.prismtask.data.local.entity.TagEntity
 import com.averycorp.prismtask.data.local.entity.TaskEntity
 import com.averycorp.prismtask.data.local.entity.TaskTagCrossRef
 import com.averycorp.prismtask.data.local.entity.TaskWithTags
+import com.averycorp.prismtask.data.preferences.EisenhowerPrefs
+import com.averycorp.prismtask.data.preferences.UserPreferencesDataStore
+import com.averycorp.prismtask.data.remote.EisenhowerClassifier
 import com.averycorp.prismtask.data.remote.SyncTracker
 import com.averycorp.prismtask.notifications.ReminderScheduler
 import com.averycorp.prismtask.widget.WidgetUpdateManager
+import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
@@ -41,6 +46,8 @@ class TaskRepositoryTest {
     private lateinit var reminderScheduler: ReminderScheduler
     private lateinit var widgetUpdateManager: WidgetUpdateManager
     private lateinit var taskCompletionRepository: TaskCompletionRepository
+    private lateinit var eisenhowerClassifier: EisenhowerClassifier
+    private lateinit var userPreferences: UserPreferencesDataStore
     private lateinit var repo: TaskRepository
 
     @Before
@@ -52,6 +59,14 @@ class TaskRepositoryTest {
         reminderScheduler = mockk(relaxed = true)
         widgetUpdateManager = mockk(relaxed = true)
         taskCompletionRepository = mockk(relaxed = true)
+        eisenhowerClassifier = mockk(relaxed = true)
+        // Default to auto-classify OFF for existing tests so the fire-and-forget
+        // classifier doesn't race them. Eisenhower-specific tests flip it on.
+        userPreferences = mockk {
+            every { eisenhowerFlow } returns flowOf(EisenhowerPrefs(autoClassifyEnabled = false))
+        }
+        coEvery { eisenhowerClassifier.classify(any()) } returns
+            Result.failure(IllegalStateException("stub"))
         repo =
             TaskRepository(
                 inlineTransactionRunner(),
@@ -61,7 +76,9 @@ class TaskRepositoryTest {
                 calendarPushDispatcher,
                 reminderScheduler,
                 widgetUpdateManager,
-                taskCompletionRepository
+                taskCompletionRepository,
+                eisenhowerClassifier,
+                userPreferences
             )
     }
 
@@ -399,6 +416,130 @@ class TaskRepositoryTest {
     }
 
     // ---------------------------------------------------------------------
+    // Eisenhower auto-classification
+    // ---------------------------------------------------------------------
+
+    @Test
+    fun addTask_isInitiallyUnclassified() = runBlocking {
+        // Auto-classify off (setUp default): new task lands with a null quadrant
+        // and userOverrodeQuadrant=false — i.e. UNCLASSIFIED per the domain enum.
+        val id = repo.addTask(title = "New task")
+
+        val stored = taskDao.tasks.first { it.id == id }
+        assertNull(stored.eisenhowerQuadrant)
+        assertFalse(stored.userOverrodeQuadrant)
+    }
+
+    @Test
+    fun addTask_autoClassifyOn_updatesQuadrantOnSuccess() = runBlocking {
+        enableAutoClassify()
+        coEvery { eisenhowerClassifier.classify(any()) } returns Result.success(
+            EisenhowerClassifier.Classification(
+                quadrant = com.averycorp.prismtask.domain.model.EisenhowerQuadrant.URGENT_IMPORTANT,
+                reason = "Due soon"
+            )
+        )
+
+        val id = repo.addTask(title = "Urgent")
+        // Background launches on Dispatchers.IO; yield long enough for it to
+        // finish against the in-memory DAO.
+        kotlinx.coroutines.delay(50)
+
+        val stored = taskDao.tasks.first { it.id == id }
+        assertEquals("Q1", stored.eisenhowerQuadrant)
+        assertEquals("Due soon", stored.eisenhowerReason)
+    }
+
+    @Test
+    fun addTask_autoClassifyOn_leavesUnclassifiedOnFailure() = runBlocking {
+        enableAutoClassify()
+        coEvery { eisenhowerClassifier.classify(any()) } returns Result.failure(IllegalStateException("offline"))
+
+        val id = repo.addTask(title = "Offline task")
+        kotlinx.coroutines.delay(50)
+
+        val stored = taskDao.tasks.first { it.id == id }
+        assertNull(stored.eisenhowerQuadrant)
+    }
+
+    @Test
+    fun setQuadrantManual_marksUserOverrodeTrue() = runBlocking {
+        val id = repo.addTask(title = "Manual")
+
+        repo.setQuadrantManual(
+            taskId = id,
+            quadrant = com.averycorp.prismtask.domain.model.EisenhowerQuadrant.NOT_URGENT_IMPORTANT
+        )
+
+        val stored = taskDao.tasks.first { it.id == id }
+        assertEquals("Q2", stored.eisenhowerQuadrant)
+        assertTrue(stored.userOverrodeQuadrant)
+        assertEquals("Manually moved", stored.eisenhowerReason)
+    }
+
+    @Test
+    fun classifyInBackground_skipsWhenOverrideStillSet() = runBlocking {
+        // Direct DAO-level proof that the SQL guard holds: with
+        // userOverrodeQuadrant=1, updateEisenhowerQuadrantIfNotOverridden is
+        // a no-op. TaskRepository.classifyInBackground relies on this.
+        taskDao.tasks.add(
+            taskFixture(id = 77L, title = "pinned")
+                .copy(
+                    eisenhowerQuadrant = "Q4",
+                    userOverrodeQuadrant = true
+                )
+        )
+
+        val rows = taskDao.updateEisenhowerQuadrantIfNotOverridden(
+            id = 77L,
+            quadrant = "Q1",
+            reason = "AI says Q1"
+        )
+
+        assertEquals(0, rows)
+        val stored = taskDao.tasks.first { it.id == 77L }
+        assertEquals("Q4", stored.eisenhowerQuadrant)
+        assertTrue(stored.userOverrodeQuadrant)
+    }
+
+    @Test
+    fun reclassify_clearsOverrideAndFiresClassify() = runBlocking {
+        enableAutoClassify()
+        coEvery { eisenhowerClassifier.classify(any()) } returns Result.success(
+            EisenhowerClassifier.Classification(
+                quadrant = com.averycorp.prismtask.domain.model.EisenhowerQuadrant.NOT_URGENT_NOT_IMPORTANT,
+                reason = "Low stakes"
+            )
+        )
+        taskDao.tasks.add(
+            taskFixture(id = 55L, title = "maybe")
+                .copy(eisenhowerQuadrant = "Q1", userOverrodeQuadrant = true)
+        )
+
+        repo.reclassify(55L)
+        kotlinx.coroutines.delay(50)
+
+        val stored = taskDao.tasks.first { it.id == 55L }
+        assertFalse(stored.userOverrodeQuadrant)
+        assertEquals("Q4", stored.eisenhowerQuadrant)
+        coVerify { eisenhowerClassifier.classify(any()) }
+    }
+
+    @Test
+    fun classify_skipsWhenPreferenceDisabled() = runBlocking {
+        // Default setUp already disables auto-classify.
+        repo.addTask(title = "Nobody classify me")
+        kotlinx.coroutines.delay(50)
+        coVerify(exactly = 0) { eisenhowerClassifier.classify(any()) }
+    }
+
+    private fun enableAutoClassify() {
+        every { userPreferences.eisenhowerFlow } returns flowOf(
+            com.averycorp.prismtask.data.preferences.EisenhowerPrefs(autoClassifyEnabled = true)
+        )
+    }
+
+    // ---------------------------------------------------------------------
     // Test helpers
     // ---------------------------------------------------------------------
 
@@ -639,7 +780,58 @@ class TaskRepositoryTest {
 
         override suspend fun getTasksForHabitInRangeOnce(habitId: Long, startDate: Long, endDate: Long): List<TaskEntity> = emptyList()
 
-        override suspend fun updateEisenhowerQuadrant(id: Long, quadrant: String?, reason: String?, updatedAt: Long) {}
+        override suspend fun updateEisenhowerQuadrant(id: Long, quadrant: String?, reason: String?, updatedAt: Long) {
+            val idx = tasks.indexOfFirst { it.id == id }
+            if (idx >= 0) {
+                tasks[idx] = tasks[idx].copy(
+                    eisenhowerQuadrant = quadrant,
+                    eisenhowerReason = reason,
+                    eisenhowerUpdatedAt = updatedAt,
+                    updatedAt = updatedAt
+                )
+            }
+        }
+
+        override suspend fun updateEisenhowerQuadrantIfNotOverridden(
+            id: Long,
+            quadrant: String?,
+            reason: String?,
+            updatedAt: Long
+        ): Int {
+            val idx = tasks.indexOfFirst { it.id == id }.takeIf { it >= 0 } ?: return 0
+            if (tasks[idx].userOverrodeQuadrant) return 0
+            tasks[idx] = tasks[idx].copy(
+                eisenhowerQuadrant = quadrant,
+                eisenhowerReason = reason,
+                eisenhowerUpdatedAt = updatedAt,
+                updatedAt = updatedAt
+            )
+            return 1
+        }
+
+        override suspend fun setManualQuadrant(
+            id: Long,
+            quadrant: String?,
+            reason: String?,
+            updatedAt: Long
+        ) {
+            val idx = tasks.indexOfFirst { it.id == id }.takeIf { it >= 0 } ?: return
+            tasks[idx] = tasks[idx].copy(
+                eisenhowerQuadrant = quadrant,
+                eisenhowerReason = reason,
+                eisenhowerUpdatedAt = updatedAt,
+                userOverrodeQuadrant = true,
+                updatedAt = updatedAt
+            )
+        }
+
+        override suspend fun clearManualQuadrantOverride(id: Long, updatedAt: Long) {
+            val idx = tasks.indexOfFirst { it.id == id }.takeIf { it >= 0 } ?: return
+            tasks[idx] = tasks[idx].copy(
+                userOverrodeQuadrant = false,
+                updatedAt = updatedAt
+            )
+        }
 
         override fun getCategorizedTasks(): Flow<List<TaskEntity>> = flowOf(emptyList())
 

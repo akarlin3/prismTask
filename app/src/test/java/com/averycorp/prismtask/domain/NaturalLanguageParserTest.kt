@@ -1,5 +1,6 @@
 package com.averycorp.prismtask.domain
 
+import com.averycorp.prismtask.core.time.TimeProvider
 import com.averycorp.prismtask.data.remote.api.AdminBugReportResponse
 import com.averycorp.prismtask.data.remote.api.BugReportMirrorResponse
 import com.averycorp.prismtask.data.remote.api.BugReportStatusUpdateRequest
@@ -9,6 +10,8 @@ import com.averycorp.prismtask.data.remote.api.CoachingRequest
 import com.averycorp.prismtask.data.remote.api.CoachingResponse
 import com.averycorp.prismtask.data.remote.api.DailyBriefingRequest
 import com.averycorp.prismtask.data.remote.api.DailyBriefingResponse
+import com.averycorp.prismtask.data.remote.api.EisenhowerClassifyTextRequest
+import com.averycorp.prismtask.data.remote.api.EisenhowerClassifyTextResponse
 import com.averycorp.prismtask.data.remote.api.EisenhowerRequest
 import com.averycorp.prismtask.data.remote.api.EisenhowerResponse
 import com.averycorp.prismtask.data.remote.api.EveningSummaryRequest
@@ -22,6 +25,8 @@ import com.averycorp.prismtask.data.remote.api.ParseImportRequest
 import com.averycorp.prismtask.data.remote.api.ParseImportResponse
 import com.averycorp.prismtask.data.remote.api.ParseRequest
 import com.averycorp.prismtask.data.remote.api.ParsedTaskResponse
+import com.averycorp.prismtask.data.remote.api.PomodoroCoachingRequest
+import com.averycorp.prismtask.data.remote.api.PomodoroCoachingResponse
 import com.averycorp.prismtask.data.remote.api.PomodoroRequest
 import com.averycorp.prismtask.data.remote.api.PomodoroResponse
 import com.averycorp.prismtask.data.remote.api.PrismTaskApi
@@ -51,8 +56,8 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
-import org.junit.Ignore
 import org.junit.Test
+import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
@@ -101,7 +106,17 @@ class NaturalLanguageParserTest {
         override suspend fun categorizeEisenhower(request: EisenhowerRequest): EisenhowerResponse =
             error("not used in offline parser tests")
 
+        override suspend fun classifyEisenhowerText(
+            request: EisenhowerClassifyTextRequest
+        ): EisenhowerClassifyTextResponse =
+            error("not used in offline parser tests")
+
         override suspend fun planPomodoro(request: PomodoroRequest): PomodoroResponse =
+            error("not used in offline parser tests")
+
+        override suspend fun getPomodoroCoaching(
+            request: PomodoroCoachingRequest
+        ): PomodoroCoachingResponse =
             error("not used in offline parser tests")
 
         override suspend fun getDailyBriefing(request: DailyBriefingRequest): DailyBriefingResponse =
@@ -168,9 +183,22 @@ class NaturalLanguageParserTest {
             .toInstant()
             .toEpochMilli()
 
+    // Pin the parser's clock to the exact start of `today` (00:00:00) so
+    // time-of-day tests like "at 3pm" or "at midnight" always resolve to
+    // today, not tomorrow. Without this, the logical-day boundary rolls
+    // past target times forward whenever the CI wall clock is past them;
+    // using the very first instant of the day keeps every target time
+    // inside the current logical day and >= now.
+    private val fixedTimeProvider = object : TimeProvider {
+        override fun now(): Instant =
+            today.atStartOfDay(zone).toInstant()
+
+        override fun zone(): ZoneId = zone
+    }
+
     @Before
     fun setup() {
-        parser = NaturalLanguageParser(stubApi)
+        parser = NaturalLanguageParser(stubApi, timeProvider = fixedTimeProvider)
     }
 
     // Basic extraction tests
@@ -304,19 +332,11 @@ class NaturalLanguageParserTest {
 
     // Time parsing tests
     //
-    // NOTE: The 6 @Ignored tests below all hard-code `today = LocalDate.now()`
-    // in the expectation while the parser now rolls a bare "at 3pm" / "at
-    // noon" forward to tomorrow when the wall clock is past the parsed time.
-    // That means these tests pass only when the CI runner happens to execute
-    // them before the test's target wall-clock time; they were green on
-    // Apr 18 when CI last ran but fail on every afternoon/evening CI run.
-    // Proper fix: inject a clock into NaturalLanguageParser and pin it in
-    // tests. Tracked with re-enable-android-ci.
+    // These rely on the parser's injected [timeProvider] being pinned to
+    // 00:01 local of [today] (see setup()). Without the pin, the logical-day
+    // boundary rolls past target times forward to tomorrow whenever the CI
+    // wall clock is past the target time.
 
-    @Ignore(
-        "CI-RE-ENABLE: time-of-day tests assume parser returns today at HH:mm; " +
-            "parser now rolls past times to tomorrow. Needs an injectable clock."
-    )
     @Test
     fun test_atTime() {
         val result = parser.parse("Call at 3pm")
@@ -324,7 +344,6 @@ class NaturalLanguageParserTest {
         assertEquals(timeMillis(today, LocalTime.of(15, 0)), result.dueTime)
     }
 
-    @Ignore("CI-RE-ENABLE: see test_atTime.")
     @Test
     fun test_at24hr() {
         val result = parser.parse("Deploy at 15:00")
@@ -332,7 +351,6 @@ class NaturalLanguageParserTest {
         assertEquals(timeMillis(today, LocalTime.of(15, 0)), result.dueTime)
     }
 
-    @Ignore("CI-RE-ENABLE: see test_atTime.")
     @Test
     fun test_atTimeWithMinutes() {
         val result = parser.parse("Meeting at 2:30pm")
@@ -340,7 +358,6 @@ class NaturalLanguageParserTest {
         assertEquals(timeMillis(today, LocalTime.of(14, 30)), result.dueTime)
     }
 
-    @Ignore("CI-RE-ENABLE: see test_atTime.")
     @Test
     fun test_noon() {
         val result = parser.parse("Lunch at noon")
@@ -348,7 +365,6 @@ class NaturalLanguageParserTest {
         assertEquals(timeMillis(today, LocalTime.NOON), result.dueTime)
     }
 
-    @Ignore("CI-RE-ENABLE: see test_atTime.")
     @Test
     fun test_midnight() {
         val result = parser.parse("Deploy at midnight")
@@ -443,7 +459,6 @@ class NaturalLanguageParserTest {
         assertEquals("backend", result.projectName)
     }
 
-    @Ignore("CI-RE-ENABLE: see test_atTime — parser rolls past times forward.")
     @Test
     fun test_timeWithoutDate_defaultsToToday() {
         val result = parser.parse("Call dentist at 3pm")

@@ -1125,6 +1125,287 @@ val MIGRATION_52_53 = object : Migration(52, 53) {
     }
 }
 
+// v53→v54 creates `medications` + `medication_doses` as new top-level entity
+// tables (spec: `docs/SPEC_MEDICATIONS_TOP_LEVEL.md`, §3.2). Backfills
+// `medications` rows from `self_care_steps` WHERE routine_type='medication',
+// grouping duplicate-name source rows via GROUP_CONCAT/REPLACE. Quarantines
+// the source data — source rows stay readable for the convergence window
+// and are dropped by a future Phase 2 cleanup migration (v54→v55).
+//
+// Deviations from spec §3.2 for on-device safety:
+//  - No json_each() dose backfill here (spec Step D) — the `->>` operator
+//    requires SQLite 3.38+, but min SDK 26 ships SQLite 3.19 and JSON1
+//    availability is OEM-dependent. Dose backfill runs in
+//    `MedicationMigrationRunner` (Kotlin, PR 2) which parses
+//    self_care_logs.completed_steps in-process.
+//  - No sync_metadata sentinel row (spec Step F) — the one-shot flags live
+//    in `MedicationMigrationPreferences` DataStore instead (PR 2).
+val MIGRATION_53_54 = object : Migration(53, 54) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        // A. New tables.
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `medications` (
+              `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+              `cloud_id` TEXT,
+              `name` TEXT NOT NULL,
+              `display_label` TEXT,
+              `notes` TEXT NOT NULL DEFAULT '',
+              `tier` TEXT NOT NULL DEFAULT 'essential',
+              `is_archived` INTEGER NOT NULL DEFAULT 0,
+              `sort_order` INTEGER NOT NULL DEFAULT 0,
+              `schedule_mode` TEXT NOT NULL DEFAULT 'TIMES_OF_DAY',
+              `times_of_day` TEXT,
+              `specific_times` TEXT,
+              `interval_millis` INTEGER,
+              `doses_per_day` INTEGER NOT NULL DEFAULT 1,
+              `pill_count` INTEGER,
+              `pills_per_dose` INTEGER NOT NULL DEFAULT 1,
+              `last_refill_date` INTEGER,
+              `pharmacy_name` TEXT,
+              `pharmacy_phone` TEXT,
+              `reminder_days_before` INTEGER NOT NULL DEFAULT 3,
+              `created_at` INTEGER NOT NULL,
+              `updated_at` INTEGER NOT NULL
+            )
+            """.trimIndent()
+        )
+        db.execSQL(
+            "CREATE UNIQUE INDEX IF NOT EXISTS `index_medications_cloud_id` " +
+                "ON `medications` (`cloud_id`)"
+        )
+        db.execSQL(
+            "CREATE UNIQUE INDEX IF NOT EXISTS `index_medications_name` " +
+                "ON `medications` (`name`)"
+        )
+
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `medication_doses` (
+              `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+              `cloud_id` TEXT,
+              `medication_id` INTEGER NOT NULL,
+              `slot_key` TEXT NOT NULL,
+              `taken_at` INTEGER NOT NULL,
+              `taken_date_local` TEXT NOT NULL,
+              `note` TEXT NOT NULL DEFAULT '',
+              `created_at` INTEGER NOT NULL,
+              `updated_at` INTEGER NOT NULL,
+              FOREIGN KEY(`medication_id`) REFERENCES `medications`(`id`) ON DELETE CASCADE
+            )
+            """.trimIndent()
+        )
+        db.execSQL(
+            "CREATE UNIQUE INDEX IF NOT EXISTS `index_medication_doses_cloud_id` " +
+                "ON `medication_doses` (`cloud_id`)"
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_medication_doses_medication_id_taken_date_local` " +
+                "ON `medication_doses` (`medication_id`, `taken_date_local`)"
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_medication_doses_taken_date_local` " +
+                "ON `medication_doses` (`taken_date_local`)"
+        )
+
+        // B. Quarantine tables — belt-and-braces copies of pre-migration
+        //    source rows for forensics / emergency rollback. Not registered
+        //    with Room (so Room's identity-hash check ignores them, same
+        //    pattern as Fix D's quarantine_task_completions_null_taskid).
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `quarantine_medication_selfcare_steps` AS " +
+                "SELECT * FROM `self_care_steps` WHERE `routine_type` = 'medication'"
+        )
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `quarantine_medication_selfcare_logs` AS " +
+                "SELECT * FROM `self_care_logs` WHERE `routine_type` = 'medication'"
+        )
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `quarantine_medication_refills` AS " +
+                "SELECT * FROM `medication_refills`"
+        )
+
+        // C. Backfill medications from self_care_steps (routine_type='medication').
+        //    Groups by COALESCE(NULLIF(TRIM(medication_name), ''), label) so
+        //    duplicate-name source rows collapse to one row. `display_label`
+        //    preserves disambiguating detail by concatenating distinct labels
+        //    with " / ". `tier` stably picks the tier from the MIN-id source
+        //    row in each group. Refill data (pharmacy_name, pill_count, etc.)
+        //    merges in-line via LEFT JOIN on medication_name. schedule_mode
+        //    is hard-coded 'TIMES_OF_DAY' here; the post-migration
+        //    `MedicationMigrationRunner` overrides it based on the user's
+        //    existing `MedicationPreferences` + built-in Medication habit's
+        //    `reminderIntervalMillis`.
+        //
+        //    The REPLACE(GROUP_CONCAT, ',', ' / ') assumes no literal ','
+        //    appears in any self_care_steps.label string (verified against
+        //    representative data at spec-time; see spec Appendix B#4).
+        db.execSQL(
+            """
+            INSERT INTO medications (
+              name, display_label, notes, tier,
+              schedule_mode, times_of_day,
+              pill_count, pills_per_dose, doses_per_day, last_refill_date,
+              pharmacy_name, pharmacy_phone, reminder_days_before,
+              created_at, updated_at
+            )
+            SELECT
+              grouped.normalized_name,
+              grouped.merged_labels,
+              '',
+              grouped.picked_tier,
+              'TIMES_OF_DAY',
+              grouped.merged_times_of_day,
+              r.pill_count,
+              COALESCE(r.pills_per_dose, 1),
+              COALESCE(r.doses_per_day, 1),
+              r.last_refill_date,
+              r.pharmacy_name,
+              r.pharmacy_phone,
+              COALESCE(r.reminder_days_before, 3),
+              strftime('%s','now') * 1000,
+              strftime('%s','now') * 1000
+            FROM (
+              SELECT
+                COALESCE(NULLIF(TRIM(medication_name), ''), label) AS normalized_name,
+                REPLACE(GROUP_CONCAT(DISTINCT label), ',', ' / ') AS merged_labels,
+                GROUP_CONCAT(DISTINCT time_of_day) AS merged_times_of_day,
+                (SELECT s2.tier FROM self_care_steps s2
+                  WHERE s2.routine_type = 'medication'
+                    AND COALESCE(NULLIF(TRIM(s2.medication_name), ''), s2.label) =
+                        COALESCE(NULLIF(TRIM(self_care_steps.medication_name), ''), self_care_steps.label)
+                  ORDER BY s2.id ASC LIMIT 1) AS picked_tier
+              FROM self_care_steps
+              WHERE routine_type = 'medication'
+              GROUP BY normalized_name
+            ) grouped
+            LEFT JOIN medication_refills r
+              ON r.medication_name = grouped.normalized_name
+            """.trimIndent()
+        )
+
+        // D. Dose backfill intentionally NOT here — handled by
+        //    MedicationMigrationRunner (PR 2) because the JSON parsing
+        //    strategy is safer in Kotlin than SQLite's JSON1.
+        //
+        // E. Source tables (self_care_steps, self_care_logs, habits,
+        //    medication_refills) are NOT modified. Phase 2 cleanup migration
+        //    drops them after a convergence window.
+    }
+}
+
+/**
+ * v54 → v55: opt the seven remaining user-config Room entities into Firestore
+ * sync by adding `cloud_id TEXT` (unique-indexed) and `updated_at INTEGER NOT
+ * NULL DEFAULT 0`.
+ *
+ * - `reminder_profiles` (NotificationProfileEntity)
+ * - `custom_sounds`     (CustomSoundEntity)
+ * - `saved_filters`     (SavedFilterEntity)
+ * - `nlp_shortcuts`     (NlpShortcutEntity)
+ * - `habit_templates`   (HabitTemplateEntity)
+ * - `project_templates` (ProjectTemplateEntity)
+ * - `boundary_rules`    (BoundaryRuleEntity)
+ *
+ * Each table previously had no sync surface — so unlike [MIGRATION_51_52]
+ * there is no backfill from `sync_metadata` and no collision resolution:
+ * every row's `cloud_id` starts NULL, and `SyncService.doInitialUpload`
+ * will assign cloud IDs on the next sign-in.
+ *
+ * `updated_at` defaults to `0` for existing rows — a fresh update will bump
+ * it to the current wall clock, which beats every remote timestamp and
+ * causes the first push after migration to win any last-write conflicts.
+ * That's the desired semantic: the device that gets migrated first also
+ * owns the seed copy of these tables cloud-side.
+ */
+val MIGRATION_54_55 = object : Migration(54, 55) {
+    private val syncableTables = listOf(
+        "reminder_profiles",
+        "custom_sounds",
+        "saved_filters",
+        "nlp_shortcuts",
+        "habit_templates",
+        "project_templates",
+        "boundary_rules"
+    )
+
+    override fun migrate(db: SupportSQLiteDatabase) {
+        for (table in syncableTables) {
+            db.execSQL("ALTER TABLE `$table` ADD COLUMN `cloud_id` TEXT")
+            db.execSQL("ALTER TABLE `$table` ADD COLUMN `updated_at` INTEGER NOT NULL DEFAULT 0")
+            db.execSQL(
+                "CREATE UNIQUE INDEX IF NOT EXISTS `index_${table}_cloud_id` " +
+                    "ON `$table` (`cloud_id`)"
+            )
+        }
+    }
+}
+
+/**
+ * v55 → v56: opt the nine remaining user-authored content entities into
+ * Firestore sync by adding `cloud_id TEXT` (unique-indexed). Seven of
+ * them also gain `updated_at INTEGER NOT NULL DEFAULT 0`; the two that
+ * already had `updated_at` (from earlier migrations) are left alone on
+ * that column.
+ *
+ * Tables:
+ * - `check_in_logs`                    (CheckInLogEntity)       — needs updated_at
+ * - `mood_energy_logs`                 (MoodEnergyLogEntity)    — needs updated_at
+ * - `focus_release_logs`               (FocusReleaseLogEntity)  — needs updated_at; FK task_id (SET_NULL)
+ * - `medication_refills`               (MedicationRefillEntity) — updated_at already present
+ * - `weekly_reviews`                   (WeeklyReviewEntity)     — needs updated_at
+ * - `daily_essential_slot_completions` (DailyEssentialSlotCompletionEntity) — updated_at already present
+ * - `assignments`                      (AssignmentEntity)       — needs updated_at; FK course_id (CASCADE)
+ * - `attachments`                      (AttachmentEntity)       — needs updated_at; FK taskId (CASCADE)
+ * - `study_logs`                       (StudyLogEntity)         — needs updated_at; FK course_pick + assignment_pick (SET_NULL)
+ *
+ * No backfill needed — none of these tables had any prior sync_metadata
+ * mappings. First sign-in post-migration runs `SyncService.doInitialUpload`
+ * which assigns cloud IDs.
+ */
+val MIGRATION_55_56 = object : Migration(55, 56) {
+    /** Tables that already have `updated_at` from earlier migrations. */
+    private val alreadyHaveUpdatedAt = setOf("medication_refills", "daily_essential_slot_completions")
+
+    private val syncableTables = listOf(
+        "check_in_logs",
+        "mood_energy_logs",
+        "focus_release_logs",
+        "medication_refills",
+        "weekly_reviews",
+        "daily_essential_slot_completions",
+        "assignments",
+        "attachments",
+        "study_logs"
+    )
+
+    override fun migrate(db: SupportSQLiteDatabase) {
+        for (table in syncableTables) {
+            db.execSQL("ALTER TABLE `$table` ADD COLUMN `cloud_id` TEXT")
+            if (table !in alreadyHaveUpdatedAt) {
+                db.execSQL("ALTER TABLE `$table` ADD COLUMN `updated_at` INTEGER NOT NULL DEFAULT 0")
+            }
+            db.execSQL(
+                "CREATE UNIQUE INDEX IF NOT EXISTS `index_${table}_cloud_id` " +
+                    "ON `$table` (`cloud_id`)"
+            )
+        }
+    }
+}
+
+/**
+ * v1.4.x Eisenhower auto-classification: add `user_overrode_quadrant` so that
+ * manual moves survive subsequent AI reclassification passes. Defaults to 0
+ * (false) for all existing rows — they carry no prior override intent.
+ */
+val MIGRATION_56_57 = object : Migration(56, 57) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "ALTER TABLE `tasks` ADD COLUMN `user_overrode_quadrant` INTEGER NOT NULL DEFAULT 0"
+        )
+    }
+}
+
 val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_1_2,
     MIGRATION_2_3,
@@ -1177,5 +1458,9 @@ val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_49_50,
     MIGRATION_50_51,
     MIGRATION_51_52,
-    MIGRATION_52_53
+    MIGRATION_52_53,
+    MIGRATION_53_54,
+    MIGRATION_54_55,
+    MIGRATION_55_56,
+    MIGRATION_56_57
 )

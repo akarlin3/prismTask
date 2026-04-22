@@ -74,7 +74,7 @@ data class CustomLeisureSection(
     val customActivities: List<CustomLeisureActivity>
 )
 
-private val Context.leisureDataStore: DataStore<Preferences> by preferencesDataStore(name = "leisure_prefs")
+internal val Context.leisureDataStore: DataStore<Preferences> by preferencesDataStore(name = "leisure_prefs")
 
 @Singleton
 class LeisurePreferences

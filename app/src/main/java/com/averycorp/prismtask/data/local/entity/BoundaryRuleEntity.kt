@@ -2,6 +2,7 @@ package com.averycorp.prismtask.data.local.entity
 
 import androidx.room.ColumnInfo
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
 /**
@@ -12,7 +13,10 @@ import androidx.room.PrimaryKey
  * set as a CSV of [java.time.DayOfWeek.getValue] ordinals so Room doesn't
  * need a TypeConverter.
  */
-@Entity(tableName = "boundary_rules")
+@Entity(
+    tableName = "boundary_rules",
+    indices = [Index(value = ["cloud_id"], unique = true)]
+)
 data class BoundaryRuleEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
@@ -33,5 +37,11 @@ data class BoundaryRuleEntity(
     @ColumnInfo(name = "is_built_in", defaultValue = "0")
     val isBuiltIn: Boolean = false,
     @ColumnInfo(name = "created_at")
-    val createdAt: Long = System.currentTimeMillis()
+    val createdAt: Long = System.currentTimeMillis(),
+    /** Firestore document ID; NULL until first sync push assigns one. */
+    @ColumnInfo(name = "cloud_id")
+    val cloudId: String? = null,
+    /** Last-write-wins timestamp in ms; bumped on every user-visible write. */
+    @ColumnInfo(name = "updated_at", defaultValue = "0")
+    val updatedAt: Long = 0L
 )

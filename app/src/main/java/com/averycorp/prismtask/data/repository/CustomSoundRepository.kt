@@ -5,6 +5,7 @@ import android.media.MediaMetadataRetriever
 import android.net.Uri
 import com.averycorp.prismtask.data.local.dao.CustomSoundDao
 import com.averycorp.prismtask.data.local.entity.CustomSoundEntity
+import com.averycorp.prismtask.data.remote.SyncTracker
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -32,7 +33,8 @@ class CustomSoundRepository
 @Inject
 constructor(
     @ApplicationContext private val context: Context,
-    private val dao: CustomSoundDao
+    private val dao: CustomSoundDao,
+    private val syncTracker: SyncTracker
 ) {
     fun getAll(): Flow<List<CustomSoundEntity>> = dao.getAll()
 
@@ -52,6 +54,7 @@ constructor(
             }
         }
         dao.delete(sound)
+        syncTracker.trackDelete(sound.id, "custom_sound")
     }
 
     sealed class ImportResult {
@@ -117,9 +120,11 @@ constructor(
             format = format,
             sizeBytes = bytes.size.toLong(),
             durationMs = durationMs,
-            createdAt = System.currentTimeMillis()
+            createdAt = System.currentTimeMillis(),
+            updatedAt = System.currentTimeMillis()
         )
         val id = dao.insert(entity)
+        syncTracker.trackCreate(id, "custom_sound")
         ImportResult.Success(entity.copy(id = id))
     }
 

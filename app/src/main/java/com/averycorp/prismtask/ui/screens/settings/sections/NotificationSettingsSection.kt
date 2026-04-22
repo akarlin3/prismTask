@@ -53,6 +53,7 @@ fun NotificationSettingsSection(
     dailyBriefingEnabled: Boolean,
     eveningSummaryEnabled: Boolean,
     weeklySummaryEnabled: Boolean,
+    weeklyTaskSummaryEnabled: Boolean,
     overloadAlertsEnabled: Boolean,
     reengagementEnabled: Boolean,
     fullScreenNotificationsEnabled: Boolean,
@@ -68,6 +69,7 @@ fun NotificationSettingsSection(
     onDailyBriefingToggle: (Boolean) -> Unit,
     onEveningSummaryToggle: (Boolean) -> Unit,
     onWeeklySummaryToggle: (Boolean) -> Unit,
+    onWeeklyTaskSummaryToggle: (Boolean) -> Unit,
     onOverloadAlertsToggle: (Boolean) -> Unit,
     onReengagementToggle: (Boolean) -> Unit,
     onFullScreenNotificationsToggle: (Boolean) -> Unit,
@@ -264,6 +266,13 @@ fun NotificationSettingsSection(
         subtitle = "Weekly habit recap (Sunday 7 PM)",
         checked = weeklySummaryEnabled,
         onCheckedChange = onWeeklySummaryToggle
+    )
+
+    SettingsToggleRow(
+        title = "Weekly Task Summary",
+        subtitle = "Weekly task recap (Sunday 7:30 PM)",
+        checked = weeklyTaskSummaryEnabled,
+        onCheckedChange = onWeeklyTaskSummaryToggle
     )
 
     SettingsToggleRow(

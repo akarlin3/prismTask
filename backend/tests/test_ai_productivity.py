@@ -694,3 +694,227 @@ class TestWeeklyReviewService:
             assert "0 task(s) that slipped" in prompt
             assert "(none)" in prompt
             assert "(not provided)" in prompt
+
+
+# ----------------------------------------------------------------------------
+# A2 Pomodoro+ AI Coaching (pre-session / break-activity / session-recap)
+# ----------------------------------------------------------------------------
+
+
+def _make_text_mock_response(text: str) -> MagicMock:
+    """Mock a Haiku response that isn't JSON — coaching surfaces return raw text."""
+    content_block = MagicMock()
+    content_block.text = text
+    message = MagicMock()
+    message.content = [content_block]
+    return message
+
+
+class TestPomodoroCoachingService:
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "sk-test-key"})
+    def test_pre_session_prompt_includes_tasks(self):
+        from app.services.ai_productivity import generate_pomodoro_coaching
+
+        with patch("app.services.ai_productivity.anthropic") as mock_anthropic:
+            mock_client = MagicMock()
+            mock_anthropic.Anthropic.return_value = mock_client
+            mock_client.messages.create.return_value = _make_text_mock_response(
+                "Start with the report draft — it's the most urgent."
+            )
+            result = generate_pomodoro_coaching(
+                trigger="pre_session",
+                upcoming_tasks=[{"task_id": "1", "title": "Write report", "allocated_minutes": 25}],
+                session_length_minutes=25,
+            )
+            assert result == "Start with the report draft — it's the most urgent."
+            prompt = mock_client.messages.create.call_args.kwargs["messages"][0]["content"]
+            assert "25-minute" in prompt
+            assert "Write report" in prompt
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "sk-test-key"})
+    def test_pre_session_strips_quotes_and_whitespace(self):
+        from app.services.ai_productivity import generate_pomodoro_coaching
+
+        with patch("app.services.ai_productivity.anthropic") as mock_anthropic:
+            mock_client = MagicMock()
+            mock_anthropic.Anthropic.return_value = mock_client
+            # Haiku sometimes wraps the response in quotes / adds trailing newlines.
+            mock_client.messages.create.return_value = _make_text_mock_response(
+                '  "Begin with the draft."  \n'
+            )
+            result = generate_pomodoro_coaching(
+                trigger="pre_session",
+                upcoming_tasks=[{"title": "Draft"}],
+                session_length_minutes=25,
+            )
+            assert result == "Begin with the draft."
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "sk-test-key"})
+    def test_break_activity_prompt_includes_recent_suggestions(self):
+        from app.services.ai_productivity import generate_pomodoro_coaching
+
+        with patch("app.services.ai_productivity.anthropic") as mock_anthropic:
+            mock_client = MagicMock()
+            mock_anthropic.Anthropic.return_value = mock_client
+            mock_client.messages.create.return_value = _make_text_mock_response(
+                "Roll your shoulders back a few times."
+            )
+            result = generate_pomodoro_coaching(
+                trigger="break_activity",
+                elapsed_minutes=50,
+                break_type="short",
+                recent_suggestions=["Drink water.", "Eye rest."],
+            )
+            assert "Roll your shoulders" in result
+            prompt = mock_client.messages.create.call_args.kwargs["messages"][0]["content"]
+            # Recent suggestions must appear in the prompt so Haiku varies.
+            assert "Drink water." in prompt
+            assert "Eye rest." in prompt
+            assert "short" in prompt
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "sk-test-key"})
+    def test_session_recap_prompt_partitions_tasks(self):
+        from app.services.ai_productivity import generate_pomodoro_coaching
+
+        with patch("app.services.ai_productivity.anthropic") as mock_anthropic:
+            mock_client = MagicMock()
+            mock_anthropic.Anthropic.return_value = mock_client
+            mock_client.messages.create.return_value = _make_text_mock_response(
+                "Great job shipping the draft. Next up: tighten the intro."
+            )
+            result = generate_pomodoro_coaching(
+                trigger="session_recap",
+                completed_tasks=[{"title": "Draft"}],
+                started_tasks=[{"title": "Review"}],
+                session_duration_minutes=50,
+            )
+            assert "Great job" in result
+            prompt = mock_client.messages.create.call_args.kwargs["messages"][0]["content"]
+            assert "50-minute" in prompt
+            assert "Draft" in prompt
+            assert "Review" in prompt
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "sk-test-key"})
+    def test_unknown_trigger_raises_value_error(self):
+        from app.services.ai_productivity import generate_pomodoro_coaching
+
+        with patch("app.services.ai_productivity.anthropic"):
+            with pytest.raises(ValueError, match="Unknown Pomodoro coaching trigger"):
+                generate_pomodoro_coaching(trigger="invented_surface")
+
+    def test_missing_api_key_raises_runtime_error(self):
+        from app.services.ai_productivity import generate_pomodoro_coaching
+
+        with patch.dict("os.environ", {}, clear=True), \
+             patch("app.services.ai_productivity.settings") as mock_settings:
+            mock_settings.ANTHROPIC_API_KEY = None
+            with pytest.raises(RuntimeError, match="ANTHROPIC_API_KEY"):
+                generate_pomodoro_coaching(
+                    trigger="pre_session",
+                    upcoming_tasks=[],
+                    session_length_minutes=25,
+                )
+
+
+class TestPomodoroCoachingEndpoint:
+    @pytest.mark.asyncio
+    async def test_pre_session_happy_path(
+        self, client: AsyncClient, pro_auth_headers: dict
+    ):
+        with patch("app.routers.ai.pomodoro_coaching_rate_limiter"), \
+             patch("app.services.ai_productivity.generate_pomodoro_coaching") as mock_gen:
+            mock_gen.return_value = "Start with the draft."
+            resp = await client.post(
+                "/api/v1/ai/pomodoro-coaching",
+                json={
+                    "trigger": "pre_session",
+                    "upcoming_tasks": [
+                        {"task_id": "1", "title": "Write report", "allocated_minutes": 25}
+                    ],
+                    "session_length_minutes": 25,
+                },
+                headers=pro_auth_headers,
+            )
+            assert resp.status_code == 200, resp.text
+            assert resp.json() == {"message": "Start with the draft."}
+            mock_gen.assert_called_once()
+            kwargs = mock_gen.call_args.kwargs
+            assert kwargs["trigger"] == "pre_session"
+            assert kwargs["session_length_minutes"] == 25
+
+    @pytest.mark.asyncio
+    async def test_break_activity_forwards_all_fields(
+        self, client: AsyncClient, pro_auth_headers: dict
+    ):
+        with patch("app.routers.ai.pomodoro_coaching_rate_limiter"), \
+             patch("app.services.ai_productivity.generate_pomodoro_coaching") as mock_gen:
+            mock_gen.return_value = "Take a 2-minute walk."
+            resp = await client.post(
+                "/api/v1/ai/pomodoro-coaching",
+                json={
+                    "trigger": "break_activity",
+                    "elapsed_minutes": 50,
+                    "break_type": "short",
+                    "recent_suggestions": ["Drink water."],
+                },
+                headers=pro_auth_headers,
+            )
+            assert resp.status_code == 200, resp.text
+            kwargs = mock_gen.call_args.kwargs
+            assert kwargs["trigger"] == "break_activity"
+            assert kwargs["elapsed_minutes"] == 50
+            assert kwargs["break_type"] == "short"
+            assert kwargs["recent_suggestions"] == ["Drink water."]
+
+    @pytest.mark.asyncio
+    async def test_invalid_trigger_rejected_by_schema(
+        self, client: AsyncClient, pro_auth_headers: dict
+    ):
+        with patch("app.routers.ai.pomodoro_coaching_rate_limiter"):
+            resp = await client.post(
+                "/api/v1/ai/pomodoro-coaching",
+                json={"trigger": "not_a_real_surface"},
+                headers=pro_auth_headers,
+            )
+            # Pydantic rejects the regex-constrained trigger → 422.
+            assert resp.status_code == 422
+
+    @pytest.mark.asyncio
+    async def test_invalid_break_type_rejected(
+        self, client: AsyncClient, pro_auth_headers: dict
+    ):
+        with patch("app.routers.ai.pomodoro_coaching_rate_limiter"):
+            resp = await client.post(
+                "/api/v1/ai/pomodoro-coaching",
+                json={"trigger": "break_activity", "break_type": "medium"},
+                headers=pro_auth_headers,
+            )
+            assert resp.status_code == 422
+
+    @pytest.mark.asyncio
+    async def test_service_runtime_error_becomes_503(
+        self, client: AsyncClient, pro_auth_headers: dict
+    ):
+        with patch("app.routers.ai.pomodoro_coaching_rate_limiter"), \
+             patch("app.services.ai_productivity.generate_pomodoro_coaching") as mock_gen:
+            mock_gen.side_effect = RuntimeError("ANTHROPIC_API_KEY missing")
+            resp = await client.post(
+                "/api/v1/ai/pomodoro-coaching",
+                json={"trigger": "pre_session", "session_length_minutes": 25},
+                headers=pro_auth_headers,
+            )
+            assert resp.status_code == 503
+
+    @pytest.mark.asyncio
+    async def test_service_value_error_becomes_500(
+        self, client: AsyncClient, pro_auth_headers: dict
+    ):
+        with patch("app.routers.ai.pomodoro_coaching_rate_limiter"), \
+             patch("app.services.ai_productivity.generate_pomodoro_coaching") as mock_gen:
+            mock_gen.side_effect = ValueError("bad response shape")
+            resp = await client.post(
+                "/api/v1/ai/pomodoro-coaching",
+                json={"trigger": "session_recap", "session_duration_minutes": 50},
+                headers=pro_auth_headers,
+            )
+            assert resp.status_code == 500

@@ -14,7 +14,7 @@ import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
 
-private val Context.timerDataStore: DataStore<Preferences> by preferencesDataStore(name = "timer_prefs")
+internal val Context.timerDataStore: DataStore<Preferences> by preferencesDataStore(name = "timer_prefs")
 
 @Singleton
 class TimerPreferences
@@ -34,6 +34,13 @@ constructor(
         private val POMODORO_AVAILABLE_MINUTES = intPreferencesKey("pomodoro_available_minutes")
         private val POMODORO_FOCUS_PREFERENCE = stringPreferencesKey("pomodoro_focus_preference")
         private val BUZZ_UNTIL_DISMISSED = booleanPreferencesKey("timer_buzz_until_dismissed")
+
+        // ---- A2 Pomodoro+ AI Coaching toggles ---------------------------
+        // Distinct subsection so parallel Weekly Task Summary work doesn't
+        // collide on key names. All three default ON per spec.
+        private val POMODORO_AI_PRE_SESSION = booleanPreferencesKey("pomodoro_ai_pre_session_coaching")
+        private val POMODORO_AI_BREAK = booleanPreferencesKey("pomodoro_ai_break_coaching")
+        private val POMODORO_AI_RECAP = booleanPreferencesKey("pomodoro_ai_recap_coaching")
 
         const val DEFAULT_WORK_SECONDS = 25 * 60
         const val DEFAULT_BREAK_SECONDS = 5 * 60
@@ -160,5 +167,29 @@ constructor(
         context.timerDataStore.edit { prefs ->
             prefs[BUZZ_UNTIL_DISMISSED] = enabled
         }
+    }
+
+    // ---- A2 Pomodoro+ AI Coaching accessors ---------------------------
+    // All three default true; the getters apply the default on missing key.
+
+    fun getPomodoroPreSessionCoachingEnabled(): Flow<Boolean> =
+        context.timerDataStore.data.map { prefs -> prefs[POMODORO_AI_PRE_SESSION] ?: true }
+
+    fun getPomodoroBreakCoachingEnabled(): Flow<Boolean> =
+        context.timerDataStore.data.map { prefs -> prefs[POMODORO_AI_BREAK] ?: true }
+
+    fun getPomodoroRecapCoachingEnabled(): Flow<Boolean> =
+        context.timerDataStore.data.map { prefs -> prefs[POMODORO_AI_RECAP] ?: true }
+
+    suspend fun setPomodoroPreSessionCoachingEnabled(enabled: Boolean) {
+        context.timerDataStore.edit { prefs -> prefs[POMODORO_AI_PRE_SESSION] = enabled }
+    }
+
+    suspend fun setPomodoroBreakCoachingEnabled(enabled: Boolean) {
+        context.timerDataStore.edit { prefs -> prefs[POMODORO_AI_BREAK] = enabled }
+    }
+
+    suspend fun setPomodoroRecapCoachingEnabled(enabled: Boolean) {
+        context.timerDataStore.edit { prefs -> prefs[POMODORO_AI_RECAP] = enabled }
     }
 }

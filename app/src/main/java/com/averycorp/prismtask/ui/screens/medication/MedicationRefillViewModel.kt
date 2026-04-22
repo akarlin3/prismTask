@@ -2,8 +2,8 @@ package com.averycorp.prismtask.ui.screens.medication
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.averycorp.prismtask.data.local.entity.MedicationRefillEntity
-import com.averycorp.prismtask.data.repository.MedicationRefillRepository
+import com.averycorp.prismtask.data.local.entity.MedicationEntity
+import com.averycorp.prismtask.data.repository.MedicationRepository
 import com.averycorp.prismtask.domain.usecase.RefillCalculator
 import com.averycorp.prismtask.domain.usecase.RefillForecast
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -15,26 +15,39 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
- * ViewModel for the Medication Refill tracking screen (v1.4.0 V10).
+ * ViewModel for the Medication Refill tracking screen.
  *
- * Exposes each persisted [MedicationRefillEntity] row alongside its live
- * [RefillForecast] so the UI can render urgency badges without having to
- * run the calculator itself.
+ * Post v1.4 medication-top-level refactor (spec:
+ * `docs/SPEC_MEDICATIONS_TOP_LEVEL.md` §6.1), reads from
+ * [MedicationRepository] — the old `MedicationRefillRepository` +
+ * `MedicationRefillEntity` path is going away in Phase 2 cleanup. Only
+ * medications with a non-null `pillCount` participate in refill tracking
+ * (a user has to explicitly enter a pill count for a medication to show
+ * up on this screen).
  */
 @HiltViewModel
 class MedicationRefillViewModel
 @Inject
 constructor(
-    private val repository: MedicationRefillRepository
+    private val repository: MedicationRepository
 ) : ViewModel() {
     val medications: StateFlow<List<MedicationWithForecast>> =
         repository
-            .observeAll()
+            .observeActive()
             .map { list ->
                 val now = System.currentTimeMillis()
-                list.map { row -> MedicationWithForecast(row, RefillCalculator.forecast(row, now)) }
+                list.mapNotNull { med ->
+                    val forecast = RefillCalculator.forecast(med, now) ?: return@mapNotNull null
+                    MedicationWithForecast(med, forecast)
+                }
             }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    /**
+     * Create a new refill-tracked medication, or enable tracking on an
+     * existing unrelated one by the same name. Existing non-tracked
+     * medications keep their name/tier/schedule — we just set pill-count
+     * fields onto them.
+     */
     fun addMedication(
         name: String,
         pillCount: Int,
@@ -44,34 +57,78 @@ constructor(
         pharmacyPhone: String? = null
     ) {
         viewModelScope.launch {
-            repository.upsert(
-                MedicationRefillEntity(
-                    medicationName = name.trim(),
-                    pillCount = pillCount,
-                    pillsPerDose = pillsPerDose,
-                    dosesPerDay = dosesPerDay,
-                    pharmacyName = pharmacyName?.takeIf { it.isNotBlank() },
-                    pharmacyPhone = pharmacyPhone?.takeIf { it.isNotBlank() },
-                    lastRefillDate = System.currentTimeMillis()
+            val trimmed = name.trim()
+            val existing = repository.getByNameOnce(trimmed)
+            val now = System.currentTimeMillis()
+            if (existing != null) {
+                repository.update(
+                    existing.copy(
+                        pillCount = pillCount,
+                        pillsPerDose = pillsPerDose,
+                        dosesPerDay = dosesPerDay,
+                        pharmacyName = pharmacyName?.takeIf { it.isNotBlank() }
+                            ?: existing.pharmacyName,
+                        pharmacyPhone = pharmacyPhone?.takeIf { it.isNotBlank() }
+                            ?: existing.pharmacyPhone,
+                        lastRefillDate = now,
+                        updatedAt = now,
+                        isArchived = false
+                    )
+                )
+            } else {
+                repository.insert(
+                    MedicationEntity(
+                        name = trimmed,
+                        displayLabel = trimmed,
+                        pillCount = pillCount,
+                        pillsPerDose = pillsPerDose,
+                        dosesPerDay = dosesPerDay,
+                        pharmacyName = pharmacyName?.takeIf { it.isNotBlank() },
+                        pharmacyPhone = pharmacyPhone?.takeIf { it.isNotBlank() },
+                        lastRefillDate = now,
+                        // Fresh refill-tracked med defaults to as-needed
+                        // scheduling; user can set a schedule separately
+                        // via the main Medication screen.
+                        scheduleMode = "AS_NEEDED"
+                    )
+                )
+            }
+        }
+    }
+
+    fun recordDailyDose(med: MedicationEntity) {
+        viewModelScope.launch {
+            repository.update(RefillCalculator.applyDailyDose(med))
+        }
+    }
+
+    fun recordRefill(med: MedicationEntity, newSupply: Int) {
+        viewModelScope.launch {
+            repository.update(RefillCalculator.applyRefill(med, newSupply))
+        }
+    }
+
+    /**
+     * Disables refill tracking for this medication by clearing pillCount
+     * (which removes it from the refill-screen list). Other medication
+     * fields stay intact — the medication itself isn't deleted. Use the
+     * Medication-screen delete path to remove it entirely.
+     */
+    fun disableRefillTracking(id: Long) {
+        viewModelScope.launch {
+            val existing = repository.getByIdOnce(id) ?: return@launch
+            repository.update(
+                existing.copy(
+                    pillCount = null,
+                    lastRefillDate = null,
+                    updatedAt = System.currentTimeMillis()
                 )
             )
         }
     }
-
-    fun recordDailyDose(refill: MedicationRefillEntity) {
-        viewModelScope.launch { repository.applyDailyDose(refill) }
-    }
-
-    fun recordRefill(refill: MedicationRefillEntity, newSupply: Int) {
-        viewModelScope.launch { repository.applyRefill(refill, newSupply) }
-    }
-
-    fun delete(id: Long) {
-        viewModelScope.launch { repository.delete(id) }
-    }
 }
 
 data class MedicationWithForecast(
-    val row: MedicationRefillEntity,
+    val row: MedicationEntity,
     val forecast: RefillForecast
 )

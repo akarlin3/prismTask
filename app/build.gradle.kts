@@ -22,8 +22,8 @@ android {
         applicationId = "com.averycorp.prismtask"
         minSdk = 26
         targetSdk = 35
-        versionCode = 669
-        versionName = "1.4.25"
+        versionCode = 682
+        versionName = "1.4.38"
 
         testInstrumentationRunner = "com.averycorp.prismtask.HiltTestRunner"
         vectorDrawables { useSupportLibrary = true }
@@ -72,10 +72,17 @@ android {
                 ?: "https://averytask-production.up.railway.app"
             buildConfigField("String", "API_BASE_URL", "\"$debugApiUrl\"")
             // Route Firebase clients at the local Firebase Emulator Suite.
-            // Debug builds default to emulator OFF — flip to "true" here (and
-            // rebuild) to point a debug APK at the local Firestore/Auth
-            // emulator. See docs/FIREBASE_EMULATOR.md for the full workflow.
-            buildConfigField("boolean", "USE_FIREBASE_EMULATOR", "false")
+            // Debug builds default to emulator OFF; read USE_FIREBASE_EMULATOR
+            // from the environment so CI (see
+            // .github/workflows/android-integration.yml) can flip it on for
+            // instrumented tests without hand-editing this file. Accepts
+            // "true"/"false"; anything else falls back to false. See
+            // docs/FIREBASE_EMULATOR.md for the local-dev workflow.
+            val useEmulator = when (System.getenv("USE_FIREBASE_EMULATOR")?.lowercase()) {
+                "true" -> "true"
+                else -> "false"
+            }
+            buildConfigField("boolean", "USE_FIREBASE_EMULATOR", useEmulator)
             // Speed up debug builds
             isDebuggable = true
             signingConfig = signingConfigs.getByName("debug")
@@ -344,6 +351,7 @@ dependencies {
     testImplementation("org.robolectric:robolectric:4.13")
     testImplementation("androidx.test:core:1.6.1")
     testImplementation("androidx.test.ext:junit:1.2.1")
+    testImplementation("androidx.work:work-testing:2.9.1")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.6.1")
     androidTestImplementation(platform("androidx.compose:compose-bom:2024.12.01"))

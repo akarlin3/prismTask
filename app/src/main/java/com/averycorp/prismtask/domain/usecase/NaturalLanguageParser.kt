@@ -183,7 +183,11 @@ constructor(
         }
 
         var text = input
-        val today = LocalDate.now()
+        // Derive `today` from the injected timeProvider so pinned-clock tests
+        // (and any future hypothetical caller using a non-system zone) get
+        // deterministic results. Production SystemTimeProvider still reads
+        // the real wall clock.
+        val today = timeProvider.now().atZone(zone).toLocalDate()
 
         var lifeCategory: String? = null
 

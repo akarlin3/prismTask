@@ -2,6 +2,7 @@ package com.averycorp.prismtask.data.repository
 
 import com.averycorp.prismtask.data.local.dao.DailyEssentialSlotCompletionDao
 import com.averycorp.prismtask.data.local.entity.DailyEssentialSlotCompletionEntity
+import com.averycorp.prismtask.data.remote.SyncTracker
 import com.averycorp.prismtask.domain.usecase.MedicationSlotGrouper
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
@@ -21,7 +22,8 @@ import javax.inject.Singleton
 class DailyEssentialSlotCompletionRepository
 @Inject
 constructor(
-    private val dao: DailyEssentialSlotCompletionDao
+    private val dao: DailyEssentialSlotCompletionDao,
+    private val syncTracker: SyncTracker
 ) {
     fun observeForDate(date: Long): Flow<List<DailyEssentialSlotCompletionEntity>> =
         dao.observeForDate(date)
@@ -70,6 +72,11 @@ constructor(
             )
         }
         val id = dao.upsert(row)
+        if (existing == null) {
+            syncTracker.trackCreate(id, "daily_essential_slot_completion")
+        } else {
+            syncTracker.trackUpdate(id, "daily_essential_slot_completion")
+        }
         return if (existing == null) row.copy(id = id) else row
     }
 }

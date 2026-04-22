@@ -9,7 +9,9 @@ import com.averycorp.prismtask.data.local.dao.MedicationRefillDao
 import com.averycorp.prismtask.data.local.database.PrismTaskDatabase
 import com.averycorp.prismtask.data.local.entity.DailyEssentialSlotCompletionEntity
 import com.averycorp.prismtask.data.local.entity.MedicationRefillEntity
+import com.averycorp.prismtask.data.remote.SyncTracker
 import com.averycorp.prismtask.data.repository.DailyEssentialSlotCompletionRepository
+import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -47,7 +49,7 @@ class DailyEssentialSlotCompletionDaoTest {
             .build()
         slotDao = database.dailyEssentialSlotCompletionDao()
         medRefillDao = database.medicationRefillDao()
-        repo = DailyEssentialSlotCompletionRepository(slotDao)
+        repo = DailyEssentialSlotCompletionRepository(slotDao, mockk<SyncTracker>(relaxed = true))
     }
 
     @After

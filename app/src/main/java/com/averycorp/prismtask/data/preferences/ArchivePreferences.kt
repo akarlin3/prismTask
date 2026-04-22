@@ -12,7 +12,7 @@ import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
 
-private val Context.archiveDataStore: DataStore<Preferences> by preferencesDataStore(name = "archive_prefs")
+internal val Context.archiveDataStore: DataStore<Preferences> by preferencesDataStore(name = "archive_prefs")
 
 @Singleton
 class ArchivePreferences

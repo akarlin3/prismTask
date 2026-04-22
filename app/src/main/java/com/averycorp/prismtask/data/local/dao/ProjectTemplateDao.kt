@@ -37,4 +37,13 @@ interface ProjectTemplateDao {
 
     @Query("SELECT * FROM project_templates")
     suspend fun getAllOnce(): List<ProjectTemplateEntity>
+
+    @Query("SELECT * FROM project_templates WHERE cloud_id = :cloudId LIMIT 1")
+    suspend fun getByCloudIdOnce(cloudId: String): ProjectTemplateEntity?
+
+    @Query("UPDATE project_templates SET cloud_id = :cloudId, updated_at = :now WHERE id = :id")
+    suspend fun setCloudId(id: Long, cloudId: String?, now: Long)
+
+    @Query("DELETE FROM project_templates WHERE id = :id")
+    suspend fun deleteById(id: Long)
 }

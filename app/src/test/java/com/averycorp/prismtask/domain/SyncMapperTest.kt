@@ -8,7 +8,6 @@ import com.averycorp.prismtask.data.local.entity.TaskEntity
 import com.averycorp.prismtask.data.remote.mapper.SyncMapper
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
-import org.junit.Ignore
 import org.junit.Test
 
 class SyncMapperTest {
@@ -46,15 +45,11 @@ class SyncMapperTest {
         assertEquals("a", tags[0])
     }
 
-    @Ignore(
-        "CI-RE-ENABLE: round-trip returns null instead of 42L — " +
-            "SyncMapper.mapToTask is not reading sourceHabitId back from the " +
-            "Firestore map. Real bug in the mapper; fix separately so sync " +
-            "cleanly preserves habit-sourced tasks. Tracked with " +
-            "re-enable-android-ci."
-    )
     @Test
     fun task_sourceHabitId_roundTrip() {
+        // sourceHabitId is the *local* row id; the sync map carries the habit's
+        // cloud id so cross-device resolution can happen. SyncService translates
+        // cloud↔local on push and pull; the mapper just ferries the fields.
         val task = TaskEntity(
             id = 1,
             title = "Habit Task",
@@ -62,10 +57,18 @@ class SyncMapperTest {
             createdAt = 500L,
             updatedAt = 600L
         )
-        val map = SyncMapper.taskToMap(task)
-        assertEquals(42L, map["sourceHabitId"])
-        val restored = SyncMapper.mapToTask(map, 1)
+        val map = SyncMapper.taskToMap(task, sourceHabitCloudId = "cloudHabit42")
+        assertEquals("cloudHabit42", map["sourceHabitId"])
+
+        val restored = SyncMapper.mapToTask(map, localId = 1, sourceHabitLocalId = 42L)
         assertEquals(42L, restored.sourceHabitId)
+    }
+
+    @Test
+    fun task_sourceHabitId_absentInMap_producesNullEntity() {
+        val map = mapOf<String, Any?>("title" to "No habit", "createdAt" to 0L, "updatedAt" to 0L)
+        val restored = SyncMapper.mapToTask(map, localId = 1)
+        assertNull(restored.sourceHabitId)
     }
 
     @Test

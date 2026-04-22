@@ -1,6 +1,7 @@
 package com.averycorp.prismtask.smoke
 
 import com.averycorp.prismtask.data.remote.api.BugReportMirrorResponse
+import com.averycorp.prismtask.data.remote.api.CalendarBackendApi
 import com.averycorp.prismtask.data.remote.api.PrismTaskApi
 import com.averycorp.prismtask.data.remote.api.UserInfoResponse
 import com.averycorp.prismtask.data.remote.sync.SyncPullResponse
@@ -129,9 +130,19 @@ class FakePrismTaskApi : PrismTaskApi {
         request: com.averycorp.prismtask.data.remote.api.EisenhowerRequest
     ) = error("Not used in offline tests")
 
+    override suspend fun classifyEisenhowerText(
+        request: com.averycorp.prismtask.data.remote.api.EisenhowerClassifyTextRequest
+    ): com.averycorp.prismtask.data.remote.api.EisenhowerClassifyTextResponse =
+        error("Not used in offline tests")
+
     override suspend fun planPomodoro(
         request: com.averycorp.prismtask.data.remote.api.PomodoroRequest
     ) = error("Not used in offline tests")
+
+    override suspend fun getPomodoroCoaching(
+        request: com.averycorp.prismtask.data.remote.api.PomodoroCoachingRequest
+    ): com.averycorp.prismtask.data.remote.api.PomodoroCoachingResponse =
+        error("Not used in offline tests")
 
     override suspend fun getDailyBriefing(
         request: com.averycorp.prismtask.data.remote.api.DailyBriefingRequest

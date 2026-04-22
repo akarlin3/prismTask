@@ -20,7 +20,6 @@ import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
-import org.junit.Ignore
 import org.junit.Test
 
 /**
@@ -67,7 +66,9 @@ class SelfCareRepositorySeedingTest {
             medicationPreferences = medicationPreferences,
             taskBehaviorPreferences = taskBehaviorPreferences,
             gson = Gson(),
-            syncTracker = mockk(relaxed = true)
+            syncTracker = mockk(relaxed = true),
+            medicationDao = mockk(relaxed = true),
+            medicationDoseDao = mockk(relaxed = true)
         )
     }
 
@@ -111,18 +112,24 @@ class SelfCareRepositorySeedingTest {
         assertEquals(0, selfCareDao.stepsForRoutine("morning").size)
     }
 
-    @Ignore(
-        "CI-RE-ENABLE: test comment says 'medication has no default-steps list' " +
-            "but SelfCareRoutines.getSteps(\"medication\") now returns 4 steps. " +
-            "Either the test expectation or the production list needs to be " +
-            "realigned. Tracked with re-enable-android-ci."
-    )
     @Test
-    fun seedSelfCareTier_medicationRoutine_isNoop() = runBlocking {
-        // Medication has no default-steps list; passing any tier should be
-        // a no-op rather than inserting zero-width rows.
+    fun seedSelfCareTier_medicationEssential_insertsDefaultMedicationSteps() = runBlocking {
+        // v1.4.0 default-template expansion: medication is no longer empty
+        // by design — the essential tier seeds four generic daily doses so
+        // first-time users have a sensible starting checklist.
         repo.seedSelfCareTier("medication", "essential")
-        assertEquals(0, selfCareDao.stepsForRoutine("medication").size)
+
+        val inserted = selfCareDao.stepsForRoutine("medication").map { it.stepId }.toSet()
+        val expected = SelfCareRoutines.medicationSteps
+            .filter { it.tier == "essential" }
+            .map { it.id }
+            .toSet()
+
+        assertEquals(expected, inserted)
+        assertTrue(
+            "at least one default medication step should have been seeded",
+            inserted.isNotEmpty()
+        )
     }
 
     @Test

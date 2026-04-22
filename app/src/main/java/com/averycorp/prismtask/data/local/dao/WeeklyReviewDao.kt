@@ -29,4 +29,16 @@ interface WeeklyReviewDao {
 
     @Query("DELETE FROM weekly_reviews")
     suspend fun deleteAll()
+
+    @Query("SELECT * FROM weekly_reviews WHERE id = :id LIMIT 1")
+    suspend fun getByIdOnce(id: Long): WeeklyReviewEntity?
+
+    @Query("SELECT * FROM weekly_reviews WHERE cloud_id = :cloudId LIMIT 1")
+    suspend fun getByCloudIdOnce(cloudId: String): WeeklyReviewEntity?
+
+    @Query("UPDATE weekly_reviews SET cloud_id = :cloudId, updated_at = :now WHERE id = :id")
+    suspend fun setCloudId(id: Long, cloudId: String?, now: Long)
+
+    @Query("DELETE FROM weekly_reviews WHERE id = :id")
+    suspend fun deleteById(id: Long)
 }

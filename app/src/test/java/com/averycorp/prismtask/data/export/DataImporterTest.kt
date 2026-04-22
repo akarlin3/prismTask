@@ -33,7 +33,6 @@ import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
-import org.junit.Ignore
 import org.junit.Test
 
 /**
@@ -43,16 +42,6 @@ import org.junit.Test
  * captured via MockK slots to verify the shape of what the importer would
  * persist.
  */
-@Ignore(
-    "Hangs in CI at importFromJson() — DataImporter calls " +
-        "database.withTransaction { ... } directly on a mocked RoomDatabase, " +
-        "and Room 2.8's internal connection-pool machinery deadlocks on the " +
-        "mock instead of erroring out. These tests never ran before 2026-04-21 " +
-        "(Android CI was failing at ktlint on main since #516, so unit tests " +
-        "were always SKIPPED). Real fix: route DataImporter through " +
-        "DatabaseTransactionRunner (already exists in data/local/database/) " +
-        "so tests can override the transaction with an inline passthrough."
-)
 class DataImporterTest {
     private lateinit var taskDao: TaskDao
     private lateinit var projectDao: ProjectDao
@@ -63,7 +52,15 @@ class DataImporterTest {
     private lateinit var leisureDao: LeisureDao
     private lateinit var selfCareDao: SelfCareDao
     private lateinit var schoolworkDao: SchoolworkDao
-    private lateinit var database: com.averycorp.prismtask.data.local.database.PrismTaskDatabase
+
+    // Inline transaction runner — tests don't need real Room transactions,
+    // just faithful block execution so every DAO call still happens.
+    private val transactionRunner =
+        object : com.averycorp.prismtask.data.local.database.DatabaseTransactionRunner(
+            mockk(relaxed = true)
+        ) {
+            override suspend fun <R> withTransaction(block: suspend () -> R): R = block()
+        }
     private lateinit var themePreferences: ThemePreferences
     private lateinit var archivePreferences: ArchivePreferences
     private lateinit var dashboardPreferences: DashboardPreferences
@@ -98,7 +95,6 @@ class DataImporterTest {
         selfCareDao = mockk(relaxed = true)
         schoolworkDao = mockk(relaxed = true)
         taskCompletionDao = mockk(relaxed = true)
-        database = mockk(relaxed = true)
         themePreferences = mockk(relaxed = true)
         archivePreferences = mockk(relaxed = true)
         dashboardPreferences = mockk(relaxed = true)
@@ -133,7 +129,11 @@ class DataImporterTest {
             leisureDao,
             selfCareDao,
             schoolworkDao,
-            database,
+            // medicationDao
+            mockk(relaxed = true),
+            // medicationDoseDao
+            mockk(relaxed = true),
+            transactionRunner,
             themePreferences,
             archivePreferences,
             dashboardPreferences,
@@ -152,7 +152,10 @@ class DataImporterTest {
             dailyEssentialsPreferences,
             morningCheckInPreferences,
             calendarSyncPreferences,
-            templatePreferences
+            templatePreferences,
+            mockk(relaxed = true),
+            mockk(relaxed = true),
+            mockk(relaxed = true)
         )
     }
 

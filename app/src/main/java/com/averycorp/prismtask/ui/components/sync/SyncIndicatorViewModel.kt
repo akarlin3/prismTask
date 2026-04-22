@@ -67,13 +67,13 @@ constructor(
         val showSuccess = values[6] as Boolean
 
         val latestError = errors.firstOrNull()
-        val errorNewerThanSuccess = latestError != null &&
-            (lastSuccess == null || latestError.timestampMs > lastSuccess)
 
         when {
             !signedIn -> SyncState.NotSignedIn
             syncing -> SyncState.Syncing
-            errorNewerThanSuccess -> SyncState.Error(latestError!!.message)
+            latestError != null &&
+                (lastSuccess == null || latestError.timestampMs > lastSuccess) ->
+                SyncState.Error(latestError.message)
             !online && pending > 0 -> SyncState.Offline(pending)
             pending > 0 -> SyncState.Pending(pending)
             showSuccess -> SyncState.Synced

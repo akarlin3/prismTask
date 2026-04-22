@@ -2,7 +2,6 @@ package com.averycorp.prismtask.domain.usecase
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
-import org.junit.Ignore
 import org.junit.Test
 import java.time.LocalDate
 
@@ -10,13 +9,6 @@ class DailyForgivenessStreakCoreTest {
 
     private val today = LocalDate.of(2026, 4, 18)
 
-    @Ignore(
-        "CI-RE-ENABLE: StreakResult.EMPTY has gracePeriodRemaining=0 but " +
-            "calculate() now returns gracePeriodRemaining=1 for an empty set. " +
-            "Either EMPTY should be updated to match the new default or " +
-            "calculate() should return EMPTY when the input set is empty. " +
-            "Tracked with re-enable-android-ci."
-    )
     @Test
     fun emptySet_returnsEmpty() {
         val result = DailyForgivenessStreakCore.calculate(emptySet(), today)

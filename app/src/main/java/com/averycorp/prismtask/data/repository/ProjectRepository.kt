@@ -241,9 +241,12 @@ constructor(
     suspend fun reorderMilestones(projectId: Long, orderedIds: List<Long>) {
         val current = milestoneDao.getMilestonesOnce(projectId).associateBy { it.id }
         val now = System.currentTimeMillis()
-        val reindexed = orderedIds.mapIndexedNotNull { index, id ->
-            current[id]?.copy(orderIndex = index, updatedAt = now)
-        }
+        // Drop unknown IDs BEFORE indexing so orderIndex stays contiguous
+        // (0, 1, 2, …). Using orderedIds.mapIndexedNotNull would reserve a
+        // slot for each unknown id and leave gaps in orderIndex.
+        val reindexed = orderedIds
+            .mapNotNull { id -> current[id] }
+            .mapIndexed { index, milestone -> milestone.copy(orderIndex = index, updatedAt = now) }
         if (reindexed.isNotEmpty()) {
             milestoneDao.updateAll(reindexed)
             touchProject(projectId, now)
