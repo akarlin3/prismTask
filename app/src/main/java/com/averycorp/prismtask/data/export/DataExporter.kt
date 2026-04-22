@@ -515,6 +515,7 @@ constructor(
         addProperty("dailyBriefingEnabled", p.dailyBriefingEnabled.first())
         addProperty("eveningSummaryEnabled", p.eveningSummaryEnabled.first())
         addProperty("weeklySummaryEnabled", p.weeklySummaryEnabled.first())
+        addProperty("weeklyTaskSummaryEnabled", p.weeklyTaskSummaryEnabled.first())
         addProperty("overloadAlertsEnabled", p.overloadAlertsEnabled.first())
         addProperty("reengagementEnabled", p.reengagementEnabled.first())
         addProperty("fullScreenNotificationsEnabled", p.fullScreenNotificationsEnabled.first())

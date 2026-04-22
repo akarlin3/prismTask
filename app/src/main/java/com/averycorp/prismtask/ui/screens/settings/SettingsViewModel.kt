@@ -519,6 +519,9 @@ constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
     val weeklySummaryEnabled: StateFlow<Boolean> = notificationPreferences.weeklySummaryEnabled
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+    val weeklyTaskSummaryEnabled: StateFlow<Boolean> =
+        notificationPreferences.weeklyTaskSummaryEnabled
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
     val overloadAlertsEnabled: StateFlow<Boolean> = notificationPreferences.overloadAlertsEnabled
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
     val reengagementEnabled: StateFlow<Boolean> = notificationPreferences.reengagementEnabled
@@ -582,6 +585,13 @@ constructor(
         viewModelScope.launch {
             notificationPreferences.setWeeklySummaryEnabled(enabled)
             notificationWorkerScheduler.applyWeeklyHabitSummary(enabled)
+        }
+    }
+
+    fun setWeeklyTaskSummaryEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            notificationPreferences.setWeeklyTaskSummaryEnabled(enabled)
+            notificationWorkerScheduler.applyWeeklyTaskSummary(enabled)
         }
     }
 
@@ -780,6 +790,20 @@ constructor(
         .getBuzzUntilDismissed()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
+    // ---- A2 Pomodoro+ AI Coaching toggles ---------------------------
+    // All three default true — UI reflects that via the initial value.
+    val pomodoroPreSessionCoachingEnabled: StateFlow<Boolean> = timerPreferences
+        .getPomodoroPreSessionCoachingEnabled()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
+    val pomodoroBreakCoachingEnabled: StateFlow<Boolean> = timerPreferences
+        .getPomodoroBreakCoachingEnabled()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
+    val pomodoroRecapCoachingEnabled: StateFlow<Boolean> = timerPreferences
+        .getPomodoroRecapCoachingEnabled()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
     fun setTimerWorkDurationMinutes(minutes: Int) {
         viewModelScope.launch { timerPreferences.setWorkDurationSeconds(minutes * 60) }
     }
@@ -806,6 +830,18 @@ constructor(
 
     fun setTimerBuzzUntilDismissed(enabled: Boolean) {
         viewModelScope.launch { timerPreferences.setBuzzUntilDismissed(enabled) }
+    }
+
+    fun setPomodoroPreSessionCoachingEnabled(enabled: Boolean) {
+        viewModelScope.launch { timerPreferences.setPomodoroPreSessionCoachingEnabled(enabled) }
+    }
+
+    fun setPomodoroBreakCoachingEnabled(enabled: Boolean) {
+        viewModelScope.launch { timerPreferences.setPomodoroBreakCoachingEnabled(enabled) }
+    }
+
+    fun setPomodoroRecapCoachingEnabled(enabled: Boolean) {
+        viewModelScope.launch { timerPreferences.setPomodoroRecapCoachingEnabled(enabled) }
     }
 
     // --- Habits / Streaks ---

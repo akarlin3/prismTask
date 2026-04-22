@@ -15,7 +15,9 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import com.averycorp.prismtask.ui.components.settings.SettingsRowWithSubtitle
 import com.averycorp.prismtask.ui.components.settings.SettingsToggleRow
+import com.averycorp.prismtask.ui.navigation.PrismTaskRoute
 
 /**
  * Per-type enable/disable toggles. Mirrors the legacy
@@ -32,6 +34,9 @@ fun NotificationTypesScreen(
     val briefing by viewModel.dailyBriefingEnabled.collectAsStateWithLifecycle()
     val evening by viewModel.eveningSummaryEnabled.collectAsStateWithLifecycle()
     val weekly by viewModel.weeklySummaryEnabled.collectAsStateWithLifecycle()
+    val weeklyReviewAuto by viewModel.weeklyReviewAutoGenerateEnabled.collectAsStateWithLifecycle()
+    val weeklyReviewNotify by viewModel.weeklyReviewNotificationEnabled.collectAsStateWithLifecycle()
+    val weeklyTask by viewModel.weeklyTaskSummaryEnabled.collectAsStateWithLifecycle()
     val streak by viewModel.streakAlertsEnabled.collectAsStateWithLifecycle()
     val reengage by viewModel.reengagementEnabled.collectAsStateWithLifecycle()
     val overload by viewModel.overloadAlertsEnabled.collectAsStateWithLifecycle()
@@ -124,6 +129,31 @@ fun NotificationTypesScreen(
             subtitle = "Weekly habit recap (Sunday 7 PM)",
             checked = weekly,
             onCheckedChange = viewModel::setWeeklySummaryEnabled
+        )
+        SettingsToggleRow(
+            title = "Weekly Task Summary",
+            subtitle = "Weekly task recap (Sunday 7:30 PM)",
+            checked = weeklyTask,
+            onCheckedChange = viewModel::setWeeklyTaskSummaryEnabled
+        )
+        SettingsToggleRow(
+            title = "Auto-Generate Weekly Reviews",
+            subtitle = "AI-generated recap of your week (Sunday 8 PM)",
+            checked = weeklyReviewAuto,
+            onCheckedChange = viewModel::setWeeklyReviewAutoGenerateEnabled
+        )
+        SettingsToggleRow(
+            title = "Notify Me When A Review Is Ready",
+            subtitle = "Post a notification when a new weekly review is available",
+            checked = weeklyReviewNotify,
+            onCheckedChange = viewModel::setWeeklyReviewNotificationEnabled
+        )
+        SettingsRowWithSubtitle(
+            title = "Weekly Review History",
+            subtitle = "Read past weekly reviews",
+            onClick = {
+                navController.navigate(PrismTaskRoute.WeeklyReviewsList.route)
+            }
         )
 
         SectionSpacer()

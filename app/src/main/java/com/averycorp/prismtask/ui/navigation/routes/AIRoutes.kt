@@ -15,7 +15,9 @@ import com.averycorp.prismtask.ui.screens.extract.PasteConversationScreen
 import com.averycorp.prismtask.ui.screens.mood.MoodAnalyticsScreen
 import com.averycorp.prismtask.ui.screens.planner.WeeklyPlannerScreen
 import com.averycorp.prismtask.ui.screens.pomodoro.SmartPomodoroScreen
+import com.averycorp.prismtask.ui.screens.review.WeeklyReviewDetailScreen
 import com.averycorp.prismtask.ui.screens.review.WeeklyReviewScreen
+import com.averycorp.prismtask.ui.screens.review.WeeklyReviewsListScreen
 
 /**
  * AI and productivity-tool route definitions: Eisenhower matrix,
@@ -59,6 +61,19 @@ internal fun NavGraphBuilder.aiRoutes(
 
     composable(route = PrismTaskRoute.WeeklyReview.route) {
         WeeklyReviewScreen(navController)
+    }
+
+    composable(route = PrismTaskRoute.WeeklyReviewsList.route) {
+        WeeklyReviewsListScreen(navController)
+    }
+
+    composable(
+        route = PrismTaskRoute.WeeklyReviewDetail.route,
+        arguments = listOf(
+            navArgument("reviewId") { type = NavType.StringType }
+        )
+    ) {
+        WeeklyReviewDetailScreen(navController)
     }
 
     horizontalSlideComposable(PrismTaskRoute.WeeklyPlanner.route) {

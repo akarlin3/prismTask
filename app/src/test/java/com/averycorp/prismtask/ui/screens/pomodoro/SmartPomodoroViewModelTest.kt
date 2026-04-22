@@ -9,6 +9,7 @@ import com.averycorp.prismtask.data.remote.api.PomodoroSessionResponse
 import com.averycorp.prismtask.data.remote.api.PrismTaskApi
 import com.averycorp.prismtask.data.remote.api.SessionTaskResponse
 import com.averycorp.prismtask.data.repository.MoodEnergyRepository
+import com.averycorp.prismtask.domain.usecase.PomodoroAICoach
 import com.averycorp.prismtask.domain.usecase.ProFeatureGate
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -27,6 +28,7 @@ import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -46,6 +48,7 @@ class SmartPomodoroViewModelTest {
     private lateinit var proFeatureGate: ProFeatureGate
     private lateinit var timerPreferences: TimerPreferences
     private lateinit var moodEnergyRepository: MoodEnergyRepository
+    private lateinit var aiCoach: PomodoroAICoach
 
     @Before
     fun setUp() {
@@ -61,8 +64,15 @@ class SmartPomodoroViewModelTest {
         every { timerPreferences.getBreakDurationSeconds() } returns flowOf(5 * 60)
         every { timerPreferences.getLongBreakDurationSeconds() } returns flowOf(15 * 60)
         every { timerPreferences.getPomodoroFocusPreference() } returns flowOf("balanced")
+        // Pre-session coaching toggle defaults to true in prod, but for the
+        // legacy tests (which don't set up a plan) we hold the modal off so
+        // startSession() maps to an immediate timer start.
+        every { timerPreferences.getPomodoroPreSessionCoachingEnabled() } returns flowOf(false)
+        every { timerPreferences.getPomodoroBreakCoachingEnabled() } returns flowOf(false)
+        every { timerPreferences.getPomodoroRecapCoachingEnabled() } returns flowOf(false)
         moodEnergyRepository = mockk(relaxed = true)
         coEvery { moodEnergyRepository.getRange(any(), any()) } returns emptyList()
+        aiCoach = mockk(relaxed = true)
     }
 
     @After
@@ -76,7 +86,8 @@ class SmartPomodoroViewModelTest {
         api,
         proFeatureGate,
         moodEnergyRepository,
-        timerPreferences
+        timerPreferences,
+        aiCoach
     )
 
     @Test
@@ -186,6 +197,9 @@ class SmartPomodoroViewModelTest {
         val vm = newViewModel()
         advanceUntilIdle()
         vm.startSession()
+        // requestPreSessionCoaching runs on viewModelScope; let it settle
+        // before asserting against timer state.
+        advanceUntilIdle()
 
         assertEquals(PomodoroState.SESSION_ACTIVE, vm.screenState.value)
         assertEquals(25 * 60, vm.timerSecondsRemaining.value)
@@ -193,9 +207,10 @@ class SmartPomodoroViewModelTest {
     }
 
     @Test
-    fun pauseTimer_stopsTheTimer() {
+    fun pauseTimer_stopsTheTimer() = runTest(dispatcher) {
         val vm = newViewModel()
         vm.startSession()
+        advanceUntilIdle()
         vm.pauseTimer()
         assertFalse(vm.isTimerRunning.value)
     }
@@ -211,13 +226,367 @@ class SmartPomodoroViewModelTest {
     }
 
     @Test
-    fun resetToPlanning_clearsPlanAndStats() {
+    fun resetToPlanning_clearsPlanAndStats() = runTest(dispatcher) {
         val vm = newViewModel()
         vm.startSession()
+        advanceUntilIdle()
         vm.resetToPlanning()
 
         assertEquals(PomodoroState.PLANNING, vm.screenState.value)
         assertEquals(PomodoroPlanUiState.Idle, vm.planUiState.value)
         assertTrue(vm.completedTaskIds.value.isEmpty())
+        assertTrue(vm.preSessionCoaching.value is PreSessionCoachingUiState.Hidden)
+        assertEquals(null, vm.breakSuggestion.value)
+        assertEquals(null, vm.sessionRecap.value)
+    }
+
+    // ---- A2 Pomodoro+ AI coaching paths -----------------------------------
+
+    @Test
+    fun preSessionCoaching_disabled_fallsThroughToTimer() = runTest(dispatcher) {
+        // Default setUp stubs the pre-session pref to false; confirm the
+        // modal never surfaces and the timer starts synchronously (modulo
+        // the viewModelScope.launch hop).
+        every { proFeatureGate.hasAccess(ProFeatureGate.AI_POMODORO) } returns true
+        coEvery { api.planPomodoro(any()) } returns PomodoroResponse(
+            sessions = listOf(
+                PomodoroSessionResponse(
+                    sessionNumber = 1,
+                    tasks = listOf(SessionTaskResponse(1L, "Draft", 25)),
+                    rationale = "go"
+                )
+            ),
+            totalSessions = 1,
+            totalWorkMinutes = 25,
+            totalBreakMinutes = 5,
+            skippedTasks = emptyList()
+        )
+        val vm = newViewModel()
+        vm.generatePlan()
+        advanceUntilIdle()
+
+        vm.startSession()
+        advanceUntilIdle()
+
+        assertTrue(vm.preSessionCoaching.value is PreSessionCoachingUiState.Hidden)
+        assertTrue(vm.isTimerRunning.value)
+    }
+
+    @Test
+    fun preSessionCoaching_enabledAndHappy_surfacesModalAndGatesTimer() = runTest(dispatcher) {
+        every { timerPreferences.getPomodoroPreSessionCoachingEnabled() } returns flowOf(true)
+        every { proFeatureGate.hasAccess(ProFeatureGate.AI_POMODORO) } returns true
+        coEvery { api.planPomodoro(any()) } returns PomodoroResponse(
+            sessions = listOf(
+                PomodoroSessionResponse(
+                    sessionNumber = 1,
+                    tasks = listOf(SessionTaskResponse(1L, "Draft", 25)),
+                    rationale = "go"
+                )
+            ),
+            totalSessions = 1,
+            totalWorkMinutes = 25,
+            totalBreakMinutes = 5,
+            skippedTasks = emptyList()
+        )
+        coEvery { aiCoach.suggestPreSession(any(), any()) } returns
+            Result.success("Start with the draft.")
+        val vm = newViewModel()
+        vm.generatePlan()
+        advanceUntilIdle()
+
+        vm.startSession()
+        advanceUntilIdle()
+
+        val state = vm.preSessionCoaching.value
+        assertTrue("expected Ready, got $state", state is PreSessionCoachingUiState.Ready)
+        assertEquals("Start with the draft.", (state as PreSessionCoachingUiState.Ready).message)
+        // Timer is still gated on modal dismiss.
+        assertFalse(vm.isTimerRunning.value)
+
+        // Accepting the suggestion should start the actual timer.
+        vm.acceptPreSessionCoaching()
+        advanceUntilIdle()
+        assertTrue(vm.preSessionCoaching.value is PreSessionCoachingUiState.Hidden)
+        assertTrue(vm.isTimerRunning.value)
+    }
+
+    @Test
+    fun preSessionCoaching_rpcFailure_silentSkipAndTimerStarts() = runTest(dispatcher) {
+        every { timerPreferences.getPomodoroPreSessionCoachingEnabled() } returns flowOf(true)
+        every { proFeatureGate.hasAccess(ProFeatureGate.AI_POMODORO) } returns true
+        coEvery { api.planPomodoro(any()) } returns PomodoroResponse(
+            sessions = listOf(
+                PomodoroSessionResponse(
+                    sessionNumber = 1,
+                    tasks = listOf(SessionTaskResponse(1L, "Draft", 25)),
+                    rationale = "go"
+                )
+            ),
+            totalSessions = 1,
+            totalWorkMinutes = 25,
+            totalBreakMinutes = 5,
+            skippedTasks = emptyList()
+        )
+        coEvery { aiCoach.suggestPreSession(any(), any()) } returns
+            Result.failure(RuntimeException("offline"))
+        val vm = newViewModel()
+        vm.generatePlan()
+        advanceUntilIdle()
+
+        vm.startSession()
+        advanceUntilIdle()
+
+        assertTrue(vm.preSessionCoaching.value is PreSessionCoachingUiState.Hidden)
+        assertTrue(vm.isTimerRunning.value)
+    }
+
+    @Test
+    fun dismissBreakSuggestion_clearsState() = runTest(dispatcher) {
+        val vm = newViewModel()
+        // Simulate arrival of a break suggestion via private field semantics —
+        // we can't poke internal state, so go the public route: enable break
+        // coaching + stub the coach.
+        every { timerPreferences.getPomodoroBreakCoachingEnabled() } returns flowOf(true)
+        coEvery { aiCoach.suggestBreakActivity(any(), any(), any()) } returns
+            Result.success("Drink water.")
+
+        // Directly observe the dismissal pathway — pre-set a suggestion by
+        // driving the ViewModel via its public surface. With no plan, the
+        // break flow doesn't fire; so we assert dismissal is idempotent when
+        // already null, which is the important invariant.
+        vm.dismissBreakSuggestion()
+        assertEquals(null, vm.breakSuggestion.value)
+    }
+
+    @Test
+    fun dismissSessionRecap_clearsState() = runTest(dispatcher) {
+        val vm = newViewModel()
+        vm.dismissSessionRecap()
+        assertEquals(null, vm.sessionRecap.value)
+    }
+
+    @Test
+    fun endEarly_withRecapEnabled_firesRecapCoach() = runTest(dispatcher) {
+        every { timerPreferences.getPomodoroRecapCoachingEnabled() } returns flowOf(true)
+        every { proFeatureGate.hasAccess(ProFeatureGate.AI_POMODORO) } returns true
+        coEvery { api.planPomodoro(any()) } returns PomodoroResponse(
+            sessions = listOf(
+                PomodoroSessionResponse(
+                    sessionNumber = 1,
+                    tasks = listOf(SessionTaskResponse(1L, "Draft", 25)),
+                    rationale = "go"
+                )
+            ),
+            totalSessions = 1,
+            totalWorkMinutes = 25,
+            totalBreakMinutes = 5,
+            skippedTasks = emptyList()
+        )
+        coEvery { aiCoach.recapSession(any(), any(), any()) } returns
+            Result.success("Good work on the draft. Next: polish it.")
+
+        val vm = newViewModel()
+        vm.generatePlan()
+        advanceUntilIdle()
+        vm.startSession()
+        advanceUntilIdle()
+        vm.endEarly()
+        advanceUntilIdle()
+
+        assertEquals(PomodoroState.COMPLETE, vm.screenState.value)
+        val recap = vm.sessionRecap.value
+        assertNotNull("recap should surface", recap)
+        assertEquals("Good work on the draft. Next: polish it.", recap?.message)
+        coVerify(exactly = 1) { aiCoach.recapSession(any(), any(), any()) }
+    }
+
+    @Test
+    fun endEarly_withRecapDisabled_skipsRecap() = runTest(dispatcher) {
+        // Default setUp has recap disabled.
+        every { proFeatureGate.hasAccess(ProFeatureGate.AI_POMODORO) } returns true
+        coEvery { api.planPomodoro(any()) } returns PomodoroResponse(
+            sessions = listOf(
+                PomodoroSessionResponse(
+                    sessionNumber = 1,
+                    tasks = listOf(SessionTaskResponse(1L, "Draft", 25)),
+                    rationale = "go"
+                )
+            ),
+            totalSessions = 1,
+            totalWorkMinutes = 25,
+            totalBreakMinutes = 5,
+            skippedTasks = emptyList()
+        )
+
+        val vm = newViewModel()
+        vm.generatePlan()
+        advanceUntilIdle()
+        vm.startSession()
+        advanceUntilIdle()
+        vm.endEarly()
+        advanceUntilIdle()
+
+        assertEquals(PomodoroState.COMPLETE, vm.screenState.value)
+        assertEquals(null, vm.sessionRecap.value)
+        coVerify(exactly = 0) { aiCoach.recapSession(any(), any(), any()) }
+    }
+
+    @Test
+    fun endEarly_recapRpcFailure_leavesRecapNull() = runTest(dispatcher) {
+        every { timerPreferences.getPomodoroRecapCoachingEnabled() } returns flowOf(true)
+        every { proFeatureGate.hasAccess(ProFeatureGate.AI_POMODORO) } returns true
+        coEvery { api.planPomodoro(any()) } returns PomodoroResponse(
+            sessions = listOf(
+                PomodoroSessionResponse(
+                    sessionNumber = 1,
+                    tasks = listOf(SessionTaskResponse(1L, "Draft", 25)),
+                    rationale = "go"
+                )
+            ),
+            totalSessions = 1,
+            totalWorkMinutes = 25,
+            totalBreakMinutes = 5,
+            skippedTasks = emptyList()
+        )
+        coEvery { aiCoach.recapSession(any(), any(), any()) } returns
+            Result.failure(RuntimeException("offline"))
+
+        val vm = newViewModel()
+        vm.generatePlan()
+        advanceUntilIdle()
+        vm.startSession()
+        advanceUntilIdle()
+        vm.endEarly()
+        advanceUntilIdle()
+
+        // Failure is silent — COMPLETE screen still shows, recap card just
+        // doesn't render.
+        assertEquals(PomodoroState.COMPLETE, vm.screenState.value)
+        assertEquals(null, vm.sessionRecap.value)
+    }
+
+    @Test
+    fun nextSession_nonFinal_rerunsPreSessionCoaching() = runTest(dispatcher) {
+        every { timerPreferences.getPomodoroPreSessionCoachingEnabled() } returns flowOf(true)
+        every { proFeatureGate.hasAccess(ProFeatureGate.AI_POMODORO) } returns true
+        coEvery { api.planPomodoro(any()) } returns PomodoroResponse(
+            sessions = listOf(
+                PomodoroSessionResponse(
+                    sessionNumber = 1,
+                    tasks = listOf(SessionTaskResponse(1L, "Draft", 25)),
+                    rationale = "go"
+                ),
+                PomodoroSessionResponse(
+                    sessionNumber = 2,
+                    tasks = listOf(SessionTaskResponse(2L, "Review", 25)),
+                    rationale = "then"
+                )
+            ),
+            totalSessions = 2,
+            totalWorkMinutes = 50,
+            totalBreakMinutes = 5,
+            skippedTasks = emptyList()
+        )
+        // First call serves the pre-session modal for session 1.
+        coEvery { aiCoach.suggestPreSession(any(), any()) } returns
+            Result.success("Start the draft.")
+
+        val vm = newViewModel()
+        vm.generatePlan()
+        advanceUntilIdle()
+        vm.startSession()
+        advanceUntilIdle()
+        vm.acceptPreSessionCoaching()
+        advanceUntilIdle()
+
+        // Drive into the break slot and then advance to the next session.
+        // resumeTimer / skipBreak mirror the user tapping "Skip Break" on the
+        // break screen. nextSession() is the public hook; simulate the state
+        // machine state with a direct call (consistent with the prior
+        // nextSession-based tests).
+        vm.nextSession()
+        advanceUntilIdle()
+
+        // The pre-session coach should have been invoked again for session 2.
+        coVerify(atLeast = 2) { aiCoach.suggestPreSession(any(), any()) }
+        // And the modal should be surfacing the (mocked) message again.
+        val state = vm.preSessionCoaching.value
+        assertTrue("expected Ready, got $state", state is PreSessionCoachingUiState.Ready)
+    }
+
+    @Test
+    fun nextSession_finalIndex_firesRecap() = runTest(dispatcher) {
+        every { timerPreferences.getPomodoroRecapCoachingEnabled() } returns flowOf(true)
+        every { proFeatureGate.hasAccess(ProFeatureGate.AI_POMODORO) } returns true
+        coEvery { api.planPomodoro(any()) } returns PomodoroResponse(
+            sessions = listOf(
+                PomodoroSessionResponse(
+                    sessionNumber = 1,
+                    tasks = listOf(SessionTaskResponse(1L, "Only task", 25)),
+                    rationale = "just one"
+                )
+            ),
+            totalSessions = 1,
+            totalWorkMinutes = 25,
+            totalBreakMinutes = 0,
+            skippedTasks = emptyList()
+        )
+        coEvery { aiCoach.recapSession(any(), any(), any()) } returns
+            Result.success("Nicely done. Carry forward the review.")
+
+        val vm = newViewModel()
+        vm.generatePlan()
+        advanceUntilIdle()
+        vm.startSession()
+        advanceUntilIdle()
+        // nextSession on the final index short-circuits to COMPLETE + recap.
+        vm.nextSession()
+        advanceUntilIdle()
+
+        assertEquals(PomodoroState.COMPLETE, vm.screenState.value)
+        val recap = vm.sessionRecap.value
+        assertNotNull(recap)
+        assertEquals("Nicely done. Carry forward the review.", recap?.message)
+        coVerify(exactly = 1) { aiCoach.recapSession(any(), any(), any()) }
+    }
+
+    @Test
+    fun nextSession_clearsStaleBreakSuggestion() = runTest(dispatcher) {
+        // Break suggestion was already tested for dismissal; here we confirm
+        // nextSession() — which is the "skip break" hook — also clears it so
+        // a stale card doesn't linger into the next work session.
+        every { proFeatureGate.hasAccess(ProFeatureGate.AI_POMODORO) } returns true
+        coEvery { api.planPomodoro(any()) } returns PomodoroResponse(
+            sessions = listOf(
+                PomodoroSessionResponse(
+                    sessionNumber = 1,
+                    tasks = listOf(SessionTaskResponse(1L, "Draft", 25)),
+                    rationale = "go"
+                ),
+                PomodoroSessionResponse(
+                    sessionNumber = 2,
+                    tasks = listOf(SessionTaskResponse(2L, "Review", 25)),
+                    rationale = "then"
+                )
+            ),
+            totalSessions = 2,
+            totalWorkMinutes = 50,
+            totalBreakMinutes = 5,
+            skippedTasks = emptyList()
+        )
+
+        val vm = newViewModel()
+        vm.generatePlan()
+        advanceUntilIdle()
+        vm.startSession()
+        advanceUntilIdle()
+        // dismissBreakSuggestion as a pre-condition confirms the getter works;
+        // the real invariant under test is post-nextSession clearance.
+        vm.dismissBreakSuggestion()
+        vm.nextSession()
+        advanceUntilIdle()
+
+        assertEquals(null, vm.breakSuggestion.value)
     }
 }

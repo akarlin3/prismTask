@@ -579,3 +579,109 @@ Return an empty array if no action items are found."""
             logger.error(f"Task extraction AI error: {type(e).__name__}: {e}")
             raise
     raise ValueError(f"Failed to parse AI response: {last_error_ex}")
+
+
+# --- Pomodoro AI Coaching (pre-session / break / recap) ---
+
+
+def _pomodoro_coaching_prompt(
+    trigger: str,
+    upcoming_tasks: list[dict] | None,
+    session_length_minutes: int | None,
+    elapsed_minutes: int | None,
+    break_type: str | None,
+    recent_suggestions: list[str] | None,
+    completed_tasks: list[dict] | None,
+    started_tasks: list[dict] | None,
+    session_duration_minutes: int | None,
+) -> str:
+    """Build the Haiku prompt for one of the three Pomodoro coaching surfaces.
+
+    Each surface is a single-sentence, friendly coaching response rendered
+    straight to the user. Prompts deliberately bias toward concrete,
+    low-friction guidance over generic motivation.
+    """
+    if trigger == "pre_session":
+        tasks_json = json.dumps(upcoming_tasks or [], default=str, indent=2)
+        return f"""You are a focused productivity coach about to kick off a {session_length_minutes or 25}-minute Pomodoro session.
+
+The user is about to work on these tasks:
+{tasks_json}
+
+Write 1-2 sentences (no more than ~40 words total) suggesting a concrete starting approach — which task to start on, or how to sequence them, or what small first step to take. Be specific, warm, and action-oriented. No bullet points, no greetings, no sign-offs — just the coaching sentence(s) directly."""
+
+    if trigger == "break_activity":
+        recent_json = json.dumps(recent_suggestions or [])
+        kind = break_type or "short"
+        return f"""You are a productivity coach suggesting a break activity.
+
+The user just finished a focus block and is on a {kind} break ({elapsed_minutes or 0} minutes of work elapsed this session).
+
+Suggest one concrete, quick break activity that fits a {kind} break. Vary between categories: stretches, hydration, eye-rest (20-20-20 rule), brief walk, breathing, posture reset. AVOID repeating any of these recent suggestions: {recent_json}
+
+Respond with 1 sentence (no more than ~25 words). No preamble, no sign-off — just the suggestion directly."""
+
+    if trigger == "session_recap":
+        completed_json = json.dumps(completed_tasks or [], default=str, indent=2)
+        started_json = json.dumps(started_tasks or [], default=str, indent=2)
+        return f"""You are a supportive productivity coach wrapping up a {session_duration_minutes or 0}-minute Pomodoro session.
+
+Completed tasks:
+{completed_json}
+
+Started-but-not-finished tasks:
+{started_json}
+
+Write 2 short sentences (no more than ~50 words total):
+1. A warm, specific acknowledgment of what got done (name a task if possible).
+2. One concrete "carry forward" suggestion for the started-but-unfinished work, or a suggested next micro-step if everything's done.
+
+No bullet points, no greeting, no sign-off."""
+
+    raise ValueError(f"Unknown Pomodoro coaching trigger: {trigger}")
+
+
+def generate_pomodoro_coaching(
+    trigger: str,
+    upcoming_tasks: list[dict] | None = None,
+    session_length_minutes: int | None = None,
+    elapsed_minutes: int | None = None,
+    break_type: str | None = None,
+    recent_suggestions: list[str] | None = None,
+    completed_tasks: list[dict] | None = None,
+    started_tasks: list[dict] | None = None,
+    session_duration_minutes: int | None = None,
+    tier: str = "FREE",
+) -> str:
+    """Call Claude Haiku to produce one coaching sentence for a Pomodoro surface.
+
+    Returns the plain-text message. Unlike the JSON-responding AI endpoints
+    (eisenhower, pomodoro-plan, etc.), coaching surfaces speak directly to the
+    user and don't need a JSON envelope — keeps the prompt tight and the
+    response fast.
+    """
+    client = _get_client()
+    model = get_model("pomodoro_coaching")
+    prompt = _pomodoro_coaching_prompt(
+        trigger=trigger,
+        upcoming_tasks=upcoming_tasks,
+        session_length_minutes=session_length_minutes,
+        elapsed_minutes=elapsed_minutes,
+        break_type=break_type,
+        recent_suggestions=recent_suggestions,
+        completed_tasks=completed_tasks,
+        started_tasks=started_tasks,
+        session_duration_minutes=session_duration_minutes,
+    )
+    try:
+        message = client.messages.create(
+            model=model,
+            max_tokens=256,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        text = message.content[0].text.strip()
+        # Defensive strip: some Haiku replies add stray quotes or a trailing newline.
+        return text.strip('"').strip()
+    except Exception as e:
+        logger.error(f"Pomodoro coaching AI error ({trigger}): {type(e).__name__}: {e}")
+        raise

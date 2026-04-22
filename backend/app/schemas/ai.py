@@ -258,3 +258,37 @@ class ExtractedTaskCandidate(BaseModel):
 
 class ExtractFromTextResponse(BaseModel):
     tasks: list[ExtractedTaskCandidate]
+
+
+# --- Pomodoro AI Coaching (pre-session / break / recap) ---
+
+
+class PomodoroCoachingTask(BaseModel):
+    task_id: Optional[str] = None
+    title: str
+    allocated_minutes: Optional[int] = None
+
+
+class PomodoroCoachingRequest(BaseModel):
+    """Trigger-based coaching prompt for the three Pomodoro+ surfaces.
+
+    ``trigger`` is one of: ``"pre_session"``, ``"break_activity"``, ``"session_recap"``.
+    Only the fields relevant to the trigger are consulted; the rest are ignored.
+    """
+
+    trigger: str = Field(pattern="^(pre_session|break_activity|session_recap)$")
+    # Pre-session
+    upcoming_tasks: Optional[list[PomodoroCoachingTask]] = None
+    session_length_minutes: Optional[int] = None
+    # Break
+    elapsed_minutes: Optional[int] = Field(default=None, ge=0, le=600)
+    break_type: Optional[str] = Field(default=None, pattern="^(short|long)$")
+    recent_suggestions: Optional[list[str]] = None
+    # Recap
+    completed_tasks: Optional[list[PomodoroCoachingTask]] = None
+    started_tasks: Optional[list[PomodoroCoachingTask]] = None
+    session_duration_minutes: Optional[int] = Field(default=None, ge=0, le=600)
+
+
+class PomodoroCoachingResponse(BaseModel):
+    message: str

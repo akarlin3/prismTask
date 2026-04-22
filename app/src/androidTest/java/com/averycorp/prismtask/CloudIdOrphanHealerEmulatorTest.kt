@@ -272,6 +272,7 @@ class CloudIdOrphanHealerEmulatorTest {
                     habitLogDao = db.habitLogDao(),
                     taskCompletionDao = db.taskCompletionDao(),
                     taskTemplateDao = db.taskTemplateDao(),
+                    milestoneDao = db.milestoneDao(),
                     logger = logger
                 )
                 return Device(db, healer, userId, firestore)

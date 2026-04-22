@@ -1448,6 +1448,7 @@ constructor(
         b("dailyBriefingEnabled")?.let { p.setDailyBriefingEnabled(it) }
         b("eveningSummaryEnabled")?.let { p.setEveningSummaryEnabled(it) }
         b("weeklySummaryEnabled")?.let { p.setWeeklySummaryEnabled(it) }
+        b("weeklyTaskSummaryEnabled")?.let { p.setWeeklyTaskSummaryEnabled(it) }
         b("overloadAlertsEnabled")?.let { p.setOverloadAlertsEnabled(it) }
         b("reengagementEnabled")?.let { p.setReengagementEnabled(it) }
         b("fullScreenNotificationsEnabled")?.let { p.setFullScreenNotificationsEnabled(it) }

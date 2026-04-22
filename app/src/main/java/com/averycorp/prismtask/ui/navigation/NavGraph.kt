@@ -185,6 +185,12 @@ sealed class PrismTaskRoute(
 
     data object WeeklyReview : PrismTaskRoute("weekly_review")
 
+    data object WeeklyReviewsList : PrismTaskRoute("weekly_reviews_list")
+
+    data object WeeklyReviewDetail : PrismTaskRoute("weekly_reviews_detail/{reviewId}") {
+        fun createRoute(reviewId: Long): String = "weekly_reviews_detail/$reviewId"
+    }
+
     data object MedicationRefill : PrismTaskRoute("medication_refill")
 
     data object BugReport : PrismTaskRoute(

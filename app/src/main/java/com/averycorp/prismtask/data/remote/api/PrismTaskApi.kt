@@ -76,6 +76,11 @@ interface PrismTaskApi {
         @Body request: PomodoroRequest
     ): PomodoroResponse
 
+    @POST("api/v1/ai/pomodoro-coaching")
+    suspend fun getPomodoroCoaching(
+        @Body request: PomodoroCoachingRequest
+    ): PomodoroCoachingResponse
+
     @POST("api/v1/ai/daily-briefing")
     suspend fun getDailyBriefing(
         @Body request: DailyBriefingRequest
