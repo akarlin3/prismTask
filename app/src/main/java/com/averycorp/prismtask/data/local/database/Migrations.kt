@@ -1294,6 +1294,69 @@ val MIGRATION_53_54 = object : Migration(53, 54) {
     }
 }
 
+// v54→v55 drops the legacy medication source data after the convergence
+// window. Spec: `docs/SPEC_MEDICATIONS_TOP_LEVEL.md` §3.
+//
+// DO NOT LAND this migration until all three gates pass:
+//   1. v54 has been shipping for ≥2 weeks.
+//   2. Telemetry shows >95% of active-user devices on v54+.
+//   3. No `medication.migration.device_mismatch` warnings in
+//      PrismSyncLogger for ≥7 days.
+//
+// The migration preserves everything in quarantine before dropping so
+// a forensic recovery is possible via adb + sqlite3 even after
+// hitting production. Rollback via v55→v54 is NOT supported —
+// `fallbackToDestructiveMigrationOnDowngrade` wipes the DB on
+// downgrade.
+val MIGRATION_54_55 = object : Migration(54, 55) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        // A. Snapshot source rows into a phase-2 quarantine so forensic
+        //    recovery stays possible. Same not-in-Room pattern as the
+        //    v53→v54 and Fix D quarantine tables.
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `quarantine_phase2_selfcare_steps_medication` AS " +
+                "SELECT * FROM `self_care_steps` WHERE `routine_type` = 'medication'"
+        )
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `quarantine_phase2_selfcare_logs_medication` AS " +
+                "SELECT * FROM `self_care_logs` WHERE `routine_type` = 'medication'"
+        )
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `quarantine_phase2_medication_refills` AS " +
+                "SELECT * FROM `medication_refills`"
+        )
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `quarantine_phase2_builtin_medication_habit` AS " +
+                "SELECT * FROM `habits` WHERE `name` = 'Medication' AND `is_built_in` = 1"
+        )
+
+        // B. Drop the source rows. Order matters: logs reference steps
+        //    by step_id (via completed_steps JSON), but we don't parse
+        //    that at the SQL layer — both just get cleared.
+        db.execSQL("DELETE FROM `self_care_logs` WHERE `routine_type` = 'medication'")
+        db.execSQL("DELETE FROM `self_care_steps` WHERE `routine_type` = 'medication'")
+        // habit_completions for the built-in Medication habit — CASCADE
+        // via the FK would drop them when the habit row is deleted, but
+        // being explicit keeps the step reviewable.
+        db.execSQL(
+            "DELETE FROM `habit_completions` WHERE `habit_id` IN (" +
+                "SELECT `id` FROM `habits` WHERE `name` = 'Medication' AND `is_built_in` = 1)"
+        )
+        db.execSQL("DELETE FROM `habits` WHERE `name` = 'Medication' AND `is_built_in` = 1")
+
+        // C. Drop the medication_refills table entirely — its data has
+        //    been inlined into `medications` since v53→v54.
+        db.execSQL("DROP TABLE IF EXISTS `medication_refills`")
+
+        // D. Drop the v54 quarantine tables now that the source rows
+        //    they backed up are also being removed. Phase-2 quarantine
+        //    tables above are now the sole source of pre-cleanup data.
+        db.execSQL("DROP TABLE IF EXISTS `quarantine_medication_selfcare_steps`")
+        db.execSQL("DROP TABLE IF EXISTS `quarantine_medication_selfcare_logs`")
+        db.execSQL("DROP TABLE IF EXISTS `quarantine_medication_refills`")
+    }
+}
+
 val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_1_2,
     MIGRATION_2_3,
