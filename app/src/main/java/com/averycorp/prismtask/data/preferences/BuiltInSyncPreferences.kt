@@ -34,6 +34,24 @@ constructor(
         private val LIFE_CATEGORY_BACKFILL_DONE = booleanPreferencesKey("life_category_backfill_done")
         private val BUILT_IN_TASK_TEMPLATES_RECONCILED =
             booleanPreferencesKey("built_in_task_templates_reconciled")
+        private val TASK_TEMPLATE_BACKFILL_DONE =
+            booleanPreferencesKey("task_template_backfill_done")
+
+        // Per-family flags for the v1.4 "new entity" upload loops in
+        // [com.averycorp.prismtask.data.remote.SyncService.maybeRunEntityBackfill].
+        // Replaces [NEW_ENTITIES_BACKFILL_DONE] as the primary gate, with
+        // a legacy-user fallback baked into each accessor (if the master
+        // flag is already true, the per-family flag reads as true so
+        // existing users don't re-run the loop after upgrade).
+        private val COURSES_BACKFILL_DONE = booleanPreferencesKey("courses_backfill_done")
+        private val COURSE_COMPLETIONS_BACKFILL_DONE =
+            booleanPreferencesKey("course_completions_backfill_done")
+        private val LEISURE_LOGS_BACKFILL_DONE =
+            booleanPreferencesKey("leisure_logs_backfill_done")
+        private val SELF_CARE_STEPS_BACKFILL_DONE =
+            booleanPreferencesKey("self_care_steps_backfill_done")
+        private val SELF_CARE_LOGS_BACKFILL_DONE =
+            booleanPreferencesKey("self_care_logs_backfill_done")
     }
 
     suspend fun isBuiltInsReconciled(): Boolean =
@@ -118,5 +136,70 @@ constructor(
 
     suspend fun setBuiltInTaskTemplatesReconciled(done: Boolean) {
         context.builtInSyncDataStore.edit { it[BUILT_IN_TASK_TEMPLATES_RECONCILED] = done }
+    }
+
+    /**
+     * Guard for the one-shot `task_templates` name-based backfill that heals
+     * rows pulled from Firestore with `template_key = NULL` and
+     * `is_built_in = false`. See
+     * [com.averycorp.prismtask.data.remote.BuiltInTaskTemplateBackfiller].
+     *
+     * The backfiller, on success, also flips
+     * [BUILT_IN_TASK_TEMPLATES_RECONCILED] back to false so the reconciler
+     * re-runs with the healed dataset on the next `fullSync`.
+     */
+    suspend fun isTaskTemplateBackfillDone(): Boolean =
+        context.builtInSyncDataStore.data.first()[TASK_TEMPLATE_BACKFILL_DONE] ?: false
+
+    suspend fun setTaskTemplateBackfillDone(done: Boolean) {
+        context.builtInSyncDataStore.edit { it[TASK_TEMPLATE_BACKFILL_DONE] = done }
+    }
+
+    /**
+     * Per-family backfill guards. Each accessor falls back to
+     * [NEW_ENTITIES_BACKFILL_DONE] so existing users who ran the single
+     * master flag don't re-run any family's loop after upgrade. Resetting
+     * a per-family flag in isolation force-re-runs that family's loop —
+     * useful after a targeted Firestore wipe of one subcollection.
+     */
+    suspend fun isCoursesBackfillDone(): Boolean = readWithLegacyFallback(COURSES_BACKFILL_DONE)
+
+    suspend fun setCoursesBackfillDone(done: Boolean) {
+        context.builtInSyncDataStore.edit { it[COURSES_BACKFILL_DONE] = done }
+    }
+
+    suspend fun isCourseCompletionsBackfillDone(): Boolean =
+        readWithLegacyFallback(COURSE_COMPLETIONS_BACKFILL_DONE)
+
+    suspend fun setCourseCompletionsBackfillDone(done: Boolean) {
+        context.builtInSyncDataStore.edit { it[COURSE_COMPLETIONS_BACKFILL_DONE] = done }
+    }
+
+    suspend fun isLeisureLogsBackfillDone(): Boolean =
+        readWithLegacyFallback(LEISURE_LOGS_BACKFILL_DONE)
+
+    suspend fun setLeisureLogsBackfillDone(done: Boolean) {
+        context.builtInSyncDataStore.edit { it[LEISURE_LOGS_BACKFILL_DONE] = done }
+    }
+
+    suspend fun isSelfCareStepsBackfillDone(): Boolean =
+        readWithLegacyFallback(SELF_CARE_STEPS_BACKFILL_DONE)
+
+    suspend fun setSelfCareStepsBackfillDone(done: Boolean) {
+        context.builtInSyncDataStore.edit { it[SELF_CARE_STEPS_BACKFILL_DONE] = done }
+    }
+
+    suspend fun isSelfCareLogsBackfillDone(): Boolean =
+        readWithLegacyFallback(SELF_CARE_LOGS_BACKFILL_DONE)
+
+    suspend fun setSelfCareLogsBackfillDone(done: Boolean) {
+        context.builtInSyncDataStore.edit { it[SELF_CARE_LOGS_BACKFILL_DONE] = done }
+    }
+
+    private suspend fun readWithLegacyFallback(
+        key: androidx.datastore.preferences.core.Preferences.Key<Boolean>
+    ): Boolean {
+        val prefs = context.builtInSyncDataStore.data.first()
+        return prefs[key] ?: prefs[NEW_ENTITIES_BACKFILL_DONE] ?: false
     }
 }

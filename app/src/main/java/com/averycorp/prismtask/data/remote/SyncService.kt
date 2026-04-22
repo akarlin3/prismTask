@@ -52,6 +52,8 @@ constructor(
     private val syncStateRepository: SyncStateRepository,
     private val builtInHabitReconciler: BuiltInHabitReconciler,
     private val builtInTaskTemplateReconciler: BuiltInTaskTemplateReconciler,
+    private val builtInTaskTemplateBackfiller: BuiltInTaskTemplateBackfiller,
+    private val cloudIdOrphanHealer: CloudIdOrphanHealer,
     private val sortPreferencesSyncService: SortPreferencesSyncService,
     private val schoolworkDao: SchoolworkDao,
     private val leisureDao: LeisureDao,
@@ -404,128 +406,213 @@ constructor(
     }
 
     /**
-     * One-shot backfill for the course/leisure/self-care entity families added in
-     * the v1.4 sync pipeline. Guarded by [BuiltInSyncPreferences.isNewEntitiesBackfillDone]
-     * so it runs exactly once. Flag stays false on partial failure, enabling a
-     * self-healing retry on the next call (next sign-in or next app start).
+     * Per-family backfill for the v1.4 "new entity" upload families
+     * (`courses`, `course_completions`, `leisure_logs`, `self_care_steps`,
+     * `self_care_logs`). Each family is guarded by its own DataStore flag
+     * in [BuiltInSyncPreferences] with a legacy fallback to
+     * [BuiltInSyncPreferences.isNewEntitiesBackfillDone], so users who
+     * already ran the old single-flag master backfill don't re-run any
+     * family's loop after upgrade. Each family's flag flips to true only
+     * on successful completion of its own loop — a family that partially
+     * failed stays retryable on the next app start independently of the
+     * other families' success.
      *
-     * Called from [initialUpload] (sign-in path) AND from [startAutoSync]
-     * (already-signed-in path) so devices that were authenticated before this
-     * code shipped are not silently skipped.
+     * Called from [doInitialUpload] (sign-in path) AND from [startAutoSync]
+     * (already-signed-in path) so devices authenticated before this code
+     * shipped are not silently skipped.
+     *
+     * Per-row guards (`if (getCloudId(row.id, type) != null) continue`)
+     * make re-running a family's loop idempotent against already-synced
+     * rows — resetting a per-family flag for targeted re-upload after an
+     * out-of-band Firestore wipe is safe.
+     *
+     * The master flag ([BuiltInSyncPreferences.setNewEntitiesBackfillDone])
+     * is still flipped to true when all families succeed, preserving
+     * backwards-compat signaling for code paths that still check it.
      */
     private suspend fun maybeRunEntityBackfill() {
-        if (builtInSyncPreferences.isNewEntitiesBackfillDone()) return
+        val coursesOk = runCoursesBackfillIfNeeded()
+        val courseCompletionsOk = runCourseCompletionsBackfillIfNeeded()
+        val leisureLogsOk = runLeisureLogsBackfillIfNeeded()
+        val selfCareStepsOk = runSelfCareStepsBackfillIfNeeded()
+        val selfCareLogsOk = runSelfCareLogsBackfillIfNeeded()
 
-        val courses = schoolworkDao.getAllCoursesOnce()
-        logger.debug("upload.courses", status = "begin", detail = "count=${courses.size}")
-        for (course in courses) {
-            try {
-                if (syncMetadataDao.getCloudId(course.id, "course") != null) continue
-                val docRef = userCollection("courses")?.document() ?: continue
-                docRef.set(SyncMapper.courseToMap(course)).await()
-                syncMetadataDao.upsert(
-                    SyncMetadataEntity(
-                        localId = course.id,
-                        entityType = "course",
-                        cloudId = docRef.id,
-                        lastSyncedAt = System.currentTimeMillis()
-                    )
-                )
-            } catch (e: Exception) {
-                logger.error(operation = "upload.course", entity = "course", id = course.id.toString(), detail = course.name, throwable = e)
-            }
+        val allSucceeded = coursesOk && courseCompletionsOk && leisureLogsOk &&
+            selfCareStepsOk && selfCareLogsOk
+        if (allSucceeded) {
+            builtInSyncPreferences.setNewEntitiesBackfillDone(true)
+            logger.info("upload.new_entities_backfill", status = "success")
         }
+    }
 
-        // course_completions AFTER courses so course cloud IDs are in sync_metadata.
-        val courseCompletions = schoolworkDao.getAllCompletionsOnce()
-        logger.debug("upload.course_completions", status = "begin", detail = "count=${courseCompletions.size}")
-        for (completion in courseCompletions) {
-            try {
-                if (syncMetadataDao.getCloudId(completion.id, "course_completion") != null) continue
-                val courseCloudId = syncMetadataDao.getCloudId(completion.courseId, "course") ?: continue
-                val docRef = userCollection("course_completions")?.document() ?: continue
-                docRef.set(SyncMapper.courseCompletionToMap(completion, courseCloudId)).await()
-                syncMetadataDao.upsert(
-                    SyncMetadataEntity(
-                        localId = completion.id,
-                        entityType = "course_completion",
-                        cloudId = docRef.id,
-                        lastSyncedAt = System.currentTimeMillis()
+    /**
+     * Runs the courses upload loop if its per-family flag is false.
+     * Returns true if the family is complete (either was already done
+     * or completed successfully in this pass), false if it ran but
+     * encountered an exception. The flag flips only on clean completion.
+     */
+    private suspend fun runCoursesBackfillIfNeeded(): Boolean {
+        if (builtInSyncPreferences.isCoursesBackfillDone()) return true
+        return try {
+            val courses = schoolworkDao.getAllCoursesOnce()
+            logger.debug("upload.courses", status = "begin", detail = "count=${courses.size}")
+            for (course in courses) {
+                try {
+                    if (syncMetadataDao.getCloudId(course.id, "course") != null) continue
+                    val docRef = userCollection("courses")?.document() ?: continue
+                    docRef.set(SyncMapper.courseToMap(course)).await()
+                    syncMetadataDao.upsert(
+                        SyncMetadataEntity(
+                            localId = course.id,
+                            entityType = "course",
+                            cloudId = docRef.id,
+                            lastSyncedAt = System.currentTimeMillis()
+                        )
                     )
-                )
-            } catch (e: Exception) {
-                logger.error(
-                    operation = "upload.course_completion",
-                    entity = "course_completion",
-                    id = completion.id.toString(),
-                    throwable = e
-                )
-            }
-        }
-
-        val leisureLogs = leisureDao.getAllLogsOnce()
-        logger.debug("upload.leisure_logs", status = "begin", detail = "count=${leisureLogs.size}")
-        for (log in leisureLogs) {
-            try {
-                if (syncMetadataDao.getCloudId(log.id, "leisure_log") != null) continue
-                val docRef = userCollection("leisure_logs")?.document() ?: continue
-                docRef.set(SyncMapper.leisureLogToMap(log)).await()
-                syncMetadataDao.upsert(
-                    SyncMetadataEntity(
-                        localId = log.id,
-                        entityType = "leisure_log",
-                        cloudId = docRef.id,
-                        lastSyncedAt = System.currentTimeMillis()
+                } catch (e: Exception) {
+                    logger.error(
+                        operation = "upload.course",
+                        entity = "course",
+                        id = course.id.toString(),
+                        detail = course.name,
+                        throwable = e
                     )
-                )
-            } catch (e: Exception) {
-                logger.error(operation = "upload.leisure_log", entity = "leisure_log", id = log.id.toString(), throwable = e)
+                }
             }
+            builtInSyncPreferences.setCoursesBackfillDone(true)
+            true
+        } catch (e: Exception) {
+            logger.error(operation = "upload.courses", throwable = e)
+            false
         }
+    }
 
-        val selfCareSteps = selfCareDao.getAllStepsOnce()
-        logger.debug("upload.self_care_steps", status = "begin", detail = "count=${selfCareSteps.size}")
-        for (step in selfCareSteps) {
-            try {
-                if (syncMetadataDao.getCloudId(step.id, "self_care_step") != null) continue
-                val docRef = userCollection("self_care_steps")?.document() ?: continue
-                docRef.set(SyncMapper.selfCareStepToMap(step)).await()
-                syncMetadataDao.upsert(
-                    SyncMetadataEntity(
-                        localId = step.id,
-                        entityType = "self_care_step",
-                        cloudId = docRef.id,
-                        lastSyncedAt = System.currentTimeMillis()
+    private suspend fun runCourseCompletionsBackfillIfNeeded(): Boolean {
+        if (builtInSyncPreferences.isCourseCompletionsBackfillDone()) return true
+        return try {
+            // course_completions AFTER courses so course cloud IDs are in sync_metadata.
+            val courseCompletions = schoolworkDao.getAllCompletionsOnce()
+            logger.debug("upload.course_completions", status = "begin", detail = "count=${courseCompletions.size}")
+            for (completion in courseCompletions) {
+                try {
+                    if (syncMetadataDao.getCloudId(completion.id, "course_completion") != null) continue
+                    val courseCloudId = syncMetadataDao.getCloudId(completion.courseId, "course") ?: continue
+                    val docRef = userCollection("course_completions")?.document() ?: continue
+                    docRef.set(SyncMapper.courseCompletionToMap(completion, courseCloudId)).await()
+                    syncMetadataDao.upsert(
+                        SyncMetadataEntity(
+                            localId = completion.id,
+                            entityType = "course_completion",
+                            cloudId = docRef.id,
+                            lastSyncedAt = System.currentTimeMillis()
+                        )
                     )
-                )
-            } catch (e: Exception) {
-                logger.error(operation = "upload.self_care_step", entity = "self_care_step", id = step.id.toString(), throwable = e)
-            }
-        }
-
-        // self_care_logs AFTER self_care_steps (logical dependency).
-        val selfCareLogs = selfCareDao.getAllLogsOnce()
-        logger.debug("upload.self_care_logs", status = "begin", detail = "count=${selfCareLogs.size}")
-        for (log in selfCareLogs) {
-            try {
-                if (syncMetadataDao.getCloudId(log.id, "self_care_log") != null) continue
-                val docRef = userCollection("self_care_logs")?.document() ?: continue
-                docRef.set(SyncMapper.selfCareLogToMap(log)).await()
-                syncMetadataDao.upsert(
-                    SyncMetadataEntity(
-                        localId = log.id,
-                        entityType = "self_care_log",
-                        cloudId = docRef.id,
-                        lastSyncedAt = System.currentTimeMillis()
+                } catch (e: Exception) {
+                    logger.error(
+                        operation = "upload.course_completion",
+                        entity = "course_completion",
+                        id = completion.id.toString(),
+                        throwable = e
                     )
-                )
-            } catch (e: Exception) {
-                logger.error(operation = "upload.self_care_log", entity = "self_care_log", id = log.id.toString(), throwable = e)
+                }
             }
+            builtInSyncPreferences.setCourseCompletionsBackfillDone(true)
+            true
+        } catch (e: Exception) {
+            logger.error(operation = "upload.course_completions", throwable = e)
+            false
         }
+    }
 
-        builtInSyncPreferences.setNewEntitiesBackfillDone(true)
-        logger.info("upload.new_entities_backfill", status = "success")
+    private suspend fun runLeisureLogsBackfillIfNeeded(): Boolean {
+        if (builtInSyncPreferences.isLeisureLogsBackfillDone()) return true
+        return try {
+            val leisureLogs = leisureDao.getAllLogsOnce()
+            logger.debug("upload.leisure_logs", status = "begin", detail = "count=${leisureLogs.size}")
+            for (log in leisureLogs) {
+                try {
+                    if (syncMetadataDao.getCloudId(log.id, "leisure_log") != null) continue
+                    val docRef = userCollection("leisure_logs")?.document() ?: continue
+                    docRef.set(SyncMapper.leisureLogToMap(log)).await()
+                    syncMetadataDao.upsert(
+                        SyncMetadataEntity(
+                            localId = log.id,
+                            entityType = "leisure_log",
+                            cloudId = docRef.id,
+                            lastSyncedAt = System.currentTimeMillis()
+                        )
+                    )
+                } catch (e: Exception) {
+                    logger.error(operation = "upload.leisure_log", entity = "leisure_log", id = log.id.toString(), throwable = e)
+                }
+            }
+            builtInSyncPreferences.setLeisureLogsBackfillDone(true)
+            true
+        } catch (e: Exception) {
+            logger.error(operation = "upload.leisure_logs", throwable = e)
+            false
+        }
+    }
+
+    private suspend fun runSelfCareStepsBackfillIfNeeded(): Boolean {
+        if (builtInSyncPreferences.isSelfCareStepsBackfillDone()) return true
+        return try {
+            val selfCareSteps = selfCareDao.getAllStepsOnce()
+            logger.debug("upload.self_care_steps", status = "begin", detail = "count=${selfCareSteps.size}")
+            for (step in selfCareSteps) {
+                try {
+                    if (syncMetadataDao.getCloudId(step.id, "self_care_step") != null) continue
+                    val docRef = userCollection("self_care_steps")?.document() ?: continue
+                    docRef.set(SyncMapper.selfCareStepToMap(step)).await()
+                    syncMetadataDao.upsert(
+                        SyncMetadataEntity(
+                            localId = step.id,
+                            entityType = "self_care_step",
+                            cloudId = docRef.id,
+                            lastSyncedAt = System.currentTimeMillis()
+                        )
+                    )
+                } catch (e: Exception) {
+                    logger.error(operation = "upload.self_care_step", entity = "self_care_step", id = step.id.toString(), throwable = e)
+                }
+            }
+            builtInSyncPreferences.setSelfCareStepsBackfillDone(true)
+            true
+        } catch (e: Exception) {
+            logger.error(operation = "upload.self_care_steps", throwable = e)
+            false
+        }
+    }
+
+    private suspend fun runSelfCareLogsBackfillIfNeeded(): Boolean {
+        if (builtInSyncPreferences.isSelfCareLogsBackfillDone()) return true
+        return try {
+            // self_care_logs AFTER self_care_steps (logical dependency).
+            val selfCareLogs = selfCareDao.getAllLogsOnce()
+            logger.debug("upload.self_care_logs", status = "begin", detail = "count=${selfCareLogs.size}")
+            for (log in selfCareLogs) {
+                try {
+                    if (syncMetadataDao.getCloudId(log.id, "self_care_log") != null) continue
+                    val docRef = userCollection("self_care_logs")?.document() ?: continue
+                    docRef.set(SyncMapper.selfCareLogToMap(log)).await()
+                    syncMetadataDao.upsert(
+                        SyncMetadataEntity(
+                            localId = log.id,
+                            entityType = "self_care_log",
+                            cloudId = docRef.id,
+                            lastSyncedAt = System.currentTimeMillis()
+                        )
+                    )
+                } catch (e: Exception) {
+                    logger.error(operation = "upload.self_care_log", entity = "self_care_log", id = log.id.toString(), throwable = e)
+                }
+            }
+            builtInSyncPreferences.setSelfCareLogsBackfillDone(true)
+            true
+        } catch (e: Exception) {
+            logger.error(operation = "upload.self_care_logs", throwable = e)
+            false
+        }
     }
 
     fun launchInitialUpload() {
@@ -1288,6 +1375,20 @@ constructor(
         try {
             pushed = pushLocalChanges()
             pulled = pullRemoteChanges()
+            // Re-queue pushes for any local row with a cloud_id that no
+            // longer has a matching Firestore doc. See
+            // [CloudIdOrphanHealer] — covers post-Fix-D out-of-band wipe.
+            try {
+                cloudIdOrphanHealer.healOrphans()
+            } catch (e: Exception) {
+                logger.error(operation = "healer.error", throwable = e)
+                try {
+                    com.google.firebase.crashlytics.FirebaseCrashlytics
+                        .getInstance()
+                        .recordException(e)
+                } catch (_: Exception) {
+                }
+            }
             builtInHabitReconciler.reconcileAfterSyncIfNeeded()
             builtInTaskTemplateReconciler.reconcileAfterSyncIfNeeded()
             syncStateRepository.markSyncCompleted(
@@ -1406,17 +1507,33 @@ constructor(
                 } catch (_: Exception) {
                 }
             }
-            if (!builtInSyncPreferences.isNewEntitiesBackfillDone()) {
-                logger.info(operation = "backfill.triggered", detail = "source=startAutoSync reason=already_signed_in")
+            // Per-family backfill guards mean maybeRunEntityBackfill is now
+            // safe and cheap to call unconditionally — each family's internal
+            // flag short-circuits the loop when already done. Previously
+            // guarded by [isNewEntitiesBackfillDone]; that master flag is
+            // still written on full success and remains the legacy-user
+            // fallback inside each per-family accessor.
+            try {
+                maybeRunEntityBackfill()
+            } catch (e: Exception) {
                 try {
-                    maybeRunEntityBackfill()
-                } catch (e: Exception) {
-                    try {
-                        com.google.firebase.crashlytics.FirebaseCrashlytics
-                            .getInstance()
-                            .recordException(e)
-                    } catch (_: Exception) {
-                    }
+                    com.google.firebase.crashlytics.FirebaseCrashlytics
+                        .getInstance()
+                        .recordException(e)
+                } catch (_: Exception) {
+                }
+            }
+            // Heal pre-template_key task_templates rows before the first
+            // fullSync so the reconciler sees a correctly-shaped dataset on
+            // the same cycle. See [BuiltInTaskTemplateBackfiller].
+            try {
+                builtInTaskTemplateBackfiller.runBackfillIfNeeded()
+            } catch (e: Exception) {
+                try {
+                    com.google.firebase.crashlytics.FirebaseCrashlytics
+                        .getInstance()
+                        .recordException(e)
+                } catch (_: Exception) {
                 }
             }
             try {
