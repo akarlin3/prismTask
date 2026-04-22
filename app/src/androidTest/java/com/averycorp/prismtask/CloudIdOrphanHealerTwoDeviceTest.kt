@@ -319,6 +319,14 @@ class CloudIdOrphanHealerTwoDeviceTest {
                     selfCareDao = db.selfCareDao(),
                     schoolworkDao = db.schoolworkDao(),
                     leisureDao = db.leisureDao(),
+                    taskDao = db.taskDao(),
+                    projectDao = db.projectDao(),
+                    tagDao = db.tagDao(),
+                    habitDao = db.habitDao(),
+                    habitCompletionDao = db.habitCompletionDao(),
+                    habitLogDao = db.habitLogDao(),
+                    taskCompletionDao = db.taskCompletionDao(),
+                    taskTemplateDao = db.taskTemplateDao(),
                     logger = logger
                 )
                 return Device(db, healer, firestore, label)
