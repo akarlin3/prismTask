@@ -271,6 +271,7 @@ private class FakeMedicationDoseDao : MedicationDoseDao {
         rows += updated
     }
 
+    override fun observeAll() = error("flow read not exercised in this test")
     override fun getForDate(date: String) = error("flow read not exercised in this test")
     override fun getForMedOnDate(medicationId: Long, date: String) =
         error("flow read not exercised in this test")

@@ -330,6 +330,7 @@ private class FakeMedicationDoseDaoForRepo : MedicationDoseDao {
         rows += updated
     }
 
+    override fun observeAll() = error("flow not exercised")
     override fun getForDate(date: String) = error("flow not exercised")
     override fun getForMedOnDate(medicationId: Long, date: String) =
         error("flow not exercised")
