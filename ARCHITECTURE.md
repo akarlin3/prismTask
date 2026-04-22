@@ -157,8 +157,8 @@ The Android app maintains a local Room database that is significantly richer
 than the backend model. The Android app is the primary data store;
 Firebase Firestore provides cross-device cloud sync for core entities.
 
-**Current schema version: 50** (49 cumulative migrations,
-`MIGRATION_1_2` through `MIGRATION_49_50`)
+**Current schema version: 54** (53 cumulative migrations,
+`MIGRATION_1_2` through `MIGRATION_53_54`)
 
 ### Entity Groups
 
@@ -203,9 +203,11 @@ Firebase Firestore provides cross-device cloud sync for core entities.
 
 | Table | Notes |
 |---|---|
-| `medication_refills` | Pill count, dosage, pharmacy, refill forecast. Migration 34→35 |
-| `self_care_logs` | Self-care routine tracking |
-| `self_care_steps` | Individual steps within a self-care routine |
+| `medications` | Top-level medication entity (name, dosage, schedule, refill data). Migration 53→54 backfills from `self_care_steps WHERE routine_type='medication'` |
+| `medication_doses` | Individual scheduled / logged doses for a medication. Migration 53→54 |
+| `medication_refills` | Pill count, dosage, pharmacy, refill forecast. Migration 34→35 (data merged into `medications` during 53→54 backfill; preserved as quarantine source) |
+| `self_care_logs` | Self-care routine tracking (preserved as quarantine source after 53→54 medication extraction) |
+| `self_care_steps` | Individual steps within a self-care routine (preserved as quarantine source after 53→54 medication extraction) |
 
 **Learning, Leisure & Daily Essentials**
 
@@ -250,6 +252,10 @@ Firebase Firestore provides cross-device cloud sync for core entities.
 | 47→48 | `projects` lifecycle columns + `milestones` table (Projects Phase 1) |
 | 48→49 | `habits.is_built_in` + `habits.template_key`; backfills 6 built-in habit names |
 | 49→50 | `habit_completions.completed_date_local` TEXT + index; strftime backfill for timezone-neutral day queries |
+| 50→51 | `updated_at INTEGER NOT NULL DEFAULT 0` on `self_care_logs`, `leisure_logs`, `self_care_steps`, `courses`, `course_completions` for last-write-wins conflict resolution |
+| 51→52 | `cloud_id TEXT` unique-indexed column on every syncable entity; backfilled from `sync_metadata` (Phase 2 sync-duplication fix) |
+| 52→53 | `template_key` on `task_templates` (parity with habits) |
+| 53→54 | `medications` + `medication_doses` tables; backfilled from `self_care_steps WHERE routine_type='medication'` with duplicate-name collapse via `GROUP_CONCAT(DISTINCT label, ' / ')` and refill data merged inline from `medication_refills`. Source tables preserved as quarantine. |
 
 ---
 
@@ -444,7 +450,7 @@ prismTask/
 │   │   │   ├── export/              # DataExporter (JSON v5 + CSV), DataImporter
 │   │   │   ├── local/
 │   │   │   │   ├── dao/             # 25+ Room DAOs
-│   │   │   │   ├── database/        # PrismTaskDatabase (v50), Migrations.kt
+│   │   │   │   ├── database/        # PrismTaskDatabase (v54), Migrations.kt
 │   │   │   │   └── entity/          # 32 Room entities
 │   │   │   ├── preferences/         # 25+ DataStore preference files
 │   │   │   ├── remote/              # Firebase Auth/Firestore, Google Drive,
@@ -459,7 +465,7 @@ prismTask/
 │   │   ├── notifications/           # NotificationHelper, ReminderScheduler,
 │   │   │                            #   EscalationScheduler, SoundResolver,
 │   │   │                            #   WorkManager workers, BroadcastReceivers
-│   │   ├── widget/                  # 7 Glance widgets with per-instance config
+│   │   ├── widget/                  # 8 Glance widgets with per-instance config
 │   │   │                            #   (Today, HabitStreak, QuickAdd, Calendar,
 │   │   │                            #    Productivity, Timer, Upcoming, Project)
 │   │   ├── workers/                 # Background WorkManager workers
@@ -497,13 +503,15 @@ prismTask/
 │   └── playwright.config.ts         # E2E test config
 │
 ├── docs/                            # Design and architecture docs
-│   ├── ARCHITECTURE.md              # This document
 │   ├── NOTIFICATIONS_DESIGN.md      # Cross-platform notification system
 │   ├── ADR-calendar-sync.md         # Architecture decision: backend-mediated calendar sync
+│   ├── FIREBASE_EMULATOR.md         # Local Firebase Emulator setup
 │   ├── projects-feature.md          # Projects Phase 1 deep-dive
-│   ├── export_import_audit_*.md     # Export/import audit snapshots
-│   ├── PRIVACY_POLICY.md / TERMS_OF_SERVICE.md
+│   ├── sync-architecture.md         # Firestore sync pipeline design
+│   ├── PRIVACY_POLICY.md / TERMS_OF_SERVICE.md (+ HTML twins)
 │   └── RELEASE.md                   # Release checklist
+│
+├── ARCHITECTURE.md                  # This document (root, not under docs/)
 │
 ├── store/listing/                   # Play Store assets + data safety / content rating
 │
