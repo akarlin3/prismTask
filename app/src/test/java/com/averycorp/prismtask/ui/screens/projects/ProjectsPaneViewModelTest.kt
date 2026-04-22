@@ -179,6 +179,7 @@ class ProjectsPaneViewModelTest {
     private class FakeMilestoneDao : MilestoneDao {
         override fun observeMilestones(projectId: Long): Flow<List<MilestoneEntity>> = flowOf(emptyList())
         override suspend fun getMilestonesOnce(projectId: Long): List<MilestoneEntity> = emptyList()
+        override suspend fun getAllMilestonesOnce(): List<MilestoneEntity> = emptyList()
         override suspend fun getByIdOnce(id: Long): MilestoneEntity? = null
         override suspend fun getCompletedTimestamps(projectId: Long): List<Long> = emptyList()
         override suspend fun getMaxOrderIndex(projectId: Long): Int = -1
