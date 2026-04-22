@@ -2,38 +2,76 @@ package com.averycorp.prismtask.ui.screens.medication
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.averycorp.prismtask.data.local.entity.MedicationDoseEntity
+import com.averycorp.prismtask.data.local.entity.MedicationEntity
 import com.averycorp.prismtask.data.local.entity.SelfCareLogEntity
 import com.averycorp.prismtask.data.local.entity.SelfCareStepEntity
 import com.averycorp.prismtask.data.preferences.MedicationPreferences
 import com.averycorp.prismtask.data.preferences.MedicationScheduleMode
+import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
 import com.averycorp.prismtask.data.repository.MedStepLog
+import com.averycorp.prismtask.data.repository.MedicationRepository
 import com.averycorp.prismtask.data.repository.SelfCareRepository
 import com.averycorp.prismtask.notifications.HabitReminderScheduler
+import com.averycorp.prismtask.util.DayBoundary
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class MedicationViewModel
 @Inject
+@Suppress("LongParameterList")
 constructor(
     private val repository: SelfCareRepository,
+    private val medicationRepository: MedicationRepository,
     private val medicationPreferences: MedicationPreferences,
+    private val taskBehaviorPreferences: TaskBehaviorPreferences,
     private val reminderScheduler: HabitReminderScheduler
 ) : ViewModel() {
     private val _editMode = MutableStateFlow(false)
     val editMode: StateFlow<Boolean> = _editMode
 
+    // --- Legacy flows (still power the current Compose tree) -----------
+    //
+    // The Compose rewire from SelfCareStepEntity/SelfCareLogEntity to
+    // the new MedicationEntity/MedicationDoseEntity types is deferred
+    // to a follow-up PR that also addresses the tier-per-time-of-day
+    // UX decision (today's `tiersByTime` state doesn't have a clean
+    // home on the new model). The dual-write shim in SelfCareRepository
+    // keeps these legacy flows in sync with MedicationEntity writes.
     val todayLog: StateFlow<SelfCareLogEntity?> = repository
         .getTodayLog("medication")
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     val steps: StateFlow<List<SelfCareStepEntity>> = repository
         .getSteps("medication")
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    // --- New flows (staged for the follow-up Compose rewire) -----------
+    //
+    // Same data, top-level-entity shape. Exposed now so the next session
+    // flipping the Compose types doesn't also need to touch the ViewModel.
+
+    /** Active medications from the new `medications` table. */
+    val medications: StateFlow<List<MedicationEntity>> = medicationRepository
+        .observeActive()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    /** Today's dose history keyed on the device's configured day-start hour. */
+    val todaysDoses: StateFlow<List<MedicationDoseEntity>> = taskBehaviorPreferences
+        .getDayStartHour()
+        .flatMapLatest { hour ->
+            val today = DayBoundary.currentLocalDateString(hour)
+            medicationRepository.observeDosesForDate(today)
+        }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val reminderIntervalMinutes: StateFlow<Int> = medicationPreferences
