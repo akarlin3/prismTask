@@ -1,6 +1,7 @@
 package com.averycorp.prismtask.smoke
 
 import com.averycorp.prismtask.data.remote.api.BugReportMirrorResponse
+import com.averycorp.prismtask.data.remote.api.CalendarBackendApi
 import com.averycorp.prismtask.data.remote.api.PrismTaskApi
 import com.averycorp.prismtask.data.remote.api.UserInfoResponse
 import com.averycorp.prismtask.data.remote.sync.SyncPullResponse
@@ -43,9 +44,7 @@ object TestNetworkModule {
     // instrumentation suite, so a mockk(relaxed) is sufficient.
     @Provides
     @Singleton
-    fun provideCalendarBackendApi():
-        com.averycorp.prismtask.data.remote.api.CalendarBackendApi =
-        io.mockk.mockk(relaxed = true)
+    fun provideCalendarBackendApi(): CalendarBackendApi = io.mockk.mockk(relaxed = true)
 }
 
 /**
