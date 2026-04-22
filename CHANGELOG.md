@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Medications — Top-level entity (follow-up — MedicationRepository unit tests)
+- `MedicationRepositoryTest` (12 cases) covers the repository's write
+  contract: insert / update / archive / delete, logDose / unlogDose /
+  updateDose, timestamps, `taken_date_local` computation, and
+  date-filtered dose counting. Every write asserts the
+  corresponding `SyncTracker.trackCreate/Update/Delete` call with the
+  correct `"medication"` or `"medication_dose"` entity type — the
+  contract that keeps the sync layer picking up changes. Uses in-
+  memory fake DAOs in the `FakeMedicationDaoForRepo` /
+  `FakeMedicationDoseDaoForRepo` style.
+- Full-chain instrumentation suite (API 26 migration, two-device
+  Firestore-emulator convergence, Robolectric reminder-continuity)
+  still deferred to a dedicated emulator PR.
+
 ### Medications — Top-level entity (PR 4.5 — Dual-write shim + scheduler disarm)
 - **Dual-write shim.** `SelfCareRepository`'s medication-specific write
   paths (`addStep`, `updateStep`, `deleteStep`, `toggleStep`) now mirror
