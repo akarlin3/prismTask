@@ -63,10 +63,12 @@ class SyncMapperContentTest {
 
     @Test
     fun focusReleaseLog_roundTripsWithTaskFkResolution() {
+        // taskId = 42 is the local task row id; the push side resolves it
+        // to a cloud id via syncMetadataDao.
         val source = FocusReleaseLogEntity(
             id = 3,
             eventType = "stuck_detected",
-            taskId = 42, // local task row id
+            taskId = 42,
             context = "today_screen",
             createdAt = 100L,
             updatedAt = 200L
@@ -157,9 +159,10 @@ class SyncMapperContentTest {
 
     @Test
     fun assignment_roundTripsWithCourseFkResolution() {
+        // courseId = 101 is the local course row id.
         val source = AssignmentEntity(
             id = 8,
-            courseId = 101, // local course id
+            courseId = 101,
             title = "Essay draft",
             dueDate = 1_700_000_000_000L,
             completed = false,

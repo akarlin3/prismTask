@@ -1112,7 +1112,10 @@ constructor(
         else -> entityType + "s"
     }
 
-    @Suppress("ReturnCount") // TODO: refactor pushCreate to reduce early return statements
+    @Suppress("ReturnCount", "CyclomaticComplexMethod", "LongMethod")
+    // Dispatch across every synced entityType — splitting the `when` is not
+    // worth the indirection since each branch is only a DAO lookup + mapper
+    // call. TODO: refactor pushCreate to reduce early return statements.
     private suspend fun pushCreate(meta: SyncMetadataEntity) {
         val collection = userCollection(collectionNameFor(meta.entityType)) ?: return
         val docRef = collection.document()
@@ -1279,7 +1282,9 @@ constructor(
         syncMetadataDao.upsert(meta.copy(cloudId = docRef.id, pendingAction = null, lastSyncedAt = System.currentTimeMillis()))
     }
 
-    @Suppress("ReturnCount") // TODO: refactor pushUpdate to reduce early return statements
+    @Suppress("ReturnCount", "CyclomaticComplexMethod", "LongMethod")
+    // Dispatch across every synced entityType — see pushCreate for the same
+    // trade-off. TODO: refactor pushUpdate to reduce early return statements.
     private suspend fun pushUpdate(meta: SyncMetadataEntity) {
         if (meta.cloudId.isEmpty()) {
             pushCreate(meta)
