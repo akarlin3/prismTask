@@ -139,6 +139,7 @@ class DataImporterV5Test {
         importer = DataImporter(
             taskDao, projectDao, tagDao, habitDao, habitCompletionDao,
             taskCompletionDao, habitLogDao, leisureDao, selfCareDao, schoolworkDao,
+            mockk(relaxed = true), mockk(relaxed = true), // medicationDao, medicationDoseDao
             transactionRunner, themePreferences, archivePreferences, dashboardPreferences,
             tabPreferences, taskBehaviorPreferences, habitListPreferences,
             leisurePreferences, medicationPreferences, userPreferencesDataStore,

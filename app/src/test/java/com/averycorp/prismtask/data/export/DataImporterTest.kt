@@ -129,6 +129,8 @@ class DataImporterTest {
             leisureDao,
             selfCareDao,
             schoolworkDao,
+            mockk(relaxed = true), // medicationDao
+            mockk(relaxed = true), // medicationDoseDao
             transactionRunner,
             themePreferences,
             archivePreferences,
