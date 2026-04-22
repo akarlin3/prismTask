@@ -81,13 +81,19 @@ constructor(
             val now = System.currentTimeMillis()
             for (med in meds) {
                 val updated = when (mode) {
-                    MedicationScheduleMode.SPECIFIC_TIMES -> med.copy(
-                        scheduleMode = "SPECIFIC_TIMES",
-                        specificTimes = if (specificTimes.isEmpty()) null
-                        else specificTimes.joinToString(","),
-                        intervalMillis = null,
-                        updatedAt = now
-                    )
+                    MedicationScheduleMode.SPECIFIC_TIMES -> {
+                        val times = if (specificTimes.isEmpty()) {
+                            null
+                        } else {
+                            specificTimes.joinToString(",")
+                        }
+                        med.copy(
+                            scheduleMode = "SPECIFIC_TIMES",
+                            specificTimes = times,
+                            intervalMillis = null,
+                            updatedAt = now
+                        )
+                    }
                     MedicationScheduleMode.INTERVAL -> {
                         val intervalMillis = intervalFromHabit
                             ?: intervalMinutesFromPrefs
@@ -96,13 +102,16 @@ constructor(
                         // If neither source has a real interval, fall
                         // back to the TIMES_OF_DAY default the SQL
                         // migration wrote — no net change.
-                        if (intervalMillis == null) med
-                        else med.copy(
-                            scheduleMode = "INTERVAL",
-                            intervalMillis = intervalMillis,
-                            specificTimes = null,
-                            updatedAt = now
-                        )
+                        if (intervalMillis == null) {
+                            med
+                        } else {
+                            med.copy(
+                                scheduleMode = "INTERVAL",
+                                intervalMillis = intervalMillis,
+                                specificTimes = null,
+                                updatedAt = now
+                            )
+                        }
                     }
                 }
                 if (updated !== med) {
