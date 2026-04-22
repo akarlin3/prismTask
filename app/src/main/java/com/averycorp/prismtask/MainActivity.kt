@@ -50,6 +50,7 @@ import com.averycorp.prismtask.data.preferences.TabPreferences
 import com.averycorp.prismtask.data.preferences.ThemePreferences
 import com.averycorp.prismtask.data.preferences.UserPreferencesDataStore
 import com.averycorp.prismtask.data.remote.AuthManager
+import com.averycorp.prismtask.data.remote.GenericPreferenceSyncService
 import com.averycorp.prismtask.data.remote.SortPreferencesSyncService
 import com.averycorp.prismtask.data.remote.SyncService
 import com.averycorp.prismtask.data.remote.ThemePreferencesSyncService
@@ -92,6 +93,9 @@ class MainActivity : ComponentActivity() {
     lateinit var themePreferencesSyncService: ThemePreferencesSyncService
 
     @Inject
+    lateinit var genericPreferenceSyncService: GenericPreferenceSyncService
+
+    @Inject
     lateinit var onboardingPreferences: OnboardingPreferences
 
     @Inject
@@ -102,6 +106,9 @@ class MainActivity : ComponentActivity() {
 
     @Inject
     lateinit var a11yPreferences: com.averycorp.prismtask.data.preferences.A11yPreferences
+
+    @Inject
+    lateinit var habitListPreferences: com.averycorp.prismtask.data.preferences.HabitListPreferences
 
     @Inject
     lateinit var userPreferencesDataStore: UserPreferencesDataStore
@@ -176,6 +183,12 @@ class MainActivity : ComponentActivity() {
             themePreferencesSyncService.ensurePullListener()
         } catch (e: Exception) {
             Log.e("MainActivity", "Theme prefs pull listener failed to start", e)
+        }
+        try {
+            genericPreferenceSyncService.startPushObserver()
+            genericPreferenceSyncService.ensurePullListener()
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Generic prefs sync failed to start", e)
         }
         try {
             billingManager.initialize(this)
@@ -280,9 +293,21 @@ class MainActivity : ComponentActivity() {
             val tabOrder by tabPreferences
                 .getTabOrder()
                 .collectAsStateWithLifecycle(initialValue = TabPreferences.DEFAULT_ORDER)
-            val hiddenTabs by tabPreferences
+            val baseHiddenTabs by tabPreferences
                 .getHiddenTabs()
                 .collectAsStateWithLifecycle(initialValue = emptySet())
+            // Medications top-level nav tile gated on the same
+            // isMedicationEnabled toggle that already hides the
+            // SelfCareItem("medication") row in HabitListViewModel —
+            // single source of truth across both surfaces.
+            val medicationEnabled by habitListPreferences
+                .isMedicationEnabled()
+                .collectAsStateWithLifecycle(initialValue = true)
+            val hiddenTabs = if (medicationEnabled) {
+                baseHiddenTabs
+            } else {
+                baseHiddenTabs + com.averycorp.prismtask.ui.navigation.PrismTaskRoute.Medication.route
+            }
 
             val appearance by userPreferencesDataStore.appearanceFlow
                 .collectAsStateWithLifecycle(initialValue = AppearancePrefs())

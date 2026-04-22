@@ -13,7 +13,7 @@ import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
 
-private val Context.dailyEssentialsDataStore: DataStore<Preferences> by
+internal val Context.dailyEssentialsDataStore: DataStore<Preferences> by
     preferencesDataStore(name = "daily_essentials_prefs")
 
 /**

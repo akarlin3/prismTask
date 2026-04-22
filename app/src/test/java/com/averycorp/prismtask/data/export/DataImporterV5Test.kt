@@ -139,12 +139,16 @@ class DataImporterV5Test {
         importer = DataImporter(
             taskDao, projectDao, tagDao, habitDao, habitCompletionDao,
             taskCompletionDao, habitLogDao, leisureDao, selfCareDao, schoolworkDao,
+            // medicationDao + medicationDoseDao
+            mockk(relaxed = true),
+            mockk(relaxed = true),
             transactionRunner, themePreferences, archivePreferences, dashboardPreferences,
             tabPreferences, taskBehaviorPreferences, habitListPreferences,
             leisurePreferences, medicationPreferences, userPreferencesDataStore,
             a11yPreferences, voicePreferences, shakePreferences, timerPreferences,
             notificationPreferences, ndPreferencesDataStore, dailyEssentialsPreferences,
-            morningCheckInPreferences, calendarSyncPreferences, templatePreferences
+            morningCheckInPreferences, calendarSyncPreferences, templatePreferences,
+            mockk(relaxed = true), mockk(relaxed = true), mockk(relaxed = true)
         )
     }
 

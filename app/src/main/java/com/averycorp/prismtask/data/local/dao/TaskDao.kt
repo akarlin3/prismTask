@@ -204,6 +204,40 @@ interface TaskDao {
     )
     suspend fun updateEisenhowerQuadrant(id: Long, quadrant: String?, reason: String?, updatedAt: Long = System.currentTimeMillis())
 
+    /**
+     * Apply an AI classification but skip rows where the user has manually
+     * overridden the quadrant — guarded in SQL so concurrent flows can't race
+     * past a user move. Returns the rows affected.
+     */
+    @Query(
+        "UPDATE tasks SET eisenhower_quadrant = :quadrant, eisenhower_updated_at = :updatedAt, " +
+            "eisenhower_reason = :reason, updated_at = :updatedAt " +
+            "WHERE id = :id AND user_overrode_quadrant = 0"
+    )
+    suspend fun updateEisenhowerQuadrantIfNotOverridden(
+        id: Long,
+        quadrant: String?,
+        reason: String?,
+        updatedAt: Long = System.currentTimeMillis()
+    ): Int
+
+    @Query(
+        "UPDATE tasks SET eisenhower_quadrant = :quadrant, eisenhower_updated_at = :updatedAt, " +
+            "eisenhower_reason = :reason, user_overrode_quadrant = 1, updated_at = :updatedAt " +
+            "WHERE id = :id"
+    )
+    suspend fun setManualQuadrant(
+        id: Long,
+        quadrant: String?,
+        reason: String?,
+        updatedAt: Long = System.currentTimeMillis()
+    )
+
+    @Query(
+        "UPDATE tasks SET user_overrode_quadrant = 0, updated_at = :updatedAt WHERE id = :id"
+    )
+    suspend fun clearManualQuadrantOverride(id: Long, updatedAt: Long = System.currentTimeMillis())
+
     @Query(
         "SELECT * FROM tasks WHERE is_completed = 0 AND archived_at IS NULL AND parent_task_id IS NULL " +
             "AND eisenhower_quadrant IS NOT NULL ORDER BY priority DESC"

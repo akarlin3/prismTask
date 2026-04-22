@@ -70,17 +70,33 @@ constructor(
 
     suspend fun getAssignmentById(id: Long): AssignmentEntity? = dao.getAssignmentById(id)
 
-    suspend fun insertAssignment(assignment: AssignmentEntity): Long =
-        dao.insertAssignment(assignment)
+    suspend fun insertAssignment(assignment: AssignmentEntity): Long {
+        val id = dao.insertAssignment(assignment.copy(updatedAt = System.currentTimeMillis()))
+        syncTracker.trackCreate(id, "assignment")
+        return id
+    }
 
-    suspend fun updateAssignment(assignment: AssignmentEntity) = dao.updateAssignment(assignment)
+    suspend fun updateAssignment(assignment: AssignmentEntity) {
+        dao.updateAssignment(assignment.copy(updatedAt = System.currentTimeMillis()))
+        syncTracker.trackUpdate(assignment.id, "assignment")
+    }
 
-    suspend fun deleteAssignment(id: Long) = dao.deleteAssignment(id)
+    suspend fun deleteAssignment(id: Long) {
+        dao.deleteAssignment(id)
+        syncTracker.trackDelete(id, "assignment")
+    }
 
     suspend fun toggleAssignmentComplete(id: Long) {
         val assignment = dao.getAssignmentById(id) ?: return
         val now = if (!assignment.completed) System.currentTimeMillis() else null
-        dao.updateAssignment(assignment.copy(completed = !assignment.completed, completedAt = now))
+        dao.updateAssignment(
+            assignment.copy(
+                completed = !assignment.completed,
+                completedAt = now,
+                updatedAt = System.currentTimeMillis()
+            )
+        )
+        syncTracker.trackUpdate(id, "assignment")
     }
 
     fun getActiveAssignmentCount(courseId: Long): Flow<Int> = dao.getActiveAssignmentCount(courseId)

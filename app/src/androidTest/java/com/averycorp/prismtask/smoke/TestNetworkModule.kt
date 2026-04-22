@@ -44,7 +44,8 @@ object TestNetworkModule {
     // instrumentation suite, so a mockk(relaxed) is sufficient.
     @Provides
     @Singleton
-    fun provideCalendarBackendApi(): CalendarBackendApi = io.mockk.mockk(relaxed = true)
+    fun provideCalendarBackendApi(): com.averycorp.prismtask.data.remote.api.CalendarBackendApi =
+        io.mockk.mockk(relaxed = true)
 }
 
 /**
@@ -129,9 +130,19 @@ class FakePrismTaskApi : PrismTaskApi {
         request: com.averycorp.prismtask.data.remote.api.EisenhowerRequest
     ) = error("Not used in offline tests")
 
+    override suspend fun classifyEisenhowerText(
+        request: com.averycorp.prismtask.data.remote.api.EisenhowerClassifyTextRequest
+    ): com.averycorp.prismtask.data.remote.api.EisenhowerClassifyTextResponse =
+        error("Not used in offline tests")
+
     override suspend fun planPomodoro(
         request: com.averycorp.prismtask.data.remote.api.PomodoroRequest
     ) = error("Not used in offline tests")
+
+    override suspend fun getPomodoroCoaching(
+        request: com.averycorp.prismtask.data.remote.api.PomodoroCoachingRequest
+    ): com.averycorp.prismtask.data.remote.api.PomodoroCoachingResponse =
+        error("Not used in offline tests")
 
     override suspend fun getDailyBriefing(
         request: com.averycorp.prismtask.data.remote.api.DailyBriefingRequest

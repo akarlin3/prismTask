@@ -13,7 +13,7 @@ import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
 
-private val Context.dashboardDataStore: DataStore<Preferences> by preferencesDataStore(name = "dashboard_prefs")
+internal val Context.dashboardDataStore: DataStore<Preferences> by preferencesDataStore(name = "dashboard_prefs")
 
 @Singleton
 class DashboardPreferences

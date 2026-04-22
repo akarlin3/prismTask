@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.averycorp.prismtask.BuildConfig
 import com.averycorp.prismtask.data.remote.AuthManager
+import com.averycorp.prismtask.data.remote.GenericPreferenceSyncService
 import com.averycorp.prismtask.data.remote.SortPreferencesSyncService
 import com.averycorp.prismtask.data.remote.SyncService
 import com.averycorp.prismtask.data.remote.ThemePreferencesSyncService
@@ -35,7 +36,8 @@ constructor(
     private val authManager: AuthManager,
     private val syncService: SyncService,
     private val sortPreferencesSyncService: SortPreferencesSyncService,
-    private val themePreferencesSyncService: ThemePreferencesSyncService
+    private val themePreferencesSyncService: ThemePreferencesSyncService,
+    private val genericPreferenceSyncService: GenericPreferenceSyncService
 ) : ViewModel() {
     private val _authState = MutableStateFlow<AuthState>(
         if (authManager.isSignedIn.value) AuthState.SignedIn else AuthState.SignedOut
@@ -99,6 +101,7 @@ constructor(
             syncService.stopRealtimeListeners()
             sortPreferencesSyncService.stopAfterSignOut()
             themePreferencesSyncService.stopAfterSignOut()
+            genericPreferenceSyncService.stopAfterSignOut()
             authManager.signOut()
             _authState.value = AuthState.SignedOut
         }
@@ -145,6 +148,7 @@ constructor(
         syncService.startRealtimeListeners()
         sortPreferencesSyncService.startAfterSignIn()
         themePreferencesSyncService.startAfterSignIn()
+        genericPreferenceSyncService.startAfterSignIn()
     }
 
     fun onSkipSignIn() {

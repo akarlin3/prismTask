@@ -12,7 +12,7 @@ import com.averycorp.prismtask.data.local.entity.HabitLogEntity
 import com.averycorp.prismtask.data.preferences.HabitListPreferences
 import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
 import com.averycorp.prismtask.data.remote.SyncTracker
-import com.averycorp.prismtask.notifications.MedicationReminderScheduler
+import com.averycorp.prismtask.notifications.HabitReminderScheduler
 import com.averycorp.prismtask.util.DayBoundary
 import com.averycorp.prismtask.widget.WidgetUpdateManager
 import io.mockk.every
@@ -42,7 +42,7 @@ class HabitRepositoryTest {
     private lateinit var habitLogDao: FakeHabitLogDao
     private lateinit var taskDao: TaskDao
     private lateinit var syncTracker: SyncTracker
-    private lateinit var medicationReminderScheduler: MedicationReminderScheduler
+    private lateinit var medicationReminderScheduler: HabitReminderScheduler
     private lateinit var taskBehaviorPreferences: TaskBehaviorPreferences
     private lateinit var habitListPreferences: HabitListPreferences
     private lateinit var widgetUpdateManager: WidgetUpdateManager

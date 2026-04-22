@@ -7,6 +7,251 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Sync — Room content entities cross-device (v1.4.38)
+- **Migration 55 → 56** adds `cloud_id TEXT` (UNIQUE-indexed) to all nine
+  remaining user-authored content tables, plus `updated_at INTEGER NOT
+  NULL DEFAULT 0` to the seven that lacked it. `medication_refills` and
+  `daily_essential_slot_completions` already had `updated_at` from
+  earlier migrations so only get `cloud_id`.
+- **Entities synced**: `check_in_logs`, `mood_energy_logs`,
+  `focus_release_logs` (FK: `task_id`), `medication_refills`,
+  `weekly_reviews`, `daily_essential_slot_completions`, `assignments`
+  (FK: `course_id`), `attachments` (FK: `taskId`), `study_logs` (FKs:
+  `course_pick`, `assignment_pick`). FK-bearing entities translate
+  local ↔ cloud IDs at push/pull time via `syncMetadataDao`; rows whose
+  parent hasn't synced yet are skipped and retry on the next pass.
+- **SyncMapper** grows 18 new functions (one `entityTo*Map` + one
+  `mapTo*` per entity), all covered by `SyncMapperContentTest` (11
+  cases including null-FK and dual-FK round-trips).
+- **SyncService** wires all nine into the standard four paths. The
+  five FK-free entities reuse the existing `uploadRoomConfigFamily` /
+  `pullRoomConfigFamily` helpers from v1.4.37; the four FK-bearing
+  ones get bespoke upload/pull blocks that include FK translation.
+  `collectionNameFor`, `pushCreate`/`pushUpdate`/`pushDelete`,
+  `startRealtimeListeners`, and `processRemoteDeletions` all get nine
+  new branches.
+- **Repository SyncTracker wiring**: `CheckInLogRepository`,
+  `MoodEnergyRepository`, `MedicationRefillRepository`,
+  `WeeklyReviewRepository`, `AttachmentRepository`,
+  `DailyEssentialSlotCompletionRepository`, and the assignment CRUD
+  path on `SchoolworkRepository` now inject `SyncTracker` and call
+  `trackCreate`/`trackUpdate`/`trackDelete` on every write, stamping
+  `updated_at` on the way out. `FocusReleaseLogEntity` and
+  `StudyLogEntity` have no user-facing write path in the current
+  codebase, so their sync contract is bootstrap-on-first-sign-in +
+  pull-from-remote; incremental push is a two-line add if a UI ever
+  lands.
+- **Privacy update for `focus_release_logs`**: the pre-v1.4.38 KDoc
+  said "NEVER sent to the backend." That comment predated the current
+  request. v1.4.38 syncs focus-release analytics across the user's
+  own devices within their own Firebase project — no third-party
+  analytics backend. The KDoc is updated to match.
+- **Attachment URIs**: image attachments sync the `file://` pointer
+  but not the bytes — opening a synced image on a different device
+  falls back to the thumbnail until a future content-upload
+  extension. Link attachments round-trip cleanly.
+
+### Sync — Room config entities cross-device (v1.4.37)
+- **Migration 54 → 55** adds `cloud_id TEXT` (UNIQUE indexed) and
+  `updated_at INTEGER NOT NULL DEFAULT 0` to the seven Room tables that
+  back user configuration but were previously local-only:
+  `reminder_profiles`, `custom_sounds`, `saved_filters`, `nlp_shortcuts`,
+  `habit_templates`, `project_templates`, `boundary_rules`. Every
+  existing row starts with `cloud_id = NULL` and `updated_at = 0`;
+  the next `SyncService.doInitialUpload` assigns cloud IDs and the
+  first local write bumps `updated_at` to a current wall-clock value
+  (which beats every remote timestamp, so the first device to migrate
+  owns the seed copy cloud-side).
+- **SyncMapper** grows 14 new functions — one `entityTo*Map()` and one
+  `mapTo*()` per entity — covering every business-visible column. All
+  round-trip cleanly under `SyncMapperRoomConfigTest` (8 cases, one per
+  entity + a sparse-map defaults test).
+- **SyncService** wires each of the seven entities into the standard
+  four paths: initial upload (via a new generic
+  `uploadRoomConfigFamily` helper), real-time pull (via
+  `pullRoomConfigFamily` with last-write-wins on `updated_at`),
+  real-time listener (added to the `startRealtimeListeners` collection
+  list), and deletion (added to `processRemoteDeletions`'s
+  `collection → entityType` dispatch). `collectionNameFor` gets seven
+  new branches so `pushCreate`/`pushUpdate`/`pushDelete` can serialize
+  the right Firestore collection.
+- **Repositories**: `NotificationProfileRepository`,
+  `CustomSoundRepository`, and `BoundaryRuleRepository` now inject
+  `SyncTracker` and call `trackCreate` / `trackUpdate` / `trackDelete`
+  on every user-visible write, stamping `updated_at` on the way out.
+  Built-in rows (`isBuiltIn = true`) are not tracked — those are
+  seeded, not user-authored. The four DAO-only entities
+  (`SavedFilter`, `NlpShortcut`, `HabitTemplate`, `ProjectTemplate`)
+  currently have no UI write path, so their sync contract is
+  bootstrap-on-first-sign-in + pull-from-remote; if a UI ever lands,
+  plumbing `SyncTracker` into it is a two-line change per write site.
+- **DAOs**: every one of the seven grows `getByCloudIdOnce`,
+  `setCloudId`, `deleteById` (or `getByIdOnce`) where missing, matching
+  the contract the generic sync helpers expect.
+
+### Preferences — Backup coverage follow-up (v1.4.36)
+- **Closes three backup gaps** identified in the post-v1.4.35 preference
+  coverage audit:
+  - `OnboardingPreferences` (asymmetry): already exported at
+    `DataExporter.kt:578-582` but not imported. `DataImporter` now
+    reads back all three keys (`hasCompletedOnboarding`,
+    `onboardingCompletedAt`, `hasShownBatteryOptimizationPrompt`) via
+    a new `OnboardingPreferences.restoreImportedState` that writes the
+    original `completed_at` timestamp verbatim instead of re-stamping
+    to `now` (otherwise a restore would look like a fresh onboarding).
+  - `CoachingPreferences` (both sides missing): new `exportCoachingConfig`
+    writes `lastAppOpen`; `importCoachingConfig` restores it. The five
+    day-scoped keys (AI breakdown counter, energy check-in, welcome-
+    back dismissal) are intentionally omitted — they reset when the
+    calendar date differs from export time so backing them up would
+    carry no signal.
+  - `SortPreferences` (both sides missing): new `exportSortConfig` /
+    `importSortConfig` round-trip every `sort_*` key via the existing
+    `snapshot()` / `applyRemoteSnapshot` pair shared with
+    `SortPreferencesSyncService`. Global entries (e.g. `sort_today`,
+    `sort_all_tasks`) round-trip cleanly; per-project entries
+    (`sort_project_<localId>`) reference auto-generated Room IDs and
+    so may not survive a fresh-install restore — documented on the
+    exporter method.
+- Wired `CoachingPreferences`, `SortPreferences`, and a restore-aware
+  OnboardingPreferences into the `DataImporter` / `DataExporter` Hilt
+  graphs. Existing unit tests updated to pass `mockk(relaxed = true)`
+  for the three new constructor parameters.
+
+### Preferences — Universal cross-device sync (v1.4.35)
+- **New `GenericPreferenceSyncService`** syncs any registered DataStore
+  preference file to Firestore at `/users/{uid}/prefs/{docName}` with
+  document-level last-write-wins. A type-tagged payload
+  (`__pref_types` + per-key values) lets the pull side reconstruct
+  correctly-typed `Preferences.Key<T>` instances without the service
+  needing any compile-time knowledge of the preference class's keys.
+- **19 preference files registered**: `a11y_prefs`, `archive_prefs`,
+  `coaching_prefs`, `daily_essentials_prefs`, `dashboard_prefs`,
+  `habit_list_prefs`, `leisure_prefs`, `medication_prefs`,
+  `morning_checkin_prefs`, `nd_prefs`, `notification_prefs`,
+  `onboarding_prefs`, `shake_prefs`, `tab_prefs`, `task_behavior_prefs`,
+  `template_prefs`, `timer_prefs`, `user_prefs`, `voice_prefs`. The
+  pre-existing bespoke `ThemePreferencesSyncService` /
+  `SortPreferencesSyncService` keep doing their specialized work
+  (per-project cloud-id translation for sort; legacy path for theme).
+- **Explicitly excluded** from sync: `auth_token_prefs` (sensitive
+  tokens), `pro_status_prefs` (server-authoritative billing cache),
+  `backend_sync_prefs` (per-device watermark), `built_in_sync_prefs` +
+  `medication_migration_prefs` (one-time migration flags),
+  `gcal_sync_prefs` (per-device Google Calendar tokens), and the
+  service's own `sync_device_prefs` (device identity).
+- **Self-echo guard**: each push stamps the doc with a persisted per-
+  install `__pref_device_id`; the pull listener skips snapshots whose
+  `__pref_device_id` matches the local value, so the listener's own
+  echo of our push never bounces back into DataStore.
+- **Lifecycle**: `MainActivity.onCreate` calls `startPushObserver` +
+  `ensurePullListener`; `AuthViewModel` calls `startAfterSignIn` /
+  `stopAfterSignOut`, mirroring the existing theme/sort sync wiring.
+- **Tests**: `PreferenceSyncSerializationTest` (9 cases) round-trips
+  every supported DataStore value type (Boolean, Int, Long, Float,
+  Double, String, Set&lt;String&gt;), asserts the Firestore number-
+  widening behavior on pull, confirms excluded and meta-prefixed keys
+  never leak into the payload, and asserts fingerprint stability
+  across insertion order and set iteration order.
+
+### Medications — Top-level entity (follow-up — MedicationRepository unit tests)
+- `MedicationRepositoryTest` (12 cases) covers the repository's write
+  contract: insert / update / archive / delete, logDose / unlogDose /
+  updateDose, timestamps, `taken_date_local` computation, and
+  date-filtered dose counting. Every write asserts the
+  corresponding `SyncTracker.trackCreate/Update/Delete` call with the
+  correct `"medication"` or `"medication_dose"` entity type — the
+  contract that keeps the sync layer picking up changes. Uses in-
+  memory fake DAOs in the `FakeMedicationDaoForRepo` /
+  `FakeMedicationDoseDaoForRepo` style.
+- Full-chain instrumentation suite (API 26 migration, two-device
+  Firestore-emulator convergence, Robolectric reminder-continuity)
+  still deferred to a dedicated emulator PR.
+
+### Medications — Top-level entity (PR 4.5 — Dual-write shim + scheduler disarm)
+- **Dual-write shim.** `SelfCareRepository`'s medication-specific write
+  paths (`addStep`, `updateStep`, `deleteStep`, `toggleStep`) now mirror
+  to `medications` / `medication_doses` so the new top-level entity
+  stays in sync with ongoing user edits during the v54 convergence
+  window. Matching rule follows the migration:
+  `COALESCE(NULLIF(TRIM(medication_name), ''), label)`. The old
+  UI stays unchanged (Compose tree keeps reading `SelfCareStepEntity` /
+  `SelfCareLogEntity`); the full Compose-type rewire is deferred to the
+  follow-up that also drops the `self_care_*` reads.
+- **Legacy scheduler disarm** — after
+  `MedicationMigrationRunner.preserveScheduleIfNeeded` writes the
+  schedule onto every `MedicationEntity`, it now cancels stale
+  `+300_000`-range specific-time `PendingIntent`s, clears
+  `MedicationPreferences.specificTimes`, and nulls the built-in
+  Medication habit's `reminderIntervalMillis` / `reminderTime` (also
+  cancels its `+200_000` / `+900_000` alarms). Without this, a user
+  who had `MedicationPreferences.specificTimes = [08:00, 14:00]`
+  pre-upgrade would get BOTH legacy AND new alarms at 8:00 + 14:00
+  post-v54 boot.
+
+### Medications — Top-level entity (PR 5 / 5 — Unit tests)
+- `BuiltInMedicationReconcilerTest` — covers the post-sync dedup-by-name
+  pass: no-duplicate case, duplicate-collapse with dose-count winner
+  rule, tiebreak on smallest id, case/whitespace-insensitive grouping,
+  dose-history reassignment to the keeper, flag idempotency, single-row
+  no-op, empty-DB no-op.
+- Full-chain instrumentation tests deferred. The spec's two-device
+  convergence test + API-26 JSON1 migration test + Robolectric
+  reminder-continuity test deserve a dedicated PR — emulator setup and
+  test-harness scaffolding are non-trivial and better landed separately
+  from unit coverage.
+
+### Medications — Top-level entity (PR 4 / 5 — Nav tile + toggle wiring)
+- **New bottom-nav tile.** `Meds` (Material `LocalPharmacy` icon) added
+  between `Recurring` and `Timer` in `ALL_BOTTOM_NAV_ITEMS`. Taps route
+  to the existing `MedicationScreen` (its ViewModel rewire to
+  `MedicationRepository` is deferred to a follow-up to keep this PR
+  reviewable).
+- **Toggle coupling.** `MainActivity` combines the existing
+  `tabPreferences.hiddenTabs` with `habitListPreferences.isMedicationEnabled`.
+  When the Medication toggle is off, the route is added to `hiddenTabs`
+  so the tile doesn't render. Same single-source-of-truth toggle that
+  used to hide the `SelfCareItem("medication")` row.
+- **`SelfCareItem("medication")` removal.** `HabitListViewModel.items`
+  no longer emits the medication row — users reach medications via the
+  new top-level tile instead. `medicationOn` still participates in the
+  `allBuiltInNames` filter that hides the underlying "Medication" habit.
+- **`SelfCareRepository.ensureHabitsExist`** no longer auto-seeds the
+  built-in `"Medication"` habit. Existing users keep their row in Room
+  until the Phase 2 cleanup migration drops it.
+- **`DataExporter`** now includes `medications` + `medication_doses`
+  sections alongside the existing `medicationRefills` section for the
+  convergence window.
+
+### Medications — Top-level entity (PR 3 / 5 — Scheduler split)
+- **Rename.** `MedicationReminderScheduler` → `HabitReminderScheduler`.
+  The class always handled app-wide habit alarms (daily-time, interval,
+  follow-up-suppression) — the legacy name was an accident of history.
+  All nine call sites updated; the transitional legacy
+  `MedicationPreferences.specificTimes` path stays on the renamed class
+  until the Phase 2 cleanup drops `MedicationPreferences`.
+- **New class.** `MedicationReminderScheduler` (v1.4) — per-medication
+  alarms for the top-level Medication entity. Takes `MedicationDao` +
+  `MedicationDoseDao`. Dispatches per `MedicationEntity.scheduleMode`:
+  `TIMES_OF_DAY` → one alarm per bucket at 08:00/13:00/18:00/21:00;
+  `SPECIFIC_TIMES` → one alarm per "HH:mm"; `INTERVAL` → chained alarm
+  after the last dose; `AS_NEEDED` → no alarms. Request-code namespace
+  is `400_000 + (medicationId % 1000) * 10 + slotIndex`, deliberately
+  distinct from the `200_000/300_000/900_000` offsets on the renamed
+  habit scheduler so old and new PendingIntents never collide.
+- **Receiver dispatch.** `MedicationReminderReceiver` dispatches by
+  extra: `medicationId` → new per-med path; `habitId` → legacy path.
+  Both coexist during the 2-week convergence window so existing
+  scheduled alarms don't get orphaned.
+- **Boot.** `BootReceiver` calls `habitReminderScheduler().rescheduleAll()`
+  AND `medicationReminderScheduler().rescheduleAll()` so both surfaces
+  recover after a device reboot.
+- **Tests.** Existing unit tests renamed to `HabitReminderSchedulerTest`
+  + `HabitReminderSchedulerDailyTriggerTest`. New
+  `MedicationReminderSchedulerTest` covers request-code namespace
+  isolation (including legacy-overlap sanity) and the `"HH:mm"`
+  validator.
+
 ### Medications — Top-level entity (PR 1 / 5 — Room layer only)
 - **Scope.** New Room entities `MedicationEntity` + `MedicationDoseEntity`
   and matching DAOs. DB bumps v53 → v54 via `MIGRATION_53_54`. Spec:

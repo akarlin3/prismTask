@@ -2,6 +2,7 @@ package com.averycorp.prismtask.data.local.entity
 
 import androidx.room.ColumnInfo
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 import com.averycorp.prismtask.domain.model.notifications.BadgeMode
 import com.averycorp.prismtask.domain.model.notifications.BuiltInSound
@@ -28,7 +29,10 @@ import com.averycorp.prismtask.domain.model.notifications.WatchSyncMode
  * avoid join fan-out; the domain-model [NotificationProfile] is what
  * callers actually work with.
  */
-@Entity(tableName = "reminder_profiles")
+@Entity(
+    tableName = "reminder_profiles",
+    indices = [Index(value = ["cloud_id"], unique = true)]
+)
 data class NotificationProfileEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
@@ -101,7 +105,13 @@ data class NotificationProfileEntity(
     val autoSwitchRulesJson: String? = null,
     /** When true, play at alarm volume (bypasses silent/vibrate/DND). */
     @ColumnInfo(name = "volume_override", defaultValue = "0")
-    val volumeOverride: Boolean = false
+    val volumeOverride: Boolean = false,
+    /** Firestore document ID; NULL until first sync push assigns one. */
+    @ColumnInfo(name = "cloud_id")
+    val cloudId: String? = null,
+    /** Last-write-wins timestamp in ms; bumped on every user-visible write. */
+    @ColumnInfo(name = "updated_at", defaultValue = "0")
+    val updatedAt: Long = 0L
 ) {
     /** Decodes [offsetsCsv] into a list of Long millis. */
     fun offsets(): List<Long> =

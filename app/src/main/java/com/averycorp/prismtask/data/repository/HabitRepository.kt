@@ -12,7 +12,7 @@ import com.averycorp.prismtask.data.preferences.HabitListPreferences
 import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
 import com.averycorp.prismtask.data.remote.SyncTracker
 import com.averycorp.prismtask.domain.usecase.StreakCalculator
-import com.averycorp.prismtask.notifications.MedicationReminderScheduler
+import com.averycorp.prismtask.notifications.HabitReminderScheduler
 import com.averycorp.prismtask.util.DayBoundary
 import com.averycorp.prismtask.widget.WidgetUpdateManager
 import kotlinx.coroutines.flow.Flow
@@ -50,7 +50,7 @@ constructor(
     private val habitLogDao: HabitLogDao,
     private val taskDao: TaskDao,
     private val syncTracker: SyncTracker,
-    private val medicationReminderScheduler: MedicationReminderScheduler,
+    private val medicationReminderScheduler: HabitReminderScheduler,
     private val taskBehaviorPreferences: TaskBehaviorPreferences,
     private val habitListPreferences: HabitListPreferences,
     private val widgetUpdateManager: WidgetUpdateManager

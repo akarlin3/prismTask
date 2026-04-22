@@ -54,11 +54,9 @@ data class WeeklySummaryData(
  * ([CHANNEL_ID]) all stay as-is so existing scheduled work, persisted
  * toggles, and user-customized OS channel settings continue to apply.
  *
- * TODO (Phase A2 or v2.1): Add a WeeklyTaskSummaryWorker. It would
- * compose a weekly summary of task completions (count finished,
- * overdue cleared, still open) as a complement to this habit summary.
- * See NotificationsScreen.kt for where the toggle would land.
- * Intentionally scoped out of the v1.4.0 rename refactor.
+ * Task-summary sibling now lives in [WeeklyTaskSummaryWorker] (added
+ * in v1.4.38). The two workers share channel styling but have
+ * independent unique work names, OS channels, and preference toggles.
  */
 @HiltWorker
 class WeeklyHabitSummaryWorker

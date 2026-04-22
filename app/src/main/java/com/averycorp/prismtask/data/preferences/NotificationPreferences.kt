@@ -14,7 +14,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
-private val Context.notificationDataStore: DataStore<Preferences> by preferencesDataStore(
+internal val Context.notificationDataStore: DataStore<Preferences> by preferencesDataStore(
     name = "notification_prefs"
 )
 
@@ -47,6 +47,8 @@ class NotificationPreferences(
         private val DAILY_BRIEFING_ENABLED = booleanPreferencesKey("daily_briefing_enabled")
         private val EVENING_SUMMARY_ENABLED = booleanPreferencesKey("evening_summary_enabled")
         private val WEEKLY_SUMMARY_ENABLED = booleanPreferencesKey("weekly_summary_enabled")
+        private val WEEKLY_TASK_SUMMARY_ENABLED =
+            booleanPreferencesKey("weekly_task_summary_enabled")
         private val OVERLOAD_ALERTS_ENABLED = booleanPreferencesKey("overload_alerts_enabled")
         private val REENGAGEMENT_ENABLED = booleanPreferencesKey("reengagement_enabled")
 
@@ -125,6 +127,23 @@ class NotificationPreferences(
         // re-enqueue under the new class can bind cleanly.
         private val WEEKLY_HABIT_SUMMARY_MIGRATION_RUN =
             booleanPreferencesKey("weekly_habit_summary_migration_run_v14")
+
+        // Auto-generated weekly reviews (A2): a worker aggregates the
+        // past week on Sunday evening and, for Pro users, asks the
+        // backend AI for narrative insights.
+        private val WEEKLY_REVIEW_AUTO_GENERATE_ENABLED =
+            booleanPreferencesKey("weekly_review_auto_generate_enabled")
+        private val WEEKLY_REVIEW_NOTIFICATION_ENABLED =
+            booleanPreferencesKey("weekly_review_notification_enabled")
+        private val WEEKLY_REVIEW_WORKER_SEEDED =
+            booleanPreferencesKey("weekly_review_worker_seeded_v14")
+
+        // One-shot flag for seeding the WeeklyTaskSummaryWorker unique
+        // work on first launch post-update. Mirrors the habit-summary
+        // migration flag, but keyed independently so the two migrations
+        // don't share state.
+        private val HAS_SEEDED_WEEKLY_TASK_SUMMARY_WORKER =
+            booleanPreferencesKey("has_seeded_weekly_task_summary_worker_v1438")
 
         const val IMPORTANCE_MINIMAL = "minimal"
         const val IMPORTANCE_STANDARD = "standard"
@@ -246,6 +265,13 @@ class NotificationPreferences(
 
     suspend fun setWeeklySummaryEnabled(enabled: Boolean) {
         dataStore.edit { it[WEEKLY_SUMMARY_ENABLED] = enabled }
+    }
+
+    val weeklyTaskSummaryEnabled: Flow<Boolean> = dataStore.data
+        .map { it[WEEKLY_TASK_SUMMARY_ENABLED] ?: true }
+
+    suspend fun setWeeklyTaskSummaryEnabled(enabled: Boolean) {
+        dataStore.edit { it[WEEKLY_TASK_SUMMARY_ENABLED] = enabled }
     }
 
     val overloadAlertsEnabled: Flow<Boolean> = dataStore.data
@@ -586,6 +612,38 @@ class NotificationPreferences(
 
     suspend fun setWeeklyHabitSummaryMigrationRun() {
         dataStore.edit { it[WEEKLY_HABIT_SUMMARY_MIGRATION_RUN] = true }
+    }
+
+    suspend fun getHasSeededWeeklyTaskSummaryWorkerOnce(): Boolean =
+        dataStore.data.first()[HAS_SEEDED_WEEKLY_TASK_SUMMARY_WORKER] ?: false
+
+    suspend fun setHasSeededWeeklyTaskSummaryWorker() {
+        dataStore.edit { it[HAS_SEEDED_WEEKLY_TASK_SUMMARY_WORKER] = true }
+    }
+
+    // endregion
+
+    // region Auto-generated weekly reviews (A2)
+
+    val weeklyReviewAutoGenerateEnabled: Flow<Boolean> = dataStore.data
+        .map { it[WEEKLY_REVIEW_AUTO_GENERATE_ENABLED] ?: true }
+
+    suspend fun setWeeklyReviewAutoGenerateEnabled(enabled: Boolean) {
+        dataStore.edit { it[WEEKLY_REVIEW_AUTO_GENERATE_ENABLED] = enabled }
+    }
+
+    val weeklyReviewNotificationEnabled: Flow<Boolean> = dataStore.data
+        .map { it[WEEKLY_REVIEW_NOTIFICATION_ENABLED] ?: true }
+
+    suspend fun setWeeklyReviewNotificationEnabled(enabled: Boolean) {
+        dataStore.edit { it[WEEKLY_REVIEW_NOTIFICATION_ENABLED] = enabled }
+    }
+
+    suspend fun getWeeklyReviewWorkerSeededOnce(): Boolean =
+        dataStore.data.first()[WEEKLY_REVIEW_WORKER_SEEDED] ?: false
+
+    suspend fun setWeeklyReviewWorkerSeeded() {
+        dataStore.edit { it[WEEKLY_REVIEW_WORKER_SEEDED] = true }
     }
 
     // endregion

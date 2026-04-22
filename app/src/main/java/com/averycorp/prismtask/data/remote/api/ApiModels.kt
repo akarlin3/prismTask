@@ -107,6 +107,23 @@ data class EisenhowerResponse(
     val summary: EisenhowerSummary
 )
 
+/**
+ * Single-task text-based Eisenhower classification. Unlike the batch endpoint
+ * which loads tasks from server storage by id, this accepts raw task fields so
+ * it can run immediately on task creation before the local row has been synced.
+ */
+data class EisenhowerClassifyTextRequest(
+    val title: String,
+    val description: String? = null,
+    @SerializedName("due_date") val dueDate: String? = null,
+    val priority: Int = 0
+)
+
+data class EisenhowerClassifyTextResponse(
+    val quadrant: String,
+    val reason: String
+)
+
 data class PomodoroRequest(
     @SerializedName("available_minutes") val availableMinutes: Int = 120,
     @SerializedName("session_length") val sessionLength: Int = 25,
@@ -143,6 +160,31 @@ data class PomodoroResponse(
     @SerializedName("total_work_minutes") val totalWorkMinutes: Int,
     @SerializedName("total_break_minutes") val totalBreakMinutes: Int,
     @SerializedName("skipped_tasks") val skippedTasks: List<SkippedTaskResponse> = emptyList()
+)
+
+// A2 Pomodoro+ AI Coaching — pre-session / break-activity / session-recap.
+
+data class PomodoroCoachingTaskRequest(
+    @SerializedName("task_id") val taskId: String? = null,
+    val title: String,
+    @SerializedName("allocated_minutes") val allocatedMinutes: Int? = null
+)
+
+data class PomodoroCoachingRequest(
+    /** One of: "pre_session", "break_activity", "session_recap". */
+    val trigger: String,
+    @SerializedName("upcoming_tasks") val upcomingTasks: List<PomodoroCoachingTaskRequest>? = null,
+    @SerializedName("session_length_minutes") val sessionLengthMinutes: Int? = null,
+    @SerializedName("elapsed_minutes") val elapsedMinutes: Int? = null,
+    @SerializedName("break_type") val breakType: String? = null,
+    @SerializedName("recent_suggestions") val recentSuggestions: List<String>? = null,
+    @SerializedName("completed_tasks") val completedTasks: List<PomodoroCoachingTaskRequest>? = null,
+    @SerializedName("started_tasks") val startedTasks: List<PomodoroCoachingTaskRequest>? = null,
+    @SerializedName("session_duration_minutes") val sessionDurationMinutes: Int? = null
+)
+
+data class PomodoroCoachingResponse(
+    val message: String
 )
 
 // endregion

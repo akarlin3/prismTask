@@ -616,6 +616,22 @@ class TaskTemplateRepositoryTest {
 
         override suspend fun updateEisenhowerQuadrant(id: Long, quadrant: String?, reason: String?, updatedAt: Long) = unsupported()
 
+        override suspend fun updateEisenhowerQuadrantIfNotOverridden(
+            id: Long,
+            quadrant: String?,
+            reason: String?,
+            updatedAt: Long
+        ): Int = unsupported()
+
+        override suspend fun setManualQuadrant(
+            id: Long,
+            quadrant: String?,
+            reason: String?,
+            updatedAt: Long
+        ) = unsupported()
+
+        override suspend fun clearManualQuadrantOverride(id: Long, updatedAt: Long) = unsupported()
+
         override fun getCategorizedTasks(): Flow<List<TaskEntity>> = unsupported()
 
         override suspend fun updatePlannedDateAndSortOrder(id: Long, plannedDate: Long, sortOrder: Int, now: Long) = unsupported()

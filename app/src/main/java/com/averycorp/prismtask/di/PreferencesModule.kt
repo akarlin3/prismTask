@@ -18,8 +18,8 @@ import javax.inject.Singleton
 
 private val Context.sortDataStore: DataStore<Preferences> by preferencesDataStore(name = "sort_prefs")
 private val Context.calendarSyncDataStore: DataStore<Preferences> by preferencesDataStore(name = "gcal_sync_prefs")
-private val Context.userPrefsDataStore: DataStore<Preferences> by preferencesDataStore(name = "user_prefs")
-private val Context.ndPrefsDataStore: DataStore<Preferences> by preferencesDataStore(name = "nd_prefs")
+internal val Context.userPrefsDataStore: DataStore<Preferences> by preferencesDataStore(name = "user_prefs")
+internal val Context.ndPrefsDataStore: DataStore<Preferences> by preferencesDataStore(name = "nd_prefs")
 
 @Module
 @InstallIn(SingletonComponent::class)

@@ -13,7 +13,7 @@ import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
 
-private val Context.shakeDataStore: DataStore<Preferences> by preferencesDataStore(name = "shake_prefs")
+internal val Context.shakeDataStore: DataStore<Preferences> by preferencesDataStore(name = "shake_prefs")
 
 /**
  * Preferences that control the shake-to-screenshot/report-a-bug gesture.

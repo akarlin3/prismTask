@@ -66,5 +66,22 @@ class EisenhowerTest {
         assertNull(restored.eisenhowerQuadrant)
         assertNull(restored.eisenhowerUpdatedAt)
         assertNull(restored.eisenhowerReason)
+        // New: default override flag round-trips as false.
+        assertEquals(false, restored.userOverrodeQuadrant)
+    }
+
+    @Test
+    fun syncMapper_userOverrodeQuadrant_roundTrips() {
+        val task = TaskEntity(
+            id = 1,
+            title = "Pinned by user",
+            eisenhowerQuadrant = "Q2",
+            userOverrodeQuadrant = true,
+            createdAt = 0,
+            updatedAt = 0
+        )
+        val restored = SyncMapper.mapToTask(SyncMapper.taskToMap(task), 1)
+        assertEquals(true, restored.userOverrodeQuadrant)
+        assertEquals("Q2", restored.eisenhowerQuadrant)
     }
 }

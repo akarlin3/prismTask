@@ -7,11 +7,16 @@ import com.averycorp.prismtask.data.local.converter.RecurrenceConverter
 import com.averycorp.prismtask.data.local.database.DatabaseTransactionRunner
 import com.averycorp.prismtask.data.local.database.PrismTaskDatabase
 import com.averycorp.prismtask.data.local.entity.TaskEntity
+import com.averycorp.prismtask.data.preferences.EisenhowerPrefs
+import com.averycorp.prismtask.data.preferences.UserPreferencesDataStore
+import com.averycorp.prismtask.data.remote.EisenhowerClassifier
 import com.averycorp.prismtask.data.repository.TaskRepository
 import com.averycorp.prismtask.domain.model.RecurrenceRule
 import com.averycorp.prismtask.domain.model.RecurrenceType
+import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -48,7 +53,11 @@ class RecurrenceIntegrationTest {
             calendarPushDispatcher = mockk(relaxed = true),
             reminderScheduler = mockk(relaxed = true),
             widgetUpdateManager = mockk(relaxed = true),
-            taskCompletionRepository = mockk(relaxed = true)
+            taskCompletionRepository = mockk(relaxed = true),
+            eisenhowerClassifier = mockk<EisenhowerClassifier>(relaxed = true),
+            userPreferences = mockk<UserPreferencesDataStore> {
+                every { eisenhowerFlow } returns flowOf(EisenhowerPrefs(autoClassifyEnabled = false))
+            }
         )
     }
 

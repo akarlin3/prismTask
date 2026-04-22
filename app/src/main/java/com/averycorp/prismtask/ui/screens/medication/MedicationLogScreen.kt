@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
@@ -40,13 +39,12 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
-import com.averycorp.prismtask.data.local.entity.SelfCareLogEntity
-import com.averycorp.prismtask.data.local.entity.SelfCareStepEntity
-import com.averycorp.prismtask.data.repository.MedStepLog
+import com.averycorp.prismtask.data.local.entity.MedicationDoseEntity
 import com.averycorp.prismtask.domain.model.SelfCareRoutines
 import com.averycorp.prismtask.ui.theme.LocalPrismColors
-import com.averycorp.prismtask.ui.theme.LocalPrismShapes
 import java.text.SimpleDateFormat
+import java.time.LocalDate
+import java.time.ZoneId
 import java.util.Date
 import java.util.Locale
 
@@ -56,8 +54,7 @@ fun MedicationLogScreen(
     navController: NavController,
     viewModel: MedicationLogViewModel = hiltViewModel()
 ) {
-    val logs by viewModel.logs.collectAsStateWithLifecycle()
-    val steps by viewModel.steps.collectAsStateWithLifecycle()
+    val days by viewModel.days.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
@@ -74,7 +71,7 @@ fun MedicationLogScreen(
             )
         }
     ) { padding ->
-        if (logs.isEmpty()) {
+        if (days.isEmpty()) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -83,7 +80,7 @@ fun MedicationLogScreen(
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
-                        text = "\uD83D\uDC8A",
+                        text = "💊",
                         style = MaterialTheme.typography.displaySmall
                     )
                     Spacer(modifier = Modifier.height(8.dp))
@@ -109,14 +106,7 @@ fun MedicationLogScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 item { Spacer(modifier = Modifier.height(8.dp)) }
-                items(logs, key = { it.id }) { log ->
-                    LogDayCard(
-                        log = log,
-                        steps = steps,
-                        medStepLogs = viewModel.parseMedStepLogs(log),
-                        tiersByTime = viewModel.parseTiersByTime(log)
-                    )
-                }
+                items(days, key = { it.date }) { day -> LogDayCard(day) }
                 item { Spacer(modifier = Modifier.height(24.dp)) }
             }
         }
@@ -124,28 +114,23 @@ fun MedicationLogScreen(
 }
 
 @Composable
-private fun LogDayCard(
-    log: SelfCareLogEntity,
-    steps: List<SelfCareStepEntity>,
-    medStepLogs: List<MedStepLog>,
-    tiersByTime: Map<String, String>
-) {
+private fun LogDayCard(day: MedicationLogDay) {
     val dateFormat = remember { SimpleDateFormat("EEEE, MMM d, yyyy", Locale.getDefault()) }
-    val dateLabel = dateFormat.format(Date(log.date))
-    val tiers = SelfCareRoutines.medicationTiers
+    val dateLabel = dateFormat.format(Date(isoDateToMillis(day.date)))
 
-    // Group steps by time-of-day for this log.
-    val timeGroups = SelfCareRoutines.timesOfDay.mapNotNull { tod ->
-        val stepsInTime = steps.filter { step ->
-            tod.id in SelfCareRoutines.parseTimeOfDay(step.timeOfDay)
-        }
-        if (stepsInTime.isNotEmpty()) tod to stepsInTime else null
+    // Known TOD sections render in the standard order. "anytime" goes
+    // into an OTHER bucket; any slot_key that's a "HH:mm" goes into a
+    // TIMED bucket so specific-time schedules show up distinctly from
+    // time-of-day-bucket schedules.
+    val dosesBySlot = day.dosesBySlot
+    val todEntries = SelfCareRoutines.timesOfDay.mapNotNull { tod ->
+        val dosesForTod = dosesBySlot[tod.id] ?: return@mapNotNull null
+        tod to dosesForTod
     }
-    // Ungrouped / legacy steps without a recognized time-of-day.
-    val allGroupedStepIds = timeGroups.flatMap { (_, s) -> s.map { it.id } }.toSet()
-    val ungrouped = steps.filter { it.id !in allGroupedStepIds }
-
-    val loggedCount = medStepLogs.size
+    val timedDoses = dosesBySlot.entries
+        .filter { it.key !in KNOWN_SLOT_KEYS && it.key.matches(CLOCK_REGEX) }
+        .sortedBy { it.key }
+    val anytimeDoses = dosesBySlot["anytime"].orEmpty()
 
     Column(
         modifier = Modifier
@@ -164,157 +149,124 @@ private fun LogDayCard(
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.SemiBold
             )
-            if (log.isComplete) {
-                Box(
-                    modifier = Modifier
-                        .size(24.dp)
-                        .clip(CircleShape)
-                        .background(LocalPrismColors.current.successColor),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        Icons.Default.Check,
-                        contentDescription = "Complete",
-                        tint = Color.White,
-                        modifier = Modifier.size(16.dp)
-                    )
-                }
-            }
+            // No aggregate "complete" concept in the new entity model;
+            // the dose count communicates activity adequately.
         }
         Spacer(modifier = Modifier.height(4.dp))
         Text(
-            text = "$loggedCount logged",
+            text = "${day.loggedCount} logged",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
-        timeGroups.forEach { (tod, stepsInGroup) ->
+        todEntries.forEach { (tod, dosesForTod) ->
             Spacer(modifier = Modifier.height(10.dp))
-            val todColor = Color(tod.color)
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(text = tod.icon, style = MaterialTheme.typography.bodyMedium)
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = tod.label.uppercase(),
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = todColor,
-                    letterSpacing = MaterialTheme.typography.labelSmall.letterSpacing * 1.5f
-                )
-                val pickedTier = tiersByTime[tod.id]
-                if (pickedTier != null) {
-                    val tierInfo = tiers.find { it.id == pickedTier }
-                    val tierC = tierInfo?.let { Color(it.color) } ?: todColor
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Box(
-                        modifier = Modifier
-                            .clip(LocalPrismShapes.current.chip)
-                            .background(tierC.copy(alpha = 0.15f))
-                            .border(1.dp, tierC.copy(alpha = 0.5f), RoundedCornerShape(6.dp))
-                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                    ) {
-                        Text(
-                            text = tierInfo?.label ?: pickedTier,
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = tierC
-                        )
-                    }
-                }
-            }
+            SlotHeader(label = tod.label.uppercase(), icon = tod.icon, color = Color(tod.color))
             Spacer(modifier = Modifier.height(4.dp))
-            stepsInGroup.forEach { step ->
-                val entry = medStepLogs.firstOrNull {
-                    it.id == step.stepId && (it.timeOfDay == tod.id || it.timeOfDay.isBlank())
-                }
-                StepRow(label = step.label, entry = entry)
+            dosesForTod.forEach { dose ->
+                DoseRow(label = day.medicationName(dose), dose = dose)
             }
         }
 
-        if (ungrouped.isNotEmpty()) {
+        timedDoses.forEach { (clock, dosesForClock) ->
             Spacer(modifier = Modifier.height(10.dp))
-            Text(
-                text = "OTHER",
-                style = MaterialTheme.typography.labelSmall,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                letterSpacing = MaterialTheme.typography.labelSmall.letterSpacing * 1.5f
+            SlotHeader(label = clock, icon = "⏰", color = MaterialTheme.colorScheme.primary)
+            Spacer(modifier = Modifier.height(4.dp))
+            dosesForClock.forEach { dose ->
+                DoseRow(label = day.medicationName(dose), dose = dose)
+            }
+        }
+
+        if (anytimeDoses.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(10.dp))
+            SlotHeader(
+                label = "ANYTIME",
+                icon = null,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(modifier = Modifier.height(4.dp))
-            ungrouped.forEach { step ->
-                val entry = medStepLogs.firstOrNull { it.id == step.stepId }
-                StepRow(label = step.label, entry = entry)
+            anytimeDoses.forEach { dose ->
+                DoseRow(label = day.medicationName(dose), dose = dose)
             }
         }
     }
 }
 
 @Composable
-private fun StepRow(label: String, entry: MedStepLog?) {
+private fun SlotHeader(label: String, icon: String?, color: Color) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        if (icon != null) {
+            Text(text = icon, style = MaterialTheme.typography.bodyMedium)
+            Spacer(modifier = Modifier.width(6.dp))
+        }
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Bold,
+            color = color,
+            letterSpacing = MaterialTheme.typography.labelSmall.letterSpacing * 1.5f
+        )
+    }
+}
+
+@Composable
+private fun DoseRow(label: String, dose: MedicationDoseEntity) {
     val timeFormat = remember { SimpleDateFormat("h:mm a", Locale.getDefault()) }
-    val logged = entry != null
+    val successColor = LocalPrismColors.current.successColor
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 3.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        val successColor = LocalPrismColors.current.successColor
         Box(
             modifier = Modifier
                 .size(14.dp)
                 .clip(CircleShape)
-                .background(
-                    if (logged) {
-                        successColor
-                    } else {
-                        MaterialTheme.colorScheme.surfaceContainerHigh
-                    }
-                ).border(
-                    1.dp,
-                    if (logged) {
-                        successColor
-                    } else {
-                        MaterialTheme.colorScheme.outlineVariant
-                    },
-                    CircleShape
-                ),
+                .background(successColor)
+                .border(1.dp, successColor, CircleShape),
             contentAlignment = Alignment.Center
         ) {
-            if (logged) {
-                Icon(
-                    Icons.Default.Check,
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(10.dp)
-                )
-            }
+            Icon(
+                Icons.Default.Check,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(10.dp)
+            )
         }
         Spacer(modifier = Modifier.width(8.dp))
         Text(
             text = label,
             style = MaterialTheme.typography.bodySmall,
-            color = if (logged) {
-                MaterialTheme.colorScheme.onSurface
-            } else {
-                MaterialTheme.colorScheme.onSurfaceVariant
-            },
+            color = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.weight(1f)
         )
-        if (entry != null && entry.at > 0L) {
+        if (dose.takenAt > 0L) {
             Text(
-                text = timeFormat.format(Date(entry.at)),
+                text = timeFormat.format(Date(dose.takenAt)),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }
-    if (entry != null && entry.note.isNotBlank()) {
+    if (dose.note.isNotBlank()) {
         Text(
-            text = entry.note,
+            text = dose.note,
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(start = 22.dp, bottom = 2.dp)
         )
     }
+}
+
+private val KNOWN_SLOT_KEYS = setOf("morning", "afternoon", "evening", "night", "anytime")
+private val CLOCK_REGEX = Regex("""\d{2}:\d{2}""")
+
+private fun isoDateToMillis(iso: String): Long = try {
+    LocalDate.parse(iso)
+        .atStartOfDay(ZoneId.systemDefault())
+        .toInstant()
+        .toEpochMilli()
+} catch (_: Exception) {
+    System.currentTimeMillis()
 }
