@@ -29,6 +29,12 @@ interface MedicationDoseDao {
     @Query("SELECT COUNT(*) FROM medication_doses WHERE medication_id = :medicationId")
     suspend fun countForMedOnce(medicationId: Long): Int
 
+    @Query("SELECT * FROM medication_doses ORDER BY taken_at ASC")
+    suspend fun getAllOnce(): List<MedicationDoseEntity>
+
+    @Query("SELECT * FROM medication_doses WHERE medication_id = :medicationId ORDER BY taken_at ASC")
+    suspend fun getAllForMedOnce(medicationId: Long): List<MedicationDoseEntity>
+
     @Query(
         "SELECT * FROM medication_doses WHERE medication_id = :medicationId " +
             "ORDER BY taken_at DESC LIMIT 1"

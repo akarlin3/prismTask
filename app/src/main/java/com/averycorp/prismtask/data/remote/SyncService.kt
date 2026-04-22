@@ -4,6 +4,8 @@ import com.averycorp.prismtask.data.local.dao.HabitCompletionDao
 import com.averycorp.prismtask.data.local.dao.HabitDao
 import com.averycorp.prismtask.data.local.dao.HabitLogDao
 import com.averycorp.prismtask.data.local.dao.LeisureDao
+import com.averycorp.prismtask.data.local.dao.MedicationDao
+import com.averycorp.prismtask.data.local.dao.MedicationDoseDao
 import com.averycorp.prismtask.data.local.dao.MilestoneDao
 import com.averycorp.prismtask.data.local.dao.ProjectDao
 import com.averycorp.prismtask.data.local.dao.SchoolworkDao
@@ -16,6 +18,7 @@ import com.averycorp.prismtask.data.local.dao.TaskTemplateDao
 import com.averycorp.prismtask.data.local.entity.SyncMetadataEntity
 import com.averycorp.prismtask.data.local.entity.TaskTagCrossRef
 import com.averycorp.prismtask.data.preferences.BuiltInSyncPreferences
+import com.averycorp.prismtask.data.remote.mapper.MedicationSyncMapper
 import com.averycorp.prismtask.data.remote.mapper.SyncMapper
 import com.averycorp.prismtask.data.remote.sync.PrismSyncLogger
 import com.averycorp.prismtask.data.remote.sync.SyncStateRepository
@@ -54,6 +57,10 @@ constructor(
     private val builtInTaskTemplateReconciler: BuiltInTaskTemplateReconciler,
     private val builtInTaskTemplateBackfiller: BuiltInTaskTemplateBackfiller,
     private val cloudIdOrphanHealer: CloudIdOrphanHealer,
+    private val builtInMedicationReconciler: BuiltInMedicationReconciler,
+    private val medicationDao: MedicationDao,
+    private val medicationDoseDao: MedicationDoseDao,
+    private val medicationMigrationPreferences: com.averycorp.prismtask.data.preferences.MedicationMigrationPreferences,
     private val sortPreferencesSyncService: SortPreferencesSyncService,
     private val schoolworkDao: SchoolworkDao,
     private val leisureDao: LeisureDao,
@@ -436,9 +443,15 @@ constructor(
         val leisureLogsOk = runLeisureLogsBackfillIfNeeded()
         val selfCareStepsOk = runSelfCareStepsBackfillIfNeeded()
         val selfCareLogsOk = runSelfCareLogsBackfillIfNeeded()
+        // medications BEFORE medication_doses so the dose helper can
+        // resolve cloud_ids for the parents. Each has its own one-shot
+        // flag in MedicationMigrationPreferences.
+        val medicationsOk = runMedicationsBackfillIfNeeded()
+        val medicationDosesOk = runMedicationDosesBackfillIfNeeded()
 
         val allSucceeded = coursesOk && courseCompletionsOk && leisureLogsOk &&
-            selfCareStepsOk && selfCareLogsOk
+            selfCareStepsOk && selfCareLogsOk &&
+            medicationsOk && medicationDosesOk
         if (allSucceeded) {
             builtInSyncPreferences.setNewEntitiesBackfillDone(true)
             logger.info("upload.new_entities_backfill", status = "success")
@@ -615,6 +628,90 @@ constructor(
         }
     }
 
+    /**
+     * Uploads every medication row that doesn't yet have a cloud mapping.
+     * Must run BEFORE [runMedicationDosesBackfillIfNeeded] so dose rows
+     * can resolve their parent medication's cloud_id.
+     *
+     * One-shot guard flag lives in [MedicationMigrationPreferences] (not
+     * [BuiltInSyncPreferences]) because the medication migration owns
+     * its own preference store.
+     */
+    private suspend fun runMedicationsBackfillIfNeeded(): Boolean {
+        if (medicationMigrationPreferences.isMigrationPushedToCloud()) return true
+        return try {
+            val medications = medicationDao.getAllOnce()
+            logger.debug("upload.medications", status = "begin", detail = "count=${medications.size}")
+            for (med in medications) {
+                try {
+                    if (syncMetadataDao.getCloudId(med.id, "medication") != null) continue
+                    val docRef = userCollection("medications")?.document() ?: continue
+                    docRef.set(MedicationSyncMapper.medicationToMap(med)).await()
+                    syncMetadataDao.upsert(
+                        SyncMetadataEntity(
+                            localId = med.id,
+                            entityType = "medication",
+                            cloudId = docRef.id,
+                            lastSyncedAt = System.currentTimeMillis()
+                        )
+                    )
+                } catch (e: Exception) {
+                    logger.error(
+                        operation = "upload.medication",
+                        entity = "medication",
+                        id = med.id.toString(),
+                        detail = med.name,
+                        throwable = e
+                    )
+                }
+            }
+            true
+            // isMigrationPushedToCloud flag is set by the dose helper once
+            // BOTH medications + doses are uploaded — setting it too early
+            // would skip dose uploads on a partial-success retry.
+        } catch (e: Exception) {
+            logger.error(operation = "upload.medications", throwable = e)
+            false
+        }
+    }
+
+    private suspend fun runMedicationDosesBackfillIfNeeded(): Boolean {
+        if (medicationMigrationPreferences.isMigrationPushedToCloud()) return true
+        return try {
+            val allDoses = medicationDoseDao.getAllOnce()
+            logger.debug("upload.medication_doses", status = "begin", detail = "count=${allDoses.size}")
+            for (dose in allDoses) {
+                try {
+                    if (syncMetadataDao.getCloudId(dose.id, "medication_dose") != null) continue
+                    val medCloudId = syncMetadataDao.getCloudId(dose.medicationId, "medication")
+                        ?: continue
+                    val docRef = userCollection("medication_doses")?.document() ?: continue
+                    docRef.set(MedicationSyncMapper.medicationDoseToMap(dose, medCloudId)).await()
+                    syncMetadataDao.upsert(
+                        SyncMetadataEntity(
+                            localId = dose.id,
+                            entityType = "medication_dose",
+                            cloudId = docRef.id,
+                            lastSyncedAt = System.currentTimeMillis()
+                        )
+                    )
+                } catch (e: Exception) {
+                    logger.error(
+                        operation = "upload.medication_dose",
+                        entity = "medication_dose",
+                        id = dose.id.toString(),
+                        throwable = e
+                    )
+                }
+            }
+            medicationMigrationPreferences.setMigrationPushedToCloud(true)
+            true
+        } catch (e: Exception) {
+            logger.error(operation = "upload.medication_doses", throwable = e)
+            false
+        }
+    }
+
     fun launchInitialUpload() {
         scope.launch {
             val start = System.currentTimeMillis()
@@ -710,6 +807,8 @@ constructor(
         "leisure_log" -> "leisure_logs"
         "self_care_step" -> "self_care_steps"
         "self_care_log" -> "self_care_logs"
+        "medication" -> "medications"
+        "medication_dose" -> "medication_doses"
         else -> entityType + "s"
     }
 
@@ -792,6 +891,15 @@ constructor(
                 val log = selfCareDao.getAllLogsOnce().find { it.id == meta.localId } ?: return
                 SyncMapper.selfCareLogToMap(log)
             }
+            "medication" -> {
+                val med = medicationDao.getByIdOnce(meta.localId) ?: return
+                MedicationSyncMapper.medicationToMap(med)
+            }
+            "medication_dose" -> {
+                val dose = medicationDoseDao.getAllOnce().find { it.id == meta.localId } ?: return
+                val medCloudId = syncMetadataDao.getCloudId(dose.medicationId, "medication") ?: return
+                MedicationSyncMapper.medicationDoseToMap(dose, medCloudId)
+            }
             else -> return
         }
         docRef.set(data).await()
@@ -850,6 +958,15 @@ constructor(
             "self_care_log" -> {
                 val log = selfCareDao.getAllLogsOnce().find { it.id == meta.localId } ?: return
                 SyncMapper.selfCareLogToMap(log)
+            }
+            "medication" -> {
+                val med = medicationDao.getByIdOnce(meta.localId) ?: return
+                MedicationSyncMapper.medicationToMap(med)
+            }
+            "medication_dose" -> {
+                val dose = medicationDoseDao.getAllOnce().find { it.id == meta.localId } ?: return
+                val medCloudId = syncMetadataDao.getCloudId(dose.medicationId, "medication") ?: return
+                MedicationSyncMapper.medicationDoseToMap(dose, medCloudId)
             }
             else -> return
         }
@@ -1301,6 +1418,66 @@ constructor(
         applied += selfCareLogsResult.applied
         skipped += selfCareLogsResult.skipped
 
+        // medications BEFORE medication_doses so the FK resolution lands.
+        val medicationsResult = pullCollection("medications") { data, cloudId ->
+            val localId = syncMetadataDao.getLocalId(cloudId, "medication")
+            if (localId == null) {
+                val med = MedicationSyncMapper.mapToMedication(data, cloudId = cloudId)
+                val newId = medicationDao.insert(med)
+                syncMetadataDao.upsert(
+                    SyncMetadataEntity(
+                        localId = newId,
+                        entityType = "medication",
+                        cloudId = cloudId,
+                        lastSyncedAt = System.currentTimeMillis()
+                    )
+                )
+            } else {
+                val localMed = medicationDao.getByIdOnce(localId)
+                val remoteUpdatedAt = (data["updatedAt"] as? Number)?.toLong() ?: 0L
+                if (localMed == null || remoteUpdatedAt > localMed.updatedAt) {
+                    medicationDao.update(
+                        MedicationSyncMapper.mapToMedication(data, localId, cloudId = cloudId)
+                    )
+                    syncMetadataDao.clearPendingAction(localId, "medication")
+                }
+            }
+            true
+        }
+        applied += medicationsResult.applied
+        skipped += medicationsResult.skipped
+
+        val medicationDosesResult = pullCollection("medication_doses") { data, cloudId ->
+            val medCloudId = data["medicationCloudId"] as? String ?: return@pullCollection false
+            val medLocalId = syncMetadataDao.getLocalId(medCloudId, "medication")
+                ?: return@pullCollection false
+            val localId = syncMetadataDao.getLocalId(cloudId, "medication_dose")
+            if (localId == null) {
+                val dose = MedicationSyncMapper.mapToMedicationDose(
+                    data,
+                    medicationLocalId = medLocalId,
+                    cloudId = cloudId
+                )
+                val newId = medicationDoseDao.insert(dose)
+                syncMetadataDao.upsert(
+                    SyncMetadataEntity(
+                        localId = newId,
+                        entityType = "medication_dose",
+                        cloudId = cloudId,
+                        lastSyncedAt = System.currentTimeMillis()
+                    )
+                )
+            } else {
+                // Doses are append-only — no updates. If the same
+                // cloudId arrives again, it's a no-op duplicate push
+                // and the existing row wins.
+                syncMetadataDao.clearPendingAction(localId, "medication_dose")
+            }
+            true
+        }
+        applied += medicationDosesResult.applied
+        skipped += medicationDosesResult.skipped
+
         if (skipped > 0) {
             logger.warn(
                 operation = "pull.summary",
@@ -1391,6 +1568,7 @@ constructor(
             }
             builtInHabitReconciler.reconcileAfterSyncIfNeeded()
             builtInTaskTemplateReconciler.reconcileAfterSyncIfNeeded()
+            builtInMedicationReconciler.reconcileAfterSyncIfNeeded()
             syncStateRepository.markSyncCompleted(
                 source = SOURCE_FIREBASE,
                 success = true,
@@ -1664,6 +1842,8 @@ constructor(
             "leisure_logs" -> "leisure_log"
             "self_care_steps" -> "self_care_step"
             "self_care_logs" -> "self_care_log"
+            "medications" -> "medication"
+            "medication_doses" -> "medication_dose"
             else -> return
         }
         var deleted = 0
@@ -1685,6 +1865,8 @@ constructor(
                     "leisure_log" -> leisureDao.deleteLogById(localId)
                     "self_care_step" -> selfCareDao.deleteStepById(localId)
                     "self_care_log" -> selfCareDao.deleteLogById(localId)
+                    "medication" -> medicationDao.deleteById(localId)
+                    "medication_dose" -> medicationDoseDao.deleteById(localId)
                 }
                 syncMetadataDao.delete(localId, entityType)
                 logger.info(

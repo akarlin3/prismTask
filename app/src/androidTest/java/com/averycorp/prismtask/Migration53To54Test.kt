@@ -68,7 +68,7 @@ class Migration53To54Test {
                         """CREATE TABLE `self_care_logs` (
                             `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
                             `routine_type` TEXT NOT NULL,
-                            `log_date` INTEGER NOT NULL,
+                            `date` INTEGER NOT NULL,
                             `completed_steps` TEXT NOT NULL DEFAULT '[]',
                             `updated_at` INTEGER NOT NULL DEFAULT 0
                         )"""
@@ -156,7 +156,7 @@ class Migration53To54Test {
                 "('morning_1', 'morning', 'Brush teeth', NULL, 'morning')"
         )
         db.execSQL(
-            "INSERT INTO self_care_logs (routine_type, log_date, completed_steps) VALUES " +
+            "INSERT INTO self_care_logs (routine_type, date, completed_steps) VALUES " +
                 "('medication', 1000, '[\"med_1\"]'), " +
                 "('morning', 2000, '[\"morning_1\"]')"
         )
@@ -379,7 +379,7 @@ class Migration53To54Test {
                 "('morn_1', 'morning', 'Stretch', NULL, 'morning')"
         )
         db.execSQL(
-            "INSERT INTO self_care_logs (routine_type, log_date, completed_steps) VALUES " +
+            "INSERT INTO self_care_logs (routine_type, date, completed_steps) VALUES " +
                 "('medication', 1000, '[\"med_1\"]')"
         )
         db.execSQL(
@@ -497,7 +497,7 @@ class Migration53To54Test {
                 "('med_1', 'medication', 'Lipitor', 'Lipitor', 'morning')"
         )
         db.execSQL(
-            "INSERT INTO self_care_logs (routine_type, log_date, completed_steps) VALUES " +
+            "INSERT INTO self_care_logs (routine_type, date, completed_steps) VALUES " +
                 "('medication', 1000, '[\"med_1\"]')"
         )
 

@@ -10,6 +10,7 @@ import androidx.work.WorkManager
 import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
 import com.averycorp.prismtask.data.remote.BuiltInHabitReconciler
 import com.averycorp.prismtask.data.remote.LifeCategoryBackfiller
+import com.averycorp.prismtask.data.remote.MedicationMigrationRunner
 import com.averycorp.prismtask.data.repository.LeisureRepository
 import com.averycorp.prismtask.data.repository.SchoolworkRepository
 import com.averycorp.prismtask.data.seed.TemplateSeeder
@@ -56,6 +57,9 @@ class PrismTaskApplication :
     lateinit var lifeCategoryBackfiller: LifeCategoryBackfiller
 
     @Inject
+    lateinit var medicationMigrationRunner: MedicationMigrationRunner
+
+    @Inject
     lateinit var calendarSyncScheduler: CalendarSyncScheduler
 
     @Inject
@@ -98,6 +102,7 @@ class PrismTaskApplication :
             runBuiltInBackfill()
             runDriftCleanup()
             runLifeCategoryBackfill()
+            runMedicationMigrationPasses()
         } catch (e: Exception) {
             android.util.Log.e("PrismTaskApp", "Seeding kickoff failed", e)
             try {
@@ -237,6 +242,24 @@ class PrismTaskApplication :
     private fun runLifeCategoryBackfill() {
         appScope.launch {
             lifeCategoryBackfiller.runIfNeeded()
+        }
+    }
+
+    /**
+     * Runs the two post-migration passes for the v53 → v54 medication
+     * refactor — schedule preservation from the pre-migration
+     * `MedicationPreferences` / built-in Medication habit, then dose
+     * backfill from legacy `self_care_logs`. Each pass has its own
+     * one-shot flag so a mid-run crash stays retryable.
+     *
+     * Details: [MedicationMigrationRunner]. Post-sync dedup runs through
+     * [com.averycorp.prismtask.data.remote.BuiltInMedicationReconciler]
+     * from inside [com.averycorp.prismtask.data.remote.SyncService].
+     */
+    private fun runMedicationMigrationPasses() {
+        appScope.launch {
+            medicationMigrationRunner.preserveScheduleIfNeeded()
+            medicationMigrationRunner.backfillDosesIfNeeded()
         }
     }
 
