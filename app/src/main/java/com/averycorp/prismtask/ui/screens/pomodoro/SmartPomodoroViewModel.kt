@@ -213,9 +213,12 @@ constructor(
     // rendering can keep reading "the current plan" and "loading in
     // flight" without knowing about the sealed type. These are
     // computed, not independently mutated.
+    // Eagerly started so non-UI code paths (requestPreSessionCoaching,
+    // requestSessionRecap, nextSession) that read plan.value synchronously
+    // see the populated plan even before a composable subscribes.
     val plan: StateFlow<PomodoroPlan?> = _planUiState
         .map { (it as? PomodoroPlanUiState.Success)?.plan }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+        .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
     val isLoading: StateFlow<Boolean> = _planUiState
         .map { it is PomodoroPlanUiState.Loading }
