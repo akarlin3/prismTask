@@ -7,6 +7,86 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Sync — Duplication Fix (Phase 2 + Phase 2.5)
+- **Root cause.** Prior builds re-uploaded every local row on every
+  sign-in because `initialUpload` had no "already ran" guard and
+  nothing on the entity row identified which Firestore document
+  mirrored it. Concurrent listeners pulled while the upload was still
+  running, producing duplicate documents per entity on every
+  sign-in across devices. Symptom on the production account: ~9,656
+  tag rows representing ~3 user-authored tag names, ~5,144 task rows
+  representing ~19 natural-key groups, ~1,248 habit rows representing
+  ~12 canonical habits.
+- **Fix A — one-shot upload guard.** `SyncService.initialUpload` now
+  skips with `PrismSync` event `initialUpload.skipped.alreadyRan` when
+  a persisted preference flag `initial_upload_completed=true` is
+  already set for the signed-in account on this install. The flag is
+  set at the end of the first successful upload, so a second sign-in
+  of the same account on the same device/install cannot re-upload the
+  whole local dataset.
+- **Fix B — upload/pull serialization.** `initialUpload` and
+  `pullRemoteChanges` are now serialized via a `Mutex` so the two
+  paths can't race on startup. Before the fix, the pull listener
+  could attach mid-upload, pull the partially-uploaded rows, and
+  treat them as "new" on a second sign-in — doubling the dataset.
+- **Fix C — per-row cloud_id guard.** Every entity write path in
+  `initialUpload` now requires a non-null `cloud_id` on the local row
+  before pushing. Rows without `cloud_id` (legacy installs that
+  haven't had `restoreCloudIdFromMetadata` run yet) are skipped with
+  `initialUpload.skipped.rowHasCloudId=false` and retried after the
+  pull completes. This closes the gap where a row with no prior
+  Firestore identity was being `add()`ed instead of `set()` under its
+  existing doc ID.
+- **Migration 51 → 52.** Adds a nullable `cloud_id TEXT` column plus
+  `CREATE UNIQUE INDEX index_<table>_cloud_id ON <table>(cloud_id)`
+  on every syncable entity table. Backfills from the existing
+  `sync_metadata.cloud_id` column via a correlated `UPDATE … FROM`.
+  When `sync_metadata` has colliding `(entity_type, cloud_id)`
+  mappings (one cloud doc pointed at multiple local rows — the
+  duplication symptom), the migration keeps the smallest `local_id`
+  as the winner and NULLs `cloud_id` on the losers so the unique
+  index can hold. See `data/local/database/Migrations.kt` lines
+  985-1100 for the full migration body and logging.
+- **Phase 2.5 — cloud_id hydration.** `SyncMapper` now populates
+  `cloud_id` on every entity constructed from a Firestore pull, so
+  rows arriving via `pullRemoteChanges` no longer land in Room with a
+  null `cloud_id`. `SyncService.restoreCloudIdFromMetadata()` is a
+  one-shot per-install backfill that walks `sync_metadata` and
+  repopulates `cloud_id` on any row that was written by
+  pre-migration-52 code — covers the window between
+  migration 51→52 running and the next sync pulling fresh data. The
+  one-shot gate is a preference flag
+  (`cloud_id_metadata_restore_ran`), so the restore never fires
+  twice on the same install.
+- **Data-cleanup plan (Fix D).** `docs/PHASE_3_FIX_D_PLAN.md`
+  captures the per-table collapse design: natural-key winner rules
+  (`lower(trim(title))`, `trim(name)`, etc.), parent-before-child
+  collapse order, FK-repoint-then-delete strategy, and a new
+  `task_completions_quarantine` table that isolates the ~2,353
+  `task_completions` rows with `task_id IS NULL` for optional future
+  triage rather than discarding them. This is a one-time SQL
+  operation run against the device's Room DB once v1.4.19+ is
+  installed and `restoreCloudIdFromMetadata` has hydrated
+  `cloud_id`; it does not ship as code. Expected post-collapse row
+  counts are captured from a 2026-04-21 dry-run (tasks 19, tags 3,
+  projects 2, habits 12, task_completions 12, task_templates 8).
+- **Telemetry.** `PrismSyncLogger` adds structured events for every
+  skip/retry/serialized-wait case above, tagged with account UID and
+  install ID so the production account's sync-duplication curve can
+  be confirmed flat across multiple sign-ins post-install of
+  v1.4.19+.
+- **Tests.** `SyncMapperCloudIdTest` covers all 14 syncable entities
+  including `task_templates` (added in `78d8e3b3`). Regression guards:
+  (a) Fix A — signing in twice on the same install only produces one
+  `initialUpload.start` event; (b) Fix C — a row with null `cloud_id`
+  is skipped, not uploaded with an auto-generated doc ID.
+- **Adjacent WLB fix (`e5a01a18`).** A stale `autoClassify`
+  preference stored under a no-longer-read key was deleted, removing
+  one source of `lifeCategory` null rows. The life-category
+  fallback + built-in task-template reconciler were tightened in
+  the same commit to avoid re-creating duplicate built-in templates
+  during post-sync reconciliation.
+
 ### Reminders — v1.4.0 Pass 1
 - Verified task + habit-interval reminder happy paths; fixed
   cancel-on-complete across recurrence, bulk-complete, and subtask
