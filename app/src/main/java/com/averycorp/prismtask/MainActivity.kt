@@ -104,6 +104,9 @@ class MainActivity : ComponentActivity() {
     lateinit var a11yPreferences: com.averycorp.prismtask.data.preferences.A11yPreferences
 
     @Inject
+    lateinit var habitListPreferences: com.averycorp.prismtask.data.preferences.HabitListPreferences
+
+    @Inject
     lateinit var userPreferencesDataStore: UserPreferencesDataStore
 
     @Inject
@@ -280,9 +283,21 @@ class MainActivity : ComponentActivity() {
             val tabOrder by tabPreferences
                 .getTabOrder()
                 .collectAsStateWithLifecycle(initialValue = TabPreferences.DEFAULT_ORDER)
-            val hiddenTabs by tabPreferences
+            val baseHiddenTabs by tabPreferences
                 .getHiddenTabs()
                 .collectAsStateWithLifecycle(initialValue = emptySet())
+            // Medications top-level nav tile gated on the same
+            // isMedicationEnabled toggle that already hides the
+            // SelfCareItem("medication") row in HabitListViewModel —
+            // single source of truth across both surfaces.
+            val medicationEnabled by habitListPreferences
+                .isMedicationEnabled()
+                .collectAsStateWithLifecycle(initialValue = true)
+            val hiddenTabs = if (medicationEnabled) {
+                baseHiddenTabs
+            } else {
+                baseHiddenTabs + com.averycorp.prismtask.ui.navigation.PrismTaskRoute.Medication.route
+            }
 
             val appearance by userPreferencesDataStore.appearanceFlow
                 .collectAsStateWithLifecycle(initialValue = AppearancePrefs())

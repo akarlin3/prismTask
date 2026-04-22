@@ -275,6 +275,12 @@ constructor(
         root.add("moodEnergyLogs", gson.toJsonTree(database.moodEnergyLogDao().getAll()))
         root.add("weeklyReviews", gson.toJsonTree(database.weeklyReviewDao().getAllOnce()))
         root.add("medicationRefills", gson.toJsonTree(database.medicationRefillDao().getAll()))
+        // v1.4 medication top-level entity (spec: SPEC_MEDICATIONS_TOP_LEVEL.md).
+        // Exports alongside medicationRefills during the Phase 2 convergence
+        // window — both will coexist until the cleanup migration drops
+        // medication_refills.
+        root.add("medications", gson.toJsonTree(database.medicationDao().getAllOnce()))
+        root.add("medicationDoses", gson.toJsonTree(database.medicationDoseDao().getAllOnce()))
         root.add("nlpShortcuts", gson.toJsonTree(database.nlpShortcutDao().getAllOnce()))
         root.add("savedFilters", gson.toJsonTree(database.savedFilterDao().getAllOnce()))
         root.add("customSounds", gson.toJsonTree(database.customSoundDao().getAllOnce()))

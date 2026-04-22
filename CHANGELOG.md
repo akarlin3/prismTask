@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Medications — Top-level entity (PR 4 / 5 — Nav tile + toggle wiring)
+- **New bottom-nav tile.** `Meds` (Material `LocalPharmacy` icon) added
+  between `Recurring` and `Timer` in `ALL_BOTTOM_NAV_ITEMS`. Taps route
+  to the existing `MedicationScreen` (its ViewModel rewire to
+  `MedicationRepository` is deferred to a follow-up to keep this PR
+  reviewable).
+- **Toggle coupling.** `MainActivity` combines the existing
+  `tabPreferences.hiddenTabs` with `habitListPreferences.isMedicationEnabled`.
+  When the Medication toggle is off, the route is added to `hiddenTabs`
+  so the tile doesn't render. Same single-source-of-truth toggle that
+  used to hide the `SelfCareItem("medication")` row.
+- **`SelfCareItem("medication")` removal.** `HabitListViewModel.items`
+  no longer emits the medication row — users reach medications via the
+  new top-level tile instead. `medicationOn` still participates in the
+  `allBuiltInNames` filter that hides the underlying "Medication" habit.
+- **`SelfCareRepository.ensureHabitsExist`** no longer auto-seeds the
+  built-in `"Medication"` habit. Existing users keep their row in Room
+  until the Phase 2 cleanup migration drops it.
+- **`DataExporter`** now includes `medications` + `medication_doses`
+  sections alongside the existing `medicationRefills` section for the
+  convergence window.
+
 ### Medications — Top-level entity (PR 3 / 5 — Scheduler split)
 - **Rename.** `MedicationReminderScheduler` → `HabitReminderScheduler`.
   The class always handled app-wide habit alarms (daily-time, interval,

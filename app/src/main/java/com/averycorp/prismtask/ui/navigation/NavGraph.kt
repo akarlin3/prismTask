@@ -13,11 +13,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.FormatListBulleted
 import androidx.compose.material.icons.automirrored.outlined.FormatListBulleted
 import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.LocalPharmacy
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Today
 import androidx.compose.material.icons.outlined.FitnessCenter
+import androidx.compose.material.icons.outlined.LocalPharmacy
 import androidx.compose.material.icons.outlined.Repeat
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Timer
@@ -258,6 +260,12 @@ val ALL_BOTTOM_NAV_ITEMS = listOf(
     ),
     BottomNavItem(PrismTaskRoute.HabitList.route, "Daily", Icons.Filled.FitnessCenter, Icons.Outlined.FitnessCenter),
     BottomNavItem(PrismTaskRoute.HabitsRecurring.route, "Recurring", Icons.Filled.Repeat, Icons.Outlined.Repeat),
+    BottomNavItem(
+        PrismTaskRoute.Medication.route,
+        "Meds",
+        Icons.Filled.LocalPharmacy,
+        Icons.Outlined.LocalPharmacy
+    ),
     BottomNavItem(PrismTaskRoute.Timer.route, "Timer", Icons.Filled.Timer, Icons.Outlined.Timer),
     BottomNavItem(PrismTaskRoute.Settings.route, "Settings", Icons.Filled.Settings, Icons.Outlined.Settings)
 )
@@ -531,6 +539,8 @@ fun PrismTaskNavGraph(
                         PrismTaskRoute.TaskList.route -> TaskListScreen(navController)
                         PrismTaskRoute.HabitList.route -> HabitListScreen(navController, filter = "daily")
                         PrismTaskRoute.HabitsRecurring.route -> HabitListScreen(navController, filter = "recurring")
+                        PrismTaskRoute.Medication.route ->
+                            com.averycorp.prismtask.ui.screens.medication.MedicationScreen(navController)
                         PrismTaskRoute.Timer.route -> TimerScreen(navController)
                         PrismTaskRoute.Settings.route -> SettingsScreen(navController)
                     }

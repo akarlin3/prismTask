@@ -888,7 +888,10 @@ constructor(
     suspend fun ensureHabitsExist() {
         getOrCreateHabit("morning")
         getOrCreateHabit("bedtime")
-        getOrCreateHabit("medication")
+        // Medication is no longer auto-seeded as a built-in habit — v1.4's
+        // medication-top-level refactor moved it to its own entity
+        // (MedicationEntity). Existing users still have the "Medication"
+        // habit row in their DB; it stays until Phase 2 cleanup.
         getOrCreateHabit("housework")
     }
 
