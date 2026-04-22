@@ -10,6 +10,7 @@ import com.averycorp.prismtask.data.preferences.MedicationPreferences
 import com.averycorp.prismtask.data.preferences.MedicationScheduleMode
 import com.averycorp.prismtask.data.remote.sync.PrismSyncLogger
 import com.averycorp.prismtask.data.repository.SelfCareRepository
+import com.averycorp.prismtask.notifications.HabitReminderScheduler
 import com.google.gson.JsonArray
 import com.google.gson.JsonParser
 import java.time.Instant
@@ -49,6 +50,7 @@ constructor(
     private val medicationPreferences: MedicationPreferences,
     private val migrationPreferences: MedicationMigrationPreferences,
     private val syncTracker: SyncTracker,
+    private val habitReminderScheduler: HabitReminderScheduler,
     private val logger: PrismSyncLogger
 ) {
     /**
@@ -120,6 +122,12 @@ constructor(
                 }
             }
 
+            // Now that the schedule is preserved onto MedicationEntity rows
+            // (which the new MedicationReminderScheduler will pick up on
+            // next boot), disarm the legacy HabitReminderScheduler paths
+            // that would otherwise double-fire the same alarms.
+            disarmLegacyScheduler(builtInHabit, specificTimes)
+
             migrationPreferences.setSchedulePreserved(true)
         } catch (e: Exception) {
             logger.error(
@@ -129,6 +137,65 @@ constructor(
             )
             // Flag intentionally NOT set — retry on next app start.
         }
+    }
+
+    /**
+     * Cancels pending legacy medication alarms and clears the data that
+     * would cause [HabitReminderScheduler] to re-register them on next
+     * boot. Without this, a user who had specific-time alarms via
+     * [MedicationPreferences] or an interval alarm via the built-in
+     * "Medication" habit would get duplicate notifications — one from
+     * the legacy scheduler path and one from the new
+     * [com.averycorp.prismtask.notifications.MedicationReminderScheduler]
+     * that now owns per-medication alarms.
+     *
+     * The built-in "Medication" habit row stays in Room (Phase 2 cleanup
+     * drops it) — we only null its reminder fields so its alarms don't
+     * refire.
+     */
+    private suspend fun disarmLegacyScheduler(
+        builtInHabit: com.averycorp.prismtask.data.local.entity.HabitEntity?,
+        previousSpecificTimes: List<String>
+    ) {
+        var cancelledCount = 0
+
+        // Cancel currently-scheduled +300_000-range specific-time alarms.
+        // Legacy `HabitReminderScheduler.scheduleSpecificTimes` cancels
+        // indices `[size, size+10)` on reschedule, so we clear the same
+        // range to cover any stale PendingIntents.
+        val specificCancelCeiling = previousSpecificTimes.size + LEGACY_STALE_SLOT_BUFFER
+        for (index in 0 until specificCancelCeiling) {
+            habitReminderScheduler.cancelSpecificTime(index)
+        }
+        cancelledCount += previousSpecificTimes.size
+        // Clear the DataStore source so rescheduleAll() schedules zero
+        // specific-time alarms on next boot.
+        medicationPreferences.setSpecificTimes(emptySet())
+
+        // Built-in "Medication" habit: cancel any per-habit interval
+        // (+200_000) and daily-time (+900_000) alarms, then null the
+        // reminder fields so rescheduleAllDailyTime /
+        // getHabitsWithIntervalReminder skip the row on next boot.
+        if (builtInHabit != null &&
+            (builtInHabit.reminderIntervalMillis != null || builtInHabit.reminderTime != null)
+        ) {
+            habitReminderScheduler.cancelAll(builtInHabit.id)
+            habitDao.update(
+                builtInHabit.copy(
+                    reminderIntervalMillis = null,
+                    reminderTime = null,
+                    updatedAt = System.currentTimeMillis()
+                )
+            )
+            syncTracker.trackUpdate(builtInHabit.id, "habit")
+            cancelledCount++
+        }
+
+        logger.info(
+            operation = "medication.migration.disarm_legacy",
+            detail = "cancelled=$cancelledCount specific_times=${previousSpecificTimes.size} " +
+                "built_in_habit_interval=${builtInHabit?.reminderIntervalMillis != null}"
+        )
     }
 
     /**
@@ -247,5 +314,6 @@ constructor(
     companion object {
         private const val MINUTE_MILLIS = 60_000L
         private val VALID_TOD_SLOTS = setOf("morning", "afternoon", "evening", "night")
+        private const val LEGACY_STALE_SLOT_BUFFER = 10
     }
 }
