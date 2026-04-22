@@ -10,6 +10,8 @@ import com.averycorp.prismtask.data.remote.api.CoachingRequest
 import com.averycorp.prismtask.data.remote.api.CoachingResponse
 import com.averycorp.prismtask.data.remote.api.DailyBriefingRequest
 import com.averycorp.prismtask.data.remote.api.DailyBriefingResponse
+import com.averycorp.prismtask.data.remote.api.EisenhowerClassifyTextRequest
+import com.averycorp.prismtask.data.remote.api.EisenhowerClassifyTextResponse
 import com.averycorp.prismtask.data.remote.api.EisenhowerRequest
 import com.averycorp.prismtask.data.remote.api.EisenhowerResponse
 import com.averycorp.prismtask.data.remote.api.EveningSummaryRequest
@@ -23,6 +25,8 @@ import com.averycorp.prismtask.data.remote.api.ParseImportRequest
 import com.averycorp.prismtask.data.remote.api.ParseImportResponse
 import com.averycorp.prismtask.data.remote.api.ParseRequest
 import com.averycorp.prismtask.data.remote.api.ParsedTaskResponse
+import com.averycorp.prismtask.data.remote.api.PomodoroCoachingRequest
+import com.averycorp.prismtask.data.remote.api.PomodoroCoachingResponse
 import com.averycorp.prismtask.data.remote.api.PomodoroRequest
 import com.averycorp.prismtask.data.remote.api.PomodoroResponse
 import com.averycorp.prismtask.data.remote.api.PrismTaskApi
@@ -102,7 +106,17 @@ class NaturalLanguageParserTest {
         override suspend fun categorizeEisenhower(request: EisenhowerRequest): EisenhowerResponse =
             error("not used in offline parser tests")
 
+        override suspend fun classifyEisenhowerText(
+            request: EisenhowerClassifyTextRequest
+        ): EisenhowerClassifyTextResponse =
+            error("not used in offline parser tests")
+
         override suspend fun planPomodoro(request: PomodoroRequest): PomodoroResponse =
+            error("not used in offline parser tests")
+
+        override suspend fun getPomodoroCoaching(
+            request: PomodoroCoachingRequest
+        ): PomodoroCoachingResponse =
             error("not used in offline parser tests")
 
         override suspend fun getDailyBriefing(request: DailyBriefingRequest): DailyBriefingResponse =
