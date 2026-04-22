@@ -59,6 +59,24 @@ constructor(
         }
     }
 
+    /**
+     * Restores onboarding state from a JSON backup. Unlike [setOnboardingCompleted]
+     * (which stamps `completed_at` to `now`), this writes the exact original
+     * timestamp so a restored install doesn't look like it just finished
+     * onboarding. Used by [com.averycorp.prismtask.data.export.DataImporter].
+     */
+    suspend fun restoreImportedState(
+        hasCompletedOnboarding: Boolean,
+        onboardingCompletedAt: Long,
+        hasShownBatteryOptimizationPrompt: Boolean
+    ) {
+        context.onboardingDataStore.edit { prefs ->
+            prefs[HAS_COMPLETED_ONBOARDING] = hasCompletedOnboarding
+            prefs[ONBOARDING_COMPLETED_AT] = onboardingCompletedAt
+            prefs[HAS_SHOWN_BATTERY_OPTIMIZATION_PROMPT] = hasShownBatteryOptimizationPrompt
+        }
+    }
+
     /** Debug-only: clear the onboarding flag so the tutorial plays again. */
     suspend fun resetOnboarding() {
         context.onboardingDataStore.edit { prefs ->

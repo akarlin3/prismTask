@@ -22,7 +22,9 @@ import com.averycorp.prismtask.data.preferences.MedicationPreferences
 import com.averycorp.prismtask.data.preferences.MorningCheckInPreferences
 import com.averycorp.prismtask.data.preferences.NdPreferencesDataStore
 import com.averycorp.prismtask.data.preferences.NotificationPreferences
+import com.averycorp.prismtask.data.preferences.CoachingPreferences
 import com.averycorp.prismtask.data.preferences.OnboardingPreferences
+import com.averycorp.prismtask.data.preferences.SortPreferences
 import com.averycorp.prismtask.data.preferences.ShakePreferences
 import com.averycorp.prismtask.data.preferences.TabPreferences
 import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
@@ -125,7 +127,9 @@ constructor(
     private val morningCheckInPreferences: MorningCheckInPreferences,
     private val calendarSyncPreferences: CalendarSyncPreferences,
     private val onboardingPreferences: OnboardingPreferences,
-    private val templatePreferences: TemplatePreferences
+    private val templatePreferences: TemplatePreferences,
+    private val coachingPreferences: CoachingPreferences,
+    private val sortPreferences: SortPreferences
 ) {
     private val gson = GsonBuilder().serializeNulls().setPrettyPrinting().create()
     private val compactGson = Gson()
@@ -458,6 +462,8 @@ constructor(
         config.add("calendarSync", exportCalendarSyncConfig())
         config.add("onboarding", exportOnboardingConfig())
         config.add("templates", exportTemplateConfig())
+        config.add("coaching", exportCoachingConfig())
+        config.add("sort", exportSortConfig())
 
         root.add("config", config)
 
@@ -586,6 +592,33 @@ constructor(
     private suspend fun exportTemplateConfig(): JsonObject = JsonObject().apply {
         addProperty("templatesSeeded", templatePreferences.isSeeded())
         addProperty("templatesFirstSyncDone", templatePreferences.isFirstSyncDone())
+    }
+
+    /**
+     * Coaching state. Most keys are day-scoped transient state that resets
+     * when the calendar date differs between export and import — only
+     * `lastAppOpen` is meaningful across a backup/restore cycle. We still
+     * include it for completeness since the user-facing guarantee is that
+     * *every* preference key is synced and backed up.
+     */
+    private suspend fun exportCoachingConfig(): JsonObject = JsonObject().apply {
+        addProperty("lastAppOpen", coachingPreferences.getLastAppOpen())
+    }
+
+    /**
+     * Per-screen sort mode/direction selections. Mirrors the shape that
+     * [com.averycorp.prismtask.data.remote.SortPreferencesSyncService] pushes
+     * to Firestore, minus the internal sync-metadata keys. Per-project
+     * entries (`sort_project_<localId>`) reference auto-generated project
+     * row IDs and therefore may not survive a fresh-install restore; global
+     * entries (e.g. `sort_today`, `sort_all_tasks`) round-trip cleanly.
+     */
+    private suspend fun exportSortConfig(): JsonObject = JsonObject().apply {
+        for ((key, value) in sortPreferences.snapshot()) {
+            if (value is String && value.isNotBlank()) {
+                addProperty(key, value)
+            }
+        }
     }
 
     private suspend fun exportAttachments(): JsonArray {

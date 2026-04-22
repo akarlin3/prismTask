@@ -152,7 +152,10 @@ class DataImporterTest {
             dailyEssentialsPreferences,
             morningCheckInPreferences,
             calendarSyncPreferences,
-            templatePreferences
+            templatePreferences,
+            mockk(relaxed = true),
+            mockk(relaxed = true),
+            mockk(relaxed = true)
         )
     }
 
