@@ -53,6 +53,7 @@ constructor(
     private val builtInHabitReconciler: BuiltInHabitReconciler,
     private val builtInTaskTemplateReconciler: BuiltInTaskTemplateReconciler,
     private val builtInTaskTemplateBackfiller: BuiltInTaskTemplateBackfiller,
+    private val cloudIdOrphanHealer: CloudIdOrphanHealer,
     private val sortPreferencesSyncService: SortPreferencesSyncService,
     private val schoolworkDao: SchoolworkDao,
     private val leisureDao: LeisureDao,
@@ -1289,6 +1290,20 @@ constructor(
         try {
             pushed = pushLocalChanges()
             pulled = pullRemoteChanges()
+            // Re-queue pushes for any local row with a cloud_id that no
+            // longer has a matching Firestore doc. See
+            // [CloudIdOrphanHealer] — covers post-Fix-D out-of-band wipe.
+            try {
+                cloudIdOrphanHealer.healOrphans()
+            } catch (e: Exception) {
+                logger.error(operation = "healer.error", throwable = e)
+                try {
+                    com.google.firebase.crashlytics.FirebaseCrashlytics
+                        .getInstance()
+                        .recordException(e)
+                } catch (_: Exception) {
+                }
+            }
             builtInHabitReconciler.reconcileAfterSyncIfNeeded()
             builtInTaskTemplateReconciler.reconcileAfterSyncIfNeeded()
             syncStateRepository.markSyncCompleted(
