@@ -798,7 +798,7 @@ class TaskRepositoryTest {
             reason: String?,
             updatedAt: Long
         ): Int {
-            val idx = tasks.indexOfFirst { it.id == id } .takeIf { it >= 0 } ?: return 0
+            val idx = tasks.indexOfFirst { it.id == id }.takeIf { it >= 0 } ?: return 0
             if (tasks[idx].userOverrodeQuadrant) return 0
             tasks[idx] = tasks[idx].copy(
                 eisenhowerQuadrant = quadrant,
@@ -815,7 +815,7 @@ class TaskRepositoryTest {
             reason: String?,
             updatedAt: Long
         ) {
-            val idx = tasks.indexOfFirst { it.id == id } .takeIf { it >= 0 } ?: return
+            val idx = tasks.indexOfFirst { it.id == id }.takeIf { it >= 0 } ?: return
             tasks[idx] = tasks[idx].copy(
                 eisenhowerQuadrant = quadrant,
                 eisenhowerReason = reason,
@@ -826,7 +826,7 @@ class TaskRepositoryTest {
         }
 
         override suspend fun clearManualQuadrantOverride(id: Long, updatedAt: Long) {
-            val idx = tasks.indexOfFirst { it.id == id } .takeIf { it >= 0 } ?: return
+            val idx = tasks.indexOfFirst { it.id == id }.takeIf { it >= 0 } ?: return
             tasks[idx] = tasks[idx].copy(
                 userOverrodeQuadrant = false,
                 updatedAt = updatedAt
