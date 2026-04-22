@@ -17,6 +17,8 @@ class BootReceiver : BroadcastReceiver() {
     interface BootEntryPoint {
         fun reminderScheduler(): ReminderScheduler
 
+        fun habitReminderScheduler(): HabitReminderScheduler
+
         fun medicationReminderScheduler(): MedicationReminderScheduler
     }
 
@@ -46,6 +48,7 @@ class BootReceiver : BroadcastReceiver() {
         scope.launch {
             try {
                 entryPoint.reminderScheduler().rescheduleAllReminders()
+                entryPoint.habitReminderScheduler().rescheduleAll()
                 entryPoint.medicationReminderScheduler().rescheduleAll()
             } catch (e: Exception) {
                 Log.e("BootReceiver", "Failed to reschedule reminders on boot", e)

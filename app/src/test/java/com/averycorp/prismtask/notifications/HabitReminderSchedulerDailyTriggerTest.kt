@@ -12,8 +12,8 @@ import java.util.Calendar
 import java.util.TimeZone
 
 /**
- * Tests for [MedicationReminderScheduler.computeNextDailyTrigger]. The
- * existing [MedicationReminderSchedulerTest] covers `timeStringToNextTrigger`
+ * Tests for [HabitReminderScheduler.computeNextDailyTrigger]. The
+ * existing [HabitReminderSchedulerTest] covers `timeStringToNextTrigger`
  * only — this file covers the daily-time path that re-registers a habit's
  * reminder every morning.
  *
@@ -34,7 +34,7 @@ import java.util.TimeZone
  *    a reminder at 01:30 on the transition day is unambiguous given
  *    Calendar's "first occurrence wins" rule
  */
-class MedicationReminderSchedulerDailyTriggerTest {
+class HabitReminderSchedulerDailyTriggerTest {
     private val savedDefault = TimeZone.getDefault()
 
     @Before
@@ -67,7 +67,7 @@ class MedicationReminderSchedulerDailyTriggerTest {
         val now = millisAt(2026, 4, 21, hour = 8)
         val reminder = millisSinceMidnight(hour = 14, minute = 30)
 
-        val trigger = MedicationReminderScheduler.computeNextDailyTrigger(reminder, now)
+        val trigger = HabitReminderScheduler.computeNextDailyTrigger(reminder, now)
 
         val cal = Calendar.getInstance().apply { timeInMillis = trigger }
         assertEquals(21, cal.get(Calendar.DAY_OF_MONTH))
@@ -80,7 +80,7 @@ class MedicationReminderSchedulerDailyTriggerTest {
         val now = millisAt(2026, 4, 21, hour = 15)
         val reminder = millisSinceMidnight(hour = 8)
 
-        val trigger = MedicationReminderScheduler.computeNextDailyTrigger(reminder, now)
+        val trigger = HabitReminderScheduler.computeNextDailyTrigger(reminder, now)
 
         val cal = Calendar.getInstance().apply { timeInMillis = trigger }
         assertEquals(22, cal.get(Calendar.DAY_OF_MONTH))
@@ -96,7 +96,7 @@ class MedicationReminderSchedulerDailyTriggerTest {
         val now = millisAt(2026, 4, 21, hour = 9, minute = 30)
         val reminder = millisSinceMidnight(hour = 9, minute = 30)
 
-        val trigger = MedicationReminderScheduler.computeNextDailyTrigger(reminder, now)
+        val trigger = HabitReminderScheduler.computeNextDailyTrigger(reminder, now)
 
         assertTrue("Boundary fire must roll to tomorrow", trigger > now)
         val cal = Calendar.getInstance().apply { timeInMillis = trigger }
@@ -108,7 +108,7 @@ class MedicationReminderSchedulerDailyTriggerTest {
         val now = millisAt(2026, 4, 21, hour = 12)
         val reminder = 0L // midnight
 
-        val trigger = MedicationReminderScheduler.computeNextDailyTrigger(reminder, now)
+        val trigger = HabitReminderScheduler.computeNextDailyTrigger(reminder, now)
 
         val cal = Calendar.getInstance().apply { timeInMillis = trigger }
         assertEquals(22, cal.get(Calendar.DAY_OF_MONTH))
@@ -121,7 +121,7 @@ class MedicationReminderSchedulerDailyTriggerTest {
         val now = millisAt(2026, 4, 21, hour = 23, minute = 59)
         val reminder = millisSinceMidnight(hour = 23, minute = 59)
 
-        val trigger = MedicationReminderScheduler.computeNextDailyTrigger(reminder, now)
+        val trigger = HabitReminderScheduler.computeNextDailyTrigger(reminder, now)
 
         val cal = Calendar.getInstance().apply { timeInMillis = trigger }
         assertEquals(22, cal.get(Calendar.DAY_OF_MONTH))
@@ -137,7 +137,7 @@ class MedicationReminderSchedulerDailyTriggerTest {
         val now = millisAt(2026, 3, 8, hour = 1, minute = 0)
         val reminder = millisSinceMidnight(hour = 2, minute = 30)
 
-        val trigger = MedicationReminderScheduler.computeNextDailyTrigger(reminder, now)
+        val trigger = HabitReminderScheduler.computeNextDailyTrigger(reminder, now)
 
         // Calendar normalizes the non-existent 2:30 to 3:30 (EDT) — the
         // scheduler still fires once that day, just one hour "later" on the
@@ -162,7 +162,7 @@ class MedicationReminderSchedulerDailyTriggerTest {
         val now = millisAt(2026, 11, 1, hour = 0, minute = 0)
         val reminder = millisSinceMidnight(hour = 1, minute = 30)
 
-        val trigger = MedicationReminderScheduler.computeNextDailyTrigger(reminder, now)
+        val trigger = HabitReminderScheduler.computeNextDailyTrigger(reminder, now)
 
         assertTrue(trigger > now)
         // Accept either DST occurrence: EDT 01:30 is 1h30m after EDT
@@ -182,7 +182,7 @@ class MedicationReminderSchedulerDailyTriggerTest {
         // (This is a defense-in-depth check on the test infrastructure.)
         val now = millisAt(2026, 4, 21, hour = 8)
         val reminder = millisSinceMidnight(hour = 10)
-        val trigger = MedicationReminderScheduler.computeNextDailyTrigger(reminder, now)
+        val trigger = HabitReminderScheduler.computeNextDailyTrigger(reminder, now)
         val cal = Calendar.getInstance().apply { timeInMillis = trigger }
         assertEquals(21, cal.get(Calendar.DAY_OF_MONTH))
         assertEquals(10, cal.get(Calendar.HOUR_OF_DAY))

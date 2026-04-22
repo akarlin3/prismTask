@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Medications — Top-level entity (PR 3 / 5 — Scheduler split)
+- **Rename.** `MedicationReminderScheduler` → `HabitReminderScheduler`.
+  The class always handled app-wide habit alarms (daily-time, interval,
+  follow-up-suppression) — the legacy name was an accident of history.
+  All nine call sites updated; the transitional legacy
+  `MedicationPreferences.specificTimes` path stays on the renamed class
+  until the Phase 2 cleanup drops `MedicationPreferences`.
+- **New class.** `MedicationReminderScheduler` (v1.4) — per-medication
+  alarms for the top-level Medication entity. Takes `MedicationDao` +
+  `MedicationDoseDao`. Dispatches per `MedicationEntity.scheduleMode`:
+  `TIMES_OF_DAY` → one alarm per bucket at 08:00/13:00/18:00/21:00;
+  `SPECIFIC_TIMES` → one alarm per "HH:mm"; `INTERVAL` → chained alarm
+  after the last dose; `AS_NEEDED` → no alarms. Request-code namespace
+  is `400_000 + (medicationId % 1000) * 10 + slotIndex`, deliberately
+  distinct from the `200_000/300_000/900_000` offsets on the renamed
+  habit scheduler so old and new PendingIntents never collide.
+- **Receiver dispatch.** `MedicationReminderReceiver` dispatches by
+  extra: `medicationId` → new per-med path; `habitId` → legacy path.
+  Both coexist during the 2-week convergence window so existing
+  scheduled alarms don't get orphaned.
+- **Boot.** `BootReceiver` calls `habitReminderScheduler().rescheduleAll()`
+  AND `medicationReminderScheduler().rescheduleAll()` so both surfaces
+  recover after a device reboot.
+- **Tests.** Existing unit tests renamed to `HabitReminderSchedulerTest`
+  + `HabitReminderSchedulerDailyTriggerTest`. New
+  `MedicationReminderSchedulerTest` covers request-code namespace
+  isolation (including legacy-overlap sanity) and the `"HH:mm"`
+  validator.
+
 ### Medications — Top-level entity (PR 1 / 5 — Room layer only)
 - **Scope.** New Room entities `MedicationEntity` + `MedicationDoseEntity`
   and matching DAOs. DB bumps v53 → v54 via `MIGRATION_53_54`. Spec:

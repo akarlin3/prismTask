@@ -8,7 +8,7 @@ import com.averycorp.prismtask.data.preferences.MedicationPreferences
 import com.averycorp.prismtask.data.preferences.MedicationScheduleMode
 import com.averycorp.prismtask.data.repository.MedStepLog
 import com.averycorp.prismtask.data.repository.SelfCareRepository
-import com.averycorp.prismtask.notifications.MedicationReminderScheduler
+import com.averycorp.prismtask.notifications.HabitReminderScheduler
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -23,7 +23,7 @@ class MedicationViewModel
 constructor(
     private val repository: SelfCareRepository,
     private val medicationPreferences: MedicationPreferences,
-    private val reminderScheduler: MedicationReminderScheduler
+    private val reminderScheduler: HabitReminderScheduler
 ) : ViewModel() {
     private val _editMode = MutableStateFlow(false)
     val editMode: StateFlow<Boolean> = _editMode
