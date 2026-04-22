@@ -147,7 +147,8 @@ class DataImporterV5Test {
             leisurePreferences, medicationPreferences, userPreferencesDataStore,
             a11yPreferences, voicePreferences, shakePreferences, timerPreferences,
             notificationPreferences, ndPreferencesDataStore, dailyEssentialsPreferences,
-            morningCheckInPreferences, calendarSyncPreferences, templatePreferences
+            morningCheckInPreferences, calendarSyncPreferences, templatePreferences,
+            mockk(relaxed = true), mockk(relaxed = true), mockk(relaxed = true)
         )
     }
 

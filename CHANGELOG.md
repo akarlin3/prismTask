@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Preferences — Backup coverage follow-up (v1.4.36)
+- **Closes three backup gaps** identified in the post-v1.4.35 preference
+  coverage audit:
+  - `OnboardingPreferences` (asymmetry): already exported at
+    `DataExporter.kt:578-582` but not imported. `DataImporter` now
+    reads back all three keys (`hasCompletedOnboarding`,
+    `onboardingCompletedAt`, `hasShownBatteryOptimizationPrompt`) via
+    a new `OnboardingPreferences.restoreImportedState` that writes the
+    original `completed_at` timestamp verbatim instead of re-stamping
+    to `now` (otherwise a restore would look like a fresh onboarding).
+  - `CoachingPreferences` (both sides missing): new `exportCoachingConfig`
+    writes `lastAppOpen`; `importCoachingConfig` restores it. The five
+    day-scoped keys (AI breakdown counter, energy check-in, welcome-
+    back dismissal) are intentionally omitted — they reset when the
+    calendar date differs from export time so backing them up would
+    carry no signal.
+  - `SortPreferences` (both sides missing): new `exportSortConfig` /
+    `importSortConfig` round-trip every `sort_*` key via the existing
+    `snapshot()` / `applyRemoteSnapshot` pair shared with
+    `SortPreferencesSyncService`. Global entries (e.g. `sort_today`,
+    `sort_all_tasks`) round-trip cleanly; per-project entries
+    (`sort_project_<localId>`) reference auto-generated Room IDs and
+    so may not survive a fresh-install restore — documented on the
+    exporter method.
+- Wired `CoachingPreferences`, `SortPreferences`, and a restore-aware
+  OnboardingPreferences into the `DataImporter` / `DataExporter` Hilt
+  graphs. Existing unit tests updated to pass `mockk(relaxed = true)`
+  for the three new constructor parameters.
+
 ### Preferences — Universal cross-device sync (v1.4.35)
 - **New `GenericPreferenceSyncService`** syncs any registered DataStore
   preference file to Firestore at `/users/{uid}/prefs/{docName}` with
