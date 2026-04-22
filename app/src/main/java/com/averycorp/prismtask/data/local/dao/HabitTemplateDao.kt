@@ -37,4 +37,13 @@ interface HabitTemplateDao {
 
     @Query("SELECT * FROM habit_templates")
     suspend fun getAllOnce(): List<HabitTemplateEntity>
+
+    @Query("SELECT * FROM habit_templates WHERE cloud_id = :cloudId LIMIT 1")
+    suspend fun getByCloudIdOnce(cloudId: String): HabitTemplateEntity?
+
+    @Query("UPDATE habit_templates SET cloud_id = :cloudId, updated_at = :now WHERE id = :id")
+    suspend fun setCloudId(id: Long, cloudId: String?, now: Long)
+
+    @Query("DELETE FROM habit_templates WHERE id = :id")
+    suspend fun deleteById(id: Long)
 }

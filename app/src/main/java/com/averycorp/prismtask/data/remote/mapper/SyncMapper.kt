@@ -1,13 +1,20 @@
 package com.averycorp.prismtask.data.remote.mapper
 
+import com.averycorp.prismtask.data.local.entity.BoundaryRuleEntity
 import com.averycorp.prismtask.data.local.entity.CourseCompletionEntity
 import com.averycorp.prismtask.data.local.entity.CourseEntity
+import com.averycorp.prismtask.data.local.entity.CustomSoundEntity
 import com.averycorp.prismtask.data.local.entity.HabitCompletionEntity
 import com.averycorp.prismtask.data.local.entity.HabitEntity
 import com.averycorp.prismtask.data.local.entity.HabitLogEntity
+import com.averycorp.prismtask.data.local.entity.HabitTemplateEntity
 import com.averycorp.prismtask.data.local.entity.LeisureLogEntity
 import com.averycorp.prismtask.data.local.entity.MilestoneEntity
+import com.averycorp.prismtask.data.local.entity.NlpShortcutEntity
+import com.averycorp.prismtask.data.local.entity.NotificationProfileEntity
 import com.averycorp.prismtask.data.local.entity.ProjectEntity
+import com.averycorp.prismtask.data.local.entity.ProjectTemplateEntity
+import com.averycorp.prismtask.data.local.entity.SavedFilterEntity
 import com.averycorp.prismtask.data.local.entity.SelfCareLogEntity
 import com.averycorp.prismtask.data.local.entity.SelfCareStepEntity
 import com.averycorp.prismtask.data.local.entity.TagEntity
@@ -590,6 +597,287 @@ object SyncMapper {
         tiersByTime = data["tiersByTime"] as? String ?: "{}",
         isComplete = data["isComplete"] as? Boolean ?: false,
         startedAt = (data["startedAt"] as? Number)?.toLong(),
+        createdAt = (data["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
+        updatedAt = (data["updatedAt"] as? Number)?.toLong() ?: 0L
+    )
+
+    // ── Notification Profiles ────────────────────────────────────────────────
+
+    fun notificationProfileToMap(profile: NotificationProfileEntity): Map<String, Any?> = mapOf(
+        "localId" to profile.id,
+        "name" to profile.name,
+        "offsetsCsv" to profile.offsetsCsv,
+        "escalation" to profile.escalation,
+        "escalationIntervalMinutes" to profile.escalationIntervalMinutes,
+        "isBuiltIn" to profile.isBuiltIn,
+        "urgencyTierKey" to profile.urgencyTierKey,
+        "soundId" to profile.soundId,
+        "soundVolumePercent" to profile.soundVolumePercent,
+        "soundFadeInMs" to profile.soundFadeInMs,
+        "soundFadeOutMs" to profile.soundFadeOutMs,
+        "silent" to profile.silent,
+        "vibrationPresetKey" to profile.vibrationPresetKey,
+        "vibrationIntensityKey" to profile.vibrationIntensityKey,
+        "vibrationRepeatCount" to profile.vibrationRepeatCount,
+        "vibrationContinuous" to profile.vibrationContinuous,
+        "customVibrationPatternCsv" to profile.customVibrationPatternCsv,
+        "displayModeKey" to profile.displayModeKey,
+        "lockScreenVisibilityKey" to profile.lockScreenVisibilityKey,
+        "accentColorHex" to profile.accentColorHex,
+        "badgeModeKey" to profile.badgeModeKey,
+        "toastPositionKey" to profile.toastPositionKey,
+        "escalationChainJson" to profile.escalationChainJson,
+        "quietHoursJson" to profile.quietHoursJson,
+        "snoozeDurationsCsv" to profile.snoozeDurationsCsv,
+        "reAlertIntervalMinutes" to profile.reAlertIntervalMinutes,
+        "reAlertMaxAttempts" to profile.reAlertMaxAttempts,
+        "watchSyncModeKey" to profile.watchSyncModeKey,
+        "watchHapticPresetKey" to profile.watchHapticPresetKey,
+        "autoSwitchRulesJson" to profile.autoSwitchRulesJson,
+        "volumeOverride" to profile.volumeOverride,
+        "createdAt" to profile.createdAt,
+        "updatedAt" to profile.updatedAt
+    )
+
+    fun mapToNotificationProfile(
+        data: Map<String, Any?>,
+        localId: Long = 0,
+        cloudId: String? = null
+    ): NotificationProfileEntity = NotificationProfileEntity(
+        id = localId,
+        cloudId = cloudId,
+        name = data["name"] as? String ?: "",
+        offsetsCsv = data["offsetsCsv"] as? String ?: "",
+        escalation = data["escalation"] as? Boolean ?: false,
+        escalationIntervalMinutes = (data["escalationIntervalMinutes"] as? Number)?.toInt(),
+        isBuiltIn = data["isBuiltIn"] as? Boolean ?: false,
+        urgencyTierKey = data["urgencyTierKey"] as? String ?: "medium",
+        soundId = data["soundId"] as? String ?: "system_default",
+        soundVolumePercent = (data["soundVolumePercent"] as? Number)?.toInt() ?: 70,
+        soundFadeInMs = (data["soundFadeInMs"] as? Number)?.toInt() ?: 0,
+        soundFadeOutMs = (data["soundFadeOutMs"] as? Number)?.toInt() ?: 0,
+        silent = data["silent"] as? Boolean ?: false,
+        vibrationPresetKey = data["vibrationPresetKey"] as? String ?: "single",
+        vibrationIntensityKey = data["vibrationIntensityKey"] as? String ?: "medium",
+        vibrationRepeatCount = (data["vibrationRepeatCount"] as? Number)?.toInt() ?: 1,
+        vibrationContinuous = data["vibrationContinuous"] as? Boolean ?: false,
+        customVibrationPatternCsv = data["customVibrationPatternCsv"] as? String,
+        displayModeKey = data["displayModeKey"] as? String ?: "standard",
+        lockScreenVisibilityKey = data["lockScreenVisibilityKey"] as? String ?: "app_name",
+        accentColorHex = data["accentColorHex"] as? String,
+        badgeModeKey = data["badgeModeKey"] as? String ?: "total",
+        toastPositionKey = data["toastPositionKey"] as? String ?: "top_right",
+        escalationChainJson = data["escalationChainJson"] as? String,
+        quietHoursJson = data["quietHoursJson"] as? String,
+        snoozeDurationsCsv = data["snoozeDurationsCsv"] as? String ?: "5,15,30,60",
+        reAlertIntervalMinutes = (data["reAlertIntervalMinutes"] as? Number)?.toInt() ?: 5,
+        reAlertMaxAttempts = (data["reAlertMaxAttempts"] as? Number)?.toInt() ?: 3,
+        watchSyncModeKey = data["watchSyncModeKey"] as? String ?: "mirror",
+        watchHapticPresetKey = data["watchHapticPresetKey"] as? String ?: "single",
+        autoSwitchRulesJson = data["autoSwitchRulesJson"] as? String,
+        volumeOverride = data["volumeOverride"] as? Boolean ?: false,
+        createdAt = (data["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
+        updatedAt = (data["updatedAt"] as? Number)?.toLong() ?: 0L
+    )
+
+    // ── Custom Sounds ────────────────────────────────────────────────────────
+    //
+    // `uri` is a local sandbox path (file:///data/user/0/.../sounds/<file>).
+    // Syncing the URI lets other devices see *that a user-added sound exists
+    // under this name* but the audio file itself is per-device — playing it
+    // on a sibling device falls back to the system default. Uploading the
+    // actual sound blob is deferred; see docs.
+
+    fun customSoundToMap(sound: CustomSoundEntity): Map<String, Any?> = mapOf(
+        "localId" to sound.id,
+        "name" to sound.name,
+        "originalFilename" to sound.originalFilename,
+        "uri" to sound.uri,
+        "format" to sound.format,
+        "sizeBytes" to sound.sizeBytes,
+        "durationMs" to sound.durationMs,
+        "createdAt" to sound.createdAt,
+        "updatedAt" to sound.updatedAt
+    )
+
+    fun mapToCustomSound(
+        data: Map<String, Any?>,
+        localId: Long = 0,
+        cloudId: String? = null
+    ): CustomSoundEntity = CustomSoundEntity(
+        id = localId,
+        cloudId = cloudId,
+        name = data["name"] as? String ?: "",
+        originalFilename = data["originalFilename"] as? String ?: "",
+        uri = data["uri"] as? String ?: "",
+        format = data["format"] as? String ?: "",
+        sizeBytes = (data["sizeBytes"] as? Number)?.toLong() ?: 0L,
+        durationMs = (data["durationMs"] as? Number)?.toLong() ?: 0L,
+        createdAt = (data["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
+        updatedAt = (data["updatedAt"] as? Number)?.toLong() ?: 0L
+    )
+
+    // ── Saved Filters ────────────────────────────────────────────────────────
+
+    fun savedFilterToMap(filter: SavedFilterEntity): Map<String, Any?> = mapOf(
+        "localId" to filter.id,
+        "name" to filter.name,
+        "filterJson" to filter.filterJson,
+        "iconEmoji" to filter.iconEmoji,
+        "sortOrder" to filter.sortOrder,
+        "createdAt" to filter.createdAt,
+        "updatedAt" to filter.updatedAt
+    )
+
+    fun mapToSavedFilter(
+        data: Map<String, Any?>,
+        localId: Long = 0,
+        cloudId: String? = null
+    ): SavedFilterEntity = SavedFilterEntity(
+        id = localId,
+        cloudId = cloudId,
+        name = data["name"] as? String ?: "",
+        filterJson = data["filterJson"] as? String ?: "",
+        iconEmoji = data["iconEmoji"] as? String,
+        sortOrder = (data["sortOrder"] as? Number)?.toInt() ?: 0,
+        createdAt = (data["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
+        updatedAt = (data["updatedAt"] as? Number)?.toLong() ?: 0L
+    )
+
+    // ── NLP Shortcuts ────────────────────────────────────────────────────────
+
+    fun nlpShortcutToMap(shortcut: NlpShortcutEntity): Map<String, Any?> = mapOf(
+        "localId" to shortcut.id,
+        "trigger" to shortcut.trigger,
+        "expansion" to shortcut.expansion,
+        "sortOrder" to shortcut.sortOrder,
+        "createdAt" to shortcut.createdAt,
+        "updatedAt" to shortcut.updatedAt
+    )
+
+    fun mapToNlpShortcut(
+        data: Map<String, Any?>,
+        localId: Long = 0,
+        cloudId: String? = null
+    ): NlpShortcutEntity = NlpShortcutEntity(
+        id = localId,
+        cloudId = cloudId,
+        trigger = data["trigger"] as? String ?: "",
+        expansion = data["expansion"] as? String ?: "",
+        sortOrder = (data["sortOrder"] as? Number)?.toInt() ?: 0,
+        createdAt = (data["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
+        updatedAt = (data["updatedAt"] as? Number)?.toLong() ?: 0L
+    )
+
+    // ── Habit Templates ──────────────────────────────────────────────────────
+
+    fun habitTemplateToMap(template: HabitTemplateEntity): Map<String, Any?> = mapOf(
+        "localId" to template.id,
+        "name" to template.name,
+        "description" to template.description,
+        "iconEmoji" to template.iconEmoji,
+        "color" to template.color,
+        "category" to template.category,
+        "frequency" to template.frequency,
+        "targetCount" to template.targetCount,
+        "activeDaysCsv" to template.activeDaysCsv,
+        "isBuiltIn" to template.isBuiltIn,
+        "usageCount" to template.usageCount,
+        "lastUsedAt" to template.lastUsedAt,
+        "createdAt" to template.createdAt,
+        "updatedAt" to template.updatedAt
+    )
+
+    fun mapToHabitTemplate(
+        data: Map<String, Any?>,
+        localId: Long = 0,
+        cloudId: String? = null
+    ): HabitTemplateEntity = HabitTemplateEntity(
+        id = localId,
+        cloudId = cloudId,
+        name = data["name"] as? String ?: "",
+        description = data["description"] as? String,
+        iconEmoji = data["iconEmoji"] as? String,
+        color = data["color"] as? String,
+        category = data["category"] as? String,
+        frequency = data["frequency"] as? String ?: "DAILY",
+        targetCount = (data["targetCount"] as? Number)?.toInt() ?: 1,
+        activeDaysCsv = data["activeDaysCsv"] as? String ?: "",
+        isBuiltIn = data["isBuiltIn"] as? Boolean ?: false,
+        usageCount = (data["usageCount"] as? Number)?.toInt() ?: 0,
+        lastUsedAt = (data["lastUsedAt"] as? Number)?.toLong(),
+        createdAt = (data["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
+        updatedAt = (data["updatedAt"] as? Number)?.toLong() ?: 0L
+    )
+
+    // ── Project Templates ────────────────────────────────────────────────────
+
+    fun projectTemplateToMap(template: ProjectTemplateEntity): Map<String, Any?> = mapOf(
+        "localId" to template.id,
+        "name" to template.name,
+        "description" to template.description,
+        "color" to template.color,
+        "iconEmoji" to template.iconEmoji,
+        "category" to template.category,
+        "taskTemplatesJson" to template.taskTemplatesJson,
+        "isBuiltIn" to template.isBuiltIn,
+        "usageCount" to template.usageCount,
+        "lastUsedAt" to template.lastUsedAt,
+        "createdAt" to template.createdAt,
+        "updatedAt" to template.updatedAt
+    )
+
+    fun mapToProjectTemplate(
+        data: Map<String, Any?>,
+        localId: Long = 0,
+        cloudId: String? = null
+    ): ProjectTemplateEntity = ProjectTemplateEntity(
+        id = localId,
+        cloudId = cloudId,
+        name = data["name"] as? String ?: "",
+        description = data["description"] as? String,
+        color = data["color"] as? String,
+        iconEmoji = data["iconEmoji"] as? String,
+        category = data["category"] as? String,
+        taskTemplatesJson = data["taskTemplatesJson"] as? String ?: "[]",
+        isBuiltIn = data["isBuiltIn"] as? Boolean ?: false,
+        usageCount = (data["usageCount"] as? Number)?.toInt() ?: 0,
+        lastUsedAt = (data["lastUsedAt"] as? Number)?.toLong(),
+        createdAt = (data["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
+        updatedAt = (data["updatedAt"] as? Number)?.toLong() ?: 0L
+    )
+
+    // ── Boundary Rules ───────────────────────────────────────────────────────
+
+    fun boundaryRuleToMap(rule: BoundaryRuleEntity): Map<String, Any?> = mapOf(
+        "localId" to rule.id,
+        "name" to rule.name,
+        "ruleType" to rule.ruleType,
+        "category" to rule.category,
+        "startTime" to rule.startTime,
+        "endTime" to rule.endTime,
+        "activeDaysCsv" to rule.activeDaysCsv,
+        "isEnabled" to rule.isEnabled,
+        "isBuiltIn" to rule.isBuiltIn,
+        "createdAt" to rule.createdAt,
+        "updatedAt" to rule.updatedAt
+    )
+
+    fun mapToBoundaryRule(
+        data: Map<String, Any?>,
+        localId: Long = 0,
+        cloudId: String? = null
+    ): BoundaryRuleEntity = BoundaryRuleEntity(
+        id = localId,
+        cloudId = cloudId,
+        name = data["name"] as? String ?: "",
+        ruleType = data["ruleType"] as? String ?: "",
+        category = data["category"] as? String ?: "",
+        startTime = data["startTime"] as? String ?: "00:00",
+        endTime = data["endTime"] as? String ?: "23:59",
+        activeDaysCsv = data["activeDaysCsv"] as? String ?: "",
+        isEnabled = data["isEnabled"] as? Boolean ?: true,
+        isBuiltIn = data["isBuiltIn"] as? Boolean ?: false,
         createdAt = (data["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
         updatedAt = (data["updatedAt"] as? Number)?.toLong() ?: 0L
     )

@@ -1,13 +1,20 @@
 package com.averycorp.prismtask.data.remote
 
+import com.averycorp.prismtask.data.local.dao.BoundaryRuleDao
+import com.averycorp.prismtask.data.local.dao.CustomSoundDao
 import com.averycorp.prismtask.data.local.dao.HabitCompletionDao
 import com.averycorp.prismtask.data.local.dao.HabitDao
 import com.averycorp.prismtask.data.local.dao.HabitLogDao
+import com.averycorp.prismtask.data.local.dao.HabitTemplateDao
 import com.averycorp.prismtask.data.local.dao.LeisureDao
 import com.averycorp.prismtask.data.local.dao.MedicationDao
 import com.averycorp.prismtask.data.local.dao.MedicationDoseDao
 import com.averycorp.prismtask.data.local.dao.MilestoneDao
+import com.averycorp.prismtask.data.local.dao.NlpShortcutDao
+import com.averycorp.prismtask.data.local.dao.NotificationProfileDao
 import com.averycorp.prismtask.data.local.dao.ProjectDao
+import com.averycorp.prismtask.data.local.dao.ProjectTemplateDao
+import com.averycorp.prismtask.data.local.dao.SavedFilterDao
 import com.averycorp.prismtask.data.local.dao.SchoolworkDao
 import com.averycorp.prismtask.data.local.dao.SelfCareDao
 import com.averycorp.prismtask.data.local.dao.SyncMetadataDao
@@ -69,6 +76,13 @@ constructor(
     private val schoolworkDao: SchoolworkDao,
     private val leisureDao: LeisureDao,
     private val selfCareDao: SelfCareDao,
+    private val notificationProfileDao: NotificationProfileDao,
+    private val customSoundDao: CustomSoundDao,
+    private val savedFilterDao: SavedFilterDao,
+    private val nlpShortcutDao: NlpShortcutDao,
+    private val habitTemplateDao: HabitTemplateDao,
+    private val projectTemplateDao: ProjectTemplateDao,
+    private val boundaryRuleDao: BoundaryRuleDao,
     private val builtInSyncPreferences: BuiltInSyncPreferences,
     private val database: com.averycorp.prismtask.data.local.database.PrismTaskDatabase
 ) {
@@ -413,7 +427,97 @@ constructor(
             }
         }
 
+        uploadRoomConfigFamily(
+            entityType = "notification_profile",
+            collection = "notification_profiles",
+            rows = notificationProfileDao.getAllOnce(),
+            rowId = { it.id },
+            toMap = { SyncMapper.notificationProfileToMap(it) }
+        )
+        uploadRoomConfigFamily(
+            entityType = "custom_sound",
+            collection = "custom_sounds",
+            rows = customSoundDao.getAllOnce(),
+            rowId = { it.id },
+            toMap = { SyncMapper.customSoundToMap(it) }
+        )
+        uploadRoomConfigFamily(
+            entityType = "saved_filter",
+            collection = "saved_filters",
+            rows = savedFilterDao.getAllOnce(),
+            rowId = { it.id },
+            toMap = { SyncMapper.savedFilterToMap(it) }
+        )
+        uploadRoomConfigFamily(
+            entityType = "nlp_shortcut",
+            collection = "nlp_shortcuts",
+            rows = nlpShortcutDao.getAllOnce(),
+            rowId = { it.id },
+            toMap = { SyncMapper.nlpShortcutToMap(it) }
+        )
+        uploadRoomConfigFamily(
+            entityType = "habit_template",
+            collection = "habit_templates",
+            rows = habitTemplateDao.getAllOnce(),
+            rowId = { it.id },
+            toMap = { SyncMapper.habitTemplateToMap(it) }
+        )
+        uploadRoomConfigFamily(
+            entityType = "project_template",
+            collection = "project_templates",
+            rows = projectTemplateDao.getAllOnce(),
+            rowId = { it.id },
+            toMap = { SyncMapper.projectTemplateToMap(it) }
+        )
+        uploadRoomConfigFamily(
+            entityType = "boundary_rule",
+            collection = "boundary_rules",
+            rows = boundaryRuleDao.getAllOnce(),
+            rowId = { it.id },
+            toMap = { SyncMapper.boundaryRuleToMap(it) }
+        )
+
         maybeRunEntityBackfill()
+    }
+
+    /**
+     * Upload helper for the v1.4.37 Room-entity config families
+     * (`notification_profile`, `custom_sound`, `saved_filter`, `nlp_shortcut`,
+     * `habit_template`, `project_template`, `boundary_rule`). Each row is
+     * skipped if it already has a cloud_id in sync_metadata, and each
+     * failure is logged + swallowed so one bad row doesn't block the rest.
+     */
+    private suspend fun <T> uploadRoomConfigFamily(
+        entityType: String,
+        collection: String,
+        rows: List<T>,
+        rowId: (T) -> Long,
+        toMap: (T) -> Map<String, Any?>
+    ) {
+        logger.debug("upload.$collection", status = "begin", detail = "count=${rows.size}")
+        for (row in rows) {
+            val id = rowId(row)
+            try {
+                if (syncMetadataDao.getCloudId(id, entityType) != null) continue
+                val docRef = userCollection(collection)?.document() ?: continue
+                docRef.set(toMap(row)).await()
+                syncMetadataDao.upsert(
+                    SyncMetadataEntity(
+                        localId = id,
+                        entityType = entityType,
+                        cloudId = docRef.id,
+                        lastSyncedAt = System.currentTimeMillis()
+                    )
+                )
+            } catch (e: Exception) {
+                logger.error(
+                    operation = "upload.$entityType",
+                    entity = entityType,
+                    id = id.toString(),
+                    throwable = e
+                )
+            }
+        }
     }
 
     /**
@@ -813,6 +917,13 @@ constructor(
         "self_care_log" -> "self_care_logs"
         "medication" -> "medications"
         "medication_dose" -> "medication_doses"
+        "notification_profile" -> "notification_profiles"
+        "custom_sound" -> "custom_sounds"
+        "saved_filter" -> "saved_filters"
+        "nlp_shortcut" -> "nlp_shortcuts"
+        "habit_template" -> "habit_templates"
+        "project_template" -> "project_templates"
+        "boundary_rule" -> "boundary_rules"
         else -> entityType + "s"
     }
 
@@ -904,6 +1015,34 @@ constructor(
                 val medCloudId = syncMetadataDao.getCloudId(dose.medicationId, "medication") ?: return
                 MedicationSyncMapper.medicationDoseToMap(dose, medCloudId)
             }
+            "notification_profile" -> {
+                val profile = notificationProfileDao.getById(meta.localId) ?: return
+                SyncMapper.notificationProfileToMap(profile)
+            }
+            "custom_sound" -> {
+                val sound = customSoundDao.getById(meta.localId) ?: return
+                SyncMapper.customSoundToMap(sound)
+            }
+            "saved_filter" -> {
+                val filter = savedFilterDao.getByIdOnce(meta.localId) ?: return
+                SyncMapper.savedFilterToMap(filter)
+            }
+            "nlp_shortcut" -> {
+                val shortcut = nlpShortcutDao.getByIdOnce(meta.localId) ?: return
+                SyncMapper.nlpShortcutToMap(shortcut)
+            }
+            "habit_template" -> {
+                val template = habitTemplateDao.getById(meta.localId) ?: return
+                SyncMapper.habitTemplateToMap(template)
+            }
+            "project_template" -> {
+                val template = projectTemplateDao.getById(meta.localId) ?: return
+                SyncMapper.projectTemplateToMap(template)
+            }
+            "boundary_rule" -> {
+                val rule = boundaryRuleDao.getByIdOnce(meta.localId) ?: return
+                SyncMapper.boundaryRuleToMap(rule)
+            }
             else -> return
         }
         docRef.set(data).await()
@@ -972,6 +1111,34 @@ constructor(
                 val dose = medicationDoseDao.getAllOnce().find { it.id == meta.localId } ?: return
                 val medCloudId = syncMetadataDao.getCloudId(dose.medicationId, "medication") ?: return
                 MedicationSyncMapper.medicationDoseToMap(dose, medCloudId)
+            }
+            "notification_profile" -> {
+                val profile = notificationProfileDao.getById(meta.localId) ?: return
+                SyncMapper.notificationProfileToMap(profile)
+            }
+            "custom_sound" -> {
+                val sound = customSoundDao.getById(meta.localId) ?: return
+                SyncMapper.customSoundToMap(sound)
+            }
+            "saved_filter" -> {
+                val filter = savedFilterDao.getByIdOnce(meta.localId) ?: return
+                SyncMapper.savedFilterToMap(filter)
+            }
+            "nlp_shortcut" -> {
+                val shortcut = nlpShortcutDao.getByIdOnce(meta.localId) ?: return
+                SyncMapper.nlpShortcutToMap(shortcut)
+            }
+            "habit_template" -> {
+                val template = habitTemplateDao.getById(meta.localId) ?: return
+                SyncMapper.habitTemplateToMap(template)
+            }
+            "project_template" -> {
+                val template = projectTemplateDao.getById(meta.localId) ?: return
+                SyncMapper.projectTemplateToMap(template)
+            }
+            "boundary_rule" -> {
+                val rule = boundaryRuleDao.getByIdOnce(meta.localId) ?: return
+                SyncMapper.boundaryRuleToMap(rule)
             }
             else -> return
         }
@@ -1483,6 +1650,105 @@ constructor(
         applied += medicationDosesResult.applied
         skipped += medicationDosesResult.skipped
 
+        // v1.4.37 Room config families — last-write-wins per-row using updatedAt.
+        val notificationProfilesResult = pullRoomConfigFamily(
+            collection = "notification_profiles",
+            entityType = "notification_profile",
+            getLocalUpdatedAt = { notificationProfileDao.getById(it)?.updatedAt },
+            insert = { data, cloudId ->
+                notificationProfileDao.insert(SyncMapper.mapToNotificationProfile(data, cloudId = cloudId))
+            },
+            update = { data, localId, cloudId ->
+                notificationProfileDao.update(SyncMapper.mapToNotificationProfile(data, localId, cloudId))
+            }
+        )
+        applied += notificationProfilesResult.applied
+        skipped += notificationProfilesResult.skipped
+
+        val customSoundsResult = pullRoomConfigFamily(
+            collection = "custom_sounds",
+            entityType = "custom_sound",
+            getLocalUpdatedAt = { customSoundDao.getById(it)?.updatedAt },
+            insert = { data, cloudId ->
+                customSoundDao.insert(SyncMapper.mapToCustomSound(data, cloudId = cloudId))
+            },
+            update = { data, localId, cloudId ->
+                customSoundDao.update(SyncMapper.mapToCustomSound(data, localId, cloudId))
+            }
+        )
+        applied += customSoundsResult.applied
+        skipped += customSoundsResult.skipped
+
+        val savedFiltersResult = pullRoomConfigFamily(
+            collection = "saved_filters",
+            entityType = "saved_filter",
+            getLocalUpdatedAt = { savedFilterDao.getByIdOnce(it)?.updatedAt },
+            insert = { data, cloudId ->
+                savedFilterDao.insert(SyncMapper.mapToSavedFilter(data, cloudId = cloudId))
+            },
+            update = { data, localId, cloudId ->
+                savedFilterDao.update(SyncMapper.mapToSavedFilter(data, localId, cloudId))
+            }
+        )
+        applied += savedFiltersResult.applied
+        skipped += savedFiltersResult.skipped
+
+        val nlpShortcutsResult = pullRoomConfigFamily(
+            collection = "nlp_shortcuts",
+            entityType = "nlp_shortcut",
+            getLocalUpdatedAt = { nlpShortcutDao.getByIdOnce(it)?.updatedAt },
+            insert = { data, cloudId ->
+                nlpShortcutDao.insert(SyncMapper.mapToNlpShortcut(data, cloudId = cloudId))
+            },
+            update = { data, localId, cloudId ->
+                nlpShortcutDao.update(SyncMapper.mapToNlpShortcut(data, localId, cloudId))
+            }
+        )
+        applied += nlpShortcutsResult.applied
+        skipped += nlpShortcutsResult.skipped
+
+        val habitTemplatesResult = pullRoomConfigFamily(
+            collection = "habit_templates",
+            entityType = "habit_template",
+            getLocalUpdatedAt = { habitTemplateDao.getById(it)?.updatedAt },
+            insert = { data, cloudId ->
+                habitTemplateDao.insert(SyncMapper.mapToHabitTemplate(data, cloudId = cloudId))
+            },
+            update = { data, localId, cloudId ->
+                habitTemplateDao.update(SyncMapper.mapToHabitTemplate(data, localId, cloudId))
+            }
+        )
+        applied += habitTemplatesResult.applied
+        skipped += habitTemplatesResult.skipped
+
+        val projectTemplatesResult = pullRoomConfigFamily(
+            collection = "project_templates",
+            entityType = "project_template",
+            getLocalUpdatedAt = { projectTemplateDao.getById(it)?.updatedAt },
+            insert = { data, cloudId ->
+                projectTemplateDao.insert(SyncMapper.mapToProjectTemplate(data, cloudId = cloudId))
+            },
+            update = { data, localId, cloudId ->
+                projectTemplateDao.update(SyncMapper.mapToProjectTemplate(data, localId, cloudId))
+            }
+        )
+        applied += projectTemplatesResult.applied
+        skipped += projectTemplatesResult.skipped
+
+        val boundaryRulesResult = pullRoomConfigFamily(
+            collection = "boundary_rules",
+            entityType = "boundary_rule",
+            getLocalUpdatedAt = { boundaryRuleDao.getByIdOnce(it)?.updatedAt },
+            insert = { data, cloudId ->
+                boundaryRuleDao.insert(SyncMapper.mapToBoundaryRule(data, cloudId = cloudId))
+            },
+            update = { data, localId, cloudId ->
+                boundaryRuleDao.update(SyncMapper.mapToBoundaryRule(data, localId, cloudId))
+            }
+        )
+        applied += boundaryRulesResult.applied
+        skipped += boundaryRulesResult.skipped
+
         if (skipped > 0) {
             logger.warn(
                 operation = "pull.summary",
@@ -1537,6 +1803,40 @@ constructor(
     }
 
     private data class PullResult(val applied: Int, val skipped: Int)
+
+    /**
+     * Pull helper for the v1.4.37 Room-entity config families. Identical
+     * upsert semantics across all 7: insert-if-missing, else apply remote
+     * only when `remoteUpdatedAt > localUpdatedAt` (last-write-wins).
+     */
+    private suspend fun pullRoomConfigFamily(
+        collection: String,
+        entityType: String,
+        getLocalUpdatedAt: suspend (Long) -> Long?,
+        insert: suspend (Map<String, Any?>, String) -> Long,
+        update: suspend (Map<String, Any?>, Long, String) -> Unit
+    ): PullResult = pullCollection(collection) { data, cloudId ->
+        val localId = syncMetadataDao.getLocalId(cloudId, entityType)
+        if (localId == null) {
+            val newId = insert(data, cloudId)
+            syncMetadataDao.upsert(
+                SyncMetadataEntity(
+                    localId = newId,
+                    entityType = entityType,
+                    cloudId = cloudId,
+                    lastSyncedAt = System.currentTimeMillis()
+                )
+            )
+        } else {
+            val localUpdatedAt = getLocalUpdatedAt(localId) ?: 0L
+            val remoteUpdatedAt = (data["updatedAt"] as? Number)?.toLong() ?: 0L
+            if (remoteUpdatedAt > localUpdatedAt) {
+                update(data, localId, cloudId)
+                syncMetadataDao.clearPendingAction(localId, entityType)
+            }
+        }
+        true
+    }
 
     suspend fun fullSync(trigger: String = "manual") {
         if (isSyncing) {
@@ -1776,7 +2076,10 @@ constructor(
         listOf(
             "tasks", "projects", "tags", "habits", "habit_completions",
             "habit_logs", "task_completions", "milestones", "task_templates",
-            "courses", "course_completions", "leisure_logs", "self_care_steps", "self_care_logs"
+            "courses", "course_completions", "leisure_logs", "self_care_steps", "self_care_logs",
+            "medications", "medication_doses",
+            "notification_profiles", "custom_sounds", "saved_filters", "nlp_shortcuts",
+            "habit_templates", "project_templates", "boundary_rules"
         ).forEach { collection ->
             val reg = userCollection(collection)?.addSnapshotListener { snapshot, error ->
                 if (error != null) {
@@ -1849,6 +2152,13 @@ constructor(
             "self_care_logs" -> "self_care_log"
             "medications" -> "medication"
             "medication_doses" -> "medication_dose"
+            "notification_profiles" -> "notification_profile"
+            "custom_sounds" -> "custom_sound"
+            "saved_filters" -> "saved_filter"
+            "nlp_shortcuts" -> "nlp_shortcut"
+            "habit_templates" -> "habit_template"
+            "project_templates" -> "project_template"
+            "boundary_rules" -> "boundary_rule"
             else -> return
         }
         var deleted = 0
@@ -1872,6 +2182,14 @@ constructor(
                     "self_care_log" -> selfCareDao.deleteLogById(localId)
                     "medication" -> medicationDao.deleteById(localId)
                     "medication_dose" -> medicationDoseDao.deleteById(localId)
+                    "notification_profile" ->
+                        notificationProfileDao.getById(localId)?.let { notificationProfileDao.delete(it) }
+                    "custom_sound" -> customSoundDao.deleteById(localId)
+                    "saved_filter" -> savedFilterDao.deleteById(localId)
+                    "nlp_shortcut" -> nlpShortcutDao.deleteById(localId)
+                    "habit_template" -> habitTemplateDao.deleteById(localId)
+                    "project_template" -> projectTemplateDao.deleteById(localId)
+                    "boundary_rule" -> boundaryRuleDao.delete(localId)
                 }
                 syncMetadataDao.delete(localId, entityType)
                 logger.info(
