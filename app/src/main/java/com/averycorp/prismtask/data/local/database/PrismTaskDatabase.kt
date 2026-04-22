@@ -109,7 +109,7 @@ import com.averycorp.prismtask.data.local.entity.WeeklyReviewEntity
         MedicationEntity::class,
         MedicationDoseEntity::class
     ],
-    version = 54,
+    version = 55,
     exportSchema = false
 )
 abstract class PrismTaskDatabase : RoomDatabase() {

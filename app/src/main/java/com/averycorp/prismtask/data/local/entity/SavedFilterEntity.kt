@@ -2,6 +2,7 @@ package com.averycorp.prismtask.data.local.entity
 
 import androidx.room.ColumnInfo
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
 /**
@@ -11,7 +12,10 @@ import androidx.room.PrimaryKey
  *
  * Added in v1.3.0 (P8).
  */
-@Entity(tableName = "saved_filters")
+@Entity(
+    tableName = "saved_filters",
+    indices = [Index(value = ["cloud_id"], unique = true)]
+)
 data class SavedFilterEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
@@ -23,5 +27,11 @@ data class SavedFilterEntity(
     @ColumnInfo(name = "sort_order", defaultValue = "0")
     val sortOrder: Int = 0,
     @ColumnInfo(name = "created_at")
-    val createdAt: Long = System.currentTimeMillis()
+    val createdAt: Long = System.currentTimeMillis(),
+    /** Firestore document ID; NULL until first sync push assigns one. */
+    @ColumnInfo(name = "cloud_id")
+    val cloudId: String? = null,
+    /** Last-write-wins timestamp in ms; bumped on every user-visible write. */
+    @ColumnInfo(name = "updated_at", defaultValue = "0")
+    val updatedAt: Long = 0L
 )

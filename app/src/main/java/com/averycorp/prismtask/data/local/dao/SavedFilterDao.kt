@@ -37,4 +37,13 @@ interface SavedFilterDao {
 
     @Query("DELETE FROM saved_filters")
     suspend fun deleteAll()
+
+    @Query("SELECT * FROM saved_filters WHERE id = :id LIMIT 1")
+    suspend fun getByIdOnce(id: Long): SavedFilterEntity?
+
+    @Query("SELECT * FROM saved_filters WHERE cloud_id = :cloudId LIMIT 1")
+    suspend fun getByCloudIdOnce(cloudId: String): SavedFilterEntity?
+
+    @Query("UPDATE saved_filters SET cloud_id = :cloudId, updated_at = :now WHERE id = :id")
+    suspend fun setCloudId(id: Long, cloudId: String?, now: Long)
 }

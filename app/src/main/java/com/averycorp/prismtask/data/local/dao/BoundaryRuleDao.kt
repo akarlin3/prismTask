@@ -30,4 +30,16 @@ interface BoundaryRuleDao {
 
     @Query("DELETE FROM boundary_rules")
     suspend fun deleteAll()
+
+    @Query("SELECT * FROM boundary_rules WHERE id = :id LIMIT 1")
+    suspend fun getByIdOnce(id: Long): BoundaryRuleEntity?
+
+    @Query("SELECT * FROM boundary_rules")
+    suspend fun getAllOnce(): List<BoundaryRuleEntity>
+
+    @Query("SELECT * FROM boundary_rules WHERE cloud_id = :cloudId LIMIT 1")
+    suspend fun getByCloudIdOnce(cloudId: String): BoundaryRuleEntity?
+
+    @Query("UPDATE boundary_rules SET cloud_id = :cloudId, updated_at = :now WHERE id = :id")
+    suspend fun setCloudId(id: Long, cloudId: String?, now: Long)
 }
