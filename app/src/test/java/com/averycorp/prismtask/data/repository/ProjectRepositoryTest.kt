@@ -393,6 +393,9 @@ class ProjectRepositoryTest {
         override suspend fun getMilestonesOnce(projectId: Long): List<MilestoneEntity> =
             snapshot(projectId)
 
+        override suspend fun getAllMilestonesOnce(): List<MilestoneEntity> =
+            rows.toList()
+
         override suspend fun getByIdOnce(id: Long): MilestoneEntity? =
             rows.firstOrNull { it.id == id }
 
