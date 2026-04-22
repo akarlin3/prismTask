@@ -52,6 +52,7 @@ constructor(
     private val syncStateRepository: SyncStateRepository,
     private val builtInHabitReconciler: BuiltInHabitReconciler,
     private val builtInTaskTemplateReconciler: BuiltInTaskTemplateReconciler,
+    private val builtInTaskTemplateBackfiller: BuiltInTaskTemplateBackfiller,
     private val sortPreferencesSyncService: SortPreferencesSyncService,
     private val schoolworkDao: SchoolworkDao,
     private val leisureDao: LeisureDao,
@@ -1417,6 +1418,19 @@ constructor(
                             .recordException(e)
                     } catch (_: Exception) {
                     }
+                }
+            }
+            // Heal pre-template_key task_templates rows before the first
+            // fullSync so the reconciler sees a correctly-shaped dataset on
+            // the same cycle. See [BuiltInTaskTemplateBackfiller].
+            try {
+                builtInTaskTemplateBackfiller.runBackfillIfNeeded()
+            } catch (e: Exception) {
+                try {
+                    com.google.firebase.crashlytics.FirebaseCrashlytics
+                        .getInstance()
+                        .recordException(e)
+                } catch (_: Exception) {
                 }
             }
             try {

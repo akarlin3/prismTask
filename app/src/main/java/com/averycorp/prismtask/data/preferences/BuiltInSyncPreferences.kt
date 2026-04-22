@@ -34,6 +34,8 @@ constructor(
         private val LIFE_CATEGORY_BACKFILL_DONE = booleanPreferencesKey("life_category_backfill_done")
         private val BUILT_IN_TASK_TEMPLATES_RECONCILED =
             booleanPreferencesKey("built_in_task_templates_reconciled")
+        private val TASK_TEMPLATE_BACKFILL_DONE =
+            booleanPreferencesKey("task_template_backfill_done")
     }
 
     suspend fun isBuiltInsReconciled(): Boolean =
@@ -118,5 +120,22 @@ constructor(
 
     suspend fun setBuiltInTaskTemplatesReconciled(done: Boolean) {
         context.builtInSyncDataStore.edit { it[BUILT_IN_TASK_TEMPLATES_RECONCILED] = done }
+    }
+
+    /**
+     * Guard for the one-shot `task_templates` name-based backfill that heals
+     * rows pulled from Firestore with `template_key = NULL` and
+     * `is_built_in = false`. See
+     * [com.averycorp.prismtask.data.remote.BuiltInTaskTemplateBackfiller].
+     *
+     * The backfiller, on success, also flips
+     * [BUILT_IN_TASK_TEMPLATES_RECONCILED] back to false so the reconciler
+     * re-runs with the healed dataset on the next `fullSync`.
+     */
+    suspend fun isTaskTemplateBackfillDone(): Boolean =
+        context.builtInSyncDataStore.data.first()[TASK_TEMPLATE_BACKFILL_DONE] ?: false
+
+    suspend fun setTaskTemplateBackfillDone(done: Boolean) {
+        context.builtInSyncDataStore.edit { it[TASK_TEMPLATE_BACKFILL_DONE] = done }
     }
 }
