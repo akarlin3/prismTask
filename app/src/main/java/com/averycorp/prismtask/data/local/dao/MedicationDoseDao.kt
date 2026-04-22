@@ -14,6 +14,9 @@ interface MedicationDoseDao {
     @Query("SELECT * FROM medication_doses WHERE taken_date_local = :date ORDER BY taken_at ASC")
     fun getForDate(date: String): Flow<List<MedicationDoseEntity>>
 
+    @Query("SELECT * FROM medication_doses ORDER BY taken_at DESC")
+    fun observeAll(): Flow<List<MedicationDoseEntity>>
+
     @Query(
         "SELECT * FROM medication_doses WHERE medication_id = :medicationId " +
             "AND taken_date_local = :date ORDER BY taken_at ASC"

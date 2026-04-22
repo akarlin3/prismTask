@@ -77,6 +77,12 @@ data class TaskEntity(
     val eisenhowerUpdatedAt: Long? = null,
     @ColumnInfo(name = "eisenhower_reason")
     val eisenhowerReason: String? = null,
+    /**
+     * True when the user manually moved this task to a quadrant, so auto-classification
+     * must not clobber it. Cleared by `TaskRepository.reclassify`.
+     */
+    @ColumnInfo(name = "user_overrode_quadrant", defaultValue = "0")
+    val userOverrodeQuadrant: Boolean = false,
     @ColumnInfo(name = "sort_order")
     val sortOrder: Int = 0,
     @ColumnInfo(name = "is_flagged", defaultValue = "0")

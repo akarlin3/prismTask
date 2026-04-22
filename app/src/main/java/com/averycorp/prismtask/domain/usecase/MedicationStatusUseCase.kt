@@ -1,18 +1,11 @@
 package com.averycorp.prismtask.domain.usecase
 
-import com.averycorp.prismtask.data.local.dao.HabitCompletionDao
-import com.averycorp.prismtask.data.local.dao.SelfCareDao
-import com.averycorp.prismtask.data.local.entity.HabitEntity
-import com.averycorp.prismtask.data.local.entity.SelfCareLogEntity
-import com.averycorp.prismtask.data.local.entity.SelfCareStepEntity
-import com.averycorp.prismtask.data.preferences.MedicationPreferences
-import com.averycorp.prismtask.data.preferences.MedicationScheduleMode
+import com.averycorp.prismtask.data.local.dao.MedicationDao
+import com.averycorp.prismtask.data.local.dao.MedicationDoseDao
+import com.averycorp.prismtask.data.local.entity.MedicationDoseEntity
+import com.averycorp.prismtask.data.local.entity.MedicationEntity
 import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
-import com.averycorp.prismtask.data.repository.HabitRepository
-import com.averycorp.prismtask.data.repository.SelfCareRepository
 import com.averycorp.prismtask.util.DayBoundary
-import com.google.gson.JsonArray
-import com.google.gson.JsonParser
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
@@ -23,17 +16,21 @@ import javax.inject.Singleton
 
 /**
  * Single source of truth for "is any medication dose due today and not yet
- * taken". Consolidates the three places where medication scheduling lives:
+ * taken." Post v1.4 medication-top-level refactor (spec:
+ * `docs/SPEC_MEDICATIONS_TOP_LEVEL.md` §6.5), reads exclusively from
+ * [MedicationDao] + [MedicationDoseDao] — the three-way HabitRepository /
+ * SelfCareDao / MedicationPreferences scatter is gone.
  *
- *  1. `HabitEntity` rows with an interval reminder (`reminderIntervalMillis`).
- *  2. `SelfCareStepEntity` rows with `routine_type = "medication"` (logged
- *     via the Self-Care medication screen into `self_care_logs`).
- *  3. `MedicationPreferences.specificTimes` — user-declared "HH:mm" slots
- *     cross-referenced against the medication-habit completion log.
+ * Each active [MedicationEntity] expands into one or more `MedicationDose`
+ * entries based on its `scheduleMode`:
+ *  - `TIMES_OF_DAY` → one dose per time-of-day slot in `timesOfDay`.
+ *  - `SPECIFIC_TIMES` → one dose per `"HH:mm"` in `specificTimes`.
+ *  - `INTERVAL` → one dose with `slotKey = "anytime"`.
+ *  - `AS_NEEDED` → no doses (user logs ad-hoc).
  *
- * The use case dedups entries by medication name (case-insensitive) using
- * priority `SPECIFIC_TIME > INTERVAL_HABIT > SELF_CARE_STEP`, then drops any
- * dose already marked taken.
+ * A dose is `takenToday=true` when at least one [MedicationDoseEntity]
+ * exists for this `(medicationId, slotKey)` on the current logical day —
+ * see [DayBoundary.currentLocalDateString].
  */
 enum class DoseSource { INTERVAL_HABIT, SELF_CARE_STEP, SPECIFIC_TIME }
 
@@ -47,16 +44,15 @@ data class MedicationDose(
     val linkedHabitId: Long?,
     /**
      * Time-slot identity used by the Daily Essentials grouping layer. Either a
-     * ``"HH:mm"`` wall-clock time (for specific-time doses or self-care steps
-     * with a known time-of-day bucket) or [MedicationSlotGrouper.ANYTIME_KEY]
-     * for interval-based doses that have no fixed clock time. ``null`` when a
-     * caller hasn't opted into the grouping layer (back-compat).
+     * ``"HH:mm"`` wall-clock time (for specific-time doses or time-of-day
+     * buckets via [MedicationSlotGrouper.slotKeyForTimeOfDay]) or
+     * [MedicationSlotGrouper.ANYTIME_KEY] for interval-based doses.
      */
     val slotKey: String? = null,
     /**
-     * For [DoseSource.SELF_CARE_STEP] doses, the originating
-     * [data.local.entity.SelfCareStepEntity.stepId]. Needed so slot-level
-     * toggles can round-trip through [data.repository.SelfCareRepository.toggleStep].
+     * Retained for daily_essential_slot_completions compatibility, but no
+     * longer populated post v1.4 — the field stays nullable so stored dose
+     * keys formed pre-rewrite continue to round-trip.
      */
     val selfCareStepId: String? = null
 ) {
@@ -70,10 +66,8 @@ data class MedicationDose(
 class MedicationStatusUseCase
 @Inject
 constructor(
-    private val habitRepository: HabitRepository,
-    private val habitCompletionDao: HabitCompletionDao,
-    private val selfCareDao: SelfCareDao,
-    private val medicationPreferences: MedicationPreferences,
+    private val medicationDao: MedicationDao,
+    private val medicationDoseDao: MedicationDoseDao,
     private val taskBehaviorPreferences: TaskBehaviorPreferences
 ) {
     /**
@@ -83,128 +77,134 @@ constructor(
      */
     fun observeDueDosesToday(): Flow<List<MedicationDose>> =
         taskBehaviorPreferences.getDayStartHour().flatMapLatest { dayStartHour ->
-            val todayStart = DayBoundary.startOfCurrentDay(dayStartHour)
             val todayLocal = DayBoundary.currentLocalDateString(dayStartHour)
             combine(
-                habitRepository.getActiveHabits(),
-                selfCareDao.getStepsForRoutine("medication"),
-                selfCareDao.getLogForDate("medication", todayStart),
-                medicationPreferences.getScheduleMode(),
-                medicationPreferences.getSpecificTimes()
-            ) { habits, steps, medLog, mode, specificTimes ->
-                val medicationHabit = habits.firstOrNull {
-                    it.name == SelfCareRepository.MEDICATION_HABIT_NAME
-                }
-                val takenStepIds = medLog?.let { parseTakenStepIds(it) } ?: emptySet()
-                val completionCount = medicationHabit?.let {
-                    habitCompletionDao.getCompletionCountForDateLocalOnce(it.id, todayLocal)
-                } ?: 0
-
-                val doses = buildList {
-                    addAll(intervalDoses(habits, todayLocal))
-                    addAll(selfCareStepDoses(steps, takenStepIds))
-                    if (mode == MedicationScheduleMode.SPECIFIC_TIMES) {
-                        addAll(specificTimeDoses(specificTimes, medicationHabit, completionCount))
-                    }
-                }
-
-                dedupByName(doses).filterNot { it.takenToday }
+                medicationDao.getActive(),
+                medicationDoseDao.getForDate(todayLocal)
+            ) { meds, doses ->
+                expandMedicationsToDoses(meds, doses)
+                    .filterNot { it.takenToday }
             }
         }
-
-    private suspend fun intervalDoses(
-        habits: List<HabitEntity>,
-        todayLocal: String
-    ): List<MedicationDose> = habits
-        .filter {
-            it.reminderIntervalMillis != null &&
-                it.category?.equals("Medication", ignoreCase = true) == true
-        }
-        .map { habit ->
-            val takenCount = habitCompletionDao.getCompletionCountForDateLocalOnce(habit.id, todayLocal)
-            val target = habit.reminderTimesPerDay.coerceAtLeast(1)
-            MedicationDose(
-                medicationName = habit.name,
-                displayLabel = habit.name,
-                source = DoseSource.INTERVAL_HABIT,
-                scheduledAt = null,
-                takenToday = takenCount >= target,
-                linkedHabitId = habit.id,
-                slotKey = MedicationSlotGrouper.ANYTIME_KEY
-            )
-        }
-
-    private fun selfCareStepDoses(
-        steps: List<SelfCareStepEntity>,
-        takenStepIds: Set<String>
-    ): List<MedicationDose> = steps.mapNotNull { step ->
-        val name = step.medicationName?.trim().orEmpty().ifBlank { step.label.trim() }
-        if (name.isBlank()) return@mapNotNull null
-        MedicationDose(
-            medicationName = name,
-            displayLabel = step.label,
-            source = DoseSource.SELF_CARE_STEP,
-            scheduledAt = null,
-            takenToday = step.stepId in takenStepIds,
-            linkedHabitId = null,
-            slotKey = MedicationSlotGrouper.slotKeyForTimeOfDay(step.timeOfDay),
-            selfCareStepId = step.stepId
-        )
-    }
-
-    private fun specificTimeDoses(
-        specificTimes: Set<String>,
-        medicationHabit: HabitEntity?,
-        completionCount: Int
-    ): List<MedicationDose> {
-        if (specificTimes.isEmpty()) return emptyList()
-        val sortedTimes = specificTimes.sorted()
-        // The completion log doesn't carry per-time metadata — the Nth completion
-        // taken today satisfies the Nth scheduled slot.
-        return sortedTimes.mapIndexed { index, time ->
-            MedicationDose(
-                medicationName = medicationHabit?.name ?: "Medication",
-                displayLabel = "Medication at $time",
-                source = DoseSource.SPECIFIC_TIME,
-                scheduledAt = null,
-                takenToday = index < completionCount,
-                linkedHabitId = medicationHabit?.id,
-                slotKey = MedicationSlotGrouper.normalizeTimeKey(time)
-            )
-        }
-    }
-
-    private fun parseTakenStepIds(log: SelfCareLogEntity): Set<String> {
-        val json = log.completedSteps
-        if (json.isBlank() || json == "[]") return emptySet()
-        return try {
-            val parsed = JsonParser.parseString(json)
-            if (!parsed.isJsonArray) return emptySet()
-            val array = parsed.asJsonArray as JsonArray
-            array.mapNotNull { element ->
-                when {
-                    element.isJsonPrimitive -> element.asString
-                    element.isJsonObject -> element.asJsonObject.get("id")?.asString
-                    else -> null
-                }
-            }.toSet()
-        } catch (_: Exception) {
-            emptySet()
-        }
-    }
 
     companion object {
         fun empty(): Flow<List<MedicationDose>> = flowOf(emptyList())
 
         /**
-         * Collapses duplicates that point to the same medication (e.g. a habit
-         * named "Adderall" plus a self-care step with `medication_name="Adderall"`).
-         * Priority: SPECIFIC_TIME > INTERVAL_HABIT > SELF_CARE_STEP. Within the
-         * same priority, the entry with the lower takenToday flag wins (so a
-         * still-pending dose isn't hidden by an already-taken duplicate).
+         * Core expansion: given the active medication rows and today's
+         * dose-log rows, emit one [MedicationDose] per schedule slot with
+         * `takenToday` computed from the log.
          *
-         * Exposed on the companion so unit tests can verify the rule without
-         * wiring up the full use case + DAOs.
+         * Exposed on the companion so unit tests can verify the rule
+         * without wiring up DAOs.
+         */
+        @JvmStatic
+        internal fun expandMedicationsToDoses(
+            medications: List<MedicationEntity>,
+            todaysDoses: List<MedicationDoseEntity>
+        ): List<MedicationDose> {
+            val dosesByMedAndSlot: Map<Pair<Long, String>, List<MedicationDoseEntity>> =
+                todaysDoses.groupBy { it.medicationId to it.slotKey }
+
+            return medications.flatMap { med ->
+                when (med.scheduleMode) {
+                    "TIMES_OF_DAY" -> expandTimesOfDay(med, dosesByMedAndSlot)
+                    "SPECIFIC_TIMES" -> expandSpecificTimes(med, dosesByMedAndSlot)
+                    "INTERVAL" -> expandInterval(med, dosesByMedAndSlot)
+                    // AS_NEEDED and any unknown: no scheduled doses.
+                    else -> emptyList()
+                }
+            }
+        }
+
+        private fun expandTimesOfDay(
+            med: MedicationEntity,
+            dosesByKey: Map<Pair<Long, String>, List<MedicationDoseEntity>>
+        ): List<MedicationDose> {
+            val slots = med.timesOfDay.orEmpty()
+                .split(',').map { it.trim() }
+                .filter { it in VALID_TOD_SLOTS }
+                .distinct()
+            if (slots.isEmpty()) return emptyList()
+            return slots.map { slot ->
+                MedicationDose(
+                    medicationName = med.name,
+                    displayLabel = med.displayLabel ?: med.name,
+                    source = DoseSource.SELF_CARE_STEP,
+                    scheduledAt = null,
+                    takenToday = dosesByKey[med.id to slot]?.isNotEmpty() == true,
+                    linkedHabitId = null,
+                    slotKey = MedicationSlotGrouper.slotKeyForTimeOfDay(slot),
+                    selfCareStepId = null
+                )
+            }
+        }
+
+        private fun expandSpecificTimes(
+            med: MedicationEntity,
+            dosesByKey: Map<Pair<Long, String>, List<MedicationDoseEntity>>
+        ): List<MedicationDose> {
+            val slots = med.specificTimes.orEmpty()
+                .split(',').map { it.trim() }
+                .filter { isValidClockString(it) }
+                .distinct()
+                .sorted()
+            if (slots.isEmpty()) return emptyList()
+            return slots.map { slot ->
+                val normalized = MedicationSlotGrouper.normalizeTimeKey(slot)
+                MedicationDose(
+                    medicationName = med.name,
+                    displayLabel = med.displayLabel ?: med.name,
+                    source = DoseSource.SPECIFIC_TIME,
+                    scheduledAt = null,
+                    takenToday = dosesByKey[med.id to normalized]?.isNotEmpty() == true,
+                    linkedHabitId = null,
+                    slotKey = normalized,
+                    selfCareStepId = null
+                )
+            }
+        }
+
+        private fun expandInterval(
+            med: MedicationEntity,
+            dosesByKey: Map<Pair<Long, String>, List<MedicationDoseEntity>>
+        ): List<MedicationDose> {
+            val dosesTaken = dosesByKey[med.id to MedicationSlotGrouper.ANYTIME_KEY]
+                ?.size ?: 0
+            val target = med.dosesPerDay.coerceAtLeast(1)
+            return listOf(
+                MedicationDose(
+                    medicationName = med.name,
+                    displayLabel = med.displayLabel ?: med.name,
+                    source = DoseSource.INTERVAL_HABIT,
+                    scheduledAt = null,
+                    takenToday = dosesTaken >= target,
+                    linkedHabitId = null,
+                    slotKey = MedicationSlotGrouper.ANYTIME_KEY,
+                    selfCareStepId = null
+                )
+            )
+        }
+
+        private fun isValidClockString(raw: String): Boolean {
+            val parts = raw.split(':')
+            if (parts.size != 2) return false
+            val hour = parts[0].toIntOrNull() ?: return false
+            val minute = parts[1].toIntOrNull() ?: return false
+            return hour in 0..23 && minute in 0..59
+        }
+
+        private val VALID_TOD_SLOTS = setOf("morning", "afternoon", "evening", "night")
+
+        /**
+         * Legacy dedup helper retained for pre-v1.4 callers that may still
+         * merge dose lists from multiple sources. Post-rewrite the
+         * expansion path never emits cross-source duplicates for a single
+         * `(name, slot)`, so this method is a no-op for current
+         * [expandMedicationsToDoses] output. Priority order preserved
+         * (`SPECIFIC_TIME > INTERVAL_HABIT > SELF_CARE_STEP`) so external
+         * callers that still hand-build composite dose lists get the
+         * same behavior they had before.
          */
         @JvmStatic
         internal fun dedupByName(doses: List<MedicationDose>): List<MedicationDose> {
@@ -215,9 +215,6 @@ constructor(
             )
             val picked = mutableMapOf<String, MedicationDose>()
             for (dose in doses) {
-                // Dedup is scoped to (name, slotKey) so two distinct specific-time
-                // slots of the same medication stay separate rows; only
-                // cross-source duplicates of the *same* slot collapse.
                 val slotPart = dose.slotKey ?: ""
                 val key = "${dose.medicationName.trim().lowercase()}|$slotPart"
                 val existing = picked[key]

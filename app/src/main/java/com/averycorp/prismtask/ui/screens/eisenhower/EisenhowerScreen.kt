@@ -21,6 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Badge
@@ -153,6 +154,7 @@ fun EisenhowerScreen(
                 },
                 onCompleteTask = { viewModel.completeTask(it) },
                 onMoveTask = { taskId, quadrant -> viewModel.moveTaskToQuadrant(taskId, quadrant) },
+                onReclassify = { viewModel.reclassify(it) },
                 modifier = Modifier.padding(padding)
             )
         } else {
@@ -199,6 +201,7 @@ fun EisenhowerScreen(
                         },
                         onCompleteTask = { viewModel.completeTask(it) },
                         onMoveTask = { taskId, quadrant -> viewModel.moveTaskToQuadrant(taskId, quadrant) },
+                        onReclassify = { viewModel.reclassify(it) },
                         modifier = Modifier.weight(1f)
                     )
                     QuadrantCell(
@@ -211,6 +214,7 @@ fun EisenhowerScreen(
                         },
                         onCompleteTask = { viewModel.completeTask(it) },
                         onMoveTask = { taskId, quadrant -> viewModel.moveTaskToQuadrant(taskId, quadrant) },
+                        onReclassify = { viewModel.reclassify(it) },
                         modifier = Modifier.weight(1f)
                     )
                 }
@@ -234,6 +238,7 @@ fun EisenhowerScreen(
                         },
                         onCompleteTask = { viewModel.completeTask(it) },
                         onMoveTask = { taskId, quadrant -> viewModel.moveTaskToQuadrant(taskId, quadrant) },
+                        onReclassify = { viewModel.reclassify(it) },
                         modifier = Modifier.weight(1f)
                     )
                     QuadrantCell(
@@ -246,6 +251,7 @@ fun EisenhowerScreen(
                         },
                         onCompleteTask = { viewModel.completeTask(it) },
                         onMoveTask = { taskId, quadrant -> viewModel.moveTaskToQuadrant(taskId, quadrant) },
+                        onReclassify = { viewModel.reclassify(it) },
                         modifier = Modifier.weight(1f)
                     )
                 }
@@ -263,6 +269,7 @@ private fun QuadrantCell(
     onTaskClick: (Long) -> Unit,
     onCompleteTask: (Long) -> Unit,
     onMoveTask: (Long, String) -> Unit,
+    onReclassify: (Long) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val accent = quadrantAccentColor(info.key)
@@ -346,7 +353,8 @@ private fun QuadrantCell(
                             task = task,
                             onClick = { onTaskClick(task.id) },
                             onComplete = { onCompleteTask(task.id) },
-                            onMoveTask = { quadrant -> onMoveTask(task.id, quadrant) }
+                            onMoveTask = { quadrant -> onMoveTask(task.id, quadrant) },
+                            onReclassify = { onReclassify(task.id) }
                         )
                     }
                 }
@@ -360,7 +368,8 @@ private fun CompactTaskCard(
     task: TaskEntity,
     onClick: () -> Unit,
     onComplete: () -> Unit,
-    onMoveTask: (String) -> Unit
+    onMoveTask: (String) -> Unit,
+    onReclassify: () -> Unit
 ) {
     var showMoveMenu by remember { mutableStateOf(false) }
     var showReasonDialog by remember { mutableStateOf(false) }
@@ -433,30 +442,55 @@ private fun CompactTaskCard(
                     )
                 }
             }
-        }
-    }
 
-    // Long-press move menu (using dropdown on click for simplicity)
-    Box {
-        DropdownMenu(
-            expanded = showMoveMenu,
-            onDismissRequest = { showMoveMenu = false }
-        ) {
-            QUADRANTS.forEach { q ->
-                if (q.key != task.eisenhowerQuadrant) {
-                    val qAccent = quadrantAccentColor(q.key)
+            // Overflow menu: move between quadrants + reclassify
+            Box {
+                IconButton(
+                    onClick = { showMoveMenu = true },
+                    modifier = Modifier.size(20.dp)
+                ) {
+                    Icon(
+                        Icons.Default.MoreVert,
+                        contentDescription = "Move or reclassify",
+                        modifier = Modifier.size(14.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                    )
+                }
+                DropdownMenu(
+                    expanded = showMoveMenu,
+                    onDismissRequest = { showMoveMenu = false }
+                ) {
+                    QUADRANTS.forEach { q ->
+                        if (q.key != task.eisenhowerQuadrant) {
+                            val qAccent = quadrantAccentColor(q.key)
+                            DropdownMenuItem(
+                                text = { Text("Move to ${q.key} (${q.title})") },
+                                onClick = {
+                                    onMoveTask(q.key)
+                                    showMoveMenu = false
+                                },
+                                leadingIcon = {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(10.dp)
+                                            .clip(CircleShape)
+                                            .background(qAccent)
+                                    )
+                                }
+                            )
+                        }
+                    }
                     DropdownMenuItem(
-                        text = { Text("Move to ${q.key} (${q.title})") },
+                        text = { Text("Reclassify With AI") },
                         onClick = {
-                            onMoveTask(q.key)
+                            onReclassify()
                             showMoveMenu = false
                         },
                         leadingIcon = {
-                            Box(
-                                modifier = Modifier
-                                    .size(10.dp)
-                                    .clip(CircleShape)
-                                    .background(qAccent)
+                            Icon(
+                                Icons.Default.AutoAwesome,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp)
                             )
                         }
                     )
@@ -488,6 +522,7 @@ private fun ExpandedQuadrantView(
     onTaskClick: (Long) -> Unit,
     onCompleteTask: (Long) -> Unit,
     onMoveTask: (Long, String) -> Unit,
+    onReclassify: (Long) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val accent = quadrantAccentColor(info.key)
@@ -553,7 +588,8 @@ private fun ExpandedQuadrantView(
                         task = task,
                         onClick = { onTaskClick(task.id) },
                         onComplete = { onCompleteTask(task.id) },
-                        onMoveTask = { quadrant -> onMoveTask(task.id, quadrant) }
+                        onMoveTask = { quadrant -> onMoveTask(task.id, quadrant) },
+                        onReclassify = { onReclassify(task.id) }
                     )
                 }
             }

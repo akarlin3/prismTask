@@ -13,7 +13,7 @@ import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
 
-private val Context.habitListDataStore: DataStore<Preferences> by preferencesDataStore(name = "habit_list_prefs")
+internal val Context.habitListDataStore: DataStore<Preferences> by preferencesDataStore(name = "habit_list_prefs")
 
 data class BuiltInSortOrders(
     val morning: Int,

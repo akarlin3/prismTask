@@ -55,6 +55,15 @@ class CloudIdOrphanHealerTest {
             selfCareDao = database.selfCareDao(),
             schoolworkDao = database.schoolworkDao(),
             leisureDao = database.leisureDao(),
+            taskDao = database.taskDao(),
+            projectDao = database.projectDao(),
+            tagDao = database.tagDao(),
+            habitDao = database.habitDao(),
+            habitCompletionDao = database.habitCompletionDao(),
+            habitLogDao = database.habitLogDao(),
+            taskCompletionDao = database.taskCompletionDao(),
+            taskTemplateDao = database.taskTemplateDao(),
+            milestoneDao = database.milestoneDao(),
             logger = logger
         )
     }

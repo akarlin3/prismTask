@@ -37,6 +37,9 @@ fun FocusTimerScreen(
     val pomodoroAvailableMinutes by viewModel.pomodoroAvailableMinutes.collectAsStateWithLifecycle()
     val pomodoroFocusPreference by viewModel.pomodoroFocusPreference.collectAsStateWithLifecycle()
     val timerBuzzUntilDismissed by viewModel.timerBuzzUntilDismissed.collectAsStateWithLifecycle()
+    val preSessionCoaching by viewModel.pomodoroPreSessionCoachingEnabled.collectAsStateWithLifecycle()
+    val breakCoaching by viewModel.pomodoroBreakCoachingEnabled.collectAsStateWithLifecycle()
+    val recapCoaching by viewModel.pomodoroRecapCoachingEnabled.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
@@ -65,13 +68,19 @@ fun FocusTimerScreen(
                 pomodoroAvailableMinutes = pomodoroAvailableMinutes,
                 pomodoroFocusPreference = pomodoroFocusPreference,
                 buzzUntilDismissed = timerBuzzUntilDismissed,
+                preSessionCoachingEnabled = preSessionCoaching,
+                breakCoachingEnabled = breakCoaching,
+                recapCoachingEnabled = recapCoaching,
                 onTimerWorkMinutesChange = viewModel::setTimerWorkDurationMinutes,
                 onTimerBreakMinutesChange = viewModel::setTimerBreakDurationMinutes,
                 onTimerLongBreakMinutesChange = viewModel::setTimerLongBreakDurationMinutes,
                 onTimerCustomMinutesChange = viewModel::setTimerCustomDurationMinutes,
                 onPomodoroAvailableMinutesChange = viewModel::setPomodoroAvailableMinutes,
                 onPomodoroFocusPreferenceChange = viewModel::setPomodoroFocusPreference,
-                onBuzzUntilDismissedChange = viewModel::setTimerBuzzUntilDismissed
+                onBuzzUntilDismissedChange = viewModel::setTimerBuzzUntilDismissed,
+                onPreSessionCoachingChange = viewModel::setPomodoroPreSessionCoachingEnabled,
+                onBreakCoachingChange = viewModel::setPomodoroBreakCoachingEnabled,
+                onRecapCoachingChange = viewModel::setPomodoroRecapCoachingEnabled
             )
             Spacer(modifier = Modifier.height(32.dp))
         }

@@ -44,4 +44,13 @@ interface DailyEssentialSlotCompletionDao {
 
     @Query("DELETE FROM daily_essential_slot_completions WHERE id = :id")
     suspend fun deleteById(id: Long)
+
+    @Query("SELECT * FROM daily_essential_slot_completions WHERE id = :id LIMIT 1")
+    suspend fun getByIdOnce(id: Long): DailyEssentialSlotCompletionEntity?
+
+    @Query("SELECT * FROM daily_essential_slot_completions WHERE cloud_id = :cloudId LIMIT 1")
+    suspend fun getByCloudIdOnce(cloudId: String): DailyEssentialSlotCompletionEntity?
+
+    @Query("UPDATE daily_essential_slot_completions SET cloud_id = :cloudId, updated_at = :now WHERE id = :id")
+    suspend fun setCloudId(id: Long, cloudId: String?, now: Long)
 }

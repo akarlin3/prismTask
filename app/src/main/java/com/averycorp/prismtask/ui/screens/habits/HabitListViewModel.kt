@@ -173,7 +173,6 @@ constructor(
 
         val morningCard = computeCardData(mLog, mSteps, "morning")
         val bedtimeCard = computeCardData(bLog, bSteps, "bedtime")
-        val medicationCard = computeCardData(medLog, medSteps, "medication")
         val houseworkCard = computeCardData(hwLog, hwSteps, "housework")
 
         val autoHabitNames = mutableSetOf<String>()
@@ -203,9 +202,13 @@ constructor(
             allItems.add(HabitListItem.SelfCareItem("morning", morningCard, sortOrders.morning))
             allItems.add(HabitListItem.SelfCareItem("bedtime", bedtimeCard, sortOrders.bedtime))
         }
-        if (medicationOn) {
-            allItems.add(HabitListItem.SelfCareItem("medication", medicationCard, sortOrders.medication))
-        }
+        // Medication was formerly a SelfCareItem on this list; v1.4's
+        // medication-top-level refactor promotes it to its own bottom-nav
+        // tile (see NavGraph.ALL_BOTTOM_NAV_ITEMS). The tile visibility is
+        // gated on the same `isMedicationEnabled` toggle that formerly
+        // controlled this row, so we keep the `medicationOn` read below
+        // for the `allBuiltInNames` filter that hides the underlying
+        // "Medication" habit row.
         if (houseworkOn) {
             allItems.add(HabitListItem.SelfCareItem("housework", houseworkCard, sortOrders.housework))
         }

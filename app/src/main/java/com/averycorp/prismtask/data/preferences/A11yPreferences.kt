@@ -12,7 +12,7 @@ import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
 
-private val Context.a11yDataStore: DataStore<Preferences> by preferencesDataStore(name = "a11y_prefs")
+internal val Context.a11yDataStore: DataStore<Preferences> by preferencesDataStore(name = "a11y_prefs")
 
 /** App-level accessibility toggles layered on top of system settings. */
 @Singleton

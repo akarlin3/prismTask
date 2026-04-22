@@ -103,6 +103,79 @@ Respond ONLY with valid JSON:
     raise ValueError(f"Failed to parse AI response: {last_error}")
 
 
+def classify_eisenhower_text(
+    title: str,
+    description: str | None,
+    due_date: str | None,
+    priority: int,
+    today: date,
+    tier: str = "FREE",
+) -> dict:
+    """Classify a single task into an Eisenhower quadrant from raw text.
+
+    Returns ``{"quadrant": "Q1|Q2|Q3|Q4", "reason": "..."}``. Raises
+    ``ValueError`` on malformed AI response, ``RuntimeError`` when the
+    Anthropic client is unavailable — same pattern as ``categorize_eisenhower``.
+    """
+    client = _get_client()
+    model = get_model("eisenhower")
+    task_summary = {
+        "title": title,
+        "description": description or "",
+        "due_date": due_date,
+        "priority": priority,  # 0=None, 1=Low, 2=Medium, 3=High, 4=Urgent
+    }
+    prompt = f"""You are a productivity assistant. Categorize ONE task into an Eisenhower Matrix quadrant.
+
+Quadrants:
+- Q1 (Urgent + Important): Deadlines within 48 hours, high-priority blockers, critical issues
+- Q2 (Not Urgent + Important): Long-term goals, planning, skill building, health, relationships
+- Q3 (Urgent + Not Important): Most emails, some meetings, minor deadlines, others' priorities
+- Q4 (Not Urgent + Not Important): Time-wasters, excessive social media, busywork
+
+Consider: due date proximity, priority level (0-4), task description.
+A task with no due date but high priority (3-4) is likely Q2.
+A task due today with low priority (0-1) is likely Q3.
+
+Task:
+{json.dumps(task_summary, default=str, indent=2)}
+
+Today's date: {today.isoformat()}
+
+Respond ONLY with valid JSON (no markdown, no prose):
+{{"quadrant": "Q1", "reason": "brief reason"}}"""
+
+    last_error = None
+    for attempt in range(2):
+        try:
+            message = client.messages.create(
+                model=model,
+                max_tokens=256,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            content = message.content[0].text
+            result = _parse_ai_json(content)
+            if not isinstance(result, dict):
+                raise ValueError("Expected a JSON object")
+            quadrant = result.get("quadrant")
+            if quadrant not in {"Q1", "Q2", "Q3", "Q4"}:
+                raise ValueError(f"Invalid quadrant: {quadrant!r}")
+            return {
+                "quadrant": quadrant,
+                "reason": str(result.get("reason", ""))[:500],
+            }
+        except (json.JSONDecodeError, KeyError, TypeError, IndexError, ValueError) as e:
+            last_error = e
+            logger.error(f"Failed to parse text-classify response (attempt {attempt + 1}): {e}")
+            if attempt == 0:
+                continue
+            raise ValueError(f"Failed to parse AI response after retry: {e}") from e
+        except Exception as e:
+            logger.error(f"Eisenhower text-classify AI error: {type(e).__name__}: {e}")
+            raise
+    raise ValueError(f"Failed to parse AI response: {last_error}")
+
+
 def plan_pomodoro(tasks: list[dict], available_minutes: int, session_length: int, break_length: int, long_break_length: int, focus_preference: str, today: date, tier: str = "FREE") -> dict:
     """Call Claude to generate a Pomodoro focus session plan."""
     client = _get_client()
@@ -506,3 +579,109 @@ Return an empty array if no action items are found."""
             logger.error(f"Task extraction AI error: {type(e).__name__}: {e}")
             raise
     raise ValueError(f"Failed to parse AI response: {last_error_ex}")
+
+
+# --- Pomodoro AI Coaching (pre-session / break / recap) ---
+
+
+def _pomodoro_coaching_prompt(
+    trigger: str,
+    upcoming_tasks: list[dict] | None,
+    session_length_minutes: int | None,
+    elapsed_minutes: int | None,
+    break_type: str | None,
+    recent_suggestions: list[str] | None,
+    completed_tasks: list[dict] | None,
+    started_tasks: list[dict] | None,
+    session_duration_minutes: int | None,
+) -> str:
+    """Build the Haiku prompt for one of the three Pomodoro coaching surfaces.
+
+    Each surface is a single-sentence, friendly coaching response rendered
+    straight to the user. Prompts deliberately bias toward concrete,
+    low-friction guidance over generic motivation.
+    """
+    if trigger == "pre_session":
+        tasks_json = json.dumps(upcoming_tasks or [], default=str, indent=2)
+        return f"""You are a focused productivity coach about to kick off a {session_length_minutes or 25}-minute Pomodoro session.
+
+The user is about to work on these tasks:
+{tasks_json}
+
+Write 1-2 sentences (no more than ~40 words total) suggesting a concrete starting approach — which task to start on, or how to sequence them, or what small first step to take. Be specific, warm, and action-oriented. No bullet points, no greetings, no sign-offs — just the coaching sentence(s) directly."""
+
+    if trigger == "break_activity":
+        recent_json = json.dumps(recent_suggestions or [])
+        kind = break_type or "short"
+        return f"""You are a productivity coach suggesting a break activity.
+
+The user just finished a focus block and is on a {kind} break ({elapsed_minutes or 0} minutes of work elapsed this session).
+
+Suggest one concrete, quick break activity that fits a {kind} break. Vary between categories: stretches, hydration, eye-rest (20-20-20 rule), brief walk, breathing, posture reset. AVOID repeating any of these recent suggestions: {recent_json}
+
+Respond with 1 sentence (no more than ~25 words). No preamble, no sign-off — just the suggestion directly."""
+
+    if trigger == "session_recap":
+        completed_json = json.dumps(completed_tasks or [], default=str, indent=2)
+        started_json = json.dumps(started_tasks or [], default=str, indent=2)
+        return f"""You are a supportive productivity coach wrapping up a {session_duration_minutes or 0}-minute Pomodoro session.
+
+Completed tasks:
+{completed_json}
+
+Started-but-not-finished tasks:
+{started_json}
+
+Write 2 short sentences (no more than ~50 words total):
+1. A warm, specific acknowledgment of what got done (name a task if possible).
+2. One concrete "carry forward" suggestion for the started-but-unfinished work, or a suggested next micro-step if everything's done.
+
+No bullet points, no greeting, no sign-off."""
+
+    raise ValueError(f"Unknown Pomodoro coaching trigger: {trigger}")
+
+
+def generate_pomodoro_coaching(
+    trigger: str,
+    upcoming_tasks: list[dict] | None = None,
+    session_length_minutes: int | None = None,
+    elapsed_minutes: int | None = None,
+    break_type: str | None = None,
+    recent_suggestions: list[str] | None = None,
+    completed_tasks: list[dict] | None = None,
+    started_tasks: list[dict] | None = None,
+    session_duration_minutes: int | None = None,
+    tier: str = "FREE",
+) -> str:
+    """Call Claude Haiku to produce one coaching sentence for a Pomodoro surface.
+
+    Returns the plain-text message. Unlike the JSON-responding AI endpoints
+    (eisenhower, pomodoro-plan, etc.), coaching surfaces speak directly to the
+    user and don't need a JSON envelope — keeps the prompt tight and the
+    response fast.
+    """
+    client = _get_client()
+    model = get_model("pomodoro_coaching")
+    prompt = _pomodoro_coaching_prompt(
+        trigger=trigger,
+        upcoming_tasks=upcoming_tasks,
+        session_length_minutes=session_length_minutes,
+        elapsed_minutes=elapsed_minutes,
+        break_type=break_type,
+        recent_suggestions=recent_suggestions,
+        completed_tasks=completed_tasks,
+        started_tasks=started_tasks,
+        session_duration_minutes=session_duration_minutes,
+    )
+    try:
+        message = client.messages.create(
+            model=model,
+            max_tokens=256,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        text = message.content[0].text.strip()
+        # Defensive strip: some Haiku replies add stray quotes or a trailing newline.
+        return text.strip('"').strip()
+    except Exception as e:
+        logger.error(f"Pomodoro coaching AI error ({trigger}): {type(e).__name__}: {e}")
+        raise

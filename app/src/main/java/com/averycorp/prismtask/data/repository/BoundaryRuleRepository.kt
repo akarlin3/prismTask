@@ -2,6 +2,7 @@ package com.averycorp.prismtask.data.repository
 
 import com.averycorp.prismtask.data.local.dao.BoundaryRuleDao
 import com.averycorp.prismtask.data.local.entity.BoundaryRuleEntity
+import com.averycorp.prismtask.data.remote.SyncTracker
 import com.averycorp.prismtask.domain.model.BoundaryRule
 import com.averycorp.prismtask.domain.model.BoundaryRuleType
 import com.averycorp.prismtask.domain.model.LifeCategory
@@ -23,7 +24,8 @@ import javax.inject.Singleton
 class BoundaryRuleRepository
 @Inject
 constructor(
-    private val dao: BoundaryRuleDao
+    private val dao: BoundaryRuleDao,
+    private val syncTracker: SyncTracker
 ) {
     fun observeRules(): Flow<List<BoundaryRule>> = dao.observeAll().map { list ->
         list.map { it.toDomain() }
@@ -32,14 +34,21 @@ constructor(
     suspend fun getRulesOnce(): List<BoundaryRule> =
         dao.getAll().map { it.toDomain() }
 
-    suspend fun insert(rule: BoundaryRule): Long =
-        dao.insert(rule.toEntity(isBuiltIn = false))
+    suspend fun insert(rule: BoundaryRule): Long {
+        val id = dao.insert(rule.toEntity(isBuiltIn = false))
+        syncTracker.trackCreate(id, "boundary_rule")
+        return id
+    }
 
     suspend fun update(rule: BoundaryRule) {
         dao.update(rule.toEntity(isBuiltIn = false, id = rule.id))
+        syncTracker.trackUpdate(rule.id, "boundary_rule")
     }
 
-    suspend fun delete(id: Long) = dao.delete(id)
+    suspend fun delete(id: Long) {
+        dao.delete(id)
+        syncTracker.trackDelete(id, "boundary_rule")
+    }
 
     /**
      * Seed the two built-in rules on first use. Idempotent — subsequent
@@ -76,6 +85,7 @@ constructor(
             endTime = BoundaryRule.formatTime(endTime),
             activeDaysCsv = BoundaryRule.formatDays(activeDays),
             isEnabled = isEnabled,
-            isBuiltIn = isBuiltIn
+            isBuiltIn = isBuiltIn,
+            updatedAt = System.currentTimeMillis()
         )
 }

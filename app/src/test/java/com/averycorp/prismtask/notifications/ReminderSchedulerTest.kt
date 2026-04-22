@@ -84,12 +84,19 @@ class ReminderSchedulerTest {
         // separate timestamp whose HH:mm encodes the user's time-of-day.
         // The helper should land the combined instant on the due day at
         // the requested time, regardless of which day the time picker ran.
-        val zone = TimeZone.getTimeZone("UTC")
+        //
+        // All three Calendars use the default zone — the same zone
+        // [ReminderScheduler.combineDateAndTime] reads the input hour/
+        // minute in. Using UTC here (as a prior version did) passed in
+        // CI's UTC runner but broke on any non-UTC dev machine, because
+        // the helper's internal `Calendar.getInstance()` would interpret
+        // the UTC dueTime in the system zone and read a different hour.
+        val zone = TimeZone.getDefault()
         val dueDate = Calendar.getInstance(zone).apply {
             clear()
             set(2026, Calendar.APRIL, 15, 0, 0, 0)
         }.timeInMillis
-        // dueTime was recorded the day BEFORE on a different day at 15:30.
+        // dueTime was recorded on a different day at 15:30 — only HH:mm matters.
         val dueTime = Calendar.getInstance(zone).apply {
             clear()
             set(2020, Calendar.JANUARY, 1, 15, 30, 0)
@@ -100,8 +107,8 @@ class ReminderSchedulerTest {
         }.timeInMillis
 
         val combined = ReminderScheduler.combineDateAndTime(dueDate, dueTime)
-        // Timezone-agnostic assertion: the combined time is exactly
-        // dueDate + 15h30m, regardless of the local zone used by Calendar.
+        // Sanity: the expected instant IS dueDate + 15h30m in the default zone
+        // (no DST shifts on a same-day operation).
         val fifteen30 = (15L * 60 * 60 + 30 * 60) * 1000
         assertEquals(expected - dueDate, fifteen30)
         // And combined should line up with the expected instant.

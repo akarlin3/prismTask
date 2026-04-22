@@ -16,7 +16,10 @@ import androidx.room.PrimaryKey
             onDelete = ForeignKey.CASCADE
         )
     ],
-    indices = [Index("course_id")]
+    indices = [
+        Index("course_id"),
+        Index(value = ["cloud_id"], unique = true)
+    ]
 )
 data class AssignmentEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -26,5 +29,7 @@ data class AssignmentEntity(
     @ColumnInfo(name = "completed") val completed: Boolean = false,
     @ColumnInfo(name = "completed_at") val completedAt: Long? = null,
     @ColumnInfo(name = "notes") val notes: String? = null,
-    @ColumnInfo(name = "created_at") val createdAt: Long = System.currentTimeMillis()
+    @ColumnInfo(name = "created_at") val createdAt: Long = System.currentTimeMillis(),
+    @ColumnInfo(name = "cloud_id") val cloudId: String? = null,
+    @ColumnInfo(name = "updated_at", defaultValue = "0") val updatedAt: Long = 0L
 )

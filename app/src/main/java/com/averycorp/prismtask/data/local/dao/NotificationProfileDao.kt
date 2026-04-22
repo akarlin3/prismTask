@@ -46,4 +46,13 @@ interface NotificationProfileDao {
 
     @Query("DELETE FROM reminder_profiles WHERE is_built_in = 0")
     suspend fun deleteAllUserCreated()
+
+    @Query("SELECT * FROM reminder_profiles WHERE cloud_id = :cloudId LIMIT 1")
+    suspend fun getByCloudIdOnce(cloudId: String): NotificationProfileEntity?
+
+    @Query("UPDATE reminder_profiles SET cloud_id = :cloudId, updated_at = :now WHERE id = :id")
+    suspend fun setCloudId(id: Long, cloudId: String?, now: Long)
+
+    @Query("DELETE FROM reminder_profiles WHERE id = :id")
+    suspend fun deleteById(id: Long)
 }

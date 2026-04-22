@@ -11,7 +11,10 @@ import androidx.room.PrimaryKey
  */
 @Entity(
     tableName = "nlp_shortcuts",
-    indices = [Index(value = ["trigger"], unique = true)]
+    indices = [
+        Index(value = ["trigger"], unique = true),
+        Index(value = ["cloud_id"], unique = true)
+    ]
 )
 data class NlpShortcutEntity(
     @PrimaryKey(autoGenerate = true)
@@ -21,5 +24,11 @@ data class NlpShortcutEntity(
     @ColumnInfo(name = "sort_order", defaultValue = "0")
     val sortOrder: Int = 0,
     @ColumnInfo(name = "created_at")
-    val createdAt: Long = System.currentTimeMillis()
+    val createdAt: Long = System.currentTimeMillis(),
+    /** Firestore document ID; NULL until first sync push assigns one. */
+    @ColumnInfo(name = "cloud_id")
+    val cloudId: String? = null,
+    /** Last-write-wins timestamp in ms; bumped on every user-visible write. */
+    @ColumnInfo(name = "updated_at", defaultValue = "0")
+    val updatedAt: Long = 0L
 )

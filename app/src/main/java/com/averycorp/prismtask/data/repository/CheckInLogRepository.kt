@@ -2,6 +2,7 @@ package com.averycorp.prismtask.data.repository
 
 import com.averycorp.prismtask.data.local.dao.CheckInLogDao
 import com.averycorp.prismtask.data.local.entity.CheckInLogEntity
+import com.averycorp.prismtask.data.remote.SyncTracker
 import com.averycorp.prismtask.domain.usecase.CheckInStep
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
@@ -17,7 +18,8 @@ import javax.inject.Singleton
 class CheckInLogRepository
 @Inject
 constructor(
-    private val dao: CheckInLogDao
+    private val dao: CheckInLogDao,
+    private val syncTracker: SyncTracker
 ) {
     suspend fun record(
         date: Long,
@@ -34,9 +36,17 @@ constructor(
             medicationsConfirmed = medicationsConfirmed,
             tasksReviewed = tasksReviewed,
             habitsCompleted = habitsCompleted,
-            createdAt = existing?.createdAt ?: System.currentTimeMillis()
+            createdAt = existing?.createdAt ?: System.currentTimeMillis(),
+            cloudId = existing?.cloudId,
+            updatedAt = System.currentTimeMillis()
         )
-        return dao.upsert(row)
+        val id = dao.upsert(row)
+        if (existing == null) {
+            syncTracker.trackCreate(id, "check_in_log")
+        } else {
+            syncTracker.trackUpdate(id, "check_in_log")
+        }
+        return id
     }
 
     suspend fun getMostRecentDate(): Long? = dao.getMostRecent()?.date

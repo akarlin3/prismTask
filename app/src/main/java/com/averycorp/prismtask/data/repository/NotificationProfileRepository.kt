@@ -2,6 +2,7 @@ package com.averycorp.prismtask.data.repository
 
 import com.averycorp.prismtask.data.local.dao.NotificationProfileDao
 import com.averycorp.prismtask.data.local.entity.NotificationProfileEntity
+import com.averycorp.prismtask.data.remote.SyncTracker
 import com.averycorp.prismtask.domain.model.notifications.BuiltInSound
 import com.averycorp.prismtask.domain.model.notifications.LockScreenVisibility
 import com.averycorp.prismtask.domain.model.notifications.NotificationDisplayMode
@@ -23,7 +24,8 @@ import javax.inject.Singleton
 class NotificationProfileRepository
 @Inject
 constructor(
-    private val dao: NotificationProfileDao
+    private val dao: NotificationProfileDao,
+    private val syncTracker: SyncTracker
 ) {
     fun getAll(): Flow<List<NotificationProfileEntity>> = dao.getAll()
 
@@ -31,11 +33,23 @@ constructor(
 
     suspend fun getByName(name: String): NotificationProfileEntity? = dao.getByName(name)
 
-    suspend fun insert(profile: NotificationProfileEntity): Long = dao.insert(profile)
+    suspend fun insert(profile: NotificationProfileEntity): Long {
+        val stamped = profile.copy(updatedAt = System.currentTimeMillis())
+        val id = dao.insert(stamped)
+        if (!stamped.isBuiltIn) syncTracker.trackCreate(id, "notification_profile")
+        return id
+    }
 
-    suspend fun update(profile: NotificationProfileEntity) = dao.update(profile)
+    suspend fun update(profile: NotificationProfileEntity) {
+        val stamped = profile.copy(updatedAt = System.currentTimeMillis())
+        dao.update(stamped)
+        if (!stamped.isBuiltIn) syncTracker.trackUpdate(stamped.id, "notification_profile")
+    }
 
-    suspend fun delete(profile: NotificationProfileEntity) = dao.delete(profile)
+    suspend fun delete(profile: NotificationProfileEntity) {
+        dao.delete(profile)
+        syncTracker.trackDelete(profile.id, "notification_profile")
+    }
 
     suspend fun count(): Int = dao.count()
 

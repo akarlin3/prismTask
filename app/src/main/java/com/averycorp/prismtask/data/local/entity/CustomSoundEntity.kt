@@ -17,7 +17,10 @@ import androidx.room.PrimaryKey
  */
 @Entity(
     tableName = "custom_sounds",
-    indices = [Index(value = ["name"])]
+    indices = [
+        Index(value = ["name"]),
+        Index(value = ["cloud_id"], unique = true)
+    ]
 )
 data class CustomSoundEntity(
     @PrimaryKey(autoGenerate = true)
@@ -36,7 +39,13 @@ data class CustomSoundEntity(
     @ColumnInfo(name = "duration_ms")
     val durationMs: Long,
     @ColumnInfo(name = "created_at")
-    val createdAt: Long = System.currentTimeMillis()
+    val createdAt: Long = System.currentTimeMillis(),
+    /** Firestore document ID; NULL until first sync push assigns one. */
+    @ColumnInfo(name = "cloud_id")
+    val cloudId: String? = null,
+    /** Last-write-wins timestamp in ms; bumped on every user-visible write. */
+    @ColumnInfo(name = "updated_at", defaultValue = "0")
+    val updatedAt: Long = 0L
 ) {
     fun soundId(): String = "custom_$id"
 

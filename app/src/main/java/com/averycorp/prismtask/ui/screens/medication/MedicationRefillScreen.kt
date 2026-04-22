@@ -104,7 +104,7 @@ fun MedicationRefillScreen(
                         item = item,
                         onDose = { viewModel.recordDailyDose(item.row) },
                         onRefill = { newSupply -> viewModel.recordRefill(item.row, newSupply) },
-                        onDelete = { viewModel.delete(item.row.id) }
+                        onDelete = { viewModel.disableRefillTracking(item.row.id) }
                     )
                 }
             }
@@ -152,18 +152,21 @@ private fun MedicationCard(
                 )
                 Spacer(modifier = Modifier.size(8.dp))
                 Text(
-                    text = item.row.medicationName,
+                    text = item.row.name,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.weight(1f)
                 )
-                TextButton(onClick = onDelete) { Text("Delete", color = MaterialTheme.colorScheme.error) }
+                TextButton(onClick = onDelete) {
+                    Text("Stop Tracking", color = MaterialTheme.colorScheme.error)
+                }
             }
             Spacer(modifier = Modifier.size(4.dp))
-            val pillSuffix = if (item.row.pillCount == 1) "" else "s"
+            val pillCount = item.row.pillCount ?: 0
+            val pillSuffix = if (pillCount == 1) "" else "s"
             val daySuffix = if (item.forecast.daysRemaining == 1) "" else "s"
             Text(
-                text = "${item.row.pillCount} pill$pillSuffix · " +
+                text = "$pillCount pill$pillSuffix · " +
                     "${item.forecast.daysRemaining} day$daySuffix remaining",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -187,7 +190,7 @@ private fun MedicationCard(
         var supplyText by remember { mutableStateOf("") }
         AlertDialog(
             onDismissRequest = { showRefillDialog = false },
-            title = { Text("Refill ${item.row.medicationName}") },
+            title = { Text("Refill ${item.row.name}") },
             text = {
                 OutlinedTextField(
                     value = supplyText,

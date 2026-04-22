@@ -17,6 +17,15 @@ interface MilestoneDao {
     @Query("SELECT * FROM milestones WHERE project_id = :projectId ORDER BY order_index ASC, id ASC")
     suspend fun getMilestonesOnce(projectId: Long): List<MilestoneEntity>
 
+    /**
+     * Unfiltered snapshot across all projects. Used by
+     * [com.averycorp.prismtask.data.remote.CloudIdOrphanHealer] for the
+     * post-sync orphan scan — the healer needs to enumerate every local
+     * row with a cloud_id without pre-partitioning by parent project.
+     */
+    @Query("SELECT * FROM milestones ORDER BY project_id ASC, order_index ASC, id ASC")
+    suspend fun getAllMilestonesOnce(): List<MilestoneEntity>
+
     @Query("SELECT * FROM milestones WHERE id = :id")
     suspend fun getByIdOnce(id: Long): MilestoneEntity?
 

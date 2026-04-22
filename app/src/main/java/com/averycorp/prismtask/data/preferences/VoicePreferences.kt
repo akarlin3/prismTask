@@ -12,7 +12,7 @@ import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
 
-private val Context.voiceDataStore: DataStore<Preferences> by preferencesDataStore(name = "voice_prefs")
+internal val Context.voiceDataStore: DataStore<Preferences> by preferencesDataStore(name = "voice_prefs")
 
 /** User-facing settings for voice input, commands, and hands-free mode. */
 @Singleton
