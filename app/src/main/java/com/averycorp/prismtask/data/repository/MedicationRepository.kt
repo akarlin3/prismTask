@@ -40,6 +40,9 @@ constructor(
     fun observeDosesForDate(date: String): Flow<List<MedicationDoseEntity>> =
         medicationDoseDao.getForDate(date)
 
+    fun observeAllDoses(): Flow<List<MedicationDoseEntity>> =
+        medicationDoseDao.observeAll()
+
     fun observeDosesForMedOnDate(
         medicationId: Long,
         date: String
