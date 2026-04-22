@@ -29,6 +29,25 @@ class EisenhowerResponse(BaseModel):
     summary: EisenhowerSummary
 
 
+class EisenhowerClassifyTextRequest(BaseModel):
+    """Single-task text-based Eisenhower classification.
+
+    Accepts raw task fields so the client can classify a freshly-created
+    task before the local row has been synced to the backend. Mirrors the
+    client's `EisenhowerClassifier.classify(task)` call shape.
+    """
+
+    title: str = Field(min_length=1, max_length=500)
+    description: Optional[str] = Field(default=None, max_length=4000)
+    due_date: Optional[str] = None  # ISO date (YYYY-MM-DD); null means no due date
+    priority: int = Field(default=0, ge=0, le=4)
+
+
+class EisenhowerClassifyTextResponse(BaseModel):
+    quadrant: str  # "Q1".."Q4"
+    reason: str
+
+
 # --- Pomodoro ---
 
 
@@ -239,3 +258,37 @@ class ExtractedTaskCandidate(BaseModel):
 
 class ExtractFromTextResponse(BaseModel):
     tasks: list[ExtractedTaskCandidate]
+
+
+# --- Pomodoro AI Coaching (pre-session / break / recap) ---
+
+
+class PomodoroCoachingTask(BaseModel):
+    task_id: Optional[str] = None
+    title: str
+    allocated_minutes: Optional[int] = None
+
+
+class PomodoroCoachingRequest(BaseModel):
+    """Trigger-based coaching prompt for the three Pomodoro+ surfaces.
+
+    ``trigger`` is one of: ``"pre_session"``, ``"break_activity"``, ``"session_recap"``.
+    Only the fields relevant to the trigger are consulted; the rest are ignored.
+    """
+
+    trigger: str = Field(pattern="^(pre_session|break_activity|session_recap)$")
+    # Pre-session
+    upcoming_tasks: Optional[list[PomodoroCoachingTask]] = None
+    session_length_minutes: Optional[int] = None
+    # Break
+    elapsed_minutes: Optional[int] = Field(default=None, ge=0, le=600)
+    break_type: Optional[str] = Field(default=None, pattern="^(short|long)$")
+    recent_suggestions: Optional[list[str]] = None
+    # Recap
+    completed_tasks: Optional[list[PomodoroCoachingTask]] = None
+    started_tasks: Optional[list[PomodoroCoachingTask]] = None
+    session_duration_minutes: Optional[int] = Field(default=None, ge=0, le=600)
+
+
+class PomodoroCoachingResponse(BaseModel):
+    message: str

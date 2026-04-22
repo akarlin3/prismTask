@@ -76,6 +76,7 @@ constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
     val weeklyReviewNotificationEnabled = prefs.weeklyReviewNotificationEnabled
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+    val weeklyTaskSummaryEnabled = prefs.weeklyTaskSummaryEnabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
     val streakAlertsEnabled = prefs.streakAlertsEnabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
     val reengagementEnabled = prefs.reengagementEnabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
     val overloadAlertsEnabled = prefs.overloadAlertsEnabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
@@ -185,6 +186,8 @@ constructor(
 
     fun setWeeklySummaryEnabled(enabled: Boolean) = viewModelScope.launch { prefs.setWeeklySummaryEnabled(enabled) }
 
+    fun setWeeklyTaskSummaryEnabled(enabled: Boolean) = viewModelScope.launch { prefs.setWeeklyTaskSummaryEnabled(enabled) }
+
     // Auto-generated weekly reviews (A2). Pref-only flip; the
     // WeeklyReviewWorker checks [NotificationPreferences.weeklyReviewAutoGenerateEnabled]
     // inside doWork() on its next Sunday run, so stale schedules
@@ -292,6 +295,8 @@ constructor(
         dailyBriefingEnabled,
         eveningSummaryEnabled,
         weeklySummaryEnabled,
+        weeklyTaskSummaryEnabled,
+        weeklyReviewAutoGenerateEnabled,
         streakAlertsEnabled,
         reengagementEnabled
     ) { flags: Array<Boolean> -> flags.count { it } }

@@ -36,6 +36,7 @@ fun NotificationTypesScreen(
     val weekly by viewModel.weeklySummaryEnabled.collectAsStateWithLifecycle()
     val weeklyReviewAuto by viewModel.weeklyReviewAutoGenerateEnabled.collectAsStateWithLifecycle()
     val weeklyReviewNotify by viewModel.weeklyReviewNotificationEnabled.collectAsStateWithLifecycle()
+    val weeklyTask by viewModel.weeklyTaskSummaryEnabled.collectAsStateWithLifecycle()
     val streak by viewModel.streakAlertsEnabled.collectAsStateWithLifecycle()
     val reengage by viewModel.reengagementEnabled.collectAsStateWithLifecycle()
     val overload by viewModel.overloadAlertsEnabled.collectAsStateWithLifecycle()
@@ -128,6 +129,12 @@ fun NotificationTypesScreen(
             subtitle = "Weekly habit recap (Sunday 7 PM)",
             checked = weekly,
             onCheckedChange = viewModel::setWeeklySummaryEnabled
+        )
+        SettingsToggleRow(
+            title = "Weekly Task Summary",
+            subtitle = "Weekly task recap (Sunday 7:30 PM)",
+            checked = weeklyTask,
+            onCheckedChange = viewModel::setWeeklyTaskSummaryEnabled
         )
         SettingsToggleRow(
             title = "Auto-Generate Weekly Reviews",

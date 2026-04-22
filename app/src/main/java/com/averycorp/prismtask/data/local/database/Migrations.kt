@@ -1393,6 +1393,19 @@ val MIGRATION_55_56 = object : Migration(55, 56) {
     }
 }
 
+/**
+ * v1.4.x Eisenhower auto-classification: add `user_overrode_quadrant` so that
+ * manual moves survive subsequent AI reclassification passes. Defaults to 0
+ * (false) for all existing rows — they carry no prior override intent.
+ */
+val MIGRATION_56_57 = object : Migration(56, 57) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "ALTER TABLE `tasks` ADD COLUMN `user_overrode_quadrant` INTEGER NOT NULL DEFAULT 0"
+        )
+    }
+}
+
 val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_1_2,
     MIGRATION_2_3,
@@ -1448,5 +1461,6 @@ val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_52_53,
     MIGRATION_53_54,
     MIGRATION_54_55,
-    MIGRATION_55_56
+    MIGRATION_55_56,
+    MIGRATION_56_57
 )

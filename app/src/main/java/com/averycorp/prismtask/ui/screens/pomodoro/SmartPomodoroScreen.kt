@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -73,6 +74,9 @@ fun SmartPomodoroScreen(
     val completedTaskIds by viewModel.completedTaskIds.collectAsState()
     val stats by viewModel.stats.collectAsState()
     val incompleteTaskCount by viewModel.incompleteTaskCount.collectAsState()
+    val preSessionCoaching by viewModel.preSessionCoaching.collectAsState()
+    val breakSuggestion by viewModel.breakSuggestion.collectAsState()
+    val sessionRecap by viewModel.sessionRecap.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
 
     // Error state also gets a snackbar as a secondary signal. Primary
@@ -155,6 +159,8 @@ fun SmartPomodoroScreen(
                 currentSessionIndex = currentSessionIndex,
                 totalSessions = plan?.sessions?.size ?: 0,
                 isLongBreak = (currentSessionIndex + 1) % 4 == 0,
+                breakSuggestion = breakSuggestion,
+                onDismissBreakSuggestion = { viewModel.dismissBreakSuggestion() },
                 onSkipBreak = { viewModel.nextSession() },
                 modifier = Modifier.padding(padding)
             )
@@ -163,11 +169,61 @@ fun SmartPomodoroScreen(
                 stats = stats,
                 completedTaskIds = completedTaskIds,
                 plan = plan,
+                sessionRecap = sessionRecap,
+                onDismissRecap = { viewModel.dismissSessionRecap() },
                 onPlanAnother = { viewModel.resetToPlanning() },
                 onDone = { navController.popBackStack() },
                 modifier = Modifier.padding(padding)
             )
         }
+
+        // A2 Pomodoro+ pre-session coaching modal. Rendered above the scaffold
+        // content so it overlays whatever view is active when a work session
+        // is about to start.
+        PreSessionCoachingModal(
+            state = preSessionCoaching,
+            onAccept = { viewModel.acceptPreSessionCoaching() },
+            onDismiss = { viewModel.dismissPreSessionCoaching() }
+        )
+    }
+}
+
+@Composable
+private fun PreSessionCoachingModal(
+    state: PreSessionCoachingUiState,
+    onAccept: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    when (state) {
+        PreSessionCoachingUiState.Hidden -> Unit
+        PreSessionCoachingUiState.Loading -> AlertDialog(
+            onDismissRequest = onDismiss,
+            title = { Text("Getting Your Coach's Take…") },
+            text = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        strokeWidth = 2.dp
+                    )
+                    Spacer(Modifier.width(12.dp))
+                    Text("Preparing a suggested approach")
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = onDismiss) { Text("Skip") }
+            }
+        )
+        is PreSessionCoachingUiState.Ready -> AlertDialog(
+            onDismissRequest = onDismiss,
+            title = { Text("Suggested Approach") },
+            text = { Text(state.message, style = MaterialTheme.typography.bodyMedium) },
+            confirmButton = {
+                Button(onClick = onAccept) { Text("Let's Go") }
+            },
+            dismissButton = {
+                TextButton(onClick = onDismiss) { Text("Skip") }
+            }
+        )
     }
 }
 
@@ -580,6 +636,8 @@ private fun BreakView(
     currentSessionIndex: Int,
     totalSessions: Int,
     isLongBreak: Boolean,
+    breakSuggestion: BreakSuggestion?,
+    onDismissBreakSuggestion: () -> Unit,
     onSkipBreak: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -616,6 +674,42 @@ private fun BreakView(
 
         Spacer(Modifier.height(24.dp))
 
+        // A2 Pomodoro+ AI break suggestion. Inline card so the user keeps
+        // seeing the countdown — the suggestion is supplementary, not modal.
+        if (breakSuggestion != null) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.tertiaryContainer
+                )
+            ) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Text(
+                        "Coach Suggests",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onTertiaryContainer
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        breakSuggestion.message,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onTertiaryContainer
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        TextButton(onClick = onDismissBreakSuggestion) {
+                            Text("Dismiss")
+                        }
+                    }
+                }
+            }
+        }
+
         OutlinedButton(onClick = onSkipBreak) {
             Text("Skip Break")
         }
@@ -627,6 +721,8 @@ private fun CompletionView(
     stats: FocusStats,
     completedTaskIds: Set<Long>,
     plan: PomodoroPlan?,
+    sessionRecap: SessionRecap?,
+    onDismissRecap: () -> Unit,
     onPlanAnother: () -> Unit,
     onDone: () -> Unit,
     modifier: Modifier = Modifier
@@ -645,6 +741,43 @@ private fun CompletionView(
         )
 
         Spacer(Modifier.height(24.dp))
+
+        // A2 Pomodoro+ AI session recap. Inline card above the stats so the
+        // coach's takeaway is the first thing the user sees, then the
+        // numbers. Dismissable without blocking the screen.
+        if (sessionRecap != null) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer
+                )
+            ) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Text(
+                        "Coach's Recap",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        sessionRecap.message,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        TextButton(onClick = onDismissRecap) {
+                            Text("Dismiss")
+                        }
+                    }
+                }
+            }
+        }
 
         // Stats
         Card(modifier = Modifier.fillMaxWidth()) {

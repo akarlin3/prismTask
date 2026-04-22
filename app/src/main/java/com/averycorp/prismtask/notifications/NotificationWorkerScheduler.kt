@@ -47,9 +47,18 @@ constructor(
         // against the new class name under the same unique name.
         WeeklyHabitSummaryMigration.runIfNeeded(context, notificationPreferences)
 
+        // One-shot migration to seed the v1.4.38 WeeklyTaskSummaryWorker
+        // unique work for existing installs — WorkManager has no row yet
+        // on upgrade, and applyWeeklyTaskSummary below only enqueues when
+        // the user explicitly flips the toggle. Running the seed once
+        // ensures the default-ON preference actually materializes a
+        // schedule without the user having to touch Settings.
+        WeeklyTaskSummaryMigration.runIfNeeded(context, notificationPreferences)
+
         applyBriefing(notificationPreferences.dailyBriefingEnabled.first())
         applyEveningSummary(notificationPreferences.eveningSummaryEnabled.first())
         applyWeeklyHabitSummary(notificationPreferences.weeklySummaryEnabled.first())
+        applyWeeklyTaskSummary(notificationPreferences.weeklyTaskSummaryEnabled.first())
         applyOverloadCheck(notificationPreferences.overloadAlertsEnabled.first())
         applyReengagement(notificationPreferences.reengagementEnabled.first())
 
@@ -84,6 +93,14 @@ constructor(
             WeeklyHabitSummaryWorker.schedule(context)
         } else {
             WeeklyHabitSummaryWorker.cancel(context)
+        }
+    }
+
+    fun applyWeeklyTaskSummary(enabled: Boolean) {
+        if (enabled) {
+            WeeklyTaskSummaryWorker.schedule(context)
+        } else {
+            WeeklyTaskSummaryWorker.cancel(context)
         }
     }
 
@@ -137,6 +154,33 @@ private object WeeklyHabitSummaryMigration {
             // set below so the cleanup doesn't retry every launch.
         }
         prefs.setWeeklyHabitSummaryMigrationRun()
+    }
+}
+
+/**
+ * One-shot seeding for the v1.4.38 task-summary feature. On upgrade,
+ * WorkManager has no entry under [WeeklyTaskSummaryWorker.WORK_NAME];
+ * this migration enqueues it once so the default-ON preference takes
+ * effect without the user having to touch Settings. Subsequent
+ * applyAll calls will re-enqueue with UPDATE policy based on the live
+ * preference value.
+ *
+ * Gated by a persistent flag so it never fires twice on the same
+ * install. If scheduling throws (e.g. missing WorkManager at boot-time
+ * contexts) the flag is still set so we don't retry in a hot loop.
+ */
+private object WeeklyTaskSummaryMigration {
+    suspend fun runIfNeeded(context: Context, prefs: NotificationPreferences) {
+        if (prefs.getHasSeededWeeklyTaskSummaryWorkerOnce()) return
+        try {
+            if (prefs.weeklyTaskSummaryEnabled.first()) {
+                WeeklyTaskSummaryWorker.schedule(context)
+            }
+        } catch (_: Exception) {
+            // Best-effort seed — applyAll's subsequent call will pick up
+            // where this left off if the enqueue failed here.
+        }
+        prefs.setHasSeededWeeklyTaskSummaryWorker()
     }
 }
 

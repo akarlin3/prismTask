@@ -15,9 +15,11 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.averycorp.prismtask.ui.navigation.PrismTaskRoute
 import com.averycorp.prismtask.ui.screens.settings.sections.AiSection
@@ -27,8 +29,9 @@ import com.averycorp.prismtask.ui.theme.ThemedSubScreenTitle
 @Composable
 fun AiFeaturesScreen(
     navController: NavController,
-    @Suppress("UNUSED_PARAMETER") viewModel: SettingsViewModel = hiltViewModel()
+    viewModel: SettingsViewModel = hiltViewModel()
 ) {
+    val eisenhowerPrefs by viewModel.eisenhowerPrefs.collectAsStateWithLifecycle()
     Scaffold(
         topBar = {
             TopAppBar(
@@ -53,7 +56,9 @@ fun AiFeaturesScreen(
                 onNavigateToSmartPomodoro = { navController.navigate(PrismTaskRoute.SmartPomodoro.route) },
                 onNavigateToDailyBriefing = { navController.navigate(PrismTaskRoute.DailyBriefing.route) },
                 onNavigateToWeeklyPlanner = { navController.navigate(PrismTaskRoute.WeeklyPlanner.route) },
-                onNavigateToTimeline = { navController.navigate(PrismTaskRoute.Timeline.route) }
+                onNavigateToTimeline = { navController.navigate(PrismTaskRoute.Timeline.route) },
+                eisenhowerAutoClassifyEnabled = eisenhowerPrefs.autoClassifyEnabled,
+                onEisenhowerAutoClassifyChanged = viewModel::setEisenhowerAutoClassifyEnabled
             )
             Spacer(modifier = Modifier.height(32.dp))
         }

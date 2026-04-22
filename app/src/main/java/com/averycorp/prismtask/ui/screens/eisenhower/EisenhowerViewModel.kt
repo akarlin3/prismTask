@@ -10,6 +10,8 @@ import com.averycorp.prismtask.data.remote.api.EisenhowerCategorization
 import com.averycorp.prismtask.data.remote.api.EisenhowerRequest
 import com.averycorp.prismtask.data.remote.api.EisenhowerSummary
 import com.averycorp.prismtask.data.remote.api.PrismTaskApi
+import com.averycorp.prismtask.data.repository.TaskRepository
+import com.averycorp.prismtask.domain.model.EisenhowerQuadrant
 import com.averycorp.prismtask.domain.usecase.ProFeatureGate
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -59,6 +61,7 @@ class EisenhowerViewModel
 constructor(
     private val taskDao: TaskDao,
     private val api: PrismTaskApi,
+    private val taskRepository: TaskRepository,
     private val proFeatureGate: ProFeatureGate
 ) : ViewModel() {
     val userTier: StateFlow<UserTier> = proFeatureGate.userTier
@@ -156,11 +159,20 @@ constructor(
 
     fun moveTaskToQuadrant(taskId: Long, quadrant: String) {
         viewModelScope.launch {
-            taskDao.updateEisenhowerQuadrant(
-                id = taskId,
-                quadrant = quadrant,
-                reason = "Manually moved"
+            taskRepository.setQuadrantManual(
+                taskId = taskId,
+                quadrant = EisenhowerQuadrant.fromCode(quadrant)
             )
+        }
+    }
+
+    /**
+     * Clear any manual override and fire a fresh AI classification. The new
+     * quadrant lands asynchronously via TaskRepository's background scope.
+     */
+    fun reclassify(taskId: Long) {
+        viewModelScope.launch {
+            taskRepository.reclassify(taskId)
         }
     }
 

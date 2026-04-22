@@ -17,6 +17,7 @@ import com.averycorp.prismtask.data.remote.api.PrismTaskApi
 import com.averycorp.prismtask.data.repository.MoodEnergyRepository
 import com.averycorp.prismtask.domain.usecase.DefaultPomodoroConfig
 import com.averycorp.prismtask.domain.usecase.EnergyAwarePomodoro
+import com.averycorp.prismtask.domain.usecase.PomodoroAICoach
 import com.averycorp.prismtask.domain.usecase.PomodoroSessionConfig
 import com.averycorp.prismtask.domain.usecase.ProFeatureGate
 import com.averycorp.prismtask.notifications.PomodoroTimerService
@@ -26,9 +27,11 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import javax.inject.Inject
 
 enum class PomodoroState {
@@ -95,6 +98,48 @@ data class FocusStats(
     val totalFocusSeconds: Int = 0
 )
 
+/**
+ * A2 Pomodoro+ AI coaching — UI state for the pre-session coaching modal.
+ *
+ *  - [Hidden]     : no modal on screen (default).
+ *  - [Loading]    : RPC in flight; UI shows a spinner inside the modal. Timer
+ *                   start is gated behind this by at most ~2s via a timeout
+ *                   in [SmartPomodoroViewModel.requestPreSessionCoaching].
+ *  - [Ready]      : Haiku replied, user can accept or dismiss.
+ */
+sealed interface PreSessionCoachingUiState {
+    data object Hidden : PreSessionCoachingUiState
+    data object Loading : PreSessionCoachingUiState
+    data class Ready(val message: String) : PreSessionCoachingUiState
+}
+
+/**
+ * Break-time AI suggestion. Null when there's nothing to show (coaching
+ * disabled, API unreachable, or not on a break). Rendered as an in-screen
+ * card on the [BreakView] — no blocking modal because the break timer is
+ * already running.
+ */
+data class BreakSuggestion(val message: String)
+
+/**
+ * Post-session recap shown on the [PomodoroState.COMPLETE] screen. Null when
+ * coaching disabled or RPC failed.
+ */
+data class SessionRecap(val message: String)
+
+/**
+ * Static fallback break suggestions, used when Haiku returns an empty or
+ * duplicate message. Kept small on purpose — the AI path is the primary,
+ * this is just a "don't show nothing" guard.
+ */
+private val BREAK_FALLBACKS = listOf(
+    "Stand up and roll your shoulders back a few times.",
+    "Drink a glass of water — eye-rest every 20 seconds while you do.",
+    "Look at something 20 feet away for 20 seconds (20-20-20).",
+    "Take a 2-minute walk away from the screen.",
+    "Slow box-breathing: in 4, hold 4, out 4, hold 4."
+)
+
 @HiltViewModel
 class SmartPomodoroViewModel
 @Inject
@@ -104,7 +149,8 @@ constructor(
     private val api: PrismTaskApi,
     private val proFeatureGate: ProFeatureGate,
     private val moodEnergyRepository: MoodEnergyRepository,
-    private val timerPreferences: TimerPreferences
+    private val timerPreferences: TimerPreferences,
+    private val aiCoach: PomodoroAICoach
 ) : ViewModel() {
     private val energyAwarePomodoro = EnergyAwarePomodoro()
 
@@ -284,6 +330,149 @@ constructor(
         _showUpgradePrompt.value = false
     }
 
+    // ----- A2 Pomodoro+ AI Coaching -----
+
+    private val _preSessionCoaching = MutableStateFlow<PreSessionCoachingUiState>(
+        PreSessionCoachingUiState.Hidden
+    )
+    val preSessionCoaching: StateFlow<PreSessionCoachingUiState> = _preSessionCoaching
+
+    /**
+     * Upper bound for blocking the timer start on Haiku. Per spec: if the API
+     * is slow, we surface the modal on what we have (or skip it) rather than
+     * keep the user waiting past ~2s.
+     */
+    private val preSessionCoachingTimeoutMs = 2_000L
+
+    /**
+     * User accepts the coaching suggestion — closes the modal and kicks off
+     * the actual timer for the current session index.
+     */
+    fun acceptPreSessionCoaching() {
+        _preSessionCoaching.value = PreSessionCoachingUiState.Hidden
+        beginCurrentSessionTimer()
+    }
+
+    /**
+     * User dismisses the coaching suggestion — closes the modal and starts
+     * the timer anyway. Same terminal behavior as accept; the distinction is
+     * intentional for a future "remind me to do it" variant.
+     */
+    fun dismissPreSessionCoaching() {
+        _preSessionCoaching.value = PreSessionCoachingUiState.Hidden
+        beginCurrentSessionTimer()
+    }
+
+    // ----- Break-time suggestion -----
+
+    private val _breakSuggestion = MutableStateFlow<BreakSuggestion?>(null)
+    val breakSuggestion: StateFlow<BreakSuggestion?> = _breakSuggestion
+
+    /**
+     * Recent suggestions sent up to Haiku so it varies its answers. We keep
+     * the last 3 — enough to keep rotation going, small enough to not bloat
+     * the prompt.
+     */
+    private val recentBreakSuggestions: ArrayDeque<String> = ArrayDeque()
+    private val recentBreakSuggestionsMax = 3
+
+    fun dismissBreakSuggestion() {
+        _breakSuggestion.value = null
+    }
+
+    private fun requestBreakSuggestion(elapsedMinutes: Int, isLongBreak: Boolean) {
+        viewModelScope.launch {
+            val enabled = timerPreferences
+                .getPomodoroBreakCoachingEnabled()
+                .first()
+            if (!enabled) {
+                _breakSuggestion.value = null
+                return@launch
+            }
+            val kind = if (isLongBreak) {
+                PomodoroAICoach.BREAK_TYPE_LONG
+            } else {
+                PomodoroAICoach.BREAK_TYPE_SHORT
+            }
+            val recent = recentBreakSuggestions.toList()
+            val result = aiCoach.suggestBreakActivity(
+                elapsedMinutes = elapsedMinutes,
+                breakType = kind,
+                recentSuggestions = recent
+            ).getOrNull()
+            val candidate = result?.trim()
+            // Duplicate guard: if Haiku echoed something we just showed, swap
+            // in a canned fallback instead so the break surface stays useful.
+            val finalMessage = when {
+                candidate.isNullOrEmpty() -> pickFallbackBreak(recent)
+                candidate in recent -> pickFallbackBreak(recent + candidate)
+                else -> candidate
+            }
+            if (finalMessage != null) {
+                rememberBreakSuggestion(finalMessage)
+                _breakSuggestion.value = BreakSuggestion(finalMessage)
+            } else {
+                // Nothing sensible to show and no unused fallback — keep
+                // the break surface clean rather than repeating ourselves.
+                _breakSuggestion.value = null
+            }
+        }
+    }
+
+    private fun pickFallbackBreak(excluded: List<String>): String? =
+        BREAK_FALLBACKS.firstOrNull { it !in excluded } ?: BREAK_FALLBACKS.firstOrNull()
+
+    private fun rememberBreakSuggestion(message: String) {
+        recentBreakSuggestions.addLast(message)
+        while (recentBreakSuggestions.size > recentBreakSuggestionsMax) {
+            recentBreakSuggestions.removeFirst()
+        }
+    }
+
+    // ----- Session recap -----
+
+    private val _sessionRecap = MutableStateFlow<SessionRecap?>(null)
+    val sessionRecap: StateFlow<SessionRecap?> = _sessionRecap
+
+    fun dismissSessionRecap() {
+        _sessionRecap.value = null
+    }
+
+    private fun requestSessionRecap() {
+        viewModelScope.launch {
+            val enabled = timerPreferences
+                .getPomodoroRecapCoachingEnabled()
+                .first()
+            if (!enabled) {
+                _sessionRecap.value = null
+                return@launch
+            }
+            val currentPlan = plan.value ?: return@launch
+            val completedIds = _completedTaskIds.value
+            // Every task from every completed session in this plan; partition
+            // into "done" and "started-but-unfinished".
+            val sessionsPlayed = (_currentSessionIndex.value + 1)
+                .coerceAtMost(currentPlan.sessions.size)
+            val touchedTasks = currentPlan.sessions
+                .take(sessionsPlayed)
+                .flatMap { it.tasks }
+                .distinctBy { it.taskId }
+            val completed = touchedTasks.filter { it.taskId in completedIds }
+            val started = touchedTasks.filter { it.taskId !in completedIds }
+            val totalMinutes = _stats.value.totalFocusSeconds / 60
+            val msg = aiCoach.recapSession(
+                completed = completed,
+                started = started,
+                sessionDurationMinutes = totalMinutes
+            ).getOrNull()?.trim()
+            if (!msg.isNullOrEmpty()) {
+                _sessionRecap.value = SessionRecap(msg)
+            } else {
+                _sessionRecap.value = null
+            }
+        }
+    }
+
     fun generatePlan() {
         if (!proFeatureGate.hasAccess(ProFeatureGate.AI_POMODORO)) {
             _showUpgradePrompt.value = true
@@ -338,12 +527,57 @@ constructor(
     fun startSession() {
         _screenState.value = PomodoroState.SESSION_ACTIVE
         _currentSessionIndex.value = 0
+        // Pre-session coaching runs in parallel; if it fails or is disabled,
+        // the timer starts immediately via beginCurrentSessionTimer().
+        requestPreSessionCoaching()
+    }
+
+    /**
+     * If pre-session coaching is enabled, fire the Haiku call. Surface the
+     * modal on success; silently skip (and start the timer) on failure or
+     * if the user disabled the feature. The timer is gated on the modal
+     * for at most [preSessionCoachingTimeoutMs] — after that we just start.
+     */
+    private fun requestPreSessionCoaching() {
+        viewModelScope.launch {
+            val enabled = timerPreferences
+                .getPomodoroPreSessionCoachingEnabled()
+                .first()
+            val upcoming = plan.value
+                ?.sessions
+                ?.getOrNull(_currentSessionIndex.value)
+                ?.tasks
+                .orEmpty()
+            if (!enabled || upcoming.isEmpty()) {
+                beginCurrentSessionTimer()
+                return@launch
+            }
+            _preSessionCoaching.value = PreSessionCoachingUiState.Loading
+            val sessionLen = config.value.sessionLength
+            val result = withTimeoutOrNull(preSessionCoachingTimeoutMs) {
+                aiCoach.suggestPreSession(upcoming, sessionLen)
+            }
+            val msg = result?.getOrNull()
+            if (msg != null) {
+                _preSessionCoaching.value = PreSessionCoachingUiState.Ready(msg)
+                // Modal is now onscreen; timer starts when the user taps
+                // accept / dismiss via acceptPreSessionCoaching() /
+                // dismissPreSessionCoaching().
+            } else {
+                // Silent skip: no network, timeout, disabled key, etc.
+                _preSessionCoaching.value = PreSessionCoachingUiState.Hidden
+                beginCurrentSessionTimer()
+            }
+        }
+    }
+
+    private fun beginCurrentSessionTimer() {
         val durationSeconds = config.value.sessionLength * 60
         // Visible debug output for field troubleshooting. Guarded because
         // Android framework stubs (Log, Toast) throw RuntimeException in
         // plain JVM unit tests that don't pull in Robolectric.
         try {
-            Log.d("PomodoroVM", "startSession: duration=${durationSeconds}s, config=${config.value}")
+            Log.d("PomodoroVM", "beginCurrentSessionTimer: duration=${durationSeconds}s, config=${config.value}")
             Toast.makeText(appContext, "Starting timer: ${durationSeconds}s", Toast.LENGTH_SHORT).show()
         } catch (_: Throwable) {
             // No-op: unit-test environment without Android framework.
@@ -398,11 +632,14 @@ constructor(
             sessionsCompleted = _currentSessionIndex.value + 1,
             totalFocusSeconds = totalSeconds
         )
+        requestSessionRecap()
     }
 
     fun nextSession() {
         val plan = plan.value ?: return
         val nextIndex = _currentSessionIndex.value + 1
+        // Transitioning off the break — stale break card must go.
+        _breakSuggestion.value = null
         if (nextIndex >= plan.sessions.size) {
             // All done
             _screenState.value = PomodoroState.COMPLETE
@@ -410,13 +647,15 @@ constructor(
                 sessionsCompleted = plan.sessions.size,
                 totalFocusSeconds = plan.totalWorkMinutes * 60
             )
+            requestSessionRecap()
             return
         }
         _currentSessionIndex.value = nextIndex
         _screenState.value = PomodoroState.SESSION_ACTIVE
-        val durationSeconds = config.value.sessionLength * 60
-        _timerSecondsRemaining.value = durationSeconds
-        startTimer(durationSeconds, PomodoroTimerService.SESSION_TYPE_WORK)
+        // Re-run the pre-session coaching surface for the new session so the
+        // modal fires on every work block, not just the first one. Falls
+        // through to beginCurrentSessionTimer() when disabled / RPC fails.
+        requestPreSessionCoaching()
     }
 
     fun resetToPlanning() {
@@ -427,6 +666,9 @@ constructor(
         _completedTaskIds.value = emptySet()
         _stats.value = FocusStats()
         _isTimerRunning.value = false
+        _breakSuggestion.value = null
+        _sessionRecap.value = null
+        _preSessionCoaching.value = PreSessionCoachingUiState.Hidden
     }
 
     /**
@@ -469,6 +711,7 @@ constructor(
         // Check if there are more sessions
         if (sessionIndex + 1 >= plan.sessions.size) {
             _screenState.value = PomodoroState.COMPLETE
+            requestSessionRecap()
         } else {
             // Start break
             _screenState.value = PomodoroState.ON_BREAK
@@ -487,6 +730,10 @@ constructor(
                     PomodoroTimerService.SESSION_TYPE_BREAK
                 }
             startTimer(durationSeconds, sessionType)
+            // Fire the break suggestion in parallel with the break timer.
+            // Elapsed = minutes of work accumulated so far in this plan.
+            val elapsedMinutes = (sessionIndex + 1) * config.value.sessionLength
+            requestBreakSuggestion(elapsedMinutes, isLongBreak)
         }
     }
 
