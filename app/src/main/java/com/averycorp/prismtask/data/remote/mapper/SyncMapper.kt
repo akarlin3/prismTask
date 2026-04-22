@@ -22,6 +22,7 @@ import com.averycorp.prismtask.data.local.entity.TaskCompletionEntity
 import com.averycorp.prismtask.data.local.entity.TaskEntity
 import com.averycorp.prismtask.data.local.entity.TaskTemplateEntity
 
+@Suppress("TooManyFunctions") // Cohesive sync-surface object — one entityToMap + one mapToEntity per synced Room table.
 object SyncMapper {
     fun taskToMap(
         task: TaskEntity,
