@@ -126,6 +126,16 @@ class NotificationPreferences(
         private val WEEKLY_HABIT_SUMMARY_MIGRATION_RUN =
             booleanPreferencesKey("weekly_habit_summary_migration_run_v14")
 
+        // Auto-generated weekly reviews (A2): a worker aggregates the
+        // past week on Sunday evening and, for Pro users, asks the
+        // backend AI for narrative insights.
+        private val WEEKLY_REVIEW_AUTO_GENERATE_ENABLED =
+            booleanPreferencesKey("weekly_review_auto_generate_enabled")
+        private val WEEKLY_REVIEW_NOTIFICATION_ENABLED =
+            booleanPreferencesKey("weekly_review_notification_enabled")
+        private val WEEKLY_REVIEW_WORKER_SEEDED =
+            booleanPreferencesKey("weekly_review_worker_seeded_v14")
+
         const val IMPORTANCE_MINIMAL = "minimal"
         const val IMPORTANCE_STANDARD = "standard"
         const val IMPORTANCE_URGENT = "urgent"
@@ -586,6 +596,31 @@ class NotificationPreferences(
 
     suspend fun setWeeklyHabitSummaryMigrationRun() {
         dataStore.edit { it[WEEKLY_HABIT_SUMMARY_MIGRATION_RUN] = true }
+    }
+
+    // endregion
+
+    // region Auto-generated weekly reviews (A2)
+
+    val weeklyReviewAutoGenerateEnabled: Flow<Boolean> = dataStore.data
+        .map { it[WEEKLY_REVIEW_AUTO_GENERATE_ENABLED] ?: true }
+
+    suspend fun setWeeklyReviewAutoGenerateEnabled(enabled: Boolean) {
+        dataStore.edit { it[WEEKLY_REVIEW_AUTO_GENERATE_ENABLED] = enabled }
+    }
+
+    val weeklyReviewNotificationEnabled: Flow<Boolean> = dataStore.data
+        .map { it[WEEKLY_REVIEW_NOTIFICATION_ENABLED] ?: true }
+
+    suspend fun setWeeklyReviewNotificationEnabled(enabled: Boolean) {
+        dataStore.edit { it[WEEKLY_REVIEW_NOTIFICATION_ENABLED] = enabled }
+    }
+
+    suspend fun getWeeklyReviewWorkerSeededOnce(): Boolean =
+        dataStore.data.first()[WEEKLY_REVIEW_WORKER_SEEDED] ?: false
+
+    suspend fun setWeeklyReviewWorkerSeeded() {
+        dataStore.edit { it[WEEKLY_REVIEW_WORKER_SEEDED] = true }
     }
 
     // endregion
