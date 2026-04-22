@@ -1,0 +1,171 @@
+name: Android Integration CI
+
+# Instrumented-test job that boots a Firebase Emulator Suite + an Android
+# AVD and runs `connectedDebugAndroidTest`. Separate from `android-ci.yml`
+# because AVD boot + test run adds ~15-20 min and the existing workflow is
+# already at ~15 min. Split lets the faster `lint-and-test` keep its
+# current PR-cycle characteristics while this one runs on a more selective
+# trigger matrix.
+#
+# Triggers:
+#  - push to main — catches regressions after merge, acts as the primary
+#    verification that emulator-backed tests still pass.
+#  - workflow_dispatch — on-demand manual runs (e.g. testing the workflow
+#    itself, or re-running after a transient AVD/emulator failure).
+#  - pull_request labeled `ci:integration` — opt-in for PRs that actually
+#    touch sync/emulator-adjacent code. Default PRs skip the cost.
+#
+# Host choice: ubuntu-latest with KVM enabled (the standard AVD setup on
+# GitHub's Linux runners). macOS runners boot AVDs faster but cost 10x
+# the minutes; not worth it for a main-branch verification lane.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'app/**'
+      - 'gradlew'
+      - 'gradlew.bat'
+      - 'gradle/**'
+      - 'build.gradle.kts'
+      - 'settings.gradle.kts'
+      - 'firebase.json'
+      - '.github/workflows/android-integration.yml'
+      - '.github/actions/setup-android/**'
+  pull_request:
+    types: [labeled, synchronize]
+
+concurrency:
+  group: android-integration-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: read
+  checks: read
+
+jobs:
+  connected-tests:
+    # PR branches only run if the `ci:integration` label was applied; push
+    # to main always runs; workflow_dispatch always runs.
+    if: >-
+      github.event_name != 'pull_request' ||
+      contains(github.event.pull_request.labels.*.name, 'ci:integration')
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      # Flips `USE_FIREBASE_EMULATOR` at build time via the env-var hook
+      # in app/build.gradle.kts, so the APK under test routes Firestore
+      # and Auth at the locally-running emulator instead of production.
+      USE_FIREBASE_EMULATOR: "true"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref || github.ref }}
+
+      - uses: ./.github/actions/setup-android
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install firebase-tools
+        run: npm install -g firebase-tools@latest
+
+      - name: Start Firebase Emulator Suite
+        # Start the emulator in the background, record its PID, and wait
+        # for the Firestore (8080) and Auth (9099) ports to become
+        # reachable before invoking anything that talks to Firebase.
+        # `--project demo-prismtask` keeps the emulator in its
+        # single-project mode (per firebase.json `singleProjectMode`) and
+        # avoids prompting for a project.
+        run: |
+          set -euo pipefail
+          firebase emulators:start \
+            --only firestore,auth \
+            --project demo-prismtask \
+            > "$RUNNER_TEMP/firebase-emulators.log" 2>&1 &
+          echo "FIREBASE_EMULATORS_PID=$!" >> "$GITHUB_ENV"
+          echo "Waiting for emulator ports to open..."
+          for port in 8080 9099; do
+            timeout 120 bash -c \
+              "until (echo > /dev/tcp/127.0.0.1/$port) 2>/dev/null; do sleep 1; done" || {
+                echo "::error::Firebase emulator port $port did not become ready in time"
+                cat "$RUNNER_TEMP/firebase-emulators.log" || true
+                exit 1
+              }
+          done
+          echo "Firebase emulators ready (firestore=8080, auth=9099)"
+
+      - name: Enable KVM for Android emulator
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Run instrumented tests against AVD + Firebase emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          # Headless runner; no window server. Disable animations so
+          # Compose interactions don't race against spurious redraws.
+          script: |
+            adb devices
+            adb shell settings put global window_animation_scale 0
+            adb shell settings put global transition_animation_scale 0
+            adb shell settings put global animator_duration_scale 0
+            # AVD already reaches the host emulators via 10.0.2.2 (hard-
+            # coded in PrismTaskApplication.configureFirebaseEmulator),
+            # so no `adb reverse` is needed. Confirm by pinging the
+            # emulator UI from inside the AVD.
+            adb shell "ping -c 1 10.0.2.2 || true"
+            ./gradlew connectedDebugAndroidTest --no-daemon --continue
+
+      - name: Stop Firebase emulators
+        if: always()
+        run: |
+          if [ -n "${FIREBASE_EMULATORS_PID:-}" ]; then
+            kill "$FIREBASE_EMULATORS_PID" || true
+            wait "$FIREBASE_EMULATORS_PID" 2>/dev/null || true
+          fi
+
+      - name: Upload emulator logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: firebase-emulator-log
+          path: ${{ runner.temp }}/firebase-emulators.log
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Upload instrumented test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: connected-test-results
+          path: |
+            app/build/reports/androidTests/
+            app/build/outputs/androidTest-results/
+          retention-days: 7
+          if-no-files-found: ignore
+
+  capture-failure-log:
+    needs: [connected-tests]
+    if: ${{ failure() }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - id: capture
+        uses: ./.github/actions/capture-failure-log
+        with:
+          workflow-slug: android-integration
+      - uses: ./.github/actions/commit-ci-log
+        with:
+          workflow-slug: android-integration
+          log-path: ${{ steps.capture.outputs.log-path }}
