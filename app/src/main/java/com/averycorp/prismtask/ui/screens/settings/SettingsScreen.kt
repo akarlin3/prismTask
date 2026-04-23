@@ -278,6 +278,13 @@ fun SettingsScreen(
                                 iconBgColor = ColLifeModes,
                                 onClick = { navController.navigate("settings/life_modes") }
                             )
+                            SettingsNavRow(
+                                title = "Medication Slots",
+                                subtitle = "Times of day for medication doses",
+                                iconEmoji = "💊",
+                                iconBgColor = ColLifeModes,
+                                onClick = { navController.navigate("settings/medication_slots") }
+                            )
                         }
                         SettingsNavRow(
                             title = "Focus Timer",

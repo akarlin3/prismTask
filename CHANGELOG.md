@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Medication slot system — slot editor + reusable pickers (A2 #6 PR2)
+
+- **New Settings screen** `Settings → Tasks & Habits → Medication Slots`
+  (route: `settings/medication_slots`). Lists every slot the user has
+  created, lets them rename / re-time / change drift, reorder via up/down
+  buttons (swapping `sort_order`), soft-delete with confirmation, and
+  restore previously deleted slots. Historical tier-state history is
+  always preserved — soft-delete flips `is_active = 0`, nothing more.
+- **`MedicationSlotsViewModel`**: Hilt-injected, exposes `allSlots`
+  `StateFlow` and proxies CRUD to `MedicationSlotRepository`.
+- **`MedicationSlotEditorSheet`**: inline create / edit dialog shared by
+  the "new slot" and "edit slot" paths. Drift presets cover ±30 / ±60 /
+  ±120 / ±180 min plus a custom numeric field; `HH:mm` input is
+  character-filtered + length-capped to keep typing smooth without
+  strict mid-edit rejection.
+- **`MedicationTierRadio`**: reusable Composable for the three-tier
+  radio (ESSENTIAL / PRESCRIPTION / COMPLETE) with inline helper text
+  explaining each option. Written against the PR1 `MedicationTier` enum
+  so it's wire-compatible with the rewire in PR3.
+- **`MedicationSlotPicker` + `MedicationSlotSelection`**: reusable
+  Composable for picking slots during the medication create / edit flow.
+  Each selected slot optionally exposes an inline "Use different time for
+  this med" toggle that edits the override fields in place. Purely
+  controlled — the parent owns selection state and persists via the
+  repository helpers added in PR1.
+- **MedDialog / MedicationScreen unchanged**. The new pickers are
+  shipped as standalone composables; wiring them into the create / edit
+  flow is part of PR3 (which swaps the screen's underlying storage from
+  `SelfCareStepEntity` to `MedicationEntity`, the shape that owns the
+  slot junction + tier column). This keeps the PR2 diff free of the
+  MedDialog rewrite and lets users exercise the slot editor immediately.
+- **ProFeatureGate audit**: no new gates. Slots are free — matches the
+  existing medication feature tier and Checkpoint 1 §3.5 decision.
+
 ### Medication slot system — schema + backfill (A2 #6 PR1)
 
 - **New data model**: `medication_slots` (user-defined time slots),

@@ -15,6 +15,7 @@ import com.averycorp.prismtask.ui.screens.settings.FocusTimerScreen
 import com.averycorp.prismtask.ui.screens.settings.HabitsStreaksScreen
 import com.averycorp.prismtask.ui.screens.settings.LayoutScreen
 import com.averycorp.prismtask.ui.screens.settings.LifeModesScreen
+import com.averycorp.prismtask.ui.screens.settings.MedicationSlotsScreen
 import com.averycorp.prismtask.ui.screens.settings.NotificationsScreen
 import com.averycorp.prismtask.ui.screens.settings.SubscriptionScreen
 import com.averycorp.prismtask.ui.screens.settings.TaskDefaultsScreen
@@ -40,6 +41,7 @@ internal fun NavGraphBuilder.settingsSubScreenRoutes(navController: NavHostContr
         "settings/wellbeing" to { WellbeingScreen(navController) },
         "settings/calendar" to { CalendarScreen(navController) },
         "settings/notifications" to { NotificationsScreen(navController) },
+        "settings/medication_slots" to { MedicationSlotsScreen(navController) },
         "settings/accessibility" to { AccessibilityScreen(navController) },
         "settings/data_backup" to { DataBackupScreen(navController) }
     ).forEach { (route, content) ->
