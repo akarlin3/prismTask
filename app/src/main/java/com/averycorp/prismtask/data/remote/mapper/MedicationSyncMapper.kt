@@ -2,6 +2,9 @@ package com.averycorp.prismtask.data.remote.mapper
 
 import com.averycorp.prismtask.data.local.entity.MedicationDoseEntity
 import com.averycorp.prismtask.data.local.entity.MedicationEntity
+import com.averycorp.prismtask.data.local.entity.MedicationSlotEntity
+import com.averycorp.prismtask.data.local.entity.MedicationSlotOverrideEntity
+import com.averycorp.prismtask.data.local.entity.MedicationTierStateEntity
 
 /**
  * Firestore ↔ Room mappers for the top-level Medication entity (spec:
@@ -10,7 +13,17 @@ import com.averycorp.prismtask.data.local.entity.MedicationEntity
  * object pattern mirrors SyncMapper so call sites stay consistent.
  */
 object MedicationSyncMapper {
-    fun medicationToMap(med: MedicationEntity): Map<String, Any?> = mapOf(
+    /**
+     * Embed the list of slot cloud-ids this medication is linked to on
+     * the parent Firestore document. The junction table
+     * `medication_medication_slots` is rebuilt on pull from this list
+     * rather than synced as a first-class collection. Mirrors the
+     * `task_tags` ↔ `tagIds`-on-task pattern in [SyncMapper.taskToMap].
+     */
+    fun medicationToMap(
+        med: MedicationEntity,
+        slotCloudIds: List<String> = emptyList()
+    ): Map<String, Any?> = mapOf(
         "localId" to med.id,
         "name" to med.name,
         "displayLabel" to med.displayLabel,
@@ -29,9 +42,21 @@ object MedicationSyncMapper {
         "pharmacyName" to med.pharmacyName,
         "pharmacyPhone" to med.pharmacyPhone,
         "reminderDaysBefore" to med.reminderDaysBefore,
+        "slotCloudIds" to slotCloudIds,
         "createdAt" to med.createdAt,
         "updatedAt" to med.updatedAt
     )
+
+    /**
+     * Extract the embedded slot cloud-id list from a pulled Firestore
+     * medication document. Returns an empty list when the field is
+     * missing (older docs written before the slot system shipped).
+     */
+    @Suppress("UNCHECKED_CAST")
+    fun extractSlotCloudIds(data: Map<String, Any?>): List<String> {
+        val raw = data["slotCloudIds"] as? List<*> ?: return emptyList()
+        return raw.mapNotNull { it as? String }
+    }
 
     fun mapToMedication(
         data: Map<String, Any?>,
@@ -88,6 +113,99 @@ object MedicationSyncMapper {
         takenAt = (data["takenAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
         takenDateLocal = data["takenDateLocal"] as? String ?: "",
         note = data["note"] as? String ?: "",
+        createdAt = (data["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
+        updatedAt = (data["updatedAt"] as? Number)?.toLong() ?: System.currentTimeMillis()
+    )
+
+    // ── v1.5 medication slot system (A2 #6 PR1) ──────────────────────
+
+    fun medicationSlotToMap(slot: MedicationSlotEntity): Map<String, Any?> = mapOf(
+        "localId" to slot.id,
+        "name" to slot.name,
+        "idealTime" to slot.idealTime,
+        "driftMinutes" to slot.driftMinutes,
+        "sortOrder" to slot.sortOrder,
+        "isActive" to slot.isActive,
+        "createdAt" to slot.createdAt,
+        "updatedAt" to slot.updatedAt
+    )
+
+    fun mapToMedicationSlot(
+        data: Map<String, Any?>,
+        localId: Long = 0,
+        cloudId: String? = null
+    ): MedicationSlotEntity = MedicationSlotEntity(
+        id = localId,
+        cloudId = cloudId,
+        name = data["name"] as? String ?: "",
+        idealTime = data["idealTime"] as? String ?: "09:00",
+        driftMinutes = (data["driftMinutes"] as? Number)?.toInt() ?: 180,
+        sortOrder = (data["sortOrder"] as? Number)?.toInt() ?: 0,
+        isActive = data["isActive"] as? Boolean ?: true,
+        createdAt = (data["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
+        updatedAt = (data["updatedAt"] as? Number)?.toLong() ?: System.currentTimeMillis()
+    )
+
+    fun medicationSlotOverrideToMap(
+        override: MedicationSlotOverrideEntity,
+        medicationCloudId: String,
+        slotCloudId: String
+    ): Map<String, Any?> = mapOf(
+        "localId" to override.id,
+        "medicationCloudId" to medicationCloudId,
+        "slotCloudId" to slotCloudId,
+        "overrideIdealTime" to override.overrideIdealTime,
+        "overrideDriftMinutes" to override.overrideDriftMinutes,
+        "createdAt" to override.createdAt,
+        "updatedAt" to override.updatedAt
+    )
+
+    fun mapToMedicationSlotOverride(
+        data: Map<String, Any?>,
+        localId: Long = 0,
+        medicationLocalId: Long = 0,
+        slotLocalId: Long = 0,
+        cloudId: String? = null
+    ): MedicationSlotOverrideEntity = MedicationSlotOverrideEntity(
+        id = localId,
+        cloudId = cloudId,
+        medicationId = medicationLocalId,
+        slotId = slotLocalId,
+        overrideIdealTime = data["overrideIdealTime"] as? String,
+        overrideDriftMinutes = (data["overrideDriftMinutes"] as? Number)?.toInt(),
+        createdAt = (data["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
+        updatedAt = (data["updatedAt"] as? Number)?.toLong() ?: System.currentTimeMillis()
+    )
+
+    fun medicationTierStateToMap(
+        state: MedicationTierStateEntity,
+        medicationCloudId: String,
+        slotCloudId: String
+    ): Map<String, Any?> = mapOf(
+        "localId" to state.id,
+        "medicationCloudId" to medicationCloudId,
+        "slotCloudId" to slotCloudId,
+        "logDate" to state.logDate,
+        "tier" to state.tier,
+        "tierSource" to state.tierSource,
+        "createdAt" to state.createdAt,
+        "updatedAt" to state.updatedAt
+    )
+
+    fun mapToMedicationTierState(
+        data: Map<String, Any?>,
+        localId: Long = 0,
+        medicationLocalId: Long = 0,
+        slotLocalId: Long = 0,
+        cloudId: String? = null
+    ): MedicationTierStateEntity = MedicationTierStateEntity(
+        id = localId,
+        cloudId = cloudId,
+        medicationId = medicationLocalId,
+        slotId = slotLocalId,
+        logDate = data["logDate"] as? String ?: "",
+        tier = data["tier"] as? String ?: "skipped",
+        tierSource = data["tierSource"] as? String ?: "computed",
         createdAt = (data["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
         updatedAt = (data["updatedAt"] as? Number)?.toLong() ?: System.currentTimeMillis()
     )

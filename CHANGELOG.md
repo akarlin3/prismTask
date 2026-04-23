@@ -7,6 +7,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Medication slot system — schema + backfill (A2 #6 PR1)
+
+- **New data model**: `medication_slots` (user-defined time slots),
+  `medication_slot_overrides` (per-medication time/drift overrides),
+  `medication_medication_slots` (junction), and `medication_tier_states`
+  (per-day achieved tier per `(medication, slot)` pair). Three new Room
+  entities + one junction cross-ref entity added to PrismTaskDatabase
+  (now at version 60, rebased from a planned 57→58/58→59 chain after
+  the NLP batch ops PR landed at 57→58 first). FKs CASCADE on both
+  sides; unique indexes on `cloud_id` and on the override/tier-state
+  identity tuples.
+- **New enums**: `MedicationTier` (ESSENTIAL/PRESCRIPTION/COMPLETE),
+  `AchievedTier` (SKIPPED + the three medication tiers — skipped only
+  valid on achieved states), `TierSource` (COMPUTED/USER_SET). All
+  stored as lowercase tokens to match the legacy `medications.tier`
+  column data (no data migration required).
+- **Migration 58→59**: creates the three slot-system tables, seeds one
+  `Default` slot (ideal_time 09:00, ±180 min drift), and links every
+  existing `medications` row to it via `INSERT OR IGNORE` (idempotent).
+  No `user_id` column on `medication_slots` — Firestore document-path
+  tenancy handles per-user isolation.
+- **Migration 59→60**: creates `medication_tier_states` and backfills
+  from the legacy `self_care_logs.tiers_by_time` JSON column into the
+  DEFAULT slot. Highest tier present in each log's JSON wins
+  (complete > prescription > essential > skipped). Legacy
+  `tiers_by_time` column is preserved (quarantine pattern) until a
+  later cleanup migration.
+- **Pure auto-compute logic**: `MedicationTierComputer.computeAchievedTier()`
+  walks the tier ladder bottom-up and returns the highest rung where
+  every med at that rung or below in the slot has been marked taken.
+- **Repository**: `MedicationSlotRepository` owns slot/override/junction/
+  tier-state CRUD and notifies `SyncTracker` with the new entity types.
+  Existing `MedicationRepository` is untouched.
+- **Sync integration**: `MedicationSyncMapper` extended with push/pull
+  mappers for the three synced families (junction rows are not synced
+  directly — `medicationToMap` now embeds a `slotCloudIds` list that
+  the pull path rebuilds the junction from, mirroring the `task_tags`
+  pattern). `SyncService` push/pull dispatches extended; real-time
+  listener registers the three new collections.
+- **Orphan healer**: `CloudIdOrphanHealer` now covers 35 families (was
+  30): added `medications` + `medication_doses` (pre-existing v1.4.37
+  gap) alongside the three new slot-system families.
+- **No UI changes**: the main `MedicationScreen` still reads from the
+  legacy `self_care_logs.tiers_by_time` JSON path. Rewire lands in PR3
+  (A2 #6 + A2 #7 closeout).
+- **Tests**: unit tests for the three new enums, `MedicationTierComputer`
+  (10 cases covering every ladder edge), sync-mapper round-trips for
+  the three new families + `medicationToMap` slot-id embedding, two
+  direct-SQL migration tests (58→59 schema + DEFAULT seed + re-run
+  idempotency; 59→60 backfill + legacy-column preservation), plus three
+  new `CloudIdOrphanHealerTest` cases for medication / slot families.
+
 ### NLP batch schedule operations — Settings history + 24hr sweep (A2 pulled-from-H PR3)
 
 - **Settings → Batch Command History** screen lists every batch from
@@ -73,8 +125,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   input, single-task false positives, quantifier+time-range,
   tag filter, bulk-verb+plural, case-insensitivity, original-casing
   preservation).
-
-
 
 ### NLP batch schedule operations — schema + backend (A2 pulled-from-H PR1)
 

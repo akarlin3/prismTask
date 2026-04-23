@@ -1455,6 +1455,235 @@ val MIGRATION_57_58 = object : Migration(57, 58) {
     }
 }
 
+/**
+ * v1.5 medication slot system (A2 #6 PR1) — schema for user-defined slots.
+ *
+ * Adds three new tables:
+ *
+ *  - `medication_slots`              one row per user-defined time slot
+ *  - `medication_slot_overrides`     per-medication time / drift overrides
+ *  - `medication_medication_slots`   junction linking medications to slots
+ *
+ * Backfills one DEFAULT slot (ideal_time `09:00`, drift `±180` min) and
+ * links every existing `medications` row to it so the v1.4.x medication
+ * UI continues to work without any UI changes in PR1. Existing
+ * `medications.tier` values stay as-is — the new `MedicationTier` enum
+ * accepts the legacy lowercase tokens unchanged.
+ *
+ * No `user_id` column on `medication_slots` — Firestore document-path
+ * scoping (`users/{uid}/medication_slots`) enforces per-user isolation
+ * just like every other synced entity in the project.
+ *
+ * Note: this work originally targeted v57 → v58 but rebased to 58 → 59
+ * after the NLP batch ops (#692) shipped a `batch_undo_log` migration at
+ * the 57 → 58 slot first.
+ */
+val MIGRATION_58_59 = object : Migration(58, 59) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `medication_slots` (
+              `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+              `cloud_id` TEXT,
+              `name` TEXT NOT NULL,
+              `ideal_time` TEXT NOT NULL,
+              `drift_minutes` INTEGER NOT NULL DEFAULT 180,
+              `sort_order` INTEGER NOT NULL DEFAULT 0,
+              `is_active` INTEGER NOT NULL DEFAULT 1,
+              `created_at` INTEGER NOT NULL,
+              `updated_at` INTEGER NOT NULL
+            )
+            """.trimIndent()
+        )
+        db.execSQL(
+            "CREATE UNIQUE INDEX IF NOT EXISTS `index_medication_slots_cloud_id` " +
+                "ON `medication_slots` (`cloud_id`)"
+        )
+
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `medication_slot_overrides` (
+              `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+              `cloud_id` TEXT,
+              `medication_id` INTEGER NOT NULL,
+              `slot_id` INTEGER NOT NULL,
+              `override_ideal_time` TEXT,
+              `override_drift_minutes` INTEGER,
+              `created_at` INTEGER NOT NULL,
+              `updated_at` INTEGER NOT NULL,
+              FOREIGN KEY(`medication_id`) REFERENCES `medications`(`id`) ON DELETE CASCADE,
+              FOREIGN KEY(`slot_id`) REFERENCES `medication_slots`(`id`) ON DELETE CASCADE
+            )
+            """.trimIndent()
+        )
+        db.execSQL(
+            "CREATE UNIQUE INDEX IF NOT EXISTS `index_medication_slot_overrides_cloud_id` " +
+                "ON `medication_slot_overrides` (`cloud_id`)"
+        )
+        db.execSQL(
+            "CREATE UNIQUE INDEX IF NOT EXISTS " +
+                "`index_medication_slot_overrides_medication_id_slot_id` " +
+                "ON `medication_slot_overrides` (`medication_id`, `slot_id`)"
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_medication_slot_overrides_slot_id` " +
+                "ON `medication_slot_overrides` (`slot_id`)"
+        )
+
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `medication_medication_slots` (
+              `medication_id` INTEGER NOT NULL,
+              `slot_id` INTEGER NOT NULL,
+              PRIMARY KEY(`medication_id`, `slot_id`),
+              FOREIGN KEY(`medication_id`) REFERENCES `medications`(`id`) ON DELETE CASCADE,
+              FOREIGN KEY(`slot_id`) REFERENCES `medication_slots`(`id`) ON DELETE CASCADE
+            )
+            """.trimIndent()
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_medication_medication_slots_slot_id` " +
+                "ON `medication_medication_slots` (`slot_id`)"
+        )
+
+        // Backfill: create one DEFAULT slot if any meds exist (or if the table
+        // is empty and the user hasn't set up meds yet, still seed the slot
+        // so the UI has a starting point on first medication add). Idempotent
+        // on re-run: WHERE NOT EXISTS guards against double-insert.
+        val now = System.currentTimeMillis()
+        db.execSQL(
+            """
+            INSERT INTO medication_slots (name, ideal_time, drift_minutes, sort_order, is_active, created_at, updated_at)
+            SELECT 'Default', '09:00', 180, 0, 1, $now, $now
+            WHERE NOT EXISTS (SELECT 1 FROM medication_slots)
+            """.trimIndent()
+        )
+
+        // Link every existing medication to the DEFAULT slot. INSERT OR IGNORE
+        // keeps re-runs idempotent (junction has composite PK).
+        db.execSQL(
+            """
+            INSERT OR IGNORE INTO medication_medication_slots (medication_id, slot_id)
+            SELECT m.id, s.id
+            FROM medications m
+            CROSS JOIN medication_slots s
+            WHERE s.name = 'Default' AND s.ideal_time = '09:00'
+            """.trimIndent()
+        )
+    }
+}
+
+/**
+ * v1.5 medication slot system (A2 #6 PR1) — per-day achieved tier states.
+ *
+ * Adds `medication_tier_states` and backfills it from the legacy
+ * `self_care_logs.tiers_by_time` JSON column. Each `(routine_type =
+ * 'medication', log_date, tiers_by_time → time_of_day → tier)` entry
+ * becomes one tier-state row scoped to the DEFAULT slot created in
+ * `MIGRATION_58_59` and to every active medication on that date.
+ *
+ * Backfill caveats:
+ *  - `tiers_by_time` is per-day, NOT per-medication, so the backfill
+ *    fans the same achieved tier across every active medication for
+ *    that day. The semantic match is "the user marked this slot as
+ *    reaching tier X on day Y" which was always a per-day-per-slot
+ *    concept legacy-side.
+ *  - We backfill into the DEFAULT slot only; per-medication time-of-day
+ *    granularity from the legacy data is lost. This is acceptable for
+ *    Avery's single-user data and matches Checkpoint 1 §1.7 question 6
+ *    (single DEFAULT slot, preserves historical completeness without
+ *    fabricating slot identities the user never created).
+ *  - JSON parsing is intentionally tolerant: if `tiers_by_time` is not
+ *    valid JSON, the row is skipped silently. SQLite's `json_each` is
+ *    unavailable on the older runtime, so the backfill uses a
+ *    LIKE-based parser that handles `{"morning":"essential"}` form.
+ *  - Source `self_care_logs.tiers_by_time` is preserved (quarantine
+ *    pattern). Phase B cleanup migration will drop it after the dual
+ *    write window closes.
+ */
+val MIGRATION_59_60 = object : Migration(59, 60) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `medication_tier_states` (
+              `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+              `cloud_id` TEXT,
+              `medication_id` INTEGER NOT NULL,
+              `slot_id` INTEGER NOT NULL,
+              `log_date` TEXT NOT NULL,
+              `tier` TEXT NOT NULL,
+              `tier_source` TEXT NOT NULL DEFAULT 'computed',
+              `created_at` INTEGER NOT NULL,
+              `updated_at` INTEGER NOT NULL,
+              FOREIGN KEY(`medication_id`) REFERENCES `medications`(`id`) ON DELETE CASCADE,
+              FOREIGN KEY(`slot_id`) REFERENCES `medication_slots`(`id`) ON DELETE CASCADE
+            )
+            """.trimIndent()
+        )
+        db.execSQL(
+            "CREATE UNIQUE INDEX IF NOT EXISTS `index_medication_tier_states_cloud_id` " +
+                "ON `medication_tier_states` (`cloud_id`)"
+        )
+        db.execSQL(
+            "CREATE UNIQUE INDEX IF NOT EXISTS " +
+                "`index_medication_tier_states_medication_id_log_date_slot_id` " +
+                "ON `medication_tier_states` (`medication_id`, `log_date`, `slot_id`)"
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_medication_tier_states_log_date` " +
+                "ON `medication_tier_states` (`log_date`)"
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_medication_tier_states_slot_id` " +
+                "ON `medication_tier_states` (`slot_id`)"
+        )
+
+        // Backfill from self_care_logs.tiers_by_time. The query selects
+        // medication-routine logs whose JSON looks plausibly populated
+        // (more than the empty-object marker) and joins to the DEFAULT
+        // slot + every existing medication on that day. The actual JSON
+        // parse is keyword-extraction in SQL: we look for any of the
+        // four lowercase tier tokens anywhere in the JSON body and pick
+        // the highest one present per row. SQLite has no JSON1 here,
+        // and Kotlin-side per-row processing would require a runtime
+        // pass — keeping the migration self-contained is preferable.
+        //
+        // Tier ordering (high → low): complete, prescription, essential.
+        // skipped is also recognized; if it appears alongside any positive
+        // tier the positive one wins (matches the legacy "checked = highest
+        // picked" semantic for the chip selector).
+        val now = System.currentTimeMillis()
+        db.execSQL(
+            """
+            INSERT OR IGNORE INTO medication_tier_states
+              (medication_id, slot_id, log_date, tier, tier_source, created_at, updated_at)
+            SELECT
+              m.id,
+              s.id,
+              l.log_date,
+              CASE
+                WHEN l.tiers_by_time LIKE '%"complete"%'     THEN 'complete'
+                WHEN l.tiers_by_time LIKE '%"prescription"%' THEN 'prescription'
+                WHEN l.tiers_by_time LIKE '%"essential"%'    THEN 'essential'
+                ELSE 'skipped'
+              END,
+              'computed',
+              $now,
+              $now
+            FROM self_care_logs l
+            CROSS JOIN medication_slots s
+            CROSS JOIN medications m
+            WHERE l.routine_type = 'medication'
+              AND l.tiers_by_time IS NOT NULL
+              AND l.tiers_by_time != ''
+              AND l.tiers_by_time != '{}'
+              AND s.name = 'Default'
+              AND s.ideal_time = '09:00'
+            """.trimIndent()
+        )
+    }
+}
+
 val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_1_2,
     MIGRATION_2_3,
@@ -1512,5 +1741,7 @@ val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_54_55,
     MIGRATION_55_56,
     MIGRATION_56_57,
-    MIGRATION_57_58
+    MIGRATION_57_58,
+    MIGRATION_58_59,
+    MIGRATION_59_60
 )

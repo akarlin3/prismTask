@@ -18,6 +18,9 @@ import com.averycorp.prismtask.data.local.dao.LeisureDao
 import com.averycorp.prismtask.data.local.dao.MedicationDao
 import com.averycorp.prismtask.data.local.dao.MedicationDoseDao
 import com.averycorp.prismtask.data.local.dao.MedicationRefillDao
+import com.averycorp.prismtask.data.local.dao.MedicationSlotDao
+import com.averycorp.prismtask.data.local.dao.MedicationSlotOverrideDao
+import com.averycorp.prismtask.data.local.dao.MedicationTierStateDao
 import com.averycorp.prismtask.data.local.dao.MilestoneDao
 import com.averycorp.prismtask.data.local.dao.MoodEnergyLogDao
 import com.averycorp.prismtask.data.local.dao.NlpShortcutDao
@@ -53,6 +56,10 @@ import com.averycorp.prismtask.data.local.entity.LeisureLogEntity
 import com.averycorp.prismtask.data.local.entity.MedicationDoseEntity
 import com.averycorp.prismtask.data.local.entity.MedicationEntity
 import com.averycorp.prismtask.data.local.entity.MedicationRefillEntity
+import com.averycorp.prismtask.data.local.entity.MedicationSlotCrossRef
+import com.averycorp.prismtask.data.local.entity.MedicationSlotEntity
+import com.averycorp.prismtask.data.local.entity.MedicationSlotOverrideEntity
+import com.averycorp.prismtask.data.local.entity.MedicationTierStateEntity
 import com.averycorp.prismtask.data.local.entity.MilestoneEntity
 import com.averycorp.prismtask.data.local.entity.MoodEnergyLogEntity
 import com.averycorp.prismtask.data.local.entity.NlpShortcutEntity
@@ -110,9 +117,13 @@ import com.averycorp.prismtask.data.local.entity.WeeklyReviewEntity
         MilestoneEntity::class,
         MedicationEntity::class,
         MedicationDoseEntity::class,
-        BatchUndoLogEntry::class
+        BatchUndoLogEntry::class,
+        MedicationSlotEntity::class,
+        MedicationSlotOverrideEntity::class,
+        MedicationSlotCrossRef::class,
+        MedicationTierStateEntity::class
     ],
-    version = 58,
+    version = 60,
     exportSchema = false
 )
 abstract class PrismTaskDatabase : RoomDatabase() {
@@ -179,4 +190,10 @@ abstract class PrismTaskDatabase : RoomDatabase() {
     abstract fun medicationDoseDao(): MedicationDoseDao
 
     abstract fun batchUndoLogDao(): BatchUndoLogDao
+
+    abstract fun medicationSlotDao(): MedicationSlotDao
+
+    abstract fun medicationSlotOverrideDao(): MedicationSlotOverrideDao
+
+    abstract fun medicationTierStateDao(): MedicationTierStateDao
 }
