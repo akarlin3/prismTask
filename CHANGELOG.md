@@ -16,6 +16,19 @@ without any backend or Android-side changes. See
 and `docs/WEB_PARITY_PHASE_G_PROMPT_TEMPLATE.md` for the remaining
 Phase G roadmap.
 
+- **Task editor tabbed parity (slice 8)** — fills out the previously
+  shallow Schedule tab on `TaskEditor`. Adds: wired weekday selector
+  for weekly/biweekly recurrence, "biweekly" + "weekdays" types on the
+  recurrence dropdown, an "after completion" flag so the next
+  occurrence schedules from completion instead of due date (matching
+  Android), an end-condition radio group (Never / After N occurrences
+  / On date), a dedicated Planned Date input so users can park a task
+  on the Today screen for a specific day independent of the due date,
+  and a wired Reminder offset dropdown (persisted locally — with a
+  note that web notifications are not cross-device yet). All changes
+  flow through the existing debounced `autoSave` so edits land via
+  one consolidated `recurrence_json` blob per change.
+
 - **Eisenhower classify_text (slice 7)** — wires
   `POST /ai/eisenhower/classify_text`, the text-only variant of the
   Eisenhower endpoint that classifies a draft task (title, optional

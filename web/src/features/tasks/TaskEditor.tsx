@@ -76,8 +76,20 @@ const RECURRENCE_TYPES = [
   { value: '', label: 'None' },
   { value: 'daily', label: 'Daily' },
   { value: 'weekly', label: 'Weekly' },
+  { value: 'biweekly', label: 'Biweekly' },
   { value: 'monthly', label: 'Monthly' },
   { value: 'yearly', label: 'Yearly' },
+  { value: 'weekdays', label: 'Weekdays' },
+];
+
+const WEEKDAYS: { idx: number; label: string }[] = [
+  { idx: 1, label: 'Mon' },
+  { idx: 2, label: 'Tue' },
+  { idx: 3, label: 'Wed' },
+  { idx: 4, label: 'Thu' },
+  { idx: 5, label: 'Fri' },
+  { idx: 6, label: 'Sat' },
+  { idx: 0, label: 'Sun' },
 ];
 
 const TAG_COLORS = [
@@ -124,6 +136,15 @@ export default function TaskEditor({
   const [duration, setDuration] = useState('');
   const [recurrenceType, setRecurrenceType] = useState('');
   const [recurrenceInterval, setRecurrenceInterval] = useState(1);
+  const [recurrenceDaysOfWeek, setRecurrenceDaysOfWeek] = useState<number[]>([]);
+  const [recurrenceAfterCompletion, setRecurrenceAfterCompletion] = useState(false);
+  const [recurrenceEndMode, setRecurrenceEndMode] = useState<
+    'never' | 'after' | 'on'
+  >('never');
+  const [recurrenceEndAfter, setRecurrenceEndAfter] = useState(10);
+  const [recurrenceEndDate, setRecurrenceEndDate] = useState('');
+  const [reminderOffset, setReminderOffset] = useState('');
+  const [plannedDate, setPlannedDate] = useState('');
 
   // Subtasks
   const [subtasks, setSubtasks] = useState<Task[]>([]);
@@ -173,16 +194,69 @@ export default function TaskEditor({
     setSubtasks(task.subtasks || []);
     setTaskTagIds(task.tags?.map((t) => t.id) || []);
 
+    setPlannedDate(task.planned_date || '');
     if (task.recurrence_json) {
       try {
         const rule = JSON.parse(task.recurrence_json);
         setRecurrenceType(rule.type || '');
         setRecurrenceInterval(rule.interval || 1);
+        setRecurrenceDaysOfWeek(
+          Array.isArray(rule.days_of_week) ? rule.days_of_week : [],
+        );
+        setRecurrenceAfterCompletion(!!rule.after_completion);
+        if (rule.end_date) {
+          setRecurrenceEndMode('on');
+          setRecurrenceEndDate(rule.end_date);
+        } else if (rule.end_after_count) {
+          setRecurrenceEndMode('after');
+          setRecurrenceEndAfter(rule.end_after_count);
+        } else {
+          setRecurrenceEndMode('never');
+        }
       } catch {
         // ignore parse errors
       }
     }
   }, [task, isCreate, defaultProjectId]);
+
+  // Persist recurrence changes via auto-save. Rebuilds the JSON blob any
+  // time any recurrence-related control moves so the saved shape stays
+  // in sync with what the user sees.
+  useEffect(() => {
+    if (isCreate || !task) return;
+    let recurrenceJson: string | undefined;
+    if (recurrenceType) {
+      const rule: Record<string, unknown> = {
+        type: recurrenceType,
+        interval: recurrenceInterval,
+      };
+      if (recurrenceType === 'weekly' && recurrenceDaysOfWeek.length > 0) {
+        rule.days_of_week = [...recurrenceDaysOfWeek].sort();
+      }
+      if (recurrenceAfterCompletion) rule.after_completion = true;
+      if (recurrenceEndMode === 'after') {
+        rule.end_after_count = recurrenceEndAfter;
+      } else if (recurrenceEndMode === 'on' && recurrenceEndDate) {
+        rule.end_date = recurrenceEndDate;
+      }
+      recurrenceJson = JSON.stringify(rule);
+    } else {
+      recurrenceJson = '';
+    }
+    autoSave({ recurrence_json: recurrenceJson });
+    // Intentionally omit autoSave from deps — it's stable within a session.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    isCreate,
+    task,
+    recurrenceType,
+    recurrenceInterval,
+    recurrenceDaysOfWeek,
+    recurrenceAfterCompletion,
+    recurrenceEndMode,
+    recurrenceEndAfter,
+    recurrenceEndDate,
+  ]);
 
   // Auto-save debounced (edit mode only)
   const autoSave = useCallback(
@@ -596,12 +670,34 @@ export default function TaskEditor({
                   />
                 </div>
 
+                {/* Planned Date (plan-for-a-specific-day) */}
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-[var(--color-text-secondary)]">
+                    Planned Date (Optional)
+                  </label>
+                  <input
+                    type="date"
+                    value={plannedDate}
+                    onChange={(e) => {
+                      setPlannedDate(e.target.value);
+                      autoSave({ planned_date: e.target.value || undefined } as TaskUpdate);
+                    }}
+                    className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-secondary)] px-3 py-2 text-sm text-[var(--color-text-primary)] outline-none focus:border-[var(--color-accent)]"
+                  />
+                  <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
+                    Surfaces this task on the Today screen for the chosen day,
+                    independent of the due date.
+                  </p>
+                </div>
+
                 {/* Reminder */}
                 <div>
                   <label className="mb-1 block text-xs font-medium text-[var(--color-text-secondary)]">
                     Reminder
                   </label>
                   <select
+                    value={reminderOffset}
+                    onChange={(e) => setReminderOffset(e.target.value)}
                     className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-secondary)] px-3 py-2 text-sm text-[var(--color-text-primary)] outline-none focus:border-[var(--color-accent)]"
                   >
                     {REMINDER_OPTIONS.map((opt) => (
@@ -610,6 +706,12 @@ export default function TaskEditor({
                       </option>
                     ))}
                   </select>
+                  {reminderOffset && (
+                    <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
+                      Web notifications are local-only — reminders don't fire
+                      on Android until cross-device reminder scheduling lands.
+                    </p>
+                  )}
                 </div>
 
                 {/* Recurrence */}
@@ -655,25 +757,107 @@ export default function TaskEditor({
                         </span>
                       </div>
 
-                      {recurrenceType === 'weekly' && (
+                      {(recurrenceType === 'weekly' ||
+                        recurrenceType === 'biweekly') && (
                         <div className="mt-2">
                           <label className="mb-1 block text-xs font-medium text-[var(--color-text-secondary)]">
                             Days
                           </label>
                           <div className="flex gap-1">
-                            {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(
-                              (day) => (
+                            {WEEKDAYS.map(({ idx, label }) => {
+                              const selected = recurrenceDaysOfWeek.includes(idx);
+                              return (
                                 <button
-                                  key={day}
-                                  className="rounded-md border border-[var(--color-border)] px-2 py-1 text-xs text-[var(--color-text-secondary)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
+                                  key={idx}
+                                  type="button"
+                                  onClick={() =>
+                                    setRecurrenceDaysOfWeek((prev) =>
+                                      prev.includes(idx)
+                                        ? prev.filter((d) => d !== idx)
+                                        : [...prev, idx],
+                                    )
+                                  }
+                                  className={`rounded-md border px-2 py-1 text-xs font-medium transition-colors ${
+                                    selected
+                                      ? 'border-[var(--color-accent)] bg-[var(--color-accent)]/10 text-[var(--color-accent)]'
+                                      : 'border-[var(--color-border)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'
+                                  }`}
+                                  aria-pressed={selected}
                                 >
-                                  {day}
+                                  {label}
                                 </button>
-                              ),
-                            )}
+                              );
+                            })}
                           </div>
                         </div>
                       )}
+
+                      {/* After-completion flag */}
+                      <label className="mt-2 flex items-center gap-2 text-sm text-[var(--color-text-primary)]">
+                        <input
+                          type="checkbox"
+                          checked={recurrenceAfterCompletion}
+                          onChange={(e) =>
+                            setRecurrenceAfterCompletion(e.target.checked)
+                          }
+                          className="h-4 w-4 rounded border-[var(--color-border)] text-[var(--color-accent)]"
+                        />
+                        Schedule next occurrence from when I complete this
+                        one (not from the due date)
+                      </label>
+
+                      {/* End condition */}
+                      <div className="mt-3">
+                        <label className="mb-1 block text-xs font-medium text-[var(--color-text-secondary)]">
+                          Ends
+                        </label>
+                        <div className="flex flex-col gap-1.5">
+                          {(
+                            [
+                              { key: 'never', label: 'Never' },
+                              { key: 'after', label: 'After N occurrences' },
+                              { key: 'on', label: 'On a specific date' },
+                            ] as const
+                          ).map(({ key, label }) => (
+                            <label
+                              key={key}
+                              className="flex items-center gap-2 text-sm text-[var(--color-text-primary)]"
+                            >
+                              <input
+                                type="radio"
+                                name="recurrence-end"
+                                checked={recurrenceEndMode === key}
+                                onChange={() => setRecurrenceEndMode(key)}
+                                className="text-[var(--color-accent)]"
+                              />
+                              {label}
+                            </label>
+                          ))}
+                        </div>
+                        {recurrenceEndMode === 'after' && (
+                          <input
+                            type="number"
+                            min={1}
+                            value={recurrenceEndAfter}
+                            onChange={(e) =>
+                              setRecurrenceEndAfter(
+                                Math.max(1, Number(e.target.value) || 1),
+                              )
+                            }
+                            className="mt-1 w-24 rounded-md border border-[var(--color-border)] bg-[var(--color-bg-secondary)] px-2 py-1 text-sm text-[var(--color-text-primary)] outline-none focus:border-[var(--color-accent)]"
+                          />
+                        )}
+                        {recurrenceEndMode === 'on' && (
+                          <input
+                            type="date"
+                            value={recurrenceEndDate}
+                            onChange={(e) =>
+                              setRecurrenceEndDate(e.target.value)
+                            }
+                            className="mt-1 rounded-md border border-[var(--color-border)] bg-[var(--color-bg-secondary)] px-2 py-1 text-sm text-[var(--color-text-primary)] outline-none focus:border-[var(--color-accent)]"
+                          />
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
