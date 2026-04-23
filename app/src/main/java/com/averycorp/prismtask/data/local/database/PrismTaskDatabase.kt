@@ -123,7 +123,7 @@ import com.averycorp.prismtask.data.local.entity.WeeklyReviewEntity
         MedicationSlotCrossRef::class,
         MedicationTierStateEntity::class
     ],
-    version = 60,
+    version = CURRENT_DB_VERSION,
     exportSchema = false
 )
 abstract class PrismTaskDatabase : RoomDatabase() {
