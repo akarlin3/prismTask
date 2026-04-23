@@ -38,17 +38,39 @@ html {
 
 body {
   margin: 0;
+  /* Per-theme body font is set on <html> as --prism-font-body by
+     applyThemeToDocument. Falls back to a system stack so the pre-theme
+     render is still readable before the theme JS runs. */
   font-family:
-    system-ui,
-    -apple-system,
-    BlinkMacSystemFont,
-    'Segoe UI',
-    Roboto,
-    'Helvetica Neue',
-    Arial,
-    sans-serif;
+    var(
+      --prism-font-body,
+      system-ui,
+      -apple-system,
+      BlinkMacSystemFont,
+      'Segoe UI',
+      Roboto,
+      'Helvetica Neue',
+      Arial,
+      sans-serif
+    );
   background-color: var(--color-bg-primary);
   color: var(--color-text-primary);
+}
+
+code,
+kbd,
+pre,
+samp {
+  font-family: var(--prism-font-mono, ui-monospace, 'Courier New', monospace);
+}
+
+/* Hero-headline utility — picks up per-theme display font + tracking +
+   optional uppercase. Drop it on h1/h2/hero-number elements when you
+   want the theme's signature typography. */
+.prism-display {
+  font-family: var(--prism-font-display, inherit);
+  letter-spacing: var(--prism-display-tracking, 0);
+  text-transform: var(--prism-display-upper, none);
 }
 
 /* Scrollbar styling */

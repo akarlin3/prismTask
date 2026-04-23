@@ -28,6 +28,17 @@
 
     <!-- Preload critical assets -->
     <link rel="preload" href="/favicon.svg" as="image" type="image/svg+xml" />
+
+    <!-- Per-theme Google Fonts. Loaded with display=swap so FOIT never
+         blocks interaction. `preconnect` keeps the TLS handshake off
+         the critical path. Eight families cover the four shipped
+         themes (see web/src/theme/themes.ts). -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=Audiowide&family=Rajdhani:wght@400;500;600;700&family=Monoton&family=Share+Tech+Mono&family=VT323&family=Space+Grotesk:wght@400;500;600;700&family=Fraunces:ital,wght@0,400..700;1,400..700&display=swap"
+    />
   </head>
   <body>
     <div id="root"></div>

@@ -69,6 +69,16 @@ export interface ThemeTokens {
     string,
     string,
   ];
+
+  // Typography — per-theme fonts ported from `themesets/themes.js`.
+  // Body is the default for all app text; display is used for hero
+  // headlines (h1/h2) via the `.prism-display` utility class; mono
+  // is the code / timestamp font.
+  fontBody: string;
+  fontDisplay: string;
+  fontMono: string;
+  displayUpper: boolean;
+  displayTracking: string;
 }
 
 export const THEMES: Record<ThemeKey, ThemeTokens> = {
@@ -107,6 +117,11 @@ export const THEMES: Record<ThemeKey, ThemeTokens> = {
       '#66E0FF',
       '#FF2E6C',
     ],
+    fontBody: '"Chakra Petch", system-ui, sans-serif',
+    fontDisplay: '"Audiowide", "Chakra Petch", sans-serif',
+    fontMono: '"Chakra Petch", ui-monospace, monospace',
+    displayUpper: true,
+    displayTracking: '0.06em',
   },
   SYNTHWAVE: {
     id: 'SYNTHWAVE',
@@ -143,6 +158,11 @@ export const THEMES: Record<ThemeKey, ThemeTokens> = {
       '#FF3D5A',
       '#B080D0',
     ],
+    fontBody: '"Rajdhani", system-ui, sans-serif',
+    fontDisplay: '"Monoton", "Rajdhani", sans-serif',
+    fontMono: '"Rajdhani", ui-monospace, monospace',
+    displayUpper: true,
+    displayTracking: '0.08em',
   },
   MATRIX: {
     id: 'MATRIX',
@@ -179,6 +199,11 @@ export const THEMES: Record<ThemeKey, ThemeTokens> = {
       '#00FFAA',
       '#FF3C3C',
     ],
+    fontBody: '"Share Tech Mono", ui-monospace, monospace',
+    fontDisplay: '"VT323", "Share Tech Mono", monospace',
+    fontMono: '"Share Tech Mono", ui-monospace, monospace',
+    displayUpper: false,
+    displayTracking: '0.02em',
   },
   VOID: {
     id: 'VOID',
@@ -215,6 +240,11 @@ export const THEMES: Record<ThemeKey, ThemeTokens> = {
       '#7FA89E',
       '#A89876',
     ],
+    fontBody: '"Space Grotesk", system-ui, sans-serif',
+    fontDisplay: '"Fraunces", "Space Grotesk", serif',
+    fontMono: '"Space Grotesk", ui-monospace, monospace',
+    displayUpper: false,
+    displayTracking: '-0.02em',
   },
 };
 
@@ -270,6 +300,19 @@ export function applyThemeToDocument(themeKey: ThemeKey): void {
   tokens.dataVisualizationPalette.forEach((color, idx) => {
     root.style.setProperty(`--prism-dataviz-${idx}`, color);
   });
+
+  // Typography — per-theme font stacks. Body drives the default app
+  // font via index.css; display is picked up by `.prism-display` for
+  // hero headlines. `--prism-display-upper` + `--prism-display-tracking`
+  // drive CSS variable-based text transformation / letter-spacing.
+  root.style.setProperty('--prism-font-body', tokens.fontBody);
+  root.style.setProperty('--prism-font-display', tokens.fontDisplay);
+  root.style.setProperty('--prism-font-mono', tokens.fontMono);
+  root.style.setProperty(
+    '--prism-display-upper',
+    tokens.displayUpper ? 'uppercase' : 'none',
+  );
+  root.style.setProperty('--prism-display-tracking', tokens.displayTracking);
 }
 
 /**

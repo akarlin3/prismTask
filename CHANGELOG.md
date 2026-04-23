@@ -16,6 +16,21 @@ without any backend or Android-side changes. See
 and `docs/WEB_PARITY_PHASE_G_PROMPT_TEMPLATE.md` for the remaining
 Phase G roadmap.
 
+- **Theme typography (slice 13)** — per-theme fonts ported from
+  `themesets/themes.js`. `theme/themes.ts` now carries `fontBody /
+  fontDisplay / fontMono / displayUpper / displayTracking` for each
+  of the four themes: Cyberpunk (Chakra Petch + Audiowide, uppercase,
+  0.06em), Synthwave (Rajdhani + Monoton, uppercase, 0.08em), Matrix
+  (Share Tech Mono + VT323, 0.02em), Void (Space Grotesk + Fraunces,
+  -0.02em). `applyThemeToDocument` writes them as `--prism-font-body /
+  display / mono` + `--prism-display-upper / tracking`. `index.css`
+  body uses the body variable (falls back to system stack),
+  `code/kbd/pre/samp` uses the mono variable, and a new `.prism-display`
+  utility class applies the theme's display font, letter-spacing, and
+  uppercase setting — drop it on any hero headline to opt in.
+  `index.html` loads the 8 font families from Google Fonts with
+  `display=swap` + `preconnect`.
+
 - **Settings sections bundle (slice 12)** — four new Settings sections
   ported from Android to close the visible gap with `settings/sections/`:
   (1) **Accessibility** — font-scale slider (0.9× / 1.0× / 1.1× / 1.25×),
