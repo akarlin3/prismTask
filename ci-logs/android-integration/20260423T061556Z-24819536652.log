@@ -1,0 +1,1318 @@
+=== CI FAILURE ===
+Workflow:      Android Integration CI
+Workflow file: akarlin3/prismTask/.github/workflows/android-integration.yml@refs/heads/main
+Job(s):        connected-tests
+Run ID:        24819536652
+Run attempt:   1
+Run URL:       https://github.com/akarlin3/prismTask/actions/runs/24819536652
+Commit:        d05a3d05f282ccf10fb8b80209b4b03e24c6e9f7
+Branch:        main
+Event:         push
+Actor:         akarlin3
+Runner OS:     Linux
+Timestamp:     2026-04-23T06:15:56.399Z
+
+Failed steps:
+  - connected-tests: #8 Run instrumented tests against AVD + Firebase emulator
+
+=== FAILED JOB LOG ===
+
+--- Job: connected-tests (id 72641028652) ---
+2026-04-23T06:00:31.1461347Z Current runner version: '2.333.1'
+2026-04-23T06:00:31.1487676Z ##[group]Runner Image Provisioner
+2026-04-23T06:00:31.1489052Z Hosted Compute Agent
+2026-04-23T06:00:31.1489635Z Version: 20260213.493
+2026-04-23T06:00:31.1490326Z Commit: 5c115507f6dd24b8de37d8bbe0bb4509d0cc0fa3
+2026-04-23T06:00:31.1491152Z Build Date: 2026-02-13T00:28:41Z
+2026-04-23T06:00:31.1491953Z Worker ID: {9092b058-4fcb-47ff-9dad-c863673db049}
+2026-04-23T06:00:31.1492838Z Azure Region: northcentralus
+2026-04-23T06:00:31.1493536Z ##[endgroup]
+2026-04-23T06:00:31.1495146Z ##[group]Operating System
+2026-04-23T06:00:31.1495779Z Ubuntu
+2026-04-23T06:00:31.1496402Z 24.04.4
+2026-04-23T06:00:31.1496905Z LTS
+2026-04-23T06:00:31.1497474Z ##[endgroup]
+2026-04-23T06:00:31.1497980Z ##[group]Runner Image
+2026-04-23T06:00:31.1498922Z Image: ubuntu-24.04
+2026-04-23T06:00:31.1499482Z Version: 20260413.86.1
+2026-04-23T06:00:31.1501020Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260413.86/images/ubuntu/Ubuntu2404-Readme.md
+2026-04-23T06:00:31.1502875Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260413.86
+2026-04-23T06:00:31.1504063Z ##[endgroup]
+2026-04-23T06:00:31.1505639Z ##[group]GITHUB_TOKEN Permissions
+2026-04-23T06:00:31.1508129Z Actions: read
+2026-04-23T06:00:31.1509100Z Checks: read
+2026-04-23T06:00:31.1509685Z Contents: write
+2026-04-23T06:00:31.1510266Z Metadata: read
+2026-04-23T06:00:31.1510909Z PullRequests: read
+2026-04-23T06:00:31.1511512Z ##[endgroup]
+2026-04-23T06:00:31.1513780Z Secret source: Actions
+2026-04-23T06:00:31.1514655Z Prepare workflow directory
+2026-04-23T06:00:31.1919154Z Prepare all required actions
+2026-04-23T06:00:31.1963636Z Getting action download info
+2026-04-23T06:00:31.5654538Z Download action repository 'actions/checkout@v4' (SHA:34e114876b0b11c390a56381ad16ebd13914f8d5)
+2026-04-23T06:00:31.6536486Z Download action repository 'actions/setup-node@v4' (SHA:49933ea5288caeca8642d1e84afbd3f7d6820020)
+2026-04-23T06:00:31.7942188Z Download action repository 'reactivecircus/android-emulator-runner@v2' (SHA:e89f39f1abbbd05b1113a29cf4db69e7540cae5a)
+2026-04-23T06:00:32.2863446Z Download action repository 'actions/upload-artifact@v4' (SHA:ea165f8d65b6e75b540449e92b4886f43607fa02)
+2026-04-23T06:00:32.6007422Z Complete job name: connected-tests
+2026-04-23T06:00:32.6670122Z ##[group]Run actions/checkout@v4
+2026-04-23T06:00:32.6671060Z with:
+2026-04-23T06:00:32.6671595Z   ref: refs/heads/main
+2026-04-23T06:00:32.6672239Z   repository: akarlin3/prismTask
+2026-04-23T06:00:32.6673125Z   token: ***
+2026-04-23T06:00:32.6673678Z   ssh-strict: true
+2026-04-23T06:00:32.6674248Z   ssh-user: git
+2026-04-23T06:00:32.6674843Z   persist-credentials: true
+2026-04-23T06:00:32.6675502Z   clean: true
+2026-04-23T06:00:32.6676095Z   sparse-checkout-cone-mode: true
+2026-04-23T06:00:32.6676816Z   fetch-depth: 1
+2026-04-23T06:00:32.6677381Z   fetch-tags: false
+2026-04-23T06:00:32.6677972Z   show-progress: true
+2026-04-23T06:00:32.6678696Z   lfs: false
+2026-04-23T06:00:32.6679249Z   submodules: false
+2026-04-23T06:00:32.6679869Z   set-safe-directory: true
+2026-04-23T06:00:32.6680672Z env:
+2026-04-23T06:00:32.6681200Z   USE_FIREBASE_EMULATOR: true
+2026-04-23T06:00:32.6681874Z ##[endgroup]
+2026-04-23T06:00:32.7559897Z Syncing repository: akarlin3/prismTask
+2026-04-23T06:00:32.7561998Z ##[group]Getting Git version info
+2026-04-23T06:00:32.7562944Z Working directory is '/home/runner/work/prismTask/prismTask'
+2026-04-23T06:00:32.7564327Z [command]/usr/bin/git version
+2026-04-23T06:00:32.7730028Z git version 2.53.0
+2026-04-23T06:00:32.7749376Z ##[endgroup]
+2026-04-23T06:00:32.7766390Z Temporarily overriding HOME='/home/runner/work/_temp/3a0c7152-b7de-4ca0-b013-62682fdcf910' before making global git config changes
+2026-04-23T06:00:32.7768526Z Adding repository directory to the temporary git global config as a safe directory
+2026-04-23T06:00:32.7771493Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/prismTask/prismTask
+2026-04-23T06:00:32.7798910Z Deleting the contents of '/home/runner/work/prismTask/prismTask'
+2026-04-23T06:00:32.7801677Z ##[group]Initializing the repository
+2026-04-23T06:00:32.7805527Z [command]/usr/bin/git init /home/runner/work/prismTask/prismTask
+2026-04-23T06:00:32.7883960Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-04-23T06:00:32.7886158Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-04-23T06:00:32.7888674Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-04-23T06:00:32.7890304Z hint: call:
+2026-04-23T06:00:32.7891072Z hint:
+2026-04-23T06:00:32.7892068Z hint: 	git config --global init.defaultBranch <name>
+2026-04-23T06:00:32.7893361Z hint:
+2026-04-23T06:00:32.7894586Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-04-23T06:00:32.7896572Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-04-23T06:00:32.7898087Z hint:
+2026-04-23T06:00:32.7899225Z hint: 	git branch -m <name>
+2026-04-23T06:00:32.7900004Z hint:
+2026-04-23T06:00:32.7900870Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-04-23T06:00:32.7902283Z Initialized empty Git repository in /home/runner/work/prismTask/prismTask/.git/
+2026-04-23T06:00:32.7905260Z [command]/usr/bin/git remote add origin https://github.com/akarlin3/prismTask
+2026-04-23T06:00:32.7920391Z ##[endgroup]
+2026-04-23T06:00:32.7921880Z ##[group]Disabling automatic garbage collection
+2026-04-23T06:00:32.7923721Z [command]/usr/bin/git config --local gc.auto 0
+2026-04-23T06:00:32.7945959Z ##[endgroup]
+2026-04-23T06:00:32.7946910Z ##[group]Setting up auth
+2026-04-23T06:00:32.7951098Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-04-23T06:00:32.7977279Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-04-23T06:00:32.8207123Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-04-23T06:00:32.8231698Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-04-23T06:00:32.8410701Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-04-23T06:00:32.8437981Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-04-23T06:00:32.8621541Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-04-23T06:00:32.8837272Z ##[endgroup]
+2026-04-23T06:00:32.8839017Z ##[group]Fetching the repository
+2026-04-23T06:00:32.8845553Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +refs/heads/main:refs/remotes/origin/main
+2026-04-23T06:00:35.8735027Z From https://github.com/akarlin3/prismTask
+2026-04-23T06:00:35.8735596Z  * [new branch]      main       -> origin/main
+2026-04-23T06:00:35.8757789Z ##[endgroup]
+2026-04-23T06:00:35.8758393Z ##[group]Determining the checkout info
+2026-04-23T06:00:35.8760127Z ##[endgroup]
+2026-04-23T06:00:35.8764400Z [command]/usr/bin/git sparse-checkout disable
+2026-04-23T06:00:35.8794030Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-04-23T06:00:35.8814323Z ##[group]Checking out the ref
+2026-04-23T06:00:35.8818429Z [command]/usr/bin/git checkout --progress --force -B main refs/remotes/origin/main
+2026-04-23T06:00:36.0298578Z Switched to a new branch 'main'
+2026-04-23T06:00:36.0299132Z branch 'main' set up to track 'origin/main'.
+2026-04-23T06:00:36.0316128Z ##[endgroup]
+2026-04-23T06:00:36.0348088Z [command]/usr/bin/git log -1 --format=%H
+2026-04-23T06:00:36.0367988Z d05a3d05f282ccf10fb8b80209b4b03e24c6e9f7
+2026-04-23T06:00:36.0558376Z Prepare all required actions
+2026-04-23T06:00:36.0559023Z Getting action download info
+2026-04-23T06:00:36.2324407Z Download action repository 'actions/setup-java@v4' (SHA:c1e323688fd81a25caa38c78aa6df2d33d3e20d9)
+2026-04-23T06:00:36.8538362Z Download action repository 'gradle/actions@v4' (SHA:ed408507eac070d1f99cc633dbcf757c94c7933a)
+2026-04-23T06:00:40.4077482Z ##[group]Run ./.github/actions/setup-android
+2026-04-23T06:00:40.4077721Z env:
+2026-04-23T06:00:40.4077882Z   USE_FIREBASE_EMULATOR: true
+2026-04-23T06:00:40.4078073Z ##[endgroup]
+2026-04-23T06:00:40.4191213Z ##[group]Run actions/setup-java@v4
+2026-04-23T06:00:40.4191429Z with:
+2026-04-23T06:00:40.4191571Z   java-version: 21
+2026-04-23T06:00:40.4191741Z   distribution: temurin
+2026-04-23T06:00:40.4191906Z   java-package: jdk
+2026-04-23T06:00:40.4192072Z   check-latest: false
+2026-04-23T06:00:40.4192230Z   server-id: github
+2026-04-23T06:00:40.4192404Z   server-username: GITHUB_ACTOR
+2026-04-23T06:00:40.4192672Z   server-password: GITHUB_TOKEN
+2026-04-23T06:00:40.4192855Z   overwrite-settings: true
+2026-04-23T06:00:40.4193050Z   job-status: success
+2026-04-23T06:00:40.4193304Z   token: ***
+2026-04-23T06:00:40.4193445Z env:
+2026-04-23T06:00:40.4193595Z   USE_FIREBASE_EMULATOR: true
+2026-04-23T06:00:40.4193770Z ##[endgroup]
+2026-04-23T06:00:40.5710598Z ##[group]Installed distributions
+2026-04-23T06:00:40.5752299Z Resolved Java 21.0.10+7 from tool-cache
+2026-04-23T06:00:40.5752865Z Setting Java 21.0.10+7 as the default
+2026-04-23T06:00:40.5762419Z Creating toolchains.xml for JDK version 21 from temurin
+2026-04-23T06:00:40.5818541Z Writing to /home/runner/.m2/toolchains.xml
+2026-04-23T06:00:40.5818945Z 
+2026-04-23T06:00:40.5819230Z Java configuration:
+2026-04-23T06:00:40.5819918Z   Distribution: temurin
+2026-04-23T06:00:40.5820234Z   Version: 21.0.10+7
+2026-04-23T06:00:40.5820903Z   Path: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/21.0.10-7/x64
+2026-04-23T06:00:40.5821247Z 
+2026-04-23T06:00:40.5821723Z ##[endgroup]
+2026-04-23T06:00:40.5835559Z Creating settings.xml with server-id: github
+2026-04-23T06:00:40.5841176Z Writing to /home/runner/.m2/settings.xml
+2026-04-23T06:00:40.6030406Z ##[group]Run gradle/actions/setup-gradle@v4
+2026-04-23T06:00:40.6030668Z with:
+2026-04-23T06:00:40.6030817Z   cache-disabled: false
+2026-04-23T06:00:40.6030994Z   cache-read-only: false
+2026-04-23T06:00:40.6031165Z   cache-write-only: false
+2026-04-23T06:00:40.6031354Z   cache-overwrite-existing: false
+2026-04-23T06:00:40.6031550Z   cache-cleanup: on-success
+2026-04-23T06:00:40.6031772Z   gradle-home-cache-includes: caches
+notifications
+
+2026-04-23T06:00:40.6032006Z   add-job-summary: always
+2026-04-23T06:00:40.6032199Z   add-job-summary-as-pr-comment: never
+2026-04-23T06:00:40.6032416Z   dependency-graph: disabled
+2026-04-23T06:00:40.6032644Z   dependency-graph-report-dir: dependency-graph-reports
+2026-04-23T06:00:40.6032912Z   dependency-graph-continue-on-failure: true
+2026-04-23T06:00:40.6033147Z   build-scan-publish: false
+2026-04-23T06:00:40.6033341Z   validate-wrappers: true
+2026-04-23T06:00:40.6033526Z   allow-snapshot-wrappers: false
+2026-04-23T06:00:40.6033755Z   gradle-home-cache-strict-match: false
+2026-04-23T06:00:40.6033969Z   workflow-job-context: null
+2026-04-23T06:00:40.6034239Z   github-token: ***
+2026-04-23T06:00:40.6034394Z env:
+2026-04-23T06:00:40.6034536Z   USE_FIREBASE_EMULATOR: true
+2026-04-23T06:00:40.6034800Z   JAVA_HOME: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/21.0.10-7/x64
+2026-04-23T06:00:40.6035153Z   JAVA_HOME_21_X64: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/21.0.10-7/x64
+2026-04-23T06:00:40.6035425Z ##[endgroup]
+2026-04-23T06:00:41.1664518Z Merged default JDK locations into /home/runner/.m2/toolchains.xml
+2026-04-23T06:00:41.1665649Z Preparing cache for cleanup.
+2026-04-23T06:00:41.1667931Z ##[group]Restore Gradle state from cache
+2026-04-23T06:00:41.2772049Z Cache hit for restore-key: gradle-home-v1|Linux-X64|connected-tests[1e7216165ffdcf45b9a4b7e3077585ac]-8fd1ebceccdba72882d2e72fde2e91f8903084e8
+2026-04-23T06:00:42.3825785Z Received 184549376 of 960823934 (19.2%), 175.8 MBs/sec
+2026-04-23T06:00:43.3895793Z Received 452984832 of 960823934 (47.1%), 215.1 MBs/sec
+2026-04-23T06:00:44.3899270Z Received 734003200 of 960823934 (76.4%), 232.7 MBs/sec
+2026-04-23T06:00:45.3167726Z Received 960823934 of 960823934 (100.0%), 232.9 MBs/sec
+2026-04-23T06:00:45.3217276Z Cache Size: ~916 MB (960823934 B)
+2026-04-23T06:00:45.3288400Z [command]/usr/bin/tar -xf /home/runner/work/_temp/806073da-81fe-4e59-871d-c2ba3306e5cb/cache.tzst -P -C /home/runner/work/prismTask/prismTask --use-compress-program unzstd
+2026-04-23T06:00:46.7801954Z Cache restored successfully
+2026-04-23T06:00:46.8256995Z Restored cache entry with key gradle-home-v1|Linux-X64|connected-tests[1e7216165ffdcf45b9a4b7e3077585ac]-d05a3d05f282ccf10fb8b80209b4b03e24c6e9f7 to /home/runner/.gradle/caches,/home/runner/.gradle/notifications,/home/runner/.gradle/.setup-gradle in 5658ms
+2026-04-23T06:00:46.9636349Z Cache hit for: gradle-wrapper-zips-v1-8c0de4c6bda6041d6e054bf825a89c98
+2026-04-23T06:00:46.9879403Z Cache hit for: gradle-instrumented-jars-v1-d30ba357622c322e4833d503975d1995
+2026-04-23T06:00:46.9897762Z Cache hit for: gradle-groovy-dsl-v1-ac4451e7e7583fbbdb6c1814c4c59309
+2026-04-23T06:00:46.9922631Z Cache hit for: gradle-generated-gradle-jars-v1-cb4b032a7d08b9bf1e84e9eacaebcc29
+2026-04-23T06:00:47.0004552Z Cache hit for: gradle-transforms-v1-4962d6bdcfe865cf1e7828c88559eca8
+2026-04-23T06:00:47.0052451Z Cache hit for: gradle-kotlin-dsl-v1-2000350f8926c67ca25b819c07fedef5
+2026-04-23T06:00:47.0058122Z Cache hit for: gradle-dependencies-v1-4b4a8596a593b162532cfc44f1d61ac1
+2026-04-23T06:00:47.3294576Z Received 64099 of 64099 (100.0%), 0.3 MBs/sec
+2026-04-23T06:00:47.3295094Z Cache Size: ~0 MB (64099 B)
+2026-04-23T06:00:47.3325948Z [command]/usr/bin/tar -xf /home/runner/work/_temp/96ed9734-e2ae-452b-89b7-ea2033935ad4/cache.tzst -P -C /home/runner/work/prismTask/prismTask --use-compress-program unzstd
+2026-04-23T06:00:47.3409280Z Received 120008 of 120008 (100.0%), 0.5 MBs/sec
+2026-04-23T06:00:47.3415315Z Cache Size: ~0 MB (120008 B)
+2026-04-23T06:00:47.3431887Z Cache restored successfully
+2026-04-23T06:00:47.3433982Z Restored cache entry with key gradle-instrumented-jars-v1-d30ba357622c322e4833d503975d1995 to /home/runner/.gradle/caches/jars-*/*/ in 516ms
+2026-04-23T06:00:47.3448580Z [command]/usr/bin/tar -xf /home/runner/work/_temp/72944a7b-de21-450d-8b89-1c5dab140f42/cache.tzst -P -C /home/runner/work/prismTask/prismTask --use-compress-program unzstd
+2026-04-23T06:00:47.3631811Z Received 448754 of 448754 (100.0%), 1.7 MBs/sec
+2026-04-23T06:00:47.3638820Z Cache Size: ~0 MB (448754 B)
+2026-04-23T06:00:47.3805739Z Cache restored successfully
+2026-04-23T06:00:47.3859859Z Restored cache entry with key gradle-groovy-dsl-v1-ac4451e7e7583fbbdb6c1814c4c59309 to /home/runner/.gradle/caches/*/groovy-dsl/*/ in 556ms
+2026-04-23T06:00:47.3870495Z [command]/usr/bin/tar -xf /home/runner/work/_temp/bf102517-fffa-4f3f-9e74-7041c3cfb094/cache.tzst -P -C /home/runner/work/prismTask/prismTask --use-compress-program unzstd
+2026-04-23T06:00:47.5629978Z Cache restored successfully
+2026-04-23T06:00:47.5689835Z Restored cache entry with key gradle-kotlin-dsl-v1-2000350f8926c67ca25b819c07fedef5 to /home/runner/.gradle/caches/*/kotlin-dsl/accessors/*/,/home/runner/.gradle/caches/*/kotlin-dsl/scripts/*/ in 741ms
+2026-04-23T06:00:48.0693133Z Received 41993404 of 41993404 (100.0%), 43.2 MBs/sec
+2026-04-23T06:00:48.0693756Z Cache Size: ~40 MB (41993404 B)
+2026-04-23T06:00:48.0821881Z Received 79691776 of 136352669 (58.4%), 75.8 MBs/sec
+2026-04-23T06:00:48.1019455Z [command]/usr/bin/tar -xf /home/runner/work/_temp/025cc4ae-5a0b-46ae-aec6-84d5099e3fd0/cache.tzst -P -C /home/runner/work/prismTask/prismTask --use-compress-program unzstd
+2026-04-23T06:00:48.1345645Z Received 130023424 of 491044379 (26.5%), 123.3 MBs/sec
+2026-04-23T06:00:48.1609234Z Received 104857600 of 862018487 (12.2%), 99.2 MBs/sec
+2026-04-23T06:00:48.4342317Z Cache restored successfully
+2026-04-23T06:00:48.4944932Z Restored cache entry with key gradle-generated-gradle-jars-v1-cb4b032a7d08b9bf1e84e9eacaebcc29 to /home/runner/.gradle/caches/9.3.1/generated-gradle-jars/gradle-api-9.3.1.jar in 1662ms
+2026-04-23T06:00:48.5920366Z Received 136352669 of 136352669 (100.0%), 86.0 MBs/sec
+2026-04-23T06:00:48.5920873Z Cache Size: ~130 MB (136352669 B)
+2026-04-23T06:00:48.5943790Z [command]/usr/bin/tar -xf /home/runner/work/_temp/6da9dd3f-9d00-41fa-ae9d-fd1fe5180c54/cache.tzst -P -C /home/runner/work/prismTask/prismTask --use-compress-program unzstd
+2026-04-23T06:00:48.8058966Z Cache restored successfully
+2026-04-23T06:00:48.8118009Z Restored cache entry with key gradle-wrapper-zips-v1-8c0de4c6bda6041d6e054bf825a89c98 to /home/runner/.gradle/wrapper/dists/gradle-9.3.1-bin/23ovyewtku6u96viwx3xl3oks in 1984ms
+2026-04-23T06:00:49.1378994Z Received 285212672 of 491044379 (58.1%), 135.4 MBs/sec
+2026-04-23T06:00:49.1605850Z Received 264241152 of 862018487 (30.7%), 125.5 MBs/sec
+2026-04-23T06:00:49.8589258Z Received 491044379 of 491044379 (100.0%), 171.5 MBs/sec
+2026-04-23T06:00:49.8591891Z Cache Size: ~468 MB (491044379 B)
+2026-04-23T06:00:49.8617287Z [command]/usr/bin/tar -xf /home/runner/work/_temp/18fc875b-63ef-4c83-bd29-bde8c9b83c6a/cache.tzst -P -C /home/runner/work/prismTask/prismTask --use-compress-program unzstd
+2026-04-23T06:00:50.1604408Z Received 499122176 of 862018487 (57.9%), 158.2 MBs/sec
+2026-04-23T06:00:51.5666626Z Received 671088640 of 862018487 (77.9%), 145.0 MBs/sec
+2026-04-23T06:00:52.7333926Z Received 805306368 of 862018487 (93.4%), 137.7 MBs/sec
+2026-04-23T06:00:53.3662281Z Received 862018487 of 862018487 (100.0%), 132.3 MBs/sec
+2026-04-23T06:00:53.3664815Z Cache Size: ~822 MB (862018487 B)
+2026-04-23T06:00:53.3778676Z [command]/usr/bin/tar -xf /home/runner/work/_temp/00530c68-f566-464d-90bf-a1dca16d5fa0/cache.tzst -P -C /home/runner/work/prismTask/prismTask --use-compress-program unzstd
+2026-04-23T06:01:10.3156541Z Cache restored successfully
+2026-04-23T06:01:10.3526291Z Restored cache entry with key gradle-dependencies-v1-4b4a8596a593b162532cfc44f1d61ac1 to /home/runner/.gradle/caches/modules-*/files-*/*/*/*/* in 23525ms
+2026-04-23T06:01:12.3879413Z Cache restored successfully
+2026-04-23T06:01:12.4068102Z Restored cache entry with key gradle-transforms-v1-4962d6bdcfe865cf1e7828c88559eca8 to /home/runner/.gradle/caches/transforms-4/*/,/home/runner/.gradle/caches/*/transforms/*/ in 25578ms
+2026-04-23T06:01:12.4242894Z ##[endgroup]
+2026-04-23T06:01:12.4481029Z ##[group]All Gradle Wrapper jars are valid
+2026-04-23T06:01:12.4481961Z ✓ Found known Gradle Wrapper JAR files:
+2026-04-23T06:01:12.4482560Z   b3a875ddc1f044746e1b1a55f645584505f4a10438c1afea9f15e92a7c42ec13 gradle/wrapper/gradle-wrapper.jar
+2026-04-23T06:01:12.4483133Z ##[endgroup]
+2026-04-23T06:01:12.4736221Z ##[group]Run chmod +x gradlew
+2026-04-23T06:01:12.4736541Z [36;1mchmod +x gradlew[0m
+2026-04-23T06:01:12.4760456Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-04-23T06:01:12.4760970Z env:
+2026-04-23T06:01:12.4761254Z   USE_FIREBASE_EMULATOR: true
+2026-04-23T06:01:12.4761773Z   JAVA_HOME: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/21.0.10-7/x64
+2026-04-23T06:01:12.4762429Z   JAVA_HOME_21_X64: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/21.0.10-7/x64
+2026-04-23T06:01:12.4762812Z   GRADLE_ACTION_ID: gradle/actions/setup-gradle
+2026-04-23T06:01:12.4763096Z   GRADLE_USER_HOME: /home/runner/.gradle
+2026-04-23T06:01:12.4763358Z   GRADLE_BUILD_ACTION_SETUP_COMPLETED: true
+2026-04-23T06:01:12.4763628Z   GRADLE_BUILD_ACTION_CACHE_RESTORED: true
+2026-04-23T06:01:12.4764003Z   DEVELOCITY_INJECTION_INIT_SCRIPT_NAME: gradle-actions.inject-develocity.init.gradle
+2026-04-23T06:01:12.4764404Z   DEVELOCITY_INJECTION_CUSTOM_VALUE: gradle-actions
+2026-04-23T06:01:12.4764682Z   GITHUB_DEPENDENCY_GRAPH_ENABLED: false
+2026-04-23T06:01:12.4764927Z ##[endgroup]
+2026-04-23T06:01:12.5909749Z ##[group]Run actions/setup-node@v4
+2026-04-23T06:01:12.5910013Z with:
+2026-04-23T06:01:12.5910199Z   node-version: 20
+2026-04-23T06:01:12.5910406Z   always-auth: false
+2026-04-23T06:01:12.5910620Z   check-latest: false
+2026-04-23T06:01:12.5910906Z   token: ***
+2026-04-23T06:01:12.5911253Z env:
+2026-04-23T06:01:12.5911443Z   USE_FIREBASE_EMULATOR: true
+2026-04-23T06:01:12.5911760Z   JAVA_HOME: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/21.0.10-7/x64
+2026-04-23T06:01:12.5912176Z   JAVA_HOME_21_X64: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/21.0.10-7/x64
+2026-04-23T06:01:12.5912536Z   GRADLE_ACTION_ID: gradle/actions/setup-gradle
+2026-04-23T06:01:12.5912809Z   GRADLE_USER_HOME: /home/runner/.gradle
+2026-04-23T06:01:12.5913066Z   GRADLE_BUILD_ACTION_SETUP_COMPLETED: true
+2026-04-23T06:01:12.5913334Z   GRADLE_BUILD_ACTION_CACHE_RESTORED: true
+2026-04-23T06:01:12.5913717Z   DEVELOCITY_INJECTION_INIT_SCRIPT_NAME: gradle-actions.inject-develocity.init.gradle
+2026-04-23T06:01:12.5914142Z   DEVELOCITY_INJECTION_CUSTOM_VALUE: gradle-actions
+2026-04-23T06:01:12.5914420Z   GITHUB_DEPENDENCY_GRAPH_ENABLED: false
+2026-04-23T06:01:12.5914667Z ##[endgroup]
+2026-04-23T06:01:12.7477259Z Found in cache @ /opt/hostedtoolcache/node/20.20.2/x64
+2026-04-23T06:01:12.7483038Z ##[group]Environment details
+2026-04-23T06:01:12.9814845Z node: v20.20.2
+2026-04-23T06:01:12.9815110Z npm: 10.8.2
+2026-04-23T06:01:12.9815304Z yarn: 1.22.22
+2026-04-23T06:01:12.9815844Z ##[endgroup]
+2026-04-23T06:01:12.9893266Z ##[group]Run npm install -g firebase-tools@latest
+2026-04-23T06:01:12.9893621Z [36;1mnpm install -g firebase-tools@latest[0m
+2026-04-23T06:01:12.9915847Z shell: /usr/bin/bash -e {0}
+2026-04-23T06:01:12.9916092Z env:
+2026-04-23T06:01:12.9916291Z   USE_FIREBASE_EMULATOR: true
+2026-04-23T06:01:12.9916626Z   JAVA_HOME: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/21.0.10-7/x64
+2026-04-23T06:01:12.9917035Z   JAVA_HOME_21_X64: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/21.0.10-7/x64
+2026-04-23T06:01:12.9917392Z   GRADLE_ACTION_ID: gradle/actions/setup-gradle
+2026-04-23T06:01:12.9917661Z   GRADLE_USER_HOME: /home/runner/.gradle
+2026-04-23T06:01:12.9917925Z   GRADLE_BUILD_ACTION_SETUP_COMPLETED: true
+2026-04-23T06:01:12.9918418Z   GRADLE_BUILD_ACTION_CACHE_RESTORED: true
+2026-04-23T06:01:12.9918888Z   DEVELOCITY_INJECTION_INIT_SCRIPT_NAME: gradle-actions.inject-develocity.init.gradle
+2026-04-23T06:01:12.9919306Z   DEVELOCITY_INJECTION_CUSTOM_VALUE: gradle-actions
+2026-04-23T06:01:12.9919630Z   GITHUB_DEPENDENCY_GRAPH_ENABLED: false
+2026-04-23T06:01:12.9919885Z ##[endgroup]
+2026-04-23T06:01:29.1006829Z npm warn deprecated node-domexception@1.0.0: Use your platform's native DOMException instead
+2026-04-23T06:01:30.9429584Z npm warn deprecated json-ptr@3.1.1: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
+2026-04-23T06:01:31.0124604Z npm warn deprecated glob@10.5.0: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+2026-04-23T06:01:33.2500230Z 
+2026-04-23T06:01:33.2500885Z added 703 packages in 20s
+2026-04-23T06:01:33.2501169Z 
+2026-04-23T06:01:33.2501323Z 90 packages are looking for funding
+2026-04-23T06:01:33.2501819Z   run `npm fund` for details
+2026-04-23T06:01:33.2757825Z ##[group]Run set -euo pipefail
+2026-04-23T06:01:33.2758595Z [36;1mset -euo pipefail[0m
+2026-04-23T06:01:33.2758850Z [36;1mfirebase emulators:start \[0m
+2026-04-23T06:01:33.2759101Z [36;1m  --only firestore,auth \[0m
+2026-04-23T06:01:33.2759355Z [36;1m  --project demo-prismtask \[0m
+2026-04-23T06:01:33.2759654Z [36;1m  > "$RUNNER_TEMP/firebase-emulators.log" 2>&1 &[0m
+2026-04-23T06:01:33.2760002Z [36;1mecho "FIREBASE_EMULATORS_PID=$!" >> "$GITHUB_ENV"[0m
+2026-04-23T06:01:33.2760523Z [36;1mecho "Waiting for emulator ports to open..."[0m
+2026-04-23T06:01:33.2760804Z [36;1mfor port in 8080 9099; do[0m
+2026-04-23T06:01:33.2761054Z [36;1m  timeout 120 bash -c \[0m
+2026-04-23T06:01:33.2761387Z [36;1m    "until (echo > /dev/tcp/127.0.0.1/$port) 2>/dev/null; do sleep 1; done" || {[0m
+2026-04-23T06:01:33.2761841Z [36;1m      echo "::error::Firebase emulator port $port did not become ready in time"[0m
+2026-04-23T06:01:33.2762522Z [36;1m      cat "$RUNNER_TEMP/firebase-emulators.log" || true[0m
+2026-04-23T06:01:33.2762814Z [36;1m      exit 1[0m
+2026-04-23T06:01:33.2763025Z [36;1m    }[0m
+2026-04-23T06:01:33.2763216Z [36;1mdone[0m
+2026-04-23T06:01:33.2763550Z [36;1mecho "Firebase emulators ready (firestore=8080, auth=9099)"[0m
+2026-04-23T06:01:33.2782238Z shell: /usr/bin/bash -e {0}
+2026-04-23T06:01:33.2782470Z env:
+2026-04-23T06:01:33.2782666Z   USE_FIREBASE_EMULATOR: true
+2026-04-23T06:01:33.2782996Z   JAVA_HOME: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/21.0.10-7/x64
+2026-04-23T06:01:33.2783408Z   JAVA_HOME_21_X64: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/21.0.10-7/x64
+2026-04-23T06:01:33.2783780Z   GRADLE_ACTION_ID: gradle/actions/setup-gradle
+2026-04-23T06:01:33.2784053Z   GRADLE_USER_HOME: /home/runner/.gradle
+2026-04-23T06:01:33.2784311Z   GRADLE_BUILD_ACTION_SETUP_COMPLETED: true
+2026-04-23T06:01:33.2784587Z   GRADLE_BUILD_ACTION_CACHE_RESTORED: true
+2026-04-23T06:01:33.2784970Z   DEVELOCITY_INJECTION_INIT_SCRIPT_NAME: gradle-actions.inject-develocity.init.gradle
+2026-04-23T06:01:33.2785370Z   DEVELOCITY_INJECTION_CUSTOM_VALUE: gradle-actions
+2026-04-23T06:01:33.2785655Z   GITHUB_DEPENDENCY_GRAPH_ENABLED: false
+2026-04-23T06:01:33.2785908Z ##[endgroup]
+2026-04-23T06:01:33.2825998Z Waiting for emulator ports to open...
+2026-04-23T06:01:44.3114602Z Firebase emulators ready (firestore=8080, auth=9099)
+2026-04-23T06:01:44.3158416Z ##[group]Run echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+2026-04-23T06:01:44.3158960Z [36;1mecho 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \[0m
+2026-04-23T06:01:44.3159364Z [36;1m  | sudo tee /etc/udev/rules.d/99-kvm4all.rules[0m
+2026-04-23T06:01:44.3159672Z [36;1msudo udevadm control --reload-rules[0m
+2026-04-23T06:01:44.3159973Z [36;1msudo udevadm trigger --name-match=kvm[0m
+2026-04-23T06:01:44.3178846Z shell: /usr/bin/bash -e {0}
+2026-04-23T06:01:44.3179078Z env:
+2026-04-23T06:01:44.3179278Z   USE_FIREBASE_EMULATOR: true
+2026-04-23T06:01:44.3179610Z   JAVA_HOME: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/21.0.10-7/x64
+2026-04-23T06:01:44.3180036Z   JAVA_HOME_21_X64: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/21.0.10-7/x64
+2026-04-23T06:01:44.3180400Z   GRADLE_ACTION_ID: gradle/actions/setup-gradle
+2026-04-23T06:01:44.3180669Z   GRADLE_USER_HOME: /home/runner/.gradle
+2026-04-23T06:01:44.3180966Z   GRADLE_BUILD_ACTION_SETUP_COMPLETED: true
+2026-04-23T06:01:44.3181234Z   GRADLE_BUILD_ACTION_CACHE_RESTORED: true
+2026-04-23T06:01:44.3181612Z   DEVELOCITY_INJECTION_INIT_SCRIPT_NAME: gradle-actions.inject-develocity.init.gradle
+2026-04-23T06:01:44.3182016Z   DEVELOCITY_INJECTION_CUSTOM_VALUE: gradle-actions
+2026-04-23T06:01:44.3182298Z   GITHUB_DEPENDENCY_GRAPH_ENABLED: false
+2026-04-23T06:01:44.3182554Z   FIREBASE_EMULATORS_PID: 2303
+2026-04-23T06:01:44.3182788Z ##[endgroup]
+2026-04-23T06:01:44.3275724Z KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"
+2026-04-23T06:01:44.3598072Z ##[group]Run reactivecircus/android-emulator-runner@v2
+2026-04-23T06:01:44.3598541Z with:
+2026-04-23T06:01:44.3598728Z   api-level: 34
+2026-04-23T06:01:44.3598926Z   target: google_apis
+2026-04-23T06:01:44.3599128Z   arch: x86_64
+2026-04-23T06:01:44.3599315Z   profile: pixel_6
+2026-04-23T06:01:44.3600634Z   script: adb devices
+adb shell settings put global window_animation_scale 0
+adb shell settings put global transition_animation_scale 0
+adb shell settings put global animator_duration_scale 0
+# AVD already reaches the host emulators via 10.0.2.2 (hard-
+# coded in PrismTaskApplication.configureFirebaseEmulator),
+# so no `adb reverse` is needed. Confirm by pinging the
+# emulator UI from inside the AVD.
+adb shell "ping -c 1 10.0.2.2 || true"
+./gradlew connectedDebugAndroidTest --no-daemon --continue
+
+2026-04-23T06:01:44.3601962Z   cores: 2
+2026-04-23T06:01:44.3602151Z   avd-name: test
+2026-04-23T06:01:44.3602352Z   force-avd-creation: true
+2026-04-23T06:01:44.3602603Z   emulator-boot-timeout: 600
+2026-04-23T06:01:44.3602971Z   emulator-port: 5554
+2026-04-23T06:01:44.3603320Z   emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
+2026-04-23T06:01:44.3603695Z   disable-animations: true
+2026-04-23T06:01:44.3603923Z   disable-spellchecker: false
+2026-04-23T06:01:44.3604157Z   disable-linux-hw-accel: auto
+2026-04-23T06:01:44.3604388Z   enable-hw-keyboard: false
+2026-04-23T06:01:44.3604606Z   channel: stable
+2026-04-23T06:01:44.3604794Z env:
+2026-04-23T06:01:44.3604980Z   USE_FIREBASE_EMULATOR: true
+2026-04-23T06:01:44.3605287Z   JAVA_HOME: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/21.0.10-7/x64
+2026-04-23T06:01:44.3605706Z   JAVA_HOME_21_X64: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/21.0.10-7/x64
+2026-04-23T06:01:44.3606065Z   GRADLE_ACTION_ID: gradle/actions/setup-gradle
+2026-04-23T06:01:44.3606335Z   GRADLE_USER_HOME: /home/runner/.gradle
+2026-04-23T06:01:44.3606597Z   GRADLE_BUILD_ACTION_SETUP_COMPLETED: true
+2026-04-23T06:01:44.3606865Z   GRADLE_BUILD_ACTION_CACHE_RESTORED: true
+2026-04-23T06:01:44.3607243Z   DEVELOCITY_INJECTION_INIT_SCRIPT_NAME: gradle-actions.inject-develocity.init.gradle
+2026-04-23T06:01:44.3607628Z   DEVELOCITY_INJECTION_CUSTOM_VALUE: gradle-actions
+2026-04-23T06:01:44.3607908Z   GITHUB_DEPENDENCY_GRAPH_ENABLED: false
+2026-04-23T06:01:44.3608657Z   FIREBASE_EMULATORS_PID: 2303
+2026-04-23T06:01:44.3608913Z ##[endgroup]
+2026-04-23T06:01:44.4023996Z ##[group]Configure emulator
+2026-04-23T06:01:44.4025650Z API level: 34
+2026-04-23T06:01:44.4028085Z System image API level: 34
+2026-04-23T06:01:44.4028643Z target: google_apis
+2026-04-23T06:01:44.4029006Z CPU architecture: x86_64
+2026-04-23T06:01:44.4029345Z Hardware profile: pixel_6
+2026-04-23T06:01:44.4029628Z Cores: 2
+2026-04-23T06:01:44.4029818Z RAM size: 
+2026-04-23T06:01:44.4030007Z Heap size: 
+2026-04-23T06:01:44.4030321Z SD card path or size: 
+2026-04-23T06:01:44.4030655Z Disk size: 
+2026-04-23T06:01:44.4030995Z AVD name: test
+2026-04-23T06:01:44.4034671Z force avd creation: true
+2026-04-23T06:01:44.4035199Z Emulator boot timeout: 600
+2026-04-23T06:01:44.4035588Z emulator port: 5554
+2026-04-23T06:01:44.4036251Z emulator options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
+2026-04-23T06:01:44.4036869Z disable animations: true
+2026-04-23T06:01:44.4037235Z disable spellchecker: false
+2026-04-23T06:01:44.4037712Z disable Linux hardware acceleration: false
+2026-04-23T06:01:44.4038314Z enable hardware keyboard: false
+2026-04-23T06:01:44.4038608Z Channel: 0 (stable)
+2026-04-23T06:01:44.4038806Z Script:
+2026-04-23T06:01:44.4039063Z adb devices
+2026-04-23T06:01:44.4039353Z adb shell settings put global window_animation_scale 0
+2026-04-23T06:01:44.4039742Z adb shell settings put global transition_animation_scale 0
+2026-04-23T06:01:44.4040124Z adb shell settings put global animator_duration_scale 0
+2026-04-23T06:01:44.4040441Z adb shell "ping -c 1 10.0.2.2 || true"
+2026-04-23T06:01:44.4040799Z ./gradlew connectedDebugAndroidTest --no-daemon --continue
+2026-04-23T06:01:44.4041396Z Pre emulator launch script:
+2026-04-23T06:01:44.4041784Z ##[endgroup]
+2026-04-23T06:01:44.4042102Z ##[group]Install Android SDK
+2026-04-23T06:01:44.6318291Z [command]/usr/bin/sh -c \yes | sdkmanager --licenses > /dev/null
+2026-04-23T06:01:48.7410275Z Installing latest build tools, platform tools, and platform.
+2026-04-23T06:01:48.7420948Z [command]/usr/bin/sh -c \sdkmanager --install 'build-tools;36.0.0' platform-tools 'platforms;android-34'> /dev/null
+2026-04-23T06:01:50.0785810Z Installing latest emulator.
+2026-04-23T06:01:50.0796988Z [command]/usr/bin/sh -c \sdkmanager --install emulator --channel=0 > /dev/null
+2026-04-23T06:02:04.4174981Z Installing system images.
+2026-04-23T06:02:04.4185575Z [command]/usr/bin/sh -c \sdkmanager --install 'system-images;android-34;google_apis;x86_64' --channel=0 > /dev/null
+2026-04-23T06:03:01.0755616Z ##[endgroup]
+2026-04-23T06:03:01.0756723Z ##[group]Create AVD
+2026-04-23T06:03:01.0757371Z Creating AVD.
+2026-04-23T06:03:01.0773812Z [command]/usr/bin/sh -c \echo no | avdmanager create avd --force -n test --package 'system-images;android-34;google_apis;x86_64' --device 'pixel_6'
+2026-04-23T06:03:01.6683262Z Loading local repository...                                                     
+2026-04-23T06:03:01.6689501Z [=========                              ] 25% Loading local repository...       
+2026-04-23T06:03:01.6690437Z [=========                              ] 25% Fetch remote repository...        
+2026-04-23T06:03:01.6691206Z [=======================================] 100% Fetch remote repository...       
+2026-04-23T06:03:01.7170404Z Auto-selecting single ABI x86_64
+2026-04-23T06:03:02.0036597Z [command]/usr/bin/sh -c \printf 'hw.cpu.ncore=2\n' >> /home/runner/.android/avd/test.avd/config.ini
+2026-04-23T06:03:02.0054170Z ##[endgroup]
+2026-04-23T06:03:02.0056097Z ##[group]Launch Emulator
+2026-04-23T06:03:02.0056417Z Starting emulator.
+2026-04-23T06:03:02.0069725Z [command]/usr/bin/sh -c \/usr/local/lib/android/sdk/emulator/emulator -port 5554 -avd test -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim &
+2026-04-23T06:03:02.0198076Z INFO         | Android emulator version 36.5.10.0 (build_id 15081367) (CL:N/A)
+2026-04-23T06:03:02.0198857Z INFO         | Graphics backend: gfxstream
+2026-04-23T06:03:02.0199645Z INFO         | Found systemPath /usr/local/lib/android/sdk/system-images/android-34/google_apis/x86_64/
+2026-04-23T06:03:02.4488525Z INFO         | Increasing RAM size to 2048MB
+2026-04-23T06:03:02.4489163Z ##############################################################################
+2026-04-23T06:03:02.4489784Z ##                        WARNING - ACTION REQUIRED                         ##
+2026-04-23T06:03:02.4490463Z ##  Consider using the '-metrics-collection' flag to help improve the       ##
+2026-04-23T06:03:02.4491202Z ##  emulator by sending anonymized usage data. Or use the '-no-metrics'     ##
+2026-04-23T06:03:02.4491930Z ##  flag to bypass this warning and turn off the metrics collection.        ##
+2026-04-23T06:03:02.4492668Z ##  In a future release this warning will turn into a one-time blocking     ##
+2026-04-23T06:03:02.4493412Z ##  prompt to ask for explicit user input regarding metrics collection.     ##
+2026-04-23T06:03:02.4494044Z ##                                                                          ##
+2026-04-23T06:03:02.4494880Z ##  Please see '-help-metrics-collection' for more details. You can use     ##
+2026-04-23T06:03:02.4495613Z ##  '-metrics-to-file' or '-metrics-to-console' flags to see what type of   ##
+2026-04-23T06:03:02.4496344Z ##  data is being collected by emulator as part of usage statistics.        ##
+2026-04-23T06:03:02.4497074Z ##############################################################################
+2026-04-23T06:03:02.4497589Z INFO         | Guest GLES Driver: Auto (ext controls)
+2026-04-23T06:03:02.4498407Z INFO         | emuglConfig_init: vulkan_mode_selected:swiftshader gles_mode_selected:swiftshader
+2026-04-23T06:03:02.4499077Z INFO         | Checking system compatibility:
+2026-04-23T06:03:02.4499900Z INFO         |   Checking: hasSufficientDiskSpace
+2026-04-23T06:03:02.4500540Z INFO         |      Ok: Disk space requirements to run avd: `test` are met
+2026-04-23T06:03:02.4501111Z INFO         |   Checking: hasSufficientHwGpu
+2026-04-23T06:03:02.4501690Z INFO         |      Ok: Hardware GPU compatibility checks are not required
+2026-04-23T06:03:02.4502290Z INFO         |   Checking: hasSufficientSystem
+2026-04-23T06:03:02.4502908Z INFO         |      Ok: System requirements to run avd: `test` are met
+2026-04-23T06:03:02.4503495Z ERROR        | Unable to connect to adb daemon on port: 5037
+2026-04-23T06:03:02.4504379Z INFO         | Storing crashdata in: /tmp/android-runner/emu-crash-36.5.10.db, detection is enabled for process: 2718
+2026-04-23T06:03:02.4505117Z INFO         | Initializing gfxstream backend
+2026-04-23T06:03:02.4508486Z INFO         | android_startOpenglesRenderer: gpu info
+2026-04-23T06:03:02.4509050Z INFO         | 
+2026-04-23T06:03:02.4512689Z INFO         | initIcdPaths: ICD set to 'swiftshader', using Swiftshader ICD
+2026-04-23T06:03:02.4514178Z INFO         | Setting ICD filenames for the loader = /usr/local/lib/android/sdk/emulator/lib64/vulkan/vk_swiftshader_icd.json
+2026-04-23T06:03:02.4516129Z INFO         | SharedLibrary::open for [/usr/local/lib/android/sdk/emulator/qemu/linux-x86_64/lib64/vulkan/libvulkan.so]
+2026-04-23T06:03:02.4517318Z INFO         | SharedLibrary::open for [/usr/local/lib/android/sdk/emulator/qemu/linux-x86_64/lib64/vulkan/libvulkan.so.1]
+2026-04-23T06:03:02.4518146Z INFO         | SharedLibrary::open for [/usr/local/lib/android/sdk/emulator/lib64/vulkan/libvulkan.so]
+2026-04-23T06:03:02.4519034Z INFO         | Added library: /usr/local/lib/android/sdk/emulator/lib64/vulkan/libvulkan.so
+2026-04-23T06:03:02.4561770Z INFO         | Selecting Vulkan device: SwiftShader Device (Subzero), Version: 1.3.0
+2026-04-23T06:03:02.4644071Z INFO         | SharedLibrary::open for [libX11]
+2026-04-23T06:03:02.4644716Z WARNING      | Could not open libX11.so, try libX11.so.6
+2026-04-23T06:03:02.4645300Z INFO         | SharedLibrary::open for [libX11.so.6]
+2026-04-23T06:03:02.4645823Z INFO         | SharedLibrary::open for [libX11-xcb]
+2026-04-23T06:03:02.4646405Z WARNING      | Could not open libX11-xcb.so, try libX11-xcb.so.1
+2026-04-23T06:03:02.4647015Z INFO         | SharedLibrary::open for [libX11-xcb.so.1]
+2026-04-23T06:03:02.4687771Z INFO         | Initializing VkEmulation features:
+2026-04-23T06:03:02.4688417Z INFO         |     glInteropSupported: false
+2026-04-23T06:03:02.4688895Z INFO         |     useDeferredCommands: true
+2026-04-23T06:03:02.4689418Z INFO         |     createResourceWithRequirements: true
+2026-04-23T06:03:02.4689931Z INFO         |     useVulkanComposition: false
+2026-04-23T06:03:02.4690429Z INFO         |     useVulkanNativeSwapchain: false
+2026-04-23T06:03:02.4690922Z INFO         |     enable guestRenderDoc: false
+2026-04-23T06:03:02.4691345Z INFO         |     ASTC LDR emulation mode: Gpu
+2026-04-23T06:03:02.4691695Z INFO         |     enable ETC2 emulation: true
+2026-04-23T06:03:02.4692061Z INFO         |     enable Ycbcr emulation: false
+2026-04-23T06:03:02.4692365Z INFO         |     guestVulkanOnly: false
+2026-04-23T06:03:02.4692699Z INFO         |     useDedicatedAllocations: false
+2026-04-23T06:03:02.4693038Z INFO         |     guestVulkanMaxApiVersion: 1.3.0
+2026-04-23T06:03:02.4704506Z INFO         | Graphics Adapter Vendor Google (Google Inc.)
+2026-04-23T06:03:02.4705277Z INFO         | Graphics Adapter Android Emulator OpenGL ES Translator (Google SwiftShader)
+2026-04-23T06:03:02.4705923Z INFO         | Graphics API Version OpenGL ES 3.0 (OpenGL ES 3.0 SwiftShader 4.0.0.1)
+2026-04-23T06:03:02.4708593Z INFO         | Graphics API Extensions GL_OES_EGL_sync GL_OES_EGL_image GL_OES_EGL_image_external GL_OES_depth24 GL_OES_depth32 GL_OES_element_index_uint GL_OES_texture_float GL_OES_texture_float_linear GL_OES_compressed_paletted_texture GL_OES_compressed_ETC1_RGB8_texture GL_OES_depth_texture GL_OES_texture_half_float GL_OES_texture_half_float_linear GL_OES_packed_depth_stencil GL_OES_vertex_half_float GL_OES_standard_derivatives GL_OES_texture_npot GL_OES_rgb8_rgba8 GL_EXT_color_buffer_float GL_EXT_color_buffer_half_float GL_EXT_texture_format_BGRA8888 GL_APPLE_texture_format_BGRA8888 
+2026-04-23T06:03:02.4710280Z INFO         | Graphics Device Extensions N/A
+2026-04-23T06:03:02.4710643Z INFO         | Disabling sparse binding feature support
+2026-04-23T06:03:02.4770215Z INFO         | Sending adb public key [QAAAAFUXisID0kbQrvkj3Eqxn2B5wQ9g1rQEEuTTHn2rvswNAjImX4nOL225zbmpUWrzAMiLvdZh+yEdb1AeOwDAZeMBgPg8nHFc/369cM563TkcDsQGUvrx8cZotip8JokpXCr9xv5jNCeEgc7BjKcXL8X4Y1P3JutVav5CmJ5T2tSqb9s1VfAWg71L8qQ9BrZbRPO9wHkWvjdPdXGKS53M4j1vvouM3dsXdLyM0OJwDl3a982pUDLik9mZ14u/k0T75wINDVV2nSKQD2IXGuBdDNJyN9rCpjGi52UZBIE9YuEzX2iRoFI4nDJ/a36SCXYTOXGtbx/+JA9s0xPX4JCSVMZPGonAxDtw+f1Yy6ValkvVDGNlw10JHOkBo+gmqanUM/Rx+ayqXYp44enuqvOqbXC9l2MLHyCdLcyKwSBbDB1e9KSDkkYB9HqCNqznSKS36/Dkc6iDrmlQ6qQBZC/UqWch3ij7IMJni59N0RkbyTgZ8SwC4ydSCeSRElZAV5ixk/IkWeEi+cnpLinP2y38K1UVFPjuYoz+qRqqR4PscrMOZlek3Tmy9MKLZnVvb4HWaYQvMhwOAximzjPiLwNFw9PjHoE21To2yqHYEiEoiWSbKm7/JKsQhNpcxtdlzPgM/LMEDLZtBFe3qHYXKnIFv6lPsmwnliphOaUY8LsU8n0dmxxSggEAAQA= runner@unknown]
+2026-04-23T06:03:02.4774788Z INFO         | Userspace boot properties:
+2026-04-23T06:03:02.4775503Z INFO         |   androidboot.boot_devices=pci0000:00/0000:00:03.0 pci0000:00/0000:00:06.0
+2026-04-23T06:03:02.4776135Z INFO         |   androidboot.dalvik.vm.heapsize=512m
+2026-04-23T06:03:02.4776692Z INFO         |   androidboot.debug.hwui.renderer=skiagl
+2026-04-23T06:03:02.4777230Z INFO         |   androidboot.debug.sf.nobootanimation=1
+2026-04-23T06:03:02.4777750Z INFO         |   androidboot.hardware=ranchu
+2026-04-23T06:03:02.4778327Z INFO         |   androidboot.hardware.gltransport=pipe
+2026-04-23T06:03:02.4778708Z INFO         |   androidboot.hardware.vulkan=ranchu
+2026-04-23T06:03:02.4779012Z INFO         |   androidboot.logcat=*:V
+2026-04-23T06:03:02.4779335Z INFO         |   androidboot.opengles.version=196608
+2026-04-23T06:03:02.4779653Z INFO         |   androidboot.qemu=1
+2026-04-23T06:03:02.4782905Z INFO         |   androidboot.qemu.adb.pubkey=QAAAAFUXisID0kbQrvkj3Eqxn2B5wQ9g1rQEEuTTHn2rvswNAjImX4nOL225zbmpUWrzAMiLvdZh+yEdb1AeOwDAZeMBgPg8nHFc/369cM563TkcDsQGUvrx8cZotip8JokpXCr9xv5jNCeEgc7BjKcXL8X4Y1P3JutVav5CmJ5T2tSqb9s1VfAWg71L8qQ9BrZbRPO9wHkWvjdPdXGKS53M4j1vvouM3dsXdLyM0OJwDl3a982pUDLik9mZ14u/k0T75wINDVV2nSKQD2IXGuBdDNJyN9rCpjGi52UZBIE9YuEzX2iRoFI4nDJ/a36SCXYTOXGtbx/+JA9s0xPX4JCSVMZPGonAxDtw+f1Yy6ValkvVDGNlw10JHOkBo+gmqanUM/Rx+ayqXYp44enuqvOqbXC9l2MLHyCdLcyKwSBbDB1e9KSDkkYB9HqCNqznSKS36/Dkc6iDrmlQ6qQBZC/UqWch3ij7IMJni59N0RkbyTgZ8SwC4ydSCeSRElZAV5ixk/IkWeEi+cnpLinP2y38K1UVFPjuYoz+qRqqR4PscrMOZlek3Tmy9MKLZnVvb4HWaYQvMhwOAximzjPiLwNFw9PjHoE21To2yqHYEiEoiWSbKm7/JKsQhNpcxtdlzPgM/LMEDLZtBFe3qHYXKnIFv6lPsmwnliphOaUY8LsU8n0dmxxSggEAAQA= runner@unknown
+2026-04-23T06:03:02.4785545Z INFO         |   androidboot.qemu.avd_name=test
+2026-04-23T06:03:02.4785919Z INFO         |   androidboot.qemu.camera_hq_edge_processing=0
+2026-04-23T06:03:02.4786296Z INFO         |   androidboot.qemu.camera_protocol_ver=1
+2026-04-23T06:03:02.4786669Z INFO         |   androidboot.qemu.cpuvulkan.version=4202496
+2026-04-23T06:03:02.4787075Z INFO         |   androidboot.qemu.gltransport.drawFlushInterval=800
+2026-04-23T06:03:02.4787463Z INFO         |   androidboot.qemu.gltransport.name=pipe
+2026-04-23T06:03:02.4787805Z INFO         |   androidboot.qemu.hwcodec.avcdec=2
+2026-04-23T06:03:02.4788146Z INFO         |   androidboot.qemu.hwcodec.hevcdec=2
+2026-04-23T06:03:02.4788652Z INFO         |   androidboot.qemu.hwcodec.vpxdec=2
+2026-04-23T06:03:02.4789078Z INFO         |   androidboot.qemu.settings.system.screen_off_timeout=2147483647
+2026-04-23T06:03:02.4789473Z INFO         |   androidboot.qemu.skin=1080x2400
+2026-04-23T06:03:02.4789797Z INFO         |   androidboot.qemu.virtiowifi=1
+2026-04-23T06:03:02.4790107Z INFO         |   androidboot.qemu.vsync=60
+2026-04-23T06:03:02.4790442Z INFO         |   androidboot.serialno=EMULATOR36X5X10X0
+2026-04-23T06:03:02.4791143Z INFO         |   androidboot.vbmeta.digest=451e57ed688ff746d2c636d52169ade253e2bc5bb30a5c3ff23679ca15d3bcd3
+2026-04-23T06:03:02.4791616Z INFO         |   androidboot.vbmeta.hash_alg=sha256
+2026-04-23T06:03:02.4791936Z INFO         |   androidboot.vbmeta.size=6656
+2026-04-23T06:03:02.4792256Z INFO         |   androidboot.veritymode=enforcing
+2026-04-23T06:03:02.5085892Z INFO         | Monitoring duration of emulator setup.
+2026-04-23T06:03:05.5137774Z INFO         | Activated packet streamer for bluetooth emulation
+2026-04-23T06:03:05.5164117Z INFO         | Successfully initialized netsim WiFi
+2026-04-23T06:03:05.5213915Z INFO         | Setting display: 0 configuration to: 1080x2400, dpi: 420x420 
+2026-04-23T06:03:05.5214590Z INFO         | setDisplayActiveConfig: id:0, 1080x2400
+2026-04-23T06:03:05.5215486Z INFO         | emulatorSetupEnvironment: Setting up screen background view and display layout at env:1080x2400, lcd:1080x2400
+2026-04-23T06:03:05.5216113Z INFO         | emulatorSetupEnvironment: Environment scene is not required
+2026-04-23T06:03:05.5273324Z USER_INFO    | Emulator is performing a full startup. This may take upto two minutes, or more.
+2026-04-23T06:03:05.5279062Z WARNING      | Failed to process .ini file /home/runner/.android/emu-update-last-check.ini for reading.
+2026-04-23T06:03:05.6535876Z WARNING      | Failed to process .ini file /home/runner/.android/emu-update-last-check.ini for reading.
+2026-04-23T06:03:12.0111875Z [command]/usr/local/lib/android/sdk/platform-tools/adb -s emulator-5554 shell getprop sys.boot_completed
+2026-04-23T06:03:12.0160044Z * daemon not running; starting now at tcp:5037
+2026-04-23T06:03:12.0177030Z * daemon started successfully
+2026-04-23T06:03:12.0182681Z adb: device 'emulator-5554' not found
+2026-04-23T06:03:12.0194271Z The process '/usr/local/lib/android/sdk/platform-tools/adb' failed with exit code 1
+2026-04-23T06:03:14.0216824Z [command]/usr/local/lib/android/sdk/platform-tools/adb -s emulator-5554 shell getprop sys.boot_completed
+2026-04-23T06:03:14.0249364Z adb: device offline
+2026-04-23T06:03:14.0257728Z The process '/usr/local/lib/android/sdk/platform-tools/adb' failed with exit code 1
+2026-04-23T06:03:16.0291800Z [command]/usr/local/lib/android/sdk/platform-tools/adb -s emulator-5554 shell getprop sys.boot_completed
+2026-04-23T06:03:16.0324139Z adb: device offline
+2026-04-23T06:03:16.0327504Z The process '/usr/local/lib/android/sdk/platform-tools/adb' failed with exit code 1
+2026-04-23T06:03:18.0400203Z [command]/usr/local/lib/android/sdk/platform-tools/adb -s emulator-5554 shell getprop sys.boot_completed
+2026-04-23T06:03:18.0423830Z adb: device offline
+2026-04-23T06:03:18.0436047Z The process '/usr/local/lib/android/sdk/platform-tools/adb' failed with exit code 1
+2026-04-23T06:03:20.0480086Z [command]/usr/local/lib/android/sdk/platform-tools/adb -s emulator-5554 shell getprop sys.boot_completed
+2026-04-23T06:03:20.2067388Z 
+2026-04-23T06:03:22.2159811Z [command]/usr/local/lib/android/sdk/platform-tools/adb -s emulator-5554 shell getprop sys.boot_completed
+2026-04-23T06:03:22.2768621Z 
+2026-04-23T06:03:24.2856920Z [command]/usr/local/lib/android/sdk/platform-tools/adb -s emulator-5554 shell getprop sys.boot_completed
+2026-04-23T06:03:24.3185848Z 
+2026-04-23T06:03:26.3311658Z [command]/usr/local/lib/android/sdk/platform-tools/adb -s emulator-5554 shell getprop sys.boot_completed
+2026-04-23T06:03:26.3561413Z 
+2026-04-23T06:03:28.3611497Z [command]/usr/local/lib/android/sdk/platform-tools/adb -s emulator-5554 shell getprop sys.boot_completed
+2026-04-23T06:03:28.3936154Z 
+2026-04-23T06:03:30.3967773Z [command]/usr/local/lib/android/sdk/platform-tools/adb -s emulator-5554 shell getprop sys.boot_completed
+2026-04-23T06:03:30.4112716Z 
+2026-04-23T06:03:32.4152811Z [command]/usr/local/lib/android/sdk/platform-tools/adb -s emulator-5554 shell getprop sys.boot_completed
+2026-04-23T06:03:32.4430836Z 
+2026-04-23T06:03:34.4461766Z [command]/usr/local/lib/android/sdk/platform-tools/adb -s emulator-5554 shell getprop sys.boot_completed
+2026-04-23T06:03:34.4762953Z 
+2026-04-23T06:03:36.4811555Z [command]/usr/local/lib/android/sdk/platform-tools/adb -s emulator-5554 shell getprop sys.boot_completed
+2026-04-23T06:03:36.5011233Z 
+2026-04-23T06:03:38.5046048Z [command]/usr/local/lib/android/sdk/platform-tools/adb -s emulator-5554 shell getprop sys.boot_completed
+2026-04-23T06:03:38.5217201Z 
+2026-04-23T06:03:40.5251244Z [command]/usr/local/lib/android/sdk/platform-tools/adb -s emulator-5554 shell getprop sys.boot_completed
+2026-04-23T06:03:40.5622440Z 
+2026-04-23T06:03:42.5667644Z [command]/usr/local/lib/android/sdk/platform-tools/adb -s emulator-5554 shell getprop sys.boot_completed
+2026-04-23T06:03:42.6240298Z 
+2026-04-23T06:03:44.6319920Z [command]/usr/local/lib/android/sdk/platform-tools/adb -s emulator-5554 shell getprop sys.boot_completed
+2026-04-23T06:03:44.6610091Z 
+2026-04-23T06:03:46.4171993Z INFO         | Boot completed in 44375 ms
+2026-04-23T06:03:46.4174812Z INFO         | Increasing screen off timeout, logcat buffer size to 2M.
+2026-04-23T06:03:46.6686066Z [command]/usr/local/lib/android/sdk/platform-tools/adb -s emulator-5554 shell getprop sys.boot_completed
+2026-04-23T06:03:46.8924373Z 1
+2026-04-23T06:03:46.8951935Z Emulator booted.
+2026-04-23T06:03:46.8969866Z [command]/usr/local/lib/android/sdk/platform-tools/adb -s emulator-5554 shell input keyevent 82
+2026-04-23T06:03:47.0199459Z Disabling animations.
+2026-04-23T06:03:47.0217532Z [command]/usr/local/lib/android/sdk/platform-tools/adb -s emulator-5554 shell settings put global window_animation_scale 0.0
+2026-04-23T06:03:47.3021638Z [command]/usr/local/lib/android/sdk/platform-tools/adb -s emulator-5554 shell settings put global transition_animation_scale 0.0
+2026-04-23T06:03:47.4269904Z [command]/usr/local/lib/android/sdk/platform-tools/adb -s emulator-5554 shell settings put global animator_duration_scale 0.0
+2026-04-23T06:03:47.6644980Z ##[endgroup]
+2026-04-23T06:03:47.6669752Z [command]/usr/bin/sh -c adb devices
+2026-04-23T06:03:47.6719010Z List of devices attached
+2026-04-23T06:03:47.6723779Z emulator-5554	device
+2026-04-23T06:03:47.6727431Z 
+2026-04-23T06:03:47.6737779Z [command]/usr/bin/sh -c adb shell settings put global window_animation_scale 0
+2026-04-23T06:03:47.8855717Z [command]/usr/bin/sh -c adb shell settings put global transition_animation_scale 0
+2026-04-23T06:03:47.9810016Z [command]/usr/bin/sh -c adb shell settings put global animator_duration_scale 0
+2026-04-23T06:03:48.0878349Z [command]/usr/bin/sh -c adb shell "ping -c 1 10.0.2.2 || true"
+2026-04-23T06:03:48.1361218Z connect: Network is unreachable
+2026-04-23T06:03:48.1401125Z [command]/usr/bin/sh -c ./gradlew connectedDebugAndroidTest --no-daemon --continue
+2026-04-23T06:03:51.5700545Z To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/9.3.1/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+2026-04-23T06:03:54.5666826Z Daemon will be stopped at the end of the build 
+2026-04-23T06:03:54.9665731Z Configuration on demand is an incubating feature.
+2026-04-23T06:04:03.5829726Z 
+2026-04-23T06:04:03.5859347Z > Configure project :app
+2026-04-23T06:04:03.5889316Z WARNING: The option setting 'android.builtInKotlin=false' is deprecated.
+2026-04-23T06:04:03.5911167Z The current default is 'true'.
+2026-04-23T06:04:03.5959247Z It will be removed in version 10.0 of the Android Gradle plugin.
+2026-04-23T06:04:03.6029174Z WARNING: The option setting 'android.newDsl=false' is deprecated.
+2026-04-23T06:04:03.6053599Z The current default is 'true'.
+2026-04-23T06:04:03.6078833Z It will be removed in version 10.0 of the Android Gradle plugin.
+2026-04-23T06:04:03.6090345Z WARNING: The option setting 'android.dependency.excludeLibraryComponentsFromConstraints=true' is deprecated.
+2026-04-23T06:04:03.6112774Z The current default is 'false'.
+2026-04-23T06:04:03.6138842Z It will be removed in version 10.0 of the Android Gradle plugin.
+2026-04-23T06:04:03.6163780Z Following can be set instead to achieve a similar behaviour.
+2026-04-23T06:04:03.6189042Z     android.dependency.useConstraints=false
+2026-04-23T06:04:15.0721864Z w: file:///home/runner/work/prismTask/prismTask/app/build.gradle.kts:17:1: 'fun Project.android(configure: Action<BaseAppModuleExtension>): Unit' is deprecated. Replaced by com.android.build.api.dsl.ApplicationExtension.
+2026-04-23T06:04:15.0759789Z This class is not used for the public extensions in AGP when android.newDsl=true, which is the default in AGP 9.0, and will be removed in AGP 10.0.
+2026-04-23T06:04:15.0788043Z w: file:///home/runner/work/prismTask/prismTask/app/build.gradle.kts:237:1: 'val Project.android: BaseAppModuleExtension' is deprecated. Replaced by com.android.build.api.dsl.ApplicationExtension.
+2026-04-23T06:04:15.0789777Z This class is not used for the public extensions in AGP when android.newDsl=true, which is the default in AGP 9.0, and will be removed in AGP 10.0.
+2026-04-23T06:04:17.3660177Z w: ⚠️ Deprecated 'org.jetbrains.kotlin.android' plugin usage
+2026-04-23T06:04:17.3699877Z The 'org.jetbrains.kotlin.android' plugin in project ':app' is no longer required for Kotlin support since AGP 9.0.
+2026-04-23T06:04:17.3739420Z Solution: Remove both `android.builtInKotlin=true` and `android.newDsl=false` from `gradle.properties`, then migrate to built-in Kotlin.
+2026-04-23T06:04:17.3768928Z See https://kotl.in/gradle/agp-built-in-kotlin for more details.
+2026-04-23T06:04:17.3798622Z 
+2026-04-23T06:04:19.5650865Z 
+2026-04-23T06:04:19.5670777Z > Task :app:checkKotlinGradlePluginConfigurationErrors SKIPPED
+2026-04-23T06:04:19.5708801Z > Task :app:preBuild UP-TO-DATE
+2026-04-23T06:04:19.5719526Z > Task :app:preDebugBuild UP-TO-DATE
+2026-04-23T06:04:19.6643858Z > Task :app:generateDebugBuildConfig
+2026-04-23T06:04:19.6680244Z > Task :app:generateDebugResValues FROM-CACHE
+2026-04-23T06:04:19.7659552Z > Task :app:generateDebugResources FROM-CACHE
+2026-04-23T06:04:19.7709085Z > Task :app:injectCrashlyticsMappingFileIdDebug
+2026-04-23T06:04:19.8704869Z > Task :app:processDebugGoogleServices FROM-CACHE
+2026-04-23T06:04:19.8705714Z > Task :app:packageDebugResources FROM-CACHE
+2026-04-23T06:04:21.8985269Z > Task :app:processDebugNavigationResources FROM-CACHE
+2026-04-23T06:04:22.1652048Z > Task :app:parseDebugLocalResources FROM-CACHE
+2026-04-23T06:04:22.2692284Z > Task :app:generateDebugRFile FROM-CACHE
+2026-04-23T06:04:23.8647269Z > Task :app:javaPreCompileDebug FROM-CACHE
+2026-04-23T06:04:23.8679319Z > Task :app:generateDebugAssets UP-TO-DATE
+2026-04-23T06:04:24.1662612Z > Task :app:mergeDebugAssets
+2026-04-23T06:04:24.1663232Z > Task :app:compressDebugAssets FROM-CACHE
+2026-04-23T06:04:24.1701824Z > Task :app:desugarDebugFileDependencies FROM-CACHE
+2026-04-23T06:04:24.3650172Z > Task :app:mapDebugSourceSetPaths
+2026-04-23T06:04:24.4670248Z > Task :app:compileDebugNavigationResources FROM-CACHE
+2026-04-23T06:04:24.5652884Z > Task :app:checkDebugAarMetadata
+2026-04-23T06:04:24.9646644Z > Task :app:mergeDebugResources FROM-CACHE
+2026-04-23T06:04:25.0662316Z > Task :app:createDebugCompatibleScreenManifests
+2026-04-23T06:04:25.0669156Z > Task :app:extractDeepLinksDebug FROM-CACHE
+2026-04-23T06:04:26.0679574Z > Task :app:processDebugMainManifest
+2026-04-23T06:04:26.2646696Z > Task :app:processDebugManifest
+2026-04-23T06:04:26.9661066Z > Task :app:processDebugManifestForPackage
+2026-04-23T06:04:27.1682345Z > Task :app:checkDebugDuplicateClasses
+2026-04-23T06:04:29.3652971Z > Task :app:mergeExtDexDebug FROM-CACHE
+2026-04-23T06:04:29.3690578Z > Task :app:mergeLibDexDebug FROM-CACHE
+2026-04-23T06:04:29.3720252Z > Task :app:mergeDebugJniLibFolders
+2026-04-23T06:04:29.4659168Z > Task :app:processDebugResources
+2026-04-23T06:04:29.5671919Z > Task :app:validateSigningDebug
+2026-04-23T06:04:29.5709192Z > Task :app:writeDebugAppMetadata
+2026-04-23T06:04:29.5712710Z > Task :app:mergeDebugNativeLibs
+2026-04-23T06:04:29.5739547Z > Task :app:writeDebugSigningConfigVersions
+2026-04-23T06:04:29.6699545Z > Task :app:preDebugAndroidTestBuild SKIPPED
+2026-04-23T06:04:29.8643428Z > Task :app:stripDebugDebugSymbols
+2026-04-23T06:04:29.9650358Z > Task :app:processDebugAndroidTestManifest
+2026-04-23T06:04:29.9657963Z > Task :app:generateDebugAndroidTestBuildConfig FROM-CACHE
+2026-04-23T06:04:29.9737822Z > Task :app:generateDebugAndroidTestResValues FROM-CACHE
+2026-04-23T06:04:30.3661972Z > Task :app:generateDebugAndroidTestResources FROM-CACHE
+2026-04-23T06:04:30.3695577Z > Task :app:packageDebugAndroidTestResources FROM-CACHE
+2026-04-23T06:04:30.3729419Z > Task :app:processDebugAndroidTestNavigationResources FROM-CACHE
+2026-04-23T06:04:30.3779502Z > Task :app:parseDebugAndroidTestLocalResources FROM-CACHE
+2026-04-23T06:04:30.3804327Z > Task :app:generateDebugAndroidTestRFile FROM-CACHE
+2026-04-23T06:04:30.3804930Z > Task :app:javaPreCompileDebugAndroidTest FROM-CACHE
+2026-04-23T06:04:30.3809510Z > Task :app:generateDebugAndroidTestAssets UP-TO-DATE
+2026-04-23T06:04:30.4679617Z > Task :app:mergeDebugAndroidTestAssets
+2026-04-23T06:04:30.4680864Z > Task :app:compressDebugAndroidTestAssets FROM-CACHE
+2026-04-23T06:04:30.4709327Z > Task :app:desugarDebugAndroidTestFileDependencies FROM-CACHE
+2026-04-23T06:04:30.4716092Z > Task :app:mapDebugAndroidTestSourceSetPaths
+2026-04-23T06:04:30.4787379Z > Task :app:checkDebugAndroidTestAarMetadata
+2026-04-23T06:04:30.4797872Z > Task :app:compileDebugAndroidTestNavigationResources FROM-CACHE
+2026-04-23T06:04:30.5646307Z > Task :app:mergeDebugAndroidTestResources FROM-CACHE
+2026-04-23T06:04:30.6663807Z > Task :app:processDebugAndroidTestResources FROM-CACHE
+2026-04-23T06:04:30.7655723Z > Task :app:mergeDebugAndroidTestJniLibFolders
+2026-04-23T06:04:30.7679422Z > Task :app:checkDebugAndroidTestDuplicateClasses
+2026-04-23T06:04:30.9643693Z > Task :app:mergeDebugAndroidTestNativeLibs
+2026-04-23T06:04:31.0643001Z > Task :app:mergeExtDexDebugAndroidTest FROM-CACHE
+2026-04-23T06:04:31.1652337Z > Task :app:mergeLibDexDebugAndroidTest FROM-CACHE
+2026-04-23T06:04:31.1680334Z > Task :app:validateSigningDebugAndroidTest
+2026-04-23T06:04:31.1699406Z > Task :app:writeDebugAndroidTestSigningConfigVersions
+2026-04-23T06:04:31.1723538Z > Task :app:stripDebugAndroidTestDebugSymbols
+2026-04-23T06:04:52.1651582Z > Task :app:kspDebugKotlin
+2026-04-23T06:05:39.7659392Z > Task :app:compileDebugKotlin
+2026-04-23T06:06:58.3655814Z w: file:///home/runner/work/prismTask/prismTask/app/build/generated/ksp/debug/kotlin/com/averycorp/prismtask/data/local/dao/HabitCompletionDao_Impl.kt:120:23 This declaration overrides a deprecated member but is not marked as deprecated itself. Add the '@Deprecated' annotation or suppress the diagnostic.
+2026-04-23T06:06:58.3669718Z w: file:///home/runner/work/prismTask/prismTask/app/build/generated/ksp/debug/kotlin/com/averycorp/prismtask/data/local/dao/HabitCompletionDao_Impl.kt:317:23 This declaration overrides a deprecated member but is not marked as deprecated itself. Add the '@Deprecated' annotation or suppress the diagnostic.
+2026-04-23T06:06:58.3700353Z w: file:///home/runner/work/prismTask/prismTask/app/build/generated/ksp/debug/kotlin/com/averycorp/prismtask/data/local/dao/HabitCompletionDao_Impl.kt:365:31 This declaration overrides a deprecated member but is not marked as deprecated itself. Add the '@Deprecated' annotation or suppress the diagnostic.
+2026-04-23T06:06:58.3709564Z w: file:///home/runner/work/prismTask/prismTask/app/build/generated/ksp/debug/kotlin/com/averycorp/prismtask/data/local/dao/HabitCompletionDao_Impl.kt:413:31 This declaration overrides a deprecated member but is not marked as deprecated itself. Add the '@Deprecated' annotation or suppress the diagnostic.
+2026-04-23T06:06:58.3728390Z w: file:///home/runner/work/prismTask/prismTask/app/build/generated/ksp/debug/kotlin/com/averycorp/prismtask/data/local/dao/HabitCompletionDao_Impl.kt:461:31 This declaration overrides a deprecated member but is not marked as deprecated itself. Add the '@Deprecated' annotation or suppress the diagnostic.
+2026-04-23T06:06:58.3732304Z w: file:///home/runner/work/prismTask/prismTask/app/build/generated/ksp/debug/kotlin/com/averycorp/prismtask/data/local/dao/HabitCompletionDao_Impl.kt:882:31 This declaration overrides a deprecated member but is not marked as deprecated itself. Add the '@Deprecated' annotation or suppress the diagnostic.
+2026-04-23T06:06:58.3753489Z w: file:///home/runner/work/prismTask/prismTask/app/build/generated/ksp/debug/kotlin/com/averycorp/prismtask/data/local/dao/HabitCompletionDao_Impl.kt:914:31 This declaration overrides a deprecated member but is not marked as deprecated itself. Add the '@Deprecated' annotation or suppress the diagnostic.
+2026-04-23T06:06:58.3758367Z w: file:///home/runner/work/prismTask/prismTask/app/src/main/java/com/averycorp/prismtask/PrismTaskApplication.kt:150:22 'fun setPersistenceEnabled(p0: Boolean): FirebaseFirestoreSettings.Builder' is deprecated. Deprecated in Java.
+2026-04-23T06:06:58.3761110Z w: file:///home/runner/work/prismTask/prismTask/app/src/main/java/com/averycorp/prismtask/data/billing/BillingManager.kt:57:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+2026-04-23T06:06:58.3763470Z - To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+2026-04-23T06:06:58.3765007Z - To keep applying to the value parameter only, use the '@param:' annotation target.
+2026-04-23T06:06:58.3765599Z 
+2026-04-23T06:06:58.3766116Z See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+2026-04-23T06:06:58.3767693Z w: file:///home/runner/work/prismTask/prismTask/app/src/main/java/com/averycorp/prismtask/data/calendar/CalendarManager.kt:6:8 'class GoogleSignIn : Any' is deprecated. Deprecated in Java.
+2026-04-23T06:06:58.3770480Z w: file:///home/runner/work/prismTask/prismTask/app/src/main/java/com/averycorp/prismtask/data/calendar/CalendarManager.kt:7:8 'class GoogleSignInOptions : AbstractSafeParcelable, Api.ApiOptions.Optional, ReflectedParcelable' is deprecated. Deprecated in Java.
+2026-04-23T06:06:58.3773238Z w: file:///home/runner/work/prismTask/prismTask/app/src/main/java/com/averycorp/prismtask/data/calendar/CalendarManager.kt:44:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+2026-04-23T06:06:58.3775180Z - To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+2026-04-23T06:06:58.3776286Z - To keep applying to the value parameter only, use the '@param:' annotation target.
+2026-04-23T06:06:58.3776849Z 
+2026-04-23T06:06:58.3777331Z See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+2026-04-23T06:06:58.3779027Z w: file:///home/runner/work/prismTask/prismTask/app/src/main/java/com/averycorp/prismtask/data/calendar/CalendarManager.kt:58:23 'class GoogleSignIn : Any' is deprecated. Deprecated in Java.
+2026-04-23T06:06:58.3781509Z w: file:///home/runner/work/prismTask/prismTask/app/src/main/java/com/averycorp/prismtask/data/calendar/CalendarManager.kt:69:85 'class GoogleSignInClient : GoogleApi<GoogleSignInOptions!>' is deprecated. Deprecated in Java.
+2026-04-23T06:06:58.3784162Z w: file:///home/runner/work/prismTask/prismTask/app/src/main/java/com/averycorp/prismtask/data/calendar/CalendarManager.kt:70:19 'class GoogleSignInOptions : AbstractSafeParcelable, Api.ApiOptions.Optional, ReflectedParcelable' is deprecated. Deprecated in Java.
+2026-04-23T06:06:58.3787348Z w: file:///home/runner/work/prismTask/prismTask/app/src/main/java/com/averycorp/prismtask/data/calendar/CalendarManager.kt:70:47 'class GoogleSignInOptions : AbstractSafeParcelable, Api.ApiOptions.Optional, ReflectedParcelable' is deprecated. Deprecated in Java.
+2026-04-23T06:06:58.3789993Z w: file:///home/runner/work/prismTask/prismTask/app/src/main/java/com/averycorp/prismtask/data/calendar/CalendarManager.kt:74:16 'class GoogleSignIn : Any' is deprecated. Deprecated in Java.
+2026-04-23T06:06:58.3792171Z w: file:///home/runner/work/prismTask/prismTask/app/src/main/java/com/averycorp/prismtask/data/calendar/CalendarManager.kt:85:28 'class GoogleSignIn : Any' is deprecated. Deprecated in Java.
+2026-04-23T06:06:58.3794547Z w: file:///home/runner/work/prismTask/prismTask/app/src/main/java/com/averycorp/prismtask/data/calendar/CalendarManager.kt:121:24 'class GoogleSignIn : Any' is deprecated. Deprecated in Java.
+2026-04-23T06:06:58.3796954Z w: file:///home/runner/work/prismTask/prismTask/app/src/main/java/com/averycorp/prismtask/data/calendar/CalendarManager.kt:156:23 'class GoogleSignIn : Any' is deprecated. Deprecated in Java.
+2026-04-23T06:06:58.3799290Z w: file:///home/runner/work/prismTask/prismTask/app/src/main/java/com/averycorp/prismtask/data/calendar/CalendarManager.kt:224:23 'class GoogleSignIn : Any' is deprecated. Deprecated in Java.
+2026-04-23T06:06:58.3801885Z w: file:///home/runner/work/prismTask/prismTask/app/src/main/java/com/averycorp/prismtask/data/calendar/DefaultCalendarPushDispatcher.kt:28:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+2026-04-23T06:06:58.3804062Z - To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+2026-04-23T06:06:58.3809945Z - To keep applying to the value parameter only, use the '@param:' annotation target.
+2026-04-23T06:06:58.3810568Z 
+2026-04-23T06:06:58.3811066Z See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+2026-04-23T06:06:58.3812995Z w: file:///home/runner/work/prismTask/prismTask/app/src/main/java/com/averycorp/prismtask/data/preferences/A11yPreferences.kt:22:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+2026-04-23T06:06:58.3815140Z - To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+2026-04-23T06:06:58.3816683Z - To keep applying to the value parameter only, use the '@param:' annotation target.
+2026-04-23T06:06:58.3817326Z 
+2026-04-23T06:06:58.3817867Z See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+2026-04-23T06:06:58.3820007Z w: file:///home/runner/work/prismTask/prismTask/app/src/main/java/com/averycorp/prismtask/data/preferences/ArchivePreferences.kt:21:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+2026-04-23T06:06:58.3822102Z - To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+2026-04-23T06:06:58.3823321Z - To keep applying to the value parameter only, use the '@param:' annotation target.
+2026-04-23T06:06:58.3824008Z 
+2026-04-23T06:06:58.3824521Z See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+2026-04-23T06:06:58.3826547Z w: file:///home/runner/work/prismTask/prismTask/app/src/main/java/com/averycorp/prismtask/data/preferences/AuthTokenPreferences.kt:30:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+2026-04-23T06:06:58.3828805Z - To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+2026-04-23T06:06:58.3830047Z - To keep applying to the value parameter only, use the '@param:' annotation target.
+2026-04-23T06:06:58.3830631Z 
+2026-04-23T06:06:58.3831138Z See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+2026-04-23T06:06:58.3833154Z w: file:///home/runner/work/prismTask/prismTask/app/src/main/java/com/averycorp/prismtask/data/preferences/BackendSyncPreferences.kt:29:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+2026-04-23T06:06:58.3835231Z - To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+2026-04-23T06:06:58.3836415Z - To keep applying to the value parameter only, use the '@param:' annotation target.
+2026-04-23T06:06:58.3836997Z 
+2026-04-23T06:06:58.3837673Z See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+2026-04-23T06:06:58.3839950Z w: file:///home/runner/work/prismTask/prismTask/app/src/main/java/com/averycorp/prismtask/data/preferences/BuiltInSyncPreferences.kt:25:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+2026-04-23T06:06:58.3842117Z - To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+2026-04-23T06:06:58.3843389Z - To keep applying to the value parameter only, use the '@param:' annotation target.
+2026-04-23T06:06:58.3843996Z 
+2026-04-23T06:06:58.3844525Z See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+2026-04-23T06:06:58.3846462Z w: file:///home/runner/work/prismTask/prismTask/app/src/main/java/com/averycorp/prismtask/data/preferences/CoachingPreferences.kt:30:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+2026-04-23T06:06:58.3848827Z - To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+2026-04-23T06:06:58.3850462Z - To keep applying to the value parameter only, use the '@param:' annotation target.
+2026-04-23T06:06:58.3851065Z 
+2026-04-23T06:06:58.3851584Z See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+2026-04-23T06:06:58.3853572Z w: file:///home/runner/work/prismTask/prismTask/app/src/main/java/com/averycorp/prismtask/data/preferences/DailyEssentialsPreferences.kt:28:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+2026-04-23T06:06:58.3855759Z - To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+2026-04-23T06:06:58.3857052Z - To keep applying to the value parameter only, use the '@param:' annotation target.
+2026-04-23T06:06:58.3857787Z 
+2026-04-23T06:06:58.3858524Z See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+2026-04-23T06:06:58.3860635Z w: file:///home/runner/work/prismTask/prismTask/app/src/main/java/com/averycorp/prismtask/data/preferences/DashboardPreferences.kt:22:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+2026-04-23T06:06:58.3862982Z - To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+2026-04-23T06:06:58.3864450Z - To keep applying to the value parameter only, use the '@param:' annotation target.
+2026-04-23T06:06:58.3865079Z 
+2026-04-23T06:06:58.3865618Z See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+2026-04-23T06:06:58.3867619Z w: file:///home/runner/work/prismTask/prismTask/app/src/main/java/com/averycorp/prismtask/data/preferences/HabitListPreferences.kt:31:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+2026-04-23T06:06:58.3869971Z - To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+2026-04-23T06:06:58.3871347Z - To keep applying to the value parameter only, use the '@param:' annotation target.
+2026-04-23T06:06:58.3873371Z 
+2026-04-23T06:06:58.3873959Z See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+2026-04-23T06:06:58.3875949Z w: file:///home/runner/work/prismTask/prismTask/app/src/main/java/com/averycorp/prismtask/data/preferences/LeisurePreferences.kt:83:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+2026-04-23T06:06:58.3878033Z - To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+2026-04-23T06:06:58.3879459Z - To keep applying to the value parameter only, use the '@param:' annotation target.
+2026-04-23T06:06:58.3880086Z 
+2026-04-23T06:06:58.3880805Z See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+2026-04-23T06:06:58.3882840Z w: file:///home/runner/work/prismTask/prismTask/app/src/main/java/com/averycorp/prismtask/data/preferences/MedicationMigrationPreferences.kt:29:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+2026-04-23T06:06:58.3885210Z - To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+2026-04-23T06:06:58.3886521Z - To keep applying to the value parameter only, use the '@param:' annotation target.
+2026-04-23T06:06:58.3887122Z 
+2026-04-23T06:06:58.3887795Z See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+2026-04-23T06:06:58.3889975Z w: file:///home/runner/work/prismTask/prismTask/app/src/main/java/com/averycorp/prismtask/data/preferences/MedicationPreferences.kt:26:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+2026-04-23T06:06:58.3897715Z - To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+2026-04-23T06:06:58.3899468Z - To keep applying to the value parameter only, use the '@param:' annotation target.
+2026-04-23T06:06:58.3900071Z 
+2026-04-23T06:06:58.3900587Z See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+2026-04-23T06:06:58.3902645Z w: file:///home/runner/work/prismTask/prismTask/app/src/main/java/com/averycorp/prismtask/data/preferences/MorningCheckInPreferences.kt:32:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+2026-04-23T06:06:58.3904820Z - To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+2026-04-23T06:06:58.3906064Z - To keep applying to the value parameter only, use the '@param:' annotation target.
+2026-04-23T06:06:58.3906857Z 
+2026-04-23T06:06:58.3907488Z See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+2026-04-23T06:06:58.3909889Z w: file:///home/runner/work/prismTask/prismTask/app/src/main/java/com/averycorp/prismtask/data/preferences/OnboardingPreferences.kt:22:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+2026-04-23T06:06:58.3912057Z - To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+2026-04-23T06:06:58.3913350Z - To keep applying to the value parameter only, use the '@param:' annotation target.
+2026-04-23T06:06:58.3913948Z 
+2026-04-23T06:06:58.3914470Z See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+2026-04-23T06:06:58.3916490Z w: file:///home/runner/work/prismTask/prismTask/app/src/main/java/com/averycorp/prismtask/data/preferences/ProStatusPreferences.kt:22:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+2026-04-23T06:06:58.3918976Z - To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+2026-04-23T06:06:58.3920236Z - To keep applying to the value parameter only, use the '@param:' annotation target.
+2026-04-23T06:06:58.3920819Z 
+2026-04-23T06:06:58.3921321Z See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+2026-04-23T06:06:58.3923296Z w: file:///home/runner/work/prismTask/prismTask/app/src/main/java/com/averycorp/prismtask/data/preferences/ShakePreferences.kt:28:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+2026-04-23T06:06:58.3925352Z - To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+2026-04-23T06:06:58.3926617Z - To keep applying to the value parameter only, use the '@param:' annotation target.
+2026-04-23T06:06:58.3927209Z 
+2026-04-23T06:06:58.3928083Z See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+2026-04-23T06:06:58.3930282Z w: file:///home/runner/work/prismTask/prismTask/app/src/main/java/com/averycorp/prismtask/data/preferences/TabPreferences.kt:22:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+2026-04-23T06:06:58.3934412Z - To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+2026-04-23T06:06:58.3935755Z - To keep applying to the value parameter only, use the '@param:' annotation target.
+2026-04-23T06:06:58.3936391Z 
+2026-04-23T06:06:58.3936937Z See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+2026-04-23T06:06:58.3939289Z w: file:///home/runner/work/prismTask/prismTask/app/src/main/java/com/averycorp/prismtask/data/preferences/TaskBehaviorPreferences.kt:58:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+2026-04-23T06:06:58.3941668Z - To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+2026-04-23T06:06:58.3942900Z - To keep applying to the value parameter only, use the '@param:' annotation target.
+2026-04-23T06:06:58.3943466Z 
+2026-04-23T06:06:58.3943958Z See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+2026-04-23T06:06:58.3945956Z w: file:///home/runner/work/prismTask/prismTask/app/src/main/java/com/averycorp/prismtask/data/preferences/TemplatePreferences.kt:31:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+2026-04-23T06:06:58.3948102Z - To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+2026-04-23T06:06:58.3949659Z - To keep applying to the value parameter only, use the '@param:' annotation target.
+2026-04-23T06:06:58.3950216Z 
+2026-04-23T06:06:58.3950702Z See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+2026-04-23T06:06:58.3952470Z w: file:///home/runner/work/prismTask/prismTask/app/src/main/java/com/averycorp/prismtask/data/preferences/ThemePreferences.kt:27:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+2026-04-23T06:06:58.3954513Z - To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+2026-04-23T06:06:58.3955740Z - To keep applying to the value parameter only, use the '@param:' annotation target.
+2026-04-23T06:06:58.3956396Z 
+2026-04-23T06:06:58.3956886Z See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+2026-04-23T06:06:58.3959189Z w: file:///home/runner/work/prismTask/prismTask/app/src/main/java/com/averycorp/prismtask/data/preferences/TimerPreferences.kt:23:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+2026-04-23T06:06:58.3961194Z - To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+2026-04-23T06:06:58.3962402Z - To keep applying to the value parameter only, use the '@param:' annotation target.
+2026-04-23T06:06:58.3962937Z 
+2026-04-23T06:06:58.3963429Z See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+2026-04-23T06:06:58.3965274Z w: file:///home/runner/work/prismTask/prismTask/app/src/main/java/com/averycorp/prismtask/data/preferences/VoicePreferences.kt:22:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+2026-04-23T06:06:58.3967186Z - To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+2026-04-23T06:06:58.3968396Z - To keep applying to the value parameter only, use the '@param:' annotation target.
+2026-04-23T06:06:58.3969133Z 
+2026-04-23T06:06:58.3969489Z See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+2026-04-23T06:06:58.3971055Z w: file:///home/runner/work/prismTask/prismTask/app/src/main/java/com/averycorp/prismtask/data/remote/AuthManager.kt:30:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+2026-04-23T06:06:58.3972647Z - To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+2026-04-23T06:06:58.3973319Z - To keep applying to the value parameter only, use the '@param:' annotation target.
+2026-04-23T06:06:58.3973583Z 
+2026-04-23T06:06:58.3973808Z See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+2026-04-23T06:06:58.3975513Z w: file:///home/runner/work/prismTask/prismTask/app/src/main/java/com/averycorp/prismtask/data/remote/GenericPreferenceSyncService.kt:68:22 This declaration is in a preview state and can be changed in a backwards-incompatible manner with a best-effort migration. Its usage should be marked with '@kotlinx.coroutines.FlowPreview' or '@OptIn(kotlinx.coroutines.FlowPreview::class)' if you accept the drawback of relying on preview API
+2026-04-23T06:06:58.3977514Z w: file:///home/runner/work/prismTask/prismTask/app/src/main/java/com/averycorp/prismtask/data/remote/GoogleDriveService.kt:4:8 'class GoogleSignIn : Any' is deprecated. Deprecated in Java.
+2026-04-23T06:06:58.3979057Z w: file:///home/runner/work/prismTask/prismTask/app/src/main/java/com/averycorp/prismtask/data/remote/GoogleDriveService.kt:23:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+2026-04-23T06:06:58.3980292Z - To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+2026-04-23T06:06:58.3980981Z - To keep applying to the value parameter only, use the '@param:' annotation target.
+2026-04-23T06:06:58.3981324Z 
+2026-04-23T06:06:58.3981597Z See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+2026-04-23T06:06:58.3982974Z w: file:///home/runner/work/prismTask/prismTask/app/src/main/java/com/averycorp/prismtask/data/remote/GoogleDriveService.kt:33:23 'class GoogleSignIn : Any' is deprecated. Deprecated in Java.
+2026-04-23T06:06:58.3985167Z w: file:///home/runner/work/prismTask/prismTask/app/src/main/java/com/averycorp/prismtask/data/remote/GoogleDriveService.kt:143:34 'class GoogleSignIn : Any' is deprecated. Deprecated in Java.
+2026-04-23T06:06:58.3989011Z w: file:///home/runner/work/prismTask/prismTask/app/src/main/java/com/averycorp/prismtask/data/remote/SortPreferencesSyncService.kt:58:18 This declaration is in a preview state and can be changed in a backwards-incompatible manner with a best-effort migration. Its usage should be marked with '@kotlinx.coroutines.FlowPreview' or '@OptIn(kotlinx.coroutines.FlowPreview::class)' if you accept the drawback of relying on preview API
+2026-04-23T06:06:58.3992613Z w: file:///home/runner/work/prismTask/prismTask/app/src/main/java/com/averycorp/prismtask/data/remote/SyncService.kt:2710:18 This declaration is in a preview state and can be changed in a backwards-incompatible manner with a best-effort migration. Its usage should be marked with '@kotlinx.coroutines.FlowPreview' or '@OptIn(kotlinx.coroutines.FlowPreview::class)' if you accept the drawback of relying on preview API
+2026-04-23T06:06:58.3995241Z w: file:///home/runner/work/prismTask/prismTask/app/src/main/java/com/averycorp/prismtask/data/remote/ThemePreferencesSyncService.kt:58:18 This declaration is in a preview state and can be changed in a backwards-incompatible manner with a best-effort migration. Its usage should be marked with '@kotlinx.coroutines.FlowPreview' or '@OptIn(kotlinx.coroutines.FlowPreview::class)' if you accept the drawback of relying on preview API
+2026-04-23T06:06:58.3997353Z w: file:///home/runner/work/prismTask/prismTask/app/src/main/java/com/averycorp/prismtask/data/remote/sync/SyncDeviceIdProvider.kt:33:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+2026-04-23T06:06:58.3998660Z - To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+2026-04-23T06:06:58.3999604Z - To keep applying to the value parameter only, use the '@param:' annotation target.
+2026-04-23T06:06:58.3999871Z 
+2026-04-23T06:06:58.4000100Z See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+2026-04-23T06:06:58.4001135Z w: file:///home/runner/work/prismTask/prismTask/app/src/main/java/com/averycorp/prismtask/data/repository/CustomSoundRepository.kt:35:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+2026-04-23T06:06:58.4002215Z - To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+2026-04-23T06:06:58.4002853Z - To keep applying to the value parameter only, use the '@param:' annotation target.
+2026-04-23T06:06:58.4003223Z 
+2026-04-23T06:06:58.4003445Z See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+2026-04-23T06:06:58.4004343Z w: file:///home/runner/work/prismTask/prismTask/app/src/main/java/com/averycorp/prismtask/domain/usecase/NaturalLanguageParser.kt:349:48 Unnecessary safe call on a non-null receiver of type 'LocalDate'.
+2026-04-23T06:06:58.4005690Z w: file:///home/runner/work/prismTask/prismTask/app/src/main/java/com/averycorp/prismtask/domain/usecase/ShakeDetector.kt:20:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+2026-04-23T06:06:58.4007036Z - To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+2026-04-23T06:06:58.4007665Z - To keep applying to the value parameter only, use the '@param:' annotation target.
+2026-04-23T06:06:58.4007927Z 
+2026-04-23T06:06:58.4008151Z See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+2026-04-23T06:06:58.4009716Z w: file:///home/runner/work/prismTask/prismTask/app/src/main/java/com/averycorp/prismtask/domain/usecase/TextToSpeechManager.kt:20:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+2026-04-23T06:06:58.4010841Z - To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+2026-04-23T06:06:58.4011476Z - To keep applying to the value parameter only, use the '@param:' annotation target.
+2026-04-23T06:06:58.4011731Z 
+2026-04-23T06:06:58.4011948Z See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+2026-04-23T06:06:58.4012964Z w: file:///home/runner/work/prismTask/prismTask/app/src/main/java/com/averycorp/prismtask/domain/usecase/VoiceInputManager.kt:35:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+2026-04-23T06:06:58.4014039Z - To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+2026-04-23T06:06:58.4014683Z - To keep applying to the value parameter only, use the '@param:' annotation target.
+2026-04-23T06:06:58.4014934Z 
+2026-04-23T06:06:58.4015140Z See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+2026-04-23T06:06:58.4016145Z w: file:///home/runner/work/prismTask/prismTask/app/src/main/java/com/averycorp/prismtask/notifications/EscalationScheduler.kt:29:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+2026-04-23T06:06:58.4017217Z - To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+2026-04-23T06:06:58.4017826Z - To keep applying to the value parameter only, use the '@param:' annotation target.
+2026-04-23T06:06:58.4018270Z 
+2026-04-23T06:06:58.4018486Z See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+2026-04-23T06:06:58.4019617Z w: file:///home/runner/work/prismTask/prismTask/app/src/main/java/com/averycorp/prismtask/notifications/HabitReminderScheduler.kt:46:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+2026-04-23T06:06:58.4020708Z - To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+2026-04-23T06:06:58.4021323Z - To keep applying to the value parameter only, use the '@param:' annotation target.
+2026-04-23T06:06:58.4021576Z 
+2026-04-23T06:06:58.4021773Z See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+2026-04-23T06:06:58.4022811Z w: file:///home/runner/work/prismTask/prismTask/app/src/main/java/com/averycorp/prismtask/notifications/MedicationReminderScheduler.kt:43:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+2026-04-23T06:06:58.4024024Z - To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+2026-04-23T06:06:58.4024646Z - To keep applying to the value parameter only, use the '@param:' annotation target.
+2026-04-23T06:06:58.4024906Z 
+2026-04-23T06:06:58.4025134Z See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+2026-04-23T06:06:58.4026146Z w: file:///home/runner/work/prismTask/prismTask/app/src/main/java/com/averycorp/prismtask/notifications/NotificationTester.kt:28:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+2026-04-23T06:06:58.4027240Z - To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+2026-04-23T06:06:58.4027869Z - To keep applying to the value parameter only, use the '@param:' annotation target.
+2026-04-23T06:06:58.4028126Z 
+2026-04-23T06:06:58.4028419Z See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+2026-04-23T06:06:58.4029480Z w: file:///home/runner/work/prismTask/prismTask/app/src/main/java/com/averycorp/prismtask/notifications/NotificationWorkerScheduler.kt:39:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+2026-04-23T06:06:58.4030734Z - To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+2026-04-23T06:06:58.4031495Z - To keep applying to the value parameter only, use the '@param:' annotation target.
+2026-04-23T06:06:58.4031744Z 
+2026-04-23T06:06:58.4031969Z See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+2026-04-23T06:06:58.4033015Z w: file:///home/runner/work/prismTask/prismTask/app/src/main/java/com/averycorp/prismtask/notifications/ReminderScheduler.kt:21:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+2026-04-23T06:06:58.4034124Z - To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+2026-04-23T06:06:58.4034757Z - To keep applying to the value parameter only, use the '@param:' annotation target.
+2026-04-23T06:06:58.4035014Z 
+2026-04-23T06:06:58.4035220Z See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+2026-04-23T06:06:58.4036275Z w: file:///home/runner/work/prismTask/prismTask/app/src/main/java/com/averycorp/prismtask/ui/components/sync/SyncDebugPanel.kt:139:13 'fun Divider(modifier: Modifier = ..., thickness: Dp = ..., color: Color = ...): Unit' is deprecated. Renamed to HorizontalDivider.
+2026-04-23T06:06:58.4038059Z w: file:///home/runner/work/prismTask/prismTask/app/src/main/java/com/averycorp/prismtask/ui/components/sync/SyncDetailsSheet.kt:74:13 'fun Divider(modifier: Modifier = ..., thickness: Dp = ..., color: Color = ...): Unit' is deprecated. Renamed to HorizontalDivider.
+2026-04-23T06:06:58.4040159Z w: file:///home/runner/work/prismTask/prismTask/app/src/main/java/com/averycorp/prismtask/ui/screens/feedback/BugReportViewModel.kt:50:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+2026-04-23T06:06:58.4041277Z - To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+2026-04-23T06:06:58.4041912Z - To keep applying to the value parameter only, use the '@param:' annotation target.
+2026-04-23T06:06:58.4042172Z 
+2026-04-23T06:06:58.4042390Z See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+2026-04-23T06:06:58.4043277Z w: file:///home/runner/work/prismTask/prismTask/app/src/main/java/com/averycorp/prismtask/ui/screens/habits/HabitListViewModel.kt:162:32 Unchecked cast of 'Any?' to 'List<SelfCareStepEntity>'.
+2026-04-23T06:06:58.4044446Z w: file:///home/runner/work/prismTask/prismTask/app/src/main/java/com/averycorp/prismtask/ui/screens/habits/HabitListViewModel.kt:163:32 Unchecked cast of 'Any?' to 'List<SelfCareStepEntity>'.
+2026-04-23T06:06:58.4045740Z w: file:///home/runner/work/prismTask/prismTask/app/src/main/java/com/averycorp/prismtask/ui/screens/habits/HabitListViewModel.kt:164:34 Unchecked cast of 'Any?' to 'List<SelfCareStepEntity>'.
+2026-04-23T06:06:58.4046897Z w: file:///home/runner/work/prismTask/prismTask/app/src/main/java/com/averycorp/prismtask/ui/screens/habits/HabitListViewModel.kt:171:34 Unchecked cast of 'Any?' to 'List<SelfCareStepEntity>'.
+2026-04-23T06:06:58.4048348Z w: file:///home/runner/work/prismTask/prismTask/app/src/main/java/com/averycorp/prismtask/ui/screens/medication/components/MedicationSlotPicker.kt:180:37 Unnecessary safe call on a non-null receiver of type 'MedicationSlotSelection'.
+2026-04-23T06:06:58.4049987Z w: file:///home/runner/work/prismTask/prismTask/app/src/main/java/com/averycorp/prismtask/ui/screens/pomodoro/SmartPomodoroViewModel.kt:147:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+2026-04-23T06:06:58.4051121Z - To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+2026-04-23T06:06:58.4051767Z - To keep applying to the value parameter only, use the '@param:' annotation target.
+2026-04-23T06:06:58.4052029Z 
+2026-04-23T06:06:58.4052255Z See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+2026-04-23T06:06:58.4053293Z w: file:///home/runner/work/prismTask/prismTask/app/src/main/java/com/averycorp/prismtask/ui/screens/schoolwork/SyllabusViewModel.kt:30:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+2026-04-23T06:06:58.4054384Z - To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+2026-04-23T06:06:58.4055007Z - To keep applying to the value parameter only, use the '@param:' annotation target.
+2026-04-23T06:06:58.4055261Z 
+2026-04-23T06:06:58.4055471Z See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+2026-04-23T06:06:58.4056717Z w: file:///home/runner/work/prismTask/prismTask/app/src/main/java/com/averycorp/prismtask/ui/screens/settings/SettingsViewModel.kt:70:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+2026-04-23T06:06:58.4058151Z - To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+2026-04-23T06:06:58.4058935Z - To keep applying to the value parameter only, use the '@param:' annotation target.
+2026-04-23T06:06:58.4059195Z 
+2026-04-23T06:06:58.4059415Z See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+2026-04-23T06:06:58.4060820Z w: file:///home/runner/work/prismTask/prismTask/app/src/main/java/com/averycorp/prismtask/ui/screens/tasklist/TaskListScreen.kt:485:55 'val Icons.Filled.FormatListBulleted: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.FormatListBulleted.
+2026-04-23T06:06:58.4062463Z w: file:///home/runner/work/prismTask/prismTask/app/src/main/java/com/averycorp/prismtask/ui/screens/templates/TemplatePickerSheet.kt:238:35 'val Icons.Filled.OpenInNew: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.OpenInNew.
+2026-04-23T06:06:58.4063974Z w: file:///home/runner/work/prismTask/prismTask/app/src/main/java/com/averycorp/prismtask/ui/screens/timer/TimerViewModel.kt:43:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+2026-04-23T06:06:58.4065053Z - To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+2026-04-23T06:06:58.4065684Z - To keep applying to the value parameter only, use the '@param:' annotation target.
+2026-04-23T06:06:58.4066035Z 
+2026-04-23T06:06:58.4066252Z See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+2026-04-23T06:06:58.4067540Z w: file:///home/runner/work/prismTask/prismTask/app/src/main/java/com/averycorp/prismtask/ui/screens/today/TodayScreen.kt:861:9 'fun AlertDialog(onDismissRequest: () -> Unit, modifier: Modifier = ..., properties: DialogProperties = ..., content: ComposableFunction0<Unit>): Unit' is deprecated. Use BasicAlertDialog instead.
+2026-04-23T06:06:58.4069359Z w: file:///home/runner/work/prismTask/prismTask/app/src/main/java/com/averycorp/prismtask/ui/screens/today/components/TodayProgressHeader.kt:185:68 Redundant call of conversion method.
+2026-04-23T06:06:58.4070619Z w: file:///home/runner/work/prismTask/prismTask/app/src/main/java/com/averycorp/prismtask/ui/screens/today/components/TodayProgressHeader.kt:186:68 Redundant call of conversion method.
+2026-04-23T06:06:58.4071942Z w: file:///home/runner/work/prismTask/prismTask/app/src/main/java/com/averycorp/prismtask/ui/screens/today/components/TodayProgressHeader.kt:187:68 Redundant call of conversion method.
+2026-04-23T06:06:58.4073086Z w: file:///home/runner/work/prismTask/prismTask/app/src/main/java/com/averycorp/prismtask/ui/screens/today/components/TodayProgressHeader.kt:188:68 Redundant call of conversion method.
+2026-04-23T06:06:58.4074389Z w: file:///home/runner/work/prismTask/prismTask/app/src/main/java/com/averycorp/prismtask/widget/WidgetUpdateManager.kt:27:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+2026-04-23T06:06:58.4082760Z - To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+2026-04-23T06:06:58.4083636Z - To keep applying to the value parameter only, use the '@param:' annotation target.
+2026-04-23T06:06:58.4083911Z 
+2026-04-23T06:06:58.4084158Z See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+2026-04-23T06:06:58.4085712Z w: file:///home/runner/work/prismTask/prismTask/app/src/main/java/com/averycorp/prismtask/workers/CalendarSyncScheduler.kt:33:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+2026-04-23T06:06:58.4087581Z - To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+2026-04-23T06:06:58.4088820Z - To keep applying to the value parameter only, use the '@param:' annotation target.
+2026-04-23T06:06:58.4089260Z 
+2026-04-23T06:06:58.4089628Z See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+2026-04-23T06:07:08.9641455Z 
+2026-04-23T06:07:08.9642366Z > Task :app:compileDebugJavaWithJavac
+2026-04-23T06:07:08.9642898Z > Task :app:hiltSyncDebug
+2026-04-23T06:07:09.8641802Z > Task :app:hiltAggregateDepsDebug FROM-CACHE
+2026-04-23T06:07:13.3641341Z > Task :app:hiltJavaCompileDebug
+2026-04-23T06:07:13.5649559Z > Task :app:processDebugJavaRes
+2026-04-23T06:07:14.0643584Z > Task :app:bundleDebugClassesToCompileJar
+2026-04-23T06:07:16.2643567Z > Task :app:mergeDebugJavaResource
+2026-04-23T06:07:16.6643368Z > Task :app:transformDebugClassesWithAsm
+2026-04-23T06:07:18.8641516Z > Task :app:kspDebugAndroidTestKotlin
+2026-04-23T06:07:45.8648613Z > Task :app:dexBuilderDebug
+2026-04-23T06:07:45.9643423Z > Task :app:mergeDebugGlobalSynthetics FROM-CACHE
+2026-04-23T06:07:48.7642392Z > Task :app:mergeProjectDexDebug
+2026-04-23T06:07:51.4647776Z > Task :app:packageDebug
+2026-04-23T06:07:51.4648558Z > Task :app:createDebugApkListingFileRedirect
+2026-04-23T06:07:54.7645034Z 
+2026-04-23T06:07:54.7659464Z > Task :app:compileDebugAndroidTestKotlin
+2026-04-23T06:07:54.7661897Z w: file:///home/runner/work/prismTask/prismTask/app/src/androidTest/java/com/averycorp/prismtask/BuiltInTaskTemplateBackfillerEmulatorTest.kt:71:22 'fun setPersistenceEnabled(p0: Boolean): FirebaseFirestoreSettings.Builder' is deprecated. Deprecated in Java.
+2026-04-23T06:07:54.7667903Z w: file:///home/runner/work/prismTask/prismTask/app/src/androidTest/java/com/averycorp/prismtask/CloudIdOrphanHealerEmulatorTest.kt:77:22 'fun setPersistenceEnabled(p0: Boolean): FirebaseFirestoreSettings.Builder' is deprecated. Deprecated in Java.
+2026-04-23T06:07:54.7673610Z w: file:///home/runner/work/prismTask/prismTask/app/src/androidTest/java/com/averycorp/prismtask/FirebaseEmulatorSmokeTest.kt:64:22 'fun setPersistenceEnabled(p0: Boolean): FirebaseFirestoreSettings.Builder' is deprecated. Deprecated in Java.
+2026-04-23T06:07:54.7677948Z w: file:///home/runner/work/prismTask/prismTask/app/src/androidTest/java/com/averycorp/prismtask/smoke/RecurrenceSmokeTest.kt:75:52 Unnecessary non-null assertion (!!) on a non-null receiver of type 'Long'.
+2026-04-23T06:07:56.4640550Z 
+2026-04-23T06:07:56.4645570Z > Task :app:compileDebugAndroidTestJavaWithJavac
+2026-04-23T06:07:56.4646453Z > Task :app:hiltSyncDebugAndroidTest
+2026-04-23T06:07:56.9643882Z > Task :app:hiltAggregateDepsDebugAndroidTest FROM-CACHE
+2026-04-23T06:08:00.6651253Z > Task :app:hiltJavaCompileDebugAndroidTest
+2026-04-23T06:08:00.7641400Z > Task :app:processDebugAndroidTestJavaRes
+2026-04-23T06:08:00.9669829Z > Task :app:transformDebugAndroidTestClassesWithAsm
+2026-04-23T06:08:01.0641491Z > Task :app:mergeDebugAndroidTestJavaResource
+2026-04-23T06:08:01.1736644Z > Task :app:dexBuilderDebugAndroidTest FROM-CACHE
+2026-04-23T06:08:01.1760204Z > Task :app:mergeDebugAndroidTestGlobalSynthetics FROM-CACHE
+2026-04-23T06:08:01.1788944Z > Task :app:mergeProjectDexDebugAndroidTest FROM-CACHE
+2026-04-23T06:08:01.4647559Z > Task :app:packageDebugAndroidTest
+2026-04-23T06:08:01.4659620Z > Task :app:createDebugAndroidTestApkListingFileRedirect
+2026-04-23T06:08:01.7640834Z [EmulatorConsole]: Failed to start Emulator console for 5554
+2026-04-23T06:08:08.7642394Z Starting 334 tests on emulator-5554 - 14
+2026-04-23T06:08:09.1639690Z 
+2026-04-23T06:08:09.1652330Z com.averycorp.prismtask.BatchUndoLogDaoTest > sweep_dropsExpiredAndStaleUndone_keepsRecent[emulator-5554 - 14] [31mFAILED [0m
+2026-04-23T06:08:09.1655054Z 	java.lang.AssertionError: expected:<2> but was:<1>
+2026-04-23T06:08:09.1658803Z 	at org.junit.Assert.fail(Assert.java:89)
+2026-04-23T06:08:18.7647848Z emulator-5554 - 14 Tests 42/334 completed. (0 skipped) (1 failed)
+2026-04-23T06:08:23.9639623Z 
+2026-04-23T06:08:23.9645397Z com.averycorp.prismtask.notifications.ReminderSchedulerAlarmInstrumentedTest > alarmFiresAndPostsNotification[emulator-5554 - 14] [33mSKIPPED [0m
+2026-04-23T06:08:28.7642822Z emulator-5554 - 14 Tests 234/334 completed. (1 skipped) (1 failed)
+2026-04-23T06:08:31.4644827Z > Task :app:connectedDebugAndroidTest
+2026-04-23T06:08:38.7680631Z 
+2026-04-23T06:08:38.7721748Z emulator-5554 - 14 Tests 235/334 completed. (1 skipped) (1 failed)
+2026-04-23T06:08:48.7641326Z emulator-5554 - 14 Tests 237/334 completed. (1 skipped) (1 failed)
+2026-04-23T06:08:58.7660083Z emulator-5554 - 14 Tests 240/334 completed. (1 skipped) (1 failed)
+2026-04-23T06:09:08.7663855Z emulator-5554 - 14 Tests 242/334 completed. (1 skipped) (1 failed)
+2026-04-23T06:09:18.7642754Z emulator-5554 - 14 Tests 244/334 completed. (1 skipped) (1 failed)
+2026-04-23T06:09:28.7643390Z emulator-5554 - 14 Tests 247/334 completed. (1 skipped) (1 failed)
+2026-04-23T06:09:38.7652456Z emulator-5554 - 14 Tests 250/334 completed. (1 skipped) (1 failed)
+2026-04-23T06:09:48.7650654Z emulator-5554 - 14 Tests 252/334 completed. (1 skipped) (1 failed)
+2026-04-23T06:09:58.7669947Z emulator-5554 - 14 Tests 260/334 completed. (1 skipped) (1 failed)
+2026-04-23T06:10:04.1438773Z ERROR        | bad color buffer handle 1012
+2026-04-23T06:10:08.7642179Z emulator-5554 - 14 Tests 261/334 completed. (1 skipped) (1 failed)
+2026-04-23T06:10:18.7641724Z emulator-5554 - 14 Tests 262/334 completed. (1 skipped) (1 failed)
+2026-04-23T06:10:19.3619202Z ERROR        | bad color buffer handle 1200
+2026-04-23T06:10:25.4778828Z ERROR        | bad color buffer handle 1264
+2026-04-23T06:10:26.8539317Z ERROR        | bad color buffer handle 1291
+2026-04-23T06:10:28.7647625Z emulator-5554 - 14 Tests 263/334 completed. (1 skipped) (1 failed)
+2026-04-23T06:10:33.7878762Z ERROR        | bad color buffer handle 1385
+2026-04-23T06:10:38.7646383Z emulator-5554 - 14 Tests 265/334 completed. (1 skipped) (1 failed)
+2026-04-23T06:10:48.7672095Z emulator-5554 - 14 Tests 267/334 completed. (1 skipped) (1 failed)
+2026-04-23T06:10:58.7665945Z emulator-5554 - 14 Tests 270/334 completed. (1 skipped) (1 failed)
+2026-04-23T06:11:08.7659904Z emulator-5554 - 14 Tests 273/334 completed. (1 skipped) (1 failed)
+2026-04-23T06:11:18.7656475Z emulator-5554 - 14 Tests 276/334 completed. (1 skipped) (1 failed)
+2026-04-23T06:11:28.7643262Z emulator-5554 - 14 Tests 278/334 completed. (1 skipped) (1 failed)
+2026-04-23T06:11:38.7644736Z emulator-5554 - 14 Tests 280/334 completed. (1 skipped) (1 failed)
+2026-04-23T06:11:48.7688686Z emulator-5554 - 14 Tests 283/334 completed. (1 skipped) (1 failed)
+2026-04-23T06:11:58.7652762Z emulator-5554 - 14 Tests 285/334 completed. (1 skipped) (1 failed)
+2026-04-23T06:12:08.7669730Z emulator-5554 - 14 Tests 288/334 completed. (1 skipped) (1 failed)
+2026-04-23T06:12:18.7669834Z emulator-5554 - 14 Tests 290/334 completed. (1 skipped) (1 failed)
+2026-04-23T06:12:28.7673210Z emulator-5554 - 14 Tests 293/334 completed. (1 skipped) (1 failed)
+2026-04-23T06:12:38.7647045Z emulator-5554 - 14 Tests 296/334 completed. (1 skipped) (1 failed)
+2026-04-23T06:12:48.7679661Z emulator-5554 - 14 Tests 298/334 completed. (1 skipped) (1 failed)
+2026-04-23T06:12:58.7659511Z emulator-5554 - 14 Tests 301/334 completed. (1 skipped) (1 failed)
+2026-04-23T06:13:08.7709454Z emulator-5554 - 14 Tests 304/334 completed. (1 skipped) (1 failed)
+2026-04-23T06:13:18.7655876Z emulator-5554 - 14 Tests 306/334 completed. (1 skipped) (1 failed)
+2026-04-23T06:13:28.7649809Z emulator-5554 - 14 Tests 309/334 completed. (1 skipped) (1 failed)
+2026-04-23T06:13:38.7659981Z emulator-5554 - 14 Tests 311/334 completed. (1 skipped) (1 failed)
+2026-04-23T06:13:48.7661579Z emulator-5554 - 14 Tests 313/334 completed. (1 skipped) (1 failed)
+2026-04-23T06:13:58.8682536Z emulator-5554 - 14 Tests 315/334 completed. (1 skipped) (1 failed)
+2026-04-23T06:14:08.7680219Z emulator-5554 - 14 Tests 318/334 completed. (1 skipped) (1 failed)
+2026-04-23T06:14:18.7645257Z emulator-5554 - 14 Tests 320/334 completed. (1 skipped) (1 failed)
+2026-04-23T06:14:28.8642903Z emulator-5554 - 14 Tests 323/334 completed. (1 skipped) (1 failed)
+2026-04-23T06:14:38.7640807Z emulator-5554 - 14 Tests 326/334 completed. (1 skipped) (1 failed)
+2026-04-23T06:14:48.8659798Z emulator-5554 - 14 Tests 329/334 completed. (1 skipped) (1 failed)
+2026-04-23T06:14:58.8693901Z emulator-5554 - 14 Tests 331/334 completed. (1 skipped) (1 failed)
+2026-04-23T06:15:08.7640966Z emulator-5554 - 14 Tests 335/334 completed. (1 skipped) (1 failed)
+2026-04-23T06:15:11.3641888Z Tests on emulator-5554 - 14 failed: There was 1 failure(s).
+2026-04-23T06:15:11.8525724Z Finished 335 tests on emulator-5554 - 14
+2026-04-23T06:15:12.0875428Z Execute com.averycorp.prismtask.BatchUndoLogDaoTest.sweep_dropsExpiredAndStaleUndone_keepsRecent: FAILED
+2026-04-23T06:15:12.0876578Z java.lang.AssertionError: java.lang.AssertionError: expected:<2> but was:<1>
+2026-04-23T06:15:12.0877262Z at org.junit.Assert.fail(Assert.java:89)
+2026-04-23T06:15:12.0877775Z at org.junit.Assert.failNotEquals(Assert.java:835)
+2026-04-23T06:15:12.0879239Z at org.junit.Assert.assertEquals(Assert.java:120)
+2026-04-23T06:15:12.0879872Z at org.junit.Assert.assertEquals(Assert.java:146)
+2026-04-23T06:15:12.1587351Z at com.averycorp.prismtask.BatchUndoLogDaoTest$sweep_dropsExpiredAndStaleUndone_keepsRecent$1.invokeSuspend(BatchUndoLogDaoTest.kt:171)
+2026-04-23T06:15:12.1591031Z at com.averycorp.prismtask.BatchUndoLogDaoTest$sweep_dropsExpiredAndStaleUndone_keepsRecent$1.invoke(Unknown Source:8)
+2026-04-23T06:15:12.1595983Z at com.averycorp.prismtask.BatchUndoLogDaoTest$sweep_dropsExpiredAndStaleUndone_keepsRecent$1.invoke(Unknown Source:4)
+2026-04-23T06:15:12.1601082Z at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt$runTest$2$1$1.invokeSuspend(TestBuilders.kt:318)
+2026-04-23T06:15:12.1606607Z at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:34)
+2026-04-23T06:15:12.1607815Z at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:101)
+2026-04-23T06:15:12.1612785Z at kotlinx.coroutines.test.TestDispatcher.processEvent$kotlinx_coroutines_test(TestDispatcher.kt:24)
+2026-04-23T06:15:12.1614169Z at kotlinx.coroutines.test.TestCoroutineScheduler.tryRunNextTaskUnless$kotlinx_coroutines_test(TestCoroutineScheduler.kt:99)
+2026-04-23T06:15:12.1626156Z at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt$runTest$2$1$workRunner$1.invokeSuspend(TestBuilders.kt:327)
+2026-04-23T06:15:12.1627340Z at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:34)
+2026-04-23T06:15:12.1628359Z at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:101)
+2026-04-23T06:15:12.1629219Z at kotlinx.coroutines.EventLoopImplBase.processNextEvent(EventLoop.common.kt:263)
+2026-04-23T06:15:12.1630123Z at kotlinx.coroutines.BlockingCoroutine.joinBlocking(Builders.kt:95)
+2026-04-23T06:15:12.1631028Z at kotlinx.coroutines.BuildersKt__BuildersKt.runBlocking(Builders.kt:69)
+2026-04-23T06:15:12.1631792Z at kotlinx.coroutines.BuildersKt.runBlocking(Unknown Source:1)
+2026-04-23T06:15:12.1632604Z at kotlinx.coroutines.BuildersKt__BuildersKt.runBlocking$default(Builders.kt:47)
+2026-04-23T06:15:12.1633448Z at kotlinx.coroutines.BuildersKt.runBlocking$default(Unknown Source:1)
+2026-04-23T06:15:12.1634342Z at kotlinx.coroutines.test.TestBuildersJvmKt.createTestResult(TestBuildersJvm.kt:10)
+2026-04-23T06:15:12.1635355Z at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt.runTest-8Mi8wO0(TestBuilders.kt:310)
+2026-04-23T06:15:12.1636295Z at kotlinx.coroutines.test.TestBuildersKt.runTest-8Mi8wO0(Unknown Source:1)
+2026-04-23T06:15:12.1637256Z at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt.runTest-8Mi8wO0(TestBuilders.kt:168)
+2026-04-23T06:15:12.1639787Z at kotlinx.coroutines.test.TestBuildersKt.runTest-8Mi8wO0(Unknown Source:1)
+2026-04-23T06:15:12.1640829Z at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt.runTest-8Mi8wO0$default(TestBuilders.kt:160)
+2026-04-23T06:15:12.1641865Z at kotlinx.coroutines.test.TestBuildersKt.runTest-8Mi8wO0$default(Unknown Source:1)
+2026-04-23T06:15:12.1643064Z at com.averycorp.prismtask.BatchUndoLogDaoTest.sweep_dropsExpiredAndStaleUndone_keepsRecent(BatchUndoLogDaoTest.kt:142)
+2026-04-23T06:15:12.1643738Z 
+2026-04-23T06:15:12.1644025Z java.lang.AssertionError: expected:<2> but was:<1>
+2026-04-23T06:15:12.1644569Z at org.junit.Assert.fail(Assert.java:89)
+2026-04-23T06:15:12.1645125Z at org.junit.Assert.failNotEquals(Assert.java:835)
+2026-04-23T06:15:12.1645695Z at org.junit.Assert.assertEquals(Assert.java:120)
+2026-04-23T06:15:12.1646246Z at org.junit.Assert.assertEquals(Assert.java:146)
+2026-04-23T06:15:12.1650810Z at com.averycorp.prismtask.BatchUndoLogDaoTest$sweep_dropsExpiredAndStaleUndone_keepsRecent$1.invokeSuspend(BatchUndoLogDaoTest.kt:171)
+2026-04-23T06:15:12.1655258Z at com.averycorp.prismtask.BatchUndoLogDaoTest$sweep_dropsExpiredAndStaleUndone_keepsRecent$1.invoke(Unknown Source:8)
+2026-04-23T06:15:12.1656734Z at com.averycorp.prismtask.BatchUndoLogDaoTest$sweep_dropsExpiredAndStaleUndone_keepsRecent$1.invoke(Unknown Source:4)
+2026-04-23T06:15:12.1666422Z at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt$runTest$2$1$1.invokeSuspend(TestBuilders.kt:318)
+2026-04-23T06:15:12.1667514Z at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:34)
+2026-04-23T06:15:12.1668517Z at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:101)
+2026-04-23T06:15:12.1669622Z at kotlinx.coroutines.test.TestDispatcher.processEvent$kotlinx_coroutines_test(TestDispatcher.kt:24)
+2026-04-23T06:15:12.1670894Z at kotlinx.coroutines.test.TestCoroutineScheduler.tryRunNextTaskUnless$kotlinx_coroutines_test(TestCoroutineScheduler.kt:99)
+2026-04-23T06:15:12.1672636Z at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt$runTest$2$1$workRunner$1.invokeSuspend(TestBuilders.kt:327)
+2026-04-23T06:15:12.1674008Z at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:34)
+2026-04-23T06:15:12.1674881Z at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:101)
+2026-04-23T06:15:12.1675785Z at kotlinx.coroutines.EventLoopImplBase.processNextEvent(EventLoop.common.kt:263)
+2026-04-23T06:15:12.1676649Z at kotlinx.coroutines.BlockingCoroutine.joinBlocking(Builders.kt:95)
+2026-04-23T06:15:12.1677460Z at kotlinx.coroutines.BuildersKt__BuildersKt.runBlocking(Builders.kt:69)
+2026-04-23T06:15:12.1687050Z at kotlinx.coroutines.BuildersKt.runBlocking(Unknown Source:1)
+2026-04-23T06:15:12.1687981Z at kotlinx.coroutines.BuildersKt__BuildersKt.runBlocking$default(Builders.kt:47)
+2026-04-23T06:15:12.1692252Z at kotlinx.coroutines.BuildersKt.runBlocking$default(Unknown Source:1)
+2026-04-23T06:15:12.1693186Z at kotlinx.coroutines.test.TestBuildersJvmKt.createTestResult(TestBuildersJvm.kt:10)
+2026-04-23T06:15:12.1694207Z at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt.runTest-8Mi8wO0(TestBuilders.kt:310)
+2026-04-23T06:15:12.1695175Z at kotlinx.coroutines.test.TestBuildersKt.runTest-8Mi8wO0(Unknown Source:1)
+2026-04-23T06:15:12.1696139Z at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt.runTest-8Mi8wO0(TestBuilders.kt:168)
+2026-04-23T06:15:12.1697096Z at kotlinx.coroutines.test.TestBuildersKt.runTest-8Mi8wO0(Unknown Source:1)
+2026-04-23T06:15:12.1698105Z at kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt.runTest-8Mi8wO0$default(TestBuilders.kt:160)
+2026-04-23T06:15:12.1699310Z at kotlinx.coroutines.test.TestBuildersKt.runTest-8Mi8wO0$default(Unknown Source:1)
+2026-04-23T06:15:12.1700457Z at com.averycorp.prismtask.BatchUndoLogDaoTest.sweep_dropsExpiredAndStaleUndone_keepsRecent(BatchUndoLogDaoTest.kt:142)
+2026-04-23T06:15:13.7643020Z 
+2026-04-23T06:15:13.7659695Z > Task :app:connectedDebugAndroidTest FAILED
+2026-04-23T06:15:13.8640613Z gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__reactivecircus_android-emulator-runner-1776924237051.json
+2026-04-23T06:15:14.0642453Z 
+2026-04-23T06:15:14.0675050Z [Incubating] Problems report is available at: file:///home/runner/work/prismTask/prismTask/build/reports/problems/problems-report.html
+2026-04-23T06:15:14.0767737Z 
+2026-04-23T06:15:14.0789880Z FAILURE: Build failed with an exception.
+2026-04-23T06:15:14.0798997Z 
+2026-04-23T06:15:14.0799438Z * What went wrong:
+2026-04-23T06:15:14.0801340Z Execution failed for task ':app:connectedDebugAndroidTest'.
+2026-04-23T06:15:14.0802670Z > There were failing tests. See the report at: file:///home/runner/work/prismTask/prismTask/app/build/reports/androidTests/connected/debug/index.html
+2026-04-23T06:15:14.0803255Z 
+2026-04-23T06:15:14.0803504Z * Try:
+2026-04-23T06:15:14.0803945Z > Run with --stacktrace option to get the stack trace.
+2026-04-23T06:15:14.0804535Z > Run with --info or --debug option to get more log output.
+2026-04-23T06:15:14.0805642Z > Run with --scan to get full insights from a Build Scan (powered by Develocity).
+2026-04-23T06:15:14.0806248Z > Get more help at https://help.gradle.org.
+2026-04-23T06:15:14.0806529Z 
+2026-04-23T06:15:14.0806693Z BUILD FAILED in 11m 25s
+2026-04-23T06:15:14.0809712Z 
+2026-04-23T06:15:14.0811653Z Deprecated Gradle features were used in this build, making it incompatible with Gradle 10.
+2026-04-23T06:15:14.0812070Z 
+2026-04-23T06:15:14.0814271Z You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+2026-04-23T06:15:14.0814767Z 
+2026-04-23T06:15:14.0816985Z For more on this, please refer to https://docs.gradle.org/9.3.1/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+2026-04-23T06:15:14.0817725Z 85 actionable tasks: 49 executed, 36 from cache
+2026-04-23T06:15:14.6901196Z ##[error]The process '/usr/bin/sh' failed with exit code 1
+2026-04-23T06:15:14.8128902Z ##[group]Terminate Emulator
+2026-04-23T06:15:14.8140124Z [command]/usr/local/lib/android/sdk/platform-tools/adb -s emulator-5554 emu kill
+2026-04-23T06:15:14.8269903Z OK: killing emulator, bye bye
+2026-04-23T06:15:14.8273254Z OK
+2026-04-23T06:15:14.8277100Z ##[endgroup]
+2026-04-23T06:15:14.8312403Z INFO         | Wait for emulator (pid 2718) 20 seconds to shutdown gracefully before kill;you can set environment variable ANDROID_EMULATOR_WAIT_TIME_BEFORE_KILL(in seconds) to change the default value (20 seconds)
+2026-04-23T06:15:14.8313095Z 
+2026-04-23T06:15:14.8489099Z WARNING      | Not saving state: RAM not mapped as shared
+2026-04-23T06:15:14.8496554Z INFO         | Saving snapshot 'default_boot' using 1 ms
+2026-04-23T06:15:15.0226728Z ERROR        | stop: Not implemented
+2026-04-23T06:15:15.0229293Z WARNING      | Emulator client has not yet been configured.. Call configure me first!
+2026-04-23T06:15:15.4809452Z WARNING      | Netsim Wifi localhost:33159 is gone due to CANCELLED
+2026-04-23T06:15:16.6688908Z ##[group]Run if [ -n "${FIREBASE_EMULATORS_PID:-}" ]; then
+2026-04-23T06:15:16.6689313Z [36;1mif [ -n "${FIREBASE_EMULATORS_PID:-}" ]; then[0m
+2026-04-23T06:15:16.6689631Z [36;1m  kill "$FIREBASE_EMULATORS_PID" || true[0m
+2026-04-23T06:15:16.6689968Z [36;1m  wait "$FIREBASE_EMULATORS_PID" 2>/dev/null || true[0m
+2026-04-23T06:15:16.6690248Z [36;1mfi[0m
+2026-04-23T06:15:16.6956053Z shell: /usr/bin/bash -e {0}
+2026-04-23T06:15:16.6956305Z env:
+2026-04-23T06:15:16.6956498Z   USE_FIREBASE_EMULATOR: true
+2026-04-23T06:15:16.6956835Z   JAVA_HOME: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/21.0.10-7/x64
+2026-04-23T06:15:16.6957254Z   JAVA_HOME_21_X64: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/21.0.10-7/x64
+2026-04-23T06:15:16.6957613Z   GRADLE_ACTION_ID: gradle/actions/setup-gradle
+2026-04-23T06:15:16.6957889Z   GRADLE_USER_HOME: /home/runner/.gradle
+2026-04-23T06:15:16.6958155Z   GRADLE_BUILD_ACTION_SETUP_COMPLETED: true
+2026-04-23T06:15:16.6958698Z   GRADLE_BUILD_ACTION_CACHE_RESTORED: true
+2026-04-23T06:15:16.6959079Z   DEVELOCITY_INJECTION_INIT_SCRIPT_NAME: gradle-actions.inject-develocity.init.gradle
+2026-04-23T06:15:16.6959472Z   DEVELOCITY_INJECTION_CUSTOM_VALUE: gradle-actions
+2026-04-23T06:15:16.6959763Z   GITHUB_DEPENDENCY_GRAPH_ENABLED: false
+2026-04-23T06:15:16.6960020Z   FIREBASE_EMULATORS_PID: 2303
+2026-04-23T06:15:16.6960267Z   ANDROID_AVD_HOME: /home/runner/.android/avd
+2026-04-23T06:15:16.6962080Z ##[endgroup]
+2026-04-23T06:15:16.7214777Z ##[group]Run actions/upload-artifact@v4
+2026-04-23T06:15:16.7215216Z with:
+2026-04-23T06:15:16.7215517Z   name: firebase-emulator-log
+2026-04-23T06:15:16.7215822Z   path: /home/runner/work/_temp/firebase-emulators.log
+2026-04-23T06:15:16.7216123Z   retention-days: 7
+2026-04-23T06:15:16.7216339Z   if-no-files-found: ignore
+2026-04-23T06:15:16.7216565Z   compression-level: 6
+2026-04-23T06:15:16.7216855Z   overwrite: false
+2026-04-23T06:15:16.7217086Z   include-hidden-files: false
+2026-04-23T06:15:16.7217313Z env:
+2026-04-23T06:15:16.7217547Z   USE_FIREBASE_EMULATOR: true
+2026-04-23T06:15:16.7217879Z   JAVA_HOME: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/21.0.10-7/x64
+2026-04-23T06:15:16.7218556Z   JAVA_HOME_21_X64: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/21.0.10-7/x64
+2026-04-23T06:15:16.7218933Z   GRADLE_ACTION_ID: gradle/actions/setup-gradle
+2026-04-23T06:15:16.7219212Z   GRADLE_USER_HOME: /home/runner/.gradle
+2026-04-23T06:15:16.7219510Z   GRADLE_BUILD_ACTION_SETUP_COMPLETED: true
+2026-04-23T06:15:16.7219869Z   GRADLE_BUILD_ACTION_CACHE_RESTORED: true
+2026-04-23T06:15:16.7220298Z   DEVELOCITY_INJECTION_INIT_SCRIPT_NAME: gradle-actions.inject-develocity.init.gradle
+2026-04-23T06:15:16.7220702Z   DEVELOCITY_INJECTION_CUSTOM_VALUE: gradle-actions
+2026-04-23T06:15:16.7220984Z   GITHUB_DEPENDENCY_GRAPH_ENABLED: false
+2026-04-23T06:15:16.7221256Z   FIREBASE_EMULATORS_PID: 2303
+2026-04-23T06:15:16.7221517Z   ANDROID_AVD_HOME: /home/runner/.android/avd
+2026-04-23T06:15:16.7221772Z ##[endgroup]
+2026-04-23T06:15:17.1737342Z With the provided path, there will be 1 file uploaded
+2026-04-23T06:15:17.1740285Z Artifact name is valid!
+2026-04-23T06:15:17.1742523Z Root directory input is valid!
+2026-04-23T06:15:17.3430471Z Beginning upload of artifact content to blob storage
+2026-04-23T06:15:17.4433491Z Uploaded bytes 1051
+2026-04-23T06:15:17.4721962Z Finished uploading artifact content to blob storage!
+2026-04-23T06:15:17.4725561Z SHA256 digest of uploaded artifact zip is c54f602c5d063b5d73c73226ad469f1aa033bbb56573c5e461283233ec71ffab
+2026-04-23T06:15:17.4728850Z Finalizing artifact upload
+2026-04-23T06:15:17.5986502Z Artifact firebase-emulator-log.zip successfully finalized. Artifact ID 6595126453
+2026-04-23T06:15:17.5989393Z Artifact firebase-emulator-log has been successfully uploaded! Final size is 1051 bytes. Artifact ID is 6595126453
+2026-04-23T06:15:17.5993028Z Artifact download URL: https://github.com/akarlin3/prismTask/actions/runs/24819536652/artifacts/6595126453
+2026-04-23T06:15:17.6152630Z ##[group]Run actions/upload-artifact@v4
+2026-04-23T06:15:17.6153012Z with:
+2026-04-23T06:15:17.6153299Z   name: connected-test-results
+2026-04-23T06:15:17.6153688Z   path: app/build/reports/androidTests/
+app/build/outputs/androidTest-results/
+
+2026-04-23T06:15:17.6154050Z   retention-days: 7
+2026-04-23T06:15:17.6154262Z   if-no-files-found: ignore
+2026-04-23T06:15:17.6154634Z   compression-level: 6
+2026-04-23T06:15:17.6154945Z   overwrite: false
+2026-04-23T06:15:17.6155252Z   include-hidden-files: false
+2026-04-23T06:15:17.6155585Z env:
+2026-04-23T06:15:17.6155778Z   USE_FIREBASE_EMULATOR: true
+2026-04-23T06:15:17.6156100Z   JAVA_HOME: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/21.0.10-7/x64
+2026-04-23T06:15:17.6156612Z   JAVA_HOME_21_X64: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/21.0.10-7/x64
+2026-04-23T06:15:17.6157009Z   GRADLE_ACTION_ID: gradle/actions/setup-gradle
+2026-04-23T06:15:17.6157284Z   GRADLE_USER_HOME: /home/runner/.gradle
+2026-04-23T06:15:17.6157577Z   GRADLE_BUILD_ACTION_SETUP_COMPLETED: true
+2026-04-23T06:15:17.6158018Z   GRADLE_BUILD_ACTION_CACHE_RESTORED: true
+2026-04-23T06:15:17.6158589Z   DEVELOCITY_INJECTION_INIT_SCRIPT_NAME: gradle-actions.inject-develocity.init.gradle
+2026-04-23T06:15:17.6159087Z   DEVELOCITY_INJECTION_CUSTOM_VALUE: gradle-actions
+2026-04-23T06:15:17.6159441Z   GITHUB_DEPENDENCY_GRAPH_ENABLED: false
+2026-04-23T06:15:17.6159697Z   FIREBASE_EMULATORS_PID: 2303
+2026-04-23T06:15:17.6159953Z   ANDROID_AVD_HOME: /home/runner/.android/avd
+2026-04-23T06:15:17.6160203Z ##[endgroup]
+2026-04-23T06:15:17.8337384Z Multiple search paths detected. Calculating the least common ancestor of all paths
+2026-04-23T06:15:17.8339129Z The least common ancestor is /home/runner/work/prismTask/prismTask/app/build. This will be the root directory of the artifact
+2026-04-23T06:15:17.8340019Z With the provided path, there will be 409 files uploaded
+2026-04-23T06:15:17.8342962Z Artifact name is valid!
+2026-04-23T06:15:17.8343795Z Root directory input is valid!
+2026-04-23T06:15:17.9813206Z Beginning upload of artifact content to blob storage
+2026-04-23T06:15:18.5687502Z Uploaded bytes 1526527
+2026-04-23T06:15:18.5967767Z Finished uploading artifact content to blob storage!
+2026-04-23T06:15:18.5970422Z SHA256 digest of uploaded artifact zip is 33177cc9ac99eb02bc56fa2facc357f8b401996f1a49be1dcb8516e31bcf2824
+2026-04-23T06:15:18.5971623Z Finalizing artifact upload
+2026-04-23T06:15:18.7256779Z Artifact connected-test-results.zip successfully finalized. Artifact ID 6595126695
+2026-04-23T06:15:18.7257874Z Artifact connected-test-results has been successfully uploaded! Final size is 1526527 bytes. Artifact ID is 6595126695
+2026-04-23T06:15:18.7263226Z Artifact download URL: https://github.com/akarlin3/prismTask/actions/runs/24819536652/artifacts/6595126695
+2026-04-23T06:15:18.7427663Z Post job cleanup.
+2026-04-23T06:15:18.7519636Z Post job cleanup.
+2026-04-23T06:15:19.0107127Z In post-action step
+2026-04-23T06:15:19.0115559Z ##[group]Stopping Gradle daemons
+2026-04-23T06:15:19.0117018Z Stopping Gradle daemons for /home/runner/.gradle/wrapper/dists/gradle-9.3.1-bin/23ovyewtku6u96viwx3xl3oks/gradle-9.3.1
+2026-04-23T06:15:19.0130933Z [command]/home/runner/.gradle/wrapper/dists/gradle-9.3.1-bin/23ovyewtku6u96viwx3xl3oks/gradle-9.3.1/bin/gradle --stop
+2026-04-23T06:15:19.6067550Z No Gradle daemons are running.
+2026-04-23T06:15:19.6153979Z ##[endgroup]
+2026-04-23T06:15:19.6154734Z Not performing cache-cleanup due to build failure
+2026-04-23T06:15:19.6155433Z ##[group]Caching Gradle state
+2026-04-23T06:15:20.3479419Z [command]/usr/bin/tar --posix -cf cache.tzst --exclude cache.tzst -P -C /home/runner/work/prismTask/prismTask --files-from manifest.txt --use-compress-program zstdmt
+2026-04-23T06:15:22.4296468Z Sent 439771 of 439771 (100.0%), 2.4 MBs/sec
+2026-04-23T06:15:22.5545038Z Saved cache entry with key gradle-kotlin-dsl-v1-e0399e1bb493843a318f3fa85452c607 from /home/runner/.gradle/caches/*/kotlin-dsl/accessors/*/,/home/runner/.gradle/caches/*/kotlin-dsl/scripts/*/ in 2297ms
+2026-04-23T06:15:24.3055131Z [command]/usr/bin/tar --posix -cf cache.tzst --exclude cache.tzst -P -C /home/runner/work/prismTask/prismTask --files-from manifest.txt --use-compress-program zstdmt
+2026-04-23T06:15:36.6900508Z Sent 22007074 of 491769122 (4.5%), 21.0 MBs/sec
+2026-04-23T06:15:37.5919057Z Sent 491769122 of 491769122 (100.0%), 246.6 MBs/sec
+2026-04-23T06:15:37.7685817Z Saved cache entry with key gradle-transforms-v1-60b8945ed85b56bd65254d207e60b5ad from /home/runner/.gradle/caches/transforms-4/*/,/home/runner/.gradle/caches/*/transforms/*/ in 15067ms
+2026-04-23T06:15:39.5449675Z [command]/usr/bin/tar --posix -cf cache.tzst --exclude cache.tzst -P -C /home/runner/work/prismTask/prismTask --files-from manifest.txt --use-compress-program zstdmt
+2026-04-23T06:15:44.5085787Z Sent 0 of 1006872511 (0.0%), 0.0 MBs/sec
+2026-04-23T06:15:45.5083394Z Sent 604219327 of 1006872511 (60.0%), 288.1 MBs/sec
+2026-04-23T06:15:45.8630728Z Sent 1006872511 of 1006872511 (100.0%), 407.9 MBs/sec
+2026-04-23T06:15:46.1235167Z Saved cache entry with key gradle-home-v1|Linux-X64|connected-tests[1e7216165ffdcf45b9a4b7e3077585ac]-d05a3d05f282ccf10fb8b80209b4b03e24c6e9f7 from /home/runner/.gradle/caches,/home/runner/.gradle/notifications,/home/runner/.gradle/.setup-gradle in 6591ms
+2026-04-23T06:15:46.1236981Z ##[endgroup]
+2026-04-23T06:15:46.1241297Z Generating Job Summary
+2026-04-23T06:15:46.1254947Z Completed post-action step
+2026-04-23T06:15:46.1460926Z Post job cleanup.
+2026-04-23T06:15:46.4114806Z Post job cleanup.
+2026-04-23T06:15:46.4965331Z [command]/usr/bin/git version
+2026-04-23T06:15:46.5002525Z git version 2.53.0
+2026-04-23T06:15:46.5036234Z Temporarily overriding HOME='/home/runner/work/_temp/e2d510a0-c4ea-48dc-b163-c4831aa37467' before making global git config changes
+2026-04-23T06:15:46.5037462Z Adding repository directory to the temporary git global config as a safe directory
+2026-04-23T06:15:46.5048544Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/prismTask/prismTask
+2026-04-23T06:15:46.5086397Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-04-23T06:15:46.5116264Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-04-23T06:15:46.5347166Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-04-23T06:15:46.5364386Z http.https://github.com/.extraheader
+2026-04-23T06:15:46.5374013Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-04-23T06:15:46.5401130Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-04-23T06:15:46.5585564Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-04-23T06:15:46.5611121Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-04-23T06:15:46.5917486Z Cleaning up orphan processes
+2026-04-23T06:15:46.6298594Z Terminate orphan process: pid (2842) (adb)
+2026-04-23T06:15:46.6345890Z ##[warning]Node.js 20 actions are deprecated. The following actions are running on Node.js 20 and may not work as expected: actions/checkout@v4, actions/setup-java@v4, actions/setup-node@v4, actions/upload-artifact@v4, gradle/actions/setup-gradle@v4. Actions will be forced to run with Node.js 24 by default starting June 2nd, 2026. Node.js 20 will be removed from the runner on September 16th, 2026. Please check if updated versions of these actions are available that support Node.js 24. To opt into Node.js 24 now, set the FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true environment variable on the runner or in your workflow file. Once Node.js 24 becomes the default, you can temporarily opt out by setting ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
