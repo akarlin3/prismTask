@@ -16,6 +16,22 @@ without any backend or Android-side changes. See
 and `docs/WEB_PARITY_PHASE_G_PROMPT_TEMPLATE.md` for the remaining
 Phase G roadmap.
 
+- **Analytics Dashboard (slice 4)** — new `/analytics` route wires four
+  of the five backend `/analytics/*` endpoints: `summary`,
+  `productivity-score`, `time-tracking`, and `habit-correlations`.
+  Renders a summary tile row (Today / This week / Streak / Habits),
+  a daily productivity area chart (Recharts, 7/30/90-day range
+  selector), a time-tracking bar chart (estimated vs. actual, per-bar
+  accuracy coloring, group-by project / tag / priority / day toggle),
+  and a habit-correlations list with per-habit direction badges plus an
+  AI recommendation callout. Pro-gated; FREE users see an upgrade
+  card. Uses `Promise.allSettled` so a single failing endpoint yields
+  partial results rather than wiping the whole dashboard.
+  **Not wired:** `/analytics/project-progress` — the backend expects
+  an integer Postgres project_id, but web projects live in Firestore
+  with string doc IDs. Wiring it cleanly needs a backend change to
+  accept Firestore IDs; out of scope for this slice.
+
 - **Daily Briefing + Weekly Planner (slice 3)** — wires two previously
   unwired AI endpoints: `POST /ai/daily-briefing` and
   `POST /ai/weekly-plan`. New `/briefing` route renders greeting, top
