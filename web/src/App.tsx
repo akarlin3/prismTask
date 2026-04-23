@@ -6,6 +6,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { useThemeStore } from '@/stores/themeStore';
 import { useBatchStore } from '@/stores/batchStore';
 import { useOnboardingStore } from '@/stores/onboardingStore';
+import { applyA11yToDocument, useA11yStore } from '@/stores/a11yStore';
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary';
 import { OfflineBanner } from '@/components/shared/OfflineBanner';
 
@@ -50,6 +51,19 @@ export default function App() {
   useEffect(() => {
     applyTheme();
   }, [applyTheme, themeKey]);
+
+  // Apply accessibility overrides on mount (AccessibilitySection re-applies
+  // when the user toggles controls, but the initial load needs this).
+  const a11yFontScale = useA11yStore((s) => s.fontScale);
+  const a11yHighContrast = useA11yStore((s) => s.highContrast);
+  const a11yReducedMotion = useA11yStore((s) => s.reducedMotion);
+  useEffect(() => {
+    applyA11yToDocument({
+      fontScale: a11yFontScale,
+      highContrast: a11yHighContrast,
+      reducedMotion: a11yReducedMotion,
+    });
+  }, [a11yFontScale, a11yHighContrast, a11yReducedMotion]);
 
   // Register service worker for PWA
   useEffect(() => {

@@ -19,6 +19,10 @@ import {
   Bell,
   Smartphone,
   Sparkles,
+  Accessibility,
+  HelpCircle,
+  Info,
+  Wrench,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useThemeStore } from '@/stores/themeStore';
@@ -31,6 +35,10 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { KeyboardShortcutsModal } from '@/components/shared/KeyboardShortcutsModal';
 import { ProUpgradeModal } from '@/components/shared/ProUpgradeModal';
 import { BatchHistorySection } from '@/features/settings/sections/BatchHistorySection';
+import { AboutSection } from '@/features/settings/sections/AboutSection';
+import { HelpFeedbackSection } from '@/features/settings/sections/HelpFeedbackSection';
+import { AccessibilitySection } from '@/features/settings/sections/AccessibilitySection';
+import { DebugSection } from '@/features/settings/sections/DebugSection';
 import { THEME_ORDER, THEMES, type ThemeKey } from '@/theme/themes';
 import { exportJson, exportCsv } from '@/utils/export';
 import { parseImportFile, importData } from '@/utils/import';
@@ -466,6 +474,38 @@ export function SettingsScreen() {
         title="Recent Batch Commands"
       >
         <BatchHistorySection />
+      </SettingsSection>
+
+      {/* Accessibility */}
+      <SettingsSection
+        icon={<Accessibility className="h-5 w-5 text-[var(--color-accent)]" />}
+        title="Accessibility"
+      >
+        <AccessibilitySection />
+      </SettingsSection>
+
+      {/* Help & Feedback */}
+      <SettingsSection
+        icon={<HelpCircle className="h-5 w-5 text-[var(--color-accent)]" />}
+        title="Help & Feedback"
+      >
+        <HelpFeedbackSection />
+      </SettingsSection>
+
+      {/* Debug / Maintenance */}
+      <SettingsSection
+        icon={<Wrench className="h-5 w-5 text-[var(--color-accent)]" />}
+        title="Maintenance"
+      >
+        <DebugSection />
+      </SettingsSection>
+
+      {/* About */}
+      <SettingsSection
+        icon={<Info className="h-5 w-5 text-[var(--color-accent)]" />}
+        title="About"
+      >
+        <AboutSection />
       </SettingsSection>
 
       {/* Data */}

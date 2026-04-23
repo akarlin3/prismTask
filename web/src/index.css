@@ -154,6 +154,33 @@ body {
   }
 }
 
+/* Accessibility overrides driven by AccessibilitySection.
+   `--font-scale` is applied via root inline style. The two classes
+   toggle high-contrast outlines and reduced-motion globally. */
+html {
+  font-size: calc(16px * var(--font-scale, 1));
+}
+
+.a11y-high-contrast *:focus-visible {
+  outline-width: 3px !important;
+  outline-offset: 3px !important;
+}
+
+.a11y-high-contrast button,
+.a11y-high-contrast a[role='button'] {
+  outline: 1px solid var(--color-text-primary);
+  outline-offset: -1px;
+}
+
+.a11y-reduced-motion *,
+.a11y-reduced-motion *::before,
+.a11y-reduced-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
 /* Compact mode */
 .compact {
   font-size: 14px;

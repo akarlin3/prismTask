@@ -16,6 +16,20 @@ without any backend or Android-side changes. See
 and `docs/WEB_PARITY_PHASE_G_PROMPT_TEMPLATE.md` for the remaining
 Phase G roadmap.
 
+- **Settings sections bundle (slice 12)** — four new Settings sections
+  ported from Android to close the visible gap with `settings/sections/`:
+  (1) **Accessibility** — font-scale slider (0.9× / 1.0× / 1.1× / 1.25×),
+  explicit High-Contrast toggle, explicit Reduced-Motion toggle, all
+  persisted per-device via a new `a11yStore` and applied as
+  `--font-scale` + root classes; (2) **Help & Feedback** — pre-filled
+  links to GitHub bug + feature issues, support email, keyboard-shortcut
+  docs; (3) **Maintenance** — "Replay onboarding" (clears the Firestore
+  completion flag so the wizard reappears) and "Clear batch history"
+  (wipes the 24h batch-undo log in this browser); (4) **About** —
+  static version info + privacy / terms / source links. App.tsx applies
+  the a11y state on first mount so users land with their chosen settings
+  already in effect.
+
 - **Templates parity — habits + projects (slice 11)** — `TemplateListScreen`
   gains a tabbed UI (Tasks / Habits / Projects). The new Habits and
   Projects tabs ship a curated starter library (6 habits, 4 project
