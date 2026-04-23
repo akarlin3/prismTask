@@ -768,3 +768,152 @@ def generate_pomodoro_coaching(
     except Exception as e:
         logger.error(f"Pomodoro coaching AI error ({trigger}): {type(e).__name__}: {e}")
         raise
+
+
+# ---------------------------------------------------------------------------
+# A2 — NLP batch schedule operations (pulled from Phase H)
+# ---------------------------------------------------------------------------
+
+_BATCH_PARSE_SYSTEM_PROMPT = """You are a productivity assistant that turns a single natural-language command into a structured batch of mutations on a user's tasks, habits, projects, and medications.
+
+You are given:
+- The user's command (one short sentence, e.g. "Cancel everything Friday")
+- Today's date in the user's local timezone
+- The user's timezone
+- A list of TASKS the user has, with id, title, due_date, scheduled_start_time, priority, project, tags, life_category, is_completed
+- A list of HABITS the user tracks, with id and name
+- A list of PROJECTS the user has, with id and name
+- A list of MEDICATIONS the user takes, with id and name
+
+You must return strict JSON with this shape (no prose, no markdown fences):
+{
+  "mutations": [
+    {
+      "entity_type": "TASK" | "HABIT" | "PROJECT" | "MEDICATION",
+      "entity_id": "<id from the input>",
+      "mutation_type": "RESCHEDULE" | "DELETE" | "COMPLETE" | "SKIP" | "PRIORITY_CHANGE" | "TAG_CHANGE" | "PROJECT_MOVE" | "ARCHIVE",
+      "proposed_new_values": { ... },
+      "human_readable_description": "<one short sentence describing the change>"
+    }
+  ],
+  "confidence": <float 0.0..1.0, your confidence the user actually wanted this batch>,
+  "ambiguous_entities": [
+    {
+      "phrase": "<the user's words that were ambiguous>",
+      "candidate_entity_type": "TASK" | "HABIT" | "PROJECT" | "MEDICATION",
+      "candidate_entity_ids": ["<id>", "<id>"],
+      "note": "<short hint for the resolution dialog>"
+    }
+  ]
+}
+
+Per-mutation `proposed_new_values` schemas:
+- RESCHEDULE on TASK: {"due_date": "YYYY-MM-DD"} or {"scheduled_start_time": "YYYY-MM-DDTHH:MM:SS"}
+- RESCHEDULE on HABIT: {"date": "YYYY-MM-DD"} (one-off shift of one occurrence)
+- DELETE: {} (no values needed)
+- COMPLETE on TASK: {} ; on HABIT: {"date": "YYYY-MM-DD"} ; on MEDICATION: {"date": "YYYY-MM-DD", "slot_key": "morning"}
+- SKIP on HABIT: {"date": "YYYY-MM-DD"} ; on MEDICATION: {"date": "YYYY-MM-DD", "slot_key": "morning"}
+- PRIORITY_CHANGE on TASK: {"priority": 0..4}
+- TAG_CHANGE on TASK: {"tags_added": ["..."], "tags_removed": ["..."]}
+- PROJECT_MOVE on TASK: {"project_id": "<id from input or null>"}
+- ARCHIVE on PROJECT or HABIT: {}
+
+Hard rules — break any of these and the request fails:
+1. Never invent entity IDs. Only use IDs that appear in the input lists.
+2. Return only the mutations the user plausibly intended. Do not add "bonus" mutations.
+3. If the user's command is ambiguous (e.g. "work tasks" maps to two projects, or a date phrase is unclear), do NOT guess — add an entry to `ambiguous_entities` and either skip the affected mutations or include them with a low confidence.
+4. Date parsing rules (today is the date you're given):
+   - "today" / "tonight" → today
+   - "tomorrow" → today + 1 day
+   - "Monday".."Sunday" without a qualifier → the next occurrence on or after today
+   - "next Monday".."next Sunday" → the occurrence in the following Mon-Sun week
+   - "this week" → Mon..Sun of the current week (Mon = week start)
+   - "next week" → Mon..Sun of the following week
+   - "the weekend" → Sat + Sun of the current or upcoming weekend
+5. "All tasks tagged X" matches tasks where `tags` contains the lowercased phrase.
+6. "Everything Friday" / "everything on Friday" matches incomplete tasks whose due_date OR scheduled_start_time falls on Friday.
+7. Cancel = DELETE on TASK, SKIP on HABIT, ARCHIVE on PROJECT (use the most reasonable mapping; if unclear, lower the confidence).
+8. Confidence: 1.0 = certain. 0.7-0.9 = mostly certain but a date or filter was inferred. <0.7 = significant ambiguity, surface in `ambiguous_entities`.
+9. Output JSON only. No code fences. No prose. No trailing commentary.
+
+If the command makes no sense or matches no entities, return `{"mutations": [], "confidence": 0.0, "ambiguous_entities": []}`."""
+
+
+def parse_batch_command(
+    command_text: str,
+    user_context: dict,
+    tier: str = "PRO",
+) -> dict:
+    """Call Claude Haiku to parse a natural-language batch command into
+    a structured mutation plan.
+
+    Returns a dict with shape:
+        {"mutations": [...], "confidence": float,
+         "ambiguous_entities": [...]}
+
+    Raises:
+        RuntimeError: Anthropic client unavailable / API key missing.
+        ValueError:   AI returned a malformed response after retry.
+    """
+
+    client = _get_client()
+    model = get_model("batch_parse")
+
+    # Trim the context the model sees: completed tasks rarely matter for a
+    # batch command and they bloat the prompt. Cap each list at a sane
+    # ceiling to keep token usage bounded — the client should already be
+    # filtering, but defense in depth.
+    ctx = dict(user_context)
+    tasks = ctx.get("tasks") or []
+    if isinstance(tasks, list):
+        # Drop completed tasks and cap at 200 to bound token usage.
+        ctx["tasks"] = [t for t in tasks if not t.get("is_completed")][:200]
+    if isinstance(ctx.get("habits"), list):
+        ctx["habits"] = [h for h in ctx["habits"] if not h.get("is_archived")][:100]
+    if isinstance(ctx.get("projects"), list):
+        ctx["projects"] = ctx["projects"][:100]
+    if isinstance(ctx.get("medications"), list):
+        ctx["medications"] = ctx["medications"][:50]
+
+    user_payload = json.dumps(
+        {"command": command_text, "context": ctx},
+        default=str,
+        indent=2,
+    )
+
+    last_error: Exception | None = None
+    for attempt in range(2):
+        try:
+            message = client.messages.create(
+                model=model,
+                max_tokens=4096,
+                system=_BATCH_PARSE_SYSTEM_PROMPT,
+                messages=[{"role": "user", "content": user_payload}],
+            )
+            content = message.content[0].text
+            result = _parse_ai_json(content)
+            if not isinstance(result, dict):
+                raise ValueError("Expected a JSON object at top level")
+            # Shape-validate the required keys; the router does the
+            # pydantic-level validation but we want a clean error here.
+            if "mutations" not in result:
+                raise ValueError("Response missing required key 'mutations'")
+            return {
+                "mutations": result.get("mutations") or [],
+                "confidence": float(result.get("confidence") or 0.0),
+                "ambiguous_entities": result.get("ambiguous_entities") or [],
+            }
+        except (json.JSONDecodeError, KeyError, TypeError, IndexError, ValueError) as e:
+            last_error = e
+            logger.error(
+                f"Failed to parse batch-parse response (attempt {attempt + 1}): {e}"
+            )
+            if attempt == 0:
+                continue
+            raise ValueError(
+                f"Failed to parse batch-parse response after retry: {e}"
+            ) from e
+        except Exception as e:
+            logger.error(f"Batch-parse AI error: {type(e).__name__}: {e}")
+            raise
+    raise ValueError(f"Failed to parse batch-parse response: {last_error}")

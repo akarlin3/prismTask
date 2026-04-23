@@ -1406,6 +1406,55 @@ val MIGRATION_56_57 = object : Migration(56, 57) {
     }
 }
 
+/**
+ * v1.4.x A2 — NLP batch schedule operations. Creates `batch_undo_log`, a
+ * device-local append-only table that records the pre-mutation state of
+ * every entity touched by a batch command so the user can reverse the
+ * batch within a 24-hour window (30s Snackbar + Settings history).
+ *
+ * Device-local by design — no `cloud_id` column. Cross-device undo would
+ * race two devices undoing the same batch simultaneously, and the per-
+ * entity sync path already propagates the mutated entities themselves.
+ *
+ * Indexes mirror the read paths:
+ * - `batch_id` — list all entries for a batch (undo + history detail)
+ * - `created_at` — recent batches first (history list)
+ * - `(expires_at, undone_at)` — sweep worker's "expired or already-undone" filter
+ */
+val MIGRATION_57_58 = object : Migration(57, 58) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `batch_undo_log` (
+              `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+              `batch_id` TEXT NOT NULL,
+              `batch_command_text` TEXT NOT NULL,
+              `entity_type` TEXT NOT NULL,
+              `entity_id` INTEGER,
+              `entity_cloud_id` TEXT,
+              `pre_state_json` TEXT NOT NULL,
+              `mutation_type` TEXT NOT NULL,
+              `created_at` INTEGER NOT NULL,
+              `undone_at` INTEGER,
+              `expires_at` INTEGER NOT NULL
+            )
+            """.trimIndent()
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_batch_undo_log_batch_id` " +
+                "ON `batch_undo_log` (`batch_id`)"
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_batch_undo_log_created_at` " +
+                "ON `batch_undo_log` (`created_at`)"
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_batch_undo_log_expires_at_undone_at` " +
+                "ON `batch_undo_log` (`expires_at`, `undone_at`)"
+        )
+    }
+}
+
 val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_1_2,
     MIGRATION_2_3,
@@ -1462,5 +1511,6 @@ val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_53_54,
     MIGRATION_54_55,
     MIGRATION_55_56,
-    MIGRATION_56_57
+    MIGRATION_56_57,
+    MIGRATION_57_58
 )

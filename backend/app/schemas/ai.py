@@ -345,3 +345,107 @@ class PomodoroCoachingRequest(BaseModel):
 
 class PomodoroCoachingResponse(BaseModel):
     message: str
+
+
+# --- Batch NLP Operations (A2 — pulled from Phase H) ---
+#
+# Single Haiku-backed endpoint that turns a natural-language command
+# ("Cancel everything Friday", "Move all tasks tagged work to Monday") into
+# a structured list of proposed mutations across Tasks/Habits/Projects/
+# Medications. The client renders a diff-preview screen and only commits
+# after user approval; nothing here writes to Firestore.
+#
+# Client supplies the entity context inline (task summaries, habit names,
+# project list) instead of the backend pulling from Firestore — keeps the
+# endpoint stateless, lets the client filter to what's actually loaded
+# (e.g. archived projects excluded), and matches the WeeklyReviewRequest
+# pattern.
+
+
+_BATCH_ENTITY_TYPE_PATTERN = "^(TASK|HABIT|PROJECT|MEDICATION)$"
+_BATCH_MUTATION_TYPE_PATTERN = (
+    "^(RESCHEDULE|DELETE|COMPLETE|SKIP|"
+    "PRIORITY_CHANGE|TAG_CHANGE|PROJECT_MOVE|ARCHIVE)$"
+)
+
+
+class BatchTaskContext(BaseModel):
+    """One task as the AI sees it. The client passes whatever set of
+    incomplete + recently-completed tasks the user could plausibly have
+    meant; the prompt instructs the model to only reference IDs from this
+    list (never fabricate)."""
+
+    id: str
+    title: str
+    due_date: Optional[str] = None  # ISO YYYY-MM-DD
+    scheduled_start_time: Optional[str] = None  # ISO datetime
+    priority: int = Field(default=0, ge=0, le=4)
+    project_id: Optional[str] = None
+    project_name: Optional[str] = None
+    tags: list[str] = Field(default_factory=list)
+    life_category: Optional[str] = None
+    is_completed: bool = False
+
+
+class BatchHabitContext(BaseModel):
+    id: str
+    name: str
+    is_archived: bool = False
+
+
+class BatchProjectContext(BaseModel):
+    id: str
+    name: str
+    status: Optional[str] = None  # "active" | "archived" | etc.
+
+
+class BatchMedicationContext(BaseModel):
+    id: str
+    name: str
+
+
+class BatchUserContext(BaseModel):
+    today: str  # ISO YYYY-MM-DD in user's local timezone
+    timezone: str = Field(default="UTC", max_length=64)
+    tasks: list[BatchTaskContext] = Field(default_factory=list)
+    habits: list[BatchHabitContext] = Field(default_factory=list)
+    projects: list[BatchProjectContext] = Field(default_factory=list)
+    medications: list[BatchMedicationContext] = Field(default_factory=list)
+
+
+class BatchParseRequest(BaseModel):
+    command_text: str = Field(min_length=1, max_length=500)
+    user_context: BatchUserContext
+
+
+class ProposedMutation(BaseModel):
+    """One row in the diff-preview list. ``proposed_new_values`` is a
+    free-form dict whose keys depend on ``mutation_type`` — e.g.
+    ``{"due_date": "2026-04-30"}`` for RESCHEDULE,
+    ``{"tags_added": ["work"], "tags_removed": []}`` for TAG_CHANGE.
+    The client knows the schema per mutation type."""
+
+    entity_type: str = Field(pattern=_BATCH_ENTITY_TYPE_PATTERN)
+    entity_id: str
+    mutation_type: str = Field(pattern=_BATCH_MUTATION_TYPE_PATTERN)
+    proposed_new_values: dict[str, Any] = Field(default_factory=dict)
+    human_readable_description: str
+
+
+class AmbiguousEntityHint(BaseModel):
+    """An entity reference the model couldn't disambiguate — e.g. "work
+    tasks" matched two projects named "Work — H1" and "Work — H2".
+    Client surfaces a resolution dialog before letting the user Approve."""
+
+    phrase: str
+    candidate_entity_type: str = Field(pattern=_BATCH_ENTITY_TYPE_PATTERN)
+    candidate_entity_ids: list[str] = Field(default_factory=list)
+    note: Optional[str] = None
+
+
+class BatchParseResponse(BaseModel):
+    mutations: list[ProposedMutation] = Field(default_factory=list)
+    confidence: float = Field(default=1.0, ge=0.0, le=1.0)
+    ambiguous_entities: list[AmbiguousEntityHint] = Field(default_factory=list)
+    # Hard contract: client MUST treat this as a preview and never auto-commit.
+    proposed: bool = True

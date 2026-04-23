@@ -10,6 +10,8 @@ from app.middleware.auth import get_current_user
 from app.middleware.rate_limit import RateLimiter, daily_ai_rate_limiter
 from app.models import Habit, User
 from app.schemas.ai import (
+    BatchParseRequest,
+    BatchParseResponse,
     DailyBriefingRequest,
     DailyBriefingResponse,
     EisenhowerClassifyTextRequest,
@@ -72,6 +74,10 @@ extract_rate_limiter = RateLimiter(max_requests=10, window_seconds=60)
 # A2 Pomodoro+ coaching — 3 surfaces fire per session, so the window has to
 # accommodate a normal 4-session flow (pre + 3 breaks + recap = ~8 calls).
 pomodoro_coaching_rate_limiter = RateLimiter(max_requests=15, window_seconds=600)
+# A2 NLP batch ops — 10/hour mirrors time-block. Batch parses are deliberate
+# user actions (compose command, hit submit, review preview, approve),
+# not background polling, so a one-call-every-six-minutes cap is plenty.
+batch_parse_rate_limiter = RateLimiter(max_requests=10, window_seconds=3600)
 
 
 def _require_firebase_uid(user: User) -> str:
@@ -703,3 +709,52 @@ async def extract_from_text(
     # Drop anything with an empty title — defensive.
     candidates = [c for c in candidates if c.title]
     return ExtractFromTextResponse(tasks=candidates)
+
+
+# ---------------------------------------------------------------------------
+# A2 — NLP batch schedule operations (pulled from Phase H)
+# ---------------------------------------------------------------------------
+
+
+@router.post("/batch-parse", response_model=BatchParseResponse)
+async def batch_parse(
+    data: BatchParseRequest,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+):
+    """Parse a natural-language batch command into a structured mutation
+    plan. The Android client renders the result as a diff-preview screen
+    and only commits after user approval. This endpoint never writes —
+    it's pure parsing.
+
+    Stateless by design: the client supplies the entity context inline
+    rather than the backend pulling from Firestore. That keeps the
+    endpoint side-effect-free, lets the client filter to what's
+    actually loaded, and matches the WeeklyReviewRequest pattern.
+    """
+    batch_parse_rate_limiter.check(request)
+    tier = current_user.effective_tier
+    daily_ai_rate_limiter.check(current_user.id, tier)
+
+    user_context_dict = data.user_context.model_dump()
+
+    try:
+        from app.services.ai_productivity import parse_batch_command as ai_batch_parse
+
+        result = ai_batch_parse(
+            command_text=data.command_text,
+            user_context=user_context_dict,
+            tier=tier,
+        )
+    except RuntimeError:
+        raise HTTPException(status_code=503, detail="AI service temporarily unavailable")
+    except ValueError:
+        raise HTTPException(status_code=500, detail="AI returned an invalid response")
+
+    # Force the proposed contract — even if the service forgot to set it.
+    return BatchParseResponse(
+        mutations=result.get("mutations", []),
+        confidence=float(result.get("confidence", 0.0)),
+        ambiguous_entities=result.get("ambiguous_entities", []),
+        proposed=True,
+    )

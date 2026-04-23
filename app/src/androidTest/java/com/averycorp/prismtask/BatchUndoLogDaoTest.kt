@@ -1,0 +1,213 @@
+package com.averycorp.prismtask
+
+import androidx.arch.core.executor.testing.InstantTaskExecutorRule
+import androidx.room.Room
+import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
+import com.averycorp.prismtask.data.local.dao.BatchUndoLogDao
+import com.averycorp.prismtask.data.local.database.PrismTaskDatabase
+import com.averycorp.prismtask.data.local.entity.BatchUndoLogEntry
+import com.averycorp.prismtask.domain.model.BatchEntityType
+import com.averycorp.prismtask.domain.model.BatchMutationType
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.test.runTest
+import org.junit.After
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Before
+import org.junit.Rule
+import org.junit.Test
+import org.junit.runner.RunWith
+
+@RunWith(AndroidJUnit4::class)
+class BatchUndoLogDaoTest {
+    @get:Rule
+    val instantTaskExecutorRule = InstantTaskExecutorRule()
+
+    private lateinit var database: PrismTaskDatabase
+    private lateinit var dao: BatchUndoLogDao
+
+    @Before
+    fun setup() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        database = Room
+            .inMemoryDatabaseBuilder(context, PrismTaskDatabase::class.java)
+            .allowMainThreadQueries()
+            .build()
+        dao = database.batchUndoLogDao()
+    }
+
+    @After
+    fun teardown() {
+        database.close()
+    }
+
+    private fun entry(
+        batchId: String,
+        mutationType: BatchMutationType = BatchMutationType.RESCHEDULE,
+        entityType: BatchEntityType = BatchEntityType.TASK,
+        entityId: Long? = 1L,
+        createdAt: Long = 1_000L,
+        undoneAt: Long? = null,
+        expiresAt: Long = 1_000L + DAY_MILLIS,
+        commandText: String = "Move all tasks tagged work to Monday"
+    ) = BatchUndoLogEntry(
+        batchId = batchId,
+        batchCommandText = commandText,
+        entityType = entityType.name,
+        entityId = entityId,
+        entityCloudId = entityId?.let { "cloud_$it" },
+        preStateJson = """{"id":$entityId}""",
+        mutationType = mutationType.name,
+        createdAt = createdAt,
+        undoneAt = undoneAt,
+        expiresAt = expiresAt
+    )
+
+    @Test
+    fun insert_thenGetEntries_returnsRowsForBatchInOrder() = runTest {
+        dao.insertAll(
+            listOf(
+                entry(batchId = "B1", entityId = 10L),
+                entry(batchId = "B1", entityId = 20L, mutationType = BatchMutationType.DELETE),
+                entry(batchId = "B2", entityId = 30L)
+            )
+        )
+
+        val b1 = dao.getEntriesForBatchOnce("B1")
+        assertEquals(2, b1.size)
+        assertEquals(10L, b1[0].entityId)
+        assertEquals(20L, b1[1].entityId)
+        assertEquals("DELETE", b1[1].mutationType)
+
+        val b2 = dao.getEntriesForBatchOnce("B2")
+        assertEquals(1, b2.size)
+        assertEquals(30L, b2[0].entityId)
+    }
+
+    @Test
+    fun observeBatchIds_returnsDistinctOrderedNewestFirst() = runTest {
+        dao.insertAll(
+            listOf(
+                entry(batchId = "old", createdAt = 100L),
+                entry(batchId = "old", createdAt = 100L, entityId = 2L),
+                entry(batchId = "mid", createdAt = 200L),
+                entry(batchId = "new", createdAt = 300L)
+            )
+        )
+
+        val ids = dao.observeBatchIds().first()
+        assertEquals(listOf("new", "mid", "old"), ids)
+    }
+
+    @Test
+    fun getMostRecentBatchIdOnce_returnsLatestByCreatedAt() = runTest {
+        dao.insert(entry(batchId = "older", createdAt = 100L))
+        dao.insert(entry(batchId = "newer", createdAt = 999L))
+
+        assertEquals("newer", dao.getMostRecentBatchIdOnce())
+    }
+
+    @Test
+    fun getMostRecentBatchIdOnce_emptyTable_returnsNull() = runTest {
+        assertNull(dao.getMostRecentBatchIdOnce())
+    }
+
+    @Test
+    fun markBatchUndone_setsTimestampOnAllRowsInBatch_skipsAlreadyUndone() = runTest {
+        dao.insertAll(
+            listOf(
+                entry(batchId = "B1", entityId = 1L),
+                entry(batchId = "B1", entityId = 2L),
+                entry(batchId = "B1", entityId = 3L, undoneAt = 500L), // already undone
+                entry(batchId = "B2", entityId = 99L)
+            )
+        )
+
+        val updated = dao.markBatchUndone("B1", now = 7000L)
+        assertEquals("only the two not-yet-undone rows must update", 2, updated)
+
+        val b1 = dao.getEntriesForBatchOnce("B1")
+        assertEquals(7000L, b1[0].undoneAt)
+        assertEquals(7000L, b1[1].undoneAt)
+        assertEquals("already-undone row preserves its original timestamp", 500L, b1[2].undoneAt)
+        // Other batches untouched.
+        assertNull(dao.getEntriesForBatchOnce("B2").single().undoneAt)
+    }
+
+    @Test
+    fun sweep_dropsExpiredAndStaleUndone_keepsRecent() = runTest {
+        val now = 100_000L
+        val undoneCutoff = now - 7L * DAY_MILLIS
+        dao.insertAll(
+            listOf(
+                // Expired, never undone — gets dropped.
+                entry(batchId = "expired", entityId = 1L, createdAt = 1L, expiresAt = 1L + DAY_MILLIS),
+                // Recent, never undone — kept.
+                entry(batchId = "fresh", entityId = 2L, createdAt = now - 1000, expiresAt = now + DAY_MILLIS),
+                // Undone long ago — gets dropped.
+                entry(
+                    batchId = "stale-undone",
+                    entityId = 3L,
+                    createdAt = now - 30L * DAY_MILLIS,
+                    undoneAt = now - 14L * DAY_MILLIS,
+                    expiresAt = now - 29L * DAY_MILLIS + DAY_MILLIS
+                ),
+                // Undone recently — kept (still in tail window so UI can show "undone X minutes ago").
+                entry(
+                    batchId = "recent-undone",
+                    entityId = 4L,
+                    createdAt = now - 60_000L,
+                    undoneAt = now - 30_000L,
+                    expiresAt = now - 60_000L + DAY_MILLIS
+                )
+            )
+        )
+
+        val deleted = dao.sweep(now = now, undoneCutoff = undoneCutoff)
+        assertEquals(2, deleted)
+
+        val remaining = dao.getAllOnce().map { it.batchId }.toSet()
+        assertEquals(setOf("fresh", "recent-undone"), remaining)
+    }
+
+    @Test
+    fun insert_persistsAllNullableFields() = runTest {
+        // Hard-deleted entity — entity_id and cloud_id both null.
+        val id = dao.insert(
+            entry(batchId = "B1", entityId = null).copy(
+                entityCloudId = null,
+                mutationType = BatchMutationType.ARCHIVE.name,
+                entityType = BatchEntityType.PROJECT.name
+            )
+        )
+        assertTrue(id > 0)
+
+        val rows = dao.getEntriesForBatchOnce("B1")
+        assertEquals(1, rows.size)
+        assertNull(rows[0].entityId)
+        assertNull(rows[0].entityCloudId)
+        assertEquals("ARCHIVE", rows[0].mutationType)
+        assertEquals("PROJECT", rows[0].entityType)
+        assertNotNull(rows[0].preStateJson)
+    }
+
+    @Test
+    fun count_reflectsTotal() = runTest {
+        assertEquals(0, dao.count())
+        dao.insertAll(
+            listOf(
+                entry(batchId = "B1"),
+                entry(batchId = "B1", entityId = 2L),
+                entry(batchId = "B2")
+            )
+        )
+        assertEquals(3, dao.count())
+    }
+
+    private companion object {
+        const val DAY_MILLIS = 24L * 60 * 60 * 1000
+    }
+}
