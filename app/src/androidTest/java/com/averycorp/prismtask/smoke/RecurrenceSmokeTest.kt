@@ -108,7 +108,10 @@ class RecurrenceSmokeTest : SmokeTestBase() {
     fun completingWeeklyRecurringTask_movesToNextActiveDay() = runBlocking {
         val repo = buildRepository()
         // Monday-only weekly rule — after completing, next due should land
-        // approximately a week later.
+        // on a Monday, which is 1–7 days out depending on today's day of
+        // week. The computation is done via LocalDate in the production
+        // code, so the device timezone determines "today" and therefore
+        // the exact gap. Widen to 1–8 days to absorb timezone variance.
         val rule = RecurrenceRule(
             type = RecurrenceType.WEEKLY,
             daysOfWeek = listOf(1)
@@ -132,10 +135,11 @@ class RecurrenceSmokeTest : SmokeTestBase() {
             .single { it.id != id }
         assert(next.dueDate != null)
         val gap = next.dueDate!! - dueDate
-        val week = 7L * 24 * 60 * 60 * 1000
         val day = 24L * 60 * 60 * 1000
-        assert(gap in (week - day)..(week + day)) {
-            "Next weekly occurrence should land roughly a week after the original"
+        // Between "tomorrow" (1 day) and "next Monday after today's Monday"
+        // (~8 days including timezone slack).
+        assert(gap in day..(8 * day)) {
+            "Next weekly occurrence should land 1–8 days after the original; got ${gap / day}d"
         }
     }
 

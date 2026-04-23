@@ -7,12 +7,14 @@ import com.averycorp.prismtask.data.local.database.PrismTaskDatabase
 import com.averycorp.prismtask.data.local.entity.SyncMetadataEntity
 import com.averycorp.prismtask.data.local.entity.TaskTemplateEntity
 import com.averycorp.prismtask.data.preferences.BuiltInSyncPreferences
+import com.averycorp.prismtask.data.remote.AuthManager
 import com.averycorp.prismtask.data.remote.BuiltInTaskTemplateBackfiller
 import com.averycorp.prismtask.data.remote.BuiltInTaskTemplateReconciler
 import com.averycorp.prismtask.data.remote.SyncTracker
 import com.averycorp.prismtask.data.remote.sync.PrismSyncLogger
 import io.mockk.coEvery
 import io.mockk.coJustRun
+import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
 import kotlinx.coroutines.test.runTest
@@ -365,8 +367,15 @@ class BuiltInTaskTemplateBackfillerTwoDeviceTest {
                     flags.reconciled = reconciledSlot.captured
                 }
                 coJustRun { prefs.setNewEntitiesBackfillDone(any()) }
-                val syncTracker = mockk<SyncTracker>(relaxed = true)
                 val logger = mockk<PrismSyncLogger>(relaxed = true)
+                // Use a real SyncTracker with a stub AuthManager returning a
+                // non-null userId so trackUpdate() actually writes to
+                // syncMetadataDao. A mock SyncTracker silently swallowed the
+                // trackUpdate calls, which is why pendingActions() returned
+                // 0 even after the backfiller healed 5 rows.
+                val authManager = mockk<AuthManager>()
+                every { authManager.userId } returns "test-user"
+                val syncTracker = SyncTracker(authManager, db.syncMetadataDao(), logger)
                 val backfiller = BuiltInTaskTemplateBackfiller(
                     taskTemplateDao = db.taskTemplateDao(),
                     syncTracker = syncTracker,
