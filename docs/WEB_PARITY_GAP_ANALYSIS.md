@@ -1,12 +1,20 @@
 # Web Parity Gap Analysis
 
-**Date:** 2026-04-23
+**Date:** 2026-04-23 (audit); updated 2026-04-23 after slices 1+2 shipped.
 **Android version:** v1.5.2 (build 689, Room DB v58 per recent migrations)
 **Web app:** deployed to https://app.prismtask.app (Railway-hosted static build)
 **Purpose:** Audit the PrismTask web client against the Android client to identify
 the highest-leverage parity slices to ship now (pre–Phase G). Phase G currently
 budgets 4 weeks for "Desktop web app — feature parity with Android"; this
 document is the input that lets us shrink that budget.
+
+## Shipped in this pass
+
+- ✅ **Slice 1 — NLP batch ops** ([PR #711](https://github.com/akarlin3/prismTask/pull/711)): QuickAddBar intent detector + `/batch/preview` screen + 30s Sonner undo + 24h Settings → Recent Batch Commands. Covers TASK RESCHEDULE/DELETE/COMPLETE/PRIORITY_CHANGE/PROJECT_MOVE + HABIT COMPLETE/SKIP/ARCHIVE/DELETE + PROJECT ARCHIVE/DELETE. TAG_CHANGE + MEDICATION deferred at apply time (same as Android).
+- ✅ **Slice 2 — Onboarding + 4 named themes** ([PR #712](https://github.com/akarlin3/prismTask/pull/712)): Cyberpunk / Synthwave / Matrix / Void color-token sets, theme migration for existing users (default VOID), 9-page onboarding wizard, per-account `users/{uid}.onboardingCompletedAt` Firestore gate.
+
+With these two slices merged, the parity gap matrix below has been revised —
+see the DONE markers and remaining-gaps section at the end.
 
 ---
 
@@ -190,10 +198,10 @@ Scoring notes:
 | Weekly review | Done | Done | — | — | — | At parity (synthesizer) |
 | **Daily briefing** | Done | Missing | M | Medium | 6 | Endpoint exists |
 | **Weekly plan / planner** | Done | Missing | M | Medium | 5 | Endpoint exists |
-| **NLP batch ops + preview + undo + history** | Done | Missing | L | Medium–High | **9** | Endpoint ready, high UX leverage |
+| **NLP batch ops + preview + undo + history** | Done | ✅ Done (PR #711) | — | — | — | TAG_CHANGE + MEDICATION deferred at apply time |
 | **Conversation extraction (/extract)** | Done | Missing | M | Low | 7 | Single screen, endpoint ready |
-| **Onboarding (9-page)** | Done | Missing | M | Low | 7 | Client-only, unlocks new-user flow |
-| **4 named themes (PrismThemeSection)** | Done | Partial (2-mode + 12 accents) | M | Medium | 7 | Spec in `themesets/` — bring to web |
+| **Onboarding (9-page)** | Done | ✅ Done (PR #712) | — | — | — | Per-account via `users/{uid}.onboardingCompletedAt` |
+| **4 named themes (PrismThemeSection)** | Done | ✅ Done, colors only (PR #712) | S | Medium | 4 | Typography, shape, decorative flags deferred |
 | Settings — Accessibility | Done | Partial | S | Low | 4 | |
 | Settings — 25+ other sections | Done | Missing | L | Medium | 5 | Breaks into many small slices |
 | Archive + Search | Done | Partial | S | Low | 3 | |
@@ -350,7 +358,9 @@ natural place to add future ND-mode intro or Pro teaser when those land.
 
 ## 6. Remaining-gaps preview for Phase G
 
-After slices 1+2 merge, Phase G's web parity scope looks like:
+**Update (2026-04-23):** slices 1+2 shipped (PRs #711, #712). Below is the
+refreshed Phase G scope. See also `docs/WEB_PARITY_PHASE_G_PROMPT_TEMPLATE.md`
+for a fill-in-the-blank prompt wrapping this list.
 
 ### High-leverage / backend-ready (ship first in Phase G)
 
@@ -365,8 +375,17 @@ After slices 1+2 merge, Phase G's web parity scope looks like:
 - **Templates parity** (habit templates + project templates) (~M, ~2 days)
 - **Task editor Schedule + Organize tabs** (tabbed editor parity) (~M, ~2 days)
 - **Today polish** (SoD prompt, dashboard layout customization) (~S, ~1 day)
+- **Theme polish from slice 2** — typography (fonts per theme), shape (radius /
+  chipShape / density), decorative personality flags (brackets / terminal /
+  editorial / sunset). Needs per-component branching (`ThemedCard`-style).
+  (~M–L, ~3–5 days)
+- **TAG_CHANGE batch mutation** — enable web-side task↔tag Firestore
+  persistence first, then flip the applier from "deferred" to "apply" in
+  `features/batch/batchApplier.ts`. (~S, ~1 day once tag persistence
+  exists; ~M with the tag persistence included)
 
-Sub-total: roughly **10–14 working days** for backend-ready parity.
+Sub-total: roughly **12–17 working days** for backend-ready parity (was 10–14
+before slice 2 polish and TAG_CHANGE made it to the list).
 
 ### Blocked by backend / Android source-of-truth work (requires a separate prompt)
 
@@ -385,12 +404,45 @@ the backend endpoints exist.
 ### Phase G budget implication
 
 - Current Phase G budget: 4 weeks (~20 working days).
-- If slices 1+2 ship this session: remaining backend-ready work is ~10–14 days,
-  plus ~8–12 days for backend-blocked work.
-- Realistic new estimate: **2.5–3 weeks** of web-only work once backend is
-  caught up, **vs. 4 weeks budgeted**. The trimming comes from (a) removing
-  the NLP batch + onboarding + themes work from Phase G, and (b) the backend
-  work becoming visible as a distinct track that can run in parallel.
+- With slices 1+2 shipped: remaining backend-ready work is ~12–17 days, plus
+  ~8–12 days for backend-blocked work.
+- Realistic new estimate: **2.5–3.5 weeks** of web-only work once backend is
+  caught up, **vs. 4 weeks budgeted**. The trimming comes from (a) NLP batch +
+  onboarding + named-themes-colors are now shipped, (b) theme typography /
+  shape / decorative polish is scoped and estimated, (c) the backend-blocked
+  track (wellness, notifications, boundaries) becomes a distinct parallel
+  workstream.
+
+### New surprises discovered while implementing
+
+Flagged here so the Phase G prompt can plan around them:
+
+1. **Firestore rules for `users/{uid}` root doc.** Slice 2 is the first web
+   write to the user doc at the root (not a subcollection). The repo's
+   `firestore.rules` is a stub; production rules live in the Firebase
+   console. If production rules do not permit writes to `users/{uid}`, the
+   onboarding completion write fails silently and the user sees the flow
+   again on next sign-in. Recommend confirming or updating production rules
+   before the next user-doc write lands (e.g. syncing theme pick or other
+   cross-device preferences).
+2. **Web tag persistence gap.** The web's Firestore task layer never maps
+   tags on/off tasks (task doc's `tags` field is hard-coded `[]` on
+   `docToTask`). Any batch TAG_CHANGE — and any future single-task tag
+   write — first needs a task-tag persistence decision (embed tag IDs on
+   the task doc vs. maintain a separate tag-cross-ref collection). Until
+   then slice 1 surfaces TAG_CHANGE rows in the preview but skips them at
+   apply time.
+3. **Android onboarding completion is local-only.** `OnboardingPreferences`
+   (Android) uses DataStore. A user who completes onboarding on web will
+   still see it on Android, and vice versa. For real cross-platform parity
+   on the "once per account" guarantee, Android needs to read/write the
+   same `users/{uid}.onboardingCompletedAt` field. Explicitly out of scope
+   for this web-only prompt.
+4. **`src/api/tasks.ts` is dormant.** The backend-REST task client exists
+   but no store consumes it — all task writes go through Firestore direct.
+   A future Phase G slice that wants to move tasks to backend-REST would
+   need to adopt that file, but current parity work can treat it as dead
+   weight.
 
 ---
 
