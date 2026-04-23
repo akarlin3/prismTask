@@ -87,6 +87,11 @@ class CloudIdOrphanHealerTier1Test {
             weeklyReviewDao = database.weeklyReviewDao(),
             dailyEssentialSlotCompletionDao = database.dailyEssentialSlotCompletionDao(),
             attachmentDao = database.attachmentDao(),
+            medicationDao = database.medicationDao(),
+            medicationDoseDao = database.medicationDoseDao(),
+            medicationSlotDao = database.medicationSlotDao(),
+            medicationSlotOverrideDao = database.medicationSlotOverrideDao(),
+            medicationTierStateDao = database.medicationTierStateDao(),
             logger = logger
         )
     }

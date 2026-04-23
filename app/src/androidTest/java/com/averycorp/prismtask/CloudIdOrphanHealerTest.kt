@@ -5,6 +5,8 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.averycorp.prismtask.data.local.database.PrismTaskDatabase
 import com.averycorp.prismtask.data.local.entity.CourseEntity
+import com.averycorp.prismtask.data.local.entity.MedicationEntity
+import com.averycorp.prismtask.data.local.entity.MedicationSlotEntity
 import com.averycorp.prismtask.data.local.entity.SelfCareStepEntity
 import com.averycorp.prismtask.data.remote.AuthManager
 import com.averycorp.prismtask.data.remote.CloudIdOrphanHealer
@@ -78,6 +80,11 @@ class CloudIdOrphanHealerTest {
             weeklyReviewDao = database.weeklyReviewDao(),
             dailyEssentialSlotCompletionDao = database.dailyEssentialSlotCompletionDao(),
             attachmentDao = database.attachmentDao(),
+            medicationDao = database.medicationDao(),
+            medicationDoseDao = database.medicationDoseDao(),
+            medicationSlotDao = database.medicationSlotDao(),
+            medicationSlotOverrideDao = database.medicationSlotOverrideDao(),
+            medicationTierStateDao = database.medicationTierStateDao(),
             logger = logger
         )
     }
@@ -343,6 +350,54 @@ class CloudIdOrphanHealerTest {
 
         assertEquals("no fetch should happen when not signed in", false, fetchCalled)
         assertNull(metaDao.get(stepId, "self_care_step"))
+    }
+
+    // ── v1.5 medication families (A2 #6 PR1) ──
+
+    @Test
+    fun healOrphans_marksMedicationOrphan() = runTest {
+        val metaDao = database.syncMetadataDao()
+        val medId = database.medicationDao().insert(
+            MedicationEntity(name = "Lamotrigine", cloudId = "med-orphan")
+        )
+        healer.healOrphans(fetcher = fakeFetcher(mapOf("medications" to emptySet())))
+        val meta = metaDao.get(medId, "medication")
+        assertNotNull(meta)
+        assertEquals("update", meta!!.pendingAction)
+        assertEquals("med-orphan", meta.cloudId)
+    }
+
+    @Test
+    fun healOrphans_marksMedicationSlotOrphan() = runTest {
+        val metaDao = database.syncMetadataDao()
+        val slotId = database.medicationSlotDao().insert(
+            MedicationSlotEntity(
+                name = "Morning",
+                idealTime = "08:00",
+                cloudId = "slot-orphan"
+            )
+        )
+        healer.healOrphans(fetcher = fakeFetcher(mapOf("medication_slots" to emptySet())))
+        val meta = metaDao.get(slotId, "medication_slot")
+        assertNotNull(meta)
+        assertEquals("update", meta!!.pendingAction)
+        assertEquals("slot-orphan", meta.cloudId)
+    }
+
+    @Test
+    fun healOrphans_skipsMedicationSlotThatExistsRemotely() = runTest {
+        val metaDao = database.syncMetadataDao()
+        val slotId = database.medicationSlotDao().insert(
+            MedicationSlotEntity(
+                name = "Evening",
+                idealTime = "20:00",
+                cloudId = "slot-present"
+            )
+        )
+        healer.healOrphans(
+            fetcher = fakeFetcher(mapOf("medication_slots" to setOf("slot-present")))
+        )
+        assertNull(metaDao.get(slotId, "medication_slot"))
     }
 
     private fun fakeFetcher(byCollection: Map<String, Set<String>>): CloudIdOrphanHealer.RemoteIdFetcher =
