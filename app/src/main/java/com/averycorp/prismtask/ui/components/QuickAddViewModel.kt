@@ -15,6 +15,7 @@ import com.averycorp.prismtask.data.repository.TaskRepository
 import com.averycorp.prismtask.data.repository.TaskTemplateRepository
 import com.averycorp.prismtask.domain.model.LifeCategory
 import com.averycorp.prismtask.domain.model.ProjectStatus
+import com.averycorp.prismtask.domain.usecase.BatchIntentDetector
 import com.averycorp.prismtask.domain.usecase.LifeCategoryClassifier
 import com.averycorp.prismtask.domain.usecase.NaturalLanguageParser
 import com.averycorp.prismtask.domain.usecase.ParsedTask
@@ -72,6 +73,16 @@ constructor(
         _templateDisambiguation.asStateFlow()
 
     private val lifeCategoryClassifier = LifeCategoryClassifier()
+    private val batchIntentDetector = BatchIntentDetector()
+
+    /**
+     * Emits when the user submits a batch-style command. The hosting
+     * screen navigates to BatchPreviewScreen with the command text.
+     * Free-tier users emit a paywall message via [_voiceMessages] and
+     * never see this flow.
+     */
+    private val _batchIntents = MutableSharedFlow<String>(extraBufferCapacity = 1)
+    val batchIntents: SharedFlow<String> = _batchIntents.asSharedFlow()
 
     val inputText = MutableStateFlow("")
 
@@ -310,6 +321,27 @@ constructor(
     fun onSubmit(plannedDateOverride: Long? = null) {
         val text = inputText.value.trim()
         if (text.isBlank()) return
+
+        // A2 NLP batch ops — heuristic intercept BEFORE template / project
+        // intent / single-task NLP. False positives here would trap normal
+        // users in the heavier batch flow, so the detector requires two
+        // distinct signal categories (quantifier + time range, etc.).
+        val batchIntent = batchIntentDetector.detect(text)
+        if (batchIntent is BatchIntentDetector.Result.Batch) {
+            if (!proFeatureGate.hasAccess(ProFeatureGate.AI_BATCH_OPS)) {
+                viewModelScope.launch {
+                    _voiceMessages.emit(
+                        "Batch commands are a Pro feature — upgrade to use them."
+                    )
+                }
+                return
+            }
+            viewModelScope.launch {
+                _batchIntents.emit(batchIntent.commandText)
+                inputText.value = ""
+            }
+            return
+        }
 
         // Template shortcut branch — "/name" or "template:name" bypass the
         // normal NLP pipeline and instead resolve against the user's

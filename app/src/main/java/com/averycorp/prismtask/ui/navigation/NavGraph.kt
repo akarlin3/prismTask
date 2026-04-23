@@ -177,6 +177,11 @@ sealed class PrismTaskRoute(
 
     data object MorningCheckIn : PrismTaskRoute("morning_check_in")
 
+    data object BatchPreview : PrismTaskRoute("batch_preview?command={command}") {
+        fun createRoute(command: String): String =
+            "batch_preview?command=${android.net.Uri.encode(command)}"
+    }
+
     data object MoodAnalytics : PrismTaskRoute("mood_analytics")
 
     data object WeeklyBalanceReport : PrismTaskRoute("weekly_balance_report")

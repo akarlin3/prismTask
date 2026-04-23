@@ -1,0 +1,311 @@
+package com.averycorp.prismtask.ui.screens.batch
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NavHostController
+import com.averycorp.prismtask.data.remote.api.AmbiguousEntityHintResponse
+import com.averycorp.prismtask.data.remote.api.ProposedMutationResponse
+import com.averycorp.prismtask.domain.model.BatchMutationType
+
+/**
+ * Full-screen preview of an AI-parsed batch command. Renders one row per
+ * proposed mutation with a checkbox so the user can opt out individual
+ * rows before tapping Approve.
+ *
+ * Returns to the caller via [onApproved] (with the freshly minted
+ * `batch_id` so the caller can show an "Undo" Snackbar) or [onCancelled].
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun BatchPreviewScreen(
+    navController: NavHostController,
+    commandText: String,
+    onApproved: (batchId: String, appliedCount: Int, skippedCount: Int) -> Unit,
+    onCancelled: () -> Unit,
+    viewModel: BatchPreviewViewModel = hiltViewModel()
+) {
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    val excluded by viewModel.excluded.collectAsStateWithLifecycle()
+
+    LaunchedEffect(commandText) {
+        viewModel.loadPreview(commandText)
+    }
+
+    LaunchedEffect(viewModel) {
+        viewModel.events.collect { event ->
+            when (event) {
+                is BatchEvent.Approved -> onApproved(event.batchId, event.appliedCount, event.skippedCount)
+                is BatchEvent.Cancelled -> onCancelled()
+            }
+        }
+    }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Batch preview") },
+                navigationIcon = {
+                    IconButton(onClick = { viewModel.cancel() }) {
+                        Icon(Icons.Default.Close, contentDescription = "Cancel")
+                    }
+                }
+            )
+        },
+        bottomBar = {
+            BatchPreviewBottomBar(
+                state = state,
+                onCancel = viewModel::cancel,
+                onApprove = viewModel::approve
+            )
+        }
+    ) { padding ->
+        when (val s = state) {
+            BatchPreviewState.Idle -> Box(Modifier.fillMaxSize().padding(padding))
+            is BatchPreviewState.Loading -> LoadingBody(s.commandText, padding)
+            is BatchPreviewState.Committing -> LoadingBody("Applying \"${s.commandText}\"…", padding)
+            is BatchPreviewState.Error -> ErrorBody(s.message, padding, onRetry = {
+                viewModel.loadPreview(s.commandText)
+            })
+            is BatchPreviewState.Loaded -> LoadedBody(
+                state = s,
+                excluded = excluded,
+                onToggle = viewModel::toggleExclusion,
+                padding = padding
+            )
+        }
+    }
+}
+
+@Composable
+private fun LoadingBody(label: String, padding: PaddingValues) {
+    Column(
+        modifier = Modifier.fillMaxSize().padding(padding),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        CircularProgressIndicator()
+        Column(modifier = Modifier.padding(top = 12.dp)) {
+            Text(label, style = MaterialTheme.typography.bodyMedium)
+        }
+    }
+}
+
+@Composable
+private fun ErrorBody(message: String, padding: PaddingValues, onRetry: () -> Unit) {
+    Column(
+        modifier = Modifier.fillMaxSize().padding(padding).padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text("Couldn't parse that command", style = MaterialTheme.typography.titleMedium)
+        Text(
+            message,
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.padding(vertical = 12.dp)
+        )
+        OutlinedButton(onClick = onRetry) { Text("Retry") }
+    }
+}
+
+@Composable
+private fun LoadedBody(
+    state: BatchPreviewState.Loaded,
+    excluded: Set<Int>,
+    onToggle: (Int) -> Unit,
+    padding: PaddingValues
+) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().padding(padding),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        item { CommandSummary(state) }
+
+        if (state.confidence < 0.7f) {
+            item { ConfidenceBanner(state.confidence) }
+        }
+
+        if (state.ambiguousEntities.isNotEmpty()) {
+            item { AmbiguityBanner(state.ambiguousEntities) }
+        }
+
+        if (state.mutations.isEmpty()) {
+            item {
+                Text(
+                    "No matching changes — refine your command and try again.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+        }
+
+        itemsIndexed(state.mutations) { idx, mutation ->
+            MutationRow(
+                mutation = mutation,
+                excluded = idx in excluded,
+                onToggle = { onToggle(idx) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun CommandSummary(state: BatchPreviewState.Loaded) {
+    val total = state.mutations.size
+    val active = total - 0 // exclusion count is rendered live next to Approve
+    Column {
+        Text(
+            "\"${state.commandText}\"",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold
+        )
+        Text(
+            "$active proposed change${if (active == 1) "" else "s"}",
+            style = MaterialTheme.typography.bodySmall
+        )
+    }
+}
+
+@Composable
+private fun ConfidenceBanner(confidence: Float) {
+    Surface(
+        color = MaterialTheme.colorScheme.tertiaryContainer,
+        shape = RoundedCornerShape(8.dp)
+    ) {
+        Text(
+            "Low confidence (${(confidence * 100).toInt()}%) — review carefully before approving.",
+            modifier = Modifier.padding(12.dp),
+            style = MaterialTheme.typography.bodySmall
+        )
+    }
+}
+
+@Composable
+private fun AmbiguityBanner(hints: List<AmbiguousEntityHintResponse>) {
+    Surface(
+        color = MaterialTheme.colorScheme.errorContainer,
+        shape = RoundedCornerShape(8.dp)
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Text("Ambiguous references", style = MaterialTheme.typography.titleSmall)
+            for (h in hints) {
+                Text(
+                    "• \"${h.phrase}\" — ${h.note ?: "multiple matches"}",
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun MutationRow(
+    mutation: ProposedMutationResponse,
+    excluded: Boolean,
+    onToggle: () -> Unit
+) {
+    val color = mutationColor(mutation.mutationType)
+    Surface(
+        color = MaterialTheme.colorScheme.surface,
+        shape = RoundedCornerShape(10.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(color.copy(alpha = 0.06f))
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Checkbox(checked = !excluded, onCheckedChange = { onToggle() })
+            Column(modifier = Modifier.padding(start = 8.dp)) {
+                Text(
+                    mutation.humanReadableDescription,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium
+                )
+                Text(
+                    "${mutation.entityType} • ${mutation.mutationType}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = color
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun BatchPreviewBottomBar(
+    state: BatchPreviewState,
+    onCancel: () -> Unit,
+    onApprove: () -> Unit
+) {
+    Surface(tonalElevation = 4.dp) {
+        Column {
+            HorizontalDivider()
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                OutlinedButton(onClick = onCancel) { Text("Cancel") }
+                val approveEnabled = state is BatchPreviewState.Loaded && state.mutations.isNotEmpty()
+                Button(
+                    enabled = approveEnabled,
+                    onClick = onApprove
+                ) {
+                    Text("Approve")
+                }
+            }
+        }
+    }
+}
+
+private fun mutationColor(mutationTypeName: String): Color = when (
+    runCatching { BatchMutationType.valueOf(mutationTypeName) }.getOrNull()
+) {
+    BatchMutationType.RESCHEDULE -> Color(0xFFE0A82E) // amber
+    BatchMutationType.DELETE -> Color(0xFFC9302C) // red
+    BatchMutationType.COMPLETE -> Color(0xFF2E7D32) // green
+    BatchMutationType.SKIP -> Color(0xFF9E9E9E) // grey
+    BatchMutationType.PRIORITY_CHANGE -> Color(0xFF6A1B9A) // purple
+    BatchMutationType.TAG_CHANGE -> Color(0xFF1565C0) // blue
+    BatchMutationType.PROJECT_MOVE -> Color(0xFF00838F) // teal
+    BatchMutationType.ARCHIVE -> Color(0xFF455A64) // blue grey
+    null -> Color.Gray
+}

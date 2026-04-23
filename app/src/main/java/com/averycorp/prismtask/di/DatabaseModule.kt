@@ -3,6 +3,7 @@ package com.averycorp.prismtask.di
 import android.content.Context
 import androidx.room.Room
 import com.averycorp.prismtask.data.local.dao.AttachmentDao
+import com.averycorp.prismtask.data.local.dao.BatchUndoLogDao
 import com.averycorp.prismtask.data.local.dao.BoundaryRuleDao
 import com.averycorp.prismtask.data.local.dao.CalendarSyncDao
 import com.averycorp.prismtask.data.local.dao.CheckInLogDao
@@ -162,6 +163,9 @@ object DatabaseModule {
     fun provideMedicationDoseDao(
         database: PrismTaskDatabase
     ): MedicationDoseDao = database.medicationDoseDao()
+
+    @Provides
+    fun provideBatchUndoLogDao(database: PrismTaskDatabase): BatchUndoLogDao = database.batchUndoLogDao()
 }
 
 /**

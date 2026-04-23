@@ -156,6 +156,10 @@ class FakePrismTaskApi : PrismTaskApi {
         request: com.averycorp.prismtask.data.remote.api.TimeBlockRequest
     ) = error("Not used in offline tests")
 
+    override suspend fun parseBatchCommand(
+        request: com.averycorp.prismtask.data.remote.api.BatchParseRequest
+    ) = error("Not used in offline tests")
+
     override suspend fun aiChat(
         request: com.averycorp.prismtask.data.remote.api.ChatRequest
     ) = error("Not used in offline tests")

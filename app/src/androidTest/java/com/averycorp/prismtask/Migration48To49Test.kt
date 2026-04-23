@@ -54,8 +54,12 @@ class Migration48To49Test {
         val db = helper.writableDatabase
 
         val names = listOf(
-            "School", "Leisure", "Morning Self-Care",
-            "Bedtime Self-Care", "Medication", "Housework"
+            "School",
+            "Leisure",
+            "Morning Self-Care",
+            "Bedtime Self-Care",
+            "Medication",
+            "Housework"
         )
         for ((i, name) in names.withIndex()) {
             db.execSQL(

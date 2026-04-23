@@ -36,7 +36,8 @@ import com.averycorp.prismtask.ui.theme.TerminalPrompt
 @Composable
 internal fun FloatingQuickAddBar(
     autoStartVoice: Boolean = false,
-    onVoiceAutoStartConsumed: () -> Unit = {}
+    onVoiceAutoStartConsumed: () -> Unit = {},
+    onBatchCommand: (String) -> Unit = {}
 ) {
     val colors = LocalPrismAttrs.current.let { _ -> LocalPrismColors.current }
     val attrs = LocalPrismAttrs.current
@@ -64,7 +65,11 @@ internal fun FloatingQuickAddBar(
                     )
                     .padding(vertical = 6.dp)
             ) {
-                QuickAddBar(autoStartVoice = autoStartVoice, onVoiceMessage = {})
+                QuickAddBar(
+                    autoStartVoice = autoStartVoice,
+                    onVoiceMessage = {},
+                    onBatchCommand = onBatchCommand
+                )
             }
         }
 
@@ -83,7 +88,11 @@ internal fun FloatingQuickAddBar(
                     )
                     .padding(vertical = 6.dp)
             ) {
-                QuickAddBar(autoStartVoice = autoStartVoice, onVoiceMessage = {})
+                QuickAddBar(
+                    autoStartVoice = autoStartVoice,
+                    onVoiceMessage = {},
+                    onBatchCommand = onBatchCommand
+                )
             }
         }
 
@@ -104,7 +113,8 @@ internal fun FloatingQuickAddBar(
                 QuickAddBar(
                     autoStartVoice = autoStartVoice,
                     onVoiceMessage = {},
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
+                    onBatchCommand = onBatchCommand
                 )
             }
         }
@@ -121,7 +131,11 @@ internal fun FloatingQuickAddBar(
                         .fillMaxWidth()
                         .padding(vertical = 6.dp)
                 ) {
-                    QuickAddBar(autoStartVoice = autoStartVoice, onVoiceMessage = {})
+                    QuickAddBar(
+                        autoStartVoice = autoStartVoice,
+                        onVoiceMessage = {},
+                        onBatchCommand = onBatchCommand
+                    )
                 }
             }
         }

@@ -121,7 +121,8 @@ class BatchUndoLogDaoTest {
             listOf(
                 entry(batchId = "B1", entityId = 1L),
                 entry(batchId = "B1", entityId = 2L),
-                entry(batchId = "B1", entityId = 3L, undoneAt = 500L), // already undone
+                // Third row already has an undoneAt timestamp; markBatchUndone must skip it.
+                entry(batchId = "B1", entityId = 3L, undoneAt = 500L),
                 entry(batchId = "B2", entityId = 99L)
             )
         )

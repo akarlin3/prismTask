@@ -66,7 +66,8 @@ fun QuickAddBar(
     alwaysExpanded: Boolean = false,
     placeholder: String = "Add task... (try: Buy milk tomorrow #groceries !high)",
     autoStartVoice: Boolean = false,
-    onVoiceMessage: (String) -> Unit = {}
+    onVoiceMessage: (String) -> Unit = {},
+    onBatchCommand: (String) -> Unit = {}
 ) {
     val inputText by viewModel.inputText.collectAsStateWithLifecycle()
     val parsedPreview by viewModel.parsedPreview.collectAsStateWithLifecycle()
@@ -96,6 +97,12 @@ fun QuickAddBar(
     // so they can be shown in a snackbar alongside the other feedback.
     LaunchedEffect(viewModel) {
         viewModel.voiceMessages.collect { msg -> onVoiceMessage(msg) }
+    }
+
+    // A2 NLP batch ops — when the user submits a batch command, the VM
+    // emits to `batchIntents`. The host screen navigates to the preview.
+    LaunchedEffect(viewModel) {
+        viewModel.batchIntents.collect { commandText -> onBatchCommand(commandText) }
     }
 
     LaunchedEffect(autoStartVoice) {

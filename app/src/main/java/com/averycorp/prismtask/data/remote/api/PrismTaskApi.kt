@@ -101,6 +101,11 @@ interface PrismTaskApi {
         @Body request: TimeBlockRequest
     ): TimeBlockResponse
 
+    @POST("api/v1/ai/batch-parse")
+    suspend fun parseBatchCommand(
+        @Body request: BatchParseRequest
+    ): BatchParseResponse
+
     @POST("api/v1/ai/chat")
     suspend fun aiChat(
         @Body request: ChatRequest
