@@ -46,7 +46,7 @@ weekly-plan, time-block, weekly-review, extract-from-text,
 pomodoro-plan, pomodoro-coaching, eisenhower, eisenhower/classify_text)
 are now wired on web.
 
-Additional slices 7–18 shipped: Eisenhower classify_text (#720), task
+Additional slices 7–22 shipped: Eisenhower classify_text (#720), task
 editor schedule-tab parity (#721), Today polish + DayBoundary (#722),
 dedicated Medication screen (#723), Templates parity with habits +
 projects (#724), Settings sections bundle — Accessibility + Help +
@@ -54,8 +54,11 @@ Maintenance + About (#725), theme typography (#726), theme shape +
 decorative flags (#727), TAG_CHANGE batch mutation + Firestore tag
 persistence (#728), Analytics project-progress via client-side
 compute (#730), Medication tier picker + slot CRUD via Firestore
-(#731), and Custom habit + project template authoring via Firestore
-(#732).
+(#731), Custom habit + project template authoring via Firestore
+(#732), Mood & energy tracking (#734), Morning check-in +
+forgiveness streak (#735), Boundaries + burnout scorer (#736), and
+Focus Release + good-enough timer (#737). The entire wellness
+cluster is now web-complete Firestore-natively.
 
 The web app's data-access split (Firestore-direct for tasks / projects /
 habits / tags; backend REST for AI / dashboard / daily-essentials / auth /

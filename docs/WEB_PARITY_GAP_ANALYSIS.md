@@ -28,8 +28,13 @@ document is the input that lets us shrink that budget.
 - ✅ **Slice 16 — Analytics `/project-progress` via client-side compute** ([PR #730](https://github.com/akarlin3/prismTask/pull/730)): unblocked without a backend change — `utils/projectBurndown.ts` mirrors `compute_project_burndown` and feeds `ProjectProgressPanel` on AnalyticsScreen. 5 new unit tests.
 - ✅ **Slice 17 — Medication tier picker + slot CRUD** ([PR #731](https://github.com/akarlin3/prismTask/pull/731)): Firestore-native slot defs + daily tier states; 3-way tier picker on MedicationScreen + slot editor in Settings.
 - ✅ **Slice 18 — Custom habit + project template authoring** ([PR #732](https://github.com/akarlin3/prismTask/pull/732)): Firestore CRUD for per-user habit + project templates; authoring modals in `UserTemplateEditors.tsx`.
+- ✅ **Slice 19 — Mood & energy tracking** ([PR #734](https://github.com/akarlin3/prismTask/pull/734)): `users/{uid}/mood_energy_logs` + `/mood` route with 7/30/90d trend chart + quick-log modal + 5 unit tests.
+- ✅ **Slice 20 — Morning check-in + forgiveness streak** ([PR #735](https://github.com/akarlin3/prismTask/pull/735)): `users/{uid}/check_in_logs` + forgiveness-first streak compute + pinned Today card + 5 streak tests.
+- ✅ **Slice 21 — Boundaries + burnout scorer** ([PR #736](https://github.com/akarlin3/prismTask/pull/736)): `users/{uid}/boundary_rules` CRUD + pure enforcer + pure scorer (breach + mood + energy + overload weights) + Today banner + 10 unit tests.
+- ✅ **Slice 22 — Focus Release + good-enough timer** ([PR #737](https://github.com/akarlin3/prismTask/pull/737)): `users/{uid}/focus_release_logs` + 80% good-enough unlock + `/focus` route with four release states + 7 timer tests.
 
-With eighteen slices merged, the parity gap matrix below has been revised —
+With 22 slices merged — including the full wellness cluster — the
+parity gap matrix below has been revised —
 see the DONE markers and remaining-gaps section at the end.
 
 **Not shipped — backend-blocked:** (none of the original three now apply —
@@ -405,11 +410,14 @@ collections). Phase G Track A is effectively empty for web.
 
 ### Backend-blocked (requires a separate prompt)
 
-- **Wellness cluster** (mood, check-in, boundaries, focus release) — same
-  as before: no backend endpoints exist. Web fallback would need offline
-  data shapes that Android can pick up once backed.
 - **Notification profiles** (custom sounds, escalation) — needs tables +
   Web Push strategy.
+
+*(Wellness cluster — mood, check-in, boundaries, focus release — is no
+longer backend-blocked on web: slices 19–22 shipped it Firestore-natively
+at `users/{uid}/mood_energy_logs`, `/check_in_logs`, `/boundary_rules`,
+and `/focus_release_logs`. Android can sync against the same collections
+once its side lands.)*
 
 Sub-total: roughly **1–3 working days** of component migration on web
 (the three previously-backend-blocked items shipped Firestore-natively
