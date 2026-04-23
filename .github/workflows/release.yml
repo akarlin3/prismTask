@@ -62,7 +62,7 @@ jobs:
           fi
           keytool -list -keystore app/release.keystore -storepass "$KEYSTORE_PASSWORD" -alias "$KEY_ALIAS" > /dev/null 2>&1 || {
             echo "::error::Key alias '$KEY_ALIAS' not found in keystore. Available aliases:"
-            keytool -list -keystore app/release.keystore -storepass "$KEYSTORE_PASSWORD" 2>/dev/null | grep -i "alias"
+            keytool -list -v -keystore app/release.keystore -storepass "$KEYSTORE_PASSWORD" 2>/dev/null | grep "^Alias name:" || echo "  (keystore contains no entries)"
             exit 1
           }
           echo "has_keystore=true" >> $GITHUB_OUTPUT
