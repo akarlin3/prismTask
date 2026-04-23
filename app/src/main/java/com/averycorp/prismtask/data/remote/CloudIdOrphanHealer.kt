@@ -11,7 +11,12 @@ import com.averycorp.prismtask.data.local.dao.HabitDao
 import com.averycorp.prismtask.data.local.dao.HabitLogDao
 import com.averycorp.prismtask.data.local.dao.HabitTemplateDao
 import com.averycorp.prismtask.data.local.dao.LeisureDao
+import com.averycorp.prismtask.data.local.dao.MedicationDao
+import com.averycorp.prismtask.data.local.dao.MedicationDoseDao
 import com.averycorp.prismtask.data.local.dao.MedicationRefillDao
+import com.averycorp.prismtask.data.local.dao.MedicationSlotDao
+import com.averycorp.prismtask.data.local.dao.MedicationSlotOverrideDao
+import com.averycorp.prismtask.data.local.dao.MedicationTierStateDao
 import com.averycorp.prismtask.data.local.dao.MilestoneDao
 import com.averycorp.prismtask.data.local.dao.MoodEnergyLogDao
 import com.averycorp.prismtask.data.local.dao.NlpShortcutDao
@@ -138,6 +143,14 @@ constructor(
     private val weeklyReviewDao: WeeklyReviewDao,
     private val dailyEssentialSlotCompletionDao: DailyEssentialSlotCompletionDao,
     private val attachmentDao: AttachmentDao,
+    // v1.5 medication core — was a pre-existing gap; added to healer alongside
+    // the v1.5 medication slot system (A2 #6 PR1).
+    private val medicationDao: MedicationDao,
+    private val medicationDoseDao: MedicationDoseDao,
+    // v1.5 medication slot system (A2 #6 PR1)
+    private val medicationSlotDao: MedicationSlotDao,
+    private val medicationSlotOverrideDao: MedicationSlotOverrideDao,
+    private val medicationTierStateDao: MedicationTierStateDao,
     private val logger: PrismSyncLogger
 ) {
     /**
@@ -333,6 +346,40 @@ constructor(
         }
         healFamily("attachments", "attachment", fetcher) {
             attachmentDao.getAllOnce().mapNotNull { entity ->
+                entity.cloudId?.takeIf { it.isNotBlank() }?.let { CloudIdRow(entity.id, it) }
+            }
+        }
+
+        // ── v1.5 medication core + slot system ──
+        // medications + medication_doses were shipped in v1.4.37 but never
+        // wired into this healer (pre-existing gap). Closed here alongside
+        // the new slot-system families.
+        healFamily("medications", "medication", fetcher) {
+            medicationDao.getAllOnce().mapNotNull { entity ->
+                entity.cloudId?.takeIf { it.isNotBlank() }?.let { CloudIdRow(entity.id, it) }
+            }
+        }
+        // medication_doses carry an FK medication_id (CASCADE). The parent's
+        // sync_metadata is preserved separately; child push resolves via
+        // medCloudId lookup at push time, same orphan-safe story as
+        // habit_completions.
+        healFamily("medication_doses", "medication_dose", fetcher) {
+            medicationDoseDao.getAllOnce().mapNotNull { entity ->
+                entity.cloudId?.takeIf { it.isNotBlank() }?.let { CloudIdRow(entity.id, it) }
+            }
+        }
+        healFamily("medication_slots", "medication_slot", fetcher) {
+            medicationSlotDao.getAllOnce().mapNotNull { entity ->
+                entity.cloudId?.takeIf { it.isNotBlank() }?.let { CloudIdRow(entity.id, it) }
+            }
+        }
+        healFamily("medication_slot_overrides", "medication_slot_override", fetcher) {
+            medicationSlotOverrideDao.getAllOnce().mapNotNull { entity ->
+                entity.cloudId?.takeIf { it.isNotBlank() }?.let { CloudIdRow(entity.id, it) }
+            }
+        }
+        healFamily("medication_tier_states", "medication_tier_state", fetcher) {
+            medicationTierStateDao.getAllOnce().mapNotNull { entity ->
                 entity.cloudId?.takeIf { it.isNotBlank() }?.let { CloudIdRow(entity.id, it) }
             }
         }

@@ -182,6 +182,8 @@ sealed class PrismTaskRoute(
             "batch_preview?command=${android.net.Uri.encode(command)}"
     }
 
+    data object BatchHistory : PrismTaskRoute("settings/batch_history")
+
     data object MoodAnalytics : PrismTaskRoute("mood_analytics")
 
     data object WeeklyBalanceReport : PrismTaskRoute("weekly_balance_report")

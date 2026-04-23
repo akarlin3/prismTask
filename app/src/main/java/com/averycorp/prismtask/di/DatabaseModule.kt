@@ -18,6 +18,9 @@ import com.averycorp.prismtask.data.local.dao.LeisureDao
 import com.averycorp.prismtask.data.local.dao.MedicationDao
 import com.averycorp.prismtask.data.local.dao.MedicationDoseDao
 import com.averycorp.prismtask.data.local.dao.MedicationRefillDao
+import com.averycorp.prismtask.data.local.dao.MedicationSlotDao
+import com.averycorp.prismtask.data.local.dao.MedicationSlotOverrideDao
+import com.averycorp.prismtask.data.local.dao.MedicationTierStateDao
 import com.averycorp.prismtask.data.local.dao.MilestoneDao
 import com.averycorp.prismtask.data.local.dao.MoodEnergyLogDao
 import com.averycorp.prismtask.data.local.dao.NlpShortcutDao
@@ -163,6 +166,18 @@ object DatabaseModule {
     fun provideMedicationDoseDao(
         database: PrismTaskDatabase
     ): MedicationDoseDao = database.medicationDoseDao()
+
+    @Provides
+    fun provideMedicationSlotDao(database: PrismTaskDatabase): MedicationSlotDao =
+        database.medicationSlotDao()
+
+    @Provides
+    fun provideMedicationSlotOverrideDao(database: PrismTaskDatabase): MedicationSlotOverrideDao =
+        database.medicationSlotOverrideDao()
+
+    @Provides
+    fun provideMedicationTierStateDao(database: PrismTaskDatabase): MedicationTierStateDao =
+        database.medicationTierStateDao()
 
     @Provides
     fun provideBatchUndoLogDao(database: PrismTaskDatabase): BatchUndoLogDao = database.batchUndoLogDao()

@@ -14,6 +14,9 @@ import com.averycorp.prismtask.data.local.dao.LeisureDao
 import com.averycorp.prismtask.data.local.dao.MedicationDao
 import com.averycorp.prismtask.data.local.dao.MedicationDoseDao
 import com.averycorp.prismtask.data.local.dao.MedicationRefillDao
+import com.averycorp.prismtask.data.local.dao.MedicationSlotDao
+import com.averycorp.prismtask.data.local.dao.MedicationSlotOverrideDao
+import com.averycorp.prismtask.data.local.dao.MedicationTierStateDao
 import com.averycorp.prismtask.data.local.dao.MilestoneDao
 import com.averycorp.prismtask.data.local.dao.MoodEnergyLogDao
 import com.averycorp.prismtask.data.local.dao.NlpShortcutDao
@@ -78,6 +81,9 @@ constructor(
     private val builtInMedicationReconciler: BuiltInMedicationReconciler,
     private val medicationDao: MedicationDao,
     private val medicationDoseDao: MedicationDoseDao,
+    private val medicationSlotDao: MedicationSlotDao,
+    private val medicationSlotOverrideDao: MedicationSlotOverrideDao,
+    private val medicationTierStateDao: MedicationTierStateDao,
     private val medicationMigrationPreferences: com.averycorp.prismtask.data.preferences.MedicationMigrationPreferences,
     private val sortPreferencesSyncService: SortPreferencesSyncService,
     private val schoolworkDao: SchoolworkDao,
@@ -930,7 +936,9 @@ constructor(
                 try {
                     if (syncMetadataDao.getCloudId(med.id, "medication") != null) continue
                     val docRef = userCollection("medications")?.document() ?: continue
-                    docRef.set(MedicationSyncMapper.medicationToMap(med)).await()
+                    val slotCloudIds = medicationSlotDao.getSlotIdsForMedicationOnce(med.id)
+                        .mapNotNull { syncMetadataDao.getCloudId(it, "medication_slot") }
+                    docRef.set(MedicationSyncMapper.medicationToMap(med, slotCloudIds)).await()
                     syncMetadataDao.upsert(
                         SyncMetadataEntity(
                             localId = med.id,
@@ -1093,6 +1101,9 @@ constructor(
         "self_care_log" -> "self_care_logs"
         "medication" -> "medications"
         "medication_dose" -> "medication_doses"
+        "medication_slot" -> "medication_slots"
+        "medication_slot_override" -> "medication_slot_overrides"
+        "medication_tier_state" -> "medication_tier_states"
         "notification_profile" -> "notification_profiles"
         "custom_sound" -> "custom_sounds"
         "saved_filter" -> "saved_filters"
@@ -1196,12 +1207,30 @@ constructor(
             }
             "medication" -> {
                 val med = medicationDao.getByIdOnce(meta.localId) ?: return
-                MedicationSyncMapper.medicationToMap(med)
+                val slotCloudIds = medicationSlotDao.getSlotIdsForMedicationOnce(med.id)
+                    .mapNotNull { syncMetadataDao.getCloudId(it, "medication_slot") }
+                MedicationSyncMapper.medicationToMap(med, slotCloudIds)
             }
             "medication_dose" -> {
                 val dose = medicationDoseDao.getAllOnce().find { it.id == meta.localId } ?: return
                 val medCloudId = syncMetadataDao.getCloudId(dose.medicationId, "medication") ?: return
                 MedicationSyncMapper.medicationDoseToMap(dose, medCloudId)
+            }
+            "medication_slot" -> {
+                val slot = medicationSlotDao.getByIdOnce(meta.localId) ?: return
+                MedicationSyncMapper.medicationSlotToMap(slot)
+            }
+            "medication_slot_override" -> {
+                val override = medicationSlotOverrideDao.getByIdOnce(meta.localId) ?: return
+                val medCloudId = syncMetadataDao.getCloudId(override.medicationId, "medication") ?: return
+                val slotCloudId = syncMetadataDao.getCloudId(override.slotId, "medication_slot") ?: return
+                MedicationSyncMapper.medicationSlotOverrideToMap(override, medCloudId, slotCloudId)
+            }
+            "medication_tier_state" -> {
+                val state = medicationTierStateDao.getByIdOnce(meta.localId) ?: return
+                val medCloudId = syncMetadataDao.getCloudId(state.medicationId, "medication") ?: return
+                val slotCloudId = syncMetadataDao.getCloudId(state.slotId, "medication_slot") ?: return
+                MedicationSyncMapper.medicationTierStateToMap(state, medCloudId, slotCloudId)
             }
             "notification_profile" -> {
                 val profile = notificationProfileDao.getById(meta.localId) ?: return
@@ -1340,12 +1369,30 @@ constructor(
             }
             "medication" -> {
                 val med = medicationDao.getByIdOnce(meta.localId) ?: return
-                MedicationSyncMapper.medicationToMap(med)
+                val slotCloudIds = medicationSlotDao.getSlotIdsForMedicationOnce(med.id)
+                    .mapNotNull { syncMetadataDao.getCloudId(it, "medication_slot") }
+                MedicationSyncMapper.medicationToMap(med, slotCloudIds)
             }
             "medication_dose" -> {
                 val dose = medicationDoseDao.getAllOnce().find { it.id == meta.localId } ?: return
                 val medCloudId = syncMetadataDao.getCloudId(dose.medicationId, "medication") ?: return
                 MedicationSyncMapper.medicationDoseToMap(dose, medCloudId)
+            }
+            "medication_slot" -> {
+                val slot = medicationSlotDao.getByIdOnce(meta.localId) ?: return
+                MedicationSyncMapper.medicationSlotToMap(slot)
+            }
+            "medication_slot_override" -> {
+                val override = medicationSlotOverrideDao.getByIdOnce(meta.localId) ?: return
+                val medCloudId = syncMetadataDao.getCloudId(override.medicationId, "medication") ?: return
+                val slotCloudId = syncMetadataDao.getCloudId(override.slotId, "medication_slot") ?: return
+                MedicationSyncMapper.medicationSlotOverrideToMap(override, medCloudId, slotCloudId)
+            }
+            "medication_tier_state" -> {
+                val state = medicationTierStateDao.getByIdOnce(meta.localId) ?: return
+                val medCloudId = syncMetadataDao.getCloudId(state.medicationId, "medication") ?: return
+                val slotCloudId = syncMetadataDao.getCloudId(state.slotId, "medication_slot") ?: return
+                MedicationSyncMapper.medicationTierStateToMap(state, medCloudId, slotCloudId)
             }
             "notification_profile" -> {
                 val profile = notificationProfileDao.getById(meta.localId) ?: return
@@ -1870,10 +1917,43 @@ constructor(
         applied += selfCareLogsResult.applied
         skipped += selfCareLogsResult.skipped
 
+        // medication_slots BEFORE medications so the junction rebuild lands
+        // cleanly (medication pull embeds slotCloudIds that need local IDs).
+        val medicationSlotsResult = pullCollection("medication_slots") { data, cloudId ->
+            val localId = syncMetadataDao.getLocalId(cloudId, "medication_slot")
+            if (localId == null) {
+                val slot = MedicationSyncMapper.mapToMedicationSlot(data, cloudId = cloudId)
+                val newId = medicationSlotDao.insert(slot)
+                syncMetadataDao.upsert(
+                    SyncMetadataEntity(
+                        localId = newId,
+                        entityType = "medication_slot",
+                        cloudId = cloudId,
+                        lastSyncedAt = System.currentTimeMillis()
+                    )
+                )
+            } else {
+                val local = medicationSlotDao.getByIdOnce(localId)
+                val remoteUpdatedAt = (data["updatedAt"] as? Number)?.toLong() ?: 0L
+                if (local == null || remoteUpdatedAt > local.updatedAt) {
+                    medicationSlotDao.update(
+                        MedicationSyncMapper.mapToMedicationSlot(data, localId, cloudId = cloudId)
+                    )
+                    syncMetadataDao.clearPendingAction(localId, "medication_slot")
+                }
+            }
+            true
+        }
+        applied += medicationSlotsResult.applied
+        skipped += medicationSlotsResult.skipped
+
         // medications BEFORE medication_doses so the FK resolution lands.
+        // Junction rebuild: after every medication pull, replace its
+        // `medication_medication_slots` row set with the slot cloud-ids
+        // embedded on the Firestore doc (resolved via sync_metadata).
         val medicationsResult = pullCollection("medications") { data, cloudId ->
             val localId = syncMetadataDao.getLocalId(cloudId, "medication")
-            if (localId == null) {
+            val resolvedLocalId = if (localId == null) {
                 val med = MedicationSyncMapper.mapToMedication(data, cloudId = cloudId)
                 val newId = medicationDao.insert(med)
                 syncMetadataDao.upsert(
@@ -1884,6 +1964,7 @@ constructor(
                         lastSyncedAt = System.currentTimeMillis()
                     )
                 )
+                newId
             } else {
                 val localMed = medicationDao.getByIdOnce(localId)
                 val remoteUpdatedAt = (data["updatedAt"] as? Number)?.toLong() ?: 0L
@@ -1893,6 +1974,25 @@ constructor(
                     )
                     syncMetadataDao.clearPendingAction(localId, "medication")
                 }
+                localId
+            }
+            // Always rebuild junction from the embedded list — even on a
+            // seen-update skip, the other device may have added / removed a
+            // slot link without bumping `updatedAt` in a way we observed.
+            val slotCloudIds = MedicationSyncMapper.extractSlotCloudIds(data)
+            val slotLocalIds = slotCloudIds.mapNotNull {
+                syncMetadataDao.getLocalId(it, "medication_slot")
+            }
+            medicationSlotDao.deleteLinksForMedication(resolvedLocalId)
+            if (slotLocalIds.isNotEmpty()) {
+                medicationSlotDao.insertLinks(
+                    slotLocalIds.distinct().map {
+                        com.averycorp.prismtask.data.local.entity.MedicationSlotCrossRef(
+                            medicationId = resolvedLocalId,
+                            slotId = it
+                        )
+                    }
+                )
             }
             true
         }
@@ -1929,6 +2029,96 @@ constructor(
         }
         applied += medicationDosesResult.applied
         skipped += medicationDosesResult.skipped
+
+        val medicationSlotOverridesResult = pullCollection("medication_slot_overrides") { data, cloudId ->
+            val medCloudId = data["medicationCloudId"] as? String ?: return@pullCollection false
+            val slotCloudId = data["slotCloudId"] as? String ?: return@pullCollection false
+            val medLocalId = syncMetadataDao.getLocalId(medCloudId, "medication")
+                ?: return@pullCollection false
+            val slotLocalId = syncMetadataDao.getLocalId(slotCloudId, "medication_slot")
+                ?: return@pullCollection false
+            val localId = syncMetadataDao.getLocalId(cloudId, "medication_slot_override")
+            if (localId == null) {
+                val override = MedicationSyncMapper.mapToMedicationSlotOverride(
+                    data,
+                    medicationLocalId = medLocalId,
+                    slotLocalId = slotLocalId,
+                    cloudId = cloudId
+                )
+                val newId = medicationSlotOverrideDao.insert(override)
+                syncMetadataDao.upsert(
+                    SyncMetadataEntity(
+                        localId = newId,
+                        entityType = "medication_slot_override",
+                        cloudId = cloudId,
+                        lastSyncedAt = System.currentTimeMillis()
+                    )
+                )
+            } else {
+                val local = medicationSlotOverrideDao.getByIdOnce(localId)
+                val remoteUpdatedAt = (data["updatedAt"] as? Number)?.toLong() ?: 0L
+                if (local == null || remoteUpdatedAt > local.updatedAt) {
+                    medicationSlotOverrideDao.update(
+                        MedicationSyncMapper.mapToMedicationSlotOverride(
+                            data,
+                            localId = localId,
+                            medicationLocalId = medLocalId,
+                            slotLocalId = slotLocalId,
+                            cloudId = cloudId
+                        )
+                    )
+                    syncMetadataDao.clearPendingAction(localId, "medication_slot_override")
+                }
+            }
+            true
+        }
+        applied += medicationSlotOverridesResult.applied
+        skipped += medicationSlotOverridesResult.skipped
+
+        val medicationTierStatesResult = pullCollection("medication_tier_states") { data, cloudId ->
+            val medCloudId = data["medicationCloudId"] as? String ?: return@pullCollection false
+            val slotCloudId = data["slotCloudId"] as? String ?: return@pullCollection false
+            val medLocalId = syncMetadataDao.getLocalId(medCloudId, "medication")
+                ?: return@pullCollection false
+            val slotLocalId = syncMetadataDao.getLocalId(slotCloudId, "medication_slot")
+                ?: return@pullCollection false
+            val localId = syncMetadataDao.getLocalId(cloudId, "medication_tier_state")
+            if (localId == null) {
+                val state = MedicationSyncMapper.mapToMedicationTierState(
+                    data,
+                    medicationLocalId = medLocalId,
+                    slotLocalId = slotLocalId,
+                    cloudId = cloudId
+                )
+                val newId = medicationTierStateDao.insert(state)
+                syncMetadataDao.upsert(
+                    SyncMetadataEntity(
+                        localId = newId,
+                        entityType = "medication_tier_state",
+                        cloudId = cloudId,
+                        lastSyncedAt = System.currentTimeMillis()
+                    )
+                )
+            } else {
+                val local = medicationTierStateDao.getByIdOnce(localId)
+                val remoteUpdatedAt = (data["updatedAt"] as? Number)?.toLong() ?: 0L
+                if (local == null || remoteUpdatedAt > local.updatedAt) {
+                    medicationTierStateDao.update(
+                        MedicationSyncMapper.mapToMedicationTierState(
+                            data,
+                            localId = localId,
+                            medicationLocalId = medLocalId,
+                            slotLocalId = slotLocalId,
+                            cloudId = cloudId
+                        )
+                    )
+                    syncMetadataDao.clearPendingAction(localId, "medication_tier_state")
+                }
+            }
+            true
+        }
+        applied += medicationTierStatesResult.applied
+        skipped += medicationTierStatesResult.skipped
 
         // v1.4.37 Room config families — last-write-wins per-row using updatedAt.
         val notificationProfilesResult = pullRoomConfigFamily(
@@ -2562,6 +2752,7 @@ constructor(
             "habit_logs", "task_completions", "milestones", "task_templates",
             "courses", "course_completions", "leisure_logs", "self_care_steps", "self_care_logs",
             "medications", "medication_doses",
+            "medication_slots", "medication_slot_overrides", "medication_tier_states",
             "notification_profiles", "custom_sounds", "saved_filters", "nlp_shortcuts",
             "habit_templates", "project_templates", "boundary_rules",
             "check_in_logs", "mood_energy_logs", "focus_release_logs",
@@ -2639,6 +2830,9 @@ constructor(
             "self_care_logs" -> "self_care_log"
             "medications" -> "medication"
             "medication_doses" -> "medication_dose"
+            "medication_slots" -> "medication_slot"
+            "medication_slot_overrides" -> "medication_slot_override"
+            "medication_tier_states" -> "medication_tier_state"
             "notification_profiles" -> "notification_profile"
             "custom_sounds" -> "custom_sound"
             "saved_filters" -> "saved_filter"
@@ -2678,6 +2872,9 @@ constructor(
                     "self_care_log" -> selfCareDao.deleteLogById(localId)
                     "medication" -> medicationDao.deleteById(localId)
                     "medication_dose" -> medicationDoseDao.deleteById(localId)
+                    "medication_slot" -> medicationSlotDao.deleteById(localId)
+                    "medication_slot_override" -> medicationSlotOverrideDao.deleteById(localId)
+                    "medication_tier_state" -> medicationTierStateDao.deleteById(localId)
                     "notification_profile" ->
                         notificationProfileDao.getById(localId)?.let { notificationProfileDao.delete(it) }
                     "custom_sound" -> customSoundDao.deleteById(localId)

@@ -7,6 +7,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.averycorp.prismtask.ui.navigation.PrismTaskRoute
 import com.averycorp.prismtask.ui.screens.balance.WeeklyBalanceReportScreen
+import com.averycorp.prismtask.ui.screens.batch.BatchHistoryScreen
 import com.averycorp.prismtask.ui.screens.batch.BatchPreviewScreen
 import com.averycorp.prismtask.ui.screens.briefing.DailyBriefingScreen
 import com.averycorp.prismtask.ui.screens.chat.ChatScreen
@@ -111,5 +112,9 @@ internal fun NavGraphBuilder.aiRoutes(
             },
             onCancelled = { navController.popBackStack() }
         )
+    }
+
+    composable(route = PrismTaskRoute.BatchHistory.route) {
+        BatchHistoryScreen(navController)
     }
 }
