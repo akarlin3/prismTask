@@ -53,6 +53,7 @@ class AiTimeBlockUseCase @Inject constructor(
     // ``ZoneId.systemDefault()`` on every call so a timezone change
     // during the app lifetime is picked up.
     internal var clock: AiTimeBlockClock = AiTimeBlockClock.SYSTEM
+
     /**
      * Build a time-block request from local data + call the backend.
      *

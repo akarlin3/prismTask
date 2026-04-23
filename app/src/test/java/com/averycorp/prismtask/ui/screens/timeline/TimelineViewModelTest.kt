@@ -31,7 +31,6 @@ import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -78,8 +77,12 @@ class TimelineViewModelTest {
     }
 
     private fun newViewModel() = TimelineViewModel(
-        taskDao, taskRepository, projectRepository, sortPreferences,
-        aiTimeBlockUseCase, proFeatureGate
+        taskDao,
+        taskRepository,
+        projectRepository,
+        sortPreferences,
+        aiTimeBlockUseCase,
+        proFeatureGate
     )
 
     @Test
@@ -140,14 +143,22 @@ class TimelineViewModelTest {
         val response = TimeBlockResponse(
             schedule = listOf(
                 ScheduleBlockResponse(
-                    start = "09:00", end = "10:00", type = "task",
-                    taskId = 7L, title = "Deep work",
-                    reason = "Morning focus", date = "2026-04-22"
+                    start = "09:00",
+                    end = "10:00",
+                    type = "task",
+                    taskId = 7L,
+                    title = "Deep work",
+                    reason = "Morning focus",
+                    date = "2026-04-22"
                 ),
                 ScheduleBlockResponse(
-                    start = "10:15", end = "10:30", type = "break",
-                    taskId = null, title = "Break",
-                    reason = "Recovery", date = "2026-04-22"
+                    start = "10:15",
+                    end = "10:30",
+                    type = "break",
+                    taskId = null,
+                    title = "Break",
+                    reason = "Recovery",
+                    date = "2026-04-22"
                 )
             ),
             unscheduledTasks = emptyList(),
@@ -186,9 +197,13 @@ class TimelineViewModelTest {
         val response = TimeBlockResponse(
             schedule = listOf(
                 ScheduleBlockResponse(
-                    start = "09:00", end = "09:30", type = "task",
-                    taskId = 42L, title = "Write",
-                    reason = "...", date = "2026-04-22"
+                    start = "09:00",
+                    end = "09:30",
+                    type = "task",
+                    taskId = 42L,
+                    title = "Write",
+                    reason = "...",
+                    date = "2026-04-22"
                 )
             ),
             unscheduledTasks = emptyList(),

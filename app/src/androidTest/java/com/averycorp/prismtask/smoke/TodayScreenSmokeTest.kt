@@ -1,14 +1,10 @@
 package com.averycorp.prismtask.smoke
 
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
 import dagger.hilt.android.testing.HiltAndroidTest
 import org.junit.Test
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 @HiltAndroidTest
 class TodayScreenSmokeTest : SmokeTestBase() {

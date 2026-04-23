@@ -68,10 +68,11 @@ class AiTimeBlockUseCaseTest {
 
     @Test
     fun taskSignals_includeEisenhower_and_estimatedSessions() = runTest {
+        // 75 min → ceil(75/25) = 3 Pomodoro sessions.
         val task = TaskEntity(
             id = 10L,
             title = "Refactor reducer",
-            estimatedDuration = 75,  // 75 min → ceil(75/25) = 3 sessions
+            estimatedDuration = 75,
             eisenhowerQuadrant = "Q2"
         )
         coEvery { taskDao.getTasksInHorizonOnce(any(), any()) } returns listOf(task)

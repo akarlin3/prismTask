@@ -37,8 +37,13 @@ class TimeBlockTest {
         val schedule = AiSchedule(
             blocks = response.schedule.map { block ->
                 AiScheduleBlock(
-                    block.start, block.end, block.type, block.taskId,
-                    block.title, block.reason, date = block.date ?: "2026-04-22"
+                    block.start,
+                    block.end,
+                    block.type,
+                    block.taskId,
+                    block.title,
+                    block.reason,
+                    date = block.date ?: "2026-04-22"
                 )
             },
             unscheduledTasks = response.unscheduledTasks.map { it.taskId to it.title },

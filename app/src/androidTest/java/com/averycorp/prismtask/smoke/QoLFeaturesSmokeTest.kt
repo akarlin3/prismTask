@@ -2,9 +2,7 @@ package com.averycorp.prismtask.smoke
 
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.onAllNodesWithContentDescription
-import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
-import androidx.compose.ui.test.performClick
 import dagger.hilt.android.testing.HiltAndroidTest
 import org.junit.Test
 
