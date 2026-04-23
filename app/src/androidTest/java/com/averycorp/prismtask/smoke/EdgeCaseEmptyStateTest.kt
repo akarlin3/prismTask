@@ -9,8 +9,11 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import com.averycorp.prismtask.MainActivity
 import com.averycorp.prismtask.data.local.database.PrismTaskDatabase
+import com.averycorp.prismtask.data.preferences.OnboardingPreferences
+import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
 import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Before
@@ -41,12 +44,26 @@ class EdgeCaseEmptyStateTest {
     @Inject
     lateinit var database: PrismTaskDatabase
 
+    @Inject
+    lateinit var onboardingPreferences: OnboardingPreferences
+
+    @Inject
+    lateinit var taskBehaviorPreferences: TaskBehaviorPreferences
+
     @Before
     fun setUp() {
         hiltRule.inject()
         // Clear everything: every test runs against an empty DB so the UI
         // must render its empty-state composable rather than real content.
         runTest { database.clearAllTables() }
+        // MainActivity gates the main UI behind hasCompletedOnboarding and
+        // hasSetStartOfDay; unset they block the empty-state screens with
+        // the onboarding flow / SoD picker. Seed both here so empty-state
+        // assertions actually reach the target screens.
+        runBlocking {
+            onboardingPreferences.setOnboardingCompleted()
+            taskBehaviorPreferences.setHasSetStartOfDay(true)
+        }
         composeRule.waitForIdle()
     }
 
