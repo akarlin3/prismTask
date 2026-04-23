@@ -22,6 +22,8 @@ import { aiApi, type PomodoroSession } from '@/api/ai';
 import { Button } from '@/components/ui/Button';
 import { Checkbox } from '@/components/ui/Checkbox';
 import { Spinner } from '@/components/ui/Spinner';
+import { PomodoroCoachPanel } from '@/features/pomodoro/PomodoroCoachPanel';
+import type { PomodoroCoachingTask } from '@/types/pomodoroCoaching';
 import type { Task } from '@/types/task';
 
 type WorkStyle = 'balanced' | 'deep_work' | 'quick_wins' | 'deadline_driven';
@@ -275,6 +277,42 @@ export function PomodoroScreen() {
     );
   }
 
+  // Coaching panel task arrays — built from the current session state so
+  // the coach sees what the user is about to do (pre_session), is resting
+  // between (break_activity), or has just finished (session_recap).
+  const coachUpcomingTasks: PomodoroCoachingTask[] =
+    currentSession?.tasks.map((t) => ({
+      task_id: t.task_id,
+      title: t.title,
+      allocated_minutes: t.allocated_minutes,
+    })) ??
+    sessions[0]?.tasks.map((t) => ({
+      task_id: t.task_id,
+      title: t.title,
+      allocated_minutes: t.allocated_minutes,
+    })) ??
+    [];
+  const coachCompletedTasks: PomodoroCoachingTask[] = sessions
+    .flatMap((s) => s.tasks)
+    .filter((t) => completedTaskIds.has(t.task_id))
+    .map((t) => ({
+      task_id: t.task_id,
+      title: t.title,
+      allocated_minutes: t.allocated_minutes,
+    }));
+  const coachStartedTasks: PomodoroCoachingTask[] = sessions
+    .flatMap((s) => s.tasks)
+    .filter((t) => !completedTaskIds.has(t.task_id))
+    .map((t) => ({
+      task_id: t.task_id,
+      title: t.title,
+      allocated_minutes: t.allocated_minutes,
+    }));
+  const coachElapsedBreakMinutes =
+    phase === 'break'
+      ? Math.max(0, Math.floor((breakLength * 60 - timeLeft) / 60))
+      : 0;
+
   return (
     <div className="mx-auto max-w-3xl">
       {/* Header */}
@@ -290,6 +328,18 @@ export function PomodoroScreen() {
           </span>
         )}
       </div>
+
+      <PomodoroCoachPanel
+        phase={phase}
+        sessionLengthMinutes={sessionLength}
+        breakLengthMinutes={breakLength}
+        upcomingTasks={coachUpcomingTasks}
+        completedTasks={coachCompletedTasks}
+        startedTasks={coachStartedTasks}
+        sessionDurationMinutes={sessions.length * sessionLength}
+        elapsedBreakMinutes={coachElapsedBreakMinutes}
+        breakType="short"
+      />
 
       {/* IDLE: Setup panel */}
       {phase === 'idle' && (

@@ -10,6 +10,10 @@ import type {
   ExtractFromTextRequest,
   ExtractFromTextResponse,
 } from '@/types/extract';
+import type {
+  PomodoroCoachingRequest,
+  PomodoroCoachingResponse,
+} from '@/types/pomodoroCoaching';
 
 export interface PomodoroRequest {
   available_minutes: number;
@@ -178,6 +182,14 @@ export const aiApi = {
   ): Promise<ExtractFromTextResponse> {
     return apiClient
       .post('/ai/tasks/extract-from-text', data)
+      .then((r) => r.data);
+  },
+
+  pomodoroCoaching(
+    data: PomodoroCoachingRequest,
+  ): Promise<PomodoroCoachingResponse> {
+    return apiClient
+      .post('/ai/pomodoro-coaching', data)
       .then((r) => r.data);
   },
 };

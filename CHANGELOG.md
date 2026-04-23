@@ -16,6 +16,17 @@ without any backend or Android-side changes. See
 and `docs/WEB_PARITY_PHASE_G_PROMPT_TEMPLATE.md` for the remaining
 Phase G roadmap.
 
+- **Pomodoro+ coaching (slice 6)** — wires `POST /ai/pomodoro-coaching`
+  as a self-contained `PomodoroCoachPanel` that mounts on
+  `PomodoroScreen`. One component covers all three backend triggers:
+  `pre_session` (pre-session focus prompt), `break_activity` (stretch /
+  breath suggestions during breaks), `session_recap` (one-line debrief
+  after a block). Trigger is inferred from the existing
+  `SessionPhase` state so the existing planning/work/break/done flow
+  stays untouched — the panel just reads phase + the task arrays it
+  needs for each trigger. Pro-gated; FREE users see the existing
+  `ProUpgradeModal`. Message is dismissable and can be regenerated.
+
 - **Conversation Extraction (slice 5)** — new `/extract` route wires
   `POST /ai/tasks/extract-from-text`. Paste a chat transcript, meeting
   note, or email (up to 10k chars), and the AI returns proposed task
