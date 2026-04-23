@@ -72,6 +72,20 @@ class CloudIdOrphanHealerScenarioTest {
             taskCompletionDao = database.taskCompletionDao(),
             taskTemplateDao = database.taskTemplateDao(),
             milestoneDao = database.milestoneDao(),
+            notificationProfileDao = database.notificationProfileDao(),
+            customSoundDao = database.customSoundDao(),
+            savedFilterDao = database.savedFilterDao(),
+            nlpShortcutDao = database.nlpShortcutDao(),
+            habitTemplateDao = database.habitTemplateDao(),
+            projectTemplateDao = database.projectTemplateDao(),
+            boundaryRuleDao = database.boundaryRuleDao(),
+            checkInLogDao = database.checkInLogDao(),
+            moodEnergyLogDao = database.moodEnergyLogDao(),
+            focusReleaseLogDao = database.focusReleaseLogDao(),
+            medicationRefillDao = database.medicationRefillDao(),
+            weeklyReviewDao = database.weeklyReviewDao(),
+            dailyEssentialSlotCompletionDao = database.dailyEssentialSlotCompletionDao(),
+            attachmentDao = database.attachmentDao(),
             logger = logger
         )
     }
