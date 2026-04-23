@@ -8,7 +8,7 @@ document is the analysis; this file is how you invoke the work.
 
 ## Current state
 
-Pre-Phase-G, two high-leverage slices landed:
+Pre-Phase-G, four high-leverage slices landed:
 
 - **NLP batch ops** ([PR #711](https://github.com/akarlin3/prismTask/pull/711))
   — `/ai/batch-parse` wired with BatchPreview + 30s undo + 24h Settings
@@ -19,6 +19,15 @@ Pre-Phase-G, two high-leverage slices landed:
   — Cyberpunk / Synthwave / Matrix / Void color tokens, theme picker,
   9-page onboarding wizard, per-account Firestore completion flag.
   Deferred: per-theme typography, shape, decorative personality flags.
+- **Daily briefing + weekly planner** ([PR #714](https://github.com/akarlin3/prismTask/pull/714))
+  — `/briefing` wires `POST /ai/daily-briefing`, `/planner` wires
+  `POST /ai/weekly-plan` with a preferences drawer. Both Pro-gated; the
+  weekly-plan 429 rate-limit has a readable toast.
+- **Analytics dashboard** ([PR #715](https://github.com/akarlin3/prismTask/pull/715))
+  — `/analytics` wires `GET /analytics/summary` + `productivity-score` +
+  `time-tracking` + `habit-correlations` (Recharts area + bar charts). Uses
+  `Promise.allSettled` for graceful per-endpoint failure. Skips
+  `project-progress` (backend expects int ID; web has string Firestore IDs).
 
 The web app's data-access split (Firestore-direct for tasks / projects /
 habits / tags; backend REST for AI / dashboard / daily-essentials / auth /
@@ -33,47 +42,46 @@ change. Each is sized so it can ship as one PR.
 
 ### Track A — Backend-ready (web only; ship first)
 
-Rough sub-total: **12–17 working days**.
+Rough sub-total: **9–13 working days** (was 12–17 before slices 3–4
+shipped).
 
 1. **Task editor tabbed parity** — add Schedule + Organize tabs to
    `features/tasks/TaskEditor.tsx` to match Android's `addedittask/tabs/`.
    ~M, ~2 days.
 2. **Today polish** — SoD prompt section + dashboard layout customization
    (section order + visibility via DashboardPreferences equivalent).
+   Consider also embedding a mini briefing card that links to `/briefing`.
    ~S, ~1 day.
 3. **Conversation extraction** — new `/extract` route wiring
    `POST /ai/tasks/extract-from-text`. Single screen, reuses the slice 1
    preview + 30s undo pattern. ~M, ~1–2 days.
 4. **Pomodoro+ coaching** — overlay on `features/pomodoro/PomodoroScreen.tsx`
    wiring `POST /ai/pomodoro-coaching`. ~M, ~1 day.
-5. **Daily briefing + weekly plan (planner)** — two screens (or one
-   combined Today add-on + a `/planner` route) wiring
-   `POST /ai/daily-briefing` and `POST /ai/weekly-plan`. ~L, ~3–4 days.
-6. **Medication screen + tier picker + Settings editor** — dedicated
+5. **Medication screen + tier picker + Settings editor** — dedicated
    `/medication` route + Settings section mirroring Android's
    `MedicationScreen.kt` and `DailyEssentialsSettingsSection.kt`, consuming
    the existing `/daily-essentials/*` endpoints. ~M, ~2–3 days.
-7. **Analytics dashboard** — new `/analytics` route with charts (Recharts
-   is already a dependency) wiring `/analytics/productivity-score`,
-   `/time-tracking`, `/project-progress`, `/habit-correlations`,
-   `/summary`. ~L, ~4–5 days.
-8. **Templates parity** — habit templates + project templates (task
+6. **Templates parity** — habit templates + project templates (task
    templates already exist). Add modal editors and quick-use shortcuts.
    ~M, ~2 days.
-9. **Settings sections** — port ~22 Android settings sections: Accessibility
+7. **Settings sections** — port ~22 Android settings sections: Accessibility
    polish, GoogleCalendar, DailyEssentialsSettings, AboutSection,
    DashboardSection, AI overrides, SubscriptionSection polish, plus smaller
    toggles. Parallelizable across multiple PRs. ~L, ~3–5 days.
-10. **Theme polish (slice 2 follow-up)** — per-theme typography (Chakra
-    Petch / Rajdhani / Share Tech Mono / Space Grotesk via Google Fonts),
-    shape (radius / chipShape / density), decorative personality flags
-    (brackets, terminal, editorial, sunset) via a `ThemedCard`-style
-    component. ~M–L, ~3–5 days.
-11. **TAG_CHANGE batch mutation** — enable web task↔tag Firestore
-    persistence (decision: embed tag IDs on task doc vs. separate
-    cross-ref collection), then flip the applier in
-    `features/batch/batchApplier.ts` from deferred to apply. ~M with
-    persistence included, ~1 day once persistence exists.
+8. **Theme polish (slice 2 follow-up)** — per-theme typography (Chakra
+   Petch / Rajdhani / Share Tech Mono / Space Grotesk via Google Fonts),
+   shape (radius / chipShape / density), decorative personality flags
+   (brackets, terminal, editorial, sunset) via a `ThemedCard`-style
+   component. ~M–L, ~3–5 days.
+9. **TAG_CHANGE batch mutation** — enable web task↔tag Firestore
+   persistence (decision: embed tag IDs on task doc vs. separate
+   cross-ref collection), then flip the applier in
+   `features/batch/batchApplier.ts` from deferred to apply. ~M with
+   persistence included, ~1 day once persistence exists.
+10. **Analytics project-progress (needs backend change first)** — web
+    projects use string Firestore IDs, backend `/analytics/project-progress`
+    takes an int. Backend must accept string IDs (Track B item) before
+    this web slice is shippable. ~S once unblocked.
 
 ### Track B — Backend work required (bounce to a separate prompt first)
 
@@ -186,4 +194,10 @@ the backend work, one for the web follow-up — and link them as blocked
 
 Update `docs/WEB_PARITY_GAP_ANALYSIS.md` with DONE markers on the shipped
 rows, update the "remaining-gaps" subtotal, and append a short entry to
-this file under a new `## Shipped in Phase G` heading with PR links.
+this file under the `## Shipped in Phase G` heading below with PR links.
+
+---
+
+## Shipped in Phase G
+
+*(empty — update this section as Phase G work lands)*
