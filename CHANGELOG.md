@@ -9,40 +9,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Web
 
-- **Onboarding + four named themes (slice 2 of the web parity push)** —
-  replaces the pre-parity light/dark + 12-accent-color picker with the
-  four shipped themes (`CYBERPUNK`, `SYNTHWAVE`, `MATRIX`, `VOID`) that
-  Android carries. Theme tokens (core surface + brand, semantic state,
-  Eisenhower quadrants, 8-slot data-viz palette) are ported from
-  `themesets/themes.js` into `web/src/theme/themes.ts` and applied via
-  CSS custom properties + a `data-theme` attribute on the root. Existing
-  users are migrated automatically on first load — legacy accent hex
-  maps to the closest named theme, defaulting to VOID. Typography,
-  shape, density, and decorative treatments (brackets / terminal /
-  editorial / sunset) are deferred to follow-up polish. Also lands a
-  9-page onboarding wizard at `/onboarding`, modeled on Android's page
-  order (Welcome, ThemePicker, SmartTasks, NaturalLanguage, Habits,
-  Templates, Views, BrainMode, Setup). Completion is persisted per
-  account at `users/{uid}.onboardingCompletedAt` in Firestore so the
-  flow is shown once per account across devices, gated in the route
-  tree via a new `OnboardingGate`.
+Two high-leverage parity slices landed ahead of Phase G, targeting the
+biggest capability gaps between the web client and Android v1.5.2
+without any backend or Android-side changes. See
+`docs/WEB_PARITY_GAP_ANALYSIS.md` for the full audit that picked these
+and `docs/WEB_PARITY_PHASE_G_PROMPT_TEMPLATE.md` for the remaining
+Phase G roadmap.
 
-- **NLP batch ops (slice 1 of the web parity push)** — the quick-add bar
-  in `NLPInput.tsx` now detects batch-style commands (e.g. "reschedule
-  all overdue tasks to tomorrow") using the same two-signal heuristic
-  Android ships in `BatchIntentDetector.kt`. Matching input is Pro-gated
-  and routes to a new `/batch/preview` screen that calls
-  `POST /ai/batch-parse`, renders the diff-preview, lets the user toggle
-  individual rows, then commits the approved mutations directly to
-  Firestore with a per-batch undo log. A 30-second Sonner toast offers
-  immediate undo, and Settings → Recent Batch Commands keeps the same
-  batches undoable for 24h (matches Android's `UNDO_WINDOW_MILLIS`).
-  Covered mutations on web: TASK RESCHEDULE / DELETE / COMPLETE /
-  PRIORITY_CHANGE / PROJECT_MOVE, HABIT COMPLETE / SKIP / ARCHIVE /
-  DELETE, PROJECT ARCHIVE / DELETE. TAG_CHANGE and MEDICATION are
-  surfaced but skipped at apply time pending web-side tag persistence
-  and the medication-ops worktree — both paths match the deferred
-  branches in `BatchOperationsRepository.kt`.
+- **NLP batch ops ([PR #711](https://github.com/akarlin3/prismTask/pull/711))** —
+  the quick-add bar now detects batch-style commands ("reschedule all
+  overdue tasks to tomorrow") using the two-signal heuristic Android
+  ships in `BatchIntentDetector.kt`. Matches route to a new
+  `/batch/preview` screen that calls `POST /ai/batch-parse`, renders the
+  diff preview with per-row Apply / Skip toggles, and commits approved
+  mutations directly to Firestore with a per-batch undo log. A 30-second
+  Sonner toast offers immediate undo; Settings → Recent Batch Commands
+  keeps the same batches undoable for 24h (matches Android's
+  `UNDO_WINDOW_MILLIS`). Covered mutations: TASK RESCHEDULE / DELETE /
+  COMPLETE / PRIORITY_CHANGE / PROJECT_MOVE, HABIT COMPLETE / SKIP /
+  ARCHIVE / DELETE, PROJECT ARCHIVE / DELETE. TAG_CHANGE + MEDICATION
+  are surfaced but skipped at apply time, matching Android's deferred
+  branches.
+- **Onboarding + four named themes ([PR #712](https://github.com/akarlin3/prismTask/pull/712))** —
+  replaces the pre-parity light/dark + 12-accent-color picker with the
+  four shipped themes (`CYBERPUNK`, `SYNTHWAVE`, `MATRIX`, `VOID`). Color
+  tokens ported directly from `themesets/themes.js` into
+  `web/src/theme/themes.ts` and applied via CSS custom properties + a
+  `data-theme` attribute on the root. Existing users migrate
+  automatically on first load — legacy accent hex maps to the closest
+  named theme, defaulting to VOID. Typography, shape, density, and
+  decorative treatments (brackets / terminal / editorial / sunset) are
+  deferred to Phase G. Also lands a 9-page onboarding wizard at
+  `/onboarding` mirroring Android's page order; completion persists per
+  account at `users/{uid}.onboardingCompletedAt` in Firestore so the
+  flow shows once per account across devices, gated via a new
+  `OnboardingGate`.
 
 ### Medication slot system — MedicationScreen rewire (A2 #6 PR3 + A2 #7) — closes A2
 
