@@ -1,0 +1,35 @@
+name: Reusable Failure Capture
+
+# Audit item #10. Every CI workflow has a near-identical `capture-failure-log`
+# job that runs on `if: failure()` and pushes a log to the ci-logs branch.
+# This reusable workflow centralizes that job so caller workflows only need
+# to declare `needs:` and `uses:` — ~4 lines each vs. the previous ~10.
+#
+# The two composite actions (capture-failure-log and commit-ci-log) remain as
+# the implementation; this file is just the thin job wrapper.
+
+on:
+  workflow_call:
+    inputs:
+      workflow-slug:
+        description: "Folder slug under ci-logs/ (e.g. android-ci, backend-ci)."
+        required: true
+        type: string
+
+permissions:
+  contents: write    # commit-ci-log pushes to the ci-logs branch
+  actions: read      # capture-failure-log fetches job logs via API
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - id: capture
+        uses: ./.github/actions/capture-failure-log
+        with:
+          workflow-slug: ${{ inputs.workflow-slug }}
+      - uses: ./.github/actions/commit-ci-log
+        with:
+          workflow-slug: ${{ inputs.workflow-slug }}
+          log-path: ${{ steps.capture.outputs.log-path }}

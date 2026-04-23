@@ -32,10 +32,15 @@ jobs:
   # ── PR Auto-merge ─────────────────────────────────────────────────
   auto-merge:
     name: Auto-merge
+    # Audit item #7 — skip `synchronize` events produced by the autofix
+    # bot's auto-format commit. Those commits always carry [skip ci], so
+    # kicking off another auto-merge run for them burns runner minutes
+    # waiting on checks that won't re-run.
     if: >-
       github.event_name == 'pull_request' &&
       github.event.pull_request.draft == false &&
-      github.event.pull_request.head.repo.full_name == github.repository
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.sender.type != 'Bot'
     runs-on: ubuntu-latest
     steps:
       - name: Detect whether any CI workflows were triggered
@@ -46,32 +51,69 @@ jobs:
           REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
-          # Give GitHub a short grace period to schedule workflow runs for
-          # the head commit. Paths-filtered workflows (android/backend/web CI)
-          # won't run for doc-only or cross-cutting config PRs, so the
-          # wait-on-check-action step below would otherwise hang waiting for
-          # checks that will never appear.
-          sleep 20
-          COUNT=$(gh api "repos/$REPO/commits/$HEAD_SHA/check-runs" \
-            --jq '[.check_runs[] | select(.name != "Auto-merge")] | length')
-          echo "Non-Auto-merge check runs on head: $COUNT"
+          # Audit item #5 — poll check-runs for up to 60s instead of a bare
+          # 20s sleep. On a busy runner cohort the initial 20s wasn't enough
+          # for the API to reflect queued workflow runs, which could merge
+          # PRs without waiting for CI. Bail out early as soon as ≥1 real
+          # check shows up.
+          COUNT=0
+          for i in $(seq 1 6); do
+            sleep 10
+            COUNT=$(gh api "repos/$REPO/commits/$HEAD_SHA/check-runs" \
+              --jq '[.check_runs[] | select(.name != "Auto-merge")] | length')
+            if [ "$COUNT" -gt 0 ]; then
+              echo "Found $COUNT non-Auto-merge check(s) after ${i}0s"
+              break
+            fi
+            echo "No non-Auto-merge checks yet (attempt $i/6)"
+          done
           if [ "$COUNT" -gt 0 ]; then
             echo "has_ci=true" >> "$GITHUB_OUTPUT"
           else
             echo "has_ci=false" >> "$GITHUB_OUTPUT"
-            echo "No CI checks on this PR — will merge without waiting."
+            echo "No CI checks on this PR after 60s — will merge without waiting."
           fi
 
       - name: Wait for all other CI checks to pass
         if: steps.ci_check.outputs.has_ci == 'true'
-        # Pinned to v1.3.4 SHA for supply-chain safety
+        # Audit item #9 — include `neutral` in allowed-conclusions so
+        # checks that report neutral (rare but possible for skipped
+        # workflows under path filters) don't block auto-merge forever.
+        # Pinned to v1.3.4 SHA for supply-chain safety.
         uses: lewagon/wait-on-check-action@ccfb013c15c8afb7bf2b7c028fb74dc5a068cccc
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           running-workflow-name: Auto-merge
           repo-token: ${{ secrets.GITHUB_TOKEN }}
           wait-interval: ${{ env.WAIT_INTERVAL }}
-          allowed-conclusions: success,skipped
+          allowed-conclusions: success,skipped,neutral
+
+      - name: Update branch if behind main
+        # Audit item #4 — when the PR merged cleanly against its base but
+        # its base has since advanced with a commit that makes one of the
+        # PR's tests break (classic "test was fine in isolation, breaks
+        # after a parallel merge"), rebase onto the new base and let the
+        # re-run of CI verify it. Witnessed in PR #699 this session.
+        if: steps.ci_check.outputs.has_ci == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          STATE=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json mergeStateStatus -q '.mergeStateStatus')
+          echo "mergeStateStatus=$STATE"
+          case "$STATE" in
+            BEHIND)
+              echo "PR base has advanced; updating branch and re-entering check wait."
+              gh pr update-branch "$PR_NUMBER" --repo "$REPO" || {
+                echo "::warning::update-branch failed; continuing to merge attempt anyway."
+              }
+              ;;
+            *)
+              echo "No rebase needed."
+              ;;
+          esac
 
       - name: Merge PR (squash)
         env:
@@ -299,14 +341,6 @@ jobs:
   capture-failure-log:
     needs: [auto-merge, version-bump-and-distribute]
     if: ${{ failure() }}
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - id: capture
-        uses: ./.github/actions/capture-failure-log
-        with:
-          workflow-slug: auto-merge
-      - uses: ./.github/actions/commit-ci-log
-        with:
-          workflow-slug: auto-merge
-          log-path: ${{ steps.capture.outputs.log-path }}
+    uses: ./.github/workflows/capture-failure.yml
+    with:
+      workflow-slug: auto-merge

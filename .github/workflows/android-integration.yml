@@ -41,9 +41,10 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: read
+  contents: write        # capture-failure reusable workflow pushes to ci-logs branch
   pull-requests: read
   checks: read
+  actions: read          # capture-failure-log fetches job logs via API
 
 jobs:
   connected-tests:
@@ -158,14 +159,6 @@ jobs:
   capture-failure-log:
     needs: [connected-tests]
     if: ${{ failure() }}
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - id: capture
-        uses: ./.github/actions/capture-failure-log
-        with:
-          workflow-slug: android-integration
-      - uses: ./.github/actions/commit-ci-log
-        with:
-          workflow-slug: android-integration
-          log-path: ${{ steps.capture.outputs.log-path }}
+    uses: ./.github/workflows/capture-failure.yml
+    with:
+      workflow-slug: android-integration

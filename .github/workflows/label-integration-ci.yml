@@ -1,0 +1,83 @@
+name: Auto-label ci:integration
+
+# Audit item #1. When a PR touches Room-adjacent code — the DAO layer,
+# PrismTaskDatabase.kt, Migrations.kt, or the androidTest sources that
+# configure them — attach the `ci:integration` label so
+# android-integration.yml fires for that PR. Those files have historically
+# shipped TestDatabaseModule gaps / stale migration-test expectations that
+# only surface in Android Integration CI; running it pre-merge keeps the
+# breakage off main.
+#
+# The label is idempotent — if it's already applied (by the PR author or a
+# previous run), `gh pr edit --add-label` is a no-op. Authors who know a
+# PR doesn't need the suite can remove the label manually and this
+# workflow won't fight them, because we only *add* on PR open/sync, not
+# enforce.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [main]
+
+concurrency:
+  group: label-integration-ci-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  maybe-label:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check diff for data-layer paths
+        id: diff
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          # Pull the filename list for the PR from the REST API — works on
+          # forked PRs too (no checkout needed).
+          FILES=$(gh api --paginate "repos/$REPO/pulls/$PR_NUMBER/files" \
+            --jq '.[].filename')
+          echo "Changed files:"
+          echo "$FILES" | sed 's/^/  /'
+
+          # Patterns that trigger the label. The androidTest path is
+          # included because it's where TestDatabaseModule.kt lives —
+          # changing the test harness itself should run Integration CI.
+          PATTERNS=(
+            '^app/src/main/java/com/averycorp/prismtask/data/local/'
+            '^app/src/androidTest/'
+            '^app/src/main/java/com/averycorp/prismtask/data/local/database/PrismTaskDatabase\.kt$'
+            '^app/src/main/java/com/averycorp/prismtask/data/local/database/Migrations\.kt$'
+          )
+          MATCHED=""
+          for p in "${PATTERNS[@]}"; do
+            if echo "$FILES" | grep -qE "$p"; then
+              MATCHED="$p"
+              break
+            fi
+          done
+          if [ -n "$MATCHED" ]; then
+            echo "Matched pattern: $MATCHED"
+            echo "should_label=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "No data-layer files touched; skipping label."
+            echo "should_label=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Add ci:integration label
+        if: steps.diff.outputs.should_label == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          # --add-label is idempotent; safe to run even if already labeled.
+          gh pr edit "$PR_NUMBER" --repo "$REPO" --add-label 'ci:integration' \
+            || echo "::warning::Failed to add label (may already be present or label not defined)."

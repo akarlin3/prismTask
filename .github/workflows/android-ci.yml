@@ -66,12 +66,26 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git diff --quiet || (git add -A && git commit -m "style: auto-format [skip ci]" && git push)
+      # Audit item #8 — run ktlintCheck here (not in lint-and-test) so
+      # non-auto-correctable violations (e.g. comments inside
+      # value_argument_list) fail THIS job. Saves a Gradle cold-start and
+      # ~2 min per PR cycle vs. running it again in lint-and-test. Uses
+      # `if: always()` so it runs even if auto-correct steps reported
+      # non-zero — the goal is for this final check to be the
+      # authoritative ktlint verdict.
+      - name: ktlint check (authoritative)
+        if: always()
+        run: ./gradlew ktlintCheck --continue
 
   lint-and-test:
     # Wait for autofix so we verify the post-autofix code. For push events
     # autofix is skipped; `!cancelled()` lets this job run anyway. The checkout
     # ref follows the PR head branch (after autofix's push) or falls back to
     # the pushed ref.
+    #
+    # Audit item #8 — ktlintCheck now lives in the autofix job (PR runs)
+    # OR the detekt step below (push runs); either way it runs exactly
+    # once per workflow run.
     needs: [autofix]
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
@@ -80,7 +94,10 @@ jobs:
         with:
           ref: ${{ github.head_ref || github.ref }}
       - uses: ./.github/actions/setup-android
-      - name: ktlint check
+      # ktlintCheck runs in autofix for PR events; for push events autofix
+      # is skipped so we fall back to running it here.
+      - name: ktlint check (push events only)
+        if: github.event_name != 'pull_request'
         run: ./gradlew ktlintCheck --continue
       - name: detekt
         if: always()
@@ -182,18 +199,22 @@ jobs:
           path: app/build/test-results/
           retention-days: 7
 
-  # Distribute a debug APK to Firebase App Distribution on every passing
-  # CI run. For PRs we overlay a unique versionCode and versionName suffix
-  # so Firebase sees each PR push as a distinct release; the overlay is NOT
-  # committed back to the PR branch. Main-push distribution is still handled
-  # by auto-merge.yml's version-bump-and-distribute (which also commits the
-  # authoritative versionCode bump), so we scope this job to pull_request
-  # events only to avoid uploading the same commit twice.
+  # Distribute a debug APK to Firebase App Distribution for PRs that ask
+  # for it (audit item #6 — label-gated to avoid spending runner minutes
+  # on double uploads for every PR). Apply the `firebase-pr-build` label
+  # when testers explicitly want a per-PR build. Main-push distribution
+  # is unchanged — auto-merge.yml's version-bump-and-distribute produces
+  # an authoritative-versionCode build for every merged PR.
+  #
+  # The overlay versionCode (PR# × 1000 + current) ensures Firebase sees
+  # each PR push as a distinct release; the overlay is NOT committed back
+  # to the PR branch.
   firebase-distribute:
     needs: [lint-and-test]
     if: >-
       github.event_name == 'pull_request' &&
-      github.event.pull_request.head.repo.full_name == github.repository
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      contains(github.event.pull_request.labels.*.name, 'firebase-pr-build')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -281,14 +302,6 @@ jobs:
   capture-failure-log:
     needs: [autofix, lint-and-test, firebase-distribute]
     if: ${{ failure() }}
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - id: capture
-        uses: ./.github/actions/capture-failure-log
-        with:
-          workflow-slug: android-ci
-      - uses: ./.github/actions/commit-ci-log
-        with:
-          workflow-slug: android-ci
-          log-path: ${{ steps.capture.outputs.log-path }}
+    uses: ./.github/workflows/capture-failure.yml
+    with:
+      workflow-slug: android-ci

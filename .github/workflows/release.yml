@@ -150,14 +150,6 @@ jobs:
   capture-failure-log:
     needs: [build-and-release]
     if: ${{ failure() }}
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - id: capture
-        uses: ./.github/actions/capture-failure-log
-        with:
-          workflow-slug: release
-      - uses: ./.github/actions/commit-ci-log
-        with:
-          workflow-slug: release
-          log-path: ${{ steps.capture.outputs.log-path }}
+    uses: ./.github/workflows/capture-failure.yml
+    with:
+      workflow-slug: release
