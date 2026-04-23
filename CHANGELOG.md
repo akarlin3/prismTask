@@ -16,6 +16,15 @@ without any backend or Android-side changes. See
 and `docs/WEB_PARITY_PHASE_G_PROMPT_TEMPLATE.md` for the remaining
 Phase G roadmap.
 
+- **Templates parity — habits + projects (slice 11)** — `TemplateListScreen`
+  gains a tabbed UI (Tasks / Habits / Projects). The new Habits and
+  Projects tabs ship a curated starter library (6 habits, 4 project
+  blueprints) defined client-side in `starterLibrary.ts`; tapping
+  "Use" creates a live habit or project-with-tasks on Firestore
+  directly, refreshing the relevant store on success. Banners in each
+  tab call out that custom habit/project template authoring needs
+  backend endpoints and is tracked for Phase G follow-up.
+
 - **Medication screen (slice 10)** — new `/medication` route with a
   dedicated per-day view of all slots (card layout + prev/today/next
   day navigation + taken-count summary), using the same
