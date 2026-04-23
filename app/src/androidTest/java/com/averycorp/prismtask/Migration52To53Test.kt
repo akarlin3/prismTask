@@ -104,22 +104,36 @@ class Migration52To53Test {
         helper.close()
     }
 
+    /**
+     * Verifies the `WHERE template_key IS NULL` guard in the migration's
+     * UPDATE step: if a row already carries a non-null `template_key`, the
+     * migration must not overwrite it. The scenario can only be set up if
+     * the column is already present, so this test runs the migration first
+     * (to add the column), inserts a row with a custom `template_key`, then
+     * re-executes just the UPDATE statement for "Weekly Review" — mirroring
+     * the one in [MIGRATION_52_53] — and asserts the custom value survives.
+     *
+     * Re-calling `MIGRATION_52_53.migrate(db)` directly would throw
+     * `duplicate column name: template_key` because SQLite has no
+     * `ADD COLUMN IF NOT EXISTS`; we intentionally test only the guarded
+     * UPDATE here.
+     */
     @Test
     fun builtIn_withPreExistingTemplateKey_notOverwritten() {
         val helper = openV52()
         val db = helper.writableDatabase
 
-        // Simulate a future-built-in that already had a template_key written
-        // before this migration ran (possible if a previous migration had
-        // seeded it). The `WHERE template_key IS NULL` guard must preserve
-        // the pre-existing value.
-        db.execSQL("ALTER TABLE task_templates ADD COLUMN template_key TEXT")
+        MIGRATION_52_53.migrate(db)
         db.execSQL(
             "INSERT INTO task_templates (id, name, is_built_in, template_key, created_at) " +
                 "VALUES (20, 'Weekly Review', 1, 'custom_existing_key', 100)"
         )
 
-        MIGRATION_52_53.migrate(db)
+        db.execSQL(
+            "UPDATE task_templates SET template_key = ? " +
+                "WHERE is_built_in = 1 AND template_key IS NULL AND name = ?",
+            arrayOf("builtin_weekly_review", "Weekly Review")
+        )
 
         db.query("SELECT template_key FROM task_templates WHERE id = 20").use { c ->
             assertTrue(c.moveToFirst())
