@@ -18,6 +18,11 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { Button } from '@/components/ui/Button';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { TemplateEditorModal } from './TemplateEditorModal';
+import {
+  HabitStarterList,
+  ProjectStarterList,
+} from './StarterTemplatesPanel';
+import { Tabs } from '@/components/ui/Tabs';
 import TaskEditor from '@/features/tasks/TaskEditor';
 import { PRIORITY_CONFIG } from '@/utils/priority';
 import { useIsMobile } from '@/hooks/useMediaQuery';
@@ -32,6 +37,9 @@ export function TemplateListScreen() {
   const isMobile = useIsMobile();
 
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeTab, setActiveTab] = useState<'tasks' | 'habits' | 'projects'>(
+    'tasks',
+  );
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<TaskTemplate | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<TaskTemplate | null>(null);
@@ -208,18 +216,52 @@ export function TemplateListScreen() {
         <div className="flex items-center gap-3">
           <FileText className="h-7 w-7 text-[var(--color-accent)]" />
           <h1 className="text-2xl font-bold text-[var(--color-text-primary)]">
-            Task Templates
+            Templates
           </h1>
-          <span className="rounded-full bg-[var(--color-bg-secondary)] px-2 py-0.5 text-xs font-medium text-[var(--color-text-secondary)]">
-            {templates.length}
-          </span>
+          {activeTab === 'tasks' && (
+            <span className="rounded-full bg-[var(--color-bg-secondary)] px-2 py-0.5 text-xs font-medium text-[var(--color-text-secondary)]">
+              {templates.length}
+            </span>
+          )}
         </div>
-        <Button onClick={handleCreateNew}>
-          <Plus className="h-4 w-4" />
-          Create Template
-        </Button>
+        {activeTab === 'tasks' && (
+          <Button onClick={handleCreateNew}>
+            <Plus className="h-4 w-4" />
+            Create Template
+          </Button>
+        )}
       </div>
 
+      <Tabs
+        tabs={[
+          { key: 'tasks', label: 'Tasks' },
+          { key: 'habits', label: 'Habits' },
+          { key: 'projects', label: 'Projects' },
+        ]}
+        activeTab={activeTab}
+        onChange={(k) => setActiveTab(k as 'tasks' | 'habits' | 'projects')}
+        className="mb-5"
+      />
+
+      {activeTab === 'habits' && (
+        <div className="mb-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-3 text-xs text-[var(--color-text-secondary)]">
+          Starter habits from the PrismTask library. Tap Use to create a live
+          habit on your account. Custom habit-template authoring needs a
+          backend endpoint and is tracked for Phase G follow-up.
+        </div>
+      )}
+      {activeTab === 'projects' && (
+        <div className="mb-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-3 text-xs text-[var(--color-text-secondary)]">
+          Starter project blueprints. Use scaffolds a project with the listed
+          tasks pre-populated. Custom project templates need a backend
+          endpoint and are tracked for Phase G follow-up.
+        </div>
+      )}
+      {activeTab === 'habits' && <HabitStarterList />}
+      {activeTab === 'projects' && <ProjectStarterList />}
+
+      {activeTab === 'tasks' && (
+      <>
       {/* Search */}
       <div className="relative mb-6">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-text-secondary)]" />
@@ -291,6 +333,8 @@ export function TemplateListScreen() {
             </button>
           </div>
         </>
+      )}
+      </>
       )}
 
       {/* Template Editor Modal */}
