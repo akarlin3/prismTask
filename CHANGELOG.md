@@ -16,6 +16,18 @@ without any backend or Android-side changes. See
 and `docs/WEB_PARITY_PHASE_G_PROMPT_TEMPLATE.md` for the remaining
 Phase G roadmap.
 
+- **Conversation Extraction (slice 5)** — new `/extract` route wires
+  `POST /ai/tasks/extract-from-text`. Paste a chat transcript, meeting
+  note, or email (up to 10k chars), and the AI returns proposed task
+  candidates with suggested titles, due dates, priorities, projects,
+  and confidence scores. The UI renders each as a toggleable row (Apply
+  / Skip) with metadata pills and a per-row confidence %. Approved
+  candidates are committed directly to Firestore via
+  `firestoreTasks.createTask`, using a loose project-name match against
+  the user's existing projects (falls back to the first project so
+  tasks always land somewhere). Pro-gated; empty-response case surfaces
+  a gentle info toast. Sidebar gains an **Extract** entry in the AI arc.
+
 - **Analytics Dashboard (slice 4)** — new `/analytics` route wires four
   of the five backend `/analytics/*` endpoints: `summary`,
   `productivity-score`, `time-tracking`, and `habit-correlations`.

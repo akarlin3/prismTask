@@ -6,6 +6,10 @@ import type {
   WeeklyPlanRequest,
   WeeklyPlanResponse,
 } from '@/types/briefingPlanner';
+import type {
+  ExtractFromTextRequest,
+  ExtractFromTextResponse,
+} from '@/types/extract';
 
 export interface PomodoroRequest {
   available_minutes: number;
@@ -166,6 +170,14 @@ export const aiApi = {
   weeklyPlan(data: WeeklyPlanRequest = {}): Promise<WeeklyPlanResponse> {
     return apiClient
       .post('/ai/weekly-plan', data)
+      .then((r) => r.data);
+  },
+
+  extractFromText(
+    data: ExtractFromTextRequest,
+  ): Promise<ExtractFromTextResponse> {
+    return apiClient
+      .post('/ai/tasks/extract-from-text', data)
       .then((r) => r.data);
   },
 };
