@@ -16,6 +16,16 @@ without any backend or Android-side changes. See
 and `docs/WEB_PARITY_PHASE_G_PROMPT_TEMPLATE.md` for the remaining
 Phase G roadmap.
 
+- **Mood & energy tracking (slice 19)** — first wellness-cluster
+  slice, Firestore-native. New `api/firestore/moodEnergyLogs.ts` +
+  `utils/moodAnalytics.ts` (pure rollup + stats); logs persist at
+  `users/{uid}/mood_energy_logs` with per-date ISO key and time-of-day
+  bucket. New `/mood` route ships a 7/30/90-day trend view (Recharts
+  mood area + energy line), summary tiles (total / avg mood / avg
+  energy / up-down-stable trend), recent-entries list with delete,
+  and a `MoodLogModal` for quick 1–5 mood + energy capture. Sidebar
+  adds a Mood entry. 5 new unit tests cover the rollup + stats.
+
 - **Custom habit + project template authoring (slice 18)** — closes
   the slice-11 deferral Firestore-natively. New
   `api/firestore/userTemplates.ts` provides full CRUD at
