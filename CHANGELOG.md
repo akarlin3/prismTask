@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### NLP batch schedule operations — Settings history + 24hr sweep (A2 pulled-from-H PR3)
+
+- **Settings → Batch Command History** screen lists every batch from
+  the last 24 hours, newest first. Each card shows the original
+  command text, the number of changes applied, when it ran (relative),
+  and either an Undo button or "Undone X minutes ago" if already
+  reversed. Tapping Details opens a per-entity detail dialog.
+- **24hr durable undo**: the same `BatchOperationsRepository.undoBatch`
+  path that powers the 30s post-Approve Snackbar (PR2) backs the
+  Settings history Undo button. Undo decodes each entry's saved
+  `pre_state_json` and reverses the mutation; partial failures are
+  surfaced via Snackbar without aborting the rest.
+- **Daily sweep worker** (`BatchUndoSweepWorker`) runs at ~03:00 local
+  time via WorkManager. Drops rows where `expires_at < now AND
+  undone_at IS NULL` (24h window lapsed) OR `undone_at < now - 7d`
+  (already-undone tail window passed). Scheduled from
+  `PrismTaskApplication.onCreate` with `ExistingPeriodicWorkPolicy.UPDATE`
+  so re-launches are no-ops. No user toggle — pure maintenance.
+- **Cross-device behavior**: device-local by design (no `cloud_id`
+  on `batch_undo_log`). The mutated entities themselves still sync
+  cross-device via the per-entity sync path; only the undo history
+  stays on the device that ran the batch. Avoids races where two
+  devices try to reverse the same batch simultaneously.
+
+
+
 ### NLP batch schedule operations — QuickAddBar + preview + snackbar undo (A2 pulled-from-H PR2)
 
 - **QuickAddBar intent router**: a new `BatchIntentDetector` heuristic

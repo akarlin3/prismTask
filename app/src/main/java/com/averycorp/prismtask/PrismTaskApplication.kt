@@ -88,6 +88,7 @@ class PrismTaskApplication :
             scheduleNotificationWorkers()
             scheduleWidgetRefresh()
             scheduleCalendarSync()
+            scheduleBatchUndoSweep()
         } catch (e: Exception) {
             android.util.Log.e("PrismTaskApp", "Worker scheduling failed", e)
             try {
@@ -189,6 +190,20 @@ class PrismTaskApplication :
             } catch (e: Exception) {
                 android.util.Log.e("PrismTaskApp", "Notification worker scheduling failed", e)
             }
+        }
+    }
+
+    /**
+     * Daily sweep of `batch_undo_log` (A2 PR3). No user toggle — the sweep
+     * is pure maintenance that drops expired or stale-undone rows so the
+     * table doesn't grow unbounded. Re-scheduling on every launch is a
+     * no-op via [androidx.work.ExistingPeriodicWorkPolicy.UPDATE].
+     */
+    private fun scheduleBatchUndoSweep() {
+        try {
+            com.averycorp.prismtask.notifications.BatchUndoSweepWorker.schedule(this)
+        } catch (e: Exception) {
+            android.util.Log.e("PrismTaskApp", "Batch undo sweep scheduling failed", e)
         }
     }
 
