@@ -41,6 +41,9 @@ function taskDoc(uid: string, taskId: string) {
 // ── Firestore doc → Web Task ──────────────────────────────────
 
 function docToTask(docId: string, data: DocumentData, uid: string): Task {
+  const tagIds: string[] = Array.isArray(data.tagIds)
+    ? data.tagIds.filter((x: unknown): x is string => typeof x === 'string')
+    : [];
   return {
     id: docId,
     project_id: data.projectId ?? '',
@@ -67,6 +70,7 @@ function docToTask(docId: string, data: DocumentData, uid: string): Task {
     updated_at: timestampToIso(data.updatedAt) ?? new Date().toISOString(),
     subtasks: [],
     tags: [],
+    tag_ids: tagIds,
   };
 }
 
@@ -126,7 +130,26 @@ function taskUpdateToDoc(data: Record<string, unknown>): Record<string, unknown>
   if (data.recurrence_json !== undefined) doc.recurrenceRule = data.recurrence_json;
   if (data.estimated_duration !== undefined) doc.estimatedDuration = data.estimated_duration;
   if (data.eisenhower_quadrant !== undefined) doc.eisenhowerQuadrant = data.eisenhower_quadrant;
+  if (data.tag_ids !== undefined && Array.isArray(data.tag_ids)) {
+    doc.tagIds = (data.tag_ids as string[]).filter((x) => typeof x === 'string');
+  }
   return doc;
+}
+
+/**
+ * Replace the task's tag ID list outright. Used by the batch applier's
+ * TAG_CHANGE path (slice 15) and by any future UI that edits tag chips
+ * directly on a task.
+ */
+export async function setTagsForTask(
+  uid: string,
+  taskId: string,
+  tagIds: string[],
+): Promise<void> {
+  await updateDoc(taskDoc(uid, taskId), {
+    tagIds: tagIds.filter((x) => typeof x === 'string'),
+    updatedAt: Date.now(),
+  });
 }
 
 // ── CRUD operations ──────────────────────────────────────────

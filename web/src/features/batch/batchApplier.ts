@@ -12,6 +12,8 @@ import {
 } from 'firebase/firestore';
 import { firestore } from '@/lib/firebase';
 import { dateStrToTimestamp } from '@/api/firestore/converters';
+import { setTagsForTask } from '@/api/firestore/tasks';
+import * as firestoreTags from '@/api/firestore/tags';
 import type {
   BatchMutationType,
   BatchUndoLogEntry,
@@ -26,14 +28,13 @@ import type {
  * captures a `pre_state` snapshot of exactly the fields it overwrites,
  * which is what the undo path reads back.
  *
- * Scope (web PR1):
- *   - TASK: RESCHEDULE, DELETE, COMPLETE, PRIORITY_CHANGE, PROJECT_MOVE
+ * Scope:
+ *   - TASK: RESCHEDULE, DELETE, COMPLETE, PRIORITY_CHANGE, PROJECT_MOVE,
+ *     TAG_CHANGE (slice 15 wired task tag persistence + resolver).
  *   - HABIT: COMPLETE, SKIP, ARCHIVE, DELETE
  *   - PROJECT: ARCHIVE, DELETE
  *
  * Deferred (mutation returned as skipped):
- *   - TASK: TAG_CHANGE — web's Firestore layer does not wire task<->tag
- *     persistence yet; skipping keeps the undo log clean.
  *   - MEDICATION: matches Android's "Option C" — plan accepted, no write.
  */
 
@@ -206,11 +207,60 @@ async function applyTaskMutation(
         },
       };
     }
-    case 'TAG_CHANGE':
+    case 'TAG_CHANGE': {
+      const addNames = Array.isArray(values.tags_added)
+        ? (values.tags_added as unknown[]).filter(
+            (x): x is string => typeof x === 'string',
+          )
+        : [];
+      const removeNames = Array.isArray(values.tags_removed)
+        ? (values.tags_removed as unknown[]).filter(
+            (x): x is string => typeof x === 'string',
+          )
+        : [];
+      // Resolve names -> tag IDs. Unknown names are auto-created, matching
+      // Android's `applyTagDelta` behavior in BatchOperationsRepository.kt.
+      const allTags = await firestoreTags.getTags(uid);
+      const lowerToTag = new Map(
+        allTags.map((t) => [t.name.toLowerCase(), t]),
+      );
+      const addIds: string[] = [];
+      for (const name of addNames) {
+        const existing = lowerToTag.get(name.toLowerCase());
+        if (existing) {
+          addIds.push(existing.id);
+          continue;
+        }
+        const created = await firestoreTags.createTag(uid, { name });
+        lowerToTag.set(name.toLowerCase(), created);
+        addIds.push(created.id);
+      }
+      const removeIds = new Set(
+        removeNames
+          .map((n) => lowerToTag.get(n.toLowerCase())?.id)
+          .filter((id): id is string => typeof id === 'string'),
+      );
+      const priorIds: string[] = Array.isArray(data.tagIds)
+        ? (data.tagIds as unknown[]).filter(
+            (x): x is string => typeof x === 'string',
+          )
+        : [];
+      const nextIds = Array.from(
+        new Set([...priorIds.filter((id) => !removeIds.has(id)), ...addIds]),
+      );
+      await setTagsForTask(uid, id, nextIds);
+      await updateDoc(taskDoc(uid, id), { updatedAt: now });
       return {
-        applied: false,
-        reason: 'tag mutations deferred — web tag persistence not wired yet',
+        applied: true,
+        entry: {
+          entity_type: 'TASK',
+          entity_id: id,
+          mutation_type: mutationType,
+          pre_state: { tagIds: priorIds },
+          applied: true,
+        },
       };
+    }
     default:
       return { applied: false, reason: `unsupported task mutation: ${mutationType}` };
   }
@@ -395,6 +445,15 @@ async function undoTaskEntry(
     case 'PROJECT_MOVE':
       await updateDoc(ref, { projectId: pre.projectId ?? null, updatedAt: now });
       return true;
+    case 'TAG_CHANGE': {
+      const priorIds = Array.isArray(pre.tagIds)
+        ? (pre.tagIds as unknown[]).filter(
+            (x): x is string => typeof x === 'string',
+          )
+        : [];
+      await setTagsForTask(uid, entry.entity_id, priorIds);
+      return true;
+    }
     default:
       return false;
   }

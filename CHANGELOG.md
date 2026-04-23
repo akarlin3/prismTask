@@ -16,6 +16,19 @@ without any backend or Android-side changes. See
 and `docs/WEB_PARITY_PHASE_G_PROMPT_TEMPLATE.md` for the remaining
 Phase G roadmap.
 
+- **TAG_CHANGE batch mutation + tag persistence (slice 15)** — closes
+  the remaining batch-parse deferral on web. `Task` type gains a
+  `tag_ids: string[]` field; `firestore/tasks.ts` reads/writes a
+  `tagIds` array on the task doc and exposes a new `setTagsForTask`
+  helper. The batch applier's `TAG_CHANGE` branch resolves
+  `tags_added` / `tags_removed` NAMES against the current tag store
+  (auto-creating missing tags exactly the way Android's
+  `applyTagDelta` does in `BatchOperationsRepository.kt`), computes
+  the next `tagIds` set, persists via `setTagsForTask`, and snapshots
+  the prior list for undo. The undo path restores the prior tag list.
+  MEDICATION remains the only deferred branch (still matches Android's
+  Option C).
+
 - **Theme shape + decorative flags (slice 14)** — closes the last
   theme-parity gap with Android's `themesets/THEME_SPEC.md`. Every
   theme in `theme/themes.ts` now carries `radius / cardRadius /

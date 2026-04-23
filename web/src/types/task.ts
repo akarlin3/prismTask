@@ -27,6 +27,10 @@ export interface Task {
   updated_at: string;
   subtasks?: Task[];
   tags?: import('./tag').Tag[];
+  /** Firestore-persisted tag IDs. Separate from `tags` (which is
+   *  hydrated by the UI's tag store) so the list of IDs survives
+   *  without a per-render lookup. */
+  tag_ids?: string[];
 }
 
 export interface TaskCreate {
