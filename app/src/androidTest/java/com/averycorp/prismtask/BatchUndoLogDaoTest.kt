@@ -121,7 +121,8 @@ class BatchUndoLogDaoTest {
             listOf(
                 entry(batchId = "B1", entityId = 1L),
                 entry(batchId = "B1", entityId = 2L),
-                entry(batchId = "B1", entityId = 3L, undoneAt = 500L), // already undone
+                // already undone
+                entry(batchId = "B1", entityId = 3L, undoneAt = 500L),
                 entry(batchId = "B2", entityId = 99L)
             )
         )
