@@ -374,6 +374,13 @@ fun SettingsScreen(
                             iconBgColor = ColDataBackup,
                             onClick = { navController.navigate("settings/data_backup") }
                         )
+                        SettingsNavRow(
+                            title = "Batch Command History",
+                            subtitle = "Review or undo recent AI batches (24h)",
+                            iconEmoji = "⏱",
+                            iconBgColor = ColDataBackup,
+                            onClick = { navController.navigate(PrismTaskRoute.BatchHistory.route) }
+                        )
                     }
                 }
 

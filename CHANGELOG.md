@@ -93,6 +93,73 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   idempotency; 59→60 backfill + legacy-column preservation), plus three
   new `CloudIdOrphanHealerTest` cases for medication / slot families.
 
+### NLP batch schedule operations — Settings history + 24hr sweep (A2 pulled-from-H PR3)
+
+- **Settings → Batch Command History** screen lists every batch from
+  the last 24 hours, newest first. Each card shows the original
+  command text, the number of changes applied, when it ran (relative),
+  and either an Undo button or "Undone X minutes ago" if already
+  reversed. Tapping Details opens a per-entity detail dialog.
+- **24hr durable undo**: the same `BatchOperationsRepository.undoBatch`
+  path that powers the 30s post-Approve Snackbar (PR2) backs the
+  Settings history Undo button. Undo decodes each entry's saved
+  `pre_state_json` and reverses the mutation; partial failures are
+  surfaced via Snackbar without aborting the rest.
+- **Daily sweep worker** (`BatchUndoSweepWorker`) runs at ~03:00 local
+  time via WorkManager. Drops rows where `expires_at < now AND
+  undone_at IS NULL` (24h window lapsed) OR `undone_at < now - 7d`
+  (already-undone tail window passed). Scheduled from
+  `PrismTaskApplication.onCreate` with `ExistingPeriodicWorkPolicy.UPDATE`
+  so re-launches are no-ops. No user toggle — pure maintenance.
+- **Cross-device behavior**: device-local by design (no `cloud_id`
+  on `batch_undo_log`). The mutated entities themselves still sync
+  cross-device via the per-entity sync path; only the undo history
+  stays on the device that ran the batch. Avoids races where two
+  devices try to reverse the same batch simultaneously.
+
+
+
+### NLP batch schedule operations — QuickAddBar + preview + snackbar undo (A2 pulled-from-H PR2)
+
+- **QuickAddBar intent router**: a new `BatchIntentDetector` heuristic
+  intercepts batch commands (`"Cancel everything Friday"`, `"Move all
+  tasks tagged work to Monday"`) BEFORE the existing template / project
+  / single-task paths. The detector requires two distinct signal
+  categories (quantifier + time range, tag filter + bulk verb, etc.)
+  so normal single-task entries like `"Buy milk tomorrow"` stay on
+  the fast single-task NLP path.
+- **BatchPreviewScreen**: full-screen diff view of the proposed
+  mutations. Color-coded per mutation type (reschedule=amber,
+  delete=red, complete=green, tag change=blue, etc.), per-row
+  inclusion checkbox so the user can opt out individual changes
+  before approving. Low-confidence banner (<0.7) and ambiguous-
+  entity banner when Haiku flags a phrase it couldn't disambiguate.
+- **Approve is transactional**: a single Room transaction snapshots the
+  pre-mutation state of every touched entity to `batch_undo_log`,
+  then applies the mutations. One shared `batch_id` groups the
+  entries so a single tap reverses the whole batch.
+- **Snackbar undo on return**: a new `BatchUndoEventBus` singleton
+  fires when Approve lands. `BatchUndoListenerViewModel` (instantiated
+  by the Today screen) observes the bus and triggers
+  `TodayViewModel.showSnackbar("N changes applied", "Undo") { ... }`.
+  Undo reverses every entry in the batch using the saved
+  `pre_state_json` and marks each row `undone_at = now`.
+- **Pro-gated** via the `AI_BATCH_OPS` gate added in PR1. Free-tier
+  users see `"Batch commands are a Pro feature — upgrade to use them."`
+  as a message on the QuickAdd voice-message surface and the command
+  is not sent to Haiku.
+- **Scope**: Tasks (RESCHEDULE / DELETE / COMPLETE / PRIORITY_CHANGE
+  / TAG_CHANGE / PROJECT_MOVE), Habits (COMPLETE / SKIP / ARCHIVE),
+  Projects (ARCHIVE). Medication mutations are accepted from the AI
+  plan but skipped at apply time pending coordination with the
+  medslots worktree (Option C from the audit — deferred to follow-up).
+  Hard delete uses the existing soft-delete path (`archivedAt = now`)
+  so undo is a one-column flip instead of subtree reconstruction.
+- **Tests**: `BatchIntentDetectorTest` (unit — 11 cases covering empty
+  input, single-task false positives, quantifier+time-range,
+  tag filter, bulk-verb+plural, case-insensitivity, original-casing
+  preservation).
+
 ### NLP batch schedule operations — schema + backend (A2 pulled-from-H PR1)
 
 - **Room migration v57 → v58** adds `batch_undo_log`, a device-local

@@ -131,6 +131,9 @@ object TestDatabaseModule {
     fun provideProjectTemplateDao(database: PrismTaskDatabase) = database.projectTemplateDao()
 
     @Provides
+    fun provideBatchUndoLogDao(database: PrismTaskDatabase) = database.batchUndoLogDao()
+
+    @Provides
     @Singleton
     fun provideGson(): com.google.gson.Gson = com.google.gson.Gson()
 }

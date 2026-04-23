@@ -2,6 +2,8 @@ package com.averycorp.prismtask.domain
 
 import com.averycorp.prismtask.core.time.TimeProvider
 import com.averycorp.prismtask.data.remote.api.AdminBugReportResponse
+import com.averycorp.prismtask.data.remote.api.BatchParseRequest
+import com.averycorp.prismtask.data.remote.api.BatchParseResponse
 import com.averycorp.prismtask.data.remote.api.BugReportMirrorResponse
 import com.averycorp.prismtask.data.remote.api.BugReportStatusUpdateRequest
 import com.averycorp.prismtask.data.remote.api.ChatRequest
@@ -126,6 +128,9 @@ class NaturalLanguageParserTest {
             error("not used in offline parser tests")
 
         override suspend fun getTimeBlock(request: TimeBlockRequest): TimeBlockResponse =
+            error("not used in offline parser tests")
+
+        override suspend fun parseBatchCommand(request: BatchParseRequest): BatchParseResponse =
             error("not used in offline parser tests")
 
         override suspend fun aiChat(request: ChatRequest): ChatResponse =

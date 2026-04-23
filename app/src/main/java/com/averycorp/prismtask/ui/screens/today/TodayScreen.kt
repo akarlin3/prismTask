@@ -138,6 +138,22 @@ fun TodayScreen(
     val dailyEssentials by viewModel.dailyEssentials.collectAsStateWithLifecycle()
     var overloadBannerDismissed by remember { mutableStateOf(false) }
 
+    // A2 NLP batch ops — listens to BatchUndoEventBus so we can offer
+    // a "Undo" Snackbar after a batch lands while the user is back here.
+    val batchUndoListener: com.averycorp.prismtask.ui.screens.batch.BatchUndoListenerViewModel = hiltViewModel()
+    LaunchedEffect(batchUndoListener) {
+        batchUndoListener.events.collect { event ->
+            val msg = if (event.skippedCount > 0) {
+                "${event.appliedCount} changes applied (${event.skippedCount} skipped)"
+            } else {
+                "${event.appliedCount} changes applied"
+            }
+            viewModel.showSnackbar(msg, "Undo") {
+                batchUndoListener.undo(event.batchId)
+            }
+        }
+    }
+
     val coachingUserTier by coachingViewModel.userTier.collectAsStateWithLifecycle()
     val showEnergyCheckIn by coachingViewModel.showEnergyCheckIn.collectAsStateWithLifecycle()
     val selectedEnergy by coachingViewModel.selectedEnergy.collectAsStateWithLifecycle()
@@ -206,7 +222,13 @@ fun TodayScreen(
         bottomBar = {
             FloatingQuickAddBar(
                 autoStartVoice = autoStartVoice,
-                onVoiceAutoStartConsumed = onVoiceAutoStartConsumed
+                onVoiceAutoStartConsumed = onVoiceAutoStartConsumed,
+                onBatchCommand = { commandText ->
+                    navController.navigate(
+                        com.averycorp.prismtask.ui.navigation.PrismTaskRoute
+                            .BatchPreview.createRoute(commandText)
+                    )
+                }
             )
         },
         floatingActionButton = {

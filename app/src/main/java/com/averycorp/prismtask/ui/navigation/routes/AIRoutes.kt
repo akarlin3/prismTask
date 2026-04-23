@@ -7,6 +7,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.averycorp.prismtask.ui.navigation.PrismTaskRoute
 import com.averycorp.prismtask.ui.screens.balance.WeeklyBalanceReportScreen
+import com.averycorp.prismtask.ui.screens.batch.BatchHistoryScreen
+import com.averycorp.prismtask.ui.screens.batch.BatchPreviewScreen
 import com.averycorp.prismtask.ui.screens.briefing.DailyBriefingScreen
 import com.averycorp.prismtask.ui.screens.chat.ChatScreen
 import com.averycorp.prismtask.ui.screens.checkin.MorningCheckInScreen
@@ -90,5 +92,29 @@ internal fun NavGraphBuilder.aiRoutes(
         )
     ) {
         ChatScreen(navController)
+    }
+
+    composable(
+        route = PrismTaskRoute.BatchPreview.route,
+        arguments = listOf(
+            navArgument("command") {
+                type = NavType.StringType
+                defaultValue = ""
+            }
+        )
+    ) { backStackEntry ->
+        val command = backStackEntry.arguments?.getString("command").orEmpty()
+        BatchPreviewScreen(
+            navController = navController,
+            commandText = command,
+            onApproved = { _, _, _ ->
+                navController.popBackStack()
+            },
+            onCancelled = { navController.popBackStack() }
+        )
+    }
+
+    composable(route = PrismTaskRoute.BatchHistory.route) {
+        BatchHistoryScreen(navController)
     }
 }

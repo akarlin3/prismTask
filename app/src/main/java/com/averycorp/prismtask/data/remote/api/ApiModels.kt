@@ -380,6 +380,76 @@ data class TimeBlockResponse(
 
 // endregion
 
+// region AI Batch Ops (A2 — pulled-from-H)
+
+data class BatchTaskContext(
+    val id: String,
+    val title: String,
+    @SerializedName("due_date") val dueDate: String? = null,
+    @SerializedName("scheduled_start_time") val scheduledStartTime: String? = null,
+    val priority: Int = 0,
+    @SerializedName("project_id") val projectId: String? = null,
+    @SerializedName("project_name") val projectName: String? = null,
+    val tags: List<String> = emptyList(),
+    @SerializedName("life_category") val lifeCategory: String? = null,
+    @SerializedName("is_completed") val isCompleted: Boolean = false
+)
+
+data class BatchHabitContext(
+    val id: String,
+    val name: String,
+    @SerializedName("is_archived") val isArchived: Boolean = false
+)
+
+data class BatchProjectContext(
+    val id: String,
+    val name: String,
+    val status: String? = null
+)
+
+data class BatchMedicationContext(
+    val id: String,
+    val name: String
+)
+
+data class BatchUserContext(
+    val today: String,
+    val timezone: String = "UTC",
+    val tasks: List<BatchTaskContext> = emptyList(),
+    val habits: List<BatchHabitContext> = emptyList(),
+    val projects: List<BatchProjectContext> = emptyList(),
+    val medications: List<BatchMedicationContext> = emptyList()
+)
+
+data class BatchParseRequest(
+    @SerializedName("command_text") val commandText: String,
+    @SerializedName("user_context") val userContext: BatchUserContext
+)
+
+data class ProposedMutationResponse(
+    @SerializedName("entity_type") val entityType: String,
+    @SerializedName("entity_id") val entityId: String,
+    @SerializedName("mutation_type") val mutationType: String,
+    @SerializedName("proposed_new_values") val proposedNewValues: Map<String, @JvmSuppressWildcards Any?> = emptyMap(),
+    @SerializedName("human_readable_description") val humanReadableDescription: String
+)
+
+data class AmbiguousEntityHintResponse(
+    val phrase: String,
+    @SerializedName("candidate_entity_type") val candidateEntityType: String,
+    @SerializedName("candidate_entity_ids") val candidateEntityIds: List<String> = emptyList(),
+    val note: String? = null
+)
+
+data class BatchParseResponse(
+    val mutations: List<ProposedMutationResponse> = emptyList(),
+    val confidence: Float = 1.0f,
+    @SerializedName("ambiguous_entities") val ambiguousEntities: List<AmbiguousEntityHintResponse> = emptyList(),
+    val proposed: Boolean = true
+)
+
+// endregion
+
 // region AI Chat
 
 data class ChatRequest(
