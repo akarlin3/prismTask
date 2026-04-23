@@ -134,6 +134,17 @@ object TestDatabaseModule {
     fun provideBatchUndoLogDao(database: PrismTaskDatabase) = database.batchUndoLogDao()
 
     @Provides
+    fun provideMedicationSlotDao(database: PrismTaskDatabase) = database.medicationSlotDao()
+
+    @Provides
+    fun provideMedicationSlotOverrideDao(database: PrismTaskDatabase) =
+        database.medicationSlotOverrideDao()
+
+    @Provides
+    fun provideMedicationTierStateDao(database: PrismTaskDatabase) =
+        database.medicationTierStateDao()
+
+    @Provides
     @Singleton
     fun provideGson(): com.google.gson.Gson = com.google.gson.Gson()
 }
