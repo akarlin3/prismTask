@@ -9,9 +9,18 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { dailyEssentialsApi } from '@/api/dailyEssentials';
+import {
+  clearTierState,
+  getTierStatesForDate,
+  setTierState,
+  type MedicationTier,
+  type MedicationTierState,
+} from '@/api/firestore/medicationSlots';
+import { getFirebaseUid } from '@/stores/firebaseUid';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { MedicationSlotDetailModal } from '@/features/daily-essentials/MedicationSlotDetailModal';
+import { MedicationTierPicker } from '@/features/medication/MedicationTierPicker';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { logicalToday } from '@/utils/dayBoundary';
 import type {
@@ -64,6 +73,9 @@ export function MedicationScreen() {
 
   const [dateIso, setDateIso] = useState(todayIso);
   const [rows, setRows] = useState<MedicationSlotCompletion[]>([]);
+  const [tierStates, setTierStates] = useState<
+    Record<string, MedicationTierState>
+  >({});
   const [loading, setLoading] = useState(false);
   const [openSlot, setOpenSlot] = useState<MedicationSlot | null>(null);
 
@@ -73,6 +85,16 @@ export function MedicationScreen() {
       try {
         const fetched = await dailyEssentialsApi.listSlots(iso);
         setRows(fetched);
+        // Tier states live in Firestore, independent of backend slots.
+        try {
+          const uid = getFirebaseUid();
+          const states = await getTierStatesForDate(uid, iso);
+          const byKey: Record<string, MedicationTierState> = {};
+          for (const s of states) byKey[s.slot_key] = s;
+          setTierStates(byKey);
+        } catch {
+          setTierStates({});
+        }
       } catch (e) {
         toast.error((e as Error).message || 'Failed to load slots');
       } finally {
@@ -104,6 +126,30 @@ export function MedicationScreen() {
       setOpenSlot(null);
     } catch {
       toast.error('Failed to update slot');
+    }
+  };
+
+  const handleTierChange = async (slot: MedicationSlot, tier: MedicationTier) => {
+    try {
+      const uid = getFirebaseUid();
+      const next = await setTierState(uid, dateIso, slot.slotKey, tier, 'user_set');
+      setTierStates((prev) => ({ ...prev, [slot.slotKey]: next }));
+    } catch (e) {
+      toast.error((e as Error).message || 'Failed to update tier');
+    }
+  };
+
+  const handleTierClear = async (slot: MedicationSlot) => {
+    try {
+      const uid = getFirebaseUid();
+      await clearTierState(uid, dateIso, slot.slotKey);
+      setTierStates((prev) => {
+        const next = { ...prev };
+        delete next[slot.slotKey];
+        return next;
+      });
+    } catch (e) {
+      toast.error((e as Error).message || 'Failed to clear tier');
     }
   };
 
@@ -204,6 +250,24 @@ export function MedicationScreen() {
                       ? 'No medications linked'
                       : slot.medLabels.join(', ')}
                   </p>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[10px] uppercase tracking-wide text-[var(--color-text-secondary)]">
+                      Tier
+                      {tierStates[slot.slotKey]?.source === 'user_set' && (
+                        <span className="ml-1 text-[var(--color-accent)]">
+                          (manual)
+                        </span>
+                      )}
+                    </span>
+                    <MedicationTierPicker
+                      value={tierStates[slot.slotKey]?.tier ?? null}
+                      isUserSet={
+                        tierStates[slot.slotKey]?.source === 'user_set'
+                      }
+                      onChange={(tier) => handleTierChange(slot, tier)}
+                      onClear={() => handleTierClear(slot)}
+                    />
+                  </div>
                   <div className="flex justify-end gap-1.5">
                     <Button
                       variant="ghost"

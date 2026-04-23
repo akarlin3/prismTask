@@ -16,6 +16,21 @@ without any backend or Android-side changes. See
 and `docs/WEB_PARITY_PHASE_G_PROMPT_TEMPLATE.md` for the remaining
 Phase G roadmap.
 
+- **Medication tier picker + slot CRUD (slice 17)** — closes the
+  medication deferrals from slice 10 without backend changes by
+  going Firestore-native. New `api/firestore/medicationSlots.ts`
+  provides CRUD for slot definitions
+  (`users/{uid}/medication_slot_defs`) and read/write for daily tier
+  states (`users/{uid}/medication_tier_states`, keyed
+  deterministically as `${dateIso}__${slotKey}` for single-doc
+  writes). On the MedicationScreen, each slot card now carries a
+  three-way tier picker (SKIPPED / PARTIAL / COMPLETE) with an
+  "Auto" clear button for user-set overrides. In Settings, a new
+  "Medication Slots" section mounts `MedicationSlotEditor` — inline
+  CRUD that lets users add, rename, and delete slot keys. Backend
+  `/daily-essentials/*` completion flow is unchanged; slot
+  definitions + tier states live alongside it.
+
 - **Analytics project-progress via client-side compute (slice 16)** —
   unblocks the last analytics endpoint without the backend change.
   New `utils/projectBurndown.ts` mirrors

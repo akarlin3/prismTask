@@ -22,6 +22,7 @@ import {
   Accessibility,
   HelpCircle,
   Info,
+  Pill,
   Wrench,
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -35,6 +36,7 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { KeyboardShortcutsModal } from '@/components/shared/KeyboardShortcutsModal';
 import { ProUpgradeModal } from '@/components/shared/ProUpgradeModal';
 import { BatchHistorySection } from '@/features/settings/sections/BatchHistorySection';
+import { MedicationSlotEditor } from '@/features/medication/MedicationSlotEditor';
 import { AboutSection } from '@/features/settings/sections/AboutSection';
 import { HelpFeedbackSection } from '@/features/settings/sections/HelpFeedbackSection';
 import { AccessibilitySection } from '@/features/settings/sections/AccessibilitySection';
@@ -474,6 +476,14 @@ export function SettingsScreen() {
         title="Recent Batch Commands"
       >
         <BatchHistorySection />
+      </SettingsSection>
+
+      {/* Medication slot definitions (Firestore-native slot CRUD) */}
+      <SettingsSection
+        icon={<Pill className="h-5 w-5 text-[var(--color-accent)]" />}
+        title="Medication Slots"
+      >
+        <MedicationSlotEditor />
       </SettingsSection>
 
       {/* Accessibility */}
