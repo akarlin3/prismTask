@@ -16,6 +16,19 @@ without any backend or Android-side changes. See
 and `docs/WEB_PARITY_PHASE_G_PROMPT_TEMPLATE.md` for the remaining
 Phase G roadmap.
 
+- **Medication screen (slice 10)** — new `/medication` route with a
+  dedicated per-day view of all slots (card layout + prev/today/next
+  day navigation + taken-count summary), using the same
+  `/daily-essentials/slots` endpoints the Today row already consumes.
+  Respects the slice-9 Start-of-Day hour so late-night users see the
+  correct logical day. The per-slot detail modal is reused from Today.
+  Sidebar adds **Medication** under Extract.
+  **Not included:** per-slot tier picker (SKIPPED/PARTIAL/COMPLETE) and
+  slot CRUD — both require backend changes to the
+  `/daily-essentials/*` surface that are out of scope for the web
+  parity push. The screen shows an empty-state hint when no slots
+  exist yet.
+
 - **Today polish (slice 9)** — three additions to the Today surface
   and matching Settings controls: (1) new `utils/dayBoundary.ts`
   utility (start/end/today ISO helpers) matching Android's
