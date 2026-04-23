@@ -20,6 +20,9 @@ import TaskEditor from '@/features/tasks/TaskEditor';
 import type { Task } from '@/types/task';
 import type { DashboardSummary } from '@/types/api';
 import { MedicationSlotList } from '@/features/daily-essentials/MedicationSlotList';
+import { useSettingsStore } from '@/stores/settingsStore';
+import { Sparkles as SparklesIcon } from 'lucide-react';
+import { logicalToday } from '@/utils/dayBoundary';
 
 const COLLAPSE_KEY = 'prismtask_today_collapse';
 
@@ -60,6 +63,15 @@ export function TodayScreen() {
     getTodayCount,
     getTodayProgress,
   } = useHabitStore();
+
+  const settingsShowBriefing = useSettingsStore((s) => s.showBriefingCard);
+  const settingsStartOfDayHour = useSettingsStore((s) => s.startOfDayHour);
+  // Derive a bundle so the reference is stable across renders and
+  // callers can read the logical "today" ISO without recomputing.
+  const settingsStartOfDay = {
+    hour: settingsStartOfDayHour,
+    todayIso: logicalToday(Date.now(), settingsStartOfDayHour),
+  };
 
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [loading, setLoading] = useState(true);
@@ -260,9 +272,36 @@ export function TodayScreen() {
           Today
         </h1>
         <span className="text-sm text-[var(--color-text-secondary)]">
-          {format(new Date(), 'EEEE, MMMM d')}
+          {format(parseISO(settingsStartOfDay.todayIso), 'EEEE, MMMM d')}
         </span>
       </div>
+
+      {/* AI Briefing teaser — hidden by default respect setting */}
+      {settingsShowBriefing && (
+        <button
+          onClick={() => navigate('/briefing')}
+          className="mb-4 flex w-full items-start gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-card)] p-4 text-left transition-colors hover:border-[var(--color-accent)]/50 hover:bg-[var(--color-bg-secondary)]"
+          aria-label="Open daily briefing"
+        >
+          <SparklesIcon
+            className="mt-0.5 h-5 w-5 shrink-0 text-[var(--color-accent)]"
+            aria-hidden="true"
+          />
+          <span className="flex-1">
+            <span className="block text-sm font-semibold text-[var(--color-text-primary)]">
+              Today's Briefing
+            </span>
+            <span className="block text-xs text-[var(--color-text-secondary)]">
+              One-line summary + top priorities, heads-up items, and suggested
+              order — generated from your open tasks and habits.
+            </span>
+          </span>
+          <ChevronRight
+            className="mt-0.5 h-4 w-4 shrink-0 text-[var(--color-text-secondary)]"
+            aria-hidden="true"
+          />
+        </button>
+      )}
 
       {/* Progress Header */}
       <div className="mb-6 flex items-center gap-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-card)] px-4 py-3">

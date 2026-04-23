@@ -10,7 +10,11 @@ interface SettingsState {
   showOverdueSection: boolean;
   showUpcomingSection: boolean;
   showHabitChips: boolean;
+  showBriefingCard: boolean;
   upcomingDays: number;
+  /** Hour (0–23) at which the "logical day" rolls over. Matches
+   *  Android's `DayBoundary` / `startOfDay` preference. 0 = midnight. */
+  startOfDayHour: number;
 
   // Calendar
   weekStartsOn: 'sunday' | 'monday';
@@ -44,7 +48,9 @@ function saveSettings(state: Partial<SettingsState>) {
     showOverdueSection,
     showUpcomingSection,
     showHabitChips,
+    showBriefingCard,
     upcomingDays,
+    startOfDayHour,
     weekStartsOn,
     timeFormat,
     showWeekends,
@@ -60,7 +66,9 @@ function saveSettings(state: Partial<SettingsState>) {
       showOverdueSection,
       showUpcomingSection,
       showHabitChips,
+      showBriefingCard,
       upcomingDays,
+      startOfDayHour,
       weekStartsOn,
       timeFormat,
       showWeekends,
@@ -76,7 +84,9 @@ const defaults = {
   showOverdueSection: true,
   showUpcomingSection: true,
   showHabitChips: true,
+  showBriefingCard: true,
   upcomingDays: 7,
+  startOfDayHour: 0,
   weekStartsOn: 'sunday' as const,
   timeFormat: '12h' as const,
   showWeekends: true,

@@ -16,6 +16,19 @@ without any backend or Android-side changes. See
 and `docs/WEB_PARITY_PHASE_G_PROMPT_TEMPLATE.md` for the remaining
 Phase G roadmap.
 
+- **Today polish (slice 9)** — three additions to the Today surface
+  and matching Settings controls: (1) new `utils/dayBoundary.ts`
+  utility (start/end/today ISO helpers) matching Android's
+  `DayBoundary` semantics, backed by a new `startOfDayHour` preference
+  (0–23, default 0) in `settingsStore` so the logical day can roll over
+  at a configurable hour; (2) a "Today's Briefing" teaser card pinned
+  at the top of Today that deep-links to `/briefing`, toggleable via a
+  new `showBriefingCard` preference; (3) the Today header now reads its
+  date label from the logical-today ISO so late-night users see the
+  correct "today". Settings → Today View section gains a Start-of-Day
+  hour slider and the Briefing Card toggle. 5 new vitest cases cover
+  the dayBoundary helpers.
+
 - **Task editor tabbed parity (slice 8)** — fills out the previously
   shallow Schedule tab on `TaskEditor`. Adds: wired weekday selector
   for weekly/biweekly recurrence, "biweekly" + "weekdays" types on the

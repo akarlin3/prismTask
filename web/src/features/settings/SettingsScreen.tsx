@@ -357,6 +357,12 @@ export function SettingsScreen() {
           checked={settings.showHabitChips}
           onChange={(v) => settings.setSetting('showHabitChips', v)}
         />
+        <ToggleRow
+          label="Show Daily Briefing Card"
+          description="Pinned teaser at the top of Today that links to /briefing."
+          checked={settings.showBriefingCard}
+          onChange={(v) => settings.setSetting('showBriefingCard', v)}
+        />
         <div className="mt-2">
           <label className="mb-1 block text-sm font-medium text-[var(--color-text-primary)]">
             Upcoming Days
@@ -370,6 +376,33 @@ export function SettingsScreen() {
             className="w-24 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-secondary)] px-3 py-2 text-sm text-[var(--color-text-primary)] outline-none focus:border-[var(--color-accent)]"
           />
           <span className="ml-2 text-xs text-[var(--color-text-secondary)]">days ahead</span>
+        </div>
+        <div className="mt-4">
+          <label className="mb-1 block text-sm font-medium text-[var(--color-text-primary)]">
+            Start of Day
+          </label>
+          <p className="mb-2 text-xs text-[var(--color-text-secondary)]">
+            The logical day rolls over at this hour. Late-night tasks
+            scheduled before this time still count toward the prior day.
+            Matches Android's DayBoundary setting.
+          </p>
+          <div className="flex items-center gap-3">
+            <input
+              type="range"
+              min={0}
+              max={23}
+              step={1}
+              value={settings.startOfDayHour}
+              onChange={(e) =>
+                settings.setSetting('startOfDayHour', Number(e.target.value))
+              }
+              className="flex-1"
+              aria-label="Start of day hour"
+            />
+            <span className="w-20 text-right text-sm font-mono font-semibold text-[var(--color-text-primary)]">
+              {String(settings.startOfDayHour).padStart(2, '0')}:00
+            </span>
+          </div>
         </div>
       </SettingsSection>
 
