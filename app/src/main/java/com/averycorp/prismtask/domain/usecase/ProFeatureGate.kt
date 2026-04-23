@@ -59,6 +59,7 @@ constructor(
         AI_BRIEFING, AI_WEEKLY_PLAN, AI_WEEKLY_REVIEW, AI_TIME_BLOCK,
         AI_CONVERSATIONAL,
         AI_REENGAGEMENT, AI_DAILY_PLANNING,
+        AI_BATCH_OPS,
         CLOUD_SYNC,
         SYLLABUS_IMPORT -> UserTier.PRO
 
@@ -81,6 +82,7 @@ constructor(
         const val AI_CONVERSATIONAL = "ai_conversational"
         const val AI_DAILY_PLANNING = "ai_daily_planning"
         const val AI_REENGAGEMENT = "ai_reengagement"
+        const val AI_BATCH_OPS = "ai_batch_ops"
         const val SYLLABUS_IMPORT = "syllabus_import"
     }
 }

@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### NLP batch schedule operations — schema + backend (A2 pulled-from-H PR1)
+
+- **Room migration v57 → v58** adds `batch_undo_log`, a device-local
+  append-only table that records the pre-mutation state of every entity
+  touched by an Approve action so the user can reverse the batch within a
+  24-hour window. Indexes on `batch_id`, `created_at`, and
+  `(expires_at, undone_at)` mirror the read paths (history list, undo
+  lookup, sweep worker).
+- **Device-local by design** — no `cloud_id` column, not registered
+  with `SyncMapper` or `CloudIdOrphanHealer`. Cross-device undo would
+  race two devices undoing the same batch, and the per-entity sync path
+  already propagates the mutated entities themselves.
+- **New backend endpoint** `POST /api/v1/ai/batch-parse`. Accepts a
+  natural-language command (`"Cancel everything Friday"`) plus the
+  client's user_context (today's date, timezone, active tasks/habits/
+  projects/medications) and returns a structured list of proposed
+  mutations across all four entity types, a confidence score, and any
+  ambiguous-entity hints. Stateless — no Firestore reads, mirroring the
+  WeeklyReviewRequest pattern.
+- **Claude Haiku prompt** with hard guardrails: never invent entity IDs,
+  return only mutations the user plausibly intended, surface ambiguity
+  rather than guess, full date-range parsing rules ("Friday" / "next
+  week" / "the weekend"), per-mutation `proposed_new_values` schemas.
+  Two-attempt JSON parse retry, same shape as the Eisenhower service.
+- **Pro-gated** at the rate limiter (10/hour, mirrors time-block) and
+  via a new `AI_BATCH_OPS` ProFeatureGate (PR2 wires the client-side
+  gate; backend tier check is already in `daily_ai_rate_limiter`).
+- **Tests**: Migration57To58Test (table + indexes + nullable columns +
+  insert/query smoke), BatchUndoLogDaoTest (insert/list/sweep/undo
+  semantics), test_ai_batch_parse.py (service success + ambiguity +
+  retry + 503/500/429/422 router cases).
+- **No UI yet** — PR2 wires the QuickAddBar intent router, the
+  BatchPreviewScreen diff view, and the 30s Snackbar undo. PR3 ships
+  the Settings batch history + 24-hour sweep worker.
 
 ### Repo hygiene (v1.4.40)
 
