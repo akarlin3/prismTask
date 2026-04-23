@@ -1,72 +1,69 @@
 import { create } from 'zustand';
+import {
+  applyThemeToDocument,
+  DEFAULT_THEME_KEY,
+  migrateLegacyAccentToThemeKey,
+  THEMES,
+  type ThemeKey,
+} from '@/theme/themes';
 
-export type ThemeMode = 'light' | 'dark' | 'system';
+const THEME_STORAGE_KEY = 'prismtask_theme_key';
+const LEGACY_ACCENT_KEY = 'prismtask_accent_color';
+const LEGACY_MODE_KEY = 'prismtask_theme';
 
-export const ACCENT_COLORS = [
-  { name: 'Indigo', value: '#6366f1' },
-  { name: 'Blue', value: '#3b82f6' },
-  { name: 'Sky', value: '#0ea5e9' },
-  { name: 'Teal', value: '#14b8a6' },
-  { name: 'Green', value: '#22c55e' },
-  { name: 'Lime', value: '#84cc16' },
-  { name: 'Yellow', value: '#eab308' },
-  { name: 'Orange', value: '#f97316' },
-  { name: 'Red', value: '#ef4444' },
-  { name: 'Pink', value: '#ec4899' },
-  { name: 'Purple', value: '#a855f7' },
-  { name: 'Rose', value: '#f43f5e' },
-] as const;
+function loadStoredTheme(): ThemeKey {
+  try {
+    const stored = localStorage.getItem(THEME_STORAGE_KEY);
+    if (stored && stored in THEMES) return stored as ThemeKey;
+  } catch {
+    // private mode / quota — fall through to migration
+  }
+
+  // No explicit pick yet → migrate from the pre-parity light/dark + accent
+  // picker. We run the migration once and then persist the result so the
+  // user doesn't see a different theme on every reload.
+  let migratedKey: ThemeKey = DEFAULT_THEME_KEY;
+  try {
+    const legacyAccent = localStorage.getItem(LEGACY_ACCENT_KEY);
+    migratedKey = migrateLegacyAccentToThemeKey(legacyAccent);
+    localStorage.setItem(THEME_STORAGE_KEY, migratedKey);
+    // Drop the now-obsolete keys so the migration doesn't keep re-running.
+    localStorage.removeItem(LEGACY_ACCENT_KEY);
+    localStorage.removeItem(LEGACY_MODE_KEY);
+  } catch {
+    // Ignore; state still carries DEFAULT_THEME_KEY.
+  }
+  return migratedKey;
+}
 
 interface ThemeState {
-  mode: ThemeMode;
-  accentColor: string;
-
-  setMode: (mode: ThemeMode) => void;
-  setAccentColor: (color: string) => void;
-  getEffectiveMode: () => 'light' | 'dark';
+  themeKey: ThemeKey;
+  setThemeKey: (key: ThemeKey) => void;
   applyTheme: () => void;
 }
 
-function getSystemTheme(): 'light' | 'dark' {
-  if (typeof window === 'undefined') return 'light';
-  return window.matchMedia('(prefers-color-scheme: dark)').matches
-    ? 'dark'
-    : 'light';
-}
-
+/**
+ * Post-parity theme store. Carries a single `themeKey` picked from the
+ * four shipped themes (see `web/src/theme/themes.ts`). The legacy
+ * `mode` (light/dark/system) + 12-accent picker was replaced because
+ * Android treats each named theme as a self-contained visual system
+ * — it has no light variants. Existing web users are auto-migrated on
+ * first load via `migrateLegacyAccentToThemeKey`.
+ */
 export const useThemeStore = create<ThemeState>((set, get) => ({
-  mode: (localStorage.getItem('prismtask_theme') as ThemeMode) || 'system',
-  accentColor:
-    localStorage.getItem('prismtask_accent_color') || '#6366f1',
+  themeKey: loadStoredTheme(),
 
-  setMode: (mode) => {
-    localStorage.setItem('prismtask_theme', mode);
-    set({ mode });
+  setThemeKey: (key) => {
+    try {
+      localStorage.setItem(THEME_STORAGE_KEY, key);
+    } catch {
+      // non-fatal
+    }
+    set({ themeKey: key });
     get().applyTheme();
-  },
-
-  setAccentColor: (color) => {
-    localStorage.setItem('prismtask_accent_color', color);
-    set({ accentColor: color });
-    get().applyTheme();
-  },
-
-  getEffectiveMode: () => {
-    const { mode } = get();
-    return mode === 'system' ? getSystemTheme() : mode;
   },
 
   applyTheme: () => {
-    const effective = get().getEffectiveMode();
-    const { accentColor } = get();
-    const root = document.documentElement;
-
-    if (effective === 'dark') {
-      root.classList.add('dark');
-    } else {
-      root.classList.remove('dark');
-    }
-
-    root.style.setProperty('--color-accent', accentColor);
+    applyThemeToDocument(get().themeKey);
   },
 }));

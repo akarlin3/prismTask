@@ -9,6 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Web
 
+- **Onboarding + four named themes (slice 2 of the web parity push)** —
+  replaces the pre-parity light/dark + 12-accent-color picker with the
+  four shipped themes (`CYBERPUNK`, `SYNTHWAVE`, `MATRIX`, `VOID`) that
+  Android carries. Theme tokens (core surface + brand, semantic state,
+  Eisenhower quadrants, 8-slot data-viz palette) are ported from
+  `themesets/themes.js` into `web/src/theme/themes.ts` and applied via
+  CSS custom properties + a `data-theme` attribute on the root. Existing
+  users are migrated automatically on first load — legacy accent hex
+  maps to the closest named theme, defaulting to VOID. Typography,
+  shape, density, and decorative treatments (brackets / terminal /
+  editorial / sunset) are deferred to follow-up polish. Also lands a
+  9-page onboarding wizard at `/onboarding`, modeled on Android's page
+  order (Welcome, ThemePicker, SmartTasks, NaturalLanguage, Habits,
+  Templates, Views, BrainMode, Setup). Completion is persisted per
+  account at `users/{uid}.onboardingCompletedAt` in Firestore so the
+  flow is shown once per account across devices, gated in the route
+  tree via a new `OnboardingGate`.
+
 - **NLP batch ops (slice 1 of the web parity push)** — the quick-add bar
   in `NLPInput.tsx` now detects batch-style commands (e.g. "reschedule
   all overdue tasks to tomorrow") using the same two-signal heuristic

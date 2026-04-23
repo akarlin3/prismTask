@@ -6,6 +6,7 @@ import {
 } from 'react-router-dom';
 import { AppShell } from '@/components/layout/AppShell';
 import { ProtectedRoute } from './ProtectedRoute';
+import { OnboardingGate } from './OnboardingGate';
 import { TaskListSkeleton, ProjectListSkeleton, HabitListSkeleton, SettingsSkeleton } from '@/components/shared/SkeletonLoader';
 
 // Auth screens (eagerly loaded — first screens users see)
@@ -37,6 +38,7 @@ const SettingsScreen = lazy(() => import('@/features/settings/SettingsScreen').t
 const SchoolworkScreen = lazy(() => import('@/features/schoolwork/SchoolworkScreen').then(m => ({ default: m.SchoolworkScreen })));
 const AdminLogsScreen = lazy(() => import('@/features/admin/AdminLogsScreen').then(m => ({ default: m.AdminLogsScreen })));
 const BatchPreviewScreen = lazy(() => import('@/features/batch/BatchPreviewScreen').then(m => ({ default: m.BatchPreviewScreen })));
+const OnboardingScreen = lazy(() => import('@/features/onboarding/OnboardingScreen').then(m => ({ default: m.OnboardingScreen })));
 
 function LazyRoute({ Component, fallback }: { Component: ComponentType; fallback?: React.ReactNode }) {
   return (
@@ -60,11 +62,25 @@ const routes: RouteObject[] = [
   { path: '/login', element: <LoginScreen /> },
   { path: '/register', element: <RegisterScreen /> },
 
-  // Protected routes inside AppShell
+  // Onboarding is protected (auth required) but sits outside the AppShell
+  // so it renders full-screen without the sidebar/header, and must not
+  // be gated on itself.
+  {
+    path: '/onboarding',
+    element: (
+      <ProtectedRoute>
+        <LazyRoute Component={OnboardingScreen} />
+      </ProtectedRoute>
+    ),
+  },
+
+  // Protected routes inside AppShell — gated on onboarding completion.
   {
     element: (
       <ProtectedRoute>
-        <AppShell />
+        <OnboardingGate>
+          <AppShell />
+        </OnboardingGate>
       </ProtectedRoute>
     ),
     children: [

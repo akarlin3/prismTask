@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { Moon, Sun, Monitor, LogOut, Search } from 'lucide-react';
+import { LogOut, Palette, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuthStore } from '@/stores/authStore';
 import { useThemeStore } from '@/stores/themeStore';
@@ -8,7 +8,7 @@ import { useProjectStore } from '@/stores/projectStore';
 import { NLPInput } from '@/components/shared/NLPInput';
 import { SearchModal } from '@/components/shared/SearchModal';
 import { Avatar } from '@/components/ui/Avatar';
-import type { ThemeMode } from '@/stores/themeStore';
+import { THEME_ORDER, THEMES } from '@/theme/themes';
 
 export function Header() {
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -16,8 +16,10 @@ export function Header() {
   const menuRef = useRef<HTMLDivElement>(null);
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
-  const themeMode = useThemeStore((s) => s.mode);
-  const setMode = useThemeStore((s) => s.setMode);
+  const themeKey = useThemeStore((s) => s.themeKey);
+  const setThemeKey = useThemeStore((s) => s.setThemeKey);
+  const [themeMenuOpen, setThemeMenuOpen] = useState(false);
+  const themeMenuRef = useRef<HTMLDivElement>(null);
   const createTask = useTaskStore((s) => s.createTask);
   const projects = useProjectStore((s) => s.projects);
 
@@ -72,11 +74,17 @@ export function Header() {
     [createTask, projects],
   );
 
-  const themeOptions: { mode: ThemeMode; icon: typeof Sun; label: string }[] = [
-    { mode: 'light', icon: Sun, label: 'Light' },
-    { mode: 'dark', icon: Moon, label: 'Dark' },
-    { mode: 'system', icon: Monitor, label: 'System' },
-  ];
+  // Close theme menu on outside click.
+  useEffect(() => {
+    if (!themeMenuOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (themeMenuRef.current && !themeMenuRef.current.contains(e.target as Node)) {
+        setThemeMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [themeMenuOpen]);
 
   return (
     <>
@@ -100,24 +108,57 @@ export function Header() {
           </kbd>
         </button>
 
-        {/* Theme Toggle */}
-        <div className="flex items-center gap-1 rounded-lg border border-[var(--color-border)] p-1" role="radiogroup" aria-label="Theme">
-          {themeOptions.map(({ mode, icon: Icon, label }) => (
-            <button
-              key={mode}
-              onClick={() => setMode(mode)}
-              className={`rounded-md p-1.5 transition-colors ${
-                themeMode === mode
-                  ? 'bg-[var(--color-accent)]/10 text-[var(--color-accent)]'
-                  : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'
-              }`}
-              role="radio"
-              aria-checked={themeMode === mode}
-              aria-label={`${label} theme`}
+        {/* Theme picker — one menu over the four named themes. */}
+        <div className="relative" ref={themeMenuRef}>
+          <button
+            onClick={() => setThemeMenuOpen((v) => !v)}
+            className="rounded-md border border-[var(--color-border)] p-1.5 text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text-primary)]"
+            aria-label={`Theme: ${THEMES[themeKey].label}`}
+            aria-haspopup="listbox"
+            aria-expanded={themeMenuOpen}
+          >
+            <Palette className="h-4 w-4" aria-hidden="true" />
+          </button>
+          {themeMenuOpen && (
+            <div
+              className="absolute right-0 top-full z-50 mt-2 w-56 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-card)] p-1 shadow-lg"
+              role="listbox"
+              aria-label="Theme"
             >
-              <Icon className="h-4 w-4" aria-hidden="true" />
-            </button>
-          ))}
+              {THEME_ORDER.map((key) => {
+                const tokens = THEMES[key];
+                const selected = themeKey === key;
+                return (
+                  <button
+                    key={key}
+                    onClick={() => {
+                      setThemeKey(key);
+                      setThemeMenuOpen(false);
+                    }}
+                    role="option"
+                    aria-selected={selected}
+                    className={`flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left text-sm transition-colors ${
+                      selected
+                        ? 'bg-[var(--color-accent)]/10 text-[var(--color-text-primary)]'
+                        : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)] hover:text-[var(--color-text-primary)]'
+                    }`}
+                  >
+                    <span
+                      className="h-3 w-3 shrink-0 rounded-full"
+                      style={{ backgroundColor: tokens.primary }}
+                      aria-hidden="true"
+                    />
+                    <span className="flex-1">
+                      <span className="block font-medium">{tokens.label}</span>
+                      <span className="block text-xs text-[var(--color-text-secondary)]">
+                        {tokens.tagline}
+                      </span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* User Menu */}

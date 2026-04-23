@@ -5,13 +5,14 @@ import { router } from '@/routes';
 import { useAuthStore } from '@/stores/authStore';
 import { useThemeStore } from '@/stores/themeStore';
 import { useBatchStore } from '@/stores/batchStore';
+import { useOnboardingStore } from '@/stores/onboardingStore';
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary';
 import { OfflineBanner } from '@/components/shared/OfflineBanner';
 
 export default function App() {
   const hydrateFromStorage = useAuthStore((s) => s.hydrateFromStorage);
   const applyTheme = useThemeStore((s) => s.applyTheme);
-  const themeMode = useThemeStore((s) => s.mode);
+  const themeKey = useThemeStore((s) => s.themeKey);
 
   const initFirebaseAuthListener = useAuthStore((s) => s.initFirebaseAuthListener);
   const firebaseUid = useAuthStore((s) => s.firebaseUser?.uid);
@@ -30,22 +31,25 @@ export default function App() {
     if (firebaseUid) hydrateBatch(firebaseUid);
   }, [firebaseUid, hydrateBatch]);
 
-  // Apply theme on mount and mode changes
+  // Hydrate onboarding status from Firestore on sign-in. Reset back to
+  // "unknown" on sign-out so the next user sees the onboarding flow
+  // gate correctly.
+  const hydrateOnboarding = useOnboardingStore((s) => s.hydrate);
+  const resetOnboarding = useOnboardingStore((s) => s.reset);
+  useEffect(() => {
+    if (firebaseUid) {
+      hydrateOnboarding(firebaseUid);
+    } else {
+      resetOnboarding();
+    }
+  }, [firebaseUid, hydrateOnboarding, resetOnboarding]);
+
+  // Apply theme on mount and whenever the user picks a new one. All four
+  // named themes are dark-first with no system/light variant — matches
+  // Android, so no media-query listener is needed.
   useEffect(() => {
     applyTheme();
-  }, [applyTheme, themeMode]);
-
-  // Listen for system theme changes
-  useEffect(() => {
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    const handler = () => {
-      if (useThemeStore.getState().mode === 'system') {
-        useThemeStore.getState().applyTheme();
-      }
-    };
-    mediaQuery.addEventListener('change', handler);
-    return () => mediaQuery.removeEventListener('change', handler);
-  }, []);
+  }, [applyTheme, themeKey]);
 
   // Register service worker for PWA
   useEffect(() => {

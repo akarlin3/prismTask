@@ -21,7 +21,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { useThemeStore, ACCENT_COLORS } from '@/stores/themeStore';
+import { useThemeStore } from '@/stores/themeStore';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { useAuthStore } from '@/stores/authStore';
 import { useProFeature } from '@/hooks/useProFeature';
@@ -31,6 +31,7 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { KeyboardShortcutsModal } from '@/components/shared/KeyboardShortcutsModal';
 import { ProUpgradeModal } from '@/components/shared/ProUpgradeModal';
 import { BatchHistorySection } from '@/features/settings/sections/BatchHistorySection';
+import { THEME_ORDER, THEMES, type ThemeKey } from '@/theme/themes';
 import { exportJson, exportCsv } from '@/utils/export';
 import { parseImportFile, importData } from '@/utils/import';
 import {
@@ -38,7 +39,6 @@ import {
   requestNotificationPermission,
   getNotificationPermission,
 } from '@/utils/notifications';
-import type { ThemeMode } from '@/stores/themeStore';
 import type { ImportPreview } from '@/utils/import';
 
 function SettingsSection({
@@ -100,8 +100,65 @@ function ToggleRow({
   );
 }
 
+function ThemeCard({
+  themeKey,
+  selected,
+  onSelect,
+}: {
+  themeKey: ThemeKey;
+  selected: boolean;
+  onSelect: () => void;
+}) {
+  const tokens = THEMES[themeKey];
+  return (
+    <button
+      onClick={onSelect}
+      role="radio"
+      aria-checked={selected}
+      className={`group flex flex-col items-start gap-2 rounded-xl border p-3 text-left transition-colors ${
+        selected
+          ? 'border-[var(--color-accent)] bg-[var(--color-bg-secondary)]'
+          : 'border-[var(--color-border)] hover:border-[var(--color-accent)]/60 hover:bg-[var(--color-bg-secondary)]'
+      }`}
+    >
+      <div className="flex w-full items-center justify-between">
+        <span className="text-sm font-semibold text-[var(--color-text-primary)]">
+          {tokens.label}
+        </span>
+        {selected && (
+          <Check
+            className="h-4 w-4 text-[var(--color-accent)]"
+            aria-hidden="true"
+          />
+        )}
+      </div>
+      <span className="text-xs text-[var(--color-text-secondary)]">
+        {tokens.tagline}
+      </span>
+      <div
+        className="flex h-10 w-full items-stretch overflow-hidden rounded-md"
+        aria-hidden="true"
+      >
+        <span className="flex-1" style={{ backgroundColor: tokens.background }} />
+        <span className="flex-1" style={{ backgroundColor: tokens.surface }} />
+        <span className="flex-1" style={{ backgroundColor: tokens.primary }} />
+        <span className="flex-1" style={{ backgroundColor: tokens.secondary }} />
+        <span
+          className="flex-1"
+          style={{ backgroundColor: tokens.destructiveColor }}
+        />
+        <span
+          className="flex-1"
+          style={{ backgroundColor: tokens.successColor }}
+        />
+      </div>
+    </button>
+  );
+}
+
 export function SettingsScreen() {
-  const { mode, accentColor, setMode, setAccentColor } = useThemeStore();
+  const themeKey = useThemeStore((s) => s.themeKey);
+  const setThemeKey = useThemeStore((s) => s.setThemeKey);
   const settings = useSettingsStore();
   const { user, logout } = useAuthStore();
   const proGate = useProFeature();
@@ -207,53 +264,32 @@ export function SettingsScreen() {
         </h1>
       </div>
 
-      {/* Appearance */}
+      {/* Appearance — four shipped themes (parity with Android) */}
       <SettingsSection
         icon={<Palette className="h-5 w-5 text-[var(--color-accent)]" />}
         title="Appearance"
       >
-        {/* Theme Mode */}
         <div className="mb-5">
           <label className="mb-2 block text-sm font-medium text-[var(--color-text-primary)]">
             Theme
           </label>
-          <div className="flex gap-2">
-            {(['light', 'dark', 'system'] as ThemeMode[]).map((m) => (
-              <button
-                key={m}
-                onClick={() => setMode(m)}
-                className={`rounded-lg px-4 py-2 text-sm font-medium capitalize transition-colors ${
-                  mode === m
-                    ? 'bg-[var(--color-accent)] text-white'
-                    : 'border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)]'
-                }`}
-              >
-                {m}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Accent Color */}
-        <div className="mb-5">
-          <label className="mb-2 block text-sm font-medium text-[var(--color-text-primary)]">
-            Accent Color
-          </label>
-          <div className="flex flex-wrap gap-2">
-            {ACCENT_COLORS.map(({ name, value }) => (
-              <button
-                key={value}
-                onClick={() => setAccentColor(value)}
-                className={`h-8 w-8 rounded-full transition-transform ${
-                  accentColor === value
-                    ? 'scale-110 ring-2 ring-offset-2 ring-[var(--color-accent)]'
-                    : 'hover:scale-105'
-                }`}
-                style={{ backgroundColor: value }}
-                title={name}
-                aria-label={name}
-              />
-            ))}
+          <p className="mb-3 text-xs text-[var(--color-text-secondary)]">
+            Pick one of the four named themes. Each is its own visual
+            system — swatches, typography direction, and density all
+            shift with the selection.
+          </p>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            {THEME_ORDER.map((key) => {
+              const selected = themeKey === key;
+              return (
+                <ThemeCard
+                  key={key}
+                  themeKey={key}
+                  selected={selected}
+                  onSelect={() => setThemeKey(key)}
+                />
+              );
+            })}
           </div>
         </div>
 
