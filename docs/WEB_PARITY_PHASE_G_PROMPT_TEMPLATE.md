@@ -46,13 +46,16 @@ weekly-plan, time-block, weekly-review, extract-from-text,
 pomodoro-plan, pomodoro-coaching, eisenhower, eisenhower/classify_text)
 are now wired on web.
 
-Additional slices 7–15 shipped: Eisenhower classify_text (#720), task
+Additional slices 7–18 shipped: Eisenhower classify_text (#720), task
 editor schedule-tab parity (#721), Today polish + DayBoundary (#722),
 dedicated Medication screen (#723), Templates parity with habits +
 projects (#724), Settings sections bundle — Accessibility + Help +
 Maintenance + About (#725), theme typography (#726), theme shape +
 decorative flags (#727), TAG_CHANGE batch mutation + Firestore tag
-persistence (#728).
+persistence (#728), Analytics project-progress via client-side
+compute (#730), Medication tier picker + slot CRUD via Firestore
+(#731), and Custom habit + project template authoring via Firestore
+(#732).
 
 The web app's data-access split (Firestore-direct for tasks / projects /
 habits / tags; backend REST for AI / dashboard / daily-essentials / auth /
@@ -67,16 +70,16 @@ change. Each is sized so it can ship as one PR.
 
 ### Track A — Backend-ready (web only)
 
-Rough sub-total: **1–3 working days** of polish / migrations (was
-6–10 before slices 7–15 shipped).
+Rough sub-total: **1–3 working days** of polish / migrations.
 
 1. **Component migration to `.prism-card` / `.prism-chip` / `.prism-display`**
    — slices 13/14 added opt-in utilities; existing cards still render
    but won't pick up per-theme shape + decorative treatments until
    migrated. ~S–M per component family, parallelizable.
-2. **Analytics `/project-progress`** — blocked on a backend change
-   (Postgres int `project_id` vs Firestore string IDs). Web wiring is
-   ~S once unblocked.
+
+*(The three previously-backend-blocked items — analytics project-progress,
+medication tier/CRUD, custom habit/project template authoring — were
+resolved Firestore-natively in slices 16–18 and no longer block.)*
 
 ### Track B — Backend work required (bounce to a separate prompt first)
 

@@ -25,13 +25,22 @@ document is the input that lets us shrink that budget.
 - ✅ **Slice 13 — Theme typography** ([PR #726](https://github.com/akarlin3/prismTask/pull/726)): per-theme Google Fonts + `--prism-font-body/display/mono` + `.prism-display` utility.
 - ✅ **Slice 14 — Theme shape + decorative** ([PR #727](https://github.com/akarlin3/prismTask/pull/727)): per-theme shape / density / glow / personality; opt-in `.prism-card` + per-personality pseudo-element treatments (brackets/terminal/editorial/sunset).
 - ✅ **Slice 15 — TAG_CHANGE batch + tag persistence** ([PR #728](https://github.com/akarlin3/prismTask/pull/728)): Firestore `tagIds` array + `setTagsForTask` + applier branch flipped to apply with name→ID resolution.
+- ✅ **Slice 16 — Analytics `/project-progress` via client-side compute** ([PR #730](https://github.com/akarlin3/prismTask/pull/730)): unblocked without a backend change — `utils/projectBurndown.ts` mirrors `compute_project_burndown` and feeds `ProjectProgressPanel` on AnalyticsScreen. 5 new unit tests.
+- ✅ **Slice 17 — Medication tier picker + slot CRUD** ([PR #731](https://github.com/akarlin3/prismTask/pull/731)): Firestore-native slot defs + daily tier states; 3-way tier picker on MedicationScreen + slot editor in Settings.
+- ✅ **Slice 18 — Custom habit + project template authoring** ([PR #732](https://github.com/akarlin3/prismTask/pull/732)): Firestore CRUD for per-user habit + project templates; authoring modals in `UserTemplateEditors.tsx`.
 
-With fifteen slices merged, the parity gap matrix below has been revised —
+With eighteen slices merged, the parity gap matrix below has been revised —
 see the DONE markers and remaining-gaps section at the end.
 
-**Not shipped — backend-blocked:** Analytics `/project-progress` (backend
-takes int `project_id`; web has Firestore string IDs). Requires either a
-backend change to accept string IDs or a resolver mapping. Flagged for
+**Not shipped — backend-blocked:** (none of the original three now apply —
+analytics project-progress is handled client-side in slice 16, medication
+tier + slot CRUD is handled client-side via Firestore in slice 17, and
+custom habit/project templates are handled client-side via Firestore in
+slice 18). Remaining Track B (wellness cluster, notification profiles) is
+untouched.
+
+*Legacy note (now superseded):* the earlier audit flagged
+`/analytics/project-progress` as backend-blocked. Still flagged for
 Phase G.
 
 ---
@@ -378,21 +387,17 @@ natural place to add future ND-mode intro or Pro teaser when those land.
 
 ## 6. Remaining-gaps preview for Phase G
 
-**Update (2026-04-23 — slices 1–15 shipped — PRs #711, #712, #714, #715,
-#717, #718, #720, #721, #722, #723, #724, #725, #726, #727, #728):** Phase G
-scope has collapsed to essentially one backend-blocked item plus polish
-follow-ups on slices 10 (tier picker + slot CRUD) and 11 (custom habit /
-project template authoring).
+**Update (2026-04-23 — slices 1–18 shipped — PRs #711, #712, #714, #715,
+#717, #718, #720, #721, #722, #723, #724, #725, #726, #727, #728, #730,
+#731, #732):** the three previously backend-blocked follow-ups on web
+are now all shipped Firestore-natively (analytics project-progress via
+client-side compute, medication tier + slot CRUD via Firestore
+collections, custom habit/project template authoring via Firestore
+collections). Phase G Track A is effectively empty for web.
 
 ### What's left (backend-ready web work)
 
-**Polish / follow-ups on existing slices:**
-- Medication tier picker + slot CRUD — **deferred on slice 10** because
-  `/daily-essentials/*` is slot-toggle only; needs backend additions for
-  tier states and slot CRUD.
-- Custom habit + project template authoring — **deferred on slice 11**
-  because Android's `HabitTemplateEntity` / `ProjectTemplateEntity` are
-  Room-local; needs backend tables + endpoints.
+**Polish only:**
 - Component migration to `.prism-card` + `.prism-display` utilities
   — shipped in slices 13/14 as opt-in. Existing cards work fine but
   won't carry per-theme shape/decorative treatments until migrated.
@@ -400,19 +405,15 @@ project template authoring).
 
 ### Backend-blocked (requires a separate prompt)
 
-- **Analytics `/project-progress`** — backend takes int `project_id`, web
-  projects have Firestore string IDs. One of: backend accepts string IDs,
-  or a cross-reference resolver, or a separate Firestore-native endpoint.
-- **Medication tier states + slot CRUD** — needs new tables + endpoints.
-- **Custom habit + project templates** — needs new tables + endpoints.
 - **Wellness cluster** (mood, check-in, boundaries, focus release) — same
-  as before: no backend endpoints exist.
+  as before: no backend endpoints exist. Web fallback would need offline
+  data shapes that Android can pick up once backed.
 - **Notification profiles** (custom sounds, escalation) — needs tables +
   Web Push strategy.
 
-Sub-total: roughly **1–3 working days** of polish + component migrations
-on web (was 6–10 before slices 7–15 shipped); backend-blocked work is
-still the ~8–12 days flagged earlier.
+Sub-total: roughly **1–3 working days** of component migration on web
+(the three previously-backend-blocked items shipped Firestore-natively
+in slices 16–18 and no longer block).
 
 ### Blocked by backend / Android source-of-truth work (requires a separate prompt)
 
