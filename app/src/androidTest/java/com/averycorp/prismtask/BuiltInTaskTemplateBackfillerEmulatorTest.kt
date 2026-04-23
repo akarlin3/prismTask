@@ -12,6 +12,7 @@ import com.averycorp.prismtask.data.remote.BuiltInTaskTemplateReconciler
 import com.averycorp.prismtask.data.remote.SyncTracker
 import com.averycorp.prismtask.data.remote.sync.PrismSyncLogger
 import com.google.firebase.FirebaseApp
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.FirebaseFirestoreSettings
 import io.mockk.coEvery
@@ -69,6 +70,21 @@ class BuiltInTaskTemplateBackfillerEmulatorTest {
                     .build()
         } catch (_: IllegalStateException) {
             // Already routed.
+        }
+        try {
+            FirebaseAuth.getInstance().useEmulator(EMULATOR_HOST, AUTH_PORT)
+        } catch (_: IllegalStateException) {
+            // Already routed.
+        }
+        // firestore.rules requires request.auth != null; sign in to the Auth
+        // emulator so the real-SDK writes below aren't rejected with
+        // PERMISSION_DENIED. Anonymous sign-in is always enabled on the
+        // emulator and produces a fresh uid per test run.
+        runBlocking {
+            val auth = FirebaseAuth.getInstance()
+            if (auth.currentUser == null) {
+                auth.signInAnonymously().await()
+            }
         }
         firestore = FirebaseFirestore.getInstance()
         userId = "emulator-template-${System.currentTimeMillis()}"
@@ -357,6 +373,7 @@ class BuiltInTaskTemplateBackfillerEmulatorTest {
     companion object {
         private const val EMULATOR_HOST = "10.0.2.2"
         private const val FIRESTORE_PORT = 8080
+        private const val AUTH_PORT = 9099
         private const val TEST_TIMEOUT_MS = 60_000L
 
         private val BUILT_INS: List<Pair<String, String>> = listOf(

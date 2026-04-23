@@ -59,5 +59,14 @@ constructor(
         trySend(caps?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true)
 
         awaitClose { cm.unregisterNetworkCallback(callback) }
-    }.stateIn(scope, SharingStarted.Eagerly, false)
+    }.stateIn(scope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), false)
+
+    private companion object {
+        // Register the ConnectivityManager callback only while something is
+        // collecting isOnline (the UI layer), and unregister 5s after the
+        // last subscriber goes away. Prevents the callback from leaking
+        // across instrumented-test SingletonComponent rebuilds, which at
+        // ~100 tests would trip ConnectivityManager$TooManyRequestsException.
+        const val STOP_TIMEOUT_MS = 5_000L
+    }
 }

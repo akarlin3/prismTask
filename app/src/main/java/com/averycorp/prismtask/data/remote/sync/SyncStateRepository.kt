@@ -13,8 +13,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import javax.inject.Inject
@@ -72,18 +70,6 @@ constructor(
 
     val lastSyncAt: StateFlow<Long> = backendSyncPreferences.lastSyncAtFlow
         .stateIn(scope, SharingStarted.Eagerly, 0L)
-
-    init {
-        networkMonitor.isOnline
-            .onEach { online ->
-                logger.info(
-                    operation = "network",
-                    status = if (online) "online" else "offline",
-                    detail = "connectivity transition"
-                )
-            }
-            .launchIn(scope)
-    }
 
     fun markSyncStarted(source: String, trigger: String? = null) {
         _activeSources.update { it + source }

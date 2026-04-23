@@ -10,6 +10,7 @@ import com.averycorp.prismtask.data.remote.AuthManager
 import com.averycorp.prismtask.data.remote.CloudIdOrphanHealer
 import com.averycorp.prismtask.data.remote.sync.PrismSyncLogger
 import com.google.firebase.FirebaseApp
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.FirebaseFirestoreSettings
 import io.mockk.every
@@ -77,6 +78,20 @@ class CloudIdOrphanHealerEmulatorTest {
                     .build()
         } catch (_: IllegalStateException) {
             // Already routed — fine.
+        }
+        try {
+            FirebaseAuth.getInstance().useEmulator(EMULATOR_HOST, AUTH_PORT)
+        } catch (_: IllegalStateException) {
+            // Already routed — fine.
+        }
+        // firestore.rules requires request.auth != null; sign in to the Auth
+        // emulator so the real-SDK writes below aren't rejected with
+        // PERMISSION_DENIED.
+        runBlocking {
+            val auth = FirebaseAuth.getInstance()
+            if (auth.currentUser == null) {
+                auth.signInAnonymously().await()
+            }
         }
         firestore = FirebaseFirestore.getInstance()
         userId = "emulator-healer-${System.currentTimeMillis()}"
@@ -300,6 +315,7 @@ class CloudIdOrphanHealerEmulatorTest {
     companion object {
         private const val EMULATOR_HOST = "10.0.2.2"
         private const val FIRESTORE_PORT = 8080
+        private const val AUTH_PORT = 9099
         private const val TEST_TIMEOUT_MS = 60_000L
     }
 }
