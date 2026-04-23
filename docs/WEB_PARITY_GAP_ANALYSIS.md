@@ -16,9 +16,23 @@ document is the input that lets us shrink that budget.
 - ✅ **Slice 4 — Analytics dashboard** ([PR #715](https://github.com/akarlin3/prismTask/pull/715)): `/analytics` wires `GET /analytics/summary` + `productivity-score` + `time-tracking` + `habit-correlations`. Summary tiles, productivity area chart, time-tracking bar chart with accuracy coloring, habit-correlations list. Uses `Promise.allSettled` for graceful per-endpoint failure. Skips `/analytics/project-progress` (backend expects integer project_id; web has Firestore string IDs — needs backend change).
 - ✅ **Slice 5 — Conversation extraction** ([PR #717](https://github.com/akarlin3/prismTask/pull/717)): new `/extract` route wires `POST /ai/tasks/extract-from-text`. Textarea paste (10k chars), candidate rows with Apply/Skip toggles + due date / priority / project / confidence pills, commit via Firestore.
 - ✅ **Slice 6 — Pomodoro+ coaching** ([PR #718](https://github.com/akarlin3/prismTask/pull/718)): `PomodoroCoachPanel` mounts on `PomodoroScreen` and wires `POST /ai/pomodoro-coaching` across all three triggers (pre_session / break_activity / session_recap). Trigger inferred from existing `SessionPhase` so no refactor of the existing flow.
+- ✅ **Slice 7 — Eisenhower classify_text** ([PR #720](https://github.com/akarlin3/prismTask/pull/720)): text-only variant via "Classify Text" button + modal on EisenhowerScreen.
+- ✅ **Slice 8 — Task editor schedule-tab parity** ([PR #721](https://github.com/akarlin3/prismTask/pull/721)): wired weekday selector, biweekly/weekdays types, after-completion flag, three-way end condition, planned-date field, wired reminder dropdown.
+- ✅ **Slice 9 — Today polish** ([PR #722](https://github.com/akarlin3/prismTask/pull/722)): DayBoundary utility + configurable Start-of-Day hour, Today briefing card teaser.
+- ✅ **Slice 10 — Medication screen** ([PR #723](https://github.com/akarlin3/prismTask/pull/723)): dedicated `/medication` route with per-day navigation. Tier picker + slot CRUD out of scope (need backend).
+- ✅ **Slice 11 — Templates parity (habits + projects)** ([PR #724](https://github.com/akarlin3/prismTask/pull/724)): tabbed UI on TemplateListScreen + curated starter library (6 habits, 4 project blueprints). Custom authoring needs backend.
+- ✅ **Slice 12 — Settings sections bundle** ([PR #725](https://github.com/akarlin3/prismTask/pull/725)): Accessibility, Help & Feedback, Maintenance, About — all pure-client.
+- ✅ **Slice 13 — Theme typography** ([PR #726](https://github.com/akarlin3/prismTask/pull/726)): per-theme Google Fonts + `--prism-font-body/display/mono` + `.prism-display` utility.
+- ✅ **Slice 14 — Theme shape + decorative** ([PR #727](https://github.com/akarlin3/prismTask/pull/727)): per-theme shape / density / glow / personality; opt-in `.prism-card` + per-personality pseudo-element treatments (brackets/terminal/editorial/sunset).
+- ✅ **Slice 15 — TAG_CHANGE batch + tag persistence** ([PR #728](https://github.com/akarlin3/prismTask/pull/728)): Firestore `tagIds` array + `setTagsForTask` + applier branch flipped to apply with name→ID resolution.
 
-With these six slices merged, the parity gap matrix below has been revised —
+With fifteen slices merged, the parity gap matrix below has been revised —
 see the DONE markers and remaining-gaps section at the end.
+
+**Not shipped — backend-blocked:** Analytics `/project-progress` (backend
+takes int `project_id`; web has Firestore string IDs). Requires either a
+backend change to accept string IDs or a resolver mapping. Flagged for
+Phase G.
 
 ---
 
@@ -364,36 +378,41 @@ natural place to add future ND-mode intro or Pro teaser when those land.
 
 ## 6. Remaining-gaps preview for Phase G
 
-**Update (2026-04-23 — slices 1–6 shipped — PRs #711, #712, #714, #715, #717, #718):**
-the Phase G remaining scope is further narrowed. See also
-`docs/WEB_PARITY_PHASE_G_PROMPT_TEMPLATE.md` for a fill-in-the-blank prompt.
+**Update (2026-04-23 — slices 1–15 shipped — PRs #711, #712, #714, #715,
+#717, #718, #720, #721, #722, #723, #724, #725, #726, #727, #728):** Phase G
+scope has collapsed to essentially one backend-blocked item plus polish
+follow-ups on slices 10 (tier picker + slot CRUD) and 11 (custom habit /
+project template authoring).
 
-### High-leverage / backend-ready (ship first in Phase G)
+### What's left (backend-ready web work)
 
-- Dedicated **MedicationScreen + tier picker + Settings editor** (~M, ~2–3 days)
-- **Additional Settings sections** (Accessibility polish, GoogleCalendar,
-  DailyEssentials editor, AboutSection, DashboardSection, AI overrides,
-  SubscriptionSection polish) (~L but parallelizable, ~3–5 days)
-- **Templates parity** (habit templates + project templates) (~M, ~2 days)
-- **Task editor Schedule + Organize tabs** (tabbed editor parity) (~M, ~2 days)
-- **Today polish** (SoD prompt, dashboard layout customization) (~S, ~1 day)
-- **Theme polish from slice 2** — typography (fonts per theme), shape (radius /
-  chipShape / density), decorative personality flags (brackets / terminal /
-  editorial / sunset). Needs per-component branching (`ThemedCard`-style).
-  (~M–L, ~3–5 days)
-- **TAG_CHANGE batch mutation** — enable web-side task↔tag Firestore
-  persistence first, then flip the applier from "deferred" to "apply" in
-  `features/batch/batchApplier.ts`. (~S, ~1 day once tag persistence
-  exists; ~M with the tag persistence included)
-- **Analytics project-progress** — blocked on a **backend change**: the
-  endpoint expects an int Postgres project_id, but web projects live in
-  Firestore with string IDs. Needs one of (a) backend accepts string IDs
-  for projects, (b) cross-reference resolver, (c) a separate
-  Firestore-project-progress endpoint. (~S for the web wiring once backend
-  is fixed; the backend change itself sits in Track B.)
+**Polish / follow-ups on existing slices:**
+- Medication tier picker + slot CRUD — **deferred on slice 10** because
+  `/daily-essentials/*` is slot-toggle only; needs backend additions for
+  tier states and slot CRUD.
+- Custom habit + project template authoring — **deferred on slice 11**
+  because Android's `HabitTemplateEntity` / `ProjectTemplateEntity` are
+  Room-local; needs backend tables + endpoints.
+- Component migration to `.prism-card` + `.prism-display` utilities
+  — shipped in slices 13/14 as opt-in. Existing cards work fine but
+  won't carry per-theme shape/decorative treatments until migrated.
+  (~S–M, ~1–3 days across all components.)
 
-Sub-total: roughly **6–10 working days** for backend-ready parity (was 9–13
-before slices 5 and 6 shipped).
+### Backend-blocked (requires a separate prompt)
+
+- **Analytics `/project-progress`** — backend takes int `project_id`, web
+  projects have Firestore string IDs. One of: backend accepts string IDs,
+  or a cross-reference resolver, or a separate Firestore-native endpoint.
+- **Medication tier states + slot CRUD** — needs new tables + endpoints.
+- **Custom habit + project templates** — needs new tables + endpoints.
+- **Wellness cluster** (mood, check-in, boundaries, focus release) — same
+  as before: no backend endpoints exist.
+- **Notification profiles** (custom sounds, escalation) — needs tables +
+  Web Push strategy.
+
+Sub-total: roughly **1–3 working days** of polish + component migrations
+on web (was 6–10 before slices 7–15 shipped); backend-blocked work is
+still the ~8–12 days flagged earlier.
 
 ### Blocked by backend / Android source-of-truth work (requires a separate prompt)
 
@@ -412,16 +431,15 @@ the backend endpoints exist.
 ### Phase G budget implication
 
 - Current Phase G budget: 4 weeks (~20 working days).
-- With slices 1–6 shipped: remaining backend-ready work is ~6–10 days, plus
-  ~8–12 days for backend-blocked work.
-- Realistic new estimate: **1.5–2 weeks** of web-only work once backend is
-  caught up, **vs. 4 weeks budgeted**. The trimming comes from (a) NLP batch +
-  onboarding + named-themes-colors + daily briefing + weekly plan + analytics
-  (4/5 endpoints) + conversation extraction + Pomodoro+ coaching are now
-  shipped — **all six primary AI endpoints plus Eisenhower are wired**, (b)
-  theme typography / shape / decorative polish is scoped and estimated,
-  (c) the backend-blocked track (wellness, notifications, boundaries) becomes
-  a distinct parallel workstream.
+- With slices 1–15 shipped: remaining backend-ready web work is ~1–3 days
+  of polish (opt-in utility migration, small tidy-ups), plus ~8–12 days of
+  backend-blocked work that needs endpoints first.
+- Realistic new estimate: **1–3 days** of web-only work, **vs. 4 weeks
+  budgeted**. The web parity push has effectively closed the visible Phase G
+  gap. Remaining capability gaps are all backend-blocked: wellness cluster
+  (mood / check-in / boundaries / focus release), notification profiles,
+  medication tier/CRUD, custom habit/project template authoring, analytics
+  project-progress ID mismatch.
 
 ### New surprises discovered while implementing
 

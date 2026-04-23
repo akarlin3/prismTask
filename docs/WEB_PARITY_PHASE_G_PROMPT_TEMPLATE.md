@@ -8,7 +8,11 @@ document is the analysis; this file is how you invoke the work.
 
 ## Current state
 
-Pre-Phase-G, six high-leverage slices landed:
+Pre-Phase-G, fifteen slices landed — the web parity push is
+essentially complete. Remaining gaps are all backend-blocked or
+small polish items.
+
+Shipped:
 
 - **NLP batch ops** ([PR #711](https://github.com/akarlin3/prismTask/pull/711))
   — `/ai/batch-parse` wired with BatchPreview + 30s undo + 24h Settings
@@ -39,9 +43,16 @@ Pre-Phase-G, six high-leverage slices landed:
 
 All six primary backend AI endpoints (batch-parse, daily-briefing,
 weekly-plan, time-block, weekly-review, extract-from-text,
-pomodoro-plan, pomodoro-coaching, eisenhower) are now wired on web —
-the only AI endpoint remaining unwired is `eisenhower/classify_text`,
-a text-only variant of the existing Eisenhower flow.
+pomodoro-plan, pomodoro-coaching, eisenhower, eisenhower/classify_text)
+are now wired on web.
+
+Additional slices 7–15 shipped: Eisenhower classify_text (#720), task
+editor schedule-tab parity (#721), Today polish + DayBoundary (#722),
+dedicated Medication screen (#723), Templates parity with habits +
+projects (#724), Settings sections bundle — Accessibility + Help +
+Maintenance + About (#725), theme typography (#726), theme shape +
+decorative flags (#727), TAG_CHANGE batch mutation + Firestore tag
+persistence (#728).
 
 The web app's data-access split (Firestore-direct for tasks / projects /
 habits / tags; backend REST for AI / dashboard / daily-essentials / auth /
@@ -54,45 +65,18 @@ admin / export) is documented in `docs/WEB_PARITY_GAP_ANALYSIS.md` §1.
 Ordered by leverage — pick slices in this order unless product priorities
 change. Each is sized so it can ship as one PR.
 
-### Track A — Backend-ready (web only; ship first)
+### Track A — Backend-ready (web only)
 
-Rough sub-total: **6–10 working days** (was 9–13 before slices 5–6
-shipped).
+Rough sub-total: **1–3 working days** of polish / migrations (was
+6–10 before slices 7–15 shipped).
 
-1. **Task editor tabbed parity** — add Schedule + Organize tabs to
-   `features/tasks/TaskEditor.tsx` to match Android's `addedittask/tabs/`.
-   ~M, ~2 days.
-2. **Today polish** — SoD prompt section + dashboard layout customization
-   (section order + visibility via DashboardPreferences equivalent).
-   Consider also embedding a mini briefing card that links to `/briefing`.
-   ~S, ~1 day.
-3. **Medication screen + tier picker + Settings editor** — dedicated
-   `/medication` route + Settings section mirroring Android's
-   `MedicationScreen.kt` and `DailyEssentialsSettingsSection.kt`, consuming
-   the existing `/daily-essentials/*` endpoints. ~M, ~2–3 days.
-4. **Templates parity** — habit templates + project templates (task
-   templates already exist). Add modal editors and quick-use shortcuts.
-   ~M, ~2 days.
-5. **Settings sections** — port ~22 Android settings sections: Accessibility
-   polish, GoogleCalendar, DailyEssentialsSettings, AboutSection,
-   DashboardSection, AI overrides, SubscriptionSection polish, plus smaller
-   toggles. Parallelizable across multiple PRs. ~L, ~3–5 days.
-6. **Theme polish (slice 2 follow-up)** — per-theme typography (Chakra
-   Petch / Rajdhani / Share Tech Mono / Space Grotesk via Google Fonts),
-   shape (radius / chipShape / density), decorative personality flags
-   (brackets, terminal, editorial, sunset) via a `ThemedCard`-style
-   component. ~M–L, ~3–5 days.
-7. **TAG_CHANGE batch mutation** — enable web task↔tag Firestore
-   persistence (decision: embed tag IDs on task doc vs. separate
-   cross-ref collection), then flip the applier in
-   `features/batch/batchApplier.ts` from deferred to apply. ~M with
-   persistence included, ~1 day once persistence exists.
-8. **Analytics project-progress (needs backend change first)** — web
-   projects use string Firestore IDs, backend `/analytics/project-progress`
-   takes an int. Backend must accept string IDs (Track B item) before
-   this web slice is shippable. ~S once unblocked.
-9. **Eisenhower classify_text** — small unwired AI variant for text-only
-   classification without a task ID. ~S, <1 day.
+1. **Component migration to `.prism-card` / `.prism-chip` / `.prism-display`**
+   — slices 13/14 added opt-in utilities; existing cards still render
+   but won't pick up per-theme shape + decorative treatments until
+   migrated. ~S–M per component family, parallelizable.
+2. **Analytics `/project-progress`** — blocked on a backend change
+   (Postgres int `project_id` vs Firestore string IDs). Web wiring is
+   ~S once unblocked.
 
 ### Track B — Backend work required (bounce to a separate prompt first)
 
