@@ -144,8 +144,11 @@ class BatchUndoLogDaoTest {
         val undoneCutoff = now - 7L * DAY_MILLIS
         dao.insertAll(
             listOf(
-                // Expired, never undone — gets dropped.
-                entry(batchId = "expired", entityId = 1L, createdAt = 1L, expiresAt = 1L + DAY_MILLIS),
+                // Expired, never undone — gets dropped. expiresAt must be < now
+                // for the sweep's `expires_at < now` predicate to match; earlier
+                // versions used `1L + DAY_MILLIS` which is ~86M — well past now
+                // (100_000) — and silently left the row in place.
+                entry(batchId = "expired", entityId = 1L, createdAt = 1L, expiresAt = now - 1L),
                 // Recent, never undone — kept.
                 entry(batchId = "fresh", entityId = 2L, createdAt = now - 1000, expiresAt = now + DAY_MILLIS),
                 // Undone long ago — gets dropped.
