@@ -328,6 +328,20 @@ class CloudIdOrphanHealerTwoDeviceTest {
                     taskCompletionDao = db.taskCompletionDao(),
                     taskTemplateDao = db.taskTemplateDao(),
                     milestoneDao = db.milestoneDao(),
+                    notificationProfileDao = db.notificationProfileDao(),
+                    customSoundDao = db.customSoundDao(),
+                    savedFilterDao = db.savedFilterDao(),
+                    nlpShortcutDao = db.nlpShortcutDao(),
+                    habitTemplateDao = db.habitTemplateDao(),
+                    projectTemplateDao = db.projectTemplateDao(),
+                    boundaryRuleDao = db.boundaryRuleDao(),
+                    checkInLogDao = db.checkInLogDao(),
+                    moodEnergyLogDao = db.moodEnergyLogDao(),
+                    focusReleaseLogDao = db.focusReleaseLogDao(),
+                    medicationRefillDao = db.medicationRefillDao(),
+                    weeklyReviewDao = db.weeklyReviewDao(),
+                    dailyEssentialSlotCompletionDao = db.dailyEssentialSlotCompletionDao(),
+                    attachmentDao = db.attachmentDao(),
                     logger = logger
                 )
                 return Device(db, healer, firestore, label)

@@ -1,11 +1,24 @@
 package com.averycorp.prismtask.data.remote
 
+import com.averycorp.prismtask.data.local.dao.AttachmentDao
+import com.averycorp.prismtask.data.local.dao.BoundaryRuleDao
+import com.averycorp.prismtask.data.local.dao.CheckInLogDao
+import com.averycorp.prismtask.data.local.dao.CustomSoundDao
+import com.averycorp.prismtask.data.local.dao.DailyEssentialSlotCompletionDao
+import com.averycorp.prismtask.data.local.dao.FocusReleaseLogDao
 import com.averycorp.prismtask.data.local.dao.HabitCompletionDao
 import com.averycorp.prismtask.data.local.dao.HabitDao
 import com.averycorp.prismtask.data.local.dao.HabitLogDao
+import com.averycorp.prismtask.data.local.dao.HabitTemplateDao
 import com.averycorp.prismtask.data.local.dao.LeisureDao
+import com.averycorp.prismtask.data.local.dao.MedicationRefillDao
 import com.averycorp.prismtask.data.local.dao.MilestoneDao
+import com.averycorp.prismtask.data.local.dao.MoodEnergyLogDao
+import com.averycorp.prismtask.data.local.dao.NlpShortcutDao
+import com.averycorp.prismtask.data.local.dao.NotificationProfileDao
 import com.averycorp.prismtask.data.local.dao.ProjectDao
+import com.averycorp.prismtask.data.local.dao.ProjectTemplateDao
+import com.averycorp.prismtask.data.local.dao.SavedFilterDao
 import com.averycorp.prismtask.data.local.dao.SchoolworkDao
 import com.averycorp.prismtask.data.local.dao.SelfCareDao
 import com.averycorp.prismtask.data.local.dao.SyncMetadataDao
@@ -13,6 +26,7 @@ import com.averycorp.prismtask.data.local.dao.TagDao
 import com.averycorp.prismtask.data.local.dao.TaskCompletionDao
 import com.averycorp.prismtask.data.local.dao.TaskDao
 import com.averycorp.prismtask.data.local.dao.TaskTemplateDao
+import com.averycorp.prismtask.data.local.dao.WeeklyReviewDao
 import com.averycorp.prismtask.data.local.entity.SyncMetadataEntity
 import com.averycorp.prismtask.data.remote.sync.PrismSyncLogger
 import com.google.firebase.firestore.FirebaseFirestore
@@ -38,10 +52,16 @@ import javax.inject.Singleton
  * (`self_care_steps`, `self_care_logs`, `courses`, `course_completions`,
  * `leisure_logs`) land via [SyncService.maybeRunEntityBackfill]; Tier-1
  * entities (`tasks`, `projects`, `tags`, `habits`, `habit_completions`,
- * `habit_logs`, `task_completions`, `task_templates`) land via
- * [SyncService.doInitialUpload]. Both paths are one-shot and share the
+ * `habit_logs`, `task_completions`, `task_templates`, `milestones`) land
+ * via [SyncService.doInitialUpload]. v1.4.37 added 7 config families
+ * (`notification_profiles`, `custom_sounds`, `saved_filters`,
+ * `nlp_shortcuts`, `habit_templates`, `project_templates`,
+ * `boundary_rules`); v1.4.38 added 9 content families (`check_in_logs`,
+ * `mood_energy_logs`, `focus_release_logs`, `medication_refills`,
+ * `weekly_reviews`, `daily_essential_slot_completions`, `assignments`,
+ * `attachments`, `study_logs`). All paths are one-shot and share the
  * same "local rows with stale cloud_id after out-of-band wipe" failure
- * mode — so the healer covers both uniformly.
+ * mode — so the healer covers them uniformly.
  *
  * Algorithm per family:
  *  1. Enumerate local rows with a non-blank `cloud_id`.
@@ -102,6 +122,22 @@ constructor(
     private val taskCompletionDao: TaskCompletionDao,
     private val taskTemplateDao: TaskTemplateDao,
     private val milestoneDao: MilestoneDao,
+    // v1.4.37 config-entity sync (added 2026-04)
+    private val notificationProfileDao: NotificationProfileDao,
+    private val customSoundDao: CustomSoundDao,
+    private val savedFilterDao: SavedFilterDao,
+    private val nlpShortcutDao: NlpShortcutDao,
+    private val habitTemplateDao: HabitTemplateDao,
+    private val projectTemplateDao: ProjectTemplateDao,
+    private val boundaryRuleDao: BoundaryRuleDao,
+    // v1.4.38 content-entity sync (added 2026-04)
+    private val checkInLogDao: CheckInLogDao,
+    private val moodEnergyLogDao: MoodEnergyLogDao,
+    private val focusReleaseLogDao: FocusReleaseLogDao,
+    private val medicationRefillDao: MedicationRefillDao,
+    private val weeklyReviewDao: WeeklyReviewDao,
+    private val dailyEssentialSlotCompletionDao: DailyEssentialSlotCompletionDao,
+    private val attachmentDao: AttachmentDao,
     private val logger: PrismSyncLogger
 ) {
     /**
@@ -205,6 +241,98 @@ constructor(
         }
         healFamily("milestones", "milestone", fetcher) {
             milestoneDao.getAllMilestonesOnce().mapNotNull { entity ->
+                entity.cloudId?.takeIf { it.isNotBlank() }?.let { CloudIdRow(entity.id, it) }
+            }
+        }
+
+        // ── v1.4.37 config-entity families ──
+        // SyncMapper uses entityType "notification_profile" even though the
+        // table is reminder_profiles and the Firestore collection is
+        // notification_profiles (SyncService line 446).
+        healFamily("notification_profiles", "notification_profile", fetcher) {
+            notificationProfileDao.getAllOnce().mapNotNull { entity ->
+                entity.cloudId?.takeIf { it.isNotBlank() }?.let { CloudIdRow(entity.id, it) }
+            }
+        }
+        healFamily("custom_sounds", "custom_sound", fetcher) {
+            customSoundDao.getAllOnce().mapNotNull { entity ->
+                entity.cloudId?.takeIf { it.isNotBlank() }?.let { CloudIdRow(entity.id, it) }
+            }
+        }
+        healFamily("saved_filters", "saved_filter", fetcher) {
+            savedFilterDao.getAllOnce().mapNotNull { entity ->
+                entity.cloudId?.takeIf { it.isNotBlank() }?.let { CloudIdRow(entity.id, it) }
+            }
+        }
+        healFamily("nlp_shortcuts", "nlp_shortcut", fetcher) {
+            nlpShortcutDao.getAllOnce().mapNotNull { entity ->
+                entity.cloudId?.takeIf { it.isNotBlank() }?.let { CloudIdRow(entity.id, it) }
+            }
+        }
+        healFamily("habit_templates", "habit_template", fetcher) {
+            habitTemplateDao.getAllOnce().mapNotNull { entity ->
+                entity.cloudId?.takeIf { it.isNotBlank() }?.let { CloudIdRow(entity.id, it) }
+            }
+        }
+        healFamily("project_templates", "project_template", fetcher) {
+            projectTemplateDao.getAllOnce().mapNotNull { entity ->
+                entity.cloudId?.takeIf { it.isNotBlank() }?.let { CloudIdRow(entity.id, it) }
+            }
+        }
+        healFamily("boundary_rules", "boundary_rule", fetcher) {
+            boundaryRuleDao.getAllOnce().mapNotNull { entity ->
+                entity.cloudId?.takeIf { it.isNotBlank() }?.let { CloudIdRow(entity.id, it) }
+            }
+        }
+
+        // ── v1.4.38 content-entity families ──
+        healFamily("check_in_logs", "check_in_log", fetcher) {
+            checkInLogDao.getAllOnce().mapNotNull { entity ->
+                entity.cloudId?.takeIf { it.isNotBlank() }?.let { CloudIdRow(entity.id, it) }
+            }
+        }
+        healFamily("mood_energy_logs", "mood_energy_log", fetcher) {
+            moodEnergyLogDao.getAllOnce().mapNotNull { entity ->
+                entity.cloudId?.takeIf { it.isNotBlank() }?.let { CloudIdRow(entity.id, it) }
+            }
+        }
+        // focus_release_logs carry an FK task_id (SET_NULL on task delete).
+        // The parent task's sync_metadata is preserved separately, so the
+        // child row's push resolves via taskCloudId lookup at push time.
+        healFamily("focus_release_logs", "focus_release_log", fetcher) {
+            focusReleaseLogDao.getAllOnce().mapNotNull { entity ->
+                entity.cloudId?.takeIf { it.isNotBlank() }?.let { CloudIdRow(entity.id, it) }
+            }
+        }
+        healFamily("medication_refills", "medication_refill", fetcher) {
+            medicationRefillDao.getAllOnce().mapNotNull { entity ->
+                entity.cloudId?.takeIf { it.isNotBlank() }?.let { CloudIdRow(entity.id, it) }
+            }
+        }
+        healFamily("weekly_reviews", "weekly_review", fetcher) {
+            weeklyReviewDao.getAllOnce().mapNotNull { entity ->
+                entity.cloudId?.takeIf { it.isNotBlank() }?.let { CloudIdRow(entity.id, it) }
+            }
+        }
+        healFamily("daily_essential_slot_completions", "daily_essential_slot_completion", fetcher) {
+            dailyEssentialSlotCompletionDao.getAllOnce().mapNotNull { entity ->
+                entity.cloudId?.takeIf { it.isNotBlank() }?.let { CloudIdRow(entity.id, it) }
+            }
+        }
+        // assignments + study_logs live in SchoolworkDao alongside the
+        // pre-existing courses + course_completions healers.
+        healFamily("assignments", "assignment", fetcher) {
+            schoolworkDao.getAllAssignmentsOnce().mapNotNull { entity ->
+                entity.cloudId?.takeIf { it.isNotBlank() }?.let { CloudIdRow(entity.id, it) }
+            }
+        }
+        healFamily("study_logs", "study_log", fetcher) {
+            schoolworkDao.getAllStudyLogsOnce().mapNotNull { entity ->
+                entity.cloudId?.takeIf { it.isNotBlank() }?.let { CloudIdRow(entity.id, it) }
+            }
+        }
+        healFamily("attachments", "attachment", fetcher) {
+            attachmentDao.getAllOnce().mapNotNull { entity ->
                 entity.cloudId?.takeIf { it.isNotBlank() }?.let { CloudIdRow(entity.id, it) }
             }
         }

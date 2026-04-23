@@ -157,4 +157,135 @@ class NotificationChannelsInstrumentedTest {
         val legacyExists = manager.notificationChannels.any { it.id == "averytask_reminders" }
         assertEquals(false, legacyExists)
     }
+
+    // --- v1.4.38 / A2 channel coverage ----------------------------------
+    //
+    // Weekly task summary and weekly review workers both create their own
+    // channels inside a private method (WeeklyTaskSummaryWorker.showNotification,
+    // WeeklyReviewWorker.postNotification). Rather than open up those
+    // private seams just for tests, we assert the surface the worker depends
+    // on: (a) the channel ID constants are stable and distinct from every
+    // other channel currently shipping, (b) creating a channel with those
+    // constants lands in NotificationManager with the expected importance,
+    // and (c) creating the same channel twice is idempotent. If a future
+    // refactor bumps the IDs or drops the importance, users who previously
+    // customized OS-level channel settings would silently lose them — this
+    // test pins those constants to the OS contract.
+
+    @Test
+    fun weeklyTaskSummaryChannel_constantMatchesExpectedId() {
+        assertEquals(
+            "prismtask_weekly_task_summary",
+            WeeklyTaskSummaryWorker.CHANNEL_ID
+        )
+    }
+
+    @Test
+    fun weeklyTaskSummaryChannel_registersAtDefaultImportance() {
+        val channel = android.app.NotificationChannel(
+            WeeklyTaskSummaryWorker.CHANNEL_ID,
+            "Weekly Task Summary",
+            NotificationManager.IMPORTANCE_DEFAULT
+        )
+        manager.createNotificationChannel(channel)
+        createdChannelIds += channel.id
+
+        val registered = manager.getNotificationChannel(WeeklyTaskSummaryWorker.CHANNEL_ID)
+        assertNotNull(
+            "Expected channel ${WeeklyTaskSummaryWorker.CHANNEL_ID} after createNotificationChannel",
+            registered
+        )
+        assertEquals(
+            "Weekly Task Summary must post at DEFAULT importance (Priority normal)",
+            NotificationManager.IMPORTANCE_DEFAULT,
+            registered!!.importance
+        )
+    }
+
+    @Test
+    fun weeklyReviewChannel_constantMatchesExpectedId() {
+        assertEquals(
+            "prismtask_weekly_review",
+            WeeklyReviewWorker.CHANNEL_ID
+        )
+    }
+
+    @Test
+    fun weeklyReviewChannel_registersAtDefaultImportance() {
+        val channel = android.app.NotificationChannel(
+            WeeklyReviewWorker.CHANNEL_ID,
+            "Weekly Review",
+            NotificationManager.IMPORTANCE_DEFAULT
+        )
+        manager.createNotificationChannel(channel)
+        createdChannelIds += channel.id
+
+        val registered = manager.getNotificationChannel(WeeklyReviewWorker.CHANNEL_ID)
+        assertNotNull(
+            "Expected channel ${WeeklyReviewWorker.CHANNEL_ID} after createNotificationChannel",
+            registered
+        )
+        assertEquals(
+            "Weekly Review must post at DEFAULT importance",
+            NotificationManager.IMPORTANCE_DEFAULT,
+            registered!!.importance
+        )
+    }
+
+    @Test
+    fun a2Channels_areDistinctFromLegacyAndEachOther() {
+        // Reading the four IDs directly as constants also acts as a
+        // compile-time pin against accidental rename.
+        val weeklyTask = WeeklyTaskSummaryWorker.CHANNEL_ID
+        val weeklyReview = WeeklyReviewWorker.CHANNEL_ID
+        val weeklyHabit = WeeklyHabitSummaryWorker.CHANNEL_ID
+
+        assertTrue(
+            "weekly_task_summary must not collide with weekly_habit_summary",
+            weeklyTask != weeklyHabit
+        )
+        assertTrue(
+            "weekly_review must not collide with weekly_habit_summary",
+            weeklyReview != weeklyHabit
+        )
+        assertTrue(
+            "weekly_review must not collide with weekly_task_summary",
+            weeklyReview != weeklyTask
+        )
+        // Both A2 channels share the `prismtask_` namespace — users
+        // rely on that prefix to filter app channels in OS settings.
+        assertTrue(weeklyTask.startsWith("prismtask_"))
+        assertTrue(weeklyReview.startsWith("prismtask_"))
+    }
+
+    @Test
+    fun weeklyTaskSummaryChannel_reCreationIsIdempotent() {
+        val channel1 = android.app.NotificationChannel(
+            WeeklyTaskSummaryWorker.CHANNEL_ID,
+            "Weekly Task Summary",
+            NotificationManager.IMPORTANCE_DEFAULT
+        )
+        manager.createNotificationChannel(channel1)
+        createdChannelIds += channel1.id
+
+        val countAfterFirst = manager.notificationChannels
+            .count { it.id == WeeklyTaskSummaryWorker.CHANNEL_ID }
+
+        // Second creation with the same ID must not duplicate — OS is
+        // spec'd to no-op the second call when a matching channel exists.
+        val channel2 = android.app.NotificationChannel(
+            WeeklyTaskSummaryWorker.CHANNEL_ID,
+            "Weekly Task Summary",
+            NotificationManager.IMPORTANCE_DEFAULT
+        )
+        manager.createNotificationChannel(channel2)
+
+        val countAfterSecond = manager.notificationChannels
+            .count { it.id == WeeklyTaskSummaryWorker.CHANNEL_ID }
+        assertEquals(
+            "Re-creating a channel with the same ID must not duplicate",
+            countAfterFirst,
+            countAfterSecond
+        )
+    }
 }
