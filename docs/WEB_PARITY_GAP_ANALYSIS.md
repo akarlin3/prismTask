@@ -14,8 +14,10 @@ document is the input that lets us shrink that budget.
 - ✅ **Slice 2 — Onboarding + 4 named themes** ([PR #712](https://github.com/akarlin3/prismTask/pull/712)): Cyberpunk / Synthwave / Matrix / Void color-token sets, theme migration for existing users (default VOID), 9-page onboarding wizard, per-account `users/{uid}.onboardingCompletedAt` Firestore gate.
 - ✅ **Slice 3 — Daily briefing + weekly planner** ([PR #714](https://github.com/akarlin3/prismTask/pull/714)): `/briefing` wires `POST /ai/daily-briefing`; `/planner` wires `POST /ai/weekly-plan` with preferences drawer (work days, focus hours, front-loading). Both Pro-gated, 429 rate-limit surfaced with readable toast.
 - ✅ **Slice 4 — Analytics dashboard** ([PR #715](https://github.com/akarlin3/prismTask/pull/715)): `/analytics` wires `GET /analytics/summary` + `productivity-score` + `time-tracking` + `habit-correlations`. Summary tiles, productivity area chart, time-tracking bar chart with accuracy coloring, habit-correlations list. Uses `Promise.allSettled` for graceful per-endpoint failure. Skips `/analytics/project-progress` (backend expects integer project_id; web has Firestore string IDs — needs backend change).
+- ✅ **Slice 5 — Conversation extraction** ([PR #717](https://github.com/akarlin3/prismTask/pull/717)): new `/extract` route wires `POST /ai/tasks/extract-from-text`. Textarea paste (10k chars), candidate rows with Apply/Skip toggles + due date / priority / project / confidence pills, commit via Firestore.
+- ✅ **Slice 6 — Pomodoro+ coaching** ([PR #718](https://github.com/akarlin3/prismTask/pull/718)): `PomodoroCoachPanel` mounts on `PomodoroScreen` and wires `POST /ai/pomodoro-coaching` across all three triggers (pre_session / break_activity / session_recap). Trigger inferred from existing `SessionPhase` so no refactor of the existing flow.
 
-With these four slices merged, the parity gap matrix below has been revised —
+With these six slices merged, the parity gap matrix below has been revised —
 see the DONE markers and remaining-gaps section at the end.
 
 ---
@@ -195,7 +197,7 @@ Scoring notes:
 | Calendar views | Done | Partial | S | Low | 2 | At parity structurally |
 | Eisenhower | Done | Done | — | — | — | At parity (missing classify_text for text-only classification) |
 | Pomodoro (plan) | Done | Done | — | — | — | At parity |
-| **Pomodoro+ coaching** | Done | Missing | M | Medium | 6 | Endpoint exists — wire it |
+| **Pomodoro+ coaching** | Done | ✅ Done (PR #718) | — | — | — | All 3 triggers wired via single panel |
 | **Daily briefing + weekly plan** | Done | ✅ Done (PR #714) | — | — | — | Both endpoints wired in one slice |
 | **Analytics dashboard** | Done | ✅ Done (PR #715) | S | Medium | 3 | 4/5 endpoints wired; project-progress blocked on int/str ID mismatch |
 | Time block | Done | Done | — | — | — | At parity |
@@ -203,7 +205,7 @@ Scoring notes:
 | **Daily briefing** | Done | ✅ Done (PR #714) | — | — | — | Shipped in slice 3 |
 | **Weekly plan / planner** | Done | ✅ Done (PR #714) | — | — | — | Shipped in slice 3 |
 | **NLP batch ops + preview + undo + history** | Done | ✅ Done (PR #711) | — | — | — | TAG_CHANGE + MEDICATION deferred at apply time |
-| **Conversation extraction (/extract)** | Done | Missing | M | Low | 7 | Single screen, endpoint ready |
+| **Conversation extraction (/extract)** | Done | ✅ Done (PR #717) | — | — | — | Paste + preview + Firestore commit |
 | **Onboarding (9-page)** | Done | ✅ Done (PR #712) | — | — | — | Per-account via `users/{uid}.onboardingCompletedAt` |
 | **4 named themes (PrismThemeSection)** | Done | ✅ Done, colors only (PR #712) | S | Medium | 4 | Typography, shape, decorative flags deferred |
 | Settings — Accessibility | Done | Partial | S | Low | 4 | |
@@ -229,7 +231,7 @@ Scoring notes:
 ### Summary of parity
 
 - **At parity:** Auth, Task CRUD, Projects core, Habits core, Calendar, Eisenhower, Pomodoro plan, Time block, Weekly review synthesizer, Export/Import, core medication slot row on Today, Archive core, Search core.
-- **Backend-ready but unwired on web (shippable now):** Pomodoro+ coaching, Conversation extraction (`/extract`), Eisenhower classify_text, ND preferences, Medication dedicated screen. (Shipped so far: NLP batch-parse, Daily briefing, Weekly plan, Analytics dashboard.)
+- **Backend-ready but unwired on web (shippable now):** Eisenhower classify_text, ND preferences, Medication dedicated screen. (Shipped so far: NLP batch-parse, Daily briefing, Weekly plan, Analytics dashboard, Conversation extraction, Pomodoro+ coaching.)
 - **Client-only and shippable:** 4 named themes, 9-page onboarding, more Settings sections, Today polish (SoD prompt, layout options).
 - **Blocked by backend work (out of scope):** Mood tracking, Morning check-in, Boundaries/BoundaryEnforcer, Notification profiles/custom sounds, NLP shortcuts, Saved filters, Clinical report + med refills, Work-Life balance (needs life_category on task schema cleanly exposed).
 
@@ -362,15 +364,13 @@ natural place to add future ND-mode intro or Pro teaser when those land.
 
 ## 6. Remaining-gaps preview for Phase G
 
-**Update (2026-04-23 — slices 1–4 shipped — PRs #711, #712, #714, #715):** the
-Phase G remaining scope is now narrower. See also
+**Update (2026-04-23 — slices 1–6 shipped — PRs #711, #712, #714, #715, #717, #718):**
+the Phase G remaining scope is further narrowed. See also
 `docs/WEB_PARITY_PHASE_G_PROMPT_TEMPLATE.md` for a fill-in-the-blank prompt.
 
 ### High-leverage / backend-ready (ship first in Phase G)
 
 - Dedicated **MedicationScreen + tier picker + Settings editor** (~M, ~2–3 days)
-- **Conversation extraction** (`/extract`) (~M, ~1–2 days)
-- **Pomodoro+ coaching** overlay on PomodoroScreen (~M, ~1 day)
 - **Additional Settings sections** (Accessibility polish, GoogleCalendar,
   DailyEssentials editor, AboutSection, DashboardSection, AI overrides,
   SubscriptionSection polish) (~L but parallelizable, ~3–5 days)
@@ -392,8 +392,8 @@ Phase G remaining scope is now narrower. See also
   Firestore-project-progress endpoint. (~S for the web wiring once backend
   is fixed; the backend change itself sits in Track B.)
 
-Sub-total: roughly **9–13 working days** for backend-ready parity (was 12–17
-before slices 3 and 4 shipped).
+Sub-total: roughly **6–10 working days** for backend-ready parity (was 9–13
+before slices 5 and 6 shipped).
 
 ### Blocked by backend / Android source-of-truth work (requires a separate prompt)
 
@@ -412,14 +412,16 @@ the backend endpoints exist.
 ### Phase G budget implication
 
 - Current Phase G budget: 4 weeks (~20 working days).
-- With slices 1–4 shipped: remaining backend-ready work is ~9–13 days, plus
+- With slices 1–6 shipped: remaining backend-ready work is ~6–10 days, plus
   ~8–12 days for backend-blocked work.
-- Realistic new estimate: **2–2.5 weeks** of web-only work once backend is
+- Realistic new estimate: **1.5–2 weeks** of web-only work once backend is
   caught up, **vs. 4 weeks budgeted**. The trimming comes from (a) NLP batch +
   onboarding + named-themes-colors + daily briefing + weekly plan + analytics
-  (4/5 endpoints) are now shipped, (b) theme typography / shape / decorative
-  polish is scoped and estimated, (c) the backend-blocked track (wellness,
-  notifications, boundaries) becomes a distinct parallel workstream.
+  (4/5 endpoints) + conversation extraction + Pomodoro+ coaching are now
+  shipped — **all six primary AI endpoints plus Eisenhower are wired**, (b)
+  theme typography / shape / decorative polish is scoped and estimated,
+  (c) the backend-blocked track (wellness, notifications, boundaries) becomes
+  a distinct parallel workstream.
 
 ### New surprises discovered while implementing
 

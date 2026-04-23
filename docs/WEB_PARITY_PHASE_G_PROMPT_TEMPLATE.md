@@ -8,7 +8,7 @@ document is the analysis; this file is how you invoke the work.
 
 ## Current state
 
-Pre-Phase-G, four high-leverage slices landed:
+Pre-Phase-G, six high-leverage slices landed:
 
 - **NLP batch ops** ([PR #711](https://github.com/akarlin3/prismTask/pull/711))
   — `/ai/batch-parse` wired with BatchPreview + 30s undo + 24h Settings
@@ -28,6 +28,20 @@ Pre-Phase-G, four high-leverage slices landed:
   `time-tracking` + `habit-correlations` (Recharts area + bar charts). Uses
   `Promise.allSettled` for graceful per-endpoint failure. Skips
   `project-progress` (backend expects int ID; web has string Firestore IDs).
+- **Conversation extraction** ([PR #717](https://github.com/akarlin3/prismTask/pull/717))
+  — `/extract` wires `POST /ai/tasks/extract-from-text`. Textarea paste
+  (10k chars) + candidate toggles + commit to Firestore. Pro-gated.
+- **Pomodoro+ coaching** ([PR #718](https://github.com/akarlin3/prismTask/pull/718))
+  — self-contained `PomodoroCoachPanel` on `PomodoroScreen` wires
+  `POST /ai/pomodoro-coaching` across all three triggers (pre_session /
+  break_activity / session_recap) inferred from the existing
+  `SessionPhase`. Pro-gated.
+
+All six primary backend AI endpoints (batch-parse, daily-briefing,
+weekly-plan, time-block, weekly-review, extract-from-text,
+pomodoro-plan, pomodoro-coaching, eisenhower) are now wired on web —
+the only AI endpoint remaining unwired is `eisenhower/classify_text`,
+a text-only variant of the existing Eisenhower flow.
 
 The web app's data-access split (Firestore-direct for tasks / projects /
 habits / tags; backend REST for AI / dashboard / daily-essentials / auth /
@@ -42,7 +56,7 @@ change. Each is sized so it can ship as one PR.
 
 ### Track A — Backend-ready (web only; ship first)
 
-Rough sub-total: **9–13 working days** (was 12–17 before slices 3–4
+Rough sub-total: **6–10 working days** (was 9–13 before slices 5–6
 shipped).
 
 1. **Task editor tabbed parity** — add Schedule + Organize tabs to
@@ -52,36 +66,33 @@ shipped).
    (section order + visibility via DashboardPreferences equivalent).
    Consider also embedding a mini briefing card that links to `/briefing`.
    ~S, ~1 day.
-3. **Conversation extraction** — new `/extract` route wiring
-   `POST /ai/tasks/extract-from-text`. Single screen, reuses the slice 1
-   preview + 30s undo pattern. ~M, ~1–2 days.
-4. **Pomodoro+ coaching** — overlay on `features/pomodoro/PomodoroScreen.tsx`
-   wiring `POST /ai/pomodoro-coaching`. ~M, ~1 day.
-5. **Medication screen + tier picker + Settings editor** — dedicated
+3. **Medication screen + tier picker + Settings editor** — dedicated
    `/medication` route + Settings section mirroring Android's
    `MedicationScreen.kt` and `DailyEssentialsSettingsSection.kt`, consuming
    the existing `/daily-essentials/*` endpoints. ~M, ~2–3 days.
-6. **Templates parity** — habit templates + project templates (task
+4. **Templates parity** — habit templates + project templates (task
    templates already exist). Add modal editors and quick-use shortcuts.
    ~M, ~2 days.
-7. **Settings sections** — port ~22 Android settings sections: Accessibility
+5. **Settings sections** — port ~22 Android settings sections: Accessibility
    polish, GoogleCalendar, DailyEssentialsSettings, AboutSection,
    DashboardSection, AI overrides, SubscriptionSection polish, plus smaller
    toggles. Parallelizable across multiple PRs. ~L, ~3–5 days.
-8. **Theme polish (slice 2 follow-up)** — per-theme typography (Chakra
+6. **Theme polish (slice 2 follow-up)** — per-theme typography (Chakra
    Petch / Rajdhani / Share Tech Mono / Space Grotesk via Google Fonts),
    shape (radius / chipShape / density), decorative personality flags
    (brackets, terminal, editorial, sunset) via a `ThemedCard`-style
    component. ~M–L, ~3–5 days.
-9. **TAG_CHANGE batch mutation** — enable web task↔tag Firestore
+7. **TAG_CHANGE batch mutation** — enable web task↔tag Firestore
    persistence (decision: embed tag IDs on task doc vs. separate
    cross-ref collection), then flip the applier in
    `features/batch/batchApplier.ts` from deferred to apply. ~M with
    persistence included, ~1 day once persistence exists.
-10. **Analytics project-progress (needs backend change first)** — web
-    projects use string Firestore IDs, backend `/analytics/project-progress`
-    takes an int. Backend must accept string IDs (Track B item) before
-    this web slice is shippable. ~S once unblocked.
+8. **Analytics project-progress (needs backend change first)** — web
+   projects use string Firestore IDs, backend `/analytics/project-progress`
+   takes an int. Backend must accept string IDs (Track B item) before
+   this web slice is shippable. ~S once unblocked.
+9. **Eisenhower classify_text** — small unwired AI variant for text-only
+   classification without a task ID. ~S, <1 day.
 
 ### Track B — Backend work required (bounce to a separate prompt first)
 
