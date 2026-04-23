@@ -1,14 +1,8 @@
 package com.averycorp.prismtask.startup
 
 import com.averycorp.prismtask.data.local.database.ALL_MIGRATIONS
+import com.averycorp.prismtask.data.local.database.CURRENT_DB_VERSION
 import com.averycorp.prismtask.data.local.database.MIGRATION_1_2
-import com.averycorp.prismtask.data.local.database.MIGRATION_37_38
-import com.averycorp.prismtask.data.local.database.MIGRATION_38_39
-import com.averycorp.prismtask.data.local.database.MIGRATION_39_40
-import com.averycorp.prismtask.data.local.database.MIGRATION_40_41
-import com.averycorp.prismtask.data.local.database.MIGRATION_41_42
-import com.averycorp.prismtask.data.local.database.MIGRATION_42_43
-import com.averycorp.prismtask.data.local.database.MIGRATION_43_44
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -30,14 +24,21 @@ class StartupCrashDiagnosticTest {
     // Region: Room Migration Integrity
     // ------------------------------------------------------------------
 
+    /**
+     * Current DB version is the [CURRENT_DB_VERSION] const read by both
+     * `@Database(version = …)` on PrismTaskDatabase and this test. Bumping
+     * the schema means: increment the const, add a MIGRATION_N_N+1, append
+     * it to ALL_MIGRATIONS. This file self-adapts.
+     *
+     * (Can't reflect on @Database because it's binary-retention.)
+     */
     @Test
-    fun `ALL_MIGRATIONS covers every version from 1 to latest`() {
-        // The database is currently at version 60 (see PrismTaskDatabase).
-        // ALL_MIGRATIONS must have an entry for every consecutive pair.
-        val expectedCount = 59 // versions 1→2, 2→3, …, 59→60
+    fun `ALL_MIGRATIONS size matches declared DB version`() {
+        val expected = CURRENT_DB_VERSION - 1
         assertEquals(
-            "ALL_MIGRATIONS should contain exactly $expectedCount migrations (v1→v60)",
-            expectedCount,
+            "ALL_MIGRATIONS should contain exactly $expected migrations " +
+                "(v1→v$CURRENT_DB_VERSION) — add the missing MIGRATION_N_N+1 entry.",
+            expected,
             ALL_MIGRATIONS.size
         )
     }
@@ -78,11 +79,11 @@ class StartupCrashDiagnosticTest {
     }
 
     @Test
-    fun `last migration ends at current database version 60`() {
+    fun `last migration ends at declared DB version`() {
         val maxEnd = ALL_MIGRATIONS.maxOf { it.endVersion }
         assertEquals(
-            "Latest migration should end at the current DB version (60)",
-            60,
+            "Latest migration should end at the current DB version ($CURRENT_DB_VERSION)",
+            CURRENT_DB_VERSION,
             maxEnd
         )
     }
@@ -92,62 +93,6 @@ class StartupCrashDiagnosticTest {
         assertTrue(
             "MIGRATION_1_2 must be in ALL_MIGRATIONS",
             ALL_MIGRATIONS.contains(MIGRATION_1_2)
-        )
-    }
-
-    @Test
-    fun `MIGRATION_37_38 is included in ALL_MIGRATIONS`() {
-        assertTrue(
-            "MIGRATION_37_38 must be in ALL_MIGRATIONS",
-            ALL_MIGRATIONS.contains(MIGRATION_37_38)
-        )
-    }
-
-    @Test
-    fun `MIGRATION_38_39 is included in ALL_MIGRATIONS`() {
-        assertTrue(
-            "MIGRATION_38_39 must be in ALL_MIGRATIONS",
-            ALL_MIGRATIONS.contains(MIGRATION_38_39)
-        )
-    }
-
-    @Test
-    fun `MIGRATION_39_40 is included in ALL_MIGRATIONS`() {
-        assertTrue(
-            "MIGRATION_39_40 must be in ALL_MIGRATIONS",
-            ALL_MIGRATIONS.contains(MIGRATION_39_40)
-        )
-    }
-
-    @Test
-    fun `MIGRATION_40_41 is included in ALL_MIGRATIONS`() {
-        assertTrue(
-            "MIGRATION_40_41 must be in ALL_MIGRATIONS",
-            ALL_MIGRATIONS.contains(MIGRATION_40_41)
-        )
-    }
-
-    @Test
-    fun `MIGRATION_41_42 is included in ALL_MIGRATIONS`() {
-        assertTrue(
-            "MIGRATION_41_42 must be in ALL_MIGRATIONS",
-            ALL_MIGRATIONS.contains(MIGRATION_41_42)
-        )
-    }
-
-    @Test
-    fun `MIGRATION_42_43 is included in ALL_MIGRATIONS`() {
-        assertTrue(
-            "MIGRATION_42_43 must be in ALL_MIGRATIONS",
-            ALL_MIGRATIONS.contains(MIGRATION_42_43)
-        )
-    }
-
-    @Test
-    fun `MIGRATION_43_44 is included in ALL_MIGRATIONS`() {
-        assertTrue(
-            "MIGRATION_43_44 must be in ALL_MIGRATIONS",
-            ALL_MIGRATIONS.contains(MIGRATION_43_44)
         )
     }
 

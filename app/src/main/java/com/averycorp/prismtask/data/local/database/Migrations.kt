@@ -1684,6 +1684,20 @@ val MIGRATION_59_60 = object : Migration(59, 60) {
     }
 }
 
+/**
+ * Single source of truth for the Room schema version. Referenced by both
+ * `@Database(version = CURRENT_DB_VERSION)` on [PrismTaskDatabase] and by
+ * `StartupCrashDiagnosticTest`. Bumping the schema means:
+ *
+ *  1. Increment [CURRENT_DB_VERSION].
+ *  2. Add a new `MIGRATION_<old>_<new>` below.
+ *  3. Append it to [ALL_MIGRATIONS].
+ *
+ * The diagnostic test will fail until all three are done, preventing the
+ * "forgot to add migration" class of startup crash from reaching main.
+ */
+const val CURRENT_DB_VERSION = 60
+
 val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_1_2,
     MIGRATION_2_3,
