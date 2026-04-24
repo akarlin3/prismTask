@@ -61,17 +61,22 @@ class Test7OfflineEditReconnectTest : SyncScenarioTestBase() {
             }
             projectRepository.deleteProject(project)
 
-            // Attempt to push while offline — writes queue on the
-            // Firestore client's in-memory cache. This shouldn't hang
-            // (per Firestore SDK docs: offline writes return immediately
-            // via local cache) but we wrap in a timeout to be safe.
-            runCatching { syncService.pushLocalChanges() }
-            // Whether it returns a count or throws, the remote side must
-            // NOT reflect offline writes yet.
+            // Don't call `syncService.pushLocalChanges()` while offline.
+            // `docRef.set(data).await()` hangs indefinitely against a
+            // network-disabled Firestore client when persistenceEnabled=false
+            // (the harness disables persistence per
+            // `SyncTestHarness.getOrCreateDeviceBApp`). The first run of
+            // this test timed out at 90 s on that call. The assertion we
+            // care about is "offline-only mutations haven't reached
+            // Firestore" — check the emulator directly without going
+            // through the production push path.
+            //
+            // Project is still visible (baseline push landed it; the
+            // delete hasn't propagated yet because we're offline).
             assertEquals(
                 "Offline writes must not have reached Firestore yet",
                 1,
-                harness.firestoreCount("projects") // project still visible
+                harness.firestoreCount("projects")
             )
             assertEquals(
                 "Offline task must not have reached Firestore yet",
