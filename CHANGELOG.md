@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Android
 
+- **Show "Taken at HH:mm" on each medication slot card + bump log
+  time visibility** — Previously the MedicationScreen surfaced a
+  backlogged-indicator clock icon but never the actual wall-clock
+  time the user claimed to have taken a dose. Each slot card now
+  renders a "Taken at 8:30 AM" line under the slot name when a
+  tier-state row exists for today, preferring `intended_time` (the
+  user's declared moment) and falling back to `logged_at` otherwise.
+  When backlogged, the line surfaces BOTH moments — "Taken 8:05 AM ·
+  Logged 10:30 AM" — so the gap is legible, not hidden behind the
+  clock icon. In the medication log, per-dose `takenAt` was promoted
+  from `labelSmall` / muted color to `bodySmall` / primary so it
+  reads as primary row metadata. `takenTimeLabel` is a pure helper;
+  6 unit tests cover the no-data, logged-only, intended-only,
+  backlogged-both, and user-override-without-taken edge cases.
+
 - **Medication entities now sync through `/sync/push`** — Wires
   `BackendSyncService.pushChanges()` to push `medication`,
   `medication_slot`, `medication_tier_state`, and `medication_mark`

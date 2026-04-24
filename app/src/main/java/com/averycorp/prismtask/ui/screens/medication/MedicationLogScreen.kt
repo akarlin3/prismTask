@@ -242,10 +242,14 @@ private fun DoseRow(label: String, dose: MedicationDoseEntity) {
             modifier = Modifier.weight(1f)
         )
         if (dose.takenAt > 0L) {
+            // Promoted from labelSmall/onSurfaceVariant → bodySmall/primary
+            // so the "when was it taken" answer reads as primary metadata
+            // rather than muted secondary info.
             Text(
                 text = timeFormat.format(Date(dose.takenAt)),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Medium
             )
         }
     }
