@@ -4,6 +4,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.averycorp.prismtask.data.local.entity.HabitEntity
 import dagger.hilt.android.testing.HiltAndroidTest
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -66,27 +67,29 @@ class Test7OfflineEditReconnectTest : SyncScenarioTestBase() {
             // network-disabled Firestore client when persistenceEnabled=false
             // (the harness disables persistence per
             // `SyncTestHarness.getOrCreateDeviceBApp`). The first run of
-            // this test timed out at 90 s on that call. The assertion we
-            // care about is "offline-only mutations haven't reached
-            // Firestore" — check the emulator directly without going
-            // through the production push path.
+            // this test timed out at 90 s on that call.
             //
-            // Project is still visible (baseline push landed it; the
-            // delete hasn't propagated yet because we're offline).
+            // Read via device B's client — harness.firestoreCount uses
+            // device A, which is currently offline and would serve from
+            // an empty in-memory cache (persistence is disabled).
+            val usersColl = harness.deviceBFirestore
+                .collection("users")
+                .document(harness.userId)
             assertEquals(
-                "Offline writes must not have reached Firestore yet",
+                "Offline writes must not have reached Firestore yet " +
+                    "(project still visible: baseline push landed; delete not propagated)",
                 1,
-                harness.firestoreCount("projects")
+                usersColl.collection("projects").get().await().size(),
             )
             assertEquals(
                 "Offline task must not have reached Firestore yet",
                 0,
-                harness.firestoreCount("tasks")
+                usersColl.collection("tasks").get().await().size(),
             )
             assertEquals(
                 "Offline habit must not have reached Firestore yet",
                 0,
-                harness.firestoreCount("habits")
+                usersColl.collection("habits").get().await().size(),
             )
 
             // Reconnect and push.
