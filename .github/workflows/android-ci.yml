@@ -34,8 +34,15 @@ permissions:
 
 jobs:
   # lint-and-test depends on autofix so it checks the post-autofix head,
-  # not the pre-fix merge commit. The autofix commit keeps [skip ci] so we
-  # don't double-run on the newly-pushed SHA.
+  # not the pre-fix merge commit. The autofix commit intentionally does NOT
+  # carry [skip ci]: branch protection posts required statuses against the
+  # PR's head SHA, and [skip ci] prevented every workflow — including
+  # required checks (lint-and-test, connected-tests, backend test, web
+  # lint-and-test) — from ever running on the autofix commit. That left PRs
+  # stuck with pending required checks forever (e.g. sync-tests PRs
+  # #749/#751/#753, which had to be admin-merged). The one extra android-ci
+  # cycle on the bot's push is cheap — on the re-run, autofix finds nothing
+  # to commit and only the fast ktlint/detekt steps run.
   autofix:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
@@ -75,7 +82,13 @@ jobs:
         id: detekt_autocorrect
         if: always() && steps.relevance.outputs.android == 'true'
         run: ./gradlew detekt --auto-correct --continue
-      # Commits with [skip ci] to avoid re-triggering this workflow.
+      # Commit message intentionally does NOT include [skip ci]. See the
+      # header comment on this job for the full rationale — TL;DR: branch
+      # protection's required statuses post against the head SHA, and
+      # [skip ci] prevents the required-check workflows from running on
+      # the autofix commit, which deadlocks the PR. Auto-merge already
+      # skips bot synchronize events via `sender.type != 'Bot'`, so
+      # there's no risk of auto-merge looping on the re-trigger.
       # Runs even if the auto-fix steps exited non-zero so partial fixes
       # still get committed, but the job as a whole still fails so
       # unfixable issues aren't silently ignored.
@@ -84,7 +97,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git diff --quiet || (git add -A && git commit -m "style: auto-format [skip ci]" && git push)
+          git diff --quiet || (git add -A && git commit -m "style: auto-format" && git push)
       # Audit item #8 — run ktlintCheck here (not in lint-and-test) so
       # non-auto-correctable violations (e.g. comments inside
       # value_argument_list) fail THIS job. Saves a Gradle cold-start and
