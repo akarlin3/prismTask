@@ -58,7 +58,7 @@ class Test8MultiDeviceStreakSyncTest : SyncScenarioTestBase() {
     @Ignore(
         "First CI attempt showed pullRemoteChanges does not surface device B's " +
             "habit_completion within 15 s (see class KDoc). Needs SyncMapper.mapToHabitCompletion + " +
-            "SyncService.pullCollection audit in a follow-up session.",
+            "SyncService.pullCollection audit in a follow-up session."
     )
     fun multiDeviceCompletionsSameDay_streakIsOneNotTwo() {
         // See class KDoc for implementation sketch + observed failure mode.
