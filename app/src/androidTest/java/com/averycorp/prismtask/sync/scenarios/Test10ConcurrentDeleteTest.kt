@@ -65,7 +65,7 @@ class Test10ConcurrentDeleteTest : SyncScenarioTestBase() {
     @Ignore(
         "Current sync code fails this spec: SyncService.pushUpdate:1472 re-creates " +
             "the Firestore doc on missing-doc, so edit wins instead of delete. " +
-            "Fixing requires a production change; test stays @Ignore until then.",
+            "Fixing requires a production change; test stays @Ignore until then."
     )
     fun concurrentDeleteVsEdit_deleteWins() {
         // Sketch in class KDoc. Flip @Ignore to @Test once the

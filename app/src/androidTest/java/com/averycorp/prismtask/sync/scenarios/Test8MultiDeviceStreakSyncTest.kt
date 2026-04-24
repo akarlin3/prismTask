@@ -46,7 +46,7 @@ class Test8MultiDeviceStreakSyncTest : SyncScenarioTestBase() {
             // 1. Create a habit locally; push so it has a stable cloud_id
             //    device B can reference.
             val habitId = habitRepository.addHabit(
-                HabitEntity(name = "shared-streak-habit"),
+                HabitEntity(name = "shared-streak-habit")
             )
             val pushed = syncService.pushLocalChanges()
             assertEquals("Habit should have been pushed once", 1, pushed)
@@ -54,7 +54,7 @@ class Test8MultiDeviceStreakSyncTest : SyncScenarioTestBase() {
             val habitCloudId = database.syncMetadataDao().getCloudId(habitId, "habit")
             assertNotNull(
                 "Habit cloud_id must be populated after push",
-                habitCloudId,
+                habitCloudId
             )
 
             // 2. Device A self-completes. The HabitRepository insertion cap
@@ -65,7 +65,7 @@ class Test8MultiDeviceStreakSyncTest : SyncScenarioTestBase() {
             assertEquals(
                 "Device A's completion should be the only Firestore doc so far",
                 1,
-                harness.firestoreCount("habit_completions"),
+                harness.firestoreCount("habit_completions")
             )
 
             // 3. Device B writes a second completion for the SAME habit on
@@ -81,25 +81,25 @@ class Test8MultiDeviceStreakSyncTest : SyncScenarioTestBase() {
                 subcollection = "habit_completions",
                 docId = deviceBDocId,
                 fields = mapOf(
-                    "localId" to 0L,                  // B's local id; A won't reuse it
+                    "localId" to 0L, // B's local id; A won't reuse it
                     "habitCloudId" to habitCloudId,
                     "completedDate" to nowMs,
                     "completedDateLocal" to localDate,
                     "completedAt" to nowMs,
-                    "notes" to null,
-                ),
+                    "notes" to null
+                )
             )
             assertEquals(
                 "Firestore should now carry both devices' completions",
                 2,
-                harness.firestoreCount("habit_completions"),
+                harness.firestoreCount("habit_completions")
             )
 
             // 4. Device A pulls. Both completions land locally.
             syncService.pullRemoteChanges()
             harness.waitFor(
                 timeout = 15.seconds,
-                message = "device A's local Room pulled device B's completion",
+                message = "device A's local Room pulled device B's completion"
             ) {
                 val completions = database.habitCompletionDao()
                     .getCompletionsForHabitOnce(habitId)
@@ -114,13 +114,13 @@ class Test8MultiDeviceStreakSyncTest : SyncScenarioTestBase() {
                 "strictStreak must dedup same-day completions to 1 " +
                     "(got ${streak?.strictStreak})",
                 1,
-                streak?.strictStreak,
+                streak?.strictStreak
             )
             assertEquals(
                 "resilientStreak must dedup same-day completions to 1 " +
                     "(got ${streak?.resilientStreak})",
                 1,
-                streak?.resilientStreak,
+                streak?.resilientStreak
             )
         }
     }

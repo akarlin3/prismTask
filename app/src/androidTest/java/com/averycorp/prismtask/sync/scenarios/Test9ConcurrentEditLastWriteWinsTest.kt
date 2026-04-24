@@ -39,7 +39,7 @@ class Test9ConcurrentEditLastWriteWinsTest : SyncScenarioTestBase() {
             // 1. Create a task locally, push so it has a cloud_id.
             val taskId = taskRepository.addTask(
                 title = "lww-task",
-                description = "original",
+                description = "original"
             )
             syncService.pushLocalChanges()
             val cloudId = database.syncMetadataDao().getCloudId(taskId, "task")
@@ -57,7 +57,7 @@ class Test9ConcurrentEditLastWriteWinsTest : SyncScenarioTestBase() {
             assertEquals(
                 "Firestore should have A's edit after A's push",
                 "A",
-                harness.firestoreDoc("tasks", cloudId!!).getString("description"),
+                harness.firestoreDoc("tasks", cloudId!!).getString("description")
             )
 
             // 3. Device B writes to the SAME doc with description "B" and a
@@ -75,27 +75,27 @@ class Test9ConcurrentEditLastWriteWinsTest : SyncScenarioTestBase() {
                     "priority" to 0,
                     "isCompleted" to false,
                     "createdAt" to originalA.createdAt,
-                    "updatedAt" to bTimeMs,
-                ),
+                    "updatedAt" to bTimeMs
+                )
             )
 
             // Firestore has ONE doc (set-by-id overwrote the prior state).
             assertEquals(
                 "No duplicate doc — same cloud_id means set() overwrote",
                 1,
-                harness.firestoreCount("tasks"),
+                harness.firestoreCount("tasks")
             )
             assertEquals(
                 "Firestore doc now reflects B's write",
                 "B",
-                harness.firestoreDoc("tasks", cloudId).getString("description"),
+                harness.firestoreDoc("tasks", cloudId).getString("description")
             )
 
             // 4. Device A pulls. Local Room converges to B's content.
             syncService.pullRemoteChanges()
             harness.waitFor(
                 timeout = 15.seconds,
-                message = "local task row reflects B's description",
+                message = "local task row reflects B's description"
             ) {
                 database.taskDao().getTaskByIdOnce(taskId)?.description == "B"
             }
