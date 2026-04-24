@@ -33,10 +33,10 @@ REPO="${REPO:-akarlin3/prismTask}"
 BRANCH="${BRANCH:-main}"
 
 REQUIRED_CHECKS=(
-  "lint-and-test"      # Android CI
-  "connected-tests"    # Android Integration CI — matches PR label auto-apply
-  "test"               # Backend CI
-  "lint-and-test"      # Web CI (same job name; GitHub dedups by name within one required-checks array)
+  "lint-and-test"       # Android CI
+  "connected-tests"     # Android Integration CI — matches PR label auto-apply
+  "test"                # Backend CI
+  "web-lint-and-test"   # Web CI (renamed from lint-and-test to avoid collision with Android CI)
 )
 
 # Build the JSON payload. `strict: true` requires branches to be up-to-date

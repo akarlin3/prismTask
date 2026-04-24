@@ -25,7 +25,11 @@ permissions:
   actions: read          # capture-failure-log fetches job logs via API
 
 jobs:
-  lint-and-test:
+  # Renamed from `lint-and-test` to `web-lint-and-test` so the status-check
+  # context does not collide with Android CI's `lint-and-test` job; branch
+  # protection dedups shared names into a single requirement, which let a
+  # failing Android lint-and-test slip through if Web's passed (or vice versa).
+  web-lint-and-test:
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -38,7 +42,7 @@ jobs:
       - run: npm run build
 
   e2e:
-    needs: lint-and-test
+    needs: web-lint-and-test
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -75,7 +79,7 @@ jobs:
           retention-days: 7
 
   capture-failure-log:
-    needs: [lint-and-test, e2e]
+    needs: [web-lint-and-test, e2e]
     if: ${{ failure() }}
     uses: ./.github/workflows/capture-failure.yml
     with:
