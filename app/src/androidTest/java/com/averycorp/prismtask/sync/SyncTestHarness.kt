@@ -1,17 +1,7 @@
 package com.averycorp.prismtask.sync
 
-import android.content.Context
 import com.google.firebase.FirebaseApp
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.DocumentSnapshot
-import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.FirebaseFirestoreSettings
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.tasks.await
-import org.junit.Assert.fail
-import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.seconds
 
 /**
  * Harness for two-device sync scenarios running against a real Firebase
@@ -271,3 +261,4 @@ class SyncTestHarness private constructor(
         }
     }
 }
+
