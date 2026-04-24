@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Test infrastructure
+
+- **Sync tests CI — two-process harness + smoke tests (PR1 of 3).** New
+  `SyncTestHarness` in `app/src/androidTest/.../sync/` spins up a named
+  `"deviceB"` `FirebaseApp` alongside the default (device A) so two
+  independent Firestore/Auth clients point at the same Firebase Emulator
+  Suite — rather than booting two AVDs on one `ubuntu-latest` runner
+  (infeasible on memory budget). Both devices sign in as a fixed shared
+  test user (`sync-tests@prismtask.test`), so their writes land under the
+  same `users/{uid}/*` subtree — matching production's
+  "same Google account, two phones" topology. Harness primitives:
+  `signInBothDevicesAsSharedUser`, `setDeviceAOffline/Online` (via
+  `firestore.disableNetwork` on A only, so B's writes stay unblocked),
+  `writeAsDeviceB` / `deleteAsDeviceB`, `firestoreDoc` / `firestoreCount`,
+  `waitFor` (poll-until-true with timeout), and `cleanupFirestoreUser`.
+  Six `SyncTestHarnessSmokeTest` cases cover sign-in stability, B→A
+  write visibility, A-offline orthogonality, `waitFor` happy path +
+  timeout, and cleanup. Gated by `assumeTrue(BuildConfig.USE_FIREBASE_EMULATOR)`
+  so default debug builds skip — runs only under `android-integration.yml`
+  (PR #635). Lays the foundation for PR2's seven automated sync scenarios
+  (tests 7, 8, 9, 10, 11, 14 + 15 if Clock injection lands).
+
 ### Repo hygiene
 
 - Enabled branch protection on `main` via `scripts/setup-branch-protection.sh`
