@@ -27,6 +27,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   in any account are normalized on read with a console warning during
   the dev cleanup window.
 
+## [1.6.0] — 2026-04-24
+
+### Medication reminder mode — Web settings UI (PR4 of 4)
+
+- **Settings → Medication Reminders** (web) gains a Clock / Interval
+  picker + interval presets + custom-minutes field, mirroring Android.
+- **Persistent banner**: "Reminder delivery is currently Android-only.
+  Settings sync to Firestore so your phone picks them up. Web reminder
+  delivery will arrive with Web Push in a future release."
+- New Firestore client `web/src/api/firestore/medicationPreferences.ts`
+  reads/writes `users/{uid}/medication_preferences/global` with the
+  same camelCase keys Android consumes (`reminderModeDefault`,
+  `reminderIntervalDefaultMinutes`).
+- `MedicationSlotDef` extended with `reminder_mode` +
+  `reminder_interval_minutes` so per-slot overrides round-trip through
+  Firestore. Web slot editor will gain the per-slot picker UI in a
+  follow-up — for now the override is settable from Android only and
+  the web slot editor leaves existing values untouched.
+- Vitest coverage: 6 cases for the medication preferences read/write
+  path, including unknown-mode fallback and interval clamping.
+
 ### Medication reminder mode — Android UI (PR3 of 4)
 
 - **Settings → Notifications** gains a "Medication Reminders" subsection
