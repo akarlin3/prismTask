@@ -50,7 +50,7 @@ class Test8MultiDeviceStreakSyncTest : SyncScenarioTestBase() {
             // 1. Create a habit locally; push so it has a stable cloud_id
             //    device B can reference.
             val habitId = habitRepository.addHabit(
-                HabitEntity(name = "shared-streak-habit"),
+                HabitEntity(name = "shared-streak-habit")
             )
             val pushed = syncService.pushLocalChanges()
             assertEquals("Habit should have been pushed once", 1, pushed)
@@ -58,7 +58,7 @@ class Test8MultiDeviceStreakSyncTest : SyncScenarioTestBase() {
             val habitCloudId = database.syncMetadataDao().getCloudId(habitId, "habit")
             assertNotNull(
                 "Habit cloud_id must be populated after push",
-                habitCloudId,
+                habitCloudId
             )
 
             // 2. Device A self-completes. The HabitRepository insertion cap
@@ -69,7 +69,7 @@ class Test8MultiDeviceStreakSyncTest : SyncScenarioTestBase() {
             assertEquals(
                 "Device A's completion should be the only Firestore doc so far",
                 1,
-                harness.firestoreCount("habit_completions"),
+                harness.firestoreCount("habit_completions")
             )
 
             val deviceACompletionId = database.habitCompletionDao()
@@ -95,13 +95,13 @@ class Test8MultiDeviceStreakSyncTest : SyncScenarioTestBase() {
                     "completedDate" to nowMs,
                     "completedDateLocal" to localDate,
                     "completedAt" to nowMs,
-                    "notes" to null,
-                ),
+                    "notes" to null
+                )
             )
             assertEquals(
                 "Firestore should now carry both devices' completions",
                 2,
-                harness.firestoreCount("habit_completions"),
+                harness.firestoreCount("habit_completions")
             )
 
             // 4. Device A pulls. The pull-path natural-key dedup at
@@ -116,7 +116,7 @@ class Test8MultiDeviceStreakSyncTest : SyncScenarioTestBase() {
                 "Pull-path natural-key dedup keeps Room at 1 row even though " +
                     "Firestore has 2 completion docs for the same day",
                 1,
-                completions.size,
+                completions.size
             )
 
             // Both Firestore cloud_ids must now map to the single local
@@ -126,7 +126,7 @@ class Test8MultiDeviceStreakSyncTest : SyncScenarioTestBase() {
             assertEquals(
                 "Device B's cloud_id must map to A's local completion row",
                 deviceACompletionId,
-                metaDao.getLocalId(deviceBDocId, "habit_completion"),
+                metaDao.getLocalId(deviceBDocId, "habit_completion")
             )
 
             // 5. Streak reads 1 — same-day completions never produce a
@@ -137,13 +137,13 @@ class Test8MultiDeviceStreakSyncTest : SyncScenarioTestBase() {
                 "strictStreak must be 1 for one logical day's completion " +
                     "(got ${streak?.strictStreak})",
                 1,
-                streak?.strictStreak,
+                streak?.strictStreak
             )
             assertEquals(
                 "resilientStreak must be 1 for one logical day's completion " +
                     "(got ${streak?.resilientStreak})",
                 1,
-                streak?.resilientStreak,
+                streak?.resilientStreak
             )
         }
     }
