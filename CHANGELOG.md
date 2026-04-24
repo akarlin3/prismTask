@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Test infrastructure
 
+- **Sync tests CI — Tests 12 & 13 manual runbook (PR3 of 3, closes
+  sync-test matrix).** Docs-only addition
+  `docs/SYNC_TESTS_12_13_MANUAL.md` with a step-by-step human-operated
+  procedure for the two scenarios that can't be driven from adb:
+  sign-out/sign-in same user (Test 12) and sign-in as different user
+  (Test 13). Both depend on the Google OAuth Custom Tab flow — opaque
+  to UIAutomator, same limitation Phase A's S1–S5 sign-in tests ran
+  into. The runbook is ~15 minutes on two physical devices + two
+  Google accounts, scheduled for every Phase C RC build and once
+  during Phase B Wk 2. With this in place, the sync-test matrix
+  coverage becomes: automated in CI for Tests 7, 11, 14 (live) and
+  8, 9, 10, 15 (stubbed pending follow-up); manual runbook for 12, 13.
+
 - **Sync tests CI — scenarios 7, 11, 14 automated (PR2 of 3).** New
   `SyncScenarioTestBase` wraps the harness in a `@HiltAndroidTest` with
   injected `PrismTaskDatabase`, `SyncService`, `AuthManager`, and the
