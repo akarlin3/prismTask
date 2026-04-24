@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Fixed
+
+- **BREAKING (data integrity): SyncService.pushUpdate no longer silently
+  re-creates deleted Firestore docs.** Concurrent delete-then-edit now
+  resolves delete-wins per spec (was edit-wins). `pushUpdate` was calling
+  `docRef.set(data).await()` — bare `set` with no merge and no precheck —
+  so an offline device's queued update of a row another device had since
+  deleted would resurrect the doc on `.set()` (Firestore's `set()` on a
+  non-existent path silently creates). Users on two devices with flaky
+  network were losing legitimate deletions without any visible signal.
+  `pushUpdate` now calls `docRef.update(data).await()`, catches
+  `FirebaseFirestoreException` with code `NOT_FOUND` /
+  `FAILED_PRECONDITION`, and routes the orphan row through
+  [SyncService.processRemoteDeletions] — hard-delete the local row and
+  clear its `sync_metadata`. Sync Test 10 (`@Ignore` in PR #751) is now
+  `@Test` and passes; CloudIdOrphanHealer's wipe-recovery behavior
+  changes from silent re-creation to orphan cleanup (the re-creation
+  path was riding the same bug and silently undoing other users'
+  deletes — not the intended behavior). Explicit "restore from local
+  snapshot" is a separate feature if ever needed.
+
 ### Test infrastructure
 
 - **Sync tests CI — Tests 12 & 13 manual runbook (PR3 of 3, closes

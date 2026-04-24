@@ -285,6 +285,17 @@ class CloudIdOrphanHealerTwoDeviceTest {
          * pending-update queue and executing it against Firestore:
          * each doc is `set()` at its cloud_id (added to the simulated
          * collection) and its pending action is cleared.
+         *
+         * **Note:** this stub models the pre-2026-04-24 `pushUpdate`
+         * behavior (bare `set()` that unconditionally creates the doc).
+         * After the delete-wins fix, real `SyncService.pushUpdate` uses
+         * `docRef.update(data)` and catches NOT_FOUND, routing orphan
+         * rows through cleanup instead of re-creating them. The
+         * Firebase-emulator-backed `Test10ConcurrentDeleteTest` exercises
+         * the new behavior end-to-end; this in-process harness still
+         * asserts the simulated-re-create path for the healer's enqueue
+         * logic specifically (its scope is "healer identifies orphans
+         * correctly," not "pushUpdate conflict resolution").
          */
         suspend fun simulatePushForPending(entityType: String) {
             val metaDao = database.syncMetadataDao()
