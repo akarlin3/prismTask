@@ -1,6 +1,17 @@
 package com.averycorp.prismtask.sync
 
+import android.content.Context
 import com.google.firebase.FirebaseApp
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.DocumentSnapshot
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.FirebaseFirestoreSettings
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.tasks.await
+import org.junit.Assert.fail
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * Harness for two-device sync scenarios running against a real Firebase
@@ -22,7 +33,7 @@ import com.google.firebase.FirebaseApp
  *    through the app's repositories.
  *
  * Both devices sign in as the same fixed test user so their writes land
- * under the same `users/{uid}/*` subtree — matching production's
+ * under the same `users/{uid}/...` subtree — matching production's
  * "same Google account across two phones" topology.
  *
  * The harness does **not** own Room or Hilt; a scenario test base class
@@ -64,7 +75,7 @@ class SyncTestHarness private constructor(
      * run in the same emulator session), we sign in instead of creating.
      *
      * After this returns, [userId] is populated and Firestore writes
-     * from either device land under `users/{userId}/*`.
+     * from either device land under `users/{userId}/...`.
      */
     suspend fun signInBothDevicesAsSharedUser(
         email: String = FIXED_EMAIL,
@@ -156,7 +167,7 @@ class SyncTestHarness private constructor(
     }
 
     /**
-     * Delete every doc under `users/{userId}/*` for the subcollections the
+     * Delete every doc under `users/{userId}/...` for the subcollections the
      * harness knows about. Run in @After to keep repeated runs from piling
      * up state in the emulator's in-memory Firestore. Safe to call before
      * sign-in is complete (no-op).
