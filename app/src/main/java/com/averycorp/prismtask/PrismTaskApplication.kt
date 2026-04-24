@@ -14,6 +14,7 @@ import com.averycorp.prismtask.data.remote.MedicationMigrationRunner
 import com.averycorp.prismtask.data.repository.LeisureRepository
 import com.averycorp.prismtask.data.repository.SchoolworkRepository
 import com.averycorp.prismtask.data.seed.TemplateSeeder
+import com.averycorp.prismtask.notifications.MedicationIntervalRescheduler
 import com.averycorp.prismtask.notifications.NotificationWorkerScheduler
 import com.averycorp.prismtask.workers.AutoArchiveWorker
 import com.averycorp.prismtask.workers.CalendarSyncScheduler
@@ -65,6 +66,9 @@ class PrismTaskApplication :
     @Inject
     lateinit var notificationWorkerScheduler: NotificationWorkerScheduler
 
+    @Inject
+    lateinit var medicationIntervalRescheduler: MedicationIntervalRescheduler
+
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private companion object {
@@ -104,6 +108,7 @@ class PrismTaskApplication :
             runDriftCleanup()
             runLifeCategoryBackfill()
             runMedicationMigrationPasses()
+            startMedicationIntervalRescheduler()
         } catch (e: Exception) {
             android.util.Log.e("PrismTaskApp", "Seeding kickoff failed", e)
             try {
@@ -316,6 +321,25 @@ class PrismTaskApplication :
                 android.util.Log.e("PrismTaskApp", "Calendar sync scheduling failed", e)
             }
         }
+    }
+
+    /**
+     * Wires the medication-interval rescheduler's reactive Flow observer
+     * (PR2 of the v1.6.0 reminder-mode track). Every dose change — real,
+     * synthetic-skip, or pulled from sync — triggers a reschedule pass
+     * that re-anchors all INTERVAL-mode slot/medication alarms at
+     * `mostRecentDose.takenAt + intervalMinutes`. Also runs an initial
+     * pass at startup so alarms exist before the user touches anything.
+     */
+    private fun startMedicationIntervalRescheduler() {
+        appScope.launch {
+            try {
+                medicationIntervalRescheduler.rescheduleAll()
+            } catch (e: Exception) {
+                android.util.Log.e("PrismTaskApp", "Initial interval reschedule failed", e)
+            }
+        }
+        medicationIntervalRescheduler.start(appScope)
     }
 
     private fun scheduleAutoArchive() {

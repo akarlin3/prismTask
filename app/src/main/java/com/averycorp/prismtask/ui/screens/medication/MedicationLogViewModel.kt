@@ -33,7 +33,9 @@ constructor(
         repository.observeAllDoses()
     ) { meds, doses ->
         val medsById = meds.associateBy { it.id }
+        // Synthetic-skip rows are scheduling anchors only — never user history.
         doses
+            .filterNot { it.isSyntheticSkip }
             .groupBy { it.takenDateLocal }
             .map { (date, dosesForDate) ->
                 MedicationLogDay(

@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Medication reminder mode — reactive scheduler (PR2 of 4)
+
+- **`MedicationReminderModeResolver`** — pure precedence function for the
+  three-level chain (medication → slot → global). Unknown enum strings
+  are treated as "inherit." Interval minutes always clamped to
+  `[60, 1440]`; an INTERVAL resolution missing a value at every level
+  falls back to the global default.
+- **Synthetic-skip doses.** `MedicationViewModel.setSkippedForSlot` now
+  inserts a `medication_doses` row per affected medication with
+  `is_synthetic_skip=true` so the interval rescheduler re-anchors when
+  the user explicitly skips a slot. `MedicationLogViewModel` filters
+  synthetic rows out of the log UI — they exist only as scheduling
+  anchors.
+- **`MedicationRepository.logSyntheticSkipDose`** — repository surface
+  used by SKIPPED. Sync-tracked like a normal dose so the anchor flows
+  to other devices.
+- **`MedicationIntervalRescheduler`** — owns AlarmManager registrations
+  for INTERVAL-mode slots and per-medication INTERVAL overrides. Uses
+  request-code namespace `+500_000` (slots) / `+600_000` (med
+  overrides), distinct from the existing `+400_000` per-medication
+  scheduler (which still owns CLOCK-mode alarms unchanged). Walks all
+  active slots + active medications, resolves mode, computes next
+  trigger as `anchor.takenAt + intervalMinutes` (clamped to `now + 1s`),
+  cancels prior alarms, enqueues fresh exact alarms via
+  `ExactAlarmHelper`. Bootstrap: with no doses yet, fires one interval
+  from now.
+- **Reactive Flow observer.** `MedicationIntervalRescheduler.start()`
+  observes `MedicationDoseDao.observeMostRecentDoseAny()` and runs
+  `rescheduleAll()` on every emission. Wired from
+  `PrismTaskApplication.onCreate()`. `BootReceiver` also calls
+  `rescheduleAll()` on `BOOT_COMPLETED`.
+
 ### Medication reminder mode — schema (PR1 of 4)
 
 - **DB v60 → v61.** Adds `reminder_mode` (TEXT, nullable) and

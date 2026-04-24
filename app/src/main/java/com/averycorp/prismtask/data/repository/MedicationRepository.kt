@@ -116,6 +116,38 @@ constructor(
         return id
     }
 
+    /**
+     * Insert a synthetic-skip dose. The interval-mode reminder rescheduler
+     * uses every dose row — including these synthetic ones — as a re-anchor
+     * point, so that marking a slot SKIPPED still resets the interval clock.
+     * UI dose history filters these out via [MedicationDoseEntity.isSyntheticSkip].
+     *
+     * Called from the SKIPPED tier-state path in the medication ViewModel
+     * once per (medication, slot) covered by the SKIPPED action.
+     */
+    suspend fun logSyntheticSkipDose(
+        medicationId: Long,
+        slotKey: String,
+        intendedAt: Long = System.currentTimeMillis()
+    ): Long {
+        val dayStartHour = taskBehaviorPreferences.getDayStartHour().first()
+        val dateLocal = DayBoundary.currentLocalDateString(dayStartHour, intendedAt)
+        val now = System.currentTimeMillis()
+        val dose = MedicationDoseEntity(
+            medicationId = medicationId,
+            slotKey = slotKey,
+            takenAt = intendedAt,
+            takenDateLocal = dateLocal,
+            note = "",
+            isSyntheticSkip = true,
+            createdAt = now,
+            updatedAt = now
+        )
+        val id = medicationDoseDao.insert(dose)
+        syncTracker.trackCreate(id, "medication_dose")
+        return id
+    }
+
     suspend fun unlogDose(dose: MedicationDoseEntity) {
         medicationDoseDao.delete(dose)
         syncTracker.trackDelete(dose.id, "medication_dose")
