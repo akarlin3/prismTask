@@ -24,6 +24,28 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
 /**
+ * Tri-state reminder-mode selection for the slot editor:
+ *  - [INHERIT] persists as `reminder_mode = NULL` and lets the user's
+ *    global default win.
+ *  - [CLOCK] / [INTERVAL] persist as the literal column value and override
+ *    the global default. Per-medication overrides (when shipped) take
+ *    precedence over both.
+ */
+internal enum class SlotReminderModeChoice { INHERIT, CLOCK, INTERVAL }
+
+internal fun reminderModeStringToChoice(raw: String?): SlotReminderModeChoice = when (raw) {
+    "CLOCK" -> SlotReminderModeChoice.CLOCK
+    "INTERVAL" -> SlotReminderModeChoice.INTERVAL
+    else -> SlotReminderModeChoice.INHERIT
+}
+
+internal fun choiceToReminderModeString(choice: SlotReminderModeChoice): String? = when (choice) {
+    SlotReminderModeChoice.INHERIT -> null
+    SlotReminderModeChoice.CLOCK -> "CLOCK"
+    SlotReminderModeChoice.INTERVAL -> "INTERVAL"
+}
+
+/**
  * Inline editor used by `MedicationSlotsScreen` for both create and edit.
  * Shared because the two flows have identical fields and validation; only
  * the dialog title and the "save / create" button label differ.
@@ -43,7 +65,16 @@ internal fun MedicationSlotEditorSheet(
     initialDriftMinutes: Int,
     confirmLabel: String,
     onDismiss: () -> Unit,
-    onConfirm: (name: String, idealTime: String, driftMinutes: Int) -> Unit
+    onConfirm: (
+        name: String,
+        idealTime: String,
+        driftMinutes: Int,
+        reminderMode: String?,
+        reminderIntervalMinutes: Int?
+    ) -> Unit,
+    initialReminderMode: String? = null,
+    initialReminderIntervalMinutes: Int? = null,
+    globalDefaultModeLabel: String = "Clock"
 ) {
     var name by remember { mutableStateOf(initialName) }
     var idealTime by remember { mutableStateOf(initialIdealTime) }
@@ -51,6 +82,17 @@ internal fun MedicationSlotEditorSheet(
     var customDriftText by remember(driftMinutes) {
         mutableStateOf(driftMinutes.toString())
     }
+    var reminderModeChoice by remember {
+        mutableStateOf(reminderModeStringToChoice(initialReminderMode))
+    }
+    var intervalMinutes by remember {
+        mutableStateOf(initialReminderIntervalMinutes ?: 240)
+    }
+    var customIntervalText by remember(intervalMinutes) {
+        mutableStateOf(intervalMinutes.toString())
+    }
+    val intervalPresets = listOf(120, 240, 360, 480) // 2h / 4h / 6h / 8h
+    val isCustomInterval = intervalMinutes !in intervalPresets
     val driftPresets = listOf(30, 60, 120, 180)
     val isCustomDrift = driftMinutes !in driftPresets
 
@@ -136,11 +178,107 @@ internal fun MedicationSlotEditorSheet(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Reminder Mode",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
+                    ReminderModeChip(
+                        label = "Default",
+                        selected = reminderModeChoice == SlotReminderModeChoice.INHERIT,
+                        onClick = { reminderModeChoice = SlotReminderModeChoice.INHERIT }
+                    )
+                    ReminderModeChip(
+                        label = "Clock",
+                        selected = reminderModeChoice == SlotReminderModeChoice.CLOCK,
+                        onClick = { reminderModeChoice = SlotReminderModeChoice.CLOCK }
+                    )
+                    ReminderModeChip(
+                        label = "Interval",
+                        selected = reminderModeChoice == SlotReminderModeChoice.INTERVAL,
+                        onClick = { reminderModeChoice = SlotReminderModeChoice.INTERVAL }
+                    )
+                }
+                Text(
+                    text = when (reminderModeChoice) {
+                        SlotReminderModeChoice.INHERIT ->
+                            "Uses the app default ($globalDefaultModeLabel)."
+                        SlotReminderModeChoice.CLOCK ->
+                            "Reminder fires at $idealTime."
+                        SlotReminderModeChoice.INTERVAL ->
+                            "Reminder fires ${formatInterval(intervalMinutes)} after the most recent dose."
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                if (reminderModeChoice == SlotReminderModeChoice.INTERVAL) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        intervalPresets.forEach { mins ->
+                            val selected = !isCustomInterval && intervalMinutes == mins
+                            AssistChip(
+                                onClick = { intervalMinutes = mins },
+                                label = { Text(formatInterval(mins)) },
+                                colors = if (selected) {
+                                    AssistChipDefaults.assistChipColors(
+                                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                        labelColor = MaterialTheme.colorScheme.onPrimaryContainer
+                                    )
+                                } else {
+                                    AssistChipDefaults.assistChipColors()
+                                }
+                            )
+                        }
+                        AssistChip(
+                            onClick = {
+                                if (!isCustomInterval) {
+                                    intervalMinutes = (intervalMinutes + 1).coerceIn(60, 1440)
+                                    customIntervalText = intervalMinutes.toString()
+                                }
+                            },
+                            label = { Text("Custom") },
+                            colors = if (isCustomInterval) {
+                                AssistChipDefaults.assistChipColors(
+                                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                    labelColor = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            } else {
+                                AssistChipDefaults.assistChipColors()
+                            }
+                        )
+                    }
+                    if (isCustomInterval) {
+                        OutlinedTextField(
+                            value = customIntervalText,
+                            onValueChange = { raw ->
+                                customIntervalText = raw.filter { it.isDigit() }.take(4)
+                                customIntervalText.toIntOrNull()?.let { mins ->
+                                    intervalMinutes = mins.coerceIn(60, 1440)
+                                }
+                            },
+                            label = { Text("Custom interval (minutes, 60–1440)") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
             }
         },
         confirmButton = {
             Button(
-                onClick = { onConfirm(name.trim(), idealTime, driftMinutes) },
+                onClick = {
+                    onConfirm(
+                        name.trim(),
+                        idealTime,
+                        driftMinutes,
+                        choiceToReminderModeString(reminderModeChoice),
+                        if (reminderModeChoice == SlotReminderModeChoice.INTERVAL) intervalMinutes else null
+                    )
+                },
                 enabled = name.isNotBlank() && isValidHhMm(idealTime) && driftMinutes >= 1,
                 shape = RoundedCornerShape(8.dp)
             ) {
@@ -154,6 +292,27 @@ internal fun MedicationSlotEditorSheet(
 }
 
 private fun formatDrift(mins: Int): String = "±${mins}m"
+
+@Composable
+private fun ReminderModeChip(label: String, selected: Boolean, onClick: () -> Unit) {
+    AssistChip(
+        onClick = onClick,
+        label = { Text(label) },
+        colors = if (selected) {
+            AssistChipDefaults.assistChipColors(
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                labelColor = MaterialTheme.colorScheme.onPrimaryContainer
+            )
+        } else {
+            AssistChipDefaults.assistChipColors()
+        }
+    )
+}
+
+private fun formatInterval(mins: Int): String = when {
+    mins % 60 == 0 -> "${mins / 60}h"
+    else -> "${mins}m"
+}
 
 private fun isValidHhMm(value: String): Boolean {
     val parts = value.split(":")

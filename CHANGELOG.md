@@ -27,6 +27,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   in any account are normalized on read with a console warning during
   the dev cleanup window.
 
+### Medication reminder mode — Android UI (PR3 of 4)
+
+- **Settings → Notifications** gains a "Medication Reminders" subsection
+  with a Clock / Interval radio for the global default. When INTERVAL is
+  picked the section reveals a presets row (2h / 4h / 6h / 8h) plus a
+  custom-minutes field clamped to 60..1440. Saving rewires alarms via
+  `MedicationIntervalRescheduler.rescheduleAll()` immediately.
+- **Settings → Medication Slots → Slot editor** gains a per-slot
+  "Reminder Mode: Default / Clock / Interval" picker plus the same
+  interval picker (visible only when Interval is selected). Saving
+  passes the resolved `reminder_mode` and `reminder_interval_minutes`
+  through to `MedicationSlotsViewModel.create / update`.
+- Resolved-mode hint text on every editor explains the cascade ("Uses
+  the app default (Clock)", "Reminder fires at 09:00",
+  "Reminder fires every 4h after the most recent dose").
+- Per-medication overrides deferred to a follow-up — touches multiple
+  pickers and dialogs and is independent of the slot+global UI.
+
 ### Medication reminder mode — reactive scheduler (PR2 of 4)
 
 - **`MedicationReminderModeResolver`** — pure precedence function for the

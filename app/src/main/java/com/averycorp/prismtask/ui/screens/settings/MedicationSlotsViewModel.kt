@@ -31,7 +31,13 @@ constructor(
             initialValue = emptyList()
         )
 
-    fun create(name: String, idealTime: String, driftMinutes: Int) {
+    fun create(
+        name: String,
+        idealTime: String,
+        driftMinutes: Int,
+        reminderMode: String? = null,
+        reminderIntervalMinutes: Int? = null
+    ) {
         if (name.isBlank() || idealTime.isBlank()) return
         viewModelScope.launch {
             val current = repository.getAllSlotsOnce()
@@ -42,20 +48,31 @@ constructor(
                     idealTime = idealTime,
                     driftMinutes = driftMinutes,
                     sortOrder = nextOrder,
-                    isActive = true
+                    isActive = true,
+                    reminderMode = reminderMode,
+                    reminderIntervalMinutes = reminderIntervalMinutes
                 )
             )
         }
     }
 
-    fun update(slot: MedicationSlotEntity, name: String, idealTime: String, driftMinutes: Int) {
+    fun update(
+        slot: MedicationSlotEntity,
+        name: String,
+        idealTime: String,
+        driftMinutes: Int,
+        reminderMode: String? = null,
+        reminderIntervalMinutes: Int? = null
+    ) {
         if (name.isBlank() || idealTime.isBlank()) return
         viewModelScope.launch {
             repository.updateSlot(
                 slot.copy(
                     name = name.trim(),
                     idealTime = idealTime,
-                    driftMinutes = driftMinutes
+                    driftMinutes = driftMinutes,
+                    reminderMode = reminderMode,
+                    reminderIntervalMinutes = reminderIntervalMinutes
                 )
             )
         }
