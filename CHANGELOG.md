@@ -37,6 +37,94 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Checkpoint 1: medication entities sync through the backend in
   parallel to Firestore so the audit log captures every write.
 
+### CI
+
+- **Autofix workflow no longer skips required check re-runs.** The
+  `style: auto-format` commit produced by `android-ci.yml`'s autofix job
+  no longer carries `[skip ci]`. The token was preventing every workflow
+  — including the four required checks in branch protection
+  (`lint-and-test`, `connected-tests`, backend `test`,
+  `web-lint-and-test`) — from running on the autofix commit, so PR head
+  SHAs were left with pending required statuses forever and had to be
+  admin-merged (three sync-test PRs: #749, #751, #753). Auto-merge's
+  `sender.type != 'Bot'` filter already skips synchronize events from
+  the bot's push, so removing `[skip ci]` does not introduce auto-merge
+  loops. Cost: one extra android-ci cycle per autofix push, where the
+  autofix job finds nothing to commit and only the fast ktlint/detekt
+  steps run.
+
+### Fixed
+
+- **BREAKING (data integrity): SyncService.pushUpdate no longer silently
+  re-creates deleted Firestore docs.** Concurrent delete-then-edit now
+  resolves delete-wins per spec (was edit-wins). `pushUpdate` was calling
+  `docRef.set(data).await()` — bare `set` with no merge and no precheck —
+  so an offline device's queued update of a row another device had since
+  deleted would resurrect the doc on `.set()` (Firestore's `set()` on a
+  non-existent path silently creates). Users on two devices with flaky
+  network were losing legitimate deletions without any visible signal.
+  `pushUpdate` now calls `docRef.update(data).await()`, catches
+  `FirebaseFirestoreException` with code `NOT_FOUND` /
+  `FAILED_PRECONDITION`, and routes the orphan row through
+  [SyncService.processRemoteDeletions] — hard-delete the local row and
+  clear its `sync_metadata`. Sync Test 10 (`@Ignore` in PR #751) is now
+  `@Test` and passes; CloudIdOrphanHealer's wipe-recovery behavior
+  changes from silent re-creation to orphan cleanup (the re-creation
+  path was riding the same bug and silently undoing other users'
+  deletes — not the intended behavior). Explicit "restore from local
+  snapshot" is a separate feature if ever needed.
+
+### Test infrastructure
+
+- **Sync tests CI — Tests 12 & 13 manual runbook (PR3 of 3, closes
+  sync-test matrix).** Docs-only addition
+  `docs/SYNC_TESTS_12_13_MANUAL.md` with a step-by-step human-operated
+  procedure for the two scenarios that can't be driven from adb:
+  sign-out/sign-in same user (Test 12) and sign-in as different user
+  (Test 13). Both depend on the Google OAuth Custom Tab flow — opaque
+  to UIAutomator, same limitation Phase A's S1–S5 sign-in tests ran
+  into. The runbook is ~15 minutes on two physical devices + two
+  Google accounts, scheduled for every Phase C RC build and once
+  during Phase B Wk 2. With this in place, the sync-test matrix
+  coverage becomes: automated in CI for Tests 7, 11, 14 (live) and
+  8, 9, 10, 15 (stubbed pending follow-up); manual runbook for 12, 13.
+
+- **Sync tests CI — scenarios 7, 11, 14 automated (PR2 of 3).** New
+  `SyncScenarioTestBase` wraps the harness in a `@HiltAndroidTest` with
+  injected `PrismTaskDatabase`, `SyncService`, `AuthManager`, and the
+  task/habit/project repositories so scenarios can drive the real
+  production sync pipeline end-to-end against the Firebase Emulator
+  Suite. Three live scenarios land this PR: **Test 7** (offline edit
+  then reconnect — three mutations converge on push), **Test 11**
+  (offline during remote write — local pulls device B's task on
+  reconnect), and **Test 14** (rapid create/delete leaves no Firestore
+  orphan, with a round-trip variant for create-push-delete-push). Tests
+  8/9/10 (streak dedup, last-write-wins, delete-vs-edit conflict) land
+  as `@Ignore`d stubs with implementation notes pending
+  SyncMapper/SyncService deep-dive — per PR2's scope guardrail
+  ("do not modify production sync code to make tests pass"), surfacing
+  what those tests need rather than coding them blind.
+
+- **Sync tests CI — two-process harness + smoke tests (PR1 of 3).** New
+  `SyncTestHarness` in `app/src/androidTest/.../sync/` spins up a named
+  `"deviceB"` `FirebaseApp` alongside the default (device A) so two
+  independent Firestore/Auth clients point at the same Firebase Emulator
+  Suite — rather than booting two AVDs on one `ubuntu-latest` runner
+  (infeasible on memory budget). Both devices sign in as a fixed shared
+  test user (`sync-tests@prismtask.test`), so their writes land under the
+  same `users/{uid}/*` subtree — matching production's
+  "same Google account, two phones" topology. Harness primitives:
+  `signInBothDevicesAsSharedUser`, `setDeviceAOffline/Online` (via
+  `firestore.disableNetwork` on A only, so B's writes stay unblocked),
+  `writeAsDeviceB` / `deleteAsDeviceB`, `firestoreDoc` / `firestoreCount`,
+  `waitFor` (poll-until-true with timeout), and `cleanupFirestoreUser`.
+  Six `SyncTestHarnessSmokeTest` cases cover sign-in stability, B→A
+  write visibility, A-offline orthogonality, `waitFor` happy path +
+  timeout, and cleanup. Gated by `assumeTrue(BuildConfig.USE_FIREBASE_EMULATOR)`
+  so default debug builds skip — runs only under `android-integration.yml`
+  (PR #635). Lays the foundation for PR2's seven automated sync scenarios
+  (tests 7, 8, 9, 10, 11, 14 + 15 if Clock injection lands).
+
 ### Repo hygiene
 
 - Enabled branch protection on `main` via `scripts/setup-branch-protection.sh`

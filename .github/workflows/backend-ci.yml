@@ -6,11 +6,13 @@ on:
     paths:
       - 'backend/**'
       - '.github/workflows/backend-ci.yml'
+  # Pull-request trigger is intentionally unfiltered: branch protection
+  # requires the `test` status to post, so the workflow must run on every
+  # PR even if no backend code changed. Relevance is re-checked inside
+  # the job via dorny/paths-filter — irrelevant PRs short-circuit within
+  # a few seconds rather than booting Postgres + installing deps.
   pull_request:
     branches: [main]
-    paths:
-      - 'backend/**'
-      - '.github/workflows/backend-ci.yml'
   workflow_dispatch:
 
 concurrency:
@@ -24,6 +26,9 @@ permissions:
 
 jobs:
   test:
+    # Required status check for branch protection: must post even on PRs
+    # that don't touch `backend/**`. Postgres service + pytest only run
+    # when `relevance.outputs.backend` is true.
     runs-on: ubuntu-latest
 
     services:
@@ -54,8 +59,19 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: relevance
+        with:
+          filters: |
+            backend:
+              - 'backend/**'
+              - '.github/workflows/backend-ci.yml'
+      - name: Short-circuit (no backend changes)
+        if: steps.relevance.outputs.backend != 'true'
+        run: echo "✓ No backend paths changed; test job is a no-op."
 
       - name: Set up Python 3.11
+        if: steps.relevance.outputs.backend == 'true'
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
@@ -63,25 +79,29 @@ jobs:
           cache-dependency-path: backend/requirements.txt
 
       - name: Install dependencies
+        if: steps.relevance.outputs.backend == 'true'
         run: pip install -r requirements.txt
 
       - name: Lint with ruff
+        if: steps.relevance.outputs.backend == 'true'
         run: ruff check app/ tests/
 
       - name: Run Alembic migrations
+        if: steps.relevance.outputs.backend == 'true'
         run: alembic upgrade head
 
       - name: Run tests
         # `-x` stops at the first failure, but we still emit a JUnit XML so the
         # verify step below has something to inspect. `--junitxml` writes one
         # report per pytest invocation regardless of pass/fail.
+        if: steps.relevance.outputs.backend == 'true'
         run: pytest tests/ -x --tb=short -q --junitxml=junit.xml
 
       - name: Verify unit-test results (XML)
         # Belt-and-suspenders: even if pytest's exit code somehow ends up zero,
         # a <testsuite> reporting non-zero `failures` or `errors` fails the
         # step. Also fails fast if the XML wasn't produced (pytest never ran).
-        if: always()
+        if: always() && steps.relevance.outputs.backend == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -107,7 +127,7 @@ jobs:
           echo "All ${#xmls[@]} JUnit XML reports clean."
 
       - name: Upload test results
-        if: always()
+        if: always() && steps.relevance.outputs.backend == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: backend-test-results

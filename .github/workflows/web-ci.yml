@@ -7,12 +7,12 @@ on:
       - 'web/**'
       - '.github/workflows/web-ci.yml'
       - '.github/actions/setup-node-web/**'
+  # Pull-request trigger is intentionally unfiltered: branch protection
+  # requires the `web-lint-and-test` status to post, so the workflow must
+  # run on every PR even if no web code changed. Relevance is re-checked
+  # inside the job — irrelevant PRs short-circuit within seconds.
   pull_request:
     branches: [main]
-    paths:
-      - 'web/**'
-      - '.github/workflows/web-ci.yml'
-      - '.github/actions/setup-node-web/**'
   workflow_dispatch:
 
 concurrency:
@@ -29,6 +29,9 @@ jobs:
   # context does not collide with Android CI's `lint-and-test` job; branch
   # protection dedups shared names into a single requirement, which let a
   # failing Android lint-and-test slip through if Web's passed (or vice versa).
+  #
+  # Required status check — must post on every PR, so real work is gated
+  # on `steps.relevance.outputs.web` rather than a workflow-level path filter.
   web-lint-and-test:
     runs-on: ubuntu-latest
     defaults:
@@ -36,22 +39,54 @@ jobs:
         working-directory: web
     steps:
       - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: relevance
+        with:
+          filters: |
+            web:
+              - 'web/**'
+              - '.github/workflows/web-ci.yml'
+              - '.github/actions/setup-node-web/**'
+      - name: Short-circuit (no web changes)
+        if: steps.relevance.outputs.web != 'true'
+        run: echo "✓ No web paths changed; web-lint-and-test is a no-op."
       - uses: ./.github/actions/setup-node-web
+        if: steps.relevance.outputs.web == 'true'
       - run: npm run lint
+        if: steps.relevance.outputs.web == 'true'
       - run: npm run test:run
+        if: steps.relevance.outputs.web == 'true'
       - run: npm run build
+        if: steps.relevance.outputs.web == 'true'
 
   e2e:
     needs: web-lint-and-test
+    # e2e is not a required status check; skip entirely when web paths
+    # didn't change so we don't spin up a Playwright runner for nothing.
+    # Uses the same `paths-filter` check inline (needs outputs can't
+    # propagate conveniently).
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: web
     steps:
       - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: relevance
+        with:
+          filters: |
+            web:
+              - 'web/**'
+              - '.github/workflows/web-ci.yml'
+              - '.github/actions/setup-node-web/**'
+      - name: Short-circuit (no web changes)
+        if: steps.relevance.outputs.web != 'true'
+        run: echo "✓ No web paths changed; e2e is a no-op."
       - uses: ./.github/actions/setup-node-web
+        if: steps.relevance.outputs.web == 'true'
 
       - name: Cache Playwright browsers
+        if: steps.relevance.outputs.web == 'true'
         uses: actions/cache@v4
         id: playwright-cache
         with:
@@ -60,18 +95,19 @@ jobs:
           key: playwright-chromium-${{ hashFiles('web/package-lock.json') }}
 
       - name: Install Playwright Chromium
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        if: steps.relevance.outputs.web == 'true' && steps.playwright-cache.outputs.cache-hit != 'true'
         run: npx playwright install --with-deps chromium
 
       - name: Install Chromium system deps (cache hit path)
-        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        if: steps.relevance.outputs.web == 'true' && steps.playwright-cache.outputs.cache-hit == 'true'
         run: npx playwright install-deps chromium
 
       - name: Run Playwright tests
+        if: steps.relevance.outputs.web == 'true'
         run: npx playwright test
 
       - name: Upload Playwright report
-        if: failure()
+        if: failure() && steps.relevance.outputs.web == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report
