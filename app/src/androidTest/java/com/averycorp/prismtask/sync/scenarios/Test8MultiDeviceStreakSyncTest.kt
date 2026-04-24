@@ -7,41 +7,60 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * Test 8 — Multi-device streak sync.
+ * Test 8 — Multi-device same-day habit completions dedup in the streak.
  *
- * Scenario: device A and device B both complete the same habit on the
- * same calendar day. After both completions propagate, the habit's
- * streak should show +1 on both (not +2) — same-day completions must
- * dedup in the streak calculation.
+ * **CURRENT STATUS:** `@Ignore`d — first CI run showed `pullRemoteChanges()`
+ * does NOT pick up a `habit_completion` doc written directly to Firestore
+ * by device B within 15 s. Local Room had 1 completion (A's own) where
+ * the test expected 2 (A's + B's pulled). Cause TBD; most likely either
+ * the field-shape assumption is wrong (SyncMapper's
+ * `mapToHabitCompletion` reads different keys than
+ * `habitCompletionToMap` writes, or vice versa) or the pull-collection
+ * pipeline filters/skips records that don't match an expected cursor.
  *
- * Implementation notes (for the PR that turns on the `@Ignore`):
- *  1. addHabit + push so the habit has a cloud_id both devices can
- *     reference.
- *  2. completeHabit(habitId, today) locally + push.
- *  3. harness.writeAsDeviceB("habit_completions", ..., mapOf(
- *        "habit_id" to habitCloudId,
- *        "completed_date_local" to <today's local-date string per
- *           DayBoundary>,
- *        "created_at" to now
- *     )) — the exact field shape lives in SyncMapper.habitCompletionToMap().
- *  4. syncService.pullRemoteChanges() on A.
- *  5. Assert habitRepository.getResilientStreak(habitId)?.currentStreak == 1
- *     (not 2).
+ * **SPEC:** device A and device B both complete the same habit on the
+ * same calendar day. After both completions land and A pulls, the
+ * habit's streak must show 1, not 2 — same-day completions dedup in
+ * StreakCalculator regardless of how many rows Room holds.
  *
- * Left as `@Ignore` for PR2: needs the exact SyncMapper field names for
- * habit_completion (the completed_date_local backfill migration v50
- * added the column, so the shape is non-trivial) and confirmation that
- * same-day dedup happens in StreakCalculator (vs. at DAO-insert time).
- * Both details deserve a focused pass with the production code open
- * rather than coded blind.
+ * **Implementation sketch** (for the PR that turns on the `@Ignore`):
+ *
+ *  1. `habitRepository.addHabit(HabitEntity(name = "shared-streak-habit"))`
+ *     + `syncService.pushLocalChanges()` → grab
+ *     `database.syncMetadataDao().getCloudId(habitId, "habit")`.
+ *  2. Device A self-completes: `habitRepository.completeHabit(habitId, nowMs)`
+ *     + push. Firestore now has 1 `habit_completion` doc.
+ *  3. `harness.writeAsDeviceB("habit_completions", "deviceB-completion-$nowMs",
+ *     mapOf(...))` — the field shape to use is documented in
+ *     `SyncMapper.habitCompletionToMap` at `SyncMapper.kt:291-326`:
+ *     `localId`, `habitCloudId`, `completedDate`, `completedDateLocal`
+ *     (ISO yyyy-MM-dd string), `completedAt`, `notes`.
+ *  4. `syncService.pullRemoteChanges()`. **This is where the current
+ *     failure surfaced** — A's local DB never acquired B's row within
+ *     15 s.
+ *  5. Assert `habitRepository.getResilientStreak(habitId)?.strictStreak == 1`
+ *     and `?.resilientStreak == 1`.
+ *
+ * **Next-session TODO for the pull-path mystery:** read
+ * `SyncService.pullCollection` for the habit_completion path and
+ * `SyncMapper.mapToHabitCompletion` side-by-side. If the field names
+ * differ, the map in step 3 needs rewriting. Also check whether
+ * `pullRemoteChanges` runs a server-timestamp cursor that might skip
+ * the doc because B's `completedAt` equals A's `completedAt` (same
+ * `nowMs`) — in which case the pull is doing a "strictly newer"
+ * comparison and B's write is silently dropped.
  */
 @HiltAndroidTest
 @RunWith(AndroidJUnit4::class)
 class Test8MultiDeviceStreakSyncTest : SyncScenarioTestBase() {
 
     @Test
-    @Ignore("TODO(PR2-followup): needs SyncMapper.habitCompletionToMap shape + streak dedup confirmation")
+    @Ignore(
+        "First CI attempt showed pullRemoteChanges does not surface device B's " +
+            "habit_completion within 15 s (see class KDoc). Needs SyncMapper.mapToHabitCompletion + " +
+            "SyncService.pullCollection audit in a follow-up session."
+    )
     fun multiDeviceCompletionsSameDay_streakIsOneNotTwo() {
-        // See class KDoc for implementation sketch.
+        // See class KDoc for implementation sketch + observed failure mode.
     }
 }
