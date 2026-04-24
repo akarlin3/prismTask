@@ -36,6 +36,30 @@ class StreakCalculatorTest {
         completedAt = date.toMillis()
     )
 
+    /**
+     * Helper for clock-change tests: completion timestamped at a specific
+     * hour/minute on a given local date. `completedDate` is the epoch
+     * millisecond StreakCalculator converts back to a LocalDate via the
+     * device's default zone, so the date the completion gets bucketed
+     * into mirrors what the device wall-clock said when it was logged.
+     */
+    private fun completionAt(
+        habitId: Long = 1,
+        date: LocalDate,
+        hour: Int,
+        minute: Int = 0
+    ): HabitCompletionEntity {
+        val ts = date.atTime(hour, minute)
+            .atZone(ZoneId.systemDefault())
+            .toInstant()
+            .toEpochMilli()
+        return HabitCompletionEntity(
+            habitId = habitId,
+            completedDate = ts,
+            completedAt = ts
+        )
+    }
+
     // --- Current Streak ---
 
     @Test
@@ -414,5 +438,138 @@ class StreakCalculatorTest {
         // because week boundaries shift.
         assertTrue("Streak with Sunday start ($streakSun) should be >= 1", streakSun >= 1)
         assertTrue("Streak with Monday start ($streakMon) should be >= 0", streakMon >= 0)
+    }
+
+    // --- Clock-change behavior ---
+    //
+    // StreakCalculator takes `today: LocalDate` (not a wall-clock millisecond),
+    // and `completion.completedDate` is the epoch millisecond observed when
+    // the user logged the habit. A device clock change therefore manifests
+    // along two axes the tests below cover:
+    //   1. Future calls pass a different `today` (the resolved logical day
+    //      shifted forward or backward).
+    //   2. Past completions retain the millisecond they were logged at, so
+    //      moving the clock doesn't retroactively re-bucket them.
+    //
+    // These tests pin down those two axes explicitly so a regression that
+    // started reading `System.currentTimeMillis()` inside the calculator
+    // (or that started rounding completedDate against `today`) would surface
+    // immediately.
+
+    @Test
+    fun test_clockChange_jumpsForwardMidDay_streakStaysOneNotTwo() {
+        // User logs habit at 10:00, opens streak UI again at 14:00.
+        // Both timestamps resolve to the same calendar day, so streak
+        // must NOT jump from 1 to 2 on the second read.
+        val today = LocalDate.of(2025, 6, 10)
+        val completions = listOf(completionAt(date = today, hour = 10))
+
+        val streakAt10 = StreakCalculator.calculateCurrentStreak(
+            completions,
+            dailyHabit(),
+            today
+        )
+        val streakAt14 = StreakCalculator.calculateCurrentStreak(
+            completions,
+            dailyHabit(),
+            today
+        )
+        assertEquals("Streak at 10:00 should be 1", 1, streakAt10)
+        assertEquals(
+            "Re-reading at 14:00 must not duplicate today's completion",
+            1,
+            streakAt14
+        )
+    }
+
+    @Test
+    fun test_clockChange_jumpsForwardAcrossMidnight_yesterdayStillCounts() {
+        // Completion logged at 23:00 day N. User reopens app at 01:00 day
+        // N+1 (clock crossed midnight). Today is now day N+1 with no
+        // completion yet — but yesterday's completion must keep the streak
+        // alive (the same "today not done yet, count from yesterday"
+        // branch in calculateDailyStreak).
+        val dayN = LocalDate.of(2025, 6, 10)
+        val dayNPlus1 = dayN.plusDays(1)
+        val completions = listOf(completionAt(date = dayN, hour = 23))
+
+        val streak = StreakCalculator.calculateCurrentStreak(
+            completions,
+            dailyHabit(),
+            today = dayNPlus1
+        )
+        assertEquals(
+            "Yesterday's evening completion should keep streak at 1 on the next day",
+            1,
+            streak
+        )
+    }
+
+    @Test
+    fun test_clockChange_rollsBackToPast_futureCompletionDoesNotInflateStreak() {
+        // User sets device clock back one day. The completion now has
+        // `completedDate` in the FUTURE relative to `today`. The walk
+        // backward from `today` never reaches that future bucket, so the
+        // future-dated completion contributes 0 to the current streak.
+        val dayN = LocalDate.of(2025, 6, 10)
+        val dayNPlus1 = dayN.plusDays(1)
+        val completions = listOf(completionAt(date = dayNPlus1, hour = 10))
+
+        val streak = StreakCalculator.calculateCurrentStreak(
+            completions,
+            dailyHabit(),
+            today = dayN
+        )
+        assertEquals(
+            "Future-dated completion (clock-rollback artifact) must not " +
+                "count toward the streak measured at an earlier `today`",
+            0,
+            streak
+        )
+    }
+
+    @Test
+    fun test_clockChange_completionAtExactDayBoundary_countsForThatDay() {
+        // Completion at exactly 00:00:00 of the day. The epoch millisecond
+        // → LocalDate conversion at the boundary must bucket the row into
+        // that calendar day, not the previous day.
+        val today = LocalDate.of(2025, 6, 10)
+        val completions = listOf(completionAt(date = today, hour = 0, minute = 0))
+
+        val streak = StreakCalculator.calculateCurrentStreak(
+            completions,
+            dailyHabit(),
+            today
+        )
+        assertEquals(
+            "Completion at exact 00:00 of `today` must count for today, " +
+                "not yesterday",
+            1,
+            streak
+        )
+    }
+
+    @Test
+    fun test_clockChange_rapidToggle_pureFunctionStaysDeterministic() {
+        // Simulate the user toggling the clock back and forth rapidly:
+        // the calculator must be a pure function of (completions, habit,
+        // today, …). Successive calls with the same arguments — regardless
+        // of how much wall-clock time elapsed between them — return the
+        // same streak. Guards against accidental reads of
+        // `System.currentTimeMillis()` inside the implementation.
+        val today = LocalDate.of(2025, 6, 10)
+        val completions = listOf(
+            completionAt(date = today, hour = 9),
+            completionAt(date = today.minusDays(1), hour = 21),
+            completionAt(date = today.minusDays(2), hour = 8)
+        )
+        val habit = dailyHabit()
+
+        val r1 = StreakCalculator.calculateCurrentStreak(completions, habit, today)
+        val r2 = StreakCalculator.calculateCurrentStreak(completions, habit, today)
+        val r3 = StreakCalculator.calculateCurrentStreak(completions, habit, today)
+        assertEquals(3, r1)
+        assertEquals("Pure function: r2 must equal r1", r1, r2)
+        assertEquals("Pure function: r3 must equal r1", r1, r3)
     }
 }

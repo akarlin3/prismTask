@@ -123,6 +123,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Test infrastructure
 
+- **Sync test follow-ups cluster.** Three small follow-ups to the sync-test
+  matrix shipped in PRs #741, #749, #750, #751, #753:
+  - **Test 8 (multi-device streak sync) — flipped from `@Ignore` to
+    `@Test`; sync scenarios automated count moves from 5/9 to 6/9.**
+    Earlier "First CI attempt" failure mode (pull does not surface
+    device B's `habit_completion` within 15 s) was a wrong test
+    assertion, not a production bug. Audit confirmed: SyncMapper push
+    and pull use identical field names (`localId`, `habitCloudId`,
+    `completedDate`, `completedDateLocal`, `completedAt`, `notes`), and
+    `SyncService.pullCollection` does a full
+    `userCollection(name).get()` snapshot fetch with no cursor —
+    Hypothesis A (field-shape mismatch) and Hypothesis B (cursor-skip
+    on equal timestamps) are both ruled out. Real cause: the pull-path
+    natural-key dedup at `SyncService.kt:1681-1693` collapses A's pull
+    of B's same-day completion into a `sync_metadata` upsert (no second
+    Room row inserted), so the test's `waitFor { completions.size == 2 }`
+    could never converge. Test rewritten to assert the actual production
+    contract: post-pull Room holds exactly one row, both cloud_ids map
+    to that row, and streak reads 1.
+  - **StreakCalculator clock-change unit tests added (5 cases).**
+    Forward jump mid-day, forward jump across midnight, rollback to
+    past, completion at exact day boundary (00:00:00), rapid clock
+    toggle. Pure JVM tests — vary the `today: LocalDate` argument and
+    the per-completion `completedDate` epoch ms to exercise each clock-
+    drift scenario. Covers the unit-test slice that PR #751 carved out
+    of Test 15's scope (Test 15 was punted at the sync layer because
+    `DayBoundary.startOfCurrentDay(now)` already accepts an injectable
+    `now: Long`; the remaining behavior to pin down is StreakCalculator
+    determinism w.r.t. its `today` parameter, which doesn't need the
+    Firebase emulator harness).
+  - **CloudIdOrphanHealerTwoDeviceTest deleted as redundant to
+    Test10ConcurrentDeleteTest.** The test's `simulatePushForPending`
+    stub modeled the pre-fix `docRef.set()` "silently re-create" path
+    that PR #753 removed; three of its four scenarios assert "5 docs
+    re-created at the same cloud_ids", which is the OPPOSITE of post-
+    fix `docRef.update()` semantics (NOT_FOUND → routes through
+    `processRemoteDeletions` to hard-delete the orphan locally). The
+    fourth scenario (`partialFirestoreWipe_healerOnlyTargetsMissingIds`)
+    duplicates `CloudIdOrphanHealerScenarioTest.partialWipe_healsOnlyMissingRows`.
+    Test 10 covers the post-fix push-update conflict semantics
+    end-to-end against the live Firebase Emulator. Dangling KDoc
+    references in `CloudIdOrphanHealerEmulatorTest` and
+    `BuiltInTaskTemplateBackfillerTwoDeviceTest` retargeted /
+    inlined.
+
 - **Sync tests CI — Tests 12 & 13 manual runbook (PR3 of 3, closes
   sync-test matrix).** Docs-only addition
   `docs/SYNC_TESTS_12_13_MANUAL.md` with a step-by-step human-operated

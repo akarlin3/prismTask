@@ -27,12 +27,10 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * Real-Firestore counterpart to [CloudIdOrphanHealerTwoDeviceTest].
- * Runs the two-device out-of-band wipe + recovery scenario against the
- * live Firebase Emulator Suite wired by
+ * Two-device out-of-band wipe + recovery scenario against the live
+ * Firebase Emulator Suite wired by
  * `.github/workflows/android-integration.yml`, using the actual
- * Firestore SDK for all remote reads and writes instead of the
- * in-process `SimulatedFirestore` fake.
+ * Firestore SDK for all remote reads and writes.
  *
  * Gated by `Assume.assumeTrue(BuildConfig.USE_FIREBASE_EMULATOR)` so
  * the test is a no-op on default debug builds — fires only in the
@@ -44,11 +42,13 @@ import org.junit.runner.RunWith
  * persistence resets on restart, so CI cleanup happens automatically
  * between workflow runs.
  *
- * The in-process [CloudIdOrphanHealerTwoDeviceTest] remains the
- * primary fast-path coverage; this test exists to catch regressions
- * where real Firestore SDK behavior diverges from the simulated fake's
- * semantics (e.g. set() at an existing id overwriting vs. the set
- * semantic).
+ * Scope: exercises the orphan-healer enqueue logic against real
+ * Firestore. `simulatePushForPending` here writes via `set()` to
+ * model the original "re-create at the same cloud_id" recovery
+ * narrative — this is intentionally NOT the post-fix `update()` path
+ * exercised by [com.averycorp.prismtask.sync.scenarios.Test10ConcurrentDeleteTest],
+ * which covers the production push-update conflict semantics
+ * end-to-end.
  */
 @RunWith(AndroidJUnit4::class)
 class CloudIdOrphanHealerEmulatorTest {
