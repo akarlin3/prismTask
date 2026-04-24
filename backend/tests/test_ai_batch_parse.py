@@ -179,6 +179,134 @@ class TestBatchParseService:
                 parse_batch_command("anything", _user_context())
 
     @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "sk-test-key"})
+    def test_tag_change_add_round_trips_through_service(self):
+        """Service preserves the TAG_CHANGE proposed_new_values shape so the
+        Android client can read tags_added/tags_removed verbatim."""
+        from app.services.ai_productivity import parse_batch_command
+
+        with patch("app.services.ai_productivity.anthropic") as mock_anthropic:
+            mock_client = MagicMock()
+            mock_anthropic.Anthropic.return_value = mock_client
+            mock_client.messages.create.return_value = _make_mock_response(
+                {
+                    "mutations": [
+                        {
+                            "entity_type": "TASK",
+                            "entity_id": "task-1",
+                            "mutation_type": "TAG_CHANGE",
+                            "proposed_new_values": {
+                                "tags_added": ["personal"],
+                                "tags_removed": [],
+                            },
+                            "human_readable_description": "Tag 'Sprint planning prep' as #personal",
+                        }
+                    ],
+                    "confidence": 0.92,
+                    "ambiguous_entities": [],
+                }
+            )
+
+            result = parse_batch_command(
+                "tag sprint planning as #personal",
+                _user_context(),
+                tier="PRO",
+            )
+            mutation = result["mutations"][0]
+            assert mutation["mutation_type"] == "TAG_CHANGE"
+            assert mutation["proposed_new_values"]["tags_added"] == ["personal"]
+            assert mutation["proposed_new_values"]["tags_removed"] == []
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "sk-test-key"})
+    def test_tag_change_remove_round_trips_through_service(self):
+        from app.services.ai_productivity import parse_batch_command
+
+        with patch("app.services.ai_productivity.anthropic") as mock_anthropic:
+            mock_client = MagicMock()
+            mock_anthropic.Anthropic.return_value = mock_client
+            mock_client.messages.create.return_value = _make_mock_response(
+                {
+                    "mutations": [
+                        {
+                            "entity_type": "TASK",
+                            "entity_id": "task-1",
+                            "mutation_type": "TAG_CHANGE",
+                            "proposed_new_values": {
+                                "tags_added": [],
+                                "tags_removed": ["work"],
+                            },
+                            "human_readable_description": "Untag #work from 'Sprint planning prep'",
+                        }
+                    ],
+                    "confidence": 0.95,
+                    "ambiguous_entities": [],
+                }
+            )
+
+            result = parse_batch_command(
+                "untag #work from sprint planning",
+                _user_context(),
+                tier="PRO",
+            )
+            mutation = result["mutations"][0]
+            assert mutation["proposed_new_values"]["tags_removed"] == ["work"]
+            assert mutation["proposed_new_values"]["tags_added"] == []
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "sk-test-key"})
+    def test_tag_change_combined_add_and_remove_in_single_mutation(self):
+        """A "replace #urgent with #later" command should land as a single
+        TAG_CHANGE with both lists populated — matches Android's apply
+        path which processes adds and removes in one transaction."""
+        from app.services.ai_productivity import parse_batch_command
+
+        with patch("app.services.ai_productivity.anthropic") as mock_anthropic:
+            mock_client = MagicMock()
+            mock_anthropic.Anthropic.return_value = mock_client
+            mock_client.messages.create.return_value = _make_mock_response(
+                {
+                    "mutations": [
+                        {
+                            "entity_type": "TASK",
+                            "entity_id": "task-1",
+                            "mutation_type": "TAG_CHANGE",
+                            "proposed_new_values": {
+                                "tags_added": ["later"],
+                                "tags_removed": ["urgent"],
+                            },
+                            "human_readable_description": "Swap #urgent for #later",
+                        }
+                    ],
+                    "confidence": 0.88,
+                    "ambiguous_entities": [],
+                }
+            )
+
+            result = parse_batch_command(
+                "replace #urgent with #later on overdue tasks",
+                _user_context(),
+                tier="PRO",
+            )
+            assert len(result["mutations"]) == 1
+            mutation = result["mutations"][0]
+            assert mutation["proposed_new_values"]["tags_added"] == ["later"]
+            assert mutation["proposed_new_values"]["tags_removed"] == ["urgent"]
+
+    def test_system_prompt_documents_tag_change_schema(self):
+        """Regression net for the prompt template — if someone drops the
+        TAG_CHANGE bullet or its schema, batch tag commands silently stop
+        working. This test makes that loud."""
+        from app.services.ai_productivity import _BATCH_PARSE_SYSTEM_PROMPT
+
+        assert "TAG_CHANGE" in _BATCH_PARSE_SYSTEM_PROMPT, (
+            "TAG_CHANGE missing from the mutation_type union"
+        )
+        assert "tags_added" in _BATCH_PARSE_SYSTEM_PROMPT, (
+            "tags_added missing from the proposed_new_values schema"
+        )
+        assert "tags_removed" in _BATCH_PARSE_SYSTEM_PROMPT, (
+            "tags_removed missing from the proposed_new_values schema"
+        )
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "sk-test-key"})
     def test_drops_completed_tasks_from_prompt_context(self):
         """Completed tasks bloat the prompt and shouldn't show up in
         proposed mutations. The service trims them before the AI call."""

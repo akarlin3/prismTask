@@ -9,6 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Batch preview now shows a before/after tag diff for TAG_CHANGE
+  mutations, plus regression tests for the existing apply/undo path.**
+  When the AI parses a command like "tag all Friday tasks as #personal"
+  or "untag #work from overdue items", the BatchPreviewScreen row now
+  renders the affected task's current tag list ("From: ...") next to
+  the post-mutation list ("To: ..."), with green `+ #name` chips for
+  additions and red `− #name` chips for removals. The repository's
+  `TAG_CHANGE` apply path (auto-create-missing tags, case-insensitive
+  match, untouched tags preserved) and undo path (restore exact prior
+  tag list, do not delete auto-created tags) were already implemented
+  in PR #697 alongside the rest of the batch ops; this PR closes the
+  gaps the audit flagged: a UI diff for the preview row and an
+  instrumentation regression net (`BatchOperationsRepositoryTagChangeTest`)
+  plus four backend tests covering Haiku-prompt round-trip for add /
+  remove / combined add+remove commands, and a system-prompt regression
+  asserting `TAG_CHANGE` + `tags_added` / `tags_removed` stay
+  documented in `_BATCH_PARSE_SYSTEM_PROMPT`.
+
 - **Medication reminder mode — per-medication overrides (Android).**
   Medication editor (Add / Edit) gains the same Default / Clock / Interval
   picker that ships in the slot editor. Per-medication `reminder_mode` +
@@ -17,6 +35,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   reactive scheduler already honored these columns, so opting in
   per-medication immediately wins over the slot's mode + the global
   default.
+
+- **Medication reminder mode — per-slot picker (Web).** Settings →
+  Medication Slots editor now exposes a per-slot Default / Clock /
+  Interval picker with the same presets row Android uses (2h / 4h /
+  6h / 8h + custom 60–1440 minutes). Saving immediately writes
+  `reminderMode` + `reminderIntervalMinutes` to the slot's Firestore
+  doc; Android picks them up on the next sync. Optimistic update with
+  rollback on failure.
 
 ### Backend
 
