@@ -43,7 +43,7 @@ class SyncTestHarnessSmokeTest {
         assumeTrue(
             "SyncTestHarness smoke tests require USE_FIREBASE_EMULATOR=true — " +
                 "skipped on default debug builds.",
-            BuildConfig.USE_FIREBASE_EMULATOR,
+            BuildConfig.USE_FIREBASE_EMULATOR
         )
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         harness = SyncTestHarness.createAndInit(context)
@@ -87,8 +87,8 @@ class SyncTestHarnessSmokeTest {
                 docId = docId,
                 fields = mapOf(
                     "title" to "probe-from-device-b",
-                    "ts" to System.currentTimeMillis(),
-                ),
+                    "ts" to System.currentTimeMillis()
+                )
             )
             // Read through device A's client — proves both devices see the
             // same Firestore emulator backend.
@@ -108,7 +108,7 @@ class SyncTestHarnessSmokeTest {
                 harness.writeAsDeviceB(
                     subcollection = "tasks",
                     docId = docId,
-                    fields = mapOf("title" to "written-while-A-offline"),
+                    fields = mapOf("title" to "written-while-A-offline")
                 )
                 // Device B's write must have landed despite device A being
                 // offline — that's what the separate FirebaseApp buys us.
@@ -137,7 +137,7 @@ class SyncTestHarnessSmokeTest {
             harness.waitFor(
                 timeout = 5.seconds,
                 interval = 50.milliseconds,
-                message = "counter reaches 3",
+                message = "counter reaches 3"
             ) {
                 counter++
                 counter >= 3
@@ -145,7 +145,7 @@ class SyncTestHarnessSmokeTest {
             val elapsedMs = (System.nanoTime() - startedAt) / 1_000_000
             assertTrue(
                 "waitFor should return well under its 5 s timeout (took ${elapsedMs}ms)",
-                elapsedMs < 2_000,
+                elapsedMs < 2_000
             )
             assertTrue("Predicate must have been polled at least 3 times", counter >= 3)
         }
@@ -159,13 +159,13 @@ class SyncTestHarnessSmokeTest {
                 harness.waitFor(
                     timeout = 400.milliseconds,
                     interval = 50.milliseconds,
-                    message = "unreachable",
+                    message = "unreachable"
                 ) { false }
             } catch (e: AssertionError) {
                 caught = true
                 assertTrue(
                     "Timeout message should name the condition, got: ${e.message}",
-                    e.message?.contains("unreachable") == true,
+                    e.message?.contains("unreachable") == true
                 )
             }
             if (!caught) fail("waitFor should have raised AssertionError on timeout")

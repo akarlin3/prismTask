@@ -51,7 +51,7 @@ import kotlin.time.Duration.Companion.seconds
  */
 class SyncTestHarness private constructor(
     private val context: Context,
-    private val deviceBApp: FirebaseApp,
+    private val deviceBApp: FirebaseApp
 ) {
     /** The Hilt-visible default Firestore — what production `SyncService` uses. */
     val deviceAFirestore: FirebaseFirestore = FirebaseFirestore.getInstance()
@@ -79,7 +79,7 @@ class SyncTestHarness private constructor(
      */
     suspend fun signInBothDevicesAsSharedUser(
         email: String = FIXED_EMAIL,
-        password: String = FIXED_PASSWORD,
+        password: String = FIXED_PASSWORD
     ) {
         signInOrCreate(deviceAAuth, email, password)
         signInOrCreate(deviceBAuth, email, password)
@@ -121,7 +121,7 @@ class SyncTestHarness private constructor(
     suspend fun writeAsDeviceB(
         subcollection: String,
         docId: String,
-        fields: Map<String, Any?>,
+        fields: Map<String, Any?>
     ) {
         deviceBUserCollection(subcollection).document(docId).set(fields).await()
     }
@@ -155,7 +155,7 @@ class SyncTestHarness private constructor(
         timeout: Duration = DEFAULT_SYNC_TIMEOUT,
         interval: Duration = DEFAULT_POLL_INTERVAL,
         message: String = "condition",
-        predicate: suspend () -> Boolean,
+        predicate: suspend () -> Boolean
     ) {
         val deadlineNanos = System.nanoTime() + timeout.inWholeNanoseconds
         while (System.nanoTime() < deadlineNanos) {
@@ -225,7 +225,7 @@ class SyncTestHarness private constructor(
             "habit_completions",
             "projects",
             "tags",
-            "task_completions",
+            "task_completions"
         )
 
         /**
@@ -271,4 +271,3 @@ class SyncTestHarness private constructor(
         }
     }
 }
-
