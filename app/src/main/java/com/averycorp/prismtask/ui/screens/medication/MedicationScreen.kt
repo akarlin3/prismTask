@@ -57,6 +57,9 @@ import com.averycorp.prismtask.ui.navigation.PrismTaskRoute
 import com.averycorp.prismtask.ui.screens.medication.components.MedicationEditorDialog
 import com.averycorp.prismtask.ui.screens.medication.components.MedicationSlotSelection
 import com.averycorp.prismtask.ui.screens.medication.components.MedicationTimeEditSheet
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 /**
  * Main Medication screen — rewired from the legacy
@@ -287,6 +290,15 @@ private fun SlotTodayCard(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                val takenLine = takenTimeLabel(state)
+                if (takenLine != null) {
+                    Text(
+                        text = takenLine,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
             }
             TierChip(
                 tier = state.achievedTier,
@@ -560,4 +572,31 @@ private fun tierColorFor(tier: AchievedTier): Color = when (tier) {
     AchievedTier.ESSENTIAL -> Color(0xFFEF4444)
     AchievedTier.PRESCRIPTION -> Color(0xFF3B82F6)
     AchievedTier.COMPLETE -> Color(0xFF10B981)
+}
+
+/**
+ * Human-readable "Taken at HH:mm" line for a slot card. Returns null
+ * when no time should be displayed (no meds taken yet, no tier-state
+ * row, or no timestamp stored).
+ *
+ * When the user backdated via long-press (`isBacklogged == true`), the
+ * label surfaces BOTH moments — "Taken 8:05 AM · Logged 10:30 AM" —
+ * so the gap is legible, not hidden behind the clock-icon indicator.
+ */
+internal fun takenTimeLabel(state: MedicationSlotTodayState): String? {
+    // If nothing's been taken and no user override exists, don't
+    // clutter the card with a time line.
+    if (state.takenMedicationIds.isEmpty() && !state.isUserSet) return null
+    val format = SimpleDateFormat("h:mm a", Locale.getDefault())
+    val intended = state.intendedTime
+    val logged = state.loggedAt
+    return when {
+        state.isBacklogged && intended != null && logged != null ->
+            "Taken ${format.format(Date(intended))} · Logged ${format.format(Date(logged))}"
+        intended != null ->
+            "Taken at ${format.format(Date(intended))}"
+        logged != null ->
+            "Taken at ${format.format(Date(logged))}"
+        else -> null
+    }
 }
