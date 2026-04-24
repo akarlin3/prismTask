@@ -23,10 +23,9 @@ import kotlin.time.Duration.Companion.seconds
  * Production guarantees this via **pull-path natural-key dedup** at
  * `SyncService.kt:1681-1693`: when A pulls a `habit_completion` whose
  * `(habitId, completedDateLocal)` already matches an existing local row,
- * `pullCollection` only upserts the `sync_metadata` mapping for the new
- * cloud_id and does NOT insert a second row. Both cloud_ids end up
- * pointing at A's single Room row, and `StreakCalculator` sees one
- * completion → streak = 1.
+ * `pullCollection` upserts the `sync_metadata` mapping for the new
+ * cloud_id onto A's existing local row instead of inserting a second
+ * row. `StreakCalculator` sees one completion → streak = 1.
  *
  * Earlier draft of this test asserted post-pull `completions.size == 2`,
  * which never converges because of this dedup; that was a wrong mental
@@ -36,7 +35,16 @@ import kotlin.time.Duration.Companion.seconds
  * field names (`localId`, `habitCloudId`, `completedDate`,
  * `completedDateLocal`, `completedAt`, `notes`), and `pullCollection`
  * does a full `userCollection(name).get()` snapshot fetch — no cursor.
- * The correct assertions exercise the natural-key dedup directly.
+ *
+ * **Note on `sync_metadata.cloud_id` after dedup:** the dedup upsert
+ * uses primary key `(local_id, entity_type)`, so it overwrites the
+ * row's `cloud_id` rather than adding a second mapping. When the pull
+ * iterates both A's own doc (`cidA`) and B's doc (`deviceBDocId`),
+ * whichever is processed second wins the `cloud_id` slot. Firestore
+ * `userCollection.get()` doesn't guarantee iteration order across
+ * runs, so this test does NOT assert which cloud_id ends up mapped —
+ * the contract Test 8 enforces is "Room row count + streak", not
+ * sync_metadata cloud_id selection.
  */
 @HiltAndroidTest
 @RunWith(AndroidJUnit4::class)
@@ -71,11 +79,6 @@ class Test8MultiDeviceStreakSyncTest : SyncScenarioTestBase() {
                 1,
                 harness.firestoreCount("habit_completions")
             )
-
-            val deviceACompletionId = database.habitCompletionDao()
-                .getCompletionsForHabitOnce(habitId)
-                .single()
-                .id
 
             // 3. Device B writes a second completion for the SAME habit on
             //    the SAME calendar day, using the shape that
@@ -117,16 +120,6 @@ class Test8MultiDeviceStreakSyncTest : SyncScenarioTestBase() {
                     "Firestore has 2 completion docs for the same day",
                 1,
                 completions.size
-            )
-
-            // Both Firestore cloud_ids must now map to the single local
-            // Room row — the dedup branch upserts the new cloud_id onto
-            // the existing localId.
-            val metaDao = database.syncMetadataDao()
-            assertEquals(
-                "Device B's cloud_id must map to A's local completion row",
-                deviceACompletionId,
-                metaDao.getLocalId(deviceBDocId, "habit_completion")
             )
 
             // 5. Streak reads 1 — same-day completions never produce a
