@@ -40,12 +40,12 @@ class Test7OfflineEditReconnectTest : SyncScenarioTestBase() {
             val baselinePushed = syncService.pushLocalChanges()
             assertTrue(
                 "Baseline push should have shipped the project; got $baselinePushed",
-                baselinePushed >= 1,
+                baselinePushed >= 1
             )
             assertEquals(
                 "Firestore should show the baseline project",
                 1,
-                harness.firestoreCount("projects"),
+                harness.firestoreCount("projects")
             )
 
             // Device A goes offline — subsequent repo calls still mark
@@ -71,17 +71,17 @@ class Test7OfflineEditReconnectTest : SyncScenarioTestBase() {
             assertEquals(
                 "Offline writes must not have reached Firestore yet",
                 1,
-                harness.firestoreCount("projects"), // project still visible
+                harness.firestoreCount("projects") // project still visible
             )
             assertEquals(
                 "Offline task must not have reached Firestore yet",
                 0,
-                harness.firestoreCount("tasks"),
+                harness.firestoreCount("tasks")
             )
             assertEquals(
                 "Offline habit must not have reached Firestore yet",
                 0,
-                harness.firestoreCount("habits"),
+                harness.firestoreCount("habits")
             )
 
             // Reconnect and push.
@@ -90,7 +90,7 @@ class Test7OfflineEditReconnectTest : SyncScenarioTestBase() {
             assertTrue(
                 "Reconnect push should have shipped at least 3 pending ops " +
                     "(task create, habit create, project delete); got $reconnectPushed",
-                reconnectPushed >= 3,
+                reconnectPushed >= 3
             )
 
             // Firestore state converged.
@@ -113,7 +113,7 @@ class Test7OfflineEditReconnectTest : SyncScenarioTestBase() {
             assertEquals(
                 "Project delete should have been applied to Firestore",
                 0,
-                harness.firestoreCount("projects"),
+                harness.firestoreCount("projects")
             )
         }
     }

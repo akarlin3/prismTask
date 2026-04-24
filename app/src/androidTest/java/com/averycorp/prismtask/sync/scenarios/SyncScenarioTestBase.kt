@@ -71,7 +71,7 @@ abstract class SyncScenarioTestBase {
         assumeTrue(
             "Sync scenario tests require USE_FIREBASE_EMULATOR=true — " +
                 "skipped on default debug builds.",
-            BuildConfig.USE_FIREBASE_EMULATOR,
+            BuildConfig.USE_FIREBASE_EMULATOR
         )
         hiltRule.inject()
         val context = InstrumentationRegistry.getInstrumentation().targetContext

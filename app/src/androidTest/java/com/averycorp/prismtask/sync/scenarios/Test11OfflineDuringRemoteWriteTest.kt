@@ -38,7 +38,7 @@ class Test11OfflineDuringRemoteWriteTest : SyncScenarioTestBase() {
             // B writes a task directly to Firestore. Shape matches
             // SyncMapper.taskToMap() well enough to round-trip.
             val nowMs = System.currentTimeMillis()
-            val deviceBDocId = "remote-task-${nowMs}"
+            val deviceBDocId = "remote-task-$nowMs"
             harness.writeAsDeviceB(
                 subcollection = "tasks",
                 docId = deviceBDocId,
@@ -48,8 +48,8 @@ class Test11OfflineDuringRemoteWriteTest : SyncScenarioTestBase() {
                     "priority" to 0,
                     "isCompleted" to false,
                     "createdAt" to nowMs,
-                    "updatedAt" to nowMs,
-                ),
+                    "updatedAt" to nowMs
+                )
             )
             // A reconnects + pulls.
             harness.setDeviceAOnline()
@@ -59,7 +59,7 @@ class Test11OfflineDuringRemoteWriteTest : SyncScenarioTestBase() {
             // Local Room should now have the remote task.
             harness.waitFor(
                 timeout = 15.seconds,
-                message = "local DB pulled device B's task",
+                message = "local DB pulled device B's task"
             ) {
                 val tasks = database.taskDao().getAllTasksOnce()
                 tasks.any { it.title == "written-by-device-B" }

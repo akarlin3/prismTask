@@ -43,7 +43,7 @@ class Test14RapidCreateDeleteNoOrphanTest : SyncScenarioTestBase() {
             assertEquals(
                 "No Firestore task docs expected after rapid create/delete (pushed=$pushed)",
                 0,
-                harness.firestoreCount("tasks"),
+                harness.firestoreCount("tasks")
             )
         }
     }
@@ -61,12 +61,12 @@ class Test14RapidCreateDeleteNoOrphanTest : SyncScenarioTestBase() {
             assertEquals(
                 "Create should ship exactly one op; got $firstPush",
                 1,
-                firstPush,
+                firstPush
             )
             assertEquals(
                 "Firestore has the task briefly",
                 1,
-                harness.firestoreCount("tasks"),
+                harness.firestoreCount("tasks")
             )
 
             taskRepository.deleteTask(taskId)
@@ -74,13 +74,13 @@ class Test14RapidCreateDeleteNoOrphanTest : SyncScenarioTestBase() {
             assertEquals(
                 "Delete should ship exactly one op; got $secondPush",
                 1,
-                secondPush,
+                secondPush
             )
 
             // And the doc is gone from Firestore.
             harness.waitFor(
                 timeout = 10.seconds,
-                message = "task doc deleted from Firestore",
+                message = "task doc deleted from Firestore"
             ) {
                 harness.firestoreCount("tasks") == 0
             }
