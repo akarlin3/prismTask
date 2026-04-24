@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Android
 
+- **Medication time logging — long-press time editor + backlogged
+  indicator (PR3 of 4)** — Long-press on a slot's tier chip in the
+  Medication screen now opens `MedicationTimeEditSheet`, a Material 3
+  bottom-sheet `TimePicker` that stamps an `intended_time` on every
+  per-medication tier-state row for the slot. Future times are capped
+  to `now` (no forward-dating). When the saved `intended_time` differs
+  from the row's `logged_at` by more than 60 s, a small clock icon
+  appears on the tier chip — `MedicationSlotTodayState.isBacklogged`
+  drives the indicator. Tapping the chip retains the existing skip /
+  unskip behaviour. Per-medication mark UX (long-press individual
+  medication rows) is deferred to a follow-up PR to keep this
+  reviewable.
+
 - **Medication time logging — Room schema + Firestore sync (PR2 of 4)** —
   Bumps Room DB to **v61** via `MIGRATION_60_61`. Adds `intended_time`
   (nullable) and `logged_at` (NOT NULL, backfilled from `updated_at`)

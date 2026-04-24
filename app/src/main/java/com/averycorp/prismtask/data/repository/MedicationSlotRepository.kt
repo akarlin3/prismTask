@@ -222,4 +222,32 @@ constructor(
         tierStateDao.delete(state)
         syncTracker.trackDelete(state.id, "medication_tier_state")
     }
+
+    /**
+     * Stamp a user-claimed intended_time on the existing tier-state row
+     * for `(medication, slot, date)`. Returns the row id, or null if no
+     * row exists yet (caller should `upsertTierState` first to materialize
+     * the row, then set intended time).
+     *
+     * Distinct from [upsertTierState] because intended_time is a *user
+     * intention* about wall-clock — not part of auto-compute. Letting
+     * `upsertTierState` accept it would mean every refreshTierState
+     * call clobbers user-set times.
+     */
+    suspend fun setTierStateIntendedTime(
+        medicationId: Long,
+        slotId: Long,
+        date: String,
+        intendedTime: Long
+    ): Long? {
+        val existing = tierStateDao.getForTripleOnce(medicationId, date, slotId) ?: return null
+        val now = System.currentTimeMillis()
+        val updated = existing.copy(
+            intendedTime = intendedTime,
+            updatedAt = now
+        )
+        tierStateDao.update(updated)
+        syncTracker.trackUpdate(updated.id, "medication_tier_state")
+        return updated.id
+    }
 }

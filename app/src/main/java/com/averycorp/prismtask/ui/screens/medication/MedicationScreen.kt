@@ -1,8 +1,10 @@
 package com.averycorp.prismtask.ui.screens.medication
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,6 +24,7 @@ import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -53,6 +56,7 @@ import com.averycorp.prismtask.domain.model.medication.MedicationTier
 import com.averycorp.prismtask.ui.navigation.PrismTaskRoute
 import com.averycorp.prismtask.ui.screens.medication.components.MedicationEditorDialog
 import com.averycorp.prismtask.ui.screens.medication.components.MedicationSlotSelection
+import com.averycorp.prismtask.ui.screens.medication.components.MedicationTimeEditSheet
 
 /**
  * Main Medication screen — rewired from the legacy
@@ -86,6 +90,8 @@ fun MedicationScreen(
     var editingMed by remember { mutableStateOf<MedicationEntity?>(null) }
     var editingSelections by remember { mutableStateOf<List<MedicationSlotSelection>>(emptyList()) }
     var archivingMed by remember { mutableStateOf<MedicationEntity?>(null) }
+    // Slot whose intended_time is being edited (long-press → time sheet).
+    var timeEditingSlotState by remember { mutableStateOf<MedicationSlotTodayState?>(null) }
 
     // Editor dialog opens as soon as editingMed is set; selections load
     // asynchronously via the suspend helper on the viewmodel.
@@ -157,7 +163,8 @@ fun MedicationScreen(
                                 } else {
                                     viewModel.setSkippedForSlot(state.slot)
                                 }
-                            }
+                            },
+                            onLongPressTier = { timeEditingSlotState = state }
                         )
                     }
                     if (editMode) {
@@ -213,6 +220,18 @@ fun MedicationScreen(
         )
     }
 
+    timeEditingSlotState?.let { state ->
+        MedicationTimeEditSheet(
+            initialIntendedTime = state.intendedTime,
+            slotName = state.slot.name,
+            onDismiss = { timeEditingSlotState = null },
+            onSave = { intendedTime ->
+                viewModel.setIntendedTimeForSlot(state.slot, intendedTime)
+                timeEditingSlotState = null
+            }
+        )
+    }
+
     archivingMed?.let { med ->
         AlertDialog(
             onDismissRequest = { archivingMed = null },
@@ -243,7 +262,8 @@ private fun SlotTodayCard(
     state: MedicationSlotTodayState,
     editMode: Boolean,
     onToggleDose: (MedicationEntity) -> Unit,
-    onTapTier: () -> Unit
+    onTapTier: () -> Unit,
+    onLongPressTier: () -> Unit
 ) {
     val tierColor = tierColorFor(state.achievedTier)
     Column(
@@ -272,7 +292,9 @@ private fun SlotTodayCard(
                 tier = state.achievedTier,
                 color = tierColor,
                 isUserSet = state.isUserSet,
-                onClick = onTapTier
+                isBacklogged = state.isBacklogged,
+                onClick = onTapTier,
+                onLongClick = onLongPressTier
             )
         }
         if (state.medications.isEmpty()) {
@@ -296,22 +318,38 @@ private fun SlotTodayCard(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun TierChip(
     tier: AchievedTier,
     color: Color,
     isUserSet: Boolean,
-    onClick: () -> Unit
+    isBacklogged: Boolean,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit
 ) {
     Box(
         modifier = Modifier
             .clip(RoundedCornerShape(10.dp))
             .background(color.copy(alpha = 0.15f))
             .border(1.dp, color, RoundedCornerShape(10.dp))
-            .clickable(onClick = onClick)
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick,
+                onLongClickLabel = "Edit time"
+            )
             .padding(horizontal = 10.dp, vertical = 6.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
+            if (isBacklogged) {
+                Icon(
+                    imageVector = Icons.Default.Schedule,
+                    contentDescription = "Logged at a different time than taken",
+                    tint = color,
+                    modifier = Modifier.size(14.dp)
+                )
+                Spacer(modifier = Modifier.size(4.dp))
+            }
             Text(
                 text = tierLabel(tier),
                 style = MaterialTheme.typography.labelMedium,
