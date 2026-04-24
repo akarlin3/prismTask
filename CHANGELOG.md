@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### CI
+
+- **Autofix workflow no longer skips required check re-runs.** The
+  `style: auto-format` commit produced by `android-ci.yml`'s autofix job
+  no longer carries `[skip ci]`. The token was preventing every workflow
+  — including the four required checks in branch protection
+  (`lint-and-test`, `connected-tests`, backend `test`,
+  `web-lint-and-test`) — from running on the autofix commit, so PR head
+  SHAs were left with pending required statuses forever and had to be
+  admin-merged (three sync-test PRs: #749, #751, #753). Auto-merge's
+  `sender.type != 'Bot'` filter already skips synchronize events from
+  the bot's push, so removing `[skip ci]` does not introduce auto-merge
+  loops. Cost: one extra android-ci cycle per autofix push, where the
+  autofix job finds nothing to commit and only the fast ktlint/detekt
+  steps run.
+
 ### Fixed
 
 - **BREAKING (data integrity): SyncService.pushUpdate no longer silently
