@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Changed
+
+- **BREAKING (web): Medication tier enum aligned with Android canonical
+  model.** Web's medication tier values are now `skipped` / `essential` /
+  `prescription` / `complete` (lowercase, 4 values), replacing the
+  pre-v1.5.3 `SKIPPED` / `PARTIAL` / `COMPLETE` (uppercase, 3 values).
+  This adds the essential vs prescription distinction (must-have meds
+  vs prescribed-only meds) so cross-device sync now roundtrips without
+  fidelity loss — Android's `AchievedTier` ladder is the authoritative
+  spec. The `MedicationTierPicker` UI renders 4 buttons in canonical
+  order (skipped → essential → prescription → complete). Firestore
+  reads include a one-time normalization helper (in
+  `web/src/api/firestore/medicationSlots.ts`) that folds legacy
+  uppercase docs into the new enum (`SKIPPED` → `skipped`, `PARTIAL` →
+  `essential` conservatively, `COMPLETE` → `complete`) and emits a
+  `console.warn` so dev cleanup can be tracked; the helper is removable
+  in v1.6.0+ once no legacy docs remain. Pre-existing web tier values
+  in any account are normalized on read with a console warning during
+  the dev cleanup window.
+
 ### CI
 
 - **Autofix workflow no longer skips required check re-runs.** The

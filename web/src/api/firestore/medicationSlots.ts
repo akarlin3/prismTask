@@ -33,7 +33,50 @@ import { firestore } from '@/lib/firebase';
  * file does NOT touch completions.
  */
 
-export type MedicationTier = 'SKIPPED' | 'PARTIAL' | 'COMPLETE';
+/**
+ * Lowercase 4-value tier enum aligned with Android's canonical
+ * `AchievedTier` ladder. Hierarchical bottom-up: `skipped` (deliberate
+ * non-applicable) → `essential` (must-have meds taken) → `prescription`
+ * (must-have + prescribed-only also taken) → `complete` (all meds taken).
+ *
+ * Replaced the earlier 3-value uppercase enum (`SKIPPED` / `PARTIAL` /
+ * `COMPLETE`) in v1.5.3 so cross-device sync roundtrips without
+ * fidelity loss.
+ */
+export type MedicationTier = 'skipped' | 'essential' | 'prescription' | 'complete';
+
+const VALID_TIERS: ReadonlySet<MedicationTier> = new Set([
+  'skipped',
+  'essential',
+  'prescription',
+  'complete',
+]);
+
+/**
+ * Normalize a tier value read from Firestore. Accepts the canonical
+ * lowercase 4-value form and folds legacy uppercase values
+ * (`SKIPPED` / `PARTIAL` / `COMPLETE`, last seen pre-v1.5.3) into the
+ * closest canonical match: `PARTIAL` → `essential` (conservative —
+ * partial implies at least essential meds taken). Logs a console
+ * warning whenever a legacy value is encountered so dev cleanup can
+ * be tracked. This helper can be removed in v1.6.0+ once no legacy
+ * docs remain.
+ */
+export function normalizeTier(raw: unknown): MedicationTier {
+  if (typeof raw === 'string') {
+    if (VALID_TIERS.has(raw as MedicationTier)) return raw as MedicationTier;
+    if (raw === 'SKIPPED' || raw === 'PARTIAL' || raw === 'COMPLETE') {
+      const mapped: MedicationTier =
+        raw === 'SKIPPED' ? 'skipped' : raw === 'PARTIAL' ? 'essential' : 'complete';
+      console.warn(
+        `[medicationSlots] Normalizing legacy tier "${raw}" → "${mapped}". ` +
+          'Resave this slot to migrate the doc to canonical lowercase form.',
+      );
+      return mapped;
+    }
+  }
+  return 'skipped';
+}
 
 export interface MedicationSlotDef {
   id: string;
@@ -149,7 +192,7 @@ function docToTierState(id: string, data: DocumentData): MedicationTierState {
     id,
     slot_key: data.slotKey ?? '',
     date_iso: data.dateIso ?? '',
-    tier: (data.tier as MedicationTier) ?? 'SKIPPED',
+    tier: normalizeTier(data.tier),
     source: (data.source as 'auto' | 'user_set') ?? 'user_set',
     updated_at: typeof data.updatedAt === 'number' ? data.updatedAt : Date.now(),
   };
