@@ -26,7 +26,7 @@ data class BuiltInHabitDefinition(
     val frequency: String,
     val targetCount: Int,
     val activeDaysCsv: String,
-    val steps: List<BuiltInStepDefinition> = emptyList(),
+    val steps: List<BuiltInStepDefinition> = emptyList()
 )
 
 data class BuiltInStepDefinition(
@@ -37,7 +37,7 @@ data class BuiltInStepDefinition(
     val tier: String,
     val phase: String,
     val sortOrder: Int,
-    val note: String = "",
+    val note: String = ""
 )
 
 object BuiltInHabitVersionRegistry {
@@ -57,7 +57,7 @@ object BuiltInHabitVersionRegistry {
             description = null,
             frequency = "daily",
             targetCount = 1,
-            activeDaysCsv = "",
+            activeDaysCsv = ""
         ),
         BuiltInHabitDefinition(
             templateKey = KEY_LEISURE,
@@ -66,7 +66,7 @@ object BuiltInHabitVersionRegistry {
             description = null,
             frequency = "daily",
             targetCount = 1,
-            activeDaysCsv = "",
+            activeDaysCsv = ""
         ),
         BuiltInHabitDefinition(
             templateKey = KEY_MORNING_SELFCARE,
@@ -76,7 +76,7 @@ object BuiltInHabitVersionRegistry {
             frequency = "daily",
             targetCount = 1,
             activeDaysCsv = "",
-            steps = stepsFromRoutine(SelfCareRoutines.morningSteps, "morning"),
+            steps = stepsFromRoutine(SelfCareRoutines.morningSteps, "morning")
         ),
         BuiltInHabitDefinition(
             templateKey = KEY_BEDTIME_SELFCARE,
@@ -86,7 +86,7 @@ object BuiltInHabitVersionRegistry {
             frequency = "daily",
             targetCount = 1,
             activeDaysCsv = "",
-            steps = stepsFromRoutine(SelfCareRoutines.bedtimeSteps, "bedtime"),
+            steps = stepsFromRoutine(SelfCareRoutines.bedtimeSteps, "bedtime")
         ),
         BuiltInHabitDefinition(
             templateKey = KEY_MEDICATION,
@@ -96,7 +96,7 @@ object BuiltInHabitVersionRegistry {
             frequency = "daily",
             targetCount = 1,
             activeDaysCsv = "",
-            steps = stepsFromRoutine(SelfCareRoutines.medicationSteps, "medication"),
+            steps = stepsFromRoutine(SelfCareRoutines.medicationSteps, "medication")
         ),
         BuiltInHabitDefinition(
             templateKey = KEY_HOUSEWORK,
@@ -106,8 +106,8 @@ object BuiltInHabitVersionRegistry {
             frequency = "daily",
             targetCount = 1,
             activeDaysCsv = "",
-            steps = stepsFromRoutine(SelfCareRoutines.houseworkSteps, "housework"),
-        ),
+            steps = stepsFromRoutine(SelfCareRoutines.houseworkSteps, "housework")
+        )
     ).associateBy { it.templateKey }
 
     fun current(templateKey: String): BuiltInHabitDefinition? = definitions[templateKey]
@@ -120,7 +120,7 @@ object BuiltInHabitVersionRegistry {
 
     private fun stepsFromRoutine(
         steps: List<com.averycorp.prismtask.domain.model.RoutineStep>,
-        routineType: String,
+        routineType: String
     ): List<BuiltInStepDefinition> = steps.mapIndexed { index, step ->
         BuiltInStepDefinition(
             stepId = step.id,
@@ -130,7 +130,7 @@ object BuiltInHabitVersionRegistry {
             tier = step.tier,
             phase = step.phase,
             sortOrder = index,
-            note = step.note,
+            note = step.note
         )
     }
 }

@@ -38,7 +38,7 @@ import com.averycorp.prismtask.domain.model.StepChange
 @Composable
 fun TemplateDiffScreen(
     navController: NavController,
-    viewModel: TemplateDiffViewModel = hiltViewModel(),
+    viewModel: TemplateDiffViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val diff = state.diff
@@ -54,16 +54,16 @@ fun TemplateDiffScreen(
                     Text(
                         text = diff?.let { "${displayName(it.templateKey)}: v${it.fromVersion} → v${it.toVersion}" }
                             ?: "Update",
-                        fontWeight = FontWeight.Bold,
+                        fontWeight = FontWeight.Bold
                     )
                 },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
-                },
+                }
             )
-        },
+        }
     ) { padding ->
         if (state.notFound || diff == null) {
             Column(
@@ -71,11 +71,11 @@ fun TemplateDiffScreen(
                     .fillMaxSize()
                     .padding(padding)
                     .padding(24.dp),
-                verticalArrangement = Arrangement.Center,
+                verticalArrangement = Arrangement.Center
             ) {
                 Text(
                     "No update available.",
-                    style = MaterialTheme.typography.bodyLarge,
+                    style = MaterialTheme.typography.bodyLarge
                 )
             }
             return@Scaffold
@@ -87,7 +87,7 @@ fun TemplateDiffScreen(
                 .padding(padding)
                 .padding(16.dp)
                 .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             if (diff.habitFieldChanges.isNotEmpty()) {
                 Section(title = "Habit Fields") {
@@ -95,7 +95,7 @@ fun TemplateDiffScreen(
                         FieldRow(
                             change = change,
                             checked = change.fieldName in state.selections.acceptedFieldNames,
-                            onToggle = { viewModel.toggleField(change.fieldName) },
+                            onToggle = { viewModel.toggleField(change.fieldName) }
                         )
                     }
                 }
@@ -106,7 +106,7 @@ fun TemplateDiffScreen(
                         SimpleCheckRow(
                             label = step.label,
                             checked = step.stepId in state.selections.acceptedAddedStepIds,
-                            onToggle = { viewModel.toggleAddedStep(step.stepId) },
+                            onToggle = { viewModel.toggleAddedStep(step.stepId) }
                         )
                     }
                 }
@@ -117,7 +117,7 @@ fun TemplateDiffScreen(
                         StepChangeRow(
                             change = change,
                             checked = change.stepId in state.selections.acceptedModifiedStepIds,
-                            onToggle = { viewModel.toggleModifiedStep(change.stepId) },
+                            onToggle = { viewModel.toggleModifiedStep(change.stepId) }
                         )
                     }
                 }
@@ -127,13 +127,13 @@ fun TemplateDiffScreen(
                     Text(
                         "Default off — uncheck to keep these on your habit.",
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     diff.removedSteps.forEach { step ->
                         SimpleCheckRow(
                             label = step.label,
                             checked = step.stepId in state.selections.acceptedRemovedStepIds,
-                            onToggle = { viewModel.toggleRemovedStep(step.stepId) },
+                            onToggle = { viewModel.toggleRemovedStep(step.stepId) }
                         )
                     }
                 }
@@ -148,7 +148,7 @@ fun TemplateDiffScreen(
             HorizontalDivider()
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)
             ) {
                 OutlinedButton(onClick = { navController.popBackStack() }) {
                     Text("Cancel")
@@ -167,7 +167,7 @@ private fun Section(title: String, content: @Composable () -> Unit) {
         Text(
             text = title.uppercase(),
             style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.primary,
+            color = MaterialTheme.colorScheme.primary
         )
         content()
     }
@@ -177,19 +177,19 @@ private fun Section(title: String, content: @Composable () -> Unit) {
 private fun FieldRow(change: FieldChange, checked: Boolean, onToggle: () -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
+        verticalAlignment = Alignment.CenterVertically
     ) {
         Checkbox(checked = checked, onCheckedChange = { onToggle() })
         Column(modifier = Modifier.padding(start = 4.dp)) {
             Text(
                 text = "${change.fieldName}: ${change.currentValue ?: "—"} → ${change.proposedValue ?: "—"}",
-                style = MaterialTheme.typography.bodyMedium,
+                style = MaterialTheme.typography.bodyMedium
             )
             if (change.userModified) {
                 Text(
                     text = "you edited this — uncheck to keep your version",
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
@@ -200,7 +200,7 @@ private fun FieldRow(change: FieldChange, checked: Boolean, onToggle: () -> Unit
 private fun SimpleCheckRow(label: String, checked: Boolean, onToggle: () -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
+        verticalAlignment = Alignment.CenterVertically
     ) {
         Checkbox(checked = checked, onCheckedChange = { onToggle() })
         Text(text = label, style = MaterialTheme.typography.bodyMedium)
@@ -211,14 +211,14 @@ private fun SimpleCheckRow(label: String, checked: Boolean, onToggle: () -> Unit
 private fun StepChangeRow(change: StepChange, checked: Boolean, onToggle: () -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
+        verticalAlignment = Alignment.CenterVertically
     ) {
         Checkbox(checked = checked, onCheckedChange = { onToggle() })
         Column(modifier = Modifier.padding(start = 4.dp)) {
             if (change.labelChanged) {
                 Text(
                     text = "\"${change.current.label}\" → \"${change.proposed.label}\"",
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MaterialTheme.typography.bodyMedium
                 )
             } else {
                 Text(text = change.current.label, style = MaterialTheme.typography.bodyMedium)
@@ -234,7 +234,7 @@ private fun StepChangeRow(change: StepChange, checked: Boolean, onToggle: () -> 
                 Text(
                     text = sub.joinToString(", ") + " changed",
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }

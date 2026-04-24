@@ -21,7 +21,7 @@ class BuiltInTemplateDifferTest {
         userModified: Boolean = false,
         detached: Boolean = false,
         name: String = "School",
-        targetFrequency: Int = 1,
+        targetFrequency: Int = 1
     ) = HabitEntity(
         id = 1L,
         name = name,
@@ -30,7 +30,7 @@ class BuiltInTemplateDifferTest {
         templateKey = templateKey,
         sourceVersion = sourceVersion,
         isUserModified = userModified,
-        isDetachedFromTemplate = detached,
+        isDetachedFromTemplate = detached
     )
 
     private fun step(stepId: String, label: String, sortOrder: Int = 0, sourceVersion: Int = 1) =
@@ -43,7 +43,7 @@ class BuiltInTemplateDifferTest {
             tier = "survival",
             phase = "Self-Care",
             sortOrder = sortOrder,
-            sourceVersion = sourceVersion,
+            sourceVersion = sourceVersion
         )
 
     private fun stepDef(stepId: String, label: String, sortOrder: Int = 0) =
@@ -54,7 +54,7 @@ class BuiltInTemplateDifferTest {
             duration = "5 min",
             tier = "survival",
             phase = "Self-Care",
-            sortOrder = sortOrder,
+            sortOrder = sortOrder
         )
 
     private fun proposed(version: Int, vararg steps: BuiltInStepDefinition) = BuiltInHabitDefinition(
@@ -65,7 +65,7 @@ class BuiltInTemplateDifferTest {
         frequency = "daily",
         targetCount = 1,
         activeDaysCsv = "",
-        steps = steps.toList(),
+        steps = steps.toList()
     )
 
     @Test
@@ -73,7 +73,7 @@ class BuiltInTemplateDifferTest {
         val result = differ.diff(
             habit(sourceVersion = 1),
             steps = emptyList(),
-            proposed = proposed(version = 1),
+            proposed = proposed(version = 1)
         )
         assertNull(result)
     }
@@ -83,7 +83,7 @@ class BuiltInTemplateDifferTest {
         val result = differ.diff(
             habit(sourceVersion = 1, detached = true),
             steps = emptyList(),
-            proposed = proposed(version = 2),
+            proposed = proposed(version = 2)
         )
         assertNull(result)
     }
@@ -93,7 +93,7 @@ class BuiltInTemplateDifferTest {
         val result = differ.diff(
             habit(templateKey = "builtin_leisure"),
             steps = emptyList(),
-            proposed = proposed(version = 2),
+            proposed = proposed(version = 2)
         )
         assertNull(result)
     }
@@ -103,7 +103,7 @@ class BuiltInTemplateDifferTest {
         val diff = differ.diff(
             habit(sourceVersion = 1),
             steps = emptyList(),
-            proposed = proposed(version = 2, stepDef("a", "Added Step")),
+            proposed = proposed(version = 2, stepDef("a", "Added Step"))
         )
         assertNotNull(diff)
         assertEquals(1, diff!!.addedSteps.size)
@@ -120,7 +120,7 @@ class BuiltInTemplateDifferTest {
         val diff = differ.diff(
             habit(sourceVersion = 1),
             steps = listOf(step("old", "Old Step")),
-            proposed = proposed(version = 2, stepDef("a", "New Step")),
+            proposed = proposed(version = 2, stepDef("a", "New Step"))
         )
         assertNotNull(diff)
         // "old" is preserved as user content (it's not in the proposed set)
@@ -136,7 +136,7 @@ class BuiltInTemplateDifferTest {
         val diff = differ.diff(
             habit(sourceVersion = 1),
             steps = listOf(step("a", "Old Label", sortOrder = 0)),
-            proposed = proposed(version = 2, stepDef("a", "New Label", sortOrder = 1)),
+            proposed = proposed(version = 2, stepDef("a", "New Label", sortOrder = 1))
         )
         assertNotNull(diff)
         assertEquals(1, diff!!.modifiedSteps.size)
@@ -155,8 +155,8 @@ class BuiltInTemplateDifferTest {
                 version = 2,
                 stepDef("a", "Step A"),
                 stepDef("b", "Step B", sortOrder = 1),
-                stepDef("c", "New Step", sortOrder = 2),
-            ),
+                stepDef("c", "New Step", sortOrder = 2)
+            )
         )
         assertNotNull(diff)
         assertTrue("no modifications expected", diff!!.modifiedSteps.isEmpty())
@@ -168,7 +168,7 @@ class BuiltInTemplateDifferTest {
         val diff = differ.diff(
             habit(sourceVersion = 1, userModified = true, targetFrequency = 1),
             steps = emptyList(),
-            proposed = proposed(version = 2).copy(targetCount = 2),
+            proposed = proposed(version = 2).copy(targetCount = 2)
         )
         assertNotNull(diff)
         assertEquals(1, diff!!.habitFieldChanges.size)
@@ -184,7 +184,7 @@ class BuiltInTemplateDifferTest {
         val diff = differ.diff(
             habit(sourceVersion = 0),
             steps = emptyList(),
-            proposed = proposed(version = 2, stepDef("a", "Added")),
+            proposed = proposed(version = 2, stepDef("a", "Added"))
         )
         assertNotNull(diff)
         assertEquals(1, diff!!.fromVersion)
@@ -196,7 +196,7 @@ class BuiltInTemplateDifferTest {
         val result = differ.diff(
             habit(sourceVersion = 3),
             steps = emptyList(),
-            proposed = proposed(version = 2),
+            proposed = proposed(version = 2)
         )
         assertNull(result)
     }

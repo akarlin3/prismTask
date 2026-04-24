@@ -18,21 +18,21 @@ data class DiffSelections(
     val acceptedFieldNames: Set<String> = emptySet(),
     val acceptedAddedStepIds: Set<String> = emptySet(),
     val acceptedRemovedStepIds: Set<String> = emptySet(),
-    val acceptedModifiedStepIds: Set<String> = emptySet(),
+    val acceptedModifiedStepIds: Set<String> = emptySet()
 )
 
 data class TemplateDiffUiState(
     val diff: TemplateDiff? = null,
     val selections: DiffSelections = DiffSelections(),
     val applied: Boolean = false,
-    val notFound: Boolean = false,
+    val notFound: Boolean = false
 )
 
 @HiltViewModel
 class TemplateDiffViewModel @Inject constructor(
     private val detector: BuiltInUpdateDetector,
     private val habitDao: HabitDao,
-    savedStateHandle: SavedStateHandle,
+    savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
     private val templateKey: String = savedStateHandle.get<String>("templateKey").orEmpty()
@@ -49,7 +49,7 @@ class TemplateDiffViewModel @Inject constructor(
             } else {
                 _uiState.value = TemplateDiffUiState(
                     diff = diff,
-                    selections = defaultSelections(diff),
+                    selections = defaultSelections(diff)
                 )
             }
         }
@@ -57,7 +57,7 @@ class TemplateDiffViewModel @Inject constructor(
 
     fun toggleField(fieldName: String) = mutate {
         it.copy(
-            acceptedFieldNames = it.acceptedFieldNames.toggle(fieldName),
+            acceptedFieldNames = it.acceptedFieldNames.toggle(fieldName)
         )
     }
 
@@ -83,7 +83,7 @@ class TemplateDiffViewModel @Inject constructor(
                 acceptedFieldNames = state.selections.acceptedFieldNames,
                 acceptedAddedStepIds = state.selections.acceptedAddedStepIds,
                 acceptedRemovedStepIds = state.selections.acceptedRemovedStepIds,
-                acceptedModifiedStepIds = state.selections.acceptedModifiedStepIds,
+                acceptedModifiedStepIds = state.selections.acceptedModifiedStepIds
             )
             detector.applyUpdate(diff, accepted)
             _uiState.value = state.copy(applied = true)
@@ -103,7 +103,7 @@ class TemplateDiffViewModel @Inject constructor(
             .mapTo(mutableSetOf()) { it.fieldName },
         acceptedAddedStepIds = diff.addedSteps.mapTo(mutableSetOf()) { it.stepId },
         acceptedRemovedStepIds = emptySet(),
-        acceptedModifiedStepIds = diff.modifiedSteps.mapTo(mutableSetOf()) { it.stepId },
+        acceptedModifiedStepIds = diff.modifiedSteps.mapTo(mutableSetOf()) { it.stepId }
     )
 
     private fun Set<String>.toggle(value: String): Set<String> =

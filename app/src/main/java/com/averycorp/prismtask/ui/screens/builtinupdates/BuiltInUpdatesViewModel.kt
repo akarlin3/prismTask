@@ -11,7 +11,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class BuiltInUpdatesViewModel @Inject constructor(
-    private val detector: BuiltInUpdateDetector,
+    private val detector: BuiltInUpdateDetector
 ) : ViewModel() {
 
     val pendingUpdates: StateFlow<List<PendingBuiltInUpdate>> = detector.pendingUpdates

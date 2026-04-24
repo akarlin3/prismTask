@@ -20,7 +20,7 @@ class BuiltInHabitVersionRegistryTest {
             BuiltInHabitVersionRegistry.KEY_MORNING_SELFCARE,
             BuiltInHabitVersionRegistry.KEY_BEDTIME_SELFCARE,
             BuiltInHabitVersionRegistry.KEY_MEDICATION,
-            BuiltInHabitVersionRegistry.KEY_HOUSEWORK,
+            BuiltInHabitVersionRegistry.KEY_HOUSEWORK
         )
         knownKeys.forEach { key ->
             val def = BuiltInHabitVersionRegistry.current(key)
@@ -47,7 +47,7 @@ class BuiltInHabitVersionRegistryTest {
             BuiltInHabitVersionRegistry.KEY_MORNING_SELFCARE,
             BuiltInHabitVersionRegistry.KEY_BEDTIME_SELFCARE,
             BuiltInHabitVersionRegistry.KEY_MEDICATION,
-            BuiltInHabitVersionRegistry.KEY_HOUSEWORK,
+            BuiltInHabitVersionRegistry.KEY_HOUSEWORK
         )
         assertEquals(expected, BuiltInHabitVersionRegistry.allKeys())
     }

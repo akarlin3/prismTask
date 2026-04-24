@@ -33,7 +33,7 @@ class BuiltInUpdateDetector @Inject constructor(
     private val habitDao: HabitDao,
     private val selfCareDao: SelfCareDao,
     private val differ: BuiltInTemplateDiffer,
-    private val prefs: BuiltInSyncPreferences,
+    private val prefs: BuiltInSyncPreferences
 ) {
     private val registry = BuiltInHabitVersionRegistry
 
@@ -64,7 +64,7 @@ class BuiltInUpdateDetector @Inject constructor(
                 addedStepCount = diff.addedSteps.size,
                 removedStepCount = diff.removedSteps.size,
                 modifiedStepCount = diff.modifiedSteps.size,
-                habitFieldChangeCount = diff.habitFieldChanges.size,
+                habitFieldChangeCount = diff.habitFieldChanges.size
             )
         }
         _pendingUpdates.value = pending
@@ -89,7 +89,7 @@ class BuiltInUpdateDetector @Inject constructor(
         }
         updatedHabit = updatedHabit.copy(
             sourceVersion = diff.toVersion,
-            updatedAt = now,
+            updatedAt = now
         )
         habitDao.update(updatedHabit)
 
@@ -107,7 +107,7 @@ class BuiltInUpdateDetector @Inject constructor(
                     phase = def.phase,
                     sortOrder = def.sortOrder,
                     sourceVersion = diff.toVersion,
-                    updatedAt = now,
+                    updatedAt = now
                 )
             }
         if (toInsert.isNotEmpty()) selfCareDao.insertSteps(toInsert)
@@ -129,7 +129,7 @@ class BuiltInUpdateDetector @Inject constructor(
                     sortOrder = change.proposed.sortOrder,
                     note = change.proposed.note,
                     sourceVersion = diff.toVersion,
-                    updatedAt = now,
+                    updatedAt = now
                 )
             }
         if (toUpdate.isNotEmpty()) selfCareDao.updateSteps(toUpdate)
@@ -139,8 +139,10 @@ class BuiltInUpdateDetector @Inject constructor(
         // applies to steps in the proposed set the user did not opt into.
         if (routineType != null) {
             val all = selfCareDao.getStepsForRoutineOnce(routineType)
-            val proposedKnownIds = (diff.modifiedSteps.map { it.stepId } +
-                diff.addedSteps.map { it.stepId }).toSet()
+            val proposedKnownIds = (
+                diff.modifiedSteps.map { it.stepId } +
+                    diff.addedSteps.map { it.stepId }
+                ).toSet()
             val touchedIds = accepted.acceptedAddedStepIds + accepted.acceptedModifiedStepIds
             val pending = all
                 .filter { it.stepId in proposedKnownIds && it.stepId !in touchedIds }
@@ -163,8 +165,8 @@ class BuiltInUpdateDetector @Inject constructor(
         habitDao.update(
             habit.copy(
                 isDetachedFromTemplate = true,
-                updatedAt = System.currentTimeMillis(),
-            ),
+                updatedAt = System.currentTimeMillis()
+            )
         )
         prefs.clearDismissals(templateKey)
         refreshPendingUpdates()
@@ -176,7 +178,7 @@ class BuiltInUpdateDetector @Inject constructor(
     private fun applyFieldChange(
         habit: com.averycorp.prismtask.data.local.entity.HabitEntity,
         fieldName: String,
-        proposed: String?,
+        proposed: String?
     ): com.averycorp.prismtask.data.local.entity.HabitEntity = when (fieldName) {
         "name" -> habit.copy(name = proposed.orEmpty())
         "description" -> habit.copy(description = proposed)

@@ -33,7 +33,7 @@ import com.averycorp.prismtask.ui.navigation.PrismTaskRoute
 @Composable
 fun BuiltInUpdatesScreen(
     navController: NavController,
-    viewModel: BuiltInUpdatesViewModel = hiltViewModel(),
+    viewModel: BuiltInUpdatesViewModel = hiltViewModel()
 ) {
     val pending by viewModel.pendingUpdates.collectAsStateWithLifecycle()
 
@@ -45,9 +45,9 @@ fun BuiltInUpdatesScreen(
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
-                },
+                }
             )
-        },
+        }
     ) { padding ->
         if (pending.isEmpty()) {
             Column(
@@ -55,11 +55,11 @@ fun BuiltInUpdatesScreen(
                     .fillMaxSize()
                     .padding(padding)
                     .padding(24.dp),
-                verticalArrangement = Arrangement.Center,
+                verticalArrangement = Arrangement.Center
             ) {
                 Text(
                     "Your built-in habits are up to date.",
-                    style = MaterialTheme.typography.bodyLarge,
+                    style = MaterialTheme.typography.bodyLarge
                 )
             }
             return@Scaffold
@@ -70,18 +70,18 @@ fun BuiltInUpdatesScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             items(pending, key = { it.templateKey }) { update ->
                 PendingUpdateCard(
                     update = update,
                     onReview = {
                         navController.navigate(
-                            PrismTaskRoute.BuiltInUpdateDiff.createRoute(update.templateKey),
+                            PrismTaskRoute.BuiltInUpdateDiff.createRoute(update.templateKey)
                         )
                     },
                     onDismiss = { viewModel.dismiss(update.templateKey, update.toVersion) },
-                    onDetach = { viewModel.detach(update.templateKey) },
+                    onDetach = { viewModel.detach(update.templateKey) }
                 )
             }
         }
@@ -93,28 +93,28 @@ private fun PendingUpdateCard(
     update: PendingBuiltInUpdate,
     onReview: () -> Unit,
     onDismiss: () -> Unit,
-    onDetach: () -> Unit,
+    onDetach: () -> Unit
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Text(
                 text = update.displayName,
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
+                fontWeight = FontWeight.SemiBold
             )
             Text(
                 text = "v${update.fromVersion} → v${update.toVersion}",
                 style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             ChangeSummary(update)
             Row(
                 onReview = onReview,
                 onDismiss = onDismiss,
-                onDetach = onDetach,
+                onDetach = onDetach
             )
         }
     }
@@ -130,7 +130,7 @@ private fun ChangeSummary(update: PendingBuiltInUpdate) {
     if (parts.isNotEmpty()) {
         Text(
             text = parts.joinToString(" · "),
-            style = MaterialTheme.typography.bodyMedium,
+            style = MaterialTheme.typography.bodyMedium
         )
     }
 }
@@ -139,10 +139,10 @@ private fun ChangeSummary(update: PendingBuiltInUpdate) {
 private fun Row(
     onReview: () -> Unit,
     onDismiss: () -> Unit,
-    onDetach: () -> Unit,
+    onDetach: () -> Unit
 ) {
     androidx.compose.foundation.layout.Row(
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         TextButton(onClick = onReview) { Text("Review") }
         TextButton(onClick = onDismiss) { Text("Dismiss") }

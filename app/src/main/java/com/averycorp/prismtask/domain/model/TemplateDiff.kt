@@ -15,7 +15,7 @@ data class FieldChange(
     val fieldName: String,
     val currentValue: String?,
     val proposedValue: String?,
-    val userModified: Boolean,
+    val userModified: Boolean
 )
 
 /**
@@ -32,7 +32,7 @@ data class StepChange(
     val tierChanged: Boolean,
     val phaseChanged: Boolean,
     val sortOrderChanged: Boolean,
-    val noteChanged: Boolean,
+    val noteChanged: Boolean
 )
 
 /**
@@ -52,7 +52,7 @@ data class TemplateDiff(
     val addedSteps: List<BuiltInStepDefinition>,
     val removedSteps: List<SelfCareStepEntity>,
     val modifiedSteps: List<StepChange>,
-    val preservedUserSteps: List<SelfCareStepEntity>,
+    val preservedUserSteps: List<SelfCareStepEntity>
 ) {
     val hasAnyChanges: Boolean
         get() = habitFieldChanges.isNotEmpty() ||
@@ -74,7 +74,7 @@ data class PendingBuiltInUpdate(
     val addedStepCount: Int,
     val removedStepCount: Int,
     val modifiedStepCount: Int,
-    val habitFieldChangeCount: Int,
+    val habitFieldChangeCount: Int
 )
 
 /**
@@ -87,5 +87,5 @@ data class AcceptedChanges(
     val acceptedFieldNames: Set<String>,
     val acceptedAddedStepIds: Set<String>,
     val acceptedRemovedStepIds: Set<String>,
-    val acceptedModifiedStepIds: Set<String>,
+    val acceptedModifiedStepIds: Set<String>
 )

@@ -26,7 +26,7 @@ class BuiltInTemplateDiffer @Inject constructor() {
     fun diff(
         habit: HabitEntity,
         steps: List<SelfCareStepEntity>,
-        proposed: BuiltInHabitDefinition,
+        proposed: BuiltInHabitDefinition
     ): TemplateDiff? {
         if (habit.isDetachedFromTemplate) return null
         if (habit.templateKey != proposed.templateKey) return null
@@ -57,14 +57,14 @@ class BuiltInTemplateDiffer @Inject constructor() {
             addedSteps = added,
             removedSteps = removed,
             modifiedSteps = modified,
-            preservedUserSteps = preservedUser,
+            preservedUserSteps = preservedUser
         )
         return if (diff.hasAnyChanges) diff else null
     }
 
     private fun habitFieldDiff(
         habit: HabitEntity,
-        proposed: BuiltInHabitDefinition,
+        proposed: BuiltInHabitDefinition
     ): List<FieldChange> {
         val mod = habit.isUserModified
         val out = mutableListOf<FieldChange>()
@@ -82,7 +82,7 @@ class BuiltInTemplateDiffer @Inject constructor() {
                 fieldName = "targetFrequency",
                 currentValue = habit.targetFrequency.toString(),
                 proposedValue = proposed.targetCount.toString(),
-                userModified = mod,
+                userModified = mod
             )
         }
         if ((habit.activeDays ?: "") != proposed.activeDaysCsv) {
@@ -93,7 +93,7 @@ class BuiltInTemplateDiffer @Inject constructor() {
 
     private fun stepChangeOrNull(
         current: SelfCareStepEntity,
-        proposed: BuiltInStepDefinition,
+        proposed: BuiltInStepDefinition
     ): StepChange? {
         val labelChanged = current.label != proposed.label
         val durationChanged = current.duration != proposed.duration
@@ -113,7 +113,7 @@ class BuiltInTemplateDiffer @Inject constructor() {
             tierChanged = tierChanged,
             phaseChanged = phaseChanged,
             sortOrderChanged = sortOrderChanged,
-            noteChanged = noteChanged,
+            noteChanged = noteChanged
         )
     }
 }
