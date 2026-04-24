@@ -102,31 +102,9 @@ jobs:
             echo "EOF"
           } >> $GITHUB_OUTPUT
 
-      - name: Upload APK to backend
-        if: steps.keystore.outputs.has_keystore == 'true'
-        env:
-          API_BASE_URL: ${{ secrets.API_BASE_URL }}
-          DEPLOY_API_KEY: ${{ secrets.DEPLOY_API_KEY }}
-        run: |
-          set -euo pipefail
-          if [ -z "$API_BASE_URL" ]; then
-            echo "::warning::API_BASE_URL secret is not set. Skipping APK upload to backend."
-            exit 0
-          fi
-          APK_PATH=$(find app/build/outputs/apk/release -name '*.apk' | head -1)
-          if [ -z "$APK_PATH" ]; then
-            echo "::error::No APK found in app/build/outputs/apk/release/"
-            ls -la app/build/outputs/apk/release/ || true
-            exit 1
-          fi
-          echo "Uploading APK: $APK_PATH"
-          curl -f -X POST "${API_BASE_URL}/api/v1/app/releases" \
-            -H "Authorization: Bearer ${DEPLOY_API_KEY}" \
-            -F "version_code=${{ steps.version.outputs.version_code }}" \
-            -F "version_name=${{ steps.version.outputs.version_name }}" \
-            -F "release_notes=${{ steps.notes.outputs.release_notes }}" \
-            -F "apk=@${APK_PATH}"
-
+      # Publish the signed artifacts first so a transient backend 500 on the
+      # notify step below never blocks the actual release from being attached
+      # to the GitHub release + workflow artifacts.
       - name: Upload release artifacts
         if: steps.keystore.outputs.has_keystore == 'true'
         uses: actions/upload-artifact@v4
@@ -154,6 +132,34 @@ jobs:
               --title "PrismTask ${{ github.ref_name }}" \
               --generate-notes
           fi
+
+      # Notify the backend last and treat 5xx as non-fatal — the release has
+      # already been published and a backend outage should not gate it.
+      - name: Upload APK to backend
+        if: steps.keystore.outputs.has_keystore == 'true'
+        continue-on-error: true
+        env:
+          API_BASE_URL: ${{ secrets.API_BASE_URL }}
+          DEPLOY_API_KEY: ${{ secrets.DEPLOY_API_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "$API_BASE_URL" ]; then
+            echo "::warning::API_BASE_URL secret is not set. Skipping APK upload to backend."
+            exit 0
+          fi
+          APK_PATH=$(find app/build/outputs/apk/release -name '*.apk' | head -1)
+          if [ -z "$APK_PATH" ]; then
+            echo "::error::No APK found in app/build/outputs/apk/release/"
+            ls -la app/build/outputs/apk/release/ || true
+            exit 1
+          fi
+          echo "Uploading APK: $APK_PATH"
+          curl -f -X POST "${API_BASE_URL}/api/v1/app/releases" \
+            -H "Authorization: Bearer ${DEPLOY_API_KEY}" \
+            -F "version_code=${{ steps.version.outputs.version_code }}" \
+            -F "version_name=${{ steps.version.outputs.version_name }}" \
+            -F "release_notes=${{ steps.notes.outputs.release_notes }}" \
+            -F "apk=@${APK_PATH}"
 
   capture-failure-log:
     needs: [build-and-release]
