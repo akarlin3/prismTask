@@ -38,6 +38,14 @@ from app.schemas.sync import (
 
 logger = logging.getLogger(__name__)
 
+# Process-level audit-emit failure counter, keyed by entity_type. Used by the
+# medication migration safety net to surface silent loss of audit events.
+# Cloud Logging can also count `audit_emit_failed=true` log events directly,
+# but this in-process counter exposes the same number to a future /metrics
+# endpoint without re-querying logs. Reset on process restart — appropriate
+# for the always-on FastAPI deployment model.
+audit_emit_failures_total: dict[str, int] = {}
+
 router = APIRouter(prefix="/sync", tags=["sync"])
 
 ENTITY_MAP = {
@@ -300,9 +308,26 @@ async def _emit_audit_events(db: AsyncSession, records: list[dict[str, Any]]) ->
             async with db.begin_nested():
                 db.add(MedicationLogEvent(**r))
         except Exception as exc:  # noqa: BLE001
+            entity_type = r.get("entity_type", "unknown")
+            audit_emit_failures_total[entity_type] = (
+                audit_emit_failures_total.get(entity_type, 0) + 1
+            )
+            # Structured fields land in Cloud Logging's jsonPayload so a
+            # log-based metric `audit_emit_failed=true` counts these without
+            # re-querying message text. The medication migration safety net
+            # uses this metric: silent audit loss is the moral equivalent
+            # of silent migration failure on the client side, and the
+            # closed-beta dashboard plots both side-by-side.
             logger.warning(
                 "medication audit emit failed for %s: %s",
                 r.get("entity_cloud_id"), exc,
+                extra={
+                    "audit_emit_failed": True,
+                    "entity_type": entity_type,
+                    "entity_cloud_id": r.get("entity_cloud_id"),
+                    "exception_class": type(exc).__name__,
+                    "audit_emit_failures_total": audit_emit_failures_total[entity_type],
+                },
             )
 
 
