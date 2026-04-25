@@ -605,40 +605,25 @@ class MedicationTierState(Base):
     slot = relationship("MedicationSlot")
 
 
-class MedicationMark(Base):
-    """Per-medication mark within a tier-state slot, with intended/logged-at times."""
-
-    __tablename__ = "medication_marks"
-    __table_args__ = (
-        UniqueConstraint(
-            "user_id", "medication_id", "tier_state_id",
-            name="uq_med_mark",
-        ),
-    )
-
-    id = Column(Integer, primary_key=True)
-    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
-    cloud_id = Column(String(64), unique=True, nullable=True, index=True)
-    medication_id = Column(Integer, ForeignKey("medications.id", ondelete="CASCADE"), nullable=False, index=True)
-    tier_state_id = Column(Integer, ForeignKey("medication_tier_states.id", ondelete="CASCADE"), nullable=False, index=True)
-    intended_time = Column(DateTime(timezone=True), nullable=True)
-    logged_at = Column(DateTime(timezone=True), nullable=False)
-    marked_taken = Column(Boolean, nullable=False, default=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=lambda: datetime.now(timezone.utc))
-
-    user = relationship("User")
-    medication = relationship("Medication")
-    tier_state = relationship("MedicationTierState")
+# MedicationMark — removed in chore/drop-orphan-medication-marks.
+# The per-medication mark concept ended up living on
+# `medication_tier_states.intended_time` (slot-granularity), so the
+# `medication_marks` table was never populated by any production write
+# path. The table was dropped in Alembic 021_drop_medication_marks.
 
 
 class MedicationLogEvent(Base):
     """Append-only audit log for medication time-logging events.
 
-    Written fire-and-forget on every /sync/push touching ``medication_tier_state``
-    or ``medication_mark``. Records both the client-claimed times
-    (``intended_time``, ``logged_at``) and the server-observed
-    ``sync_received_at`` so post-hoc debugging can spot client/server clock skew.
+    Written fire-and-forget on every /sync/push touching ``medication_tier_state``.
+    Records both the client-claimed times (``intended_time``,
+    ``logged_at``) and the server-observed ``sync_received_at`` so
+    post-hoc debugging can spot client/server clock skew.
+
+    The ``entity_type`` column historically also held ``"mark"`` for the
+    `medication_mark` family; that family was removed in
+    chore/drop-orphan-medication-marks. Existing audit rows with
+    ``entity_type = "mark"`` are preserved (audit log is append-only).
     """
 
     __tablename__ = "medication_log_events"
@@ -650,7 +635,7 @@ class MedicationLogEvent(Base):
 
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
-    entity_type = Column(String(20), nullable=False)  # "tier_state" | "mark"
+    entity_type = Column(String(20), nullable=False)  # "tier_state"
     entity_cloud_id = Column(String(64), nullable=True, index=True)
     intended_time = Column(DateTime(timezone=True), nullable=True)
     logged_at = Column(DateTime(timezone=True), nullable=False, index=True)

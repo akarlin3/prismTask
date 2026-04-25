@@ -1,7 +1,6 @@
 package com.averycorp.prismtask.data.remote.mapper
 
 import com.averycorp.prismtask.data.local.entity.MedicationEntity
-import com.averycorp.prismtask.data.local.entity.MedicationMarkEntity
 import com.averycorp.prismtask.data.local.entity.MedicationSlotEntity
 import com.averycorp.prismtask.data.local.entity.MedicationSlotOverrideEntity
 import com.averycorp.prismtask.data.local.entity.MedicationTierStateEntity
@@ -270,61 +269,8 @@ class MedicationSlotSyncMapperTest {
         assertEquals(200L, decoded.loggedAt)
     }
 
-    @Test
-    fun medicationMark_roundTripsAllFields() {
-        val source = MedicationMarkEntity(
-            id = 5,
-            medicationId = 1,
-            medicationTierStateId = 1,
-            intendedTime = 1_700_000_000_000L,
-            loggedAt = 1_700_000_300_000L,
-            markedTaken = true,
-            updatedAt = 1_700_000_300_000L
-        )
-        val map = MedicationSyncMapper.medicationMarkToMap(
-            source,
-            medicationCloudId = "med-c",
-            tierStateCloudId = "ts-c"
-        )
-        assertEquals(1_700_000_000_000L, map["intendedTime"])
-        assertEquals(1_700_000_300_000L, map["loggedAt"])
-        assertEquals(true, map["markedTaken"])
-
-        val decoded = MedicationSyncMapper.mapToMedicationMark(
-            map,
-            localId = source.id,
-            medicationLocalId = 1,
-            tierStateLocalId = 1,
-            cloudId = "mark-c"
-        )
-        assertEquals("mark-c", decoded.cloudId)
-        assertEquals(source.copy(cloudId = "mark-c"), decoded)
-    }
-
-    @Test
-    fun medicationMark_unmarkedRoundTrips() {
-        val source = MedicationMarkEntity(
-            id = 6,
-            medicationId = 1,
-            medicationTierStateId = 1,
-            intendedTime = null,
-            loggedAt = 5_000L,
-            markedTaken = false,
-            updatedAt = 5_000L
-        )
-        val map = MedicationSyncMapper.medicationMarkToMap(
-            source,
-            medicationCloudId = "m",
-            tierStateCloudId = "t"
-        )
-        val decoded = MedicationSyncMapper.mapToMedicationMark(
-            map,
-            localId = source.id,
-            medicationLocalId = 1,
-            tierStateLocalId = 1,
-            cloudId = "mark-x"
-        )
-        assertEquals(false, decoded.markedTaken)
-        assertEquals(null, decoded.intendedTime)
-    }
+    // medicationMark_* tests removed — the medication_marks table was
+    // an orphan (no production write path ever populated it). Dropped
+    // in chore/drop-orphan-medication-marks per
+    // docs/audits/PHASE_D_BUNDLE_AUDIT.md Item 3.
 }

@@ -5,7 +5,6 @@ import com.averycorp.prismtask.data.local.dao.DailyEssentialSlotCompletionDao
 import com.averycorp.prismtask.data.local.dao.HabitCompletionDao
 import com.averycorp.prismtask.data.local.dao.HabitDao
 import com.averycorp.prismtask.data.local.dao.MedicationDao
-import com.averycorp.prismtask.data.local.dao.MedicationMarkDao
 import com.averycorp.prismtask.data.local.dao.MedicationSlotDao
 import com.averycorp.prismtask.data.local.dao.MedicationTierStateDao
 import com.averycorp.prismtask.data.local.dao.ProjectDao
@@ -57,7 +56,6 @@ constructor(
     private val medicationDao: MedicationDao,
     private val medicationSlotDao: MedicationSlotDao,
     private val medicationTierStateDao: MedicationTierStateDao,
-    private val medicationMarkDao: MedicationMarkDao,
     private val authTokenPreferences: AuthTokenPreferences,
     private val backendSyncPreferences: BackendSyncPreferences,
     private val templatePreferences: TemplatePreferences,
@@ -306,23 +304,11 @@ constructor(
             medicationSlotDao.getAllOnce().associate { it.id to it.cloudId }
 
         val tierStates = medicationTierStateDao.getAllOnce().filter { it.updatedAt > since }
-        val tierStateCloudIdsById: Map<Long, String?> =
-            medicationTierStateDao.getAllOnce().associate { it.id to it.cloudId }
         tierStates.forEach { state ->
             val op = medicationTierStateToOperation(
                 state,
                 medicationCloudId = medCloudIdsById[state.medicationId],
                 slotCloudId = slotCloudIdsById[state.slotId]
-            )
-            if (op != null) operations += op
-        }
-
-        val marks = medicationMarkDao.getAllOnce().filter { it.updatedAt > since }
-        marks.forEach { mark ->
-            val op = medicationMarkToOperation(
-                mark,
-                medicationCloudId = medCloudIdsById[mark.medicationId],
-                tierStateCloudId = tierStateCloudIdsById[mark.medicationTierStateId]
             )
             if (op != null) operations += op
         }

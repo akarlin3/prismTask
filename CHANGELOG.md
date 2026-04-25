@@ -204,6 +204,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Garbage-collect orphan `medication_marks` table.** The medication
+  time-logging chain (Android PRs #743, #744; web PR #745) landed with
+  `medication_marks` as a planned per-medication mark table, but the UI
+  half ended up using `medication_tier_states.intended_time` for slot-
+  granularity time editing instead — the design call is documented at
+  `MedicationViewModel.kt:132` ("the user edits them at slot
+  granularity"). No production write path on Android, web, or the
+  backend ever populated the table, leaving it as a sync-protocol
+  footgun (a future client could have started writing to it and
+  round-tripped rows that no Android version reads). This change drops
+  the table everywhere: Room migration `MIGRATION_63_64` (DB version
+  bumped to 64), Alembic revision `021_drop_medication_marks`,
+  SQLAlchemy `MedicationMark` model, the `medication_mark` entity in
+  the `/sync/push` ENTITY_MAP / WRITABLE_FIELDS / cloud-FK resolver /
+  AUDIT_ENTITY_TYPES dicts, the Android `MedicationMarkEntity` +
+  `MedicationMarkDao`, the entity- and Firestore-side mappers
+  (`medicationMarkToOperation`, `MedicationSyncMapper.medicationMarkToMap`
+  + `mapToMedicationMark`), and the `CloudIdOrphanHealer` family entry.
+  Existing `medication_log_events` rows with `entity_type = "mark"` are
+  preserved (audit log is append-only). Per
+  `docs/audits/PHASE_D_BUNDLE_AUDIT.md` Item 3.
+
 - **BREAKING (web): Medication tier enum aligned with Android canonical
   model.** Web's medication tier values are now `skipped` / `essential` /
   `prescription` / `complete` (lowercase, 4 values), replacing the

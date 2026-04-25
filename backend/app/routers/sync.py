@@ -17,7 +17,6 @@ from app.models import (
     HabitFrequency,
     Medication,
     MedicationLogEvent,
-    MedicationMark,
     MedicationSlot,
     MedicationTierState,
     Project,
@@ -60,7 +59,6 @@ ENTITY_MAP = {
     "medication": Medication,
     "medication_slot": MedicationSlot,
     "medication_tier_state": MedicationTierState,
-    "medication_mark": MedicationMark,
 }
 
 STATUS_ENUM_MAP = {
@@ -126,20 +124,16 @@ WRITABLE_FIELDS: dict[str, frozenset[str]] = {
         "cloud_id", "medication_cloud_id", "slot_cloud_id",
         "log_date", "tier", "tier_source", "intended_time", "logged_at",
     }),
-    "medication_mark": frozenset({
-        "cloud_id", "medication_cloud_id", "tier_state_cloud_id",
-        "intended_time", "logged_at", "marked_taken",
-    }),
 }
 
 # Foreign keys that reference user-scoped entities. Before assigning one of
 # these keys, the server must confirm the referenced row belongs to the
 # authenticated user.
 #
-# Medication tier_state / mark are NOT listed here — they reference
-# their parents by `*_cloud_id` (cross-system safe) instead of local
-# integer FKs, and the cloud-id resolution + ownership check happen
-# inline in `_resolve_cloud_fk_for_medication`.
+# Medication tier_state is NOT listed here — it references its parents
+# by `*_cloud_id` (cross-system safe) instead of local integer FKs,
+# and the cloud-id resolution + ownership check happen inline in
+# `_resolve_cloud_fk_for_medication`.
 USER_SCOPED_FKS: dict[str, dict[str, type]] = {
     "project": {"goal_id": Goal},
     "task": {"project_id": Project, "parent_id": Task},
@@ -150,16 +144,12 @@ USER_SCOPED_FKS: dict[str, dict[str, type]] = {
 # Per-entity mapping of `*_cloud_id` payload keys -> (model, target FK
 # column). The resolver pops the cloud_id key, looks up the integer id
 # on the named model (scoped to the user), and writes the integer to
-# the FK column. Used only for medication tier_state / mark today;
-# every other entity still uses local integer FKs.
+# the FK column. Used only for medication tier_state today; every other
+# entity still uses local integer FKs.
 _MEDICATION_CLOUD_FK_MAP: dict[str, dict[str, tuple[type, str]]] = {
     "medication_tier_state": {
         "medication_cloud_id": (Medication, "medication_id"),
         "slot_cloud_id": (MedicationSlot, "slot_id"),
-    },
-    "medication_mark": {
-        "medication_cloud_id": (Medication, "medication_id"),
-        "tier_state_cloud_id": (MedicationTierState, "tier_state_id"),
     },
 }
 
@@ -168,7 +158,6 @@ _MEDICATION_CLOUD_FK_MAP: dict[str, dict[str, tuple[type, str]]] = {
 # ``medication_log_events.entity_type``.
 AUDIT_ENTITY_TYPES: dict[str, str] = {
     "medication_tier_state": "tier_state",
-    "medication_mark": "mark",
 }
 
 

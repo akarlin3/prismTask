@@ -4,7 +4,6 @@ import com.averycorp.prismtask.data.local.entity.DailyEssentialSlotCompletionEnt
 import com.averycorp.prismtask.data.local.entity.HabitCompletionEntity
 import com.averycorp.prismtask.data.local.entity.HabitEntity
 import com.averycorp.prismtask.data.local.entity.MedicationEntity
-import com.averycorp.prismtask.data.local.entity.MedicationMarkEntity
 import com.averycorp.prismtask.data.local.entity.MedicationSlotEntity
 import com.averycorp.prismtask.data.local.entity.MedicationTierStateEntity
 import com.averycorp.prismtask.data.local.entity.ProjectEntity
@@ -243,14 +242,19 @@ internal fun millisToIso(millis: Long): String =
 
 // region Medication time-logging entities (PR4 follow-up)
 //
-// Medication entities (medication, medication_slot, medication_tier_state,
-// medication_mark) sync to the backend through the same /sync/push surface
-// as tasks/habits, but tier_state and mark reference their parents by
-// `*_cloud_id` rather than local integer FK. Local Android ids and
-// backend integer ids never agree, so the only safe cross-system handle
-// is the user-generated cloud_id. The resolver
-// `_resolve_cloud_fk_for_medication` in routers/sync.py turns those back
-// into integer FKs at write time.
+// Medication entities (medication, medication_slot, medication_tier_state)
+// sync to the backend through the same /sync/push surface as tasks/habits,
+// but tier_state references its parents by `*_cloud_id` rather than local
+// integer FK. Local Android ids and backend integer ids never agree, so
+// the only safe cross-system handle is the user-generated cloud_id. The
+// resolver `_resolve_cloud_fk_for_medication` in routers/sync.py turns
+// those back into integer FKs at write time.
+//
+// `medication_mark` was historically a fourth entity here (per the
+// original PR4 chain) but the table was never populated by any production
+// write path — the per-medication intended_time ended up living on
+// `medication_tier_states` instead. The mark mapper, DAO, table, and
+// backend model were dropped in chore/drop-orphan-medication-marks.
 
 internal fun medicationToOperation(med: MedicationEntity): SyncOperation {
     val data = JsonObject().apply {
@@ -314,36 +318,6 @@ internal fun medicationTierStateToOperation(
         entityId = state.id,
         data = data,
         clientTimestamp = millisToIso(state.updatedAt)
-    )
-}
-
-/**
- * Build a mark push op. Caller must supply [medicationCloudId] and
- * [tierStateCloudId] — looked up from the parents' Room rows. Returns
- * null if either parent doesn't have a cloud_id yet.
- */
-internal fun medicationMarkToOperation(
-    mark: MedicationMarkEntity,
-    medicationCloudId: String?,
-    tierStateCloudId: String?
-): SyncOperation? {
-    if (medicationCloudId.isNullOrBlank() || tierStateCloudId.isNullOrBlank()) return null
-    val data = JsonObject().apply {
-        if (mark.cloudId != null) addProperty("cloud_id", mark.cloudId)
-        addProperty("medication_cloud_id", medicationCloudId)
-        addProperty("tier_state_cloud_id", tierStateCloudId)
-        if (mark.intendedTime != null) {
-            addProperty("intended_time", millisToIso(mark.intendedTime))
-        }
-        addProperty("logged_at", millisToIso(mark.loggedAt))
-        addProperty("marked_taken", mark.markedTaken)
-    }
-    return SyncOperation(
-        entityType = "medication_mark",
-        operation = "update",
-        entityId = mark.id,
-        data = data,
-        clientTimestamp = millisToIso(mark.updatedAt)
     )
 }
 

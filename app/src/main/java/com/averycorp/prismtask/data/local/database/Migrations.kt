@@ -1840,6 +1840,29 @@ val MIGRATION_62_63 = object : Migration(62, 63) {
 }
 
 /**
+ * v63 → v64 (medication_marks garbage collection): drops the
+ * `medication_marks` table, its indices, and the foreign keys that
+ * reference it. No write path ever populated this table — per
+ * `docs/audits/PHASE_D_BUNDLE_AUDIT.md` Item 3, the medication
+ * time-logging chain (PRs #743, #744, #745) ended up using
+ * `medication_tier_states.intended_time` for slot-granularity time
+ * editing, leaving `medication_marks` provisioned but never written
+ * by any production code path. The table is therefore guaranteed
+ * empty in the field — there is no data to preserve, only a
+ * sync-protocol footgun (a future client writing to it would round-
+ * trip rows that no Android version reads). Sync mappers and the
+ * orphan-healer entry are removed alongside in the same change.
+ *
+ * No backfill needed. SQLite drops indices automatically when the
+ * table is dropped.
+ */
+val MIGRATION_63_64 = object : Migration(63, 64) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("DROP TABLE IF EXISTS `medication_marks`")
+    }
+}
+
+/**
  * Single source of truth for the Room schema version. Referenced by both
  * `@Database(version = CURRENT_DB_VERSION)` on [PrismTaskDatabase] and by
  * `StartupCrashDiagnosticTest`. Bumping the schema means:
@@ -1851,7 +1874,7 @@ val MIGRATION_62_63 = object : Migration(62, 63) {
  * The diagnostic test will fail until all three are done, preventing the
  * "forgot to add migration" class of startup crash from reaching main.
  */
-const val CURRENT_DB_VERSION = 63
+const val CURRENT_DB_VERSION = 64
 
 val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_1_2,
@@ -1915,5 +1938,6 @@ val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_59_60,
     MIGRATION_60_61,
     MIGRATION_61_62,
-    MIGRATION_62_63
+    MIGRATION_62_63,
+    MIGRATION_63_64
 )
