@@ -237,7 +237,9 @@ constructor(
         name: String,
         tier: MedicationTier,
         notes: String,
-        slotSelections: List<MedicationSlotSelection>
+        slotSelections: List<MedicationSlotSelection>,
+        reminderMode: String? = null,
+        reminderIntervalMinutes: Int? = null
     ) {
         if (name.isBlank()) return
         viewModelScope.launch {
@@ -245,7 +247,9 @@ constructor(
                 MedicationEntity(
                     name = name.trim(),
                     tier = tier.toStorage(),
-                    notes = notes.trim()
+                    notes = notes.trim(),
+                    reminderMode = reminderMode,
+                    reminderIntervalMinutes = reminderIntervalMinutes
                 )
             )
             slotRepository.replaceLinksForMedication(id, slotSelections.map { it.slotId })
@@ -272,7 +276,9 @@ constructor(
         name: String,
         tier: MedicationTier,
         notes: String,
-        slotSelections: List<MedicationSlotSelection>
+        slotSelections: List<MedicationSlotSelection>,
+        reminderMode: String? = null,
+        reminderIntervalMinutes: Int? = null
     ) {
         if (name.isBlank()) return
         viewModelScope.launch {
@@ -280,7 +286,9 @@ constructor(
                 medication.copy(
                     name = name.trim(),
                     tier = tier.toStorage(),
-                    notes = notes.trim()
+                    notes = notes.trim(),
+                    reminderMode = reminderMode,
+                    reminderIntervalMinutes = reminderIntervalMinutes
                 )
             )
             slotRepository.replaceLinksForMedication(medication.id, slotSelections.map { it.slotId })

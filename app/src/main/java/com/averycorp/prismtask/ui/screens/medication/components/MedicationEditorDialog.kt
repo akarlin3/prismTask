@@ -2,10 +2,13 @@ package com.averycorp.prismtask.ui.screens.medication.components
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -20,6 +23,28 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.averycorp.prismtask.data.local.entity.MedicationSlotEntity
 import com.averycorp.prismtask.domain.model.medication.MedicationTier
+
+/**
+ * Per-medication reminder-mode override choice. Mirrors
+ * `SlotReminderModeChoice` for the slot editor but lives in the
+ * medication-editor package so it doesn't pull in the settings layer.
+ *  - INHERIT persists as `reminder_mode = NULL` (medication inherits
+ *    its slot's mode, then the global default).
+ *  - CLOCK / INTERVAL persist as the literal column value.
+ */
+internal enum class MedicationReminderModeChoice { INHERIT, CLOCK, INTERVAL }
+
+internal fun reminderModeChoiceFromString(raw: String?): MedicationReminderModeChoice = when (raw) {
+    "CLOCK" -> MedicationReminderModeChoice.CLOCK
+    "INTERVAL" -> MedicationReminderModeChoice.INTERVAL
+    else -> MedicationReminderModeChoice.INHERIT
+}
+
+internal fun reminderModeChoiceToString(choice: MedicationReminderModeChoice): String? = when (choice) {
+    MedicationReminderModeChoice.INHERIT -> null
+    MedicationReminderModeChoice.CLOCK -> "CLOCK"
+    MedicationReminderModeChoice.INTERVAL -> "INTERVAL"
+}
 
 /**
  * Replacement for the old [MedDialog]. Operates on [MedicationTier] +
@@ -41,14 +66,29 @@ fun MedicationEditorDialog(
         name: String,
         tier: MedicationTier,
         notes: String,
-        selections: List<MedicationSlotSelection>
+        selections: List<MedicationSlotSelection>,
+        reminderMode: String?,
+        reminderIntervalMinutes: Int?
     ) -> Unit,
-    onCreateNewSlot: () -> Unit
+    onCreateNewSlot: () -> Unit,
+    initialReminderMode: String? = null,
+    initialReminderIntervalMinutes: Int? = null
 ) {
     var name by remember { mutableStateOf(initialName) }
     var tier by remember { mutableStateOf(initialTier) }
     var notes by remember { mutableStateOf(initialNotes) }
     var selections by remember { mutableStateOf(initialSelections) }
+    var reminderModeChoice by remember {
+        mutableStateOf(reminderModeChoiceFromString(initialReminderMode))
+    }
+    var intervalMinutes by remember {
+        mutableStateOf(initialReminderIntervalMinutes ?: 240)
+    }
+    var customIntervalText by remember(intervalMinutes) {
+        mutableStateOf(intervalMinutes.toString())
+    }
+    val intervalPresets = listOf(120, 240, 360, 480)
+    val isCustomInterval = intervalMinutes !in intervalPresets
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -88,6 +128,93 @@ fun MedicationEditorDialog(
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
+                Text(
+                    text = "Reminder Mode",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
+                    ReminderModeChip(
+                        label = "Default",
+                        selected = reminderModeChoice == MedicationReminderModeChoice.INHERIT,
+                        onClick = { reminderModeChoice = MedicationReminderModeChoice.INHERIT }
+                    )
+                    ReminderModeChip(
+                        label = "Clock",
+                        selected = reminderModeChoice == MedicationReminderModeChoice.CLOCK,
+                        onClick = { reminderModeChoice = MedicationReminderModeChoice.CLOCK }
+                    )
+                    ReminderModeChip(
+                        label = "Interval",
+                        selected = reminderModeChoice == MedicationReminderModeChoice.INTERVAL,
+                        onClick = { reminderModeChoice = MedicationReminderModeChoice.INTERVAL }
+                    )
+                }
+                Text(
+                    text = when (reminderModeChoice) {
+                        MedicationReminderModeChoice.INHERIT ->
+                            "Inherits from the slot. If the slot also inherits, uses the app default."
+                        MedicationReminderModeChoice.CLOCK ->
+                            "Reminder fires at each linked slot's ideal time."
+                        MedicationReminderModeChoice.INTERVAL ->
+                            "Reminder fires ${formatInterval(intervalMinutes)} after the most recent dose."
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                if (reminderModeChoice == MedicationReminderModeChoice.INTERVAL) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        intervalPresets.forEach { mins ->
+                            val selected = !isCustomInterval && intervalMinutes == mins
+                            AssistChip(
+                                onClick = { intervalMinutes = mins },
+                                label = { Text(formatInterval(mins)) },
+                                colors = if (selected) {
+                                    AssistChipDefaults.assistChipColors(
+                                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                        labelColor = MaterialTheme.colorScheme.onPrimaryContainer
+                                    )
+                                } else {
+                                    AssistChipDefaults.assistChipColors()
+                                }
+                            )
+                        }
+                        AssistChip(
+                            onClick = {
+                                if (!isCustomInterval) {
+                                    intervalMinutes = (intervalMinutes + 1).coerceIn(60, 1440)
+                                    customIntervalText = intervalMinutes.toString()
+                                }
+                            },
+                            label = { Text("Custom") },
+                            colors = if (isCustomInterval) {
+                                AssistChipDefaults.assistChipColors(
+                                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                    labelColor = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            } else {
+                                AssistChipDefaults.assistChipColors()
+                            }
+                        )
+                    }
+                    if (isCustomInterval) {
+                        OutlinedTextField(
+                            value = customIntervalText,
+                            onValueChange = { raw ->
+                                customIntervalText = raw.filter { it.isDigit() }.take(4)
+                                customIntervalText.toIntOrNull()?.let { mins ->
+                                    intervalMinutes = mins.coerceIn(60, 1440)
+                                }
+                            },
+                            label = { Text("Custom interval (minutes, 60–1440)") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
                 if (selections.isEmpty() && activeSlots.isNotEmpty()) {
                     Text(
                         text = "Pick at least one slot so the medication appears on the Today screen.",
@@ -99,7 +226,16 @@ fun MedicationEditorDialog(
         },
         confirmButton = {
             Button(
-                onClick = { onConfirm(name.trim(), tier, notes.trim(), selections) },
+                onClick = {
+                    onConfirm(
+                        name.trim(),
+                        tier,
+                        notes.trim(),
+                        selections,
+                        reminderModeChoiceToString(reminderModeChoice),
+                        if (reminderModeChoice == MedicationReminderModeChoice.INTERVAL) intervalMinutes else null
+                    )
+                },
                 enabled = name.isNotBlank()
             ) {
                 Text("Save")
@@ -109,4 +245,25 @@ fun MedicationEditorDialog(
             TextButton(onClick = onDismiss) { Text("Cancel") }
         }
     )
+}
+
+@Composable
+private fun ReminderModeChip(label: String, selected: Boolean, onClick: () -> Unit) {
+    AssistChip(
+        onClick = onClick,
+        label = { Text(label) },
+        colors = if (selected) {
+            AssistChipDefaults.assistChipColors(
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                labelColor = MaterialTheme.colorScheme.onPrimaryContainer
+            )
+        } else {
+            AssistChipDefaults.assistChipColors()
+        }
+    )
+}
+
+private fun formatInterval(mins: Int): String = when {
+    mins % 60 == 0 -> "${mins / 60}h"
+    else -> "${mins}m"
 }
