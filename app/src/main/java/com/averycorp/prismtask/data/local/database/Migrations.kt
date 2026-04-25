@@ -1677,6 +1677,17 @@ val MIGRATION_59_60 = object : Migration(59, 60) {
               AND l.tiers_by_time IS NOT NULL
               AND l.tiers_by_time != ''
               AND l.tiers_by_time != '{}'
+              -- Only emit rows when a recognizable tier token is present.
+              -- Malformed JSON (truncated, non-JSON, etc.) would otherwise
+              -- fall through the CASE's ELSE branch and silently produce
+              -- 'skipped' rows that misrepresent user intent — the user
+              -- never chose to skip; we just couldn't parse their log.
+              AND (
+                l.tiers_by_time LIKE '%"complete"%' OR
+                l.tiers_by_time LIKE '%"prescription"%' OR
+                l.tiers_by_time LIKE '%"essential"%' OR
+                l.tiers_by_time LIKE '%"skipped"%'
+              )
               AND s.name = 'Default'
               AND s.ideal_time = '09:00'
             """.trimIndent()

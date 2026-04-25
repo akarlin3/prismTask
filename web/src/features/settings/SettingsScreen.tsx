@@ -189,7 +189,9 @@ export function SettingsScreen() {
   const [deleteCompletedOpen, setDeleteCompletedOpen] = useState(false);
   const [deleteAllOpen, setDeleteAllOpen] = useState(false);
   const [deleteAllConfirmText, setDeleteAllConfirmText] = useState('');
-  const [deleteAccountOpen, setDeleteAccountOpen] = useState(false);
+  // Account deletion is currently Android-only — see DeleteAccountSection in
+  // the Android codebase. The web button below is intentionally disabled until
+  // we wire the same /api/v1/auth/me/deletion endpoint into the web flow.
 
   // Account edit
   const [editingName, setEditingName] = useState(false);
@@ -806,10 +808,16 @@ export function SettingsScreen() {
             <LogOut className="h-4 w-4" />
             Log Out
           </Button>
-          <Button variant="danger" onClick={() => setDeleteAccountOpen(true)}>
+          <Button variant="danger" disabled title="Account deletion is currently only available in the PrismTask Android app">
             Delete Account
           </Button>
         </div>
+        <p className="mt-2 text-xs text-[var(--color-text-secondary)]">
+          To delete your account, open the PrismTask Android app and go to{' '}
+          <span className="font-medium">Settings → Account &amp; Sync → Delete Account</span>.
+          The deletion takes effect immediately and is reversible for 30 days by signing back in.
+          A web-side delete is on the roadmap.
+        </p>
       </SettingsSection>
 
       {/* Import Preview Modal */}
@@ -1063,21 +1071,6 @@ export function SettingsScreen() {
           </div>
         </div>
       </Modal>
-
-      {/* Delete Account */}
-      <ConfirmDialog
-        isOpen={deleteAccountOpen}
-        onClose={() => setDeleteAccountOpen(false)}
-        onConfirm={() => {
-          toast.success('Account deletion requested');
-          setDeleteAccountOpen(false);
-          logout();
-        }}
-        title="Delete Account"
-        message="Are you sure you want to delete your account? All your data will be permanently removed. This cannot be undone."
-        confirmLabel="Delete My Account"
-        variant="danger"
-      />
 
       {/* Keyboard Shortcuts Modal */}
       <KeyboardShortcutsModal

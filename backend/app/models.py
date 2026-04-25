@@ -89,6 +89,9 @@ class User(Base):
     firebase_uid = Column(String(255), unique=True, nullable=True)
     tier = Column(String(20), nullable=False, server_default="FREE")
     is_admin = Column(Boolean, nullable=False, default=False, server_default="0")
+    deletion_pending_at = Column(DateTime(timezone=True), nullable=True)
+    deletion_scheduled_for = Column(DateTime(timezone=True), nullable=True, index=True)
+    deletion_initiated_from = Column(String(20), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=lambda: datetime.now(timezone.utc))
 

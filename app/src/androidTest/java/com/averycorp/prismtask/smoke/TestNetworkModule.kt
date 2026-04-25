@@ -102,6 +102,16 @@ class FakePrismTaskApi : PrismTaskApi {
         request: com.averycorp.prismtask.data.remote.api.RefreshRequest
     ) = error("Not used in offline tests")
 
+    override suspend fun getDeletionStatus() = error("Not used in offline tests")
+
+    override suspend fun requestDeletion(
+        request: com.averycorp.prismtask.data.remote.api.DeletionRequest
+    ) = error("Not used in offline tests")
+
+    override suspend fun cancelDeletion() = error("Not used in offline tests")
+
+    override suspend fun purgeAccount(): retrofit2.Response<Unit> = error("Not used in offline tests")
+
     override suspend fun parseTask(
         request: com.averycorp.prismtask.data.remote.api.ParseRequest
     ) = error("Not used in offline tests")

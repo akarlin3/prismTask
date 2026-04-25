@@ -52,3 +52,23 @@ def verify_firebase_token(id_token: str) -> dict | None:
         return decoded
     except Exception:
         return None
+
+
+def delete_firebase_user(uid: str) -> bool:
+    """Permanently delete a Firebase Auth user record by UID.
+
+    Used by the post-grace permanent-deletion path. Returns True on success
+    (including the not-found case — already deleted is the desired terminal
+    state). Returns False on any other failure so the caller can decide
+    whether to retry; the caller logs the exception.
+    """
+    from firebase_admin import auth as firebase_auth
+
+    try:
+        _get_firebase_app()
+        firebase_auth.delete_user(uid)
+        return True
+    except firebase_auth.UserNotFoundError:
+        return True
+    except Exception:
+        return False

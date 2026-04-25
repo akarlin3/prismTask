@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.middleware.auth import get_current_user
+from app.middleware.auth import get_active_user
 from app.middleware.rate_limit import RateLimiter, daily_ai_rate_limiter
 from app.models import Habit, User
 from app.schemas.ai import (
@@ -123,7 +123,7 @@ def _log_empty_short_circuit(user: User, endpoint: str) -> None:
 async def categorize_eisenhower(
     data: EisenhowerRequest,
     request: Request,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_active_user),
 ):
     ai_rate_limiter.check(request)
     tier = current_user.effective_tier
@@ -178,7 +178,7 @@ async def categorize_eisenhower(
 async def classify_eisenhower_text(
     data: EisenhowerClassifyTextRequest,
     request: Request,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_active_user),
 ):
     """Per-task text-based Eisenhower classification.
 
@@ -219,7 +219,7 @@ async def classify_eisenhower_text(
 async def plan_pomodoro(
     data: PomodoroRequest,
     request: Request,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_active_user),
 ):
     ai_rate_limiter.check(request)
     tier = current_user.effective_tier
@@ -263,7 +263,7 @@ async def plan_pomodoro(
 async def pomodoro_coaching(
     data: PomodoroCoachingRequest,
     request: Request,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_active_user),
 ):
     """A2 Pomodoro+ coaching — pre-session, break-activity, or session-recap.
 
@@ -308,7 +308,7 @@ async def pomodoro_coaching(
 async def daily_briefing(
     data: DailyBriefingRequest,
     request: Request,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_active_user),
     db: AsyncSession = Depends(get_db),
 ):
     briefing_rate_limiter.check(request)
@@ -378,7 +378,7 @@ async def daily_briefing(
 async def weekly_plan(
     data: WeeklyPlanRequest,
     request: Request,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_active_user),
 ):
     weekly_plan_rate_limiter.check(request)
     tier = current_user.effective_tier
@@ -437,7 +437,7 @@ async def weekly_plan(
 async def time_block(
     data: TimeBlockRequest,
     request: Request,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_active_user),
     db: AsyncSession = Depends(get_db),
 ):
     time_block_rate_limiter.check(request)
@@ -598,7 +598,7 @@ def _rank_open_tasks_for_review(tasks: list[TaskDTO]) -> list[TaskDTO]:
 async def weekly_review(
     data: WeeklyReviewRequest,
     request: Request,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_active_user),
 ):
     """
     Generate an ADHD-friendly weekly review narrative using a hybrid
@@ -673,7 +673,7 @@ async def weekly_review(
 async def extract_from_text(
     data: ExtractFromTextRequest,
     request: Request,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_active_user),
 ):
     """
     Extract structured task candidates from pasted conversation text via
@@ -720,7 +720,7 @@ async def extract_from_text(
 async def batch_parse(
     data: BatchParseRequest,
     request: Request,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_active_user),
 ):
     """Parse a natural-language batch command into a structured mutation
     plan. The Android client renders the result as a diff-preview screen

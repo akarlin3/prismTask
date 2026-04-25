@@ -1,19 +1,21 @@
 import logging
 import secrets
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.middleware.auth import get_current_user
 from app.middleware.rate_limit import auth_rate_limiter
-from app.models import User
-from app.schemas.auth import FirebaseTokenLogin, Token, TokenRefresh, UpdateTierRequest, UserCreate, UserLogin, UserResponse
+from app.models import ProjectMember, User
+from app.schemas.auth import DeletionRequest, DeletionStatusResponse, FirebaseTokenLogin, Token, TokenRefresh, UpdateTierRequest, UserCreate, UserLogin, UserResponse
 from app.services.auth import (
     create_access_token,
     create_refresh_token,
     decode_token,
+    delete_firebase_user,
     hash_password,
     verify_firebase_token,
     verify_password,
@@ -21,6 +23,23 @@ from app.services.auth import (
 from app.services.billing import validate_purchase
 
 logger = logging.getLogger(__name__)
+
+# 30-day soft-delete grace window. Any sign-in within this window restores the
+# account; a sign-in after the window triggers permanent deletion. The window
+# is also documented in the privacy policy and data-safety form — keep them
+# in sync if this constant ever changes.
+DELETION_GRACE_DAYS = 30
+_VALID_INITIATED_FROM = {"android", "web", "email"}
+
+
+def _as_utc(dt: datetime) -> datetime:
+    """Ensure a datetime is timezone-aware in UTC.
+
+    SQLite (used in tests via aiosqlite) drops tzinfo on DateTime(timezone=True)
+    columns when round-tripping, while Postgres preserves it. Normalizing here
+    keeps the comparison logic correct on both backends.
+    """
+    return dt if dt.tzinfo is not None else dt.replace(tzinfo=timezone.utc)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -178,3 +197,127 @@ async def update_tier(
     await db.flush()
     await db.refresh(current_user)
     return current_user
+
+
+def _serialize_deletion_status(user: User) -> DeletionStatusResponse:
+    return DeletionStatusResponse(
+        deletion_pending_at=user.deletion_pending_at.isoformat() if user.deletion_pending_at else None,
+        deletion_scheduled_for=user.deletion_scheduled_for.isoformat() if user.deletion_scheduled_for else None,
+        deletion_initiated_from=user.deletion_initiated_from,
+        grace_period_days=DELETION_GRACE_DAYS,
+    )
+
+
+@router.get("/me/deletion", response_model=DeletionStatusResponse)
+async def get_deletion_status(current_user: User = Depends(get_current_user)):
+    """Return the current user's deletion-pending status.
+
+    Used by clients that want to surface a "your account is scheduled for
+    deletion" banner outside the sign-in flow (e.g. on settings load).
+    """
+    return _serialize_deletion_status(current_user)
+
+
+@router.post("/me/deletion", response_model=DeletionStatusResponse)
+async def request_deletion(
+    body: DeletionRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Mark the current user as pending deletion.
+
+    Idempotent: requesting deletion twice keeps the original ``deletion_pending_at``
+    so the grace window doesn't reset on accidental re-taps. The endpoint does
+    NOT delete data — that happens at /auth/me/purge after the grace window
+    expires (typically driven by the next sign-in).
+    """
+    if body.initiated_from not in _VALID_INITIATED_FROM:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid initiated_from: {body.initiated_from}",
+        )
+
+    if current_user.deletion_pending_at is None:
+        now = datetime.now(timezone.utc)
+        current_user.deletion_pending_at = now
+        current_user.deletion_scheduled_for = now + timedelta(days=DELETION_GRACE_DAYS)
+        current_user.deletion_initiated_from = body.initiated_from
+        await db.flush()
+        await db.refresh(current_user)
+        logger.info(
+            "Deletion requested: user_id=%s initiated_from=%s scheduled_for=%s",
+            current_user.id,
+            body.initiated_from,
+            current_user.deletion_scheduled_for.isoformat(),
+        )
+    return _serialize_deletion_status(current_user)
+
+
+@router.delete("/me/deletion", response_model=DeletionStatusResponse)
+async def cancel_deletion(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Cancel a pending deletion (restore the account).
+
+    Idempotent: clearing deletion fields on an already-active account is a
+    no-op. The Android restore flow calls this immediately after the user
+    taps "Restore Account" on the post-sign-in dialog.
+    """
+    if current_user.deletion_pending_at is not None:
+        logger.info("Deletion canceled: user_id=%s", current_user.id)
+        current_user.deletion_pending_at = None
+        current_user.deletion_scheduled_for = None
+        current_user.deletion_initiated_from = None
+        await db.flush()
+        await db.refresh(current_user)
+    return _serialize_deletion_status(current_user)
+
+
+@router.post("/me/purge", status_code=204)
+async def purge_account(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Permanently delete the current user.
+
+    Called by the Android sign-in handler when the grace window has expired.
+    Refuses to run if deletion is not pending OR the grace window hasn't
+    closed — a misbehaving client cannot bypass the soft-delete by hitting
+    this endpoint directly. CASCADE FKs handle most dependent rows; we
+    explicitly clear ``project_members`` first because that relationship is
+    not cascade-delete (preserves shared projects owned by other users).
+    The Firebase Auth record is deleted via Firebase Admin SDK; failure
+    there does not roll back the database delete (best-effort + logged).
+    """
+    if current_user.deletion_pending_at is None or current_user.deletion_scheduled_for is None:
+        raise HTTPException(
+            status_code=409,
+            detail="Account is not pending deletion",
+        )
+    if _as_utc(current_user.deletion_scheduled_for) > datetime.now(timezone.utc):
+        raise HTTPException(
+            status_code=409,
+            detail="Grace period has not expired",
+        )
+
+    user_id = current_user.id
+    firebase_uid = current_user.firebase_uid
+
+    # ProjectMember has no cascade-delete on the User relationship — would
+    # raise FK violation. Clear memberships explicitly before deleting the
+    # User row; shared projects owned by other users are preserved.
+    await db.execute(delete(ProjectMember).where(ProjectMember.user_id == user_id))
+    await db.delete(current_user)
+    await db.flush()
+
+    if firebase_uid:
+        ok = delete_firebase_user(firebase_uid)
+        if not ok:
+            logger.warning(
+                "Firebase Auth deletion failed for user_id=%s firebase_uid=%s — DB row already deleted",
+                user_id,
+                firebase_uid,
+            )
+
+    logger.info("Account purged: user_id=%s firebase_uid=%s", user_id, firebase_uid)

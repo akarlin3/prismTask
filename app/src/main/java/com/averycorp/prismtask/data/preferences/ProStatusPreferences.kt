@@ -63,4 +63,13 @@ constructor(
     suspend fun setLastVerifiedAt(verifiedAt: Long) {
         context.dataStore.edit { prefs -> prefs[LAST_VERIFIED_AT_KEY] = verifiedAt }
     }
+
+    /**
+     * Clear cached tier + billing-period state. Used by the account-deletion
+     * path so a deleted user's Pro entitlement doesn't carry over to the next
+     * person who signs in on the same device.
+     */
+    suspend fun clearAll() {
+        context.dataStore.edit { it.clear() }
+    }
 }

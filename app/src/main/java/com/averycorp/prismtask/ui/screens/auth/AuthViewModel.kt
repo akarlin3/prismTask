@@ -3,6 +3,7 @@ package com.averycorp.prismtask.ui.screens.auth
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.averycorp.prismtask.BuildConfig
+import com.averycorp.prismtask.data.remote.AccountDeletionService
 import com.averycorp.prismtask.data.remote.AuthManager
 import com.averycorp.prismtask.data.remote.GenericPreferenceSyncService
 import com.averycorp.prismtask.data.remote.SortPreferencesSyncService
@@ -15,6 +16,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.util.Date
 import javax.inject.Inject
 
 sealed class AuthState {
@@ -23,6 +25,15 @@ sealed class AuthState {
     data object Loading : AuthState()
 
     data object SignedIn : AuthState()
+
+    /** User signed in but their account is pending deletion. UI must offer
+     *  Restore vs. confirm-and-sign-out. Sync has NOT been started yet. */
+    data class RestorePending(val scheduledFor: Date) : AuthState()
+
+    /** User signed in after the deletion grace window expired. Permanent
+     *  purge has already been executed and the user is now signed out;
+     *  the UI shows a final "your account has been deleted" screen. */
+    data object AccountPurged : AuthState()
 
     data class Error(
         val message: String
@@ -37,7 +48,8 @@ constructor(
     private val syncService: SyncService,
     private val sortPreferencesSyncService: SortPreferencesSyncService,
     private val themePreferencesSyncService: ThemePreferencesSyncService,
-    private val genericPreferenceSyncService: GenericPreferenceSyncService
+    private val genericPreferenceSyncService: GenericPreferenceSyncService,
+    private val accountDeletionService: AccountDeletionService
 ) : ViewModel() {
     private val _authState = MutableStateFlow<AuthState>(
         if (authManager.isSignedIn.value) AuthState.SignedIn else AuthState.SignedOut
@@ -56,17 +68,90 @@ constructor(
         viewModelScope.launch {
             _authState.value = AuthState.Loading
             val result = authManager.signInWithGoogle(idToken)
-            if (result.isSuccess) {
-                _authState.value = AuthState.SignedIn
-                runPostSignInSync()
-            } else {
+            if (result.isFailure) {
                 // Firebase rejected the token (commonly a stale/revoked
                 // credential from Credential Manager auto-select). Clear the
                 // cached credential so the next attempt shows the account
                 // picker instead of silently reusing the bad one.
                 authManager.clearCredentialState()
                 _authState.value = AuthState.Error("Sign-in failed")
+                return@launch
             }
+            handlePostAuthDeletionGuard()
+        }
+    }
+
+    /**
+     * After Firebase Auth succeeds, check whether the account has been
+     * marked for deletion before triggering any sync. Three outcomes:
+     *
+     *   - **NotPending**: normal sign-in — proceed to [runPostSignInSync].
+     *   - **Pending**: route to RestoreAccountScreen via [AuthState.RestorePending].
+     *     Critically, sync is NOT started — we don't want to pull data
+     *     into a Room DB that's about to be wiped if the user confirms
+     *     deletion.
+     *   - **Expired**: grace window has passed. Execute permanent purge
+     *     (backend deletes Postgres + Firebase Auth via Admin SDK + we
+     *     wipe local state) and route to [AuthState.AccountPurged].
+     *
+     * Read failures fail closed: if we can't determine deletion status,
+     * surface an error rather than silently letting the user back in to
+     * an account they may have explicitly deleted.
+     */
+    private suspend fun handlePostAuthDeletionGuard() {
+        val statusResult = accountDeletionService.checkDeletionStatus()
+        val status = statusResult.getOrElse {
+            authManager.signOut()
+            _authState.value = AuthState.Error("Couldn't verify account status — try again")
+            return
+        }
+        when (status) {
+            AccountDeletionService.DeletionStatus.NotPending -> {
+                _authState.value = AuthState.SignedIn
+                runPostSignInSync()
+            }
+            is AccountDeletionService.DeletionStatus.Pending -> {
+                _authState.value = AuthState.RestorePending(scheduledFor = status.scheduledFor)
+            }
+            AccountDeletionService.DeletionStatus.Expired -> {
+                accountDeletionService.executePermanentPurge()
+                _authState.value = AuthState.AccountPurged
+            }
+        }
+    }
+
+    /**
+     * User tapped "Restore Account" on the post-sign-in restore prompt.
+     * Clears the Firestore + backend deletion-pending state and proceeds
+     * with normal sign-in (sync, listeners). On failure stays on the
+     * restore screen so the user can retry — they're already signed in
+     * and protected by the grace window, so no urgency to surface a
+     * destructive choice on transient network failure.
+     */
+    fun onRestoreAccount() {
+        viewModelScope.launch {
+            val result = accountDeletionService.restoreAccount()
+            if (result.isSuccess) {
+                _authState.value = AuthState.SignedIn
+                runPostSignInSync()
+            } else {
+                _authState.value = AuthState.Error(
+                    "Couldn't restore account — check your connection and try again"
+                )
+            }
+        }
+    }
+
+    /**
+     * User tapped "Sign out" on the restore prompt — they want the
+     * scheduled deletion to proceed. Sign them out without restoring;
+     * the grace window keeps ticking and the next post-grace sign-in
+     * (if any) executes the permanent purge.
+     */
+    fun onAbandonRestore() {
+        viewModelScope.launch {
+            authManager.signOut()
+            _authState.value = AuthState.SignedOut
         }
     }
 
@@ -86,8 +171,7 @@ constructor(
             _authState.value = AuthState.Loading
             try {
                 EmulatorAuthHelper.signInAsTestUser()
-                _authState.value = AuthState.SignedIn
-                runPostSignInSync()
+                handlePostAuthDeletionGuard()
             } catch (e: Exception) {
                 _authState.value = AuthState.Error(
                     "Emulator sign-in failed: ${e.message ?: e.javaClass.simpleName}"

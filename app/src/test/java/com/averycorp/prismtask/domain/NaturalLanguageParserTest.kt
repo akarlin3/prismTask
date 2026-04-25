@@ -87,6 +87,20 @@ class NaturalLanguageParserTest {
         override suspend fun refresh(request: RefreshRequest): TokenResponse =
             error("not used in offline parser tests")
 
+        override suspend fun getDeletionStatus(): com.averycorp.prismtask.data.remote.api.DeletionStatusResponse =
+            error("not used in offline parser tests")
+
+        override suspend fun requestDeletion(
+            request: com.averycorp.prismtask.data.remote.api.DeletionRequest
+        ): com.averycorp.prismtask.data.remote.api.DeletionStatusResponse =
+            error("not used in offline parser tests")
+
+        override suspend fun cancelDeletion(): com.averycorp.prismtask.data.remote.api.DeletionStatusResponse =
+            error("not used in offline parser tests")
+
+        override suspend fun purgeAccount(): retrofit2.Response<Unit> =
+            error("not used in offline parser tests")
+
         override suspend fun parseTask(request: ParseRequest): ParsedTaskResponse =
             error("not used in offline parser tests")
 
