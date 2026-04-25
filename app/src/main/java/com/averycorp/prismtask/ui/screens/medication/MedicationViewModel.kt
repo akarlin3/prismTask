@@ -178,11 +178,19 @@ constructor(
     /**
      * Drop the slot's tier to SKIPPED for today. Records the row as
      * `USER_SET` so subsequent dose changes don't auto-upgrade it.
+     *
+     * Also writes a synthetic-skip dose per affected medication so the
+     * interval-mode reminder rescheduler re-anchors on the skip. Synthetic
+     * doses are filtered out of the medication log UI but visible to the
+     * scheduler via [MedicationDoseDao.getMostRecentDoseAnyOnce]. Skipping
+     * a previously-synthetic-skipped slot is idempotent — a fresh row just
+     * pushes the anchor forward.
      */
     fun setSkippedForSlot(slot: MedicationSlotEntity) {
         viewModelScope.launch {
             val date = todayDate.value
             val meds = medicationsForSlotOnce(slot.id)
+            val now = System.currentTimeMillis()
             meds.forEach { med ->
                 slotRepository.upsertTierState(
                     medicationId = med.id,
@@ -190,6 +198,11 @@ constructor(
                     date = date,
                     tier = AchievedTier.SKIPPED,
                     source = TierSource.USER_SET
+                )
+                medicationRepository.logSyntheticSkipDose(
+                    medicationId = med.id,
+                    slotKey = slot.id.toString(),
+                    intendedAt = now
                 )
             }
         }
@@ -276,7 +289,9 @@ constructor(
         name: String,
         tier: MedicationTier,
         notes: String,
-        slotSelections: List<MedicationSlotSelection>
+        slotSelections: List<MedicationSlotSelection>,
+        reminderMode: String? = null,
+        reminderIntervalMinutes: Int? = null
     ) {
         if (name.isBlank()) return
         viewModelScope.launch {
@@ -284,7 +299,9 @@ constructor(
                 MedicationEntity(
                     name = name.trim(),
                     tier = tier.toStorage(),
-                    notes = notes.trim()
+                    notes = notes.trim(),
+                    reminderMode = reminderMode,
+                    reminderIntervalMinutes = reminderIntervalMinutes
                 )
             )
             slotRepository.replaceLinksForMedication(id, slotSelections.map { it.slotId })
@@ -311,7 +328,9 @@ constructor(
         name: String,
         tier: MedicationTier,
         notes: String,
-        slotSelections: List<MedicationSlotSelection>
+        slotSelections: List<MedicationSlotSelection>,
+        reminderMode: String? = null,
+        reminderIntervalMinutes: Int? = null
     ) {
         if (name.isBlank()) return
         viewModelScope.launch {
@@ -319,7 +338,9 @@ constructor(
                 medication.copy(
                     name = name.trim(),
                     tier = tier.toStorage(),
-                    notes = notes.trim()
+                    notes = notes.trim(),
+                    reminderMode = reminderMode,
+                    reminderIntervalMinutes = reminderIntervalMinutes
                 )
             )
             slotRepository.replaceLinksForMedication(medication.id, slotSelections.map { it.slotId })

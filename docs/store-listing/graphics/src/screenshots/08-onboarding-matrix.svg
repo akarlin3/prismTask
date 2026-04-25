@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Screenshot 08 — Onboarding, Matrix theme. Caption: "Set up in under a minute." -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1920" width="1080" height="1920"
+     font-family="'Share Tech Mono', 'Space Grotesk', monospace">
+  <defs>
+    <linearGradient id="captionFade08" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#010D03" stop-opacity="0"/>
+      <stop offset="40%" stop-color="#010D03" stop-opacity="0.92"/>
+      <stop offset="100%" stop-color="#010D03" stop-opacity="1"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1080" height="1920" fill="#010D03"/>
+
+  <g fill="#B0FFB8" font-size="24" font-weight="600">
+    <text x="48" y="50">9:41</text>
+    <rect x="1024" y="32" width="28" height="20" rx="4" fill="none" stroke="#B0FFB8" stroke-width="2"/>
+    <rect x="1027" y="35" width="18" height="14" fill="#00FF41"/>
+  </g>
+
+  <!-- Step indicator -->
+  <g transform="translate(540, 120)">
+    <g font-size="20" text-anchor="middle">
+      <rect x="-180" y="0" width="80" height="6" rx="3" fill="#00FF41"/>
+      <rect x="-80"  y="0" width="80" height="6" rx="3" fill="#00FF41"/>
+      <rect x="20"   y="0" width="80" height="6" rx="3" fill="#00FF41"/>
+      <rect x="120"  y="0" width="80" height="6" rx="3" fill="#1A5E25"/>
+    </g>
+    <text x="0" y="48" font-size="18" fill="#70CC80" text-anchor="middle" font-family="'Space Grotesk', sans-serif">Step 3 of 4</text>
+  </g>
+
+  <!-- Prism logo (small) -->
+  <g transform="translate(540, 280)">
+    <line x1="-140" y1="0" x2="-80" y2="0" stroke="#B0FFB8" stroke-width="6" stroke-linecap="round"/>
+    <polygon points="0,-90 -70,70 70,70" fill="none" stroke="#B0FFB8" stroke-width="6" stroke-linejoin="round"/>
+    <line x1="35" y1="-10" x2="120" y2="-70" stroke="#00F5FF" stroke-width="5" stroke-linecap="round"/>
+    <line x1="35" y1="-10" x2="130" y2="-20" stroke="#FF2D87" stroke-width="5" stroke-linecap="round"/>
+    <line x1="35" y1="-10" x2="130" y2="30"  stroke="#00FF41" stroke-width="5" stroke-linecap="round"/>
+    <line x1="35" y1="-10" x2="120" y2="80"  stroke="#C8B8FF" stroke-width="5" stroke-linecap="round"/>
+  </g>
+
+  <text x="540" y="504" font-size="58" font-weight="700" fill="#B0FFB8" text-anchor="middle">Pick what fits your day.</text>
+  <text x="540" y="556" font-size="26" fill="#70CC80" text-anchor="middle" font-family="'Space Grotesk', sans-serif">You can always turn these back on in Settings.</text>
+
+  <!-- Feature toggles -->
+  <g transform="translate(48, 620)" font-family="'Space Grotesk', sans-serif">
+
+    <g transform="translate(0, 0)">
+      <rect x="0" y="0" width="984" height="132" rx="20" fill="#010F04" stroke="#00FF41" stroke-width="2"/>
+      <text x="36" y="50" font-size="28" font-weight="700" fill="#B0FFB8">Habits and streaks</text>
+      <text x="36" y="90" font-size="22" fill="#70CC80">Daily habits, forgiveness-first streaks, contribution grid.</text>
+      <!-- toggle on -->
+      <g transform="translate(888, 50)">
+        <rect x="0" y="0" width="72" height="38" rx="19" fill="#00FF41"/>
+        <circle cx="54" cy="19" r="14" fill="#010D03"/>
+      </g>
+    </g>
+
+    <g transform="translate(0, 152)">
+      <rect x="0" y="0" width="984" height="132" rx="20" fill="#010F04" stroke="#00FF41" stroke-width="2"/>
+      <text x="36" y="50" font-size="28" font-weight="700" fill="#B0FFB8">Morning check-in</text>
+      <text x="36" y="90" font-size="22" fill="#70CC80">Mood + energy check at 8 AM. Takes ~20 seconds.</text>
+      <g transform="translate(888, 50)">
+        <rect x="0" y="0" width="72" height="38" rx="19" fill="#00FF41"/>
+        <circle cx="54" cy="19" r="14" fill="#010D03"/>
+      </g>
+    </g>
+
+    <g transform="translate(0, 304)">
+      <rect x="0" y="0" width="984" height="132" rx="20" fill="#010F04" stroke="#1A5E25" stroke-width="2"/>
+      <text x="36" y="50" font-size="28" font-weight="700" fill="#B0FFB8">Medication reminders</text>
+      <text x="36" y="90" font-size="22" fill="#70CC80">Fixed-clock or interval schedules. Synthetic-skip anchors.</text>
+      <!-- toggle off -->
+      <g transform="translate(888, 50)">
+        <rect x="0" y="0" width="72" height="38" rx="19" fill="#1A5E25"/>
+        <circle cx="18" cy="19" r="14" fill="#010D03"/>
+      </g>
+    </g>
+
+    <g transform="translate(0, 456)">
+      <rect x="0" y="0" width="984" height="132" rx="20" fill="#010F04" stroke="#00FF41" stroke-width="2"/>
+      <text x="36" y="50" font-size="28" font-weight="700" fill="#B0FFB8">Boundary rules</text>
+      <text x="36" y="90" font-size="22" fill="#70CC80">Work-hours guardrails · burnout detection · auto profile switch.</text>
+      <g transform="translate(888, 50)">
+        <rect x="0" y="0" width="72" height="38" rx="19" fill="#00FF41"/>
+        <circle cx="54" cy="19" r="14" fill="#010D03"/>
+      </g>
+    </g>
+
+    <g transform="translate(0, 608)">
+      <rect x="0" y="0" width="984" height="132" rx="20" fill="#010F04" stroke="#00FF41" stroke-width="2"/>
+      <text x="36" y="50" font-size="28" font-weight="700" fill="#B0FFB8">ND-friendly mode</text>
+      <text x="36" y="90" font-size="22" fill="#70CC80">Brain Mode, UI complexity, shake to capture, "good enough" timer.</text>
+      <g transform="translate(888, 50)">
+        <rect x="0" y="0" width="72" height="38" rx="19" fill="#00FF41"/>
+        <circle cx="54" cy="19" r="14" fill="#010D03"/>
+      </g>
+    </g>
+  </g>
+
+  <!-- Primary CTA -->
+  <g transform="translate(48, 1400)">
+    <rect x="0" y="0" width="984" height="104" rx="20" fill="#00FF41"/>
+    <text x="492" y="68" font-size="36" font-weight="700" fill="#010D03" text-anchor="middle" font-family="'Space Grotesk', sans-serif">Continue</text>
+  </g>
+
+  <!-- Skip link -->
+  <text x="540" y="1540" font-size="22" fill="#70CC80" text-anchor="middle" font-family="'Space Grotesk', sans-serif">Skip and set up later</text>
+
+  <rect x="0" y="1632" width="1080" height="288" fill="url(#captionFade08)"/>
+  <text x="540" y="1768" font-size="68" font-weight="700" fill="#B0FFB8" text-anchor="middle">Set up in under a minute.</text>
+  <text x="540" y="1830" font-size="30" fill="#00FF41" text-anchor="middle" font-family="'Space Grotesk', sans-serif">Pick the features you want. Change your mind anytime.</text>
+</svg>

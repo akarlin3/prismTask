@@ -1,5 +1,13 @@
 # Phase A Device Testing Runbook — Hybrid (Two Emulators + S25)
 
+> **This runbook is pinned to v1.4.38.** It is preserved as the executed
+> runbook for that release. Subsequent releases (v1.4.40 AI time blocking,
+> v1.5.0 medication slot system, v1.5.2 web parity, v1.6.0 medication
+> reminder modes) ship their own coverage paths in androidTest +
+> SyncScenarioTestBase + the manual `docs/SYNC_TESTS_12_13_MANUAL.md`. A
+> v1.6.0+ device runbook would be a separate document; do not mutate
+> this one to cover newer builds.
+
 **Scope:** Phase A regression coverage for PrismTask **v1.4.38**
 (versionCode `682`, Room DB version `56`) plus a smoke pass of the
 nine new synced content entities shipped in v1.4.38 and the seven

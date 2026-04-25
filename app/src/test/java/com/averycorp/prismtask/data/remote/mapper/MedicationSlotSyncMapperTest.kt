@@ -151,6 +151,61 @@ class MedicationSlotSyncMapperTest {
     }
 
     @Test
+    fun medicationSlot_reminderModeFieldsRoundTrip() {
+        val source = MedicationSlotEntity(
+            id = 12,
+            cloudId = null,
+            name = "Evening",
+            idealTime = "20:00",
+            driftMinutes = 90,
+            sortOrder = 2,
+            isActive = true,
+            reminderMode = "INTERVAL",
+            reminderIntervalMinutes = 360,
+            createdAt = 1L,
+            updatedAt = 2L
+        )
+        val map = MedicationSyncMapper.medicationSlotToMap(source)
+        assertEquals("INTERVAL", map["reminderMode"])
+        assertEquals(360, map["reminderIntervalMinutes"])
+        val decoded = MedicationSyncMapper.mapToMedicationSlot(map, localId = source.id)
+        assertEquals("INTERVAL", decoded.reminderMode)
+        assertEquals(360, decoded.reminderIntervalMinutes)
+    }
+
+    @Test
+    fun medicationSlot_nullReminderModeRoundTripsAsInherit() {
+        val source = MedicationSlotEntity(
+            id = 1,
+            name = "Morning",
+            idealTime = "08:00",
+            reminderMode = null,
+            reminderIntervalMinutes = null,
+            createdAt = 1L,
+            updatedAt = 2L
+        )
+        val map = MedicationSyncMapper.medicationSlotToMap(source)
+        val decoded = MedicationSyncMapper.mapToMedicationSlot(map, localId = source.id)
+        assertEquals(null, decoded.reminderMode)
+        assertEquals(null, decoded.reminderIntervalMinutes)
+    }
+
+    @Test
+    fun medication_reminderModeFieldsRoundTrip() {
+        val source = MedicationEntity(
+            id = 7,
+            name = "Adderall",
+            reminderMode = "CLOCK",
+            reminderIntervalMinutes = null
+        )
+        val map = MedicationSyncMapper.medicationToMap(source)
+        assertEquals("CLOCK", map["reminderMode"])
+        val decoded = MedicationSyncMapper.mapToMedication(map, localId = source.id)
+        assertEquals("CLOCK", decoded.reminderMode)
+        assertEquals(null, decoded.reminderIntervalMinutes)
+    }
+
+    @Test
     fun extractSlotCloudIds_missingFieldReturnsEmpty() {
         val data = mapOf<String, Any?>("name" to "X")
         assertEquals(emptyList<String>(), MedicationSyncMapper.extractSlotCloudIds(data))

@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  PrismTask Play Store icon — 512x512 PNG target.
+  Concept: triangular glass prism refracting a white light beam into four
+  colored rays, one per shipped theme (Cyberpunk cyan, Synthwave pink,
+  Matrix green, Void lavender). Unifies the brand story ("four themes,
+  one prism") while staying immediately readable at 48x48 dp in the
+  Play Store grid.
+  Background color matches the in-app adaptive icon (#0B0B14) so the
+  Play icon and on-device icon feel like the same brand mark.
+-->
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 512 512"
+     width="512" height="512">
+  <defs>
+    <!-- Subtle radial highlight to give the background a hint of depth -->
+    <radialGradient id="bgGlow" cx="50%" cy="42%" r="68%">
+      <stop offset="0%" stop-color="#1A1A28"/>
+      <stop offset="70%" stop-color="#0B0B14"/>
+      <stop offset="100%" stop-color="#050509"/>
+    </radialGradient>
+    <!-- Faint prism inner fill — white at ~12% -->
+    <linearGradient id="prismFill" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.18"/>
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0.06"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Rounded-square background: radius 92 matches the Android adaptive-icon mask curve at 512px -->
+  <rect x="0" y="0" width="512" height="512" rx="92" ry="92" fill="url(#bgGlow)"/>
+
+  <!-- Incoming white beam from the left edge, terminating at the prism's left face -->
+  <line x1="88" y1="256" x2="206" y2="256"
+        stroke="#FFFFFF" stroke-width="14" stroke-linecap="round"
+        opacity="0.92"/>
+
+  <!-- Triangular glass prism: apex top (256,120), base bottom (144,368)-(368,368) -->
+  <polygon points="256,120 144,368 368,368"
+           fill="url(#prismFill)"
+           stroke="#FFFFFF" stroke-width="11" stroke-linejoin="round"
+           opacity="0.95"/>
+
+  <!-- Refracted rays exiting the right face. Fan centered on (306, 240), spread across
+       four angles so each ray corresponds to one of the four app themes. -->
+  <!-- Cyberpunk cyan — top -->
+  <line x1="306" y1="240" x2="454" y2="140"
+        stroke="#00F5FF" stroke-width="13" stroke-linecap="round"/>
+  <!-- Synthwave hot pink -->
+  <line x1="306" y1="240" x2="456" y2="210"
+        stroke="#FF2D87" stroke-width="13" stroke-linecap="round"/>
+  <!-- Matrix phosphor green -->
+  <line x1="306" y1="240" x2="456" y2="282"
+        stroke="#00FF41" stroke-width="13" stroke-linecap="round"/>
+  <!-- Void lavender — bottom -->
+  <line x1="306" y1="240" x2="452" y2="362"
+        stroke="#C8B8FF" stroke-width="13" stroke-linecap="round"/>
+</svg>

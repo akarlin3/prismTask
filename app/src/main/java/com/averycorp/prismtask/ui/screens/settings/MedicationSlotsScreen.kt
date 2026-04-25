@@ -173,8 +173,8 @@ fun MedicationSlotsScreen(
             initialDriftMinutes = 180,
             confirmLabel = "Create",
             onDismiss = { showAddSheet = false },
-            onConfirm = { name, idealTime, drift ->
-                viewModel.create(name, idealTime, drift)
+            onConfirm = { name, idealTime, drift, reminderMode, intervalMinutes ->
+                viewModel.create(name, idealTime, drift, reminderMode, intervalMinutes)
                 showAddSheet = false
             }
         )
@@ -186,10 +186,12 @@ fun MedicationSlotsScreen(
             initialName = slot.name,
             initialIdealTime = slot.idealTime,
             initialDriftMinutes = slot.driftMinutes,
+            initialReminderMode = slot.reminderMode,
+            initialReminderIntervalMinutes = slot.reminderIntervalMinutes,
             confirmLabel = "Save",
             onDismiss = { editingSlot = null },
-            onConfirm = { name, idealTime, drift ->
-                viewModel.update(slot, name, idealTime, drift)
+            onConfirm = { name, idealTime, drift, reminderMode, intervalMinutes ->
+                viewModel.update(slot, name, idealTime, drift, reminderMode, intervalMinutes)
                 editingSlot = null
             }
         )

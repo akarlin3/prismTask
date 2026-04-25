@@ -187,4 +187,44 @@ class UserPreferencesDataStoreTest {
         assertFalse(snap.quickAdd.showConfirmation)
         assertTrue(snap.quickAdd.autoAssignProject)
     }
+
+    @Test
+    fun `medication reminder mode default is clock and 240 minutes`() = runTest {
+        val p = prefs.medicationReminderModeFlow.first()
+        assertEquals(MedicationReminderMode.CLOCK, p.mode)
+        assertEquals(240, p.intervalDefaultMinutes)
+    }
+
+    @Test
+    fun `medication reminder mode round trip persists mode and interval`() = runTest {
+        prefs.setMedicationReminderMode(
+            MedicationReminderModePrefs(
+                mode = MedicationReminderMode.INTERVAL,
+                intervalDefaultMinutes = 360
+            )
+        )
+        val p = prefs.medicationReminderModeFlow.first()
+        assertEquals(MedicationReminderMode.INTERVAL, p.mode)
+        assertEquals(360, p.intervalDefaultMinutes)
+    }
+
+    @Test
+    fun `medication reminder mode interval is clamped to 60 1440 range`() = runTest {
+        prefs.setMedicationReminderMode(
+            MedicationReminderModePrefs(MedicationReminderMode.INTERVAL, 5)
+        )
+        assertEquals(60, prefs.medicationReminderModeFlow.first().intervalDefaultMinutes)
+        prefs.setMedicationReminderMode(
+            MedicationReminderModePrefs(MedicationReminderMode.INTERVAL, 9999)
+        )
+        assertEquals(1440, prefs.medicationReminderModeFlow.first().intervalDefaultMinutes)
+    }
+
+    @Test
+    fun `medication reminder mode falls back to CLOCK on unknown enum value`() = runTest {
+        // Round-trips through fromName
+        assertEquals(MedicationReminderMode.CLOCK, MedicationReminderMode.fromName(null))
+        assertEquals(MedicationReminderMode.CLOCK, MedicationReminderMode.fromName("BOGUS"))
+        assertEquals(MedicationReminderMode.INTERVAL, MedicationReminderMode.fromName("INTERVAL"))
+    }
 }

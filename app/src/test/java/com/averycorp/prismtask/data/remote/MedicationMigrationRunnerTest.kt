@@ -305,4 +305,7 @@ private class RunnerFakeMedDao : MedicationDao {
     override fun getActive() = error("flow not exercised")
     override fun getAll() = error("flow not exercised")
     override fun observeById(id: Long) = error("flow not exercised")
+
+    override suspend fun getIntervalModeMedicationsOnce(): List<MedicationEntity> =
+        rows.filter { !it.isArchived && it.reminderMode == "INTERVAL" }
 }

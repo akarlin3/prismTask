@@ -208,6 +208,9 @@ private class FakeMedicationDao : MedicationDao {
     override fun getActive() = error("flow read not exercised in this test")
     override fun getAll() = error("flow read not exercised in this test")
     override fun observeById(id: Long) = error("flow read not exercised in this test")
+
+    override suspend fun getIntervalModeMedicationsOnce(): List<MedicationEntity> =
+        rows.filter { !it.isArchived && it.reminderMode == "INTERVAL" }
 }
 
 private class FakeMedicationDoseDao : MedicationDoseDao {
@@ -275,4 +278,13 @@ private class FakeMedicationDoseDao : MedicationDoseDao {
     override fun getForDate(date: String) = error("flow read not exercised in this test")
     override fun getForMedOnDate(medicationId: Long, date: String) =
         error("flow read not exercised in this test")
+
+    override suspend fun getMostRecentDoseAnyOnce(): MedicationDoseEntity? =
+        rows.maxByOrNull { it.takenAt }
+
+    override fun observeMostRecentDoseAny() =
+        error("flow read not exercised in this test")
+
+    override suspend fun getMostRecentRealDoseOnce(): MedicationDoseEntity? =
+        rows.filterNot { it.isSyntheticSkip }.maxByOrNull { it.takenAt }
 }

@@ -75,11 +75,26 @@ import javax.inject.Singleton
  *     upsert a [SyncMetadataEntity] with `pendingAction = "update"`
  *     AND `cloudId = row.cloud_id`. The upsert deliberately **preserves**
  *     the existing cloud_id so that [SyncService.pushUpdate]'s
- *     `docRef(cloudId).set(data)` re-creates the Firestore doc at the
- *     same ID — other devices that saw the original ID will converge
- *     without duplicate-detection churn.
+ *     `docRef(cloudId).update(data)` has an explicit target.
  *  4. The reactive-push observer picks up the new pending actions
  *     ~500ms later (`observePending().debounce(500L)`) and pushes.
+ *
+ * **Reconciliation outcome after the delete-wins fix (2026-04-24):**
+ * [SyncService.pushUpdate] now calls `docRef.update(data)` rather than
+ * `docRef.set(data)`. `update` on a missing doc throws NOT_FOUND /
+ * FAILED_PRECONDITION, which pushUpdate catches and routes through
+ * [SyncService.processRemoteDeletions] to hard-delete the local row
+ * and clear its `sync_metadata`. So when the healer enqueues an orphan:
+ *  - If the doc is missing because another device deleted it (the
+ *    common case), the push cleans up the orphan on the local device —
+ *    delete wins, as specified.
+ *  - If the doc is missing because of a catastrophic out-of-band
+ *    Firestore wipe (rare), the push also cleans up the local row.
+ *    Explicit "restore from local backup" is a separate product
+ *    feature, not a silent side effect of normal sync. Pre-fix the
+ *    healer silently resurrected docs, which silently undid legitimate
+ *    cross-device deletions for every other user — never the intended
+ *    behavior.
  *
  * FK considerations for Tier-1 families:
  *  - `habit_completions` / `habit_logs` reference `habits` via cloudId

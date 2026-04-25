@@ -33,13 +33,68 @@ import { firestore } from '@/lib/firebase';
  * file does NOT touch completions.
  */
 
-export type MedicationTier = 'SKIPPED' | 'PARTIAL' | 'COMPLETE';
+/**
+ * Lowercase 4-value tier enum aligned with Android's canonical
+ * `AchievedTier` ladder. Hierarchical bottom-up: `skipped` (deliberate
+ * non-applicable) → `essential` (must-have meds taken) → `prescription`
+ * (must-have + prescribed-only also taken) → `complete` (all meds taken).
+ *
+ * Replaced the earlier 3-value uppercase enum (`SKIPPED` / `PARTIAL` /
+ * `COMPLETE`) in v1.5.3 so cross-device sync roundtrips without
+ * fidelity loss.
+ */
+export type MedicationTier = 'skipped' | 'essential' | 'prescription' | 'complete';
+
+const VALID_TIERS: ReadonlySet<MedicationTier> = new Set([
+  'skipped',
+  'essential',
+  'prescription',
+  'complete',
+]);
+
+/**
+ * Normalize a tier value read from Firestore. Accepts the canonical
+ * lowercase 4-value form and folds legacy uppercase values
+ * (`SKIPPED` / `PARTIAL` / `COMPLETE`, last seen pre-v1.5.3) into the
+ * closest canonical match: `PARTIAL` → `essential` (conservative —
+ * partial implies at least essential meds taken). Logs a console
+ * warning whenever a legacy value is encountered so dev cleanup can
+ * be tracked. This helper can be removed in v1.6.0+ once no legacy
+ * docs remain.
+ */
+export function normalizeTier(raw: unknown): MedicationTier {
+  if (typeof raw === 'string') {
+    if (VALID_TIERS.has(raw as MedicationTier)) return raw as MedicationTier;
+    if (raw === 'SKIPPED' || raw === 'PARTIAL' || raw === 'COMPLETE') {
+      const mapped: MedicationTier =
+        raw === 'SKIPPED' ? 'skipped' : raw === 'PARTIAL' ? 'essential' : 'complete';
+      console.warn(
+        `[medicationSlots] Normalizing legacy tier "${raw}" → "${mapped}". ` +
+          'Resave this slot to migrate the doc to canonical lowercase form.',
+      );
+      return mapped;
+    }
+  }
+  return 'skipped';
+}
+
+export type MedicationReminderMode = 'CLOCK' | 'INTERVAL';
 
 export interface MedicationSlotDef {
   id: string;
   slot_key: string;
   display_name: string;
   sort_order: number;
+  /**
+   * Per-slot reminder mode override. `null` means "inherit the user's
+   * global default" (see `users/{uid}/medication_preferences`). Android
+   * is the source of truth for actual reminder delivery — web only
+   * persists the setting so it round-trips through Firestore.
+   */
+  reminder_mode: MedicationReminderMode | null;
+  /** Minutes between interval-mode reminders. Only meaningful when the
+   *  resolved mode is INTERVAL. */
+  reminder_interval_minutes: number | null;
   created_at: number;
   updated_at: number;
 }
@@ -70,9 +125,19 @@ function docToSlotDef(id: string, data: DocumentData): MedicationSlotDef {
     slot_key: data.slotKey ?? '',
     display_name: data.displayName ?? data.slotKey ?? '',
     sort_order: typeof data.sortOrder === 'number' ? data.sortOrder : 0,
+    reminder_mode: parseReminderMode(data.reminderMode),
+    reminder_interval_minutes:
+      typeof data.reminderIntervalMinutes === 'number'
+        ? data.reminderIntervalMinutes
+        : null,
     created_at: typeof data.createdAt === 'number' ? data.createdAt : Date.now(),
     updated_at: typeof data.updatedAt === 'number' ? data.updatedAt : Date.now(),
   };
+}
+
+function parseReminderMode(raw: unknown): MedicationReminderMode | null {
+  if (raw === 'CLOCK' || raw === 'INTERVAL') return raw;
+  return null;
 }
 
 export async function getSlotDefs(uid: string): Promise<MedicationSlotDef[]> {
@@ -82,13 +147,21 @@ export async function getSlotDefs(uid: string): Promise<MedicationSlotDef[]> {
 
 export async function createSlotDef(
   uid: string,
-  data: { slot_key: string; display_name: string; sort_order?: number },
+  data: {
+    slot_key: string;
+    display_name: string;
+    sort_order?: number;
+    reminder_mode?: MedicationReminderMode | null;
+    reminder_interval_minutes?: number | null;
+  },
 ): Promise<MedicationSlotDef> {
   const now = Date.now();
   const payload = {
     slotKey: data.slot_key,
     displayName: data.display_name,
     sortOrder: data.sort_order ?? 0,
+    reminderMode: data.reminder_mode ?? null,
+    reminderIntervalMinutes: data.reminder_interval_minutes ?? null,
     createdAt: now,
     updatedAt: now,
   };
@@ -99,12 +172,22 @@ export async function createSlotDef(
 export async function updateSlotDef(
   uid: string,
   id: string,
-  updates: { slot_key?: string; display_name?: string; sort_order?: number },
+  updates: {
+    slot_key?: string;
+    display_name?: string;
+    sort_order?: number;
+    reminder_mode?: MedicationReminderMode | null;
+    reminder_interval_minutes?: number | null;
+  },
 ): Promise<void> {
   const payload: Record<string, unknown> = { updatedAt: Date.now() };
   if (updates.slot_key !== undefined) payload.slotKey = updates.slot_key;
   if (updates.display_name !== undefined) payload.displayName = updates.display_name;
   if (updates.sort_order !== undefined) payload.sortOrder = updates.sort_order;
+  if (updates.reminder_mode !== undefined) payload.reminderMode = updates.reminder_mode;
+  if (updates.reminder_interval_minutes !== undefined) {
+    payload.reminderIntervalMinutes = updates.reminder_interval_minutes;
+  }
   await updateDoc(slotDefDoc(uid, id), payload);
 }
 
@@ -149,7 +232,7 @@ function docToTierState(id: string, data: DocumentData): MedicationTierState {
     id,
     slot_key: data.slotKey ?? '',
     date_iso: data.dateIso ?? '',
-    tier: (data.tier as MedicationTier) ?? 'SKIPPED',
+    tier: normalizeTier(data.tier),
     source: (data.source as 'auto' | 'user_set') ?? 'user_set',
     updated_at: typeof data.updatedAt === 'number' ? data.updatedAt : Date.now(),
   };

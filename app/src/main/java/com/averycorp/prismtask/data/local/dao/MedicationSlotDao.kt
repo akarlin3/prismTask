@@ -27,6 +27,18 @@ interface MedicationSlotDao {
     @Query("SELECT * FROM medication_slots WHERE is_active = 1 ORDER BY sort_order ASC, ideal_time ASC, id ASC")
     suspend fun getActiveOnce(): List<MedicationSlotEntity>
 
+    /**
+     * Slots whose `reminder_mode` column is explicitly set to "INTERVAL".
+     * Slots with NULL `reminder_mode` are not returned here — the reactive
+     * rescheduler resolves NULL → global default via the resolver function
+     * in PR2 and walks all-active-slots when the global default is INTERVAL.
+     */
+    @Query(
+        "SELECT * FROM medication_slots WHERE is_active = 1 AND reminder_mode = 'INTERVAL' " +
+            "ORDER BY sort_order ASC, ideal_time ASC, id ASC"
+    )
+    suspend fun getIntervalModeSlotsOnce(): List<MedicationSlotEntity>
+
     @Query("SELECT * FROM medication_slots ORDER BY sort_order ASC, ideal_time ASC, id ASC")
     suspend fun getAllOnce(): List<MedicationSlotEntity>
 

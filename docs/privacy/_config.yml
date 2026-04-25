@@ -1,0 +1,9 @@
+title: PrismTask — Privacy Policy
+description: How PrismTask collects, uses, and protects your data.
+theme: minima
+markdown: kramdown
+plugins:
+  - jekyll-relative-links
+relative_links:
+  enabled: true
+  collections: false

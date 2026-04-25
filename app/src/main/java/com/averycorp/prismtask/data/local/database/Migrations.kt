@@ -1685,7 +1685,83 @@ val MIGRATION_59_60 = object : Migration(59, 60) {
 }
 
 /**
- * v60 → v61 (medication time logging): adds [intended_time, logged_at]
+ * v60 → v61 — Medication reminder mode (clock vs interval).
+ *
+ * Adds clock-vs-interval reminder mode columns to the medication subsystem
+ * and the synthetic-skip flag on doses.
+ *
+ *  - `medication_slots.reminder_mode` (TEXT, nullable): "CLOCK" | "INTERVAL"
+ *    | NULL (inherit global default).
+ *  - `medication_slots.reminder_interval_minutes` (INTEGER, nullable):
+ *    minutes between interval-mode reminders.
+ *  - `medications.reminder_mode` (TEXT, nullable): same enum, but inherits
+ *    the slot's value when NULL (and finally the global default).
+ *  - `medications.reminder_interval_minutes` (INTEGER, nullable).
+ *  - `medication_doses.is_synthetic_skip` (INTEGER NOT NULL DEFAULT 0):
+ *    rows written by the SKIPPED tier-state path purely to re-anchor
+ *    interval-mode reminders. Filtered out of UI dose history.
+ *
+ * No backfill — every existing row inherits the global default reminder
+ * mode (CLOCK), which preserves prior behavior. The global default lives
+ * in `UserPreferencesDataStore`, not Room.
+ */
+val MIGRATION_60_61 = object : Migration(60, 61) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE medication_slots ADD COLUMN reminder_mode TEXT")
+        db.execSQL("ALTER TABLE medication_slots ADD COLUMN reminder_interval_minutes INTEGER")
+        db.execSQL("ALTER TABLE medications ADD COLUMN reminder_mode TEXT")
+        db.execSQL("ALTER TABLE medications ADD COLUMN reminder_interval_minutes INTEGER")
+        db.execSQL(
+            "ALTER TABLE medication_doses ADD COLUMN is_synthetic_skip INTEGER NOT NULL DEFAULT 0"
+        )
+    }
+}
+
+/**
+ * v61 → v62 — Built-in habit template versioning.
+ *
+ * Adds three columns to `habits` and one to `self_care_steps` so the
+ * app can detect, diff, and merge updates to code-defined built-in
+ * habit definitions without losing user edits. See
+ * `docs/TEMPLATE_MIGRATION_DESIGN.md` for the full schema design.
+ *
+ *  * `habits.source_version` — the registry version the user accepted
+ *    for this row. NULL means "never linked to a built-in"; 0 means
+ *    "linked but pre-versioning" (treated as v1 by the detector).
+ *  * `habits.is_user_modified` — set to true the first time a user
+ *    edits a built-in habit row; used as a heuristic by the diff UI
+ *    to default field-level overwrites to unchecked.
+ *  * `habits.is_detached_from_template` — explicit "stop watching for
+ *    updates" choice; sticky cross-device via logical-OR sync.
+ *  * `self_care_steps.source_version` — same idea, applied to step
+ *    rows so step-level diffs survive renames.
+ *
+ * Existing built-in rows are backfilled to source_version=1.
+ */
+val MIGRATION_61_62 = object : Migration(61, 62) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "ALTER TABLE habits ADD COLUMN source_version INTEGER NOT NULL DEFAULT 0"
+        )
+        db.execSQL(
+            "ALTER TABLE habits ADD COLUMN is_user_modified INTEGER NOT NULL DEFAULT 0"
+        )
+        db.execSQL(
+            "ALTER TABLE habits ADD COLUMN is_detached_from_template INTEGER NOT NULL DEFAULT 0"
+        )
+        db.execSQL(
+            "UPDATE habits SET source_version = 1 " +
+                "WHERE is_built_in = 1 AND template_key IS NOT NULL"
+        )
+        db.execSQL(
+            "ALTER TABLE self_care_steps ADD COLUMN source_version INTEGER NOT NULL DEFAULT 0"
+        )
+        db.execSQL("UPDATE self_care_steps SET source_version = 1")
+    }
+}
+
+/**
+ * v62 → v63 (medication time logging): adds [intended_time, logged_at]
  * columns to `medication_tier_states` and creates the new
  * `medication_marks` table.
  *
@@ -1699,7 +1775,7 @@ val MIGRATION_59_60 = object : Migration(59, 60) {
  *   the same intended_time/logged_at split so individual medications
  *   can be backdated independently of the slot's aggregate.
  */
-val MIGRATION_60_61 = object : Migration(60, 61) {
+val MIGRATION_62_63 = object : Migration(62, 63) {
     override fun migrate(db: SupportSQLiteDatabase) {
         // Tier-state column additions (additive — preserves existing rows).
         db.execSQL("ALTER TABLE `medication_tier_states` ADD COLUMN `intended_time` INTEGER")
@@ -1764,7 +1840,7 @@ val MIGRATION_60_61 = object : Migration(60, 61) {
  * The diagnostic test will fail until all three are done, preventing the
  * "forgot to add migration" class of startup crash from reaching main.
  */
-const val CURRENT_DB_VERSION = 61
+const val CURRENT_DB_VERSION = 63
 
 val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_1_2,
@@ -1826,5 +1902,7 @@ val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_57_58,
     MIGRATION_58_59,
     MIGRATION_59_60,
-    MIGRATION_60_61
+    MIGRATION_60_61,
+    MIGRATION_61_62,
+    MIGRATION_62_63
 )

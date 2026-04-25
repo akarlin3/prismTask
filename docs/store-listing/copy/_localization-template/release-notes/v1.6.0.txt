@@ -1,0 +1,7 @@
+<!-- TRANSLATE: release notes for v1.6.0, max 500 characters. Reference at copy/en-US/release-notes/v1.6.0.txt.
+
+Three paragraphs covering:
+  1. Medication reminder modes (clock/interval, 2/4/6/8h presets, 60-1440 min custom)
+  2. Sync fix (delete-wins)
+  3. Test coverage expansion
+-->

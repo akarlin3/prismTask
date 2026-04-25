@@ -1,0 +1,4 @@
+• Medication reminder modes: pick Clock (fixed slot times) or Interval (every N hours since your last dose) per medication, per slot, or app-wide. Settings → Notifications → Medication Reminders.
+• Synthetic-skip dose anchors so the interval scheduler re-anchors when you skip a slot.
+• Sync hardening: delete-wins conflict resolution + expanded sync test matrix in CI.
+• Web parity for the new medication settings (delivery on web is coming with Web Push).

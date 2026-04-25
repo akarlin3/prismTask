@@ -47,11 +47,19 @@ constructor(
         viewModelScope.launch {
             try {
                 val response = repository.parseCommand(commandText)
+                val tagChangeTaskIds = response.mutations
+                    .asSequence()
+                    .filter { it.mutationType == "TAG_CHANGE" && it.entityType == "TASK" }
+                    .mapNotNull { it.entityId.toLongOrNull() }
+                    .distinct()
+                    .toList()
+                val currentTags = repository.getTagNamesForTasks(tagChangeTaskIds)
                 _state.value = BatchPreviewState.Loaded(
                     commandText = commandText,
                     mutations = response.mutations,
                     confidence = response.confidence,
-                    ambiguousEntities = response.ambiguousEntities
+                    ambiguousEntities = response.ambiguousEntities,
+                    currentTags = currentTags
                 )
                 _excluded.value = emptySet()
             } catch (e: Exception) {
@@ -119,7 +127,13 @@ sealed class BatchPreviewState {
         val commandText: String,
         val mutations: List<ProposedMutationResponse>,
         val confidence: Float,
-        val ambiguousEntities: List<AmbiguousEntityHintResponse>
+        val ambiguousEntities: List<AmbiguousEntityHintResponse>,
+        /**
+         * Current tag names keyed by task id, populated only for tasks
+         * targeted by TAG_CHANGE mutations. The preview row renders a
+         * before/after diff against this list.
+         */
+        val currentTags: Map<Long, List<String>> = emptyMap()
     ) : BatchPreviewState()
     data class Committing(val commandText: String) : BatchPreviewState()
     data class Error(val commandText: String, val message: String) : BatchPreviewState()

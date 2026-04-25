@@ -31,6 +31,13 @@ data class SelfCareStepEntity(
      */
     @ColumnInfo(name = "medication_name")
     val medicationName: String? = null,
+    /**
+     * Mirrors HabitEntity.sourceVersion for step-level diffs. Backfilled to
+     * 1 on the v61→v62 migration; new step rows seeded by the registry
+     * inherit the parent template's current version.
+     */
+    @ColumnInfo(name = "source_version", defaultValue = "0")
+    val sourceVersion: Int = 0,
     @ColumnInfo(name = "updated_at")
     val updatedAt: Long = 0L
 )

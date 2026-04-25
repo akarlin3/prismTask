@@ -41,11 +41,10 @@ import org.junit.runner.RunWith
  * map and apply `mapToTaskTemplate`-style updates to the receiving
  * device's Room DB. No Firestore SDK interaction.
  *
- * Why this shape — see the parallel note in
- * [CloudIdOrphanHealerTwoDeviceTest]: CI only runs `testDebugUnitTest`,
- * so emulator-backed instrumented tests would not be verified in CI
- * today. Two in-process Room DBs + shared simulated state exercise the
- * cross-device convergence narrative without that infrastructure debt.
+ * Why this shape: CI only runs `testDebugUnitTest`, so emulator-backed
+ * instrumented tests would not be verified in CI today. Two in-process
+ * Room DBs + shared simulated state exercise the cross-device
+ * convergence narrative without that infrastructure debt.
  */
 @RunWith(AndroidJUnit4::class)
 class BuiltInTaskTemplateBackfillerTwoDeviceTest {

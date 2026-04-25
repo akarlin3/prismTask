@@ -117,6 +117,33 @@ data class EisenhowerPrefs(
 )
 
 /**
+ * Global default for medication reminder mode (v1.6.0). Per-slot and
+ * per-medication overrides on `MedicationSlotEntity` / `MedicationEntity`
+ * win over this default when set; resolution lives in
+ * `MedicationReminderModeResolver` (PR2).
+ *
+ * [intervalDefaultMinutes] is only consulted when the resolved mode is
+ * INTERVAL. Default of 240 (4 hours) is the typical between-dose window
+ * for most medications; the UI clamps to 60..1440.
+ */
+data class MedicationReminderModePrefs(
+    val mode: MedicationReminderMode = MedicationReminderMode.CLOCK,
+    val intervalDefaultMinutes: Int = 240
+)
+
+enum class MedicationReminderMode {
+    CLOCK,
+    INTERVAL;
+
+    companion object {
+        fun fromName(name: String?): MedicationReminderMode = when (name) {
+            INTERVAL.name -> INTERVAL
+            else -> CLOCK
+        }
+    }
+}
+
+/**
  * Centralized DataStore for v1.3.0 customization preferences. This sits alongside the
  * existing preference classes (ThemePreferences, TaskBehaviorPreferences, etc.) and
  * holds only the new keys introduced by the customizability track.
@@ -177,7 +204,16 @@ class UserPreferencesDataStore(
         // Eisenhower auto-classification (v1.4.x A2)
         val KEY_EISENHOWER_AUTO_CLASSIFY = booleanPreferencesKey("eisenhower_auto_classify")
 
+        // Medication reminder mode global default (v1.6.0)
+        val KEY_MED_REMINDER_MODE_DEFAULT = stringPreferencesKey("med_reminder_mode_default")
+        val KEY_MED_REMINDER_INTERVAL_DEFAULT_MINUTES =
+            intPreferencesKey("med_reminder_interval_default_minutes")
+
         private const val DEFAULT_PROJECT_NULL_SENTINEL: Long = -1L
+
+        /** Inclusive bounds for any user-entered interval-minutes value. */
+        const val MED_REMINDER_INTERVAL_MIN_MINUTES: Int = 60
+        const val MED_REMINDER_INTERVAL_MAX_MINUTES: Int = 1440
     }
 
     // region Flows ---------------------------------------------------------
@@ -320,6 +356,14 @@ class UserPreferencesDataStore(
         )
     }
 
+    val medicationReminderModeFlow: Flow<MedicationReminderModePrefs> = dataStore.data.map { prefs ->
+        MedicationReminderModePrefs(
+            mode = MedicationReminderMode.fromName(prefs[KEY_MED_REMINDER_MODE_DEFAULT]),
+            intervalDefaultMinutes = (prefs[KEY_MED_REMINDER_INTERVAL_DEFAULT_MINUTES] ?: 240)
+                .coerceIn(MED_REMINDER_INTERVAL_MIN_MINUTES, MED_REMINDER_INTERVAL_MAX_MINUTES)
+        )
+    }
+
     /** Combined flow emitting the full preferences bundle. */
     val allFlow: Flow<UserPreferencesSnapshot> = combine(
         appearanceFlow,
@@ -433,6 +477,14 @@ class UserPreferencesDataStore(
 
     suspend fun setEisenhowerAutoClassifyEnabled(enabled: Boolean) {
         dataStore.edit { it[KEY_EISENHOWER_AUTO_CLASSIFY] = enabled }
+    }
+
+    suspend fun setMedicationReminderMode(prefs: MedicationReminderModePrefs) {
+        dataStore.edit {
+            it[KEY_MED_REMINDER_MODE_DEFAULT] = prefs.mode.name
+            it[KEY_MED_REMINDER_INTERVAL_DEFAULT_MINUTES] = prefs.intervalDefaultMinutes
+                .coerceIn(MED_REMINDER_INTERVAL_MIN_MINUTES, MED_REMINDER_INTERVAL_MAX_MINUTES)
+        }
     }
 
     suspend fun clearAll() {

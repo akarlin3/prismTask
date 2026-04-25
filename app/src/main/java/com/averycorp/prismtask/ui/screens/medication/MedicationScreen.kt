@@ -198,8 +198,8 @@ fun MedicationScreen(
             title = "Add Medication",
             activeSlots = slots,
             onDismiss = { showAddDialog = false },
-            onConfirm = { name, tier, notes, selections ->
-                viewModel.addMedication(name, tier, notes, selections)
+            onConfirm = { name, tier, notes, selections, reminderMode, intervalMinutes ->
+                viewModel.addMedication(name, tier, notes, selections, reminderMode, intervalMinutes)
                 showAddDialog = false
             },
             onCreateNewSlot = { navController.navigate("settings/medication_slots") }
@@ -213,10 +213,12 @@ fun MedicationScreen(
             initialTier = MedicationTier.fromStorage(med.tier),
             initialNotes = med.notes,
             initialSelections = editingSelections,
+            initialReminderMode = med.reminderMode,
+            initialReminderIntervalMinutes = med.reminderIntervalMinutes,
             activeSlots = slots,
             onDismiss = { editingMed = null },
-            onConfirm = { name, tier, notes, selections ->
-                viewModel.updateMedication(med, name, tier, notes, selections)
+            onConfirm = { name, tier, notes, selections, reminderMode, intervalMinutes ->
+                viewModel.updateMedication(med, name, tier, notes, selections, reminderMode, intervalMinutes)
                 editingMed = null
             },
             onCreateNewSlot = { navController.navigate("settings/medication_slots") }

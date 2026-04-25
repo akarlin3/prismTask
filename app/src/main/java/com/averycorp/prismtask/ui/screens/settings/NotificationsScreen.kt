@@ -52,6 +52,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.averycorp.prismtask.ui.navigation.PrismTaskRoute
 import com.averycorp.prismtask.ui.screens.settings.sections.NotificationSettingsSection
+import com.averycorp.prismtask.ui.screens.settings.sections.medication.MedicationReminderModeSection
 import com.averycorp.prismtask.ui.theme.ThemedSubScreenTitle
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -135,6 +136,8 @@ fun NotificationsScreen(
                     navController.navigate(PrismTaskRoute.NotificationsHub.route)
                 }
             )
+            Spacer(modifier = Modifier.height(24.dp))
+            MedicationReminderModeSection()
             Spacer(modifier = Modifier.height(32.dp))
         }
     }

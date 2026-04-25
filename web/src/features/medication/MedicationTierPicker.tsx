@@ -1,23 +1,33 @@
-import { Check, CircleDashed, CircleSlash, CircleOff } from 'lucide-react';
+import { Check, CircleDashed, CircleSlash, CircleOff, Pill } from 'lucide-react';
 import type { MedicationTier } from '@/api/firestore/medicationSlots';
 
-const TIER_ORDER: MedicationTier[] = ['SKIPPED', 'PARTIAL', 'COMPLETE'];
+const TIER_ORDER: MedicationTier[] = [
+  'skipped',
+  'essential',
+  'prescription',
+  'complete',
+];
 
 const TIER_META: Record<
   MedicationTier,
   { label: string; className: string; Icon: typeof Check }
 > = {
-  SKIPPED: {
+  skipped: {
     label: 'Skipped',
     className: 'text-red-500 border-red-500/40',
     Icon: CircleSlash,
   },
-  PARTIAL: {
-    label: 'Partial',
+  essential: {
+    label: 'Essential',
     className: 'text-amber-500 border-amber-500/40',
     Icon: CircleDashed,
   },
-  COMPLETE: {
+  prescription: {
+    label: 'Prescription',
+    className: 'text-blue-500 border-blue-500/40',
+    Icon: Pill,
+  },
+  complete: {
     label: 'Complete',
     className: 'text-emerald-500 border-emerald-500/40',
     Icon: Check,
@@ -25,10 +35,11 @@ const TIER_META: Record<
 };
 
 /**
- * Three-way tier picker (SKIPPED / PARTIAL / COMPLETE) for a
- * medication slot on a given date. `userSet` tells the caller the
- * current value came from a manual pick rather than an auto-derived
- * tier so it can render "Override" vs "Auto" affordance.
+ * Four-way tier picker (skipped / essential / prescription / complete) for
+ * a medication slot on a given date. Aligned with Android's canonical
+ * `AchievedTier` ladder so values roundtrip across platforms. `userSet`
+ * tells the caller the current value came from a manual pick rather than
+ * an auto-derived tier so it can render "Override" vs "Auto" affordance.
  */
 export function MedicationTierPicker({
   value,
@@ -42,7 +53,7 @@ export function MedicationTierPicker({
   onClear?: () => void;
 }) {
   return (
-    <div className="flex items-center gap-1.5">
+    <div className="flex flex-wrap items-center gap-1.5">
       {TIER_ORDER.map((tier) => {
         const selected = value === tier;
         const meta = TIER_META[tier];

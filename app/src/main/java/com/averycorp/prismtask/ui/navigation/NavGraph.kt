@@ -188,6 +188,12 @@ sealed class PrismTaskRoute(
 
     data object WeeklyBalanceReport : PrismTaskRoute("weekly_balance_report")
 
+    data object BuiltInUpdates : PrismTaskRoute("builtin_updates")
+
+    data object BuiltInUpdateDiff : PrismTaskRoute("builtin_updates/{templateKey}") {
+        fun createRoute(templateKey: String): String = "builtin_updates/$templateKey"
+    }
+
     data object PasteConversation : PrismTaskRoute("paste_conversation")
 
     data object WeeklyReview : PrismTaskRoute("weekly_review")
