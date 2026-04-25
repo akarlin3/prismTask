@@ -225,6 +225,42 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
+      # Why we write the script to a file instead of inlining it under
+      # `script:` — `reactivecircus/android-emulator-runner@v2` splits
+      # its `script:` input on newlines and runs each line as a fresh
+      # `sh -c "$line"`. That means any multi-line shell construct
+      # (function definition, `if` block, heredoc) fails to parse: the
+      # opening `run_cross_device_tests() {` line dies with
+      # "Syntax error: end of file unexpected (expecting `}`)" because
+      # `}` lives on the next `sh -c`. PR #773's `\`-continuation form
+      # had the same shape failure (each line was a fresh shell, so
+      # the `\` joined nothing). PR #776 replaced one broken multi-
+      # line form with another, and the retry-once never actually
+      # fired — see runs 24938962202 / 24937612065 / 24926119046.
+      #
+      # By writing the runner to a temp file and pointing the action
+      # at it as a single line, the action runs `sh -c "bash <file>"`
+      # exactly once, and bash parses the multi-line file as one unit.
+      - name: Write cross-device test runner
+        run: |
+          cat > "$RUNNER_TEMP/run-cross-device-tests.sh" <<'BASH'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          adb devices
+          adb shell settings put global window_animation_scale 0
+          adb shell settings put global transition_animation_scale 0
+          adb shell settings put global animator_duration_scale 0
+          adb shell "ping -c 1 10.0.2.2 || true"
+          TEST_CLASS=com.averycorp.prismtask.sync.scenarios.MedicationCrossDeviceConvergenceTest
+          run_cross_device_tests() {
+            ./gradlew :app:connectedDebugAndroidTest \
+              "-Pandroid.testInstrumentationRunnerArguments.class=$TEST_CLASS" \
+              --no-daemon "$@"
+          }
+          run_cross_device_tests || run_cross_device_tests --rerun-tasks
+          BASH
+          chmod +x "$RUNNER_TEMP/run-cross-device-tests.sh"
+
       - name: Run medication cross-device tests with one retry
         uses: reactivecircus/android-emulator-runner@v2
         with:
@@ -232,26 +268,7 @@ jobs:
           target: google_apis
           arch: x86_64
           profile: pixel_6
-          # Why a function instead of `\`-continuations: the previous
-          # form mixed YAML's `|` literal block with shell line-
-          # continuations, and the `=\<newline>` joining inside
-          # `-Pandroid.testInstrumentationRunnerArguments.class=...`
-          # was fragile — any whitespace after `\` (or any tooling that
-          # rewraps the YAML) silently turns the continuation into a
-          # literal `\`, which gradle then treats as a task name. The
-          # retry-once intent is identical; the function form is just
-          # un-mistakable to both YAML and bash.
-          script: |
-            adb devices
-            adb shell settings put global window_animation_scale 0
-            adb shell settings put global transition_animation_scale 0
-            adb shell settings put global animator_duration_scale 0
-            adb shell "ping -c 1 10.0.2.2 || true"
-            TEST_CLASS=com.averycorp.prismtask.sync.scenarios.MedicationCrossDeviceConvergenceTest
-            run_cross_device_tests() {
-              ./gradlew :app:connectedDebugAndroidTest "-Pandroid.testInstrumentationRunnerArguments.class=$TEST_CLASS" --no-daemon "$@"
-            }
-            run_cross_device_tests || run_cross_device_tests --rerun-tasks
+          script: bash "$RUNNER_TEMP/run-cross-device-tests.sh"
 
       - name: Stop Firebase emulators
         if: always()
