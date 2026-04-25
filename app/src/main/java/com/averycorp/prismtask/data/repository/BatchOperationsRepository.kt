@@ -4,12 +4,19 @@ import androidx.room.withTransaction
 import com.averycorp.prismtask.data.local.dao.BatchUndoLogDao
 import com.averycorp.prismtask.data.local.dao.HabitCompletionDao
 import com.averycorp.prismtask.data.local.dao.HabitDao
+import com.averycorp.prismtask.data.local.dao.MedicationDao
+import com.averycorp.prismtask.data.local.dao.MedicationDoseDao
+import com.averycorp.prismtask.data.local.dao.MedicationSlotDao
+import com.averycorp.prismtask.data.local.dao.MedicationTierStateDao
 import com.averycorp.prismtask.data.local.dao.ProjectDao
 import com.averycorp.prismtask.data.local.dao.TagDao
 import com.averycorp.prismtask.data.local.dao.TaskDao
 import com.averycorp.prismtask.data.local.database.PrismTaskDatabase
 import com.averycorp.prismtask.data.local.entity.BatchUndoLogEntry
 import com.averycorp.prismtask.data.local.entity.HabitCompletionEntity
+import com.averycorp.prismtask.data.local.entity.MedicationDoseEntity
+import com.averycorp.prismtask.data.local.entity.MedicationSlotEntity
+import com.averycorp.prismtask.data.local.entity.MedicationTierStateEntity
 import com.averycorp.prismtask.data.remote.api.BatchParseResponse
 import com.averycorp.prismtask.data.remote.api.PrismTaskApi
 import com.averycorp.prismtask.data.remote.api.ProposedMutationResponse
@@ -37,11 +44,9 @@ import javax.inject.Singleton
  *     `pre_state_json`, marks each entry `undone_at = now`, and returns
  *     a per-mutation result so partial failures surface in the UI.
  *
- * **Scope (PR2)**: Tasks (RESCHEDULE / DELETE / COMPLETE / PRIORITY_CHANGE
- * / TAG_CHANGE / PROJECT_MOVE), Habits (COMPLETE / SKIP / ARCHIVE),
- * Projects (ARCHIVE). Medication mutations are accepted from the AI plan
- * but skipped at apply time pending coordination with the medslots
- * worktree (Option C from the audit).
+ * **Scope**: Tasks (RESCHEDULE / DELETE / COMPLETE / PRIORITY_CHANGE /
+ * TAG_CHANGE / PROJECT_MOVE), Habits (COMPLETE / SKIP / ARCHIVE), Projects
+ * (ARCHIVE), Medications (COMPLETE / SKIP / DELETE / STATE_CHANGE).
  *
  * **Undo strategy**: Hard deletes would force us to capture and restore
  * relations (tags, subtasks, attachments). Until we need that, DELETE is
@@ -60,6 +65,10 @@ constructor(
     private val tagDao: TagDao,
     private val habitCompletionDao: HabitCompletionDao,
     private val batchUndoLogDao: BatchUndoLogDao,
+    private val medicationDao: MedicationDao,
+    private val medicationDoseDao: MedicationDoseDao,
+    private val medicationSlotDao: MedicationSlotDao,
+    private val medicationTierStateDao: MedicationTierStateDao,
     private val contextProvider: BatchUserContextProvider
 ) {
     private val gson = Gson()
@@ -196,12 +205,15 @@ constructor(
                 entityId,
                 mutation
             )
-            BatchEntityType.MEDICATION -> {
-                // Option C from the audit: defer medication mutations until
-                // the medslots worktree settles. Accepting the AI plan is
-                // fine — we just don't write.
-                MutationOutcome(applied = false, reason = "medication mutations deferred to follow-up")
-            }
+            BatchEntityType.MEDICATION -> applyMedicationMutation(
+                batchId,
+                commandText,
+                expiresAt,
+                now,
+                mutationType,
+                entityId,
+                mutation
+            )
         }
     }
 
@@ -406,6 +418,174 @@ constructor(
     }
 
     /**
+     * Apply a medication-targeting mutation. The Haiku schema emits four
+     * verbs against MEDICATION: COMPLETE (insert real dose), SKIP (insert
+     * synthetic-skip dose so the interval-mode rescheduler re-anchors,
+     * plus tier-state="skipped"), DELETE (remove the matching real dose),
+     * and STATE_CHANGE (manual tier override with `tier_source="user_set"`).
+     *
+     * `slot_key` from the AI plan is matched case-insensitively against
+     * `MedicationSlotEntity.name`. SKIP gracefully proceeds without a
+     * tier-state write if the slot can't be resolved (the dose still
+     * lands); STATE_CHANGE skips the mutation entirely if the slot is
+     * missing because there's no row to write without a slot_id.
+     */
+    @Suppress("LongParameterList")
+    private suspend fun applyMedicationMutation(
+        batchId: String,
+        commandText: String,
+        expiresAt: Long,
+        now: Long,
+        mutationType: BatchMutationType,
+        entityId: Long,
+        mutation: ProposedMutationResponse
+    ): MutationOutcome {
+        val medication = medicationDao.getByIdOnce(entityId)
+            ?: return MutationOutcome(false, "medication not found")
+        val slotKey = mutation.proposedNewValues["slot_key"] as? String
+        val date = mutation.proposedNewValues["date"] as? String
+            ?: LocalDate.now().format(isoDate)
+
+        return when (mutationType) {
+            BatchMutationType.COMPLETE -> {
+                if (slotKey == null) return MutationOutcome(false, "missing slot_key")
+                val takenAt = parseIsoDateToMillis(date) ?: now
+                val doseId = medicationDoseDao.insert(
+                    MedicationDoseEntity(
+                        medicationId = entityId,
+                        slotKey = slotKey,
+                        takenAt = takenAt,
+                        takenDateLocal = date,
+                        isSyntheticSkip = false,
+                        createdAt = now,
+                        updatedAt = now
+                    )
+                )
+                snapshot(
+                    batchId, commandText, expiresAt, now, BatchEntityType.MEDICATION, mutationType,
+                    entityId, medication.cloudId,
+                    snapshot = mapOf("dose_id" to doseId)
+                )
+                MutationOutcome(true)
+            }
+            BatchMutationType.SKIP -> {
+                if (slotKey == null) return MutationOutcome(false, "missing slot_key")
+                val takenAt = parseIsoDateToMillis(date) ?: now
+                val doseId = medicationDoseDao.insert(
+                    MedicationDoseEntity(
+                        medicationId = entityId,
+                        slotKey = slotKey,
+                        takenAt = takenAt,
+                        takenDateLocal = date,
+                        isSyntheticSkip = true,
+                        createdAt = now,
+                        updatedAt = now
+                    )
+                )
+                val snap = mutableMapOf<String, Any?>("dose_id" to doseId)
+                val slot = resolveSlotByKey(slotKey)
+                if (slot != null) {
+                    val prior = medicationTierStateDao.getForTripleOnce(entityId, date, slot.id)
+                    if (prior != null) {
+                        snap["tier_state_id"] = prior.id
+                        snap["prior_tier"] = prior.tier
+                        snap["prior_tier_source"] = prior.tierSource
+                        medicationTierStateDao.update(
+                            prior.copy(tier = "skipped", tierSource = "user_set", updatedAt = now)
+                        )
+                    } else {
+                        val newId = medicationTierStateDao.insert(
+                            MedicationTierStateEntity(
+                                medicationId = entityId,
+                                slotId = slot.id,
+                                logDate = date,
+                                tier = "skipped",
+                                tierSource = "user_set",
+                                createdAt = now,
+                                updatedAt = now
+                            )
+                        )
+                        snap["tier_state_id"] = newId
+                    }
+                }
+                snapshot(
+                    batchId, commandText, expiresAt, now, BatchEntityType.MEDICATION, mutationType,
+                    entityId, medication.cloudId,
+                    snapshot = snap
+                )
+                MutationOutcome(true)
+            }
+            BatchMutationType.DELETE -> {
+                if (slotKey == null) return MutationOutcome(false, "missing slot_key")
+                val match = medicationDoseDao.getAllForMedOnce(entityId).firstOrNull {
+                    it.slotKey == slotKey && it.takenDateLocal == date && !it.isSyntheticSkip
+                } ?: return MutationOutcome(false, "no matching dose")
+                snapshot(
+                    batchId, commandText, expiresAt, now, BatchEntityType.MEDICATION, mutationType,
+                    entityId, medication.cloudId,
+                    snapshot = mapOf(
+                        "dose_id" to match.id,
+                        "cloud_id" to match.cloudId,
+                        "slot_key" to match.slotKey,
+                        "taken_at" to match.takenAt,
+                        "taken_date_local" to match.takenDateLocal,
+                        "note" to match.note,
+                        "is_synthetic_skip" to match.isSyntheticSkip,
+                        "created_at" to match.createdAt
+                    )
+                )
+                medicationDoseDao.deleteById(match.id)
+                MutationOutcome(true)
+            }
+            BatchMutationType.STATE_CHANGE -> {
+                if (slotKey == null) return MutationOutcome(false, "missing slot_key")
+                val tier = mutation.proposedNewValues["tier"] as? String
+                    ?: return MutationOutcome(false, "missing tier")
+                val slot = resolveSlotByKey(slotKey)
+                    ?: return MutationOutcome(false, "slot not found")
+                val prior = medicationTierStateDao.getForTripleOnce(entityId, date, slot.id)
+                val snap = mutableMapOf<String, Any?>()
+                if (prior != null) {
+                    snap["tier_state_id"] = prior.id
+                    snap["prior_tier"] = prior.tier
+                    snap["prior_tier_source"] = prior.tierSource
+                    medicationTierStateDao.update(
+                        prior.copy(tier = tier, tierSource = "user_set", updatedAt = now)
+                    )
+                } else {
+                    val newId = medicationTierStateDao.insert(
+                        MedicationTierStateEntity(
+                            medicationId = entityId,
+                            slotId = slot.id,
+                            logDate = date,
+                            tier = tier,
+                            tierSource = "user_set",
+                            createdAt = now,
+                            updatedAt = now
+                        )
+                    )
+                    snap["tier_state_id"] = newId
+                }
+                snapshot(
+                    batchId, commandText, expiresAt, now, BatchEntityType.MEDICATION, mutationType,
+                    entityId, medication.cloudId,
+                    snapshot = snap
+                )
+                MutationOutcome(true)
+            }
+            else -> MutationOutcome(false, "unsupported medication mutation: $mutationType")
+        }
+    }
+
+    private suspend fun resolveSlotByKey(slotKey: String): MedicationSlotEntity? {
+        val target = slotKey.trim().lowercase()
+        if (target.isEmpty()) return null
+        return medicationSlotDao.getAllOnce().firstOrNull {
+            it.name.trim().lowercase() == target
+        }
+    }
+
+    /**
      * Reverse every entry under [batchId] using its saved `pre_state_json`.
      * Marks each row's `undone_at = now` on success. Returns per-mutation
      * results so the caller can surface partial failures.
@@ -447,7 +627,7 @@ constructor(
             BatchEntityType.TASK -> reverseTask(entityId, mutationType, snapshot, now)
             BatchEntityType.HABIT -> reverseHabit(entityId, mutationType, snapshot, now)
             BatchEntityType.PROJECT -> reverseProject(entityId, mutationType, snapshot, now)
-            BatchEntityType.MEDICATION -> false
+            BatchEntityType.MEDICATION -> reverseMedication(entityId, mutationType, snapshot, now)
         }
     }
 
@@ -558,6 +738,86 @@ constructor(
                         updatedAt = now
                     )
                 )
+                true
+            }
+            else -> false
+        }
+    }
+
+    private suspend fun reverseMedication(
+        entityId: Long,
+        mutationType: BatchMutationType,
+        snapshot: Map<String, Any?>,
+        now: Long
+    ): Boolean {
+        return when (mutationType) {
+            BatchMutationType.COMPLETE -> {
+                val doseId = (snapshot["dose_id"] as? Number)?.toLong() ?: return false
+                medicationDoseDao.deleteById(doseId)
+                true
+            }
+            BatchMutationType.SKIP -> {
+                val doseId = (snapshot["dose_id"] as? Number)?.toLong() ?: return false
+                medicationDoseDao.deleteById(doseId)
+                val tierStateId = (snapshot["tier_state_id"] as? Number)?.toLong()
+                if (tierStateId != null) {
+                    val priorTier = snapshot["prior_tier"] as? String
+                    if (priorTier != null) {
+                        val ts = medicationTierStateDao.getByIdOnce(tierStateId)
+                        if (ts != null) {
+                            medicationTierStateDao.update(
+                                ts.copy(
+                                    tier = priorTier,
+                                    tierSource = (snapshot["prior_tier_source"] as? String)
+                                        ?: "computed",
+                                    updatedAt = now
+                                )
+                            )
+                        }
+                    } else {
+                        medicationTierStateDao.deleteById(tierStateId)
+                    }
+                }
+                true
+            }
+            BatchMutationType.DELETE -> {
+                val cloudId = snapshot["cloud_id"] as? String
+                val slotKey = snapshot["slot_key"] as? String ?: return false
+                val takenAt = (snapshot["taken_at"] as? Number)?.toLong() ?: return false
+                val takenDateLocal = snapshot["taken_date_local"] as? String ?: return false
+                val note = snapshot["note"] as? String ?: ""
+                val isSynthetic = snapshot["is_synthetic_skip"] as? Boolean ?: false
+                val createdAt = (snapshot["created_at"] as? Number)?.toLong() ?: now
+                medicationDoseDao.insert(
+                    MedicationDoseEntity(
+                        medicationId = entityId,
+                        cloudId = cloudId,
+                        slotKey = slotKey,
+                        takenAt = takenAt,
+                        takenDateLocal = takenDateLocal,
+                        note = note,
+                        isSyntheticSkip = isSynthetic,
+                        createdAt = createdAt,
+                        updatedAt = now
+                    )
+                )
+                true
+            }
+            BatchMutationType.STATE_CHANGE -> {
+                val tierStateId = (snapshot["tier_state_id"] as? Number)?.toLong() ?: return false
+                val priorTier = snapshot["prior_tier"] as? String
+                if (priorTier != null) {
+                    val ts = medicationTierStateDao.getByIdOnce(tierStateId) ?: return false
+                    medicationTierStateDao.update(
+                        ts.copy(
+                            tier = priorTier,
+                            tierSource = (snapshot["prior_tier_source"] as? String) ?: "computed",
+                            updatedAt = now
+                        )
+                    )
+                } else {
+                    medicationTierStateDao.deleteById(tierStateId)
+                }
                 true
             }
             else -> false
