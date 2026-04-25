@@ -96,9 +96,28 @@ jobs:
         # PR's tests break (classic "test was fine in isolation, breaks
         # after a parallel merge"), rebase onto the new base and let the
         # re-run of CI verify it. Witnessed in PR #699 this session.
+        #
+        # Token choice — same rationale as android-ci.yml's autofix step:
+        # GITHUB_TOKEN-driven pushes never trigger downstream workflow
+        # runs (documented GitHub Actions anti-recursion). When `gh pr
+        # update-branch` runs under GITHUB_TOKEN, the resulting "Update
+        # branch" commit on the PR head leaves required checks stale, so
+        # auto-merge waits forever for workflows that will never fire.
+        # Witnessed on PRs #772 + #774 (residual GITHUB_TOKEN-CI bug —
+        # the autofix path was already on AUTOFIX_PAT, but this path
+        # wasn't). Falls back to GITHUB_TOKEN gracefully — update-branch
+        # still works under GITHUB_TOKEN, the resulting commit just
+        # won't retrigger CI (same as today's behavior).
+        #
+        # NOTE on PAT scope: `gh pr update-branch` calls
+        # `PUT /repos/{owner}/{repo}/pulls/{n}/update-branch`, which
+        # requires `pull_requests: write` on the PAT. If AUTOFIX_PAT was
+        # provisioned with `Pull Requests: Read` only (per its original
+        # autofix-only scope), expand it to Read+Write or this step will
+        # 403 and fall through to the merge attempt with stale checks.
         if: steps.ci_check.outputs.has_ci == 'true'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.AUTOFIX_PAT || secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           REPO: ${{ github.repository }}
         run: |
