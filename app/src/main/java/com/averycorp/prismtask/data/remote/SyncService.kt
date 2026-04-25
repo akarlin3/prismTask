@@ -78,6 +78,7 @@ constructor(
     private val builtInHabitReconciler: BuiltInHabitReconciler,
     private val builtInTaskTemplateReconciler: BuiltInTaskTemplateReconciler,
     private val builtInTaskTemplateBackfiller: BuiltInTaskTemplateBackfiller,
+    private val builtInUpdateDetector: com.averycorp.prismtask.domain.usecase.BuiltInUpdateDetector,
     private val cloudIdOrphanHealer: CloudIdOrphanHealer,
     private val builtInMedicationReconciler: BuiltInMedicationReconciler,
     private val medicationDao: MedicationDao,
@@ -2577,6 +2578,16 @@ constructor(
             builtInHabitReconciler.reconcileAfterSyncIfNeeded()
             builtInTaskTemplateReconciler.reconcileAfterSyncIfNeeded()
             builtInMedicationReconciler.reconcileAfterSyncIfNeeded()
+            try {
+                builtInUpdateDetector.refreshPendingUpdates()
+            } catch (e: Exception) {
+                try {
+                    com.google.firebase.crashlytics.FirebaseCrashlytics
+                        .getInstance()
+                        .recordException(e)
+                } catch (_: Exception) {
+                }
+            }
             syncStateRepository.markSyncCompleted(
                 source = SOURCE_FIREBASE,
                 success = true,

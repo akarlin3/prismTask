@@ -241,6 +241,9 @@ object SyncMapper {
         "todaySkipBeforeScheduleDays" to habit.todaySkipBeforeScheduleDays,
         "isBuiltIn" to habit.isBuiltIn,
         "templateKey" to habit.templateKey,
+        "sourceVersion" to habit.sourceVersion,
+        "isUserModified" to habit.isUserModified,
+        "isDetachedFromTemplate" to habit.isDetachedFromTemplate,
         "createdAt" to habit.createdAt,
         "updatedAt" to habit.updatedAt
     )
@@ -283,6 +286,9 @@ object SyncMapper {
             todaySkipBeforeScheduleDays = (data["todaySkipBeforeScheduleDays"] as? Number)?.toInt() ?: -1,
             isBuiltIn = isBuiltIn,
             templateKey = templateKey,
+            sourceVersion = (data["sourceVersion"] as? Number)?.toInt() ?: 0,
+            isUserModified = data["isUserModified"] as? Boolean ?: false,
+            isDetachedFromTemplate = data["isDetachedFromTemplate"] as? Boolean ?: false,
             createdAt = (data["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
             updatedAt = (data["updatedAt"] as? Number)?.toLong() ?: System.currentTimeMillis()
         )
@@ -556,6 +562,7 @@ object SyncMapper {
         "reminderDelayMillis" to step.reminderDelayMillis,
         "timeOfDay" to step.timeOfDay,
         "medicationName" to step.medicationName,
+        "sourceVersion" to step.sourceVersion,
         "updatedAt" to step.updatedAt
     )
 
@@ -577,6 +584,7 @@ object SyncMapper {
         reminderDelayMillis = (data["reminderDelayMillis"] as? Number)?.toLong(),
         timeOfDay = data["timeOfDay"] as? String ?: "morning",
         medicationName = data["medicationName"] as? String,
+        sourceVersion = (data["sourceVersion"] as? Number)?.toInt() ?: 0,
         updatedAt = (data["updatedAt"] as? Number)?.toLong() ?: 0L
     )
 

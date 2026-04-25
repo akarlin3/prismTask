@@ -6,6 +6,8 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.averycorp.prismtask.ui.navigation.PrismTaskRoute
+import com.averycorp.prismtask.ui.screens.builtinupdates.BuiltInUpdatesScreen
+import com.averycorp.prismtask.ui.screens.builtinupdates.TemplateDiffScreen
 import com.averycorp.prismtask.ui.screens.templates.AddEditTemplateScreen
 import com.averycorp.prismtask.ui.screens.templates.TemplateBrowserScreen
 import com.averycorp.prismtask.ui.screens.templates.TemplateListScreen
@@ -36,5 +38,18 @@ internal fun NavGraphBuilder.templateRoutes(navController: NavHostController) {
         popExitTransition = fadeExitOnly
     ) {
         AddEditTemplateScreen(navController)
+    }
+
+    horizontalSlideComposable(PrismTaskRoute.BuiltInUpdates.route) {
+        BuiltInUpdatesScreen(navController)
+    }
+
+    horizontalSlideComposable(
+        route = PrismTaskRoute.BuiltInUpdateDiff.route,
+        arguments = listOf(
+            navArgument("templateKey") { type = NavType.StringType }
+        )
+    ) {
+        TemplateDiffScreen(navController)
     }
 }
