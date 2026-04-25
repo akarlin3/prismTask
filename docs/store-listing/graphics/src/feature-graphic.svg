@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  PrismTask Play Store feature graphic — 1024x500 PNG target.
+  Layout:
+    Left third (0-320): prism logo mark, smaller scale than the app icon
+    Center (320-720): tagline + product name
+    Right third (720-1024): subtle mockup of the Today screen with balance
+      bar + a couple of tasks, tinted with the Synthwave palette so the
+      graphic reads "this is a themed productivity app" at a glance.
+-->
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 1024 500"
+     width="1024" height="500">
+  <defs>
+    <linearGradient id="bgH" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#0B0B14"/>
+      <stop offset="60%" stop-color="#130820"/>
+      <stop offset="100%" stop-color="#1A0F2E"/>
+    </linearGradient>
+    <linearGradient id="prismFill2" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.22"/>
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0.06"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background: dark gradient blending toward Synthwave plum on the right -->
+  <rect x="0" y="0" width="1024" height="500" fill="url(#bgH)"/>
+
+  <!-- ================= Left third: prism logo (scaled-down icon) ================= -->
+  <g transform="translate(50, 110)">
+    <!-- incoming beam -->
+    <line x1="0" y1="140" x2="54" y2="140" stroke="#FFFFFF" stroke-width="7" stroke-linecap="round" opacity="0.92"/>
+    <!-- prism triangle -->
+    <polygon points="120,20 56,156 184,156"
+             fill="url(#prismFill2)"
+             stroke="#FFFFFF" stroke-width="6" stroke-linejoin="round"/>
+    <!-- rays -->
+    <line x1="145" y1="82" x2="240" y2="28"  stroke="#00F5FF" stroke-width="7" stroke-linecap="round"/>
+    <line x1="145" y1="82" x2="244" y2="72"  stroke="#FF2D87" stroke-width="7" stroke-linecap="round"/>
+    <line x1="145" y1="82" x2="244" y2="112" stroke="#00FF41" stroke-width="7" stroke-linecap="round"/>
+    <line x1="145" y1="82" x2="240" y2="156" stroke="#C8B8FF" stroke-width="7" stroke-linecap="round"/>
+  </g>
+
+  <!-- ================= Center: wordmark + tagline ================= -->
+  <g font-family="'Chakra Petch', 'Space Grotesk', 'Segoe UI', sans-serif">
+    <text x="330" y="230" font-size="72" font-weight="700" fill="#F0D0FF">PrismTask</text>
+    <text x="330" y="292" font-size="26" font-weight="500" fill="#B080D0">
+      Built for focus. Made for humans.
+    </text>
+    <!-- Small accent line under the tagline -->
+    <line x1="330" y1="316" x2="470" y2="316" stroke="#FF2D87" stroke-width="3" stroke-linecap="round"/>
+  </g>
+
+  <!-- ================= Right third: mini Today mockup ================= -->
+  <g transform="translate(740, 56)">
+    <!-- Phone outline -->
+    <rect x="0" y="0" width="240" height="388" rx="26" ry="26"
+          fill="#130820" stroke="#6E3FFF" stroke-opacity="0.35" stroke-width="2"/>
+    <!-- Status bar -->
+    <rect x="0" y="0" width="240" height="22" fill="#0D0717"/>
+    <circle cx="216" cy="11" r="3" fill="#B080D0"/>
+    <!-- App bar: "Today" + date -->
+    <text x="18" y="52" font-family="'Chakra Petch', sans-serif" font-size="22" font-weight="700" fill="#F0D0FF">Today</text>
+    <text x="18" y="72" font-family="'Space Grotesk', sans-serif" font-size="11" fill="#B080D0">Fri, April 24</text>
+    <!-- Progress ring -->
+    <circle cx="200" cy="56" r="20" fill="none" stroke="#1A0F2E" stroke-width="4"/>
+    <circle cx="200" cy="56" r="20" fill="none" stroke="#FF2D87" stroke-width="4"
+            stroke-dasharray="78 48" stroke-dashoffset="30" stroke-linecap="round"
+            transform="rotate(-90 200 56)"/>
+    <text x="200" y="60" font-family="'Space Grotesk', sans-serif" font-size="11"
+          text-anchor="middle" font-weight="600" fill="#F0D0FF">62%</text>
+    <!-- Balance bar -->
+    <rect x="18" y="94" width="204" height="10" rx="5" fill="#1A0F2E"/>
+    <rect x="18" y="94" width="86" height="10" rx="5" fill="#6E3FFF"/>
+    <rect x="104" y="94" width="54" height="10" rx="5" fill="#00EE88"/>
+    <rect x="158" y="94" width="38" height="10" rx="5" fill="#FFCC00"/>
+    <text x="18" y="124" font-family="'Space Grotesk', sans-serif" font-size="10" fill="#B080D0">Work · Self-care · Personal</text>
+    <!-- Task row 1 -->
+    <rect x="14" y="140" width="212" height="52" rx="10" fill="#1A0F2E"/>
+    <circle cx="32" cy="166" r="9" fill="none" stroke="#FF2D87" stroke-width="2"/>
+    <text x="50" y="164" font-family="'Chakra Petch', sans-serif" font-size="13" font-weight="600" fill="#F0D0FF">Review design brief</text>
+    <text x="50" y="180" font-family="'Space Grotesk', sans-serif" font-size="10" fill="#B080D0">Due 2pm · Work</text>
+    <!-- Task row 2 -->
+    <rect x="14" y="202" width="212" height="52" rx="10" fill="#1A0F2E"/>
+    <circle cx="32" cy="228" r="9" fill="#6E3FFF"/>
+    <path d="M28,228 L32,232 L38,224" stroke="#F0D0FF" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="50" y="226" font-family="'Chakra Petch', sans-serif" font-size="13" font-weight="600" fill="#B080D0" text-decoration="line-through">Morning check-in</text>
+    <text x="50" y="242" font-family="'Space Grotesk', sans-serif" font-size="10" fill="#5E3A7A">Done · Self-care</text>
+    <!-- Task row 3 -->
+    <rect x="14" y="264" width="212" height="52" rx="10" fill="#1A0F2E"/>
+    <circle cx="32" cy="290" r="9" fill="none" stroke="#FF2D87" stroke-width="2"/>
+    <text x="50" y="288" font-family="'Chakra Petch', sans-serif" font-size="13" font-weight="600" fill="#F0D0FF">Walk · 20 min</text>
+    <text x="50" y="304" font-family="'Space Grotesk', sans-serif" font-size="10" fill="#B080D0">Flexible · Health</text>
+    <!-- Bottom nav strip -->
+    <rect x="0" y="356" width="240" height="32" fill="#0D0717"/>
+    <circle cx="24"  cy="372" r="4" fill="#FF2D87"/>
+    <circle cx="72"  cy="372" r="4" fill="#5E3A7A"/>
+    <circle cx="120" cy="372" r="4" fill="#5E3A7A"/>
+    <circle cx="168" cy="372" r="4" fill="#5E3A7A"/>
+    <circle cx="216" cy="372" r="4" fill="#5E3A7A"/>
+  </g>
+</svg>

@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Screenshot 07 — Theme picker showing all 4 themes side-by-side. Caption: "Four themes. Your mood." -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1920" width="1080" height="1920"
+     font-family="'Space Grotesk', sans-serif">
+  <defs>
+    <linearGradient id="captionFade07" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0B0B14" stop-opacity="0"/>
+      <stop offset="40%" stop-color="#0B0B14" stop-opacity="0.92"/>
+      <stop offset="100%" stop-color="#0B0B14" stop-opacity="1"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Neutral dark background so the 4 theme tiles each pop -->
+  <rect width="1080" height="1920" fill="#0B0B14"/>
+
+  <g fill="#DCDCE4" font-size="24" font-weight="600">
+    <text x="48" y="50">9:41</text>
+    <rect x="1024" y="32" width="28" height="20" rx="4" fill="none" stroke="#DCDCE4" stroke-width="2"/>
+    <rect x="1027" y="35" width="18" height="14" fill="#FFFFFF"/>
+  </g>
+
+  <text x="48" y="160" font-size="66" font-weight="700" fill="#FFFFFF">Four themes.</text>
+  <text x="48" y="216" font-size="32" fill="#B080D0">Pick the one that matches today's mood.</text>
+
+  <!-- 2x2 tiles. Each tile is a mini phone showing Today. -->
+  <!-- Tile size 464x620, gap 24. Origin (48, 276). -->
+
+  <!-- Cyberpunk (top-left) -->
+  <g transform="translate(48, 276)">
+    <rect x="0" y="0" width="476" height="620" rx="28" fill="#0A0A0F" stroke="#00F5FF" stroke-opacity="0.5" stroke-width="3"/>
+    <!-- label -->
+    <g transform="translate(24, 40)">
+      <rect x="0" y="0" width="180" height="44" rx="22" fill="#00F5FF"/>
+      <text x="90" y="30" text-anchor="middle" font-size="20" font-weight="700" fill="#0A0A0F" font-family="'Chakra Petch', sans-serif">CYBERPUNK</text>
+    </g>
+    <text x="24" y="140" font-size="32" font-weight="700" fill="#E0F8FF" font-family="'Chakra Petch', sans-serif">Today</text>
+    <!-- task rows -->
+    <g transform="translate(24, 160)">
+      <rect x="0" y="0" width="420" height="56" rx="10" fill="#0D0D18"/>
+      <circle cx="24" cy="28" r="10" fill="none" stroke="#00F5FF" stroke-width="2"/>
+      <text x="46" y="34" font-size="18" fill="#E0F8FF">Review design brief</text>
+    </g>
+    <g transform="translate(24, 228)">
+      <rect x="0" y="0" width="420" height="56" rx="10" fill="#0D0D18"/>
+      <circle cx="24" cy="28" r="10" fill="#00F5FF"/>
+      <text x="46" y="34" font-size="18" fill="#A0CCD4" text-decoration="line-through">Morning check-in</text>
+    </g>
+    <g transform="translate(24, 296)">
+      <rect x="0" y="0" width="420" height="56" rx="10" fill="#0D0D18"/>
+      <circle cx="24" cy="28" r="10" fill="none" stroke="#FF00AA" stroke-width="2"/>
+      <text x="46" y="34" font-size="18" fill="#E0F8FF">Client invoice · overdue</text>
+    </g>
+    <!-- palette dots -->
+    <g transform="translate(24, 540)">
+      <circle cx="0" cy="0" r="14" fill="#00F5FF"/>
+      <circle cx="40" cy="0" r="14" fill="#FF00AA"/>
+      <circle cx="80" cy="0" r="14" fill="#00FF88"/>
+      <circle cx="120" cy="0" r="14" fill="#FFCC00"/>
+      <text x="160" y="6" font-size="18" fill="#A0CCD4">cyan · magenta</text>
+    </g>
+  </g>
+
+  <!-- Synthwave (top-right) -->
+  <g transform="translate(548, 276)">
+    <rect x="0" y="0" width="476" height="620" rx="28" fill="#0D0717" stroke="#FF2D87" stroke-opacity="0.5" stroke-width="3"/>
+    <g transform="translate(24, 40)">
+      <rect x="0" y="0" width="180" height="44" rx="22" fill="#FF2D87"/>
+      <text x="90" y="30" text-anchor="middle" font-size="20" font-weight="700" fill="#0D0717" font-family="'Audiowide', sans-serif">SYNTHWAVE</text>
+    </g>
+    <text x="24" y="140" font-size="32" font-weight="700" fill="#F0D0FF" font-family="'Audiowide', sans-serif">Today</text>
+    <g transform="translate(24, 160)">
+      <rect x="0" y="0" width="420" height="56" rx="10" fill="#130820"/>
+      <circle cx="24" cy="28" r="10" fill="none" stroke="#FF2D87" stroke-width="2"/>
+      <text x="46" y="34" font-size="18" fill="#F0D0FF">Review design brief</text>
+    </g>
+    <g transform="translate(24, 228)">
+      <rect x="0" y="0" width="420" height="56" rx="10" fill="#130820"/>
+      <circle cx="24" cy="28" r="10" fill="#6E3FFF"/>
+      <text x="46" y="34" font-size="18" fill="#B080D0" text-decoration="line-through">Morning check-in</text>
+    </g>
+    <g transform="translate(24, 296)">
+      <rect x="0" y="0" width="420" height="56" rx="10" fill="#130820"/>
+      <circle cx="24" cy="28" r="10" fill="none" stroke="#FF2D87" stroke-width="2"/>
+      <text x="46" y="34" font-size="18" fill="#F0D0FF">Client invoice · overdue</text>
+    </g>
+    <g transform="translate(24, 540)">
+      <circle cx="0" cy="0" r="14" fill="#FF2D87"/>
+      <circle cx="40" cy="0" r="14" fill="#6E3FFF"/>
+      <circle cx="80" cy="0" r="14" fill="#00EE88"/>
+      <circle cx="120" cy="0" r="14" fill="#FFCC00"/>
+      <text x="160" y="6" font-size="18" fill="#B080D0">pink · violet</text>
+    </g>
+  </g>
+
+  <!-- Matrix (bottom-left) -->
+  <g transform="translate(48, 920)">
+    <rect x="0" y="0" width="476" height="620" rx="28" fill="#010D03" stroke="#00FF41" stroke-opacity="0.5" stroke-width="3"/>
+    <g transform="translate(24, 40)">
+      <rect x="0" y="0" width="180" height="44" rx="22" fill="#00FF41"/>
+      <text x="90" y="30" text-anchor="middle" font-size="20" font-weight="700" fill="#010D03" font-family="'Share Tech Mono', monospace">MATRIX</text>
+    </g>
+    <text x="24" y="140" font-size="32" font-weight="700" fill="#B0FFB8" font-family="'Share Tech Mono', monospace">Today</text>
+    <g transform="translate(24, 160)">
+      <rect x="0" y="0" width="420" height="56" rx="10" fill="#010F04"/>
+      <circle cx="24" cy="28" r="10" fill="none" stroke="#00FF41" stroke-width="2"/>
+      <text x="46" y="34" font-size="18" fill="#B0FFB8" font-family="'Space Grotesk', sans-serif">Review design brief</text>
+    </g>
+    <g transform="translate(24, 228)">
+      <rect x="0" y="0" width="420" height="56" rx="10" fill="#010F04"/>
+      <circle cx="24" cy="28" r="10" fill="#00FF41"/>
+      <text x="46" y="34" font-size="18" fill="#70CC80" text-decoration="line-through" font-family="'Space Grotesk', sans-serif">Morning check-in</text>
+    </g>
+    <g transform="translate(24, 296)">
+      <rect x="0" y="0" width="420" height="56" rx="10" fill="#010F04"/>
+      <circle cx="24" cy="28" r="10" fill="none" stroke="#AAFF00" stroke-width="2"/>
+      <text x="46" y="34" font-size="18" fill="#B0FFB8" font-family="'Space Grotesk', sans-serif">Client invoice · overdue</text>
+    </g>
+    <g transform="translate(24, 540)">
+      <circle cx="0" cy="0" r="14" fill="#00FF41"/>
+      <circle cx="40" cy="0" r="14" fill="#AAFF00"/>
+      <circle cx="80" cy="0" r="14" fill="#00EE33"/>
+      <circle cx="120" cy="0" r="14" fill="#BBEE00"/>
+      <text x="160" y="6" font-size="18" fill="#70CC80">phosphor · lime</text>
+    </g>
+  </g>
+
+  <!-- Void (bottom-right) -->
+  <g transform="translate(548, 920)">
+    <rect x="0" y="0" width="476" height="620" rx="28" fill="#111113" stroke="#C8B8FF" stroke-opacity="0.5" stroke-width="3"/>
+    <g transform="translate(24, 40)">
+      <rect x="0" y="0" width="180" height="44" rx="22" fill="#C8B8FF"/>
+      <text x="90" y="30" text-anchor="middle" font-size="20" font-weight="700" fill="#111113" font-family="'Fraunces', serif">VOID</text>
+    </g>
+    <text x="24" y="140" font-size="32" font-weight="600" fill="#DCDCE4" font-family="'Fraunces', serif">Today</text>
+    <g transform="translate(24, 160)">
+      <rect x="0" y="0" width="420" height="56" rx="10" fill="#161618"/>
+      <circle cx="24" cy="28" r="10" fill="none" stroke="#C8B8FF" stroke-width="2"/>
+      <text x="46" y="34" font-size="18" fill="#DCDCE4">Review design brief</text>
+    </g>
+    <g transform="translate(24, 228)">
+      <rect x="0" y="0" width="420" height="56" rx="10" fill="#161618"/>
+      <circle cx="24" cy="28" r="10" fill="#C8B8FF"/>
+      <text x="46" y="34" font-size="18" fill="#A0A0AB" text-decoration="line-through">Morning check-in</text>
+    </g>
+    <g transform="translate(24, 296)">
+      <rect x="0" y="0" width="420" height="56" rx="10" fill="#161618"/>
+      <circle cx="24" cy="28" r="10" fill="none" stroke="#E8A0A0" stroke-width="2"/>
+      <text x="46" y="34" font-size="18" fill="#DCDCE4">Client invoice · overdue</text>
+    </g>
+    <g transform="translate(24, 540)">
+      <circle cx="0" cy="0" r="14" fill="#C8B8FF"/>
+      <circle cx="40" cy="0" r="14" fill="#8888CC"/>
+      <circle cx="80" cy="0" r="14" fill="#6EC87A"/>
+      <circle cx="120" cy="0" r="14" fill="#D4A843"/>
+      <text x="160" y="6" font-size="18" fill="#A0A0AB">lavender · muted</text>
+    </g>
+  </g>
+
+  <rect x="0" y="1632" width="1080" height="288" fill="url(#captionFade07)"/>
+  <text x="540" y="1768" font-size="68" font-weight="700" fill="#FFFFFF" text-anchor="middle">Four themes. Your mood.</text>
+  <text x="540" y="1830" font-size="30" fill="#C8B8FF" text-anchor="middle">Cohesive palettes and fonts — free with every install.</text>
+</svg>

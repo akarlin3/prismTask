@@ -1,0 +1,4 @@
+<!-- TRANSLATE: release notes for v2.0.0, max 500 characters per locale. Reference template at copy/en-US/release-notes/v2.0.0.txt.
+
+This file contains [PLACEHOLDER] markers that will be filled in when v2.0 ships. Translators should translate the placeholder labels too, then the developer will replace them with real content before publishing.
+-->
