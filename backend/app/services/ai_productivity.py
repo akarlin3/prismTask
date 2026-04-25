@@ -791,7 +791,7 @@ You must return strict JSON with this shape (no prose, no markdown fences):
     {
       "entity_type": "TASK" | "HABIT" | "PROJECT" | "MEDICATION",
       "entity_id": "<id from the input>",
-      "mutation_type": "RESCHEDULE" | "DELETE" | "COMPLETE" | "SKIP" | "PRIORITY_CHANGE" | "TAG_CHANGE" | "PROJECT_MOVE" | "ARCHIVE",
+      "mutation_type": "RESCHEDULE" | "DELETE" | "COMPLETE" | "SKIP" | "PRIORITY_CHANGE" | "TAG_CHANGE" | "PROJECT_MOVE" | "ARCHIVE" | "STATE_CHANGE",
       "proposed_new_values": { ... },
       "human_readable_description": "<one short sentence describing the change>"
     }
@@ -817,6 +817,7 @@ Per-mutation `proposed_new_values` schemas:
 - TAG_CHANGE on TASK: {"tags_added": ["..."], "tags_removed": ["..."]}
 - PROJECT_MOVE on TASK: {"project_id": "<id from input or null>"}
 - ARCHIVE on PROJECT or HABIT: {}
+- STATE_CHANGE on MEDICATION: {"tier": "skipped"|"essential"|"prescription"|"complete", "date": "YYYY-MM-DD", "slot_key": "morning"} (manual tier override; prefer COMPLETE/SKIP unless the user explicitly names a tier)
 
 Hard rules — break any of these and the request fails:
 1. Never invent entity IDs. Only use IDs that appear in the input lists.

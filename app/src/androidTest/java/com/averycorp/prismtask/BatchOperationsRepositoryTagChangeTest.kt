@@ -61,6 +61,10 @@ class BatchOperationsRepositoryTagChangeTest {
             tagDao = database.tagDao(),
             habitCompletionDao = database.habitCompletionDao(),
             batchUndoLogDao = database.batchUndoLogDao(),
+            medicationDao = database.medicationDao(),
+            medicationDoseDao = database.medicationDoseDao(),
+            medicationSlotDao = database.medicationSlotDao(),
+            medicationTierStateDao = database.medicationTierStateDao(),
             contextProvider = contextProvider
         )
     }

@@ -277,7 +277,47 @@ private fun MutationRow(
                         ?.mapNotNull { it as? String }.orEmpty()
                     TagDiffChips(current = current, added = added, removed = removed)
                 }
+                if (mutation.mutationType == BatchMutationType.STATE_CHANGE.name &&
+                    mutation.entityType == "MEDICATION"
+                ) {
+                    val tier = mutation.proposedNewValues["tier"] as? String
+                    val slotKey = mutation.proposedNewValues["slot_key"] as? String
+                    if (tier != null) {
+                        MedicationTierChip(tier = tier, slotKey = slotKey)
+                    }
+                }
             }
+        }
+    }
+}
+
+/**
+ * Compact target-tier chip for a STATE_CHANGE mutation on MEDICATION.
+ * The user has already seen the prior tier in the picker that sourced
+ * the command — this strip just confirms what tier the slot will land
+ * on after Approve. Color matches the tier verb so the row remains
+ * visually consistent with the rest of the preview.
+ */
+@Composable
+private fun MedicationTierChip(tier: String, slotKey: String?) {
+    val (bg, fg) = when (tier.lowercase()) {
+        "skipped" -> Color(0xFF9E9E9E).copy(alpha = 0.18f) to Color(0xFF424242)
+        "essential" -> Color(0xFFE0A82E).copy(alpha = 0.18f) to Color(0xFF8C5A00)
+        "prescription" -> Color(0xFF1565C0).copy(alpha = 0.18f) to Color(0xFF0D47A1)
+        "complete" -> Color(0xFF2E7D32).copy(alpha = 0.18f) to Color(0xFF1B5E20)
+        else ->
+            MaterialTheme.colorScheme.surfaceVariant to
+                MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    Row(modifier = Modifier.padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text("→ ", style = MaterialTheme.typography.labelSmall)
+        Surface(color = bg, shape = RoundedCornerShape(6.dp)) {
+            Text(
+                text = if (slotKey.isNullOrBlank()) tier else "$tier ($slotKey)",
+                style = MaterialTheme.typography.labelSmall,
+                color = fg,
+                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+            )
         }
     }
 }
@@ -421,5 +461,6 @@ private fun mutationColor(mutationTypeName: String): Color = when (
     BatchMutationType.TAG_CHANGE -> Color(0xFF1565C0) // blue
     BatchMutationType.PROJECT_MOVE -> Color(0xFF00838F) // teal
     BatchMutationType.ARCHIVE -> Color(0xFF455A64) // blue grey
+    BatchMutationType.STATE_CHANGE -> Color(0xFF6D4C41) // brown — medication tier override
     null -> Color.Gray
 }

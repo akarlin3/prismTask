@@ -29,6 +29,7 @@ const MUTATION_LABELS: Record<BatchMutationType, string> = {
   TAG_CHANGE: 'Change tags',
   PROJECT_MOVE: 'Move project',
   ARCHIVE: 'Archive',
+  STATE_CHANGE: 'Change tier',
 };
 
 function mutationIcon(type: BatchMutationType) {
@@ -47,6 +48,8 @@ function mutationIcon(type: BatchMutationType) {
       return <FolderInput className="h-4 w-4 text-indigo-500" />;
     case 'TAG_CHANGE':
       return <Sparkles className="h-4 w-4 text-purple-500" />;
+    case 'STATE_CHANGE':
+      return <Sparkles className="h-4 w-4 text-amber-700" />;
   }
 }
 

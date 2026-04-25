@@ -232,20 +232,26 @@ jobs:
           target: google_apis
           arch: x86_64
           profile: pixel_6
+          # Why a function instead of `\`-continuations: the previous
+          # form mixed YAML's `|` literal block with shell line-
+          # continuations, and the `=\<newline>` joining inside
+          # `-Pandroid.testInstrumentationRunnerArguments.class=...`
+          # was fragile — any whitespace after `\` (or any tooling that
+          # rewraps the YAML) silently turns the continuation into a
+          # literal `\`, which gradle then treats as a task name. The
+          # retry-once intent is identical; the function form is just
+          # un-mistakable to both YAML and bash.
           script: |
             adb devices
             adb shell settings put global window_animation_scale 0
             adb shell settings put global transition_animation_scale 0
             adb shell settings put global animator_duration_scale 0
             adb shell "ping -c 1 10.0.2.2 || true"
-            ./gradlew :app:connectedDebugAndroidTest \
-              -Pandroid.testInstrumentationRunnerArguments.class=\
-            com.averycorp.prismtask.sync.scenarios.MedicationCrossDeviceConvergenceTest \
-              --no-daemon || \
-            ./gradlew :app:connectedDebugAndroidTest \
-              -Pandroid.testInstrumentationRunnerArguments.class=\
-            com.averycorp.prismtask.sync.scenarios.MedicationCrossDeviceConvergenceTest \
-              --no-daemon --rerun-tasks
+            TEST_CLASS=com.averycorp.prismtask.sync.scenarios.MedicationCrossDeviceConvergenceTest
+            run_cross_device_tests() {
+              ./gradlew :app:connectedDebugAndroidTest "-Pandroid.testInstrumentationRunnerArguments.class=$TEST_CLASS" --no-daemon "$@"
+            }
+            run_cross_device_tests || run_cross_device_tests --rerun-tasks
 
       - name: Stop Firebase emulators
         if: always()
