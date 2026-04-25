@@ -106,6 +106,19 @@ export interface MedicationTierState {
   tier: MedicationTier;
   /** Who set it: `auto` (derived from doses) or `user_set` (manual override). */
   source: 'auto' | 'user_set';
+  /**
+   * User-claimed wall-clock epoch millis for when the dose was actually
+   * taken. NULL when the user hasn't backdated — UI treats `logged_at`
+   * as the de-facto intended time in that case. Parity with the
+   * Android `medication_tier_states.intended_time` column.
+   */
+  intended_time: number | null;
+  /**
+   * Database-write epoch millis. Distinct from `intended_time` for
+   * backlogged entries. Always populated; falls back to `updated_at`
+   * for legacy docs written before this column existed.
+   */
+  logged_at: number;
   updated_at: number;
 }
 
@@ -228,13 +241,24 @@ function tierStateDoc(uid: string, dateIso: string, slotKey: string) {
 }
 
 function docToTierState(id: string, data: DocumentData): MedicationTierState {
+  const updatedAt =
+    typeof data.updatedAt === 'number' ? data.updatedAt : Date.now();
+  // intended_time stays null for legacy docs (honest "we don't know").
+  // logged_at falls back to updated_at so every row has a non-zero
+  // stamp — matches the Android MIGRATION_60_61 backfill convention.
+  const intendedTime =
+    typeof data.intendedTime === 'number' ? data.intendedTime : null;
+  const loggedAt =
+    typeof data.loggedAt === 'number' ? data.loggedAt : updatedAt;
   return {
     id,
     slot_key: data.slotKey ?? '',
     date_iso: data.dateIso ?? '',
     tier: normalizeTier(data.tier),
     source: (data.source as 'auto' | 'user_set') ?? 'user_set',
-    updated_at: typeof data.updatedAt === 'number' ? data.updatedAt : Date.now(),
+    intended_time: intendedTime,
+    logged_at: loggedAt,
+    updated_at: updatedAt,
   };
 }
 
@@ -266,15 +290,52 @@ export async function setTierState(
   source: 'auto' | 'user_set' = 'user_set',
 ): Promise<MedicationTierState> {
   const ref = tierStateDoc(uid, dateIso, slotKey);
+  const now = Date.now();
+  // intended_time is intentionally omitted from the merge payload —
+  // setTierStateIntendedTime is the dedicated path. logged_at always
+  // stamps the moment of write (matches Android's loggedAt = now()
+  // default in MedicationTierStateEntity).
   const payload = {
     slotKey,
     dateIso,
     tier,
     source,
+    loggedAt: now,
+    updatedAt: now,
+  };
+  await setDoc(ref, payload, { merge: true });
+  // Re-fetch so we surface the merged state (existing intended_time
+  // stays put rather than getting nulled out by docToTierState).
+  const snap = await getDoc(ref);
+  return docToTierState(ref.id, snap.data() ?? payload);
+}
+
+/**
+ * Stamp a user-claimed `intended_time` on the existing tier-state doc.
+ * Distinct from {@link setTierState} because intended_time is a user
+ * intention about wall-clock — it must not be clobbered by every
+ * tier-change write. Parity with the Android
+ * `MedicationSlotRepository.setTierStateIntendedTime` write path.
+ *
+ * Caps `intendedTime` to `Date.now()` — no forward-dating supported.
+ */
+export async function setTierStateIntendedTime(
+  uid: string,
+  dateIso: string,
+  slotKey: string,
+  intendedTime: number,
+): Promise<MedicationTierState> {
+  const ref = tierStateDoc(uid, dateIso, slotKey);
+  const capped = Math.min(intendedTime, Date.now());
+  const payload = {
+    slotKey,
+    dateIso,
+    intendedTime: capped,
     updatedAt: Date.now(),
   };
   await setDoc(ref, payload, { merge: true });
-  return docToTierState(ref.id, payload);
+  const snap = await getDoc(ref);
+  return docToTierState(ref.id, snap.data() ?? payload);
 }
 
 export async function clearTierState(

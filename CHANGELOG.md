@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Medication time logging — parity with Android (PR4 of 4)** —
+  Adds `intended_time` (nullable) + `logged_at` columns to the
+  `users/{uid}/medication_tier_states/{dateIso}__{slotKey}` Firestore
+  schema. New `setTierStateIntendedTime(uid, dateIso, slotKey, ms)` is
+  the dedicated write path for backdating — separate from
+  `setTierState` so tier changes can't clobber intended_time.
+  `MedicationTimeEditModal` opens via right-click (desktop) or 500 ms
+  touch-and-hold (mobile) on the tier picker; HTML5 `<input type="time">`
+  composes against the screen's selected `dateIso`. Future times are
+  capped to `now` server-side. A clock-icon "backlogged" indicator
+  appears on the tier row when `intended_time` differs from
+  `logged_at` by more than 60 s, with a tooltip showing the claimed
+  HH:mm. Closes the medication time-logging series (PRs #742, #743,
+  #744 + this).
+
 - **Batch preview now shows a before/after tag diff for TAG_CHANGE
   mutations, plus regression tests for the existing apply/undo path.**
   When the AI parses a command like "tag all Friday tasks as #personal"

@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { addDays, format, parseISO } from 'date-fns';
 import {
   ChevronLeft,
   ChevronRight,
+  Clock,
   Pill,
   PlusCircle,
   Undo2,
@@ -13,6 +14,7 @@ import {
   clearTierState,
   getTierStatesForDate,
   setTierState,
+  setTierStateIntendedTime,
   type MedicationTier,
   type MedicationTierState,
 } from '@/api/firestore/medicationSlots';
@@ -21,6 +23,8 @@ import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { MedicationSlotDetailModal } from '@/features/daily-essentials/MedicationSlotDetailModal';
 import { MedicationTierPicker } from '@/features/medication/MedicationTierPicker';
+import { MedicationTimeEditModal } from '@/features/medication/MedicationTimeEditModal';
+import { isBacklogged } from '@/features/medication/backloggedHelpers';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { logicalToday } from '@/utils/dayBoundary';
 import type {
@@ -78,6 +82,10 @@ export function MedicationScreen() {
   >({});
   const [loading, setLoading] = useState(false);
   const [openSlot, setOpenSlot] = useState<MedicationSlot | null>(null);
+  // Slot whose intended_time is being edited (right-click / long-press).
+  const [timeEditingSlot, setTimeEditingSlot] = useState<MedicationSlot | null>(
+    null,
+  );
 
   const load = useCallback(
     async (iso: string) => {
@@ -150,6 +158,25 @@ export function MedicationScreen() {
       });
     } catch (e) {
       toast.error((e as Error).message || 'Failed to clear tier');
+    }
+  };
+
+  const handleSaveIntendedTime = async (
+    slot: MedicationSlot,
+    intendedTime: number,
+  ) => {
+    try {
+      const uid = getFirebaseUid();
+      const next = await setTierStateIntendedTime(
+        uid,
+        dateIso,
+        slot.slotKey,
+        intendedTime,
+      );
+      setTierStates((prev) => ({ ...prev, [slot.slotKey]: next }));
+      setTimeEditingSlot(null);
+    } catch (e) {
+      toast.error((e as Error).message || 'Failed to save time');
     }
   };
 
@@ -251,22 +278,50 @@ export function MedicationScreen() {
                       : slot.medLabels.join(', ')}
                   </p>
                   <div className="flex flex-col gap-1">
-                    <span className="text-[10px] uppercase tracking-wide text-[var(--color-text-secondary)]">
+                    <span className="flex items-center gap-1 text-[10px] uppercase tracking-wide text-[var(--color-text-secondary)]">
                       Tier
                       {tierStates[slot.slotKey]?.source === 'user_set' && (
                         <span className="ml-1 text-[var(--color-accent)]">
                           (manual)
                         </span>
                       )}
+                      {isBacklogged(
+                        tierStates[slot.slotKey]?.intended_time ?? null,
+                        tierStates[slot.slotKey]?.logged_at ?? null,
+                      ) && (
+                        <span
+                          className="ml-1 inline-flex items-center gap-0.5 text-[var(--color-accent)]"
+                          title={(() => {
+                            const ts = tierStates[slot.slotKey];
+                            if (!ts || ts.intended_time === null) return '';
+                            const d = new Date(ts.intended_time);
+                            const hh = String(d.getHours()).padStart(2, '0');
+                            const mm = String(d.getMinutes()).padStart(2, '0');
+                            return `Logged at ${hh}:${mm}`;
+                          })()}
+                        >
+                          <Clock className="h-2.5 w-2.5" aria-hidden="true" />
+                          backlogged
+                        </span>
+                      )}
                     </span>
-                    <MedicationTierPicker
-                      value={tierStates[slot.slotKey]?.tier ?? null}
-                      isUserSet={
-                        tierStates[slot.slotKey]?.source === 'user_set'
-                      }
-                      onChange={(tier) => handleTierChange(slot, tier)}
-                      onClear={() => handleTierClear(slot)}
-                    />
+                    {/*
+                     * The wrapper div picks up the right-click + touch-and-hold
+                     * gestures so the time-edit modal opens for the slot. Tap /
+                     * single-click flow inside MedicationTierPicker is unchanged.
+                     */}
+                    <TierPickerWithLongPress
+                      onLongPress={() => setTimeEditingSlot(slot)}
+                    >
+                      <MedicationTierPicker
+                        value={tierStates[slot.slotKey]?.tier ?? null}
+                        isUserSet={
+                          tierStates[slot.slotKey]?.source === 'user_set'
+                        }
+                        onChange={(tier) => handleTierChange(slot, tier)}
+                        onClear={() => handleTierClear(slot)}
+                      />
+                    </TierPickerWithLongPress>
                   </div>
                   <div className="flex justify-end gap-1.5">
                     <Button
@@ -297,6 +352,68 @@ export function MedicationScreen() {
           onToggleSlot={(taken) => handleToggle(openSlot, taken)}
         />
       )}
+
+      {timeEditingSlot && (
+        <MedicationTimeEditModal
+          isOpen={true}
+          slotKey={timeEditingSlot.slotKey}
+          slotLabel={timeEditingSlot.displayTime}
+          initialIntendedTime={
+            tierStates[timeEditingSlot.slotKey]?.intended_time ?? null
+          }
+          dateIso={dateIso}
+          onClose={() => setTimeEditingSlot(null)}
+          onSave={(intendedTime) =>
+            handleSaveIntendedTime(timeEditingSlot, intendedTime)
+          }
+        />
+      )}
+    </div>
+  );
+}
+
+/**
+ * Adds right-click (desktop) + touch-and-hold (mobile) handlers without
+ * disturbing the underlying tier-picker buttons' click semantics. The
+ * handlers fire on the wrapper, not the buttons, so a regular tap on a
+ * tier still selects that tier — only sustained interaction opens the
+ * time-edit modal.
+ */
+function TierPickerWithLongPress({
+  onLongPress,
+  children,
+}: {
+  onLongPress: () => void;
+  children: React.ReactNode;
+}) {
+  // Touch-and-hold detection — 500 ms threshold, mirrors Android's
+  // default long-press window. Held in a ref so re-renders don't
+  // reset the pending timer mid-press.
+  const touchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const handleTouchStart = () => {
+    touchTimer.current = setTimeout(() => {
+      onLongPress();
+      touchTimer.current = null;
+    }, 500);
+  };
+  const handleTouchEnd = () => {
+    if (touchTimer.current !== null) {
+      clearTimeout(touchTimer.current);
+      touchTimer.current = null;
+    }
+  };
+  return (
+    <div
+      onContextMenu={(e) => {
+        e.preventDefault();
+        onLongPress();
+      }}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+      onTouchMove={handleTouchEnd}
+      onTouchCancel={handleTouchEnd}
+    >
+      {children}
     </div>
   );
 }
