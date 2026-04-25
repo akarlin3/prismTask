@@ -2,8 +2,8 @@
 
 **PrismTask**
 **Developer:** AveryCorp (Avery Karlin)
-**Contact:** [INSERT_EMAIL]
-**Effective Date:** [INSERT_DATE]
+**Contact:** privacy@prismtask.app
+**Effective Date:** 2026-04-24
 
 ---
 
@@ -137,5 +137,5 @@ These Terms of Service are governed by the laws of the State of New York, United
 
 If you have questions about these Terms of Service, please contact us at:
 
-**Email:** [INSERT_EMAIL]
+**Email:** privacy@prismtask.app
 **Developer:** AveryCorp (Avery Karlin)
