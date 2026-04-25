@@ -9,6 +9,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Built-in habit template versioning + diff/approve/detach UI** —
+  Migrates the 6 code-defined built-in habits (School, Leisure,
+  Morning Self-Care, Bedtime Self-Care, Medication, Housework)
+  from a seed-once, immutable-after-accept system to a versioned
+  + mergeable system. New Room migration v61 → v62 adds
+  `habits.source_version`, `habits.is_user_modified`,
+  `habits.is_detached_from_template`, and
+  `self_care_steps.source_version`; existing built-in rows are
+  backfilled to v1. New `BuiltInHabitVersionRegistry` holds the
+  canonical definitions; bumping a built-in is now a registry
+  edit + version increment, not a behaviour-leaking app release.
+  New `BuiltInUpdateDetector` runs after `SyncService.fullSync()`
+  and surfaces pending updates on a new `BuiltInUpdatesScreen`
+  (entry point in the Templates overflow menu). Per-template diff
+  screen offers per-change approval with sensible defaults
+  (additive on, removals off, user-modified fields off),
+  preserves user-added steps, and supports one-click "Detach" to
+  silence future prompts on a row. Detach is sticky cross-device
+  via logical-OR sync; dismissed-version state is per-device by
+  design. See `docs/TEMPLATE_MIGRATION_DESIGN.md` for the schema
+  design and `docs/TEMPLATE_MIGRATION_PR_PLAN.md` for the layer
+  breakdown.
+
 - **In-app account deletion with 30-day grace period** — Settings →
   Account & Sync now exposes a "Delete Account" button (Android-only
   for now). Two-step typed-DELETE confirmation matches the existing
