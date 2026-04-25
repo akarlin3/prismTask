@@ -22,3 +22,14 @@ Each row lists the primary caption baked into the SVG plus one alternate variant
 ## Secondary subtitle lines
 
 Each screenshot also carries a secondary subtitle in theme-accent color underneath the primary caption. These are subordinate and can be freely edited to match the final feature set. Current values are baked into each SVG's closing `<text>` nodes.
+
+## Tablet variants
+
+`render-tablet.py` produces 16 tablet PNGs by letterboxing each phone screenshot inside a wider canvas filled with the screenshot's theme background color. Captions and subtitles are inherited from the phone PNGs — no separate caption authoring needed for tablets.
+
+| Form factor | Dimensions | Aspect | File pattern |
+|---|---|---|---|
+| 7-inch tablet | 1920×1200 | 8:5 (1.6) | `tablet-7in-NN.png` |
+| 10-inch tablet | 2560×1600 | 8:5 (1.6) | `tablet-10in-NN.png` |
+
+If you want bespoke tablet compositions later (full-width landscape mockups instead of letterboxed phones), author new tablet-specific SVGs and extend `render.py`'s `RENDER_SPECS` list. The phone-PNG-letterbox approach is intentionally simple for closed testing.

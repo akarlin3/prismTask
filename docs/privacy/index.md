@@ -24,7 +24,7 @@ This policy describes what data PrismTask collects when you use the Android app 
 - If you sign in with Google, your tasks, habits, and related data sync across your devices via Firebase Firestore. We do not sell or share that data.
 - Natural-language task parsing and AI features (Eisenhower, Pomodoro planner, daily briefing, weekly review) send the relevant text through our backend to Anthropic's Claude API. Those features are optional.
 - Crash reports are collected via Firebase Crashlytics to keep the app stable. There is no advertising SDK, no analytics tracker, and no data reseller in the loop.
-- You can export all of your data as JSON/CSV from the app at any time, and you can delete your account and all its data from Settings → Account.
+- You can export all of your data as JSON/CSV from the app at any time. To delete all of your synced data, email `privacy@prismtask.app` (in-app one-tap account deletion is in active development).
 
 ## What we collect
 
@@ -79,10 +79,9 @@ You can, at any time:
 
 - **Export your data** via Settings → Data → Export. This produces a JSON file with all your entities and preferences, plus an optional CSV export of tasks.
 - **Import a prior backup** via Settings → Data → Import with either merge or replace semantics.
-- **Delete your account and all its data** via Settings → Account → Delete account. This wipes your Firestore user collection, your Firebase Auth record, and your local Room database on the device you ran the delete from.
-- **Clear local data** via Android Settings → Apps → PrismTask → Storage → Clear storage.
-- **Request deletion outside the app** by emailing [privacy@prismtask.app](mailto:privacy@prismtask.app).
-- **Sign out** and continue using the app entirely locally.
+- **Sign out** from Settings → Account to stop syncing further changes to the cloud. Previously synced data remains in Firestore until you request deletion.
+- **Clear local data** via Android Settings → Apps → PrismTask → Storage → Clear storage. This wipes the on-device Room database and DataStore preferences.
+- **Request deletion of your account and all synced data** by emailing [privacy@prismtask.app](mailto:privacy@prismtask.app). We will wipe your Firestore user collection and your Firebase Auth record within 30 days. An in-app one-tap account deletion is in active development and will replace this email path; this section will be updated when it ships.
 
 If you are a resident of the EU/UK (GDPR), California (CCPA/CPRA), or another jurisdiction with data-subject rights, you also have:
 

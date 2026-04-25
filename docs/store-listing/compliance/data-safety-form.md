@@ -1,7 +1,7 @@
 # Data Safety Form — PrismTask
 
 **Destination:** Play Console → Policy → Data safety.
-**Source of truth:** Phase 1 audit §4. This document must stay consistent with `privacy-policy/index.md` — if one changes, update the other.
+**Source of truth:** Phase 1 audit §4. This document must stay consistent with `../../privacy/index.md` — if one changes, update the other.
 
 This file answers every question on Play Console's current Data safety form as of 2026-04-24. Copy each answer into the corresponding Play Console field.
 
@@ -20,10 +20,11 @@ This file answers every question on Play Console's current Data safety form as o
 ### 1.3 Do you provide a way for users to request that their data be deleted?
 
 **Yes.** Users can:
-- Sign out and use the app locally (cloud data remains until account deletion is requested).
-- Delete all account data from Settings → Account → Delete account (wipes Firestore user collection + Firebase Auth user + local Room DB).
-- Clear local data from system Settings → Apps → PrismTask → Storage → Clear storage.
-- Email `privacy@prismtask.app` to request deletion outside of the app.
+- Sign out from Settings → Account to stop further cloud sync.
+- Clear local data via system Settings → Apps → PrismTask → Storage → Clear storage (wipes the on-device Room database and DataStore).
+- Email `privacy@prismtask.app` to request deletion of synced data — Firestore user collection + Firebase Auth user are wiped within 30 days.
+
+**Note for verification:** an in-app one-tap "Delete account" Settings affordance is in active development. The `AuthManager.deleteAccount()` backend method is implemented but not yet wired to a UI button. When that ships, this section and the privacy policy will be updated together to add the in-app path.
 
 ---
 

@@ -15,7 +15,7 @@ This is the cross-check pass over every Phase 2 deliverable. Each section below 
 | `copy/en-US/app-title.txt` | **26** | 30 | OK |
 | `copy/en-US/short-description.txt` | **74** | 80 | OK |
 | `copy/en-US/full-description.txt` | **3,388** | 4,000 | OK (~85% used; room to grow) |
-| `copy/en-US/release-notes/v1.5.4.txt` | **417** | 500 | OK |
+| `copy/en-US/release-notes/v1.6.0.txt` | **417** | 500 | OK |
 | `copy/en-US/release-notes/v2.0.0.txt` | **339** | 500 | OK (template; placeholders may push final length up — check at fill-in time) |
 
 `v2.0.0.txt` was retightened from 515 → 339 chars during Phase 3 because the original phrasing exceeded the 500-char Play Console cap. The placeholder structure now leaves ~160 chars of headroom for actual content per change line.
@@ -48,11 +48,22 @@ All outputs pass Play Store dimension/size checks.
 
 All ten files clear the Play Store technical requirements with very large headroom (largest is screenshot-05 at 383 KiB vs. 8 MB cap — 2 % of the limit).
 
+### Tablet screenshots (added during open-issue resolution)
+
+`render-tablet.py` composes 16 tablet form-factor PNGs by letterboxing each phone screenshot inside a wider canvas filled with the screenshot's theme background color:
+
+| Tablet form factor | Dimensions | Count | File pattern |
+|---|---|---|---|
+| 7-inch tablet (landscape) | 1920×1200 (8:5) | 8 | `tablet-7in-NN.png` |
+| 10-inch tablet (landscape) | 2560×1600 (8:5) | 8 | `tablet-10in-NN.png` |
+
+All 16 tablet PNGs render between 126 KiB and 303 KiB — far under the 8 MB Play Console cap. Aspect ratio 8:5 (1.6) is within Play Console's accepted range of 9:16 to 16:9.
+
 ---
 
 ## 3. Privacy policy completeness check
 
-`privacy-policy/index.md` covers every section the Play Console privacy-policy validator (and standard GDPR/CCPA practice) expects:
+`../privacy/index.md` (formerly `privacy-policy/index.md` before the open-issue-3 folder move) covers every section the Play Console privacy-policy validator (and standard GDPR/CCPA practice) expects:
 
 | Required section | Present in `index.md`? |
 |---|---|
@@ -69,13 +80,13 @@ All ten files clear the Play Store technical requirements with very large headro
 | Security practices | Yes — "Data security" |
 | Update / change-of-policy process | Yes — "Changes to this policy" + Changelog |
 
-GitHub Pages hosting is documented in `privacy-policy/README.md` with the recommended folder rename (`docs/store-listing/privacy-policy/` → `docs/privacy/`) for a cleaner URL.
+GitHub Pages hosting is documented in `../privacy/README.md`. Folder is now at the top-level `docs/privacy/` so the published URL is `https://akarlin3.github.io/prismTask/privacy/` once Pages is enabled.
 
 ---
 
 ## 4. Data-safety form ↔ privacy-policy consistency
 
-Cross-check verified by side-by-side read of `compliance/data-safety-form.md` and `privacy-policy/index.md`. Every data type, processor, and retention claim is consistent across both documents:
+Cross-check verified by side-by-side read of `compliance/data-safety-form.md` and `../privacy/index.md`. Every data type, processor, and retention claim is consistent across both documents:
 
 | Data type | data-safety-form | privacy-policy | Consistent? |
 |---|---|---|---|
@@ -88,7 +99,9 @@ Cross-check verified by side-by-side read of `compliance/data-safety-form.md` an
 | Financial data | Not collected; Play Billing handles purchases | Not collected; Play Billing handles purchases | Yes |
 | Children policy | 18+ | 18+ | Yes |
 
-**Load-bearing invariant:** if either file changes, the other must be updated in the same commit. README in `privacy-policy/` calls this out explicitly.
+**Load-bearing invariant:** if either file changes, the other must be updated in the same commit. README in `../privacy/` calls this out explicitly.
+
+**Reworded during open-issue-6 resolution:** both files previously claimed an in-app "Settings → Account → Delete account" flow. Code audit confirmed `AuthManager.deleteAccount()` is implemented but unwired to UI; only `signOut()` exists in `AccountSyncSection.kt`. Both files now direct users to email `privacy@prismtask.app` for deletion and disclose that an in-app one-tap path is in active development. The two files remain pairwise consistent.
 
 ---
 
@@ -125,7 +138,7 @@ Every permission declared in the manifest has a justification entry in `complian
 | `app-title.txt` | No | Right call — title needs to be discoverable, not framed |
 | `short-description.txt` | No | Right call — 80-char line cannot afford framing |
 | `full-description.txt` | One paragraph, last section: "Currently in closed testing. We're shipping fast, listening hard…" | Right amount — sets expectations without leading with it |
-| `release-notes/v1.5.4.txt` | Implicit (medication-mode change is the kind of work in flight that closed testing exists for) — no explicit "beta" word | Acceptable; release notes are descriptive, not framing |
+| `release-notes/v1.6.0.txt` | Implicit (medication-mode change is the kind of work in flight that closed testing exists for) — no explicit "beta" word | Acceptable; release notes are descriptive, not framing |
 | Privacy policy | No | Right — privacy is not the place for product framing |
 
 ---
@@ -155,7 +168,7 @@ Every permission declared in the manifest has a justification entry in `complian
 | "Full local-first Room database — works entirely offline" | §2 Data & sync |
 | "Optional Google Sign-In … Firebase Firestore" | §4 Data flow |
 | "One-tap full JSON export and a CSV task export" | §2 Data & sync — `DataExporter.kt` |
-| "Delete all of your data from Settings" | §4 Data flow — Settings → Account → Delete |
+| "Delete all of your data from Settings at any time" | §4 Data flow — claim retracted in open-issue-6; copy reworded to direct users to `privacy@prismtask.app` (see §Open-issue-6 below) |
 | "No ads … no analytics SDKs beyond crash reporting" | §4 Data flow — confirmed only Firebase Crashlytics |
 | "Pro ($3.99 / month) adds cross-device cloud sync, AI-assisted planning, analytics, time tracking, the clinical report export, and Google Drive backup" | README §"Free vs Pro" table — exact match |
 | "Currently in closed testing" | Track context — not a feature claim |
@@ -164,21 +177,49 @@ Every permission declared in the manifest has a justification entry in `complian
 
 ---
 
-## Open issues for the user before submitting to Play Console
+## Open issues — resolution status
 
-1. **`REQUEST_INSTALL_PACKAGES` policy risk** (Phase 1 §Policy-Risk-1, Phase 1 §8 Q6). Engineering decision required: leave declared and answer Play's permission-declaration form, or split into a non-Play build variant. Listing copy is unaffected; this is purely a manifest decision.
+The seven open issues raised in the original Phase 3 pass were each addressed. Five resolved fully in this PR. Two are blocked on the harness's "do not modify in-app resources" rule and need explicit engineering authorization before the next push.
 
-2. **Launcher icon mismatch** (Phase 1 §Policy-Risk-2). The new 512×512 Play Store icon at `graphics/out/icon-512.png` is generated and ready. Decide whether to also unify the in-app `mipmap-*/ic_launcher.png` placeholder with this design — separate engineering PR if yes.
+### ✅ Resolved in this PR
 
-3. **Folder rename for cleaner privacy URL.** `privacy-policy/README.md` recommends moving `docs/store-listing/privacy-policy/` to `docs/privacy/` so the GitHub Pages URL becomes `https://akarlin3.github.io/prismTask/privacy/` instead of the deeply nested current path. Consider doing this rename as part of the same PR.
+3. **Privacy URL folder rename — RESOLVED.** `docs/store-listing/privacy-policy/` was moved to `docs/privacy/` via `git mv`. Once GitHub Pages is enabled (Settings → Pages → main / `/docs`), the policy URL becomes `https://akarlin3.github.io/prismTask/privacy/`. Internal references updated in `compliance/data-safety-form.md`, `compliance/categorization.md`, `PHASE1_AUDIT.md`, and this file.
 
-4. **Firestore region in privacy policy.** Currently states "`nam5` multi-region (United States)" per user confirmation. Verify in Firebase Console → Project settings → "Default GCP resource location" before going live with the policy URL — if it shows a different region, the policy needs a one-line edit.
+4. **Firestore region — RESOLVED.** User confirmed `nam5` (multi-region US) in Phase 1; user opted not to gcloud-verify before publishing. Privacy policy and data-safety form both state `nam5`. If Firebase Console later shows a different region, both files must be edited together (one-line change).
 
-5. **Tablet screenshots** (categorization.md notes this is acceptable for closed testing). Add 7-inch and 10-inch tablet screenshots before promoting the listing to production.
+5. **Tablet screenshots — RESOLVED.** New `render-tablet.py` script composes 16 tablet PNGs (eight at 1920×1200 and eight at 2560×1600) by letterboxing each phone screenshot inside a wider canvas filled with the screenshot's theme background. Aspect 8:5 (1.6) is within Play Console's accepted 9:16–16:9 range. All 16 tablet PNGs rendered to `graphics/out/tablet-{7in,10in}-NN.png`, max size 303 KiB, all under the 8 MB cap.
 
-6. **Account deletion UI verification.** Privacy policy claims a Settings → Account → Delete account flow exists. Verify the actual UI path before publishing the policy URL — if the flow is partially wired or missing, either ship the UI first or temporarily reword the policy to direct users to email.
+6. **Account deletion UI — RESOLVED via documentation.** Code audit confirmed `AuthManager.deleteAccount()` is implemented at `AuthManager.kt:114` but no UI calls it; only `signOut()` exists in `AccountSyncSection.kt`. The privacy policy and data-safety form were reworded to drop the "Settings → Account → Delete account" claim and instead direct users to `privacy@prismtask.app`, with an explicit note that an in-app one-tap deletion is in active development. Engineering follow-up: wire `deleteAccount()` to a Settings UI button + add a local Room wipe in the same path; when shipped, update both files to add the in-app path.
 
-7. **Version label on the next bundle upload.** Ensure the upload to the closed testing track matches the v1.5.4 release notes (`copy/en-US/release-notes/v1.5.4.txt`). If the next bundle is actually v1.5.5 or later, rename the file and reflect the actual versionName/versionCode.
+7. **Version label — RESOLVED to v1.6.0.** User picked a minor bump (vs. patch) because medication reminder modes are a real feature addition. Release notes file renamed from `v1.5.4.txt` to `v1.6.0.txt` (en-US + localization template). Char count unchanged at 417/500. References updated in `PHASE1_AUDIT.md` and this file.
+
+### ⚠️ Blocked on permission system — needs explicit user authorization
+
+1. **`REQUEST_INSTALL_PACKAGES` build-variant split — BLOCKED.** User picked "split into non-Play build variant." Implementation would create `app/src/debug/AndroidManifest.xml` containing the `<uses-permission>` and remove it from `app/src/main/AndroidManifest.xml` so only debug (Firebase App Distribution) builds declare it; Play release builds (which go through `app/src/main/AndroidManifest.xml` only) drop the permission entirely. The harness denied this write because the original Phase 1 hard rule says "do not modify `AndroidManifest.xml` or any in-app resources." To complete: explicitly authorize manifest changes for this PR, or apply the change manually:
+   ```xml
+   <!-- app/src/debug/AndroidManifest.xml (new file) -->
+   <?xml version="1.0" encoding="utf-8"?>
+   <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+       <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+   </manifest>
+   ```
+   Then delete line 39 of `app/src/main/AndroidManifest.xml`. Verify with `./gradlew :app:processReleaseMainManifest` and inspect `build/intermediates/merged_manifests/release/AndroidManifest.xml` — `REQUEST_INSTALL_PACKAGES` should be absent.
+
+2. **In-app launcher icon unification — BLOCKED.** User picked "replace in-app PNGs in this PR." Implementation would render the existing `graphics/src/icon.svg` (and the new `graphics/src/icon-round.svg` added during this resolution pass) at 48 / 72 / 96 / 144 / 192 px and overwrite `app/src/main/res/mipmap-{mdpi,hdpi,xhdpi,xxhdpi,xxxhdpi}/ic_launcher{,_round}.png`. The harness denied direct writes to `app/src/main/res/`. To complete: authorize and run this from the worktree:
+   ```bash
+   python - <<'PY'
+   import resvg_py
+   from pathlib import Path
+   sizes = [('mdpi', 48), ('hdpi', 72), ('xhdpi', 96), ('xxhdpi', 144), ('xxxhdpi', 192)]
+   for variant, src in [('ic_launcher', 'docs/store-listing/graphics/src/icon.svg'),
+                        ('ic_launcher_round', 'docs/store-listing/graphics/src/icon-round.svg')]:
+       for d, px in sizes:
+           out = Path(f'app/src/main/res/mipmap-{d}/{variant}.png')
+           out.write_bytes(resvg_py.svg_to_bytes(svg_path=src, width=px, height=px))
+           print(out)
+   PY
+   ```
+   `icon-round.svg` (added in this resolution pass) shares the icon design but uses a circular clip path so the round-mask launcher resource looks intentional rather than a square cropped to a circle.
 
 ---
 
@@ -186,8 +227,10 @@ Every permission declared in the manifest has a justification entry in `complian
 
 **Phase 1 audit:** complete. Two hard contradictions surfaced (version state ~6 months stale in the prompt; existing in-app icon does not match Play Store icon).
 
-**Phase 2 generation:** 27 files written across copy, compliance, privacy policy, theme tokens, 10 SVG sources, render pipeline, and a localization scaffold.
+**Phase 2 generation:** 28 files initially (later: + 1 round-icon SVG, + 16 tablet PNGs, + 1 tablet renderer; - 1 release-notes rename) — copy, compliance, privacy policy, theme tokens, SVG sources, render pipelines, localization scaffold, and tablet form-factor outputs.
 
-**Phase 3 verification:** 5 hard checks all green (char counts, PNG dimensions, privacy completeness, data-safety/policy consistency, permission coverage). Two soft checks (beta framing, vaporware) also clean. Seven open issues flagged for engineering or content review before Play Console submission.
+**Phase 3 verification:** five hard checks green (char counts, PNG dimensions, privacy completeness, data-safety/policy consistency, permission coverage). Two soft checks (beta framing, vaporware) also clean.
 
-**Render artifacts:** all 10 PNGs rendered into `graphics/out/` via the `resvg-py` backend. `icon-512.png` (82 KiB), `feature-graphic-1024x500.png` (122 KiB), and 8 phone screenshots at 1080×1920 — all well under the Play Store byte caps.
+**Open-issue resolution:** five of seven open issues fully resolved in this PR. Two (`REQUEST_INSTALL_PACKAGES` split, in-app icon unification) are implemented as far as the harness allows — the SVG sources, the round-icon variant, and the engineering snippets are in place — but the actual writes into `app/src/main/AndroidManifest.xml` and `app/src/main/res/mipmap-*/` need explicit user authorization before they can be made.
+
+**Render artifacts:** 26 PNGs total. 10 phone-listing PNGs (icon-512, feature-graphic-1024x500, eight 1080×1920 screenshots) via the `resvg-py` backend. 16 tablet PNGs (eight 1920×1200, eight 2560×1600) via the `Pillow` letterboxer in `render-tablet.py`. All under Play Store byte caps.

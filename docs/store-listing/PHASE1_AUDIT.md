@@ -19,9 +19,7 @@ The setup prompt describes the current state as **v1.3.110 / versionCode 632 / v
 | v1.5.0 | "AI suite, planned" | Shipped |
 | Web app | not mentioned in current-state | **Shipping feature** — React/TypeScript/Vite/Tailwind in `web/`, served at `app.prismtask.app`, full feature parity plus live AI/NLP backend |
 
-**Resolution adopted for this audit and all downstream copy:** treat `v1.5.3` (versionCode 689) as the current published/closed-testing version. Release notes targeted at the imminent bump are written for the *next* release (v1.5.4) rather than a mythical "v1.4.0". The "v2.0.0 production launch" release-notes template is preserved for the eventual store graduation.
-
-**If the user disagrees**, the only downstream file that needs to change is `copy/en-US/release-notes/v1.5.4.txt` (rename / rewrite) and any mentions of the version in `full-description.txt`.
+**Resolution adopted for this audit and all downstream copy:** treat `v1.5.3` (versionCode 689) as the current published/closed-testing version. Release notes targeted at the imminent bump are written for the *next* release (**v1.6.0** — minor bump per user direction since medication reminder modes are a real feature addition) rather than a mythical "v1.4.0". The "v2.0.0 production launch" release-notes template is preserved for the eventual store graduation.
 
 ---
 
@@ -341,7 +339,7 @@ These will block Phase 2 completion; all other Phase 2 work proceeds in parallel
 |   | 4. "Tasks, habits, and the space to do them well." | |
 |   | 5. "Built for focus. Made for humans." | |
 | 6 | **`REQUEST_INSTALL_PACKAGES` disposition** — leave declared (and justify in Play Console) or split into non-Play build variant? | Recommend splitting before Play submission. Non-blocking for Phase 2 listing copy, but flagged for follow-up engineering PR. |
-| 7 | **Version for `release-notes/v?.?.?.txt`** — v1.5.4 (next patch from current 1.5.3) or something else? | Recommend v1.5.4. Populated from CHANGELOG Unreleased — medication reminder modes + delete-wins sync fix + sync test follow-ups. |
+| 7 | **Version for `release-notes/v?.?.?.txt`** — v1.5.4 (next patch from current 1.5.3) or something else? | **Resolved → v1.6.0.** User picked minor bump because medication reminder mode is a real feature addition. Populated from CHANGELOG Unreleased — medication reminder modes + delete-wins sync fix + sync test follow-ups. |
 
 ---
 
@@ -349,13 +347,13 @@ These will block Phase 2 completion; all other Phase 2 work proceeds in parallel
 
 With user answers to open questions 1, 2, 5 (and confirmations for 3, 4, 6, 7), Phase 2 can generate:
 
-1. `copy/en-US/` — all text copy using v1.5.3 / v1.5.4 versioning
+1. `copy/en-US/` — all text copy using v1.5.3 / v1.6.0 versioning
 2. `copy/_localization-template/` — mirrored locale scaffolding
 3. `graphics/theme-tokens.json` — populated from section 5 above
 4. `graphics/src/*.svg` — 8 screenshots + icon + feature graphic
 5. `graphics/render.py` — cairosvg rasterization pipeline
 6. `compliance/{data-safety-form,content-rating-answers,categorization,permissions-justifications}.md` — populated from sections 3, 4, and user answers
-7. `privacy-policy/{index.md,README.md,_config.yml}` — privacy policy + GitHub Pages setup docs
+7. `../privacy/{index.md,README.md,_config.yml}` — privacy policy + GitHub Pages setup docs (placed at top-level `docs/privacy/` so the published URL is `/privacy/`, not nested)
 
 **Phase 3** verification will then cross-check char counts, PNG dimensions, policy completeness, data-safety / privacy-policy consistency, and vaporware-scrubbing.
 

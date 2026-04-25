@@ -45,4 +45,4 @@ Select **"Targeted to adults only"** in Play Console.
 - Developer name: Avery Karlin
 - Email: `privacy@prismtask.app`
 - Website: `https://app.prismtask.app`
-- Privacy policy URL: see `privacy-policy/README.md` for the GitHub Pages hosting URL
+- Privacy policy URL: `https://akarlin3.github.io/prismTask/privacy/` (see `../../privacy/README.md` for the one-time GitHub Pages enablement steps)
