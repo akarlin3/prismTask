@@ -33,23 +33,38 @@ permissions:
   actions: read          # capture-failure-log fetches job logs via API
 
 jobs:
-  # lint-and-test depends on autofix so it checks the post-autofix head,
-  # not the pre-fix merge commit. The autofix commit intentionally does NOT
-  # carry [skip ci]: branch protection posts required statuses against the
-  # PR's head SHA, and [skip ci] prevented every workflow — including
-  # required checks (lint-and-test, connected-tests, backend test, web
-  # lint-and-test) — from ever running on the autofix commit. That left PRs
-  # stuck with pending required checks forever (e.g. sync-tests PRs
-  # #749/#751/#753, which had to be admin-merged). The one extra android-ci
-  # cycle on the bot's push is cheap — on the re-run, autofix finds nothing
-  # to commit and only the fast ktlint/detekt steps run.
+  # Option 2: autofix runs in PARALLEL with lint-and-test. Both check out
+  # the PR's original head SHA so they see identical content. ktlintCheck
+  # remains the authoritative formatting verdict in this job; lint-and-test
+  # never re-runs it. detekt and Android lint in lint-and-test are
+  # insensitive to ktlint formatting differences, so the parallelization
+  # is safe.
+  #
+  # Token choice (audit C0): when `secrets.AUTOFIX_PAT` is set, the
+  # autofix commit is authored under the PAT's owner rather than
+  # github-actions[bot]. This is the *only* way to get the auto-format
+  # commit to trigger downstream required-check workflows — GITHUB_TOKEN-
+  # pushed commits never trigger workflow runs (documented GitHub Actions
+  # behavior). Without the PAT, autofix's push leaves the head SHA with
+  # zero check runs and branch protection blocks merge until a user-
+  # pushed commit retriggers CI. PRs #755 / #759 hit this and required
+  # 2-3 manual empty-commit retriggers each. PR #754's [skip ci] removal
+  # addressed half the problem; this addresses the other half.
+  #
+  # Setup: create a fine-scoped PAT (Contents: Read+Write, Pull Requests:
+  # Read) on a maintainer account and store as `AUTOFIX_PAT` repo secret.
+  # Falls back to GITHUB_TOKEN gracefully — workflow still functions, just
+  # without the trigger-CI side effect.
   autofix:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          # Autofix needs the branch ref (not the SHA) so `git push` has an
+          # upstream to push to. Lint-and-test below pins to the SHA to
+          # eliminate the parallel-execution race window.
+          token: ${{ secrets.AUTOFIX_PAT || secrets.GITHUB_TOKEN }}
           ref: ${{ github.head_ref }}
           fetch-depth: 0
       # Skip the Gradle cold-start entirely when the PR doesn't touch
@@ -74,6 +89,20 @@ jobs:
         run: echo "✓ No Android paths changed; autofix is a no-op."
       - uses: ./.github/actions/setup-android
         if: steps.relevance.outputs.android == 'true'
+      # Audit C3 — cache `app/build/` between runs. Key on Gradle build
+      # files only (NOT on Kotlin sources) so the cache stays warm across
+      # PRs that only touch Kotlin. Gradle's content-addressed task graph
+      # invalidates only the affected tasks on a Kotlin diff; unchanged
+      # tasks restore from cache. ~/.gradle/caches is already managed by
+      # gradle/actions/setup-gradle@v4 (called inside setup-android), so
+      # this only handles the project build/ outputs.
+      - uses: actions/cache@v4
+        if: steps.relevance.outputs.android == 'true'
+        with:
+          path: app/build
+          key: app-build-${{ runner.os }}-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties', 'gradle/libs.versions.toml') }}
+          restore-keys: |
+            app-build-${{ runner.os }}-
       - name: ktlint auto-format
         id: ktlint_format
         if: steps.relevance.outputs.android == 'true'
@@ -110,26 +139,26 @@ jobs:
         run: ./gradlew ktlintCheck --continue
 
   lint-and-test:
-    # Wait for autofix so we verify the post-autofix code. For push events
-    # autofix is skipped; `!cancelled()` lets this job run anyway. The checkout
-    # ref follows the PR head branch (after autofix's push) or falls back to
-    # the pushed ref.
+    # Option 2 (audit C2): runs in PARALLEL with autofix instead of
+    # needs: [autofix]. detekt and Android lint don't care about ktlint
+    # formatting, and unit tests don't care about either. ktlintCheck
+    # remains the authoritative formatting verdict in the autofix job
+    # for PR events; for push events the fallback step below runs it.
     #
-    # This job is a required status check in branch protection, so it must
-    # always post a result — even on PRs that don't touch Android code.
+    # Checkout pins to `pull_request.head.sha` (NOT the head_ref branch)
+    # so autofix's parallel push can't race-update what we read. On push
+    # events the branch ref is used since there's no PR context.
+    #
+    # This job is a required status check in branch protection, so it
+    # must always post a result — even on PRs that don't touch Android.
     # The `relevance` filter below gates the actual Gradle work; an
     # irrelevant PR returns success within seconds.
-    #
-    # Audit item #8 — ktlintCheck now lives in the autofix job (PR runs)
-    # OR the detekt step below (push runs); either way it runs exactly
-    # once per workflow run.
-    needs: [autofix]
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.head_ref || github.ref }}
+          ref: ${{ github.event.pull_request.head.sha || github.ref }}
       - uses: dorny/paths-filter@v3
         id: relevance
         with:
@@ -148,6 +177,16 @@ jobs:
         run: echo "✓ No Android paths changed; lint-and-test is a no-op."
       - uses: ./.github/actions/setup-android
         if: steps.relevance.outputs.android == 'true'
+      # Audit C3 — same `app/build/` cache as the autofix job. Both jobs
+      # share the cache key so the second job to run benefits from the
+      # first's writes (actions/cache writes on job success).
+      - uses: actions/cache@v4
+        if: steps.relevance.outputs.android == 'true'
+        with:
+          path: app/build
+          key: app-build-${{ runner.os }}-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties', 'gradle/libs.versions.toml') }}
+          restore-keys: |
+            app-build-${{ runner.os }}-
       # ktlintCheck runs in autofix for PR events; for push events autofix
       # is skipped so we fall back to running it here.
       - name: ktlint check (push events only)
@@ -265,7 +304,10 @@ jobs:
   # each PR push as a distinct release; the overlay is NOT committed back
   # to the PR branch.
   firebase-distribute:
-    needs: [lint-and-test]
+    # Wait on both lint-and-test AND autofix so any distributed debug APK
+    # reflects the post-auto-format tree. lint-and-test alone would race
+    # with autofix's parallel push.
+    needs: [lint-and-test, autofix]
     if: >-
       github.event_name == 'pull_request' &&
       github.event.pull_request.head.repo.full_name == github.repository &&

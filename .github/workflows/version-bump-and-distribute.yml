@@ -1,169 +1,88 @@
-name: Auto-merge & Release
+name: Version Bump & Firebase Distribute
 
-# Single-job workflow that waits for CI, then squash-merges via
-# `gh pr merge --auto`. As of audit C1 the post-merge version bump +
-# Firebase distribution lives in `.github/workflows/version-bump-and-
-# distribute.yml`, triggered on `workflow_run` of THIS workflow's
-# completion. That keeps this workflow's status check turning green
-# fast (no waiting on the post-merge bump) while still firing the
-# distribution chain.
+# Audit C1 — split out from auto-merge.yml. The auto-merge job's status
+# check now turns green as soon as the merge is queued, instead of
+# blocking on the post-merge bump+distribute (~5 min). The merge timing
+# itself is unchanged (still gated on required checks via gh pr merge
+# --auto), but the workflow run completes ~5 min sooner so the PR page
+# clears faster and CI minutes used by the polling loop drop.
 #
-# Why workflow_run for the split (not `push` to main)? GitHub's anti-
-# recursion rule blocks workflow runs when the push to main was
-# produced by gh pr merge using GITHUB_TOKEN. workflow_run is the
-# documented exception — it fires from the completion of this workflow
-# (which itself was triggered by a non-bot pull_request event) even
-# though this workflow uses GITHUB_TOKEN to perform the merge.
+# Trigger choice: workflow_run on auto-merge.yml's completion. This is
+# the documented exception to the GITHUB_TOKEN-recursion rule —
+# workflow_run events DO fire even when the source workflow used
+# GITHUB_TOKEN internally, as long as the source workflow itself was
+# triggered by a non-bot event (which auto-merge.yml is — pull_request
+# from a real user). A `push` trigger on main would NOT fire because
+# the squash merge push is performed via GITHUB_TOKEN.
+#
+# Caveat: workflow_run fires when auto-merge.yml COMPLETES, not when
+# the actual merge happens. gh pr merge --auto queues the merge to run
+# when required checks pass. So this workflow still polls for the PR
+# to flip to MERGED before bumping (same logic as the old inline job).
+#
+# Caveat: this file must exist on the default branch (main) for the
+# workflow_run trigger to fire. The PR that adds it can NOT use the
+# new path for itself — its own version bump runs the inline job from
+# the old auto-merge.yml. First post-merge cycle is unaffected.
 
 on:
-  pull_request:
-    types: [opened, reopened, ready_for_review, synchronize]
+  workflow_run:
+    workflows: ["Auto-merge & Release"]
+    types: [completed]
     branches: [main]
-  workflow_dispatch:
 
-env:
-  WAIT_INTERVAL: 30  # seconds between CI check polls
+# Serialize all post-merge distribution work against main so concurrent
+# PRs produce sequential versionCode bumps without racing each other.
+concurrency:
+  group: version-firebase-main
+  cancel-in-progress: false
 
 permissions:
-  contents: write        # includes push access needed by capture job for ci-logs branch
-  pull-requests: write
-  checks: read
-  actions: read          # capture-failure-log fetches job logs via API
+  contents: write
+  pull-requests: read
+  actions: read
 
 jobs:
-  # ── PR Auto-merge ─────────────────────────────────────────────────
-  auto-merge:
-    name: Auto-merge
-    # Audit item #7 — skip `synchronize` events produced by the autofix
-    # bot's auto-format commit. Those commits always carry [skip ci], so
-    # kicking off another auto-merge run for them burns runner minutes
-    # waiting on checks that won't re-run.
-    if: >-
-      github.event_name == 'pull_request' &&
-      github.event.pull_request.draft == false &&
-      github.event.pull_request.head.repo.full_name == github.repository &&
-      github.event.sender.type != 'Bot'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Detect whether any CI workflows were triggered
-        id: ci_check
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-          REPO: ${{ github.repository }}
-        run: |
-          set -euo pipefail
-          # Audit item #5 — poll check-runs for up to 60s instead of a bare
-          # 20s sleep. On a busy runner cohort the initial 20s wasn't enough
-          # for the API to reflect queued workflow runs, which could merge
-          # PRs without waiting for CI. Bail out early as soon as ≥1 real
-          # check shows up.
-          COUNT=0
-          for i in $(seq 1 6); do
-            sleep 10
-            COUNT=$(gh api "repos/$REPO/commits/$HEAD_SHA/check-runs" \
-              --jq '[.check_runs[] | select(.name != "Auto-merge")] | length')
-            if [ "$COUNT" -gt 0 ]; then
-              echo "Found $COUNT non-Auto-merge check(s) after ${i}0s"
-              break
-            fi
-            echo "No non-Auto-merge checks yet (attempt $i/6)"
-          done
-          if [ "$COUNT" -gt 0 ]; then
-            echo "has_ci=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "has_ci=false" >> "$GITHUB_OUTPUT"
-            echo "No CI checks on this PR after 60s — will merge without waiting."
-          fi
-
-      - name: Wait for all other CI checks to pass
-        if: steps.ci_check.outputs.has_ci == 'true'
-        # Audit item #9 — include `neutral` in allowed-conclusions so
-        # checks that report neutral (rare but possible for skipped
-        # workflows under path filters) don't block auto-merge forever.
-        # Pinned to v1.3.4 SHA for supply-chain safety.
-        uses: lewagon/wait-on-check-action@ccfb013c15c8afb7bf2b7c028fb74dc5a068cccc
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-          running-workflow-name: Auto-merge
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-          wait-interval: ${{ env.WAIT_INTERVAL }}
-          allowed-conclusions: success,skipped,neutral
-
-      - name: Update branch if behind main
-        # Audit item #4 — when the PR merged cleanly against its base but
-        # its base has since advanced with a commit that makes one of the
-        # PR's tests break (classic "test was fine in isolation, breaks
-        # after a parallel merge"), rebase onto the new base and let the
-        # re-run of CI verify it. Witnessed in PR #699 this session.
-        if: steps.ci_check.outputs.has_ci == 'true'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          REPO: ${{ github.repository }}
-        run: |
-          set -euo pipefail
-          STATE=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json mergeStateStatus -q '.mergeStateStatus')
-          echo "mergeStateStatus=$STATE"
-          case "$STATE" in
-            BEHIND)
-              echo "PR base has advanced; updating branch and re-entering check wait."
-              gh pr update-branch "$PR_NUMBER" --repo "$REPO" || {
-                echo "::warning::update-branch failed; continuing to merge attempt anyway."
-              }
-              ;;
-            *)
-              echo "No rebase needed."
-              ;;
-          esac
-
-      - name: Merge PR (squash)
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_URL: ${{ github.event.pull_request.html_url }}
-        run: |
-          set -euo pipefail
-          # Use --auto so GitHub still waits for required reviews (if any).
-          # --delete-branch removes the head branch once the merge completes
-          # so feature branches don't accumulate.
-          # The version-bump-and-distribute job (needs: [auto-merge]) polls
-          # this PR's state until it's MERGED before running.
-          gh pr merge --auto --squash --delete-branch "$PR_URL" || \
-            echo "Auto-merge could not be enabled (already enabled, already merged, or repo setting disabled)."
-
-  # ── Version Bump + Firebase Distribution ──────────────────────────
-  # Runs on the same pull_request event as auto-merge (NOT a push event),
-  # so it still fires when the squash merge was performed via GITHUB_TOKEN.
-  # Waits for the PR to transition to MERGED, then bumps versionCode /
-  # versionName on main, builds the debug APK, uploads to Firebase, and
-  # commits the bump back to main.
   version-bump-and-distribute:
     name: Version Bump, Build & Firebase Distribute
-    needs: [auto-merge]
-    if: >-
-      github.event.pull_request.draft == false &&
-      github.event.pull_request.head.repo.full_name == github.repository
+    # Skip when the source auto-merge run failed or was cancelled —
+    # nothing to distribute.
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
-    # Serialize all post-merge distribution work against main so concurrent
-    # PRs produce sequential versionCode bumps without racing each other.
-    concurrency:
-      group: version-firebase-main
-      cancel-in-progress: false
 
     steps:
-      - name: Wait for PR to merge
-        id: wait
+      - name: Resolve PR number from workflow_run payload
+        id: pr
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+          # workflow_run.pull_requests is populated for same-repo PRs and
+          # empty for fork PRs. We expect same-repo only since auto-merge
+          # already filters fork PRs out.
+          PR_JSON: ${{ toJson(github.event.workflow_run.pull_requests) }}
+        run: |
+          set -euo pipefail
+          PR_NUMBER=$(echo "$PR_JSON" | jq -r '.[0].number // empty')
+          if [ -z "$PR_NUMBER" ]; then
+            echo "::warning::workflow_run payload had no pull_request reference. Cannot resolve PR; skipping."
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "pr_number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
+          echo "found=true" >> "$GITHUB_OUTPUT"
+          echo "Resolved PR #$PR_NUMBER from workflow_run payload."
+
+      - name: Wait for PR to merge
+        id: wait
+        if: steps.pr.outputs.found == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ steps.pr.outputs.pr_number }}
           REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
-          # gh pr merge --auto may queue the merge (waiting on other required
-          # checks, reviews, or branch-protection rules) or execute it
-          # immediately. Poll PR state until it flips to MERGED, CLOSED
-          # (without merging), or we give up. Matches the outer workflow
-          # timeout so a stuck PR doesn't hang the runner forever.
+          # gh pr merge --auto may queue the merge until required checks
+          # pass. Poll until MERGED, CLOSED, or timeout.
           for i in $(seq 1 60); do
             STATE=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json state -q '.state')
             case "$STATE" in
@@ -341,8 +260,8 @@ jobs:
           exit 1
 
   capture-failure-log:
-    needs: [auto-merge, version-bump-and-distribute]
+    needs: [version-bump-and-distribute]
     if: ${{ failure() }}
     uses: ./.github/workflows/capture-failure.yml
     with:
-      workflow-slug: auto-merge
+      workflow-slug: version-bump-and-distribute
