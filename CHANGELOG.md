@@ -880,7 +880,7 @@ Also captured under v1.5.0: `BatchUndoLogDao` test-module wiring,
 `StartupCrashDiagnosticTest` updates for DB v58, and three
 `MedicationSlotDao` test-module wirings (PR #702).
 
-## v1.4.40 — AI Time Blocking: horizon selector + mandatory preview (April 2026)
+## [1.4.40] — 2026-04-22 — AI Time Blocking: horizon selector + mandatory preview
 
 ### AI Time Blocking — horizon selector + mandatory preview (A2 #5)
 - **New "Auto-Block My Day" button** on the Timeline top bar replaces the
@@ -915,7 +915,7 @@ Also captured under v1.5.0: `BatchUndoLogDao` test-module wiring,
   `TimelineViewModelTest.kt`. **New DAO queries**:
   `getTasksInHorizonOnce`, `getScheduledTasksInHorizonOnce`.
 
-## v1.4.38 — Room content entities cross-device sync (April 2026)
+## [1.4.38] — 2026-04-22 — Room content entities cross-device sync
 
 ### Sync — Room content entities cross-device
 - **Migration 55 → 56** adds `cloud_id TEXT` (UNIQUE-indexed) to all nine
@@ -961,7 +961,7 @@ Also captured under v1.5.0: `BatchUndoLogDao` test-module wiring,
   falls back to the thumbnail until a future content-upload
   extension. Link attachments round-trip cleanly.
 
-## v1.4.37 — Room config entities cross-device sync (April 2026)
+## [1.4.37] — 2026-04-22 — Room config entities cross-device sync
 
 ### Sync — Room config entities cross-device
 - **Migration 54 → 55** adds `cloud_id TEXT` (UNIQUE indexed) and
@@ -1001,7 +1001,7 @@ Also captured under v1.5.0: `BatchUndoLogDao` test-module wiring,
   `setCloudId`, `deleteById` (or `getByIdOnce`) where missing, matching
   the contract the generic sync helpers expect.
 
-## v1.4.36 — Preferences backup coverage follow-up (April 2026)
+## [1.4.36] — 2026-04-22 — Preferences backup coverage follow-up
 
 ### Preferences — Backup coverage follow-up
 - **Closes three backup gaps** identified in the post-v1.4.35 preference
@@ -1032,7 +1032,7 @@ Also captured under v1.5.0: `BatchUndoLogDao` test-module wiring,
   graphs. Existing unit tests updated to pass `mockk(relaxed = true)`
   for the three new constructor parameters.
 
-## v1.4.35 — Universal cross-device preference sync (April 2026)
+## [1.4.35] — 2026-04-22 — Universal cross-device preference sync
 
 ### Preferences — Universal cross-device sync
 - **New `GenericPreferenceSyncService`** syncs any registered DataStore
@@ -1070,7 +1070,7 @@ Also captured under v1.5.0: `BatchUndoLogDao` test-module wiring,
   never leak into the payload, and asserts fingerprint stability
   across insertion order and set iteration order.
 
-## v1.4.1–v1.4.34 — Interim releases (April 2026)
+## [1.4.1]–[1.4.34] — April 2026 — Interim releases
 
 The entries below landed between v1.4.0 and v1.4.34 but were committed to the CHANGELOG without explicit per-version headers. They're grouped here for attribution; individual version boundaries can be reconstructed from git history if needed.
 
@@ -1452,7 +1452,7 @@ The entries below landed between v1.4.0 and v1.4.34 but were committed to the CH
   built-ins are identified by the existing `isBuiltIn` flag (templates) and
   the hardcoded `stepId` set in `SelfCareRoutines` (steps).
 
-## v1.4.0 — Wellness-Aware Productivity Layer (April 2026)
+## [1.4.0] — 2026-04-20 — Wellness-Aware Productivity Layer
 
 ### Fixed — Sync Reliability (Apr 18–19, PRs #536–557)
 - **Habit uncheck cross-device sync**: `processRemoteDeletions()` in `SyncService` was a
@@ -1944,7 +1944,7 @@ Note: self-care nudge rotation and the daily overload notification
   completion, empty history, pre-history truncation, non-daily fallback,
   zero allowance).
 
-## v1.3.0 — Voice, Widgets, Accessibility, Analytics, Integrations & Three-Tier Pricing (April 2026)
+## [1.3.0] — 2026-04-11 — Voice, Widgets, Accessibility, Analytics, Integrations & Three-Tier Pricing
 
 Skips the v1.2.0 tag and ships everything developed since v1.1.0 together.
 
@@ -2053,7 +2053,7 @@ Skips the v1.2.0 tag and ships everything developed since v1.1.0 together.
 - GitHub Actions release workflow for AAB builds
 - kotlinx-coroutines-test, Turbine, and MockK test dependencies
 
-## v1.1.0 — PrismTask Rebrand, AI Productivity, Freemium & Play Store (April 2026)
+## [1.1.0] — 2026-04-10 — PrismTask Rebrand, AI Productivity, Freemium & Play Store
 
 ### Changed — Rebrand
 - App renamed from AveryTask to PrismTask
@@ -2090,11 +2090,11 @@ Skips the v1.2.0 tag and ships everything developed since v1.1.0 together.
 - Release build with R8 optimization and resource shrinking
 - GitHub Actions release workflow for AAB builds
 
-## v1.0.0 — Stable Release (April 2026)
+## [1.0.0] — 2026-04-10 — Stable Release
 
 - Bump version to 1.0.0 stable release
 
-## v0.9.0 — UX Overhaul, QoL Features & Task Templates (April 2026)
+## [0.9.0] — 2026-04-09 — UX Overhaul, QoL Features & Task Templates
 
 ### Added — UX Overhaul
 - Today screen: compact progress header bar replacing large circular ring
@@ -2154,7 +2154,7 @@ Skips the v1.2.0 tag and ships everything developed since v1.1.0 together.
 - New screens: TemplateListScreen, AddEditTemplateScreen
 - New components: QuickReschedulePopup, collapsible section headers, horizontal habit chips
 
-## v0.8.0 — Backend Integration (April 2026)
+## [0.8.0] — 2026-04-09 — Backend Integration
 
 ### Added
 
