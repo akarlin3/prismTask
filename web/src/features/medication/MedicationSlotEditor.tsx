@@ -8,9 +8,14 @@ import {
   deleteSlotDef,
   getSlotDefs,
   updateSlotDef,
+  type MedicationReminderMode,
   type MedicationSlotDef,
 } from '@/api/firestore/medicationSlots';
 import { getFirebaseUid } from '@/stores/firebaseUid';
+
+const REMINDER_INTERVAL_MIN_MINUTES = 60;
+const REMINDER_INTERVAL_MAX_MINUTES = 1440;
+const INTERVAL_PRESETS = [120, 240, 360, 480];
 
 /**
  * Slot-definition CRUD — Firestore-native. The existing
@@ -93,6 +98,56 @@ export function MedicationSlotEditor() {
     }
   };
 
+  const handleReminderModeChange = async (
+    slot: MedicationSlotDef,
+    mode: MedicationReminderMode | null,
+  ) => {
+    if (!uid) return;
+    // When switching off INTERVAL, drop the interval value too — keeps the
+    // Firestore doc clean and matches the Android NULL/NULL semantics.
+    const intervalUpdate =
+      mode === 'INTERVAL'
+        ? slot.reminder_interval_minutes ?? 240
+        : null;
+    const previous = slot;
+    const updated: MedicationSlotDef = {
+      ...slot,
+      reminder_mode: mode,
+      reminder_interval_minutes: intervalUpdate,
+    };
+    setSlots((prev) => prev.map((s) => (s.id === slot.id ? updated : s)));
+    try {
+      await updateSlotDef(uid, slot.id, {
+        reminder_mode: mode,
+        reminder_interval_minutes: intervalUpdate,
+      });
+    } catch (e) {
+      setSlots((prev) => prev.map((s) => (s.id === slot.id ? previous : s)));
+      toast.error((e as Error).message || 'Save failed');
+    }
+  };
+
+  const handleIntervalChange = async (
+    slot: MedicationSlotDef,
+    rawMinutes: number,
+  ) => {
+    if (!uid) return;
+    const minutes = clampInterval(rawMinutes);
+    if (minutes === slot.reminder_interval_minutes) return;
+    const previous = slot;
+    const updated: MedicationSlotDef = {
+      ...slot,
+      reminder_interval_minutes: minutes,
+    };
+    setSlots((prev) => prev.map((s) => (s.id === slot.id ? updated : s)));
+    try {
+      await updateSlotDef(uid, slot.id, { reminder_interval_minutes: minutes });
+    } catch (e) {
+      setSlots((prev) => prev.map((s) => (s.id === slot.id ? previous : s)));
+      toast.error((e as Error).message || 'Save failed');
+    }
+  };
+
   const handleDelete = async () => {
     if (!uid || !deleteTarget) return;
     try {
@@ -137,26 +192,33 @@ export function MedicationSlotEditor() {
           {slots.map((slot) => (
             <li
               key={slot.id}
-              className="flex items-center gap-2 rounded-md border border-[var(--color-border)] bg-[var(--color-bg-secondary)] px-2 py-1.5"
+              className="flex flex-col gap-1.5 rounded-md border border-[var(--color-border)] bg-[var(--color-bg-secondary)] px-2 py-1.5"
             >
-              <span className="font-mono text-xs text-[var(--color-text-secondary)]">
-                {slot.slot_key}
-              </span>
-              <input
-                type="text"
-                defaultValue={slot.display_name}
-                onBlur={(e) => handleRename(slot, e.target.value)}
-                aria-label={`Rename ${slot.slot_key}`}
-                className="flex-1 rounded-md border border-transparent bg-transparent px-2 py-0.5 text-sm text-[var(--color-text-primary)] outline-none focus:border-[var(--color-accent)]"
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-xs text-[var(--color-text-secondary)]">
+                  {slot.slot_key}
+                </span>
+                <input
+                  type="text"
+                  defaultValue={slot.display_name}
+                  onBlur={(e) => handleRename(slot, e.target.value)}
+                  aria-label={`Rename ${slot.slot_key}`}
+                  className="flex-1 rounded-md border border-transparent bg-transparent px-2 py-0.5 text-sm text-[var(--color-text-primary)] outline-none focus:border-[var(--color-accent)]"
+                />
+                <button
+                  onClick={() => setDeleteTarget(slot)}
+                  className="text-[var(--color-text-secondary)] hover:text-red-500"
+                  title="Delete slot"
+                  aria-label={`Delete slot ${slot.display_name}`}
+                >
+                  <Trash2 className="h-4 w-4" aria-hidden="true" />
+                </button>
+              </div>
+              <SlotReminderModeRow
+                slot={slot}
+                onModeChange={(mode) => handleReminderModeChange(slot, mode)}
+                onIntervalChange={(mins) => handleIntervalChange(slot, mins)}
               />
-              <button
-                onClick={() => setDeleteTarget(slot)}
-                className="text-[var(--color-text-secondary)] hover:text-red-500"
-                title="Delete slot"
-                aria-label={`Delete slot ${slot.display_name}`}
-              >
-                <Trash2 className="h-4 w-4" aria-hidden="true" />
-              </button>
             </li>
           ))}
         </ul>
@@ -202,4 +264,120 @@ export function MedicationSlotEditor() {
       />
     </div>
   );
+}
+
+/**
+ * Compact per-slot reminder mode row. Default → null (inherit user
+ * default). Clock → "CLOCK". Interval → "INTERVAL" + minutes picker.
+ */
+function SlotReminderModeRow({
+  slot,
+  onModeChange,
+  onIntervalChange,
+}: {
+  slot: MedicationSlotDef;
+  onModeChange: (mode: MedicationReminderMode | null) => void;
+  onIntervalChange: (minutes: number) => void;
+}) {
+  const minutes = slot.reminder_interval_minutes ?? 240;
+  const isCustom = slot.reminder_mode === 'INTERVAL' && !INTERVAL_PRESETS.includes(minutes);
+  const [customText, setCustomText] = useState(minutes.toString());
+
+  // Resync the custom field when the parent updates the persisted value.
+  useEffect(() => {
+    setCustomText(minutes.toString());
+  }, [minutes]);
+
+  return (
+    <div className="flex flex-wrap items-center gap-1.5 pl-1 pt-0.5">
+      <ModePill
+        label="Default"
+        active={slot.reminder_mode === null}
+        onClick={() => onModeChange(null)}
+      />
+      <ModePill
+        label="Clock"
+        active={slot.reminder_mode === 'CLOCK'}
+        onClick={() => onModeChange('CLOCK')}
+      />
+      <ModePill
+        label="Interval"
+        active={slot.reminder_mode === 'INTERVAL'}
+        onClick={() => onModeChange('INTERVAL')}
+      />
+      {slot.reminder_mode === 'INTERVAL' && (
+        <>
+          {INTERVAL_PRESETS.map((mins) => (
+            <ModePill
+              key={mins}
+              label={formatInterval(mins)}
+              active={!isCustom && minutes === mins}
+              onClick={() => onIntervalChange(mins)}
+            />
+          ))}
+          <ModePill
+            label="Custom"
+            active={isCustom}
+            onClick={() => {
+              if (!isCustom) onIntervalChange(minutes + 1);
+            }}
+          />
+          {isCustom && (
+            <input
+              type="number"
+              inputMode="numeric"
+              min={REMINDER_INTERVAL_MIN_MINUTES}
+              max={REMINDER_INTERVAL_MAX_MINUTES}
+              value={customText}
+              onChange={(e) => setCustomText(e.target.value)}
+              onBlur={() => {
+                const parsed = Number.parseInt(customText, 10);
+                if (Number.isFinite(parsed)) onIntervalChange(parsed);
+              }}
+              aria-label="Custom interval minutes"
+              className="w-20 rounded-md border border-[var(--color-border)] bg-[var(--color-bg-secondary)] px-2 py-0.5 text-xs text-[var(--color-text-primary)] outline-none focus:border-[var(--color-accent)]"
+            />
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+function ModePill({
+  label,
+  active,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`rounded-md border px-2 py-0.5 text-[10px] ${
+        active
+          ? 'border-[var(--color-accent)] bg-[var(--color-accent)]/10 text-[var(--color-text-primary)]'
+          : 'border-[var(--color-border)] bg-transparent text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'
+      }`}
+    >
+      {label}
+    </button>
+  );
+}
+
+function clampInterval(minutes: number): number {
+  if (!Number.isFinite(minutes)) return 240;
+  return Math.min(
+    REMINDER_INTERVAL_MAX_MINUTES,
+    Math.max(REMINDER_INTERVAL_MIN_MINUTES, Math.round(minutes)),
+  );
+}
+
+function formatInterval(mins: number): string {
+  if (mins % 60 === 0) return `${mins / 60}h`;
+  return `${mins}m`;
 }

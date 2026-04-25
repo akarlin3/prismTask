@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+- **Medication reminder mode — per-slot picker (Web).** Settings →
+  Medication Slots editor now exposes a per-slot Default / Clock /
+  Interval picker with the same presets row Android uses (2h / 4h /
+  6h / 8h + custom 60–1440 minutes). Saving immediately writes
+  `reminderMode` + `reminderIntervalMinutes` to the slot's Firestore
+  doc; Android picks them up on the next sync. Optimistic update with
+  rollback on failure.
+
 ### Backend
 
 - **Medication tier_state / mark cross-system FK resolution** — On
