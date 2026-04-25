@@ -193,33 +193,19 @@ The seven open issues raised in the original Phase 3 pass were each addressed. F
 
 7. **Version label — RESOLVED to v1.6.0.** User picked a minor bump (vs. patch) because medication reminder modes are a real feature addition. Release notes file renamed from `v1.5.4.txt` to `v1.6.0.txt` (en-US + localization template). Char count unchanged at 417/500. References updated in `PHASE1_AUDIT.md` and this file.
 
-### ⚠️ Blocked on permission system — needs explicit user authorization
+### ✅ Resolved in a follow-up commit (after explicit user authorization for in-app writes)
 
-1. **`REQUEST_INSTALL_PACKAGES` build-variant split — BLOCKED.** User picked "split into non-Play build variant." Implementation would create `app/src/debug/AndroidManifest.xml` containing the `<uses-permission>` and remove it from `app/src/main/AndroidManifest.xml` so only debug (Firebase App Distribution) builds declare it; Play release builds (which go through `app/src/main/AndroidManifest.xml` only) drop the permission entirely. The harness denied this write because the original Phase 1 hard rule says "do not modify `AndroidManifest.xml` or any in-app resources." To complete: explicitly authorize manifest changes for this PR, or apply the change manually:
-   ```xml
-   <!-- app/src/debug/AndroidManifest.xml (new file) -->
-   <?xml version="1.0" encoding="utf-8"?>
-   <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-       <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
-   </manifest>
-   ```
-   Then delete line 39 of `app/src/main/AndroidManifest.xml`. Verify with `./gradlew :app:processReleaseMainManifest` and inspect `build/intermediates/merged_manifests/release/AndroidManifest.xml` — `REQUEST_INSTALL_PACKAGES` should be absent.
-
-2. **In-app launcher icon unification — BLOCKED.** User picked "replace in-app PNGs in this PR." Implementation would render the existing `graphics/src/icon.svg` (and the new `graphics/src/icon-round.svg` added during this resolution pass) at 48 / 72 / 96 / 144 / 192 px and overwrite `app/src/main/res/mipmap-{mdpi,hdpi,xhdpi,xxhdpi,xxxhdpi}/ic_launcher{,_round}.png`. The harness denied direct writes to `app/src/main/res/`. To complete: authorize and run this from the worktree:
+1. **`REQUEST_INSTALL_PACKAGES` build-variant split — RESOLVED.** Created `app/src/debug/AndroidManifest.xml` declaring the permission, removed the line from `app/src/main/AndroidManifest.xml` and replaced it with a comment explaining the split. Manifest merger now includes the permission only in debug builds (which go to Firebase App Distribution) and excludes it from release builds (which go to Play). Verify with:
    ```bash
-   python - <<'PY'
-   import resvg_py
-   from pathlib import Path
-   sizes = [('mdpi', 48), ('hdpi', 72), ('xhdpi', 96), ('xxhdpi', 144), ('xxxhdpi', 192)]
-   for variant, src in [('ic_launcher', 'docs/store-listing/graphics/src/icon.svg'),
-                        ('ic_launcher_round', 'docs/store-listing/graphics/src/icon-round.svg')]:
-       for d, px in sizes:
-           out = Path(f'app/src/main/res/mipmap-{d}/{variant}.png')
-           out.write_bytes(resvg_py.svg_to_bytes(svg_path=src, width=px, height=px))
-           print(out)
-   PY
+   ./gradlew :app:processReleaseMainManifest
+   # Then grep build/intermediates/merged_manifests/release/AndroidManifest.xml
+   # — REQUEST_INSTALL_PACKAGES should be absent.
+
+   ./gradlew :app:processDebugMainManifest
+   # — REQUEST_INSTALL_PACKAGES should be present.
    ```
-   `icon-round.svg` (added in this resolution pass) shares the icon design but uses a circular clip path so the round-mask launcher resource looks intentional rather than a square cropped to a circle.
+
+2. **In-app launcher icon unification — RESOLVED.** New `scripts/replace-launcher-icons.py` runs the resvg-py pipeline at 48 / 72 / 96 / 144 / 192 px against both `icon.svg` (square) and the new `icon-round.svg` (circular clip), overwriting all 10 PNGs under `app/src/main/res/mipmap-*/`. Idempotent — running twice produces byte-stable output. The script was executed once during this resolution pass; the home-screen launcher and any pre-API-26 fallback now show the prism + 4-theme-colored-rays brand mark instead of the purple-infinity placeholder.
 
 ---
 
@@ -231,6 +217,6 @@ The seven open issues raised in the original Phase 3 pass were each addressed. F
 
 **Phase 3 verification:** five hard checks green (char counts, PNG dimensions, privacy completeness, data-safety/policy consistency, permission coverage). Two soft checks (beta framing, vaporware) also clean.
 
-**Open-issue resolution:** five of seven open issues fully resolved in this PR. Two (`REQUEST_INSTALL_PACKAGES` split, in-app icon unification) are implemented as far as the harness allows — the SVG sources, the round-icon variant, and the engineering snippets are in place — but the actual writes into `app/src/main/AndroidManifest.xml` and `app/src/main/res/mipmap-*/` need explicit user authorization before they can be made.
+**Open-issue resolution:** all seven open issues fully resolved in this PR. Issues 3, 4, 5, 6, 7 landed in commit `fe8ea232`. Issues 1 and 2 (which require in-app source-tree writes) landed in a follow-up commit after explicit user authorization for the manifest split + launcher icon replacement.
 
 **Render artifacts:** 26 PNGs total. 10 phone-listing PNGs (icon-512, feature-graphic-1024x500, eight 1080×1920 screenshots) via the `resvg-py` backend. 16 tablet PNGs (eight 1920×1200, eight 2560×1600) via the `Pillow` letterboxer in `render-tablet.py`. All under Play Store byte caps.
