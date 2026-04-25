@@ -127,6 +127,30 @@ constructor(
             WeeklyReviewWorker.cancel(context)
         }
     }
+
+    /**
+     * Cancel every periodic worker the app may have scheduled for the
+     * current account. Used by the account-deletion path to prevent
+     * post-deletion workers from firing against an empty Room DB. Also
+     * calls [WorkManager.cancelAllWork] as a defense-in-depth in case
+     * future workers are added without being wired into this scheduler.
+     */
+    fun cancelAllForAccountDeletion() {
+        BriefingNotificationWorker.cancel(context)
+        EveningSummaryWorker.cancel(context)
+        WeeklyHabitSummaryWorker.cancel(context)
+        WeeklyTaskSummaryWorker.cancel(context)
+        OverloadCheckWorker.cancel(context)
+        ReengagementWorker.cancel(context)
+        WeeklyReviewWorker.cancel(context)
+        BatchUndoSweepWorker.cancel(context)
+        try {
+            WorkManager.getInstance(context).cancelAllWork()
+        } catch (_: Exception) {
+            // Best-effort; per-worker cancels above already cover the
+            // common case. WorkManager may be unavailable in unit tests.
+        }
+    }
 }
 
 /**

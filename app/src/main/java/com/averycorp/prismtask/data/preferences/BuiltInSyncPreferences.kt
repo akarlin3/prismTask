@@ -236,13 +236,13 @@ constructor(
     }
 
     /**
-     * Clear every preference key this class writes. Intended for tests only —
-     * `setXxx(false)` can't replace this because the legacy-fallback readers
-     * distinguish "unset" from "explicitly false," and tests that want the
-     * legacy-fallback path need keys fully removed.
+     * Clear every preference key this class writes. Used by:
+     *   - tests (replace `setXxx(false)` since the legacy-fallback readers
+     *     distinguish "unset" from "explicitly false")
+     *   - the account-deletion path (per-account reconciliation flags must
+     *     not leak to whoever signs in next on the same device)
      */
-    @androidx.annotation.VisibleForTesting
-    suspend fun clearAllForTest() {
+    suspend fun clearAll() {
         context.builtInSyncDataStore.edit { it.clear() }
     }
 }

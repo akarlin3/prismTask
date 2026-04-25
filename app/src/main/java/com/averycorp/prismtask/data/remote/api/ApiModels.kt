@@ -46,6 +46,19 @@ data class UserInfoResponse(
     @SerializedName("effective_tier") val effectiveTier: String = "FREE"
 )
 
+data class DeletionRequest(
+    @SerializedName("initiated_from") val initiatedFrom: String = "android"
+)
+
+data class DeletionStatusResponse(
+    @SerializedName("deletion_pending_at") val deletionPendingAt: String? = null,
+    @SerializedName("deletion_scheduled_for") val deletionScheduledFor: String? = null,
+    @SerializedName("deletion_initiated_from") val deletionInitiatedFrom: String? = null,
+    @SerializedName("grace_period_days") val gracePeriodDays: Int = 30
+) {
+    val isPending: Boolean get() = deletionPendingAt != null
+}
+
 // endregion
 
 // region Tasks

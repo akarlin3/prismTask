@@ -22,6 +22,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -43,6 +44,8 @@ import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.android.libraries.identity.googleid.GoogleIdTokenParsingException
 import kotlinx.coroutines.launch
+import java.text.DateFormat
+import java.util.Date
 
 private val WEB_CLIENT_ID = BuildConfig.WEB_CLIENT_ID
 
@@ -60,6 +63,31 @@ fun AuthScreen(
         LaunchedEffect(Unit) {
             onContinue()
         }
+    }
+
+    // Branch on the deletion-related states BEFORE rendering the normal sign-in
+    // UI. Both states are full-screen takeovers — they intentionally don't let
+    // the user fall back to the standard auth screen, since either choice
+    // (restore vs. confirm deletion) needs an explicit decision before sync runs.
+    when (val state = authState) {
+        is AuthState.RestorePending -> {
+            RestoreAccountPrompt(
+                scheduledFor = state.scheduledFor,
+                onRestore = viewModel::onRestoreAccount,
+                onSignOut = viewModel::onAbandonRestore
+            )
+            return
+        }
+        AuthState.AccountPurged -> {
+            AccountPurgedNotice(
+                onDismiss = {
+                    viewModel.onSkipSignIn()
+                    onContinue()
+                }
+            )
+            return
+        }
+        else -> {}
     }
 
     Column(
@@ -235,5 +263,99 @@ fun AuthScreen(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center
         )
+    }
+}
+
+/**
+ * Shown after sign-in when the account is pending deletion within the grace
+ * window. Two choices: restore (cancel deletion + proceed to normal sync) or
+ * sign out (let the deletion proceed; permanent purge fires on next post-grace
+ * sign-in). Sync has not been started yet — we don't pull data into a Room DB
+ * that's about to be wiped.
+ */
+@Composable
+private fun RestoreAccountPrompt(
+    scheduledFor: Date,
+    onRestore: () -> Unit,
+    onSignOut: () -> Unit
+) {
+    val formattedDate = remember(scheduledFor) {
+        DateFormat.getDateInstance(DateFormat.LONG).format(scheduledFor)
+    }
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text(
+            text = "Account scheduled for deletion",
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.Center
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = "Your account will be permanently deleted on $formattedDate. " +
+                "Restore now to keep your data, or sign out to let the deletion proceed.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center
+        )
+        Spacer(modifier = Modifier.height(32.dp))
+        Button(
+            onClick = onRestore,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Restore Account")
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+        OutlinedButton(
+            onClick = onSignOut,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Sign Out")
+        }
+    }
+}
+
+/**
+ * Shown when the post-grace permanent purge has already executed. The user's
+ * Firebase Auth record is gone (deleted by the backend via Admin SDK) so
+ * they cannot sign in again with this account. The single "Continue" action
+ * routes to the local-only flow — they can use the app without an account
+ * or sign in with a different one.
+ */
+@Composable
+private fun AccountPurgedNotice(onDismiss: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text(
+            text = "Account permanently deleted",
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.Center
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = "Your account and all synced data have been permanently deleted. " +
+                "You can continue using PrismTask without an account or sign in with a different account.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center
+        )
+        Spacer(modifier = Modifier.height(32.dp))
+        Button(
+            onClick = onDismiss,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Continue")
+        }
     }
 }

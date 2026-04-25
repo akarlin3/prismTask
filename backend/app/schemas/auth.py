@@ -45,3 +45,22 @@ class UserResponse(BaseModel):
     effective_tier: str = "FREE"
 
     model_config = {"from_attributes": True}
+
+
+class DeletionRequest(BaseModel):
+    """Body for POST /auth/me/deletion. ``initiated_from`` is one of
+    ``"android"`` / ``"web"`` / ``"email"`` so support can tell where a
+    deletion request came from after the fact."""
+
+    initiated_from: str = "android"
+
+
+class DeletionStatusResponse(BaseModel):
+    """Returned by POST /auth/me/deletion + GET /auth/me/deletion. The Android
+    sign-in guard reads ``deletion_scheduled_for`` to decide whether to offer
+    restore or trigger permanent deletion."""
+
+    deletion_pending_at: str | None = None
+    deletion_scheduled_for: str | None = None
+    deletion_initiated_from: str | None = None
+    grace_period_days: int = 30

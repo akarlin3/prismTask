@@ -6,7 +6,7 @@ description: How PrismTask collects, uses, and protects your data.
 # PrismTask — Privacy Policy
 
 **Effective date:** 2026-04-24
-**Last updated:** 2026-04-24
+**Last updated:** 2026-04-25
 
 ## Who we are
 
@@ -81,7 +81,7 @@ You can, at any time:
 - **Import a prior backup** via Settings → Data → Import with either merge or replace semantics.
 - **Sign out** from Settings → Account to stop syncing further changes to the cloud. Previously synced data remains in Firestore until you request deletion.
 - **Clear local data** via Android Settings → Apps → PrismTask → Storage → Clear storage. This wipes the on-device Room database and DataStore preferences.
-- **Request deletion of your account and all synced data** by emailing [privacy@prismtask.app](mailto:privacy@prismtask.app). We will wipe your Firestore user collection and your Firebase Auth record within 30 days. An in-app one-tap account deletion is in active development and will replace this email path; this section will be updated when it ships.
+- **Delete your account in-app** from the Android app: **Settings → Account & Sync → Delete Account**. The deletion takes effect immediately — you are signed out and all on-device data is wiped — and is reversible for **30 days** by signing back in with the same Google account. After 30 days the deletion is permanent: your backend record is removed, your Firebase Auth record is deleted via Firebase Admin SDK, and any orphaned Firestore data becomes unreachable (a periodic admin sweep removes it on a best-effort schedule). If you cannot access your account or are unable to use the Android app, email [privacy@prismtask.app](mailto:privacy@prismtask.app) and we will wipe your data manually within 30 days.
 
 If you are a resident of the EU/UK (GDPR), California (CCPA/CPRA), or another jurisdiction with data-subject rights, you also have:
 
@@ -111,4 +111,9 @@ When this policy changes, the "Last updated" date at the top of this page change
 
 ## Changelog
 
-_No revisions yet. Initial version published 2026-04-24._
+- **2026-04-25** — Replaced the email-only deletion path with the in-app
+  Settings → Account & Sync → Delete Account flow (30-day grace window,
+  reversible by signing back in). Email deletion is preserved as a
+  fallback for users who can't access the Android app. No change to
+  what data is collected.
+- **2026-04-24** — Initial version published.

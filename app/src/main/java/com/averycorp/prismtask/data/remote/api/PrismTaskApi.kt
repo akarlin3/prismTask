@@ -6,6 +6,7 @@ import com.averycorp.prismtask.data.remote.sync.SyncPushResponse
 import okhttp3.MultipartBody
 import okhttp3.ResponseBody
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.Multipart
 import retrofit2.http.PATCH
@@ -42,6 +43,20 @@ interface PrismTaskApi {
     suspend fun refresh(
         @Body request: RefreshRequest
     ): TokenResponse
+
+    @GET("api/v1/auth/me/deletion")
+    suspend fun getDeletionStatus(): DeletionStatusResponse
+
+    @POST("api/v1/auth/me/deletion")
+    suspend fun requestDeletion(
+        @Body request: DeletionRequest
+    ): DeletionStatusResponse
+
+    @DELETE("api/v1/auth/me/deletion")
+    suspend fun cancelDeletion(): DeletionStatusResponse
+
+    @POST("api/v1/auth/me/purge")
+    suspend fun purgeAccount(): retrofit2.Response<Unit>
 
     @POST("api/v1/tasks/parse")
     suspend fun parseTask(
