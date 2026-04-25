@@ -91,6 +91,7 @@ class CloudIdOrphanHealerScenarioTest {
             medicationSlotDao = database.medicationSlotDao(),
             medicationSlotOverrideDao = database.medicationSlotOverrideDao(),
             medicationTierStateDao = database.medicationTierStateDao(),
+            medicationMarkDao = database.medicationMarkDao(),
             logger = logger
         )
     }

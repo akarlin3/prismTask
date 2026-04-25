@@ -1,8 +1,10 @@
 package com.averycorp.prismtask.ui.screens.medication
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,6 +24,7 @@ import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -53,6 +56,10 @@ import com.averycorp.prismtask.domain.model.medication.MedicationTier
 import com.averycorp.prismtask.ui.navigation.PrismTaskRoute
 import com.averycorp.prismtask.ui.screens.medication.components.MedicationEditorDialog
 import com.averycorp.prismtask.ui.screens.medication.components.MedicationSlotSelection
+import com.averycorp.prismtask.ui.screens.medication.components.MedicationTimeEditSheet
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 /**
  * Main Medication screen — rewired from the legacy
@@ -86,6 +93,8 @@ fun MedicationScreen(
     var editingMed by remember { mutableStateOf<MedicationEntity?>(null) }
     var editingSelections by remember { mutableStateOf<List<MedicationSlotSelection>>(emptyList()) }
     var archivingMed by remember { mutableStateOf<MedicationEntity?>(null) }
+    // Slot whose intended_time is being edited (long-press → time sheet).
+    var timeEditingSlotState by remember { mutableStateOf<MedicationSlotTodayState?>(null) }
 
     // Editor dialog opens as soon as editingMed is set; selections load
     // asynchronously via the suspend helper on the viewmodel.
@@ -157,7 +166,8 @@ fun MedicationScreen(
                                 } else {
                                     viewModel.setSkippedForSlot(state.slot)
                                 }
-                            }
+                            },
+                            onLongPressTier = { timeEditingSlotState = state }
                         )
                     }
                     if (editMode) {
@@ -215,6 +225,18 @@ fun MedicationScreen(
         )
     }
 
+    timeEditingSlotState?.let { state ->
+        MedicationTimeEditSheet(
+            initialIntendedTime = state.intendedTime,
+            slotName = state.slot.name,
+            onDismiss = { timeEditingSlotState = null },
+            onSave = { intendedTime ->
+                viewModel.setIntendedTimeForSlot(state.slot, intendedTime)
+                timeEditingSlotState = null
+            }
+        )
+    }
+
     archivingMed?.let { med ->
         AlertDialog(
             onDismissRequest = { archivingMed = null },
@@ -245,7 +267,8 @@ private fun SlotTodayCard(
     state: MedicationSlotTodayState,
     editMode: Boolean,
     onToggleDose: (MedicationEntity) -> Unit,
-    onTapTier: () -> Unit
+    onTapTier: () -> Unit,
+    onLongPressTier: () -> Unit
 ) {
     val tierColor = tierColorFor(state.achievedTier)
     Column(
@@ -269,12 +292,23 @@ private fun SlotTodayCard(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                val takenLine = takenTimeLabel(state)
+                if (takenLine != null) {
+                    Text(
+                        text = takenLine,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
             }
             TierChip(
                 tier = state.achievedTier,
                 color = tierColor,
                 isUserSet = state.isUserSet,
-                onClick = onTapTier
+                isBacklogged = state.isBacklogged,
+                onClick = onTapTier,
+                onLongClick = onLongPressTier
             )
         }
         if (state.medications.isEmpty()) {
@@ -298,22 +332,38 @@ private fun SlotTodayCard(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun TierChip(
     tier: AchievedTier,
     color: Color,
     isUserSet: Boolean,
-    onClick: () -> Unit
+    isBacklogged: Boolean,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit
 ) {
     Box(
         modifier = Modifier
             .clip(RoundedCornerShape(10.dp))
             .background(color.copy(alpha = 0.15f))
             .border(1.dp, color, RoundedCornerShape(10.dp))
-            .clickable(onClick = onClick)
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick,
+                onLongClickLabel = "Edit time"
+            )
             .padding(horizontal = 10.dp, vertical = 6.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
+            if (isBacklogged) {
+                Icon(
+                    imageVector = Icons.Default.Schedule,
+                    contentDescription = "Logged at a different time than taken",
+                    tint = color,
+                    modifier = Modifier.size(14.dp)
+                )
+                Spacer(modifier = Modifier.size(4.dp))
+            }
             Text(
                 text = tierLabel(tier),
                 style = MaterialTheme.typography.labelMedium,
@@ -524,4 +574,31 @@ private fun tierColorFor(tier: AchievedTier): Color = when (tier) {
     AchievedTier.ESSENTIAL -> Color(0xFFEF4444)
     AchievedTier.PRESCRIPTION -> Color(0xFF3B82F6)
     AchievedTier.COMPLETE -> Color(0xFF10B981)
+}
+
+/**
+ * Human-readable "Taken at HH:mm" line for a slot card. Returns null
+ * when no time should be displayed (no meds taken yet, no tier-state
+ * row, or no timestamp stored).
+ *
+ * When the user backdated via long-press (`isBacklogged == true`), the
+ * label surfaces BOTH moments — "Taken 8:05 AM · Logged 10:30 AM" —
+ * so the gap is legible, not hidden behind the clock-icon indicator.
+ */
+internal fun takenTimeLabel(state: MedicationSlotTodayState): String? {
+    // If nothing's been taken and no user override exists, don't
+    // clutter the card with a time line.
+    if (state.takenMedicationIds.isEmpty() && !state.isUserSet) return null
+    val format = SimpleDateFormat("h:mm a", Locale.getDefault())
+    val intended = state.intendedTime
+    val logged = state.loggedAt
+    return when {
+        state.isBacklogged && intended != null && logged != null ->
+            "Taken ${format.format(Date(intended))} · Logged ${format.format(Date(logged))}"
+        intended != null ->
+            "Taken at ${format.format(Date(intended))}"
+        logged != null ->
+            "Taken at ${format.format(Date(logged))}"
+        else -> null
+    }
 }

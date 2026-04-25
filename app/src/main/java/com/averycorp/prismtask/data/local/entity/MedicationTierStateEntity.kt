@@ -63,6 +63,20 @@ data class MedicationTierStateEntity(
     /** Lowercase `TierSource` token: `computed` or `user_set`. */
     @ColumnInfo(name = "tier_source", defaultValue = "computed")
     val tierSource: String = "computed",
+    /**
+     * User-claimed wall-clock instant (epoch millis) for when the dose was
+     * actually taken. NULL for legacy rows or when the user hasn't backdated
+     * — in which case the UI treats `loggedAt` as the intended time too.
+     */
+    @ColumnInfo(name = "intended_time")
+    val intendedTime: Long? = null,
+    /**
+     * Database-write epoch millis. Distinct from [intendedTime] for backlogged
+     * entries (e.g. user takes a med at 8 AM but doesn't log it until 10 AM).
+     * NOT NULL because every row physically arrived in the DB at some moment.
+     */
+    @ColumnInfo(name = "logged_at", defaultValue = "0")
+    val loggedAt: Long = System.currentTimeMillis(),
     @ColumnInfo(name = "created_at")
     val createdAt: Long = System.currentTimeMillis(),
     @ColumnInfo(name = "updated_at")

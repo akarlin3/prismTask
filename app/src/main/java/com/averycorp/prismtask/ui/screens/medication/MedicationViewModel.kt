@@ -35,8 +35,31 @@ data class MedicationSlotTodayState(
     val medications: List<MedicationEntity>,
     val takenMedicationIds: Set<Long>,
     val achievedTier: AchievedTier,
-    val isUserSet: Boolean
-)
+    val isUserSet: Boolean,
+    /**
+     * User-claimed wall-clock for when the slot was actually taken, if
+     * the user has explicitly set it via long-press. Sourced from the
+     * first per-slot tier-state row (all rows for the slot carry the
+     * same intended_time). NULL means no user override — UI should
+     * treat the row's logged_at as the de-facto taken time.
+     */
+    val intendedTime: Long? = null,
+    /** Earliest tier-state logged_at across this slot's rows, or null. */
+    val loggedAt: Long? = null
+) {
+    /**
+     * True when the user backdated this slot — i.e. intended_time was
+     * set explicitly to a moment that meaningfully differs from the
+     * database write. The 60s tolerance avoids a clock-icon flicker for
+     * the trivial gap between "tap to mark" and "row landed".
+     */
+    val isBacklogged: Boolean
+        get() {
+            val intended = intendedTime ?: return false
+            val logged = loggedAt ?: return false
+            return kotlin.math.abs(logged - intended) > 60_000L
+        }
+}
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
@@ -106,12 +129,18 @@ constructor(
             )
             val userRow = tierStates.firstOrNull { it.slotId == slot.id && it.isUserSetSource() }
             val displayTier = userRow?.let { AchievedTier.fromStorage(it.tier) } ?: computed
+            // Intended/logged times are recorded per-(med, slot, date) but
+            // the user edits them at slot granularity, so all per-slot rows
+            // carry the same value. Read from any row for the slot.
+            val anySlotRow = tierStates.firstOrNull { it.slotId == slot.id }
             MedicationSlotTodayState(
                 slot = slot,
                 medications = linkedMeds,
                 takenMedicationIds = takenIds,
                 achievedTier = displayTier,
-                isUserSet = userRow != null
+                isUserSet = userRow != null,
+                intendedTime = anySlotRow?.intendedTime,
+                loggedAt = anySlotRow?.loggedAt
             )
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000L), emptyList())
@@ -174,6 +203,29 @@ constructor(
                     medicationId = med.id,
                     slotKey = slot.id.toString(),
                     intendedAt = now
+                )
+            }
+        }
+    }
+
+    /**
+     * Set a user-claimed intended_time on every per-(medication, slot, today)
+     * tier-state row for the given slot. Materializes any missing rows via
+     * an auto-compute pass first so the column is non-null after the call.
+     */
+    fun setIntendedTimeForSlot(slot: MedicationSlotEntity, intendedTime: Long) {
+        viewModelScope.launch {
+            val date = todayDate.value
+            val meds = medicationsForSlotOnce(slot.id)
+            // Ensure every per-med row exists — refreshTierState writes
+            // COMPUTED rows for any missing (med, slot, date) triple.
+            refreshTierState(slot.id)
+            meds.forEach { med ->
+                slotRepository.setTierStateIntendedTime(
+                    medicationId = med.id,
+                    slotId = slot.id,
+                    date = date,
+                    intendedTime = intendedTime
                 )
             }
         }

@@ -9,6 +9,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Show "Taken at HH:mm" on each medication slot card + bump log
+  time visibility** — Previously the MedicationScreen surfaced a
+  backlogged-indicator clock icon but never the actual wall-clock
+  time the user claimed to have taken a dose. Each slot card now
+  renders a "Taken at 8:30 AM" line under the slot name when a
+  tier-state row exists for today, preferring `intended_time` (the
+  user's declared moment) and falling back to `logged_at` otherwise.
+  When backlogged, the line surfaces BOTH moments — "Taken 8:05 AM ·
+  Logged 10:30 AM" — so the gap is legible, not hidden behind the
+  clock icon. In the medication log, per-dose `takenAt` was promoted
+  from `labelSmall` / muted color to `bodySmall` / primary so it
+  reads as primary row metadata. `takenTimeLabel` is a pure helper;
+  6 unit tests cover the no-data, logged-only, intended-only,
+  backlogged-both, and user-override-without-taken edge cases.
+
+- **Medication entities now sync through `/sync/push`** — Wires
+  `BackendSyncService.pushChanges()` to push `medication`,
+  `medication_slot`, `medication_tier_state`, and `medication_mark`
+  rows whose `updatedAt > since`. Tier-state and mark mappers send
+  `*_cloud_id` references (resolved server-side); rows whose parents
+  haven't yet been assigned a cloud_id are skipped and retried on the
+  next sync. Closes the loop on PR1's audit table — every backdated
+  intended_time will now produce a `medication_log_events` row in
+  the backend Postgres for Data Safety / debugging visibility.
+
+- **Medication time logging — long-press time editor + backlogged
+  indicator (PR3 of 4)** — Long-press on a slot's tier chip in the
+  Medication screen now opens `MedicationTimeEditSheet`, a Material 3
+  bottom-sheet `TimePicker` that stamps an `intended_time` on every
+  per-medication tier-state row for the slot. Future times are capped
+  to `now` (no forward-dating). When the saved `intended_time` differs
+  from the row's `logged_at` by more than 60 s, a small clock icon
+  appears on the tier chip — `MedicationSlotTodayState.isBacklogged`
+  drives the indicator. Tapping the chip retains the existing skip /
+  unskip behaviour. Per-medication mark UX (long-press individual
+  medication rows) is deferred to a follow-up PR to keep this
+  reviewable.
+
+- **Medication time logging — Room schema + Firestore sync (PR2 of 4)** —
+  Bumps Room DB to **v63** via `MIGRATION_62_63`. Adds `intended_time`
+  (nullable) and `logged_at` (NOT NULL, backfilled from `updated_at`)
+  columns to `medication_tier_states`. Creates the new
+  `medication_marks` table for per-medication marks within a slot, with
+  cloud-id sync and CASCADE FKs to `medications` + `medication_tier_states`.
+  `MedicationSyncMapper` round-trips the new fields on tier-states and
+  the new mark entity. `CloudIdOrphanHealer` registers
+  `medication_marks` as a synced family. `intended_time` stays NULL on
+  legacy rows — the UI must display "we don't know" honestly until a
+  user-touch backfills. No UI changes (PR3).
 - **Medication time logging — parity with Android (PR4 of 4)** —
   Adds `intended_time` (nullable) + `logged_at` columns to the
   `users/{uid}/medication_tier_states/{dateIso}__{slotKey}` Firestore

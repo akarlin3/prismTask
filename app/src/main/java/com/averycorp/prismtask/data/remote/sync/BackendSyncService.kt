@@ -4,6 +4,10 @@ import com.averycorp.prismtask.data.billing.BillingManager
 import com.averycorp.prismtask.data.local.dao.DailyEssentialSlotCompletionDao
 import com.averycorp.prismtask.data.local.dao.HabitCompletionDao
 import com.averycorp.prismtask.data.local.dao.HabitDao
+import com.averycorp.prismtask.data.local.dao.MedicationDao
+import com.averycorp.prismtask.data.local.dao.MedicationMarkDao
+import com.averycorp.prismtask.data.local.dao.MedicationSlotDao
+import com.averycorp.prismtask.data.local.dao.MedicationTierStateDao
 import com.averycorp.prismtask.data.local.dao.ProjectDao
 import com.averycorp.prismtask.data.local.dao.TagDao
 import com.averycorp.prismtask.data.local.dao.TaskDao
@@ -50,6 +54,10 @@ constructor(
     private val habitCompletionDao: HabitCompletionDao,
     private val taskTemplateDao: TaskTemplateDao,
     private val slotCompletionDao: DailyEssentialSlotCompletionDao,
+    private val medicationDao: MedicationDao,
+    private val medicationSlotDao: MedicationSlotDao,
+    private val medicationTierStateDao: MedicationTierStateDao,
+    private val medicationMarkDao: MedicationMarkDao,
     private val authTokenPreferences: AuthTokenPreferences,
     private val backendSyncPreferences: BackendSyncPreferences,
     private val templatePreferences: TemplatePreferences,
@@ -276,6 +284,48 @@ constructor(
         slotCompletionDao
             .getChangedSince(since)
             .forEach { operations += slotCompletionToOperation(it) }
+
+        // Medication time-logging entities (PR4 follow-up). Push order
+        // matters: parents (medication, medication_slot) must arrive
+        // before children (tier_state, mark) so the server-side
+        // cloud_id resolution can find them. Within each row, we look
+        // up the parent cloud_ids from local Room — entities whose
+        // parents haven't synced yet (no cloud_id) are skipped and
+        // retried next sync.
+        val medications = medicationDao.getAllOnce().filter { it.updatedAt > since }
+        medications.forEach { operations += medicationToOperation(it) }
+
+        val slots = medicationSlotDao.getAllOnce().filter { it.updatedAt > since }
+        slots.forEach { operations += medicationSlotToOperation(it) }
+
+        // Build local id -> cloud_id maps once so the per-row lookups
+        // below don't fan out into N+1 DB queries.
+        val medCloudIdsById: Map<Long, String?> =
+            medicationDao.getAllOnce().associate { it.id to it.cloudId }
+        val slotCloudIdsById: Map<Long, String?> =
+            medicationSlotDao.getAllOnce().associate { it.id to it.cloudId }
+
+        val tierStates = medicationTierStateDao.getAllOnce().filter { it.updatedAt > since }
+        val tierStateCloudIdsById: Map<Long, String?> =
+            medicationTierStateDao.getAllOnce().associate { it.id to it.cloudId }
+        tierStates.forEach { state ->
+            val op = medicationTierStateToOperation(
+                state,
+                medicationCloudId = medCloudIdsById[state.medicationId],
+                slotCloudId = slotCloudIdsById[state.slotId]
+            )
+            if (op != null) operations += op
+        }
+
+        val marks = medicationMarkDao.getAllOnce().filter { it.updatedAt > since }
+        marks.forEach { mark ->
+            val op = medicationMarkToOperation(
+                mark,
+                medicationCloudId = medCloudIdsById[mark.medicationId],
+                tierStateCloudId = tierStateCloudIdsById[mark.medicationTierStateId]
+            )
+            if (op != null) operations += op
+        }
 
         if (operations.isEmpty()) return 0
 

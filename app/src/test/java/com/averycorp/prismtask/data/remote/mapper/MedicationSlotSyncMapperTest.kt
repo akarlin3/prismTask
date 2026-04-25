@@ -1,6 +1,7 @@
 package com.averycorp.prismtask.data.remote.mapper
 
 import com.averycorp.prismtask.data.local.entity.MedicationEntity
+import com.averycorp.prismtask.data.local.entity.MedicationMarkEntity
 import com.averycorp.prismtask.data.local.entity.MedicationSlotEntity
 import com.averycorp.prismtask.data.local.entity.MedicationSlotOverrideEntity
 import com.averycorp.prismtask.data.local.entity.MedicationTierStateEntity
@@ -208,5 +209,122 @@ class MedicationSlotSyncMapperTest {
     fun extractSlotCloudIds_missingFieldReturnsEmpty() {
         val data = mapOf<String, Any?>("name" to "X")
         assertEquals(emptyList<String>(), MedicationSyncMapper.extractSlotCloudIds(data))
+    }
+
+    // --- v1.5.4 medication time logging (PR2 of 4) ---
+
+    @Test
+    fun medicationTierState_roundTripsIntendedTimeAndLoggedAt() {
+        val source = MedicationTierStateEntity(
+            id = 12,
+            medicationId = 1,
+            slotId = 1,
+            logDate = "2026-04-23",
+            tier = "complete",
+            tierSource = "user_set",
+            intendedTime = 1_700_000_000_000L,
+            loggedAt = 1_700_000_360_000L,
+            createdAt = 1_700_000_360_000L,
+            updatedAt = 1_700_000_360_000L
+        )
+        val map = MedicationSyncMapper.medicationTierStateToMap(
+            source,
+            medicationCloudId = "med-c",
+            slotCloudId = "slot-c"
+        )
+        // Confirm both fields land in the wire payload.
+        assertEquals(1_700_000_000_000L, map["intendedTime"])
+        assertEquals(1_700_000_360_000L, map["loggedAt"])
+
+        val decoded = MedicationSyncMapper.mapToMedicationTierState(
+            map,
+            localId = source.id,
+            medicationLocalId = 1,
+            slotLocalId = 1,
+            cloudId = "ts-c"
+        )
+        assertEquals(1_700_000_000_000L, decoded.intendedTime)
+        assertEquals(1_700_000_360_000L, decoded.loggedAt)
+    }
+
+    @Test
+    fun medicationTierState_legacyDocWithoutLoggedAtFallsBackToUpdatedAt() {
+        // Pulled docs from older clients won't carry the new fields.
+        // intendedTime stays null; loggedAt falls back to updatedAt so
+        // every row has a non-zero stamp.
+        val legacy = mapOf<String, Any?>(
+            "logDate" to "2026-01-01",
+            "tier" to "essential",
+            "tierSource" to "computed",
+            "createdAt" to 100L,
+            "updatedAt" to 200L
+        )
+        val decoded = MedicationSyncMapper.mapToMedicationTierState(
+            legacy,
+            localId = 1,
+            medicationLocalId = 1,
+            slotLocalId = 1,
+            cloudId = "legacy"
+        )
+        assertEquals(null, decoded.intendedTime)
+        assertEquals(200L, decoded.loggedAt)
+    }
+
+    @Test
+    fun medicationMark_roundTripsAllFields() {
+        val source = MedicationMarkEntity(
+            id = 5,
+            medicationId = 1,
+            medicationTierStateId = 1,
+            intendedTime = 1_700_000_000_000L,
+            loggedAt = 1_700_000_300_000L,
+            markedTaken = true,
+            updatedAt = 1_700_000_300_000L
+        )
+        val map = MedicationSyncMapper.medicationMarkToMap(
+            source,
+            medicationCloudId = "med-c",
+            tierStateCloudId = "ts-c"
+        )
+        assertEquals(1_700_000_000_000L, map["intendedTime"])
+        assertEquals(1_700_000_300_000L, map["loggedAt"])
+        assertEquals(true, map["markedTaken"])
+
+        val decoded = MedicationSyncMapper.mapToMedicationMark(
+            map,
+            localId = source.id,
+            medicationLocalId = 1,
+            tierStateLocalId = 1,
+            cloudId = "mark-c"
+        )
+        assertEquals("mark-c", decoded.cloudId)
+        assertEquals(source.copy(cloudId = "mark-c"), decoded)
+    }
+
+    @Test
+    fun medicationMark_unmarkedRoundTrips() {
+        val source = MedicationMarkEntity(
+            id = 6,
+            medicationId = 1,
+            medicationTierStateId = 1,
+            intendedTime = null,
+            loggedAt = 5_000L,
+            markedTaken = false,
+            updatedAt = 5_000L
+        )
+        val map = MedicationSyncMapper.medicationMarkToMap(
+            source,
+            medicationCloudId = "m",
+            tierStateCloudId = "t"
+        )
+        val decoded = MedicationSyncMapper.mapToMedicationMark(
+            map,
+            localId = source.id,
+            medicationLocalId = 1,
+            tierStateLocalId = 1,
+            cloudId = "mark-x"
+        )
+        assertEquals(false, decoded.markedTaken)
+        assertEquals(null, decoded.intendedTime)
     }
 }

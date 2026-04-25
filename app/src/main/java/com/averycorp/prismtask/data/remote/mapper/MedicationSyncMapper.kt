@@ -198,6 +198,8 @@ object MedicationSyncMapper {
         "logDate" to state.logDate,
         "tier" to state.tier,
         "tierSource" to state.tierSource,
+        "intendedTime" to state.intendedTime,
+        "loggedAt" to state.loggedAt,
         "createdAt" to state.createdAt,
         "updatedAt" to state.updatedAt
     )
@@ -208,15 +210,57 @@ object MedicationSyncMapper {
         medicationLocalId: Long = 0,
         slotLocalId: Long = 0,
         cloudId: String? = null
-    ): MedicationTierStateEntity = MedicationTierStateEntity(
-        id = localId,
-        cloudId = cloudId,
-        medicationId = medicationLocalId,
-        slotId = slotLocalId,
-        logDate = data["logDate"] as? String ?: "",
-        tier = data["tier"] as? String ?: "skipped",
-        tierSource = data["tierSource"] as? String ?: "computed",
-        createdAt = (data["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
-        updatedAt = (data["updatedAt"] as? Number)?.toLong() ?: System.currentTimeMillis()
+    ): MedicationTierStateEntity {
+        // Pulled docs from older clients won't carry intendedTime / loggedAt.
+        // intendedTime stays null (honest "we don't know"); loggedAt falls
+        // back to updatedAt so every row has a non-zero stamp.
+        val updatedAt = (data["updatedAt"] as? Number)?.toLong() ?: System.currentTimeMillis()
+        return MedicationTierStateEntity(
+            id = localId,
+            cloudId = cloudId,
+            medicationId = medicationLocalId,
+            slotId = slotLocalId,
+            logDate = data["logDate"] as? String ?: "",
+            tier = data["tier"] as? String ?: "skipped",
+            tierSource = data["tierSource"] as? String ?: "computed",
+            intendedTime = (data["intendedTime"] as? Number)?.toLong(),
+            loggedAt = (data["loggedAt"] as? Number)?.toLong() ?: updatedAt,
+            createdAt = (data["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
+            updatedAt = updatedAt
+        )
+    }
+
+    fun medicationMarkToMap(
+        mark: com.averycorp.prismtask.data.local.entity.MedicationMarkEntity,
+        medicationCloudId: String,
+        tierStateCloudId: String
+    ): Map<String, Any?> = mapOf(
+        "localId" to mark.id,
+        "medicationCloudId" to medicationCloudId,
+        "tierStateCloudId" to tierStateCloudId,
+        "intendedTime" to mark.intendedTime,
+        "loggedAt" to mark.loggedAt,
+        "markedTaken" to mark.markedTaken,
+        "updatedAt" to mark.updatedAt
     )
+
+    fun mapToMedicationMark(
+        data: Map<String, Any?>,
+        localId: Long = 0,
+        medicationLocalId: Long = 0,
+        tierStateLocalId: Long = 0,
+        cloudId: String? = null
+    ): com.averycorp.prismtask.data.local.entity.MedicationMarkEntity {
+        val updatedAt = (data["updatedAt"] as? Number)?.toLong() ?: System.currentTimeMillis()
+        return com.averycorp.prismtask.data.local.entity.MedicationMarkEntity(
+            id = localId,
+            cloudId = cloudId,
+            medicationId = medicationLocalId,
+            medicationTierStateId = tierStateLocalId,
+            intendedTime = (data["intendedTime"] as? Number)?.toLong(),
+            loggedAt = (data["loggedAt"] as? Number)?.toLong() ?: updatedAt,
+            markedTaken = (data["markedTaken"] as? Boolean) ?: true,
+            updatedAt = updatedAt
+        )
+    }
 }

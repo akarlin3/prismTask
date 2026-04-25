@@ -3,6 +3,10 @@ package com.averycorp.prismtask.data.remote.sync
 import com.averycorp.prismtask.data.local.entity.DailyEssentialSlotCompletionEntity
 import com.averycorp.prismtask.data.local.entity.HabitCompletionEntity
 import com.averycorp.prismtask.data.local.entity.HabitEntity
+import com.averycorp.prismtask.data.local.entity.MedicationEntity
+import com.averycorp.prismtask.data.local.entity.MedicationMarkEntity
+import com.averycorp.prismtask.data.local.entity.MedicationSlotEntity
+import com.averycorp.prismtask.data.local.entity.MedicationTierStateEntity
 import com.averycorp.prismtask.data.local.entity.ProjectEntity
 import com.averycorp.prismtask.data.local.entity.TagEntity
 import com.averycorp.prismtask.data.local.entity.TaskEntity
@@ -236,6 +240,114 @@ internal fun JsonObject.optBool(key: String): Boolean? =
  */
 internal fun millisToIso(millis: Long): String =
     Instant.ofEpochMilli(millis).toString()
+
+// region Medication time-logging entities (PR4 follow-up)
+//
+// Medication entities (medication, medication_slot, medication_tier_state,
+// medication_mark) sync to the backend through the same /sync/push surface
+// as tasks/habits, but tier_state and mark reference their parents by
+// `*_cloud_id` rather than local integer FK. Local Android ids and
+// backend integer ids never agree, so the only safe cross-system handle
+// is the user-generated cloud_id. The resolver
+// `_resolve_cloud_fk_for_medication` in routers/sync.py turns those back
+// into integer FKs at write time.
+
+internal fun medicationToOperation(med: MedicationEntity): SyncOperation {
+    val data = JsonObject().apply {
+        if (med.cloudId != null) addProperty("cloud_id", med.cloudId)
+        addProperty("name", med.name)
+        if (med.notes.isNotBlank()) addProperty("notes", med.notes)
+        addProperty("is_active", !med.isArchived)
+    }
+    return SyncOperation(
+        entityType = "medication",
+        operation = "update",
+        entityId = med.id,
+        data = data,
+        clientTimestamp = millisToIso(med.updatedAt)
+    )
+}
+
+internal fun medicationSlotToOperation(slot: MedicationSlotEntity): SyncOperation {
+    val data = JsonObject().apply {
+        if (slot.cloudId != null) addProperty("cloud_id", slot.cloudId)
+        addProperty("slot_key", slot.name)
+        addProperty("ideal_time", slot.idealTime)
+        addProperty("drift_minutes", slot.driftMinutes)
+        addProperty("is_active", slot.isActive)
+    }
+    return SyncOperation(
+        entityType = "medication_slot",
+        operation = "update",
+        entityId = slot.id,
+        data = data,
+        clientTimestamp = millisToIso(slot.updatedAt)
+    )
+}
+
+/**
+ * Build a tier-state push op. Caller must supply [medicationCloudId] and
+ * [slotCloudId] — looked up from the parents' Room rows. Returns null if
+ * either parent doesn't have a cloud_id yet (parents must sync first).
+ */
+internal fun medicationTierStateToOperation(
+    state: MedicationTierStateEntity,
+    medicationCloudId: String?,
+    slotCloudId: String?
+): SyncOperation? {
+    if (medicationCloudId.isNullOrBlank() || slotCloudId.isNullOrBlank()) return null
+    val data = JsonObject().apply {
+        if (state.cloudId != null) addProperty("cloud_id", state.cloudId)
+        addProperty("medication_cloud_id", medicationCloudId)
+        addProperty("slot_cloud_id", slotCloudId)
+        addProperty("log_date", state.logDate)
+        addProperty("tier", state.tier)
+        addProperty("tier_source", state.tierSource)
+        if (state.intendedTime != null) {
+            addProperty("intended_time", millisToIso(state.intendedTime))
+        }
+        addProperty("logged_at", millisToIso(state.loggedAt))
+    }
+    return SyncOperation(
+        entityType = "medication_tier_state",
+        operation = "update",
+        entityId = state.id,
+        data = data,
+        clientTimestamp = millisToIso(state.updatedAt)
+    )
+}
+
+/**
+ * Build a mark push op. Caller must supply [medicationCloudId] and
+ * [tierStateCloudId] — looked up from the parents' Room rows. Returns
+ * null if either parent doesn't have a cloud_id yet.
+ */
+internal fun medicationMarkToOperation(
+    mark: MedicationMarkEntity,
+    medicationCloudId: String?,
+    tierStateCloudId: String?
+): SyncOperation? {
+    if (medicationCloudId.isNullOrBlank() || tierStateCloudId.isNullOrBlank()) return null
+    val data = JsonObject().apply {
+        if (mark.cloudId != null) addProperty("cloud_id", mark.cloudId)
+        addProperty("medication_cloud_id", medicationCloudId)
+        addProperty("tier_state_cloud_id", tierStateCloudId)
+        if (mark.intendedTime != null) {
+            addProperty("intended_time", millisToIso(mark.intendedTime))
+        }
+        addProperty("logged_at", millisToIso(mark.loggedAt))
+        addProperty("marked_taken", mark.markedTaken)
+    }
+    return SyncOperation(
+        entityType = "medication_mark",
+        operation = "update",
+        entityId = mark.id,
+        data = data,
+        clientTimestamp = millisToIso(mark.updatedAt)
+    )
+}
+
+// endregion
 
 /**
  * Convert an epoch-millis day-start into the ``YYYY-MM-DD`` form that
