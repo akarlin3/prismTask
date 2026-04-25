@@ -59,6 +59,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.6.0] — 2026-04-24
 
+> The 1.6.0 entry captures work that landed across several tagged builds
+> (`v1.5.0`, `v1.5.2`, `v1.5.3`, and the four 1.6.0 medication-reminder-mode
+> PRs) but was never split into per-tag CHANGELOG sections at release time.
+> Anchor entries for the intermediate tags point back up to the matching
+> subsections below.
+
 ### Medication reminder mode — Web settings UI (PR4 of 4)
 
 - **Settings → Medication Reminders** (web) gains a Clock / Interval
@@ -822,6 +828,57 @@ Phase G roadmap.
 - Added Repo conventions section to CLAUDE.md
 - Promoted the Unreleased section's v1.4.35/v1.4.36/v1.4.37/v1.4.38/v1.4.40 sub-headers to top-level version headers; un-tagged entries between v1.4.0 and v1.4.34 grouped under a new "v1.4.1–v1.4.34 — Interim releases" section for later attribution
 - Added androidTest migration coverage for migrations 48→49, 49→50, 50→51, and 52→53 (all other migrations from v47→v57 now have at least one direct-SQL migration test)
+
+## [1.5.3] — 2026-04-23
+
+Release-pipeline-only patch tag. Content is captured in the `[1.6.0]` section
+above; the relevant subsections are:
+
+- ci(release): unblock publish on backend-upload failure
+- ci(release): make `Create GitHub Release` idempotent
+
+No app or backend code changes — versionCode bumped solely so the release
+pipeline could re-run a failed publish step against a non-conflicting tag.
+
+## [1.5.2] — 2026-04-23
+
+Tag captured the Web parity push (slices 1–22) plus the migration-tests
+follow-ups. Content is in the `[1.6.0]` section above; relevant subsections:
+
+- `### Web` — slices 1–22 (NLP batch ops on web, named themes & onboarding,
+  AI daily briefing + weekly planner, analytics dashboard, conversation
+  extraction, Pomodoro+ AI coaching, Eisenhower text classifier, task editor
+  schedule-tab parity, Today polish + Start-of-Day, dedicated medication
+  screen, templates parity, settings sections bundle, theme typography,
+  theme shape + decorative flags, TAG_CHANGE batch + tag persistence,
+  client-side analytics project-progress, medication tier picker + slot
+  CRUD, custom habit + project template authoring, mood & energy tracking,
+  morning check-in + forgiveness streak, boundaries + burnout scorer,
+  focus release + good-enough timer)
+- `### Repo hygiene` — branch protection on `main`; Web CI job-name
+  disambiguation
+- Migration tests added for migrations 48→49 / 49→50 / 50→51 / 52→53
+
+## [1.5.0] — 2026-04-23
+
+Tag captured the medication slot system landing end-to-end (A2 #6 + A2 #7).
+Content is in the `[1.6.0]` section above; relevant subsections:
+
+- `### Medication slot system — schema + backfill (A2 #6 PR1)` —
+  three new entities (`medication_slots`, `medication_slot_overrides`,
+  `medication_tier_states`) + junction; migrations 58→59 / 59→60;
+  `MedicationTierComputer` auto-compute logic; `CloudIdOrphanHealer`
+  expanded to 35 families
+- `### Medication slot system — slot editor + tier picker + override
+  toggle (A2 #6 PR2)` — `Settings → Medication Slots`,
+  `MedicationSlotsViewModel`, reusable `MedicationTierRadio` /
+  `MedicationSlotPicker` composables
+- `### Medication slot system — MedicationScreen rewire (A2 #6 + #7 PR3)`
+  — full screen rewrite reading from `MedicationEntity` + slot junction
+
+Also captured under v1.5.0: `BatchUndoLogDao` test-module wiring,
+`StartupCrashDiagnosticTest` updates for DB v58, and three
+`MedicationSlotDao` test-module wirings (PR #702).
 
 ## v1.4.40 — AI Time Blocking: horizon selector + mandatory preview (April 2026)
 
