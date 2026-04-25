@@ -81,6 +81,25 @@ constructor(
     }
 
     /**
+     * Resolve current tag names for [taskIds]. The preview screen calls
+     * this so a TAG_CHANGE row can render a before/after diff (kept tags
+     * neutral, additions green, removals red) without round-tripping
+     * tag info through the AI response. One `getAllTagsOnce` plus one
+     * `getTagIdsForTaskOnce` per id — fine for the ≤25-mutation cap on
+     * a batch.
+     */
+    suspend fun getTagNamesForTasks(taskIds: List<Long>): Map<Long, List<String>> {
+        if (taskIds.isEmpty()) return emptyMap()
+        val idToName = tagDao.getAllTagsOnce().associate { it.id to it.name }
+        val out = mutableMapOf<Long, List<String>>()
+        for (id in taskIds) {
+            val tagIds = tagDao.getTagIdsForTaskOnce(id)
+            out[id] = tagIds.mapNotNull { idToName[it] }.sorted()
+        }
+        return out
+    }
+
+    /**
      * Apply [mutations] in a single Room transaction. Each affected
      * entity gets its pre-mutation state snapshotted to `batch_undo_log`
      * before the mutation runs. Returns the shared `batch_id`.
