@@ -5,7 +5,8 @@
  * Entity and mutation string literals must match the backend regexes:
  *   _BATCH_ENTITY_TYPE_PATTERN   = "^(TASK|HABIT|PROJECT|MEDICATION)$"
  *   _BATCH_MUTATION_TYPE_PATTERN = "^(RESCHEDULE|DELETE|COMPLETE|SKIP|
- *                                   PRIORITY_CHANGE|TAG_CHANGE|PROJECT_MOVE|ARCHIVE)$"
+ *                                   PRIORITY_CHANGE|TAG_CHANGE|PROJECT_MOVE|
+ *                                   ARCHIVE|STATE_CHANGE)$"
  */
 
 export type BatchEntityType = 'TASK' | 'HABIT' | 'PROJECT' | 'MEDICATION';
@@ -18,7 +19,8 @@ export type BatchMutationType =
   | 'PRIORITY_CHANGE'
   | 'TAG_CHANGE'
   | 'PROJECT_MOVE'
-  | 'ARCHIVE';
+  | 'ARCHIVE'
+  | 'STATE_CHANGE';
 
 /** One task as the backend sees it in `BatchTaskContext`. Priority is the
  *  Android 0–4 scale (0=None, 4=Urgent); callers convert with

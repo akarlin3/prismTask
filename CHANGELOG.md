@@ -9,6 +9,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Medication batch mutations (NLP / Haiku → BatchPreview → undo)** —
+  Natural-language commands like "took my morning meds" or "skip evening
+  Adderall" now parse, preview, apply, and undo as a batch — closing the
+  Option-C deferral that previously accepted medication mutations from
+  the AI plan but refused to write them. `BatchEntityType.MEDICATION` is
+  paired with four mutation verbs: `COMPLETE` (insert real
+  `MedicationDoseEntity`), `SKIP` (insert synthetic-skip dose so the
+  interval-mode rescheduler re-anchors, plus tier-state="skipped"),
+  `DELETE` (remove the matching real dose), and a new
+  `BatchMutationType.STATE_CHANGE` for manual tier overrides
+  (`tier_source = "user_set"`). Every path snapshots its pre-state into
+  `batch_undo_log` so the 24h Snackbar undo restores exact prior state.
+  `slot_key` from Haiku resolves to a `MedicationSlotEntity` by
+  case-insensitive name match; STATE_CHANGE skips the mutation if the
+  slot is missing, SKIP gracefully proceeds without the tier-state
+  write. Web parity ships in the same change: the Firestore-side
+  `users/{uid}/medication_tier_states/{date}__{slot}` doc absorbs every
+  medication mutation idempotently — multiple mutations on the same
+  slot collapse onto one tier-state row, matching web's slot-level UX
+  (web has no per-medication dose collection, so DELETE on MEDICATION
+  is rejected on web with a clear reason). The Haiku system prompt + the
+  Pydantic `_BATCH_MUTATION_TYPE_PATTERN` regex both gain `STATE_CHANGE`,
+  and the BatchPreview row renders a target-tier chip
+  ("→ prescription (evening)") for STATE_CHANGE mutations on MEDICATION.
 - **Built-in habit template versioning + diff/approve/detach UI** —
   Migrates the 6 code-defined built-in habits (School, Leisure,
   Morning Self-Care, Bedtime Self-Care, Medication, Housework)

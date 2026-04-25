@@ -14,6 +14,8 @@ import { firestore } from '@/lib/firebase';
 import { dateStrToTimestamp } from '@/api/firestore/converters';
 import { setTagsForTask } from '@/api/firestore/tasks';
 import * as firestoreTags from '@/api/firestore/tags';
+import * as medicationSlots from '@/api/firestore/medicationSlots';
+import type { MedicationTier } from '@/api/firestore/medicationSlots';
 import type {
   BatchMutationType,
   BatchUndoLogEntry,
@@ -33,9 +35,13 @@ import type {
  *     TAG_CHANGE (slice 15 wired task tag persistence + resolver).
  *   - HABIT: COMPLETE, SKIP, ARCHIVE, DELETE
  *   - PROJECT: ARCHIVE, DELETE
- *
- * Deferred (mutation returned as skipped):
- *   - MEDICATION: matches Android's "Option C" — plan accepted, no write.
+ *   - MEDICATION: COMPLETE, SKIP, STATE_CHANGE (writes the slot's
+ *     tier-state at `users/{uid}/medication_tier_states/{date}__{slot}`).
+ *     Web has no per-medication dose collection, so multiple medication
+ *     mutations targeting the same (date, slot) collapse onto the same
+ *     tier-state row idempotently — matches the slot-level UX. DELETE
+ *     on MEDICATION is not supported on web because there is no per-
+ *     medication dose to remove (Android dose-tracking has no web peer).
  */
 
 export interface ApplyOutcome {
@@ -92,7 +98,12 @@ export async function applyMutation(
       case 'PROJECT':
         return await applyProjectMutation(uid, entity_id, mutation_type);
       case 'MEDICATION':
-        return { applied: false, reason: 'medication mutations deferred to follow-up' };
+        return await applyMedicationMutation(
+          uid,
+          entity_id,
+          mutation_type,
+          proposed_new_values,
+        );
     }
   } catch (e) {
     return { applied: false, reason: (e as Error).message || 'apply failed' };
@@ -357,6 +368,82 @@ async function applyHabitMutation(
   }
 }
 
+async function applyMedicationMutation(
+  uid: string,
+  entityId: string,
+  mutationType: BatchMutationType,
+  values: Record<string, unknown>,
+): Promise<ApplyOutcome> {
+  const slotKey = typeof values.slot_key === 'string' ? values.slot_key : null;
+  if (slotKey == null) {
+    return { applied: false, reason: 'missing slot_key' };
+  }
+  const dateIso =
+    typeof values.date === 'string'
+      ? values.date
+      : new Date().toISOString().slice(0, 10);
+
+  // Resolve the desired tier per mutation. Web has no per-medication dose
+  // collection — every medication mutation collapses onto the slot's
+  // tier-state row. Multiple mutations on the same (date, slot) are
+  // therefore idempotent at write time.
+  let nextTier: MedicationTier | null = null;
+  switch (mutationType) {
+    case 'COMPLETE':
+      nextTier = 'complete';
+      break;
+    case 'SKIP':
+      nextTier = 'skipped';
+      break;
+    case 'STATE_CHANGE': {
+      const raw = typeof values.tier === 'string' ? values.tier.toLowerCase() : '';
+      if (
+        raw === 'skipped' ||
+        raw === 'essential' ||
+        raw === 'prescription' ||
+        raw === 'complete'
+      ) {
+        nextTier = raw;
+      } else {
+        return { applied: false, reason: `invalid tier: ${values.tier}` };
+      }
+      break;
+    }
+    case 'DELETE':
+      // Web has no per-medication dose to remove; the matching Android
+      // path deletes a `MedicationDoseEntity` row. Skip with a reason
+      // so the preview screen can surface "not supported on web."
+      return {
+        applied: false,
+        reason: 'DELETE on MEDICATION not supported on web (no per-dose tracking)',
+      };
+    default:
+      return {
+        applied: false,
+        reason: `unsupported medication mutation: ${mutationType}`,
+      };
+  }
+
+  const prior = await medicationSlots.getTierState(uid, dateIso, slotKey);
+  await medicationSlots.setTierState(uid, dateIso, slotKey, nextTier, 'user_set');
+  return {
+    applied: true,
+    entry: {
+      entity_type: 'MEDICATION',
+      entity_id: entityId,
+      mutation_type: mutationType,
+      pre_state: {
+        date_iso: dateIso,
+        slot_key: slotKey,
+        prior_existed: prior != null,
+        prior_tier: prior?.tier ?? null,
+        prior_source: prior?.source ?? null,
+      },
+      applied: true,
+    },
+  };
+}
+
 async function applyProjectMutation(
   uid: string,
   id: string,
@@ -406,7 +493,7 @@ export async function undoEntry(
       case 'PROJECT':
         return await undoProjectEntry(uid, entry);
       case 'MEDICATION':
-        return false;
+        return await undoMedicationEntry(uid, entry);
     }
   } catch {
     return false;
@@ -512,5 +599,25 @@ async function undoProjectEntry(
     archivedAt: pre.archivedAt ?? null,
     updatedAt: now,
   });
+  return true;
+}
+
+async function undoMedicationEntry(
+  uid: string,
+  entry: BatchUndoLogEntry,
+): Promise<boolean> {
+  const pre = entry.pre_state;
+  const dateIso = typeof pre.date_iso === 'string' ? pre.date_iso : null;
+  const slotKey = typeof pre.slot_key === 'string' ? pre.slot_key : null;
+  if (dateIso == null || slotKey == null) return false;
+  const priorExisted = pre.prior_existed === true;
+  if (priorExisted) {
+    const tier = pre.prior_tier as MedicationTier | null;
+    const source = pre.prior_source as 'auto' | 'user_set' | null;
+    if (tier == null) return false;
+    await medicationSlots.setTierState(uid, dateIso, slotKey, tier, source ?? 'auto');
+  } else {
+    await medicationSlots.clearTierState(uid, dateIso, slotKey);
+  }
   return true;
 }

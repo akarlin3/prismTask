@@ -306,6 +306,163 @@ class TestBatchParseService:
             "tags_removed missing from the proposed_new_values schema"
         )
 
+    def test_system_prompt_documents_medication_complete_and_skip(self):
+        """Haiku must keep COMPLETE/SKIP on MEDICATION in the schema list
+        so medication batch commands don't silently regress to TASK-only."""
+        from app.services.ai_productivity import _BATCH_PARSE_SYSTEM_PROMPT
+
+        assert "COMPLETE on" in _BATCH_PARSE_SYSTEM_PROMPT and "MEDICATION" in _BATCH_PARSE_SYSTEM_PROMPT, (
+            "COMPLETE on MEDICATION missing from prompt"
+        )
+        assert "SKIP on" in _BATCH_PARSE_SYSTEM_PROMPT, "SKIP missing from prompt"
+        assert "slot_key" in _BATCH_PARSE_SYSTEM_PROMPT, (
+            "slot_key field missing from medication COMPLETE/SKIP schema"
+        )
+
+    def test_system_prompt_documents_state_change_schema(self):
+        """STATE_CHANGE is the medication-tier override mutation. The Android
+        and web apply paths key off the literal token; if it falls out of the
+        prompt's mutation_type union, the AI stops emitting it and tier
+        overrides silently regress to TASK-only mutations."""
+        from app.services.ai_productivity import _BATCH_PARSE_SYSTEM_PROMPT
+
+        assert "STATE_CHANGE" in _BATCH_PARSE_SYSTEM_PROMPT, (
+            "STATE_CHANGE missing from the mutation_type union"
+        )
+        assert "STATE_CHANGE on MEDICATION" in _BATCH_PARSE_SYSTEM_PROMPT, (
+            "STATE_CHANGE on MEDICATION schema bullet missing"
+        )
+        assert "tier" in _BATCH_PARSE_SYSTEM_PROMPT, (
+            "tier field missing from STATE_CHANGE schema"
+        )
+
+    def test_pydantic_accepts_state_change_mutation_type(self):
+        """Schemas regex must include STATE_CHANGE — otherwise Pydantic
+        rejects the AI response and the whole batch fails."""
+        from app.schemas.ai import ProposedMutation
+
+        # Must not raise
+        ProposedMutation(
+            entity_type="MEDICATION",
+            entity_id="med-1",
+            mutation_type="STATE_CHANGE",
+            proposed_new_values={
+                "tier": "skipped",
+                "date": "2026-04-25",
+                "slot_key": "morning",
+            },
+            human_readable_description="Mark morning tier as skipped",
+        )
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "sk-test-key"})
+    def test_complete_on_medication_round_trips_with_slot_key(self):
+        """COMPLETE on MEDICATION carries date + slot_key — the Android
+        applyMedicationMutation path keys off both fields to match the
+        right dose row."""
+        from app.services.ai_productivity import parse_batch_command
+
+        with patch("app.services.ai_productivity.anthropic") as mock_anthropic:
+            mock_client = MagicMock()
+            mock_anthropic.Anthropic.return_value = mock_client
+            mock_client.messages.create.return_value = _make_mock_response(
+                {
+                    "mutations": [
+                        {
+                            "entity_type": "MEDICATION",
+                            "entity_id": "med-1",
+                            "mutation_type": "COMPLETE",
+                            "proposed_new_values": {
+                                "date": "2026-04-25",
+                                "slot_key": "morning",
+                            },
+                            "human_readable_description": "Mark Adderall taken (morning)",
+                        }
+                    ],
+                    "confidence": 0.96,
+                    "ambiguous_entities": [],
+                }
+            )
+
+            ctx = _user_context(medications=[{"id": "med-1", "name": "Adderall"}])
+            result = parse_batch_command("took my morning Adderall", ctx, tier="PRO")
+            mutation = result["mutations"][0]
+            assert mutation["entity_type"] == "MEDICATION"
+            assert mutation["mutation_type"] == "COMPLETE"
+            assert mutation["proposed_new_values"]["slot_key"] == "morning"
+            assert mutation["proposed_new_values"]["date"] == "2026-04-25"
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "sk-test-key"})
+    def test_skip_on_medication_round_trips_with_slot_key(self):
+        from app.services.ai_productivity import parse_batch_command
+
+        with patch("app.services.ai_productivity.anthropic") as mock_anthropic:
+            mock_client = MagicMock()
+            mock_anthropic.Anthropic.return_value = mock_client
+            mock_client.messages.create.return_value = _make_mock_response(
+                {
+                    "mutations": [
+                        {
+                            "entity_type": "MEDICATION",
+                            "entity_id": "med-1",
+                            "mutation_type": "SKIP",
+                            "proposed_new_values": {
+                                "date": "2026-04-25",
+                                "slot_key": "evening",
+                            },
+                            "human_readable_description": "Skip Adderall (evening)",
+                        }
+                    ],
+                    "confidence": 0.92,
+                    "ambiguous_entities": [],
+                }
+            )
+
+            ctx = _user_context(medications=[{"id": "med-1", "name": "Adderall"}])
+            result = parse_batch_command("skip my evening Adderall", ctx, tier="PRO")
+            mutation = result["mutations"][0]
+            assert mutation["mutation_type"] == "SKIP"
+            assert mutation["proposed_new_values"]["slot_key"] == "evening"
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "sk-test-key"})
+    def test_state_change_on_medication_round_trips_with_tier(self):
+        """STATE_CHANGE carries tier + date + slot_key — the Android apply
+        path writes a MedicationTierStateEntity row with tier_source='user_set'."""
+        from app.services.ai_productivity import parse_batch_command
+
+        with patch("app.services.ai_productivity.anthropic") as mock_anthropic:
+            mock_client = MagicMock()
+            mock_anthropic.Anthropic.return_value = mock_client
+            mock_client.messages.create.return_value = _make_mock_response(
+                {
+                    "mutations": [
+                        {
+                            "entity_type": "MEDICATION",
+                            "entity_id": "med-1",
+                            "mutation_type": "STATE_CHANGE",
+                            "proposed_new_values": {
+                                "tier": "prescription",
+                                "date": "2026-04-25",
+                                "slot_key": "evening",
+                            },
+                            "human_readable_description": (
+                                "Mark Adderall (evening) as prescription tier"
+                            ),
+                        }
+                    ],
+                    "confidence": 0.85,
+                    "ambiguous_entities": [],
+                }
+            )
+
+            ctx = _user_context(medications=[{"id": "med-1", "name": "Adderall"}])
+            result = parse_batch_command(
+                "set evening Adderall to prescription tier", ctx, tier="PRO"
+            )
+            mutation = result["mutations"][0]
+            assert mutation["mutation_type"] == "STATE_CHANGE"
+            assert mutation["proposed_new_values"]["tier"] == "prescription"
+            assert mutation["proposed_new_values"]["slot_key"] == "evening"
+
     @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "sk-test-key"})
     def test_drops_completed_tasks_from_prompt_context(self):
         """Completed tasks bloat the prompt and shouldn't show up in
