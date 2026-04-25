@@ -2,6 +2,7 @@ from typing import AsyncGenerator
 
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy import event
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.database import get_db
@@ -12,6 +13,20 @@ from app.models import Base
 TEST_DATABASE_URL = "sqlite+aiosqlite:///./test.db"
 
 engine = create_async_engine(TEST_DATABASE_URL, echo=False)
+
+
+# SQLite serializes writes per file. The medication audit hook uses
+# FastAPI BackgroundTasks to write to a *fresh* session decoupled from
+# the request session — two concurrent writers collide as "database is
+# locked" unless WAL mode + a busy timeout is configured.
+@event.listens_for(engine.sync_engine, "connect")
+def _enable_sqlite_concurrency(dbapi_conn, connection_record):
+    cursor = dbapi_conn.cursor()
+    cursor.execute("PRAGMA journal_mode=WAL")
+    cursor.execute("PRAGMA busy_timeout=5000")
+    cursor.close()
+
+
 TestSessionLocal = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 

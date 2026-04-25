@@ -33,6 +33,8 @@ __pycache__/
 *.egg-info/
 .pytest_cache/
 test.db
+test.db-shm
+test.db-wal
 backend/junit.xml
 
 .keystores/

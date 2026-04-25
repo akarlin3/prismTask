@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Backend
+
+- **Medication tier_state / mark cross-system FK resolution** — On
+  `/sync/push`, `medication_tier_state` and `medication_mark`
+  references are now sent by `*_cloud_id` (`medication_cloud_id`,
+  `slot_cloud_id`, `tier_state_cloud_id`) rather than backend-local
+  integer FKs. The new resolver `_resolve_cloud_fk_for_medication`
+  pops each cloud_id from the payload, looks up the matching local
+  row scoped to the authenticated user, and writes the integer FK
+  into the data dict. Required for Android push to work — local
+  Android ids never agree with backend ids. Errors out explicitly
+  when a required cloud_id is missing or doesn't resolve to a row
+  the user owns.
+
+- **Medication entities + audit log (PR1 of 4 — medication time logging)** —
+  Adds first-class backend sync support for `medications`,
+  `medication_slots`, `medication_tier_states`, and `medication_marks`
+  via `/sync/push` (Alembic rev 019, all five tables timezone-aware).
+  Tier-state and mark schemas carry the new `intended_time` (nullable —
+  user-claimed wall-clock) and `logged_at` (server-received) columns
+  the time-logging feature is built around. Every push that touches a
+  `medication_tier_state` or `medication_mark` now writes an
+  append-only row to `medication_log_events` (audit) inside a savepoint
+  — audit failures don't block sync. New
+  `GET /api/v1/medications/log-events?since=&limit=` returns the
+  caller's events, newest-first, auth-scoped to `user_id`. Sets up
+  PR2 (Android schema) and PR4 (web parity) — Path 2 chosen at
+  Checkpoint 1: medication entities sync through the backend in
+  parallel to Firestore so the audit log captures every write.
+
 ### Changed
 
 - **BREAKING (web): Medication tier enum aligned with Android canonical
