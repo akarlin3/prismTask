@@ -117,6 +117,65 @@ class HabitRepositoryTest {
     }
 
     @Test
+    fun updateHabit_setsIsUserModifiedOnFirstEditOfBuiltIn() = runBlocking {
+        val id = habitDao.insert(
+            HabitEntity(
+                name = "School",
+                isBuiltIn = true,
+                templateKey = "builtin_school",
+                isUserModified = false,
+            )
+        )
+        val existing = habitDao.habits.single { it.id == id }
+
+        repo.updateHabit(existing.copy(name = "Schoolwork"))
+
+        val after = habitDao.habits.single { it.id == id }
+        assertEquals("Schoolwork", after.name)
+        assertTrue("isUserModified should flip true on first user edit", after.isUserModified)
+    }
+
+    @Test
+    fun updateHabit_doesNotSetIsUserModifiedOnUserHabit() = runBlocking {
+        val id = habitDao.insert(
+            HabitEntity(
+                name = "My Custom",
+                isBuiltIn = false,
+                isUserModified = false,
+            )
+        )
+        val existing = habitDao.habits.single { it.id == id }
+
+        repo.updateHabit(existing.copy(name = "Custom Renamed"))
+
+        val after = habitDao.habits.single { it.id == id }
+        assertEquals("Custom Renamed", after.name)
+        assertEquals(
+            "isUserModified is built-in only — must stay false on user habits",
+            false,
+            after.isUserModified,
+        )
+    }
+
+    @Test
+    fun updateHabit_keepsIsUserModifiedTrueOnSubsequentEdits() = runBlocking {
+        val id = habitDao.insert(
+            HabitEntity(
+                name = "School",
+                isBuiltIn = true,
+                templateKey = "builtin_school",
+                isUserModified = true,
+            )
+        )
+        val existing = habitDao.habits.single { it.id == id }
+
+        repo.updateHabit(existing.copy(name = "Schoolwork"))
+
+        val after = habitDao.habits.single { it.id == id }
+        assertTrue("flag must remain set across subsequent edits", after.isUserModified)
+    }
+
+    @Test
     fun deleteHabit_removesHabit() = runBlocking {
         val id = habitDao.insert(HabitEntity(name = "Obsolete"))
         repo.deleteHabit(id)

@@ -83,7 +83,18 @@ constructor(
     }
 
     suspend fun updateHabit(habit: HabitEntity) {
-        habitDao.update(habit.copy(updatedAt = System.currentTimeMillis()))
+        // Mark built-in habits as user-modified the first time they're edited
+        // through the user-facing path. The diff/approve UI uses this as a
+        // heuristic to default field-level overwrites to unchecked. System
+        // writes (sync, reconciler, BuiltInUpdateDetector.applyUpdate) go
+        // through habitDao directly and intentionally bypass this flag.
+        val now = System.currentTimeMillis()
+        val markedHabit = if (habit.isBuiltIn && !habit.isUserModified) {
+            habit.copy(isUserModified = true, updatedAt = now)
+        } else {
+            habit.copy(updatedAt = now)
+        }
+        habitDao.update(markedHabit)
         syncTracker.trackUpdate(habit.id, "habit")
         widgetUpdateManager.updateHabitWidgets()
     }
