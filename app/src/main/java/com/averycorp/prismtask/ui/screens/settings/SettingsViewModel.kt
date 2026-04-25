@@ -35,6 +35,7 @@ import com.averycorp.prismtask.data.preferences.ThemePreferences
 import com.averycorp.prismtask.data.preferences.TimerPreferences
 import com.averycorp.prismtask.data.preferences.UrgencyWeights
 import com.averycorp.prismtask.data.preferences.VoicePreferences
+import com.averycorp.prismtask.data.remote.AccountDeletionService
 import com.averycorp.prismtask.data.remote.AuthManager
 import com.averycorp.prismtask.data.remote.SyncService
 import com.averycorp.prismtask.data.repository.CalendarSyncRepository
@@ -106,7 +107,8 @@ constructor(
     private val notificationPreferences: NotificationPreferences,
     private val notificationWorkerScheduler: com.averycorp.prismtask.notifications.NotificationWorkerScheduler,
     private val templateSeeder: com.averycorp.prismtask.data.seed.TemplateSeeder,
-    private val selfCareRepository: com.averycorp.prismtask.data.repository.SelfCareRepository
+    private val selfCareRepository: com.averycorp.prismtask.data.repository.SelfCareRepository,
+    private val accountDeletionService: AccountDeletionService
 ) : ViewModel() {
     private val _checkInStreak = kotlinx.coroutines.flow.MutableStateFlow(0)
     val checkInStreak: StateFlow<Int> = _checkInStreak
@@ -1247,6 +1249,43 @@ constructor(
         viewModelScope.launch {
             authManager.signOut()
             _messages.emit("Signed out")
+        }
+    }
+
+    private val _isDeletingAccount = MutableStateFlow(false)
+    val isDeletingAccount: StateFlow<Boolean> = _isDeletingAccount
+
+    private val _accountDeletionCompleted = MutableSharedFlow<Unit>()
+    val accountDeletionCompleted: SharedFlow<Unit> = _accountDeletionCompleted.asSharedFlow()
+
+    /**
+     * Triggered from the Settings → Account & Sync → Delete Account flow
+     * after the user types DELETE and confirms.
+     *
+     * Returns through [accountDeletionCompleted] on success — the UI then
+     * navigates back to Today (which detects the signed-out state and
+     * routes to AuthScreen). Errors emit on [messages] so the user sees
+     * a snackbar; they remain on the Account & Sync screen and can retry.
+     *
+     * The Firestore mark is the single load-bearing step: failure aborts
+     * before any local data changes. See [AccountDeletionService.requestAccountDeletion].
+     */
+    fun onRequestAccountDeletion() {
+        if (_isDeletingAccount.value) return
+        _isDeletingAccount.value = true
+        viewModelScope.launch {
+            try {
+                val result = accountDeletionService.requestAccountDeletion(initiatedFrom = "android")
+                if (result.isSuccess) {
+                    _accountDeletionCompleted.emit(Unit)
+                } else {
+                    _messages.emit(
+                        "Couldn't delete account — check your connection and try again",
+                    )
+                }
+            } finally {
+                _isDeletingAccount.value = false
+            }
         }
     }
 
