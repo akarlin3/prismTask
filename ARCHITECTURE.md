@@ -2,6 +2,13 @@
 
 ## 1. System Overview
 
+PrismTask runs on a **hybrid architecture**: cross-device sync goes
+through Firebase Firestore directly between clients (no backend in the
+hot path), while a FastAPI server provides AI features, app-update
+metadata, and a small set of historical CRUD endpoints. Auth is Firebase
+Auth on every surface; the FastAPI verifies Firebase ID tokens for
+authenticated endpoints.
+
 ```
 ┌─────────────────────────────────────────────────────┐
 │                  Android Device                      │
@@ -11,67 +18,121 @@
 │  │  │ Screens │ │ ViewModels│ │    Room DB    │  │  │
 │  │  │ & Nav   │ │ (StateFlow)│ │  (SQLite)    │  │  │
 │  │  └─────────┘ └──────────┘ └───────────────┘  │  │
-│  │  ┌───────────────────────────────────────────┐│  │
-│  │  │  Firebase Auth + Firestore Sync + Hilt DI ││  │
-│  │  └───────────────────┬───────────────────────┘│  │
-│  └──────────────────────┼────────────────────────┘  │
-└─────────────────────────┼───────────────────────────┘
-                          │ HTTPS
-                          ▼
+│  │  ┌─────────────────┐ ┌─────────────────────┐ │  │
+│  │  │  SyncService →  │ │  Retrofit (AI/NLP/  │ │  │
+│  │  │  Firestore SDK  │ │  app-update/feedback)│ │  │
+│  │  └─────────┬───────┘ └──────────┬──────────┘ │  │
+│  └────────────┼─────────────────────┼───────────┘  │
+└───────────────┼─────────────────────┼──────────────┘
+                │                     │
 ┌─────────────────────────────────────────────────────┐
 │                     Browser                          │
 │  ┌───────────────────────────────────────────────┐  │
 │  │       React + TypeScript + Vite                │  │
 │  │  ┌─────────┐ ┌──────────┐ ┌───────────────┐  │  │
-│  │  │ Screens │ │  State   │ │  API Client   │  │  │
-│  │  │ (Router)│ │ (Zustand)│ │  (Axios)      │  │  │
-│  │  └─────────┘ └──────────┘ └───────┬───────┘  │  │
-│  └────────────────────────────────────┼──────────┘  │
-└───────────────────────────────────────┼─────────────┘
-                                        │ HTTPS
-                                        ▼
-┌─────────────────────────────────────────────────────┐
-│              Railway / Render                        │
-│  ┌───────────────────────────────────────────────┐  │
-│  │              FastAPI Server                    │  │
-│  │  ┌──────────┐ ┌──────────┐ ┌──────────────┐  │  │
-│  │  │  Auth    │ │  CRUD    │ │  NLP Parser  │  │  │
-│  │  │  (JWT)   │ │  Routes  │ │  (Claude)    │  │  │
-│  │  └──────────┘ └────┬─────┘ └──────────────┘  │  │
-│  │                     │                          │  │
-│  │  ┌──────────────────▼─────────────────────┐   │  │
-│  │  │         SQLAlchemy ORM + Alembic       │   │  │
-│  │  └──────────────────┬─────────────────────┘   │  │
-│  └─────────────────────┼─────────────────────────┘  │
-│                        │                             │
-│  ┌─────────────────────▼─────────────────────────┐  │
-│  │              PostgreSQL                        │  │
-│  └────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────┘
+│  │  │ Screens │ │  State   │ │  Firestore +  │  │  │
+│  │  │ (Router)│ │ (Zustand)│ │  Axios (AI)   │  │  │
+│  │  └─────────┘ └──────────┘ └──────┬─┬──────┘  │  │
+│  └─────────────────────────────────┼─┼──────────┘  │
+└────────────────────────────────────┼─┼─────────────┘
+                                     │ │
+                ┌────────────────────┼─┼────────────────────┐
+                │                    ▼ │                    │
+                │  ┌──────────────────────────┐             │
+                │  │     Firebase Firestore    │ ◄────────┐ │
+                │  │  users/{uid}/{entity}/…   │          │ │
+                │  │  + Firebase Auth          │          │ │
+                │  └──────────────────────────┘          │ │
+                │                                          │ │
+                │           cross-device sync             │ │
+                │                                          │ │
+                └──────────────────────────────────────────┘ │
+                                                             │
+                                                             │
+                                            ┌────────────────┼─┐
+                                            │                ▼ │
+                                            │ ┌──────────────────┐
+                                            │ │  Railway         │
+                                            │ │ ┌──────────────┐ │
+                                            │ │ │  FastAPI     │ │
+                                            │ │ │  ┌────────┐  │ │
+                                            │ │ │  │ AI/NLP │──┼─┼──► Anthropic API
+                                            │ │ │  │ (Claude│  │ │   (Haiku / Sonnet)
+                                            │ │ │  │ Haiku) │  │ │
+                                            │ │ │  └───┬────┘  │ │
+                                            │ │ │      ▼       │ │
+                                            │ │ │  Firebase    │ │
+                                            │ │ │  Admin SDK   │─┼──► Firestore
+                                            │ │ │              │ │   (live user data)
+                                            │ │ │  ┌────────┐  │ │
+                                            │ │ │  │ CRUD/  │  │ │
+                                            │ │ │  │analytics│ │ │
+                                            │ │ │  │/update │  │ │
+                                            │ │ │  └───┬────┘  │ │
+                                            │ │ │      ▼       │ │
+                                            │ │ │ SQLAlchemy   │ │
+                                            │ │ └──────┬───────┘ │
+                                            │ │        ▼         │
+                                            │ │  PostgreSQL      │
+                                            │ └──────────────────┘
+                                            └──────────────────────
 ```
+
+**Data flow per feature class:**
+
+- **Sync** (tasks, projects, habits, milestones, completions, templates,
+  notification profiles, medication slots/doses, mood logs, check-ins,
+  weekly reviews, focus-release logs, etc.) — Android Room ⇄ Firestore via
+  `SyncService.kt`; web Firestore SDK directly. Backend is **not** in the
+  path. See [`docs/sync-architecture.md`](docs/sync-architecture.md).
+- **AI features** (Eisenhower, Pomodoro+ coaching, daily briefing, weekly
+  planner, AI time blocking, conversation-task extraction, NLP batch ops,
+  classify-text) — client calls FastAPI; FastAPI reads the user's live
+  data from Firestore via the Firebase Admin SDK (see
+  `backend/app/services/firestore_tasks.py`) and proxies the prompt to
+  Anthropic's API. No PostgreSQL involvement on the AI path.
+- **Operational endpoints** (app-update metadata, analytics rollups,
+  feedback inbox, calendar two-way sync, syllabus parsing, daily-essential
+  slot completions, batch-undo store) — client calls FastAPI; FastAPI uses
+  SQLAlchemy + PostgreSQL. These are not in the cross-device sync path.
+- **Auth** — Firebase Auth on every client; the FastAPI middleware in
+  `backend/app/middleware/auth.py` verifies Firebase ID tokens on
+  protected routes.
 
 ### Tech Stack Summary
 
-| Layer        | Technology             | Why                                                    |
-|--------------|------------------------|--------------------------------------------------------|
-| Android      | Kotlin + Jetpack Compose | Native performance, Material 3, offline-first with Room |
-| Web          | React 19 + TypeScript + Vite | Fast iteration, shared API, responsive SPA             |
-| Web Styling  | TailwindCSS 4          | Utility-first, rapid prototyping, consistent design     |
-| Web State    | Zustand 5              | Lightweight, no boilerplate (Redux is overkill for MVP) |
-| HTTP Client  | Axios (web) / Retrofit (Android) | Interceptors for auth tokens, clean error handling |
-| Backend      | FastAPI (Python 3.11+) | Auto-docs, async, type hints — reinforces Python resume |
-| ORM          | SQLAlchemy 2.0         | Industry standard, pairs with Alembic for migrations    |
-| Migrations   | Alembic                | Schema versioning — shows production discipline         |
-| Database     | PostgreSQL             | Production-grade, free tier on Railway/Render           |
-| Auth         | JWT (python-jose)      | Stateless, simple, well-understood                      |
-| NLP Feature  | Anthropic API (Haiku)  | Fast, cheap, high-quality parsing                       |
-| Deployment   | Docker + Railway       | Simple, free/cheap tier, auto-deploy from GitHub        |
-| Web Tests    | Vitest + Playwright    | Unit tests and E2E browser automation                   |
-| CI           | GitHub Actions         | Auto-test on push, free for public repos                |
+| Layer | Technology | Role |
+|-------|------------|------|
+| Android | Kotlin 2.3.20 + Jetpack Compose (Material 3) | Native UI, offline-first with Room |
+| Android local DB | Room 2.8.4 (SQLite) | Local source of truth; mirrors to Firestore via SyncService |
+| Web | React 19 + TypeScript + Vite | SPA, served from `app.prismtask.app` |
+| Web styling | TailwindCSS 4 | Utility-first, per-theme tokens |
+| Web state | Zustand 5 | Lightweight state slices |
+| Cross-device sync | Firebase Firestore (`users/{uid}/{entity}`) | Primary sync layer; clients write directly |
+| Auth | Firebase Auth | Same identity across Android, Web, and FastAPI |
+| Backend | FastAPI (Python 3.11+) | AI features, NLP, app-update, analytics, feedback |
+| Backend ↔ Firestore | Firebase Admin SDK | AI endpoints read live user data without ingest |
+| Backend ↔ DB | SQLAlchemy 2.0 + Alembic | Used by historical CRUD + analytics rollups |
+| Backend DB | PostgreSQL | Operational data store (NOT the cross-device sync layer) |
+| AI features | Anthropic API — Claude Haiku (NLP, batch ops, classify, time-block, briefing) and Claude Sonnet (weekly planner, monthly review) | |
+| HTTP clients | Retrofit (Android), Axios (web) | Auth-token interceptors, structured error handling |
+| Backend deploy | Docker + Railway | Auto-deploy from GitHub |
+| Web tests | Vitest + Playwright | Unit + E2E |
+| Android tests | JUnit + Robolectric + Hilt Testing + Firebase Emulator Suite | Unit, instrumented, two-device sync emulator |
+| CI | GitHub Actions | Android, Backend, Web, Android Integration, Release |
 
 ---
 
 ## 2. Backend Data Model (FastAPI / PostgreSQL)
+
+> The PostgreSQL schema below is the **operational** data model — used by
+> historical CRUD endpoints (`/tasks`, `/projects`, `/goals`, etc.),
+> analytics rollups, and app-update metadata. It is **not** the
+> cross-device sync layer: that is Firestore. Modern client features
+> (Android v1.4+, Web v1.5+) read and write Firestore directly. The
+> AI/NLP endpoints also bypass PostgreSQL — they read live user data from
+> Firestore via the Firebase Admin SDK (see
+> `backend/app/services/firestore_tasks.py`).
 
 The FastAPI backend uses SQLAlchemy 2.0 with a hierarchical
 `User → Goal → Project → Task` model. Priority uses the Todoist/Linear

@@ -1,5 +1,6 @@
 # PrismTask
 
+[![Version](https://img.shields.io/badge/Version-1.6.0-success.svg)](CHANGELOG.md)
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE)
 [![Android](https://img.shields.io/badge/Platform-Android-green.svg)](https://developer.android.com)
 [![Min SDK](https://img.shields.io/badge/Min%20SDK-26%20(Android%208.0)-orange.svg)]()
@@ -13,7 +14,19 @@
 [![Web CI](https://github.com/akarlin3/prismTask/actions/workflows/web-ci.yml/badge.svg?branch=main)](https://github.com/akarlin3/prismTask/actions/workflows/web-ci.yml)
 [![Release](https://github.com/akarlin3/prismTask/actions/workflows/release.yml/badge.svg)](https://github.com/akarlin3/prismTask/actions/workflows/release.yml)
 
-A cross-platform task manager and wellness-aware productivity layer with a Python API backend. Features AI-powered NLP, voice input, full accessibility, deep customization, productivity analytics, Work-Life Balance Engine, mood and energy tracking, morning check-in, boundary rules, burnout detection, ND-friendly focus modes, medication refill tracking, and first-class integrations with Gmail, Slack, and Google Calendar. Available as a native Android app (Kotlin/Jetpack Compose) and a web app (React/TypeScript/Vite), both powered by a shared FastAPI/PostgreSQL backend.
+A cross-platform task manager and wellness-aware productivity layer.
+Features AI-powered NLP and batch ops, voice input, full accessibility,
+deep customization, productivity analytics, Work-Life Balance Engine, mood
+& energy tracking, morning check-in, boundary rules, burnout detection,
+ND-friendly focus modes, medication tracking with per-slot tiers and
+configurable reminder modes (clock or interval), AI time blocking with
+horizon selector + mandatory preview, AI-powered Eisenhower / Pomodoro+
+coaching / daily briefing / weekly planner, conversation-to-task
+extraction, and integrations with Gmail, Slack, and Google Calendar.
+Available as a native Android app (Kotlin/Jetpack Compose) and a web app
+(React/TypeScript/Vite). Cross-device sync runs through Firebase
+Firestore directly; a FastAPI backend on Railway provides AI features,
+NLP, app-update metadata, and analytics rollups.
 
 ## Download
 
@@ -33,11 +46,13 @@ PrismTask ships with a two-tier pricing model.
 | Morning check-in & weekly review | Yes | Yes |
 | Boundary rules & burnout detection | Yes | Yes |
 | ND-friendly focus modes | Yes | Yes |
-| Medication refill tracking | Yes | Yes |
+| Medication slot system + tier tracking + reminder modes | Yes | Yes |
 | Cloud sync across devices | — | Yes |
-| AI Eisenhower & Pomodoro | — | Yes |
+| AI Eisenhower & Pomodoro+ coaching | — | Yes |
+| AI batch ops (NLP-driven multi-task mutations + 30s undo + 24h history) | — | Yes |
 | Analytics & time tracking | — | Yes |
-| AI briefing, planner, time blocking | — | Yes |
+| AI briefing, weekly planner, time blocking with horizon selector | — | Yes |
+| AI conversation-to-task extraction | — | Yes |
 | Collaboration & integrations | — | Yes |
 | Google Drive backup/restore | — | Yes |
 | Clinical health report export | — | Yes |
@@ -54,11 +69,24 @@ Native app built with Kotlin and Jetpack Compose. See the [Download](#download) 
 
 ### Web
 
-React + TypeScript + Vite web client with TailwindCSS. Connects to the same FastAPI backend as the Android app. See [`web/README.md`](web/README.md) for setup instructions.
+React + TypeScript + Vite web client with TailwindCSS, deployed at
+[`app.prismtask.app`](https://app.prismtask.app). Reads/writes the same
+Firestore subtree as the Android app for cross-device sync, and calls the
+FastAPI backend for AI features. As of v1.6.0 the web app reaches ~92%
+parity with Android across the full feature surface — see
+[`docs/WEB_PARITY_GAP_ANALYSIS.md`](docs/WEB_PARITY_GAP_ANALYSIS.md). See
+[`web/README.md`](web/README.md) for setup instructions.
 
 ### Backend
 
-FastAPI server with PostgreSQL, JWT authentication, and Claude-powered NLP parsing. Deployed on Railway. See [`ARCHITECTURE.md`](ARCHITECTURE.md) for API docs and data model.
+FastAPI server on Railway, providing AI features (Claude Haiku for NLP,
+batch ops, daily briefing, time blocking, classify-text; Claude Sonnet for
+weekly planner / monthly review), app-update metadata, analytics rollups,
+and feedback inbox. PostgreSQL holds historical CRUD endpoints; the AI
+endpoints read directly from Firestore via the Firebase Admin SDK so
+they always see the user's live data without a separate ingest path.
+Auth is Firebase Auth (with the FastAPI verifying ID tokens). See
+[`ARCHITECTURE.md`](ARCHITECTURE.md) for the full data flow.
 
 ## Development
 
@@ -68,18 +96,40 @@ Debug builds connect to a local Firebase Emulator Suite (Firestore + Auth) by de
 
 ## Roadmap
 
-### v1.4.0 — In Progress
+### v1.6.0 — Shipped
+
+| Area | Feature |
+|------|---------|
+| Medication | Reminder mode picker (Clock / Interval) with three-level resolver (medication → slot → global default), reactive interval scheduler, synthetic-skip dose anchors, web settings parity |
+| Sync hardening | `pushUpdate` delete-wins conflict resolution; full sync test matrix in CI (scenarios 7–11, 14, 15 automated; 12–13 manual runbook) |
+| Test infrastructure | StreakCalculator clock-change unit tests (5 cases); orphan healer test cleanup; sync-test harness PR1–3 |
+| Repo hygiene | Branch protection on `main`; required status checks renamed to avoid context collisions |
+
+### v1.5.x — Shipped
+
+| Area | Feature |
+|------|---------|
+| Medication | Slot system with per-day tier states (skipped / essential / prescription / complete), three-level reminder cascade, slot editor in Settings, full A2 #6 + A2 #7 closeout (v1.5.0) |
+| Web parity | 22 slices closing the highest-leverage gaps with Android — NLP batch ops, named themes + onboarding, AI briefing + planner, analytics dashboard, conversation extraction, Pomodoro+ coaching, Eisenhower text classifier, task-editor schedule tab, Today polish + Start-of-Day, dedicated medication screen, custom template authoring, mood + energy, morning check-in, boundaries + burnout scorer, focus release + good-enough timer (v1.5.2) |
+| Release pipeline | Idempotent GitHub Release creation; backend-upload failure no longer blocks Android publish (v1.5.3) |
+
+### v1.4.x — Shipped
+
+| Area | Feature |
+|------|---------|
+| Wellness layer | Work-Life Balance Engine, mood + energy tracking, morning check-in + forgiveness streak, weekly review aggregator, boundary rules + burnout scorer, ND-friendly focus modes, medication refill tracking + clinical report, conversation task extractor, custom notification sounds + escalation chains (v1.4.0) |
+| Projects (Phase 1) | Lifecycle status (Active / Completed / Archived), milestones, forgiveness-first streak, project widget, NLP create/complete/add-milestone intents (v1.4.0) |
+| Sync coverage | Cross-device sync extended to 16 new config + content entity families (v1.4.37 + v1.4.38) |
+| AI Time Blocking | Horizon selector (Today / Today+Tomorrow / Next 7 Days), mandatory preview with Approve/Cancel, Eisenhower-aware ranking, hard-constraint routing around existing blocks (v1.4.40) |
+
+### Looking forward
 
 | Status | Area | Feature |
 |--------|------|---------|
-| ✅ Done | Sync | Reactive push queue, cross-device deletions, task completion sync |
-| ✅ Done | Habits | Timezone-neutral completion dates, built-in habit identity + reconciliation |
-| ✅ Done | Theme | Four PrismTheme palettes (Cyberpunk, Synthwave, Matrix, Void) with 13 design tokens |
-| ✅ Done | UX | Configurable Start-of-Day (SoD) with first-launch picker and NLP anchoring |
-| ✅ Done | Projects | Lifecycle status, milestones, forgiveness streak, Firestore sync, widget, NLP intents |
-| ✅ Done | Wellness | Work-Life Balance Engine, mood tracking, burnout detection, boundary rules, ND modes |
-| ✅ Done | Notifications | Custom sounds, escalation chains, vibration patterns, 40+ DataStore keys |
-| ✅ Done | Export/Import | v5 format; 13 new entity families, 15 new preference groups, last-write-wins upsert |
-| 🔜 Planned | Import | v6 import paths for `DailyEssentialSlotCompletions`, `UsageLogs`, `CalendarSync` |
-| 🔜 Planned | Calendar | Backend-mediated Google Calendar sync (see `docs/ADR-calendar-sync.md`) |
-| 🔜 Planned | Projects | Phases 2–5 (widget, NLP v2, Firestore full round-trip with milestone sync) |
+| 🔜 v1.7+ | Medication reminders | Web Push delivery so reminder settings sync to phone *and* fire on web |
+| 🔜 v1.7+ | Medication reminders | Per-medication reminder-mode override UI (touches multiple pickers/dialogs; Android-only landed in v1.6.0) |
+| 🔜 v1.7+ | Medication reminders | Web slot-editor per-slot reminder-mode picker (settable from Android only today) |
+| 🔜 v1.7+ | Sync test matrix | Tests 12 + 13 (sign-out/sign-in same user; sign-in different user) automated when the OAuth Custom Tab flow becomes UIAutomator-driveable |
+| 🔜 v2.0+ | Phase G | Remaining web parity slices toward 100% feature equivalence with Android |
+| 🔜 v2.0+ | Calendar | Backend-mediated Google Calendar sync (see `docs/ADR-calendar-sync.md`) |
+| 🔜 v2.2+ | Widgets | Re-enable / refresh the eight Glance widgets after Phase G stabilizes |

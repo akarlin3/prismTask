@@ -2,8 +2,8 @@
 
 **PrismTask**
 **Developer:** AveryCorp (Avery Karlin)
-**Contact:** [INSERT_EMAIL]
-**Effective Date:** [INSERT_DATE]
+**Contact:** privacy@prismtask.app
+**Effective Date:** 2026-04-24
 
 ---
 
@@ -102,7 +102,7 @@ You have the following rights regarding your data:
 
 ## Children's Privacy
 
-PrismTask is not directed at children under the age of 13. We do not knowingly collect personal information from children under 13. If we become aware that we have collected personal information from a child under 13, we will take steps to delete that information promptly. If you believe we have collected information from a child under 13, please contact us at [INSERT_EMAIL].
+PrismTask is not directed at children under the age of 13. We do not knowingly collect personal information from children under 13. If we become aware that we have collected personal information from a child under 13, we will take steps to delete that information promptly. If you believe we have collected information from a child under 13, please contact us at privacy@prismtask.app.
 
 ## Data Security
 
@@ -131,5 +131,5 @@ This Privacy Policy is governed by the laws of the State of New York, United Sta
 
 If you have questions or concerns about this Privacy Policy or our data practices, please contact us at:
 
-**Email:** [INSERT_EMAIL]
+**Email:** privacy@prismtask.app
 **Developer:** AveryCorp (Avery Karlin)

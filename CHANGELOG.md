@@ -59,6 +59,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.6.0] — 2026-04-24
 
+> The 1.6.0 entry captures work that landed across several tagged builds
+> (`v1.5.0`, `v1.5.2`, `v1.5.3`, and the four 1.6.0 medication-reminder-mode
+> PRs) but was never split into per-tag CHANGELOG sections at release time.
+> Anchor entries for the intermediate tags point back up to the matching
+> subsections below.
+
 ### Medication reminder mode — Web settings UI (PR4 of 4)
 
 - **Settings → Medication Reminders** (web) gains a Clock / Interval
@@ -823,7 +829,58 @@ Phase G roadmap.
 - Promoted the Unreleased section's v1.4.35/v1.4.36/v1.4.37/v1.4.38/v1.4.40 sub-headers to top-level version headers; un-tagged entries between v1.4.0 and v1.4.34 grouped under a new "v1.4.1–v1.4.34 — Interim releases" section for later attribution
 - Added androidTest migration coverage for migrations 48→49, 49→50, 50→51, and 52→53 (all other migrations from v47→v57 now have at least one direct-SQL migration test)
 
-## v1.4.40 — AI Time Blocking: horizon selector + mandatory preview (April 2026)
+## [1.5.3] — 2026-04-23
+
+Release-pipeline-only patch tag. Content is captured in the `[1.6.0]` section
+above; the relevant subsections are:
+
+- ci(release): unblock publish on backend-upload failure
+- ci(release): make `Create GitHub Release` idempotent
+
+No app or backend code changes — versionCode bumped solely so the release
+pipeline could re-run a failed publish step against a non-conflicting tag.
+
+## [1.5.2] — 2026-04-23
+
+Tag captured the Web parity push (slices 1–22) plus the migration-tests
+follow-ups. Content is in the `[1.6.0]` section above; relevant subsections:
+
+- `### Web` — slices 1–22 (NLP batch ops on web, named themes & onboarding,
+  AI daily briefing + weekly planner, analytics dashboard, conversation
+  extraction, Pomodoro+ AI coaching, Eisenhower text classifier, task editor
+  schedule-tab parity, Today polish + Start-of-Day, dedicated medication
+  screen, templates parity, settings sections bundle, theme typography,
+  theme shape + decorative flags, TAG_CHANGE batch + tag persistence,
+  client-side analytics project-progress, medication tier picker + slot
+  CRUD, custom habit + project template authoring, mood & energy tracking,
+  morning check-in + forgiveness streak, boundaries + burnout scorer,
+  focus release + good-enough timer)
+- `### Repo hygiene` — branch protection on `main`; Web CI job-name
+  disambiguation
+- Migration tests added for migrations 48→49 / 49→50 / 50→51 / 52→53
+
+## [1.5.0] — 2026-04-23
+
+Tag captured the medication slot system landing end-to-end (A2 #6 + A2 #7).
+Content is in the `[1.6.0]` section above; relevant subsections:
+
+- `### Medication slot system — schema + backfill (A2 #6 PR1)` —
+  three new entities (`medication_slots`, `medication_slot_overrides`,
+  `medication_tier_states`) + junction; migrations 58→59 / 59→60;
+  `MedicationTierComputer` auto-compute logic; `CloudIdOrphanHealer`
+  expanded to 35 families
+- `### Medication slot system — slot editor + tier picker + override
+  toggle (A2 #6 PR2)` — `Settings → Medication Slots`,
+  `MedicationSlotsViewModel`, reusable `MedicationTierRadio` /
+  `MedicationSlotPicker` composables
+- `### Medication slot system — MedicationScreen rewire (A2 #6 + #7 PR3)`
+  — full screen rewrite reading from `MedicationEntity` + slot junction
+
+Also captured under v1.5.0: `BatchUndoLogDao` test-module wiring,
+`StartupCrashDiagnosticTest` updates for DB v58, and three
+`MedicationSlotDao` test-module wirings (PR #702).
+
+## [1.4.40] — 2026-04-22 — AI Time Blocking: horizon selector + mandatory preview
 
 ### AI Time Blocking — horizon selector + mandatory preview (A2 #5)
 - **New "Auto-Block My Day" button** on the Timeline top bar replaces the
@@ -858,7 +915,7 @@ Phase G roadmap.
   `TimelineViewModelTest.kt`. **New DAO queries**:
   `getTasksInHorizonOnce`, `getScheduledTasksInHorizonOnce`.
 
-## v1.4.38 — Room content entities cross-device sync (April 2026)
+## [1.4.38] — 2026-04-22 — Room content entities cross-device sync
 
 ### Sync — Room content entities cross-device
 - **Migration 55 → 56** adds `cloud_id TEXT` (UNIQUE-indexed) to all nine
@@ -904,7 +961,7 @@ Phase G roadmap.
   falls back to the thumbnail until a future content-upload
   extension. Link attachments round-trip cleanly.
 
-## v1.4.37 — Room config entities cross-device sync (April 2026)
+## [1.4.37] — 2026-04-22 — Room config entities cross-device sync
 
 ### Sync — Room config entities cross-device
 - **Migration 54 → 55** adds `cloud_id TEXT` (UNIQUE indexed) and
@@ -944,7 +1001,7 @@ Phase G roadmap.
   `setCloudId`, `deleteById` (or `getByIdOnce`) where missing, matching
   the contract the generic sync helpers expect.
 
-## v1.4.36 — Preferences backup coverage follow-up (April 2026)
+## [1.4.36] — 2026-04-22 — Preferences backup coverage follow-up
 
 ### Preferences — Backup coverage follow-up
 - **Closes three backup gaps** identified in the post-v1.4.35 preference
@@ -975,7 +1032,7 @@ Phase G roadmap.
   graphs. Existing unit tests updated to pass `mockk(relaxed = true)`
   for the three new constructor parameters.
 
-## v1.4.35 — Universal cross-device preference sync (April 2026)
+## [1.4.35] — 2026-04-22 — Universal cross-device preference sync
 
 ### Preferences — Universal cross-device sync
 - **New `GenericPreferenceSyncService`** syncs any registered DataStore
@@ -1013,7 +1070,7 @@ Phase G roadmap.
   never leak into the payload, and asserts fingerprint stability
   across insertion order and set iteration order.
 
-## v1.4.1–v1.4.34 — Interim releases (April 2026)
+## [1.4.1]–[1.4.34] — April 2026 — Interim releases
 
 The entries below landed between v1.4.0 and v1.4.34 but were committed to the CHANGELOG without explicit per-version headers. They're grouped here for attribution; individual version boundaries can be reconstructed from git history if needed.
 
@@ -1395,7 +1452,7 @@ The entries below landed between v1.4.0 and v1.4.34 but were committed to the CH
   built-ins are identified by the existing `isBuiltIn` flag (templates) and
   the hardcoded `stepId` set in `SelfCareRoutines` (steps).
 
-## v1.4.0 — Wellness-Aware Productivity Layer (April 2026)
+## [1.4.0] — 2026-04-20 — Wellness-Aware Productivity Layer
 
 ### Fixed — Sync Reliability (Apr 18–19, PRs #536–557)
 - **Habit uncheck cross-device sync**: `processRemoteDeletions()` in `SyncService` was a
@@ -1887,7 +1944,7 @@ Note: self-care nudge rotation and the daily overload notification
   completion, empty history, pre-history truncation, non-daily fallback,
   zero allowance).
 
-## v1.3.0 — Voice, Widgets, Accessibility, Analytics, Integrations & Three-Tier Pricing (April 2026)
+## [1.3.0] — 2026-04-11 — Voice, Widgets, Accessibility, Analytics, Integrations & Three-Tier Pricing
 
 Skips the v1.2.0 tag and ships everything developed since v1.1.0 together.
 
@@ -1996,7 +2053,7 @@ Skips the v1.2.0 tag and ships everything developed since v1.1.0 together.
 - GitHub Actions release workflow for AAB builds
 - kotlinx-coroutines-test, Turbine, and MockK test dependencies
 
-## v1.1.0 — PrismTask Rebrand, AI Productivity, Freemium & Play Store (April 2026)
+## [1.1.0] — 2026-04-10 — PrismTask Rebrand, AI Productivity, Freemium & Play Store
 
 ### Changed — Rebrand
 - App renamed from AveryTask to PrismTask
@@ -2033,11 +2090,11 @@ Skips the v1.2.0 tag and ships everything developed since v1.1.0 together.
 - Release build with R8 optimization and resource shrinking
 - GitHub Actions release workflow for AAB builds
 
-## v1.0.0 — Stable Release (April 2026)
+## [1.0.0] — 2026-04-10 — Stable Release
 
 - Bump version to 1.0.0 stable release
 
-## v0.9.0 — UX Overhaul, QoL Features & Task Templates (April 2026)
+## [0.9.0] — 2026-04-09 — UX Overhaul, QoL Features & Task Templates
 
 ### Added — UX Overhaul
 - Today screen: compact progress header bar replacing large circular ring
@@ -2097,7 +2154,7 @@ Skips the v1.2.0 tag and ships everything developed since v1.1.0 together.
 - New screens: TemplateListScreen, AddEditTemplateScreen
 - New components: QuickReschedulePopup, collapsible section headers, horizontal habit chips
 
-## v0.8.0 — Backend Integration (April 2026)
+## [0.8.0] — 2026-04-09 — Backend Integration
 
 ### Added
 
