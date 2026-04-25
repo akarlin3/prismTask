@@ -225,7 +225,13 @@ class SyncTestHarness private constructor(
             "habit_completions",
             "projects",
             "tags",
-            "task_completions"
+            "task_completions",
+            "medications",
+            "medication_doses",
+            "medication_slots",
+            "medication_slot_overrides",
+            "medication_tier_states",
+            "medication_marks"
         )
 
         /**

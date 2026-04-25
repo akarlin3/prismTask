@@ -554,4 +554,151 @@ class Migration53To54Test {
         assertNotNull(helper)
         helper.close()
     }
+
+    /**
+     * Re-running [MIGRATION_53_54] after it succeeded once must throw —
+     * UNIQUE(name) on `medications` rejects the duplicate INSERT, which
+     * is the contract that protects beta installs from a hypothetical
+     * "let's just rerun the migration" recovery path. Pinned so a future
+     * "make idempotent" refactor surfaces as a failing test.
+     */
+    @Test
+    fun migration_isNotIdempotent_secondRunFailsOnUniqueName() {
+        val helper = openV53()
+        val db = helper.writableDatabase
+
+        db.execSQL(
+            "INSERT INTO self_care_steps " +
+                "(step_id, routine_type, label, medication_name, time_of_day) VALUES " +
+                "('med_1', 'medication', 'Lipitor', 'Lipitor', 'morning')"
+        )
+
+        MIGRATION_53_54.migrate(db)
+
+        var threw = false
+        try {
+            MIGRATION_53_54.migrate(db)
+        } catch (_: Exception) {
+            threw = true
+        }
+        assertTrue("re-running the migration must fail on UNIQUE(name)", threw)
+        helper.close()
+    }
+
+    /**
+     * The backfill collapses duplicate-name rows by joining display
+     * labels with `' / '`. Labels containing literal commas would
+     * mangle the join because the implementation uses
+     * `REPLACE(GROUP_CONCAT(label, ','), ',', ' / ')`. Pin the
+     * current behavior so a fix surfaces as an intentional change.
+     */
+    @Test
+    fun commaInLabel_corruptsMergedDisplayLabel() {
+        val helper = openV53()
+        val db = helper.writableDatabase
+
+        db.execSQL(
+            "INSERT INTO self_care_steps " +
+                "(step_id, routine_type, label, medication_name, time_of_day) VALUES " +
+                "('m1', 'medication', 'Lipitor, generic', 'Lipitor', 'morning'), " +
+                "('m2', 'medication', 'Lipitor 20mg', 'Lipitor', 'evening')"
+        )
+
+        MIGRATION_53_54.migrate(db)
+
+        db.query("SELECT display_label FROM medications WHERE name='Lipitor'").use { c ->
+            assertTrue(c.moveToFirst())
+            val merged = c.getString(0)
+            assertTrue(
+                "comma-in-label produces split tokens — current behavior pinned",
+                merged.contains(" / ")
+            )
+            assertFalse(
+                "comma replacement currently corrupts the original label",
+                merged.contains("Lipitor, generic")
+            )
+        }
+        helper.close()
+    }
+
+    /**
+     * Whitespace-only `medication_name` must fall back to `label` via
+     * `COALESCE(NULLIF(TRIM(medication_name), ''), label)`. Without
+     * the TRIM, `'   '` would group separately from `''`/NULL and
+     * produce duplicate medications.
+     */
+    @Test
+    fun whitespaceOnlyMedicationName_fallsBackToLabel() {
+        val helper = openV53()
+        val db = helper.writableDatabase
+
+        db.execSQL(
+            "INSERT INTO self_care_steps " +
+                "(step_id, routine_type, label, medication_name, time_of_day) VALUES " +
+                "('m1', 'medication', 'Vitamin D', '   ', 'morning'), " +
+                "('m2', 'medication', 'Vitamin D', '', 'evening'), " +
+                "('m3', 'medication', 'Vitamin D', NULL, 'night')"
+        )
+
+        MIGRATION_53_54.migrate(db)
+
+        db.query("SELECT COUNT(*) FROM medications WHERE name='Vitamin D'").use { c ->
+            assertTrue(c.moveToFirst())
+            assertEquals(
+                "whitespace + empty + null medication_name all collapse to label",
+                1,
+                c.getInt(0)
+            )
+        }
+        helper.close()
+    }
+
+    /**
+     * Both `medication_name` AND `label` blank — the resulting
+     * normalized name is the empty string. This is a malformed
+     * source row, but the migration must still complete without
+     * throwing for the *first* such row. UNIQUE(name) then rejects
+     * any second row with the same shape.
+     */
+    @Test
+    fun blankNameAndLabel_allowsFirstButRejectsSecond() {
+        val helper = openV53()
+        val db = helper.writableDatabase
+
+        db.execSQL(
+            "INSERT INTO self_care_steps " +
+                "(step_id, routine_type, label, medication_name, time_of_day) VALUES " +
+                "('m1', 'medication', '', '', 'morning')"
+        )
+
+        MIGRATION_53_54.migrate(db)
+
+        db.query("SELECT COUNT(*) FROM medications WHERE name=''").use { c ->
+            assertTrue(c.moveToFirst())
+            assertEquals(1, c.getInt(0))
+        }
+
+        // A second blank-blank row would violate UNIQUE(name).
+        db.execSQL(
+            "INSERT INTO self_care_steps " +
+                "(step_id, routine_type, label, medication_name, time_of_day) VALUES " +
+                "('m2', 'medication', '', '', 'evening')"
+        )
+
+        var threw = false
+        try {
+            // Re-running the migration is itself non-idempotent (see
+            // earlier test); use a direct INSERT to isolate the
+            // UNIQUE(name) rejection on the empty-string normalized
+            // name. Only the NOT-NULL-without-default columns are
+            // listed; everything else takes its column default.
+            db.execSQL(
+                "INSERT INTO medications (name, created_at, updated_at) VALUES ('', 0, 0)"
+            )
+        } catch (_: Exception) {
+            threw = true
+        }
+        assertTrue("UNIQUE(name) must reject a second empty-string row", threw)
+        helper.close()
+    }
 }

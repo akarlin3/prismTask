@@ -207,6 +207,64 @@ class Migration59To60Test {
         helper.close()
     }
 
+    /**
+     * The SQL-LIKE-based JSON parser in MIGRATION_59_60 only matches
+     * the `"morning":"essential"` shape via prefix scanning. A truncated
+     * or malformed `tiers_by_time` payload should backfill nothing
+     * rather than throw — the migration must keep going on dirty data.
+     */
+    @Test
+    fun malformedTiersByTimeJson_backfillsNothing() {
+        val helper = openV59()
+        val db = helper.writableDatabase
+
+        db.execSQL("INSERT INTO `medications` (name) VALUES ('M1')")
+        db.execSQL(
+            "INSERT INTO `self_care_logs` (routine_type, log_date, tiers_by_time) VALUES " +
+                "('medication', '2026-04-22', '{\"morning\"'), " +
+                "('medication', '2026-04-23', 'not even json'), " +
+                "('medication', '2026-04-24', '{}')"
+        )
+
+        MIGRATION_59_60.migrate(db)
+
+        db.query("SELECT COUNT(*) FROM medication_tier_states").use { c ->
+            assertTrue(c.moveToFirst())
+            assertEquals("malformed JSON skipped without throwing", 0, c.getInt(0))
+        }
+        helper.close()
+    }
+
+    /**
+     * Cross-join cardinality: the backfill fans the same achieved
+     * tier across every active medication on each log date. With N
+     * medications and M logs containing tiers, we get N×M tier_state
+     * rows. Pin this so a future "smarter" backfill that breaks the
+     * cardinality contract surfaces as a failing test.
+     */
+    @Test
+    fun crossJoinCardinality_isMedicationsTimesLogsForPopulatedTiers() {
+        val helper = openV59()
+        val db = helper.writableDatabase
+
+        db.execSQL(
+            "INSERT INTO `medications` (name) VALUES ('M1'), ('M2'), ('M3')"
+        )
+        db.execSQL(
+            "INSERT INTO `self_care_logs` (routine_type, log_date, tiers_by_time) VALUES " +
+                "('medication', '2026-04-22', '{\"morning\":\"essential\"}'), " +
+                "('medication', '2026-04-23', '{\"morning\":\"prescription\"}')"
+        )
+
+        MIGRATION_59_60.migrate(db)
+
+        db.query("SELECT COUNT(*) FROM medication_tier_states").use { c ->
+            assertTrue(c.moveToFirst())
+            assertEquals("3 medications × 2 logs = 6 tier_state rows", 6, c.getInt(0))
+        }
+        helper.close()
+    }
+
     @Test
     fun migration_preservesLegacyTiersByTimeColumn() {
         val helper = openV59()

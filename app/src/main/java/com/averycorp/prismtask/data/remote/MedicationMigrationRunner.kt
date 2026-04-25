@@ -1,9 +1,11 @@
 package com.averycorp.prismtask.data.remote
 
+import com.averycorp.prismtask.data.diagnostics.MigrationInstrumentor
 import com.averycorp.prismtask.data.local.dao.HabitDao
 import com.averycorp.prismtask.data.local.dao.MedicationDao
 import com.averycorp.prismtask.data.local.dao.MedicationDoseDao
 import com.averycorp.prismtask.data.local.dao.SelfCareDao
+import com.averycorp.prismtask.data.local.database.CURRENT_DB_VERSION
 import com.averycorp.prismtask.data.local.entity.MedicationDoseEntity
 import com.averycorp.prismtask.data.preferences.MedicationMigrationPreferences
 import com.averycorp.prismtask.data.preferences.MedicationPreferences
@@ -53,6 +55,28 @@ constructor(
     private val habitReminderScheduler: HabitReminderScheduler,
     private val logger: PrismSyncLogger
 ) {
+    /**
+     * Records the wall-clock time of the first launch on a v54+ install
+     * and emits the [MigrationInstrumentor] post-v54 event so beta
+     * dashboards can plot "shim age" — days since the upgrade ran.
+     * Idempotent on the timestamp; the in-memory event flag in
+     * [MigrationInstrumentor] gates the emission to once per launch.
+     */
+    suspend fun recordPostV54LaunchIfApplicable() {
+        try {
+            migrationPreferences.setV54AppliedAtMsIfMissing(System.currentTimeMillis())
+            val appliedAt = migrationPreferences.getV54AppliedAtMs() ?: return
+            val ageDays = (System.currentTimeMillis() - appliedAt) / DAY_MS
+            MigrationInstrumentor.emitPostV54IfApplicable(CURRENT_DB_VERSION, ageDays)
+        } catch (e: Exception) {
+            logger.error(
+                operation = "medication.migration.record_post_v54",
+                throwable = e,
+                detail = "failed: ${e.message}"
+            )
+        }
+    }
+
     /**
      * Writes the user's pre-migration global schedule onto every medication
      * row. Idempotent: no-ops after the first successful run per install.
@@ -313,6 +337,7 @@ constructor(
 
     companion object {
         private const val MINUTE_MILLIS = 60_000L
+        private const val DAY_MS = 24 * 60 * 60 * 1000L
         private val VALID_TOD_SLOTS = setOf("morning", "afternoon", "evening", "night")
         private const val LEGACY_STALE_SLOT_BUFFER = 10
     }

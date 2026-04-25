@@ -5,6 +5,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.first
@@ -34,6 +35,7 @@ constructor(
         private val RECONCILIATION_DONE = booleanPreferencesKey("reconciliation_done")
         private val MIGRATION_PUSHED_TO_CLOUD = booleanPreferencesKey("migration_pushed_to_cloud")
         private val SOURCE_DATA_PURGED_PHASE_2 = booleanPreferencesKey("source_data_purged_phase_2")
+        private val V54_APPLIED_AT_MS = longPreferencesKey("v54_applied_at_ms")
     }
 
     /**
@@ -93,5 +95,27 @@ constructor(
 
     suspend fun setSourceDataPurgedPhase2(done: Boolean) {
         context.medicationMigrationDataStore.edit { it[SOURCE_DATA_PURGED_PHASE_2] = done }
+    }
+
+    /**
+     * Wall-clock timestamp (ms-since-epoch) of the first successful
+     * post-v54 launch. Drives `db_post_v54_install`'s `shim_age_days`
+     * parameter. `null` until the first post-v54 launch writes it.
+     *
+     * Stored here (rather than directly in the SQL migration) because
+     * Room migrations cannot reach DataStore, and because `now`
+     * captured during MIGRATION_53_54 would frame "shim age" as
+     * "minutes since the install upgrade ran", which is the
+     * meaningful clock for the beta safety net.
+     */
+    suspend fun getV54AppliedAtMs(): Long? =
+        context.medicationMigrationDataStore.data.first()[V54_APPLIED_AT_MS]
+
+    suspend fun setV54AppliedAtMsIfMissing(nowMs: Long) {
+        context.medicationMigrationDataStore.edit { prefs ->
+            if (!prefs.contains(V54_APPLIED_AT_MS)) {
+                prefs[V54_APPLIED_AT_MS] = nowMs
+            }
+        }
     }
 }

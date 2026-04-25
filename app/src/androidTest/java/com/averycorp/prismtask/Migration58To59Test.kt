@@ -180,6 +180,41 @@ class Migration58To59Test {
         helper.close()
     }
 
+    /**
+     * Junction table CASCADE on parent medication delete: removing a
+     * medication row must wipe its `medication_medication_slots`
+     * entries so we never leak orphan junction rows when a user
+     * deletes a med post-migration. Pin the FK CASCADE behavior
+     * explicitly because Room migrations don't run with foreign-key
+     * pragmas on by default.
+     */
+    @Test
+    fun junction_cascadesOnParentMedicationDelete() {
+        val helper = openV58()
+        val db = helper.writableDatabase
+
+        db.execSQL("INSERT INTO `medications` (name) VALUES ('Aspirin')")
+        MIGRATION_58_59.migrate(db)
+        db.execSQL("PRAGMA foreign_keys = ON")
+
+        db.query(
+            "SELECT COUNT(*) FROM medication_medication_slots WHERE medication_id = 1"
+        ).use { c ->
+            assertTrue(c.moveToFirst())
+            assertEquals("DEFAULT slot link present after migration", 1, c.getInt(0))
+        }
+
+        db.execSQL("DELETE FROM `medications` WHERE id = 1")
+
+        db.query(
+            "SELECT COUNT(*) FROM medication_medication_slots WHERE medication_id = 1"
+        ).use { c ->
+            assertTrue(c.moveToFirst())
+            assertEquals("FK CASCADE must wipe junction rows with parent", 0, c.getInt(0))
+        }
+        helper.close()
+    }
+
     @Test
     fun migration_enforcesUniquenessOnOverridePair() {
         val helper = openV58()

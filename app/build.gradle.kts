@@ -317,6 +317,7 @@ dependencies {
     implementation("com.google.firebase:firebase-firestore-ktx")
     implementation("com.google.firebase:firebase-storage-ktx")
     implementation("com.google.firebase:firebase-crashlytics-ktx")
+    implementation("com.google.firebase:firebase-analytics-ktx")
 
     // gRPC — Firestore requires gRPC 1.62.2+ for InternalGlobalInterceptors,
     // but google-api-client-android pulls an older version that wins in resolution.

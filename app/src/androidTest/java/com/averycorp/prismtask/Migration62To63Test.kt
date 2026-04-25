@@ -201,6 +201,117 @@ class Migration62To63Test {
         helper.close()
     }
 
+    /**
+     * Legacy tier-state rows whose `updated_at = 0` (a buggy older
+     * insert that never set the timestamp) end the migration with
+     * `logged_at = 0` because the backfill is `logged_at = updated_at
+     * WHERE logged_at = 0`. Pin this so a future "fix the
+     * legacy zero rows" change is intentional, not silent.
+     */
+    @Test
+    fun legacyZeroUpdatedAt_keepsLoggedAtZero() {
+        val helper = openV62()
+        val db = helper.writableDatabase
+
+        db.execSQL(
+            "INSERT INTO `medication_tier_states` " +
+                "(id, cloud_id, medication_id, slot_id, log_date, tier, " +
+                " tier_source, created_at, updated_at) " +
+                "VALUES (99, 'ts-legacy-zero', 1, 1, '2025-01-01', 'essential', " +
+                "'computed', 0, 0)"
+        )
+
+        MIGRATION_62_63.migrate(db)
+
+        db.query(
+            "SELECT logged_at FROM `medication_tier_states` WHERE id = 99"
+        ).use { c ->
+            assertTrue(c.moveToNext())
+            assertEquals(
+                "legacy row with updated_at=0 keeps logged_at=0 (current behavior)",
+                0L,
+                c.getLong(0)
+            )
+        }
+        helper.close()
+    }
+
+    /**
+     * `medication_marks` parent FK on `medication_tier_states` must
+     * CASCADE so deleting a tier state wipes its marks. Without
+     * CASCADE, dose-mark history would leak past parent state
+     * deletions, breaking the cross-device sync model that uses
+     * tier-state cloud_id as the parent reference.
+     */
+    @Test
+    fun marks_cascadeOnParentTierStateDelete() {
+        val helper = openV62()
+        val db = helper.writableDatabase
+
+        MIGRATION_62_63.migrate(db)
+        db.execSQL("PRAGMA foreign_keys = ON")
+
+        db.execSQL(
+            "INSERT INTO `medication_marks` " +
+                "(cloud_id, medication_id, medication_tier_state_id, " +
+                " intended_time, logged_at, marked_taken, updated_at) " +
+                "VALUES ('mark-cascade', 1, 1, 1000, 1000, 1, 1000)"
+        )
+        db.query("SELECT COUNT(*) FROM medication_marks").use { c ->
+            assertTrue(c.moveToFirst())
+            assertEquals(1, c.getInt(0))
+        }
+
+        db.execSQL("DELETE FROM medication_tier_states WHERE id = 1")
+
+        db.query("SELECT COUNT(*) FROM medication_marks").use { c ->
+            assertTrue(c.moveToFirst())
+            assertEquals(
+                "FK CASCADE wipes marks when parent tier_state is deleted",
+                0,
+                c.getInt(0)
+            )
+        }
+        helper.close()
+    }
+
+    /**
+     * UNIQUE(`medication_id`, `medication_tier_state_id`) on
+     * `medication_marks` rejects duplicates — there can only be one
+     * mark per (med, tier-state) pair. Pin the index's enforcement.
+     */
+    @Test
+    fun marks_uniquePairIndexRejectsDuplicates() {
+        val helper = openV62()
+        val db = helper.writableDatabase
+
+        MIGRATION_62_63.migrate(db)
+
+        db.execSQL(
+            "INSERT INTO `medication_marks` " +
+                "(cloud_id, medication_id, medication_tier_state_id, " +
+                " intended_time, logged_at, marked_taken, updated_at) " +
+                "VALUES ('mark-a', 1, 1, 1000, 1000, 1, 1000)"
+        )
+
+        var threw = false
+        try {
+            db.execSQL(
+                "INSERT INTO `medication_marks` " +
+                    "(cloud_id, medication_id, medication_tier_state_id, " +
+                    " intended_time, logged_at, marked_taken, updated_at) " +
+                    "VALUES ('mark-b', 1, 1, 2000, 2000, 1, 2000)"
+            )
+        } catch (_: Exception) {
+            threw = true
+        }
+        assertTrue(
+            "UNIQUE(medication_id, medication_tier_state_id) must reject",
+            threw
+        )
+        helper.close()
+    }
+
     @Test
     fun migration_intendedTimeNullableForNewRows() {
         val helper = openV62()

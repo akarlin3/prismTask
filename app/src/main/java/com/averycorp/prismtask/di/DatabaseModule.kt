@@ -2,6 +2,7 @@ package com.averycorp.prismtask.di
 
 import android.content.Context
 import androidx.room.Room
+import com.averycorp.prismtask.data.diagnostics.MigrationInstrumentor
 import com.averycorp.prismtask.data.local.dao.AttachmentDao
 import com.averycorp.prismtask.data.local.dao.BatchUndoLogDao
 import com.averycorp.prismtask.data.local.dao.BoundaryRuleDao
@@ -39,6 +40,7 @@ import com.averycorp.prismtask.data.local.dao.TaskTemplateDao
 import com.averycorp.prismtask.data.local.dao.UsageLogDao
 import com.averycorp.prismtask.data.local.dao.WeeklyReviewDao
 import com.averycorp.prismtask.data.local.database.PrismTaskDatabase
+import com.averycorp.prismtask.data.local.database.instrumentedMigrations
 import com.averycorp.prismtask.data.seed.TemplatePreferencesSeededFlagStore
 import com.averycorp.prismtask.data.seed.TemplateSeeder
 import com.google.gson.Gson
@@ -67,7 +69,8 @@ object DatabaseModule {
                 context,
                 PrismTaskDatabase::class.java,
                 "averytask.db"
-            ).addMigrations(*com.averycorp.prismtask.data.local.database.ALL_MIGRATIONS)
+            ).addMigrations(*instrumentedMigrations(context))
+            .addCallback(MigrationInstrumentor.flushCallback(context))
             .build()
 
     @Provides

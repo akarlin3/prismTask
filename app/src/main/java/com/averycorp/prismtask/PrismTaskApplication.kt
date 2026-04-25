@@ -7,6 +7,7 @@ import androidx.work.Configuration
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
+import com.averycorp.prismtask.data.diagnostics.MigrationInstrumentor
 import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
 import com.averycorp.prismtask.data.remote.BuiltInHabitReconciler
 import com.averycorp.prismtask.data.remote.LifeCategoryBackfiller
@@ -86,6 +87,16 @@ class PrismTaskApplication :
         super.onCreate()
         configureFirebaseEmulator()
         configureCrashlytics()
+        // Belt-and-braces flush for migration events that fired
+        // before Firebase was ready on cold-boot (BootReceiver) paths.
+        // The RoomDatabase.Callback.onOpen hook is the primary flush
+        // point; this catches the rare race where the DB was opened
+        // by a worker before Application.onCreate ran.
+        try {
+            MigrationInstrumentor.flushPending(this)
+        } catch (_: Exception) {
+            // Drop — migration events are best-effort by design.
+        }
         try {
             scheduleAutoArchive()
             scheduleDailyReset()
@@ -278,6 +289,7 @@ class PrismTaskApplication :
      */
     private fun runMedicationMigrationPasses() {
         appScope.launch {
+            medicationMigrationRunner.recordPostV54LaunchIfApplicable()
             medicationMigrationRunner.preserveScheduleIfNeeded()
             medicationMigrationRunner.backfillDosesIfNeeded()
         }

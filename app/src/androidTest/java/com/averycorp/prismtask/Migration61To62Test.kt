@@ -128,6 +128,40 @@ class Migration61To62Test {
         helper.close()
     }
 
+    /**
+     * The built-in `Medication` habit (template_key='builtin_medication',
+     * inserted by MIGRATION_48_49) participates in the v61→62 backfill
+     * just like other built-ins. Pin it explicitly so a future change
+     * that excludes 'builtin_medication' from the WHERE clause surfaces
+     * as a failing test — medication source_version is critical to the
+     * v54+ medication subsystem's template-vs-user-modified divergence
+     * accounting.
+     */
+    @Test
+    fun builtInMedicationHabit_backfillsToVersionOne() {
+        val helper = openV61()
+        val db = helper.writableDatabase
+
+        db.execSQL(
+            "INSERT INTO habits (name, is_built_in, template_key) " +
+                "VALUES ('Medication', 1, 'builtin_medication')"
+        )
+
+        MIGRATION_61_62.migrate(db)
+
+        db.query(
+            "SELECT source_version FROM habits WHERE template_key = 'builtin_medication'"
+        ).use { c ->
+            assertTrue(c.moveToFirst())
+            assertEquals(
+                "built-in Medication habit must backfill to source_version=1",
+                1,
+                c.getInt(0)
+            )
+        }
+        helper.close()
+    }
+
     @Test
     fun selfCareSteps_backfillEverythingToVersionOne() {
         val helper = openV61()
