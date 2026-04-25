@@ -198,6 +198,20 @@ jobs:
       - name: Android lint
         if: always() && steps.relevance.outputs.android == 'true'
         run: ./gradlew lint --continue
+      # Compile (but don't run) androidTest sources so type-level breakage
+      # — e.g. a new constructor parameter on a production class without
+      # all manual call sites in androidTest updated — fails THIS job
+      # instead of the post-merge integration CI lane. PR #743 hit this
+      # exact pattern: medicationMarkDao was added to CloudIdOrphanHealer
+      # and 4 androidTest files manually constructing the healer broke
+      # `compileDebugAndroidTestKotlin`. The structural parity guard
+      # (TestDatabaseModuleParityTest, PR #704) covers TestDatabaseModule
+      # specifically but not arbitrary call sites; this catches the rest.
+      # Cheap because the `app/build` cache (audit C3) is already warm
+      # from autofix's parallel compileDebugKotlin run.
+      - name: Compile androidTest sources (type-check only)
+        if: always() && steps.relevance.outputs.android == 'true'
+        run: ./gradlew compileDebugAndroidTestKotlin --continue
       - name: Unit tests
         # `set -o pipefail` is on by default in GitHub's bash shell, but we
         # make it explicit so a regression in the shell config can't hide a
