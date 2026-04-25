@@ -537,6 +537,126 @@ class NdPreferencesModel(Base):
     user = relationship("User")
 
 
+class Medication(Base):
+    """Top-level medication a user takes. Cross-device sync via ``cloud_id``."""
+
+    __tablename__ = "medications"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    cloud_id = Column(String(64), unique=True, nullable=True, index=True)
+    name = Column(String(255), nullable=False)
+    dosage = Column(String(255), nullable=True)
+    notes = Column(Text, nullable=True)
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=lambda: datetime.now(timezone.utc))
+
+    user = relationship("User")
+
+
+class MedicationSlot(Base):
+    """Time slot definition (morning/noon/etc.) shared across medications."""
+
+    __tablename__ = "medication_slots"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    cloud_id = Column(String(64), unique=True, nullable=True, index=True)
+    slot_key = Column(String(32), nullable=False)
+    ideal_time = Column(String(5), nullable=True)  # "HH:mm"
+    drift_minutes = Column(Integer, nullable=False, default=30)
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=lambda: datetime.now(timezone.utc))
+
+    user = relationship("User")
+
+
+class MedicationTierState(Base):
+    """Per-(medication, slot, date) achieved tier with intended/logged-at times."""
+
+    __tablename__ = "medication_tier_states"
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id", "medication_id", "log_date", "slot_id",
+            name="uq_med_tier_state",
+        ),
+    )
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    cloud_id = Column(String(64), unique=True, nullable=True, index=True)
+    medication_id = Column(Integer, ForeignKey("medications.id", ondelete="CASCADE"), nullable=False, index=True)
+    slot_id = Column(Integer, ForeignKey("medication_slots.id", ondelete="CASCADE"), nullable=False, index=True)
+    log_date = Column(Date, nullable=False, index=True)
+    tier = Column(String(20), nullable=False)
+    tier_source = Column(String(20), nullable=False, default="computed")
+    intended_time = Column(DateTime(timezone=True), nullable=True)
+    logged_at = Column(DateTime(timezone=True), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=lambda: datetime.now(timezone.utc))
+
+    user = relationship("User")
+    medication = relationship("Medication")
+    slot = relationship("MedicationSlot")
+
+
+class MedicationMark(Base):
+    """Per-medication mark within a tier-state slot, with intended/logged-at times."""
+
+    __tablename__ = "medication_marks"
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id", "medication_id", "tier_state_id",
+            name="uq_med_mark",
+        ),
+    )
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    cloud_id = Column(String(64), unique=True, nullable=True, index=True)
+    medication_id = Column(Integer, ForeignKey("medications.id", ondelete="CASCADE"), nullable=False, index=True)
+    tier_state_id = Column(Integer, ForeignKey("medication_tier_states.id", ondelete="CASCADE"), nullable=False, index=True)
+    intended_time = Column(DateTime(timezone=True), nullable=True)
+    logged_at = Column(DateTime(timezone=True), nullable=False)
+    marked_taken = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=lambda: datetime.now(timezone.utc))
+
+    user = relationship("User")
+    medication = relationship("Medication")
+    tier_state = relationship("MedicationTierState")
+
+
+class MedicationLogEvent(Base):
+    """Append-only audit log for medication time-logging events.
+
+    Written fire-and-forget on every /sync/push touching ``medication_tier_state``
+    or ``medication_mark``. Records both the client-claimed times
+    (``intended_time``, ``logged_at``) and the server-observed
+    ``sync_received_at`` so post-hoc debugging can spot client/server clock skew.
+    """
+
+    __tablename__ = "medication_log_events"
+    __table_args__ = (
+        # Composite index on (user_id, logged_at) for time-ordered queries
+        # (the GET endpoint paginates by logged_at desc).
+        {"sqlite_autoincrement": True},
+    )
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    entity_type = Column(String(20), nullable=False)  # "tier_state" | "mark"
+    entity_cloud_id = Column(String(64), nullable=True, index=True)
+    intended_time = Column(DateTime(timezone=True), nullable=True)
+    logged_at = Column(DateTime(timezone=True), nullable=False, index=True)
+    sync_received_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    operation = Column(String(20), nullable=False)  # "create" | "update" | "delete"
+
+    user = relationship("User")
+
+
 class DailyEssentialSlotCompletion(Base):
     """Materialized completion record for a Daily Essentials medication time slot.
 

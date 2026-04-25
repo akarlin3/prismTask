@@ -1,0 +1,5 @@
+Medication reminders now support fixed-clock or interval schedules. Pick a global default in Settings, then override per slot or per medication. Presets of 2 / 4 / 6 / 8 hours, or a custom interval from 60 to 1440 minutes.
+
+Fixed a sync bug where a deleted task could reappear after a concurrent edit from another device. Delete now always wins.
+
+Expanded cross-device test coverage for streaks and concurrent edits.

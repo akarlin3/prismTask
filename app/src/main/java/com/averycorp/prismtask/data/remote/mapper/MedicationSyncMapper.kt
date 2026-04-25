@@ -42,6 +42,8 @@ object MedicationSyncMapper {
         "pharmacyName" to med.pharmacyName,
         "pharmacyPhone" to med.pharmacyPhone,
         "reminderDaysBefore" to med.reminderDaysBefore,
+        "reminderMode" to med.reminderMode,
+        "reminderIntervalMinutes" to med.reminderIntervalMinutes,
         "slotCloudIds" to slotCloudIds,
         "createdAt" to med.createdAt,
         "updatedAt" to med.updatedAt
@@ -82,6 +84,8 @@ object MedicationSyncMapper {
         pharmacyName = data["pharmacyName"] as? String,
         pharmacyPhone = data["pharmacyPhone"] as? String,
         reminderDaysBefore = (data["reminderDaysBefore"] as? Number)?.toInt() ?: 3,
+        reminderMode = (data["reminderMode"] as? String)?.takeIf { it.isNotBlank() },
+        reminderIntervalMinutes = (data["reminderIntervalMinutes"] as? Number)?.toInt(),
         createdAt = (data["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
         updatedAt = (data["updatedAt"] as? Number)?.toLong() ?: System.currentTimeMillis()
     )
@@ -96,6 +100,7 @@ object MedicationSyncMapper {
         "takenAt" to dose.takenAt,
         "takenDateLocal" to dose.takenDateLocal,
         "note" to dose.note,
+        "isSyntheticSkip" to dose.isSyntheticSkip,
         "createdAt" to dose.createdAt,
         "updatedAt" to dose.updatedAt
     )
@@ -113,6 +118,7 @@ object MedicationSyncMapper {
         takenAt = (data["takenAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
         takenDateLocal = data["takenDateLocal"] as? String ?: "",
         note = data["note"] as? String ?: "",
+        isSyntheticSkip = data["isSyntheticSkip"] as? Boolean ?: false,
         createdAt = (data["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
         updatedAt = (data["updatedAt"] as? Number)?.toLong() ?: System.currentTimeMillis()
     )
@@ -126,6 +132,8 @@ object MedicationSyncMapper {
         "driftMinutes" to slot.driftMinutes,
         "sortOrder" to slot.sortOrder,
         "isActive" to slot.isActive,
+        "reminderMode" to slot.reminderMode,
+        "reminderIntervalMinutes" to slot.reminderIntervalMinutes,
         "createdAt" to slot.createdAt,
         "updatedAt" to slot.updatedAt
     )
@@ -142,6 +150,8 @@ object MedicationSyncMapper {
         driftMinutes = (data["driftMinutes"] as? Number)?.toInt() ?: 180,
         sortOrder = (data["sortOrder"] as? Number)?.toInt() ?: 0,
         isActive = data["isActive"] as? Boolean ?: true,
+        reminderMode = (data["reminderMode"] as? String)?.takeIf { it.isNotBlank() },
+        reminderIntervalMinutes = (data["reminderIntervalMinutes"] as? Number)?.toInt(),
         createdAt = (data["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
         updatedAt = (data["updatedAt"] as? Number)?.toLong() ?: System.currentTimeMillis()
     )

@@ -1,0 +1,13 @@
+PrismTask 2.0 — [PLACEHOLDER: one-line highlight]
+
+What's new:
+• [PLACEHOLDER: change #1]
+• [PLACEHOLDER: change #2]
+• [PLACEHOLDER: change #3]
+• [PLACEHOLDER: change #4]
+
+[PLACEHOLDER: migration or deprecation note]
+
+Thanks to everyone who tested the 1.x line — your feedback shaped this.
+
+Full changelog: [PLACEHOLDER: link]

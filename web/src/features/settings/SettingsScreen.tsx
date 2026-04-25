@@ -37,6 +37,7 @@ import { KeyboardShortcutsModal } from '@/components/shared/KeyboardShortcutsMod
 import { ProUpgradeModal } from '@/components/shared/ProUpgradeModal';
 import { BatchHistorySection } from '@/features/settings/sections/BatchHistorySection';
 import { MedicationSlotEditor } from '@/features/medication/MedicationSlotEditor';
+import { MedicationReminderModeSection } from '@/features/settings/sections/MedicationReminderModeSection';
 import { BoundariesSection } from '@/features/settings/sections/BoundariesSection';
 import { AboutSection } from '@/features/settings/sections/AboutSection';
 import { HelpFeedbackSection } from '@/features/settings/sections/HelpFeedbackSection';
@@ -491,6 +492,14 @@ export function SettingsScreen() {
         title="Medication Slots"
       >
         <MedicationSlotEditor />
+      </SettingsSection>
+
+      {/* Medication reminder mode default (PR4 of v1.6.0 reminder track) */}
+      <SettingsSection
+        icon={<Pill className="h-5 w-5 text-[var(--color-accent)]" />}
+        title="Medication Reminders"
+      >
+        <MedicationReminderModeSection />
       </SettingsSection>
 
       {/* Boundaries + burnout score (slice 21) */}

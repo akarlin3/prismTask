@@ -32,6 +32,17 @@ interface MedicationDao {
     @Query("SELECT * FROM medications ORDER BY sort_order ASC, name ASC")
     suspend fun getAllOnce(): List<MedicationEntity>
 
+    /**
+     * Active medications whose per-medication `reminder_mode` override is
+     * explicitly "INTERVAL". Companion to [MedicationSlotDao.getIntervalModeSlotsOnce]
+     * for the reactive rescheduler.
+     */
+    @Query(
+        "SELECT * FROM medications WHERE is_archived = 0 AND reminder_mode = 'INTERVAL' " +
+            "ORDER BY sort_order ASC, name ASC"
+    )
+    suspend fun getIntervalModeMedicationsOnce(): List<MedicationEntity>
+
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insert(medication: MedicationEntity): Long
 

@@ -17,6 +17,33 @@ interface MedicationDoseDao {
     @Query("SELECT * FROM medication_doses ORDER BY taken_at DESC")
     fun observeAll(): Flow<List<MedicationDoseEntity>>
 
+    /**
+     * Most-recent dose across every medication, real or synthetic. The
+     * interval-mode reminder rescheduler uses this as the anchor — synthetic
+     * skip doses (written by the SKIPPED tier-state path) MUST be included
+     * so a skipped slot resets the interval clock.
+     */
+    @Query("SELECT * FROM medication_doses ORDER BY taken_at DESC LIMIT 1")
+    suspend fun getMostRecentDoseAnyOnce(): MedicationDoseEntity?
+
+    /**
+     * Reactive equivalent of [getMostRecentDoseAnyOnce]. Emits whenever any
+     * dose row changes; downstream consumers debounce burst writes.
+     */
+    @Query("SELECT * FROM medication_doses ORDER BY taken_at DESC LIMIT 1")
+    fun observeMostRecentDoseAny(): Flow<MedicationDoseEntity?>
+
+    /**
+     * Most-recent NON-synthetic dose. Use for UI dose history / streak /
+     * last-taken displays — never for interval-mode anchoring (that needs
+     * [getMostRecentDoseAnyOnce]).
+     */
+    @Query(
+        "SELECT * FROM medication_doses WHERE is_synthetic_skip = 0 " +
+            "ORDER BY taken_at DESC LIMIT 1"
+    )
+    suspend fun getMostRecentRealDoseOnce(): MedicationDoseEntity?
+
     @Query(
         "SELECT * FROM medication_doses WHERE medication_id = :medicationId " +
             "AND taken_date_local = :date ORDER BY taken_at ASC"

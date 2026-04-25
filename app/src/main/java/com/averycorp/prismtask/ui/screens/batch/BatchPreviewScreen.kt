@@ -4,6 +4,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -176,6 +178,7 @@ private fun LoadedBody(
         itemsIndexed(state.mutations) { idx, mutation ->
             MutationRow(
                 mutation = mutation,
+                currentTags = state.currentTags,
                 excluded = idx in excluded,
                 onToggle = { onToggle(idx) }
             )
@@ -235,6 +238,7 @@ private fun AmbiguityBanner(hints: List<AmbiguousEntityHintResponse>) {
 @Composable
 private fun MutationRow(
     mutation: ProposedMutationResponse,
+    currentTags: Map<Long, List<String>>,
     excluded: Boolean,
     onToggle: () -> Unit
 ) {
@@ -248,7 +252,7 @@ private fun MutationRow(
                 .fillMaxWidth()
                 .background(color.copy(alpha = 0.06f))
                 .padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.Top
         ) {
             Checkbox(checked = !excluded, onCheckedChange = { onToggle() })
             Column(modifier = Modifier.padding(start = 8.dp)) {
@@ -262,8 +266,118 @@ private fun MutationRow(
                     style = MaterialTheme.typography.bodySmall,
                     color = color
                 )
+                if (mutation.mutationType == BatchMutationType.TAG_CHANGE.name &&
+                    mutation.entityType == "TASK"
+                ) {
+                    val taskId = mutation.entityId.toLongOrNull()
+                    val current = taskId?.let { currentTags[it] }.orEmpty()
+                    val added = (mutation.proposedNewValues["tags_added"] as? List<*>)
+                        ?.mapNotNull { it as? String }.orEmpty()
+                    val removed = (mutation.proposedNewValues["tags_removed"] as? List<*>)
+                        ?.mapNotNull { it as? String }.orEmpty()
+                    TagDiffChips(current = current, added = added, removed = removed)
+                }
             }
         }
+    }
+}
+
+/**
+ * Compact diff strip for a TAG_CHANGE mutation. The "From" row reflects
+ * the task's current tag list (kept as-is for tags that survive); the
+ * "To" row shows the same kept tags neutral, plus + chips (green) for
+ * fresh additions and − chips (red) for tags being dropped. Auto-create
+ * vs. existing-tag is intentionally not surfaced — matches web slice
+ * #728's behavior.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun TagDiffChips(
+    current: List<String>,
+    added: List<String>,
+    removed: List<String>
+) {
+    val currentLower = current.map { it.lowercase() }.toSet()
+    val removedLower = removed.map { it.lowercase() }.toSet()
+    val addedLower = added.map { it.lowercase() }.toSet()
+
+    // Filter out removals that don't actually match any current tag — the
+    // backend can speculatively emit removals; we only render the ones
+    // that will land. Same with additions already present.
+    val effectiveRemovals = removed.filter { it.lowercase() in currentLower }
+    val effectiveAdditions = added.filter { it.lowercase() !in currentLower }
+    val keptTags = current.filter { it.lowercase() !in removedLower }
+
+    if (current.isEmpty() && effectiveAdditions.isEmpty() && effectiveRemovals.isEmpty()) {
+        // Nothing to show — empty mutation.
+        return
+    }
+
+    Column(modifier = Modifier.padding(top = 8.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                "From: ",
+                style = MaterialTheme.typography.labelSmall
+            )
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                if (current.isEmpty()) {
+                    Text(
+                        "(none)",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                } else {
+                    for (name in current) TagChip(name, kind = TagChipKind.NEUTRAL)
+                }
+            }
+        }
+        Row(
+            modifier = Modifier.padding(top = 4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                "To: ",
+                style = MaterialTheme.typography.labelSmall
+            )
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                for (name in keptTags) TagChip(name, kind = TagChipKind.NEUTRAL)
+                for (name in effectiveAdditions) TagChip(name, kind = TagChipKind.ADDED)
+                for (name in effectiveRemovals) TagChip(name, kind = TagChipKind.REMOVED)
+                if (keptTags.isEmpty() && effectiveAdditions.isEmpty() && effectiveRemovals.isEmpty()) {
+                    Text(
+                        "(none)",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+    }
+}
+
+private enum class TagChipKind { NEUTRAL, ADDED, REMOVED }
+
+@Composable
+private fun TagChip(name: String, kind: TagChipKind) {
+    val (bg, fg) = when (kind) {
+        TagChipKind.NEUTRAL ->
+            MaterialTheme.colorScheme.surfaceVariant to
+                MaterialTheme.colorScheme.onSurfaceVariant
+        TagChipKind.ADDED -> Color(0xFF2E7D32).copy(alpha = 0.15f) to Color(0xFF1B5E20)
+        TagChipKind.REMOVED -> Color(0xFFC9302C).copy(alpha = 0.15f) to Color(0xFF8E1F1B)
+    }
+    val prefix = when (kind) {
+        TagChipKind.NEUTRAL -> ""
+        TagChipKind.ADDED -> "+ "
+        TagChipKind.REMOVED -> "− "
+    }
+    Surface(color = bg, shape = RoundedCornerShape(6.dp)) {
+        Text(
+            text = "$prefix#$name",
+            style = MaterialTheme.typography.labelSmall,
+            color = fg,
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+        )
     }
 }
 

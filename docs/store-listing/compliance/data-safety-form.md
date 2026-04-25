@@ -1,0 +1,153 @@
+# Data Safety Form — PrismTask
+
+**Destination:** Play Console → Policy → Data safety.
+**Source of truth:** Phase 1 audit §4. This document must stay consistent with `../../privacy/index.md` — if one changes, update the other.
+
+This file answers every question on Play Console's current Data safety form as of 2026-04-24. Copy each answer into the corresponding Play Console field.
+
+---
+
+## 1. Data collection and security
+
+### 1.1 Does your app collect or share any of the required user data types?
+
+**Yes.**
+
+### 1.2 Is all of the user data collected by your app encrypted in transit?
+
+**Yes.** All network traffic uses HTTPS/TLS. Firestore and Firebase Auth SDK default to TLS. The custom FastAPI backend on Railway is served over HTTPS; the Android client uses OkHttp 4 with default TLS. `network_security_config.xml` enforces cleartext denial.
+
+### 1.3 Do you provide a way for users to request that their data be deleted?
+
+**Yes.** Users can:
+- Sign out from Settings → Account to stop further cloud sync.
+- Clear local data via system Settings → Apps → PrismTask → Storage → Clear storage (wipes the on-device Room database and DataStore).
+- Email `privacy@prismtask.app` to request deletion of synced data — Firestore user collection + Firebase Auth user are wiped within 30 days.
+
+**Note for verification:** an in-app one-tap "Delete account" Settings affordance is in active development. The `AuthManager.deleteAccount()` backend method is implemented but not yet wired to a UI button. When that ships, this section and the privacy policy will be updated together to add the in-app path.
+
+---
+
+## 2. Data types collected
+
+### Personal info
+
+| Data type | Collected? | Optional? | Linked to user? | Shared with third parties? | Processing purpose | Collection reason |
+|---|---|---|---|---|---|---|
+| Name | Yes | Yes (only when signed in) | Yes | No | App functionality (greeting, task attribution) | Account management |
+| Email address | Yes | Yes (local-only mode is supported) | Yes | No | Account management, auth | Account management |
+| User IDs | Yes (Firebase UID, Google user ID) | Yes | Yes | No | App functionality, account management | Core SDK operation |
+| Address, phone number, race/ethnicity, sexual orientation, religion, political views | **No** | — | — | — | — | — |
+| Other personal info | **No** | — | — | — | — | — |
+
+### Financial info
+
+| Data type | Collected? | Notes |
+|---|---|---|
+| User payment info | **No** | Google Play Billing processes all payments; PrismTask never sees card data. |
+| Purchase history | Yes (entitlement signal only) | Linked, not shared, purpose: account management. Play Billing surfaces Pro tier as a boolean to the app. |
+| Other financial info | **No** | — |
+
+### Health and fitness
+
+| Data type | Collected? | Optional? | Linked to user? | Shared? | Purpose |
+|---|---|---|---|---|---|
+| Health info (mood, energy, medications, medication dose history) | Yes | **Yes — entirely optional features** | Yes | No | App functionality (wellness tracking, reminder scheduling, refill projection, clinical report export) |
+| Fitness info | **No** | — | — | — | — |
+
+**Disclose prominently:** medication data and mood logs are sensitive health information. They live in the user's local Room DB, and only leave the device if the user is signed in and cloud sync is enabled.
+
+### Messages
+
+| Data type | Collected? | Notes |
+|---|---|---|
+| Emails | **No** | — |
+| SMS / MMS | **No** | — |
+| Other in-app messages | **No** | Coaching chat is stored locally and in Firestore if signed in; no third-party messaging providers. |
+
+### Photos and videos
+
+| Data type | Collected? | Notes |
+|---|---|---|
+| Photos | **No** | App has no camera or gallery access. |
+| Videos | **No** | — |
+
+### Audio files
+
+| Data type | Collected? | Optional? | Linked to user? | Shared? | Purpose |
+|---|---|---|---|---|---|
+| Voice or sound recordings | Yes (transient) | Yes (voice dictation is opt-in) | Not retained by PrismTask | Shared with Google Speech Services during the recognition call only | Voice input for quick-add |
+| Music files | **No** | — | — | — | — |
+| Other audio files | **No** | — | — | — | — |
+
+**Note on voice:** audio is captured via `android.speech.SpeechRecognizer`. PrismTask receives the transcribed string; it does not persist the audio. Google's speech recognizer is the downstream processor. This is Android-native behavior and does not require a separate Anthropic trip.
+
+### Files and docs
+
+| Data type | Collected? | Notes |
+|---|---|---|
+| Files and docs | **No** | Data export produces a file the user downloads; the app does not read user files from outside its sandbox. |
+
+### Calendar
+
+| Data type | Collected? | Optional? | Linked? | Shared? | Purpose |
+|---|---|---|---|---|---|
+| Calendar events | Yes (only when Google Calendar sync is enabled) | Yes | Yes | Shared with Google (user's own Calendar account) | Two-way calendar sync — tasks with times sync to Calendar and back |
+
+### Contacts
+
+| Data type | Collected? | Notes |
+|---|---|---|
+| Contacts | **No** | No READ_CONTACTS permission declared. |
+
+### App activity
+
+| Data type | Collected? | Optional? | Linked? | Shared? | Purpose |
+|---|---|---|---|---|---|
+| App interactions | Yes (Crashlytics session signals) | No | Yes | Shared with Google/Firebase | Diagnostics |
+| In-app search history | **No** | — | — | — | — |
+| Installed apps | **No** | — | — | — | — |
+| Other user-generated content (task titles, descriptions, project names, habit names, mood log notes, medication names, chat with coaching assistant) | Yes | Yes (all user-generated content features are optional) | Yes (when signed in) | Task content strings sent to Anthropic via PrismTask backend for NLP parsing and AI features — transient, not retained | App functionality |
+| Other app activity (task completion history, habit streak data, Pomodoro session counts) | Yes | No (core functionality) | Yes (when synced) | No | App functionality, analytics inside the user's own dashboard |
+
+### Web browsing
+
+| Data type | Collected? | Notes |
+|---|---|---|
+| Web browsing history | **No** | — |
+
+### App info and performance
+
+| Data type | Collected? | Optional? | Linked? | Shared? | Purpose |
+|---|---|---|---|---|---|
+| Crash logs | Yes | No | Yes (Firebase UID attached for triage) | Shared with Google/Firebase | Analytics (crash triage) |
+| Diagnostics (ANRs, performance traces) | Yes | No | Yes | Shared with Google/Firebase | Analytics |
+| Other app performance data | **No** | — | — | — | — |
+
+### Device or other IDs
+
+| Data type | Collected? | Optional? | Linked? | Shared? | Purpose |
+|---|---|---|---|---|---|
+| Device IDs (Firebase Installation ID, Crashlytics install UUID) | Yes | No | Yes | Shared with Google/Firebase | Core SDK operation |
+
+---
+
+## 3. Third-party processors (disclose in policy + security-practices section)
+
+| Processor | Data seen | Purpose |
+|---|---|---|
+| Google (Firebase Auth, Firestore, Cloud Storage, Crashlytics, Google Sign-In, Google Speech Services, Google Calendar API, Google Play Billing) | All synced user data; voice audio during recognition; calendar events on user's own Calendar; crash reports | Auth, cloud sync, diagnostics, voice input, calendar sync, billing |
+| Anthropic PBC (Claude Haiku and Claude Sonnet, via PrismTask backend) | Task content strings submitted for NLP parsing; AI-feature prompts and context (Eisenhower, Pomodoro planning, briefing, weekly review) | AI features; no retention per Anthropic API terms |
+| Railway Corp | In-transit traffic to the FastAPI backend | Hosting |
+
+---
+
+## 4. Security practices statement (free-text in Play Console)
+
+> Data is encrypted in transit using TLS. Users can request their data be deleted in-app from Settings → Account → Delete account, from outside the app by emailing privacy@prismtask.app, or by uninstalling the app and clearing storage. Users can export a full JSON backup of their data at any time from Settings. PrismTask does not sell user data, does not use tracking SDKs beyond Firebase Crashlytics for crash diagnostics, and does not serve ads. AI features process task content through the PrismTask backend which calls Anthropic's API under zero-retention terms; regex fallback is used when the user is signed out or declines AI features.
+
+---
+
+## 5. Target audience confirmation
+
+PrismTask is intended for adults (18+). See `compliance/categorization.md` for the reasoning behind the age band.

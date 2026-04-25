@@ -76,6 +76,17 @@ data class MedicationEntity(
     val pharmacyPhone: String? = null,
     @ColumnInfo(name = "reminder_days_before", defaultValue = "3")
     val reminderDaysBefore: Int = 3,
+    /**
+     * Per-medication reminder mode override: "CLOCK" | "INTERVAL" | null
+     * (inherit slot, then global). Resolved by `MedicationReminderModeResolver`
+     * (PR2). Independent of [scheduleMode] / [intervalMillis], which select
+     * the medication's overall scheduling topology — this column governs
+     * how reminders fire within whatever schedule the medication uses.
+     */
+    @ColumnInfo(name = "reminder_mode")
+    val reminderMode: String? = null,
+    @ColumnInfo(name = "reminder_interval_minutes")
+    val reminderIntervalMinutes: Int? = null,
     @ColumnInfo(name = "created_at")
     val createdAt: Long = System.currentTimeMillis(),
     @ColumnInfo(name = "updated_at")

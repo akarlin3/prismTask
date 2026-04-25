@@ -1,5 +1,6 @@
 import logging
-from datetime import datetime, timezone
+from datetime import date as date_cls, datetime, timezone
+from typing import Any
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
@@ -14,6 +15,11 @@ from app.models import (
     Habit,
     HabitCompletion,
     HabitFrequency,
+    Medication,
+    MedicationLogEvent,
+    MedicationMark,
+    MedicationSlot,
+    MedicationTierState,
     Project,
     ProjectStatus,
     Tag,
@@ -43,6 +49,10 @@ ENTITY_MAP = {
     "habit_completion": HabitCompletion,
     "template": TaskTemplate,
     "daily_essential_slot_completion": DailyEssentialSlotCompletion,
+    "medication": Medication,
+    "medication_slot": MedicationSlot,
+    "medication_tier_state": MedicationTierState,
+    "medication_mark": MedicationMark,
 }
 
 STATUS_ENUM_MAP = {
@@ -60,6 +70,10 @@ STATUS_ENUM_MAP = {
 # Relationship FKs that reference other user-owned entities (e.g.
 # `project_id` on a task) are additionally validated for ownership in
 # ``_validate_foreign_keys`` below.
+#
+# `cloud_id` is allowed for medication entities because cross-device
+# Firestore-driven sync identifies rows by client-generated cloud IDs;
+# without this, two devices creating the "same" row produce duplicates.
 WRITABLE_FIELDS: dict[str, frozenset[str]] = {
     "goal": frozenset({
         "title", "description", "status", "target_date", "color", "sort_order",
@@ -89,16 +103,64 @@ WRITABLE_FIELDS: dict[str, frozenset[str]] = {
         "template_project_id", "template_tags_json",
         "template_recurrence_json", "template_duration", "template_subtasks_json",
     }),
+    "medication": frozenset({
+        "cloud_id", "name", "dosage", "notes", "is_active",
+    }),
+    "medication_slot": frozenset({
+        "cloud_id", "slot_key", "ideal_time", "drift_minutes", "is_active",
+    }),
+    "medication_tier_state": frozenset({
+        # Cross-system FK references go by cloud_id — Android/web local
+        # integer ids don't agree with backend integer ids, so the only
+        # safe identifier across systems is the user-generated cloud_id.
+        # Real DB columns (`medication_id`, `slot_id`) are filled by
+        # `_resolve_cloud_fk_for_medication` below.
+        "cloud_id", "medication_cloud_id", "slot_cloud_id",
+        "log_date", "tier", "tier_source", "intended_time", "logged_at",
+    }),
+    "medication_mark": frozenset({
+        "cloud_id", "medication_cloud_id", "tier_state_cloud_id",
+        "intended_time", "logged_at", "marked_taken",
+    }),
 }
 
 # Foreign keys that reference user-scoped entities. Before assigning one of
 # these keys, the server must confirm the referenced row belongs to the
 # authenticated user.
+#
+# Medication tier_state / mark are NOT listed here — they reference
+# their parents by `*_cloud_id` (cross-system safe) instead of local
+# integer FKs, and the cloud-id resolution + ownership check happen
+# inline in `_resolve_cloud_fk_for_medication`.
 USER_SCOPED_FKS: dict[str, dict[str, type]] = {
     "project": {"goal_id": Goal},
     "task": {"project_id": Project, "parent_id": Task},
     "habit_completion": {"habit_id": Habit},
     "template": {"template_project_id": Project},
+}
+
+# Per-entity mapping of `*_cloud_id` payload keys -> (model, target FK
+# column). The resolver pops the cloud_id key, looks up the integer id
+# on the named model (scoped to the user), and writes the integer to
+# the FK column. Used only for medication tier_state / mark today;
+# every other entity still uses local integer FKs.
+_MEDICATION_CLOUD_FK_MAP: dict[str, dict[str, tuple[type, str]]] = {
+    "medication_tier_state": {
+        "medication_cloud_id": (Medication, "medication_id"),
+        "slot_cloud_id": (MedicationSlot, "slot_id"),
+    },
+    "medication_mark": {
+        "medication_cloud_id": (Medication, "medication_id"),
+        "tier_state_cloud_id": (MedicationTierState, "tier_state_id"),
+    },
+}
+
+# Medication entity types that emit audit rows on every /sync/push write.
+# Maps the sync entity_type to the short label stored in
+# ``medication_log_events.entity_type``.
+AUDIT_ENTITY_TYPES: dict[str, str] = {
+    "medication_tier_state": "tier_state",
+    "medication_mark": "mark",
 }
 
 
@@ -139,6 +201,111 @@ async def _validate_foreign_keys(
     return None
 
 
+async def _resolve_cloud_fk_for_medication(
+    entity_type: str, data: dict, user: User, db: AsyncSession
+) -> str | None:
+    """Resolve every `*_cloud_id` reference in `data` for medication
+    tier_state / mark into the corresponding integer FK column.
+    Mutates `data`: pops the cloud_id keys, adds the integer FK keys.
+
+    Returns an error string if any cloud_id is missing or doesn't
+    resolve to a row owned by the caller. None on success or when the
+    entity type doesn't use cloud-id FKs.
+    """
+    cloud_fks = _MEDICATION_CLOUD_FK_MAP.get(entity_type)
+    if not cloud_fks:
+        return None
+    for cloud_key, (model, fk_column) in cloud_fks.items():
+        cloud_id = data.pop(cloud_key, None)
+        if not cloud_id:
+            return f"{entity_type}.{cloud_key} is required"
+        query = select(model.id).where(model.cloud_id == cloud_id)
+        if hasattr(model, "user_id"):
+            query = query.where(model.user_id == user.id)
+        result = await db.execute(query)
+        resolved = result.scalar_one_or_none()
+        if resolved is None:
+            return (
+                f"{entity_type}.{cloud_key}={cloud_id} did not resolve "
+                "to a row owned by this user"
+            )
+        data[fk_column] = resolved
+    return None
+
+
+def _parse_dt(value: Any) -> datetime | None:
+    """Tolerant ISO-8601 parser — accepts strings, datetimes, or None."""
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value
+    if isinstance(value, str):
+        try:
+            # Python's fromisoformat handles "+00:00" but not "Z" until 3.11
+            return datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except ValueError:
+            return None
+    return None
+
+
+def _parse_date(value: Any) -> date_cls | None:
+    """Tolerant ISO-date parser. SQLite's Date type only accepts Python
+    ``date`` objects, so any "YYYY-MM-DD" string from a sync payload must
+    be coerced before the ORM sees it."""
+    if value is None:
+        return None
+    if isinstance(value, date_cls) and not isinstance(value, datetime):
+        return value
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, str):
+        try:
+            return date_cls.fromisoformat(value)
+        except ValueError:
+            return None
+    return None
+
+
+def _build_audit_record(
+    op: SyncOperation, user: User
+) -> dict[str, Any] | None:
+    """If the op targets an audited entity, return a kwargs dict for
+    ``MedicationLogEvent(**...)``. Otherwise return None.
+    """
+    label = AUDIT_ENTITY_TYPES.get(op.entity_type)
+    if label is None:
+        return None
+    data = op.data or {}
+    intended = _parse_dt(data.get("intended_time"))
+    logged = _parse_dt(data.get("logged_at")) or datetime.now(timezone.utc)
+    return {
+        "user_id": user.id,
+        "entity_type": label,
+        "entity_cloud_id": data.get("cloud_id"),
+        "intended_time": intended,
+        "logged_at": logged,
+        "operation": op.operation,
+    }
+
+
+async def _emit_audit_events(db: AsyncSession, records: list[dict[str, Any]]) -> None:
+    """Per-record best-effort audit writer.
+
+    Each insert runs inside a SAVEPOINT (``begin_nested``) so that an
+    audit-only failure rolls back just that one record rather than the
+    whole sync transaction. Sync is authoritative; audit is best-effort.
+    """
+    for r in records:
+        try:
+            async with db.begin_nested():
+                db.add(MedicationLogEvent(**r))
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(
+                "medication audit emit failed for %s: %s",
+                r.get("entity_cloud_id"), exc,
+            )
+
+
 async def _process_operation(
     op: SyncOperation, user: User, db: AsyncSession
 ) -> str | None:
@@ -153,6 +320,11 @@ async def _process_operation(
         fk_error = await _validate_foreign_keys(op.entity_type, data, user, db)
         if fk_error:
             return fk_error
+        cloud_fk_error = await _resolve_cloud_fk_for_medication(
+            op.entity_type, data, user, db
+        )
+        if cloud_fk_error:
+            return cloud_fk_error
         # Force user_id server-side — never trust the client for ownership.
         if hasattr(model, "user_id"):
             data["user_id"] = user.id
@@ -164,6 +336,14 @@ async def _process_operation(
             data["status"] = STATUS_ENUM_MAP[op.entity_type](data["status"]).value
         if "frequency" in data and op.entity_type == "habit":
             data["frequency"] = HabitFrequency(data["frequency"]).value
+        # Tolerant ISO parsing for datetime + date fields on medication
+        # entities. SQLAlchemy's TIMESTAMPTZ wants datetimes; SQLite's
+        # Date type insists on Python ``date`` objects.
+        for key in ("intended_time", "logged_at"):
+            if key in data:
+                data[key] = _parse_dt(data[key])
+        if "log_date" in data:
+            data["log_date"] = _parse_date(data["log_date"])
         entity = model(**data)
         db.add(entity)
 
@@ -181,11 +361,20 @@ async def _process_operation(
         fk_error = await _validate_foreign_keys(op.entity_type, data, user, db)
         if fk_error:
             return fk_error
+        cloud_fk_error = await _resolve_cloud_fk_for_medication(
+            op.entity_type, data, user, db
+        )
+        if cloud_fk_error:
+            return cloud_fk_error
         for key, value in data.items():
             if key == "status" and op.entity_type in STATUS_ENUM_MAP:
                 value = STATUS_ENUM_MAP[op.entity_type](value).value
             if key == "frequency" and op.entity_type == "habit":
                 value = HabitFrequency(value).value
+            if key in ("intended_time", "logged_at"):
+                value = _parse_dt(value)
+            if key == "log_date":
+                value = _parse_date(value)
             setattr(entity, key, value)
 
     elif op.operation == "delete":
@@ -214,14 +403,19 @@ async def sync_push(
 ):
     errors = []
     processed = 0
+    audit_records: list[dict[str, Any]] = []
 
     for op in data.operations:
         error = await _process_operation(op, current_user, db)
         if error:
             errors.append(error)
-        else:
-            processed += 1
+            continue
+        processed += 1
+        record = _build_audit_record(op, current_user)
+        if record is not None:
+            audit_records.append(record)
 
+    await _emit_audit_events(db, audit_records)
     await db.flush()
 
     return SyncPushResponse(

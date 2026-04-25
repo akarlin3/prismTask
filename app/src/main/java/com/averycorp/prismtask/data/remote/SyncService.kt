@@ -42,6 +42,7 @@ import com.averycorp.prismtask.data.remote.sync.SyncStateRepository
 import com.averycorp.prismtask.domain.usecase.ProFeatureGate
 import com.google.firebase.firestore.DocumentChange
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.firestore.ListenerRegistration
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -77,6 +78,7 @@ constructor(
     private val builtInHabitReconciler: BuiltInHabitReconciler,
     private val builtInTaskTemplateReconciler: BuiltInTaskTemplateReconciler,
     private val builtInTaskTemplateBackfiller: BuiltInTaskTemplateBackfiller,
+    private val builtInUpdateDetector: com.averycorp.prismtask.domain.usecase.BuiltInUpdateDetector,
     private val cloudIdOrphanHealer: CloudIdOrphanHealer,
     private val builtInMedicationReconciler: BuiltInMedicationReconciler,
     private val medicationDao: MedicationDao,
@@ -1469,7 +1471,35 @@ constructor(
             }
             else -> return
         }
-        docRef.set(data).await()
+        // Delete-wins contract: use `docRef.update(...)` rather than `docRef.set(...)`.
+        // `set` on a non-existent path silently creates the doc, which would
+        // resurrect a row that another device already deleted — exactly the
+        // bug Test 10 flagged. `update` throws with code NOT_FOUND (SDK 24+)
+        // or FAILED_PRECONDITION (older) when the doc is missing; we treat
+        // that as "remote deleted, propagate to local" and reuse the same
+        // cleanup path the realtime listener takes in `processRemoteDeletions`.
+        try {
+            @Suppress("UNCHECKED_CAST")
+            docRef.update(data as Map<String, Any>).await()
+        } catch (e: FirebaseFirestoreException) {
+            if (e.code == FirebaseFirestoreException.Code.NOT_FOUND ||
+                e.code == FirebaseFirestoreException.Code.FAILED_PRECONDITION
+            ) {
+                logger.info(
+                    operation = "push.update.remoteDeleted",
+                    entity = meta.entityType,
+                    id = meta.cloudId,
+                    status = "cleanup",
+                    detail = "Remote doc missing — delete wins; removing local row."
+                )
+                processRemoteDeletions(
+                    collectionNameFor(meta.entityType),
+                    listOf(meta.cloudId)
+                )
+                return
+            }
+            throw e
+        }
     }
 
     private suspend fun pushDelete(meta: SyncMetadataEntity) {
@@ -2548,6 +2578,16 @@ constructor(
             builtInHabitReconciler.reconcileAfterSyncIfNeeded()
             builtInTaskTemplateReconciler.reconcileAfterSyncIfNeeded()
             builtInMedicationReconciler.reconcileAfterSyncIfNeeded()
+            try {
+                builtInUpdateDetector.refreshPendingUpdates()
+            } catch (e: Exception) {
+                try {
+                    com.google.firebase.crashlytics.FirebaseCrashlytics
+                        .getInstance()
+                        .recordException(e)
+                } catch (_: Exception) {
+                }
+            }
             syncStateRepository.markSyncCompleted(
                 source = SOURCE_FIREBASE,
                 success = true,

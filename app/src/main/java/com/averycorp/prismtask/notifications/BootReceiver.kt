@@ -20,6 +20,8 @@ class BootReceiver : BroadcastReceiver() {
         fun habitReminderScheduler(): HabitReminderScheduler
 
         fun medicationReminderScheduler(): MedicationReminderScheduler
+
+        fun medicationIntervalRescheduler(): MedicationIntervalRescheduler
     }
 
     override fun onReceive(context: Context, intent: Intent) {
@@ -50,6 +52,7 @@ class BootReceiver : BroadcastReceiver() {
                 entryPoint.reminderScheduler().rescheduleAllReminders()
                 entryPoint.habitReminderScheduler().rescheduleAll()
                 entryPoint.medicationReminderScheduler().rescheduleAll()
+                entryPoint.medicationIntervalRescheduler().rescheduleAll()
             } catch (e: Exception) {
                 Log.e("BootReceiver", "Failed to reschedule reminders on boot", e)
             } finally {

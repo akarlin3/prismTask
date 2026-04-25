@@ -149,6 +149,15 @@ fun TemplateListScreen(
                                         showManageCategoriesDialog = true
                                     }
                                 )
+                                DropdownMenuItem(
+                                    text = { Text("Built-in Updates") },
+                                    onClick = {
+                                        overflowMenuExpanded = false
+                                        navController.navigate(
+                                            PrismTaskRoute.BuiltInUpdates.route
+                                        )
+                                    }
+                                )
                             }
                         }
                     },

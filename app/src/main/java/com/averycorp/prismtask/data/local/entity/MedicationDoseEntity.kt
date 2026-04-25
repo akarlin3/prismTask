@@ -22,6 +22,14 @@ import androidx.room.PrimaryKey
  * `daily_essential_slot_completions` has NO FK to this table — it keeps
  * its synthetic `source:name` dose keys and survives medication renames
  * independently.
+ *
+ * [isSyntheticSkip] flags doses that were not user-initiated mark-taken
+ * actions but were instead written by the SKIPPED tier-state path so
+ * the interval-mode reminder rescheduler (PR2/PR3) can re-anchor on
+ * skips. Synthetic rows MUST be filtered out of any UI showing dose
+ * history, completion counts, or analytics — they exist purely as
+ * scheduling anchors. Such rows always carry `note=""` and the slot's
+ * own slotKey; sync round-trips them so all devices share the anchor.
  */
 @Entity(
     tableName = "medication_doses",
@@ -55,6 +63,8 @@ data class MedicationDoseEntity(
     val takenDateLocal: String,
     @ColumnInfo(name = "note", defaultValue = "")
     val note: String = "",
+    @ColumnInfo(name = "is_synthetic_skip", defaultValue = "0")
+    val isSyntheticSkip: Boolean = false,
     @ColumnInfo(name = "created_at")
     val createdAt: Long = System.currentTimeMillis(),
     @ColumnInfo(name = "updated_at")

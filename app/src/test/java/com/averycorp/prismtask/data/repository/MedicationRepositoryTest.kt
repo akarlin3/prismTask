@@ -201,6 +201,51 @@ class MedicationRepositoryTest {
     }
 
     @Test
+    fun logSyntheticSkipDose_insertsDoseFlaggedSyntheticAndTracksCreate() = runBlocking {
+        medicationDao.rows += MedicationEntity(id = 1, name = "Lipitor")
+
+        val doseId = repo.logSyntheticSkipDose(
+            medicationId = 1,
+            slotKey = "morning",
+            intendedAt = 1_000_000L
+        )
+
+        val dose = medicationDoseDao.rows.single { it.id == doseId }
+        assertEquals(1L, dose.medicationId)
+        assertEquals("morning", dose.slotKey)
+        assertEquals(1_000_000L, dose.takenAt)
+        assert(dose.isSyntheticSkip) { "logSyntheticSkipDose must set isSyntheticSkip=true" }
+        assertEquals("synthetic skips never carry user notes", "", dose.note)
+        coVerify { syncTracker.trackCreate(doseId, "medication_dose") }
+    }
+
+    @Test
+    fun logSyntheticSkipDose_appearsInGetMostRecentDoseAnyOnceForAnchor() = runBlocking {
+        medicationDao.rows += MedicationEntity(id = 1, name = "Lipitor")
+        // Real dose at t=1000.
+        repo.logDose(medicationId = 1, slotKey = "morning", takenAt = 1000L)
+        // Synthetic skip at t=2000 — must win as the anchor.
+        val syntheticId = repo.logSyntheticSkipDose(
+            medicationId = 1,
+            slotKey = "morning",
+            intendedAt = 2000L
+        )
+
+        val anchor = medicationDoseDao.getMostRecentDoseAnyOnce()
+        assertEquals(syntheticId, anchor?.id)
+    }
+
+    @Test
+    fun logSyntheticSkipDose_excludedFromGetMostRecentRealDoseOnce() = runBlocking {
+        medicationDao.rows += MedicationEntity(id = 1, name = "Lipitor")
+        val realId = repo.logDose(medicationId = 1, slotKey = "morning", takenAt = 1000L)
+        repo.logSyntheticSkipDose(medicationId = 1, slotKey = "morning", intendedAt = 2000L)
+
+        val realAnchor = medicationDoseDao.getMostRecentRealDoseOnce()
+        assertEquals("synthetic skips must NOT appear in the real-dose anchor", realId, realAnchor?.id)
+    }
+
+    @Test
     fun countDosesForMedOnDate_returnsMatchingCount() = runBlocking {
         medicationDoseDao.rows += MedicationDoseEntity(
             id = 1, medicationId = 1, slotKey = "morning",
@@ -277,6 +322,9 @@ private class FakeMedicationDaoForRepo : MedicationDao {
     override fun getActive() = error("flow not exercised")
     override fun getAll() = error("flow not exercised")
     override fun observeById(id: Long) = error("flow not exercised")
+
+    override suspend fun getIntervalModeMedicationsOnce(): List<MedicationEntity> =
+        rows.filter { !it.isArchived && it.reminderMode == "INTERVAL" }
 }
 
 private class FakeMedicationDoseDaoForRepo : MedicationDoseDao {
@@ -334,4 +382,12 @@ private class FakeMedicationDoseDaoForRepo : MedicationDoseDao {
     override fun getForDate(date: String) = error("flow not exercised")
     override fun getForMedOnDate(medicationId: Long, date: String) =
         error("flow not exercised")
+
+    override suspend fun getMostRecentDoseAnyOnce(): MedicationDoseEntity? =
+        rows.maxByOrNull { it.takenAt }
+
+    override fun observeMostRecentDoseAny() = error("flow not exercised")
+
+    override suspend fun getMostRecentRealDoseOnce(): MedicationDoseEntity? =
+        rows.filterNot { it.isSyntheticSkip }.maxByOrNull { it.takenAt }
 }

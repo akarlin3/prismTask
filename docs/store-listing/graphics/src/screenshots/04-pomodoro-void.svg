@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Screenshot 04 — Pomodoro timer, Void theme. Caption: "Focus, on your terms." -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1920" width="1080" height="1920"
+     font-family="'Fraunces', 'Space Grotesk', serif">
+  <defs>
+    <linearGradient id="captionFade04" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#111113" stop-opacity="0"/>
+      <stop offset="40%" stop-color="#111113" stop-opacity="0.92"/>
+      <stop offset="100%" stop-color="#111113" stop-opacity="1"/>
+    </linearGradient>
+    <radialGradient id="ringGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#C8B8FF" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="#C8B8FF" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="1080" height="1920" fill="#111113"/>
+
+  <!-- Status bar -->
+  <g fill="#DCDCE4" font-size="24" font-weight="600">
+    <text x="48" y="50">9:41</text>
+    <rect x="1024" y="32" width="28" height="20" rx="4" fill="none" stroke="#DCDCE4" stroke-width="2"/>
+    <rect x="1027" y="35" width="18" height="14" fill="#C8B8FF"/>
+  </g>
+
+  <!-- App bar -->
+  <text x="48" y="160" font-size="68" font-weight="600" fill="#DCDCE4">Focus</text>
+  <text x="48" y="202" font-size="26" fill="#A0A0AB" font-family="'Space Grotesk', sans-serif">Pomodoro · session 3 of 4</text>
+
+  <!-- Task being focused on -->
+  <g transform="translate(48, 260)">
+    <rect x="0" y="0" width="984" height="112" rx="20" fill="#161618" stroke="#2E2E34" stroke-width="1"/>
+    <text x="36" y="50" font-size="20" fill="#A0A0AB" font-family="'Space Grotesk', sans-serif">Working on</text>
+    <text x="36" y="90" font-size="32" font-weight="600" fill="#DCDCE4">Draft Q2 strategy memo</text>
+  </g>
+
+  <!-- Big circular timer -->
+  <g transform="translate(540, 820)">
+    <!-- Outer glow ambient -->
+    <circle cx="0" cy="0" r="420" fill="url(#ringGlow)"/>
+    <!-- Track -->
+    <circle cx="0" cy="0" r="340" fill="none" stroke="#1E1E22" stroke-width="22"/>
+    <!-- Progress arc — 68% elapsed; strokeDash calc: circumference 2*pi*340 ≈ 2136.28; 32% remaining = 683.6 -->
+    <circle cx="0" cy="0" r="340" fill="none" stroke="#C8B8FF" stroke-width="22"
+            stroke-dasharray="1452 684" stroke-dashoffset="0" stroke-linecap="round"
+            transform="rotate(-90)"/>
+    <!-- Time display -->
+    <text x="0" y="16" font-size="168" font-weight="600" fill="#DCDCE4" text-anchor="middle" font-variant-numeric="tabular-nums">08:12</text>
+    <text x="0" y="80" font-size="28" fill="#A0A0AB" text-anchor="middle" font-family="'Space Grotesk', sans-serif">of 25:00 focus</text>
+    <!-- Energy chip -->
+    <g transform="translate(0, 156)">
+      <rect x="-140" y="-28" width="280" height="56" rx="28" fill="#1E1E22"/>
+      <circle cx="-100" cy="0" r="10" fill="#6EC87A"/>
+      <text x="-76" y="8" font-size="22" font-family="'Space Grotesk', sans-serif" fill="#DCDCE4">Energy: steady</text>
+    </g>
+  </g>
+
+  <!-- Controls row -->
+  <g transform="translate(0, 1300)">
+    <!-- Pause (primary) -->
+    <g transform="translate(540, 0)">
+      <circle cx="0" cy="0" r="72" fill="#C8B8FF"/>
+      <rect x="-20" y="-28" width="14" height="56" rx="3" fill="#111113"/>
+      <rect x="6" y="-28" width="14" height="56" rx="3" fill="#111113"/>
+    </g>
+    <!-- Skip -->
+    <g transform="translate(720, 0)">
+      <circle cx="0" cy="0" r="48" fill="#1E1E22"/>
+      <polygon points="-14,-18 18,0 -14,18" fill="#C8B8FF"/>
+      <rect x="18" y="-18" width="6" height="36" fill="#C8B8FF"/>
+    </g>
+    <!-- Stop -->
+    <g transform="translate(360, 0)">
+      <circle cx="0" cy="0" r="48" fill="#1E1E22"/>
+      <rect x="-16" y="-16" width="32" height="32" rx="3" fill="#E06060"/>
+    </g>
+  </g>
+
+  <!-- Session dots -->
+  <g transform="translate(540, 1432)" font-family="'Space Grotesk', sans-serif">
+    <text x="0" y="-18" font-size="22" fill="#A0A0AB" text-anchor="middle">Session plan</text>
+    <g transform="translate(-120, 0)">
+      <circle cx="0" cy="0" r="14" fill="#C8B8FF"/>
+      <circle cx="64" cy="0" r="14" fill="#C8B8FF"/>
+      <circle cx="128" cy="0" r="14" fill="#C8B8FF" stroke="#DCDCE4" stroke-width="3"/>
+      <circle cx="192" cy="0" r="14" fill="none" stroke="#3E3E4A" stroke-width="3"/>
+    </g>
+  </g>
+
+  <!-- Bottom nav -->
+  <g transform="translate(0, 1504)">
+    <rect x="0" y="0" width="1080" height="128" fill="#161618"/>
+    <rect x="0" y="0" width="1080" height="2" fill="#2E2E34"/>
+    <g font-size="18" text-anchor="middle" font-family="'Space Grotesk', sans-serif">
+      <text x="108" y="94" fill="#3E3E4A">Today</text>
+      <text x="324" y="94" fill="#3E3E4A">Tasks</text>
+      <text x="540" y="94" fill="#3E3E4A">Projects</text>
+      <text x="756" y="94" fill="#3E3E4A">Habits</text>
+      <text x="972" y="94" fill="#3E3E4A">Settings</text>
+    </g>
+  </g>
+
+  <!-- Caption -->
+  <rect x="0" y="1632" width="1080" height="288" fill="url(#captionFade04)"/>
+  <text x="540" y="1768" font-size="68" font-weight="600" fill="#DCDCE4" text-anchor="middle">Focus, on your terms.</text>
+  <text x="540" y="1830" font-size="30" fill="#C8B8FF" text-anchor="middle" font-family="'Space Grotesk', sans-serif">Pomodoro sessions sized to your energy.</text>
+</svg>

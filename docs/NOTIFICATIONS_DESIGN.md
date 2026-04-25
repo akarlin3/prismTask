@@ -1,10 +1,42 @@
 # PrismTask Notifications — Cross-Platform Design
 
 Companion design document for the customizable notification system landed in
-v1.4.0. The Android implementation shipped in this branch covers every domain
-below; this document captures the information architecture, data model, and
-platform contracts so the same behavior can be re-created on iOS, web, and
-desktop with consistent semantics across devices.
+v1.4.0 and extended in v1.6.0 with medication reminder modes. The Android
+implementation shipped in this branch covers every domain below; this
+document captures the information architecture, data model, and platform
+contracts so the same behavior can be re-created on iOS, web, and desktop
+with consistent semantics across devices.
+
+> **v1.6.0 addition: Medication reminder modes.** Medication reminders now
+> support two delivery modes — **CLOCK** (fixed slot times, the v1.4–v1.5
+> behavior) and **INTERVAL** (every N minutes since the most recent dose).
+> A three-level resolver picks the effective mode for each medication at
+> reminder time:
+>
+> 1. The medication's own override (`medications.reminder_mode`)
+> 2. The slot's override (`medication_slots.reminder_mode`)
+> 3. The global default (stored in `UserPreferencesDataStore` as
+>    `medicationReminderModeFlow`, default `CLOCK`)
+>
+> NULL at any level means "inherit the next level down." Interval minutes
+> are always clamped to `[60, 1440]`; an INTERVAL resolution that lacks a
+> value at every level falls back to the global default minutes.
+>
+> A separate `MedicationIntervalRescheduler` owns AlarmManager
+> registrations for INTERVAL-mode slots and per-medication overrides
+> (request-code namespaces `+500_000` for slots, `+600_000` for med
+> overrides), distinct from the CLOCK-mode scheduler at `+400_000`. The
+> rescheduler observes `MedicationDoseDao.observeMostRecentDoseAny()` and
+> reschedules all INTERVAL alarms on every dose emission, so the cadence
+> re-anchors after every taken dose. Synthetic-skip doses
+> (`is_synthetic_skip = 1`) act as scheduling anchors when the user
+> explicitly skips a slot — they show up in the dose stream but are
+> filtered out of the human-facing log UI.
+>
+> Web reminder *delivery* is not yet implemented (Web Push lands in a
+> future release); the web app reads and writes the same `reminder_mode`
+> + `reminder_interval_minutes` fields on Firestore so settings sync to
+> the user's phone.
 
 ---
 

@@ -5,6 +5,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.first
@@ -52,6 +53,15 @@ constructor(
             booleanPreferencesKey("self_care_steps_backfill_done")
         private val SELF_CARE_LOGS_BACKFILL_DONE =
             booleanPreferencesKey("self_care_logs_backfill_done")
+
+        /**
+         * Per-device set of dismissed built-in template updates. Each entry
+         * is shaped `"$templateKey@$version"` (e.g. `"builtin_school@2"`).
+         * The detector skips any (key, version) pair present in this set.
+         * Intentionally not synced — see TEMPLATE_MIGRATION_DESIGN.md §7.
+         */
+        private val DISMISSED_BUILT_IN_UPDATES =
+            stringSetPreferencesKey("dismissed_built_in_updates")
     }
 
     suspend fun isBuiltInsReconciled(): Boolean =
@@ -201,6 +211,28 @@ constructor(
     ): Boolean {
         val prefs = context.builtInSyncDataStore.data.first()
         return prefs[key] ?: prefs[NEW_ENTITIES_BACKFILL_DONE] ?: false
+    }
+
+    suspend fun isDismissed(templateKey: String, version: Int): Boolean {
+        val token = "$templateKey@$version"
+        return context.builtInSyncDataStore.data.first()[DISMISSED_BUILT_IN_UPDATES]
+            ?.contains(token) == true
+    }
+
+    suspend fun setDismissed(templateKey: String, version: Int) {
+        val token = "$templateKey@$version"
+        context.builtInSyncDataStore.edit { prefs ->
+            val current = prefs[DISMISSED_BUILT_IN_UPDATES] ?: emptySet()
+            prefs[DISMISSED_BUILT_IN_UPDATES] = current + token
+        }
+    }
+
+    suspend fun clearDismissals(templateKey: String) {
+        val prefix = "$templateKey@"
+        context.builtInSyncDataStore.edit { prefs ->
+            val current = prefs[DISMISSED_BUILT_IN_UPDATES] ?: return@edit
+            prefs[DISMISSED_BUILT_IN_UPDATES] = current.filterNot { it.startsWith(prefix) }.toSet()
+        }
     }
 
     /**

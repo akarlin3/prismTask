@@ -1,0 +1,13 @@
+<!-- TRANSLATE: full description, max 4000 characters including spaces. See copy/en-US/full-description.txt for the reference text.
+
+Structure to preserve in translation:
+  1. Opening hook (2 sentences) + tagline "Built for focus. Made for humans."
+  2. "What PrismTask does" — 5 bullets
+  3. "AI-powered planning (Pro)" — intro + 4 bullets
+  4. "Wellness-aware by default" — intro + 5 bullets
+  5. "Medication & clinical tools" — 3 bullets
+  6. "Accessibility is a first-class feature" — 5 bullets
+  7. "Your data, your control" — 5 bullets
+  8. "Free vs Pro" paragraph
+  9. "Currently in closed testing" closing paragraph
+-->

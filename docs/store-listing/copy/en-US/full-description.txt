@@ -1,0 +1,68 @@
+PrismTask is a task manager, habit tracker, and focus companion for people who have bounced off rigid productivity systems. It is designed to work with your energy, your rhythm, and the messy reality of a real week.
+
+Built for focus. Made for humans.
+
+
+What PrismTask does
+
+• Tasks with due dates, priorities, projects, tags, subtasks, recurrence, and natural-language quick-add ("water plants tomorrow 9am #home !high")
+• Habits with forgiveness-first streaks — miss a day without losing your run
+• A Pomodoro timer with per-session energy tracking and a foreground service that survives app switches
+• Week, month, and timeline views alongside a focused Today screen with a progress ring and a balance bar
+• Four cohesive themes — Cyberpunk, Synthwave, Matrix, and Void — each with its own font pair, palette, and data-visualization series
+
+
+AI-powered planning (Pro)
+
+Opt-in AI features backed by Claude. No API key to configure — everything runs through the PrismTask backend on your behalf.
+
+• Eisenhower matrix with auto-classification and persistent manual overrides
+• AI time blocking that turns your open day into suggested focus blocks
+• Daily briefing and weekly review that summarize what is coming and reflect on what landed
+• Smart Pomodoro planning — sessions sized to the task and your reported energy
+
+
+Wellness-aware by default
+
+PrismTask treats focus as a resource, not a virtue.
+
+• Work-Life Balance engine with a configurable target ratio and on-screen balance bar
+• Mood and energy logs with correlation to task completion and habit runs
+• Morning check-in and weekly review flows with their own streaks
+• Boundary rules — declare work hours and category limits; a burnout scorer dials notification intensity down when overload is detected
+• Neurodivergence-friendly modes: Brain Mode, adjustable UI complexity, forgiveness streaks, shake-to-capture, and a "good enough" timer
+
+
+Medication & clinical tools
+
+• Medications with flexible clock-time or interval reminders
+• Refill projection computed from your dose history
+• Therapist-friendly clinical report export
+
+
+Accessibility is a first-class feature
+
+• TalkBack-ready content descriptions throughout
+• Dynamic font scaling that respects system preferences
+• High-contrast palette mode
+• Full keyboard focus traversal on attached keyboards
+• Reduced-motion animation gates
+
+
+Your data, your control
+
+• Full local-first Room database — the app works entirely offline
+• Optional Google Sign-In unlocks cross-device sync via Firebase Firestore
+• One-tap full JSON export and a CSV task export
+• Delete all of your data from Settings at any time
+• No ads, no analytics SDKs beyond crash reporting, no selling data
+
+
+Free vs Pro
+
+Everything you need to run your life — tasks, projects, tags, habits, templates, voice input, accessibility, themes, wellness features, medications, morning check-in, weekly review, boundary rules, burnout protection, and all four visual themes — is in the free tier. Pro ($3.99 / month) adds cross-device cloud sync, AI-assisted planning, analytics, time tracking, the clinical report export, and Google Drive backup.
+
+
+Currently in closed testing
+
+PrismTask is shipping weekly. We are listening hard and adjusting based on what testers tell us. If you notice something off, feedback is how the roadmap gets set.

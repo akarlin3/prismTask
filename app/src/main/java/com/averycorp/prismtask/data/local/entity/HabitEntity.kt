@@ -76,6 +76,28 @@ data class HabitEntity(
     val isBuiltIn: Boolean = false,
     @ColumnInfo(name = "template_key")
     val templateKey: String? = null,
+    /**
+     * The BuiltInHabitVersionRegistry version this row was last reconciled
+     * against. 0 means "never linked / pre-versioning"; the migration that
+     * adds this column backfills 1 onto every row that already had
+     * is_built_in = 1 and a non-null template_key.
+     */
+    @ColumnInfo(name = "source_version", defaultValue = "0")
+    val sourceVersion: Int = 0,
+    /**
+     * Set true the first time the user edits any field on a built-in habit
+     * row. The diff/approve UI uses it as a heuristic to default
+     * field-level overwrites to unchecked. Never reset.
+     */
+    @ColumnInfo(name = "is_user_modified", defaultValue = "0")
+    val isUserModified: Boolean = false,
+    /**
+     * Sticky cross-device flag — once true, BuiltInUpdateDetector ignores
+     * this row forever. Sync uses logical-OR (either side true wins) so
+     * detach is irreversible without manual intervention.
+     */
+    @ColumnInfo(name = "is_detached_from_template", defaultValue = "0")
+    val isDetachedFromTemplate: Boolean = false,
     @ColumnInfo(name = "created_at")
     val createdAt: Long = System.currentTimeMillis(),
     @ColumnInfo(name = "updated_at")

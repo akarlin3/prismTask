@@ -13,17 +13,14 @@ on:
       - 'settings.gradle.kts'
       - '.github/workflows/android-ci.yml'
       - '.github/actions/setup-android/**'
+  # Pull-request trigger is intentionally unfiltered: branch protection
+  # requires the `lint-and-test` status to post, and if `paths:` filters
+  # the workflow out the status never posts and the PR blocks forever.
+  # Relevance is re-checked *inside* the job via dorny/paths-filter so
+  # an unrelated PR short-circuits after a few seconds rather than
+  # running the full Gradle suite.
   pull_request:
     branches: [main]
-    paths:
-      - 'app/**'
-      - 'gradlew'
-      - 'gradlew.bat'
-      - 'gradle/**'
-      - 'build.gradle.kts'
-      - 'settings.gradle.kts'
-      - '.github/workflows/android-ci.yml'
-      - '.github/actions/setup-android/**'
 
 concurrency:
   group: android-ci-${{ github.ref }}
@@ -37,8 +34,15 @@ permissions:
 
 jobs:
   # lint-and-test depends on autofix so it checks the post-autofix head,
-  # not the pre-fix merge commit. The autofix commit keeps [skip ci] so we
-  # don't double-run on the newly-pushed SHA.
+  # not the pre-fix merge commit. The autofix commit intentionally does NOT
+  # carry [skip ci]: branch protection posts required statuses against the
+  # PR's head SHA, and [skip ci] prevented every workflow — including
+  # required checks (lint-and-test, connected-tests, backend test, web
+  # lint-and-test) — from ever running on the autofix commit. That left PRs
+  # stuck with pending required checks forever (e.g. sync-tests PRs
+  # #749/#751/#753, which had to be admin-merged). The one extra android-ci
+  # cycle on the bot's push is cheap — on the re-run, autofix finds nothing
+  # to commit and only the fast ktlint/detekt steps run.
   autofix:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
@@ -48,24 +52,52 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           ref: ${{ github.head_ref }}
           fetch-depth: 0
+      # Skip the Gradle cold-start entirely when the PR doesn't touch
+      # Android code — saves ~2 min per irrelevant PR. Relevance pattern
+      # must stay in sync with the `paths:` list on the `push:` trigger
+      # above.
+      - uses: dorny/paths-filter@v3
+        id: relevance
+        with:
+          filters: |
+            android:
+              - 'app/**'
+              - 'gradlew'
+              - 'gradlew.bat'
+              - 'gradle/**'
+              - 'build.gradle.kts'
+              - 'settings.gradle.kts'
+              - '.github/workflows/android-ci.yml'
+              - '.github/actions/setup-android/**'
+      - name: Short-circuit (no Android changes)
+        if: steps.relevance.outputs.android != 'true'
+        run: echo "✓ No Android paths changed; autofix is a no-op."
       - uses: ./.github/actions/setup-android
+        if: steps.relevance.outputs.android == 'true'
       - name: ktlint auto-format
         id: ktlint_format
+        if: steps.relevance.outputs.android == 'true'
         run: ./gradlew ktlintFormat --continue
       - name: detekt auto-correct
         id: detekt_autocorrect
-        if: always()
+        if: always() && steps.relevance.outputs.android == 'true'
         run: ./gradlew detekt --auto-correct --continue
-      # Commits with [skip ci] to avoid re-triggering this workflow.
+      # Commit message intentionally does NOT include [skip ci]. See the
+      # header comment on this job for the full rationale — TL;DR: branch
+      # protection's required statuses post against the head SHA, and
+      # [skip ci] prevents the required-check workflows from running on
+      # the autofix commit, which deadlocks the PR. Auto-merge already
+      # skips bot synchronize events via `sender.type != 'Bot'`, so
+      # there's no risk of auto-merge looping on the re-trigger.
       # Runs even if the auto-fix steps exited non-zero so partial fixes
       # still get committed, but the job as a whole still fails so
       # unfixable issues aren't silently ignored.
       - name: Commit formatting fixes
-        if: always()
+        if: always() && steps.relevance.outputs.android == 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git diff --quiet || (git add -A && git commit -m "style: auto-format [skip ci]" && git push)
+          git diff --quiet || (git add -A && git commit -m "style: auto-format" && git push)
       # Audit item #8 — run ktlintCheck here (not in lint-and-test) so
       # non-auto-correctable violations (e.g. comments inside
       # value_argument_list) fail THIS job. Saves a Gradle cold-start and
@@ -74,7 +106,7 @@ jobs:
       # non-zero — the goal is for this final check to be the
       # authoritative ktlint verdict.
       - name: ktlint check (authoritative)
-        if: always()
+        if: always() && steps.relevance.outputs.android == 'true'
         run: ./gradlew ktlintCheck --continue
 
   lint-and-test:
@@ -82,6 +114,11 @@ jobs:
     # autofix is skipped; `!cancelled()` lets this job run anyway. The checkout
     # ref follows the PR head branch (after autofix's push) or falls back to
     # the pushed ref.
+    #
+    # This job is a required status check in branch protection, so it must
+    # always post a result — even on PRs that don't touch Android code.
+    # The `relevance` filter below gates the actual Gradle work; an
+    # irrelevant PR returns success within seconds.
     #
     # Audit item #8 — ktlintCheck now lives in the autofix job (PR runs)
     # OR the detekt step below (push runs); either way it runs exactly
@@ -93,17 +130,34 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.head_ref || github.ref }}
+      - uses: dorny/paths-filter@v3
+        id: relevance
+        with:
+          filters: |
+            android:
+              - 'app/**'
+              - 'gradlew'
+              - 'gradlew.bat'
+              - 'gradle/**'
+              - 'build.gradle.kts'
+              - 'settings.gradle.kts'
+              - '.github/workflows/android-ci.yml'
+              - '.github/actions/setup-android/**'
+      - name: Short-circuit (no Android changes)
+        if: steps.relevance.outputs.android != 'true'
+        run: echo "✓ No Android paths changed; lint-and-test is a no-op."
       - uses: ./.github/actions/setup-android
+        if: steps.relevance.outputs.android == 'true'
       # ktlintCheck runs in autofix for PR events; for push events autofix
       # is skipped so we fall back to running it here.
       - name: ktlint check (push events only)
-        if: github.event_name != 'pull_request'
+        if: github.event_name != 'pull_request' && steps.relevance.outputs.android == 'true'
         run: ./gradlew ktlintCheck --continue
       - name: detekt
-        if: always()
+        if: always() && steps.relevance.outputs.android == 'true'
         run: ./gradlew detekt --continue
       - name: Android lint
-        if: always()
+        if: always() && steps.relevance.outputs.android == 'true'
         run: ./gradlew lint --continue
       - name: Unit tests
         # `set -o pipefail` is on by default in GitHub's bash shell, but we
@@ -114,6 +168,7 @@ jobs:
         # hung test shows which class it was on. 20-minute step timeout
         # turns an indefinite hang into a reported failure (the codebase's
         # historical test runtime is ~5 min).
+        if: steps.relevance.outputs.android == 'true'
         timeout-minutes: 20
         shell: bash
         run: |
@@ -125,7 +180,7 @@ jobs:
         # the step. Catches configurations where `ignoreFailures = true` is
         # added to a module, `tee`/shell changes swallow the exit code, or a
         # custom test task reports failures via XML without propagating them.
-        if: always()
+        if: always() && steps.relevance.outputs.android == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -150,7 +205,7 @@ jobs:
           fi
           echo "All ${#xmls[@]} JUnit XML reports clean."
       - name: Post failure details to PR
-        if: failure() && github.event_name == 'pull_request'
+        if: failure() && github.event_name == 'pull_request' && steps.relevance.outputs.android == 'true'
         uses: actions/github-script@v7
         with:
           script: |
@@ -178,21 +233,21 @@ jobs:
               body
             });
       - name: Upload lint report
-        if: always()
+        if: always() && steps.relevance.outputs.android == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: lint-report
           path: app/build/reports/lint-results-debug.html
           retention-days: 7
       - name: Upload detekt report
-        if: always()
+        if: always() && steps.relevance.outputs.android == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: detekt-report
           path: app/build/reports/detekt/
           retention-days: 7
       - name: Upload test results
-        if: always()
+        if: always() && steps.relevance.outputs.android == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: test-results
