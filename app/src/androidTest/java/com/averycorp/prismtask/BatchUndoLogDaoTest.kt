@@ -177,6 +177,64 @@ class BatchUndoLogDaoTest {
         assertEquals(setOf("fresh", "recent-undone"), remaining)
     }
 
+    // Boundary regression tests for the sweep predicate. The DAO uses
+    // `expires_at < :now` (strict-`<`) and `undone_at < :undoneCutoff`
+    // (strict-`<`). Pin both. PR #707 fixed an off-anchor mistake here
+    // where a test row claimed to be expired but was actually 86M ms in
+    // the future, so sweep silently kept it; these tests guard against
+    // a future "fix" that flips the predicate to `<=` and quietly drops
+    // rows on the boundary.
+
+    @Test
+    fun sweep_atExactExpiryBoundary_keepsRow() = runTest {
+        // expires_at == now. Predicate is strict `<`, so the row must survive.
+        val now = 100_000L
+        val undoneCutoff = now - 7L * DAY_MILLIS
+        dao.insert(entry(batchId = "boundary", entityId = 1L, createdAt = now - 1, expiresAt = now))
+
+        val deleted = dao.sweep(now = now, undoneCutoff = undoneCutoff)
+
+        assertEquals("strict `<` semantics — boundary row survives", 0, deleted)
+        assertEquals(setOf("boundary"), dao.getAllOnce().map { it.batchId }.toSet())
+    }
+
+    @Test
+    fun sweep_oneMillisPastExpiry_dropsRow() = runTest {
+        // expires_at == now - 1L. Predicate matches; row must be deleted.
+        // Regression-pin for PR #707 — the buggy form claimed expiresAt
+        // was past `now` but was actually 86M ms in the future.
+        val now = 100_000L
+        val undoneCutoff = now - 7L * DAY_MILLIS
+        dao.insert(entry(batchId = "past", entityId = 1L, createdAt = 1L, expiresAt = now - 1L))
+
+        val deleted = dao.sweep(now = now, undoneCutoff = undoneCutoff)
+
+        assertEquals(1, deleted)
+        assertTrue("past-expiry row must be swept", dao.getAllOnce().isEmpty())
+    }
+
+    @Test
+    fun sweep_undoneAtExactCutoff_keepsRow() = runTest {
+        // undone_at == undoneCutoff. Predicate is strict `<`, so the row
+        // must survive — boundary parity with the expires_at arm above.
+        val now = 100_000L
+        val undoneCutoff = now - 7L * DAY_MILLIS
+        dao.insert(
+            entry(
+                batchId = "boundary-undone",
+                entityId = 1L,
+                createdAt = undoneCutoff - 1000L,
+                undoneAt = undoneCutoff,
+                expiresAt = now + DAY_MILLIS
+            )
+        )
+
+        val deleted = dao.sweep(now = now, undoneCutoff = undoneCutoff)
+
+        assertEquals("strict `<` semantics on undone_at — boundary row survives", 0, deleted)
+        assertEquals(setOf("boundary-undone"), dao.getAllOnce().map { it.batchId }.toSet())
+    }
+
     @Test
     fun insert_persistsAllNullableFields() = runTest {
         // Hard-deleted entity — entity_id and cloud_id both null.
