@@ -123,7 +123,7 @@ class HabitRepositoryTest {
                 name = "School",
                 isBuiltIn = true,
                 templateKey = "builtin_school",
-                isUserModified = false,
+                isUserModified = false
             )
         )
         val existing = habitDao.habits.single { it.id == id }
@@ -141,7 +141,7 @@ class HabitRepositoryTest {
             HabitEntity(
                 name = "My Custom",
                 isBuiltIn = false,
-                isUserModified = false,
+                isUserModified = false
             )
         )
         val existing = habitDao.habits.single { it.id == id }
@@ -153,7 +153,7 @@ class HabitRepositoryTest {
         assertEquals(
             "isUserModified is built-in only — must stay false on user habits",
             false,
-            after.isUserModified,
+            after.isUserModified
         )
     }
 
@@ -164,7 +164,7 @@ class HabitRepositoryTest {
                 name = "School",
                 isBuiltIn = true,
                 templateKey = "builtin_school",
-                isUserModified = true,
+                isUserModified = true
             )
         )
         val existing = habitDao.habits.single { it.id == id }
