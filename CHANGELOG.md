@@ -9,6 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **In-app account deletion with 30-day grace period** — Settings →
+  Account & Sync now exposes a "Delete Account" button (Android-only
+  for now). Two-step typed-DELETE confirmation matches the existing
+  Reset App Data dialog. On confirm, AccountDeletionService marks
+  Firestore deletion-pending, signs the user out, and wipes all local
+  state (Room via clearAllTables, every DataStore preference file,
+  WorkManager workers, posted notifications). Backend gains 4 new
+  endpoints under /api/v1/auth/me/deletion (mark, status, cancel,
+  purge) plus migration 020 adding deletion-pending columns to
+  `users`. Sign-in within the 30-day grace window detects the pending
+  state and offers Restore. Sign-in after the grace window triggers
+  permanent deletion: backend deletes the Postgres row (CASCADE) and
+  the Firebase Auth record via Firebase Admin SDK. Privacy policy
+  and Play Console data-safety form updated; the existing email
+  deletion path is preserved as a fallback for users who cannot
+  access the Android app.
+
 - **Show "Taken at HH:mm" on each medication slot card + bump log
   time visibility** — Previously the MedicationScreen surfaced a
   backlogged-indicator clock icon but never the actual wall-clock

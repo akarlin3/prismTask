@@ -3,7 +3,7 @@
 **Destination:** Play Console → Policy → Data safety.
 **Source of truth:** Phase 1 audit §4. This document must stay consistent with `../../privacy/index.md` — if one changes, update the other.
 
-This file answers every question on Play Console's current Data safety form as of 2026-04-24. Copy each answer into the corresponding Play Console field.
+This file answers every question on Play Console's current Data safety form as of 2026-04-25. Copy each answer into the corresponding Play Console field.
 
 ---
 
@@ -20,11 +20,10 @@ This file answers every question on Play Console's current Data safety form as o
 ### 1.3 Do you provide a way for users to request that their data be deleted?
 
 **Yes.** Users can:
-- Sign out from Settings → Account to stop further cloud sync.
+- **In-app** (Android): Settings → Account & Sync → Delete Account. Takes effect immediately, signs the user out, wipes local data, and schedules permanent deletion in 30 days. Reversible during the grace window by signing back in. After 30 days the backend deletes the Postgres record and Firebase Auth record (via Firebase Admin SDK).
+- Sign out from Settings → Account & Sync to stop further cloud sync (without scheduling deletion).
 - Clear local data via system Settings → Apps → PrismTask → Storage → Clear storage (wipes the on-device Room database and DataStore).
-- Email `privacy@prismtask.app` to request deletion of synced data — Firestore user collection + Firebase Auth user are wiped within 30 days.
-
-**Note for verification:** an in-app one-tap "Delete account" Settings affordance is in active development. The `AuthManager.deleteAccount()` backend method is implemented but not yet wired to a UI button. When that ships, this section and the privacy policy will be updated together to add the in-app path.
+- Email `privacy@prismtask.app` for users who can't access the Android app — Firestore user collection + Firebase Auth user are wiped within 30 days.
 
 ---
 
@@ -144,7 +143,7 @@ This file answers every question on Play Console's current Data safety form as o
 
 ## 4. Security practices statement (free-text in Play Console)
 
-> Data is encrypted in transit using TLS. Users can request their data be deleted in-app from Settings → Account → Delete account, from outside the app by emailing privacy@prismtask.app, or by uninstalling the app and clearing storage. Users can export a full JSON backup of their data at any time from Settings. PrismTask does not sell user data, does not use tracking SDKs beyond Firebase Crashlytics for crash diagnostics, and does not serve ads. AI features process task content through the PrismTask backend which calls Anthropic's API under zero-retention terms; regex fallback is used when the user is signed out or declines AI features.
+> Data is encrypted in transit using TLS. Android users can delete their account in-app from Settings → Account & Sync → Delete Account, with a 30-day grace period during which signing back in restores the account. After the grace window the backend permanently deletes the Postgres user record and the Firebase Auth account via Firebase Admin SDK. Users who cannot access the Android app can request deletion by emailing privacy@prismtask.app, or wipe local-only data by uninstalling the app and clearing storage. Users can export a full JSON backup of their data at any time from Settings. PrismTask does not sell user data, does not use tracking SDKs beyond Firebase Crashlytics for crash diagnostics, and does not serve ads. AI features process task content through the PrismTask backend which calls Anthropic's API under zero-retention terms; regex fallback is used when the user is signed out or declines AI features.
 
 ---
 
