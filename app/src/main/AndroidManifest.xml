@@ -36,7 +36,13 @@
         reminders are not deferred indefinitely.
     -->
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
-    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <!--
+        REQUEST_INSTALL_PACKAGES is declared in app/src/debug/AndroidManifest.xml
+        (debug builds only) so the Firebase App Distribution self-installer in
+        AppUpdater.kt can install pulled APKs. Play Store release builds do not
+        declare this permission — Play disallows it for non-file-manager apps,
+        and Play's own update flow handles releases anyway.
+    -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.VIBRATE" />
     <!--

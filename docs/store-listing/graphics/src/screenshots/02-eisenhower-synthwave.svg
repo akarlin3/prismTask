@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Screenshot 02 — Eisenhower matrix, Synthwave theme. Caption: "Auto-prioritized by AI." -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1920" width="1080" height="1920"
+     font-family="'Audiowide', 'Rajdhani', 'Space Grotesk', sans-serif">
+  <defs>
+    <linearGradient id="captionFade02" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0D0717" stop-opacity="0"/>
+      <stop offset="40%" stop-color="#0D0717" stop-opacity="0.92"/>
+      <stop offset="100%" stop-color="#0D0717" stop-opacity="1"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1080" height="1920" fill="#0D0717"/>
+
+  <!-- Status bar -->
+  <g fill="#F0D0FF" font-size="24" font-weight="600">
+    <text x="48" y="50">9:41</text>
+    <rect x="1024" y="32" width="28" height="20" rx="4" fill="none" stroke="#F0D0FF" stroke-width="2"/>
+    <rect x="1027" y="35" width="18" height="14" fill="#FF2D87"/>
+  </g>
+
+  <!-- App bar -->
+  <text x="48" y="160" font-size="72" font-weight="700" fill="#F0D0FF">Eisenhower</text>
+  <text x="48" y="206" font-size="28" fill="#B080D0">12 tasks · auto-classified</text>
+  <g transform="translate(920, 148)">
+    <rect x="0" y="0" width="112" height="64" rx="32" fill="#FF2D87"/>
+    <text x="56" y="42" font-size="22" text-anchor="middle" font-weight="700" fill="#0D0717">AI · On</text>
+  </g>
+
+  <!-- Axis labels -->
+  <text x="540" y="268" font-size="22" fill="#6E3FFF" text-anchor="middle" font-weight="600">← less urgent      URGENT →</text>
+
+  <!-- 2x2 grid. Content area: 48,300 → 1032,1420 -->
+  <!-- Row tops: Q1/Q2 at y=316, Q3/Q4 at y=866; each 530 tall, 472 wide. Gap 40. -->
+
+  <!-- Q1 — Do First (urgent + important) -->
+  <g transform="translate(48, 316)">
+    <rect x="0" y="0" width="472" height="530" rx="20" fill="#280018" stroke="#FF2D87" stroke-opacity="0.5" stroke-width="2"/>
+    <text x="24" y="46" font-size="26" font-weight="700" fill="#FF2D87">DO FIRST</text>
+    <text x="24" y="78" font-size="18" fill="#B080D0">urgent + important</text>
+    <g font-family="'Space Grotesk', sans-serif">
+      <g transform="translate(24, 112)">
+        <circle cx="12" cy="16" r="10" fill="none" stroke="#FF2D87" stroke-width="2.5"/>
+        <text x="34" y="14" font-size="22" font-weight="600" fill="#F0D0FF">Client invoice</text>
+        <text x="34" y="38" font-size="16" fill="#FF2D87">Overdue · !High</text>
+      </g>
+      <g transform="translate(24, 182)">
+        <circle cx="12" cy="16" r="10" fill="none" stroke="#FF2D87" stroke-width="2.5"/>
+        <text x="34" y="14" font-size="22" font-weight="600" fill="#F0D0FF">Security patch review</text>
+        <text x="34" y="38" font-size="16" fill="#FF2D87">Today · !High</text>
+      </g>
+      <g transform="translate(24, 252)">
+        <circle cx="12" cy="16" r="10" fill="none" stroke="#FF2D87" stroke-width="2.5"/>
+        <text x="34" y="14" font-size="22" font-weight="600" fill="#F0D0FF">Design brief</text>
+        <text x="34" y="38" font-size="16" fill="#FF2D87">2pm · !High</text>
+      </g>
+    </g>
+  </g>
+
+  <!-- Q2 — Schedule (not urgent + important) -->
+  <g transform="translate(560, 316)">
+    <rect x="0" y="0" width="472" height="530" rx="20" fill="#0F0828" stroke="#6E3FFF" stroke-opacity="0.5" stroke-width="2"/>
+    <text x="24" y="46" font-size="26" font-weight="700" fill="#6E3FFF">SCHEDULE</text>
+    <text x="24" y="78" font-size="18" fill="#B080D0">important · not urgent</text>
+    <g font-family="'Space Grotesk', sans-serif">
+      <g transform="translate(24, 112)">
+        <circle cx="12" cy="16" r="10" fill="none" stroke="#6E3FFF" stroke-width="2.5"/>
+        <text x="34" y="14" font-size="22" font-weight="600" fill="#F0D0FF">Quarterly planning</text>
+        <text x="34" y="38" font-size="16" fill="#6E3FFF">Next Tue · Work</text>
+      </g>
+      <g transform="translate(24, 182)">
+        <circle cx="12" cy="16" r="10" fill="none" stroke="#6E3FFF" stroke-width="2.5"/>
+        <text x="34" y="14" font-size="22" font-weight="600" fill="#F0D0FF">Reading list · book 3</text>
+        <text x="34" y="38" font-size="16" fill="#6E3FFF">This week · Self-care</text>
+      </g>
+      <g transform="translate(24, 252)">
+        <circle cx="12" cy="16" r="10" fill="none" stroke="#6E3FFF" stroke-width="2.5"/>
+        <text x="34" y="14" font-size="22" font-weight="600" fill="#F0D0FF">Learn Kotlin Flow</text>
+        <text x="34" y="38" font-size="16" fill="#6E3FFF">Sat · Personal</text>
+      </g>
+      <g transform="translate(24, 322)">
+        <circle cx="12" cy="16" r="10" fill="none" stroke="#6E3FFF" stroke-width="2.5"/>
+        <text x="34" y="14" font-size="22" font-weight="600" fill="#F0D0FF">Dentist booking</text>
+        <text x="34" y="38" font-size="16" fill="#6E3FFF">April 30 · Health</text>
+      </g>
+    </g>
+  </g>
+
+  <!-- Q3 — Delegate (urgent + not important) -->
+  <g transform="translate(48, 866)">
+    <rect x="0" y="0" width="472" height="530" rx="20" fill="#281400" stroke="#FF7700" stroke-opacity="0.5" stroke-width="2"/>
+    <text x="24" y="46" font-size="26" font-weight="700" fill="#FF7700">DELEGATE</text>
+    <text x="24" y="78" font-size="18" fill="#B080D0">urgent · not important</text>
+    <g font-family="'Space Grotesk', sans-serif">
+      <g transform="translate(24, 112)">
+        <circle cx="12" cy="16" r="10" fill="none" stroke="#FF7700" stroke-width="2.5"/>
+        <text x="34" y="14" font-size="22" font-weight="600" fill="#F0D0FF">Approve expense report</text>
+        <text x="34" y="38" font-size="16" fill="#FF7700">Today · Work</text>
+      </g>
+      <g transform="translate(24, 182)">
+        <circle cx="12" cy="16" r="10" fill="none" stroke="#FF7700" stroke-width="2.5"/>
+        <text x="34" y="14" font-size="22" font-weight="600" fill="#F0D0FF">Reply to vendor</text>
+        <text x="34" y="38" font-size="16" fill="#FF7700">Today · Work</text>
+      </g>
+    </g>
+    <!-- Manual override chip on one task -->
+    <g transform="translate(330, 112)">
+      <rect x="0" y="0" width="118" height="32" rx="16" fill="#FFCC00" opacity="0.85"/>
+      <text x="59" y="22" font-size="16" font-weight="700" fill="#1F0015" text-anchor="middle">manual</text>
+    </g>
+  </g>
+
+  <!-- Q4 — Eliminate (neither) -->
+  <g transform="translate(560, 866)">
+    <rect x="0" y="0" width="472" height="530" rx="20" fill="#100818" stroke="#5E3A7A" stroke-opacity="0.6" stroke-width="2"/>
+    <text x="24" y="46" font-size="26" font-weight="700" fill="#B080D0">ELIMINATE</text>
+    <text x="24" y="78" font-size="18" fill="#B080D0">neither</text>
+    <g font-family="'Space Grotesk', sans-serif">
+      <g transform="translate(24, 112)">
+        <circle cx="12" cy="16" r="10" fill="none" stroke="#5E3A7A" stroke-width="2.5"/>
+        <text x="34" y="14" font-size="22" font-weight="600" fill="#B080D0">Tidy downloads folder</text>
+        <text x="34" y="38" font-size="16" fill="#5E3A7A">Whenever</text>
+      </g>
+    </g>
+    <text x="236" y="300" font-size="18" fill="#5E3A7A" text-anchor="middle" font-style="italic">Mostly empty — tidy quadrant.</text>
+  </g>
+
+  <!-- Y-axis label (rotated) -->
+  <text x="28" y="880" font-size="22" fill="#6E3FFF" text-anchor="middle" font-weight="600"
+        transform="rotate(-90 28 880)">← less important      IMPORTANT →</text>
+
+  <!-- Caption strip -->
+  <rect x="0" y="1632" width="1080" height="288" fill="url(#captionFade02)"/>
+  <text x="540" y="1768" font-size="68" font-weight="700" fill="#F0D0FF" text-anchor="middle">Auto-prioritized by AI.</text>
+  <text x="540" y="1830" font-size="30" fill="#FF2D87" text-anchor="middle">Eisenhower matrix with one-tap manual override.</text>
+</svg>

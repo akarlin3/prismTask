@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Debug-only manifest overlay.
+
+    REQUEST_INSTALL_PACKAGES is declared here (debug builds only) because
+    Firebase App Distribution self-installs the next APK from inside the
+    app via AppUpdater.kt. Play Store builds (release variant) do NOT
+    declare this permission — Play distribution uses Google Play's own
+    update flow, and Play disallows REQUEST_INSTALL_PACKAGES for
+    non-file-manager apps.
+
+    Manifest merger combines this with src/main/AndroidManifest.xml for
+    the debug build type only. Verify with:
+      ./gradlew :app:processDebugMainManifest    # should contain it
+      ./gradlew :app:processReleaseMainManifest  # should NOT contain it
+    Inspect output under build/intermediates/merged_manifests/.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+</manifest>
