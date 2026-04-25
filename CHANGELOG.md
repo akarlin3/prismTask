@@ -324,6 +324,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **CI: `cross-device-tests` script-execution model.**
+  `reactivecircus/android-emulator-runner@v2` runs each line of its
+  `script:` input as a fresh `sh -c "$line"`, which means any multi-line
+  shell construct (function, `if` block, heredoc) fails to parse: the
+  opening `run_cross_device_tests() {` died with
+  "Syntax error: end of file unexpected (expecting `}`)" because the
+  closing `}` lived on the next `sh -c`. The retry-once installed by
+  PR #776 never actually fired. Result: the job failed 3/3 main runs
+  (24938962202 / 24937612065 / 24926119046) since it landed in PR #773.
+  The runner is now written to `$RUNNER_TEMP/run-cross-device-tests.sh`
+  in a preceding workflow step and invoked as a single
+  `bash "$RUNNER_TEMP/run-cross-device-tests.sh"` line — bash parses the
+  file as one unit, so the function and `||` retry-once work. Required-
+  status promotion is gated on five consecutive green main runs of the
+  job per `docs/audits/PHASE_D_BUNDLE_AUDIT.md`.
+
 - **BREAKING (data integrity): SyncService.pushUpdate no longer silently
   re-creates deleted Firestore docs.** Concurrent delete-then-edit now
   resolves delete-wins per spec (was edit-wins). `pushUpdate` was calling
