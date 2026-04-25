@@ -111,13 +111,4 @@ constructor(
         }
     }
 
-    suspend fun deleteAccount() {
-        try {
-            syncMetadataDao.deleteAll()
-        } catch (e: Exception) {
-            Log.w("AuthManager", "Failed to clear sync_metadata on account delete", e)
-        }
-        auth?.currentUser?.delete()?.await()
-        clearCredentialState()
-    }
 }

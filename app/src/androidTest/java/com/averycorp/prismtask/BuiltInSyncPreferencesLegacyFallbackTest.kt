@@ -31,12 +31,12 @@ class BuiltInSyncPreferencesLegacyFallbackTest {
         // is actually reachable — the fallback only activates when a
         // per-family key is unset.
         prefs = BuiltInSyncPreferences(context)
-        runBlocking { prefs.clearAllForTest() }
+        runBlocking { prefs.clearAll() }
     }
 
     @After
     fun tearDown() {
-        runBlocking { prefs.clearAllForTest() }
+        runBlocking { prefs.clearAll() }
     }
 
     @Test
