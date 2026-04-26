@@ -358,6 +358,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Audit + reproduction trail at
   `docs/audits/MEDICATION_SOD_BOUNDARY_AUDIT.md`.
 
+- **Task list day-grouping now SoD-boundary-aware.**
+  Migrated `TaskListViewModel.dayStartFlow` from the legacy
+  `getDayStartHour().map { startOfCurrentDay(it) }.stateIn(...)`
+  snapshot pattern to `core.time.LocalDateFlow`. Consumers
+  (`overdueCount`, `groupByDate`'s "Today" / "Tomorrow" / "Day after"
+  / "End of week" buckets) now key off a logical day that advances
+  reactively at every SoD boundary. Per
+  `docs/audits/UTIL_DAYBOUNDARY_SWEEP_AUDIT.md` § 3 — second of 3
+  PROCEED migrations in the sweep.
+
 - **Auto version-bump fires reliably on every PR merge.** Three
   silent-skip failure modes in the post-merge bump chain are closed:
   (1) PR #803 added a `commits/{sha}/pulls` fallback in
