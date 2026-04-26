@@ -268,6 +268,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Connected-tests AVD boot timeout 600s → 1200s.** Both
+  `reactivecircus/android-emulator-runner@v2` invocations in
+  `.github/workflows/android-integration.yml` now pass
+  `emulator-boot-timeout: 1200`. The action's 600s default was hitting
+  the wall under GHA's noisy-neighbor load (per PR #817 triage:
+  `[EmulatorConsole]: Failed to start Emulator console for 5554`),
+  causing the job to CANCEL rather than FAIL — and SKIPPED counts as
+  success in branch protection, so every PR was silent-bypassing the
+  integration suite for ~17h before the triage doc landed. Closes the
+  carry-forward blocker from PR #823's pre-Phase F mega-audit. Audit
+  at `docs/audits/EMULATOR_BOOT_TIMEOUT_AUDIT.md`.
+
 - **Privacy disclosure + AI-features opt-out (PII egress audit follow-up).**
   Added a master "Use Claude AI for advanced features" toggle in
   Settings → AI Features (default on for Pro users). When the toggle is
