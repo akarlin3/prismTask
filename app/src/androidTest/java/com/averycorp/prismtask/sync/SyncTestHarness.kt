@@ -230,8 +230,7 @@ class SyncTestHarness private constructor(
             "medication_doses",
             "medication_slots",
             "medication_slot_overrides",
-            "medication_tier_states",
-            "medication_marks"
+            "medication_tier_states"
         )
 
         /**

@@ -229,38 +229,4 @@ object MedicationSyncMapper {
             updatedAt = updatedAt
         )
     }
-
-    fun medicationMarkToMap(
-        mark: com.averycorp.prismtask.data.local.entity.MedicationMarkEntity,
-        medicationCloudId: String,
-        tierStateCloudId: String
-    ): Map<String, Any?> = mapOf(
-        "localId" to mark.id,
-        "medicationCloudId" to medicationCloudId,
-        "tierStateCloudId" to tierStateCloudId,
-        "intendedTime" to mark.intendedTime,
-        "loggedAt" to mark.loggedAt,
-        "markedTaken" to mark.markedTaken,
-        "updatedAt" to mark.updatedAt
-    )
-
-    fun mapToMedicationMark(
-        data: Map<String, Any?>,
-        localId: Long = 0,
-        medicationLocalId: Long = 0,
-        tierStateLocalId: Long = 0,
-        cloudId: String? = null
-    ): com.averycorp.prismtask.data.local.entity.MedicationMarkEntity {
-        val updatedAt = (data["updatedAt"] as? Number)?.toLong() ?: System.currentTimeMillis()
-        return com.averycorp.prismtask.data.local.entity.MedicationMarkEntity(
-            id = localId,
-            cloudId = cloudId,
-            medicationId = medicationLocalId,
-            medicationTierStateId = tierStateLocalId,
-            intendedTime = (data["intendedTime"] as? Number)?.toLong(),
-            loggedAt = (data["loggedAt"] as? Number)?.toLong() ?: updatedAt,
-            markedTaken = (data["markedTaken"] as? Boolean) ?: true,
-            updatedAt = updatedAt
-        )
-    }
 }

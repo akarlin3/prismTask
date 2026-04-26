@@ -65,9 +65,11 @@ async def test_audit_emit_failure_increments_counter_and_logs_structured(caplog)
 
 
 @pytest.mark.asyncio
-async def test_audit_emit_counter_separates_entity_types():
-    """tier_state and mark failures keep separate counters so the
-    dashboard can tell which audit path is silently dropping events.
+async def test_audit_emit_counter_keys_by_entity_type():
+    """Counter keys by entity_type so the dashboard can tell which audit
+    path is silently dropping events. Even though tier_state is currently
+    the only audited entity (medication_mark was dropped), the per-
+    entity-type accounting must still survive future additions.
     """
     sync_router.audit_emit_failures_total.clear()
 
@@ -77,12 +79,10 @@ async def test_audit_emit_counter_separates_entity_types():
         [
             _bad_record("tier_state", "ts-1"),
             _bad_record("tier_state", "ts-2"),
-            _bad_record("mark", "m-1"),
         ],
     )
 
     assert sync_router.audit_emit_failures_total["tier_state"] == 2
-    assert sync_router.audit_emit_failures_total["mark"] == 1
 
 
 def _bad_record(entity_type: str, cloud_id: str) -> dict:

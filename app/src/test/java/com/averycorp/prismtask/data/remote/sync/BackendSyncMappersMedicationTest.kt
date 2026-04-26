@@ -1,7 +1,6 @@
 package com.averycorp.prismtask.data.remote.sync
 
 import com.averycorp.prismtask.data.local.entity.MedicationEntity
-import com.averycorp.prismtask.data.local.entity.MedicationMarkEntity
 import com.averycorp.prismtask.data.local.entity.MedicationSlotEntity
 import com.averycorp.prismtask.data.local.entity.MedicationTierStateEntity
 import org.junit.Assert.assertEquals
@@ -11,12 +10,15 @@ import org.junit.Test
 
 /**
  * Mapper tests for the medication time-logging /sync/push wiring. The
- * tier_state and mark mappers must:
+ * tier_state mapper must:
  * - Send `*_cloud_id` payload keys (NOT integer FKs) so the backend's
  *   `_resolve_cloud_fk_for_medication` resolver can scope by user_id.
  * - Skip the row entirely when a parent's cloud_id isn't available yet
  *   (parents must round-trip through Firestore + sync first).
  * - Round-trip `intended_time` (as ISO 8601) when present, omit when null.
+ *
+ * The mark mapper was dropped in chore/drop-orphan-medication-marks
+ * because no production write path ever populated the table.
  */
 class BackendSyncMappersMedicationTest {
 
@@ -160,46 +162,5 @@ class BackendSyncMappersMedicationTest {
             slotCloudId = "s"
         )!!
         assertNull(op.data?.get("intended_time"))
-    }
-
-    @Test
-    fun mark_skippedWhenParentCloudIdsMissing() {
-        val mark = MedicationMarkEntity(id = 1, medicationId = 1, medicationTierStateId = 1)
-        assertNull(medicationMarkToOperation(mark, null, "ts-c"))
-        assertNull(medicationMarkToOperation(mark, "med-c", null))
-    }
-
-    @Test
-    fun mark_emitsCloudIdFKsMarkedTakenAndTimes() {
-        val mark = MedicationMarkEntity(
-            id = 9,
-            cloudId = "mark-cloud-9",
-            medicationId = 1,
-            medicationTierStateId = 1,
-            intendedTime = 1_700_000_000_000L,
-            loggedAt = 1_700_000_360_000L,
-            markedTaken = true,
-            updatedAt = 1_700_000_360_000L
-        )
-        val op = medicationMarkToOperation(mark, "med-c", "ts-c")!!
-        assertEquals("medication_mark", op.entityType)
-        assertEquals("mark-cloud-9", op.data?.get("cloud_id")?.asString)
-        assertEquals("med-c", op.data?.get("medication_cloud_id")?.asString)
-        assertEquals("ts-c", op.data?.get("tier_state_cloud_id")?.asString)
-        assertEquals(true, op.data?.get("marked_taken")?.asBoolean)
-        assertNull(op.data?.get("medication_id"))
-        assertNull(op.data?.get("tier_state_id"))
-    }
-
-    @Test
-    fun mark_unmarkedFlagRoundTrips() {
-        val mark = MedicationMarkEntity(
-            id = 1,
-            medicationId = 1,
-            medicationTierStateId = 1,
-            markedTaken = false
-        )
-        val op = medicationMarkToOperation(mark, "m", "t")!!
-        assertEquals(false, op.data?.get("marked_taken")?.asBoolean)
     }
 }

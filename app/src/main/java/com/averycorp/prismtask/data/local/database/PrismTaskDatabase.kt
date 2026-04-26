@@ -17,7 +17,6 @@ import com.averycorp.prismtask.data.local.dao.HabitTemplateDao
 import com.averycorp.prismtask.data.local.dao.LeisureDao
 import com.averycorp.prismtask.data.local.dao.MedicationDao
 import com.averycorp.prismtask.data.local.dao.MedicationDoseDao
-import com.averycorp.prismtask.data.local.dao.MedicationMarkDao
 import com.averycorp.prismtask.data.local.dao.MedicationRefillDao
 import com.averycorp.prismtask.data.local.dao.MedicationSlotDao
 import com.averycorp.prismtask.data.local.dao.MedicationSlotOverrideDao
@@ -56,7 +55,6 @@ import com.averycorp.prismtask.data.local.entity.HabitTemplateEntity
 import com.averycorp.prismtask.data.local.entity.LeisureLogEntity
 import com.averycorp.prismtask.data.local.entity.MedicationDoseEntity
 import com.averycorp.prismtask.data.local.entity.MedicationEntity
-import com.averycorp.prismtask.data.local.entity.MedicationMarkEntity
 import com.averycorp.prismtask.data.local.entity.MedicationRefillEntity
 import com.averycorp.prismtask.data.local.entity.MedicationSlotCrossRef
 import com.averycorp.prismtask.data.local.entity.MedicationSlotEntity
@@ -123,8 +121,7 @@ import com.averycorp.prismtask.data.local.entity.WeeklyReviewEntity
         MedicationSlotEntity::class,
         MedicationSlotOverrideEntity::class,
         MedicationSlotCrossRef::class,
-        MedicationTierStateEntity::class,
-        MedicationMarkEntity::class
+        MedicationTierStateEntity::class
     ],
     version = CURRENT_DB_VERSION,
     exportSchema = false
@@ -199,6 +196,4 @@ abstract class PrismTaskDatabase : RoomDatabase() {
     abstract fun medicationSlotOverrideDao(): MedicationSlotOverrideDao
 
     abstract fun medicationTierStateDao(): MedicationTierStateDao
-
-    abstract fun medicationMarkDao(): MedicationMarkDao
 }

@@ -2,10 +2,14 @@
 
 Covers:
 - Medication entities can be created/updated/deleted via /sync/push
-- Audit rows are written for medication_tier_state and medication_mark ops
+- Audit rows are written for medication_tier_state ops
 - Audit rows are NOT written for non-medication entities (tag, habit, etc.)
 - GET /api/v1/medications/log-events returns only the caller's events
 - Disallowed fields (e.g. user_id) are stripped on /sync/push
+
+medication_mark coverage was removed in chore/drop-orphan-medication-marks
+because the table was never populated by any production write path —
+see docs/audits/PHASE_D_BUNDLE_AUDIT.md Item 3.
 """
 
 import asyncio
@@ -145,67 +149,11 @@ async def test_audit_row_written_on_tier_state_create(client: AsyncClient, auth_
     assert row.sync_received_at is not None
 
 
-@pytest.mark.asyncio
-async def test_audit_row_written_on_mark_create(client: AsyncClient, auth_headers: dict):
-    await _seed_medication_and_slot(client, auth_headers)
-
-    # Tier state first (FK dependency).
-    resp = await client.post(
-        "/api/v1/sync/push",
-        json={
-            "operations": [
-                {
-                    "entity_type": "medication_tier_state",
-                    "operation": "create",
-                    "data": {
-                        "cloud_id": "ts-cloud-2",
-                        "medication_cloud_id": "med-cloud-1",
-                        "slot_cloud_id": "slot-cloud-1",
-                        "log_date": "2026-04-23",
-                        "tier": "essential",
-                        "logged_at": "2026-04-23T08:00:00+00:00",
-                    },
-                    "client_timestamp": "2026-04-23T08:00:00Z",
-                }
-            ]
-        },
-        headers=auth_headers,
-    )
-    assert resp.status_code == 200
-    # Mark references the tier-state by cloud_id ("ts-cloud-2"), not
-    # local id — no lookup needed.
-
-    resp = await client.post(
-        "/api/v1/sync/push",
-        json={
-            "operations": [
-                {
-                    "entity_type": "medication_mark",
-                    "operation": "create",
-                    "data": {
-                        "cloud_id": "mark-cloud-1",
-                        "medication_cloud_id": "med-cloud-1",
-                        "tier_state_cloud_id": "ts-cloud-2",
-                        "intended_time": "2026-04-23T08:00:00+00:00",
-                        "logged_at": "2026-04-23T08:15:00+00:00",
-                        "marked_taken": True,
-                    },
-                    "client_timestamp": "2026-04-23T08:15:00Z",
-                }
-            ]
-        },
-        headers=auth_headers,
-    )
-    assert resp.status_code == 200, resp.text
-    assert resp.json()["processed"] == 1
-
-    audit_rows = await _read_audit_rows()
-    # Two audit rows now (tier_state from earlier + mark).
-    by_type = {r.entity_type: r for r in audit_rows}
-    assert "tier_state" in by_type
-    assert "mark" in by_type
-    assert by_type["mark"].entity_cloud_id == "mark-cloud-1"
-    assert by_type["mark"].operation == "create"
+# test_audit_row_written_on_mark_create — removed in
+# chore/drop-orphan-medication-marks; the medication_mark entity no
+# longer exists in the sync protocol because the table was never
+# populated by any production write path. See
+# docs/audits/PHASE_D_BUNDLE_AUDIT.md Item 3.
 
 
 @pytest.mark.asyncio

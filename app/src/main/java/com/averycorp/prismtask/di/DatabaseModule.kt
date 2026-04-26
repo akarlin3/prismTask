@@ -18,7 +18,6 @@ import com.averycorp.prismtask.data.local.dao.HabitTemplateDao
 import com.averycorp.prismtask.data.local.dao.LeisureDao
 import com.averycorp.prismtask.data.local.dao.MedicationDao
 import com.averycorp.prismtask.data.local.dao.MedicationDoseDao
-import com.averycorp.prismtask.data.local.dao.MedicationMarkDao
 import com.averycorp.prismtask.data.local.dao.MedicationRefillDao
 import com.averycorp.prismtask.data.local.dao.MedicationSlotDao
 import com.averycorp.prismtask.data.local.dao.MedicationSlotOverrideDao
@@ -182,10 +181,6 @@ object DatabaseModule {
     @Provides
     fun provideMedicationTierStateDao(database: PrismTaskDatabase): MedicationTierStateDao =
         database.medicationTierStateDao()
-
-    @Provides
-    fun provideMedicationMarkDao(database: PrismTaskDatabase): MedicationMarkDao =
-        database.medicationMarkDao()
 
     @Provides
     fun provideBatchUndoLogDao(database: PrismTaskDatabase): BatchUndoLogDao = database.batchUndoLogDao()

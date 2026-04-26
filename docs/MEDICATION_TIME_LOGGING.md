@@ -20,13 +20,22 @@ The split lives in three places, in lockstep:
 | Layer | Where | Notes |
 | --- | --- | --- |
 | Android | `medication_tier_states.intended_time` (nullable) + `logged_at` (NOT NULL) | Migration `MIGRATION_60_61` (Room DB v61). Backfills `logged_at = updated_at` on legacy rows so the column is queryable. |
-| Android | `medication_marks` table (new) | Per-medication mark within a slot — same `intended_time` / `logged_at` split. CASCADE FKs to `medications` + `medication_tier_states`. Unique on `(medication_id, medication_tier_state_id)`. |
 | Web (Firestore) | `users/{uid}/medication_tier_states/{dateIso}__{slotKey}` doc gains `intendedTime` + `loggedAt` fields | Cross-device parity. Camel-cased on the wire to match the existing convention. |
-| Backend | `medication_tier_states` + `medication_marks` SQLAlchemy tables | Synced via `/sync/push` (Path 2 from Checkpoint 1). All five tables timezone-aware (`TIMESTAMP WITH TIME ZONE`). |
-| Backend | `medication_log_events` (audit) | Append-only. Every `/sync/push` touching a tier-state or mark writes a row inside a SAVEPOINT (audit failures roll back independently and never block sync). Indexed on `(user_id, logged_at)` and `entity_cloud_id`. |
+| Backend | `medication_tier_states` SQLAlchemy table | Synced via `/sync/push` (Path 2 from Checkpoint 1). Timezone-aware (`TIMESTAMP WITH TIME ZONE`). |
+| Backend | `medication_log_events` (audit) | Append-only. Every `/sync/push` touching a tier-state writes a row inside a SAVEPOINT (audit failures roll back independently and never block sync). Indexed on `(user_id, logged_at)` and `entity_cloud_id`. |
 
-Alembic head: revision **019** (`019_add_medication_entities_and_audit.py`).
-Room DB version: **61**.
+> **Historical note:** an earlier draft of this feature added a separate
+> `medication_marks` table on Android (Room) and backend (SQLAlchemy +
+> Alembic 019) for per-medication granularity. No production write path
+> ever populated it — the per-medication intended_time ended up on
+> `medication_tier_states` instead, with the design call documented at
+> `MedicationViewModel.kt:132` ("the user edits them at slot
+> granularity"). The orphan table was dropped in Room migration
+> `MIGRATION_63_64` and Alembic revision **021**. See
+> `docs/audits/PHASE_D_BUNDLE_AUDIT.md` Item 3.
+
+Alembic head: revision **021** (`021_drop_medication_marks.py`).
+Room DB version: **64**.
 
 ## User UX
 
