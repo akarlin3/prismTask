@@ -358,17 +358,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Audit + reproduction trail at
   `docs/audits/MEDICATION_SOD_BOUNDARY_AUDIT.md`.
 
-- **Auto version-bump fires reliably on every PR merge.** Two
+- **Auto version-bump fires reliably on every PR merge.** Three
   silent-skip failure modes in the post-merge bump chain are closed:
   (1) PR #803 added a `commits/{sha}/pulls` fallback in
   `version-bump-and-distribute.yml` for cases where
   `github.event.workflow_run.pull_requests` lands empty (the common
-  case for same-repo PRs going through `Auto-merge & Release`), and
+  case for same-repo PRs going through `Auto-merge & Release`),
   (2) PR #805 added a "wait until all required-status checks have
   queued" step to `auto-merge.yml` so `wait-on-check-action` no
   longer exits prematurely on a fast subset of checks (the upstream
   race that, on PR #804, caused version-bump to fire 14 min before
-  the actual merge and time out before the squash landed).
+  the actual merge and time out before the squash landed), and
+  (3) PR #807 reordered version-bump so the bump + commit run BEFORE
+  the keystore decode + signing + Firebase distribution — softening
+  the keystore step from HARD-FAIL on missing `KEYSTORE_BASE64` to
+  warn-and-skip, so a missing/rotated signing secret no longer
+  freezes versionCode (signing + distribution remain best-effort and
+  gate on the new `has_keystore` output).
 
 ## [1.6.0] — 2026-04-24
 
