@@ -394,6 +394,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **CI: `cross-device-tests` Firestore emulator routing under
+  instrumented tests.** PR #780 unmasked an underlying
+  `PERMISSION_DENIED` from production Firestore: the deviceA Firestore
+  client (the standard `FirebaseFirestore.getInstance()` that
+  `SyncTestHarness.deviceAFirestore` aliases) was talking to production
+  Google Cloud, not the local Firebase Emulator Suite. Cause:
+  `HiltTestRunner.newApplication` substitutes `HiltTestApplication` for
+  the production `PrismTaskApplication`, so the production code's
+  `configureFirebaseEmulator()` hook never fires under instrumented
+  tests. `BuildConfig.USE_FIREBASE_EMULATOR=true` was set but unused.
+  Replicate the production routing logic in `HiltTestRunner.onStart()`
+  — same `useEmulator(host, port)` calls on the default
+  `FirebaseFirestore` and `FirebaseAuth`, gated on the same
+  `BuildConfig.USE_FIREBASE_EMULATOR` flag, with `10.0.2.2` host
+  selection inside the Android emulator. Also corrects the misleading
+  comment in `SyncTestHarness.kt` that claimed `PrismTaskApplication`
+  did the routing.
+
 - **CI: `cross-device-tests` script-execution model.**
   `reactivecircus/android-emulator-runner@v2` runs each line of its
   `script:` input as a fresh `sh -c "$line"`, which means any multi-line
