@@ -6,6 +6,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.averycorp.prismtask.core.time.LocalDateFlow
 import com.averycorp.prismtask.data.local.dao.HabitCompletionDao
 import com.averycorp.prismtask.data.local.dao.TaskDao
 import com.averycorp.prismtask.data.local.entity.ProjectEntity
@@ -44,7 +45,6 @@ import com.averycorp.prismtask.domain.usecase.MedicationDose
 import com.averycorp.prismtask.domain.usecase.MedicationSlot
 import com.averycorp.prismtask.domain.usecase.SelfCareNudge
 import com.averycorp.prismtask.domain.usecase.SelfCareNudgeEngine
-import com.averycorp.prismtask.core.time.LocalDateFlow
 import com.averycorp.prismtask.ui.components.QuickRescheduleFormatter
 import com.averycorp.prismtask.util.DayBoundary
 import dagger.hilt.android.lifecycle.HiltViewModel

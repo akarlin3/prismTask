@@ -89,7 +89,8 @@ class TodayDayBoundaryFlowTest {
         val before = dayStart.value
         assertEquals(
             "Initial value reflects logical day Apr 25 (calendar midnight)",
-            Instant.parse("2026-04-25T00:00:00Z").toEpochMilli(), before
+            Instant.parse("2026-04-25T00:00:00Z").toEpochMilli(),
+            before
         )
 
         advanceTimeBy(6 * 60 * 60 * 1000L) // 6h → past Apr 26 04:00 UTC
@@ -99,11 +100,13 @@ class TodayDayBoundaryFlowTest {
         assertNotEquals(
             "dayStart MUST advance reactively when the wall-clock crosses SoD — " +
                 "if this fails, someone reverted to the snapshot pattern",
-            before, after
+            before,
+            after
         )
         assertEquals(
             "After SoD crossing, dayStart reflects calendar midnight of the new logical day",
-            Instant.parse("2026-04-26T00:00:00Z").toEpochMilli(), after
+            Instant.parse("2026-04-26T00:00:00Z").toEpochMilli(),
+            after
         )
     }
 
@@ -148,7 +151,8 @@ class TodayDayBoundaryFlowTest {
         assertNotEquals(
             "Banner combine MUST re-fire when localDateFlow emits a new logical date — " +
                 "if this fails, someone removed localDateFlow from the combine sources",
-            initialInvocations, lambdaInvocations
+            initialInvocations,
+            lambdaInvocations
         )
 
         collectorJob.cancel()
