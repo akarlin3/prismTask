@@ -3,7 +3,7 @@
 **Destination:** Play Console → Policy → Data safety.
 **Source of truth:** Phase 1 audit §4. This document must stay consistent with `../../privacy/index.md` — if one changes, update the other.
 
-This file answers every question on Play Console's current Data safety form as of 2026-04-25. Copy each answer into the corresponding Play Console field.
+This file answers every question on Play Console's current Data safety form as of 2026-04-26. Copy each answer into the corresponding Play Console field.
 
 ---
 
@@ -51,10 +51,10 @@ This file answers every question on Play Console's current Data safety form as o
 
 | Data type | Collected? | Optional? | Linked to user? | Shared? | Purpose |
 |---|---|---|---|---|---|
-| Health info (mood, energy, medications, medication dose history) | Yes | **Yes — entirely optional features** | Yes | No | App functionality (wellness tracking, reminder scheduling, refill projection, clinical report export) |
+| Health info (mood, energy, medications, medication dose history) | Yes | **Yes — entirely optional features** | Yes | **Yes (medication names only) — sent to Anthropic via PrismTask backend when the user invokes the NLP batch-command feature on a medication (e.g. "skip my medication today"). Mood, energy, and dose history are NOT shared.** | App functionality (wellness tracking, reminder scheduling, refill projection, clinical report export, AI batch NLP commands) |
 | Fitness info | **No** | — | — | — | — |
 
-**Disclose prominently:** medication data and mood logs are sensitive health information. They live in the user's local Room DB, and only leave the device if the user is signed in and cloud sync is enabled.
+**Disclose prominently:** medication data and mood logs are sensitive health information. They live in the user's local Room DB and only leave the device if the user is signed in and cloud sync is enabled. Medication *names* are additionally transmitted to Anthropic's Claude API when a user invokes an AI batch NLP command (Pro feature) — see "Other user-generated content" row below for the AI processing detail. Users can disable all AI processing in Settings → AI Features → "Use Claude AI for advanced features".
 
 ### Messages
 
@@ -106,7 +106,7 @@ This file answers every question on Play Console's current Data safety form as o
 | App interactions | Yes (Crashlytics session signals) | No | Yes | Shared with Google/Firebase | Diagnostics |
 | In-app search history | **No** | — | — | — | — |
 | Installed apps | **No** | — | — | — | — |
-| Other user-generated content (task titles, descriptions, project names, habit names, mood log notes, medication names, chat with coaching assistant) | Yes | Yes (all user-generated content features are optional) | Yes (when signed in) | Task content strings sent to Anthropic via PrismTask backend for NLP parsing and AI features — transient, not retained | App functionality |
+| Other user-generated content (task titles, descriptions, project names, habit names, mood log notes, medication names, chat with coaching assistant) | Yes | Yes (all user-generated content features are optional; AI processing is disable-able in Settings → AI Features) | Yes (when signed in) | Task / habit / project / medication names sent to Anthropic via PrismTask backend for NLP parsing and AI features. Anthropic does not train on inputs (Anthropic Commercial Terms § B). Anthropic standard API retention is 30 days (up to 2 years if a request is flagged for Trust & Safety review) | App functionality |
 | Other app activity (task completion history, habit streak data, Pomodoro session counts) | Yes | No (core functionality) | Yes (when synced) | No | App functionality, analytics inside the user's own dashboard |
 
 ### Web browsing
@@ -136,14 +136,14 @@ This file answers every question on Play Console's current Data safety form as o
 | Processor | Data seen | Purpose |
 |---|---|---|
 | Google (Firebase Auth, Firestore, Cloud Storage, Crashlytics, Google Sign-In, Google Speech Services, Google Calendar API, Google Play Billing) | All synced user data; voice audio during recognition; calendar events on user's own Calendar; crash reports | Auth, cloud sync, diagnostics, voice input, calendar sync, billing |
-| Anthropic PBC (Claude Haiku and Claude Sonnet, via PrismTask backend) | Task content strings submitted for NLP parsing; AI-feature prompts and context (Eisenhower, Pomodoro planning, briefing, weekly review) | AI features; no retention per Anthropic API terms |
+| Anthropic PBC (Claude Haiku and Claude Sonnet, via PrismTask backend) | Task content strings submitted for NLP parsing; AI-feature prompts and context (Eisenhower, Pomodoro planning, briefing, weekly review, NLP batch commands); medication names (id + name only — not dosage, frequency, or prescriber) when AI batch NLP commands operate on medications | AI features. Anthropic does not train on inputs (Commercial Terms § B). Anthropic standard API retention is 30 days (up to 2 years if a request is flagged for Trust & Safety review) |
 | Railway Corp | In-transit traffic to the FastAPI backend | Hosting |
 
 ---
 
 ## 4. Security practices statement (free-text in Play Console)
 
-> Data is encrypted in transit using TLS. Android users can delete their account in-app from Settings → Account & Sync → Delete Account, with a 30-day grace period during which signing back in restores the account. After the grace window the backend permanently deletes the Postgres user record and the Firebase Auth account via Firebase Admin SDK. Users who cannot access the Android app can request deletion by emailing privacy@prismtask.app, or wipe local-only data by uninstalling the app and clearing storage. Users can export a full JSON backup of their data at any time from Settings. PrismTask does not sell user data, does not use tracking SDKs beyond Firebase Crashlytics for crash diagnostics, and does not serve ads. AI features process task content through the PrismTask backend which calls Anthropic's API under zero-retention terms; regex fallback is used when the user is signed out or declines AI features.
+> Data is encrypted in transit using TLS. Android users can delete their account in-app from Settings → Account & Sync → Delete Account, with a 30-day grace period during which signing back in restores the account. After the grace window the backend permanently deletes the Postgres user record and the Firebase Auth account via Firebase Admin SDK. Users who cannot access the Android app can request deletion by emailing privacy@prismtask.app, or wipe local-only data by uninstalling the app and clearing storage. Users can export a full JSON backup of their data at any time from Settings. PrismTask does not sell user data, does not use tracking SDKs beyond Firebase Crashlytics for crash diagnostics, and does not serve ads. AI features process task content (and, for NLP batch commands, medication names) through the PrismTask backend which calls Anthropic's Claude API under Anthropic's standard commercial terms — Anthropic does not train models on API inputs (Commercial Terms § B) and inputs/outputs are deleted within 30 days (up to 2 years if a request is flagged for Anthropic Trust & Safety review). Users can disable all AI processing in Settings → AI Features → "Use Claude AI for advanced features"; when disabled, the app makes no Anthropic calls and the AI-powered features become unavailable.
 
 ---
 

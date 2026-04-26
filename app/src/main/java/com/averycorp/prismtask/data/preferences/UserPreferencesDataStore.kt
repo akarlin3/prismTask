@@ -13,7 +13,9 @@ import com.averycorp.prismtask.domain.model.SwipeAction
 import com.averycorp.prismtask.domain.model.UiComplexityTier
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.runBlocking
 
 /**
  * Appearance/display preferences used by v1.3.0 customizability features.
@@ -117,6 +119,25 @@ data class EisenhowerPrefs(
 )
 
 /**
+ * Master AI-feature opt-out (PII egress audit, 2026-04-26).
+ *
+ * When [enabled] is false, the Android client must short-circuit every AI
+ * surface and never call the backend's Anthropic-touching endpoints
+ * (the `/ai/...` family plus `/tasks/parse...` and `/syllabus/parse`).
+ * The client should also send `X-PrismTask-AI-Features: disabled` on any
+ * request it does make, so the backend's `require_ai_features_enabled`
+ * middleware can reject the request with HTTP 451 — defense-in-depth in
+ * case a stale code path forgot to check the local flag.
+ *
+ * Defaults to true so existing Pro users do not lose AI features on
+ * upgrade. The disclosure / opt-out path is documented in
+ * `docs/privacy/index.md` and `docs/store-listing/compliance/data-safety-form.md`.
+ */
+data class AiFeaturePrefs(
+    val enabled: Boolean = true
+)
+
+/**
  * Global default for medication reminder mode (v1.6.0). Per-slot and
  * per-medication overrides on `MedicationSlotEntity` / `MedicationEntity`
  * win over this default when set; resolution lives in
@@ -203,6 +224,9 @@ class UserPreferencesDataStore(
 
         // Eisenhower auto-classification (v1.4.x A2)
         val KEY_EISENHOWER_AUTO_CLASSIFY = booleanPreferencesKey("eisenhower_auto_classify")
+
+        // Master AI-feature opt-out (PII egress audit, 2026-04-26)
+        val KEY_AI_FEATURES_ENABLED = booleanPreferencesKey("ai_features_enabled")
 
         // Medication reminder mode global default (v1.6.0)
         val KEY_MED_REMINDER_MODE_DEFAULT = stringPreferencesKey("med_reminder_mode_default")
@@ -356,6 +380,12 @@ class UserPreferencesDataStore(
         )
     }
 
+    val aiFeaturePrefsFlow: Flow<AiFeaturePrefs> = dataStore.data.map { prefs ->
+        AiFeaturePrefs(
+            enabled = prefs[KEY_AI_FEATURES_ENABLED] ?: true
+        )
+    }
+
     val medicationReminderModeFlow: Flow<MedicationReminderModePrefs> = dataStore.data.map { prefs ->
         MedicationReminderModePrefs(
             mode = MedicationReminderMode.fromName(prefs[KEY_MED_REMINDER_MODE_DEFAULT]),
@@ -477,6 +507,19 @@ class UserPreferencesDataStore(
 
     suspend fun setEisenhowerAutoClassifyEnabled(enabled: Boolean) {
         dataStore.edit { it[KEY_EISENHOWER_AUTO_CLASSIFY] = enabled }
+    }
+
+    suspend fun setAiFeaturesEnabled(enabled: Boolean) {
+        dataStore.edit { it[KEY_AI_FEATURES_ENABLED] = enabled }
+    }
+
+    /**
+     * Synchronous read of the AI-features flag, intended for OkHttp
+     * interceptors (which must run on the calling thread). Mirrors the
+     * pattern used by `AuthTokenPreferences.getAccessTokenBlocking`.
+     */
+    fun isAiFeaturesEnabledBlocking(): Boolean = runBlocking {
+        aiFeaturePrefsFlow.first().enabled
     }
 
     suspend fun setMedicationReminderMode(prefs: MedicationReminderModePrefs) {

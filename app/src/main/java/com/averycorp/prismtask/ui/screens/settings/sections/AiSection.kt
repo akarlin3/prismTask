@@ -19,15 +19,35 @@ fun AiSection(
     onNavigateToWeeklyPlanner: () -> Unit,
     onNavigateToTimeline: () -> Unit,
     eisenhowerAutoClassifyEnabled: Boolean = true,
-    onEisenhowerAutoClassifyChanged: (Boolean) -> Unit = {}
+    onEisenhowerAutoClassifyChanged: (Boolean) -> Unit = {},
+    aiFeaturesEnabled: Boolean = true,
+    onAiFeaturesEnabledChanged: (Boolean) -> Unit = {}
 ) {
     SectionHeader("AI Features")
 
     Text(
-        "AI features use Claude to analyze your tasks. Requires internet connection.",
+        "AI features use Anthropic's Claude API to analyze your tasks, habits, " +
+            "schedules, and — for natural-language batch commands — your medication " +
+            "names. When the master toggle below is off, no PrismTask data is sent to " +
+            "Anthropic and the AI-powered features become unavailable. " +
+            "See Privacy Policy for full disclosure.",
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+    )
+
+    SettingsToggleRow(
+        title = "Use Claude AI for advanced features",
+        subtitle = if (aiFeaturesEnabled) {
+            "On — task / habit / project / medication names are sent to Anthropic for " +
+                "AI-powered features. Anthropic does not train on inputs and deletes " +
+                "them within 30 days under standard API terms."
+        } else {
+            "Off — no PrismTask data is sent to Anthropic. AI-powered features below " +
+                "are inactive until you turn this back on."
+        },
+        checked = aiFeaturesEnabled,
+        onCheckedChange = onAiFeaturesEnabledChanged
     )
 
     SettingsToggleRow(

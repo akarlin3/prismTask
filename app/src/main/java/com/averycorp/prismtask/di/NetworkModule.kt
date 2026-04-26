@@ -1,6 +1,7 @@
 package com.averycorp.prismtask.di
 
 import com.averycorp.prismtask.BuildConfig
+import com.averycorp.prismtask.data.remote.api.AiFeatureGateInterceptor
 import com.averycorp.prismtask.data.remote.api.AuthInterceptor
 import com.averycorp.prismtask.data.remote.api.CalendarBackendApi
 import com.averycorp.prismtask.data.remote.api.PrismTaskApi
@@ -58,12 +59,16 @@ object NetworkModule {
     fun provideOkHttpClient(
         loggingInterceptor: HttpLoggingInterceptor,
         authInterceptor: AuthInterceptor,
+        aiFeatureGateInterceptor: AiFeatureGateInterceptor,
         tokenAuthenticator: TokenAuthenticator
     ): OkHttpClient = OkHttpClient
         .Builder()
         .connectTimeout(CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
         .readTimeout(READ_TIMEOUT_SECONDS, TimeUnit.SECONDS)
         .writeTimeout(WRITE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+        // Order matters: gate first so we don't waste an auth-token
+        // refresh on a request that's about to be short-circuited.
+        .addInterceptor(aiFeatureGateInterceptor)
         .addInterceptor(authInterceptor)
         .addInterceptor(loggingInterceptor)
         .authenticator(tokenAuthenticator)

@@ -268,6 +268,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Privacy disclosure + AI-features opt-out (PII egress audit follow-up).**
+  Added a master "Use Claude AI for advanced features" toggle in
+  Settings → AI Features (default on for Pro users). When the toggle is
+  off, the new `AiFeatureGateInterceptor` short-circuits every
+  Anthropic-touching outbound request on-device with a synthetic 451
+  response — no PrismTask data reaches the backend or Anthropic. A
+  matching backend dependency `require_ai_features_enabled` rejects any
+  request that arrives with `X-PrismTask-AI-Features: disabled` (defense
+  in depth for non-Android callers and stale builds). Updated
+  `docs/privacy/index.md` and
+  `docs/store-listing/compliance/data-safety-form.md` to (1) explicitly
+  disclose that medication names are included in NLP batch-command
+  requests to Anthropic, (2) correct prior text that described
+  Anthropic processing as "zero-retention" — Anthropic's standard API
+  retention is 30 days (up to 2 years if Trust & Safety review is
+  triggered), and Anthropic does not train on inputs (Commercial Terms
+  § B), and (3) document the new opt-out path. Per
+  `docs/audits/PII_EGRESS_AUDIT.md` Section 6 + Section 7
+  (recommendation Option C).
+
 - **Garbage-collect orphan `medication_marks` table.** The medication
   time-logging chain (Android PRs #743, #744; web PR #745) landed with
   `medication_marks` as a planned per-medication mark table, but the UI

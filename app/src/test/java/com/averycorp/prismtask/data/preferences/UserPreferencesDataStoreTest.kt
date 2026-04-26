@@ -227,4 +227,39 @@ class UserPreferencesDataStoreTest {
         assertEquals(MedicationReminderMode.CLOCK, MedicationReminderMode.fromName("BOGUS"))
         assertEquals(MedicationReminderMode.INTERVAL, MedicationReminderMode.fromName("INTERVAL"))
     }
+
+    // region AI features opt-out (PII egress audit, 2026-04-26) ---------
+
+    @Test
+    fun `ai features default to enabled true`() = runTest {
+        val p = prefs.aiFeaturePrefsFlow.first()
+        assertTrue(p.enabled)
+    }
+
+    @Test
+    fun `set ai features enabled false persists round trip`() = runTest {
+        prefs.setAiFeaturesEnabled(false)
+        assertFalse(prefs.aiFeaturePrefsFlow.first().enabled)
+    }
+
+    @Test
+    fun `set ai features enabled true after disable persists round trip`() = runTest {
+        prefs.setAiFeaturesEnabled(false)
+        prefs.setAiFeaturesEnabled(true)
+        assertTrue(prefs.aiFeaturePrefsFlow.first().enabled)
+    }
+
+    @Test
+    fun `is ai features enabled blocking returns current value`() {
+        // Default is true.
+        assertTrue(prefs.isAiFeaturesEnabledBlocking())
+        // After disabling, the blocking getter reflects the change — this
+        // is the contract that AiFeatureGateInterceptor depends on so that
+        // every outbound request reflects the latest user preference, with
+        // no stale-cache window.
+        kotlinx.coroutines.runBlocking { prefs.setAiFeaturesEnabled(false) }
+        assertFalse(prefs.isAiFeaturesEnabledBlocking())
+    }
+
+    // endregion ----------------------------------------------------------
 }

@@ -32,6 +32,7 @@ fun AiFeaturesScreen(
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val eisenhowerPrefs by viewModel.eisenhowerPrefs.collectAsStateWithLifecycle()
+    val aiFeaturePrefs by viewModel.aiFeaturePrefs.collectAsStateWithLifecycle()
     Scaffold(
         topBar = {
             TopAppBar(
@@ -58,7 +59,9 @@ fun AiFeaturesScreen(
                 onNavigateToWeeklyPlanner = { navController.navigate(PrismTaskRoute.WeeklyPlanner.route) },
                 onNavigateToTimeline = { navController.navigate(PrismTaskRoute.Timeline.route) },
                 eisenhowerAutoClassifyEnabled = eisenhowerPrefs.autoClassifyEnabled,
-                onEisenhowerAutoClassifyChanged = viewModel::setEisenhowerAutoClassifyEnabled
+                onEisenhowerAutoClassifyChanged = viewModel::setEisenhowerAutoClassifyEnabled,
+                aiFeaturesEnabled = aiFeaturePrefs.enabled,
+                onAiFeaturesEnabledChanged = viewModel::setAiFeaturesEnabled
             )
             Spacer(modifier = Modifier.height(32.dp))
         }

@@ -6,6 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
+from app.middleware.ai_gate import require_ai_features_enabled
 from app.middleware.auth import get_active_user
 from app.middleware.rate_limit import RateLimiter, daily_ai_rate_limiter
 from app.models import Habit, User
@@ -48,7 +49,14 @@ from app.services.firestore_tasks import (
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/ai", tags=["ai"])
+router = APIRouter(
+    prefix="/ai",
+    tags=["ai"],
+    # PII egress audit (2026-04-26): every endpoint on this router can
+    # transit user data to Anthropic. Reject requests where the client
+    # has signalled the user disabled AI features in PrismTask Settings.
+    dependencies=[Depends(require_ai_features_enabled)],
+)
 
 # Rate limiter: max 1 call per 5 minutes (300 seconds) per IP
 ai_rate_limiter = RateLimiter(max_requests=1, window_seconds=300)
