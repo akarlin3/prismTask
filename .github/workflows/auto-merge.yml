@@ -76,6 +76,87 @@ jobs:
             echo "No CI checks on this PR after 60s — will merge without waiting."
           fi
 
+      - name: Wait until all required-status checks have queued
+        # Witnessed on PR #804 (2026-04-26): the next step's
+        # `wait-on-check-action` exited after ~43s because only one
+        # required check (Backend `test`) had completed and Android
+        # `lint-and-test` hadn't been queued yet. wait-on-check-action's
+        # exit condition is "all *currently visible* check-runs are in
+        # allowed-conclusions" — which is a race with GitHub's queueing
+        # of slower workflows. Auto-merge then ran `gh pr merge --auto`
+        # immediately, the merge queued behind the still-pending real
+        # CI, and the version-bump workflow_run trigger fired with a
+        # PR-head sha 14 min before the actual merge — its 10-min "wait
+        # for PR to merge" step timed out before the merge completed,
+        # silently dropping the auto-bump.
+        #
+        # This step closes the race by polling the required-status-check
+        # list from branch protection and waiting until every required
+        # check has at least appeared in `commits/{sha}/check-runs`.
+        # Once they're all visible, wait-on-check-action's exit
+        # condition correctly waits for ALL of them (not just the fast
+        # subset).
+        #
+        # Falls back to a hardcoded list if the branch-protection API is
+        # 403/404 (the default GITHUB_TOKEN has `Administration: read`
+        # in most repos, but if you've explicitly removed that scope or
+        # branch protection isn't configured yet, we degrade gracefully
+        # rather than block the merge forever).
+        if: steps.ci_check.outputs.has_ci == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          REPO: ${{ github.repository }}
+          # Hardcoded fallback if branch-protection API is unavailable.
+          # Keep in sync with the canonical list at:
+          #   Settings → Branches → main → Require status checks to pass
+          # Last verified 2026-04-26 against the live ruleset.
+          FALLBACK_REQUIRED: |
+            lint-and-test
+            connected-tests
+            test
+            web-lint-and-test
+        run: |
+          set -euo pipefail
+          REQUIRED=$(gh api "repos/$REPO/branches/main/protection/required_status_checks" \
+            --jq '.contexts[]' 2>/dev/null || true)
+          if [ -z "$REQUIRED" ]; then
+            echo "::warning::Could not query branch protection (likely a permission issue) — using hardcoded fallback list."
+            REQUIRED="$FALLBACK_REQUIRED"
+          fi
+          # Strip Auto-merge from the required list so we don't wait on
+          # ourselves (it's listed because we ARE the running workflow).
+          REQUIRED=$(echo "$REQUIRED" | grep -vE '^\s*Auto-merge\s*$' | grep -vE '^\s*$' || true)
+          if [ -z "$REQUIRED" ]; then
+            echo "No required checks beyond Auto-merge; skipping queue wait."
+            exit 0
+          fi
+          echo "Waiting until these required checks queue:"
+          echo "$REQUIRED" | sed 's/^/  /'
+          # 30 attempts × 10s = 5 min ceiling. If checks haven't queued
+          # by then something is genuinely broken (workflow file invalid,
+          # path filter excluding everything, etc.) — log and proceed so
+          # wait-on-check-action can decide how to handle it.
+          for attempt in $(seq 1 30); do
+            CHECK_RUNS=$(gh api --paginate "repos/$REPO/commits/$HEAD_SHA/check-runs" \
+              --jq '.check_runs[].name' | sort -u)
+            MISSING=""
+            while IFS= read -r req; do
+              [ -z "$req" ] && continue
+              req_trimmed=$(echo "$req" | xargs)
+              if ! echo "$CHECK_RUNS" | grep -qxF "$req_trimmed"; then
+                MISSING="$MISSING $req_trimmed"
+              fi
+            done <<< "$REQUIRED"
+            if [ -z "$MISSING" ]; then
+              echo "All required checks have queued after attempt $attempt."
+              exit 0
+            fi
+            echo "Still waiting for:$MISSING (attempt $attempt/30)"
+            sleep 10
+          done
+          echo "::warning::Some required checks never queued after 5 min:$MISSING — proceeding to wait-on-check-action anyway."
+
       - name: Wait for all other CI checks to pass
         if: steps.ci_check.outputs.has_ci == 'true'
         # Audit item #9 — include `neutral` in allowed-conclusions so
