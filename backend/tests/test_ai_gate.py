@@ -118,11 +118,12 @@ class TestAiRouterRejectsOptOutHeader:
             mock_parse.assert_not_called()
 
     def test_eisenhower_categorize_returns_451_with_opt_out_header(self):
+        # Path is `/api/v1/ai/eisenhower` (see backend/app/routers/ai.py:122).
         with patch("app.services.ai_productivity.categorize_eisenhower") as mock_cat:
             client = _client()
             resp = client.post(
-                "/api/v1/ai/eisenhower/categorize",
-                json={"task_ids": [1, 2, 3]},
+                "/api/v1/ai/eisenhower",
+                json={"task_ids": ["task-1", "task-2"]},
                 headers={HEADER_NAME: HEADER_VALUE_DISABLED},
             )
             assert resp.status_code == 451, resp.text

@@ -1,9 +1,21 @@
 package com.averycorp.prismtask.data.preferences
 
 import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
 import com.averycorp.prismtask.domain.model.AutoDueDate
 import com.averycorp.prismtask.domain.model.StartOfWeek
 import com.averycorp.prismtask.domain.model.SwipeAction
+import com.averycorp.prismtask.domain.model.UiComplexityTier
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.runBlocking
 
 /**
  * Appearance/display preferences used by v1.3.0 customizability features.
@@ -110,12 +122,12 @@ data class EisenhowerPrefs(
  * Master AI-feature opt-out (PII egress audit, 2026-04-26).
  *
  * When [enabled] is false, the Android client must short-circuit every AI
- * surface and never call the backend's `/ai/*` (or `/tasks/parse-import`,
- * `/tasks/parse-checklist`, `/syllabus/parse`) endpoints. The client should
- * also send `X-PrismTask-AI-Features: disabled` on any request it does
- * make, so the backend's `require_ai_features_enabled` middleware can
- * reject the request with HTTP 451 — defense-in-depth in case a stale
- * code path forgot to check the local flag.
+ * surface and never call the backend's Anthropic-touching endpoints
+ * (the `/ai/...` family plus `/tasks/parse...` and `/syllabus/parse`).
+ * The client should also send `X-PrismTask-AI-Features: disabled` on any
+ * request it does make, so the backend's `require_ai_features_enabled`
+ * middleware can reject the request with HTTP 451 — defense-in-depth in
+ * case a stale code path forgot to check the local flag.
  *
  * Defaults to true so existing Pro users do not lose AI features on
  * upgrade. The disclosure / opt-out path is documented in
