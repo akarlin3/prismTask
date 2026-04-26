@@ -328,6 +328,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   in any account are normalized on read with a console warning during
   the dev cleanup window.
 
+### Fixed
+
+- **Medication screen day boundary now respects Start-of-Day on Android +
+  web.** `MedicationViewModel.todayDate` (Android) and the four
+  `const todayIso = logicalToday(Date.now(), startOfDayHour)` web sites
+  (`MedicationScreen`, `TodayScreen`, `MoodLogModal`, `MorningCheckInCard`)
+  previously snapshotted the logical date at flow / component
+  construction time and never refreshed when the wall-clock crossed the
+  user's configured SoD boundary. Symptoms on the medication surface
+  (the bug report): doses logged before SoD reset would linger on
+  today's slot cards as if they were today's marks; new doses after SoD
+  would land under yesterday's `medication_tier_states.log_date` because
+  five VM write paths (`setSkippedForSlot`, `setIntendedTimeForSlot`,
+  `clearUserOverrideForSlot`, `refreshTierState`, `bulkMarkInternal`)
+  read the stale `todayDate.value`; the screen would briefly empty out
+  at calendar midnight (instead of at SoD) on every fresh subscription
+  because the `stateIn` initial value hard-coded SoD = 0. Three other
+  web surfaces shared the broken pattern latently and were swept in to
+  prevent the same shape shipping on May 15. The fix introduces a
+  shared `core.time.LocalDateFlow` (Android, Hilt-singleton) +
+  `useLogicalToday` React hook (web) — both wire the SoD source to a
+  wall-clock ticker that re-emits at every logical-day boundary.
+  `MedicationStatusUseCase.observeDueDosesToday()` is fixed by the same
+  intervention, which propagates to the Today screen's Daily Essentials
+  card via `DailyEssentialsUseCase`. Persisted dose timestamps were
+  always correct (`MedicationRepository.logDose` re-derives
+  `taken_date_local` from each dose's own `taken_at`); no migration.
+  Audit + reproduction trail at
+  `docs/audits/MEDICATION_SOD_BOUNDARY_AUDIT.md`.
+
 ## [1.6.0] — 2026-04-24
 
 > The 1.6.0 entry captures work that landed across several tagged builds

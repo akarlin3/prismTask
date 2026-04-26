@@ -619,4 +619,49 @@ decisions you may want to override:
 - Test scope (unit only vs. add an instrumentation test).
 - Whether to gate v1.6.1 release on this fix or carve a v1.6.0.x patch.
 
+---
+
+## Phase 3 — Implementation
+
+Phase 2 was approved on 2026-04-26 with web parity scope **broadened to
+all 4 surfaces** (option 3). Implementation landed in five commits on
+branch `fix/medication-sod-boundary`:
+
+| Commit | Subject | Files | Tests |
+|--------|---------|-------|-------|
+| `bc956b45` | test(medication): gate SoD-boundary fix with rewritten regression test | LocalDateFlow stub + rewritten `MedicationTodayDateRefreshTest` + audit scope update | 3 RED |
+| `c0ff95c9` | feat(time): LocalDateFlow ticker for SoD-aware logical-day Flow | `LocalDateFlow.kt` impl + `LocalDateFlowTest.kt` | 7 GREEN |
+| `67427a1a` | fix(medication): wire MedicationViewModel + MedicationStatusUseCase to LocalDateFlow | wiring + additive flow test in `MedicationStatusUseCaseTest` | full :app:testDebugUnitTest GREEN |
+| `00236dfc` | fix(web): useLogicalToday hook + adopt at all 4 affected sites | `useLogicalToday.ts` + 4 site swaps + Vitest | 320/320 GREEN, `tsc -b` clean |
+| _(this commit)_ | docs(changelog): medication SoD boundary fix entry | CHANGELOG `Unreleased ▸ Fixed` + Phase 3 closeout | n/a |
+
+### Verification before opening PR
+
+- `:app:testDebugUnitTest` — full app suite passes locally on the final
+  wiring commit.
+- `vitest run` — 320/320 tests pass on the final web commit.
+- `tsc -b` — clean.
+- Phase 1 reproduction inverted: `MedicationTodayDateRefreshTest`
+  (originally designed so passing meant the bug existed) was rewritten
+  to assert the FIXED contract; tests fail on `bc956b45` (RED gate),
+  pass on `c0ff95c9` and onward.
+
+### Scope deviations from Phase 2
+
+- **Web parity widened to 4 sites** (medication + Today + Mood +
+  MorningCheckIn) per Phase 2 sign-off option 3. Each adoption is a
+  single-line swap; total web-side delta ~150 LOC including the new
+  hook + its tests.
+- **No instrumentation test added.** Phase 2 already noted this — the
+  unit-virtual-time tests cover boundary crossings at the right
+  granularity; androidTest has no time-travel infrastructure.
+- **Total LOC** landed at ~520, slightly above the Phase 2 estimate of
+  ~470 because the `MedicationStatusUseCaseTest` flow test came in
+  fuller than budgeted (MockK-based DAO fakes carried more setup).
+
+## Phase 4 — Post-merge summary
+
+_Filled in after merge, per the launch prompt._
+
+
 
