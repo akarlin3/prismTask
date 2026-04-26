@@ -80,7 +80,8 @@ class MedicationTodayDateRefreshTest {
         val before = todayDate.value
         assertEquals(
             "Initial emission should reflect the user's SoD-anchored logical day",
-            "2026-04-25", before
+            "2026-04-25",
+            before
         )
 
         advanceTimeBy(6 * 60 * 60 * 1000L) // 6h → past Apr 26 04:00 UTC
@@ -89,7 +90,8 @@ class MedicationTodayDateRefreshTest {
         val after = todayDate.value
         assertEquals(
             "todayDate must advance reactively when the wall-clock crosses SoD",
-            "2026-04-26", after
+            "2026-04-26",
+            after
         )
     }
 

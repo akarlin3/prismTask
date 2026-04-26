@@ -23,7 +23,6 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.Instant
-import java.time.LocalDateTime
 import java.time.ZoneId
 
 /**
@@ -140,9 +139,9 @@ class MedicationStatusUseCaseTest {
         val medicationDoseDao: MedicationDoseDao = mockk(relaxed = true)
         every { medicationDao.getActive() } returns flowOf(listOf(medication))
         every { medicationDoseDao.getForDate("2026-04-25") } returns
-            flowOf(listOf(yesterdayDose, yesterdayDose))    // 2 doses → satisfied
+            flowOf(listOf(yesterdayDose, yesterdayDose)) // 2 doses → satisfied
         every { medicationDoseDao.getForDate("2026-04-26") } returns
-            flowOf(emptyList())                             // fresh slate
+            flowOf(emptyList()) // fresh slate
 
         val prefs: TaskBehaviorPreferences = mockk(relaxed = true)
         every { prefs.getStartOfDay() } returns sod
