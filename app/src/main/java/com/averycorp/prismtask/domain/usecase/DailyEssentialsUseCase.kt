@@ -1,5 +1,6 @@
 package com.averycorp.prismtask.domain.usecase
 
+import com.averycorp.prismtask.core.time.LocalDateFlow
 import com.averycorp.prismtask.data.local.dao.DailyEssentialSlotCompletionDao
 import com.averycorp.prismtask.data.local.dao.HabitCompletionDao
 import com.averycorp.prismtask.data.local.dao.HabitDao
@@ -17,7 +18,6 @@ import com.averycorp.prismtask.data.preferences.LeisureSlotId
 import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
 import com.averycorp.prismtask.data.repository.LeisureRepository
 import com.averycorp.prismtask.domain.model.SelfCareRoutines
-import com.averycorp.prismtask.util.DayBoundary
 import com.google.gson.JsonArray
 import com.google.gson.JsonParser
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -148,7 +148,8 @@ constructor(
     private val slotCompletionDao: DailyEssentialSlotCompletionDao,
     private val dailyEssentialsPreferences: DailyEssentialsPreferences,
     private val taskBehaviorPreferences: TaskBehaviorPreferences,
-    private val leisurePreferences: LeisurePreferences
+    private val leisurePreferences: LeisurePreferences,
+    private val localDateFlow: LocalDateFlow
 ) {
     /**
      * Composite feed for the Daily Essentials section. All time windows use
@@ -156,26 +157,37 @@ constructor(
      * user's configured rollover hour.
      */
     fun observeToday(): Flow<DailyEssentialsUiState> =
-        taskBehaviorPreferences.getDayStartHour().flatMapLatest { dayStartHour ->
-            val todayStart = DayBoundary.startOfCurrentDay(dayStartHour)
-            val todayLocal = DayBoundary.currentLocalDateString(dayStartHour)
-            val windowStart = DayBoundary.calendarMidnightOfCurrentDay(dayStartHour)
-            val windowEnd = DayBoundary.calendarMidnightOfNextDay(dayStartHour)
+        combine(
+            localDateFlow.observe(taskBehaviorPreferences.getStartOfDay()),
+            taskBehaviorPreferences.getStartOfDay()
+        ) { date, sod -> date to sod }
+            .flatMapLatest { (date, sod) ->
+                val zone = java.time.ZoneId.systemDefault()
+                // Derive the four window epochs from the canonical reactive
+                // logical date — re-emits at every SoD boundary crossing,
+                // not just on preference change. Replaces the four
+                // `DayBoundary.*` snapshot calls that were locked at upstream
+                // emission time. Per UTIL_DAYBOUNDARY_SWEEP_AUDIT.md § 5.
+                val todayStart = date.atTime(sod.hour, sod.minute)
+                    .atZone(zone).toInstant().toEpochMilli()
+                val todayLocal = date.toString()
+                val windowStart = date.atStartOfDay(zone).toInstant().toEpochMilli()
+                val windowEnd = date.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
 
-            combine(
-                observeRoutineCard("morning", "Morning Routine", todayStart),
-                observeRoutineCard("bedtime", "Bedtime Routine", todayStart),
-                observeHouseworkCard(todayLocal),
-                observeRoutineCard("housework", "Housework", todayStart),
-                observeSchoolworkCard(todayLocal, windowStart, windowEnd),
-                leisureRepository.getTodayLog(),
-                medicationStatusUseCase.observeDueDosesToday(),
-                slotCompletionDao.observeForDate(todayStart),
-                dailyEssentialsPreferences.hasSeenHint,
-                leisurePreferences.getSlotConfig(LeisureSlotId.MUSIC),
-                leisurePreferences.getSlotConfig(LeisureSlotId.FLEX)
-            ) { args -> combineDailyEssentials(args) }
-        }
+                combine(
+                    observeRoutineCard("morning", "Morning Routine", todayStart),
+                    observeRoutineCard("bedtime", "Bedtime Routine", todayStart),
+                    observeHouseworkCard(todayLocal),
+                    observeRoutineCard("housework", "Housework", todayStart),
+                    observeSchoolworkCard(todayLocal, windowStart, windowEnd),
+                    leisureRepository.getTodayLog(),
+                    medicationStatusUseCase.observeDueDosesToday(),
+                    slotCompletionDao.observeForDate(todayStart),
+                    dailyEssentialsPreferences.hasSeenHint,
+                    leisurePreferences.getSlotConfig(LeisureSlotId.MUSIC),
+                    leisurePreferences.getSlotConfig(LeisureSlotId.FLEX)
+                ) { args -> combineDailyEssentials(args) }
+            }
 
     @Suppress("UNCHECKED_CAST")
     private fun combineDailyEssentials(args: Array<Any?>): DailyEssentialsUiState {
