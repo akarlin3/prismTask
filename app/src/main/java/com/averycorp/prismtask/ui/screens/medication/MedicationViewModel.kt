@@ -7,9 +7,14 @@ import com.averycorp.prismtask.data.local.entity.MedicationEntity
 import com.averycorp.prismtask.data.local.entity.MedicationSlotEntity
 import com.averycorp.prismtask.data.local.entity.MedicationTierStateEntity
 import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
+import com.averycorp.prismtask.data.remote.api.ProposedMutationResponse
+import com.averycorp.prismtask.data.repository.BatchOperationsRepository
 import com.averycorp.prismtask.data.repository.MedicationRepository
 import com.averycorp.prismtask.data.repository.MedicationSlotRepository
+import com.averycorp.prismtask.domain.model.BatchEntityType
+import com.averycorp.prismtask.domain.model.BatchMutationType
 import com.averycorp.prismtask.domain.model.medication.AchievedTier
+import com.averycorp.prismtask.domain.model.medication.BulkMarkScope
 import com.averycorp.prismtask.domain.model.medication.MedicationTier
 import com.averycorp.prismtask.domain.model.medication.TierSource
 import com.averycorp.prismtask.domain.usecase.MedicationTierComputer
@@ -68,7 +73,8 @@ class MedicationViewModel
 constructor(
     private val medicationRepository: MedicationRepository,
     private val slotRepository: MedicationSlotRepository,
-    private val taskBehaviorPreferences: TaskBehaviorPreferences
+    private val taskBehaviorPreferences: TaskBehaviorPreferences,
+    private val batchOperationsRepository: BatchOperationsRepository
 ) : ViewModel() {
     private val _editMode = MutableStateFlow(false)
     val editMode: StateFlow<Boolean> = _editMode
@@ -371,6 +377,88 @@ constructor(
 
     fun archiveMedication(medication: MedicationEntity) {
         viewModelScope.launch { medicationRepository.archive(medication.id) }
+    }
+
+    // ── Bulk tier marking ──────────────────────────────────────────────
+
+    /**
+     * Mark every medication in [scope] to [tier] for today via the same
+     * batch infrastructure that powers PR #772's `STATE_CHANGE` /
+     * `SKIP` mutations. Every produced mutation shares one `batch_id`,
+     * so the existing 24h durable history undo (Settings → Batch
+     * History) reverses the whole bulk action atomically.
+     *
+     * **Mutation choice by tier:** SKIPPED routes through
+     * [BatchMutationType.SKIP] so the synthetic-skip dose loop fires
+     * per medication and re-anchors interval-mode reminders — same
+     * behavior as [setSkippedForSlot]. Non-SKIPPED tiers route through
+     * [BatchMutationType.STATE_CHANGE], which writes only the
+     * tier-state row and leaves the dose log untouched.
+     *
+     * **Empty scope is a no-op.** Matches the UI's pre-confirmation
+     * disable on zero targets.
+     */
+    fun bulkMark(scope: BulkMarkScope, slotId: Long?, tier: AchievedTier) {
+        viewModelScope.launch { bulkMarkInternal(scope, slotId, tier) }
+    }
+
+    /**
+     * Suspending implementation extracted so unit tests can `runTest`
+     * without spinning up a full `viewModelScope` lifecycle. Returns
+     * the [BatchOperationsRepository.BatchApplyResult] of the apply
+     * call, or `null` if the scope produced zero targets.
+     */
+    internal suspend fun bulkMarkInternal(
+        scope: BulkMarkScope,
+        slotId: Long?,
+        tier: AchievedTier
+    ): BatchOperationsRepository.BatchApplyResult? {
+        val date = todayDate.value
+        val targets: List<Pair<MedicationEntity, MedicationSlotEntity>> = when (scope) {
+            BulkMarkScope.SLOT -> {
+                val slot = activeSlots.value.firstOrNull { it.id == slotId } ?: return null
+                medicationsForSlotOnce(slot.id).map { it to slot }
+            }
+            BulkMarkScope.FULL_DAY -> {
+                activeSlots.value.flatMap { slot ->
+                    medicationsForSlotOnce(slot.id).map { it to slot }
+                }
+            }
+        }
+        if (targets.isEmpty()) return null
+
+        val storageTier = tier.toStorage()
+        val mutationType = if (tier == AchievedTier.SKIPPED) {
+            BatchMutationType.SKIP
+        } else {
+            BatchMutationType.STATE_CHANGE
+        }
+
+        val mutations = targets.map { (med, slot) ->
+            ProposedMutationResponse(
+                entityType = BatchEntityType.MEDICATION.name,
+                entityId = med.id.toString(),
+                mutationType = mutationType.name,
+                proposedNewValues = mapOf(
+                    "slot_key" to slot.name,
+                    "date" to date,
+                    "tier" to storageTier
+                ),
+                humanReadableDescription = "Mark ${med.name} (${slot.name}) as $storageTier"
+            )
+        }
+
+        val commandText = when (scope) {
+            BulkMarkScope.SLOT -> {
+                val slotName = targets.first().second.name
+                "Bulk mark ${targets.size} medication(s) in slot \"$slotName\" as $storageTier"
+            }
+            BulkMarkScope.FULL_DAY -> {
+                "Bulk mark ${targets.size} medication(s) across today as $storageTier"
+            }
+        }
+
+        return batchOperationsRepository.applyBatch(commandText, mutations)
     }
 
     suspend fun selectionsForMedication(medicationId: Long): List<MedicationSlotSelection> {

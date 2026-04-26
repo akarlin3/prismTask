@@ -4,6 +4,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock,
+  ListChecks,
   Pill,
   PlusCircle,
   Undo2,
@@ -15,6 +16,7 @@ import {
   getTierStatesForDate,
   setTierState,
   setTierStateIntendedTime,
+  setTierStatesAtomic,
   type MedicationTier,
   type MedicationTierState,
 } from '@/api/firestore/medicationSlots';
@@ -22,6 +24,7 @@ import { getFirebaseUid } from '@/stores/firebaseUid';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { MedicationSlotDetailModal } from '@/features/daily-essentials/MedicationSlotDetailModal';
+import { BulkMarkDialog } from '@/features/medication/BulkMarkDialog';
 import { MedicationTierPicker } from '@/features/medication/MedicationTierPicker';
 import { MedicationTimeEditModal } from '@/features/medication/MedicationTimeEditModal';
 import { isBacklogged } from '@/features/medication/backloggedHelpers';
@@ -86,6 +89,7 @@ export function MedicationScreen() {
   const [timeEditingSlot, setTimeEditingSlot] = useState<MedicationSlot | null>(
     null,
   );
+  const [bulkMarkOpen, setBulkMarkOpen] = useState(false);
 
   const load = useCallback(
     async (iso: string) => {
@@ -161,6 +165,49 @@ export function MedicationScreen() {
     }
   };
 
+  const handleBulkMark = async ({
+    scope,
+    slotKey: pickedSlotKey,
+    tier,
+  }: {
+    scope: 'slot' | 'full_day';
+    slotKey: string | null;
+    tier: MedicationTier;
+  }) => {
+    try {
+      const uid = getFirebaseUid();
+      if (scope === 'slot') {
+        if (!pickedSlotKey) return;
+        // Single-doc bulk = a normal setTierState. Skipping the
+        // writeBatch helper here saves a tiny amount of overhead and
+        // matches what the per-slot tier-picker already does.
+        const next = await setTierState(uid, dateIso, pickedSlotKey, tier, 'user_set');
+        setTierStates((prev) => ({ ...prev, [pickedSlotKey]: next }));
+        toast.success(`Marked slot "${pickedSlotKey}" as ${tier}`);
+      } else {
+        if (slots.length === 0) return;
+        const updates = slots.map((s) => ({
+          dateIso,
+          slotKey: s.slotKey,
+          tier,
+          source: 'user_set' as const,
+        }));
+        await setTierStatesAtomic(uid, updates);
+        // Re-pull so we surface the merged state with the same shape
+        // the rest of the screen reads. The atomic helper doesn't
+        // round-trip per doc.
+        const refreshed = await getTierStatesForDate(uid, dateIso);
+        const byKey: Record<string, MedicationTierState> = {};
+        for (const s of refreshed) byKey[s.slot_key] = s;
+        setTierStates(byKey);
+        toast.success(`Marked ${updates.length} slots as ${tier}`);
+      }
+      setBulkMarkOpen(false);
+    } catch (e) {
+      toast.error((e as Error).message || 'Bulk mark failed');
+    }
+  };
+
   const handleSaveIntendedTime = async (
     slot: MedicationSlot,
     intendedTime: number,
@@ -204,6 +251,16 @@ export function MedicationScreen() {
           </div>
         </div>
         <div className="flex items-center gap-1.5">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setBulkMarkOpen(true)}
+            disabled={slots.length === 0}
+            aria-label="Bulk mark medications"
+            title="Bulk mark medications"
+          >
+            <ListChecks className="h-4 w-4" />
+          </Button>
           <Button variant="ghost" size="sm" onClick={() => shift(-1)} aria-label="Previous day">
             <ChevronLeft className="h-4 w-4" />
           </Button>
@@ -222,6 +279,13 @@ export function MedicationScreen() {
           </Button>
         </div>
       </header>
+
+      <BulkMarkDialog
+        isOpen={bulkMarkOpen}
+        slots={slots}
+        onCancel={() => setBulkMarkOpen(false)}
+        onConfirm={handleBulkMark}
+      />
 
       {slots.length > 0 && (
         <p className="mb-4 text-xs text-[var(--color-text-secondary)]">

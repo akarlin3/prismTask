@@ -1,11 +1,24 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
+const { batchSetMock, batchCommitMock, writeBatchMock, docMock } = vi.hoisted(() => {
+  const batchSetMock = vi.fn();
+  const batchCommitMock = vi.fn();
+  const writeBatchMock = vi.fn(() => ({
+    set: batchSetMock,
+    commit: batchCommitMock,
+  }));
+  const docMock = vi.fn(
+    (_db: unknown, ..._segments: string[]) => ({ id: _segments[_segments.length - 1] }),
+  );
+  return { batchSetMock, batchCommitMock, writeBatchMock, docMock };
+});
+
 vi.mock('@/lib/firebase', () => ({ firestore: {} }));
 vi.mock('firebase/firestore', () => ({
   addDoc: vi.fn(),
   collection: vi.fn(),
   deleteDoc: vi.fn(),
-  doc: vi.fn(),
+  doc: docMock,
   getDoc: vi.fn(),
   getDocs: vi.fn(),
   onSnapshot: vi.fn(),
@@ -14,9 +27,10 @@ vi.mock('firebase/firestore', () => ({
   setDoc: vi.fn(),
   updateDoc: vi.fn(),
   where: vi.fn(),
+  writeBatch: writeBatchMock,
 }));
 
-import { normalizeTier } from '@/api/firestore/medicationSlots';
+import { normalizeTier, setTierStatesAtomic } from '@/api/firestore/medicationSlots';
 
 describe('normalizeTier', () => {
   let warnSpy: ReturnType<typeof vi.spyOn>;
@@ -90,5 +104,77 @@ describe('normalizeTier', () => {
       expect(normalizeTier(42)).toBe('skipped');
       expect(normalizeTier({})).toBe('skipped');
     });
+  });
+});
+
+describe('setTierStatesAtomic', () => {
+  beforeEach(() => {
+    batchSetMock.mockReset();
+    batchCommitMock.mockReset();
+    writeBatchMock.mockClear();
+    docMock.mockClear();
+  });
+
+  it('returns an empty array and never opens a batch when given no updates', async () => {
+    const ids = await setTierStatesAtomic('uid-1', []);
+    expect(ids).toEqual([]);
+    expect(writeBatchMock).not.toHaveBeenCalled();
+    expect(batchCommitMock).not.toHaveBeenCalled();
+  });
+
+  it('uses a single writeBatch for N tier-state writes', async () => {
+    batchCommitMock.mockResolvedValueOnce(undefined);
+    const ids = await setTierStatesAtomic('uid-1', [
+      { dateIso: '2026-04-25', slotKey: 'morning', tier: 'complete' },
+      { dateIso: '2026-04-25', slotKey: 'evening', tier: 'complete' },
+      { dateIso: '2026-04-25', slotKey: 'bedtime', tier: 'complete' },
+    ]);
+    expect(writeBatchMock).toHaveBeenCalledTimes(1);
+    expect(batchSetMock).toHaveBeenCalledTimes(3);
+    expect(batchCommitMock).toHaveBeenCalledTimes(1);
+    // doc ids match the deterministic `${dateIso}__${slotKey}` shape.
+    expect(ids).toEqual([
+      '2026-04-25__morning',
+      '2026-04-25__evening',
+      '2026-04-25__bedtime',
+    ]);
+  });
+
+  it('passes merge: true on every set so existing intended_time survives', async () => {
+    batchCommitMock.mockResolvedValueOnce(undefined);
+    await setTierStatesAtomic('uid-1', [
+      { dateIso: '2026-04-25', slotKey: 'morning', tier: 'essential' },
+    ]);
+    const setCall = batchSetMock.mock.calls[0];
+    // Args: [docRef, payload, options]
+    const payload = setCall[1] as Record<string, unknown>;
+    const options = setCall[2] as { merge: boolean };
+    expect(options).toEqual({ merge: true });
+    // Payload carries the slot/date/tier/source/loggedAt/updatedAt fields,
+    // matches single-target setTierState semantics.
+    expect(payload.slotKey).toBe('morning');
+    expect(payload.dateIso).toBe('2026-04-25');
+    expect(payload.tier).toBe('essential');
+    expect(payload.source).toBe('user_set');
+    expect(typeof payload.loggedAt).toBe('number');
+    expect(typeof payload.updatedAt).toBe('number');
+  });
+
+  it('honors caller-supplied source override (e.g. auto vs user_set)', async () => {
+    batchCommitMock.mockResolvedValueOnce(undefined);
+    await setTierStatesAtomic('uid-1', [
+      { dateIso: '2026-04-25', slotKey: 'morning', tier: 'complete', source: 'auto' },
+    ]);
+    const payload = batchSetMock.mock.calls[0][1] as Record<string, unknown>;
+    expect(payload.source).toBe('auto');
+  });
+
+  it('propagates batch.commit() rejections as the caller-visible error', async () => {
+    batchCommitMock.mockRejectedValueOnce(new Error('Firestore down'));
+    await expect(
+      setTierStatesAtomic('uid-1', [
+        { dateIso: '2026-04-25', slotKey: 'morning', tier: 'complete' },
+      ]),
+    ).rejects.toThrow('Firestore down');
   });
 });

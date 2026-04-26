@@ -9,6 +9,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Bulk medication tier marking (Android + web).** A new TopAppBar
+  action on `MedicationScreen` (Android) and a header-bar `ListChecks`
+  button (web) opens a `BulkMarkDialog` that lets the user mark every
+  medication in a slot — or every medication across today — to a
+  chosen tier in one action. Two scopes ship: `SLOT` (pick one slot,
+  set its tier) and `FULL_DAY` (set every active slot's tier today).
+  Tier-scope as a third option was considered and dropped per
+  `docs/audits/BULK_MEDICATION_MARK_AUDIT.md` Decision 2 — under the
+  uniform-setter interpretation it collapses onto FULL_DAY, so the
+  first ship offers two scopes and the dialog stays narrower.
+  Android routes through PR #772's existing batch infrastructure with
+  fan-out at the apply layer: the bulk caller emits N
+  `ProposedMutationResponse` rows (one per affected medication+slot),
+  one shared `batch_id` lands in `batch_undo_log`, and the existing
+  24h durable history undo (Settings → Batch History) reverses the
+  whole bulk action atomically. SKIPPED routes through
+  `BatchMutationType.SKIP` so the synthetic-skip dose loop fires per
+  medication and re-anchors interval-mode reminders — same behavior
+  as `MedicationViewModel.setSkippedForSlot`. Non-SKIPPED tiers route
+  through `BatchMutationType.STATE_CHANGE`, which writes only the
+  tier-state row and leaves the dose log untouched. Web stores
+  per-(slot, date) aggregate state, so the bulk write is N Firestore
+  doc writes for FULL_DAY (one per active slot); a new
+  `setTierStatesAtomic` helper wraps them in `writeBatch` for
+  atomicity (Decision 1) — a network blip mid-bulk no longer leaves
+  a torn state. Slot-level long-press from PR #744 (Android) and
+  PR #745 (web) is preserved unchanged; bulk-mark uses the
+  TopAppBar / header-bar gesture surface so it doesn't collide with
+  the existing per-tier-chip long-press.
+
 - **Web-side in-app account deletion.** Settings → Delete Account is now
   a working two-step typed-DELETE confirmation that calls
   `/api/v1/auth/me/deletion` with `initiated_from="web"` (mirroring
