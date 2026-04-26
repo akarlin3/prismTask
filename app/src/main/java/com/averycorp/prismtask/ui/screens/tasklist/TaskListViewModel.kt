@@ -23,6 +23,7 @@ import com.averycorp.prismtask.domain.model.TaskFilter
 import com.averycorp.prismtask.domain.usecase.ParsedTodoItem
 import com.averycorp.prismtask.domain.usecase.TodoListParser
 import com.averycorp.prismtask.domain.usecase.UrgencyScorer
+import com.averycorp.prismtask.core.time.LocalDateFlow
 import com.averycorp.prismtask.ui.components.QuickRescheduleFormatter
 import com.averycorp.prismtask.util.DayBoundary
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -81,7 +82,8 @@ constructor(
     private val todoListParser: TodoListParser,
     private val taskBehaviorPreferences: TaskBehaviorPreferences,
     private val sortPreferences: SortPreferences,
-    private val userPreferencesDataStore: com.averycorp.prismtask.data.preferences.UserPreferencesDataStore
+    private val userPreferencesDataStore: com.averycorp.prismtask.data.preferences.UserPreferencesDataStore,
+    private val localDateFlow: LocalDateFlow
 ) : ViewModel() {
     /** UI complexity tier — gates sort/filter/grouping options. */
     val uiTier: StateFlow<com.averycorp.prismtask.domain.model.UiComplexityTier> =
@@ -288,10 +290,36 @@ constructor(
             grouped.mapValues { (_, list) -> sortTasks(list, sort) }
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
-    private val dayStartFlow: StateFlow<Long> = taskBehaviorPreferences
-        .getDayStartHour()
-        .map { DayBoundary.startOfCurrentDay(it) }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DayBoundary.startOfCurrentDay(0))
+    /**
+     * SoD-anchored start of the current logical day, as epoch millis.
+     * Backed by [LocalDateFlow] so the value advances reactively at every
+     * SoD boundary crossing — not just on preference change.
+     *
+     * The combine pulls SoD a second time so we have access to the
+     * `(hour, minute)` for the SoD-anchored projection (vs. the
+     * calendar-midnight projection used by `TodayViewModel.dayStart`).
+     * Initial value is `LocalDate.now().atTime(0,0)` as a one-frame
+     * fallback — the inner flow emits the SoD-correct value
+     * synchronously on subscription.
+     *
+     * See `docs/audits/UTIL_DAYBOUNDARY_SWEEP_AUDIT.md` § 3 and PR #798.
+     */
+    private val dayStartFlow: StateFlow<Long> = combine(
+        localDateFlow.observe(taskBehaviorPreferences.getStartOfDay()),
+        taskBehaviorPreferences.getStartOfDay()
+    ) { date, sod ->
+        date.atTime(sod.hour, sod.minute)
+            .atZone(java.time.ZoneId.systemDefault())
+            .toInstant()
+            .toEpochMilli()
+    }.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5000),
+        java.time.LocalDate.now()
+            .atStartOfDay(java.time.ZoneId.systemDefault())
+            .toInstant()
+            .toEpochMilli()
+    )
 
     val overdueCount: StateFlow<Int> = combine(rootTasks, dayStartFlow) { tasks, startOfToday ->
         tasks.count { it.dueDate != null && it.dueDate < startOfToday }

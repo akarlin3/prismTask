@@ -1,6 +1,8 @@
 package com.averycorp.prismtask.ui.screens.tasklist
 
+import com.averycorp.prismtask.core.time.LocalDateFlow
 import com.averycorp.prismtask.data.preferences.SortPreferences
+import com.averycorp.prismtask.data.preferences.StartOfDay
 import com.averycorp.prismtask.data.preferences.SwipePrefs
 import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
 import com.averycorp.prismtask.data.preferences.UrgencyWeights
@@ -12,6 +14,7 @@ import com.averycorp.prismtask.data.repository.TaskRepository
 import com.averycorp.prismtask.domain.usecase.TodoListParser
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -46,6 +49,7 @@ class TaskListViewModelTest {
     private lateinit var taskBehaviorPreferences: TaskBehaviorPreferences
     private lateinit var sortPreferences: SortPreferences
     private lateinit var userPreferencesDataStore: UserPreferencesDataStore
+    private lateinit var localDateFlow: LocalDateFlow
 
     @Before
     fun setUp() {
@@ -58,6 +62,14 @@ class TaskListViewModelTest {
         taskBehaviorPreferences = mockk(relaxed = true)
         sortPreferences = mockk(relaxed = true)
         userPreferencesDataStore = mockk(relaxed = true)
+        // Mock LocalDateFlow so observe() returns a single-emission flow.
+        // (Real production flow re-emits forever via internal `delay`; that
+        // would keep `runTest`'s scheduler busy. SoD-boundary regression is
+        // gated structurally by TaskListDayBoundaryFlowTest.)
+        localDateFlow = mockk(relaxed = true)
+        every { localDateFlow.observe(any()) } returns
+            flowOf(java.time.LocalDate.parse("2026-04-26"))
+        every { localDateFlow.observeIsoString(any()) } returns flowOf("2026-04-26")
 
         coEvery { taskRepository.getIncompleteRootTasks() } returns flowOf(emptyList())
         coEvery { taskRepository.getAllTasks() } returns flowOf(emptyList())
@@ -67,6 +79,7 @@ class TaskListViewModelTest {
         coEvery { tagRepository.getTagsForTask(any()) } returns flowOf(emptyList())
         coEvery { attachmentRepository.getAttachmentCount(any()) } returns flowOf(0)
         coEvery { taskBehaviorPreferences.getDayStartHour() } returns flowOf(0)
+        coEvery { taskBehaviorPreferences.getStartOfDay() } returns flowOf(StartOfDay(0, 0, false))
         coEvery { taskBehaviorPreferences.getDefaultSort() } returns flowOf("DUE_DATE")
         coEvery { taskBehaviorPreferences.getDefaultViewMode() } returns flowOf("UPCOMING")
         coEvery { taskBehaviorPreferences.getUrgencyWeights() } returns flowOf(UrgencyWeights())
@@ -88,7 +101,8 @@ class TaskListViewModelTest {
         todoListParser,
         taskBehaviorPreferences,
         sortPreferences,
-        userPreferencesDataStore
+        userPreferencesDataStore,
+        localDateFlow
     )
 
     @Test
