@@ -11,6 +11,7 @@ import {
   setDoc,
   updateDoc,
   where,
+  writeBatch,
   type DocumentData,
   type Unsubscribe,
 } from 'firebase/firestore';
@@ -344,4 +345,58 @@ export async function clearTierState(
   slotKey: string,
 ): Promise<void> {
   await deleteDoc(tierStateDoc(uid, dateIso, slotKey));
+}
+
+/**
+ * Atomic multi-doc tier-state write for the bulk-mark feature.
+ *
+ * The bulk-mark UI fans out N tier-state writes for one user action
+ * ("mark all 4 morning meds complete"). Without atomicity, a network
+ * blip mid-write would leave a torn state — some slots updated,
+ * others stale — and the user sees a half-applied bulk action until
+ * LWW eventually converges on retry.
+ *
+ * Firestore's `writeBatch` commits up to 500 docs as a single atomic
+ * unit (per the Firestore SDK docs). For our slot count (≤24 active
+ * slots/user is generous), one batch is always enough.
+ *
+ * Each entry uses `set(..., { merge: true })` so existing
+ * `intendedTime` survives the bulk write (matches the
+ * single-target [setTierState] semantics).
+ *
+ * Returns the doc ids written. Callers can re-fetch via
+ * [getTierStatesForDate] if they need the merged-back state — the
+ * batch path doesn't round-trip per doc.
+ */
+export async function setTierStatesAtomic(
+  uid: string,
+  updates: ReadonlyArray<{
+    dateIso: string;
+    slotKey: string;
+    tier: MedicationTier;
+    source?: 'auto' | 'user_set';
+  }>,
+): Promise<string[]> {
+  if (updates.length === 0) return [];
+  const now = Date.now();
+  const batch = writeBatch(firestore);
+  const ids: string[] = [];
+  for (const update of updates) {
+    const ref = tierStateDoc(uid, update.dateIso, update.slotKey);
+    batch.set(
+      ref,
+      {
+        slotKey: update.slotKey,
+        dateIso: update.dateIso,
+        tier: update.tier,
+        source: update.source ?? 'user_set',
+        loggedAt: now,
+        updatedAt: now,
+      },
+      { merge: true },
+    );
+    ids.push(ref.id);
+  }
+  await batch.commit();
+  return ids;
 }

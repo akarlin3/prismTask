@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.PlaylistAddCheck
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -54,6 +55,7 @@ import com.averycorp.prismtask.data.local.entity.MedicationEntity
 import com.averycorp.prismtask.domain.model.medication.AchievedTier
 import com.averycorp.prismtask.domain.model.medication.MedicationTier
 import com.averycorp.prismtask.ui.navigation.PrismTaskRoute
+import com.averycorp.prismtask.ui.screens.medication.components.BulkMarkDialog
 import com.averycorp.prismtask.ui.screens.medication.components.MedicationEditorDialog
 import com.averycorp.prismtask.ui.screens.medication.components.MedicationSlotSelection
 import com.averycorp.prismtask.ui.screens.medication.components.MedicationTimeEditSheet
@@ -90,6 +92,7 @@ fun MedicationScreen(
     val slotStates by viewModel.slotTodayStates.collectAsStateWithLifecycle()
 
     var showAddDialog by remember { mutableStateOf(false) }
+    var showBulkMarkDialog by remember { mutableStateOf(false) }
     var editingMed by remember { mutableStateOf<MedicationEntity?>(null) }
     var editingSelections by remember { mutableStateOf<List<MedicationSlotSelection>>(emptyList()) }
     var archivingMed by remember { mutableStateOf<MedicationEntity?>(null) }
@@ -110,6 +113,15 @@ fun MedicationScreen(
                 title = { Text("Medication", fontWeight = FontWeight.Bold) },
                 actions = {
                     if (!editMode) {
+                        IconButton(
+                            onClick = { showBulkMarkDialog = true },
+                            enabled = slotStates.any { it.medications.isNotEmpty() }
+                        ) {
+                            Icon(
+                                Icons.Default.PlaylistAddCheck,
+                                contentDescription = "Bulk mark medications"
+                            )
+                        }
                         IconButton(onClick = {
                             navController.navigate(PrismTaskRoute.MedicationLog.route)
                         }) {
@@ -233,6 +245,17 @@ fun MedicationScreen(
             onSave = { intendedTime ->
                 viewModel.setIntendedTimeForSlot(state.slot, intendedTime)
                 timeEditingSlotState = null
+            }
+        )
+    }
+
+    if (showBulkMarkDialog) {
+        BulkMarkDialog(
+            slotStates = slotStates,
+            onDismiss = { showBulkMarkDialog = false },
+            onConfirm = { scope, slotId, tier ->
+                viewModel.bulkMark(scope, slotId, tier)
+                showBulkMarkDialog = false
             }
         )
     }
