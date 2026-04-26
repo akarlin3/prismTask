@@ -367,3 +367,60 @@ These are the audit's wrong-premise candidates and architectural choice points. 
 **No STOP-WRONG-PREMISE verdicts.** The audit-first pattern surfaced 4 architectural decision points (Decisions 1–4 above) that deserve user input but are not blockers in either direction. Defaults are recommended; alternatives are documented.
 
 **Phase 2 readiness:** waiting on user response to Decisions 1–4 (or "use your picks" / "go" if they accept the recommendations as-is).
+
+---
+
+## Phase 3 — Post-merge summary
+
+**PR:** [#787](https://github.com/akarlin3/prismTask/pull/787) `feat(meds): bulk medication tier marking (Android + web)`
+**Merged at SHA:** `7b925913`
+**Diff:** 12 files, +1,511 / −3
+**Author:** akarlin3
+
+### Decisions implemented
+
+| Decision | Audit pick | Shipped as |
+|---|---|---|
+| 1. Web atomicity | A — introduce `writeBatch` | `setTierStatesAtomic` helper in `medicationSlots.ts`, FULL_DAY scope wraps N writes in one batch. **First `writeBatch` usage in `web/src/`.** SLOT scope keeps single-doc `setTierState` (atomic by definition). |
+| 2. Tier-scope semantics | C (in the qualified caveat) — drop tier scope | Two scopes shipped: SLOT + FULL_DAY. Tier-scope as a third option was redundant under uniform-setter interpretation. |
+| 3. Test scale | scope-appropriate (~7 + ~7) | 7 androidTest + 12 vitest (5 for atomic helper + 7 for dialog). Slightly more vitest than predicted because the atomic helper deserved its own coverage. |
+| 4. Preview detour | A — in-dialog summary | In-dialog summary line; no `BatchPreviewScreen` route for direct user actions. |
+
+### Scope-vs-audit deviations
+
+| Audit prediction | Actual | Reason |
+|---|---|---|
+| ~1,250 net LOC | +1,511 / −3 (12 files) | The audit doc itself (~507 LOC) was bundled into this PR rather than a separate docs PR. Code delta alone is closer to the audit's 1,000 LOC estimate. |
+| New `useBulkMark.ts` hook on web (~50 LOC) | Hook dropped; logic folded into `MedicationScreen.tsx` directly | At ~30 LOC of useState, a separate hook was over-abstraction. Net web reduction. |
+| Backend changes possibly needed | **Zero backend changes** | `STATE_CHANGE` + `SKIP` accept the existing single-target payload as-is; fan-out is invisible to the backend. Audit's pessimistic premise didn't materialize. |
+| `BulkMarkDialogTest.kt` for Android | Skipped | Dialog is presentational with no business logic; the 7 androidTest cases on the apply path cover what would otherwise be UI-VM contract tests. Web has its dialog test. |
+| 4–6 logical commits | 1 commit | The "skip checkpoints unless questions are required" instruction collapsed the per-stage commit cadence; everything landed atomically. |
+
+### Process notes (for the next bundle)
+
+1. **Audit-first surfaced an architectural surprise the prompt didn't anticipate.** The web doc shape (per-slot-aggregate per day, one Firestore doc) vs Android row shape (per-(med, slot, date), multiple Room rows) is a real asymmetry. Bulk-mark survived it cleanly because the user-visible semantic ("mark slot X complete") collapses onto the same outcome on both platforms, but the per-platform write count differs (Android: M doses; web: 1 doc for SLOT, N docs for FULL_DAY). This kind of architectural-asymmetry verification belongs in the audit template under Item 1 going forward.
+
+2. **PR #772's batch infrastructure is more reusable than the audit feared.** The audit considered "3c — new BULK_STATE_CHANGE verb" as a STOP condition. Verifying 3b (fan-out under shared batch_id) was feasible required reading just `BatchOperationsRepository.applyBatch` — the loop already iterated over `mutations: List<>` and assigned one shared `batchId`. The "reuse PR #772 infrastructure" constraint in the prompt was satisfiable in ~50 LOC of VM code on Android.
+
+3. **TypeScript `vi.fn()` inference fights React component prop types.** `vi.fn(() => Promise.resolve())` infers as `Mock<Procedure | Constructable>`, which doesn't unify with `(params: {...}) => Promise<void>`. Fix: type the callback variable explicitly (`let onConfirm: (...) => Promise<void>`) and `as typeof onConfirm` cast on the `vi.fn()`. Generic enough to deserve a memory entry candidate.
+
+4. **`setTierStatesAtomic` introduced the first `writeBatch` usage in web/src/.** All future bulk-write paths on Firestore should use this helper rather than re-introducing the pattern. Worth checking on the next audit that touches Firestore writes.
+
+### Memory entry candidates (flagged for user decision — not auto-saved)
+
+1. **`BatchOperationsRepository.applyBatch` already supports fan-out under shared batch_id.** Multi-target bulk actions don't need new mutation verbs or schema — emit N single-target `ProposedMutationResponse` rows, call `applyBatch(commandText, mutations)` once, and the existing loop assigns one shared `batchId` to every row. `undoBatch(batchId)` reverses them as a unit. This pattern is reusable for any future "bulk X" feature on tasks/habits/projects/medications.
+
+2. **For SKIPPED bulk-mark, route through `BatchMutationType.SKIP`, NOT `STATE_CHANGE`.** SKIP writes both a synthetic-skip dose AND the tier-state row; STATE_CHANGE writes only the tier-state. The synthetic dose is what re-anchors interval-mode reminder scheduling — without it, an interval-mode med skipped in bulk would keep firing reminders. The bulk caller branches by target tier: SKIPPED → SKIP, others → STATE_CHANGE.
+
+3. **Web Firestore atomicity pattern: `writeBatch` for N-doc writes, `setDoc` for single-doc.** First introduced in `setTierStatesAtomic` (PR #787). The SDK supports up to 500 docs per batch — comfortably large for any per-user-scoped bulk operation we'd ever ship. SLOT-scope bulk is one doc, atomic by definition; FULL_DAY needs the helper.
+
+4. **TypeScript `vi.fn()` inference: explicitly type the callback variable, then cast.**
+   ```ts
+   let onConfirm: (params: {...}) => Promise<void>;
+   onConfirm = vi.fn(() => Promise.resolve()) as typeof onConfirm;
+   ```
+   `vi.fn(() => Promise.resolve())` infers as `Mock<Procedure | Constructable>` and won't unify with React component prop types. Hits any vitest test that mocks an async callback prop.
+
+### Phase D follow-on impact
+
+This PR ran on the post-PR-#777 auto-merge wiring (AUTOFIX_PAT) and the post-PR-#780 cross-device-tests stabilization. Neither caused friction this run. The cross-device-tests required-status promotion (the open Phase D follow-up) is still pending the 5-consecutive-green-main-runs gate.
