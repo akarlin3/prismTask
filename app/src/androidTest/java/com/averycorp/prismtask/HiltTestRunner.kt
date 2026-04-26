@@ -2,9 +2,13 @@ package com.averycorp.prismtask
 
 import android.app.Application
 import android.content.Context
+import android.os.Build
 import androidx.test.runner.AndroidJUnitRunner
 import androidx.work.Configuration
 import androidx.work.testing.WorkManagerTestInitHelper
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.FirebaseFirestoreSettings
 import dagger.hilt.android.testing.HiltTestApplication
 
 class HiltTestRunner : AndroidJUnitRunner() {
@@ -26,14 +30,75 @@ class HiltTestRunner : AndroidJUnitRunner() {
      * hierarchies found in the app." Initialize WorkManager synchronously
      * here with the test-only synchronous executor so the test process has a
      * valid WorkManager by the time any Activity launches.
+     *
+     * For the same reason — `HiltTestApplication` replaces
+     * `PrismTaskApplication` — the production code's
+     * `configureFirebaseEmulator()` hook never fires under instrumented
+     * tests. Re-implement it here so the default `FirebaseFirestore` /
+     * `FirebaseAuth` clients route at the local Firebase Emulator Suite
+     * when [BuildConfig.USE_FIREBASE_EMULATOR] is true. Without this,
+     * cross-device sync tests hit production Firestore and fail with
+     * `PERMISSION_DENIED` (the bug that surfaced after PR #780 fixed the
+     * `cross-device-tests` script-execution issue).
      */
     override fun onStart() {
         WorkManagerTestInitHelper.initializeTestWorkManager(
             targetContext,
             Configuration.Builder().build()
         )
+        configureFirebaseEmulator()
         preGrantRuntimePermissions()
         super.onStart()
+    }
+
+    /**
+     * Mirror of [com.averycorp.prismtask.PrismTaskApplication.configureFirebaseEmulator]
+     * for the instrumented-test process. Must run before any
+     * `FirebaseFirestore` / `FirebaseAuth` operation — putting it in
+     * `onStart()` (which fires before any `@Test` method) guarantees that.
+     *
+     * Host selection mirrors the production code: `10.0.2.2` from inside
+     * the Android emulator (the alias for the host loopback where the
+     * Firebase emulator binds), `localhost` on physical devices.
+     */
+    private fun configureFirebaseEmulator() {
+        if (!BuildConfig.USE_FIREBASE_EMULATOR) return
+        val host = if (isAndroidEmulator()) "10.0.2.2" else "localhost"
+        try {
+            FirebaseFirestore.getInstance().useEmulator(host, FIRESTORE_EMULATOR_PORT)
+            FirebaseFirestore.getInstance().firestoreSettings =
+                FirebaseFirestoreSettings
+                    .Builder()
+                    .setPersistenceEnabled(false)
+                    .build()
+            FirebaseAuth.getInstance().useEmulator(host, AUTH_EMULATOR_PORT)
+            android.util.Log.i(
+                "HiltTestRunner",
+                "Firebase emulator routing active: firestore=$host:$FIRESTORE_EMULATOR_PORT " +
+                    "auth=$host:$AUTH_EMULATOR_PORT"
+            )
+        } catch (e: Exception) {
+            // useEmulator throws if called after the first Firestore op.
+            // Log loudly so we don't silently fall back to production —
+            // every cross-device test would fail with PERMISSION_DENIED
+            // and the cause would be invisible.
+            android.util.Log.e("HiltTestRunner", "Firebase emulator wiring failed", e)
+        }
+    }
+
+    private fun isAndroidEmulator(): Boolean =
+        Build.FINGERPRINT.startsWith("generic") ||
+            Build.FINGERPRINT.startsWith("unknown") ||
+            Build.MODEL.contains("google_sdk") ||
+            Build.MODEL.contains("Emulator") ||
+            Build.MODEL.contains("Android SDK built for x86") ||
+            Build.MANUFACTURER.contains("Genymotion") ||
+            (Build.BRAND.startsWith("generic") && Build.DEVICE.startsWith("generic")) ||
+            "google_sdk" == Build.PRODUCT
+
+    private companion object {
+        private const val FIRESTORE_EMULATOR_PORT = 8080
+        private const val AUTH_EMULATOR_PORT = 9099
     }
 
     /**
