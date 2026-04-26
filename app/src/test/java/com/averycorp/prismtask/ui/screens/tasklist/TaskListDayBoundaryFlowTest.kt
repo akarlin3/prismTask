@@ -68,7 +68,8 @@ class TaskListDayBoundaryFlowTest {
         val before = dayStartFlow.value
         assertEquals(
             "Initial value: SoD-anchored start of Apr 25 (the logical day at 11pm UTC pre-boundary)",
-            Instant.parse("2026-04-25T04:00:00Z").toEpochMilli(), before
+            Instant.parse("2026-04-25T04:00:00Z").toEpochMilli(),
+            before
         )
 
         advanceTimeBy(6 * 60 * 60 * 1000L) // 6h → past Apr 26 04:00 UTC
@@ -78,11 +79,13 @@ class TaskListDayBoundaryFlowTest {
         assertNotEquals(
             "dayStartFlow MUST advance reactively when wall-clock crosses SoD — " +
                 "if this fails, someone reverted to the snapshot pattern",
-            before, after
+            before,
+            after
         )
         assertEquals(
             "After SoD crossing, dayStartFlow reflects SoD-anchored start of the new logical day",
-            Instant.parse("2026-04-26T04:00:00Z").toEpochMilli(), after
+            Instant.parse("2026-04-26T04:00:00Z").toEpochMilli(),
+            after
         )
     }
 }

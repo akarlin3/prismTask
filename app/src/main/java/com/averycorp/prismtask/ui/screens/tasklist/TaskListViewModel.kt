@@ -8,6 +8,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.averycorp.prismtask.core.time.LocalDateFlow
 import com.averycorp.prismtask.data.local.entity.ProjectEntity
 import com.averycorp.prismtask.data.local.entity.TagEntity
 import com.averycorp.prismtask.data.local.entity.TaskEntity
@@ -23,7 +24,6 @@ import com.averycorp.prismtask.domain.model.TaskFilter
 import com.averycorp.prismtask.domain.usecase.ParsedTodoItem
 import com.averycorp.prismtask.domain.usecase.TodoListParser
 import com.averycorp.prismtask.domain.usecase.UrgencyScorer
-import com.averycorp.prismtask.core.time.LocalDateFlow
 import com.averycorp.prismtask.ui.components.QuickRescheduleFormatter
 import com.averycorp.prismtask.util.DayBoundary
 import dagger.hilt.android.lifecycle.HiltViewModel
