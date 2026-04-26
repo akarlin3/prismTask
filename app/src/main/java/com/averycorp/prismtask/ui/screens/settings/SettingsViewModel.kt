@@ -261,6 +261,20 @@ constructor(
         viewModelScope.launch { userPreferencesDataStore.setEisenhowerAutoClassifyEnabled(enabled) }
     }
 
+    /** Master AI-feature opt-out (PII egress audit, 2026-04-26). */
+    val aiFeaturePrefs: StateFlow<com.averycorp.prismtask.data.preferences.AiFeaturePrefs> =
+        userPreferencesDataStore.aiFeaturePrefsFlow
+            .stateIn(
+                viewModelScope,
+                SharingStarted.WhileSubscribed(5000),
+                com.averycorp.prismtask.data.preferences
+                    .AiFeaturePrefs()
+            )
+
+    fun setAiFeaturesEnabled(enabled: Boolean) {
+        viewModelScope.launch { userPreferencesDataStore.setAiFeaturesEnabled(enabled) }
+    }
+
     /** Boundary rules (v1.4.0 V3). */
     val boundaryRules: StateFlow<List<com.averycorp.prismtask.domain.model.BoundaryRule>> =
         boundaryRuleRepository

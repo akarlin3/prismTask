@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.database import get_db
+from app.middleware.ai_gate import require_ai_features_enabled
 from app.middleware.auth import get_current_user
 from app.models import Goal, GoalStatus, Project, Task, TaskStatus, User
 from app.schemas.syllabus import (
@@ -114,7 +115,11 @@ DAY_MAP = {
 }
 
 
-@router.post("/parse", response_model=SyllabusParseResponse)
+@router.post(
+    "/parse",
+    response_model=SyllabusParseResponse,
+    dependencies=[Depends(require_ai_features_enabled)],
+)
 async def parse_syllabus(
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user),

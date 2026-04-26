@@ -11,6 +11,7 @@ from sqlalchemy.orm import selectinload
 
 from app.config import settings
 from app.database import get_db
+from app.middleware.ai_gate import require_ai_features_enabled
 from app.middleware.auth import get_current_user
 from app.middleware.rate_limit import RateLimiter, import_parse_rate_limiter
 from app.models import Project, Task, TaskStatus, User
@@ -206,7 +207,11 @@ async def create_subtask(
     return _task_to_response(subtask, [])
 
 
-@router.post("/tasks/parse", response_model=ParseResponse)
+@router.post(
+    "/tasks/parse",
+    response_model=ParseResponse,
+    dependencies=[Depends(require_ai_features_enabled)],
+)
 async def parse_task(data: ParseRequest, request: Request):
     """
     Parse free-text task input into structured fields.
@@ -274,7 +279,11 @@ def _call_haiku(api_key: str, system_prompt: str, user_content: str, max_tokens:
     return text.strip()
 
 
-@router.post("/tasks/parse-import", response_model=ParseImportResponse)
+@router.post(
+    "/tasks/parse-import",
+    response_model=ParseImportResponse,
+    dependencies=[Depends(require_ai_features_enabled)],
+)
 async def parse_import_list(
     data: ParseImportRequest,
     current_user: User = Depends(get_current_user),
@@ -338,7 +347,11 @@ Rules:
         ) from exc
 
 
-@router.post("/tasks/parse-checklist", response_model=ParseChecklistResponse)
+@router.post(
+    "/tasks/parse-checklist",
+    response_model=ParseChecklistResponse,
+    dependencies=[Depends(require_ai_features_enabled)],
+)
 async def parse_checklist(
     data: ParseChecklistRequest,
     current_user: User = Depends(get_current_user),
