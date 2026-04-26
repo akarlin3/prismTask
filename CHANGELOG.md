@@ -381,6 +381,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `docs/audits/UTIL_DAYBOUNDARY_SWEEP_AUDIT.md` § 3 — second of 3
   PROCEED migrations in the sweep.
 
+- **Daily Essentials section now SoD-boundary-aware end-to-end.**
+  Migrated `DailyEssentialsUseCase.observeToday()` from the
+  four-snapshot `flatMapLatest` pattern (`todayStart`, `todayLocal`,
+  `windowStart`, `windowEnd` all locked at upstream emission time) to
+  `core.time.LocalDateFlow`. Completes the leaf-by-leaf migration
+  PR #798 started — PR #798 fixed only the `medicationStatusUseCase`
+  leaf inside the inner combine, leaving the four window epochs
+  snapshot-stale and producing an inconsistent state past SoD
+  (medication card correct, routine / housework / schoolwork / leisure
+  cards still on yesterday's window). Per
+  `docs/audits/UTIL_DAYBOUNDARY_SWEEP_AUDIT.md` § 5 — third of 3
+  PROCEED migrations in the sweep.
+
 - **Auto version-bump fires reliably on every PR merge.** Three
   silent-skip failure modes in the post-merge bump chain are closed:
   (1) PR #803 added a `commits/{sha}/pulls` fallback in
