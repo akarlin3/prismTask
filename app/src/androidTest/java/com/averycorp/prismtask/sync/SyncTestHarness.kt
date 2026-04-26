@@ -24,8 +24,12 @@ import kotlin.time.Duration.Companion.seconds
  *
  *  - **Device A** = the default [FirebaseApp] that the production
  *    `SyncService` and Hilt graph see — its `FirebaseFirestore.getInstance()`
- *    is already routed at the emulator by `PrismTaskApplication.configureFirebaseEmulator()`
- *    when `BuildConfig.USE_FIREBASE_EMULATOR == true`.
+ *    is routed at the emulator by `HiltTestRunner.configureFirebaseEmulator()`
+ *    when `BuildConfig.USE_FIREBASE_EMULATOR == true`. (The production
+ *    `PrismTaskApplication.configureFirebaseEmulator` hook does NOT fire
+ *    under instrumented tests because Hilt substitutes
+ *    `HiltTestApplication` for `PrismTaskApplication`; the same routing
+ *    logic is replicated in the test runner.)
  *  - **Device B** = a named [FirebaseApp] (`"deviceB"`) owned by the
  *    harness. Its Firestore/Auth clients are routed at the same emulator
  *    but are independent of device A's cache and network state. Tests
