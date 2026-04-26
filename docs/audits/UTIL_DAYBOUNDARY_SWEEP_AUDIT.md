@@ -670,3 +670,120 @@ migration PRs without explicit approval of:
    that future audits should not re-flag these.
 3. The PR ordering (recommend CRITICAL first: `TodayViewModel` → then HIGH
    in either order).
+
+---
+
+## Phase 3 — sweep summary (post-merge)
+
+All 3 approved migrations merged on 2026-04-26. Phase 1 was approved on the
+same day, so the full sweep — triage + fan-out implementation + post-merge
+summary — landed within a single working session.
+
+### Per-caller closeout
+
+| Caller | PR | Squash SHA | LOC delta | Regression-gate test | Scope vs. audit |
+|--------|----|----- |-----------|----------------------|-----------------|
+| `TodayViewModel` (CRITICAL) | [#811](https://github.com/akarlin3/prismTask/pull/811) | `fb077dc2` | +230 / -17 (4 files) | `TodayDayBoundaryFlowTest` | As-audited; both bug instances shipped in one PR (one VM, two distinct flow shapes). |
+| `TaskListViewModel` (HIGH) | [#812](https://github.com/akarlin3/prismTask/pull/812) | `c351cfc8` | +149 / -6 (4 files) | `TaskListDayBoundaryFlowTest` | As-audited. |
+| `DailyEssentialsUseCase` (HIGH) | [#813](https://github.com/akarlin3/prismTask/pull/813) | `77327156` | +148 / -21 (3 files) | `DailyEssentialsDayBoundaryFlowTest` | As-audited; completes leaf-by-leaf migration PR #798 started (medication leaf first, four window snapshots last). |
+
+**Total**: ~527 LOC across 3 PRs, ~80 LOC of which are production changes
+and ~450 LOC are regression-gate tests (intentional — the persistent test
+gate per caller is the load-bearing artifact). Phase 2 estimate had been
+~95-170 LOC; the overrun is entirely on the test side, where being explicit
+about the bug shape (Phase-1 form → Phase-5 inversion) doubles the test
+file's effective surface area but adds no production code.
+
+### Auto-bump end-to-end
+
+Each PR's merge fired the auto-bump pipeline cleanly (no silent skips).
+versionCode advanced 700 → 705 across the 5 sweep-related merges (PR #810
+audit doc → #812 → #811 → #813, plus the chore-bump for each). First
+end-to-end validation that the auto-bump chain (PRs #803 / #805 / #807 /
+#809) holds under sustained PR throughput.
+
+### Regression-gate inventory (Phase-5 form, persistent)
+
+These three test files now form the persistent regression gate for the
+LocalDateFlow snapshot-anti-pattern across the user-facing surface:
+
+- `app/src/test/java/com/averycorp/prismtask/ui/screens/today/TodayDayBoundaryFlowTest.kt`
+  — 2 tests: `dayStart_localDateFlowDriven_advancesAtSoDBoundary`,
+  `bannerCombineLambda_includingLocalDateFlow_refreshesOnSoDBoundary`.
+- `app/src/test/java/com/averycorp/prismtask/ui/screens/tasklist/TaskListDayBoundaryFlowTest.kt`
+  — 1 test: `dayStartFlow_localDateFlowDriven_advancesAtSoDBoundary`.
+- `app/src/test/java/com/averycorp/prismtask/domain/usecase/DailyEssentialsDayBoundaryFlowTest.kt`
+  — 1 test: `observeToday_localDateFlowDriven_refiresAtSoDBoundary`.
+
+Plus pre-existing from PR #798:
+- `app/src/test/java/com/averycorp/prismtask/ui/screens/medication/MedicationTodayDateRefreshTest.kt`
+- `app/src/test/java/com/averycorp/prismtask/core/time/LocalDateFlowTest.kt`
+
+Six test files; ten test cases. Re-introducing the snapshot pattern at any
+of the four migrated callers would flip at least one of these assertions
+back to red.
+
+### STOPs that did NOT migrate (re-stated for posterity)
+
+Future audits should NOT re-flag these callers. Premise was wrong for all
+six:
+
+| Caller | STOP rationale |
+|--------|---------------|
+| `WidgetDataProvider` | Stateless render surface — Glance widget providers receive a one-shot data request per refresh; there is no Flow to observe long-term. Snapshot semantics are architecturally correct. SoD-staleness across refreshes is a `WidgetUpdateManager` scheduling concern (no SoD-boundary alarm currently scheduled — separate audit). |
+| `MorningCheckInViewModel` | Event-driven only. Five call sites, all in `viewModelScope.launch { ... }` (init + 4 user-action handlers). No StateFlow exposing "today's date." Brief once-per-day interaction; doesn't span logical-day boundaries. |
+| `HabitReminderScheduler` | One-shot at scheduling time. Schedules concrete `AlarmManager` triggers that fire on the OS clock, not via Flow observation. Migration would have no consumer. |
+| `MedicationReminderScheduler` | Test-only `internal suspend fun currentLogicalDateString()` surface — not a production reactive value. |
+| `MedicationIntervalRescheduler` | Zero `util.DayBoundary` usage. Launch prompt's enumeration was out of date for this caller. |
+| `NaturalLanguageParser` | Already on canonical `core.time.DayBoundary` (aliased as `LogicalDayBoundary`) for `resolveAmbiguousTime`. Pure parse-time function, not reactive. |
+
+### Memory entry candidates (flagged for user, not auto-added)
+
+Per the launch prompt's "flag for me, don't auto-add" instruction, these
+are recommended for the project memory but should be added by the user:
+
+1. **"All user-facing reactive logical-date Flows now route through
+   `core.time.LocalDateFlow` / `useLogicalToday`"** — architectural state
+   note. As of 2026-04-26 the four user-facing surfaces with the snapshot
+   anti-pattern (MedicationViewModel via PR #798, TodayViewModel via #811,
+   TaskListViewModel via #812, DailyEssentialsUseCase via #813) are all
+   migrated. Four background callers (Widget, Schedulers, NLP) intentionally
+   stay on snapshot semantics — that's correct behavior for them.
+2. **"Audit-first triage of legacy callers caught 6 of 9 wrong premises"**
+   — process note. The launch prompt enumerated 7 callers as candidates;
+   triage classified 3 as HAS-THE-BUG and 6 as STOP (counting schedulers
+   individually). 6/9 = 67% of the prompt's premises were wrong in the
+   "this caller doesn't actually have the bug" direction. Repeat the
+   triage discipline before any future migration sweep.
+3. **"Per-PR CHANGELOG conflicts in fan-out PRs are predictable"** —
+   tactical note. When 3 PRs each add an entry to the same `Unreleased ▸
+   Fixed` section, the second and third PRs need a rebase + manual
+   conflict resolution after the first lands. ~5 min of friction per
+   conflict; not worth pre-coordinating.
+
+### Follow-up backlog (deferred, not in this sweep)
+
+- **`WidgetUpdateManager` SoD-boundary alarm scheduling.** Surfaced
+  during the WidgetDataProvider STOP analysis. Widgets refresh on a
+  ~15-min periodic cadence + on data mutations, but not specifically at
+  the user's SoD boundary. Past SoD, a widget can show "yesterday's
+  content" for up to ~15 min until the next refresh. Different fix shape
+  from the LocalDateFlow sweep (an `AlarmManager` schedule, not a
+  reactive Flow). Audit + fix as its own work.
+- **`DailyEssentialsUseCase`'s `combine` source count.** The inner
+  combine has 11 sources after this migration, near Kotlin's `combine`
+  arity overloads. Adding a 12th would require switching to
+  `combine(vararg)` or restructuring. Not load-bearing today; flagged in
+  case future Daily Essentials cards push past the limit.
+
+---
+
+## Sweep complete
+
+- Phase 1 audit (PR #810): merged 2026-04-26.
+- Phase 2 migrations (PRs #811, #812, #813): all merged 2026-04-26.
+- Phase 3 closeout (this section, in its own PR): in flight.
+
+Total elapsed: single working session. Auto-bump chain validated under
+fan-out throughput. Four user-facing surfaces complete; four background
+callers correctly STOP'd.
