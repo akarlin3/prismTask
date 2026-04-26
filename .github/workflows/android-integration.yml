@@ -121,6 +121,7 @@ jobs:
           target: google_apis
           arch: x86_64
           profile: pixel_6
+          emulator-boot-timeout: 1200
           # Headless runner; no window server. Disable animations so
           # Compose interactions don't race against spurious redraws.
           script: |
@@ -268,6 +269,7 @@ jobs:
           target: google_apis
           arch: x86_64
           profile: pixel_6
+          emulator-boot-timeout: 1200
           script: bash "$RUNNER_TEMP/run-cross-device-tests.sh"
 
       - name: Stop Firebase emulators
