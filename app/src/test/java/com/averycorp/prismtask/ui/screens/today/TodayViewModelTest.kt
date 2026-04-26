@@ -1,5 +1,6 @@
 package com.averycorp.prismtask.ui.screens.today
 
+import com.averycorp.prismtask.core.time.LocalDateFlow
 import com.averycorp.prismtask.data.local.dao.HabitCompletionDao
 import com.averycorp.prismtask.data.local.dao.TaskDao
 import com.averycorp.prismtask.data.preferences.DailyEssentialsPreferences
@@ -7,6 +8,7 @@ import com.averycorp.prismtask.data.preferences.DashboardPreferences
 import com.averycorp.prismtask.data.preferences.HabitListPreferences
 import com.averycorp.prismtask.data.preferences.MorningCheckInPreferences
 import com.averycorp.prismtask.data.preferences.SortPreferences
+import com.averycorp.prismtask.data.preferences.StartOfDay
 import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
 import com.averycorp.prismtask.data.preferences.UserPreferencesDataStore
 import com.averycorp.prismtask.data.repository.CheckInLogRepository
@@ -25,6 +27,7 @@ import com.averycorp.prismtask.domain.usecase.DailyEssentialsUseCase
 import com.averycorp.prismtask.domain.usecase.ProFeatureGate
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -72,6 +75,7 @@ class TodayViewModelTest {
     private lateinit var schoolworkRepository: SchoolworkRepository
     private lateinit var leisureRepository: LeisureRepository
     private lateinit var slotCompletionRepository: DailyEssentialSlotCompletionRepository
+    private lateinit var localDateFlow: LocalDateFlow
 
     @Before
     fun setUp() {
@@ -98,9 +102,21 @@ class TodayViewModelTest {
         schoolworkRepository = mockk(relaxed = true)
         leisureRepository = mockk(relaxed = true)
         slotCompletionRepository = mockk(relaxed = true)
+        // Mock LocalDateFlow so `observe()` returns a single-emission flow that
+        // completes. The real production flow re-emits forever via an internal
+        // `delay(timeUntilNextBoundary)` loop — which would keep `runTest`'s
+        // virtual scheduler busy forever in any test that constructs the VM.
+        // The SoD-boundary regression is gated structurally by
+        // TodayDayBoundaryFlowTest; these VM-level tests just need a flow that
+        // emits one value and stops.
+        localDateFlow = mockk(relaxed = true)
+        every { localDateFlow.observe(any()) } returns
+            flowOf(java.time.LocalDate.parse("2026-04-26"))
+        every { localDateFlow.observeIsoString(any()) } returns flowOf("2026-04-26")
         coEvery { dailyEssentialsUseCase.observeToday() } returns flowOf(DailyEssentialsUiState.empty())
 
         coEvery { taskBehaviorPreferences.getDayStartHour() } returns flowOf(0)
+        coEvery { taskBehaviorPreferences.getStartOfDay() } returns flowOf(StartOfDay(0, 0, false))
         coEvery { dashboardPreferences.getSectionOrder() } returns flowOf(DashboardPreferences.DEFAULT_ORDER)
         coEvery { dashboardPreferences.getHiddenSections() } returns flowOf(emptySet())
         coEvery { dashboardPreferences.getCollapsedSections() } returns flowOf(setOf("planned"))
@@ -156,7 +172,8 @@ class TodayViewModelTest {
         selfCareRepository,
         schoolworkRepository,
         leisureRepository,
-        slotCompletionRepository
+        slotCompletionRepository,
+        localDateFlow
     )
 
     @Test

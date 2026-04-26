@@ -6,6 +6,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.averycorp.prismtask.core.time.LocalDateFlow
 import com.averycorp.prismtask.data.local.dao.HabitCompletionDao
 import com.averycorp.prismtask.data.local.dao.TaskDao
 import com.averycorp.prismtask.data.local.entity.ProjectEntity
@@ -60,6 +61,8 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.time.LocalDate
+import java.time.ZoneId
 import javax.inject.Inject
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -88,7 +91,8 @@ constructor(
     private val selfCareRepository: SelfCareRepository,
     private val schoolworkRepository: SchoolworkRepository,
     private val leisureRepository: LeisureRepository,
-    private val slotCompletionRepository: DailyEssentialSlotCompletionRepository
+    private val slotCompletionRepository: DailyEssentialSlotCompletionRepository,
+    private val localDateFlow: LocalDateFlow
 ) : ViewModel() {
     /** UI complexity tier — gates dashboard customization in the Today screen. */
     val uiTier: StateFlow<com.averycorp.prismtask.domain.model.UiComplexityTier> =
@@ -161,16 +165,23 @@ constructor(
         // for today (e.g. the user just finished MorningCheckInScreen).
         viewModelScope.launch {
             try {
+                // Combine includes `localDateFlow.observe(...)` as a 4th
+                // source so the lambda re-fires when the wall-clock crosses
+                // SoD — without it, `todayStart` / `todayIso` snapshotted
+                // inside the lambda would freeze across the boundary.
                 combine(
                     morningCheckInPreferences.featureEnabled(),
                     morningCheckInPreferences.bannerDismissedDate(),
-                    checkInLogRepository.observeAll()
-                ) { enabled, dismissedDate, logs ->
-                    val dayStartHour = taskBehaviorPreferences.getDayStartHour().first()
-                    val todayStart = DayBoundary.startOfCurrentDay(dayStartHour)
-                    val todayIso = java.time.LocalDate
-                        .now()
-                        .format(java.time.format.DateTimeFormatter.ISO_LOCAL_DATE)
+                    checkInLogRepository.observeAll(),
+                    localDateFlow.observe(taskBehaviorPreferences.getStartOfDay())
+                ) { enabled, dismissedDate, logs, logicalDate ->
+                    val sod = taskBehaviorPreferences.getStartOfDay().first()
+                    val todayStart = logicalDate
+                        .atTime(sod.hour, sod.minute)
+                        .atZone(ZoneId.systemDefault())
+                        .toInstant()
+                        .toEpochMilli()
+                    val todayIso = logicalDate.toString()
                     val alreadyCheckedInToday = logs.any { it.date >= todayStart }
                     val hour = java.util.Calendar
                         .getInstance()
@@ -367,22 +378,33 @@ constructor(
      * non-zero dayStartHour widens the window past midnight and lets
      * tomorrow's midnight timestamps leak into "Scheduled Today" / "Planned".
      */
-    private val dayStart: StateFlow<Long> = taskBehaviorPreferences
-        .getDayStartHour()
-        .map { DayBoundary.calendarMidnightOfCurrentDay(it) }
+    /**
+     * Calendar midnight of the user's current logical day, as epoch millis.
+     * Backed by [LocalDateFlow] so the value advances reactively at every
+     * SoD boundary crossing — not just when the SoD preference changes.
+     * The initial value is calendar `LocalDate.now()` as a one-frame
+     * fallback; the inner flow emits the SoD-correct value synchronously
+     * on subscription so the initial is effectively never observed.
+     *
+     * See `docs/audits/UTIL_DAYBOUNDARY_SWEEP_AUDIT.md` § 1 for the bug
+     * this structure replaces and PR #798 for the helper origin.
+     */
+    private val dayStart: StateFlow<Long> = localDateFlow
+        .observe(taskBehaviorPreferences.getStartOfDay())
+        .map { it.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli() }
         .stateIn(
             viewModelScope,
             SharingStarted.WhileSubscribed(5000),
-            DayBoundary.calendarMidnightOfCurrentDay(0)
+            LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
         )
 
-    private val dayEnd: StateFlow<Long> = taskBehaviorPreferences
-        .getDayStartHour()
-        .map { DayBoundary.calendarMidnightOfNextDay(it) }
+    private val dayEnd: StateFlow<Long> = localDateFlow
+        .observe(taskBehaviorPreferences.getStartOfDay())
+        .map { it.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli() }
         .stateIn(
             viewModelScope,
             SharingStarted.WhileSubscribed(5000),
-            DayBoundary.calendarMidnightOfNextDay(0)
+            LocalDate.now().plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
         )
 
     val sectionOrder: StateFlow<List<String>> = dashboardPreferences

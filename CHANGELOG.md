@@ -358,6 +358,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Audit + reproduction trail at
   `docs/audits/MEDICATION_SOD_BOUNDARY_AUDIT.md`.
 
+- **Today screen day-rendering now SoD-boundary-aware (CRITICAL).**
+  Migrated `TodayViewModel.dayStart` / `dayEnd` StateFlows and the
+  morning-check-in banner `combine` from the legacy
+  `util.DayBoundary.calendarMidnightOfCurrentDay(getDayStartHour())`
+  snapshot pattern to `core.time.LocalDateFlow` from PR #798. Same
+  failure shape PR #798 fixed for medication: at the user's configured
+  SoD (e.g. 4 a.m.), the Today screen's overdue / today / planned
+  filters are keyed off the canonical reactive logical date, so a user
+  who keeps the app open across the SoD boundary sees their task
+  buckets reset at SoD instead of staying locked to yesterday's day.
+  Per `docs/audits/UTIL_DAYBOUNDARY_SWEEP_AUDIT.md` § 1 — first PROCEED
+  caller of the 3 user-facing snapshot bugs the sweep audit identified.
+
 - **Task list day-grouping now SoD-boundary-aware.**
   Migrated `TaskListViewModel.dayStartFlow` from the legacy
   `getDayStartHour().map { startOfCurrentDay(it) }.stateIn(...)`
