@@ -1,0 +1,250 @@
+name: Auto-update-branch
+
+# Keep open PRs current with main automatically. Complements
+# auto-merge.yml's PR #777 update-branch step (which fires only on
+# pull_request events — i.e. when the PR head SHA changes); this
+# workflow fires when MAIN advances, which auto-merge.yml does not
+# observe. See docs/audits/AUTO_UPDATE_BRANCH_AUDIT.md for the full
+# rationale.
+#
+# Token: AUTOFIX_PAT (Pull Requests: Write + Contents: Read+Write per
+# memory entry #21). The whole point of this workflow is that
+# AUTOFIX_PAT-driven update-branch commits trigger downstream required-
+# status workflows; GITHUB_TOKEN-driven ones do not (documented GitHub
+# Actions anti-recursion). Falls back to GITHUB_TOKEN gracefully — the
+# update still happens, but downstream checks stay stale (same as
+# today's behavior).
+#
+# Triggers:
+#   - push: main          → fires on every regular merge to main
+#   - workflow_run on
+#     "Version Bump &
+#     Firebase Distribute" → fires after the [skip ci] versionCode bump
+#                            commit lands. push: main wouldn't fire on
+#                            that commit because [skip ci] suppresses
+#                            push-triggered workflows; workflow_run does
+#                            not honor [skip ci].
+#   - pull_request:
+#     ready_for_review    → catches drafts that flip to ready after
+#                            main advanced while they were drafty.
+#   - workflow_dispatch   → manual debug.
+#
+# Opt-out: PRs carrying the `no-auto-update` label are skipped.
+# Drafts are auto-updated by default (this repo's drafts are short-
+# lived iteration branches; long-running design branches can opt out
+# via the label).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [ready_for_review]
+  workflow_run:
+    workflows: ["Version Bump & Firebase Distribute"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  pull-requests: write   # update-branch + comments + label create
+  contents: read
+
+concurrency:
+  group: auto-update-branch
+  cancel-in-progress: true
+
+jobs:
+  update-behind-prs:
+    name: Update BEHIND PRs
+    # Skip:
+    #  - workflow_run completions where the upstream workflow failed
+    #    (version bump didn't land → no PRs went newly behind)
+    #  - pull_request events from forks (no PAT access; fork-PR filter
+    #    inside the loop is belt-and-suspenders for the rest)
+    if: >-
+      (github.event_name != 'workflow_run' ||
+       github.event.workflow_run.conclusion == 'success') &&
+      (github.event_name != 'pull_request' ||
+       github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ensure no-auto-update label exists
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          # Idempotent: --force overwrites color/description if it
+          # already exists. Color B60205 = dark red, signals "this PR
+          # opts out of an automation."
+          gh label create no-auto-update \
+            --repo "$REPO" \
+            --color B60205 \
+            --description "Skip auto-update-branch on this PR" \
+            --force
+
+      - name: Update BEHIND PRs
+        env:
+          # Default token (read PR list, post comments). PAT_TOKEN is
+          # used only for the update-branch call below — same pattern
+          # as auto-merge.yml's update-branch step.
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PAT_TOKEN: ${{ secrets.AUTOFIX_PAT || secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          EVENT_NAME: ${{ github.event_name }}
+          PR_NUM_FROM_EVENT: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+
+          CONFLICT_MARKER="<!-- auto-update-branch:conflict -->"
+          AUTH_MARKER="<!-- auto-update-branch:auth-failed -->"
+
+          # Pre-build comment bodies as variables so we can pass them to
+          # `gh pr comment --body` without YAML-block-breaking heredocs.
+          # printf's \n produces real newlines.
+          AUTH_BODY=$(printf '%s\n%s' \
+            "$AUTH_MARKER" \
+            'auto-update-branch could not authenticate with `AUTOFIX_PAT` (HTTP 401). The PAT may have expired or been revoked. Auto-update is disabled until the PAT is rotated.')
+          CONFLICT_BODY=$(printf '%s\n%s' \
+            "$CONFLICT_MARKER" \
+            'Auto-update-branch hit a merge conflict against `main` and could not update this branch. Please rebase or merge `main` manually. Re-running this workflow will not help until the conflict is resolved.')
+
+          # On pull_request: target only the PR whose state changed.
+          # Otherwise: walk every open PR targeting main.
+          if [ "$EVENT_NAME" = "pull_request" ] && [ -n "$PR_NUM_FROM_EVENT" ]; then
+            PR_NUMBERS="$PR_NUM_FROM_EVENT"
+          else
+            PR_NUMBERS=$(gh pr list --repo "$REPO" \
+              --state open --base main \
+              --json number -q '.[].number')
+          fi
+
+          if [ -z "$PR_NUMBERS" ]; then
+            echo "No open PRs targeting main — nothing to do."
+            exit 0
+          fi
+
+          fail_auth=0
+          fail_conflict=0
+
+          # Resolve mergeStateStatus with retries — GitHub recomputes
+          # mergeable_state asynchronously after a base advance, and the
+          # first query right after `push: main` typically returns
+          # UNKNOWN. The query itself triggers the recompute, so the
+          # retry usually returns the real state within a few seconds.
+          resolve_state() {
+            local n="$1"
+            local s
+            for attempt in 1 2 3 4 5 6; do
+              s=$(gh pr view "$n" --repo "$REPO" --json mergeStateStatus -q '.mergeStateStatus' 2>/dev/null || echo "UNKNOWN")
+              if [ "$s" != "UNKNOWN" ]; then
+                printf '%s' "$s"
+                return 0
+              fi
+              sleep 5
+            done
+            printf 'UNKNOWN'
+          }
+
+          # Returns 0 if a comment with the given marker already exists
+          # on the PR — used to dedupe conflict comments across multiple
+          # main pushes against the same DIRTY PR.
+          has_marker() {
+            local n="$1"
+            local marker="$2"
+            gh pr view "$n" --repo "$REPO" --json comments \
+              -q ".comments[].body" 2>/dev/null \
+              | grep -Fq "$marker"
+          }
+
+          for n in $PR_NUMBERS; do
+            PR_JSON=$(gh pr view "$n" --repo "$REPO" \
+              --json number,isDraft,labels,headRepository,headRefName,state)
+
+            # Defensive: if the PR closed between enumeration and view.
+            STATE=$(printf '%s' "$PR_JSON" | jq -r '.state')
+            if [ "$STATE" != "OPEN" ]; then
+              echo "PR #$n: state=$STATE — skipping"
+              continue
+            fi
+
+            # Fork PRs: the PAT cannot push to a fork. auto-merge.yml
+            # filters them out with the same check.
+            HEAD_REPO=$(printf '%s' "$PR_JSON" | jq -r '.headRepository.nameWithOwner // empty')
+            if [ -n "$HEAD_REPO" ] && [ "$HEAD_REPO" != "$REPO" ]; then
+              echo "PR #$n: fork PR ($HEAD_REPO) — skipping"
+              continue
+            fi
+
+            if printf '%s' "$PR_JSON" | jq -e '.labels[] | select(.name == "no-auto-update")' >/dev/null; then
+              echo "PR #$n: has no-auto-update label — skipping"
+              continue
+            fi
+
+            MERGE_STATE=$(resolve_state "$n")
+            case "$MERGE_STATE" in
+              BEHIND)
+                echo "PR #$n: BEHIND — calling gh pr update-branch"
+                # Capture combined stderr+stdout for error pattern
+                # matching. PAT_TOKEN inline-overrides GH_TOKEN for
+                # this call only — comments below still use the
+                # workflow's GITHUB_TOKEN.
+                if OUT=$(env GH_TOKEN="$PAT_TOKEN" gh pr update-branch "$n" --repo "$REPO" 2>&1); then
+                  echo "PR #$n: update queued. $OUT"
+                else
+                  EC=$?
+                  echo "PR #$n: update-branch failed (exit $EC). Output: $OUT"
+                  shopt -s nocasematch
+                  case "$OUT" in
+                    *"401"*|*unauthorized*|*"bad credentials"*)
+                      shopt -u nocasematch
+                      echo "::error::PR #$n: AUTOFIX_PAT authentication failed (HTTP 401)."
+                      if ! has_marker "$n" "$AUTH_MARKER"; then
+                        gh pr comment "$n" --repo "$REPO" --body "$AUTH_BODY"
+                      fi
+                      fail_auth=1
+                      # All subsequent PRs in this run will hit the
+                      # same 401 — no point continuing.
+                      break
+                      ;;
+                    *conflict*|*"cannot be"*|*"422"*|*"unprocessable"*)
+                      shopt -u nocasematch
+                      echo "PR #$n: merge conflict — posting comment if not already present."
+                      if has_marker "$n" "$CONFLICT_MARKER"; then
+                        echo "PR #$n: conflict comment already exists — skipping repost."
+                      else
+                        gh pr comment "$n" --repo "$REPO" --body "$CONFLICT_BODY"
+                      fi
+                      fail_conflict=$((fail_conflict + 1))
+                      ;;
+                    *"404"*|*"not found"*)
+                      shopt -u nocasematch
+                      echo "PR #$n: not found (race) — skipping"
+                      ;;
+                    *)
+                      shopt -u nocasematch
+                      echo "::warning::PR #$n: unexpected update-branch failure: $OUT"
+                      fail_conflict=$((fail_conflict + 1))
+                      ;;
+                  esac
+                fi
+                ;;
+              UNKNOWN)
+                echo "::warning::PR #$n: mergeStateStatus stayed UNKNOWN after retries — skipping this run."
+                ;;
+              *)
+                echo "PR #$n: mergeStateStatus=$MERGE_STATE — no update needed."
+                ;;
+            esac
+          done
+
+          if [ "$fail_auth" = "1" ]; then
+            echo "::error::AUTOFIX_PAT auth failure — see PR comment for the affected PR."
+            exit 1
+          fi
+
+          if [ "$fail_conflict" -gt 0 ]; then
+            echo "::error::$fail_conflict PR(s) had update-branch failures (conflict or unexpected)."
+            exit 1
+          fi
+
+          echo "Auto-update-branch run complete."

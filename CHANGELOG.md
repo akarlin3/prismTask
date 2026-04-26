@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Auto-update-branch workflow.** A new
+  `.github/workflows/auto-update-branch.yml` keeps open PRs current
+  with `main` automatically. Fires on `push: main` (catches every
+  regular merge), on `workflow_run` of "Version Bump & Firebase
+  Distribute" (catches the `[skip ci]` versionCode bump that `push`
+  triggers can't see), and on `pull_request: ready_for_review`
+  (catches drafts that flip to ready while behind). Updates are
+  driven by `AUTOFIX_PAT` so the resulting "Update branch" commit
+  retriggers required-status workflows — same shape as PR #777's fix
+  inside `auto-merge.yml`, but for the `main`-advances case that PR
+  #777 doesn't observe. PRs carrying the new `no-auto-update` label
+  are skipped; drafts are auto-updated by default. Merge conflicts
+  and `AUTOFIX_PAT` 401s post explanatory PR comments (deduped via
+  hidden HTML markers so repeated runs don't spam). Full audit at
+  `docs/audits/AUTO_UPDATE_BRANCH_AUDIT.md`.
+
 - **Bulk medication tier marking (Android + web).** A new TopAppBar
   action on `MedicationScreen` (Android) and a header-bar `ListChecks`
   button (web) opens a `BulkMarkDialog` that lets the user mark every
