@@ -9,6 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Web-side in-app account deletion.** Settings → Delete Account is now
+  a working two-step typed-DELETE confirmation that calls
+  `/api/v1/auth/me/deletion` with `initiated_from="web"` (mirroring
+  Android's `DeleteAccountSection.kt` idiom) and signs the user out on
+  success. Closes the privacy gap from PR #774 PR4b — the previous web
+  button was a disabled placeholder pointing users to the Android app.
+  New `DeleteAccountSection` + `DeleteAccountModal` components own the
+  EXPLAIN → CONFIRM → SUBMITTING → SIGNING-OUT state machine; modal is
+  trim-tolerant on the typed `DELETE` match and displays a retry path on
+  backend error. The flow also mirrors the deletion fields onto
+  Firestore `users/{uid}` so Android's next sign-in `checkDeletionStatus()`
+  detects the web-initiated deletion. The shared axios client gains a
+  `410 Gone` interceptor branch (the backend's `get_active_user`
+  middleware returns 410 on pending-deletion accounts) so any in-flight
+  or subsequent mutation request force-clears the JWT pair and signs
+  the user out, preventing zombie web sessions on a soft-deleted
+  account. Per `docs/audits/PHASE_D_BUNDLE_AUDIT.md` Item 5.
+
 - **Medication batch mutations (NLP / Haiku → BatchPreview → undo)** —
   Natural-language commands like "took my morning meds" or "skip evening
   Adderall" now parse, preview, apply, and undo as a batch — closing the

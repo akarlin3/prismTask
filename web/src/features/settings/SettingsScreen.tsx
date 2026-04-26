@@ -43,6 +43,7 @@ import { AboutSection } from '@/features/settings/sections/AboutSection';
 import { HelpFeedbackSection } from '@/features/settings/sections/HelpFeedbackSection';
 import { AccessibilitySection } from '@/features/settings/sections/AccessibilitySection';
 import { DebugSection } from '@/features/settings/sections/DebugSection';
+import { DeleteAccountSection } from '@/features/settings/sections/DeleteAccountSection';
 import { THEME_ORDER, THEMES, type ThemeKey } from '@/theme/themes';
 import { exportJson, exportCsv } from '@/utils/export';
 import { parseImportFile, importData } from '@/utils/import';
@@ -189,9 +190,9 @@ export function SettingsScreen() {
   const [deleteCompletedOpen, setDeleteCompletedOpen] = useState(false);
   const [deleteAllOpen, setDeleteAllOpen] = useState(false);
   const [deleteAllConfirmText, setDeleteAllConfirmText] = useState('');
-  // Account deletion is currently Android-only — see DeleteAccountSection in
-  // the Android codebase. The web button below is intentionally disabled until
-  // we wire the same /api/v1/auth/me/deletion endpoint into the web flow.
+  // Account deletion: web-side flow lives in DeleteAccountSection; the
+  // backend endpoints under /api/v1/auth/me/deletion are shared with the
+  // Android implementation (see PR #774).
 
   // Account edit
   const [editingName, setEditingName] = useState(false);
@@ -808,16 +809,8 @@ export function SettingsScreen() {
             <LogOut className="h-4 w-4" />
             Log Out
           </Button>
-          <Button variant="danger" disabled title="Account deletion is currently only available in the PrismTask Android app">
-            Delete Account
-          </Button>
+          <DeleteAccountSection />
         </div>
-        <p className="mt-2 text-xs text-[var(--color-text-secondary)]">
-          To delete your account, open the PrismTask Android app and go to{' '}
-          <span className="font-medium">Settings → Account &amp; Sync → Delete Account</span>.
-          The deletion takes effect immediately and is reversible for 30 days by signing back in.
-          A web-side delete is on the roadmap.
-        </p>
       </SettingsSection>
 
       {/* Import Preview Modal */}

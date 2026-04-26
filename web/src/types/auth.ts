@@ -43,3 +43,24 @@ export interface FirebaseTokenLogin {
 export interface TokenRefresh {
   refresh_token: string;
 }
+
+/**
+ * Status of in-app account deletion. The backend's
+ * `/api/v1/auth/me/deletion` family returns this shape from GET (status)
+ * and POST (request — confirms the freshly-set state). When
+ * `deletion_pending_at` is null, the account is active and the other
+ * fields are also null.
+ *
+ * The 30-day grace window is server-driven: the user can sign back in
+ * before `deletion_scheduled_for` to revert to active. After that
+ * point the next sign-in (or admin sweep) permanently removes the
+ * account; the web client never calls `/me/purge` directly.
+ */
+export interface DeletionStatus {
+  deletion_pending_at: string | null;
+  deletion_scheduled_for: string | null;
+  deletion_initiated_from: 'android' | 'web' | 'email' | null;
+}
+
+/** Origin of a deletion request — passed in the POST body. */
+export type DeletionInitiatedFrom = 'android' | 'web' | 'email';

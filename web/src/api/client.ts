@@ -110,6 +110,22 @@ apiClient.interceptors.response.use(
       }
     }
 
+    // 410 Gone — backend's get_active_user middleware returns this when
+    // the account is pending deletion. Any in-flight or subsequent
+    // mutation request will hit this. Force a logout so the web client
+    // doesn't sit in a zombie state with a soft-deleted account: clear
+    // the JWT pair and flip the auth store to unauthenticated. The
+    // user's confirmation flow already calls logout() once on success,
+    // but a racing request can land afterwards — this is the safety net.
+    if (status === 410) {
+      localStorage.removeItem('prismtask_access_token');
+      localStorage.removeItem('prismtask_refresh_token');
+      const { useAuthStore } = await import('@/stores/authStore');
+      useAuthStore.getState().logout();
+      toast.error('Your account has been scheduled for deletion. You have been signed out.');
+      return Promise.reject(error);
+    }
+
     // Handle other HTTP errors with user-facing toasts
     if (status === 403) {
       toast.error("You don't have permission for this action.");
