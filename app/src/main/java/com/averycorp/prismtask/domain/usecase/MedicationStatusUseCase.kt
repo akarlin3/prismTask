@@ -1,11 +1,11 @@
 package com.averycorp.prismtask.domain.usecase
 
+import com.averycorp.prismtask.core.time.LocalDateFlow
 import com.averycorp.prismtask.data.local.dao.MedicationDao
 import com.averycorp.prismtask.data.local.dao.MedicationDoseDao
 import com.averycorp.prismtask.data.local.entity.MedicationDoseEntity
 import com.averycorp.prismtask.data.local.entity.MedicationEntity
 import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
-import com.averycorp.prismtask.util.DayBoundary
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
@@ -30,7 +30,8 @@ import javax.inject.Singleton
  *
  * A dose is `takenToday=true` when at least one [MedicationDoseEntity]
  * exists for this `(medicationId, slotKey)` on the current logical day —
- * see [DayBoundary.currentLocalDateString].
+ * the day source is [LocalDateFlow], which re-keys the DAO query at every
+ * SoD boundary crossing.
  */
 enum class DoseSource { INTERVAL_HABIT, SELF_CARE_STEP, SPECIFIC_TIME }
 
@@ -68,24 +69,29 @@ class MedicationStatusUseCase
 constructor(
     private val medicationDao: MedicationDao,
     private val medicationDoseDao: MedicationDoseDao,
-    private val taskBehaviorPreferences: TaskBehaviorPreferences
+    private val taskBehaviorPreferences: TaskBehaviorPreferences,
+    private val localDateFlow: LocalDateFlow
 ) {
     /**
      * Emits the list of doses that are *due today and not yet taken*. Emits
      * an empty list once every schedule is satisfied so callers can collapse
      * the medication card.
+     *
+     * Re-keys the underlying DAO query whenever the user's logical day
+     * advances — at every SoD boundary, not just on preference change. See
+     * `docs/audits/MEDICATION_SOD_BOUNDARY_AUDIT.md`.
      */
     fun observeDueDosesToday(): Flow<List<MedicationDose>> =
-        taskBehaviorPreferences.getDayStartHour().flatMapLatest { dayStartHour ->
-            val todayLocal = DayBoundary.currentLocalDateString(dayStartHour)
-            combine(
-                medicationDao.getActive(),
-                medicationDoseDao.getForDate(todayLocal)
-            ) { meds, doses ->
-                expandMedicationsToDoses(meds, doses)
-                    .filterNot { it.takenToday }
+        localDateFlow.observeIsoString(taskBehaviorPreferences.getStartOfDay())
+            .flatMapLatest { todayLocal ->
+                combine(
+                    medicationDao.getActive(),
+                    medicationDoseDao.getForDate(todayLocal)
+                ) { meds, doses ->
+                    expandMedicationsToDoses(meds, doses)
+                        .filterNot { it.takenToday }
+                }
             }
-        }
 
     companion object {
         fun empty(): Flow<List<MedicationDose>> = flowOf(emptyList())

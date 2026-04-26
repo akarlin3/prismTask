@@ -24,7 +24,7 @@ import { MorningCheckInCard } from '@/features/checkin/MorningCheckInCard';
 import { BoundaryTodayBanner } from '@/features/boundaries/BoundaryTodayBanner';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { Sparkles as SparklesIcon } from 'lucide-react';
-import { logicalToday } from '@/utils/dayBoundary';
+import { useLogicalToday } from '@/utils/useLogicalToday';
 
 const COLLAPSE_KEY = 'prismtask_today_collapse';
 
@@ -70,9 +70,10 @@ export function TodayScreen() {
   const settingsStartOfDayHour = useSettingsStore((s) => s.startOfDayHour);
   // Derive a bundle so the reference is stable across renders and
   // callers can read the logical "today" ISO without recomputing.
+  const settingsStartOfDayTodayIso = useLogicalToday(settingsStartOfDayHour);
   const settingsStartOfDay = {
     hour: settingsStartOfDayHour,
-    todayIso: logicalToday(Date.now(), settingsStartOfDayHour),
+    todayIso: settingsStartOfDayTodayIso,
   };
 
   const [summary, setSummary] = useState<DashboardSummary | null>(null);

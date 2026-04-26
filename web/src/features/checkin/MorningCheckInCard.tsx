@@ -11,7 +11,7 @@ import {
 } from '@/api/firestore/checkInLogs';
 import { getFirebaseUid } from '@/stores/firebaseUid';
 import { useSettingsStore } from '@/stores/settingsStore';
-import { logicalToday } from '@/utils/dayBoundary';
+import { useLogicalToday } from '@/utils/useLogicalToday';
 import { computeCheckInStreak } from '@/utils/checkInStreak';
 
 /**
@@ -23,7 +23,7 @@ export function MorningCheckInCard() {
   const show = useSettingsStore((s) => s.showMorningCheckIn);
   const setSetting = useSettingsStore((s) => s.setSetting);
   const startOfDayHour = useSettingsStore((s) => s.startOfDayHour);
-  const todayIso = logicalToday(Date.now(), startOfDayHour);
+  const todayIso = useLogicalToday(startOfDayHour);
 
   const [log, setLog] = useState<CheckInLog | null>(null);
   const [recent, setRecent] = useState<CheckInLog[]>([]);

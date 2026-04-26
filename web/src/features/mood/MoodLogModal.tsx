@@ -10,7 +10,7 @@ import {
 } from '@/api/firestore/moodEnergyLogs';
 import { getFirebaseUid } from '@/stores/firebaseUid';
 import { useSettingsStore } from '@/stores/settingsStore';
-import { logicalToday } from '@/utils/dayBoundary';
+import { useLogicalToday } from '@/utils/useLogicalToday';
 
 const MOOD_META: { value: number; label: string; Icon: typeof Smile }[] = [
   { value: 1, label: 'Awful', Icon: Angry },
@@ -43,7 +43,7 @@ export function MoodLogModal({
   onLogged?: () => void;
 }) {
   const startOfDayHour = useSettingsStore((s) => s.startOfDayHour);
-  const todayIso = logicalToday(Date.now(), startOfDayHour);
+  const todayIso = useLogicalToday(startOfDayHour);
 
   const [mood, setMood] = useState(3);
   const [energy, setEnergy] = useState(3);

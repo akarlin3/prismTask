@@ -2,6 +2,7 @@ package com.averycorp.prismtask.ui.screens.medication
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.averycorp.prismtask.core.time.LocalDateFlow
 import com.averycorp.prismtask.data.local.entity.MedicationDoseEntity
 import com.averycorp.prismtask.data.local.entity.MedicationEntity
 import com.averycorp.prismtask.data.local.entity.MedicationSlotEntity
@@ -19,7 +20,6 @@ import com.averycorp.prismtask.domain.model.medication.MedicationTier
 import com.averycorp.prismtask.domain.model.medication.TierSource
 import com.averycorp.prismtask.domain.usecase.MedicationTierComputer
 import com.averycorp.prismtask.ui.screens.medication.components.MedicationSlotSelection
-import com.averycorp.prismtask.util.DayBoundary
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -29,6 +29,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.time.LocalDate
 import javax.inject.Inject
 
 /**
@@ -74,7 +75,8 @@ constructor(
     private val medicationRepository: MedicationRepository,
     private val slotRepository: MedicationSlotRepository,
     private val taskBehaviorPreferences: TaskBehaviorPreferences,
-    private val batchOperationsRepository: BatchOperationsRepository
+    private val batchOperationsRepository: BatchOperationsRepository,
+    private val localDateFlow: LocalDateFlow
 ) : ViewModel() {
     private val _editMode = MutableStateFlow(false)
     val editMode: StateFlow<Boolean> = _editMode
@@ -87,16 +89,25 @@ constructor(
         .observeActiveSlots()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000L), emptyList())
 
-    /** ISO local date scoped by the user's day-start hour preference. */
-    val todayDate: StateFlow<String> = taskBehaviorPreferences
-        .getDayStartHour()
-        .flatMapLatest { hour ->
-            MutableStateFlow(DayBoundary.currentLocalDateString(hour))
-        }
+    /**
+     * ISO local date scoped by the user's day-start hour preference.
+     *
+     * Backed by [LocalDateFlow], which combines the SoD source with a
+     * wall-clock ticker that re-emits at every logical-day boundary. The
+     * initial value uses calendar `LocalDate.now()` as a one-frame
+     * fallback — the inner flow emits the SoD-correct value synchronously
+     * on subscription, so the initial value is effectively never observed
+     * by the UI.
+     *
+     * See `docs/audits/MEDICATION_SOD_BOUNDARY_AUDIT.md` for the bug this
+     * structure replaces.
+     */
+    val todayDate: StateFlow<String> = localDateFlow
+        .observeIsoString(taskBehaviorPreferences.getStartOfDay())
         .stateIn(
             viewModelScope,
             SharingStarted.WhileSubscribed(5_000L),
-            DayBoundary.currentLocalDateString(0)
+            LocalDate.now().toString()
         )
 
     private val todaysDoses: StateFlow<List<MedicationDoseEntity>> = todayDate

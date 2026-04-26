@@ -29,7 +29,7 @@ import { MedicationTierPicker } from '@/features/medication/MedicationTierPicker
 import { MedicationTimeEditModal } from '@/features/medication/MedicationTimeEditModal';
 import { isBacklogged } from '@/features/medication/backloggedHelpers';
 import { useSettingsStore } from '@/stores/settingsStore';
-import { logicalToday } from '@/utils/dayBoundary';
+import { useLogicalToday } from '@/utils/useLogicalToday';
 import type {
   MedicationSlot,
   MedicationSlotCompletion,
@@ -76,7 +76,7 @@ function rowToSlot(row: MedicationSlotCompletion): MedicationSlot {
  */
 export function MedicationScreen() {
   const startOfDayHour = useSettingsStore((s) => s.startOfDayHour);
-  const todayIso = logicalToday(Date.now(), startOfDayHour);
+  const todayIso = useLogicalToday(startOfDayHour);
 
   const [dateIso, setDateIso] = useState(todayIso);
   const [rows, setRows] = useState<MedicationSlotCompletion[]>([]);
