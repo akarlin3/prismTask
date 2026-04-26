@@ -72,10 +72,19 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
           EVENT_NAME: ${{ github.event_name }}
-          # workflow_run.pull_requests is populated for same-repo PRs and
-          # empty for fork PRs. We expect same-repo only since auto-merge
-          # already filters fork PRs out.
+          # workflow_run.pull_requests is populated for same-repo PRs ONLY
+          # when the source workflow's HEAD branch lives in the default
+          # branch's repo AND GitHub's branch index for that ref still
+          # points at the PR. In practice it lands EMPTY surprisingly
+          # often even for vanilla same-repo PRs (observed across
+          # PRs #798, #800-#802) — most likely because the auto-merge
+          # workflow uses a generated GITHUB_TOKEN whose branch context
+          # GitHub doesn't link back to the PR. We try this field first
+          # so the fast path stays free, but always fall back to a
+          # `commits/{sha}/pulls` lookup keyed on the workflow_run
+          # `head_sha` so we never silently drop a bump on the floor.
           PR_JSON: ${{ toJson(github.event.workflow_run.pull_requests) }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
           DISPATCH_PR: ${{ inputs.pr_number }}
         run: |
           set -euo pipefail
@@ -100,15 +109,45 @@ jobs:
             echo "Resolved most-recent merged PR #$PR_NUMBER for dispatch run."
             exit 0
           fi
+
+          # Path 1 — fast path: pull_requests was populated.
           PR_NUMBER=$(echo "$PR_JSON" | jq -r '.[0].number // empty')
+          if [ -n "$PR_NUMBER" ]; then
+            echo "pr_number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
+            echo "found=true" >> "$GITHUB_OUTPUT"
+            echo "Resolved PR #$PR_NUMBER from workflow_run payload."
+            exit 0
+          fi
+
+          # Path 2 — fallback: look the PR up by HEAD SHA. Works in both
+          # the pre-merge case (auto-merge.yml fires before the squash
+          # actually happens; the open PR still has this commit at its
+          # head) and the post-merge case (GitHub keeps the commit→PR
+          # mapping after squash, so we still resolve correctly even if
+          # the source branch was deleted). The downstream "Wait for PR
+          # to merge" step handles the timing — we only need the PR
+          # number here, not its merge state.
+          #
+          # Deliberately NOT falling back to "most recent merged PR" —
+          # that race-condition-bumps a previously-merged PR if
+          # workflow_run fires before the queued merge lands.
+          if [ -z "$HEAD_SHA" ]; then
+            echo "::warning::workflow_run.head_sha is empty; cannot resolve PR. Skipping."
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          PR_NUMBER=$(gh api \
+            "repos/$REPO/commits/$HEAD_SHA/pulls" \
+            -H "Accept: application/vnd.github+json" \
+            --jq 'sort_by(.number) | reverse | .[0].number // empty')
           if [ -z "$PR_NUMBER" ]; then
-            echo "::warning::workflow_run payload had no pull_request reference. Cannot resolve PR; skipping."
+            echo "::warning::No PR found for commit $HEAD_SHA via commits/{sha}/pulls. Skipping."
             echo "found=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           echo "pr_number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
           echo "found=true" >> "$GITHUB_OUTPUT"
-          echo "Resolved PR #$PR_NUMBER from workflow_run payload."
+          echo "Resolved PR #$PR_NUMBER from commits/$HEAD_SHA/pulls fallback."
 
       - name: Wait for PR to merge
         id: wait
