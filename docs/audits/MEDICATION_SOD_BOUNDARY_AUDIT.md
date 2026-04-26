@@ -661,7 +661,84 @@ branch `fix/medication-sod-boundary`:
 
 ## Phase 4 — Post-merge summary
 
-_Filled in after merge, per the launch prompt._
+PR #798 squashed to `main` on 2026-04-26 at 05:56:37Z as commit
+`747cc4ed`. Five branch commits (`bc956b45` → `2fc91893`) collapsed
+into a single squash commit on `main`.
+
+### Final scope deviation
+
+- **Web parity widened from 1 site to 4** per Phase 2 sign-off
+  option 3 — covered medication + Today + Mood + MorningCheckIn in a
+  single PR rather than carrying the latent bug into next PR's
+  blast radius.
+- **Total LOC** landed at ~520 (Phase 2 estimate ~470). The overrun
+  came from the `MedicationStatusUseCaseTest` flow test being
+  fuller than budgeted (MockK DAO scaffolding) and the audit doc
+  itself growing as the trace turned up the sister
+  `DailyEssentialsUseCase` propagation path. Both worth the spend.
+- **No deviations from the test-first commit pattern.** RED gate
+  landed in `bc956b45` with 3 failing assertions; flipped to GREEN
+  on `c0ff95c9` (LocalDateFlow impl) and stayed GREEN through the
+  rest of the chain.
+- **Branch was rebased twice during CI** by the auto-update-branch
+  workflow as PRs #800 and #801 landed on `main` mid-cycle. Each
+  re-triggered a fresh CI run — no interventions needed; the
+  pattern handled it.
+
+### Repro after fix — NEGATIVE (the bug doesn't reproduce)
+
+On `main` @ `747cc4ed`:
+
+```
+:app:testDebugUnitTest \
+  --tests com.averycorp.prismtask.core.time.LocalDateFlowTest \
+  --tests com.averycorp.prismtask.ui.screens.medication.MedicationTodayDateRefreshTest \
+  --tests com.averycorp.prismtask.domain.usecase.MedicationStatusUseCaseTest
+
+→ BUILD SUCCESSFUL
+```
+
+`MedicationTodayDateRefreshTest` is the inverted Phase 1 repro — the
+file's assertions originally proved the bug existed (passing meant
+broken); the rewrite asserts the FIXED contract (passing means
+fixed). All 3 assertions pass on `main`. The `LocalDateFlow`
+boundary-crossing tests pass. The new `MedicationStatusUseCase`
+flow-integration test passes. Web `useLogicalToday.test.ts` 4/4
+passes via `vitest run`.
+
+### Memory entries persisted
+
+Two entries added to project auto-memory (`~/.claude/projects/.../memory/`):
+
+1. `feedback_localdateflow_for_logical_day_flows.md` — architectural
+   note: when a Compose surface needs "what day are we on" reactively,
+   reach for `core.time.LocalDateFlow` (or web's `useLogicalToday`
+   hook). The snapshot-once `MutableStateFlow(currentLocalDateString(...))`
+   pattern is exactly the bug this audit fixed; future copy/paste
+   should be flagged.
+2. `feedback_repro_first_for_time_boundary_bugs.md` — process note:
+   for any time-boundary bug (SoD, midnight, DST, timezone) the
+   Phase 1 repro is non-negotiable, because the symptom only
+   re-surfaces at boundary crossings — a fix shipped without a
+   confirmed repro is a fix that probably doesn't fix.
+
+### Follow-up backlog (deferred, not in this PR)
+
+Recorded in §4 "Out of scope" but worth re-stating here:
+
+- Sweep audit of `util.DayBoundary` callers in
+  `TodayViewModel`, `TaskListViewModel`, `MorningCheckInViewModel`,
+  `WidgetDataProvider`, the schedulers, the repositories, and
+  `NaturalLanguageParser` — same shape suspected, different flow
+  plumbing in each.
+- `DailyEssentialsUseCase.kt:158-178` — same snapshot for routine
+  cards / schoolwork / windows. Medication leaf got fixed by this
+  PR; the rest stay snapshot-stale.
+- Migration audit for moving the legacy `util.DayBoundary` callers
+  to canonical `core.time.DayBoundary` + `TimeProvider`.
+
+`LocalDateFlow` is the first production caller of canonical
+`core.time.DayBoundary`. The migration path is open.
 
 
 
