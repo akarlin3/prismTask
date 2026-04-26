@@ -2,9 +2,11 @@
 
 ## Project Overview
 
-**PrismTask** (`com.averycorp.prismtask`) is a native Android todo list app built with Kotlin and Jetpack Compose. v1.3.0 includes full task management, projects, subtasks, tags, recurrence, reminders, notifications, NLP quick-add, voice input (speech-to-task, voice commands, TTS, hands-free mode), accessibility (TalkBack, font scaling, high-contrast, keyboard nav, reduced motion), Today focus screen (compact header, collapsible sections, customizable layout), tabbed task editor (Details/Schedule/Organize), week/month/timeline views, urgency scoring with user-configurable weights, smart suggestions, drag-to-reorder with custom sort, quick reschedule, duplicate task, bulk edit (priority/date/tags/project), configurable swipe actions, flagged tasks, task templates with built-ins and NLP shortcuts, project and habit templates, saved filter presets, advanced recurrence (weekday/biweekly/custom month days/after-completion), notification profiles with quiet hours and daily digest, two-tier pricing (Free/Pro) with Google Play Billing, Firebase cloud sync, Google Sign-In, JSON/CSV data export/import, Google Drive backup/restore, habit tracking with streaks/analytics, bookable habits, productivity dashboard with burndown charts and heatmap, time tracking per task, 8 home-screen widgets (Today, Habit Streak, Quick-Add, Calendar, Productivity, Timer, Upcoming, Project) with per-instance config, Gmail/Slack/Calendar/Zapier integrations, app self-update, and a FastAPI web backend with Claude Haiku-powered NLP parsing.
+**PrismTask** (`com.averycorp.prismtask`) is a native Android todo list app built with Kotlin and Jetpack Compose. Currently at v1.7+ (May 2026; baseline below covers everything shipped through v1.6 and reflects the current `main` codebase). Roadmap and ship-status of forward-looking work is tracked in [README.md § Roadmap](README.md#roadmap).
 
-**v1.4.0 (in progress):** The release expands PrismTask into a wellness-aware productivity layer on top of the v1.3 core:
+**Baseline features (v1.3 era + earlier, all shipped):** full task management, projects, subtasks, tags, recurrence, reminders, notifications, NLP quick-add, voice input (speech-to-task, voice commands, TTS, hands-free mode), accessibility (TalkBack, font scaling, high-contrast, keyboard nav, reduced motion), Today focus screen (compact header, collapsible sections, customizable layout), tabbed task editor (Details/Schedule/Organize), week/month/timeline views, urgency scoring with user-configurable weights, smart suggestions, drag-to-reorder with custom sort, quick reschedule, duplicate task, bulk edit (priority/date/tags/project), configurable swipe actions, flagged tasks, task templates with built-ins and NLP shortcuts, project and habit templates, saved filter presets, advanced recurrence (weekday/biweekly/custom month days/after-completion), notification profiles with quiet hours and daily digest, two-tier pricing (Free/Pro) with Google Play Billing, Firebase cloud sync, Google Sign-In, JSON/CSV data export/import, Google Drive backup/restore, habit tracking with streaks/analytics, bookable habits, productivity dashboard with burndown charts and heatmap, time tracking per task, 8 home-screen widgets — Today, Habit Streak, Quick-Add, Calendar, Productivity, Timer, Upcoming, Project — *currently scaffolded but disabled (`WIDGETS_ENABLED = false` in `app/build.gradle.kts`); planning decision pending — see issue tracker for the re-enable / delete / accept-deferred call*, Gmail/Slack/Calendar/Zapier integrations *(backend endpoints exist; Calendar two-way sync is the only one wired into Android UI today, see § "Integrations" below)*, app self-update, and a FastAPI web backend with Claude Haiku-powered NLP parsing.
+
+**v1.4.0 — v1.6.0 (shipped):** The releases expanded PrismTask into a wellness-aware productivity layer on top of the v1.3 core:
 
 - **Work-Life Balance Engine (V1)**: `LifeCategory` enum per task (Work/Personal/Self-Care/Health/Uncategorized), keyword-based `LifeCategoryClassifier`, `BalanceTracker` for ratio/overload computation, a Today-screen balance bar section, Organize-tab life-category chips, NLP category tags (`#work`, `#self-care`, `#personal`, `#health`), filter-panel category multi-select, a dedicated `WeeklyBalanceReportScreen`, and a Settings section with target-ratio sliders, auto-classify toggle, balance-bar toggle, and overload-threshold slider. Room migration 32 → 33 adds `tasks.life_category`; `OverloadCheckWorker` runs periodic overload checks.
 - **Mood & energy tracking**: `MoodEnergyLogEntity` + `MoodCorrelationEngine` power a dedicated Mood Analytics screen that correlates mood/energy with task completion, habits, and life categories.
@@ -33,7 +35,7 @@
 - **Widgets**: Glance for Compose 1.1.0
 - **Billing**: Google Play Billing 7.1.1
 - **Testing**: JUnit 4.13.2, kotlinx-coroutines-test 1.9.0, Turbine 1.1.0, MockK 1.13.13, Robolectric 4.13, Hilt Testing 2.59.2
-- **Build**: Gradle 9.3.1 with Kotlin DSL, AGP 9.1.0
+- **Build**: Gradle 9.3.1 with Kotlin DSL, AGP 9.1.1
 - **Min SDK**: 26 (Android 8.0) / **Target SDK**: 35 (Android 15)
 
 ## Project Structure
@@ -314,7 +316,7 @@ remains the final verification gate.
 
 ## Important Files
 
-- `build.gradle.kts` — Root build file with plugin versions (AGP 9.1.0, Kotlin 2.3.20, KSP 2.3.6, Hilt 2.59.2)
+- `build.gradle.kts` — Root build file with plugin versions (AGP 9.1.1, Kotlin 2.3.20, KSP 2.3.6, Hilt 2.59.2)
 - `app/build.gradle.kts` — App module dependencies, build config, ProGuard/R8 settings
 - `app/proguard-rules.pro` — Keep rules for Room, Gson, domain models
 - `app/src/main/AndroidManifest.xml` — Activity, receivers, permissions
