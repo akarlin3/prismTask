@@ -37,6 +37,12 @@ on:
   workflow_run:
     workflows: ["Auto-merge & Release"]
     types: [completed]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR number to redistribute (leave empty to skip PR-specific steps)'
+        required: false
+        default: ''
 
 # Serialize all post-merge distribution work against main so concurrent
 # PRs produce sequential versionCode bumps without racing each other.
@@ -53,22 +59,47 @@ jobs:
   version-bump-and-distribute:
     name: Version Bump, Build & Firebase Distribute
     # Skip when the source auto-merge run failed or was cancelled —
-    # nothing to distribute.
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    # nothing to distribute. workflow_dispatch always runs.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
 
     steps:
-      - name: Resolve PR number from workflow_run payload
+      - name: Resolve PR number
         id: pr
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
+          EVENT_NAME: ${{ github.event_name }}
           # workflow_run.pull_requests is populated for same-repo PRs and
           # empty for fork PRs. We expect same-repo only since auto-merge
           # already filters fork PRs out.
           PR_JSON: ${{ toJson(github.event.workflow_run.pull_requests) }}
+          DISPATCH_PR: ${{ inputs.pr_number }}
         run: |
           set -euo pipefail
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            # Manual dispatch path — use the input if provided, otherwise
+            # walk the latest merged PR on main and target that.
+            if [ -n "$DISPATCH_PR" ]; then
+              echo "pr_number=$DISPATCH_PR" >> "$GITHUB_OUTPUT"
+              echo "found=true" >> "$GITHUB_OUTPUT"
+              echo "Using PR #$DISPATCH_PR from dispatch input."
+              exit 0
+            fi
+            PR_NUMBER=$(gh pr list --repo "$REPO" --state merged --base main \
+              --limit 1 --json number -q '.[0].number // empty')
+            if [ -z "$PR_NUMBER" ]; then
+              echo "::warning::No merged PRs found on main. Cannot resolve PR; skipping."
+              echo "found=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            echo "pr_number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
+            echo "found=true" >> "$GITHUB_OUTPUT"
+            echo "Resolved most-recent merged PR #$PR_NUMBER for dispatch run."
+            exit 0
+          fi
           PR_NUMBER=$(echo "$PR_JSON" | jq -r '.[0].number // empty')
           if [ -z "$PR_NUMBER" ]; then
             echo "::warning::workflow_run payload had no pull_request reference. Cannot resolve PR; skipping."
@@ -122,43 +153,66 @@ jobs:
           ref: ${{ steps.wait.outputs.merge_sha }}
           fetch-depth: 0
 
-      - name: Detect Android-related changes
+      # Android-changes gate removed in PR #796 — every merge now bumps,
+      # builds, and distributes regardless of which paths changed. Doc-
+      # only PRs still produce a versionCode bump and a Firebase release.
+      # If you want to restore the gate, see git history of this file.
+
+      - name: Decode signing keystore
+        id: keystore
         if: steps.wait.outputs.merged == 'true'
-        id: changes
         env:
-          MERGE_SHA: ${{ steps.wait.outputs.merge_sha }}
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
         run: |
           set -euo pipefail
-          CHANGED=$(git diff --name-only "${MERGE_SHA}~1" "${MERGE_SHA}")
-          if echo "$CHANGED" | grep -qE '^(app/|build\.gradle\.kts$|settings\.gradle\.kts$|gradle\.properties$|gradle/|gradlew)'; then
-            echo "has_android=true" >> "$GITHUB_OUTPUT"
-            echo "Android-related changes detected:"
-            echo "$CHANGED" | grep -E '^(app/|build\.gradle\.kts$|settings\.gradle\.kts$|gradle\.properties$|gradle/|gradlew)' | head -20
-          else
-            echo "has_android=false" >> "$GITHUB_OUTPUT"
-            echo "No Android-related changes — skipping build & distribution."
+          # HARD-FAIL on missing keystore (per PR #796 design pick 2A):
+          # release builds without a keystore would silently fall back to
+          # debug signing per app/build.gradle.kts:106. The user wants
+          # signed release builds for every merge, so surface the misconfig
+          # immediately rather than silently producing debug-signed builds.
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::error::KEYSTORE_BASE64 secret is not set. Every-merge release flow requires a signing keystore. Encode with: base64 -w 0 your-keystore.jks"
+            exit 1
           fi
+          if [ -z "$KEYSTORE_PASSWORD" ] || [ -z "$KEY_ALIAS" ]; then
+            echo "::error::KEYSTORE_PASSWORD and KEY_ALIAS secrets must be set alongside KEYSTORE_BASE64."
+            exit 1
+          fi
+          printf '%s' "$KEYSTORE_BASE64" | tr -d '[:space:]' | base64 -d > app/release.keystore
+          # Verify the keystore + alias before any expensive Gradle work.
+          keytool -list -keystore app/release.keystore -storepass "$KEYSTORE_PASSWORD" > /dev/null 2>&1 || {
+            echo "::error::Keystore is invalid or corrupted. Re-encode with: base64 -w 0 your-keystore.jks"
+            exit 1
+          }
+          keytool -list -keystore app/release.keystore -storepass "$KEYSTORE_PASSWORD" -alias "$KEY_ALIAS" > /dev/null 2>&1 || {
+            echo "::error::Key alias '$KEY_ALIAS' not found in keystore. Available aliases:"
+            keytool -list -v -keystore app/release.keystore -storepass "$KEYSTORE_PASSWORD" 2>/dev/null | grep "^Alias name:" || echo "  (keystore contains no entries)"
+            exit 1
+          }
+          echo "Keystore decoded + verified."
 
       - name: Set up JDK 21
-        if: steps.wait.outputs.merged == 'true' && steps.changes.outputs.has_android == 'true'
+        if: steps.wait.outputs.merged == 'true'
         uses: actions/setup-java@v4
         with:
           java-version: '21'
           distribution: 'temurin'
 
       - name: Setup Gradle
-        if: steps.wait.outputs.merged == 'true' && steps.changes.outputs.has_android == 'true'
+        if: steps.wait.outputs.merged == 'true'
         uses: gradle/actions/setup-gradle@v4
         with:
           cache-read-only: false
 
       - name: Grant execute permission for gradlew
-        if: steps.wait.outputs.merged == 'true' && steps.changes.outputs.has_android == 'true'
+        if: steps.wait.outputs.merged == 'true'
         run: chmod +x gradlew
 
       # Patch bump only. release.yml owns release (minor/major) versionCode.
       - name: Bump versionCode and versionName
-        if: steps.wait.outputs.merged == 'true' && steps.changes.outputs.has_android == 'true'
+        if: steps.wait.outputs.merged == 'true'
         id: version
         run: |
           set -euo pipefail
@@ -187,7 +241,7 @@ jobs:
           echo "Building v$NEW_NAME (build $NEW_CODE)"
 
       - name: Setup Firebase credentials
-        if: steps.wait.outputs.merged == 'true' && steps.changes.outputs.has_android == 'true'
+        if: steps.wait.outputs.merged == 'true'
         id: firebase
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
@@ -207,7 +261,7 @@ jobs:
           fi
 
       - name: Generate release notes
-        if: steps.wait.outputs.merged == 'true' && steps.changes.outputs.has_android == 'true'
+        if: steps.wait.outputs.merged == 'true'
         run: |
           {
             echo "v${{ steps.version.outputs.version_name }} (build ${{ steps.version.outputs.version_code }})"
@@ -215,27 +269,38 @@ jobs:
             git log -5 --pretty=format:"• %s"
           } > "$RUNNER_TEMP/release_notes.txt"
 
-      - name: Assemble debug APK
-        if: steps.wait.outputs.merged == 'true' && steps.changes.outputs.has_android == 'true'
-        run: ./gradlew assembleDebug --no-configuration-cache
-
-      - name: Upload to Firebase App Distribution
-        if: steps.wait.outputs.merged == 'true' && steps.changes.outputs.has_android == 'true' && steps.firebase.outputs.has_credentials == 'true'
+      - name: Assemble release APK (signed)
+        if: steps.wait.outputs.merged == 'true'
         env:
+          KEYSTORE_PATH: release.keystore
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        # `-x lint -x lintVitalRelease` matches release.yml — they're not
+        # gating signal at this stage and add ~2 min on top of R8.
+        run: ./gradlew assembleRelease --no-configuration-cache --build-cache --parallel -x lint -x lintVitalRelease
+
+      - name: Upload to Firebase App Distribution (release variant)
+        if: steps.wait.outputs.merged == 'true' && steps.firebase.outputs.has_credentials == 'true'
+        env:
+          KEYSTORE_PATH: release.keystore
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
           RELEASE_NOTES_FILE: ${{ runner.temp }}/release_notes.txt
-        run: ./gradlew appDistributionUploadDebug --no-configuration-cache
+        run: ./gradlew appDistributionUploadRelease --no-configuration-cache
 
-      - name: Upload debug APK artifact
-        if: steps.wait.outputs.merged == 'true' && steps.changes.outputs.has_android == 'true' && success()
+      - name: Upload release APK artifact
+        if: steps.wait.outputs.merged == 'true' && success()
         uses: actions/upload-artifact@v4
         with:
-          name: app-debug
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: app-release-${{ steps.version.outputs.version_name }}-${{ steps.version.outputs.version_code }}
+          path: app/build/outputs/apk/release/*.apk
           retention-days: 14
 
       - name: Commit version bump
-        if: steps.wait.outputs.merged == 'true' && steps.changes.outputs.has_android == 'true' && success()
+        if: steps.wait.outputs.merged == 'true' && success()
         run: |
           set -euo pipefail
           git config --local user.email "github-actions[bot]@users.noreply.github.com"

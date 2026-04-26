@@ -22,8 +22,8 @@ android {
         applicationId = "com.averycorp.prismtask"
         minSdk = 26
         targetSdk = 35
-        versionCode = 690
-        versionName = "1.6.0"
+        versionCode = 691
+        versionName = "1.7.0"
 
         testInstrumentationRunner = "com.averycorp.prismtask.HiltTestRunner"
         vectorDrawables { useSupportLibrary = true }
@@ -104,6 +104,13 @@ android {
                 "proguard-rules.pro"
             )
             signingConfig = if (hasReleaseSigning) signingConfigs.getByName("release") else signingConfigs.getByName("debug")
+            firebaseAppDistribution {
+                groups = "testers"
+                val notesFile = System.getenv("RELEASE_NOTES_FILE")
+                if (!notesFile.isNullOrEmpty()) {
+                    releaseNotesFile = notesFile
+                }
+            }
         }
     }
 
