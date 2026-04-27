@@ -21,6 +21,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   convergence on a second pass. Full audit at
   `docs/audits/D2_CLEANUP_PHASE_F_UNBLOCK_MEGA_AUDIT.md` § 1.
 
+### Fixed
+
+- **Web mood-energy log writer no longer creates duplicate Firestore
+  docs for the same `(dateIso, timeOfDay)` slot.** Previously
+  `createLog` in `web/src/api/firestore/moodEnergyLogs.ts` used
+  `addDoc` (random doc id) with no uniqueness guard, so a second log
+  in the same slot wrote a second cloud doc. On the next Android pull
+  that doc would fail Room's unique index `(date, time_of_day)` on
+  `mood_energy_logs`, throwing `SQLiteConstraintException` and
+  leaving the cloud row orphaned. Fixed with a deterministic doc id
+  `${dateIso}__${timeOfDay}` written via
+  `setDoc(..., { merge: true })`, mirroring Android's natural-key
+  index and the existing convention in `medicationSlots.ts` (tier
+  states) and `checkInLogs.ts`. Tier B Phase F parity, audit PR
+  #836 § Surface 12.
+
 ### Added
 
 - **Auto-update-branch workflow.** A new

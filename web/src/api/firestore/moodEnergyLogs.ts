@@ -1,11 +1,11 @@
 import {
-  addDoc,
   collection,
   deleteDoc,
   doc,
   getDocs,
   orderBy,
   query,
+  setDoc,
   updateDoc,
   where,
   type DocumentData,
@@ -21,6 +21,14 @@ import { firestore } from '@/lib/firebase';
  * `YYYY-MM-DD` of the logical day the entry belongs to (not the
  * creation instant), so multi-entry days (morning + afternoon) are
  * possible and range queries are simple.
+ *
+ * Doc ids are deterministic — `${dateIso}__${timeOfDay}` — to mirror
+ * Android's unique index on `(date, time_of_day)`. A second log in the
+ * same slot merges into the existing doc (`setDoc(..., { merge: true })`)
+ * rather than creating a duplicate; this prevents Android Room's unique
+ * constraint from rejecting the second pull and leaving an orphaned
+ * cloud row. Same convention as `medicationSlots.ts` tier states and
+ * `checkInLogs.ts`.
  */
 
 export type TimeOfDay = 'morning' | 'afternoon' | 'evening' | 'night';
@@ -44,6 +52,17 @@ function logsCol(uid: string) {
 
 function logDoc(uid: string, id: string) {
   return doc(firestore, 'users', uid, 'mood_energy_logs', id);
+}
+
+/**
+ * Deterministic doc id for the natural-key `(dateIso, timeOfDay)`.
+ * Mirrors Android's unique index `(date, time_of_day)` on
+ * `mood_energy_logs` so a second log in the same slot merges into the
+ * existing doc instead of producing two cloud rows that collide on
+ * pull. Format mirrors `medicationSlots.ts` (`${dateIso}__${slotKey}`).
+ */
+function moodLogId(dateIso: string, timeOfDay: TimeOfDay): string {
+  return `${dateIso}__${timeOfDay}`;
 }
 
 function clampScale(n: unknown): number {
@@ -85,17 +104,23 @@ export async function createLog(
   input: MoodEnergyLogInput,
 ): Promise<MoodEnergyLog> {
   const now = Date.now();
+  const timeOfDay: TimeOfDay = input.time_of_day ?? 'morning';
   const payload = {
     dateIso: input.date_iso,
     mood: clampScale(input.mood),
     energy: clampScale(input.energy),
     notes: input.notes ?? '',
-    timeOfDay: input.time_of_day ?? 'morning',
+    timeOfDay,
     createdAt: now,
     updatedAt: now,
   };
-  const ref = await addDoc(logsCol(uid), payload);
-  return docToLog(ref.id, payload);
+  const id = moodLogId(input.date_iso, timeOfDay);
+  // setDoc + merge gives us idempotent upsert keyed by the natural
+  // (date, time_of_day) tuple — a second log in the same slot updates
+  // the existing doc rather than creating a duplicate that would later
+  // fail Android Room's unique index on `(date, time_of_day)`.
+  await setDoc(logDoc(uid, id), payload, { merge: true });
+  return docToLog(id, payload);
 }
 
 export async function updateLog(

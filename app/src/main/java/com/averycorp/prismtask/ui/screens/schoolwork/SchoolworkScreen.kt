@@ -131,6 +131,7 @@ fun SchoolworkScreen(
 
     val userTier by viewModel.proFeatureGate.userTier.collectAsStateWithLifecycle()
     var showUpgradePrompt by remember { mutableStateOf(false) }
+    var deletingCourse by remember { mutableStateOf<CourseEntity?>(null) }
 
     if (showUpgradePrompt) {
         AlertDialog(
@@ -343,7 +344,8 @@ fun SchoolworkScreen(
                         CourseCheckItem(
                             course = course,
                             done = done,
-                            onToggle = { viewModel.toggleCourseCompletion(course.id) }
+                            onToggle = { viewModel.toggleCourseCompletion(course.id) },
+                            onDelete = { deletingCourse = course }
                         )
                         Spacer(Modifier.height(6.dp))
                     }
@@ -377,6 +379,30 @@ fun SchoolworkScreen(
                 }
             }
         }
+    }
+
+    deletingCourse?.let { course ->
+        AlertDialog(
+            onDismissRequest = { deletingCourse = null },
+            title = { Text("Delete Course") },
+            text = {
+                Text(
+                    "Delete \"${course.code} ${course.name}\"? Its assignments and " +
+                        "today's completion will also be removed."
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.deleteCourse(course.id)
+                    deletingCourse = null
+                }) {
+                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { deletingCourse = null }) { Text("Cancel") }
+            }
+        )
     }
 }
 
@@ -460,7 +486,8 @@ private fun SectionHeader(icon: String, title: String) {
 private fun CourseCheckItem(
     course: CourseEntity,
     done: Boolean,
-    onToggle: () -> Unit
+    onToggle: () -> Unit,
+    onDelete: () -> Unit
 ) {
     val borderColor by animateColorAsState(
         targetValue = if (done) schoolAccent().copy(alpha = 0.27f) else MaterialTheme.colorScheme.outline,
@@ -482,7 +509,7 @@ private fun CourseCheckItem(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
+                .padding(start = 12.dp, top = 12.dp, bottom = 12.dp, end = 4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
@@ -525,6 +552,17 @@ private fun CourseCheckItem(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
+                )
+            }
+            // Trailing remove affordance — opens a confirm dialog at screen
+            // level so accidental taps on the row's clickable surface don't
+            // double-book a delete.
+            IconButton(onClick = onDelete) {
+                Icon(
+                    Icons.Default.Delete,
+                    contentDescription = "Remove ${course.code}",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(18.dp)
                 )
             }
         }
