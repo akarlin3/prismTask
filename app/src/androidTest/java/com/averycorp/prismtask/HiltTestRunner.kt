@@ -87,7 +87,19 @@ class HiltTestRunner : AndroidJUnitRunner() {
     }
 
     private fun isAndroidEmulator(): Boolean =
-        Build.FINGERPRINT.startsWith("generic") ||
+        // `Build.HARDWARE` is the most reliable signal across API levels:
+        // QEMU2 (API 25+) reports "ranchu", older QEMU reports "goldfish".
+        // The legacy FINGERPRINT / MODEL / PRODUCT heuristics below all
+        // fail on modern `sdk_gphone64_x86_64` images (API 33+), which
+        // is why cross-device-tests on `api-level: 34` runs were silently
+        // routing Firestore at "localhost" instead of "10.0.2.2" and
+        // hanging on ECONNREFUSED until the 45-min job timeout fired
+        // (run `24974393528` on `c5c0fefc`). Kept the older heuristics
+        // for backward compat with stale AVD images / Genymotion.
+        Build.HARDWARE == "ranchu" ||
+            Build.HARDWARE == "goldfish" ||
+            Build.PRODUCT.startsWith("sdk_") ||
+            Build.FINGERPRINT.startsWith("generic") ||
             Build.FINGERPRINT.startsWith("unknown") ||
             Build.MODEL.contains("google_sdk") ||
             Build.MODEL.contains("Emulator") ||

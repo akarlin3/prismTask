@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Fixed
+
+- **`HiltTestRunner.isAndroidEmulator()` now detects modern AVDs.** The
+  test-runner heuristic copied from `PrismTaskApplication` (around the
+  PR #791 era) had drifted out of sync — production picked up
+  `Build.HARDWARE in {"ranchu", "goldfish"}` checks, but the test-runner
+  copy did not. Modern API 33+ emulators report
+  `Build.PRODUCT = "sdk_gphone64_x86_64"` and `Build.MODEL` of the same
+  form, none of which the legacy heuristics matched. With
+  `isAndroidEmulator()` returning false, `configureFirebaseEmulator()`
+  fell through to `host = "localhost"`, and the AVD's loopback can't
+  reach the host's Firestore emulator — so cross-device sync tests
+  hung on `ECONNREFUSED` retries until the 45-min job-timeout fired.
+  This was the actual root cause of the post-#835 cross-device-tests
+  cancellation on `c5c0fefc` (run `24974393528`); PR #835's retry-drop
+  change was a contributing-but-not-blocking concern. Full audit at
+  `docs/audits/D2_CLEANUP_PHASE_F_UNBLOCK_MEGA_AUDIT.md` § 1
+  (post-merge correction in commit message of this PR).
+
 ### Changed
 
 - **Cross-device-tests CI job: drop shell-level retry.** The
