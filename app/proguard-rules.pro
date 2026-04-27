@@ -31,9 +31,6 @@
 -keep class com.averycorp.prismtask.data.remote.model.** { *; }
 -keep class com.averycorp.prismtask.data.remote.mapper.** { *; }
 
-# ── Update checker (deserialized by Gson) ──
--keep class com.averycorp.prismtask.data.remote.VersionInfo { *; }
-
 # ── Claude API models (inner classes in ClaudeParserService, deserialized by Gson) ──
 -keep class com.averycorp.prismtask.data.remote.ClaudeParserService$* { *; }
 
