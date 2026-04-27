@@ -136,12 +136,31 @@ jobs:
             echo "found=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          PR_NUMBER=$(gh api \
-            "repos/$REPO/commits/$HEAD_SHA/pulls" \
-            -H "Accept: application/vnd.github+json" \
-            --jq 'sort_by(.number) | reverse | .[0].number // empty')
+          # Capture the API response separately instead of piping through
+          # `gh api --jq` directly. Under `set -euo pipefail`, an empty or
+          # non-JSON response body crashes the embedded jq with
+          # `unexpected end of JSON input` and aborts the whole script
+          # before the empty-result branch below can fire — observed on
+          # PR #857's post-merge run, which silently dropped the version
+          # bump on the floor. The retry loop covers the indexing-lag
+          # window where `commits/{sha}/pulls` returns `[]` for a few
+          # seconds after the squash-merge push lands.
+          PR_NUMBER=""
+          for attempt in 1 2 3; do
+            RESPONSE=$(gh api \
+              "repos/$REPO/commits/$HEAD_SHA/pulls" \
+              -H "Accept: application/vnd.github+json" 2>/dev/null || echo "[]")
+            PR_NUMBER=$(printf '%s' "$RESPONSE" | jq -r '
+              if type == "array" and length > 0 then
+                (sort_by(.number) | reverse | .[0].number // empty)
+              else empty end
+            ' 2>/dev/null || echo "")
+            [ -n "$PR_NUMBER" ] && break
+            echo "commits/$HEAD_SHA/pulls returned no PR (attempt $attempt/3); sleeping 5s..."
+            sleep 5
+          done
           if [ -z "$PR_NUMBER" ]; then
-            echo "::warning::No PR found for commit $HEAD_SHA via commits/{sha}/pulls. Skipping."
+            echo "::warning::No PR found for commit $HEAD_SHA via commits/{sha}/pulls after 3 attempts. Skipping."
             echo "found=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
