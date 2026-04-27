@@ -253,6 +253,93 @@ class MedicationCrossDeviceConvergenceTest : SyncScenarioTestBase() {
         }
     }
 
+    /**
+     * Natural-key collision: A and B independently created a medication
+     * with the same `name` while offline (e.g. both ran the v53→v54
+     * backfill before signing in). When A pulls B's doc, the new cloud_id
+     * is unknown to sync_metadata so the receive path takes the
+     * `localId == null` branch — and `medications.name` is UNIQUE, so a
+     * naive INSERT throws SQLiteConstraintException and the medication
+     * is silently dropped (P0 surfaced in Test 3 of Session 1 manual
+     * testing, 2026-04-27).
+     *
+     * Pin the dedup contract: after A pulls, A has exactly one row named
+     * "Vitamin D" and sync_metadata resolves B's cloud_id to A's local
+     * row. Convergence shape only — never assert which cloud_id "wins"
+     * (memory `feedback_firestore_doc_iteration_order` — Firestore doc
+     * iteration order flips between runs).
+     */
+    @Test
+    fun medicationByName_dedupAcrossDevices() = runBlocking {
+        withTimeout(TEST_TIMEOUT) {
+            requireSignedIn()
+
+            val localMedId = medicationRepository.insert(
+                MedicationEntity(
+                    name = "Vitamin D",
+                    notes = "A's local copy from migration backfill",
+                    createdAt = 0L,
+                    updatedAt = 1_000L
+                )
+            )
+
+            val nowMs = System.currentTimeMillis()
+            val bCloudId = "med-from-b-independent-cloudid"
+            harness.writeAsDeviceB(
+                subcollection = "medications",
+                docId = bCloudId,
+                fields = mapOf(
+                    "localId" to 9999L,
+                    "name" to "Vitamin D",
+                    "notes" to "B's local copy from migration backfill",
+                    "tier" to "essential",
+                    "isArchived" to false,
+                    "sortOrder" to 0,
+                    "scheduleMode" to "TIMES_OF_DAY",
+                    "dosesPerDay" to 1,
+                    "pillsPerDose" to 1,
+                    "reminderDaysBefore" to 3,
+                    "slotCloudIds" to emptyList<String>(),
+                    "createdAt" to 0L,
+                    "updatedAt" to nowMs
+                )
+            )
+
+            // Must not throw. Pre-fix: SQLiteConstraintException: UNIQUE
+            // constraint failed: medications.name surfaced via
+            // pull.apply | medications=… | status=failed and the doc was
+            // silently dropped.
+            syncService.pullRemoteChanges()
+
+            harness.waitFor(message = "B's cloud_id maps to A's local row") {
+                database.syncMetadataDao().getLocalId(bCloudId, "medication") == localMedId
+            }
+
+            val byName = database.medicationDao().getByNameOnce("Vitamin D")
+            assertNotNull("local medication still present after pull", byName)
+            assertEquals(
+                "exactly one medication row named Vitamin D after dedup",
+                1,
+                database.medicationDao().getAllOnce()
+                    .count { it.name == "Vitamin D" }
+            )
+            assertEquals(
+                "B's cloud_id resolves to A's local row id",
+                localMedId,
+                database.syncMetadataDao().getLocalId(bCloudId, "medication")
+            )
+            // B's updatedAt > A's local updatedAt, so last-write-wins
+            // applied B's notes onto A's row (convergence shape — we do
+            // NOT assert which cloud_id "wins" the metadata, only that
+            // exactly one row exists and the metadata resolves to it).
+            assertEquals(
+                "last-write-wins applied B's payload onto adopted local row",
+                "B's local copy from migration backfill",
+                byName!!.notes
+            )
+        }
+    }
+
     companion object {
         private val TEST_TIMEOUT = 90.seconds
     }
