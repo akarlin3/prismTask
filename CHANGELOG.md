@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Changed
+
+- **Cross-device-tests CI job: drop shell-level retry.** The
+  `cross-device-tests` job in `.github/workflows/android-integration.yml`
+  previously ran `run_cross_device_tests || run_cross_device_tests
+  --rerun-tasks` inside `reactivecircus/android-emulator-runner@v2`,
+  doubling test wall-clock and crossing the 45-minute job timeout
+  whenever no concurrent push pre-empted the run (run `24970283404`,
+  sha `871c2da8`, exceeded 45m0s). Single-attempt now mirrors the
+  connected-tests job's shape (which sustains ~91% success without
+  retry). Real flakes will surface as honest failures, not silent
+  convergence on a second pass. Full audit at
+  `docs/audits/D2_CLEANUP_PHASE_F_UNBLOCK_MEGA_AUDIT.md` § 1.
+
 ### Added
 
 - **Auto-update-branch workflow.** A new
