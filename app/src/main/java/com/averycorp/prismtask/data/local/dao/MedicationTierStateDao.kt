@@ -14,6 +14,9 @@ interface MedicationTierStateDao {
     @Query("SELECT * FROM medication_tier_states WHERE log_date = :date")
     fun observeForDate(date: String): Flow<List<MedicationTierStateEntity>>
 
+    @Query("SELECT * FROM medication_tier_states ORDER BY log_date DESC, logged_at DESC")
+    fun observeAll(): Flow<List<MedicationTierStateEntity>>
+
     @Query("SELECT * FROM medication_tier_states WHERE log_date = :date")
     suspend fun getForDateOnce(date: String): List<MedicationTierStateEntity>
 

@@ -162,6 +162,9 @@ constructor(
     fun observeTierStatesForDate(date: String): Flow<List<MedicationTierStateEntity>> =
         tierStateDao.observeForDate(date)
 
+    fun observeAllTierStates(): Flow<List<MedicationTierStateEntity>> =
+        tierStateDao.observeAll()
+
     suspend fun getTierStatesForDateOnce(date: String): List<MedicationTierStateEntity> =
         tierStateDao.getForDateOnce(date)
 

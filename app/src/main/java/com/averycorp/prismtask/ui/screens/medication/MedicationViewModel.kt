@@ -422,7 +422,10 @@ constructor(
                     entityId = med.id.toString(),
                     mutationType = BatchMutationType.SKIP.name,
                     proposedNewValues = mapOf(
-                        "slot_key" to slot.name,
+                        // slotKey on dose rows is the numeric slot id stringified
+                        // (the per-med checkbox path uses slot.id.toString()); writing
+                        // slot.name here would leave doses invisible to the slot-card UI.
+                        "slot_key" to slot.id.toString(),
                         "date" to date,
                         "tier" to storageTier
                     ),
@@ -450,7 +453,7 @@ constructor(
                         entityId = med.id.toString(),
                         mutationType = BatchMutationType.COMPLETE.name,
                         proposedNewValues = mapOf(
-                            "slot_key" to slot.name,
+                            "slot_key" to slot.id.toString(),
                             "date" to date,
                             "tier" to storageTier,
                             "taken_at" to now

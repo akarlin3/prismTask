@@ -34,6 +34,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -41,6 +42,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.averycorp.prismtask.data.local.entity.MedicationDoseEntity
 import com.averycorp.prismtask.domain.model.SelfCareRoutines
+import com.averycorp.prismtask.domain.model.medication.AchievedTier
 import com.averycorp.prismtask.ui.theme.LocalPrismColors
 import java.text.SimpleDateFormat
 import java.time.LocalDate
@@ -189,6 +191,28 @@ private fun LogDayCard(day: MedicationLogDay) {
                 DoseRow(label = day.medicationName(dose), dose = dose)
             }
         }
+
+        // Slot-level tier-state entries — pre-PR #857 tier-button taps wrote
+        // tier-state rows but no doses, so this is the only place that
+        // history surfaces. Today's PR-#857 skips also land here (skip
+        // writes a user_set tier-state row alongside synthetic-skip doses
+        // that the log filters out). Rendered with a softer, italicized
+        // treatment so the user can tell "we know which meds were taken"
+        // (per-med dose rows above) from "the slot was logged at tier X"
+        // (these slot-level entries).
+        if (day.slotEntries.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(10.dp))
+            day.slotEntries.forEach { entry ->
+                SlotHeader(
+                    label = entry.slot.name.uppercase(),
+                    icon = "⏰",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                SlotTierEntryRow(entry = entry)
+                Spacer(modifier = Modifier.height(6.dp))
+            }
+        }
     }
 }
 
@@ -260,6 +284,54 @@ private fun DoseRow(label: String, dose: MedicationDoseEntity) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(start = 22.dp, bottom = 2.dp)
         )
+    }
+}
+
+@Composable
+private fun SlotTierEntryRow(entry: SlotTierEntry) {
+    val timeFormat = remember { SimpleDateFormat("h:mm a", Locale.getDefault()) }
+    val displayTime = entry.displayTime
+    val tierLabel = when (entry.tier) {
+        AchievedTier.SKIPPED -> "Skipped"
+        AchievedTier.ESSENTIAL -> "Essential"
+        AchievedTier.PRESCRIPTION -> "Prescription"
+        AchievedTier.COMPLETE -> "Complete"
+    }
+    val accent = when (entry.tier) {
+        AchievedTier.SKIPPED -> MaterialTheme.colorScheme.onSurfaceVariant
+        AchievedTier.ESSENTIAL -> LocalPrismColors.current.destructiveColor
+        AchievedTier.PRESCRIPTION -> LocalPrismColors.current.infoColor
+        AchievedTier.COMPLETE -> LocalPrismColors.current.successColor
+    }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 3.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(14.dp)
+                .clip(CircleShape)
+                .background(accent.copy(alpha = 0.18f))
+                .border(1.dp, accent, CircleShape)
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(
+            text = "Slot logged: $tierLabel",
+            style = MaterialTheme.typography.bodySmall,
+            fontStyle = FontStyle.Italic,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.weight(1f)
+        )
+        if (displayTime != null) {
+            Text(
+                text = timeFormat.format(Date(displayTime)),
+                style = MaterialTheme.typography.bodySmall,
+                color = accent,
+                fontWeight = FontWeight.Medium
+            )
+        }
     }
 }
 

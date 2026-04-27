@@ -606,10 +606,16 @@ constructor(
     }
 
     private suspend fun resolveSlotByKey(slotKey: String): MedicationSlotEntity? {
-        val target = slotKey.trim().lowercase()
+        val target = slotKey.trim()
         if (target.isEmpty()) return null
+        // The in-app bulk-mark path passes slot.id.toString(); the AI Haiku
+        // batch path passes slot.name. Try id lookup first, fall back to name.
+        target.toLongOrNull()?.let { id ->
+            medicationSlotDao.getByIdOnce(id)?.let { return it }
+        }
+        val lower = target.lowercase()
         return medicationSlotDao.getAllOnce().firstOrNull {
-            it.name.trim().lowercase() == target
+            it.name.trim().lowercase() == lower
         }
     }
 
