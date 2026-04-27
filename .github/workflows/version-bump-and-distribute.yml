@@ -384,7 +384,10 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         # `-x lint -x lintVitalRelease` matches release.yml — they're not
         # gating signal at this stage and add ~2 min on top of R8.
-        run: ./gradlew assembleRelease --no-configuration-cache --build-cache --parallel -x lint -x lintVitalRelease
+        # `bundleRelease` produces the AAB alongside the APK so each PR
+        # merge yields a Play-Store-uploadable artifact (P0 sync audit
+        # PR-E). Adds ~90s to per-merge CI; acceptable at Phase F cadence.
+        run: ./gradlew assembleRelease bundleRelease --no-configuration-cache --build-cache --parallel -x lint -x lintVitalRelease
 
       - name: Upload to Firebase App Distribution (release variant)
         if: steps.wait.outputs.merged == 'true' && steps.keystore.outputs.has_keystore == 'true' && steps.firebase.outputs.has_credentials == 'true'
@@ -403,6 +406,14 @@ jobs:
         with:
           name: app-release-${{ steps.version.outputs.version_name }}-${{ steps.version.outputs.version_code }}
           path: app/build/outputs/apk/release/*.apk
+          retention-days: 14
+
+      - name: Upload release AAB artifact
+        if: steps.wait.outputs.merged == 'true' && steps.keystore.outputs.has_keystore == 'true' && success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-aab-${{ steps.version.outputs.version_name }}-${{ steps.version.outputs.version_code }}
+          path: app/build/outputs/bundle/release/*.aab
           retention-days: 14
 
   capture-failure-log:
