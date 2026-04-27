@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Changed
+
+- **Cross-device-tests CI job: drop shell-level retry.** The
+  `cross-device-tests` job in `.github/workflows/android-integration.yml`
+  previously ran `run_cross_device_tests || run_cross_device_tests
+  --rerun-tasks` inside `reactivecircus/android-emulator-runner@v2`,
+  doubling test wall-clock and crossing the 45-minute job timeout
+  whenever no concurrent push pre-empted the run (run `24970283404`,
+  sha `871c2da8`, exceeded 45m0s). Single-attempt now mirrors the
+  connected-tests job's shape (which sustains ~91% success without
+  retry). Real flakes will surface as honest failures, not silent
+  convergence on a second pass. Full audit at
+  `docs/audits/D2_CLEANUP_PHASE_F_UNBLOCK_MEGA_AUDIT.md` § 1.
+
 ### Added
 
 - **Auto-update-branch workflow.** A new
@@ -235,6 +249,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `reminderMode` + `reminderIntervalMinutes` to the slot's Firestore
   doc; Android picks them up on the next sync. Optimistic update with
   rollback on failure.
+
+### Documentation
+
+- **Android↔web parity audit (Phase F).** New
+  `docs/audits/ANDROID_WEB_PARITY_AUDIT.md` covers all 15 launch-relevant
+  surfaces (medication, habits, tasks, AI quick-add, Pomodoro+, sync
+  infrastructure, account, settings, privacy, daily essentials/Today,
+  morning check-in, mood/energy, weekly review, voice, notifications)
+  on two axes (sync wiring + feature accessibility) with per-gap triage
+  classifying each as SHIP-BEFORE-MAY-15, DEFER-TO-G.0, or
+  ACCEPT-AS-DIVERGENCE. Deadline-realism check for the 2026-05-15
+  Phase F kickoff fires hard: 23 raw SHIP items vs the 8-item STOP
+  threshold; recommended Tier A + B re-triage (11 PRs, ~7-8 days)
+  preserves launch quality without burning the 19-day window. Headline
+  findings: web sync layer is structurally thinner than expected
+  (`api/sync.ts` is a 27-line stub with zero callers; real-time
+  listeners exist but `App.tsx` never calls them); web write paths in
+  `tasks.ts` and `habits.ts` systematically clobber Android-only
+  fields; web has no AI opt-out toggle / Anthropic disclosure surface
+  (PR #790 only shipped half the cross-platform privacy story); web
+  habit streak is strict-consecutive vs Android forgiveness-first;
+  three medication-collection mismatches and an onboarding completion
+  Firestore-path mismatch break the "complete once per account"
+  promise.
 
 ### Backend
 
