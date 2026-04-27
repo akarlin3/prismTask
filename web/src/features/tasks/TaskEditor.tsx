@@ -23,7 +23,13 @@ import { useProjectStore } from '@/stores/projectStore';
 import { useTagStore } from '@/stores/tagStore';
 import { PRIORITY_CONFIG } from '@/utils/priority';
 import { formatRelative } from '@/utils/dates';
-import type { Task, TaskPriority, TaskStatus, TaskUpdate } from '@/types/task';
+import type {
+  LifeCategory,
+  Task,
+  TaskPriority,
+  TaskStatus,
+  TaskUpdate,
+} from '@/types/task';
 
 interface TaskEditorProps {
   onClose: () => void;
@@ -98,6 +104,16 @@ const TAG_COLORS = [
   '#3b82f6', '#6366f1', '#a855f7', '#ec4899',
 ];
 
+// Mirrors Android's `LifeCategory` enum; values must match `LifeCategory.kt`
+// so the Work-Life Balance engine on Android picks them up unchanged.
+const LIFE_CATEGORY_OPTIONS: { value: LifeCategory | ''; label: string }[] = [
+  { value: '', label: 'Uncategorized' },
+  { value: 'WORK', label: 'Work' },
+  { value: 'PERSONAL', label: 'Personal' },
+  { value: 'SELF_CARE', label: 'Self-Care' },
+  { value: 'HEALTH', label: 'Health' },
+];
+
 export default function TaskEditor({
   onClose,
   onUpdate,
@@ -145,6 +161,11 @@ export default function TaskEditor({
   const [recurrenceEndDate, setRecurrenceEndDate] = useState('');
   const [reminderOffset, setReminderOffset] = useState('');
   const [plannedDate, setPlannedDate] = useState('');
+  // Work-Life Balance category. Empty string means "leave unset" — we omit
+  // the field from the Firestore payload so Android's auto-classifier can
+  // still operate. Only when the user explicitly picks a category do we
+  // write it (parity audit § Surface 3 / T-S2).
+  const [lifeCategory, setLifeCategory] = useState<LifeCategory | ''>('');
 
   // Subtasks
   const [subtasks, setSubtasks] = useState<Task[]>([]);
@@ -179,6 +200,7 @@ export default function TaskEditor({
       setNotes('');
       setSubtasks([]);
       setTaskTagIds([]);
+      setLifeCategory('');
       return;
     }
     if (!task) return;
@@ -195,6 +217,7 @@ export default function TaskEditor({
     setTaskTagIds(task.tags?.map((t) => t.id) || []);
 
     setPlannedDate(task.planned_date || '');
+    setLifeCategory((task.life_category as LifeCategory | null) ?? '');
     if (task.recurrence_json) {
       try {
         const rule = JSON.parse(task.recurrence_json);
@@ -313,7 +336,18 @@ export default function TaskEditor({
 
   const handleDueTimeChange = (v: string) => {
     setDueTime(v);
-    // due_time not in TaskUpdate type yet, save as part of auto-save
+    // Persist the wall-clock time so Android receives the same value on
+    // its next sync. Empty string clears the time; the firestore writer
+    // anchors `HH:mm` to the current `due_date` to produce the millis
+    // representation Android stores in `tasks.due_time`.
+    autoSave({ due_time: v === '' ? null : v });
+  };
+
+  const handleLifeCategoryChange = (v: LifeCategory | '') => {
+    setLifeCategory(v);
+    // Always pass the value through — selecting "Uncategorized" maps to
+    // `null` so the Android-side classifier can take over again.
+    autoSave({ lifeCategory: v === '' ? null : v });
   };
 
   const handleCreate = async () => {
@@ -334,6 +368,8 @@ export default function TaskEditor({
         priority,
         status,
         due_date: dueDate || undefined,
+        due_time: dueTime || undefined,
+        lifeCategory: lifeCategory || undefined,
       });
       toast.success('Task created');
       onUpdate?.();
@@ -901,6 +937,32 @@ export default function TaskEditor({
                       </option>
                     ))}
                   </select>
+                </div>
+
+                {/* Life Category (Work-Life Balance) */}
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-[var(--color-text-secondary)]">
+                    Life Category
+                  </label>
+                  <select
+                    value={lifeCategory}
+                    onChange={(e) =>
+                      handleLifeCategoryChange(
+                        (e.target.value as LifeCategory | '') || '',
+                      )
+                    }
+                    className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-secondary)] px-3 py-2 text-sm text-[var(--color-text-primary)] outline-none focus:border-[var(--color-accent)]"
+                  >
+                    {LIFE_CATEGORY_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
+                    Powers the Work-Life Balance dashboard. Leave as
+                    Uncategorized to let Android auto-classify.
+                  </p>
                 </div>
 
                 {/* Tags */}

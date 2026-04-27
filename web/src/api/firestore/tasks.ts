@@ -14,7 +14,7 @@ import {
   type DocumentData,
 } from 'firebase/firestore';
 import { firestore } from '@/lib/firebase';
-import type { Task, TaskStatus } from '@/types/task';
+import type { LifeCategory, Task, TaskStatus } from '@/types/task';
 import {
   timestampToDateStr,
   timestampToTimeStr,
@@ -71,7 +71,24 @@ function docToTask(docId: string, data: DocumentData, uid: string): Task {
     subtasks: [],
     tags: [],
     tag_ids: tagIds,
+    life_category: parseLifeCategory(data.lifeCategory),
+    user_overrode_quadrant: data.userOverrodeQuadrant === true,
+    is_flagged: data.isFlagged === true,
   };
+}
+
+function parseLifeCategory(value: unknown): LifeCategory | null {
+  if (typeof value !== 'string') return null;
+  switch (value) {
+    case 'WORK':
+    case 'PERSONAL':
+    case 'SELF_CARE':
+    case 'HEALTH':
+    case 'UNCATEGORIZED':
+      return value;
+    default:
+      return null;
+  }
 }
 
 function mapStatus(data: DocumentData): TaskStatus {
@@ -82,9 +99,41 @@ function mapStatus(data: DocumentData): TaskStatus {
 
 // ── Web Task → Firestore doc ──────────────────────────────────
 
-function taskCreateToDoc(data: Partial<Task> & { title: string }): Record<string, unknown> {
+/**
+ * Combine a `YYYY-MM-DD` date string and an optional `HH:mm` time string
+ * into the Long-millis representation Android stores in `tasks.due_time`.
+ *
+ * Android's `due_time` column is the FULL date+time (millis since epoch),
+ * not a wall-clock-only value (see `TaskEntity.dueTime: Long?`). When the
+ * caller has only the time, we anchor it to the date so cross-device reads
+ * pick up the right wall clock; when they have only the date we return
+ * null so we don't fabricate a time.
+ */
+function buildDueTimeMillis(
+  dateStr: string | null | undefined,
+  timeStr: string | null | undefined,
+): number | null {
+  if (!timeStr) return null;
+  const datePart = dateStr ?? new Date().toISOString().slice(0, 10);
+  const ms = new Date(`${datePart}T${timeStr}:00`).getTime();
+  return Number.isFinite(ms) ? ms : null;
+}
+
+function taskCreateToDoc(
+  data: Partial<Task> & { title: string } & {
+    isFlagged?: boolean;
+    lifeCategory?: string | null;
+    eisenhowerReason?: string | null;
+    userOverrodeQuadrant?: boolean;
+  },
+): Record<string, unknown> {
   const now = Date.now();
-  return {
+  // Build the doc additively so Android-only fields stay absent (Firestore
+  // simply omits them — Android applies its own defaults on first read).
+  // Web *must not* write `null`/`false` placeholders for fields it doesn't
+  // own; doing so destroyed Android-side state on every save (parity bug
+  // PR #836 audit § Surface 3 / T-S1+T-S2).
+  const doc: Record<string, unknown> = {
     title: data.title,
     description: data.description ?? null,
     notes: data.notes ?? null,
@@ -94,24 +143,45 @@ function taskCreateToDoc(data: Partial<Task> & { title: string }): Record<string
     projectId: data.project_id ?? '',
     parentTaskId: data.parent_id ?? null,
     dueDate: dateStrToTimestamp(data.due_date),
-    dueTime: null,
     plannedDate: dateStrToTimestamp(data.planned_date),
     recurrenceRule: data.recurrence_json ?? null,
     estimatedDuration: data.estimated_duration ?? null,
     eisenhowerQuadrant: data.eisenhower_quadrant ?? null,
-    eisenhowerUpdatedAt: data.eisenhower_updated_at ? isoToTimestamp(data.eisenhower_updated_at) : null,
+    eisenhowerUpdatedAt: data.eisenhower_updated_at
+      ? isoToTimestamp(data.eisenhower_updated_at)
+      : null,
     sortOrder: data.sort_order ?? 0,
-    isFlagged: false,
-    lifeCategory: null,
     tags: [],
     createdAt: now,
     updatedAt: now,
     completedAt: data.status === 'done' ? now : null,
-    archivedAt: null,
   };
+  // `dueTime`: only write when caller actually has one (e.g. NLP parse,
+  // explicit time-picker value). Never `null` — that overwrote any
+  // Android-side parsed time.
+  const dueTimeMillis = buildDueTimeMillis(data.due_date, data.due_time);
+  if (dueTimeMillis !== null) doc.dueTime = dueTimeMillis;
+  if (data.isFlagged !== undefined) doc.isFlagged = data.isFlagged;
+  if (data.lifeCategory !== undefined && data.lifeCategory !== null) {
+    doc.lifeCategory = data.lifeCategory;
+  }
+  if (data.eisenhowerReason !== undefined) doc.eisenhowerReason = data.eisenhowerReason;
+  if (data.userOverrodeQuadrant !== undefined) {
+    doc.userOverrodeQuadrant = data.userOverrodeQuadrant;
+  }
+  if (Array.isArray(data.tag_ids)) {
+    doc.tagIds = data.tag_ids.filter((x): x is string => typeof x === 'string');
+  }
+  return doc;
 }
 
 function taskUpdateToDoc(data: Record<string, unknown>): Record<string, unknown> {
+  // Merge-mode write: include ONLY the fields the caller actually changed.
+  // Anything not present here Firestore leaves untouched — protecting
+  // Android-only fields like `isFlagged`, `lifeCategory`, `eisenhowerReason`,
+  // `userOverrodeQuadrant`, all Focus-Release fields, `archived_at`,
+  // `source_habit_id`, `scheduled_start_time`, `reminder_offset` from being
+  // clobbered on every web edit (parity audit PR #836 § Surface 3, T-S2).
   const doc: Record<string, unknown> = { updatedAt: Date.now() };
   if (data.title !== undefined) doc.title = data.title;
   if (data.description !== undefined) doc.description = data.description;
@@ -125,11 +195,38 @@ function taskUpdateToDoc(data: Record<string, unknown>): Record<string, unknown>
   if (data.project_id !== undefined) doc.projectId = data.project_id;
   if (data.parent_id !== undefined) doc.parentTaskId = data.parent_id;
   if (data.due_date !== undefined) doc.dueDate = dateStrToTimestamp(data.due_date as string | null);
-  if (data.planned_date !== undefined) doc.plannedDate = dateStrToTimestamp(data.planned_date as string | null);
+  if (data.planned_date !== undefined) {
+    doc.plannedDate = dateStrToTimestamp(data.planned_date as string | null);
+  }
+  if (data.due_time !== undefined) {
+    // Allow the caller to either set or clear the time. When clearing
+    // (passing `null`/empty), write `null` explicitly; when setting,
+    // anchor against the new dueDate if the caller passed one in the
+    // same edit, otherwise fall back to today.
+    const timeVal = data.due_time as string | null;
+    if (timeVal === null || timeVal === '') {
+      doc.dueTime = null;
+    } else {
+      doc.dueTime = buildDueTimeMillis(
+        (data.due_date as string | undefined) ?? null,
+        timeVal,
+      );
+    }
+  }
   if (data.sort_order !== undefined) doc.sortOrder = data.sort_order;
   if (data.recurrence_json !== undefined) doc.recurrenceRule = data.recurrence_json;
   if (data.estimated_duration !== undefined) doc.estimatedDuration = data.estimated_duration;
   if (data.eisenhower_quadrant !== undefined) doc.eisenhowerQuadrant = data.eisenhower_quadrant;
+  // `userOverrodeQuadrant` should travel with manual quadrant moves so
+  // Android's auto-classifier doesn't undo the user's choice on next sync.
+  // Callers (e.g. EisenhowerScreen drag handler) opt in by passing it
+  // alongside `eisenhower_quadrant`; we never set it implicitly.
+  if (data.userOverrodeQuadrant !== undefined) {
+    doc.userOverrodeQuadrant = data.userOverrodeQuadrant;
+  }
+  if (data.eisenhowerReason !== undefined) doc.eisenhowerReason = data.eisenhowerReason;
+  if (data.lifeCategory !== undefined) doc.lifeCategory = data.lifeCategory;
+  if (data.isFlagged !== undefined) doc.isFlagged = data.isFlagged;
   if (data.tag_ids !== undefined && Array.isArray(data.tag_ids)) {
     doc.tagIds = (data.tag_ids as string[]).filter((x) => typeof x === 'string');
   }

@@ -3,6 +3,7 @@ import { Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { useTaskStore } from '@/stores/taskStore';
 import { useProjectStore } from '@/stores/projectStore';
+import { parseQuickAdd } from '@/utils/nlp';
 
 interface QuickCreateInputProps {
   date: string; // ISO date string (YYYY-MM-DD)
@@ -43,9 +44,17 @@ export function QuickCreateInput({
 
     setIsCreating(true);
     try {
+      // Run the local NLP parser so "Lunch at noon" or "Standup at 9am"
+      // typed into Quick Create populates `due_time` instead of being
+      // dropped (PR-1 of the joint Q-F3+T-S2 fix). The screen anchors
+      // the task to a specific calendar date, so we always keep that
+      // date and only borrow the time/priority/tag hints from NLP.
+      const parsed = parseQuickAdd(title.trim());
       await createTask(projectId, {
-        title: title.trim(),
+        title: parsed.title || title.trim(),
         due_date: date,
+        due_time: parsed.dueTime ?? undefined,
+        priority: parsed.priority ?? undefined,
       });
       toast.success('Task created');
       setTitle('');

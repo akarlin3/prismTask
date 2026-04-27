@@ -534,6 +534,10 @@ export function EisenhowerScreen() {
         await updateTask(taskId, {
           ...updates,
           eisenhower_quadrant: targetQuadrant,
+          // Mark this as a manual override so Android's auto-classifier
+          // doesn't undo the move on the next sync. Mirrors the v57
+          // `tasks.user_overrode_quadrant` column on Android.
+          userOverrodeQuadrant: true,
         });
         toast.success(`Moved to ${QUADRANTS.find((q) => q.id === targetQuadrant)?.title}`);
       } catch {
