@@ -935,3 +935,103 @@ Phase 1 audit complete. **STOPPING for Avery's re-triage decision** before any P
 The deadline-realism check fires hard: 23 raw SHIP-BEFORE-MAY-15 items vs the 8-item STOP threshold. Tier A (5 PRs, ~4 days) is the recommended absolute minimum. Tier A + B (11 PRs, ~7-8 days) is the recommended target. Everything else explicitly DEFER-TO-G.0 with divergence documented in the Phase F test brief.
 
 Awaiting Avery's call on which tier to execute in Phase 2.
+
+---
+
+## Phase 3 — Bundle summary
+
+**Decision (Avery, 2026-04-26):** Execute Tier A + B as defined in § 17.4.
+
+**Outcome:** 10 implementation PRs opened, 1 docs PR (this file) — 11 total. Tier A + B work landed in ~3 hours (vs the 7-8 day estimate) by dispatching parallel agents into git worktrees. PR-1 (AI opt-out) and PR-5 (fake-button removal) bundled into a single PR (#842) because both touched the same `SettingsScreen.tsx` insertion region; net 10 PRs instead of 11.
+
+### Per-surface PR table
+
+| # | Tier | Surface(s) | Branch | PR | SHA | Scope-vs-audit deviation |
+|---|------|-----------|--------|----|-----|--------------------------|
+| 0 | — | (audit doc itself) | `parity/phase-1-audit-doc` | [#836](https://github.com/akarlin3/prismTask/pull/836) | `ce644226` | None |
+| 1+5 | A | Privacy (§ 9) + Settings fakes (§ 7+9) | `parity/privacy-ai-opt-out` | [#842](https://github.com/akarlin3/prismTask/pull/842) | `441373f7` | **Bundled** PR-1 + PR-5 because the AI Features settings section and the fake-button removal both insert into the same `SettingsScreen.tsx` region. Single combined PR is cleaner than two with merge conflicts. |
+| 2 | A | Tasks (§ 3) | `parity/tasks-preserve-on-write` | [#839](https://github.com/akarlin3/prismTask/pull/839) | `594de2bb` | None — covers T-S1/2/3, T-F1/2/3 + adds Life Category UI control on Organize tab + Eisenhower drag-drop now sets `userOverrodeQuadrant: true`. |
+| 3 | A+B | Habits (§ 2) | `parity/habits-preserve-on-write` | [#840](https://github.com/akarlin3/prismTask/pull/840) | `d7aa1a7b` | None — covers H-S2 + H-S4 (joint as planned). |
+| 4 | A | Account (§ 7) | `parity/account-restore-pending` | [#843](https://github.com/akarlin3/prismTask/pull/843) | `0194cffc` | None — `RestorePendingGate` between `ProtectedRoute` and `OnboardingGate`; fail-closed on API error. |
+| 6 | A | Onboarding (§ 16) | `parity/onboarding-path-unify` | [#844](https://github.com/akarlin3/prismTask/pull/844) | _(awaiting Android CI; will land via auto-merge)_ | None — picked web's path (`users/{uid}.onboardingCompletedAt`) as canonical. Android `MainActivity` `LaunchedEffect` hydrates local DataStore from canonical on sign-in. Existing `/prefs/onboarding_prefs` writes preserved for `GenericPreferenceSyncService` compatibility. |
+| 7 | B | Sync infra (§ 6) | `parity/sync-realtime-listeners` | [#845](https://github.com/akarlin3/prismTask/pull/845) | `f9aa62d8` | None — high-leverage fix exactly as scoped. New `useFirestoreSync(uid)` hook + 2 thin Zustand stores (`medicationSlotsStore`, `medicationPreferencesStore`) for the medication surfaces. LWW guards + `cloud_id` dedup explicitly deferred to G.0. |
+| 8 | B | Habits streak (§ 2) | `parity/habits-streak-forgiveness` | [#846](https://github.com/akarlin3/prismTask/pull/846) | `5d617c1b` | None — port of `DailyForgivenessStreakCore` (gracePeriodDays=7, allowedMisses=1, enabled=true). 30 vitest cases. |
+| 9 | B | Mood/energy (§ 12) | `parity/mood-energy-uniqueness` | [#838](https://github.com/akarlin3/prismTask/pull/838) | `77306186` | Picked Approach B (deterministic `${dateIso}__${slotKey}` doc-id) after verifying Android pull keys on doc-id-as-cloud_id at `SyncService.kt:2267`. 7 new vitest specs. |
+| 10 | B | Medication (§ 1) | `parity/medication-banner-copy` | [#837](https://github.com/akarlin3/prismTask/pull/837) | `4e9c56b6` | None — copy-only fix on `MedicationReminderModeSection.tsx:106-109`. |
+
+### Process notes
+
+- **Multiple agents stalled mid-flight from Anthropic API overload.** Recovery: detected via worktree state inspection (`git status --short` + `find -mmin -30`), then completed inline by the controller — verify tests pass, add CHANGELOG, commit, push, open PR with auto-merge. Lost ~30 min total to recovery overhead; no work was lost (all worktrees preserved their implementation files).
+- **Auto-update-branch handled most CHANGELOG conflicts automatically** as earlier PRs landed and later branches diverged. One branch (privacy-ai) needed a manual interactive rebase to resolve a 4-way `### Fixed` overlap; force-push required Avery's explicit authorization.
+- **Tier A + B shipped in ~3 hours of wall-clock vs the 7-8 day estimate** because parallel-worktree execution let agents work independently. The estimate assumed serial execution; parallel cut it ~50× on this batch.
+- **One worktree (`parity/settings-remove-fake-buttons`) was discarded** because the agent doing it inadvertently completed the AI opt-out work too (same file overlap with `parity/privacy-ai-opt-out`). The privacy-ai worktree had the more-complete implementation (it included the Firestore mirror module the fake-buttons agent missed), so the fake-buttons branch was deleted and the work shipped via the privacy-ai PR.
+
+### Items intentionally NOT in this bundle (DEFER-TO-G.0)
+
+These items were classified DEFER-TO-G.0 in § 17 and do **not** ship before May 15. Re-audit at G.0 kickoff:
+
+- Web habit booking + per-day notes sync (`habit_logs` collection on web)
+- Web `BuiltInHabitReconciler` equivalent + built-in habit version-check UI
+- Per-habit Today-skip windows in web habit editor
+- `task_completions` web write path (and the dead `web/src/api/sync.ts` decision)
+- Web archive (`archived_at`) + `source_habit_id` preservation on edits
+- Web Focus-Release per-task overrides
+- Web task templates Firestore migration (currently REST `templates.ts`)
+- Multi-task paste in web quick-add
+- Web batch undo persistence across browser refresh
+- `EnergyAwarePomodoro` session sizing on web
+- Weekly review persistence + history list + auto-generation worker on web
+- Web check-in MOOD_ENERGY/BALANCE/CALENDAR steps + 11am auto-prompt + history view
+- Web `MoodCorrelationEngine` (Pearson factor correlations)
+- Web Daily Essentials 6 missing cards + Plan-For-Today + Balance bar + Burnout badge + Self-care nudge
+- Web `DashboardPreferences` (section reorder + visibility + progress-ring style)
+- Web settings full Firestore-sync infrastructure (only AI opt-out + onboarding paths land in this bundle)
+- Web change-name backend write (currently no-op)
+- Web "Delete All Data" wired implementation (button removed in this bundle)
+- Web logout local IndexedDB / Firestore offline cache clear
+- Permanent-purge expiry handling on web sign-in
+- Web restore-pending UX for the email/password sign-in path (this bundle covers Google sign-in only)
+- Medication: collection-name reconciliation (`medication_slots` ↔ `medication_slot_defs`), tier-state doc-id reconciliation, top-level meds + doses sync, slot-overrides sync, refills, log/history view, clinical report, batch-history undo
+- Daily essentials: Android-Firestore vs web-REST split-brain decision, virtual-slot derivation on web
+- Sync infra: `cloud_id` dedup layer on web, LWW timestamp guards on web writes, milestones, attachments, project_templates real-time, nlp_shortcuts, saved_filters, leisure/courses/assignments/study_logs, mood/focus-release real-time
+- Web `medication_preferences` global default vs Android per-slot inheritance (G.0 decision)
+
+### Items intentionally NOT in this bundle (ACCEPT-AS-DIVERGENCE)
+
+These divergences are intentional and should NOT be re-flagged in future audits:
+
+- **Voice input** is Android-only by design (Web Speech API browser support is patchy; continuous hands-free is much weaker outside a native app). Documented in `docs/WEB_PARITY_GAP_ANALYSIS.md:311`.
+- **Notification delivery** is Android-only today; Web Push roadmapped to Phase G. Entity sync (`notification_profiles`, `custom_sounds`) does NOT extend to web — those features have no web consumer. Documented in `README.md:129` + `MedicationReminderModeSection.tsx:104` in-product banner.
+- **`batch_undo_log`** is per-device by design on both platforms (no `cloud_id`).
+- **`sync_metadata`**, **`usage_logs`**, **`calendar_sync`**, **`medication_log_events`**, **`self_care_logs/steps`** (deprecated by v53→v54) — local-only / external-provider / audit-log / deprecated, no sync needed.
+- **35+ Android settings sections** (escalation chains, custom sounds, voice, shake, Brain Mode, debug-tier, etc.) are Android-specific by design; web exposes ~12 settings sections of which ~10 are at parity or in-progress.
+- **Email/password sign-in** is web-only (Android is Google-only).
+- **Keyboard shortcuts modal** + **Install PWA prompt** are web-only by platform.
+- **Pomodoro foreground/background continuation** (Android `PomodoroTimerService`) — web cannot replicate without Web Workers + Notification API + a meaningful service-worker push channel; deferred indefinitely.
+- **Daily Essentials 7-card layout** — full wellness-overlay is Android-first by design through G.0 at minimum.
+- **Work-Life Balance engine V1** — Android-first; web Balance bar / `LifeCategory` / `BalanceTracker` deferred until Phase G.
+
+### Phase F readiness gate
+
+**Web is partial-parity** with the following profile after this bundle:
+
+- ✅ Privacy parity (AI opt-out + Anthropic disclosure + 451 gate)
+- ✅ Account flow parity (sign-in, sign-out, account deletion + restore-pending UX)
+- ✅ Tasks/Habits round-trip-safe (no more clobber on web edits)
+- ✅ Cross-device live updates (real-time Firestore listeners wired)
+- ✅ Onboarding completion flows account-wide
+- ✅ Web habit streak matches phone
+- ✅ Mood/energy uniqueness fixed (no Android Room constraint failures)
+- ⚠️ Medication is intentionally Android-primary on the web (slot-aggregate companion view)
+- ⚠️ Cross-device sync architecturally thinner than Android (no LWW guards, no `cloud_id` dedup, no migration model on web — explicit G.0 follow-ups)
+- ⚠️ Notification delivery is Android-only (Web Push is Phase G)
+- ⚠️ Voice input is Android-only by design
+
+**Recommendation:** Phase F kickoff (2026-05-15) is **green-go for web parity**. Add a "Known divergences for Phase F" section to the test brief covering the ⚠️ items above so testers know what to expect.
+
+### Memory entry candidates (flag for Avery; do not auto-add)
+
+1. **Parallel-worktree fan-out works for medium-bundle PR work** but agents will silently stall mid-flight on API overload — **detect via `find -mmin -N` per worktree, recover by completing inline**. ~30 min recovery overhead on a 10-agent dispatch this round; budget for it.
+2. **Bundled-PR shape when files overlap** (e.g., AI opt-out + fake-button removal both touched `SettingsScreen.tsx`) — easier to ship as one PR than coordinate two against the same file. Check file-touch matrix before fan-out and bundle proactively.
+3. **Same-file CHANGELOG conflicts pile up across a bundle** — auto-update-branch resolved most via 3-way merge; one needed manual interactive rebase. Each PR adding to the same `### Fixed` subsection is the bug shape. Consider separate per-PR CHANGELOG entry templates with explicit anchor points (e.g., `<!-- INSERT FIXED HERE -->`) to make 3-way-merge happier.
+4. **"Web sync architecture is structurally thinner than Android"** is a permanent-flavor finding worth memorializing — saves audit time in future Phase reviews when someone proposes "let's get web to sync parity in N days." The shape costs 3-4 weeks per the Surface 6 estimate.
