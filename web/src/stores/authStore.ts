@@ -9,6 +9,7 @@ import { firebaseAuth, googleProvider } from '@/lib/firebase';
 import type { User, FirebaseUser } from '@/types/auth';
 import { authApi } from '@/api/auth';
 import { setFirebaseUid } from '@/stores/firebaseUid';
+import { useSettingsStore } from '@/stores/settingsStore';
 
 interface AuthState {
   /** FastAPI backend user (for NLP/AI features) */
@@ -120,6 +121,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       isLoading: false,
     });
 
+    // Pull cross-device synced settings (e.g. AI-features opt-out) from
+    // Firestore so Android's value propagates immediately. Best-effort.
+    void useSettingsStore.getState().loadAiFeaturesFromFirestore(fbUser.uid);
+
     // Link with FastAPI backend for NLP/AI features
     await ensureBackendAccount(fbUser);
 
@@ -145,6 +150,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           isAuthenticated: true,
           isLoading: false,
         });
+
+        // Pull cross-device synced settings (e.g. AI-features opt-out) from
+        // Firestore so Android's value propagates on session restore.
+        void useSettingsStore.getState().loadAiFeaturesFromFirestore(fbUser.uid);
 
         // Restore JWT tokens from localStorage
         const accessToken = localStorage.getItem('prismtask_access_token');

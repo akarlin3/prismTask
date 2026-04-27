@@ -342,6 +342,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Web Settings: removed two fake destructive-action buttons (Phase F
+  parity).** The previous "Change Password" button (Settings → Account)
+  opened a modal whose submit handler unconditionally toasted "Password
+  changed" without ever calling Firebase Auth — Google-sign-in users
+  manage their password at `myaccount.google.com`, so the modal was
+  removed entirely. The previous "Delete All Data" button (Settings →
+  Data) toasted "All data deleted" without writing anything; it is
+  removed in favour of pointing users to the existing "Delete Account"
+  flow which actually performs the deletion (PR #783). Misleading
+  destructive UX fixed; PR-5 of the parity bundle (audit PR #836,
+  Surfaces 7 + 9). Bundled into this PR because the affected sections
+  in `SettingsScreen.tsx` overlap with the AI opt-out section's
+  insertion point below.
+
+- **Web AI features opt-out toggle + Anthropic egress disclosure (Phase F
+  privacy parity, P0).** Web previously had no UI, no setting, and no
+  client-side gate for the master AI-features opt-out that ships on
+  Android (`UserPreferencesDataStore.KEY_AI_FEATURES_ENABLED` +
+  `AiSection.kt` disclosure + `AiFeatureGateInterceptor` 451 short-circuit
+  on `/ai/*`, `/tasks/parse`, `/syllabus/parse`). Disabling AI on Android
+  did not stop the web client's nine `/ai/*` callsites (Eisenhower,
+  Pomodoro plan, time-block, weekly review, daily briefing, weekly plan,
+  extract-from-text, pomodoro coaching, eisenhower classify-text) from
+  calling Anthropic via the backend. This PR closes the gap: a new
+  Settings → AI Features section mirrors the Android disclosure copy
+  verbatim and binds a toggle to a new `aiFeaturesEnabled` flag in the
+  zustand settings store (default `true`, matching Android's opt-out
+  semantics). The flag round-trips to Firestore at
+  `users/{uid}/prefs/user_prefs.ai_features_enabled` with the
+  `__pref_types: { ai_features_enabled: "bool" }` type tag that
+  Android's `GenericPreferenceSyncService` pull side expects, so toggling
+  on either client propagates to the other on next pull. A new request
+  interceptor in `web/src/api/client.ts` rejects any request to the same
+  three path prefixes Android gates with a synthetic 451 (an
+  `AxiosError` carrying `response.status = 451` and the
+  `X-PrismTask-AI-Features: disabled` header — same shape Android's
+  OkHttp interceptor returns). The response interceptor surfaces a
+  one-line "AI features are disabled. Re-enable them in Settings → AI
+  Features." toast for that status. Coverage: 21 new vitest specs across
+  the gate (path matching, query-string stripping, prefix-substring
+  defense, header stamping, toast wiring), the Firestore round-trip
+  (read default, read persisted, write payload shape, type-tag
+  presence, last-write-wins timestamp, end-to-end round-trip), and the
+  store integration (default-on, optimistic toggle, signed-in vs
+  signed-out push behaviour, push-failure tolerance, Firestore-load
+  side, full round-trip).
+
 - **Medication screen day boundary now respects Start-of-Day on Android +
   web.** `MedicationViewModel.todayDate` (Android) and the four
   `const todayIso = logicalToday(Date.now(), startOfDayHour)` web sites

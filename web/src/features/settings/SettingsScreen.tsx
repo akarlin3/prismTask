@@ -42,6 +42,7 @@ import { BoundariesSection } from '@/features/settings/sections/BoundariesSectio
 import { AboutSection } from '@/features/settings/sections/AboutSection';
 import { HelpFeedbackSection } from '@/features/settings/sections/HelpFeedbackSection';
 import { AccessibilitySection } from '@/features/settings/sections/AccessibilitySection';
+import { AiFeaturesSection } from '@/features/settings/sections/AiFeaturesSection';
 import { DebugSection } from '@/features/settings/sections/DebugSection';
 import { DeleteAccountSection } from '@/features/settings/sections/DeleteAccountSection';
 import { THEME_ORDER, THEMES, type ThemeKey } from '@/theme/themes';
@@ -188,8 +189,6 @@ export function SettingsScreen() {
 
   // Delete state
   const [deleteCompletedOpen, setDeleteCompletedOpen] = useState(false);
-  const [deleteAllOpen, setDeleteAllOpen] = useState(false);
-  const [deleteAllConfirmText, setDeleteAllConfirmText] = useState('');
   // Account deletion: web-side flow lives in DeleteAccountSection; the
   // backend endpoints under /api/v1/auth/me/deletion are shared with the
   // Android implementation (see PR #774).
@@ -197,12 +196,6 @@ export function SettingsScreen() {
   // Account edit
   const [editingName, setEditingName] = useState(false);
   const [nameValue, setNameValue] = useState(user?.name || '');
-
-  // Password
-  const [changePasswordOpen, setChangePasswordOpen] = useState(false);
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
 
   // Keyboard shortcuts
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
@@ -521,6 +514,14 @@ export function SettingsScreen() {
         <AccessibilitySection />
       </SettingsSection>
 
+      {/* AI Features — privacy parity with Android AiSection.kt */}
+      <SettingsSection
+        icon={<Sparkles className="h-5 w-5 text-[var(--color-accent)]" />}
+        title="AI Features"
+      >
+        <AiFeaturesSection />
+      </SettingsSection>
+
       {/* Help & Feedback */}
       <SettingsSection
         icon={<HelpCircle className="h-5 w-5 text-[var(--color-accent)]" />}
@@ -608,15 +609,11 @@ export function SettingsScreen() {
               <Trash2 className="h-4 w-4" />
               Delete All Completed Tasks
             </Button>
-            <Button
-              variant="danger"
-              size="sm"
-              onClick={() => setDeleteAllOpen(true)}
-            >
-              <AlertTriangle className="h-4 w-4" />
-              Delete All Data
-            </Button>
           </div>
+          <p className="mt-2 text-xs text-[var(--color-text-secondary)]">
+            To remove your account and all associated data, use{' '}
+            <span className="font-medium">Delete Account</span> below.
+          </p>
         </div>
       </SettingsSection>
 
@@ -755,17 +752,6 @@ export function SettingsScreen() {
               </button>
             </div>
           )}
-        </div>
-
-        {/* Change Password */}
-        <div className="mb-4">
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => setChangePasswordOpen(true)}
-          >
-            Change Password
-          </Button>
         </div>
 
         {/* Subscription */}
@@ -916,84 +902,6 @@ export function SettingsScreen() {
         )}
       </Modal>
 
-      {/* Change Password Modal */}
-      <Modal
-        isOpen={changePasswordOpen}
-        onClose={() => {
-          setChangePasswordOpen(false);
-          setCurrentPassword('');
-          setNewPassword('');
-          setConfirmPassword('');
-        }}
-        title="Change Password"
-        size="sm"
-        footer={
-          <div className="flex justify-end gap-2">
-            <Button
-              variant="ghost"
-              onClick={() => setChangePasswordOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={() => {
-                if (newPassword !== confirmPassword) {
-                  toast.error('Passwords do not match');
-                  return;
-                }
-                if (newPassword.length < 8) {
-                  toast.error('Password must be at least 8 characters');
-                  return;
-                }
-                toast.success('Password changed');
-                setChangePasswordOpen(false);
-                setCurrentPassword('');
-                setNewPassword('');
-                setConfirmPassword('');
-              }}
-            >
-              Update Password
-            </Button>
-          </div>
-        }
-      >
-        <div className="flex flex-col gap-3">
-          <div>
-            <label className="mb-1 block text-xs font-medium text-[var(--color-text-secondary)]">
-              Current Password
-            </label>
-            <input
-              type="password"
-              value={currentPassword}
-              onChange={(e) => setCurrentPassword(e.target.value)}
-              className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-secondary)] px-3 py-2 text-sm text-[var(--color-text-primary)] outline-none focus:border-[var(--color-accent)]"
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs font-medium text-[var(--color-text-secondary)]">
-              New Password
-            </label>
-            <input
-              type="password"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-secondary)] px-3 py-2 text-sm text-[var(--color-text-primary)] outline-none focus:border-[var(--color-accent)]"
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs font-medium text-[var(--color-text-secondary)]">
-              Confirm New Password
-            </label>
-            <input
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-secondary)] px-3 py-2 text-sm text-[var(--color-text-primary)] outline-none focus:border-[var(--color-accent)]"
-            />
-          </div>
-        </div>
-      </Modal>
-
       {/* Delete Completed Tasks */}
       <ConfirmDialog
         isOpen={deleteCompletedOpen}
@@ -1007,63 +915,6 @@ export function SettingsScreen() {
         confirmLabel="Delete Completed"
         variant="danger"
       />
-
-      {/* Delete All Data */}
-      <Modal
-        isOpen={deleteAllOpen}
-        onClose={() => {
-          setDeleteAllOpen(false);
-          setDeleteAllConfirmText('');
-        }}
-        title="Delete All Data"
-        size="sm"
-        footer={
-          <div className="flex justify-end gap-3">
-            <Button
-              variant="ghost"
-              onClick={() => {
-                setDeleteAllOpen(false);
-                setDeleteAllConfirmText('');
-              }}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="danger"
-              disabled={deleteAllConfirmText !== 'DELETE'}
-              onClick={() => {
-                toast.success('All data deleted');
-                setDeleteAllOpen(false);
-                setDeleteAllConfirmText('');
-              }}
-            >
-              Delete Everything
-            </Button>
-          </div>
-        }
-      >
-        <div className="flex flex-col gap-4">
-          <div className="flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-3">
-            <AlertTriangle className="h-5 w-5 shrink-0 text-red-500" />
-            <p className="text-sm text-red-700">
-              This will permanently delete ALL your data — tasks, projects, goals, habits,
-              templates, and settings. This cannot be undone.
-            </p>
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-[var(--color-text-primary)]">
-              Type DELETE to confirm
-            </label>
-            <input
-              type="text"
-              value={deleteAllConfirmText}
-              onChange={(e) => setDeleteAllConfirmText(e.target.value)}
-              placeholder="DELETE"
-              className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-secondary)] px-3 py-2 text-sm text-[var(--color-text-primary)] outline-none focus:border-red-500"
-            />
-          </div>
-        </div>
-      </Modal>
 
       {/* Keyboard Shortcuts Modal */}
       <KeyboardShortcutsModal

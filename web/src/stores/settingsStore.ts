@@ -1,4 +1,10 @@
 import { create } from 'zustand';
+import { setAiFeaturesEnabledProvider } from '@/api/client';
+import {
+  DEFAULT_AI_FEATURES_ENABLED,
+  getAiFeaturesEnabled,
+  setAiFeaturesEnabled,
+} from '@/api/firestore/aiPreferences';
 
 interface SettingsState {
   // Task Defaults
@@ -25,9 +31,26 @@ interface SettingsState {
   // Compact
   compactMode: boolean;
 
+  /**
+   * Master AI-features opt-out. Default `true` (opt-out, not opt-in) to match
+   * Android's `KEY_AI_FEATURES_ENABLED`. When false, the request-side gate in
+   * `api/client.ts` short-circuits all Anthropic-touching paths with a
+   * synthetic 451. Synced cross-device via Firestore at
+   * `users/{uid}/prefs/user_prefs.ai_features_enabled` so toggling this on
+   * Android propagates to web (and vice versa).
+   */
+  aiFeaturesEnabled: boolean;
+
   // Actions
   setSetting: <K extends keyof SettingsState>(key: K, value: SettingsState[K]) => void;
   loadFromStorage: () => void;
+  /**
+   * Pull the AI-features flag from Firestore on auth-load. Called by the
+   * auth bootstrap once `firebaseUid` is known. Idempotent. Falls back to
+   * the local (localStorage) value on read failure so offline users don't
+   * lose the flag.
+   */
+  loadAiFeaturesFromFirestore: (uid: string) => Promise<void>;
 }
 
 const STORAGE_KEY = 'prismtask_settings';
@@ -57,6 +80,7 @@ function saveSettings(state: Partial<SettingsState>) {
     timeFormat,
     showWeekends,
     compactMode,
+    aiFeaturesEnabled,
   } = state as SettingsState;
 
   localStorage.setItem(
@@ -76,6 +100,7 @@ function saveSettings(state: Partial<SettingsState>) {
       timeFormat,
       showWeekends,
       compactMode,
+      aiFeaturesEnabled,
     }),
   );
 }
@@ -95,9 +120,37 @@ const defaults = {
   timeFormat: '12h' as const,
   showWeekends: true,
   compactMode: false,
+  aiFeaturesEnabled: DEFAULT_AI_FEATURES_ENABLED,
 };
 
 const stored = loadSettings();
+
+/**
+ * Push the AI-features flag to Firestore so Android picks it up on its
+ * next pull. Best-effort: a transient Firestore failure should never block
+ * the local UI toggle. We surface the error to the console rather than
+ * unwinding the optimistic local update because the Firestore pull side
+ * is last-write-wins and the user can re-toggle.
+ */
+async function pushAiFeaturesEnabledToFirestore(enabled: boolean): Promise<void> {
+  // Lazy-import to avoid initializing Firebase modules on test paths that
+  // don't need them.
+  const [{ getFirebaseUid }] = await Promise.all([
+    import('@/stores/firebaseUid'),
+  ]);
+  let uid: string;
+  try {
+    uid = getFirebaseUid();
+  } catch {
+    // Not signed in — local-only toggle is fine.
+    return;
+  }
+  try {
+    await setAiFeaturesEnabled(uid, enabled);
+  } catch (e) {
+    console.warn('Failed to sync AI features flag to Firestore', e);
+  }
+}
 
 export const useSettingsStore = create<SettingsState>((set, get) => ({
   ...defaults,
@@ -111,6 +164,12 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     if (key === 'compactMode') {
       document.documentElement.classList.toggle('compact', value as boolean);
     }
+
+    // Sync the AI-features flag to Firestore so Android receives the
+    // toggle on its next pull. Fire-and-forget — local UI is optimistic.
+    if (key === 'aiFeaturesEnabled') {
+      void pushAiFeaturesEnabledToFirestore(value as boolean);
+    }
   },
 
   loadFromStorage: () => {
@@ -120,4 +179,19 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       document.documentElement.classList.add('compact');
     }
   },
+
+  loadAiFeaturesFromFirestore: async (uid) => {
+    try {
+      const remote = await getAiFeaturesEnabled(uid);
+      set({ aiFeaturesEnabled: remote });
+      saveSettings({ ...get(), aiFeaturesEnabled: remote });
+    } catch (e) {
+      console.warn('Failed to load AI features flag from Firestore', e);
+    }
+  },
 }));
+
+// Register the gate provider so the axios request interceptor can read the
+// current AI-features flag without importing the store directly (which
+// would create a cycle: client → store → client).
+setAiFeaturesEnabledProvider(() => useSettingsStore.getState().aiFeaturesEnabled);

@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios, { AxiosError, type InternalAxiosRequestConfig } from 'axios';
 import { toast } from 'sonner';
 
 const API_BASE_URL =
@@ -12,8 +12,98 @@ const apiClient = axios.create({
   },
 });
 
-// Request interceptor: attach JWT token
+/**
+ * Path prefixes that egress user data to Anthropic via the backend.
+ * Mirrors Android's `AiFeatureGateInterceptor.AI_PATH_PREFIXES` in
+ * `app/src/main/java/com/averycorp/prismtask/data/remote/api/AiFeatureGateInterceptor.kt`.
+ *
+ * Keep this list in sync when adding a new Anthropic-touching backend route.
+ */
+export const AI_PATH_PREFIXES: readonly string[] = [
+  '/ai/',
+  '/tasks/parse',
+  '/syllabus/parse',
+];
+
+export const HTTP_451_UNAVAILABLE_FOR_LEGAL_REASONS = 451;
+export const HEADER_AI_FEATURES = 'X-PrismTask-AI-Features';
+export const HEADER_VALUE_DISABLED = 'disabled';
+
+const SYNTHETIC_BODY = {
+  detail:
+    'AI features are disabled in PrismTask Settings → AI Features. Re-enable to use this feature.',
+};
+
+/**
+ * Provider for the master AI-features opt-out flag, read on every request to
+ * an Anthropic-touching path. Defaults to "enabled" until the settings store
+ * registers itself, so module-load-order during tests doesn't accidentally
+ * fail-closed on requests issued before the store hydrates.
+ *
+ * The settings store calls `setAiFeaturesEnabledProvider(...)` once on
+ * module init (zustand store creation runs at import time).
+ */
+let aiFeaturesEnabledProvider: () => boolean = () => true;
+
+export function setAiFeaturesEnabledProvider(provider: () => boolean): void {
+  aiFeaturesEnabledProvider = provider;
+}
+
+function isAiTouchingPath(url: string | undefined): boolean {
+  if (!url) return false;
+  // Match against the path component only — strip query string and any
+  // accidental fully-qualified URL prefix.
+  let path = url;
+  try {
+    if (/^https?:\/\//i.test(url)) {
+      path = new URL(url).pathname;
+    } else {
+      // Drop query string from a relative URL.
+      const q = url.indexOf('?');
+      if (q >= 0) path = url.slice(0, q);
+    }
+  } catch {
+    // If URL parsing fails, fall through with the raw url.
+  }
+  return AI_PATH_PREFIXES.some((prefix) => path.startsWith(prefix));
+}
+
+/**
+ * Synthetic axios error mimicking a backend 451 response. Calling code that
+ * already handles network/HTTP failures (forms, mutation toasts, etc.) sees
+ * a normal AxiosError and reacts the same way it would for a real backend
+ * rejection — see Android's `AiFeatureGateInterceptor` for the parity
+ * implementation that returns the same shape from OkHttp.
+ */
+export function buildAiDisabledError(
+  config: InternalAxiosRequestConfig,
+): AxiosError {
+  const error = new AxiosError(
+    'AI features disabled in PrismTask Settings',
+    'ERR_AI_FEATURES_DISABLED',
+    config,
+    undefined,
+    {
+      status: HTTP_451_UNAVAILABLE_FOR_LEGAL_REASONS,
+      statusText: 'Unavailable For Legal Reasons',
+      headers: { [HEADER_AI_FEATURES]: HEADER_VALUE_DISABLED },
+      config,
+      data: SYNTHETIC_BODY,
+    },
+  );
+  return error;
+}
+
+// Request interceptor: AI-features gate + JWT attachment.
 apiClient.interceptors.request.use((config) => {
+  // Gate Anthropic-touching paths client-side. Mirrors Android's
+  // AiFeatureGateInterceptor: when the user has disabled AI in Settings,
+  // we short-circuit with a synthetic 451 instead of hitting the backend
+  // so no PrismTask data reaches Anthropic.
+  if (isAiTouchingPath(config.url) && !aiFeaturesEnabledProvider()) {
+    return Promise.reject(buildAiDisabledError(config));
+  }
+
   const token = localStorage.getItem('prismtask_access_token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
@@ -123,6 +213,15 @@ apiClient.interceptors.response.use(
       const { useAuthStore } = await import('@/stores/authStore');
       useAuthStore.getState().logout();
       toast.error('Your account has been scheduled for deletion. You have been signed out.');
+      return Promise.reject(error);
+    }
+
+    // 451 Unavailable For Legal Reasons — synthetic response from the
+    // request-side AI features gate (parity with Android's
+    // AiFeatureGateInterceptor). Surface a clear, actionable toast rather
+    // than the generic network error one.
+    if (status === HTTP_451_UNAVAILABLE_FOR_LEGAL_REASONS) {
+      toast.error('AI features are disabled. Re-enable them in Settings → AI Features.');
       return Promise.reject(error);
     }
 
