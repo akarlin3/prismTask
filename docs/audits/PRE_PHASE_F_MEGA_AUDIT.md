@@ -1016,4 +1016,100 @@ as a specific durable lesson, not a snapshot of current state.
 
 ---
 
-# End of Phase 3 — pre-Phase F mega audit closed.
+# Phase 4 — Scorecard refresh post D2/F mega audit (2026-04-26)
+
+**Why this section exists:** the second mega-audit
+(`docs/audits/D2_AND_PHASE_F_PREP_MEGA_AUDIT.md`, 8 items, opened
+2026-04-26 ~24:00Z, batch order PR #826 → #830) shipped 6 PROCEED PRs
+across 5 items + 3 STOP-with-rationale items. Two of those PRs added
+test coverage for Phase F surfaces that were untracked or missing in
+Phase 3's scorecard, and one materially corrected a Phase 3 scorecard
+line (connected-tests success rate). This section reconciles.
+
+## Refreshed surface scorecard
+
+Deltas from Phase 3 (PR #823 closeout) in **bold**.
+
+| Surface | Phase 3 state | Phase 4 state (this refresh) | Driver |
+|---------|--------------|------------------------------|--------|
+| AI feature gate (privacy invariant) | GREEN | GREEN unchanged | — |
+| **Connected-tests CI signal** | RED with known cause (claimed 0% success) | **YELLOW** — actual pre-#824 baseline measured at **~73% success over 30-run window**, not 0%. Post-#824 soak window pending (~3 days at current merge cadence). | D2/F item 1 measurement; PR #824 fix |
+| **Cross-device-tests CI signal** | not tracked separately | **RED — 0/5 green gate.** Job has not had a single green run on main since the cross-device split. Quarantined (not in required-status), so not blocking PRs. | D2/F item 2 |
+| Dead code surface | GREEN (Tier 1 complete) | GREEN unchanged | — |
+| CLAUDE.md baseline accuracy | GREEN | GREEN unchanged | — |
+| v2.0 release notes | GREEN | GREEN unchanged | — |
+| Stale TODO inventory | YELLOW (still-relevant) | YELLOW unchanged | — |
+| Privacy disclosure copy | GREEN | GREEN unchanged | — |
+| Phase G engineering scope | YELLOW pending #822 | YELLOW unchanged | — |
+| Widgets ship-or-cut | YELLOW pending #821 | YELLOW unchanged | — |
+| **Mood/energy test coverage** | not tracked | **YELLOW** (was hidden RED). 8 unit tests landed via PR #829 covering CRUD, upsert dedup, sync contract. | D2/F item 4a (PR #829) |
+| **Medication tier-marking coverage** | not tracked (assumed YELLOW under "medication tracking" general) | **YELLOW** with strengthened invariant coverage. 11 unit tests landed via PR #830 covering slot CRUD, junction, and the load-bearing USER_SET-vs-COMPUTED tier-state precedence rule. | D2/F item 4b (PR #830) |
+| **BetaTesting platform external config** | not tracked | **YELLOW (cannot self-verify).** Checklist doc shipped via PR #826 — Avery's manual verification gate before May 15. | D2/F item 5 (PR #826) |
+| **Bug triage rubric** | not tracked | **GREEN.** Template doc shipped via PR #827 — severity (P0-P3), surface taxonomy, weekly workflow. | D2/F item 7 (PR #827) |
+| **Pre-Phase F regression methodology** | not tracked | **GREEN.** Methodology doc shipped via PR #828 — 30-min 8-item smoke + go/no-go rubric, run on S25 Ultra 2026-05-12 to 2026-05-14. | D2/F item 8 (PR #828) |
+| Phase F kickoff readiness | YELLOW with 3 carry-forward blockers | **YELLOW with 3 carry-forward blockers** — same set, but two of three now have shipped artifacts: regression methodology (#828) and triage template (#827). The third blocker (cross-device-tests gate) is unchanged and may not clear before kickoff. | This refresh + #827 + #828 |
+
+**Net summary:**
+- 1 surface materially corrected (connected-tests RED → YELLOW with corrected baseline)
+- 1 newly-surfaced RED (cross-device-tests, not previously tracked)
+- 4 newly-tracked YELLOW (mood/energy, medication tier-marking, BetaTesting config, plus the cross-device finding above)
+- 2 newly-shipped GREEN (bug triage rubric, regression methodology)
+- 0 regressions (no surface moved GREEN → YELLOW or YELLOW → RED on previously-tracked items)
+
+## Most consequential corrections from D2/F audit
+
+1. **Connected-tests was never at 0% success.** PR #817's triage doc
+   (which Phase 3 cited) appears to have conflated cross-device-tests
+   cancellations with connected-tests failures. Actual pre-#824
+   baseline is ~73%. This means the AVD-boot hypothesis is still valid
+   (cross-device-tests IS at 0%) but the impact is narrower than
+   Phase 3 implied.
+
+2. **Cross-device-tests is the actual silent-bypass surface.** Quarantined
+   from required-status (per workflow comment), so PR merges aren't
+   blocked. But the explicit Phase D2 promotion path requires
+   stabilization that hasn't started. PR #824's emulator-boot-timeout
+   bump is in place for cross-device-tests too — needs post-#824 soak.
+
+3. **Mood/energy was a hidden Phase F RED.** Zero coverage despite being
+   a tracked Phase F surface. PR #829 closed the gap with 8 unit tests.
+
+## Updated Phase F kickoff readiness — go / no-go
+
+**Go-ready (added since Phase 3):**
+- Bug triage rubric (PR #827) ✅
+- Pre-Phase F regression methodology (PR #828) ✅
+- BetaTesting kickoff checklist (PR #826) ✅
+- Mood/energy test coverage (PR #829) ✅
+- Medication tier-marking unit coverage (PR #830) ✅
+
+**Still go-ready from Phase 3:**
+- AI privacy invariant test coverage ✅
+- Release notes draft ✅
+- CLAUDE.md baseline ✅
+- Dead code reduction Tier 1 ✅
+
+**Still blocking before kickoff (unchanged from Phase 3):**
+- Connected-tests post-#824 soak verification (~3 days; auto-resolves)
+- Cross-device-tests stabilization (RED, no clear ETA)
+- User decisions on issues #821 (widgets) and #822 (Phase G scope)
+
+## Memory entry candidates from D2/F audit (flagged, not auto-added)
+
+1. **PR #817's "0% success rate" claim was a measurement artifact.** When
+   classifying CI run conclusions, always disambiguate `connected-tests`
+   from `cross-device-tests` job conclusions — workflow-level "failure"
+   conclusions in `android-integration.yml` are usually driven by the
+   cross-device job, not connected-tests.
+
+2. **MedicationScreen route is reachable only via Today / Habits entry
+   points, not bottom nav.** Smoke tests targeting medication need
+   either (a) test infrastructure scaffolding to seed a self-care
+   routine and tap through, or (b) a deep-link / test-route helper.
+   Pivoting to unit-level coverage is the pragmatic short-term call.
+
+3. **`USER_SET` wins over `COMPUTED` in `MedicationSlotRepository.upsertTierState`** is the load-bearing invariant for medication tier marking. Any future refactor of the recompute path must preserve this rule — tested in `MedicationSlotRepositoryTest` (PR #830).
+
+---
+
+# End of Phase 4 — D2/F audit scorecard reconciliation closed.
