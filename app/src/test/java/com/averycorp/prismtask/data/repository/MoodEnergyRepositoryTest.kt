@@ -152,6 +152,12 @@ private class FakeMoodEnergyLogDao : MoodEnergyLogDao {
     override suspend fun getByDate(date: Long): List<MoodEnergyLogEntity> =
         rows.filter { it.date == date }.sortedBy { it.timeOfDay }
 
+    override suspend fun getByDateAndTimeOfDayOnce(
+        date: Long,
+        timeOfDay: String
+    ): MoodEnergyLogEntity? =
+        rows.firstOrNull { it.date == date && it.timeOfDay == timeOfDay }
+
     override fun observeRange(start: Long, end: Long): Flow<List<MoodEnergyLogEntity>> = flow {
         emit(rows.filter { it.date in start..end }.sortedWith(compareBy({ it.date }, { it.timeOfDay })))
     }

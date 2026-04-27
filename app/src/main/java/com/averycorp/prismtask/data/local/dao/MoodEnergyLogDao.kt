@@ -22,6 +22,15 @@ interface MoodEnergyLogDao {
     @Query("SELECT * FROM mood_energy_logs WHERE date = :date ORDER BY time_of_day")
     suspend fun getByDate(date: Long): List<MoodEnergyLogEntity>
 
+    @Query(
+        "SELECT * FROM mood_energy_logs WHERE date = :date " +
+            "AND time_of_day = :timeOfDay LIMIT 1"
+    )
+    suspend fun getByDateAndTimeOfDayOnce(
+        date: Long,
+        timeOfDay: String
+    ): MoodEnergyLogEntity?
+
     @Query("SELECT * FROM mood_energy_logs WHERE date >= :start AND date <= :end ORDER BY date ASC, time_of_day ASC")
     fun observeRange(start: Long, end: Long): Flow<List<MoodEnergyLogEntity>>
 
