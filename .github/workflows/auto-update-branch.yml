@@ -103,7 +103,7 @@ jobs:
           # printf's \n produces real newlines.
           AUTH_BODY=$(printf '%s\n%s' \
             "$AUTH_MARKER" \
-            'auto-update-branch could not authenticate with `AUTOFIX_PAT` (HTTP 401). The PAT may have expired or been revoked. Auto-update is disabled until the PAT is rotated.')
+            'auto-update-branch could not call `updatePullRequestBranch` with `AUTOFIX_PAT`. The PAT is either expired/revoked (HTTP 401) or missing the required scopes (HTTP 403 — `Resource not accessible by personal access token`). Auto-update is disabled until the PAT is rotated. Required scopes (fine-grained PAT): **Pull requests: Read+Write** + **Contents: Read+Write** on this repo.')
           CONFLICT_BODY=$(printf '%s\n%s' \
             "$CONFLICT_MARKER" \
             'Auto-update-branch hit a merge conflict against `main` and could not update this branch. Please rebase or merge `main` manually. Re-running this workflow will not help until the conflict is resolved.')
@@ -195,15 +195,17 @@ jobs:
                   echo "PR #$n: update-branch failed (exit $EC). Output: $OUT"
                   shopt -s nocasematch
                   case "$OUT" in
-                    *"401"*|*unauthorized*|*"bad credentials"*)
+                    *"401"*|*unauthorized*|*"bad credentials"*|\
+                    *"403"*|*"not accessible"*|*"forbidden"*|\
+                    *"resource not accessible"*)
                       shopt -u nocasematch
-                      echo "::error::PR #$n: AUTOFIX_PAT authentication failed (HTTP 401)."
+                      echo "::error::PR #$n: AUTOFIX_PAT auth/scope failure (401 or 403)."
                       if ! has_marker "$n" "$AUTH_MARKER"; then
                         gh pr comment "$n" --repo "$REPO" --body "$AUTH_BODY"
                       fi
                       fail_auth=1
                       # All subsequent PRs in this run will hit the
-                      # same 401 — no point continuing.
+                      # same auth failure — no point continuing.
                       break
                       ;;
                     *conflict*|*"cannot be"*|*"422"*|*"unprocessable"*)

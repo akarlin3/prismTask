@@ -291,6 +291,58 @@ jobs:
           echo "::error::Failed to push version bump after 5 attempts."
           exit 1
 
+      - name: Push patch tag to fire release.yml
+        # P0 sync audit follow-up to PR #850. Pushes an annotated tag
+        # matching the new versionName so release.yml fires on every PR
+        # merge instead of only on hand-crafted minor/major tags.
+        # release.yml then handles the full signed APK + AAB build,
+        # GitHub Release creation, and backend upload — keeping
+        # per-merge "full release" semantics while this workflow
+        # continues to own the Firebase App Distribution path.
+        #
+        # Tag is created from the post-bump origin/main tip we just
+        # pushed (or whatever main is at if our bump was a no-op).
+        # Skipped if no version_name output (bump didn't land).
+        if: steps.wait.outputs.merged == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NEW_NAME: ${{ steps.version.outputs.version_name }}
+          NEW_CODE: ${{ steps.version.outputs.version_code }}
+        run: |
+          set -euo pipefail
+          if [ -z "${NEW_NAME:-}" ]; then
+            echo "No version_name output — bump didn't land. Skipping tag push."
+            exit 0
+          fi
+          TAG="v${NEW_NAME}"
+          # Idempotency guard: another concurrent run may have raced us
+          # to push the same tag. Refusing to clobber a pre-existing tag
+          # keeps the release.yml run that fired on the first push as
+          # the canonical artifact source.
+          if git ls-remote --tags origin "refs/tags/${TAG}" | grep -q "${TAG}"; then
+            echo "Tag ${TAG} already exists on origin; another run pushed first. Skipping."
+            exit 0
+          fi
+          # Re-sync to the post-bump main tip so the tag points at the
+          # version-bump commit we just pushed.
+          git fetch origin main
+          git checkout main
+          git reset --hard origin/main
+          git tag -a "${TAG}" -m "PrismTask v${NEW_NAME} (build ${NEW_CODE})"
+          # Tag push triggers release.yml via the patch-tag filter
+          # widened in the same PR. If the push races and loses, the
+          # existence check above on the next run picks it up.
+          for attempt in 1 2 3; do
+            if git push origin "${TAG}"; then
+              echo "Pushed ${TAG} on attempt ${attempt}"
+              exit 0
+            fi
+            echo "Tag push rejected on attempt ${attempt}; retrying"
+            sleep $((attempt * 2))
+          done
+          echo "::error::Failed to push tag ${TAG} after 3 attempts."
+          exit 1
+
       - name: Decode signing keystore (skip if missing)
         id: keystore
         if: steps.wait.outputs.merged == 'true'
