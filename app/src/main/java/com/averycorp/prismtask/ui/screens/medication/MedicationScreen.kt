@@ -633,13 +633,6 @@ private fun NoMedicationsState(onAddClick: () -> Unit) {
     }
 }
 
-private fun tierLabel(tier: AchievedTier): String = when (tier) {
-    AchievedTier.SKIPPED -> "Skipped"
-    AchievedTier.ESSENTIAL -> "Essential"
-    AchievedTier.PRESCRIPTION -> "Prescription"
-    AchievedTier.COMPLETE -> "Complete"
-}
-
 private fun tierShortLabel(tier: MedicationTier): String = when (tier) {
     MedicationTier.ESSENTIAL -> "Essential"
     MedicationTier.PRESCRIPTION -> "Prescription"
