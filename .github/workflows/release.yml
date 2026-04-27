@@ -4,8 +4,13 @@ on:
   workflow_dispatch:
   push:
     tags:
-      - 'v[0-9]+.[0-9]+.0'   # minor/major only (e.g. v1.4.0, v2.0.0)
-      # Patch tags (v1.3.1, v1.3.9, etc.) do NOT trigger this workflow
+      - 'v[0-9]+.[0-9]+.[0-9]+'   # any vX.Y.Z tag (P0 sync audit follow-up).
+      # version-bump-and-distribute.yml pushes a v$versionName tag on
+      # every PR merge, so this workflow now produces a signed APK + AAB
+      # build and a GitHub Release per merge — not only on hand-crafted
+      # minor/major tags. Per-merge cost is one extra ~5-min release job
+      # on top of the existing Firebase distribution; acceptable at the
+      # Phase F cadence.
 
 concurrency:
   group: release-${{ github.ref }}
