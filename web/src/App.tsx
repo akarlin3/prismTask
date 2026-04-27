@@ -7,6 +7,7 @@ import { useThemeStore } from '@/stores/themeStore';
 import { useBatchStore } from '@/stores/batchStore';
 import { useOnboardingStore } from '@/stores/onboardingStore';
 import { applyA11yToDocument, useA11yStore } from '@/stores/a11yStore';
+import { useFirestoreSync } from '@/hooks/useFirestoreSync';
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary';
 import { OfflineBanner } from '@/components/shared/OfflineBanner';
 
@@ -44,6 +45,14 @@ export default function App() {
       resetOnboarding();
     }
   }, [firebaseUid, hydrateOnboarding, resetOnboarding]);
+
+  // Wire Firestore real-time listeners (tasks, projects, tags, habits,
+  // habit completions, medication slot defs, medication preferences)
+  // for the duration of the signed-in session. Until this PR landed,
+  // every `subscribeTo*` function in `web/src/api/firestore/*.ts` was
+  // defined but never invoked, so cross-device updates only appeared
+  // after a manual page refresh.
+  useFirestoreSync(firebaseUid);
 
   // Apply theme on mount and whenever the user picks a new one. All four
   // named themes are dark-first with no system/light variant — matches
