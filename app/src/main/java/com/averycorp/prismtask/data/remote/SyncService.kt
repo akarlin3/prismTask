@@ -1672,6 +1672,32 @@ constructor(
                 ?: return@pullCollection false
             val habitLocalId = syncMetadataDao.getLocalId(habitCloudId, "habit")
                 ?: return@pullCollection false
+            // P0 sync audit PR-A. Defensive guard for stale sync_metadata:
+            // HabitRepository.deleteHabit and BackendSyncService.applyHabitChanges
+            // (delete branch) both call habitDao.deleteById without removing the
+            // sync_metadata row first, leaving cloud_id → local_id mappings that
+            // resolve to a now-gone habits.id. Subsequent habit_completion pulls
+            // for that cloudId resolve a non-null habitLocalId here, then
+            // habitCompletionDao.insert below throws SQLiteConstraintException:
+            // FOREIGN KEY constraint failed (Test 3, Session 1, 2026-04-27).
+            //
+            // Treat missing parent as a transient skip — the eventual pushDelete
+            // will tombstone the Firestore doc, and the next pull's
+            // processRemoteDeletions will reap the orphan completion uniformly
+            // across devices. Do NOT delete the stale sync_metadata here: the
+            // pending_action='delete' row is what pushDelete needs to find the
+            // Firestore target. Architectural sweep (pair every deleteById with
+            // syncMetadataDao.delete on the receive side) is PR-A2.
+            if (habitDao.getHabitByIdOnce(habitLocalId) == null) {
+                logger.warn(
+                    operation = "pull.apply",
+                    entity = "habit_completions",
+                    id = cloudId,
+                    status = "skipped_stale_parent",
+                    detail = "habit local_id=$habitLocalId is gone; metadata pending eventual pushDelete"
+                )
+                return@pullCollection false
+            }
             if (localId == null) {
                 // mapToHabitCompletion always produces a non-null completedDateLocal
                 // (either from the Firestore doc or derived from the epoch for
@@ -1714,6 +1740,20 @@ constructor(
                 ?: return@pullCollection false
             val habitLocalId = syncMetadataDao.getLocalId(habitCloudId, "habit")
                 ?: return@pullCollection false
+            // P0 sync audit PR-A — same defensive guard as habit_completions
+            // above. habit_logs.habit_id has the same FK CASCADE shape, so
+            // stale sync_metadata after a local habit delete causes an
+            // identical SQLiteConstraintException on insert.
+            if (habitDao.getHabitByIdOnce(habitLocalId) == null) {
+                logger.warn(
+                    operation = "pull.apply",
+                    entity = "habit_logs",
+                    id = cloudId,
+                    status = "skipped_stale_parent",
+                    detail = "habit local_id=$habitLocalId is gone; metadata pending eventual pushDelete"
+                )
+                return@pullCollection false
+            }
             if (localId == null) {
                 val log = SyncMapper.mapToHabitLog(data, habitLocalId = habitLocalId, cloudId = cloudId)
                 val newId = habitLogDao.insertLog(log)
