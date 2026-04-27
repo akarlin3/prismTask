@@ -2296,6 +2296,13 @@ constructor(
             },
             update = { data, localId, cloudId ->
                 nlpShortcutDao.update(SyncMapper.mapToNlpShortcut(data, localId, cloudId))
+            },
+            // P0 sync audit PR-C: nlp_shortcuts.trigger is UNIQUE; same-trigger
+            // built-in shortcuts created independently on each device must dedup
+            // on pull, not throw.
+            naturalKeyLookup = { data ->
+                val trigger = data["trigger"] as? String
+                trigger?.let { nlpShortcutDao.getByTrigger(it)?.id }
             }
         )
         applied += nlpShortcutsResult.applied
@@ -2357,6 +2364,12 @@ constructor(
             },
             update = { data, localId, cloudId ->
                 checkInLogDao.upsert(SyncMapper.mapToCheckInLog(data, localId, cloudId))
+            },
+            // P0 sync audit PR-C: check_in_logs.date is UNIQUE; same-day
+            // logs created on both devices offline must dedup on pull.
+            naturalKeyLookup = { data ->
+                val date = (data["date"] as? Number)?.toLong()
+                date?.let { checkInLogDao.getByDate(it)?.id }
             }
         )
         applied += checkInLogsResult.applied
@@ -2372,6 +2385,18 @@ constructor(
             },
             update = { data, localId, cloudId ->
                 moodEnergyLogDao.update(SyncMapper.mapToMoodEnergyLog(data, localId, cloudId))
+            },
+            // P0 sync audit PR-C: mood_energy_logs.(date, time_of_day) is
+            // UNIQUE; same date+slot logs created on both devices offline
+            // must dedup on pull.
+            naturalKeyLookup = { data ->
+                val date = (data["date"] as? Number)?.toLong()
+                val timeOfDay = data["timeOfDay"] as? String
+                if (date != null && timeOfDay != null) {
+                    moodEnergyLogDao.getByDateAndTimeOfDayOnce(date, timeOfDay)?.id
+                } else {
+                    null
+                }
             }
         )
         applied += moodEnergyLogsResult.applied
@@ -2387,6 +2412,14 @@ constructor(
             },
             update = { data, localId, cloudId ->
                 medicationRefillDao.update(SyncMapper.mapToMedicationRefill(data, localId, cloudId))
+            },
+            // P0 sync audit PR-C (RED): medication_refills.medication_name
+            // is UNIQUE. Same migration-backfill shape as PR-B's
+            // medications.name fix — both devices' v53→v54 backfills can
+            // produce same-name refill rows that must dedup on pull.
+            naturalKeyLookup = { data ->
+                val name = data["medicationName"] as? String
+                name?.let { medicationRefillDao.getByName(it)?.id }
             }
         )
         applied += medicationRefillsResult.applied
@@ -2402,6 +2435,13 @@ constructor(
             },
             update = { data, localId, cloudId ->
                 weeklyReviewDao.upsert(SyncMapper.mapToWeeklyReview(data, localId, cloudId))
+            },
+            // P0 sync audit PR-C: weekly_reviews.week_start_date is UNIQUE;
+            // same-week reviews drafted on both devices offline must dedup
+            // on pull.
+            naturalKeyLookup = { data ->
+                val weekStart = (data["weekStartDate"] as? Number)?.toLong()
+                weekStart?.let { weeklyReviewDao.getByWeek(it)?.id }
             }
         )
         applied += weeklyReviewsResult.applied
@@ -2421,6 +2461,18 @@ constructor(
                 dailyEssentialSlotCompletionDao.upsert(
                     SyncMapper.mapToDailyEssentialSlotCompletion(data, localId, cloudId)
                 )
+            },
+            // P0 sync audit PR-C: daily_essential_slot_completions
+            // (date, slot_key) is UNIQUE; same slot completions toggled on
+            // both devices offline must dedup on pull.
+            naturalKeyLookup = { data ->
+                val date = (data["date"] as? Number)?.toLong()
+                val slotKey = data["slotKey"] as? String
+                if (date != null && slotKey != null) {
+                    dailyEssentialSlotCompletionDao.getBySlotOnce(date, slotKey)?.id
+                } else {
+                    null
+                }
             }
         )
         applied += dailyEssentialSlotResult.applied
@@ -2662,25 +2714,62 @@ constructor(
      * Pull helper for the v1.4.37 Room-entity config families. Identical
      * upsert semantics across all 7: insert-if-missing, else apply remote
      * only when `remoteUpdatedAt > localUpdatedAt` (last-write-wins).
+     *
+     * P0 sync audit PR-C: optional [naturalKeyLookup] handles entities
+     * whose schema carries a non-`cloud_id` UNIQUE index (e.g.
+     * `medication_refills.medication_name`,
+     * `mood_energy_logs.(date, time_of_day)`,
+     * `nlp_shortcuts.trigger`). Without this, a plain INSERT on the
+     * `localId == null` branch throws SQLiteConstraintException whenever
+     * both devices created a same-natural-key row offline before sync.
+     * When supplied, the lookup runs first; on hit, bind the incoming
+     * cloud_id to the existing local row and apply last-write-wins
+     * against the existing `updatedAt`. INSERT only on a true miss
+     * (neither cloud_id nor natural key matches).
+     *
+     * Pattern mirrors the inline habit_completions natural-key dedup at
+     * `SyncService.kt:1682–1693` and the medications dedup added in PR-B.
      */
     private suspend fun pullRoomConfigFamily(
         collection: String,
         entityType: String,
         getLocalUpdatedAt: suspend (Long) -> Long?,
         insert: suspend (Map<String, Any?>, String) -> Long,
-        update: suspend (Map<String, Any?>, Long, String) -> Unit
+        update: suspend (Map<String, Any?>, Long, String) -> Unit,
+        naturalKeyLookup: (suspend (Map<String, Any?>) -> Long?)? = null
     ): PullResult = pullCollection(collection) { data, cloudId ->
         val localId = syncMetadataDao.getLocalId(cloudId, entityType)
         if (localId == null) {
-            val newId = insert(data, cloudId)
-            syncMetadataDao.upsert(
-                SyncMetadataEntity(
-                    localId = newId,
-                    entityType = entityType,
-                    cloudId = cloudId,
-                    lastSyncedAt = System.currentTimeMillis()
+            val existingLocalId = naturalKeyLookup?.invoke(data)
+            if (existingLocalId != null) {
+                // Adopt: bind the incoming cloud_id to the existing
+                // local row. Apply last-write-wins against the local
+                // updatedAt before binding metadata so the user's view
+                // reflects whichever side wrote most recently.
+                val localUpdatedAt = getLocalUpdatedAt(existingLocalId) ?: 0L
+                val remoteUpdatedAt = (data["updatedAt"] as? Number)?.toLong() ?: 0L
+                if (remoteUpdatedAt > localUpdatedAt) {
+                    update(data, existingLocalId, cloudId)
+                }
+                syncMetadataDao.upsert(
+                    SyncMetadataEntity(
+                        localId = existingLocalId,
+                        entityType = entityType,
+                        cloudId = cloudId,
+                        lastSyncedAt = System.currentTimeMillis()
+                    )
                 )
-            )
+            } else {
+                val newId = insert(data, cloudId)
+                syncMetadataDao.upsert(
+                    SyncMetadataEntity(
+                        localId = newId,
+                        entityType = entityType,
+                        cloudId = cloudId,
+                        lastSyncedAt = System.currentTimeMillis()
+                    )
+                )
+            }
         } else {
             val localUpdatedAt = getLocalUpdatedAt(localId) ?: 0L
             val remoteUpdatedAt = (data["updatedAt"] as? Number)?.toLong() ?: 0L
