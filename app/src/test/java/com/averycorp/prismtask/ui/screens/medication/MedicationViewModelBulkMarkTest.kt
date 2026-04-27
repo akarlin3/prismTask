@@ -261,6 +261,61 @@ class MedicationViewModelBulkMarkTest {
     }
 
     @Test
+    fun bulkMark_complete_writesSlotKeyAsNumericIdSoPerMedCheckboxesUpdate() = runTest(dispatcher) {
+        // Regression: the slot-card UI filters doses with
+        // `it.slotKey == slot.id.toString()` (per-med toggle uses the same
+        // convention). If bulk-mark wrote slot.name instead, the dose row
+        // would be invisible — every checkbox would stay empty after a
+        // tier-button tap.
+        val captured = slot<List<ProposedMutationResponse>>()
+        coEvery {
+            batchOperationsRepository.applyBatch(any(), capture(captured))
+        } returns BatchOperationsRepository.BatchApplyResult("b", "c", 3, emptyList())
+
+        val vm = newViewModel()
+        backgroundScope.warmStateFlows(vm)
+        advanceUntilIdle()
+
+        vm.bulkMarkInternal(BulkMarkScope.SLOT, morningSlot.id, AchievedTier.COMPLETE)
+        advanceUntilIdle()
+
+        val expectedSlotKey = morningSlot.id.toString()
+        captured.captured.forEach { mutation ->
+            assertEquals(
+                "slot_key on COMPLETE mutation must be slot.id.toString() so the dose " +
+                    "row is visible to the per-med checkbox filter",
+                expectedSlotKey,
+                mutation.proposedNewValues["slot_key"]
+            )
+        }
+    }
+
+    @Test
+    fun bulkMark_skipped_writesSlotKeyAsNumericIdSoPerMedCheckboxesUpdate() = runTest(dispatcher) {
+        val captured = slot<List<ProposedMutationResponse>>()
+        coEvery {
+            batchOperationsRepository.applyBatch(any(), capture(captured))
+        } returns BatchOperationsRepository.BatchApplyResult("b", "c", 3, emptyList())
+
+        val vm = newViewModel()
+        backgroundScope.warmStateFlows(vm)
+        advanceUntilIdle()
+
+        vm.bulkMarkInternal(BulkMarkScope.SLOT, morningSlot.id, AchievedTier.SKIPPED)
+        advanceUntilIdle()
+
+        val expectedSlotKey = morningSlot.id.toString()
+        captured.captured.forEach { mutation ->
+            assertEquals(
+                "slot_key on SKIP mutation must be slot.id.toString() so the synthetic-" +
+                    "skip dose key matches the per-med checkbox filter",
+                expectedSlotKey,
+                mutation.proposedNewValues["slot_key"]
+            )
+        }
+    }
+
+    @Test
     fun bulkMark_complete_clearsUserSetTierStateOnAffectedSlot() = runTest(dispatcher) {
         // After bulkMark(COMPLETE) the displayTier should come from
         // auto-compute, not a stale USER_SET=SKIPPED from an earlier Skip.
