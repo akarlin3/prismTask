@@ -52,6 +52,21 @@ constructor(
     private val _recentErrors = MutableStateFlow<List<SyncErrorSample>>(emptyList())
     val recentErrors: StateFlow<List<SyncErrorSample>> = _recentErrors.asStateFlow()
 
+    /**
+     * Timestamp of the most recent [markSyncCompleted] that surfaced
+     * permanent skips (`permanentlyFailed > 0`). Null until the first
+     * such event lands or after [clearErrors] runs.
+     *
+     * P0 sync audit PR-D. Powers a user-visible "Sync completed with
+     * data loss" indicator: a successful sync that nevertheless dropped
+     * a doc due to SQLiteConstraintException is more important to flag
+     * than a routine transient skip, but less alarming than a sync that
+     * outright threw — so it gets its own surface independent of
+     * [lastSuccessAt] / [recentErrors].
+     */
+    private val _lastDataLossAt = MutableStateFlow<Long?>(null)
+    val lastDataLossAt: StateFlow<Long?> = _lastDataLossAt.asStateFlow()
+
     private val _listenerSnapshots = MutableStateFlow<Map<String, Long>>(emptyMap())
     val listenerSnapshots: StateFlow<Map<String, Long>> = _listenerSnapshots.asStateFlow()
 
@@ -83,12 +98,22 @@ constructor(
         )
     }
 
+    /**
+     * @param permanentlyFailed Number of pull-side docs that threw during
+     * apply (e.g. `SQLiteConstraintException`). Non-zero means the sync
+     * "succeeded" overall but silently dropped data — bump
+     * [lastDataLossAt] and emit `sync.completed | status=success_with_data_loss`
+     * so dashboards and the in-app indicator can surface the partial
+     * failure without flipping the whole sync to a hard error. P0 sync
+     * audit PR-D.
+     */
     fun markSyncCompleted(
         source: String,
         success: Boolean,
         durationMs: Long? = null,
         pushed: Int? = null,
         pulled: Int? = null,
+        permanentlyFailed: Int = 0,
         errorMessage: String? = null,
         throwable: Throwable? = null
     ) {
@@ -96,17 +121,35 @@ constructor(
         _isSyncing.value = _activeSources.value.isNotEmpty()
         if (success) {
             _lastSuccessAt.value = System.currentTimeMillis()
-            logger.info(
-                operation = "sync.completed",
-                entity = "service",
-                id = source,
-                status = "success",
-                durationMs = durationMs,
-                detail = listOfNotNull(
-                    pushed?.let { "pushed=$it" },
-                    pulled?.let { "pulled=$it" }
-                ).ifEmpty { null }?.joinToString(" ")
-            )
+            val detail = listOfNotNull(
+                pushed?.let { "pushed=$it" },
+                pulled?.let { "pulled=$it" },
+                permanentlyFailed.takeIf { it > 0 }?.let { "permanently_failed=$it" }
+            ).ifEmpty { null }?.joinToString(" ")
+            if (permanentlyFailed > 0) {
+                _lastDataLossAt.value = System.currentTimeMillis()
+                pushError(
+                    source = source,
+                    message = "$permanentlyFailed doc(s) dropped during pull (constraint violation)"
+                )
+                logger.warn(
+                    operation = "sync.completed",
+                    entity = "service",
+                    id = source,
+                    status = "success_with_data_loss",
+                    durationMs = durationMs,
+                    detail = detail
+                )
+            } else {
+                logger.info(
+                    operation = "sync.completed",
+                    entity = "service",
+                    id = source,
+                    status = "success",
+                    durationMs = durationMs,
+                    detail = detail
+                )
+            }
         } else {
             val message = errorMessage ?: throwable?.message ?: "unknown"
             pushError(source = source, message = message)
@@ -133,6 +176,7 @@ constructor(
 
     fun clearErrors() {
         _recentErrors.value = emptyList()
+        _lastDataLossAt.value = null
     }
 
     fun markListenersActive(active: Boolean) {
