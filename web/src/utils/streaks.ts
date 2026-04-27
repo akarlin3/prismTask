@@ -27,6 +27,29 @@ interface CompletionEntry {
   count: number;
 }
 
+/**
+ * Forgiveness-first daily streak configuration. Mirrors the Android
+ * `ForgivenessConfig` data class in
+ * `app/src/main/java/com/averycorp/prismtask/domain/usecase/StreakCalculator.kt`.
+ *
+ * Defaults: a single missed day inside a rolling 7-day window is forgiven
+ * (the streak "bends" instead of breaking). Two missed days in the window
+ * — or any miss with the grace already spent — terminates the run.
+ */
+export interface ForgivenessConfig {
+  enabled: boolean;
+  gracePeriodDays: number;
+  allowedMisses: number;
+}
+
+const DEFAULT_FORGIVENESS: ForgivenessConfig = {
+  enabled: true,
+  gracePeriodDays: 7,
+  allowedMisses: 1,
+};
+
+const SAFETY_CAP = 10_000;
+
 const DAY_NAMES = [
   'Sunday',
   'Monday',
@@ -57,6 +80,185 @@ function countActiveDaysInRange(
   if (isAfter(start, end)) return 0;
   const days = eachDayOfInterval({ start, end });
   return days.filter((d) => isActiveDayOfWeek(d, activeDays)).length;
+}
+
+/**
+ * Skip backwards from `cursor` until we land on an active day-of-week, or
+ * give up after a hard cap. Mirrors how Android schedules around an
+ * `activeDays` whitelist by treating non-active days as "not expected" —
+ * neither a met day nor a miss.
+ */
+function rewindToActiveDay(cursor: Date, activeDays: number[] | null): Date {
+  let c = cursor;
+  for (let i = 0; i < 14; i += 1) {
+    if (isActiveDayOfWeek(c, activeDays)) return c;
+    c = subDays(c, 1);
+  }
+  return c;
+}
+
+interface ForgivenessStreakWalk {
+  strictStreak: number;
+  resilientStreak: number;
+  forgivenDates: string[];
+}
+
+/**
+ * Forgiveness-first daily streak walk, ported from Android's
+ * `DailyForgivenessStreakCore.calculate` in
+ * `app/src/main/java/com/averycorp/prismtask/domain/usecase/DailyForgivenessStreakCore.kt`.
+ *
+ * Step-by-step parity with the Android core:
+ *  - Mid-day rule: if `today` isn't met yet, drop the cursor to yesterday
+ *    before starting (don't penalize the user for not logging yet).
+ *  - Hard reset: if both today AND yesterday (the start cursor) are misses,
+ *    the resilient run has already broken — return 0.
+ *  - While walking backwards: a met day extends the streak; a miss is
+ *    tolerable iff fewer than `allowedMisses` misses already exist in the
+ *    rolling `gracePeriodDays` window anchored at the cursor (extending
+ *    forward). Once the window is full, the next miss terminates the walk.
+ *  - Walk stops at the earliest known activity day so pre-history days
+ *    aren't counted as misses.
+ *
+ * Web addition: when `activeDays` is supplied, non-active weekdays are
+ * skipped entirely (not counted as met or missed) — matches the existing
+ * behavior of `calculateStreaks` and how the Habits UI treats partial-week
+ * habits like "weekdays only".
+ */
+function forgivenessDailyWalk(
+  completionMap: Map<string, number>,
+  today: Date,
+  targetCount: number,
+  activeDays: number[] | null,
+  config: ForgivenessConfig,
+): ForgivenessStreakWalk {
+  // Strict walk first — also doubles as the early-out value for the
+  // "forgiveness disabled" config.
+  const strictStreak = strictDailyWalk(
+    completionMap,
+    today,
+    targetCount,
+    activeDays,
+  );
+
+  if (!config.enabled) {
+    return { strictStreak, resilientStreak: strictStreak, forgivenDates: [] };
+  }
+
+  // No completions at all → no run, no grace to spend.
+  if (completionMap.size === 0) {
+    return { strictStreak: 0, resilientStreak: 0, forgivenDates: [] };
+  }
+
+  const allowed = Math.max(0, config.allowedMisses);
+  const window = Math.max(1, config.gracePeriodDays);
+
+  const isMet = (d: Date): boolean =>
+    (completionMap.get(toDateStr(d)) || 0) >= targetCount;
+
+  // Earliest known activity — walk halts here so pre-history isn't punished.
+  const allDates = Array.from(completionMap.keys())
+    .filter((iso) => (completionMap.get(iso) || 0) >= targetCount)
+    .sort();
+  if (allDates.length === 0) {
+    return { strictStreak, resilientStreak: 0, forgivenDates: [] };
+  }
+  const earliest = parseISO(allDates[0]);
+
+  // Mid-day rule: if today isn't met (or today is not an active day), step
+  // back to the most recent active day before evaluating.
+  let start = today;
+  if (isActiveDayOfWeek(start, activeDays) && !isMet(start)) {
+    start = subDays(start, 1);
+  }
+  start = rewindToActiveDay(start, activeDays);
+
+  // Hard reset: if the start cursor itself is a miss, the resilient run is
+  // already broken regardless of historical run length. (Strict still
+  // reflects whatever the prefix walk found.)
+  if (!isMet(start)) {
+    return { strictStreak, resilientStreak: 0, forgivenDates: [] };
+  }
+
+  let cursor = start;
+  let metDays = 0;
+  const missDates: Date[] = [];
+
+  for (let i = 0; i < SAFETY_CAP; i += 1) {
+    if (!isActiveDayOfWeek(cursor, activeDays)) {
+      // Non-active weekday: neither met nor miss — slide past it.
+      cursor = subDays(cursor, 1);
+      if (isBefore(cursor, earliest)) break;
+      continue;
+    }
+    if (isMet(cursor)) {
+      metDays += 1;
+    } else {
+      // Rolling window (anchored at cursor, extending forward):
+      // count misses already inside [cursor, cursor + window-1].
+      const windowEnd = subDays(cursor, -(window - 1));
+      let priorMissesInWindow = 0;
+      for (const m of missDates) {
+        if (!isBefore(m, cursor) && !isAfter(m, windowEnd)) {
+          priorMissesInWindow += 1;
+        }
+      }
+      if (priorMissesInWindow >= allowed) break;
+      missDates.push(cursor);
+    }
+    if (metDays + missDates.length > SAFETY_CAP) break;
+    cursor = subDays(cursor, 1);
+    if (isBefore(cursor, earliest)) break;
+  }
+
+  const resilient = metDays + missDates.length;
+  return {
+    strictStreak,
+    resilientStreak: resilient,
+    forgivenDates: missDates.map(toDateStr),
+  };
+}
+
+/**
+ * Classic "consecutive met days, break on first miss" walk. Anchors at
+ * today (or yesterday if today isn't logged yet) and walks backwards,
+ * skipping non-active weekdays. Mirrors
+ * `DailyForgivenessStreakCore.strictWalk` exactly.
+ */
+function strictDailyWalk(
+  completionMap: Map<string, number>,
+  today: Date,
+  targetCount: number,
+  activeDays: number[] | null,
+): number {
+  if (completionMap.size === 0) return 0;
+
+  let cursor = today;
+  if (isActiveDayOfWeek(cursor, activeDays)) {
+    const todayCount = completionMap.get(toDateStr(cursor)) || 0;
+    if (todayCount < targetCount) {
+      cursor = subDays(cursor, 1);
+    }
+  }
+  cursor = rewindToActiveDay(cursor, activeDays);
+
+  let streak = 0;
+  for (let i = 0; i < SAFETY_CAP; i += 1) {
+    if (!isActiveDayOfWeek(cursor, activeDays)) {
+      cursor = subDays(cursor, 1);
+      continue;
+    }
+    const count = completionMap.get(toDateStr(cursor)) || 0;
+    if (count >= targetCount) {
+      streak += 1;
+      cursor = subDays(cursor, 1);
+    } else {
+      break;
+    }
+    // Safety: don't go back more than 2 years
+    if (differenceInCalendarWeeks(today, cursor) > 104) break;
+  }
+  return streak;
 }
 
 export function calculateStreaks(
@@ -110,56 +312,30 @@ export function calculateStreaks(
     );
   }
 
-  // Daily frequency
-  let currentStreak = 0;
+  // Daily frequency — forgiveness-first current streak (parity with
+  // Android's DailyForgivenessStreakCore). Longest stays strict-consecutive
+  // to match Android's StreakCalculator.calculateLongestStreak (default
+  // maxMissedDays = 1, which breaks the run on the first miss).
+  const walk = forgivenessDailyWalk(
+    completionMap,
+    today,
+    targetCount,
+    activeDays,
+    DEFAULT_FORGIVENESS,
+  );
+  const currentStreak = walk.resilientStreak;
+
   let longestStreak = 0;
   let tempStreak = 0;
 
-  // Walk backward from today to calculate current streak
-  let checkDate = today;
-  // If today is not an active day, skip to the most recent active day
-  while (!isActiveDayOfWeek(checkDate, activeDays) && isBefore(subDays(checkDate, 90), checkDate)) {
-    checkDate = subDays(checkDate, 1);
-  }
-
-  // Allow today to be incomplete — if today is active but not yet completed,
-  // check if yesterday starts the streak
-  const todayStr = toDateStr(today);
-  const todayCompleted = (completionMap.get(todayStr) || 0) >= targetCount;
-
-  if (isActiveDayOfWeek(today, activeDays) && !todayCompleted) {
-    checkDate = subDays(today, 1);
-    while (!isActiveDayOfWeek(checkDate, activeDays) && isBefore(subDays(checkDate, 90), checkDate)) {
-      checkDate = subDays(checkDate, 1);
-    }
-  }
-
-  // Count current streak
-  while (true) {
-    if (!isActiveDayOfWeek(checkDate, activeDays)) {
-      checkDate = subDays(checkDate, 1);
-      continue;
-    }
-    const dateStr = toDateStr(checkDate);
-    const count = completionMap.get(dateStr) || 0;
-    if (count >= targetCount) {
-      currentStreak++;
-      checkDate = subDays(checkDate, 1);
-    } else {
-      break;
-    }
-    // Safety: don't go back more than 2 years
-    if (differenceInCalendarWeeks(today, checkDate) > 104) break;
-  }
-
-  // Calculate longest streak by scanning all dates from earliest to latest
+  // Calculate longest streak by scanning all dates from earliest to latest.
+  // Strict consecutive (forgiveness intentionally omitted, same as Android).
   const allDates = Array.from(completionMap.keys()).sort();
   if (allDates.length > 0) {
     const earliest = parseISO(allDates[0]);
     const latest = today;
     const days = eachDayOfInterval({ start: earliest, end: latest });
 
-    tempStreak = 0;
     for (const day of days) {
       if (!isActiveDayOfWeek(day, activeDays)) continue;
       const dateStr = toDateStr(day);

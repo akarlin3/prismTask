@@ -10,6 +10,21 @@ import type { User, FirebaseUser } from '@/types/auth';
 import { authApi } from '@/api/auth';
 import { setFirebaseUid } from '@/stores/firebaseUid';
 
+/**
+ * Tri-state deletion status that gates the authed UI.
+ *
+ *   unknown — sign-in is in flight, or the deletion check hasn't returned
+ *             yet. The route tree shows a splash; sync MUST NOT run.
+ *   active  — the account is in normal use (no pending deletion, or the
+ *             grace window has lapsed and the next purge will surface
+ *             through Firestore). Render the normal AppShell.
+ *   pending — the backend reports a deletion scheduled within the grace
+ *             window. RestorePendingGate takes over with a full-screen
+ *             restore-or-sign-out prompt (parity with Android
+ *             `AuthScreen.kt:72-80`).
+ */
+export type DeletionGateStatus = 'unknown' | 'active' | 'pending';
+
 interface AuthState {
   /** FastAPI backend user (for NLP/AI features) */
   user: User | null;
@@ -23,6 +38,15 @@ interface AuthState {
   isAuthenticated: boolean;
   isLoading: boolean;
 
+  /**
+   * Whether this account is in the deletion grace window. Drives
+   * `RestorePendingGate`. Reset to `'unknown'` on every sign-in / hydrate
+   * so the gate shows the splash until the backend confirms.
+   */
+  deletionStatus: DeletionGateStatus;
+  /** ISO timestamp of when the account will be permanently deleted. */
+  deletionScheduledFor: string | null;
+
   // Firebase Auth
   signInWithGoogle: () => Promise<void>;
   initFirebaseAuthListener: () => () => void;
@@ -35,6 +59,25 @@ interface AuthState {
   refreshAccessToken: () => Promise<void>;
   hydrateFromStorage: () => Promise<void>;
   fetchUser: () => Promise<void>;
+
+  /**
+   * Pull the latest deletion status from the backend and update the gate
+   * state. Called after every sign-in / hydration path before the user is
+   * allowed to leave `RestorePendingGate`.
+   */
+  refreshDeletionStatus: () => Promise<void>;
+  /**
+   * Cancel a pending deletion (the user tapped "Restore" inside the
+   * grace window). DELETEs `/auth/me/deletion` and on success flips the
+   * gate to `'active'`.
+   */
+  restoreAccount: () => Promise<void>;
+  /**
+   * The user chose to let the deletion proceed: sign out without
+   * cancelling the pending deletion. Next sign-in either falls back into
+   * RestorePending (still in window) or triggers permanent purge.
+   */
+  abandonRestore: () => Promise<void>;
 }
 
 function toFirebaseUser(fbUser: FbUser): FirebaseUser {
@@ -107,8 +150,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   refreshToken: null,
   isAuthenticated: false,
   isLoading: true,
+  deletionStatus: 'unknown',
+  deletionScheduledFor: null,
 
   signInWithGoogle: async () => {
+    // Reset the gate so any cached "active" from a previous session
+    // can't briefly leak the AppShell while the backend check is in
+    // flight.
+    set({ deletionStatus: 'unknown', deletionScheduledFor: null });
+
     const result = await signInWithPopup(firebaseAuth, googleProvider);
     const fbUser = result.user;
 
@@ -126,6 +176,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const accessToken = localStorage.getItem('prismtask_access_token');
     const refreshToken = localStorage.getItem('prismtask_refresh_token');
     set({ accessToken, refreshToken });
+
+    // Check deletion status BEFORE attempting to fetch the user profile
+    // / proceed to the AppShell, mirroring Android's
+    // `AuthScreen.kt:72-80` ordering. If the account is pending
+    // deletion, RestorePendingGate intercepts the next render and the
+    // user can't reach any sync surface until they restore or sign out.
+    await get().refreshDeletionStatus();
 
     // Try to fetch the backend user profile
     try {
@@ -151,6 +208,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         const refreshToken = localStorage.getItem('prismtask_refresh_token');
         if (accessToken) {
           set({ accessToken, refreshToken });
+          // Re-check deletion status on every auth-state change so a
+          // background tab / hot reload that still has Firebase
+          // credentials can't slip past the gate.
+          try {
+            await get().refreshDeletionStatus();
+          } catch {
+            // Non-critical — gate stays at 'unknown' until next
+            // explicit refresh.
+          }
           try {
             await get().fetchUser();
           } catch {
@@ -167,6 +233,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           refreshToken: null,
           isAuthenticated: false,
           isLoading: false,
+          deletionStatus: 'unknown',
+          deletionScheduledFor: null,
         });
       }
     });
@@ -174,6 +242,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   login: async (email, password) => {
+    set({ deletionStatus: 'unknown', deletionScheduledFor: null });
     const tokens = await authApi.login({ email, password });
     localStorage.setItem('prismtask_access_token', tokens.access_token);
     localStorage.setItem('prismtask_refresh_token', tokens.refresh_token);
@@ -182,6 +251,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       refreshToken: tokens.refresh_token,
       isAuthenticated: true,
     });
+    await get().refreshDeletionStatus();
     await get().fetchUser();
   },
 
@@ -193,6 +263,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       accessToken: tokens.access_token,
       refreshToken: tokens.refresh_token,
       isAuthenticated: true,
+      // Brand-new accounts can't be in deletion-pending state.
+      deletionStatus: 'active',
+      deletionScheduledFor: null,
     });
     await get().fetchUser();
   },
@@ -209,6 +282,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       accessToken: null,
       refreshToken: null,
       isAuthenticated: false,
+      deletionStatus: 'unknown',
+      deletionScheduledFor: null,
     });
   },
 
@@ -259,5 +334,41 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   fetchUser: async () => {
     const user = await authApi.me();
     set({ user });
+  },
+
+  refreshDeletionStatus: async () => {
+    try {
+      const status = await authApi.getDeletionStatus();
+      // Backend returns `deletion_pending_at: null` when the account is
+      // active. The grace window is server-driven; the client treats any
+      // non-null pending mark as "pending" and lets the user decide
+      // before sync runs.
+      const pending = status.deletion_pending_at != null;
+      set({
+        deletionStatus: pending ? 'pending' : 'active',
+        deletionScheduledFor: status.deletion_scheduled_for,
+      });
+    } catch {
+      // If we can't read the status, fail CLOSED (mirrors Android's
+      // `checkDeletionStatus` Result.failure: surface the choice rather
+      // than let the user silently proceed and overwrite a deletion
+      // mark). Stay at 'unknown' so the gate keeps the splash.
+      // Caller may retry; sign-out path resets to 'unknown' anyway.
+    }
+  },
+
+  restoreAccount: async () => {
+    await authApi.cancelAccountDeletion();
+    set({
+      deletionStatus: 'active',
+      deletionScheduledFor: null,
+    });
+  },
+
+  abandonRestore: async () => {
+    // Don't cancel the pending deletion — the user explicitly chose to
+    // let it proceed. Just sign out so the next sign-in re-enters the
+    // gate (or triggers permanent purge once the grace period lapses).
+    get().logout();
   },
 }));

@@ -47,24 +47,43 @@ describe('streaks utils', () => {
       expect(result.currentStreak).toBe(3);
     });
 
-    it('streak breaks on a missed day', () => {
+    it('forgives a single missed day in the middle of the run', () => {
+      // Forgiveness-first parity with Android's DailyForgivenessStreakCore:
+      // a single miss inside the rolling grace window (default 7d / 1 miss)
+      // does NOT break the streak.
       const completions = [
         { date: '2026-04-12', count: 1 },
         { date: '2026-04-11', count: 1 },
+        // April 10 missed — bent, not broken
+        { date: '2026-04-09', count: 1 },
+        { date: '2026-04-08', count: 1 },
+      ];
+      const result = calculateStreaks(completions, 'daily', null, 1);
+      expect(result.currentStreak).toBe(5); // 4 met + 1 forgiven
+    });
+
+    it('breaks the resilient run after the second miss inside the grace window', () => {
+      // allowedMisses=1: yesterday miss is absorbed; April 10 miss (also
+      // inside the rolling window) terminates the walk.
+      const completions = [
+        { date: '2026-04-12', count: 1 },
+        // April 11 missed
         // April 10 missed
         { date: '2026-04-09', count: 1 },
         { date: '2026-04-08', count: 1 },
       ];
       const result = calculateStreaks(completions, 'daily', null, 1);
-      expect(result.currentStreak).toBe(2); // Only April 11-12
+      // today + forgiven April 11 = 2; April 10 miss exhausts grace
+      expect(result.currentStreak).toBe(2);
     });
 
-    it('computes longest streak correctly', () => {
-      // Old 5-day streak, then gap, then current 2-day
+    it('computes longest streak correctly (longest stays strict)', () => {
+      // Old 5-day streak, then gap, then current 2-day. Longest stays
+      // strict consecutive (matches Android calculateLongestStreak default).
       const completions = [
         { date: '2026-04-12', count: 1 },
         { date: '2026-04-11', count: 1 },
-        // gap
+        // gap (well past the 7-day grace window)
         { date: '2026-04-05', count: 1 },
         { date: '2026-04-04', count: 1 },
         { date: '2026-04-03', count: 1 },
@@ -72,7 +91,9 @@ describe('streaks utils', () => {
         { date: '2026-04-01', count: 1 },
       ];
       const result = calculateStreaks(completions, 'daily', null, 1);
-      expect(result.currentStreak).toBe(2);
+      // Current: today + April 11 + (forgiven April 10) = 3, then April 9
+      // is the second miss in the rolling window → walk terminates.
+      expect(result.currentStreak).toBe(3);
       expect(result.longestStreak).toBe(5);
     });
 
@@ -133,6 +154,86 @@ describe('streaks utils', () => {
       ];
       const result = calculateStreaks(completions, 'daily', null, 1);
       expect(result.completionRate7Day).toBeCloseTo(3 / 7, 2);
+    });
+
+    // -----------------------------------------------------------------
+    // Forgiveness-first parity tests — mirror Android's
+    // `DailyForgivenessStreakCoreTest` so the same habit shows the same
+    // streak on phone and web.
+    // -----------------------------------------------------------------
+
+    it('forgiveness: today met + miss yesterday + completion two days ago counts as 3', () => {
+      // Android edge case: completion today, miss yesterday, completion
+      // two-days-ago; forgiveness absorbs the gap.
+      const completions = [
+        { date: '2026-04-12', count: 1 }, // today
+        // yesterday missed
+        { date: '2026-04-10', count: 1 },
+        { date: '2026-04-09', count: 1 },
+      ];
+      const result = calculateStreaks(completions, 'daily', null, 1);
+      // today + (forgiven yesterday) + April 10 + April 9 = 4
+      expect(result.currentStreak).toBe(4);
+    });
+
+    it('forgiveness: today and yesterday both missing → resilient run is zero', () => {
+      // Mirrors Android `todayAndYesterdayBothMissing_hardResetsResilientToZero`.
+      // Even a great historical run can't save the current streak once the
+      // start cursor (yesterday after the mid-day rule) is itself a miss.
+      const completions = [
+        { date: '2026-04-09', count: 1 },
+        { date: '2026-04-08', count: 1 },
+        { date: '2026-04-07', count: 1 },
+        { date: '2026-04-06', count: 1 },
+      ];
+      const result = calculateStreaks(completions, 'daily', null, 1);
+      expect(result.currentStreak).toBe(0);
+    });
+
+    it('forgiveness: walk stops at earliest known activity (no pre-history punishment)', () => {
+      // Mirrors Android `walkStopsAtEarliestKnownActivity_noPunishmentForPreHistory`.
+      // 3 consecutive met days; the day before earliest is treated as
+      // out-of-bounds, not a miss.
+      const completions = [
+        { date: '2026-04-12', count: 1 },
+        { date: '2026-04-11', count: 1 },
+        { date: '2026-04-10', count: 1 },
+      ];
+      const result = calculateStreaks(completions, 'daily', null, 1);
+      expect(result.currentStreak).toBe(3);
+    });
+
+    it('forgiveness: single-day activity today returns 1', () => {
+      // Mirrors Android `singleDayActivity_today_returnsOne`.
+      const completions = [{ date: '2026-04-12', count: 1 }];
+      const result = calculateStreaks(completions, 'daily', null, 1);
+      expect(result.currentStreak).toBe(1);
+    });
+
+    it('forgiveness: today missing but yesterday met — strict prefix from yesterday', () => {
+      // Mirrors Android `todayMissing_yesterdayMet_strictStreakIsOne_fromYesterday`.
+      // Mid-day rule: don't penalize the user for not logging today yet.
+      const completions = [
+        // today missing
+        { date: '2026-04-11', count: 1 },
+        { date: '2026-04-10', count: 1 },
+        { date: '2026-04-09', count: 1 },
+      ];
+      const result = calculateStreaks(completions, 'daily', null, 1);
+      expect(result.currentStreak).toBe(3);
+    });
+
+    it('forgiveness: SoD-aware "today" — uses logical day boundary', () => {
+      // The hook `useLogicalToday` maps wall-clock to logical-day ISO. Here
+      // we verify that calculateStreaks anchors on the logical date the
+      // caller's clock implies. We simulate "user's logical today is
+      // 2026-04-12" by leaving the fake system clock at fixedNow.
+      const completions = [
+        { date: '2026-04-12', count: 1 },
+        { date: '2026-04-11', count: 1 },
+      ];
+      const result = calculateStreaks(completions, 'daily', null, 1);
+      expect(result.currentStreak).toBe(2);
     });
 
     it('identifies best and worst day', () => {

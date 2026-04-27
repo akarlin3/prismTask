@@ -7,6 +7,7 @@ import {
 import { AppShell } from '@/components/layout/AppShell';
 import { ProtectedRoute } from './ProtectedRoute';
 import { OnboardingGate } from './OnboardingGate';
+import { RestorePendingGate } from './RestorePendingGate';
 import { TaskListSkeleton, ProjectListSkeleton, HabitListSkeleton, SettingsSkeleton } from '@/components/shared/SkeletonLoader';
 
 // Auth screens (eagerly loaded — first screens users see)
@@ -71,23 +72,30 @@ const routes: RouteObject[] = [
 
   // Onboarding is protected (auth required) but sits outside the AppShell
   // so it renders full-screen without the sidebar/header, and must not
-  // be gated on itself.
+  // be gated on itself. RestorePendingGate runs first so a deletion-
+  // pending user lands on the restore prompt instead of onboarding.
   {
     path: '/onboarding',
     element: (
       <ProtectedRoute>
-        <LazyRoute Component={OnboardingScreen} />
+        <RestorePendingGate>
+          <LazyRoute Component={OnboardingScreen} />
+        </RestorePendingGate>
       </ProtectedRoute>
     ),
   },
 
-  // Protected routes inside AppShell — gated on onboarding completion.
+  // Protected routes inside AppShell — RestorePendingGate runs before
+  // OnboardingGate so a deletion-pending user can never reach any
+  // sync surface (parity with Android `AuthScreen.kt:72-80`).
   {
     element: (
       <ProtectedRoute>
-        <OnboardingGate>
-          <AppShell />
-        </OnboardingGate>
+        <RestorePendingGate>
+          <OnboardingGate>
+            <AppShell />
+          </OnboardingGate>
+        </RestorePendingGate>
       </ProtectedRoute>
     ),
     children: [
