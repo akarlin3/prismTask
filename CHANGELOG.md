@@ -250,6 +250,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   doc; Android picks them up on the next sync. Optimistic update with
   rollback on failure.
 
+### Documentation
+
+- **Android↔web parity audit (Phase F).** New
+  `docs/audits/ANDROID_WEB_PARITY_AUDIT.md` covers all 15 launch-relevant
+  surfaces (medication, habits, tasks, AI quick-add, Pomodoro+, sync
+  infrastructure, account, settings, privacy, daily essentials/Today,
+  morning check-in, mood/energy, weekly review, voice, notifications)
+  on two axes (sync wiring + feature accessibility) with per-gap triage
+  classifying each as SHIP-BEFORE-MAY-15, DEFER-TO-G.0, or
+  ACCEPT-AS-DIVERGENCE. Deadline-realism check for the 2026-05-15
+  Phase F kickoff fires hard: 23 raw SHIP items vs the 8-item STOP
+  threshold; recommended Tier A + B re-triage (11 PRs, ~7-8 days)
+  preserves launch quality without burning the 19-day window. Headline
+  findings: web sync layer is structurally thinner than expected
+  (`api/sync.ts` is a 27-line stub with zero callers; real-time
+  listeners exist but `App.tsx` never calls them); web write paths in
+  `tasks.ts` and `habits.ts` systematically clobber Android-only
+  fields; web has no AI opt-out toggle / Anthropic disclosure surface
+  (PR #790 only shipped half the cross-platform privacy story); web
+  habit streak is strict-consecutive vs Android forgiveness-first;
+  three medication-collection mismatches and an onboarding completion
+  Firestore-path mismatch break the "complete once per account"
+  promise.
+
 ### Backend
 
 - **Medication tier_state / mark cross-system FK resolution** — On
