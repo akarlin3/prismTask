@@ -268,6 +268,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Documentation
 
+- **Android↔web parity audit (Phase F) — Phase 3 bundle summary
+  appended.** Documents the 10 implementation PRs that landed for
+  Tier A + B re-triage (PRs #837, #838, #839, #840, #842, #843, #844,
+  #845, #846, plus the audit doc itself at #836). Per-surface PR
+  table with merge SHAs + scope-vs-audit deviations. DEFER-TO-G.0
+  list and ACCEPT-AS-DIVERGENCE list captured durably so future
+  audits don't re-flag. Phase F readiness gate: web is partial-parity
+  with documented divergences (medication is intentionally
+  Android-primary; sync architecture is structurally thinner;
+  notification delivery is Android-only until Web Push in Phase G;
+  voice input is Android-only by design). Memory-entry candidates
+  flagged for Avery review.
+
 - **Android↔web parity audit (Phase F).** New
   `docs/audits/ANDROID_WEB_PARITY_AUDIT.md` covers all 15 launch-relevant
   surfaces (medication, habits, tasks, AI quick-add, Pomodoro+, sync
