@@ -57,10 +57,18 @@ function mapFrequency(period: string | undefined): 'daily' | 'weekly' {
 }
 
 function docToCompletion(docId: string, data: DocumentData): HabitCompletion {
+  // Prefer the timezone-neutral `completedDateLocal` field (Android v50,
+  // migration 49→50). Fall back to deriving the date from the legacy
+  // `completedDate` epoch for completions written by older clients.
+  // Mirrors Android's `SyncMapper.mapToHabitCompletion`.
+  const localKey =
+    typeof data.completedDateLocal === 'string' && data.completedDateLocal.length > 0
+      ? data.completedDateLocal
+      : null;
   return {
     id: docId,
     habit_id: data.habitCloudId ?? '',
-    date: timestampToDateStr(data.completedDate) ?? '',
+    date: localKey ?? timestampToDateStr(data.completedDate) ?? '',
     count: 1,
     created_at: timestampToIso(data.completedAt) ?? new Date().toISOString(),
   };
@@ -68,6 +76,27 @@ function docToCompletion(docId: string, data: DocumentData): HabitCompletion {
 
 // ── Web Habit → Firestore doc ─────────────────────────────────
 
+/**
+ * Build the Firestore payload for a brand-new web-created habit.
+ *
+ * Web only owns ~10 of the 35+ fields on `HabitEntity` (see
+ * `app/src/main/java/com/averycorp/prismtask/data/local/entity/HabitEntity.kt`).
+ * The Android-only fields (booking, built-in identity, today-skip
+ * windows, nag-suppression overrides, multi-reminder cadence,
+ * source-version reconciliation) are intentionally **omitted** from
+ * this payload rather than written as `false` / `null` defaults.
+ *
+ * Why omission instead of writing-defaults: cross-device sync. If the
+ * user creates a habit on web, then on Android toggles `isBookable =
+ * true`, then re-edits the habit on web, the next web-side `updateHabit`
+ * also goes through this merge-only contract. A subsequent
+ * Android-side pull then keeps `isBookable = true` because the web
+ * payload never overwrote it. If web wrote `isBookable: false` here on
+ * create (or in any later partial update), Android's flag would get
+ * silently flipped back to `false` on the next sync round-trip.
+ *
+ * See parity audit `H-S2` (Surface 2 — habits write path).
+ */
 function habitCreateToDoc(data: {
   name: string;
   description?: string;
@@ -92,17 +121,16 @@ function habitCreateToDoc(data: {
     sortOrder: 0,
     isArchived: false,
     createDailyTask: false,
-    reminderIntervalMillis: null,
-    reminderTimesPerDay: 1,
-    hasLogging: false,
-    trackBooking: false,
-    trackPreviousPeriod: false,
-    isBookable: false,
-    isBooked: false,
-    bookedDate: null,
-    bookedNote: null,
     createdAt: now,
     updatedAt: now,
+    // NOTE: Android-only fields (`isBookable`, `isBooked`, `bookedDate`,
+    // `bookedNote`, `trackBooking`, `trackPreviousPeriod`, `hasLogging`,
+    // `showStreak`, `reminderTimesPerDay`, `reminderIntervalMillis`,
+    // `nagSuppressionOverrideEnabled`, `nagSuppressionDaysOverride`,
+    // `todaySkipAfterCompleteDays`, `todaySkipBeforeScheduleDays`,
+    // `isBuiltIn`, `templateKey`, `sourceVersion`, `isUserModified`,
+    // `isDetachedFromTemplate`) are intentionally OMITTED. Android's
+    // `SyncMapper.mapToHabit` uses sensible defaults for missing keys.
   };
 }
 
@@ -215,11 +243,22 @@ export async function toggleCompletion(
   const snap = await getDocs(q);
 
   if (snap.empty) {
-    // Add a new completion
+    // Add a new completion. Populate the `completedDateLocal` field
+    // (Android v50, migration 49→50) with the SoD-relative logical
+    // day key the caller already computed via `useLogicalToday(...)`.
+    // The `date` argument is the contractually correct value here:
+    // callers in `HabitListScreen` / `TodayScreen` pass the user's
+    // current logical day in `YYYY-MM-DD` form, which matches Android's
+    // `DayBoundary` shape byte-for-byte. Without this, Android's
+    // day-comparison drifts across DST transitions because the legacy
+    // `completedDate` epoch decomposes back to a different calendar
+    // day in the device's current timezone vs. the device that wrote
+    // it. See parity audit H-S4.
     const now = Date.now();
     const firestoreData = {
       habitCloudId: habitId,
       completedDate: dateMs,
+      completedDateLocal: date,
       completedAt: now,
       notes: null,
     };
