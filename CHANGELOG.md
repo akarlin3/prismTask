@@ -481,6 +481,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   phone will arrive with Web Push (Phase G). Copy-only change; no
   behavior change on either platform.
 
+- **Web now wires Firestore real-time listeners from `App.tsx` for
+  tasks, habits, projects, tags, medication slots, and medication
+  preferences.** Previously the seven `subscribeTo*` functions in
+  `web/src/api/firestore/*.ts` (`subscribeToTasks`,
+  `subscribeToProjects`, `subscribeToTags`, `subscribeToHabits`,
+  `subscribeToCompletions`, `subscribeToSlotDefs`,
+  `subscribeToReminderModePreferences`) were defined and exposed via
+  store wrappers but never called from any component or `App.tsx`,
+  which meant cross-device updates required a manual page refresh. A
+  new `useFirestoreSync(uid)` hook keyed on the Firebase UID kicks
+  every subscriber off when the user signs in and cleanly invokes the
+  returned unsubscribers when the UID flips to `null` (sign-out) or on
+  unmount. Two thin Zustand stores
+  (`medicationSlotsStore`, `medicationPreferencesStore`) cache the live
+  Firestore data for the medication surfaces — the existing imperative
+  reads in `MedicationReminderModeSection` and `MedicationScreen` still
+  work, the stores are additive and back the live-sync path. Conflict
+  resolution at apply time is intentionally last-write-wins (Firestore
+  is source of truth on web); `cloud_id` dedup and LWW-timestamp guards
+  remain tracked separately as G.0 follow-ups. Surfaced by the Tier B
+  Phase F parity audit (PR #836, § Surface 6).
+
 - **Medication screen day boundary now respects Start-of-Day on Android +
   web.** `MedicationViewModel.todayDate` (Android) and the four
   `const todayIso = logicalToday(Date.now(), startOfDayHour)` web sites
