@@ -129,6 +129,9 @@ class MainActivity : ComponentActivity() {
     lateinit var authManager: AuthManager
 
     @Inject
+    lateinit var canonicalOnboardingSync: com.averycorp.prismtask.data.remote.CanonicalOnboardingSync
+
+    @Inject
     lateinit var backendSyncService: BackendSyncService
 
     /**
@@ -544,6 +547,24 @@ class MainActivity : ComponentActivity() {
                     } catch (e: Exception) {
                         Log.w("MainActivity", "Admin status check failed", e)
                     }
+                }
+            }
+
+            // Cross-platform onboarding hand-off: when signed in, pull the
+            // canonical `users/{uid}.onboardingCompletedAt` field that the
+            // web client writes (see `web/src/stores/onboardingStore.ts`)
+            // and stamp the local DataStore mirror so a user who completed
+            // onboarding on web doesn't see it again on Android. The hydrate
+            // helper is one-way and idempotent — if local already says
+            // completed, nothing happens.
+            LaunchedEffect(isSignedIn) {
+                if (!isSignedIn) return@LaunchedEffect
+                val uid = authManager.userId ?: return@LaunchedEffect
+                try {
+                    val canonical = canonicalOnboardingSync.readCompletedAt(uid)
+                    onboardingPreferences.hydrateFromCanonicalCloud(canonical)
+                } catch (e: Exception) {
+                    Log.w("MainActivity", "Canonical onboarding hydrate failed", e)
                 }
             }
 

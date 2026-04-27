@@ -9,6 +9,7 @@ import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -37,10 +38,49 @@ constructor(
     }
 
     suspend fun setOnboardingCompleted() {
+        setOnboardingCompleted(System.currentTimeMillis())
+    }
+
+    /**
+     * Stamps onboarding as complete with an explicit timestamp. Used by
+     * [hydrateFromCanonicalCloud] when the cross-device canonical flag
+     * (`users/{uid}.onboardingCompletedAt`) carries an earlier completion
+     * timestamp than "now". Keeping the original timestamp matters for
+     * analytics that bucket users by sign-up cohort and for the data
+     * exporter, which round-trips this field.
+     */
+    suspend fun setOnboardingCompleted(timestampMs: Long) {
         context.onboardingDataStore.edit { prefs ->
             prefs[HAS_COMPLETED_ONBOARDING] = true
-            prefs[ONBOARDING_COMPLETED_AT] = System.currentTimeMillis()
+            prefs[ONBOARDING_COMPLETED_AT] = timestampMs
         }
+    }
+
+    /**
+     * Bridges the cross-platform canonical onboarding flag
+     * (`users/{uid}.onboardingCompletedAt`, written by web and by
+     * [com.averycorp.prismtask.data.remote.CanonicalOnboardingSync]) into
+     * the device-local DataStore mirror.
+     *
+     * Idempotent and one-way: if the local mirror already says completed,
+     * this no-ops (the local DataStore is the freshest source for this
+     * device). If `canonicalCompletedAt` is `null` or non-positive, this
+     * also no-ops — Firestore being unreachable must not flip a real
+     * "completed" flag back to "pending". Otherwise, stamps the local
+     * mirror with the canonical timestamp so the onboarding gate releases
+     * on subsequent reads.
+     *
+     * Returns `true` iff the local mirror was actually updated, so
+     * callers can log / metric the cross-device hand-off.
+     */
+    suspend fun hydrateFromCanonicalCloud(canonicalCompletedAt: Long?): Boolean {
+        if (canonicalCompletedAt == null || canonicalCompletedAt <= 0L) return false
+        val alreadyCompleted = context.onboardingDataStore.data
+            .map { it[HAS_COMPLETED_ONBOARDING] ?: false }
+            .first()
+        if (alreadyCompleted) return false
+        setOnboardingCompleted(canonicalCompletedAt)
+        return true
     }
 
     /**

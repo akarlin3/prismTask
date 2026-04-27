@@ -10,6 +10,7 @@ import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
 import com.averycorp.prismtask.data.preferences.ThemePreferences
 import com.averycorp.prismtask.data.preferences.UserPreferencesDataStore
 import com.averycorp.prismtask.data.remote.AuthManager
+import com.averycorp.prismtask.data.remote.CanonicalOnboardingSync
 import com.averycorp.prismtask.data.remote.SyncService
 import com.averycorp.prismtask.data.remote.sync.PrismSyncLogger
 import com.averycorp.prismtask.data.repository.SelfCareRepository
@@ -41,6 +42,7 @@ constructor(
     private val leisurePreferences: LeisurePreferences,
     private val userPreferencesDataStore: UserPreferencesDataStore,
     private val taskBehaviorPreferences: TaskBehaviorPreferences,
+    private val canonicalOnboardingSync: CanonicalOnboardingSync,
     private val logger: PrismSyncLogger
 ) : ViewModel() {
     val hasCompletedOnboarding: StateFlow<Boolean> = onboardingPreferences
@@ -109,7 +111,14 @@ constructor(
                 // writes; `_signInState` stays at the very end.
                 taskBehaviorPreferences.setHasSetStartOfDay(true)
                 userPreferencesDataStore.markTierOnboardingShown()
-                onboardingPreferences.setOnboardingCompleted()
+                val completedAt = System.currentTimeMillis()
+                onboardingPreferences.setOnboardingCompleted(completedAt)
+                // Cross-platform canonical write — see CanonicalOnboardingSync
+                // KDoc. Best-effort; failure is logged inside the helper and
+                // does not block completion (local DataStore is the device-
+                // local source of truth, GenericPreferenceSyncService still
+                // syncs `onboarding_prefs` between Android devices).
+                canonicalOnboardingSync.writeCompletedAt(uid, completedAt)
                 _signInState.value = SignInState.ExistingUserDetected
             } else {
                 logger.info(operation = "onboarding.check", detail = "existing=false routing=onboarding")
@@ -162,11 +171,25 @@ constructor(
         viewModelScope.launch {
             // Write the flag first so it is durable before viewModelScope is
             // cancelled by the navigation that fires immediately after this call.
+            val completedAt = System.currentTimeMillis()
             try {
-                onboardingPreferences.setOnboardingCompleted()
+                onboardingPreferences.setOnboardingCompleted(completedAt)
                 logger.info(operation = "onboarding.flag_written", status = "success")
             } catch (e: Exception) {
                 logger.error(operation = "onboarding.flag_written", throwable = e)
+            }
+            // Mirror to the cross-platform canonical Firestore field so
+            // the same account on web (or a fresh Android install) sees
+            // onboarding as done. Best-effort, isolated from the local
+            // write so a Firestore outage doesn't strand the user back
+            // on the onboarding gate after they finished.
+            authManager.userId?.let { uid ->
+                try {
+                    canonicalOnboardingSync.writeCompletedAt(uid, completedAt)
+                    logger.info(operation = "onboarding.canonical_written", status = "success")
+                } catch (e: Exception) {
+                    logger.error(operation = "onboarding.canonical_written", throwable = e)
+                }
             }
             // Template selections are non-critical — if viewModelScope is
             // cancelled here the user sees default prefs, not an onboarding loop.

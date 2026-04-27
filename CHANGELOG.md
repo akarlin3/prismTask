@@ -342,6 +342,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Onboarding completion now uses a single canonical Firestore path
+  (`users/{uid}.onboardingCompletedAt`) on both platforms.** Previously
+  Android wrote to `users/{uid}/prefs/onboarding_prefs.has_completed_onboarding`
+  (via `GenericPreferenceSyncService`) and web wrote to
+  `users/{uid}.onboardingCompletedAt` (top-level field on the user doc) —
+  completing on one platform did not satisfy the other's check, so a user
+  who finished onboarding on web still saw the Android tutorial on first
+  launch (and vice versa). Android now reads + writes the canonical web
+  path: a new `CanonicalOnboardingSync` Firestore helper writes
+  `users/{uid}.onboardingCompletedAt` whenever
+  `OnboardingViewModel.completeOnboarding` or the existing-user skip path
+  fires, and `MainActivity` hydrates that field into the local DataStore
+  mirror once per signed-in session via the new
+  `OnboardingPreferences.hydrateFromCanonicalCloud(...)` helper. The
+  hydrate is one-way and idempotent: it never overwrites a fresher local
+  completion, and it ignores `null`/zero/negative canonical timestamps so
+  a Firestore outage cannot flip a real "completed" flag back to
+  "pending". Existing per-account `onboarding_prefs` writes from
+  `GenericPreferenceSyncService` are kept unchanged so cross-Android sync
+  also continues to work; the canonical field is purely additive.
+
 - **Medication screen day boundary now respects Start-of-Day on Android +
   web.** `MedicationViewModel.todayDate` (Android) and the four
   `const todayIso = logicalToday(Date.now(), startOfDayHour)` web sites
