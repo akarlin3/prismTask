@@ -467,6 +467,8 @@ private class FakeMedicationTierStateDao : MedicationTierStateDao {
         emit(rows.filter { it.logDate == date })
     }
 
+    override fun observeAll(): Flow<List<MedicationTierStateEntity>> = flow { emit(rows.toList()) }
+
     override suspend fun getForDateOnce(date: String): List<MedicationTierStateEntity> =
         rows.filter { it.logDate == date }
 
