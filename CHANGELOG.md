@@ -380,6 +380,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Web medication-reminder-mode settings banner copy corrected.**
+  Settings → Medication Reminder Mode previously claimed "Settings sync
+  to Firestore so your phone picks them up," but Android's
+  `MedicationReminderModeResolver` only reads the local
+  `MedicationPreferences` DataStore and Room
+  `medication_slots.reminder_mode` — there is no path that reads the
+  web-side `users/{uid}/medication_preferences/global` doc, so the
+  preference round-trips web↔web only. The banner now accurately states
+  the setting is device-local today and that cross-device sync to the
+  phone will arrive with Web Push (Phase G). Copy-only change; no
+  behavior change on either platform.
+
 - **Medication screen day boundary now respects Start-of-Day on Android +
   web.** `MedicationViewModel.todayDate` (Android) and the four
   `const todayIso = logicalToday(Date.now(), startOfDayHour)` web sites

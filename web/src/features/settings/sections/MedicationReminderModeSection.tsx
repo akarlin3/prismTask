@@ -103,8 +103,10 @@ export function MedicationReminderModeSection() {
         <strong className="text-[var(--color-text-primary)]">
           Reminder delivery is currently Android-only.
         </strong>{' '}
-        Settings sync to Firestore so your phone picks them up. Web
-        reminder delivery will arrive with Web Push in a future release.
+        This setting is saved on this device only — the Android app
+        configures reminder mode per-medication and does not read this
+        preference today. Cross-device sync to your phone will arrive
+        with Web Push in a future release.
       </div>
 
       {loading ? (
