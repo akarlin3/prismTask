@@ -2531,7 +2531,8 @@ constructor(
                     operation = "pull.summary",
                     entity = "all",
                     status = "error",
-                    detail = "applied=$applied skipped=$skipped permanent=$skippedPermanent — check pull.apply status=failed logs for details"
+                    detail = "applied=$applied skipped=$skipped permanent=$skippedPermanent — " +
+                        "check pull.apply status=failed logs for details"
                 )
             }
             skipped > 0 -> {
