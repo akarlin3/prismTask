@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Productivity score chart on `TaskAnalyticsScreen` — Pro-gated.** Slice 3
+  of the web PR #715 Android port (`docs/audits/ANALYTICS_PR715_PORT_AUDIT.md`,
+  Subset C). Compose Canvas area chart with a 7d/30d/90d range selector,
+  trend chip, average score, and best/worst-day callouts. Driven by
+  `ProductivityScoreCalculator` (slice 2) — recomputes when range changes
+  via a `_productivityRange` `MutableStateFlow`. Adds a new
+  `TaskDao.getTasksForAnalyticsRange(start, end)` query that returns tasks
+  whose `due_date` OR `completed_at` lands in the window (matches the
+  backend's analytics-window semantics).
+
 - **`ProductivityScoreCalculator` use case + `ProductivityScore` domain model.**
   Slice 2 of the web PR #715 Android port (`docs/audits/ANALYTICS_PR715_PORT_AUDIT.md`,
   Subset C). Pure-compute daily productivity score with the same 4-component

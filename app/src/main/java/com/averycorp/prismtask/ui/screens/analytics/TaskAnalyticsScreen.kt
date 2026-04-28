@@ -116,6 +116,18 @@ fun TaskAnalyticsScreen(
                 }
             }
 
+            // Productivity score section \u2014 Pro-gated (web PR #715 port, slice 3)
+            if (state.isPro) {
+                state.productivity?.let { productivity ->
+                    ProductivityScoreSection(
+                        response = productivity,
+                        selectedRange = state.productivityRange,
+                        onRangeSelected = { viewModel.setProductivityRange(it) },
+                        accent = accentColor,
+                    )
+                }
+            }
+
             if (stats == null || stats.totalCompleted == 0) {
                 EmptyState(
                     icon = Icons.Default.BarChart,

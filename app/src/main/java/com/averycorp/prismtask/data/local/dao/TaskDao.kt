@@ -63,6 +63,13 @@ interface TaskDao {
     @Query("SELECT * FROM tasks WHERE due_date >= :startOfDay AND due_date < :endOfDay")
     fun getTasksDueOnDate(startOfDay: Long, endOfDay: Long): Flow<List<TaskEntity>>
 
+    @Query(
+        "SELECT * FROM tasks " +
+            "WHERE (due_date IS NOT NULL AND due_date >= :startMillis AND due_date < :endMillis) " +
+            "   OR (completed_at IS NOT NULL AND completed_at >= :startMillis AND completed_at < :endMillis)"
+    )
+    fun getTasksForAnalyticsRange(startMillis: Long, endMillis: Long): Flow<List<TaskEntity>>
+
     /**
      * Incomplete root tasks eligible for AI time-blocking across a horizon window.
      *

@@ -552,6 +552,8 @@ class TaskTemplateRepositoryTest {
 
         override fun getTasksDueOnDate(startOfDay: Long, endOfDay: Long): Flow<List<TaskEntity>> = unsupported()
 
+        override fun getTasksForAnalyticsRange(startMillis: Long, endMillis: Long): Flow<List<TaskEntity>> = unsupported()
+
         override fun getOverdueTasks(now: Long): Flow<List<TaskEntity>> = unsupported()
 
         override fun getTaskById(id: Long): Flow<TaskEntity?> = unsupported()

@@ -738,6 +738,14 @@ class TaskRepositoryTest {
         override fun getTasksDueOnDate(startOfDay: Long, endOfDay: Long): Flow<List<TaskEntity>> =
             flowOf(tasks.filter { (it.dueDate ?: 0L) in startOfDay until endOfDay })
 
+        override fun getTasksForAnalyticsRange(startMillis: Long, endMillis: Long): Flow<List<TaskEntity>> =
+            flowOf(
+                tasks.filter { task ->
+                    (task.dueDate?.let { it in startMillis until endMillis } == true) ||
+                        (task.completedAt?.let { it in startMillis until endMillis } == true)
+                }
+            )
+
         override fun getOverdueTasks(now: Long): Flow<List<TaskEntity>> =
             flowOf(tasks.filter { (it.dueDate ?: Long.MAX_VALUE) < now && !it.isCompleted })
 

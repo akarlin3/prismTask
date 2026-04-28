@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.averycorp.prismtask.data.billing.UserTier
 import com.averycorp.prismtask.data.local.dao.HabitCompletionDao
 import com.averycorp.prismtask.data.local.dao.TaskCompletionDao
+import com.averycorp.prismtask.data.local.dao.TaskDao
 import com.averycorp.prismtask.data.local.entity.ProjectEntity
 import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
 import com.averycorp.prismtask.data.repository.HabitRepository
@@ -14,8 +15,11 @@ import com.averycorp.prismtask.data.repository.TaskCompletionRepository
 import com.averycorp.prismtask.data.repository.TaskCompletionStats
 import com.averycorp.prismtask.data.repository.TaskRepository
 import com.averycorp.prismtask.domain.model.AnalyticsSummary
+import com.averycorp.prismtask.domain.model.ProductivityRange
+import com.averycorp.prismtask.domain.model.ProductivityScoreResponse
 import com.averycorp.prismtask.domain.usecase.AnalyticsSummaryAggregator
 import com.averycorp.prismtask.domain.usecase.ProFeatureGate
+import com.averycorp.prismtask.domain.usecase.ProductivityScoreCalculator
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -51,6 +55,8 @@ data class TaskAnalyticsState(
     val firstDayOfWeek: DayOfWeek = DayOfWeek.MONDAY,
     val summary: AnalyticsSummary? = null,
     val isPro: Boolean = false,
+    val productivity: ProductivityScoreResponse? = null,
+    val productivityRange: ProductivityRange = ProductivityRange.THIRTY_DAYS,
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -63,9 +69,11 @@ constructor(
     private val taskBehaviorPreferences: TaskBehaviorPreferences,
     private val taskRepository: TaskRepository,
     private val habitRepository: HabitRepository,
+    private val taskDao: TaskDao,
     private val taskCompletionDao: TaskCompletionDao,
     private val habitCompletionDao: HabitCompletionDao,
     private val analyticsSummaryAggregator: AnalyticsSummaryAggregator,
+    private val productivityScoreCalculator: ProductivityScoreCalculator,
     private val proFeatureGate: ProFeatureGate,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
@@ -75,6 +83,7 @@ constructor(
 
     private val _selectedPeriod = MutableStateFlow(AnalyticsPeriod.MONTH)
     private val _selectedProjectId = MutableStateFlow(initialProjectId)
+    private val _productivityRange = MutableStateFlow(ProductivityRange.THIRTY_DAYS)
 
     private val statsFlow: Flow<TaskCompletionStats> = combine(
         _selectedPeriod,
@@ -110,6 +119,28 @@ constructor(
         }
     }
 
+    private val productivityFlow: Flow<ProductivityScoreResponse> = _productivityRange.flatMapLatest { range ->
+        val zone = ZoneId.systemDefault()
+        val today = LocalDate.now(zone)
+        val startDate = today.minusDays((range.days - 1).toLong())
+        val startMillis = startDate.atStartOfDay(zone).toInstant().toEpochMilli()
+        val endMillisExclusive = today.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
+        combine(
+            taskDao.getTasksForAnalyticsRange(startMillis, endMillisExclusive),
+            habitRepository.getActiveHabits(),
+            habitCompletionDao.getAllCompletionsInRange(startMillis, endMillisExclusive - 1),
+        ) { tasks, habits, habitCompletions ->
+            productivityScoreCalculator.compute(
+                startDate = startDate,
+                endDate = today,
+                zone = zone,
+                tasks = tasks,
+                activeHabitsCount = habits.size,
+                habitCompletions = habitCompletions,
+            )
+        }
+    }
+
     private val isProFlow: Flow<Boolean> = proFeatureGate.userTier.map { it == UserTier.PRO }
 
     private val projectsAndDowFlow = combine(
@@ -119,13 +150,20 @@ constructor(
 
     private val summaryAndProFlow = combine(summaryFlow, isProFlow) { s, p -> s to p }
 
-    val state: StateFlow<TaskAnalyticsState> = combine(
+    private val productivityAndRangeFlow = combine(productivityFlow, _productivityRange) { p, r -> p to r }
+
+    private val basicTriple = combine(
         statsFlow,
         _selectedPeriod,
-        _selectedProjectId,
+        _selectedProjectId
+    ) { stats, period, projectId -> Triple(stats, period, projectId) }
+
+    val state: StateFlow<TaskAnalyticsState> = combine(
+        basicTriple,
         projectsAndDowFlow,
         summaryAndProFlow,
-    ) { stats, period, projectId, (projects, fdow), (summary, isPro) ->
+        productivityAndRangeFlow,
+    ) { (stats, period, projectId), (projects, fdow), (summary, isPro), (productivity, range) ->
         TaskAnalyticsState(
             stats = stats,
             selectedPeriod = period,
@@ -135,6 +173,8 @@ constructor(
             firstDayOfWeek = fdow,
             summary = summary,
             isPro = isPro,
+            productivity = productivity,
+            productivityRange = range,
         )
     }.stateIn(
         viewModelScope,
@@ -148,5 +188,9 @@ constructor(
 
     fun setProject(projectId: Long?) {
         _selectedProjectId.value = projectId
+    }
+
+    fun setProductivityRange(range: ProductivityRange) {
+        _productivityRange.value = range
     }
 }
