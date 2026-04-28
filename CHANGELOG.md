@@ -29,6 +29,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Failures are swallowed so the post-session UX stays clean. Adds 3
   unit tests over the auto-log helper.
 
+- **Time-tracking bar chart on `TaskAnalyticsScreen` — Pro-gated.** P2-C of
+  the analytics C4/C5 implementation
+  (`docs/audits/ANALYTICS_C4_C5_TIME_TRACKING_DESIGN.md`, Path 2). New
+  `TimeTrackingAggregator` use case + `TimeTrackingResponse` /
+  `DailyTimeBucket` domain models bucket `TaskTimingEntity` rows into
+  per-day totals over the 7d/30d/90d window selected by the existing
+  productivity-range selector (the two charts share the range so the
+  analytics screen reads as a single coherent view). New `TimeTrackingSection`
+  composable renders a Compose Canvas bar chart with totals + active-day
+  count + average-minutes-per-active-day; empty days inside the window
+  draw as zero-height bars so the time axis stays continuous. Empty-state
+  copy points back to the Schedule-tab Log time row from P2-B. Adds 6
+  aggregator unit tests.
+
 - **Manual "Logged Time" section in the task editor's Schedule tab.** P2-B
   of the analytics C4/C5 implementation
   (`docs/audits/ANALYTICS_C4_C5_TIME_TRACKING_DESIGN.md`, Path 2). New chip
