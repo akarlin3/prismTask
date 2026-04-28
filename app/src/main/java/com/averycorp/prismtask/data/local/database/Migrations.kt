@@ -1877,7 +1877,7 @@ val MIGRATION_64_65 = object : Migration(64, 65) {
         db.execSQL(
             """
             CREATE TABLE IF NOT EXISTS `task_timings` (
-                `id` INTEGER PRIMARY KEY AUTOINCREMENT,
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
                 `cloud_id` TEXT,
                 `task_id` INTEGER NOT NULL,
                 `started_at` INTEGER,
