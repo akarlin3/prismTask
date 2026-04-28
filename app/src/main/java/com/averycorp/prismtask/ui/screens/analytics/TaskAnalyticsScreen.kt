@@ -97,16 +97,6 @@ fun TaskAnalyticsScreen(
         }
 
         val stats = state.stats
-        if (stats == null || stats.totalCompleted == 0) {
-            EmptyState(
-                icon = Icons.Default.BarChart,
-                title = "Complete Some Tasks To See Analytics Here",
-                subtitle = "Your Task Completion Insights Will Appear Once You Start Checking Off Tasks",
-                modifier = Modifier.padding(padding)
-            )
-            return@Scaffold
-        }
-
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -116,6 +106,24 @@ fun TaskAnalyticsScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Spacer(modifier = Modifier.height(4.dp))
+
+            // Summary tile section \u2014 Pro-gated (web PR #715 port, slice 1)
+            state.summary?.let { summary ->
+                if (state.isPro) {
+                    AnalyticsSummaryTiles(summary = summary, accent = accentColor)
+                } else {
+                    AnalyticsSummaryProUpsell()
+                }
+            }
+
+            if (stats == null || stats.totalCompleted == 0) {
+                EmptyState(
+                    icon = Icons.Default.BarChart,
+                    title = "Complete Some Tasks To See Analytics Here",
+                    subtitle = "Your Task Completion Insights Will Appear Once You Start Checking Off Tasks"
+                )
+                return@Column
+            }
 
             // Period selector chips
             Row(

@@ -477,6 +477,9 @@ class HabitRepositoryTest {
         override fun getCompletionsInRange(habitId: Long, startDate: Long, endDate: Long): Flow<List<HabitCompletionEntity>> =
             flowOf(completions.filter { it.habitId == habitId && it.completedDate in startDate..endDate })
 
+        override fun getAllCompletionsInRange(startDate: Long, endDate: Long): Flow<List<HabitCompletionEntity>> =
+            flowOf(completions.filter { it.completedDate in startDate..endDate })
+
         override fun getCompletionCountInRange(habitId: Long, startDate: Long, endDate: Long): Flow<Int> =
             flowOf(completions.count { it.habitId == habitId && it.completedDate in startDate..endDate })
 

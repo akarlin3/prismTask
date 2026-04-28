@@ -43,6 +43,13 @@ interface HabitCompletionDao {
     fun getCompletionsInRange(habitId: Long, startDate: Long, endDate: Long): Flow<List<HabitCompletionEntity>>
 
     @Query(
+        "SELECT * FROM habit_completions " +
+            "WHERE completed_date >= :startDate AND completed_date <= :endDate " +
+            "ORDER BY completed_date ASC"
+    )
+    fun getAllCompletionsInRange(startDate: Long, endDate: Long): Flow<List<HabitCompletionEntity>>
+
+    @Query(
         "SELECT COUNT(*) FROM habit_completions WHERE habit_id = :habitId AND completed_date >= :startDate AND completed_date <= :endDate"
     )
     fun getCompletionCountInRange(habitId: Long, startDate: Long, endDate: Long): Flow<Int>
