@@ -74,6 +74,26 @@ class SuggestionStatus(str, enum.Enum):
     IGNORED = "ignored"
 
 
+class RtdnEventType(str, enum.Enum):
+    SUBSCRIPTION_RECOVERED = "subscription_recovered"
+    SUBSCRIPTION_RENEWED = "subscription_renewed"
+    SUBSCRIPTION_CANCELED = "subscription_canceled"
+    SUBSCRIPTION_PURCHASED = "subscription_purchased"
+    SUBSCRIPTION_ON_HOLD = "subscription_on_hold"
+    SUBSCRIPTION_IN_GRACE_PERIOD = "subscription_in_grace_period"
+    SUBSCRIPTION_RESTARTED = "subscription_restarted"
+    SUBSCRIPTION_PRICE_CHANGE_CONFIRMED = "subscription_price_change_confirmed"
+    SUBSCRIPTION_DEFERRED = "subscription_deferred"
+    SUBSCRIPTION_PAUSED = "subscription_paused"
+    SUBSCRIPTION_PAUSE_SCHEDULE_CHANGED = "subscription_pause_schedule_changed"
+    SUBSCRIPTION_REVOKED = "subscription_revoked"
+    SUBSCRIPTION_EXPIRED = "subscription_expired"
+    SUBSCRIPTION_PENDING_PURCHASE_CANCELED = "subscription_pending_purchase_canceled"
+    VOIDED_PURCHASE = "voided_purchase"
+    TEST = "test"
+    UNKNOWN = "unknown"
+
+
 # --- Models ---
 
 
@@ -675,3 +695,42 @@ class DailyEssentialSlotCompletion(Base):
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=lambda: datetime.now(timezone.utc))
 
     user = relationship("User")
+
+
+class RtdnEvent(Base):
+    """Append-only audit log for Google Play Real-Time Developer
+    Notifications.
+
+    Every Pub/Sub Push payload from Google's RTDN feed is captured here
+    keyed by ``pubsub_message_id`` for redelivery idempotency. Per
+    ``docs/audits/BILLING_SCHEMA_AUDIT.md`` (option B), this table
+    stands alone: ``users.tier`` + ``services/billing.py`` remain the
+    entitlement source of truth, and event-to-user correlation happens
+    at processing time via the Play Developer API rather than via a FK.
+
+    The table is append-only at the application layer — there is no
+    UPDATE or DELETE code path. ``processed`` and ``processing_error``
+    are filled in-place by the handler after the event has been acted
+    on, but rows are never deleted.
+    """
+
+    __tablename__ = "rtdn_events"
+
+    id = Column(Integer, primary_key=True)
+    pubsub_message_id = Column(String(128), nullable=False, unique=True)
+    event_type = Column(
+        Enum(RtdnEventType, values_callable=lambda x: [e.value for e in x],
+             name="rtdn_event_type"),
+        nullable=False,
+    )
+    purchase_token = Column(String(512), nullable=True, index=True)
+    product_id = Column(String(128), nullable=True)
+    raw_payload = Column(Text, nullable=False)
+    processed = Column(Boolean, nullable=False, server_default="0", default=False)
+    processing_error = Column(Text, nullable=True)
+    received_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+        index=True,
+    )
