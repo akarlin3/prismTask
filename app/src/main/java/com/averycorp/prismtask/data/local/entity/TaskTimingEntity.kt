@@ -50,6 +50,7 @@ data class TaskTimingEntity(
     @ColumnInfo(name = "duration_minutes")
     val durationMinutes: Int,
     /** "manual" | "pomodoro" | "timer". Free-form to allow future sources. */
+    @ColumnInfo(defaultValue = SOURCE_MANUAL)
     val source: String = SOURCE_MANUAL,
     val notes: String? = null,
     @ColumnInfo(name = "created_at")
