@@ -7,9 +7,9 @@ import com.averycorp.prismtask.data.local.entity.HabitCompletionEntity
 import com.averycorp.prismtask.data.local.entity.HabitEntity
 import com.averycorp.prismtask.data.local.entity.LeisureLogEntity
 import com.averycorp.prismtask.data.preferences.LeisurePreferences
+import com.averycorp.prismtask.data.preferences.LeisureSlotId
 import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
 import com.averycorp.prismtask.data.remote.SyncTracker
-import com.averycorp.prismtask.data.preferences.LeisureSlotId
 import com.averycorp.prismtask.util.DayBoundary
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
