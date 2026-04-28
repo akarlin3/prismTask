@@ -52,7 +52,9 @@ keystore_base64.txt
 .DS_Store
 
 # Claude Code
-.claude/
+.claude/*
+!.claude/commands/
+!.claude/commands/**
 
 # Build artifacts in repo root
 *.apk
