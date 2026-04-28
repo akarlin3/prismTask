@@ -21,7 +21,11 @@ on:
   workflow_dispatch:
 
 env:
-  WAIT_INTERVAL: 30  # seconds between CI check polls
+  # Audit PR #876 → CI pathway efficiency: dropped 30→15. Required checks
+  # complete in <30s on docs/trivial PRs; 30s polling interval added 15-30s
+  # of buffer for no reliability gain. wait-on-check-action handles fast
+  # completion correctly at 15s.
+  WAIT_INTERVAL: 15  # seconds between CI check polls
 
 permissions:
   contents: write        # includes push access needed by capture job for ci-logs branch
@@ -132,11 +136,24 @@ jobs:
           fi
           echo "Waiting until these required checks queue:"
           echo "$REQUIRED" | sed 's/^/  /'
-          # 30 attempts × 10s = 5 min ceiling. If checks haven't queued
-          # by then something is genuinely broken (workflow file invalid,
-          # path filter excluding everything, etc.) — log and proceed so
-          # wait-on-check-action can decide how to handle it.
-          for attempt in $(seq 1 30); do
+          # Audit PR #876 → CI pathway efficiency: this loop was burning
+          # ~315s/PR (PR #874 run 25035518360 + PR #873 run 25035513300)
+          # while underlying required checks were observably complete in
+          # ~30s. Mean job wall-clock was 343s with std-dev ~7s across 10
+          # runs — i.e. the loop almost always ran to its 5-minute ceiling.
+          # Two compensating mitigations + diagnostics:
+          #
+          #   (a) Cap dropped 30 → 18 attempts at 5s interval = 90s ceiling
+          #       (still > 2× the 43s race window from PR #804).
+          #   (b) Poll interval dropped 10s → 5s for faster detection.
+          #   (c) Per-iteration diagnostic prints MISSING + visible CHECK_RUNS
+          #       so future investigation can pinpoint the matching mismatch
+          #       (the immediate root-cause was not yet identified — the
+          #       MISSING list never empties even though CHECK_RUNS clearly
+          #       contains every REQUIRED name. Likely a trim/encoding edge
+          #       case in the comparison loop, but observability beats
+          #       guessing).
+          for attempt in $(seq 1 18); do
             CHECK_RUNS=$(gh api --paginate "repos/$REPO/commits/$HEAD_SHA/check-runs" \
               --jq '.check_runs[].name' | sort -u)
             MISSING=""
@@ -148,13 +165,14 @@ jobs:
               fi
             done <<< "$REQUIRED"
             if [ -z "$MISSING" ]; then
-              echo "All required checks have queued after attempt $attempt."
+              echo "All required checks have queued after attempt $attempt (~$((attempt * 5))s)."
               exit 0
             fi
-            echo "Still waiting for:$MISSING (attempt $attempt/30)"
-            sleep 10
+            echo "Attempt $attempt/18 — still missing:$MISSING"
+            echo "  Visible check-runs: $(echo "$CHECK_RUNS" | tr '\n' ',' | sed 's/,$//')"
+            sleep 5
           done
-          echo "::warning::Some required checks never queued after 5 min:$MISSING — proceeding to wait-on-check-action anyway."
+          echo "::warning::Some required checks never queued after 90s:$MISSING — proceeding to wait-on-check-action anyway."
 
       - name: Wait for all other CI checks to pass
         if: steps.ci_check.outputs.has_ci == 'true'
