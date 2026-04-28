@@ -273,6 +273,30 @@ class LeisurePreferencesTest {
         assertEquals(LeisurePreferences.MIN_GRID_COLUMNS, sections[0].gridColumns)
     }
 
+    /**
+     * Repro for the user-reported bug "Adding an option to a custom leisure
+     * category deletes the category." Verifies the round-trip: create a
+     * custom section, then call addCustomSectionActivity — the section must
+     * still be present and now own the new activity. If
+     * addCustomSectionActivity ever clobbers `custom_sections` (e.g. by
+     * writing an empty list, or by writing only the activity), this test
+     * fails.
+     */
+    @Test
+    fun addCustomSectionActivity_preservesSection_andAppendsActivity() = runTest {
+        val sectionId = prefs.addCustomSection("Reading", "📖")
+
+        prefs.addCustomSectionActivity(sectionId, "Books", "📕")
+
+        val sections = prefs.getCustomSections().first()
+        assertEquals(1, sections.size)
+        val section = sections.single()
+        assertEquals(sectionId, section.id)
+        assertEquals("Reading", section.label)
+        assertEquals(1, section.customActivities.size)
+        assertEquals("Books", section.customActivities.single().label)
+    }
+
     @Test
     fun getCustomSections_dropsActivitiesWithNullIdOrLabel() = runTest {
         val ctx = ApplicationProvider.getApplicationContext<Context>()
