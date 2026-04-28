@@ -125,9 +125,18 @@ constructor(
     private fun readSlotConfig(prefs: Preferences, slot: LeisureSlotId): LeisureSlotConfig {
         val default = LeisureSlotConfig.defaultFor(slot)
         val keys = keysFor(slot)
-        val hidden: List<String> = prefs[keys.hiddenKey]?.let { gson.fromJson<List<String>>(it, stringListType) } ?: emptyList()
-        val custom: List<CustomLeisureActivity> = prefs[keys.customKey]?.let {
-            gson.fromJson<List<CustomLeisureActivity>>(it, activityListType)
+        // Wrap every gson.fromJson in runCatching: DataStore preference sync
+        // (GenericPreferenceSyncService) round-trips values through Firestore,
+        // and a malformed payload — empty string, partial write, type drift
+        // from another device — would otherwise propagate JsonSyntaxException
+        // straight up the StateFlow and crash the LeisureScreen composition
+        // when the user navigates in. Default-on-failure mirrors the
+        // behaviour readCustomSections already had.
+        val hidden: List<String> = prefs[keys.hiddenKey]?.let { raw ->
+            runCatching { gson.fromJson<List<String>>(raw, stringListType) }.getOrNull()
+        } ?: emptyList()
+        val custom: List<CustomLeisureActivity> = prefs[keys.customKey]?.let { raw ->
+            runCatching { gson.fromJson<List<CustomLeisureActivity>>(raw, activityListType) }.getOrNull()
         } ?: emptyList()
         return LeisureSlotConfig(
             enabled = prefs[keys.enabledKey]?.toBooleanStrictOrNull() ?: default.enabled,
@@ -182,7 +191,9 @@ constructor(
     suspend fun setBuiltInHidden(slot: LeisureSlotId, builtInId: String, hidden: Boolean) {
         val keys = keysFor(slot)
         context.leisureDataStore.edit { prefs ->
-            val current: List<String> = prefs[keys.hiddenKey]?.let { gson.fromJson(it, stringListType) } ?: emptyList()
+            val current: List<String> = prefs[keys.hiddenKey]?.let { raw ->
+                runCatching { gson.fromJson<List<String>>(raw, stringListType) }.getOrNull()
+            } ?: emptyList()
             val updated = if (hidden) (current + builtInId).distinct() else current.filter { it != builtInId }
             prefs[keys.hiddenKey] = gson.toJson(updated)
         }
@@ -204,8 +215,9 @@ constructor(
     suspend fun addActivity(slot: LeisureSlotId, label: String, icon: String) {
         val key = keysFor(slot).customKey
         context.leisureDataStore.edit { prefs ->
-            val current: List<CustomLeisureActivity> =
-                prefs[key]?.let { gson.fromJson(it, activityListType) } ?: emptyList()
+            val current: List<CustomLeisureActivity> = prefs[key]?.let { raw ->
+                runCatching { gson.fromJson<List<CustomLeisureActivity>>(raw, activityListType) }.getOrNull()
+            } ?: emptyList()
             val id = "custom_${slot.name.lowercase()}_${System.currentTimeMillis()}"
             prefs[key] = gson.toJson(current + CustomLeisureActivity(id, label, icon))
         }
@@ -214,20 +226,25 @@ constructor(
     suspend fun removeActivity(slot: LeisureSlotId, id: String) {
         val key = keysFor(slot).customKey
         context.leisureDataStore.edit { prefs ->
-            val current: List<CustomLeisureActivity> =
-                prefs[key]?.let { gson.fromJson(it, activityListType) } ?: emptyList()
+            val current: List<CustomLeisureActivity> = prefs[key]?.let { raw ->
+                runCatching { gson.fromJson<List<CustomLeisureActivity>>(raw, activityListType) }.getOrNull()
+            } ?: emptyList()
             prefs[key] = gson.toJson(current.filter { it.id != id })
         }
     }
 
     fun getCustomMusicActivities(): Flow<List<CustomLeisureActivity>> =
         context.leisureDataStore.data.map { prefs ->
-            prefs[CUSTOM_MUSIC_KEY]?.let { gson.fromJson<List<CustomLeisureActivity>>(it, activityListType) } ?: emptyList()
+            prefs[CUSTOM_MUSIC_KEY]?.let { raw ->
+                runCatching { gson.fromJson<List<CustomLeisureActivity>>(raw, activityListType) }.getOrNull()
+            } ?: emptyList()
         }
 
     fun getCustomFlexActivities(): Flow<List<CustomLeisureActivity>> =
         context.leisureDataStore.data.map { prefs ->
-            prefs[CUSTOM_FLEX_KEY]?.let { gson.fromJson<List<CustomLeisureActivity>>(it, activityListType) } ?: emptyList()
+            prefs[CUSTOM_FLEX_KEY]?.let { raw ->
+                runCatching { gson.fromJson<List<CustomLeisureActivity>>(raw, activityListType) }.getOrNull()
+            } ?: emptyList()
         }
 
     suspend fun addMusicActivity(label: String, icon: String) = addActivity(LeisureSlotId.MUSIC, label, icon)

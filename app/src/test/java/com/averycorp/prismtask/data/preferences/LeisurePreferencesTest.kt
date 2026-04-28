@@ -1,6 +1,9 @@
 package com.averycorp.prismtask.data.preferences
 
 import android.app.Application
+import android.content.Context
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import kotlinx.coroutines.flow.first
@@ -168,5 +171,49 @@ class LeisurePreferencesTest {
         val config = prefs.getSlotConfig(LeisureSlotId.MUSIC).first()
         assertEquals(1, config.customActivities.size)
         assertEquals("Violin", config.customActivities.single().label)
+    }
+
+    /**
+     * Regression: GenericPreferenceSyncService can round-trip a leisure
+     * preference through Firestore and write a malformed JSON payload back
+     * into the local DataStore (empty string, partial write, type drift
+     * from another device). Before the runCatching guards in readSlotConfig,
+     * the next read would propagate JsonSyntaxException straight up the
+     * StateFlow chain and crash LeisureScreen the moment the user tapped
+     * "Leisure". The reads must now fall back to defaults instead.
+     */
+    @Test
+    fun getSlotConfig_returnsDefaults_whenHiddenBuiltinsJsonIsMalformed() = runTest {
+        val ctx = ApplicationProvider.getApplicationContext<Context>()
+        ctx.leisureDataStore.edit { p ->
+            p[stringPreferencesKey("music_hidden_builtins")] = "{not json"
+        }
+        val config = prefs.getSlotConfig(LeisureSlotId.MUSIC).first()
+        // Default is empty list — the malformed payload is silently ignored.
+        assertTrue(config.hiddenBuiltInIds.isEmpty())
+    }
+
+    @Test
+    fun getSlotConfig_returnsDefaults_whenCustomActivitiesJsonIsMalformed() = runTest {
+        val ctx = ApplicationProvider.getApplicationContext<Context>()
+        ctx.leisureDataStore.edit { p ->
+            p[stringPreferencesKey("custom_music_activities")] = ""
+        }
+        val config = prefs.getSlotConfig(LeisureSlotId.MUSIC).first()
+        assertTrue(config.customActivities.isEmpty())
+    }
+
+    @Test
+    fun setBuiltInHidden_recoversFromMalformedExistingValue() = runTest {
+        val ctx = ApplicationProvider.getApplicationContext<Context>()
+        ctx.leisureDataStore.edit { p ->
+            p[stringPreferencesKey("flex_hidden_builtins")] = "garbage"
+        }
+        // Must not throw despite the corrupt prior payload.
+        prefs.setBuiltInHidden(LeisureSlotId.FLEX, "read", hidden = true)
+        assertEquals(
+            listOf("read"),
+            prefs.getSlotConfig(LeisureSlotId.FLEX).first().hiddenBuiltInIds
+        )
     }
 }
