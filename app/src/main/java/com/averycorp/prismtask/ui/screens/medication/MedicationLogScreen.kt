@@ -45,6 +45,7 @@ import com.averycorp.prismtask.domain.model.SelfCareRoutines
 import com.averycorp.prismtask.domain.model.medication.AchievedTier
 import com.averycorp.prismtask.ui.theme.LocalPrismColors
 import java.text.SimpleDateFormat
+import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.util.Date
@@ -179,6 +180,8 @@ private fun LogDayCard(day: MedicationLogDay) {
         // A slot has either real doses OR a tier-state-only entry (the
         // viewmodel suppresses the tier-entry when any dose covers the
         // slot), so the two branches are mutually exclusive.
+        val groupedDate = parseIsoDateOrNull(day.date)
+
         activeSlots.forEach { slot ->
             val slotDoses = dosesByResolvedSlot[slot]?.sortedBy { it.takenAt }
             val tierEntry = tierEntriesBySlotId[slot.id]
@@ -191,10 +194,10 @@ private fun LogDayCard(day: MedicationLogDay) {
             Spacer(modifier = Modifier.height(4.dp))
             if (!slotDoses.isNullOrEmpty()) {
                 slotDoses.forEach { dose ->
-                    DoseRow(label = day.medicationName(dose), dose = dose)
+                    DoseRow(label = day.medicationName(dose), dose = dose, groupedDate = groupedDate)
                 }
             } else if (tierEntry != null) {
-                SlotTierEntryRow(entry = tierEntry)
+                SlotTierEntryRow(entry = tierEntry, groupedDate = groupedDate)
             }
         }
 
@@ -203,7 +206,7 @@ private fun LogDayCard(day: MedicationLogDay) {
             SlotHeader(label = tod.label.uppercase(), icon = tod.icon, color = Color(tod.color))
             Spacer(modifier = Modifier.height(4.dp))
             dosesForTod.forEach { dose ->
-                DoseRow(label = day.medicationName(dose), dose = dose)
+                DoseRow(label = day.medicationName(dose), dose = dose, groupedDate = groupedDate)
             }
         }
 
@@ -212,7 +215,7 @@ private fun LogDayCard(day: MedicationLogDay) {
             SlotHeader(label = clock, icon = "⏰", color = MaterialTheme.colorScheme.primary)
             Spacer(modifier = Modifier.height(4.dp))
             dosesForClock.forEach { dose ->
-                DoseRow(label = day.medicationName(dose), dose = dose)
+                DoseRow(label = day.medicationName(dose), dose = dose, groupedDate = groupedDate)
             }
         }
 
@@ -225,7 +228,7 @@ private fun LogDayCard(day: MedicationLogDay) {
             )
             Spacer(modifier = Modifier.height(4.dp))
             (anytimeDoses + orphanedNumericDoses).forEach { dose ->
-                DoseRow(label = day.medicationName(dose), dose = dose)
+                DoseRow(label = day.medicationName(dose), dose = dose, groupedDate = groupedDate)
             }
         }
 
@@ -244,7 +247,7 @@ private fun LogDayCard(day: MedicationLogDay) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(modifier = Modifier.height(4.dp))
-                SlotTierEntryRow(entry = entry)
+                SlotTierEntryRow(entry = entry, groupedDate = groupedDate)
                 Spacer(modifier = Modifier.height(6.dp))
             }
         }
@@ -269,8 +272,7 @@ private fun SlotHeader(label: String, icon: String?, color: Color) {
 }
 
 @Composable
-private fun DoseRow(label: String, dose: MedicationDoseEntity) {
-    val timeFormat = remember { SimpleDateFormat("h:mm a", Locale.getDefault()) }
+private fun DoseRow(label: String, dose: MedicationDoseEntity, groupedDate: LocalDate?) {
     val successColor = LocalPrismColors.current.successColor
     Row(
         modifier = Modifier
@@ -305,7 +307,7 @@ private fun DoseRow(label: String, dose: MedicationDoseEntity) {
             // so the "when was it taken" answer reads as primary metadata
             // rather than muted secondary info.
             Text(
-                text = timeFormat.format(Date(dose.takenAt)),
+                text = formatTimeWithDateIfDifferent(dose.takenAt, groupedDate),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.primary,
                 fontWeight = FontWeight.Medium
@@ -323,8 +325,7 @@ private fun DoseRow(label: String, dose: MedicationDoseEntity) {
 }
 
 @Composable
-private fun SlotTierEntryRow(entry: SlotTierEntry) {
-    val timeFormat = remember { SimpleDateFormat("h:mm a", Locale.getDefault()) }
+private fun SlotTierEntryRow(entry: SlotTierEntry, groupedDate: LocalDate?) {
     val displayTime = entry.displayTime
     val tierLabel = when (entry.tier) {
         AchievedTier.SKIPPED -> "Skipped"
@@ -361,7 +362,7 @@ private fun SlotTierEntryRow(entry: SlotTierEntry) {
         )
         if (displayTime != null) {
             Text(
-                text = timeFormat.format(Date(displayTime)),
+                text = formatTimeWithDateIfDifferent(displayTime, groupedDate),
                 style = MaterialTheme.typography.bodySmall,
                 color = accent,
                 fontWeight = FontWeight.Medium
@@ -380,4 +381,27 @@ private fun isoDateToMillis(iso: String): Long = try {
         .toEpochMilli()
 } catch (_: Exception) {
     System.currentTimeMillis()
+}
+
+private fun parseIsoDateOrNull(iso: String): LocalDate? = try {
+    LocalDate.parse(iso)
+} catch (_: Exception) {
+    null
+}
+
+/**
+ * Formats [timestamp] as `h:mm a`, prefixed with the calendar date when the
+ * timestamp's wall-clock date differs from [groupedDate] (the SoD-grouped
+ * day card heading). Surfaces the gap created when the user's Start-of-Day
+ * pushes a late-night/early-morning dose onto the previous day's card.
+ */
+internal fun formatTimeWithDateIfDifferent(timestamp: Long, groupedDate: LocalDate?): String {
+    val zone = ZoneId.systemDefault()
+    val timeFormat = SimpleDateFormat("h:mm a", Locale.getDefault())
+    val timeLabel = timeFormat.format(Date(timestamp))
+    val actualDate = Instant.ofEpochMilli(timestamp).atZone(zone).toLocalDate()
+    if (groupedDate == null || actualDate == groupedDate) return timeLabel
+    val datePattern = if (actualDate.year == groupedDate.year) "MMM d" else "MMM d, yyyy"
+    val dateLabel = SimpleDateFormat(datePattern, Locale.getDefault()).format(Date(timestamp))
+    return "$dateLabel · $timeLabel"
 }
