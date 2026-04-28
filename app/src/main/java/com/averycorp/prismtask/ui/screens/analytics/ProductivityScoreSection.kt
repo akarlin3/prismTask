@@ -52,11 +52,11 @@ fun ProductivityScoreSection(
     selectedRange: ProductivityRange,
     onRangeSelected: (ProductivityRange) -> Unit,
     accent: Color,
-    modifier: Modifier = Modifier,
+    modifier: Modifier = Modifier
 ) {
     Surface(
         modifier = modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)),
-        color = MaterialTheme.colorScheme.surfaceVariant,
+        color = MaterialTheme.colorScheme.surfaceVariant
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
             ProductivityHeader(response = response)
@@ -64,21 +64,21 @@ fun ProductivityScoreSection(
             ProductivityRangeSelector(
                 selected = selectedRange,
                 onSelected = onRangeSelected,
-                accent = accent,
+                accent = accent
             )
             Spacer(modifier = Modifier.height(12.dp))
             if (response.scores.size >= 2) {
                 ProductivityAreaChart(
                     scores = response.scores,
                     accent = accent,
-                    modifier = Modifier.fillMaxWidth().height(180.dp),
+                    modifier = Modifier.fillMaxWidth().height(180.dp)
                 )
             } else {
                 Text(
                     text = "Need at least 2 days of data to plot the chart.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(vertical = 24.dp),
+                    modifier = Modifier.padding(vertical = 24.dp)
                 )
             }
             if (response.bestDay != null || response.worstDay != null) {
@@ -93,18 +93,18 @@ fun ProductivityScoreSection(
 private fun ProductivityHeader(response: ProductivityScoreResponse) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
+        verticalAlignment = Alignment.CenterVertically
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = "Productivity Score",
                 style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold,
+                fontWeight = FontWeight.SemiBold
             )
             Text(
                 text = "Average ${response.averageScore.roundToInt()}",
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
         TrendChip(trend = response.trend)
@@ -119,7 +119,7 @@ private fun TrendChip(trend: ProductivityTrend) {
         ProductivityTrend.STABLE -> Triple(
             Icons.Filled.TrendingFlat,
             MaterialTheme.colorScheme.onSurfaceVariant,
-            "Stable",
+            "Stable"
         )
     }
     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -127,13 +127,13 @@ private fun TrendChip(trend: ProductivityTrend) {
             imageVector = icon,
             contentDescription = null,
             tint = tint,
-            modifier = Modifier.size(14.dp),
+            modifier = Modifier.size(14.dp)
         )
         Text(
             text = label,
             style = MaterialTheme.typography.labelSmall,
             color = tint,
-            modifier = Modifier.padding(start = 4.dp),
+            modifier = Modifier.padding(start = 4.dp)
         )
     }
 }
@@ -142,7 +142,7 @@ private fun TrendChip(trend: ProductivityTrend) {
 private fun ProductivityRangeSelector(
     selected: ProductivityRange,
     onSelected: (ProductivityRange) -> Unit,
-    accent: Color,
+    accent: Color
 ) {
     Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
         ProductivityRange.entries.forEach { range ->
@@ -152,8 +152,8 @@ private fun ProductivityRangeSelector(
                 label = { Text(range.label, style = MaterialTheme.typography.labelSmall) },
                 colors = FilterChipDefaults.filterChipColors(
                     selectedContainerColor = accent,
-                    selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
-                ),
+                    selectedLabelColor = MaterialTheme.colorScheme.onPrimary
+                )
             )
         }
     }
@@ -163,7 +163,7 @@ private fun ProductivityRangeSelector(
 private fun ProductivityAreaChart(
     scores: List<DailyScore>,
     accent: Color,
-    modifier: Modifier = Modifier,
+    modifier: Modifier = Modifier
 ) {
     Canvas(modifier = modifier) {
         if (scores.size < 2) return@Canvas
@@ -191,13 +191,13 @@ private fun ProductivityAreaChart(
         drawPath(
             path = areaPath,
             brush = Brush.verticalGradient(
-                colors = listOf(accent.copy(alpha = 0.40f), accent.copy(alpha = 0f)),
-            ),
+                colors = listOf(accent.copy(alpha = 0.40f), accent.copy(alpha = 0f))
+            )
         )
         drawPath(
             path = linePath,
             color = accent,
-            style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round),
+            style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round)
         )
 
         val pointR = 2.5.dp.toPx()
@@ -219,7 +219,7 @@ private fun BestWorstRow(best: BestWorstDay?, worst: BestWorstDay?) {
                 label = "Best",
                 date = it.date.format(fmt),
                 score = it.score.roundToInt(),
-                tint = Color(0xFF2E7D32),
+                tint = Color(0xFF2E7D32)
             )
         }
         worst?.let {
@@ -228,7 +228,7 @@ private fun BestWorstRow(best: BestWorstDay?, worst: BestWorstDay?) {
                 label = "Worst",
                 date = it.date.format(fmt),
                 score = it.score.roundToInt(),
-                tint = Color(0xFFC62828),
+                tint = Color(0xFFC62828)
             )
         }
     }
@@ -240,22 +240,22 @@ private fun BestWorstTile(
     date: String,
     score: Int,
     tint: Color,
-    modifier: Modifier = Modifier,
+    modifier: Modifier = Modifier
 ) {
     Surface(
         modifier = modifier.clip(RoundedCornerShape(8.dp)),
-        color = MaterialTheme.colorScheme.surface,
+        color = MaterialTheme.colorScheme.surface
     ) {
         Column(modifier = Modifier.padding(8.dp)) {
             Text(
                 text = label,
                 style = MaterialTheme.typography.labelSmall,
-                color = tint,
+                color = tint
             )
             Text(
                 text = "$date · $score",
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurface,
+                color = MaterialTheme.colorScheme.onSurface
             )
         }
     }
