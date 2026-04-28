@@ -38,7 +38,7 @@ class AnalyticsSummaryAggregator @Inject constructor() {
         tasksDueToday: List<TaskEntity>,
         completionsLast30Days: List<TaskCompletionEntity>,
         activeHabits: List<HabitEntity>,
-        habitCompletionsLast30Days: List<HabitCompletionEntity>,
+        habitCompletionsLast30Days: List<HabitCompletionEntity>
     ): AnalyticsSummary {
         val todayBucket = computeToday(tasksDueToday, completionsLast30Days, today, zone)
         val weekBucket = computeWeek(completionsLast30Days, today, zone)
@@ -48,7 +48,7 @@ class AnalyticsSummaryAggregator @Inject constructor() {
             today = todayBucket,
             thisWeek = weekBucket,
             streaks = streakBucket,
-            habits = habitBucket,
+            habits = habitBucket
         )
     }
 
@@ -56,7 +56,7 @@ class AnalyticsSummaryAggregator @Inject constructor() {
         tasksDueToday: List<TaskEntity>,
         completions: List<TaskCompletionEntity>,
         today: LocalDate,
-        zone: ZoneId,
+        zone: ZoneId
     ): TodaySummary {
         val completedTodayCount = completions.count { c ->
             Instant.ofEpochMilli(c.completedDate).atZone(zone).toLocalDate() == today
@@ -68,7 +68,7 @@ class AnalyticsSummaryAggregator @Inject constructor() {
     private fun computeWeek(
         completions: List<TaskCompletionEntity>,
         today: LocalDate,
-        zone: ZoneId,
+        zone: ZoneId
     ): WeekSummary {
         val currentWeekStart = today.minusDays(6)
         val previousWeekEnd = today.minusDays(7)
@@ -86,14 +86,14 @@ class AnalyticsSummaryAggregator @Inject constructor() {
         return WeekSummary(
             completed = current,
             previousWeekCompleted = previous,
-            trend = trendFor(current, previous),
+            trend = trendFor(current, previous)
         )
     }
 
     private fun computeStreaks(
         completions: List<TaskCompletionEntity>,
         today: LocalDate,
-        zone: ZoneId,
+        zone: ZoneId
     ): StreakSummary {
         if (completions.isEmpty()) return StreakSummary(currentDays = 0, longestDays = 0)
 
@@ -122,14 +122,14 @@ class AnalyticsSummaryAggregator @Inject constructor() {
         activeHabits: List<HabitEntity>,
         completions: List<HabitCompletionEntity>,
         today: LocalDate,
-        zone: ZoneId,
+        zone: ZoneId
     ): HabitSummaryBucket {
         val habitCount = activeHabits.size
         if (habitCount == 0) {
             return HabitSummaryBucket(
                 completionRate7d = 0.0,
                 completionRate30d = 0.0,
-                activeHabits = 0,
+                activeHabits = 0
             )
         }
 
@@ -154,7 +154,7 @@ class AnalyticsSummaryAggregator @Inject constructor() {
         return HabitSummaryBucket(
             completionRate7d = rate7d,
             completionRate30d = rate30d,
-            activeHabits = habitCount,
+            activeHabits = habitCount
         )
     }
 

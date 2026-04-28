@@ -25,7 +25,7 @@ class ProductivityScoreCalculatorTest {
             zone = zone,
             tasks = emptyList(),
             activeHabitsCount = 0,
-            habitCompletions = emptyList(),
+            habitCompletions = emptyList()
         )
 
         assertEquals(7, response.scores.size)
@@ -47,7 +47,7 @@ class ProductivityScoreCalculatorTest {
             taskDueAndCompleted(day, isCompleted = true),
             taskDueAndCompleted(day, isCompleted = true),
             taskDueAndCompleted(day, isCompleted = false),
-            taskDueAndCompleted(day, isCompleted = false),
+            taskDueAndCompleted(day, isCompleted = false)
         )
 
         val response = calc.compute(
@@ -56,7 +56,7 @@ class ProductivityScoreCalculatorTest {
             zone = zone,
             tasks = tasks,
             activeHabitsCount = 0,
-            habitCompletions = emptyList(),
+            habitCompletions = emptyList()
         )
 
         // 2/4 = 50% taskCompletion → score = 50*0.40 + 100*0.25 + 100*0.20 + 100*0.15 = 80
@@ -70,7 +70,7 @@ class ProductivityScoreCalculatorTest {
         val late = LocalDate.of(2026, 5, 3)
         val tasks = listOf(
             taskCompletedOn(due = due, completedOn = due),
-            taskCompletedOn(due = due, completedOn = late),
+            taskCompletedOn(due = due, completedOn = late)
         )
 
         val response = calc.compute(
@@ -79,7 +79,7 @@ class ProductivityScoreCalculatorTest {
             zone = zone,
             tasks = tasks,
             activeHabitsCount = 0,
-            habitCompletions = emptyList(),
+            habitCompletions = emptyList()
         )
 
         // On `late`, one task completed late (the second). On-time rate: 0/1 = 0
@@ -92,8 +92,9 @@ class ProductivityScoreCalculatorTest {
         val day = LocalDate.of(2026, 5, 1)
         val completions = listOf(
             habitCompletionOn(habitId = 1L, day = day),
-            habitCompletionOn(habitId = 1L, day = day), // duplicate same habit
-            habitCompletionOn(habitId = 2L, day = day),
+            // duplicate same habit
+            habitCompletionOn(habitId = 1L, day = day),
+            habitCompletionOn(habitId = 2L, day = day)
         )
 
         val response = calc.compute(
@@ -102,7 +103,7 @@ class ProductivityScoreCalculatorTest {
             zone = zone,
             tasks = emptyList(),
             activeHabitsCount = 4,
-            habitCompletions = completions,
+            habitCompletions = completions
         )
 
         // 2 distinct / 4 active = 50%
@@ -118,7 +119,7 @@ class ProductivityScoreCalculatorTest {
             zone = zone,
             tasks = emptyList(),
             activeHabitsCount = 0,
-            habitCompletions = listOf(habitCompletionOn(99L, day)),
+            habitCompletions = listOf(habitCompletionOn(99L, day))
         )
 
         assertEquals(100.0, response.scores[0].breakdown.habitCompletion, 0.0)
@@ -163,7 +164,7 @@ class ProductivityScoreCalculatorTest {
         val tasks = listOf(
             taskDueAndCompleted(day2, isCompleted = false),
             taskDueAndCompleted(day3, isCompleted = false),
-            taskDueAndCompleted(day3, isCompleted = true),
+            taskDueAndCompleted(day3, isCompleted = true)
         )
 
         val response = calc.compute(
@@ -172,7 +173,7 @@ class ProductivityScoreCalculatorTest {
             zone = zone,
             tasks = tasks,
             activeHabitsCount = 0,
-            habitCompletions = emptyList(),
+            habitCompletions = emptyList()
         )
 
         assertEquals(start, response.bestDay?.date)
@@ -193,7 +194,7 @@ class ProductivityScoreCalculatorTest {
             zone = zone,
             tasks = emptyList(),
             activeHabitsCount = 0,
-            habitCompletions = emptyList(),
+            habitCompletions = emptyList()
         )
         // Single-day range: best == worst == that day at 100
         assertEquals(day, response.bestDay?.date)
@@ -211,7 +212,7 @@ class ProductivityScoreCalculatorTest {
                 zone = zone,
                 tasks = emptyList(),
                 activeHabitsCount = 0,
-                habitCompletions = emptyList(),
+                habitCompletions = emptyList()
             )
             assertNull("expected IllegalArgumentException", "no throw")
         } catch (_: IllegalArgumentException) {
@@ -226,29 +227,29 @@ class ProductivityScoreCalculatorTest {
 
     private fun taskDueAndCompleted(
         dueDay: LocalDate,
-        isCompleted: Boolean,
+        isCompleted: Boolean
     ): TaskEntity = TaskEntity(
         title = "task",
         dueDate = localDateToMillis(dueDay),
         isCompleted = isCompleted,
-        completedAt = if (isCompleted) localDateToMillis(dueDay) + 12 * 3600 * 1000L else null,
+        completedAt = if (isCompleted) localDateToMillis(dueDay) + 12 * 3600 * 1000L else null
     )
 
     /** Task with separate due and completion dates (e.g. completed late). */
     private fun taskCompletedOn(
         due: LocalDate,
-        completedOn: LocalDate,
+        completedOn: LocalDate
     ): TaskEntity = TaskEntity(
         title = "late",
         dueDate = localDateToMillis(due),
         isCompleted = true,
-        completedAt = localDateToMillis(completedOn) + 12 * 3600 * 1000L,
+        completedAt = localDateToMillis(completedOn) + 12 * 3600 * 1000L
     )
 
     private fun habitCompletionOn(habitId: Long, day: LocalDate): HabitCompletionEntity =
         HabitCompletionEntity(
             id = 0L,
             habitId = habitId,
-            completedDate = localDateToMillis(day),
+            completedDate = localDateToMillis(day)
         )
 }

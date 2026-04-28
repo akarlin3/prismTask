@@ -56,7 +56,7 @@ data class TaskAnalyticsState(
     val summary: AnalyticsSummary? = null,
     val isPro: Boolean = false,
     val productivity: ProductivityScoreResponse? = null,
-    val productivityRange: ProductivityRange = ProductivityRange.THIRTY_DAYS,
+    val productivityRange: ProductivityRange = ProductivityRange.THIRTY_DAYS
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -106,7 +106,7 @@ constructor(
             taskRepository.getTasksDueOnDate(todayStart, todayEnd),
             taskCompletionDao.getCompletionsInRange(thirtyDaysAgo, todayEnd),
             habitRepository.getActiveHabits(),
-            habitCompletionDao.getAllCompletionsInRange(thirtyDaysAgo, todayEnd),
+            habitCompletionDao.getAllCompletionsInRange(thirtyDaysAgo, todayEnd)
         ) { tasks, taskCompletions, habits, habitCompletions ->
             analyticsSummaryAggregator.compute(
                 today = today,
@@ -114,7 +114,7 @@ constructor(
                 tasksDueToday = tasks,
                 completionsLast30Days = taskCompletions,
                 activeHabits = habits,
-                habitCompletionsLast30Days = habitCompletions,
+                habitCompletionsLast30Days = habitCompletions
             )
         }
     }
@@ -128,7 +128,7 @@ constructor(
         combine(
             taskDao.getTasksForAnalyticsRange(startMillis, endMillisExclusive),
             habitRepository.getActiveHabits(),
-            habitCompletionDao.getAllCompletionsInRange(startMillis, endMillisExclusive - 1),
+            habitCompletionDao.getAllCompletionsInRange(startMillis, endMillisExclusive - 1)
         ) { tasks, habits, habitCompletions ->
             productivityScoreCalculator.compute(
                 startDate = startDate,
@@ -136,7 +136,7 @@ constructor(
                 zone = zone,
                 tasks = tasks,
                 activeHabitsCount = habits.size,
-                habitCompletions = habitCompletions,
+                habitCompletions = habitCompletions
             )
         }
     }
@@ -162,7 +162,7 @@ constructor(
         basicTriple,
         projectsAndDowFlow,
         summaryAndProFlow,
-        productivityAndRangeFlow,
+        productivityAndRangeFlow
     ) { (stats, period, projectId), (projects, fdow), (summary, isPro), (productivity, range) ->
         TaskAnalyticsState(
             stats = stats,
@@ -174,7 +174,7 @@ constructor(
             summary = summary,
             isPro = isPro,
             productivity = productivity,
-            productivityRange = range,
+            productivityRange = range
         )
     }.stateIn(
         viewModelScope,

@@ -33,7 +33,7 @@ class ProductivityScoreCalculator @Inject constructor() {
         zone: ZoneId,
         tasks: List<TaskEntity>,
         activeHabitsCount: Int,
-        habitCompletions: List<HabitCompletionEntity>,
+        habitCompletions: List<HabitCompletionEntity>
     ): ProductivityScoreResponse {
         require(!startDate.isAfter(endDate)) {
             "startDate ($startDate) must be on or before endDate ($endDate)"
@@ -75,9 +75,9 @@ class ProductivityScoreCalculator @Inject constructor() {
                         taskCompletion = taskCompletionRate.round1(),
                         onTime = onTimeRate.round1(),
                         habitCompletion = habitRate.round1(),
-                        estimationAccuracy = estimationAccuracy.round1(),
-                    ),
-                ),
+                        estimationAccuracy = estimationAccuracy.round1()
+                    )
+                )
             )
             cursor = cursor.plusDays(1)
         }
@@ -96,7 +96,7 @@ class ProductivityScoreCalculator @Inject constructor() {
             averageScore = average.round1(),
             trend = determineTrend(scores.map { it.score }),
             bestDay = best,
-            worstDay = worst,
+            worstDay = worst
         )
     }
 
@@ -119,7 +119,7 @@ class ProductivityScoreCalculator @Inject constructor() {
     private fun computeOnTimeRate(
         completedOnDay: List<TaskEntity>,
         day: LocalDate,
-        zone: ZoneId,
+        zone: ZoneId
     ): Double {
         if (completedOnDay.isEmpty()) return DEFAULT_RATE
         val onTime = completedOnDay.count { task ->
@@ -131,7 +131,7 @@ class ProductivityScoreCalculator @Inject constructor() {
 
     private fun computeHabitRate(
         completionsOnDay: List<HabitCompletionEntity>,
-        activeHabitsCount: Int,
+        activeHabitsCount: Int
     ): Double {
         if (activeHabitsCount <= 0) return DEFAULT_RATE
         val distinctHabitsCompleted = completionsOnDay.map { it.habitId }.toSet().size

@@ -42,11 +42,11 @@ import com.averycorp.prismtask.domain.model.WeekTrend
 fun AnalyticsSummaryTiles(
     summary: AnalyticsSummary,
     accent: Color,
-    modifier: Modifier = Modifier,
+    modifier: Modifier = Modifier
 ) {
     Column(
         modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
             SummaryTile(
@@ -55,7 +55,7 @@ fun AnalyticsSummaryTiles(
                 value = summary.today.completed.toString(),
                 sub = "${summary.today.completed} Done · ${summary.today.remaining} Left",
                 icon = Icons.Filled.Today,
-                accent = accent,
+                accent = accent
             )
             SummaryTile(
                 modifier = Modifier.weight(1f),
@@ -63,7 +63,7 @@ fun AnalyticsSummaryTiles(
                 value = summary.thisWeek.completed.toString(),
                 subSlot = { TrendBadge(summary.thisWeek.trend) },
                 icon = Icons.Outlined.CalendarMonth,
-                accent = accent,
+                accent = accent
             )
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
@@ -73,7 +73,7 @@ fun AnalyticsSummaryTiles(
                 value = "${summary.streaks.currentDays}d",
                 sub = "Longest ${summary.streaks.longestDays}d",
                 icon = Icons.Filled.LocalFireDepartment,
-                accent = accent,
+                accent = accent
             )
             SummaryTile(
                 modifier = Modifier.weight(1f),
@@ -81,7 +81,7 @@ fun AnalyticsSummaryTiles(
                 value = "${(summary.habits.completionRate7d * 100).toInt()}%",
                 sub = "30d: ${(summary.habits.completionRate30d * 100).toInt()}%",
                 icon = Icons.Filled.SelfImprovement,
-                accent = accent,
+                accent = accent
             )
         }
     }
@@ -95,12 +95,12 @@ private fun SummaryTile(
     accent: Color,
     modifier: Modifier = Modifier,
     sub: String? = null,
-    subSlot: (@Composable () -> Unit)? = null,
+    subSlot: (@Composable () -> Unit)? = null
 ) {
     Surface(
         modifier = modifier.clip(RoundedCornerShape(12.dp)),
         color = MaterialTheme.colorScheme.surfaceVariant,
-        tonalElevation = 0.dp,
+        tonalElevation = 0.dp
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -108,13 +108,13 @@ private fun SummaryTile(
                     imageVector = icon,
                     contentDescription = null,
                     tint = accent,
-                    modifier = Modifier.size(14.dp),
+                    modifier = Modifier.size(14.dp)
                 )
                 Text(
                     text = label.uppercase(),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(start = 6.dp),
+                    modifier = Modifier.padding(start = 6.dp)
                 )
             }
             Spacer(modifier = Modifier.height(4.dp))
@@ -122,13 +122,13 @@ private fun SummaryTile(
                 text = value,
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface,
+                color = MaterialTheme.colorScheme.onSurface
             )
             if (sub != null) {
                 Text(
                     text = sub,
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
             if (subSlot != null) {
@@ -149,28 +149,28 @@ fun AnalyticsSummaryProUpsell(modifier: Modifier = Modifier) {
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp)),
-        color = MaterialTheme.colorScheme.surfaceVariant,
+        color = MaterialTheme.colorScheme.surfaceVariant
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
+            verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
                 imageVector = Icons.Filled.AutoAwesome,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(20.dp),
+                modifier = Modifier.size(20.dp)
             )
             Column(modifier = Modifier.padding(start = 12.dp)) {
                 Text(
                     text = "Unlock Productivity Summary",
                     style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
+                    fontWeight = FontWeight.SemiBold
                 )
                 Text(
                     text = "Today, week trend, streak, and habit completion at a glance — included with Pro.",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
@@ -185,7 +185,7 @@ private fun TrendBadge(trend: WeekTrend) {
         WeekTrend.STABLE -> Triple(
             Icons.Filled.TrendingFlat,
             MaterialTheme.colorScheme.onSurfaceVariant,
-            "Stable",
+            "Stable"
         )
     }
     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -193,13 +193,13 @@ private fun TrendBadge(trend: WeekTrend) {
             imageVector = icon,
             contentDescription = null,
             tint = tint,
-            modifier = Modifier.size(14.dp),
+            modifier = Modifier.size(14.dp)
         )
         Text(
             text = label,
             style = MaterialTheme.typography.bodySmall,
             color = tint,
-            modifier = Modifier.padding(start = 4.dp),
+            modifier = Modifier.padding(start = 4.dp)
         )
     }
 }

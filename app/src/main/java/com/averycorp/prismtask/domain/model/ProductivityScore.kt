@@ -13,13 +13,13 @@ data class ProductivityScoreResponse(
     val averageScore: Double,
     val trend: ProductivityTrend,
     val bestDay: BestWorstDay?,
-    val worstDay: BestWorstDay?,
+    val worstDay: BestWorstDay?
 )
 
 data class DailyScore(
     val date: LocalDate,
     val score: Double,
-    val breakdown: ScoreBreakdown,
+    val breakdown: ScoreBreakdown
 )
 
 data class ScoreBreakdown(
@@ -35,12 +35,12 @@ data class ScoreBreakdown(
      * to 100 to match the backend's "no data → 100" convention. Replace with
      * real per-task variance when time tracking is wired into Room.
      */
-    val estimationAccuracy: Double,
+    val estimationAccuracy: Double
 )
 
 enum class ProductivityTrend { IMPROVING, DECLINING, STABLE }
 
 data class BestWorstDay(
     val date: LocalDate,
-    val score: Double,
+    val score: Double
 )

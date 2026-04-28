@@ -21,12 +21,12 @@ class AnalyticsSummaryAggregatorTest {
         val completions = listOf(
             completionOn(today),
             completionOn(today),
-            completionOn(today.minusDays(1)),
+            completionOn(today.minusDays(1))
         )
         val tasksDueToday = listOf(
             taskDue(isCompleted = false),
             taskDue(isCompleted = false),
-            taskDue(isCompleted = true),
+            taskDue(isCompleted = true)
         )
 
         val summary = aggregator.compute(
@@ -35,7 +35,7 @@ class AnalyticsSummaryAggregatorTest {
             tasksDueToday = tasksDueToday,
             completionsLast30Days = completions,
             activeHabits = emptyList(),
-            habitCompletionsLast30Days = emptyList(),
+            habitCompletionsLast30Days = emptyList()
         )
 
         assertEquals(2, summary.today.completed)
@@ -59,7 +59,7 @@ class AnalyticsSummaryAggregatorTest {
             tasksDueToday = emptyList(),
             completionsLast30Days = completions,
             activeHabits = emptyList(),
-            habitCompletionsLast30Days = emptyList(),
+            habitCompletionsLast30Days = emptyList()
         )
 
         assertEquals(5, summary.thisWeek.completed)
@@ -89,7 +89,7 @@ class AnalyticsSummaryAggregatorTest {
             completionOn(today.minusDays(2)),
             // gap on day 3
             completionOn(today.minusDays(4)),
-            completionOn(today.minusDays(5)),
+            completionOn(today.minusDays(5))
         )
 
         val summary = aggregator.compute(
@@ -98,7 +98,7 @@ class AnalyticsSummaryAggregatorTest {
             tasksDueToday = emptyList(),
             completionsLast30Days = completions,
             activeHabits = emptyList(),
-            habitCompletionsLast30Days = emptyList(),
+            habitCompletionsLast30Days = emptyList()
         )
 
         assertEquals(3, summary.streaks.currentDays)
@@ -109,7 +109,7 @@ class AnalyticsSummaryAggregatorTest {
     fun `current streak is zero when today has no completion`() {
         val completions = listOf(
             completionOn(today.minusDays(1)),
-            completionOn(today.minusDays(2)),
+            completionOn(today.minusDays(2))
         )
 
         val summary = aggregator.compute(
@@ -118,7 +118,7 @@ class AnalyticsSummaryAggregatorTest {
             tasksDueToday = emptyList(),
             completionsLast30Days = completions,
             activeHabits = emptyList(),
-            habitCompletionsLast30Days = emptyList(),
+            habitCompletionsLast30Days = emptyList()
         )
 
         assertEquals(0, summary.streaks.currentDays)
@@ -146,7 +146,7 @@ class AnalyticsSummaryAggregatorTest {
             tasksDueToday = emptyList(),
             completionsLast30Days = emptyList(),
             activeHabits = habits,
-            habitCompletionsLast30Days = habitCompletions,
+            habitCompletionsLast30Days = habitCompletions
         )
 
         // 7-day: 7 completions (all from habit 1) / (2 habits * 7 days) = 0.5
@@ -164,7 +164,7 @@ class AnalyticsSummaryAggregatorTest {
             tasksDueToday = emptyList(),
             completionsLast30Days = emptyList(),
             activeHabits = emptyList(),
-            habitCompletionsLast30Days = listOf(habitCompletionOn(habitId = 99L, date = today)),
+            habitCompletionsLast30Days = listOf(habitCompletionOn(habitId = 99L, date = today))
         )
 
         assertEquals(0.0, summary.habits.completionRate7d, 0.0)
@@ -177,7 +177,8 @@ class AnalyticsSummaryAggregatorTest {
         val habits = listOf(habit(id = 1L))
         val completions = listOf(
             habitCompletionOn(habitId = 1L, date = today),
-            habitCompletionOn(habitId = 999L, date = today), // archived habit
+            // archived habit
+            habitCompletionOn(habitId = 999L, date = today)
         )
 
         val summary = aggregator.compute(
@@ -186,7 +187,7 @@ class AnalyticsSummaryAggregatorTest {
             tasksDueToday = emptyList(),
             completionsLast30Days = emptyList(),
             activeHabits = habits,
-            habitCompletionsLast30Days = completions,
+            habitCompletionsLast30Days = completions
         )
 
         // 1 completion for active habit / (1 * 7) = 0.143
@@ -210,7 +211,7 @@ class AnalyticsSummaryAggregatorTest {
             tasksDueToday = emptyList(),
             completionsLast30Days = emptyList(),
             activeHabits = habits,
-            habitCompletionsLast30Days = completions,
+            habitCompletionsLast30Days = completions
         )
 
         assertEquals(1.0, summary.habits.completionRate7d, 0.0)
@@ -230,23 +231,23 @@ class AnalyticsSummaryAggregatorTest {
         priority = 0,
         wasOverdue = false,
         daysToComplete = 0,
-        tags = null,
+        tags = null
     )
 
     private fun taskDue(isCompleted: Boolean): TaskEntity = TaskEntity(
         title = "due",
-        isCompleted = isCompleted,
+        isCompleted = isCompleted
     )
 
     private fun habit(id: Long): HabitEntity = HabitEntity(
         id = id,
-        name = "habit-$id",
+        name = "habit-$id"
     )
 
     private fun habitCompletionOn(habitId: Long, date: LocalDate): HabitCompletionEntity =
         HabitCompletionEntity(
             id = 0L,
             habitId = habitId,
-            completedDate = localDateToMillis(date),
+            completedDate = localDateToMillis(date)
         )
 }
