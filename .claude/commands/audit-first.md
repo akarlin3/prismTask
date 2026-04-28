@@ -16,10 +16,20 @@ have to rewrite the boilerplate every time.
   user questions. Specific examples > general principles.
 - **STOP and report on wrong premises.** If a premise turns out wrong, stop
   and report rather than rationalizing scope.
-- **Per CLAUDE.md "Audit doc length"**, cap each Phase at ~500 lines. Above
-  that, split into batches with separate Phase 1 sweeps. The validated
-  single-pass shape is `docs/audits/CONNECTED_TESTS_STABILIZATION_AUDIT.md`
-  (390 lines, PR #859).
+- **Per CLAUDE.md "Audit doc length"**, cap each Phase at ~500 lines.
+  If the doc would exceed 500 lines, STOP and ask the user to split into
+  batched audits before continuing — the cap is a hard rule, not a
+  guideline. The validated single-pass shape is
+  `docs/audits/CONNECTED_TESTS_STABILIZATION_AUDIT.md` (390 lines, PR #859).
+- **Don't inline-restate this framework's headers per item.** The Phase 1
+  framework (Premise verification / Findings / Risk classification /
+  Recommendation) is documented here once; restating it inside each
+  audit doc costs tokens without adding clarity for readers who already
+  know the convention. Use inline `(GREEN)` / `(YELLOW)` / `(RED)` /
+  `(DEFERRED)` tags after item titles, and only promote `Premise
+  verification` to a subheader when the premise is wrong (which is the
+  load-bearing case worth flagging). Token-usage rationale:
+  `docs/audits/TOKEN_USAGE_EFFICIENCY_AUDIT.md`.
 - **Skip checkpoint stops by default** (memory `feedback_skip_audit_checkpoints.md`)
   unless the user explicitly asks for them.
 
