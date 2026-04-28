@@ -157,7 +157,14 @@ jobs:
           else
             echo "::warning title=Initial autofix push failed::Falling back to GITHUB_TOKEN. See push.err output above."
           fi
-          git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${REPO}.git"
+          # Replace the extraheader installed by actions/checkout@v4 (which
+          # carries the broken AUTOFIX_PAT). Without this, git push keeps
+          # sending the failing PAT regardless of any URL-embedded token,
+          # because the Authorization extraheader takes precedence over
+          # URL-embedded credentials in libcurl's auth ordering.
+          TOKEN_B64=$(printf 'x-access-token:%s' "${GITHUB_TOKEN}" | base64 -w0)
+          git config --local --unset-all "http.https://github.com/.extraheader" || true
+          git config --local "http.https://github.com/.extraheader" "AUTHORIZATION: basic ${TOKEN_B64}"
           if git push; then
             echo "::warning title=Pushed via GITHUB_TOKEN fallback::Downstream check workflows do NOT auto-trigger from GITHUB_TOKEN pushes. If branch protection blocks merge on stale required checks, push an empty commit (or rotate AUTOFIX_PAT) to retrigger."
             exit 0
