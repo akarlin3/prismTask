@@ -9,9 +9,6 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.PowerManager
-import android.os.VibrationEffect
-import android.os.Vibrator
-import android.os.VibratorManager
 import android.provider.Settings
 import android.util.Log
 import androidx.activity.ComponentActivity
@@ -45,7 +42,6 @@ import com.averycorp.prismtask.data.billing.BillingManager
 import com.averycorp.prismtask.data.diagnostics.DiagnosticLogger
 import com.averycorp.prismtask.data.preferences.AppearancePrefs
 import com.averycorp.prismtask.data.preferences.OnboardingPreferences
-import com.averycorp.prismtask.data.preferences.ShakePreferences
 import com.averycorp.prismtask.data.preferences.TabPreferences
 import com.averycorp.prismtask.data.preferences.ThemePreferences
 import com.averycorp.prismtask.data.preferences.UserPreferencesDataStore
@@ -55,8 +51,6 @@ import com.averycorp.prismtask.data.remote.SortPreferencesSyncService
 import com.averycorp.prismtask.data.remote.SyncService
 import com.averycorp.prismtask.data.remote.ThemePreferencesSyncService
 import com.averycorp.prismtask.data.remote.sync.BackendSyncService
-import com.averycorp.prismtask.domain.usecase.ScreenshotCapture
-import com.averycorp.prismtask.domain.usecase.ShakeDetector
 import com.averycorp.prismtask.notifications.NotificationHelper
 import com.averycorp.prismtask.ui.navigation.PrismTaskNavGraph
 import com.averycorp.prismtask.ui.navigation.PrismTaskRoute
@@ -111,15 +105,6 @@ class MainActivity : ComponentActivity() {
     lateinit var userPreferencesDataStore: UserPreferencesDataStore
 
     @Inject
-    lateinit var shakeDetector: ShakeDetector
-
-    @Inject
-    lateinit var shakePreferences: ShakePreferences
-
-    @Inject
-    lateinit var screenshotCapture: ScreenshotCapture
-
-    @Inject
     lateinit var diagnosticLogger: DiagnosticLogger
 
     @Inject
@@ -130,14 +115,6 @@ class MainActivity : ComponentActivity() {
 
     @Inject
     lateinit var backendSyncService: BackendSyncService
-
-    /**
-     * Snapshot of the shake-to-report user preference, read by onResume so we
-     * only register the accelerometer listener when the feature is enabled.
-     * Updated from a LaunchedEffect once DataStore emits.
-     */
-    @Volatile
-    private var shakeFeatureEnabled: Boolean = ShakePreferences.DEFAULT_ENABLED
 
     companion object {
         /** Intent extra key set by the QuickAdd widget to route deep-links. */
@@ -543,52 +520,6 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            // Shake-to-report: collect shake events and show confirmation dialog.
-            // Respects the user's enabled toggle and sensitivity preference.
-            var showShakeDialog by remember { mutableStateOf(false) }
-            var pendingScreenshotUri by remember { mutableStateOf<android.net.Uri?>(null) }
-
-            val shakeEnabled by shakePreferences
-                .getEnabled()
-                .collectAsStateWithLifecycle(initialValue = ShakePreferences.DEFAULT_ENABLED)
-            val shakeSensitivity by shakePreferences
-                .getSensitivity()
-                .collectAsStateWithLifecycle(initialValue = ShakePreferences.DEFAULT_SENSITIVITY)
-
-            LaunchedEffect(shakeSensitivity) {
-                shakeDetector.threshold = when (shakeSensitivity) {
-                    ShakePreferences.SENSITIVITY_LOW -> ShakeDetector.THRESHOLD_LOW_SENSITIVITY
-                    ShakePreferences.SENSITIVITY_HIGH -> ShakeDetector.THRESHOLD_HIGH_SENSITIVITY
-                    else -> ShakeDetector.THRESHOLD_MEDIUM_SENSITIVITY
-                }
-            }
-
-            LaunchedEffect(shakeEnabled) {
-                shakeFeatureEnabled = shakeEnabled
-                if (shakeEnabled) {
-                    shakeDetector.register()
-                } else {
-                    shakeDetector.unregister()
-                    // Dismiss any lingering prompt if the user just disabled the feature.
-                    if (showShakeDialog) {
-                        showShakeDialog = false
-                        pendingScreenshotUri = null
-                    }
-                }
-            }
-
-            LaunchedEffect(Unit) {
-                shakeDetector.shakeEvents.collect {
-                    if (!shakeFeatureEnabled) return@collect
-                    if (!showShakeDialog) {
-                        triggerHapticFeedback()
-                        val uri = screenshotCapture.capture(this@MainActivity)
-                        pendingScreenshotUri = uri
-                        showShakeDialog = true
-                    }
-                }
-            }
-
             PrismTaskTheme(
                 prismTheme = currentPrismTheme,
                 themeMode = themeMode,
@@ -606,44 +537,6 @@ class MainActivity : ComponentActivity() {
                 showCardBorders = appearance.showTaskCardBorders
             ) {
                 val navController = androidx.navigation.compose.rememberNavController()
-
-                if (showShakeDialog) {
-                    androidx.compose.material3.AlertDialog(
-                        onDismissRequest = {
-                            showShakeDialog = false
-                            pendingScreenshotUri = null
-                        },
-                        title = { androidx.compose.material3.Text("Report a Bug?") },
-                        text = {
-                            androidx.compose.material3.Text(
-                                "A screenshot has been captured. Would you like to file a bug report?"
-                            )
-                        },
-                        confirmButton = {
-                            androidx.compose.material3.TextButton(onClick = {
-                                val capturedUri = pendingScreenshotUri
-                                showShakeDialog = false
-                                pendingScreenshotUri = null
-                                navController.navigate(
-                                    PrismTaskRoute.BugReport.createRoute(
-                                        fromScreen = "ShakeReport",
-                                        screenshotUri = capturedUri?.toString()
-                                    )
-                                )
-                            }) {
-                                androidx.compose.material3.Text("Report")
-                            }
-                        },
-                        dismissButton = {
-                            androidx.compose.material3.TextButton(onClick = {
-                                showShakeDialog = false
-                                pendingScreenshotUri = null
-                            }) {
-                                androidx.compose.material3.Text("Cancel")
-                            }
-                        }
-                    )
-                }
 
                 if (hasCompletedOnboarding == null) {
                     // DataStore hasn't emitted yet — show a minimal loading state
@@ -698,36 +591,6 @@ class MainActivity : ComponentActivity() {
                     }
                 }
             }
-        }
-    }
-
-    override fun onResume() {
-        super.onResume()
-        if (shakeFeatureEnabled) {
-            shakeDetector.register()
-        }
-        screenshotCapture.cleanupOldScreenshots(this)
-    }
-
-    override fun onPause() {
-        super.onPause()
-        shakeDetector.unregister()
-    }
-
-    private fun triggerHapticFeedback() {
-        try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                val vibratorManager = getSystemService(VIBRATOR_MANAGER_SERVICE) as? VibratorManager
-                vibratorManager?.defaultVibrator?.vibrate(
-                    VibrationEffect.createOneShot(50, VibrationEffect.DEFAULT_AMPLITUDE)
-                )
-            } else {
-                @Suppress("DEPRECATION")
-                val vibrator = getSystemService(VIBRATOR_SERVICE) as? Vibrator
-                vibrator?.vibrate(VibrationEffect.createOneShot(50, VibrationEffect.DEFAULT_AMPLITUDE))
-            }
-        } catch (e: SecurityException) {
-            Log.w("MainActivity", "Vibrate permission denied", e)
         }
     }
 

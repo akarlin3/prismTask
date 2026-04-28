@@ -22,7 +22,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.averycorp.prismtask.ui.screens.settings.sections.AccessibilitySection
-import com.averycorp.prismtask.ui.screens.settings.sections.ShakeSection
 import com.averycorp.prismtask.ui.screens.settings.sections.VoiceInputSection
 import com.averycorp.prismtask.ui.theme.ThemedSubScreenTitle
 
@@ -39,9 +38,6 @@ fun AccessibilityScreen(
     val voiceInputEnabled by viewModel.voiceInputEnabled.collectAsStateWithLifecycle()
     val voiceFeedbackEnabled by viewModel.voiceFeedbackEnabled.collectAsStateWithLifecycle()
     val continuousModeEnabled by viewModel.continuousModeEnabled.collectAsStateWithLifecycle()
-
-    val shakeEnabled by viewModel.shakeEnabled.collectAsStateWithLifecycle()
-    val shakeSensitivity by viewModel.shakeSensitivity.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
@@ -78,13 +74,6 @@ fun AccessibilityScreen(
                 onVoiceInputEnabledChange = viewModel::setVoiceInputEnabled,
                 onVoiceFeedbackEnabledChange = viewModel::setVoiceFeedbackEnabled,
                 onContinuousModeEnabledChange = viewModel::setContinuousModeEnabled
-            )
-
-            ShakeSection(
-                shakeEnabled = shakeEnabled,
-                shakeSensitivity = shakeSensitivity,
-                onShakeEnabledChange = viewModel::setShakeEnabled,
-                onShakeSensitivityChange = viewModel::setShakeSensitivity
             )
             Spacer(modifier = Modifier.height(32.dp))
         }

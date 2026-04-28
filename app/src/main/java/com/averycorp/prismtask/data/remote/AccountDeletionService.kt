@@ -312,7 +312,6 @@ constructor(
             "habit_list_prefs",
             "template_prefs",
             "user_prefs",
-            "shake_prefs",
             "morning_checkin_prefs",
             "medication_prefs",
             "gcal_sync_prefs",

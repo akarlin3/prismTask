@@ -38,7 +38,6 @@ import com.averycorp.prismtask.data.preferences.MorningCheckInPreferences
 import com.averycorp.prismtask.data.preferences.NdPreferencesDataStore
 import com.averycorp.prismtask.data.preferences.NotificationPreferences
 import com.averycorp.prismtask.data.preferences.OnboardingPreferences
-import com.averycorp.prismtask.data.preferences.ShakePreferences
 import com.averycorp.prismtask.data.preferences.SortPreferences
 import com.averycorp.prismtask.data.preferences.TabPreferences
 import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
@@ -169,7 +168,6 @@ constructor(
     // v5 additions — see audit doc
     private val a11yPreferences: A11yPreferences,
     private val voicePreferences: VoicePreferences,
-    private val shakePreferences: ShakePreferences,
     private val timerPreferences: TimerPreferences,
     private val notificationPreferences: NotificationPreferences,
     private val ndPreferencesDataStore: NdPreferencesDataStore,
@@ -930,7 +928,6 @@ constructor(
                 // --- v5 additions ---
                 importA11yConfig(config)
                 importVoiceConfig(config)
-                importShakeConfig(config)
                 importTimerConfig(config)
                 importNotificationConfig(config)
                 importNdConfig(config)
@@ -1382,17 +1379,6 @@ constructor(
             }
             v.get("continuousModeEnabled")?.takeIf { !it.isJsonNull }?.asBoolean?.let {
                 voicePreferences.setContinuousModeEnabled(it)
-            }
-        }
-    }
-
-    private suspend fun importShakeConfig(config: JsonObject) {
-        config.getAsJsonObject("shake")?.let { s ->
-            s.get("enabled")?.takeIf { !it.isJsonNull }?.asBoolean?.let {
-                shakePreferences.setEnabled(it)
-            }
-            s.get("sensitivity")?.takeIf { !it.isJsonNull }?.asString?.let {
-                shakePreferences.setSensitivity(it)
             }
         }
     }
