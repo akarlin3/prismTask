@@ -195,8 +195,29 @@ jobs:
       - name: detekt
         if: always() && steps.relevance.outputs.android == 'true'
         run: ./gradlew detekt --continue
-      - name: Android lint
-        if: always() && steps.relevance.outputs.android == 'true'
+      # Audit PR #876 → CI pathway efficiency Tier C #2: split lint by
+      # event. `./gradlew lint` aggregates lintDebug + lintRelease (and
+      # any other variants), and lintRelease's R8/proguard-shrunk pass
+      # dominates wall-clock — measured at 355s on push:main run
+      # 25032580155 (55% of total job time). For PR-time signal,
+      # lintDebug catches all source-code issues lintRelease does;
+      # lintRelease's exclusive coverage is shrinking-driven obfuscation
+      # mismatches, which only matter for the actual release build.
+      # Push:main still runs full `lint` so lintRelease findings still
+      # gate post-merge. Net savings: ~150-200s per Android PR with
+      # lintRelease coverage preserved on the path that matters
+      # (release builds).
+      # Step names below are intentionally colon-free in the visible label —
+      # an earlier shape ("Android lint (push:main: full lint…)") tripped
+      # GitHub's YAML parser because `: ` (colon-space) inside an unquoted
+      # scalar gets read as a mapping start. Result: workflow showed up as
+      # `name: .github/workflows/android-ci.yml` (file path, no parsed name)
+      # and zero jobs ran on the push event for run 25036738341.
+      - name: Android lint — PR (lintDebug only)
+        if: always() && github.event_name == 'pull_request' && steps.relevance.outputs.android == 'true'
+        run: ./gradlew lintDebug --continue
+      - name: Android lint — push to main (full lint incl. lintRelease)
+        if: always() && github.event_name != 'pull_request' && steps.relevance.outputs.android == 'true'
         run: ./gradlew lint --continue
       # Compile (but don't run) androidTest sources so type-level breakage
       # — e.g. a new constructor parameter on a production class without

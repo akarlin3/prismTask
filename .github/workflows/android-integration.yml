@@ -93,8 +93,41 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Install firebase-tools
-        run: npm install -g firebase-tools@latest
+      # Audit PR #876 → CI pathway efficiency Tier C #3: cache the
+      # firebase-tools global install. `npm install -g firebase-tools@latest`
+      # was running ~15-20s on every integration job (re-resolving the
+      # latest version from the npm registry, downloading the tarball,
+      # writing /usr/local/lib/node_modules/firebase-tools/...). Pinning
+      # to firebase-tools@15 (current major as of 2026-04, verified via
+      # `npm view firebase-tools versions`; latest 15.15.1) lets us cache
+      # by a stable key. Cache miss falls through to fresh install — no
+      # reliability regression. Bump the `v15` key suffix when upgrading
+      # to a new major; a stale cache won't break the build, it'll just
+      # serve an older 15.x point release until invalidated.
+      - name: Cache firebase-tools install
+        id: fb-tools-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.npm
+            /usr/local/lib/node_modules/firebase-tools
+            /usr/local/bin/firebase
+          key: firebase-tools-${{ runner.os }}-v15
+
+      # `actions/cache@v4` does not reliably round-trip the
+      # /usr/local/bin/firebase symlink that `npm install -g` creates —
+      # cache restore reports success, the package directory is back, but
+      # `firebase` isn't on PATH (exit 127 in `Verify firebase-tools available`).
+      # Falling back to `npm install` whenever the binary is missing covers
+      # both cache miss and the symlink-loss-on-restore case in one step.
+      - name: Install firebase-tools (cache miss or symlink lost)
+        run: |
+          if ! command -v firebase &> /dev/null; then
+            npm install -g firebase-tools@15
+          fi
+
+      - name: Verify firebase-tools available
+        run: firebase --version
 
       - name: Start Firebase Emulator Suite
         # Start the emulator in the background, record its PID, and wait
@@ -229,8 +262,41 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Install firebase-tools
-        run: npm install -g firebase-tools@latest
+      # Audit PR #876 → CI pathway efficiency Tier C #3: cache the
+      # firebase-tools global install. `npm install -g firebase-tools@latest`
+      # was running ~15-20s on every integration job (re-resolving the
+      # latest version from the npm registry, downloading the tarball,
+      # writing /usr/local/lib/node_modules/firebase-tools/...). Pinning
+      # to firebase-tools@15 (current major as of 2026-04, verified via
+      # `npm view firebase-tools versions`; latest 15.15.1) lets us cache
+      # by a stable key. Cache miss falls through to fresh install — no
+      # reliability regression. Bump the `v15` key suffix when upgrading
+      # to a new major; a stale cache won't break the build, it'll just
+      # serve an older 15.x point release until invalidated.
+      - name: Cache firebase-tools install
+        id: fb-tools-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.npm
+            /usr/local/lib/node_modules/firebase-tools
+            /usr/local/bin/firebase
+          key: firebase-tools-${{ runner.os }}-v15
+
+      # `actions/cache@v4` does not reliably round-trip the
+      # /usr/local/bin/firebase symlink that `npm install -g` creates —
+      # cache restore reports success, the package directory is back, but
+      # `firebase` isn't on PATH (exit 127 in `Verify firebase-tools available`).
+      # Falling back to `npm install` whenever the binary is missing covers
+      # both cache miss and the symlink-loss-on-restore case in one step.
+      - name: Install firebase-tools (cache miss or symlink lost)
+        run: |
+          if ! command -v firebase &> /dev/null; then
+            npm install -g firebase-tools@15
+          fi
+
+      - name: Verify firebase-tools available
+        run: firebase --version
 
       - name: Start Firebase Emulator Suite
         run: |

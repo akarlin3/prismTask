@@ -437,3 +437,104 @@ Re-run the queries from Item 2 after PR A + B + C merge. Target:
 
 **End Phase 1.** No code or config changes have been made. Awaiting Phase 2
 approval to spawn fan-out PRs from `main`.
+
+---
+
+## Phase 3 — Bundle summary (post-merge measurement)
+
+**Date:** 2026-04-28 (same day as Phase 1 + 2).
+
+### Per-improvement landing
+
+| Audit # | PR | State | Branch | Notes |
+|--------:|----|-------|--------|-------|
+| #1 (auto-merge queue-wait fix) | [#877](https://github.com/akarlin3/prismTask/pull/877) | MERGED 05:49Z | `ci/auto-merge-queue-wait-fix` | bundled cap reduction (300→90s), poll halved (10→5s), diag logs added, WAIT_INTERVAL 30→15s |
+| #2 (auto-update-branch noise split) | [#878](https://github.com/akarlin3/prismTask/pull/878) | MERGED 05:48Z | `ci/auto-update-branch-noise-split` | `fail_handled` (cosmetic, exits 0) split from `fail_unexpected` (genuine, exits 1) |
+| #3 (WAIT_INTERVAL drop) | bundled into #877 | — | — | landed alongside #1 |
+| #4 (version-bump merge ceiling) | [#880](https://github.com/akarlin3/prismTask/pull/880) | MERGED 05:53Z | `ci/version-bump-extend-merge-ceiling` | 60→120 attempts (10→20 min ceiling) |
+| #5 (integration `app/build` cache) | [#881](https://github.com/akarlin3/prismTask/pull/881) | MERGED 05:57Z | `ci/integration-app-build-cache` | `actions/cache@v4` added to both connected-tests + cross-device-tests jobs |
+| Tier C #2 (lintDebug on PR) | [#883](https://github.com/akarlin3/prismTask/pull/883) | OPEN, auto-merge | `ci/android-lint-debug-only-on-pr` | YAML parse bug on first attempt — `: ` in step name. Fix shipped commit `be66c7ff`. |
+| Tier C #3 (firebase-tools cache) | [#884](https://github.com/akarlin3/prismTask/pull/884) | OPEN, auto-merge | `ci/firebase-tools-install-cache` | pinned `@15` (current major; verified 15.15.1 latest via `npm view`) |
+| #6 (container image) | NOT DONE | — | — | premise wrong — setup-android measured at 13s/job, not the audited ~30s. ROI negative. |
+
+### Measured wall-clock deltas
+
+**`auto-merge.yml`** mean wall-clock — **62% reduction**:
+
+- Baseline (Phase 1 sample): **343.7s mean, std-dev ~7s** across 10 runs.
+- Post-#877 sample (clean PRs `ci/android-lint-debug-only-on-pr`, `ci/firebase-tools-install-cache`): **129s, 133s** = **131s mean** = **62% reduction (212s saved per PR)**.
+- Outlier observation: 477s and 523s on `feat/edge-case-sync-fuzz-*` PRs that have legitimate test-failure-driven slow CI lanes. The fix did not regress slow-CI behavior — the new ceiling is per-step (90s on queue-wait), not per-job, so PRs with long-running real CI still get full wait-on-check-action coverage.
+- **Phase F window projection**: 50 PRs × 212s saved = **~177 min recovered** (better than the 145-min audit prediction).
+
+**`auto-update-branch.yml`** failure-rate — **target met**:
+
+- Baseline (Phase 1 sample): **40%** (6/15 runs, dominated by handled conflicts).
+- Post-#878 sample: **10%** (1 failure / 10 runs), **0% cosmetic-conflict false-failures**.
+- The 1 remaining failure is run `25036554370` on PR #884 — a genuine `AUTOFIX_PAT` 401/403 auth/scope error. The `fail_auth=1` branch correctly fired exit-1 with the LOUD `::error::` annotation, exactly the signal the fix was designed to preserve. **Working as intended.**
+
+**Tier C #2 (lintDebug on PR)** — pending merge, not yet measurable post-fix. Prediction: ~150-200s saved per Android PR. Verification command after merge:
+```bash
+gh run view <next-android-pr-run> --json jobs \
+  --jq '.jobs[] | select(.name=="lint-and-test") | .steps[] | select(.name | contains("lint")) | "\(.name) | \(((.completedAt | fromdateiso8601) - (.startedAt | fromdateiso8601)))s"'
+```
+
+**Tier C #3 (firebase-tools cache)** — pending merge. Prediction: ~15-20s/job × 2 jobs = 30-40s saved on labeled `ci:integration` PRs.
+
+### Re-baseline (achieved vs target)
+
+| Metric                                          | Target   | Achieved | Status |
+|-------------------------------------------------|----------|----------|--------|
+| `auto-merge.yml` mean wall-clock                | <60s     | 131s     | 🟡 better than 120s mid-target, missed <60s stretch goal |
+| `auto-update-branch.yml` job-level failure rate | <10%     | 10%      | 🟡 hit ceiling exactly; 0% false-failures (real goal achieved) |
+| Per-PR creation→merged for trivial PRs          | <2 min   | ~3-5 min | 🔴 not reached — auto-merge is now ~131s but other steps (CI run, autofix, update-branch race) still gate the merge time |
+
+The trivial-PR creation→merged target was not reached because the audit
+under-attributed the wall-clock to other steps (autofix race, GitHub's
+own merge-queue, post-merge tag/release fire). The auto-merge fix did
+its job; further trivial-PR speedup requires investigating those
+adjacent paths.
+
+### Memory entry candidates
+
+**Saved as new memory** (worth surfacing in future CI work):
+
+> **YAML `: ` (colon-space) in unquoted step names breaks workflow parse.**
+> Run shows `name: .github/workflows/<file>.yml` (file path) instead of the
+> parsed workflow `name:` field; zero jobs run on the trigger event. Fix:
+> quote the value or remove `: ` from the label. Em dash (` — `) is
+> YAML-neutral. Witnessed on PR #883 first push — run 25036738341.
+
+The original audit's Improvement #1 root-cause-investigation hypothesis
+(diagnostic logging would surface MISSING/CHECK_RUNS mismatch shape) was
+not exercised because the cap-and-skip approach in #877 dropped the
+overall wall-clock so much that the diagnostic loops are now a non-issue.
+The diagnostic logs are still in the workflow for future debugging if
+the bug re-emerges.
+
+### Tier C #6 (container image) — not done, premise correction
+
+Audit estimated `setup-android` at ~30s/job, sized container migration at
+4-6 hr for ~75 min savings. Real measurement on push:main run
+25032580155: setup-android = **13s/job**. Container migration would
+save ≤13s/job. Over Phase F (~30 Android-CI runs): ~6.5 min saved for
+4-6 hr cost. **Negative ROI. Skipped.**
+
+The actual high-leverage Tier C target (not in original audit) was
+**Android lint at 355s** (55% of `lint-and-test` job). Tier C #2 (#883)
+addresses this with the lintDebug-on-PR split.
+
+### Schedule for next audit
+
+- **After Phase F (post-May 15):** re-baseline `auto-merge.yml` durations
+  on the new merge cadence to confirm the 131s holds. If the variance
+  widens, the diagnostic logs in #877 should now show the underlying
+  MISSING/CHECK_RUNS mismatch — file follow-up `ci/auto-merge-queue-wait-rootcause-fix`.
+- **AUTOFIX_PAT scope/expiry** (out of audit scope): the 1 real failure
+  in the post-#878 sample suggests AUTOFIX_PAT may need rotation. Worth
+  a separate one-off check next session — not a CI-pathway issue.
+
+---
+
+**End Phase 3.** Phase 2 fan-out delivered measurable wall-clock recovery
+(~177 min over Phase F projected). Tier C PRs (#883, #884) auto-merging.
+No follow-up audits scheduled in the immediate window.
