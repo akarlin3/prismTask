@@ -27,7 +27,6 @@ import com.averycorp.prismtask.data.preferences.HabitListPreferences
 import com.averycorp.prismtask.data.preferences.LeisurePreferences
 import com.averycorp.prismtask.data.preferences.NotificationPreferences
 import com.averycorp.prismtask.data.preferences.OnboardingPreferences
-import com.averycorp.prismtask.data.preferences.ShakePreferences
 import com.averycorp.prismtask.data.preferences.TabPreferences
 import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
 import com.averycorp.prismtask.data.preferences.TemplatePreferences
@@ -94,7 +93,6 @@ constructor(
     private val billingManager: BillingManager,
     private val voicePreferences: VoicePreferences,
     private val a11yPreferences: A11yPreferences,
-    private val shakePreferences: ShakePreferences,
     private val userPreferencesDataStore: com.averycorp.prismtask.data.preferences.UserPreferencesDataStore,
     private val boundaryRuleRepository: com.averycorp.prismtask.data.repository.BoundaryRuleRepository,
     private val moodEnergyRepository: com.averycorp.prismtask.data.repository.MoodEnergyRepository,
@@ -467,22 +465,6 @@ constructor(
 
     fun setLargeTouchTargets(enabled: Boolean) {
         viewModelScope.launch { a11yPreferences.setLargeTouchTargets(enabled) }
-    }
-
-    // --- Shake To Report ---
-    val shakeEnabled: StateFlow<Boolean> = shakePreferences
-        .getEnabled()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ShakePreferences.DEFAULT_ENABLED)
-    val shakeSensitivity: StateFlow<String> = shakePreferences
-        .getSensitivity()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ShakePreferences.DEFAULT_SENSITIVITY)
-
-    fun setShakeEnabled(enabled: Boolean) {
-        viewModelScope.launch { shakePreferences.setEnabled(enabled) }
-    }
-
-    fun setShakeSensitivity(sensitivity: String) {
-        viewModelScope.launch { shakePreferences.setSensitivity(sensitivity) }
     }
 
     // --- Widgets ---
@@ -1530,7 +1512,6 @@ constructor(
                     backendSyncPreferences.clear()
                     templatePreferences.clear()
                     userPreferencesDataStore.clearAll()
-                    shakePreferences.clearAll()
                     // Auth tokens and pro status cache are intentionally preserved.
                 }
                 if (options.restartOnboarding) {

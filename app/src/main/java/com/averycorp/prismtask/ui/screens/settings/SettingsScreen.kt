@@ -357,7 +357,7 @@ fun SettingsScreen(
                     SettingsGroup(label = "Accessibility") {
                         SettingsNavRow(
                             title = "Accessibility",
-                            subtitle = "Motion, contrast, voice, shake",
+                            subtitle = "Motion, contrast, voice",
                             iconEmoji = "\u267F",
                             iconBgColor = ColAccessibility,
                             onClick = { navController.navigate("settings/accessibility") }

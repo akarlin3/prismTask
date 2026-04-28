@@ -154,8 +154,6 @@ class HiltDependencyGraphTest {
             "BillingManager",
             "A11yPreferences",
             "UserPreferencesDataStore",
-            "ShakeDetector",
-            "ScreenshotCapture",
             "DiagnosticLogger"
         )
 

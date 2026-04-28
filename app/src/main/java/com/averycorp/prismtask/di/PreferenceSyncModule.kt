@@ -12,7 +12,6 @@ import com.averycorp.prismtask.data.preferences.medicationDataStore
 import com.averycorp.prismtask.data.preferences.morningCheckInDataStore
 import com.averycorp.prismtask.data.preferences.notificationDataStore
 import com.averycorp.prismtask.data.preferences.onboardingDataStore
-import com.averycorp.prismtask.data.preferences.shakeDataStore
 import com.averycorp.prismtask.data.preferences.tabDataStore
 import com.averycorp.prismtask.data.preferences.taskBehaviorDataStore
 import com.averycorp.prismtask.data.preferences.templateDataStore
@@ -64,7 +63,6 @@ object PreferenceSyncModule {
         PreferenceSyncSpec("nd_prefs", context.ndPrefsDataStore),
         PreferenceSyncSpec("notification_prefs", context.notificationDataStore),
         PreferenceSyncSpec("onboarding_prefs", context.onboardingDataStore),
-        PreferenceSyncSpec("shake_prefs", context.shakeDataStore),
         PreferenceSyncSpec("tab_prefs", context.tabDataStore),
         PreferenceSyncSpec("task_behavior_prefs", context.taskBehaviorDataStore),
         PreferenceSyncSpec("template_prefs", context.templateDataStore),

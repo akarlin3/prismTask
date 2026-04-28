@@ -232,7 +232,7 @@ function buildPages(themeLabel: string): OnboardingPage[] {
     {
       title: 'Brain Mode (on Android)',
       subtitle:
-        'Android adds ND-friendly modes (Brain Mode, Focus Release, forgiveness streaks, shake-to-capture). Web support is coming — your Android preferences will carry over once it lands.',
+        'Android adds ND-friendly modes (Brain Mode, Focus Release, forgiveness streaks). Web support is coming — your Android preferences will carry over once it lands.',
       icon: <Calendar className="h-8 w-8" aria-hidden="true" />,
       body: null,
     },

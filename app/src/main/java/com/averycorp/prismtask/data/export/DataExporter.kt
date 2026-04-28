@@ -24,7 +24,6 @@ import com.averycorp.prismtask.data.preferences.MorningCheckInPreferences
 import com.averycorp.prismtask.data.preferences.NdPreferencesDataStore
 import com.averycorp.prismtask.data.preferences.NotificationPreferences
 import com.averycorp.prismtask.data.preferences.OnboardingPreferences
-import com.averycorp.prismtask.data.preferences.ShakePreferences
 import com.averycorp.prismtask.data.preferences.SortPreferences
 import com.averycorp.prismtask.data.preferences.TabPreferences
 import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
@@ -66,7 +65,7 @@ data class ExportOptions(
  * automatically included in the export without any changes to this file.
  *
  * v5 expands coverage to close gaps flagged by the 2026-04 audit:
- *   - new preferences: accessibility, voice, shake, timer, notifications,
+ *   - new preferences: accessibility, voice, timer, notifications,
  *     neurodivergent modes, daily essentials, morning check-in, calendar sync,
  *     onboarding, templates, theme extras, habit-list extras, dashboard
  *     collapsed sections, user-preferences extras (task menu, card display,
@@ -119,7 +118,6 @@ constructor(
     // v5 additions — see audit doc
     private val a11yPreferences: A11yPreferences,
     private val voicePreferences: VoicePreferences,
-    private val shakePreferences: ShakePreferences,
     private val timerPreferences: TimerPreferences,
     private val notificationPreferences: NotificationPreferences,
     private val ndPreferencesDataStore: NdPreferencesDataStore,
@@ -453,7 +451,6 @@ constructor(
         // --- v5: net-new preference groups ---
         config.add("a11y", exportA11yConfig())
         config.add("voice", exportVoiceConfig())
-        config.add("shake", exportShakeConfig())
         config.add("timer", exportTimerConfig())
         config.add("notification", exportNotificationConfig())
         config.add("nd", exportNdConfig())
@@ -486,11 +483,6 @@ constructor(
         addProperty("voiceInputEnabled", voicePreferences.getVoiceInputEnabled().first())
         addProperty("voiceFeedbackEnabled", voicePreferences.getVoiceFeedbackEnabled().first())
         addProperty("continuousModeEnabled", voicePreferences.getContinuousModeEnabled().first())
-    }
-
-    private suspend fun exportShakeConfig(): JsonObject = JsonObject().apply {
-        addProperty("enabled", shakePreferences.getEnabled().first())
-        addProperty("sensitivity", shakePreferences.getSensitivity().first())
     }
 
     private suspend fun exportTimerConfig(): JsonObject = JsonObject().apply {

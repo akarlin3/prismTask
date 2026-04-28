@@ -30,7 +30,7 @@ PrismTask treats focus as a resource, not a virtue.
 • Mood and energy logs with correlation to task completion and habit runs
 • Morning check-in and weekly review flows with their own streaks
 • Boundary rules — declare work hours and category limits; a burnout scorer dials notification intensity down when overload is detected
-• Neurodivergence-friendly modes: Brain Mode, adjustable UI complexity, forgiveness streaks, shake-to-capture, and a "good enough" timer
+• Neurodivergence-friendly modes: Brain Mode, adjustable UI complexity, forgiveness streaks, and a "good enough" timer
 
 
 Medication & clinical tools

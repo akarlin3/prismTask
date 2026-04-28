@@ -24,7 +24,6 @@ import com.averycorp.prismtask.data.preferences.MedicationPreferences
 import com.averycorp.prismtask.data.preferences.MorningCheckInPreferences
 import com.averycorp.prismtask.data.preferences.NdPreferencesDataStore
 import com.averycorp.prismtask.data.preferences.NotificationPreferences
-import com.averycorp.prismtask.data.preferences.ShakePreferences
 import com.averycorp.prismtask.data.preferences.TabPreferences
 import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
 import com.averycorp.prismtask.data.preferences.TemplatePreferences
@@ -80,7 +79,6 @@ class DataImporterV5Test {
     private lateinit var taskCompletionDao: TaskCompletionDao
     private lateinit var a11yPreferences: A11yPreferences
     private lateinit var voicePreferences: VoicePreferences
-    private lateinit var shakePreferences: ShakePreferences
     private lateinit var timerPreferences: TimerPreferences
     private lateinit var notificationPreferences: NotificationPreferences
     private lateinit var ndPreferencesDataStore: NdPreferencesDataStore
@@ -113,7 +111,6 @@ class DataImporterV5Test {
         userPreferencesDataStore = mockk(relaxed = true)
         a11yPreferences = mockk(relaxed = true)
         voicePreferences = mockk(relaxed = true)
-        shakePreferences = mockk(relaxed = true)
         timerPreferences = mockk(relaxed = true)
         notificationPreferences = mockk(relaxed = true)
         ndPreferencesDataStore = mockk(relaxed = true)
@@ -145,7 +142,7 @@ class DataImporterV5Test {
             transactionRunner, themePreferences, archivePreferences, dashboardPreferences,
             tabPreferences, taskBehaviorPreferences, habitListPreferences,
             leisurePreferences, medicationPreferences, userPreferencesDataStore,
-            a11yPreferences, voicePreferences, shakePreferences, timerPreferences,
+            a11yPreferences, voicePreferences, timerPreferences,
             notificationPreferences, ndPreferencesDataStore, dailyEssentialsPreferences,
             morningCheckInPreferences, calendarSyncPreferences, templatePreferences,
             mockk(relaxed = true), mockk(relaxed = true), mockk(relaxed = true)
