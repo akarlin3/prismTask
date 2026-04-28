@@ -126,6 +126,15 @@ fun TaskAnalyticsScreen(
                         accent = accentColor
                     )
                 }
+                // Time-tracking bar chart \u2014 Pro-gated (P2-C, C4 + C5)
+                state.timeTracking?.let { timeTracking ->
+                    TimeTrackingSection(
+                        response = timeTracking,
+                        selectedRange = state.productivityRange,
+                        onRangeSelected = { viewModel.setProductivityRange(it) },
+                        accent = accentColor
+                    )
+                }
             }
 
             if (stats == null || stats.totalCompleted == 0) {

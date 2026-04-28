@@ -7,6 +7,7 @@ import com.averycorp.prismtask.data.billing.UserTier
 import com.averycorp.prismtask.data.local.dao.HabitCompletionDao
 import com.averycorp.prismtask.data.local.dao.TaskCompletionDao
 import com.averycorp.prismtask.data.local.dao.TaskDao
+import com.averycorp.prismtask.data.local.dao.TaskTimingDao
 import com.averycorp.prismtask.data.local.entity.ProjectEntity
 import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
 import com.averycorp.prismtask.data.repository.HabitRepository
@@ -17,9 +18,11 @@ import com.averycorp.prismtask.data.repository.TaskRepository
 import com.averycorp.prismtask.domain.model.AnalyticsSummary
 import com.averycorp.prismtask.domain.model.ProductivityRange
 import com.averycorp.prismtask.domain.model.ProductivityScoreResponse
+import com.averycorp.prismtask.domain.model.TimeTrackingResponse
 import com.averycorp.prismtask.domain.usecase.AnalyticsSummaryAggregator
 import com.averycorp.prismtask.domain.usecase.ProFeatureGate
 import com.averycorp.prismtask.domain.usecase.ProductivityScoreCalculator
+import com.averycorp.prismtask.domain.usecase.TimeTrackingAggregator
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -56,7 +59,8 @@ data class TaskAnalyticsState(
     val summary: AnalyticsSummary? = null,
     val isPro: Boolean = false,
     val productivity: ProductivityScoreResponse? = null,
-    val productivityRange: ProductivityRange = ProductivityRange.THIRTY_DAYS
+    val productivityRange: ProductivityRange = ProductivityRange.THIRTY_DAYS,
+    val timeTracking: TimeTrackingResponse? = null
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -72,8 +76,10 @@ constructor(
     private val taskDao: TaskDao,
     private val taskCompletionDao: TaskCompletionDao,
     private val habitCompletionDao: HabitCompletionDao,
+    private val taskTimingDao: TaskTimingDao,
     private val analyticsSummaryAggregator: AnalyticsSummaryAggregator,
     private val productivityScoreCalculator: ProductivityScoreCalculator,
+    private val timeTrackingAggregator: TimeTrackingAggregator,
     private val proFeatureGate: ProFeatureGate,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
@@ -119,6 +125,22 @@ constructor(
         }
     }
 
+    private val timeTrackingFlow: Flow<TimeTrackingResponse> = _productivityRange.flatMapLatest { range ->
+        val zone = ZoneId.systemDefault()
+        val today = LocalDate.now(zone)
+        val startDate = today.minusDays((range.days - 1).toLong())
+        val startMillis = startDate.atStartOfDay(zone).toInstant().toEpochMilli()
+        val endMillisExclusive = today.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
+        taskTimingDao.getTimingsInRange(startMillis, endMillisExclusive).map { timings ->
+            timeTrackingAggregator.compute(
+                endDate = today,
+                zone = zone,
+                range = range,
+                timings = timings
+            )
+        }
+    }
+
     private val productivityFlow: Flow<ProductivityScoreResponse> = _productivityRange.flatMapLatest { range ->
         val zone = ZoneId.systemDefault()
         val today = LocalDate.now(zone)
@@ -150,7 +172,11 @@ constructor(
 
     private val summaryAndProFlow = combine(summaryFlow, isProFlow) { s, p -> s to p }
 
-    private val productivityAndRangeFlow = combine(productivityFlow, _productivityRange) { p, r -> p to r }
+    private val productivityAndRangeFlow = combine(
+        productivityFlow,
+        _productivityRange,
+        timeTrackingFlow
+    ) { p, r, t -> Triple(p, r, t) }
 
     private val basicTriple = combine(
         statsFlow,
@@ -163,7 +189,8 @@ constructor(
         projectsAndDowFlow,
         summaryAndProFlow,
         productivityAndRangeFlow
-    ) { (stats, period, projectId), (projects, fdow), (summary, isPro), (productivity, range) ->
+    ) { (stats, period, projectId), (projects, fdow), (summary, isPro), pAndR ->
+        val (productivity, range, timeTracking) = pAndR
         TaskAnalyticsState(
             stats = stats,
             selectedPeriod = period,
@@ -174,7 +201,8 @@ constructor(
             summary = summary,
             isPro = isPro,
             productivity = productivity,
-            productivityRange = range
+            productivityRange = range,
+            timeTracking = timeTracking
         )
     }.stateIn(
         viewModelScope,
