@@ -55,14 +55,13 @@ _RTDN_EVENT_TYPES = (
 
 
 def upgrade() -> None:
-    # Manually create the PG enum type first, then reference it from the
-    # column with ``create_type=False`` so SQLAlchemy does not try to
-    # re-create it during ``op.create_table``. Without this guard, the
-    # column's Enum defaults to ``create_type=True`` and the second
-    # CREATE TYPE fails with "type already exists" on Postgres.
-    rtdn_enum = sa.Enum(*_RTDN_EVENT_TYPES, name="rtdn_event_type")
-    rtdn_enum.create(op.get_bind(), checkfirst=True)
-
+    # Let ``op.create_table`` auto-emit ``CREATE TYPE`` for the inline
+    # Enum (matches the convention used by migrations 001/002). The
+    # earlier "manual create + create_type=False on the column" pattern
+    # tripped over a duplicate ``CREATE TYPE`` because the column-level
+    # Enum's ``_on_table_create`` event fires regardless of
+    # ``create_type=False`` once the type's name has been bound — see
+    # the asyncpg DuplicateObjectError on the prior CI run.
     op.create_table(
         "rtdn_events",
         sa.Column("id", sa.Integer, primary_key=True),
@@ -72,7 +71,7 @@ def upgrade() -> None:
         ),
         sa.Column(
             "event_type",
-            sa.Enum(*_RTDN_EVENT_TYPES, name="rtdn_event_type", create_type=False),
+            sa.Enum(*_RTDN_EVENT_TYPES, name="rtdn_event_type"),
             nullable=False,
         ),
         sa.Column("purchase_token", sa.String(512), nullable=True, index=True),
@@ -95,5 +94,8 @@ def downgrade() -> None:
     op.drop_index("ix_rtdn_events_token_received", table_name="rtdn_events")
     op.drop_table("rtdn_events")
 
-    rtdn_enum = sa.Enum(*_RTDN_EVENT_TYPES, name="rtdn_event_type")
-    rtdn_enum.drop(op.get_bind(), checkfirst=True)
+    # ``op.drop_table`` does not drop the PG enum type; do it explicitly
+    # with ``checkfirst=True`` so re-running downgrade is idempotent.
+    sa.Enum(*_RTDN_EVENT_TYPES, name="rtdn_event_type").drop(
+        op.get_bind(), checkfirst=True
+    )
