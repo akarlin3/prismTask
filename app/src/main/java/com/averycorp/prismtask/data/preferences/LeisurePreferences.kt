@@ -134,9 +134,13 @@ constructor(
         // behaviour readCustomSections already had.
         val hidden: List<String> = prefs[keys.hiddenKey]?.let { raw ->
             runCatching { gson.fromJson<List<String>>(raw, stringListType) }.getOrNull()
-        } ?: emptyList()
+        }?.let { list -> (list as List<String?>?).orEmpty().filterNotNull() } ?: emptyList()
         val custom: List<CustomLeisureActivity> = prefs[keys.customKey]?.let { raw ->
             runCatching { gson.fromJson<List<CustomLeisureActivity>>(raw, activityListType) }.getOrNull()
+        }?.let { list ->
+            (list as List<CustomLeisureActivity?>?).orEmpty()
+                .filterNotNull()
+                .mapNotNull { it.sanitizedActivity() }
         } ?: emptyList()
         return LeisureSlotConfig(
             enabled = prefs[keys.enabledKey]?.toBooleanStrictOrNull() ?: default.enabled,
@@ -258,11 +262,64 @@ constructor(
     fun getCustomSections(): Flow<List<CustomLeisureSection>> =
         context.leisureDataStore.data.map { prefs -> readCustomSections(prefs) }
 
-    private fun readCustomSections(prefs: Preferences): List<CustomLeisureSection> =
-        prefs[CUSTOM_SECTIONS_KEY]?.let {
-            runCatching { gson.fromJson<List<CustomLeisureSection>>(it, sectionListType) }
-                .getOrNull()
-        } ?: emptyList()
+    private fun readCustomSections(prefs: Preferences): List<CustomLeisureSection> {
+        val raw = prefs[CUSTOM_SECTIONS_KEY] ?: return emptyList()
+        val parsed = runCatching { gson.fromJson<List<CustomLeisureSection>>(raw, sectionListType) }
+            .getOrNull()
+            ?: return emptyList()
+        // gson DOES NOT honour Kotlin non-null annotations — JSON `null`
+        // (or a missing field) deserializes to a real Java `null` even
+        // when the data class declares the property non-nullable. The
+        // Firebase Crashlytics issue 0fe0a45f saw NPE inside
+        // LeisureSlotConfig.<init> via LeisureViewModel.toSlotState
+        // because a synced CustomLeisureSection had at least one null
+        // String field (label/emoji/id) or a null List<CustomLeisureActivity>.
+        // Filter out items that can't be made whole, and replace null
+        // fields on survivors with safe defaults so the downstream
+        // LeisureSlotConfig constructor never sees null.
+        return parsed
+            .filterNotNull()
+            .mapNotNull { runCatching { it.sanitized() }.getOrNull() }
+    }
+
+    /**
+     * Coerce gson-leaked nulls into safe defaults so this section can be
+     * passed to non-null constructors without an NPE. Returns null only
+     * when [id] is missing — every section needs a stable identity, and
+     * fabricating one risks colliding with future legitimate sections.
+     *
+     * The casts to `String?` / `List<…>?` are intentional: gson bypasses
+     * Kotlin's compiler-generated parameter-not-null checks via Unsafe
+     * + reflection, so a property declared `val label: String` can hold
+     * a real Java null at runtime even though the static type forbids
+     * it. Casting to nullable type before the elvis preserves the null
+     * check at bytecode level — without the cast, `label ?: "Section"`
+     * is `SENSELESS_COMPARISON` and the compiler may elide the check.
+     */
+    private fun CustomLeisureSection.sanitized(): CustomLeisureSection? {
+        val safeId = (id as String?) ?: return null
+        val safeLabel = (label as String?) ?: "Section"
+        val safeEmoji = (emoji as String?) ?: "✨"
+        val safeActivities: List<CustomLeisureActivity> =
+            ((customActivities as List<CustomLeisureActivity?>?) ?: emptyList())
+                .filterNotNull()
+                .mapNotNull { it.sanitizedActivity() }
+        return copy(
+            id = safeId,
+            label = safeLabel,
+            emoji = safeEmoji,
+            durationMinutes = durationMinutes.coerceIn(MIN_DURATION_MINUTES, MAX_DURATION_MINUTES),
+            gridColumns = gridColumns.coerceIn(MIN_GRID_COLUMNS, MAX_GRID_COLUMNS),
+            customActivities = safeActivities
+        )
+    }
+
+    private fun CustomLeisureActivity.sanitizedActivity(): CustomLeisureActivity? {
+        val safeId = (id as String?) ?: return null
+        val safeLabel = (label as String?) ?: return null
+        val safeIcon = (icon as String?) ?: "✨"
+        return copy(id = safeId, label = safeLabel, icon = safeIcon)
+    }
 
     /**
      * Adds a new custom section. Returns the generated id so callers can

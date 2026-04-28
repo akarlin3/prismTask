@@ -216,4 +216,80 @@ class LeisurePreferencesTest {
             prefs.getSlotConfig(LeisureSlotId.FLEX).first().hiddenBuiltInIds
         )
     }
+
+    /**
+     * Regression for Crashlytics issue 0fe0a45f5a45b88be3d81baa85c79c4a:
+     * gson bypasses Kotlin non-null contracts via Unsafe + reflection, so
+     * a JSON payload with a null String field deserializes to a
+     * `CustomLeisureSection` with a literal Java null in a non-null Kotlin
+     * property. Downstream `LeisureViewModel.toSlotState` then passed that
+     * null straight to `LeisureSlotConfig.<init>`, where the
+     * compiler-generated `getClass()` null check fired and crashed
+     * LeisureScreen the moment the user navigated in. The sanitizer pass
+     * in `readCustomSections` must drop or repair such items so the
+     * non-null Kotlin contract holds end-to-end.
+     */
+    @Test
+    fun getCustomSections_dropsRowsWhereGsonLeakedANullStringField() = runTest {
+        val ctx = ApplicationProvider.getApplicationContext<Context>()
+        ctx.leisureDataStore.edit { p ->
+            p[stringPreferencesKey("custom_sections")] = """
+                [
+                  {"id":"sec_1","label":"Reading","emoji":"X","enabled":true,
+                   "durationMinutes":15,"gridColumns":2,"autoComplete":true,
+                   "customActivities":[]},
+                  {"id":"sec_2","label":null,"emoji":"Y","enabled":true,
+                   "durationMinutes":15,"gridColumns":2,"autoComplete":true,
+                   "customActivities":[]},
+                  {"id":null,"label":"No identity","emoji":"Z","enabled":true,
+                   "durationMinutes":15,"gridColumns":2,"autoComplete":true,
+                   "customActivities":[]}
+                ]
+            """.trimIndent()
+        }
+        val sections = prefs.getCustomSections().first()
+        // sec_1 keeps its label; sec_2's null label is replaced with the
+        // safe default; the id-less row is dropped entirely.
+        assertEquals(2, sections.size)
+        val byId = sections.associateBy { it.id }
+        assertEquals("Reading", byId["sec_1"]?.label)
+        assertEquals("Section", byId["sec_2"]?.label)
+    }
+
+    @Test
+    fun getCustomSections_coercesOutOfRangeDurationAndColumns() = runTest {
+        val ctx = ApplicationProvider.getApplicationContext<Context>()
+        ctx.leisureDataStore.edit { p ->
+            p[stringPreferencesKey("custom_sections")] = """
+                [{"id":"sec_3","label":"Bad","emoji":"!","enabled":true,
+                  "durationMinutes":0,"gridColumns":0,"autoComplete":true,
+                  "customActivities":[]}]
+            """.trimIndent()
+        }
+        val sections = prefs.getCustomSections().first()
+        assertEquals(1, sections.size)
+        // Coerced so GridCells.Fixed and the timer math don't trip on zero.
+        assertEquals(LeisurePreferences.MIN_DURATION_MINUTES, sections[0].durationMinutes)
+        assertEquals(LeisurePreferences.MIN_GRID_COLUMNS, sections[0].gridColumns)
+    }
+
+    @Test
+    fun getCustomSections_dropsActivitiesWithNullIdOrLabel() = runTest {
+        val ctx = ApplicationProvider.getApplicationContext<Context>()
+        ctx.leisureDataStore.edit { p ->
+            p[stringPreferencesKey("custom_sections")] = """
+                [{"id":"sec_4","label":"Mixed","emoji":"X","enabled":true,
+                  "durationMinutes":15,"gridColumns":2,"autoComplete":true,
+                  "customActivities":[
+                    {"id":"act_1","label":"Real","icon":"A"},
+                    {"id":null,"label":"Phantom","icon":"B"},
+                    {"id":"act_2","label":null,"icon":"C"}
+                  ]}]
+            """.trimIndent()
+        }
+        val activities = prefs.getCustomSections().first().single().customActivities
+        // Only the activity with both id and label survives sanitization.
+        assertEquals(1, activities.size)
+        assertEquals("act_1", activities[0].id)
+    }
 }
