@@ -9,12 +9,12 @@ import dagger.hilt.android.testing.HiltAndroidTest
 import org.junit.Test
 
 /**
- * Smoke tests for the Bug Report feature. In v1.4 the Bug Report screen
- * is reached either via shake-to-report (Shake feature) or via the debug
- * floating feedback button (BuildConfig.DEBUG only — present in all
- * androidTest runs). `HelpFeedbackSection` in Settings still defines a
- * "Report a Bug" row but it's not wired into the main SettingsScreen —
- * the only integrated entry points are the ones listed above.
+ * Smoke tests for the Bug Report feature. The Bug Report screen is
+ * reached via the debug floating feedback button (BuildConfig.DEBUG
+ * only — present in all androidTest runs). `HelpFeedbackSection` in
+ * Settings still defines a "Report a Bug" row but it's not wired into
+ * the main SettingsScreen — the floating button is the only integrated
+ * entry point.
  */
 @HiltAndroidTest
 class BugReportSmokeTest : SmokeTestBase() {

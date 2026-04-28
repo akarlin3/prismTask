@@ -90,7 +90,7 @@
     <g transform="translate(0, 608)">
       <rect x="0" y="0" width="984" height="132" rx="20" fill="#010F04" stroke="#00FF41" stroke-width="2"/>
       <text x="36" y="50" font-size="28" font-weight="700" fill="#B0FFB8">ND-friendly mode</text>
-      <text x="36" y="90" font-size="22" fill="#70CC80">Brain Mode, UI complexity, shake to capture, "good enough" timer.</text>
+      <text x="36" y="90" font-size="22" fill="#70CC80">Brain Mode, UI complexity, "good enough" timer.</text>
       <g transform="translate(888, 50)">
         <rect x="0" y="0" width="72" height="38" rx="19" fill="#00FF41"/>
         <circle cx="54" cy="19" r="14" fill="#010D03"/>
