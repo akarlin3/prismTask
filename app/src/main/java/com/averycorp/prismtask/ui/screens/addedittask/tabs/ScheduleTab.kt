@@ -37,6 +37,7 @@ import androidx.compose.material3.TimePicker
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -70,9 +71,11 @@ internal fun ScheduleTabContent(viewModel: AddEditTaskViewModel) {
     var showReminderDialog by remember { mutableStateOf(false) }
     var showRecurrenceDialog by remember { mutableStateOf(false) }
     var showCustomDurationDialog by remember { mutableStateOf(false) }
+    var showCustomLogTimeDialog by remember { mutableStateOf(false) }
 
     val dueDate = viewModel.dueDate
     val hasDate = dueDate != null
+    val loggedMinutes by viewModel.loggedMinutes.collectAsState()
 
     Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
         // ---- Due Date section ----
@@ -241,6 +244,49 @@ internal fun ScheduleTabContent(viewModel: AddEditTaskViewModel) {
             }
         }
 
+        // ---- Logged Time section (edit mode only — needs a persisted task to FK against) ----
+        if (viewModel.isEditMode) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                SectionLabel("Logged Time")
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ScheduleChip(
+                        label = "+15m",
+                        selected = false,
+                        onClick = { viewModel.logTime(15) }
+                    )
+                    ScheduleChip(
+                        label = "+30m",
+                        selected = false,
+                        onClick = { viewModel.logTime(30) }
+                    )
+                    ScheduleChip(
+                        label = "+1h",
+                        selected = false,
+                        onClick = { viewModel.logTime(60) }
+                    )
+                    ScheduleChip(
+                        label = "+Custom",
+                        selected = false,
+                        onClick = { showCustomLogTimeDialog = true }
+                    )
+                }
+                Text(
+                    text = if (loggedMinutes > 0) {
+                        "Total: ${formatDurationMinutes(loggedMinutes)}"
+                    } else {
+                        "No time logged yet"
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = if (loggedMinutes > 0) FontWeight.Medium else FontWeight.Normal,
+                    color = if (loggedMinutes > 0) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    }
+                )
+            }
+        }
+
         // ---- Recurrence section ----
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             SectionLabel("Repeat")
@@ -383,6 +429,18 @@ internal fun ScheduleTabContent(viewModel: AddEditTaskViewModel) {
                 showCustomDurationDialog = false
             },
             onDismiss = { showCustomDurationDialog = false }
+        )
+    }
+
+    // Custom log-time dialog — appends a manual entry instead of replacing.
+    if (showCustomLogTimeDialog) {
+        CustomDurationDialog(
+            initialMinutes = null,
+            onConfirm = { minutes ->
+                if (minutes != null) viewModel.logTime(minutes)
+                showCustomLogTimeDialog = false
+            },
+            onDismiss = { showCustomLogTimeDialog = false }
         )
     }
 

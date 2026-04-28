@@ -10,6 +10,7 @@ import com.averycorp.prismtask.data.repository.ProjectRepository
 import com.averycorp.prismtask.data.repository.TagRepository
 import com.averycorp.prismtask.data.repository.TaskRepository
 import com.averycorp.prismtask.data.repository.TaskTemplateRepository
+import com.averycorp.prismtask.data.repository.TaskTimingRepository
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -43,6 +44,7 @@ class AddEditTaskViewModelTest {
     private lateinit var tagRepository: TagRepository
     private lateinit var attachmentRepository: AttachmentRepository
     private lateinit var templateRepository: TaskTemplateRepository
+    private lateinit var taskTimingRepository: TaskTimingRepository
     private lateinit var boundaryRuleRepository: BoundaryRuleRepository
     private lateinit var notificationPreferences: NotificationPreferences
     private lateinit var userPreferencesDataStore: UserPreferencesDataStore
@@ -56,6 +58,8 @@ class AddEditTaskViewModelTest {
         tagRepository = mockk(relaxed = true)
         attachmentRepository = mockk(relaxed = true)
         templateRepository = mockk(relaxed = true)
+        taskTimingRepository = mockk(relaxed = true)
+        coEvery { taskTimingRepository.observeSumMinutesForTask(any()) } returns flowOf(0)
         boundaryRuleRepository = mockk(relaxed = true)
         notificationPreferences = mockk(relaxed = true)
         userPreferencesDataStore = mockk(relaxed = true)
@@ -82,6 +86,7 @@ class AddEditTaskViewModelTest {
         tagRepository,
         attachmentRepository,
         templateRepository,
+        taskTimingRepository,
         boundaryRuleRepository,
         notificationPreferences,
         userPreferencesDataStore,
@@ -261,6 +266,58 @@ class AddEditTaskViewModelTest {
                 recurrenceRule = any(),
                 estimatedDuration = any()
             )
+        }
+    }
+
+    // ---------------------------------------------------------------------
+    // Logged time (P2-B)
+    // ---------------------------------------------------------------------
+
+    @Test
+    fun `logTime is no-op in create mode (no taskId yet)`() = runTest {
+        val vm = newViewModel()
+        vm.initialize(taskId = null, projectId = null, initialDate = null)
+
+        vm.logTime(15)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        coVerify(exactly = 0) {
+            taskTimingRepository.logTime(any(), any(), any(), any(), any(), any())
+        }
+    }
+
+    @Test
+    fun `logTime forwards minutes to repository in edit mode`() = runTest {
+        coEvery { taskRepository.getTaskById(7L) } returns flowOf(
+            TaskEntity(id = 7L, title = "Refactor parser")
+        )
+        val vm = newViewModel()
+        vm.initialize(taskId = 7L, projectId = null, initialDate = null)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        vm.logTime(25)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        coVerify {
+            taskTimingRepository.logTime(taskId = 7L, durationMinutes = 25)
+        }
+    }
+
+    @Test
+    fun `logTime ignores non-positive minutes without hitting repository`() = runTest {
+        coEvery { taskRepository.getTaskById(7L) } returns flowOf(
+            TaskEntity(id = 7L, title = "Whatever")
+        )
+        val vm = newViewModel()
+        vm.initialize(taskId = 7L, projectId = null, initialDate = null)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        vm.logTime(0)
+        vm.logTime(-10)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        coVerify(exactly = 0) {
+            taskTimingRepository.logTime(any(), any(), any(), any(), any(), any())
         }
     }
 }

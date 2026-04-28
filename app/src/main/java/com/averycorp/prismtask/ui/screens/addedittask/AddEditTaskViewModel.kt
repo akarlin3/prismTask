@@ -24,6 +24,7 @@ import com.averycorp.prismtask.data.repository.ProjectRepository
 import com.averycorp.prismtask.data.repository.TagRepository
 import com.averycorp.prismtask.data.repository.TaskRepository
 import com.averycorp.prismtask.data.repository.TaskTemplateRepository
+import com.averycorp.prismtask.data.repository.TaskTimingRepository
 import com.averycorp.prismtask.domain.model.LifeCategory
 import com.averycorp.prismtask.domain.model.RecurrenceRule
 import com.averycorp.prismtask.domain.usecase.BoundaryDecision
@@ -67,6 +68,7 @@ constructor(
     private val tagRepository: TagRepository,
     private val attachmentRepository: AttachmentRepository,
     private val templateRepository: TaskTemplateRepository,
+    private val taskTimingRepository: TaskTimingRepository,
     private val boundaryRuleRepository: BoundaryRuleRepository,
     private val notificationPreferences: NotificationPreferences,
     private val userPreferencesDataStore: com.averycorp.prismtask.data.preferences.UserPreferencesDataStore,
@@ -228,6 +230,19 @@ constructor(
         .flatMapLatest { id ->
             if (id != null) {
                 taskRepository.getSubtasks(id).map { it.size }
+            } else {
+                flowOf(0)
+            }
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+    // Sum of all logged time entries (manual / pomodoro / timer) for the task
+    // being edited. Drives the "Logged Time" section in the Schedule tab.
+    // Empty in create mode (no taskId yet) — the section hides via isEditMode.
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val loggedMinutes: StateFlow<Int> = _taskIdFlow
+        .flatMapLatest { id ->
+            if (id != null) {
+                taskTimingRepository.observeSumMinutesForTask(id)
             } else {
                 flowOf(0)
             }
@@ -441,6 +456,25 @@ constructor(
 
     fun onEstimatedDurationChange(value: Int?) {
         estimatedDuration = value
+    }
+
+    /**
+     * Append a manual time-tracking entry to the task being edited. Only
+     * valid in edit mode (the task must already exist so timings can FK to
+     * it). Negative or zero minutes are silently ignored at the call site —
+     * the underlying repository requires `> 0` and would otherwise throw.
+     */
+    fun logTime(minutes: Int) {
+        val taskId = currentTaskId ?: return
+        if (minutes <= 0) return
+        viewModelScope.launch {
+            try {
+                taskTimingRepository.logTime(taskId = taskId, durationMinutes = minutes)
+            } catch (e: Exception) {
+                Log.w("AddEditTaskVM", "logTime failed", e)
+                _errorMessages.emit("Failed to log time")
+            }
+        }
     }
 
     fun onSelectedTagIdsChange(value: Set<Long>) {

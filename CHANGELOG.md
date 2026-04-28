@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Manual "Logged Time" section in the task editor's Schedule tab.** P2-B
+  of the analytics C4/C5 implementation
+  (`docs/audits/ANALYTICS_C4_C5_TIME_TRACKING_DESIGN.md`, Path 2). New chip
+  row (`+15m` / `+30m` / `+1h` / `+Custom`) appends a manual
+  `TaskTimingEntity` (source = `manual`) and the running total updates
+  reactively below the chips. Section is edit-mode only — manual logging
+  needs a persisted `taskId` to FK against. Wires
+  `TaskTimingRepository` into `AddEditTaskViewModel` and exposes
+  `loggedMinutes: StateFlow<Int>` and a `logTime(minutes)` action.
+
 - **`TaskTimingEntity` + `TaskTimingDao` + `TaskTimingRepository` — per-task
   time-tracking data layer.** P2-A of the analytics C4/C5 implementation
   (`docs/audits/ANALYTICS_C4_C5_TIME_TRACKING_DESIGN.md`, Path 2). New Room
