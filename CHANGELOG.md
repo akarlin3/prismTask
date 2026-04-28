@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+- **`ProductivityScoreCalculator` use case + `ProductivityScore` domain model.**
+  Slice 2 of the web PR #715 Android port (`docs/audits/ANALYTICS_PR715_PORT_AUDIT.md`,
+  Subset C). Pure-compute daily productivity score with the same 4-component
+  breakdown the backend uses (task completion 40 % / on time 25 % / habit
+  completion 20 % / estimation accuracy 15 %), the same trend rule
+  (split-half avg ±3), and the same default-100 fallback for empty buckets.
+  Estimation accuracy is hard-coded to 100 today because Android Room has no
+  `actualDuration` column on `TaskEntity` — swap when time tracking lands.
+  Domain layer only; no UI changes (the chart wiring lives in slice 3 /
+  `feat/analytics-productivity-chart`).
+
 ### Removed
 
 - **Medication reminders on the Today (start) screen.** The Daily
