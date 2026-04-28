@@ -207,10 +207,16 @@ jobs:
       # gate post-merge. Net savings: ~150-200s per Android PR with
       # lintRelease coverage preserved on the path that matters
       # (release builds).
-      - name: Android lint (PR-fast: lintDebug only)
+      # Step names below are intentionally colon-free in the visible label —
+      # an earlier shape ("Android lint (push:main: full lint…)") tripped
+      # GitHub's YAML parser because `: ` (colon-space) inside an unquoted
+      # scalar gets read as a mapping start. Result: workflow showed up as
+      # `name: .github/workflows/android-ci.yml` (file path, no parsed name)
+      # and zero jobs ran on the push event for run 25036738341.
+      - name: Android lint — PR (lintDebug only)
         if: always() && github.event_name == 'pull_request' && steps.relevance.outputs.android == 'true'
         run: ./gradlew lintDebug --continue
-      - name: Android lint (push:main: full lint incl. lintRelease)
+      - name: Android lint — push to main (full lint incl. lintRelease)
         if: always() && github.event_name != 'pull_request' && steps.relevance.outputs.android == 'true'
         run: ./gradlew lint --continue
       # Compile (but don't run) androidTest sources so type-level breakage
