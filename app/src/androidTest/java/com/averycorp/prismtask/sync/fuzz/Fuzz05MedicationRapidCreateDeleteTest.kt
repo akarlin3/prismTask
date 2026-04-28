@@ -47,7 +47,7 @@ class Fuzz05MedicationRapidCreateDeleteTest : SyncFuzzScenarioBase() {
                 // Roll a small batch of inserts.
                 val batchSize = random.nextInt(1, 4)
                 repeat(batchSize) {
-                    val key = "fuzz-${cycle}-${keyCounter++}"
+                    val key = "fuzz-$cycle-${keyCounter++}"
                     val medId = medicationRepository.insert(
                         MedicationEntity(name = key, createdAt = 0L, updatedAt = 0L)
                     )
