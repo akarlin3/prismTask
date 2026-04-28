@@ -348,6 +348,7 @@ private fun SlotTodayCard(
                 MedicationDoseRow(
                     medication = med,
                     taken = med.id in state.takenMedicationIds,
+                    takenAt = state.takenAtByMedicationId[med.id],
                     enabled = !editMode,
                     onToggle = { onToggleDose(med) }
                 )
@@ -458,6 +459,7 @@ private fun TierSegmentButton(
 private fun MedicationDoseRow(
     medication: MedicationEntity,
     taken: Boolean,
+    takenAt: Long?,
     enabled: Boolean,
     onToggle: () -> Unit
 ) {
@@ -521,6 +523,14 @@ private fun MedicationDoseRow(
                 text = tierShortLabel(MedicationTier.fromStorage(medication.tier)),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        if (taken && takenAt != null) {
+            Text(
+                text = SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date(takenAt)),
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.primary
             )
         }
     }
