@@ -187,7 +187,18 @@ jobs:
           set -euo pipefail
           # gh pr merge --auto may queue the merge until required checks
           # pass. Poll until MERGED, CLOSED, or timeout.
-          for i in $(seq 1 60); do
+          #
+          # Audit PR #876 → CI pathway efficiency: ceiling raised
+          # 60→120 attempts × 10s = 20 min. Real Android PRs (PR #851
+          # took 37 min from open to merge; PR #859 took 14 min) can
+          # exceed the prior 10-min ceiling because auto-merge.yml
+          # queues on slow lane completion. A silently-dropped bump
+          # (memory `feedback_skip_ci_blocks_tag_release.md`) requires a
+          # manual `gh workflow run release.yml --ref vX.Y.Z` re-fire,
+          # which is a real recovery cost. 20 min covers all observed
+          # PR lifecycles in the audit window without expanding
+          # workflow_run resource cost meaningfully (idle polling).
+          for i in $(seq 1 120); do
             STATE=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json state -q '.state')
             case "$STATE" in
               MERGED)
@@ -203,13 +214,13 @@ jobs:
                 exit 0
                 ;;
               *)
-                echo "PR state=$STATE (attempt $i/60); sleeping 10s..."
+                echo "PR state=$STATE (attempt $i/120); sleeping 10s..."
                 sleep 10
                 ;;
             esac
           done
           echo "merged=false" >> "$GITHUB_OUTPUT"
-          echo "::warning::PR did not reach MERGED within 10 minutes — skipping bump."
+          echo "::warning::PR did not reach MERGED within 20 minutes — skipping bump."
 
       - name: Checkout main at merge commit
         if: steps.wait.outputs.merged == 'true'
