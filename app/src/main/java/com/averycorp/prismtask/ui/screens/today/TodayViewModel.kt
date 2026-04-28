@@ -21,7 +21,6 @@ import com.averycorp.prismtask.data.preferences.SortPreferences
 import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
 import com.averycorp.prismtask.data.preferences.UserPreferencesDataStore
 import com.averycorp.prismtask.data.preferences.WorkLifeBalancePrefs
-import com.averycorp.prismtask.data.repository.DailyEssentialSlotCompletionRepository
 import com.averycorp.prismtask.data.repository.HabitRepository
 import com.averycorp.prismtask.data.repository.HabitWithStatus
 import com.averycorp.prismtask.data.repository.LeisureRepository
@@ -39,10 +38,7 @@ import com.averycorp.prismtask.domain.usecase.BurnoutResult
 import com.averycorp.prismtask.domain.usecase.BurnoutScorer
 import com.averycorp.prismtask.domain.usecase.DailyEssentialsUiState
 import com.averycorp.prismtask.domain.usecase.DailyEssentialsUseCase
-import com.averycorp.prismtask.domain.usecase.DoseSource
 import com.averycorp.prismtask.domain.usecase.HabitTodayVisibilityResolver
-import com.averycorp.prismtask.domain.usecase.MedicationDose
-import com.averycorp.prismtask.domain.usecase.MedicationSlot
 import com.averycorp.prismtask.domain.usecase.SelfCareNudge
 import com.averycorp.prismtask.domain.usecase.SelfCareNudgeEngine
 import com.averycorp.prismtask.ui.components.QuickRescheduleFormatter
@@ -91,7 +87,6 @@ constructor(
     private val selfCareRepository: SelfCareRepository,
     private val schoolworkRepository: SchoolworkRepository,
     private val leisureRepository: LeisureRepository,
-    private val slotCompletionRepository: DailyEssentialSlotCompletionRepository,
     private val localDateFlow: LocalDateFlow
 ) : ViewModel() {
     /** UI complexity tier — gates dashboard customization in the Today screen. */
@@ -1108,100 +1103,6 @@ constructor(
                 leisureRepository.toggleFlexDone(!state.doneForToday)
             } catch (e: Exception) {
                 Log.e("TodayVM", "Failed to toggle flex done", e)
-            }
-        }
-    }
-
-    fun onMarkMedicationTaken(dose: MedicationDose) {
-        viewModelScope.launch {
-            try {
-                markDoseTaken(dose, taken = true)
-            } catch (e: Exception) {
-                Log.e("TodayVM", "Failed to mark medication taken", e)
-            }
-        }
-    }
-
-    fun onMarkNextMedicationTaken() {
-        val dose = dailyEssentials.value.medication?.nextDose ?: return
-        onMarkMedicationTaken(dose)
-    }
-
-    /**
-     * Batch-toggle every dose in a medication [slot]. Writes the materialized
-     * ``daily_essential_slot_completions`` row for today and fans out to each
-     * dose's native completion log (habit completion or self-care step toggle).
-     *
-     * The slot's ``taken_at`` column on the materialized row is the
-     * authoritative signal the UI reads on redraw, so even if one fan-out
-     * call fails the slot still flips visually.
-     */
-    fun onToggleMedicationSlot(slot: MedicationSlot, checked: Boolean) {
-        viewModelScope.launch {
-            try {
-                val dayStart = DayBoundary.startOfCurrentDay(
-                    taskBehaviorPreferences.getDayStartHour().first()
-                )
-                slotCompletionRepository.toggleSlot(
-                    date = dayStart,
-                    slotKey = slot.slotKey,
-                    doseKeys = slot.doseKeys,
-                    taken = checked
-                )
-                // Mirror the slot state onto the per-dose native logs so
-                // existing screens (habit list, self-care) reflect the same
-                // "taken" state the user just expressed at the slot level.
-                for (dose in slot.doses) {
-                    if (dose.takenToday == checked) continue
-                    markDoseTaken(dose, taken = checked)
-                }
-            } catch (e: Exception) {
-                Log.e("TodayVM", "Failed to toggle medication slot ${slot.slotKey}", e)
-            }
-        }
-    }
-
-    /** Toggle a single dose from inside the slot detail bottom sheet. */
-    fun onToggleMedicationDose(slot: MedicationSlot, dose: MedicationDose, checked: Boolean) {
-        viewModelScope.launch {
-            try {
-                markDoseTaken(dose, taken = checked)
-                // If every dose in the slot is now taken, flip the materialized
-                // row so the row-level checkbox flips without waiting for the
-                // virtual derivation to re-emit.
-                val allTaken = slot.doses.all {
-                    if (it.doseKey == dose.doseKey) checked else it.takenToday
-                }
-                val dayStart = DayBoundary.startOfCurrentDay(
-                    taskBehaviorPreferences.getDayStartHour().first()
-                )
-                slotCompletionRepository.toggleSlot(
-                    date = dayStart,
-                    slotKey = slot.slotKey,
-                    doseKeys = slot.doseKeys,
-                    taken = allTaken
-                )
-            } catch (e: Exception) {
-                Log.e("TodayVM", "Failed to toggle medication dose ${dose.doseKey}", e)
-            }
-        }
-    }
-
-    private suspend fun markDoseTaken(dose: MedicationDose, taken: Boolean) {
-        when (dose.source) {
-            DoseSource.INTERVAL_HABIT, DoseSource.SPECIFIC_TIME -> {
-                val habitId = dose.linkedHabitId ?: return
-                if (taken) {
-                    habitRepository.completeHabit(habitId, System.currentTimeMillis())
-                } else {
-                    habitRepository.uncompleteHabit(habitId, System.currentTimeMillis())
-                }
-            }
-            DoseSource.SELF_CARE_STEP -> {
-                val stepId = dose.selfCareStepId ?: return
-                if (dose.takenToday != taken) {
-                    selfCareRepository.toggleStep("medication", stepId = stepId)
-                }
             }
         }
     }

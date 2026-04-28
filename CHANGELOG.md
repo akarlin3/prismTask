@@ -9,19 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
-- **Shake-to-report-a-bug gesture and supporting infrastructure.** Deleted
-  `ShakeDetector`, `ScreenshotCapture`, `ShakePreferences`, `ShakeSection`,
-  the corresponding tests, and unwired every call site
-  (`MainActivity` shake collector + dialog + lifecycle hooks,
-  `SettingsViewModel` shake state/setters, `AccessibilityScreen` section,
-  `DataExporter`/`DataImporter` v5 round-trip slot, `AccountDeletionService`
-  cleared-prefs list, `PreferenceSyncModule` sync spec). Backups written
-  before this change carry a `"shake"` config block that is now silently
-  ignored on import (the JSON parser tolerates unknown keys). Existing
-  Firestore mirrors of `shake_prefs` become orphan docs (two scalar fields,
-  no PII) — accepted in lieu of a one-shot delete migration. The Bug Report
-  screen, the debug-only floating Feedback button, and the AdminBugReports
-  flow are unchanged. See `docs/audits/SHAKE_REMOVAL_AUDIT.md`.
+- **Medication reminders on the Today (start) screen.** The Daily
+  Essentials medication card is gone — dose tracking lives on the
+  dedicated `MedicationScreen` (still reachable from the Habits tab,
+  Settings, the morning check-in, and refill projection). The Today-screen
+  Habits chip for the Medication habit no longer special-cases a
+  navigation route; it now toggles the habit completion the same way
+  every other Habits chip does. Background notification reminders
+  (`MedicationReminderScheduler`), refill projections, and sync
+  round-tripping of `daily_essential_slot_completions` rows are all
+  unchanged. Audit:
+  `docs/audits/REMOVE_MEDICATION_REMINDERS_FROM_START_SCREEN.md`.
 
 ### Added
 

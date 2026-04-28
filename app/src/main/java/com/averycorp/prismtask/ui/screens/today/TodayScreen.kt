@@ -529,16 +529,17 @@ fun TodayScreen(
                                 HabitChipRow(
                                     habits = todayHabits,
                                     onToggle = { hws ->
-                                        // Mode-task habits (Medication, Morning / Bedtime
-                                        // Self-Care, Housework, School, Leisure) each
-                                        // own a dedicated detail screen — open that
-                                        // instead of toggling, since tapping the chip
-                                        // can't express the per-section state those
-                                        // flows require. Everything else still toggles
-                                        // directly from the chip.
+                                        // Mode-task habits (Morning / Bedtime Self-Care,
+                                        // Housework, School, Leisure) each own a dedicated
+                                        // detail screen — open that instead of toggling,
+                                        // since tapping the chip can't express the
+                                        // per-section state those flows require.
+                                        // Everything else still toggles directly from
+                                        // the chip — including the Medication chip,
+                                        // whose Today-screen route navigation was
+                                        // removed alongside the Daily Essentials
+                                        // medication card.
                                         val route = when (hws.habit.name) {
-                                            SelfCareRepository.MEDICATION_HABIT_NAME ->
-                                                PrismTaskRoute.Medication.route
                                             SelfCareRepository.MORNING_HABIT_NAME ->
                                                 PrismTaskRoute.SelfCare.createRoute("morning")
                                             SelfCareRepository.BEDTIME_HABIT_NAME ->
@@ -592,12 +593,6 @@ fun TodayScreen(
                                         navController.navigate(PrismTaskRoute.Leisure.route)
                                     },
                                     onToggleFlexDone = { viewModel.onToggleFlexDone() },
-                                    onToggleMedicationSlot = { slot, checked ->
-                                        viewModel.onToggleMedicationSlot(slot, checked)
-                                    },
-                                    onToggleMedicationDose = { slot, dose, checked ->
-                                        viewModel.onToggleMedicationDose(slot, dose, checked)
-                                    },
                                     onDismissHint = { viewModel.onDismissDailyEssentialsHint() },
                                     onOpenSettings = {
                                         navController.navigate("settings/layout")

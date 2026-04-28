@@ -22,9 +22,8 @@ import javax.inject.Singleton
  * can drive virtual time without monkey-patching `Instant.now()`.
  *
  * Replaces the broken `MutableStateFlow(currentLocalDateString(hour))`
- * snapshot pattern previously used in `MedicationViewModel.todayDate` and
- * `MedicationStatusUseCase.observeDueDosesToday()` — see
- * `docs/audits/MEDICATION_SOD_BOUNDARY_AUDIT.md`.
+ * snapshot pattern previously used in `MedicationViewModel.todayDate` —
+ * see `docs/audits/MEDICATION_SOD_BOUNDARY_AUDIT.md`.
  *
  * The helper takes the SoD source as a parameter (not a constructor
  * dependency) so the class itself depends only on [TimeProvider] and stays

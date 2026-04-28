@@ -5,30 +5,23 @@ import androidx.room.Room
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.averycorp.prismtask.data.local.dao.DailyEssentialSlotCompletionDao
-import com.averycorp.prismtask.data.local.dao.MedicationRefillDao
 import com.averycorp.prismtask.data.local.database.PrismTaskDatabase
 import com.averycorp.prismtask.data.local.entity.DailyEssentialSlotCompletionEntity
-import com.averycorp.prismtask.data.local.entity.MedicationRefillEntity
-import com.averycorp.prismtask.data.remote.SyncTracker
-import com.averycorp.prismtask.data.repository.DailyEssentialSlotCompletionRepository
-import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotNull
-import org.junit.Assert.assertNull
-import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * Exercises the virtual → materialized transition for a Daily Essentials
- * medication time slot. The parent medication entity
- * ([MedicationRefillEntity]) is inserted before the child completion row to
- * prove the slot completion table is usable alongside a real medication
- * definition, not just in isolation.
+ * Schema-level coverage for the `daily_essential_slot_completions` table.
+ *
+ * The medication-card write path that originally produced these rows was
+ * removed alongside the Daily Essentials medication card; the table itself
+ * stays in the schema for sync round-tripping of historical rows. This
+ * test pins the unique-index behaviour the sync layer still relies on.
  */
 @RunWith(AndroidJUnit4::class)
 class DailyEssentialSlotCompletionDaoTest {
@@ -37,8 +30,6 @@ class DailyEssentialSlotCompletionDaoTest {
 
     private lateinit var database: PrismTaskDatabase
     private lateinit var slotDao: DailyEssentialSlotCompletionDao
-    private lateinit var medRefillDao: MedicationRefillDao
-    private lateinit var repo: DailyEssentialSlotCompletionRepository
 
     @Before
     fun setup() {
@@ -48,67 +39,11 @@ class DailyEssentialSlotCompletionDaoTest {
             .allowMainThreadQueries()
             .build()
         slotDao = database.dailyEssentialSlotCompletionDao()
-        medRefillDao = database.medicationRefillDao()
-        repo = DailyEssentialSlotCompletionRepository(slotDao, mockk<SyncTracker>(relaxed = true))
     }
 
     @After
     fun teardown() {
         database.close()
-    }
-
-    @Test
-    fun virtualToMaterializedTransition() = runTest {
-        // Parent medication entity — must exist before we reference its
-        // synthetic dose key from a slot completion row.
-        medRefillDao.upsert(
-            MedicationRefillEntity(
-                medicationName = "Lipitor",
-                pillCount = 90,
-                pillsPerDose = 1,
-                dosesPerDay = 1,
-                createdAt = 1000L,
-                updatedAt = 1000L
-            )
-        )
-        val dayStart = 1_700_000_000_000L
-        val slotKey = "08:00"
-        val doseKey = "self_care_step:lipitor"
-
-        // Virtual phase: no row exists yet, DAO reads return empty.
-        assertTrue(slotDao.getForDateOnce(dayStart).isEmpty())
-        assertNull(slotDao.getBySlotOnce(dayStart, slotKey))
-
-        // First interaction materializes the row with taken_at stamped.
-        val materialized = repo.toggleSlot(
-            date = dayStart,
-            slotKey = slotKey,
-            doseKeys = listOf(doseKey),
-            taken = true,
-            now = 1_700_000_100_000L
-        )
-
-        val fetched = slotDao.getBySlotOnce(dayStart, slotKey)
-        assertNotNull(fetched)
-        assertEquals(slotKey, fetched!!.slotKey)
-        assertEquals(1_700_000_100_000L, fetched.takenAt)
-        assertTrue(fetched.medIdsJson.contains(doseKey))
-        assertEquals(materialized.slotKey, fetched.slotKey)
-
-        // Toggling "taken = false" clears takenAt but keeps the row (and the
-        // med_ids snapshot) so the virtual list can still show the slot.
-        repo.toggleSlot(
-            date = dayStart,
-            slotKey = slotKey,
-            doseKeys = listOf(doseKey),
-            taken = false,
-            now = 1_700_000_200_000L
-        )
-        val cleared = slotDao.getBySlotOnce(dayStart, slotKey)
-        assertNotNull(cleared)
-        assertNull(cleared!!.takenAt)
-        assertTrue(cleared.medIdsJson.contains(doseKey))
-        assertEquals(1_700_000_200_000L, cleared.updatedAt)
     }
 
     @Test

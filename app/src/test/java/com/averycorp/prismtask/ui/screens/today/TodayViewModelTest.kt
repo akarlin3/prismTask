@@ -12,7 +12,6 @@ import com.averycorp.prismtask.data.preferences.StartOfDay
 import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
 import com.averycorp.prismtask.data.preferences.UserPreferencesDataStore
 import com.averycorp.prismtask.data.repository.CheckInLogRepository
-import com.averycorp.prismtask.data.repository.DailyEssentialSlotCompletionRepository
 import com.averycorp.prismtask.data.repository.HabitRepository
 import com.averycorp.prismtask.data.repository.LeisureRepository
 import com.averycorp.prismtask.data.repository.MedicationRefillRepository
@@ -74,7 +73,6 @@ class TodayViewModelTest {
     private lateinit var selfCareRepository: SelfCareRepository
     private lateinit var schoolworkRepository: SchoolworkRepository
     private lateinit var leisureRepository: LeisureRepository
-    private lateinit var slotCompletionRepository: DailyEssentialSlotCompletionRepository
     private lateinit var localDateFlow: LocalDateFlow
 
     @Before
@@ -101,7 +99,6 @@ class TodayViewModelTest {
         selfCareRepository = mockk(relaxed = true)
         schoolworkRepository = mockk(relaxed = true)
         leisureRepository = mockk(relaxed = true)
-        slotCompletionRepository = mockk(relaxed = true)
         // Mock LocalDateFlow so `observe()` returns a single-emission flow that
         // completes. The real production flow re-emits forever via an internal
         // `delay(timeUntilNextBoundary)` loop — which would keep `runTest`'s
@@ -172,7 +169,6 @@ class TodayViewModelTest {
         selfCareRepository,
         schoolworkRepository,
         leisureRepository,
-        slotCompletionRepository,
         localDateFlow
     )
 
