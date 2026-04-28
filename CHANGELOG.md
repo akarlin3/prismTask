@@ -23,6 +23,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Pro-gated analytics summary tile row on `TaskAnalyticsScreen`.** Phase 2 /
+  slice 1 of the web PR #715 Android port (`docs/audits/ANALYTICS_PR715_PORT_AUDIT.md`,
+  Subset C). Adds `AnalyticsSummary` domain model + `AnalyticsSummaryAggregator`
+  use case computing today/week-trend/streak/habit-completion rates client-side
+  from Room (web is server-side via Postgres; Android can't share the data
+  path because tasks/habits sync via Firestore). Free-tier users see a single
+  upsell card; Pro users see the four-tile row at the top of the screen.
+  `HabitCompletionDao` gains a `getAllCompletionsInRange(start, end)` query.
+  Adds 9 unit tests covering aggregator branches (today bucket, week trend
+  10% threshold, streak counting with gaps, habit rate cap at 1.0, archived
+  habit exclusion, zero-active-habits, zero-previous-week edge cases).
+
 - **`DailyResetWorker.computeNextDelayMs(now)` helper + `now: Long` threading through `WidgetDataProvider`.**
   Phase 2 / Tier A2 of the automated edge-case testing audit
   (`docs/audits/AUTOMATED_EDGE_CASE_TESTING_AUDIT.md`, PR #879). Production
