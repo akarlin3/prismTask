@@ -139,12 +139,16 @@ object WidgetDataProvider {
         isOverdue = !isCompleted && (dueDate ?: Long.MAX_VALUE) < startOfDay
     )
 
-    suspend fun getTodayData(context: Context): TodayWidgetData {
+    suspend fun getTodayData(
+        context: Context,
+        now: Long = System.currentTimeMillis()
+    ): TodayWidgetData {
         val db = getDb(context)
         val dayStartHour = context.readDayStartHour()
         val dayStartMinute = context.readDayStartMinute()
         val startOfDay = DayBoundary.startOfCurrentDay(
             dayStartHour = dayStartHour,
+            now = now,
             dayStartMinute = dayStartMinute
         )
         val startOfDayLocal = epochToLocalDateString(startOfDay)
@@ -176,7 +180,10 @@ object WidgetDataProvider {
         )
     }
 
-    suspend fun getHabitData(context: Context): HabitWidgetData {
+    suspend fun getHabitData(
+        context: Context,
+        now: Long = System.currentTimeMillis()
+    ): HabitWidgetData {
         val db = getDb(context)
         val habitDao = db.habitDao()
         val completionDao = db.habitCompletionDao()
@@ -185,6 +192,7 @@ object WidgetDataProvider {
         val dayStartMinute = context.readDayStartMinute()
         val startOfDay = DayBoundary.startOfCurrentDay(
             dayStartHour = dayStartHour,
+            now = now,
             dayStartMinute = dayStartMinute
         )
         val startOfDayLocal = epochToLocalDate(startOfDay)
@@ -221,12 +229,16 @@ object WidgetDataProvider {
         return streak
     }
 
-    suspend fun getUpcomingData(context: Context): UpcomingWidgetData {
+    suspend fun getUpcomingData(
+        context: Context,
+        now: Long = System.currentTimeMillis()
+    ): UpcomingWidgetData {
         val db = getDb(context)
         val dayStartHour = context.readDayStartHour()
         val dayStartMinute = context.readDayStartMinute()
         val startOfDay = DayBoundary.startOfCurrentDay(
             dayStartHour = dayStartHour,
+            now = now,
             dayStartMinute = dayStartMinute
         )
         val endOfDay = startOfDay + DayBoundary.DAY_MILLIS
@@ -241,12 +253,16 @@ object WidgetDataProvider {
         )
     }
 
-    suspend fun getProductivityData(context: Context): ProductivityWidgetData {
+    suspend fun getProductivityData(
+        context: Context,
+        now: Long = System.currentTimeMillis()
+    ): ProductivityWidgetData {
         val db = getDb(context)
         val dayStartHour = context.readDayStartHour()
         val dayStartMinute = context.readDayStartMinute()
         val startOfDay = DayBoundary.startOfCurrentDay(
             dayStartHour = dayStartHour,
+            now = now,
             dayStartMinute = dayStartMinute
         )
         val endOfDay = startOfDay + DayBoundary.DAY_MILLIS
@@ -274,7 +290,11 @@ object WidgetDataProvider {
      * when the project doesn't exist (e.g. user deleted it after placing
      * the widget) — the widget renders an empty state in that case.
      */
-    suspend fun getProjectData(context: Context, projectId: Long): ProjectWidgetData? {
+    suspend fun getProjectData(
+        context: Context,
+        projectId: Long,
+        now: Long = System.currentTimeMillis()
+    ): ProjectWidgetData? {
         if (projectId <= 0) return null
         val db = getDb(context)
         val project = db.projectDao().getProjectByIdOnce(projectId) ?: return null
@@ -290,7 +310,7 @@ object WidgetDataProvider {
 
         val lastActivity = (taskDates + milestoneTimestamps).maxOrNull()
         val daysSince = lastActivity?.let {
-            val diff = System.currentTimeMillis() - it
+            val diff = now - it
             if (diff <= 0) 0 else (diff / DayBoundary.DAY_MILLIS).toInt()
         }
 
@@ -337,20 +357,28 @@ object WidgetDataProvider {
         }
     }
 
-    suspend fun toggleTaskCompletion(context: Context, taskId: Long) {
+    suspend fun toggleTaskCompletion(
+        context: Context,
+        taskId: Long,
+        now: Long = System.currentTimeMillis()
+    ) {
         val db = getDb(context)
         val taskDao = db.taskDao()
         val task = taskDao.getTaskByIdOnce(taskId) ?: return
-        val now = System.currentTimeMillis()
         if (task.isCompleted) taskDao.markIncomplete(taskId, now) else taskDao.markCompleted(taskId, now)
     }
 
-    suspend fun toggleHabitCompletion(context: Context, habitId: Long) {
+    suspend fun toggleHabitCompletion(
+        context: Context,
+        habitId: Long,
+        now: Long = System.currentTimeMillis()
+    ) {
         val db = getDb(context)
         val dayStartHour = context.readDayStartHour()
         val dayStartMinute = context.readDayStartMinute()
         val startOfDay = DayBoundary.startOfCurrentDay(
             dayStartHour = dayStartHour,
+            now = now,
             dayStartMinute = dayStartMinute
         )
         val completionDao = db.habitCompletionDao()
@@ -362,7 +390,7 @@ object WidgetDataProvider {
                 com.averycorp.prismtask.data.local.entity.HabitCompletionEntity(
                     habitId = habitId,
                     completedDate = startOfDay,
-                    completedAt = System.currentTimeMillis(),
+                    completedAt = now,
                     completedDateLocal = startOfDayLocal
                 )
             )

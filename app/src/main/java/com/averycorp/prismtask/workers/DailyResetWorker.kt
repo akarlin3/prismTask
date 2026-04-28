@@ -61,6 +61,32 @@ constructor(
         const val WORK_NAME = "daily_reset"
 
         /**
+         * Pure delay-arithmetic helper extracted from [schedule] so the
+         * boundary math is unit-testable without WorkManager. Returns the
+         * milliseconds from [now] until the next configured boundary
+         * crossing — never negative.
+         *
+         * Per audit `docs/audits/AUTOMATED_EDGE_CASE_TESTING_AUDIT.md`
+         * (Tier A2), threading [now] makes this deterministic; production
+         * callers continue to use `System.currentTimeMillis()` via the
+         * default.
+         */
+        @JvmStatic
+        @JvmOverloads
+        fun computeNextDelayMs(
+            dayStartHour: Int,
+            dayStartMinute: Int = 0,
+            now: Long = System.currentTimeMillis()
+        ): Long {
+            val nextBoundary = DayBoundary.nextBoundary(
+                dayStartHour = dayStartHour,
+                now = now,
+                dayStartMinute = dayStartMinute
+            )
+            return (nextBoundary - now).coerceAtLeast(0L)
+        }
+
+        /**
          * Schedules the next run for the next occurrence of the configured
          * start of day (hour + minute). Replaces any previously scheduled run
          * so a settings change immediately takes effect.
@@ -69,14 +95,13 @@ constructor(
          * callers that still only know about the hour.
          */
         @JvmOverloads
-        fun schedule(context: Context, dayStartHour: Int, dayStartMinute: Int = 0) {
-            val now = System.currentTimeMillis()
-            val nextBoundary = DayBoundary.nextBoundary(
-                dayStartHour = dayStartHour,
-                now = now,
-                dayStartMinute = dayStartMinute
-            )
-            val delay = (nextBoundary - now).coerceAtLeast(0L)
+        fun schedule(
+            context: Context,
+            dayStartHour: Int,
+            dayStartMinute: Int = 0,
+            now: Long = System.currentTimeMillis()
+        ) {
+            val delay = computeNextDelayMs(dayStartHour, dayStartMinute, now)
 
             val request = OneTimeWorkRequestBuilder<DailyResetWorker>()
                 .setInitialDelay(delay, TimeUnit.MILLISECONDS)
