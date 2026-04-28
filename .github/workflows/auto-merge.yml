@@ -1,12 +1,11 @@
 name: Auto-merge & Release
 
 # Single-job workflow that waits for CI, then squash-merges via
-# `gh pr merge --auto`. As of audit C1 the post-merge version bump +
-# Firebase distribution lives in `.github/workflows/version-bump-and-
-# distribute.yml`, triggered on `workflow_run` of THIS workflow's
-# completion. That keeps this workflow's status check turning green
-# fast (no waiting on the post-merge bump) while still firing the
-# distribution chain.
+# `gh pr merge --auto`. The post-merge version bump + tag push lives
+# in `.github/workflows/version-bump-and-tag.yml`, triggered on
+# `workflow_run` of THIS workflow's completion. That keeps this
+# workflow's status check turning green fast (no waiting on the
+# post-merge bump) while still firing the bump → tag → release chain.
 #
 # Why workflow_run for the split (not `push` to main)? GitHub's anti-
 # recursion rule blocks workflow runs when the push to main was
@@ -226,8 +225,8 @@ jobs:
           # Use --auto so GitHub still waits for required reviews (if any).
           # --delete-branch removes the head branch once the merge completes
           # so feature branches don't accumulate.
-          # The post-merge version bump + Firebase distribution lives in
-          # .github/workflows/version-bump-and-distribute.yml, triggered on
+          # The post-merge version bump + tag push lives in
+          # .github/workflows/version-bump-and-tag.yml, triggered on
           # `workflow_run` of THIS workflow's completion. See PR #800 for
           # the rationale of removing the duplicate inline job that lived
           # here from PR #771 → PR #799.

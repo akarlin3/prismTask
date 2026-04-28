@@ -18,8 +18,7 @@ name: Auto-update-branch
 # Triggers:
 #   - push: main          → fires on every regular merge to main
 #   - workflow_run on
-#     "Version Bump &
-#     Firebase Distribute" → fires after the [skip ci] versionCode bump
+#     "Version Bump & Tag" → fires after the [skip ci] versionCode bump
 #                            commit lands. push: main wouldn't fire on
 #                            that commit because [skip ci] suppresses
 #                            push-triggered workflows; workflow_run does
@@ -40,7 +39,7 @@ on:
   pull_request:
     types: [ready_for_review]
   workflow_run:
-    workflows: ["Version Bump & Firebase Distribute"]
+    workflows: ["Version Bump & Tag"]
     types: [completed]
   workflow_dispatch:
 

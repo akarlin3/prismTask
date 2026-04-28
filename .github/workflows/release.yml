@@ -5,12 +5,13 @@ on:
   push:
     tags:
       - 'v[0-9]+.[0-9]+.[0-9]+'   # any vX.Y.Z tag (P0 sync audit follow-up).
-      # version-bump-and-distribute.yml pushes a v$versionName tag on
-      # every PR merge, so this workflow now produces a signed APK + AAB
-      # build and a GitHub Release per merge — not only on hand-crafted
-      # minor/major tags. Per-merge cost is one extra ~5-min release job
-      # on top of the existing Firebase distribution; acceptable at the
-      # Phase F cadence.
+      # version-bump-and-tag.yml pushes a v$versionName tag on every PR
+      # merge AND directly dispatches this workflow against that tag —
+      # the dispatch is necessary because the bump commit carries
+      # `[skip ci]` (to prevent loops), which suppresses the tag-push
+      # event for downstream workflows. The push: tags trigger here
+      # still picks up hand-crafted minor/major tags pointing at non-
+      # `[skip ci]` commits.
 
 concurrency:
   group: release-${{ github.ref }}

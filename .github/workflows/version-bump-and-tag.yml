@@ -1,37 +1,41 @@
-name: Version Bump & Firebase Distribute
+name: Version Bump & Tag
 
-# Audit C1 — split out from auto-merge.yml. The auto-merge job's status
-# check now turns green as soon as the merge is queued, instead of
-# blocking on the post-merge bump+distribute (~5 min). The merge timing
-# itself is unchanged (still gated on required checks via gh pr merge
-# --auto), but the workflow run completes ~5 min sooner so the PR page
-# clears faster and CI minutes used by the polling loop drop.
+# Post-merge job that bumps versionCode + versionName on main and
+# pushes a `vX.Y.Z` tag so release.yml fires the canonical signed
+# APK + AAB build and creates the GitHub Release.
 #
-# Trigger choice: workflow_run on auto-merge.yml's completion. This is
-# the documented exception to the GITHUB_TOKEN-recursion rule —
+# History: this workflow used to also build a signed APK and upload
+# it to Firebase App Distribution. Firebase distribution was retired
+# in favor of GitHub Releases (release.yml) — so the signing /
+# Gradle / Firebase steps were removed. Per-merge contract is now:
+# bump → commit → tag → release.yml builds + publishes the Release.
+#
+# Trigger choice: workflow_run on auto-merge.yml's completion. This
+# is the documented exception to the GITHUB_TOKEN-recursion rule —
 # workflow_run events DO fire even when the source workflow used
-# GITHUB_TOKEN internally, as long as the source workflow itself was
-# triggered by a non-bot event (which auto-merge.yml is — pull_request
+# GITHUB_TOKEN internally, as long as the source workflow itself
+# was triggered by a non-bot event (auto-merge.yml is — pull_request
 # from a real user). A `push` trigger on main would NOT fire because
 # the squash merge push is performed via GITHUB_TOKEN.
 #
 # Caveat: workflow_run fires when auto-merge.yml COMPLETES, not when
-# the actual merge happens. gh pr merge --auto queues the merge to run
-# when required checks pass. So this workflow still polls for the PR
-# to flip to MERGED before bumping (same logic as the old inline job).
+# the actual merge happens. gh pr merge --auto queues the merge to
+# run when required checks pass, so this workflow still polls for
+# the PR to flip to MERGED before bumping.
 #
 # Caveat: this file must exist on the default branch (main) for the
 # workflow_run trigger to fire. The PR that adds it can NOT use the
-# new path for itself — its own version bump runs the inline job from
-# the old auto-merge.yml. First post-merge cycle is unaffected.
+# new path for itself — its own version bump runs the inline job
+# from the prior auto-merge.yml shape. First post-merge cycle is
+# unaffected.
 #
-# IMPORTANT: do NOT add a `branches:` filter here. For workflow_run, the
-# `branches:` filter matches the SOURCE workflow's HEAD branch. Auto-
-# merge & Release runs on `pull_request` events, so its HEAD branch is
-# always the PR's feature branch (`feat/*`, `fix/*`, etc.) — never
-# `main`. PR #771 originally shipped with `branches: [main]` here and
-# the workflow never fired once until PR #794 removed the filter,
-# silently breaking Firebase distribution for every merge in between.
+# IMPORTANT: do NOT add a `branches:` filter here. For workflow_run,
+# the `branches:` filter matches the SOURCE workflow's HEAD branch.
+# Auto-merge & Release runs on `pull_request` events, so its HEAD
+# branch is always the PR's feature branch — never `main`. PR #771
+# originally shipped with `branches: [main]` here and the workflow
+# never fired once until PR #794 removed the filter, silently
+# breaking the post-merge bump path for every merge in between.
 
 on:
   workflow_run:
@@ -40,14 +44,14 @@ on:
   workflow_dispatch:
     inputs:
       pr_number:
-        description: 'PR number to redistribute (leave empty to skip PR-specific steps)'
+        description: 'PR number to retag (leave empty to walk most-recent merged PR)'
         required: false
         default: ''
 
-# Serialize all post-merge distribution work against main so concurrent
+# Serialize all post-merge bump work against main so concurrent
 # PRs produce sequential versionCode bumps without racing each other.
 concurrency:
-  group: version-firebase-main
+  group: version-bump-main
   cancel-in-progress: false
 
 permissions:
@@ -56,10 +60,10 @@ permissions:
   actions: read
 
 jobs:
-  version-bump-and-distribute:
-    name: Version Bump, Build & Firebase Distribute
+  version-bump-and-tag:
+    name: Version Bump & Tag
     # Skip when the source auto-merge run failed or was cancelled —
-    # nothing to distribute. workflow_dispatch always runs.
+    # nothing to bump. workflow_dispatch always runs.
     if: >-
       github.event_name == 'workflow_dispatch' ||
       github.event.workflow_run.conclusion == 'success'
@@ -191,7 +195,7 @@ jobs:
                 ;;
               CLOSED)
                 echo "merged=false" >> "$GITHUB_OUTPUT"
-                echo "PR closed without merging — skipping distribution."
+                echo "PR closed without merging — skipping bump."
                 exit 0
                 ;;
               *)
@@ -201,7 +205,7 @@ jobs:
             esac
           done
           echo "merged=false" >> "$GITHUB_OUTPUT"
-          echo "::warning::PR did not reach MERGED within 10 minutes — skipping distribution."
+          echo "::warning::PR did not reach MERGED within 10 minutes — skipping bump."
 
       - name: Checkout main at merge commit
         if: steps.wait.outputs.merged == 'true'
@@ -227,22 +231,6 @@ jobs:
           token: ${{ secrets.AUTOFIX_PAT || secrets.GITHUB_TOKEN }}
           ref: ${{ steps.wait.outputs.merge_sha }}
           fetch-depth: 0
-
-      # Android-changes gate removed in PR #796 — every merge now bumps,
-      # builds, and distributes regardless of which paths changed. Doc-
-      # only PRs still produce a versionCode bump and a Firebase release.
-      # If you want to restore the gate, see git history of this file.
-      #
-      # Bump-before-distribute order rationale (PR after #806's run):
-      # The version bump + push to main is now done BEFORE the keystore /
-      # Gradle / signing / Firebase steps. Earlier the order was reversed
-      # and the keystore step was a HARD-FAIL on missing secrets — when
-      # KEYSTORE_BASE64 wasn't seeded the whole job exited at the
-      # keystore step and the bump never reached the commit step (because
-      # `Commit version bump` had `&& success()`). That made versionCode
-      # silently freeze until the secrets were fixed. Now the bump is the
-      # primary contract; signing + distribution are best-effort and gate
-      # on the new `has_keystore` output of the soft-skip keystore step.
 
       # Patch bump only. release.yml owns release (minor/major) versionCode.
       - name: Bump versionCode and versionName
@@ -272,13 +260,9 @@ jobs:
 
           echo "version_name=$NEW_NAME" >> "$GITHUB_OUTPUT"
           echo "version_code=$NEW_CODE" >> "$GITHUB_OUTPUT"
-          echo "Building v$NEW_NAME (build $NEW_CODE)"
+          echo "Bumping to v$NEW_NAME (build $NEW_CODE)"
 
       - name: Commit version bump
-        # Pushes the bump commit to main BEFORE any signing/distribution
-        # work, so a missing keystore can't block the bump from landing.
-        # No `&& success()` guard — only depends on whether we made it
-        # through the wait step.
         if: steps.wait.outputs.merged == 'true'
         run: |
           set -euo pipefail
@@ -290,8 +274,8 @@ jobs:
             exit 0
           fi
           git commit -m "chore: bump to v${{ steps.version.outputs.version_name }} (build ${{ steps.version.outputs.version_code }}) [skip ci]"
-          # Another PR merge can push to main while the build+Firebase upload is
-          # running, so a straight `git push` here races and silently loses the
+          # Another PR merge can push to main while this job is running,
+          # so a straight `git push` here races and silently loses the
           # bump commit. Rebase onto the current main tip and retry on rejection.
           for attempt in 1 2 3 4 5; do
             if git push origin HEAD:main; then
@@ -314,10 +298,8 @@ jobs:
         # P0 sync audit follow-up to PR #850. Pushes an annotated tag
         # matching the new versionName so release.yml fires on every PR
         # merge instead of only on hand-crafted minor/major tags.
-        # release.yml then handles the full signed APK + AAB build,
-        # GitHub Release creation, and backend upload — keeping
-        # per-merge "full release" semantics while this workflow
-        # continues to own the Firebase App Distribution path.
+        # release.yml owns the canonical signed APK + AAB build,
+        # GitHub Release creation, and backend upload.
         #
         # Tag is created from the post-bump origin/main tip we just
         # pushed (or whatever main is at if our bump was a no-op).
@@ -348,9 +330,15 @@ jobs:
           git checkout main
           git reset --hard origin/main
           git tag -a "${TAG}" -m "PrismTask v${NEW_NAME} (build ${NEW_CODE})"
-          # Tag push triggers release.yml via the patch-tag filter
-          # widened in the same PR. If the push races and loses, the
-          # existence check above on the next run picks it up.
+          # The tag push *event* would normally fire release.yml via its
+          # `push: tags:` trigger, but that's blocked here: the bump
+          # commit carries `[skip ci]` (to prevent loops on the bump
+          # push to main), and a tag pointing at a `[skip ci]` commit
+          # suppresses the push-tag workflow run. We dispatch
+          # release.yml explicitly in the next step instead — that path
+          # bypasses the suppression cleanly. If the tag push itself
+          # races and loses, the existence check above on the next run
+          # picks it up.
           for attempt in 1 2 3; do
             if git push origin "${TAG}"; then
               echo "Pushed ${TAG} on attempt ${attempt}"
@@ -362,134 +350,40 @@ jobs:
           echo "::error::Failed to push tag ${TAG} after 3 attempts."
           exit 1
 
-      - name: Decode signing keystore (skip if missing)
-        id: keystore
-        if: steps.wait.outputs.merged == 'true'
+      - name: Dispatch release.yml on the new tag
+        # The `[skip ci]` token in the bump commit message suppresses
+        # workflows that would otherwise fire on the tag push. A
+        # workflow_dispatch call is NOT subject to `[skip ci]`, so we
+        # always end up with a per-merge GitHub Release as long as the
+        # tag push above succeeded. If the tag already existed (raced),
+        # the previous run dispatched release.yml — skip to stay
+        # idempotent and avoid double-publishing the same vX.Y.Z.
+        if: steps.wait.outputs.merged == 'true' && steps.version.outputs.version_name != ''
         env:
-          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          GH_TOKEN: ${{ secrets.AUTOFIX_PAT || secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          NEW_NAME: ${{ steps.version.outputs.version_name }}
         run: |
           set -euo pipefail
-          # Soft-skip on missing keystore (revised from PR #796's
-          # hard-fail). The version bump above has already landed on
-          # main, so a missing keystore no longer freezes versionCode —
-          # signing + distribution are best-effort downstream of the
-          # `has_keystore` output. Re-seed the secrets per memory entry
-          # `reference_play_upload_key.md` to re-enable signed builds.
-          if [ -z "$KEYSTORE_BASE64" ]; then
-            echo "::warning::KEYSTORE_BASE64 secret is not set. Version bump landed; signed release build + Firebase distribution will be skipped. Re-seed from release-keystore.jks (alias: prismtask) to re-enable. Encode with: base64 -w 0 release-keystore.jks"
-            echo "has_keystore=false" >> "$GITHUB_OUTPUT"
+          TAG="v${NEW_NAME}"
+          # Confirm no release.yml run already exists on this tag — a
+          # concurrent run that won the tag-push race may have already
+          # dispatched. release.yml is idempotent on its own GitHub
+          # Release creation step, but skipping the redundant dispatch
+          # keeps Actions history readable.
+          EXISTING=$(gh run list --repo "$REPO" --workflow=release.yml \
+            --limit 20 --json headBranch,databaseId \
+            -q ".[] | select(.headBranch == \"${TAG}\") | .databaseId" | head -1 || true)
+          if [ -n "$EXISTING" ]; then
+            echo "release.yml run ${EXISTING} already exists for ${TAG}; skipping dispatch."
             exit 0
           fi
-          if [ -z "$KEYSTORE_PASSWORD" ] || [ -z "$KEY_ALIAS" ]; then
-            echo "::error::KEYSTORE_BASE64 is set but KEYSTORE_PASSWORD or KEY_ALIAS is missing. Set both alongside KEYSTORE_BASE64, or unset KEYSTORE_BASE64 to skip signing entirely."
-            exit 1
-          fi
-          printf '%s' "$KEYSTORE_BASE64" | tr -d '[:space:]' | base64 -d > app/release.keystore
-          # Verify the keystore + alias before any expensive Gradle work.
-          keytool -list -keystore app/release.keystore -storepass "$KEYSTORE_PASSWORD" > /dev/null 2>&1 || {
-            echo "::error::Keystore is invalid or corrupted. Re-encode with: base64 -w 0 your-keystore.jks"
-            exit 1
-          }
-          keytool -list -keystore app/release.keystore -storepass "$KEYSTORE_PASSWORD" -alias "$KEY_ALIAS" > /dev/null 2>&1 || {
-            echo "::error::Key alias '$KEY_ALIAS' not found in keystore. Available aliases:"
-            keytool -list -v -keystore app/release.keystore -storepass "$KEYSTORE_PASSWORD" 2>/dev/null | grep "^Alias name:" || echo "  (keystore contains no entries)"
-            exit 1
-          }
-          echo "has_keystore=true" >> "$GITHUB_OUTPUT"
-          echo "Keystore decoded + verified."
-
-      - name: Set up JDK 21
-        if: steps.wait.outputs.merged == 'true' && steps.keystore.outputs.has_keystore == 'true'
-        uses: actions/setup-java@v4
-        with:
-          java-version: '21'
-          distribution: 'temurin'
-
-      - name: Setup Gradle
-        if: steps.wait.outputs.merged == 'true' && steps.keystore.outputs.has_keystore == 'true'
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          cache-read-only: false
-
-      - name: Grant execute permission for gradlew
-        if: steps.wait.outputs.merged == 'true' && steps.keystore.outputs.has_keystore == 'true'
-        run: chmod +x gradlew
-
-      - name: Setup Firebase credentials
-        if: steps.wait.outputs.merged == 'true' && steps.keystore.outputs.has_keystore == 'true'
-        id: firebase
-        env:
-          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
-        run: |
-          if [ -n "$FIREBASE_SERVICE_ACCOUNT" ]; then
-            echo "$FIREBASE_SERVICE_ACCOUNT" | base64 -d > "$RUNNER_TEMP/firebase-sa.json"
-            echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/firebase-sa.json" >> "$GITHUB_ENV"
-            echo "has_credentials=true" >> "$GITHUB_OUTPUT"
-            echo "Using service account credentials for Firebase."
-          elif [ -n "$FIREBASE_TOKEN" ]; then
-            echo "has_credentials=true" >> "$GITHUB_OUTPUT"
-            echo "Using legacy FIREBASE_TOKEN for Firebase."
-          else
-            echo "::warning::No Firebase credentials found. Set FIREBASE_SERVICE_ACCOUNT (preferred) or FIREBASE_TOKEN secret to enable distribution."
-            echo "has_credentials=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Generate release notes
-        if: steps.wait.outputs.merged == 'true' && steps.keystore.outputs.has_keystore == 'true'
-        run: |
-          {
-            echo "v${{ steps.version.outputs.version_name }} (build ${{ steps.version.outputs.version_code }})"
-            echo ""
-            git log -5 --pretty=format:"• %s"
-          } > "$RUNNER_TEMP/release_notes.txt"
-
-      - name: Assemble release APK (signed)
-        if: steps.wait.outputs.merged == 'true' && steps.keystore.outputs.has_keystore == 'true'
-        env:
-          KEYSTORE_PATH: release.keystore
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-        # `-x lint -x lintVitalRelease` matches release.yml — they're not
-        # gating signal at this stage and add ~2 min on top of R8.
-        # `bundleRelease` produces the AAB alongside the APK so each PR
-        # merge yields a Play-Store-uploadable artifact (P0 sync audit
-        # PR-E). Adds ~90s to per-merge CI; acceptable at Phase F cadence.
-        run: ./gradlew assembleRelease bundleRelease --no-configuration-cache --build-cache --parallel -x lint -x lintVitalRelease
-
-      - name: Upload to Firebase App Distribution (release variant)
-        if: steps.wait.outputs.merged == 'true' && steps.keystore.outputs.has_keystore == 'true' && steps.firebase.outputs.has_credentials == 'true'
-        env:
-          KEYSTORE_PATH: release.keystore
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
-          RELEASE_NOTES_FILE: ${{ runner.temp }}/release_notes.txt
-        run: ./gradlew appDistributionUploadRelease --no-configuration-cache
-
-      - name: Upload release APK artifact
-        if: steps.wait.outputs.merged == 'true' && steps.keystore.outputs.has_keystore == 'true' && success()
-        uses: actions/upload-artifact@v4
-        with:
-          name: app-release-${{ steps.version.outputs.version_name }}-${{ steps.version.outputs.version_code }}
-          path: app/build/outputs/apk/release/*.apk
-          retention-days: 14
-
-      - name: Upload release AAB artifact
-        if: steps.wait.outputs.merged == 'true' && steps.keystore.outputs.has_keystore == 'true' && success()
-        uses: actions/upload-artifact@v4
-        with:
-          name: app-release-aab-${{ steps.version.outputs.version_name }}-${{ steps.version.outputs.version_code }}
-          path: app/build/outputs/bundle/release/*.aab
-          retention-days: 14
+          gh workflow run release.yml --repo "$REPO" --ref "${TAG}"
+          echo "Dispatched release.yml on ${TAG}"
 
   capture-failure-log:
-    needs: [version-bump-and-distribute]
+    needs: [version-bump-and-tag]
     if: ${{ failure() }}
     uses: ./.github/workflows/capture-failure.yml
     with:
-      workflow-slug: version-bump-and-distribute
+      workflow-slug: version-bump-and-tag
