@@ -152,10 +152,13 @@ class MedicationLogViewModelTest {
         // so the screen's "ANYTIME" fallback can show it instead of
         // dropping it on the floor.
         val date = "2026-04-25"
+        // slotKey "9999" is intentionally an id with no matching slot in
+        // the active set — simulates a deleted/archived slot whose
+        // historical doses still need to surface in the log.
         val orphanedDose = MedicationDoseEntity(
             id = 300L,
             medicationId = essMed.id,
-            slotKey = "9999", // no slot with this id exists
+            slotKey = "9999",
             takenAt = 1_700_000_000_000L,
             takenDateLocal = date,
             isSyntheticSkip = false
