@@ -74,6 +74,20 @@ jobs:
 
       - uses: ./.github/actions/setup-android
 
+      # Audit PR #876 → CI pathway efficiency Tier B #5: share `app/build`
+      # cache with `android-ci.yml`'s autofix + lint-and-test jobs (which
+      # already populate this key on every PR). Same key shape — gradle
+      # build files only — so a Kotlin-only diff still hits the cache.
+      # connectedDebugAndroidTest depends on a debug APK build; cache hit
+      # skips the cold compile and shaves ~30-60s off labeled
+      # `ci:integration` PR runs.
+      - uses: actions/cache@v4
+        with:
+          path: app/build
+          key: app-build-${{ runner.os }}-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties', 'gradle/libs.versions.toml') }}
+          restore-keys: |
+            app-build-${{ runner.os }}-
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
@@ -195,6 +209,20 @@ jobs:
           ref: ${{ github.head_ref || github.ref }}
 
       - uses: ./.github/actions/setup-android
+
+      # Audit PR #876 → CI pathway efficiency Tier B #5: share `app/build`
+      # cache with `android-ci.yml`'s autofix + lint-and-test jobs (which
+      # already populate this key on every PR). Same key shape — gradle
+      # build files only — so a Kotlin-only diff still hits the cache.
+      # connectedDebugAndroidTest depends on a debug APK build; cache hit
+      # skips the cold compile and shaves ~30-60s off labeled
+      # `ci:integration` PR runs.
+      - uses: actions/cache@v4
+        with:
+          path: app/build
+          key: app-build-${{ runner.os }}-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties', 'gradle/libs.versions.toml') }}
+          restore-keys: |
+            app-build-${{ runner.os }}-
 
       - name: Set up Node.js
         uses: actions/setup-node@v4

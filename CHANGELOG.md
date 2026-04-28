@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+- **`DailyResetWorker.computeNextDelayMs(now)` helper + `now: Long` threading through `WidgetDataProvider`.**
+  Phase 2 / Tier A2 of the automated edge-case testing audit
+  (`docs/audits/AUTOMATED_EDGE_CASE_TESTING_AUDIT.md`, PR #879). Production
+  callers default to `System.currentTimeMillis()` so behavior is unchanged;
+  tests can pin `now` deterministically, closing the testability gap that
+  previously required monkey-patching the system clock for boundary
+  scenarios. Adds 10 unit tests under `app/src/test/.../workers/` covering
+  pre-/post-/at-boundary, minute offset, midnight SoD, year-end, leap day,
+  negative-clamp, multi-cycle drift, and helper-vs-inline-math regression
+  gate.
+
 ### Fixed
 
 - **`HiltTestRunner.isAndroidEmulator()` now detects modern AVDs.** The
