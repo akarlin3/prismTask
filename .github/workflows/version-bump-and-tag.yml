@@ -57,7 +57,11 @@ concurrency:
 permissions:
   contents: write
   pull-requests: read
-  actions: read
+  # actions: write needed for the "Dispatch release.yml on the new tag"
+  # step to call /repos/{owner}/{repo}/actions/workflows/{id}/dispatches.
+  # workflow_dispatch is one of the two documented exceptions to GitHub's
+  # GITHUB_TOKEN anti-recursion rule, so the dispatched run will fire.
+  actions: write
 
 jobs:
   version-bump-and-tag:
@@ -358,9 +362,19 @@ jobs:
         # tag push above succeeded. If the tag already existed (raced),
         # the previous run dispatched release.yml — skip to stay
         # idempotent and avoid double-publishing the same vX.Y.Z.
+        #
+        # Use GITHUB_TOKEN (not AUTOFIX_PAT) here. The first cut of this
+        # step preferred AUTOFIX_PAT for symmetry with the tag-push step
+        # above, but the PAT lacks `actions: write` scope and the
+        # dispatch fired with HTTP 403 "Resource not accessible by
+        # personal access token" on the v1.7.52 cycle. The job's
+        # workflow-level `permissions: actions: write` grants the right
+        # scope to GITHUB_TOKEN, which CAN trigger workflow_dispatch
+        # (one of the two documented exceptions to the GITHUB_TOKEN
+        # anti-recursion rule — alongside repository_dispatch).
         if: steps.wait.outputs.merged == 'true' && steps.version.outputs.version_name != ''
         env:
-          GH_TOKEN: ${{ secrets.AUTOFIX_PAT || secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
           NEW_NAME: ${{ steps.version.outputs.version_name }}
         run: |
