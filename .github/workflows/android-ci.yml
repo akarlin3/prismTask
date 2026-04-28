@@ -122,12 +122,55 @@ jobs:
       # Runs even if the auto-fix steps exited non-zero so partial fixes
       # still get committed, but the job as a whole still fails so
       # unfixable issues aren't silently ignored.
+      # Two-stage push: first try the checkout-time token (AUTOFIX_PAT when
+      # set, GITHUB_TOKEN otherwise). On 403, fall back to GITHUB_TOKEN
+      # explicitly. AUTOFIX_PAT going stale is a recurring failure mode —
+      # most recently when this repo was transferred from a user account
+      # to the `averycorp` org on 2026-04-28, which silently invalidated
+      # the fine-grained PAT for the new owner. Without a fallback, every
+      # PR that needs formatting fixes deadlocks until a maintainer
+      # rotates the PAT. The fallback push uses GITHUB_TOKEN, which can't
+      # trigger downstream check workflows (a documented GitHub Actions
+      # limitation), so the warning below tells reviewers to push an
+      # empty commit if branch protection blocks the merge.
       - name: Commit formatting fixes
         if: always() && steps.relevance.outputs.android == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git diff --quiet || (git add -A && git commit -m "style: auto-format" && git push)
+          if git diff --quiet; then
+            echo "✓ No formatting fixes; nothing to commit."
+            exit 0
+          fi
+          git add -A
+          git commit -m "style: auto-format"
+          if git push 2>push.err; then
+            echo "✓ Pushed with checkout-time token (AUTOFIX_PAT when configured — downstream workflows will fire)."
+            exit 0
+          fi
+          cat push.err
+          if grep -qE '(403|denied|Permission)' push.err; then
+            echo "::warning title=AUTOFIX_PAT push denied (403)::Falling back to GITHUB_TOKEN. AUTOFIX_PAT likely lacks Contents:Write on this repo (common after a repo transfer to a new org owner — fine-grained PATs need re-approval). Rotate AUTOFIX_PAT against the current owner to restore downstream-workflow triggering."
+          else
+            echo "::warning title=Initial autofix push failed::Falling back to GITHUB_TOKEN. See push.err output above."
+          fi
+          # Replace the extraheader installed by actions/checkout@v4 (which
+          # carries the broken AUTOFIX_PAT). Without this, git push keeps
+          # sending the failing PAT regardless of any URL-embedded token,
+          # because the Authorization extraheader takes precedence over
+          # URL-embedded credentials in libcurl's auth ordering.
+          TOKEN_B64=$(printf 'x-access-token:%s' "${GITHUB_TOKEN}" | base64 -w0)
+          git config --local --unset-all "http.https://github.com/.extraheader" || true
+          git config --local "http.https://github.com/.extraheader" "AUTHORIZATION: basic ${TOKEN_B64}"
+          if git push; then
+            echo "::warning title=Pushed via GITHUB_TOKEN fallback::Downstream check workflows do NOT auto-trigger from GITHUB_TOKEN pushes. If branch protection blocks merge on stale required checks, push an empty commit (or rotate AUTOFIX_PAT) to retrigger."
+            exit 0
+          fi
+          echo "::error title=Both push attempts failed::Neither AUTOFIX_PAT nor GITHUB_TOKEN could push the auto-format commit. Format locally (./gradlew ktlintFormat detekt --auto-correct) and push manually."
+          exit 1
       # Audit item #8 — run ktlintCheck here (not in lint-and-test) so
       # non-auto-correctable violations (e.g. comments inside
       # value_argument_list) fail THIS job. Saves a Gradle cold-start and

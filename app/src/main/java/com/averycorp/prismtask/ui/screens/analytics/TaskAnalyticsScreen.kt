@@ -123,7 +123,7 @@ fun TaskAnalyticsScreen(
                         response = productivity,
                         selectedRange = state.productivityRange,
                         onRangeSelected = { viewModel.setProductivityRange(it) },
-                        accent = accentColor,
+                        accent = accentColor
                     )
                 }
             }

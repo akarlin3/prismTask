@@ -9,5 +9,5 @@ package com.averycorp.prismtask.domain.model
 enum class ProductivityRange(val days: Int, val label: String) {
     SEVEN_DAYS(7, "7 Days"),
     THIRTY_DAYS(30, "30 Days"),
-    NINETY_DAYS(90, "90 Days"),
+    NINETY_DAYS(90, "90 Days")
 }

@@ -40,7 +40,7 @@ class Fuzz06MedicationConcurrentEditTest : SyncFuzzScenarioBase() {
             "exceeds the 20s waitFor budget on the CI emulator. Quarantined to unblock " +
             "feat PRs while the underlying push/pull-vs-Firestore-LWW interleave gets " +
             "a proper repro + fix. PR #886 was admin-merged with this test red; this " +
-            "is the formal quarantine for the same failure mode.",
+            "is the formal quarantine for the same failure mode."
     )
     fun concurrentEditSameKey_lastWriteWinsByUpdatedAt() = runBlocking {
         withTimeout(TEST_TIMEOUT) {
