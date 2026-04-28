@@ -55,6 +55,11 @@ _RTDN_EVENT_TYPES = (
 
 
 def upgrade() -> None:
+    # Manually create the PG enum type first, then reference it from the
+    # column with ``create_type=False`` so SQLAlchemy does not try to
+    # re-create it during ``op.create_table``. Without this guard, the
+    # column's Enum defaults to ``create_type=True`` and the second
+    # CREATE TYPE fails with "type already exists" on Postgres.
     rtdn_enum = sa.Enum(*_RTDN_EVENT_TYPES, name="rtdn_event_type")
     rtdn_enum.create(op.get_bind(), checkfirst=True)
 
@@ -65,7 +70,11 @@ def upgrade() -> None:
             "pubsub_message_id", sa.String(128),
             nullable=False, unique=True,
         ),
-        sa.Column("event_type", rtdn_enum, nullable=False),
+        sa.Column(
+            "event_type",
+            sa.Enum(*_RTDN_EVENT_TYPES, name="rtdn_event_type", create_type=False),
+            nullable=False,
+        ),
         sa.Column("purchase_token", sa.String(512), nullable=True, index=True),
         sa.Column("product_id", sa.String(128), nullable=True),
         sa.Column("raw_payload", sa.Text, nullable=False),
