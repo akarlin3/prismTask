@@ -78,6 +78,101 @@ class MedicationLogViewModelTest {
     )
 
     @Test
+    fun dosesWithNumericSlotKeyResolveToSlotsById() = runTest(dispatcher) {
+        // Regression: post-#857 every dose carries `slotKey = slot.id.toString()`.
+        // The log screen used to bucket against legacy TOD strings and the
+        // numeric slot key fell through every bucket — doses were invisible
+        // even though the meds screen showed them ticked. The viewmodel's
+        // new `slotsById` projection, plus `dosesByResolvedSlot` /
+        // `legacyDosesBySlot` derivations, give the screen what it needs to
+        // group those doses under the slot's actual display name.
+        val date = "2026-04-25"
+        val dose = MedicationDoseEntity(
+            id = 100L,
+            medicationId = essMed.id,
+            slotKey = morningSlot.id.toString(),
+            takenAt = 1_700_000_000_000L,
+            takenDateLocal = date,
+            isSyntheticSkip = false
+        )
+        every { medicationRepository.observeAllDoses() } returns flowOf(listOf(dose))
+
+        val vm = newViewModel()
+        val state = MutableStateFlow<List<MedicationLogDay>>(emptyList())
+        backgroundScope.launch { vm.days.collect { state.value = it } }
+        advanceUntilIdle()
+
+        val day = state.value.single { it.date == date }
+        // slotsById is populated with every active slot so the screen can
+        // resolve any numeric slot key.
+        assertEquals(
+            mapOf(morningSlot.id to morningSlot, eveningSlot.id to eveningSlot),
+            day.slotsById
+        )
+        // dosesByResolvedSlot groups the dose under the resolved slot —
+        // the screen will render this under "MORNING · 09:00".
+        assertEquals(mapOf(morningSlot to listOf(dose)), day.dosesByResolvedSlot)
+        // legacyDosesBySlot is empty because every dose resolved cleanly.
+        assertTrue(day.legacyDosesBySlot.isEmpty())
+    }
+
+    @Test
+    fun dosesWithLegacySlotKeyFallThroughToLegacyMap() = runTest(dispatcher) {
+        // Pre-migration "morning"/"afternoon"/"anytime"/"HH:MM" strings
+        // can't resolve through slotsById (the active slots have numeric
+        // ids). Those rows must surface via legacyDosesBySlot so the
+        // screen's existing TOD/clock/anytime buckets keep working for
+        // history that pre-dates the v1.5 medication schema.
+        val date = "2026-04-25"
+        val legacyDose = MedicationDoseEntity(
+            id = 200L,
+            medicationId = essMed.id,
+            slotKey = "morning",
+            takenAt = 1_700_000_000_000L,
+            takenDateLocal = date,
+            isSyntheticSkip = false
+        )
+        every { medicationRepository.observeAllDoses() } returns flowOf(listOf(legacyDose))
+
+        val vm = newViewModel()
+        val state = MutableStateFlow<List<MedicationLogDay>>(emptyList())
+        backgroundScope.launch { vm.days.collect { state.value = it } }
+        advanceUntilIdle()
+
+        val day = state.value.single { it.date == date }
+        assertTrue(day.dosesByResolvedSlot.isEmpty())
+        assertEquals(mapOf("morning" to listOf(legacyDose)), day.legacyDosesBySlot)
+    }
+
+    @Test
+    fun orphanedNumericSlotKeyDoseFallsToLegacyMap() = runTest(dispatcher) {
+        // If a slot is deleted after the user logged a dose against it,
+        // the numeric key won't resolve through `slotsById`. The dose
+        // still belongs in the log — surfaced via `legacyDosesBySlot`
+        // so the screen's "ANYTIME" fallback can show it instead of
+        // dropping it on the floor.
+        val date = "2026-04-25"
+        val orphanedDose = MedicationDoseEntity(
+            id = 300L,
+            medicationId = essMed.id,
+            slotKey = "9999", // no slot with this id exists
+            takenAt = 1_700_000_000_000L,
+            takenDateLocal = date,
+            isSyntheticSkip = false
+        )
+        every { medicationRepository.observeAllDoses() } returns flowOf(listOf(orphanedDose))
+
+        val vm = newViewModel()
+        val state = MutableStateFlow<List<MedicationLogDay>>(emptyList())
+        backgroundScope.launch { vm.days.collect { state.value = it } }
+        advanceUntilIdle()
+
+        val day = state.value.single { it.date == date }
+        assertTrue(day.dosesByResolvedSlot.isEmpty())
+        assertEquals(mapOf("9999" to listOf(orphanedDose)), day.legacyDosesBySlot)
+    }
+
+    @Test
     fun userSetTierStateWithoutDoses_surfacesAsSlotEntry() = runTest(dispatcher) {
         val pastDate = "2026-04-20"
         val tierState = MedicationTierStateEntity(

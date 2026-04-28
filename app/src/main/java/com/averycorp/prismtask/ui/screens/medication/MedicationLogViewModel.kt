@@ -94,7 +94,8 @@ constructor(
                 date = date,
                 doses = dosesForDate.sortedBy { it.takenAt },
                 slotEntries = slotEntries,
-                medicationsById = medsById
+                medicationsById = medsById,
+                slotsById = slotsById
             )
         }.sortedByDescending { it.date }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -120,7 +121,18 @@ data class MedicationLogDay(
     val date: String,
     val doses: List<MedicationDoseEntity>,
     val slotEntries: List<SlotTierEntry> = emptyList(),
-    val medicationsById: Map<Long, MedicationEntity>
+    val medicationsById: Map<Long, MedicationEntity>,
+    /**
+     * Lookup of every active medication slot at view-build time, keyed by
+     * slot id. The medication screen writes `dose.slotKey = slot.id.toString()`
+     * (per the bulk-mark fix in PR #857), so the log resolves slot-id
+     * doses to their slot's display name + ideal time via this map.
+     * Defaults to empty for legacy callers; unresolved slot keys (legacy
+     * "morning" / "anytime" / "HH:MM" strings, or numeric ids whose slot
+     * has been deleted) fall back to the legacy bucketing logic in the
+     * screen.
+     */
+    val slotsById: Map<Long, MedicationSlotEntity> = emptyMap()
 ) {
     val loggedCount: Int get() = doses.size + slotEntries.size
 
@@ -131,6 +143,34 @@ data class MedicationLogDay(
      */
     val dosesBySlot: Map<String, List<MedicationDoseEntity>>
         get() = doses.groupBy { it.slotKey }
+
+    /**
+     * Doses whose `slotKey` parses to a numeric slot id present in
+     * [slotsById], grouped by the resolved slot. The screen renders
+     * one section per entry, ordered by `slot.idealTime`. Unresolved
+     * doses are excluded and surface via [legacyDosesBySlot].
+     */
+    val dosesByResolvedSlot: Map<MedicationSlotEntity, List<MedicationDoseEntity>>
+        get() = doses
+            .mapNotNull { dose ->
+                val slot = dose.slotKey.toLongOrNull()?.let { slotsById[it] } ?: return@mapNotNull null
+                slot to dose
+            }
+            .groupBy({ it.first }, { it.second })
+
+    /**
+     * Doses whose slot key didn't resolve through [slotsById] — pre-migration
+     * legacy strings ("morning", "afternoon", "evening", "night", "anytime",
+     * "HH:MM") and orphaned numeric ids whose slot has since been deleted.
+     * Grouped by raw slot key so the screen can keep dispatching them
+     * through the legacy bucketing logic.
+     */
+    val legacyDosesBySlot: Map<String, List<MedicationDoseEntity>>
+        get() = doses
+            .filterNot { dose ->
+                dose.slotKey.toLongOrNull()?.let { slotsById.containsKey(it) } == true
+            }
+            .groupBy { it.slotKey }
 
     fun medicationName(dose: MedicationDoseEntity): String {
         val med = medicationsById[dose.medicationId]

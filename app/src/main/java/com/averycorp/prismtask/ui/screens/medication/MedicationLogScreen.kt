@@ -120,19 +120,36 @@ private fun LogDayCard(day: MedicationLogDay) {
     val dateFormat = remember { SimpleDateFormat("EEEE, MMM d, yyyy", Locale.getDefault()) }
     val dateLabel = dateFormat.format(Date(isoDateToMillis(day.date)))
 
-    // Known TOD sections render in the standard order. "anytime" goes
-    // into an OTHER bucket; any slot_key that's a "HH:mm" goes into a
-    // TIMED bucket so specific-time schedules show up distinctly from
-    // time-of-day-bucket schedules.
-    val dosesBySlot = day.dosesBySlot
-    val todEntries = SelfCareRoutines.timesOfDay.mapNotNull { tod ->
-        val dosesForTod = dosesBySlot[tod.id] ?: return@mapNotNull null
+    // Primary path: doses whose `slotKey` parses to a known slot id render
+    // under the slot's actual display name (e.g. "MORNING · 09:00"),
+    // ordered by `slot.idealTime`. The medication screen writes
+    // `dose.slotKey = slot.id.toString()` for every tap (per the bulk-mark
+    // fix), so the log used to silently drop these because the legacy
+    // bucketing only recognised TOD strings ("morning", "afternoon", …).
+    val dosesByResolvedSlot = day.dosesByResolvedSlot
+    val tierEntriesBySlotId = day.slotEntries.associateBy { it.slot.id }
+
+    val activeSlots = (dosesByResolvedSlot.keys.map { it.id } + tierEntriesBySlotId.keys)
+        .distinct()
+        .mapNotNull { day.slotsById[it] }
+        .sortedBy { it.idealTime }
+
+    // Fallback: anything whose slot key didn't resolve through `slotsById`
+    // — pre-migration TOD strings ("morning"/"afternoon"/"evening"/
+    // "night"/"anytime"), "HH:MM" clock strings, and orphaned numeric ids
+    // whose slot has since been deleted.
+    val legacyDosesBySlot = day.legacyDosesBySlot
+    val legacyTodEntries = SelfCareRoutines.timesOfDay.mapNotNull { tod ->
+        val dosesForTod = legacyDosesBySlot[tod.id] ?: return@mapNotNull null
         tod to dosesForTod
     }
-    val timedDoses = dosesBySlot.entries
+    val legacyTimedDoses = legacyDosesBySlot.entries
         .filter { it.key !in KNOWN_SLOT_KEYS && it.key.matches(CLOCK_REGEX) }
         .sortedBy { it.key }
-    val anytimeDoses = dosesBySlot["anytime"].orEmpty()
+    val anytimeDoses = legacyDosesBySlot["anytime"].orEmpty()
+    val orphanedNumericDoses = legacyDosesBySlot.entries
+        .filter { entry -> entry.key.toLongOrNull() != null && entry.key !in KNOWN_SLOT_KEYS }
+        .flatMap { it.value }
 
     Column(
         modifier = Modifier
@@ -151,8 +168,6 @@ private fun LogDayCard(day: MedicationLogDay) {
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.SemiBold
             )
-            // No aggregate "complete" concept in the new entity model;
-            // the dose count communicates activity adequately.
         }
         Spacer(modifier = Modifier.height(4.dp))
         Text(
@@ -161,7 +176,29 @@ private fun LogDayCard(day: MedicationLogDay) {
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
-        todEntries.forEach { (tod, dosesForTod) ->
+        // A slot has either real doses OR a tier-state-only entry (the
+        // viewmodel suppresses the tier-entry when any dose covers the
+        // slot), so the two branches are mutually exclusive.
+        activeSlots.forEach { slot ->
+            val slotDoses = dosesByResolvedSlot[slot]?.sortedBy { it.takenAt }
+            val tierEntry = tierEntriesBySlotId[slot.id]
+            Spacer(modifier = Modifier.height(10.dp))
+            SlotHeader(
+                label = "${slot.name.uppercase()} · ${slot.idealTime}",
+                icon = "⏰",
+                color = MaterialTheme.colorScheme.primary
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            if (!slotDoses.isNullOrEmpty()) {
+                slotDoses.forEach { dose ->
+                    DoseRow(label = day.medicationName(dose), dose = dose)
+                }
+            } else if (tierEntry != null) {
+                SlotTierEntryRow(entry = tierEntry)
+            }
+        }
+
+        legacyTodEntries.forEach { (tod, dosesForTod) ->
             Spacer(modifier = Modifier.height(10.dp))
             SlotHeader(label = tod.label.uppercase(), icon = tod.icon, color = Color(tod.color))
             Spacer(modifier = Modifier.height(4.dp))
@@ -170,7 +207,7 @@ private fun LogDayCard(day: MedicationLogDay) {
             }
         }
 
-        timedDoses.forEach { (clock, dosesForClock) ->
+        legacyTimedDoses.forEach { (clock, dosesForClock) ->
             Spacer(modifier = Modifier.height(10.dp))
             SlotHeader(label = clock, icon = "⏰", color = MaterialTheme.colorScheme.primary)
             Spacer(modifier = Modifier.height(4.dp))
@@ -179,7 +216,7 @@ private fun LogDayCard(day: MedicationLogDay) {
             }
         }
 
-        if (anytimeDoses.isNotEmpty()) {
+        if (anytimeDoses.isNotEmpty() || orphanedNumericDoses.isNotEmpty()) {
             Spacer(modifier = Modifier.height(10.dp))
             SlotHeader(
                 label = "ANYTIME",
@@ -187,22 +224,20 @@ private fun LogDayCard(day: MedicationLogDay) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(modifier = Modifier.height(4.dp))
-            anytimeDoses.forEach { dose ->
+            (anytimeDoses + orphanedNumericDoses).forEach { dose ->
                 DoseRow(label = day.medicationName(dose), dose = dose)
             }
         }
 
-        // Slot-level tier-state entries — pre-PR #857 tier-button taps wrote
-        // tier-state rows but no doses, so this is the only place that
-        // history surfaces. Today's PR-#857 skips also land here (skip
-        // writes a user_set tier-state row alongside synthetic-skip doses
-        // that the log filters out). Rendered with a softer, italicized
-        // treatment so the user can tell "we know which meds were taken"
-        // (per-med dose rows above) from "the slot was logged at tier X"
-        // (these slot-level entries).
-        if (day.slotEntries.isNotEmpty()) {
+        // Tier-entries for slots that aren't in slotsById (slot deleted /
+        // archived after the user logged it). The active-slots loop above
+        // can't reach them because their slot isn't resolvable, but the
+        // history is still worth surfacing.
+        val orphanedTierEntries = day.slotEntries
+            .filter { it.slot.id !in day.slotsById }
+        if (orphanedTierEntries.isNotEmpty()) {
             Spacer(modifier = Modifier.height(10.dp))
-            day.slotEntries.forEach { entry ->
+            orphanedTierEntries.forEach { entry ->
                 SlotHeader(
                     label = entry.slot.name.uppercase(),
                     icon = "⏰",
