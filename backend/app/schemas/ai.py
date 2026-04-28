@@ -449,3 +449,61 @@ class BatchParseResponse(BaseModel):
     ambiguous_entities: list[AmbiguousEntityHint] = Field(default_factory=list)
     # Hard contract: client MUST treat this as a preview and never auto-commit.
     proposed: bool = True
+
+
+# --- Conversational AI Coach (chat) ---
+#
+# Free-form coaching chat backed by Haiku. Stateless from the backend's POV:
+# the client owns the rolling conversation history (10 pairs) and only sends
+# the latest user message plus the conversation_id used for client-side
+# correlation. The backend echoes conversation_id back unchanged.
+#
+# Response shape mirrors ``data.remote.api.ChatResponse`` on the Android
+# client. Action types are the closed set the client's
+# ``ChatViewModel.executeAction`` knows how to apply: complete, reschedule,
+# reschedule_batch, breakdown, archive, start_timer, create_task.
+
+
+_CHAT_ACTION_TYPE_PATTERN = (
+    "^(complete|reschedule|reschedule_batch|breakdown|archive|start_timer|create_task)$"
+)
+
+
+class ChatActionPayload(BaseModel):
+    """One AI-proposed inline action button. Field set varies by ``type`` —
+    Pydantic accepts any subset; the Android client picks the fields it
+    needs per type. See ChatViewModel.executeAction for the per-type contract."""
+
+    type: str = Field(pattern=_CHAT_ACTION_TYPE_PATTERN)
+    task_id: Optional[str] = None
+    task_ids: Optional[list[str]] = None
+    to: Optional[str] = None  # "today" | "tomorrow" | "next_week" | ISO date
+    subtasks: Optional[list[str]] = None
+    minutes: Optional[int] = Field(default=None, ge=1, le=480)
+    title: Optional[str] = Field(default=None, max_length=500)
+    due: Optional[str] = None
+    priority: Optional[str] = Field(default=None, pattern="^(low|medium|high|urgent)$")
+
+
+class ChatTokensUsed(BaseModel):
+    input: int = Field(ge=0)
+    output: int = Field(ge=0)
+
+
+class ChatRequest(BaseModel):
+    message: str = Field(min_length=1, max_length=2000)
+    conversation_id: str = Field(min_length=1, max_length=128)
+    # Optional Android Room task ID (Long, sent as int). The backend treats
+    # it as opaque: it can't dereference the local row, but the AI can
+    # echo it back inside actions so the client knows which task to act on.
+    task_context_id: Optional[int] = None
+    # Forwarded from the client for telemetry only — the server uses
+    # ``current_user.effective_tier`` for actual gating.
+    tier: Optional[str] = None
+
+
+class ChatResponse(BaseModel):
+    message: str
+    actions: list[ChatActionPayload] = Field(default_factory=list)
+    conversation_id: str
+    tokens_used: Optional[ChatTokensUsed] = None

@@ -13,6 +13,10 @@ from app.models import Habit, User
 from app.schemas.ai import (
     BatchParseRequest,
     BatchParseResponse,
+    ChatActionPayload,
+    ChatRequest,
+    ChatResponse,
+    ChatTokensUsed,
     DailyBriefingRequest,
     DailyBriefingResponse,
     EisenhowerClassifyTextRequest,
@@ -34,6 +38,7 @@ from app.schemas.ai import (
     WeeklyReviewRequest,
     WeeklyReviewResponse,
 )
+from pydantic import ValidationError
 from app.services.firestore_tasks import (
     TaskDTO,
     fetch_incomplete_tasks,
@@ -86,6 +91,11 @@ pomodoro_coaching_rate_limiter = RateLimiter(max_requests=15, window_seconds=600
 # user actions (compose command, hit submit, review preview, approve),
 # not background polling, so a one-call-every-six-minutes cap is plenty.
 batch_parse_rate_limiter = RateLimiter(max_requests=10, window_seconds=3600)
+# Conversational coach — chat is interactive and bursty (a user types
+# multiple messages in a row), so the per-IP window is sized for a normal
+# back-and-forth: ~30 turns/min covers typing-fast users and the
+# server-side daily cap (DailyAIRateLimiter PRO=100) is the real budget.
+chat_rate_limiter = RateLimiter(max_requests=30, window_seconds=60)
 
 
 def _require_firebase_uid(user: User) -> str:
@@ -765,4 +775,73 @@ async def batch_parse(
         confidence=float(result.get("confidence", 0.0)),
         ambiguous_entities=result.get("ambiguous_entities", []),
         proposed=True,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Conversational AI Coach (chat)
+# ---------------------------------------------------------------------------
+
+
+@router.post("/chat", response_model=ChatResponse)
+async def chat(
+    data: ChatRequest,
+    request: Request,
+    current_user: User = Depends(get_active_user),
+):
+    """Conversational coaching chat backed by Claude Haiku.
+
+    Stateless from the backend's POV: the client owns rolling history and
+    only sends the latest user message plus an opaque ``conversation_id``
+    used purely for round-trip correlation. Optional ``task_context_id``
+    lets the AI suggest task-scoped actions (complete / reschedule /
+    breakdown / archive) referencing that ID.
+    """
+    chat_rate_limiter.check(request)
+    tier = current_user.effective_tier
+    daily_ai_rate_limiter.check(current_user.id, tier)
+
+    try:
+        from app.services.ai_productivity import generate_chat_response
+
+        result = generate_chat_response(
+            message=data.message,
+            conversation_id=data.conversation_id,
+            task_context_id=data.task_context_id,
+            tier=tier,
+        )
+    except RuntimeError:
+        raise HTTPException(status_code=503, detail="AI service temporarily unavailable")
+    except ValueError:
+        raise HTTPException(status_code=500, detail="AI returned an invalid response")
+
+    # Validate each AI-proposed action against ChatActionPayload and drop
+    # any that don't conform. The model occasionally invents new action
+    # `type` values or omits required fields — silently filtering keeps
+    # the response usable rather than 500-ing the whole turn.
+    validated_actions: list[ChatActionPayload] = []
+    for raw in result.get("actions", []) or []:
+        if not isinstance(raw, dict):
+            continue
+        try:
+            validated_actions.append(ChatActionPayload(**raw))
+        except ValidationError:
+            logger.info(
+                "Dropping malformed chat action: user_id=%s type=%s",
+                current_user.id,
+                raw.get("type"),
+            )
+            continue
+
+    tokens = result.get("tokens_used") or {}
+    tokens_used = ChatTokensUsed(
+        input=int(tokens.get("input", 0) or 0),
+        output=int(tokens.get("output", 0) or 0),
+    )
+
+    return ChatResponse(
+        message=result["message"],
+        actions=validated_actions,
+        conversation_id=data.conversation_id,
+        tokens_used=tokens_used,
     )

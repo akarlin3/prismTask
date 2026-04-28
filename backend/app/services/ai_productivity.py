@@ -918,3 +918,108 @@ def parse_batch_command(
             logger.error(f"Batch-parse AI error: {type(e).__name__}: {e}")
             raise
     raise ValueError(f"Failed to parse batch-parse response: {last_error}")
+
+
+# ---------------------------------------------------------------------------
+# Conversational AI Coach (chat)
+# ---------------------------------------------------------------------------
+
+_CHAT_SYSTEM_PROMPT = """You are PrismTask's conversational productivity coach. The user is in a one-on-one chat with you inside an Android task-management app. Be warm, concise, and concrete — never preachy. Default to 1-3 short sentences; only go longer when the user explicitly asks.
+
+You can suggest inline action buttons that the app will render under your reply. Only emit actions that map to a real user need expressed in the most recent message. NEVER invent task IDs or fabricate references the user did not give you.
+
+Allowed action shapes (use exactly these `type` values; omit any unused fields):
+- {"type": "create_task", "title": "...", "due": "today|tomorrow|next_week|YYYY-MM-DD", "priority": "low|medium|high|urgent"}
+- {"type": "start_timer", "minutes": 25}
+- When the user is talking about a specific task and you have been given a `task_context_id`, you MAY suggest:
+  - {"type": "complete", "task_id": "<task_context_id>"}
+  - {"type": "reschedule", "task_id": "<task_context_id>", "to": "today|tomorrow|next_week|YYYY-MM-DD"}
+  - {"type": "breakdown", "task_id": "<task_context_id>", "subtasks": ["...", "..."]}
+  - {"type": "archive", "task_id": "<task_context_id>"}
+
+Hard rules:
+1. Output STRICT JSON only. No markdown fences, no prose outside JSON.
+2. Top-level shape: {"message": "<your reply>", "actions": [<0..N action objects>]}.
+3. `actions` may be an empty list — prefer that over emitting weak suggestions.
+4. Only reference a task_id when the user has either (a) explicitly given you one in their message or (b) you have a `task_context_id` in the prompt.
+5. For `breakdown`, propose 2-5 concrete subtasks expressed as imperative phrases (e.g. "Draft outline", "Review with team").
+6. Never invent due dates beyond today/tomorrow/next_week unless the user named one.
+7. Stay supportive and practical. Avoid moralizing about productivity.
+
+If the user message is small talk or unclear, just reply with `{"message": "<friendly short reply>", "actions": []}`."""
+
+
+def generate_chat_response(
+    message: str,
+    conversation_id: str,
+    task_context_id: int | None = None,
+    tier: str = "PRO",
+) -> dict:
+    """Call Claude Haiku to produce a conversational chat reply + optional actions.
+
+    Returns a dict with shape::
+
+        {
+          "message": "<assistant reply text>",
+          "actions": [<0..N action dicts>],
+          "tokens_used": {"input": int, "output": int},
+        }
+
+    Raises:
+        RuntimeError: Anthropic client unavailable / API key missing.
+        ValueError:   AI returned a malformed response after retry.
+    """
+    client = _get_client()
+    model = get_model("chat")
+
+    user_block = {
+        "conversation_id": conversation_id,
+        "task_context_id": task_context_id,
+        "user_message": message,
+    }
+    user_payload = json.dumps(user_block, default=str, indent=2)
+
+    last_error: Exception | None = None
+    for attempt in range(2):
+        try:
+            ai_message = client.messages.create(
+                model=model,
+                max_tokens=1024,
+                system=_CHAT_SYSTEM_PROMPT,
+                messages=[{"role": "user", "content": user_payload}],
+            )
+            content = ai_message.content[0].text
+            result = _parse_ai_json(content)
+            if not isinstance(result, dict):
+                raise ValueError("Expected a JSON object at top level")
+            reply = result.get("message")
+            if not isinstance(reply, str) or not reply.strip():
+                raise ValueError("Response missing required string 'message'")
+            actions_raw = result.get("actions") or []
+            if not isinstance(actions_raw, list):
+                raise ValueError("'actions' must be a list when present")
+
+            usage = getattr(ai_message, "usage", None)
+            tokens_used = {
+                "input": int(getattr(usage, "input_tokens", 0) or 0),
+                "output": int(getattr(usage, "output_tokens", 0) or 0),
+            }
+            return {
+                "message": reply.strip(),
+                "actions": actions_raw,
+                "tokens_used": tokens_used,
+            }
+        except (json.JSONDecodeError, KeyError, TypeError, IndexError, ValueError) as e:
+            last_error = e
+            logger.error(
+                f"Failed to parse chat response (attempt {attempt + 1}): {e}"
+            )
+            if attempt == 0:
+                continue
+            raise ValueError(
+                f"Failed to parse chat response after retry: {e}"
+            ) from e
+        except Exception as e:
+            logger.error(f"Chat AI error: {type(e).__name__}: {e}")
+            raise
+    raise ValueError(f"Failed to parse chat response: {last_error}")
