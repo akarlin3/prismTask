@@ -1,5 +1,5 @@
 ---
-description: Standard audit-first workflow boilerplate — Phase 1 audit doc, Phase 2 PR fan-out, optional Phase 3 summary
+description: Standard audit-first workflow — Phase 1 audit doc, Phase 2 PR fan-out (auto-fires), Phase 3 bundle summary, Phase 4 Claude Chat handoff. Skips checkpoints by default.
 ---
 
 # Audit-first workflow
@@ -12,10 +12,21 @@ have to rewrite the boilerplate every time.
 ## Hard rules — read first
 
 - **Audit-first.** Phase 1 produces NO config or code changes. Audit doc only.
+- **Phase 2 fires automatically after Phase 1 — no approval gate.** Once the
+  audit doc is written, proceed straight into PR fan-out for every PROCEED
+  item in the same session. Do not pause to ask "ready to implement?" — the
+  user's intent is the deliverable, not the gating.
+- **Skip all checkpoint stops by default** (memory
+  `feedback_skip_audit_checkpoints.md`). Treat any "Checkpoint N — STOP"
+  markers as documentation milestones inside the audit doc, NOT approval
+  gates. Keep going. The user will course-correct mid-stream if needed —
+  they have the brake, you have the throttle.
 - **Self-investigate first, ask second.** Read the artifacts before asking the
   user questions. Specific examples > general principles.
-- **STOP and report on wrong premises.** If a premise turns out wrong, stop
-  and report rather than rationalizing scope.
+- **STOP-and-report on wrong premises is the one real halt.** If a premise
+  turns out wrong, stop and report rather than rationalizing scope. This is
+  a quality gate, not a checkpoint — distinct from the per-item checkpoints
+  above.
 - **Per CLAUDE.md "Audit doc length"**, cap each Phase at ~500 lines.
   If the doc would exceed 500 lines, STOP and ask the user to split into
   batched audits before continuing — the cap is a hard rule, not a
@@ -30,8 +41,6 @@ have to rewrite the boilerplate every time.
   verification` to a subheader when the premise is wrong (which is the
   load-bearing case worth flagging). Token-usage rationale:
   `docs/audits/TOKEN_USAGE_EFFICIENCY_AUDIT.md`.
-- **Skip checkpoint stops by default** (memory `feedback_skip_audit_checkpoints.md`)
-  unless the user explicitly asks for them.
 
 ## Phase 1 — Audit (single doc)
 
@@ -47,7 +56,11 @@ End the audit doc with a ranked improvement table sorted by
 **wall-clock-savings ÷ implementation-cost**, plus an anti-pattern list
 for things worth flagging but not necessarily fixing.
 
-## Phase 2 — Implementation (after Phase 1 approval)
+## Phase 2 — Implementation (auto-fires after Phase 1)
+
+Phase 2 begins immediately after Phase 1 is committed — no "ready to start?"
+checkpoint. Implement every PROCEED item; skip STOP-no-work-needed and
+DEFER items (note them in Phase 3 + Phase 4 instead).
 
 Per-improvement shape:
 
@@ -64,7 +77,7 @@ Per-improvement shape:
 Bundle multiple small fixes into one PR only when they're a single coherent
 scope; otherwise prefer N small PRs (fan-out bundling rule).
 
-## Phase 3 — Bundle summary (optional)
+## Phase 3 — Bundle summary (in the audit doc)
 
 After Phase 2 PRs merge, append to the audit doc:
 
@@ -72,6 +85,30 @@ After Phase 2 PRs merge, append to the audit doc:
 - Re-baselined wall-clock-per-PR estimate (if relevant).
 - Memory entry candidates (only if surprising / non-obvious).
 - Schedule for next audit.
+
+## Phase 4 — Claude Chat handoff summary
+
+After Phase 3 is appended, emit a paste-ready summary the user can drop
+straight into a fresh Claude.ai (Claude Chat) conversation. Print it as
+the last thing in the run, inside a fenced ` ```markdown ` block so the
+whole thing copies cleanly in one selection.
+
+Target ~30–60 lines, self-contained — assume the receiving Claude has no
+repo access and no prior context. Include in this order:
+
+1. **Scope** — one sentence: what was audited and why.
+2. **Verdicts table** — each scoped item with its
+   RED / YELLOW / GREEN / DEFERRED classification + a one-line finding.
+3. **Shipped** — bullet list of merged PRs (number + one-line each).
+4. **Deferred / stopped** — bullets explaining why each didn't ship.
+5. **Non-obvious findings** — surprises a future reader (or a follow-up
+   Claude Chat thread) would want to know up front. Skip if nothing
+   surprised you.
+6. **Open questions** — anything genuinely ambiguous left for the operator.
+
+Write so a fresh chat can pick up the thread without needing the audit
+doc in front of it. Prefer concrete file paths, PR numbers, and SHAs over
+vague references.
 
 ## Args
 
