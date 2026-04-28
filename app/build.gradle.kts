@@ -1,6 +1,3 @@
-// CI pipeline test — version bump & Firebase distribution validation
-import com.google.firebase.appdistribution.gradle.firebaseAppDistribution
-
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -8,7 +5,6 @@ plugins {
     id("com.google.devtools.ksp")
     id("com.google.dagger.hilt.android")
     id("com.google.gms.google-services")
-    id("com.google.firebase.appdistribution")
     id("com.google.firebase.crashlytics")
     id("org.jlleitschuh.gradle.ktlint")
     id("io.gitlab.arturbosch.detekt")
@@ -86,13 +82,6 @@ android {
             // Speed up debug builds
             isDebuggable = true
             signingConfig = signingConfigs.getByName("debug")
-            firebaseAppDistribution {
-                groups = "testers"
-                val notesFile = System.getenv("RELEASE_NOTES_FILE")
-                if (!notesFile.isNullOrEmpty()) {
-                    releaseNotesFile = notesFile
-                }
-            }
         }
         release {
             buildConfigField("String", "API_BASE_URL", "\"https://averytask-production.up.railway.app\"")
@@ -104,13 +93,6 @@ android {
                 "proguard-rules.pro"
             )
             signingConfig = if (hasReleaseSigning) signingConfigs.getByName("release") else signingConfigs.getByName("debug")
-            firebaseAppDistribution {
-                groups = "testers"
-                val notesFile = System.getenv("RELEASE_NOTES_FILE")
-                if (!notesFile.isNullOrEmpty()) {
-                    releaseNotesFile = notesFile
-                }
-            }
         }
     }
 
