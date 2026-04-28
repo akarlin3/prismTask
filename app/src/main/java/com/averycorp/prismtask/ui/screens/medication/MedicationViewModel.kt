@@ -51,7 +51,17 @@ data class MedicationSlotTodayState(
      */
     val intendedTime: Long? = null,
     /** Earliest tier-state logged_at across this slot's rows, or null. */
-    val loggedAt: Long? = null
+    val loggedAt: Long? = null,
+    /**
+     * Per-medication `taken_at` for the latest non-synthetic dose at this
+     * slot today. Drives the inline time label next to each checked
+     * medication row — e.g. "8:32 AM" rendered to the right of the med
+     * name when the user toggled that med's checkbox individually. The
+     * slot-level `loggedAt` covers the aggregate "Taken at HH:mm"
+     * summary; this map gives finer-grained per-row times for users who
+     * stagger their meds within a single slot.
+     */
+    val takenAtByMedicationId: Map<Long, Long> = emptyMap()
 ) {
     /**
      * True when the user backdated this slot — i.e. intended_time was
@@ -140,14 +150,21 @@ constructor(
             // interval-mode reminder rescheduler — they should not make a
             // med look "taken" in the per-med checkbox UI or in the
             // achieved-tier auto-compute pass.
-            val takenIds = doses.asSequence()
+            val realDoses = doses.asSequence()
                 .filter {
                     it.medicationId in linkedMedIds &&
                         it.slotKey == slot.id.toString() &&
                         !it.isSyntheticSkip
                 }
-                .map { it.medicationId }
-                .toSet()
+                .toList()
+            val takenIds = realDoses.map { it.medicationId }.toSet()
+            // Latest taken_at per medication. Multiple rows can land for
+            // the same (med, slot, date) triple after a toggle-untoggle
+            // cycle, so collapse to the max so the inline label shows
+            // the most recent tap.
+            val takenAtByMed: Map<Long, Long> = realDoses
+                .groupingBy { it.medicationId }
+                .fold(0L) { acc, dose -> if (dose.takenAt > acc) dose.takenAt else acc }
             val computed = MedicationTierComputer.computeAchievedTier(
                 medsForSlot = linkedMeds.associate { it.id to MedicationTier.fromStorage(it.tier) },
                 markedTaken = takenIds
@@ -165,7 +182,8 @@ constructor(
                 achievedTier = displayTier,
                 isUserSet = userRow != null,
                 intendedTime = anySlotRow?.intendedTime,
-                loggedAt = anySlotRow?.loggedAt
+                loggedAt = anySlotRow?.loggedAt,
+                takenAtByMedicationId = takenAtByMed
             )
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000L), emptyList())
