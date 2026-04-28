@@ -11,10 +11,12 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.averycorp.prismtask.data.billing.UserTier
 import com.averycorp.prismtask.data.local.dao.TaskDao
+import com.averycorp.prismtask.data.local.entity.TaskTimingEntity
 import com.averycorp.prismtask.data.preferences.TimerPreferences
 import com.averycorp.prismtask.data.remote.api.PomodoroRequest
 import com.averycorp.prismtask.data.remote.api.PrismTaskApi
 import com.averycorp.prismtask.data.repository.MoodEnergyRepository
+import com.averycorp.prismtask.data.repository.TaskTimingRepository
 import com.averycorp.prismtask.domain.usecase.DefaultPomodoroConfig
 import com.averycorp.prismtask.domain.usecase.EnergyAwarePomodoro
 import com.averycorp.prismtask.domain.usecase.PomodoroAICoach
@@ -150,7 +152,8 @@ constructor(
     private val proFeatureGate: ProFeatureGate,
     private val moodEnergyRepository: MoodEnergyRepository,
     private val timerPreferences: TimerPreferences,
-    private val aiCoach: PomodoroAICoach
+    private val aiCoach: PomodoroAICoach,
+    private val taskTimingRepository: TaskTimingRepository
 ) : ViewModel() {
     private val energyAwarePomodoro = EnergyAwarePomodoro()
 
@@ -706,6 +709,7 @@ constructor(
             sessionsCompleted = sessionIndex + 1,
             totalFocusSeconds = _stats.value.totalFocusSeconds + config.value.sessionLength * 60
         )
+        autoLogPomodoroSessionTime(plan, sessionIndex)
 
         // v1.4.0 V11: trigger the post-session energy prompt so the
         // planner can learn what hours are actually productive.
@@ -744,5 +748,43 @@ constructor(
         super.onCleared()
         unregisterTimerReceiver()
         PomodoroTimerService.stop(appContext)
+    }
+
+    /**
+     * P2-D of the analytics C4/C5 time-tracking work
+     * (`docs/audits/ANALYTICS_C4_C5_TIME_TRACKING_DESIGN.md`, Path 2). When a
+     * focus session completes, write a `TaskTimingEntity` per session task so
+     * the analytics time-tracking chart picks up Pomodoro work without the
+     * user having to log it manually from the Schedule tab.
+     *
+     * Allocation strategy: each task gets credited its planned
+     * `allocatedMinutes`. If the sum diverges from the actual session length
+     * (e.g. config drift between planning and execution), the per-task
+     * allocations are still the user-visible plan and are what users expect
+     * to see in analytics. Logging failures are swallowed — the session UX
+     * should not surface a "couldn't log time" error after a successful
+     * focus block.
+     *
+     * Marked `internal` so unit tests can drive the auto-log without needing
+     * to fire a real timer-complete broadcast.
+     */
+    @androidx.annotation.VisibleForTesting
+    internal fun autoLogPomodoroSessionTime(plan: PomodoroPlan, sessionIndex: Int) {
+        val session = plan.sessions.getOrNull(sessionIndex) ?: return
+        if (session.tasks.isEmpty()) return
+        viewModelScope.launch {
+            session.tasks.forEach { task ->
+                if (task.allocatedMinutes <= 0) return@forEach
+                try {
+                    taskTimingRepository.logTime(
+                        taskId = task.taskId,
+                        durationMinutes = task.allocatedMinutes,
+                        source = TaskTimingEntity.SOURCE_POMODORO
+                    )
+                } catch (e: Exception) {
+                    Log.w("SmartPomodoroVM", "auto-log pomodoro time failed", e)
+                }
+            }
+        }
     }
 }

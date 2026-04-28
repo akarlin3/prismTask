@@ -3,12 +3,14 @@ package com.averycorp.prismtask.ui.screens.pomodoro
 import android.content.Context
 import com.averycorp.prismtask.data.billing.UserTier
 import com.averycorp.prismtask.data.local.dao.TaskDao
+import com.averycorp.prismtask.data.local.entity.TaskTimingEntity
 import com.averycorp.prismtask.data.preferences.TimerPreferences
 import com.averycorp.prismtask.data.remote.api.PomodoroResponse
 import com.averycorp.prismtask.data.remote.api.PomodoroSessionResponse
 import com.averycorp.prismtask.data.remote.api.PrismTaskApi
 import com.averycorp.prismtask.data.remote.api.SessionTaskResponse
 import com.averycorp.prismtask.data.repository.MoodEnergyRepository
+import com.averycorp.prismtask.data.repository.TaskTimingRepository
 import com.averycorp.prismtask.domain.usecase.PomodoroAICoach
 import com.averycorp.prismtask.domain.usecase.ProFeatureGate
 import io.mockk.coEvery
@@ -49,6 +51,7 @@ class SmartPomodoroViewModelTest {
     private lateinit var timerPreferences: TimerPreferences
     private lateinit var moodEnergyRepository: MoodEnergyRepository
     private lateinit var aiCoach: PomodoroAICoach
+    private lateinit var taskTimingRepository: TaskTimingRepository
 
     @Before
     fun setUp() {
@@ -73,6 +76,7 @@ class SmartPomodoroViewModelTest {
         moodEnergyRepository = mockk(relaxed = true)
         coEvery { moodEnergyRepository.getRange(any(), any()) } returns emptyList()
         aiCoach = mockk(relaxed = true)
+        taskTimingRepository = mockk(relaxed = true)
     }
 
     @After
@@ -87,7 +91,8 @@ class SmartPomodoroViewModelTest {
         proFeatureGate,
         moodEnergyRepository,
         timerPreferences,
-        aiCoach
+        aiCoach,
+        taskTimingRepository
     )
 
     @Test
@@ -588,5 +593,105 @@ class SmartPomodoroViewModelTest {
         advanceUntilIdle()
 
         assertEquals(null, vm.breakSuggestion.value)
+    }
+
+    // ---------------------------------------------------------------------
+    // Pomodoro auto-log (P2-D)
+    // ---------------------------------------------------------------------
+
+    @Test
+    fun autoLog_writesPomodoroEntryPerSessionTask() = runTest(dispatcher) {
+        val vm = newViewModel()
+        val plan = PomodoroPlan(
+            sessions = listOf(
+                PomodoroSession(
+                    sessionNumber = 1,
+                    tasks = listOf(
+                        SessionTask(taskId = 7L, title = "Draft", allocatedMinutes = 15),
+                        SessionTask(taskId = 8L, title = "Review", allocatedMinutes = 10)
+                    ),
+                    rationale = "go"
+                )
+            ),
+            totalWorkMinutes = 25,
+            totalBreakMinutes = 5,
+            skippedTasks = emptyList()
+        )
+
+        vm.autoLogPomodoroSessionTime(plan, 0)
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) {
+            taskTimingRepository.logTime(
+                taskId = 7L,
+                durationMinutes = 15,
+                source = TaskTimingEntity.SOURCE_POMODORO
+            )
+        }
+        coVerify(exactly = 1) {
+            taskTimingRepository.logTime(
+                taskId = 8L,
+                durationMinutes = 10,
+                source = TaskTimingEntity.SOURCE_POMODORO
+            )
+        }
+    }
+
+    @Test
+    fun autoLog_skipsZeroMinuteTasks() = runTest(dispatcher) {
+        val vm = newViewModel()
+        val plan = PomodoroPlan(
+            sessions = listOf(
+                PomodoroSession(
+                    sessionNumber = 1,
+                    tasks = listOf(
+                        SessionTask(taskId = 7L, title = "Empty alloc", allocatedMinutes = 0),
+                        SessionTask(taskId = 8L, title = "Review", allocatedMinutes = 25)
+                    ),
+                    rationale = "go"
+                )
+            ),
+            totalWorkMinutes = 25,
+            totalBreakMinutes = 5,
+            skippedTasks = emptyList()
+        )
+
+        vm.autoLogPomodoroSessionTime(plan, 0)
+        advanceUntilIdle()
+
+        coVerify(exactly = 0) {
+            taskTimingRepository.logTime(
+                taskId = 7L,
+                durationMinutes = any(),
+                source = any()
+            )
+        }
+        coVerify(exactly = 1) {
+            taskTimingRepository.logTime(
+                taskId = 8L,
+                durationMinutes = 25,
+                source = TaskTimingEntity.SOURCE_POMODORO
+            )
+        }
+    }
+
+    @Test
+    fun autoLog_outOfBoundsSessionIndex_isNoOp() = runTest(dispatcher) {
+        val vm = newViewModel()
+        val plan = PomodoroPlan(
+            sessions = listOf(
+                PomodoroSession(1, listOf(SessionTask(1L, "X", 25)), "go")
+            ),
+            totalWorkMinutes = 25,
+            totalBreakMinutes = 5,
+            skippedTasks = emptyList()
+        )
+
+        vm.autoLogPomodoroSessionTime(plan, sessionIndex = 99)
+        advanceUntilIdle()
+
+        coVerify(exactly = 0) {
+            taskTimingRepository.logTime(any(), any(), any(), any(), any(), any())
+        }
     }
 }

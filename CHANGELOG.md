@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Pomodoro auto-log into `task_timings`.** P2-D of the analytics C4/C5
+  implementation (`docs/audits/ANALYTICS_C4_C5_TIME_TRACKING_DESIGN.md`,
+  Path 2). On focus-session timer completion (`onTimerComplete()`),
+  `SmartPomodoroViewModel` writes one `TaskTimingEntity` per
+  `SessionTask` in the just-finished session, crediting each task its
+  planned `allocatedMinutes` with `source = TaskTimingEntity.SOURCE_POMODORO`.
+  The analytics time-tracking chart (P2-C) picks them up automatically.
+  Failures are swallowed so the post-session UX stays clean. Adds 3
+  unit tests over the auto-log helper.
+
 - **Manual "Logged Time" section in the task editor's Schedule tab.** P2-B
   of the analytics C4/C5 implementation
   (`docs/audits/ANALYTICS_C4_C5_TIME_TRACKING_DESIGN.md`, Path 2). New chip
