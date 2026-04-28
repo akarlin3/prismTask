@@ -16,7 +16,7 @@
 - **Medication refills, clinical report, conversation extraction**: `MedicationRefillEntity` + `RefillCalculator` project refill dates; `ClinicalReportGenerator` exports a therapist-friendly summary; `ConversationTaskExtractor` pulls tasks out of chat transcripts (new `extract/` screen).
 - **Custom notification sounds + escalation**: `CustomSoundEntity`, `SoundResolver`, `EscalationScheduler`, and `VibrationAdapter` power per-profile custom sounds, vibration patterns, and escalation chains; `ReminderProfile*` was renamed to `NotificationProfile*` and moved under `domain/model/notifications/`.
 - **Projects (Phase 1)**: `ProjectEntity` extended with lifecycle columns (`description`, `status`, `start_date`, `end_date`, `theme_color_key`, `completed_at`, `archived_at`); new `MilestoneEntity` + `MilestoneDao` (CASCADE FK to projects); `ProjectRepository` extended additively with status-aware streams, milestone CRUD + reorder, and `ProjectWithProgress` / `ProjectDetail` projections powered by a forgiveness-first project streak. The streak reuses a freshly extracted `DailyForgivenessStreakCore` that `StreakCalculator.calculateResilientDailyStreak` now also delegates to — projects and habits share one implementation. Activity dates for projects are computed at read time via `ProjectDao.getTaskActivityDates`, which joins `task_completions` through `tasks` so subtask completions inherit from their parent's project. Note: the pre-existing `ProjectTemplateEntity` (a scaffold for spawning project-with-tasks bundles) is orthogonal to this feature despite the name overlap.
-- **Database**: Current Room version is **64** with 63 cumulative migrations (`MIGRATION_1_2` through `MIGRATION_63_64`) wired into `PrismTaskDatabase`. v44→v45 (data-integrity hardening) backfills `ON DELETE SET NULL` foreign keys on `study_logs.course_pick`, `study_logs.assignment_pick`, and `focus_release_logs.task_id`. v45→v46 adds `daily_essential_slot_completions`. v46→v47 adds `leisure_logs.custom_sections_state`. v47→v48 expands `projects` with lifecycle columns and creates the `milestones` table (CASCADE FK to projects). v48→v49 adds `is_built_in` and `template_key` to `habits` (backfills 6 known built-in habit names). v49→v50 adds `completed_date_local TEXT` to `habit_completions` with a `strftime` backfill and index, enabling timezone-neutral day comparisons. v50→v51 adds `updated_at INTEGER NOT NULL DEFAULT 0` to `self_care_logs`, `leisure_logs`, `self_care_steps`, `courses`, and `course_completions` for last-write-wins conflict resolution. v51→v52 adds a `cloud_id TEXT` unique-indexed column to every syncable entity, backfilled from `sync_metadata` (Phase 2 sync-duplication fix). v52→v53 adds `template_key` to `task_templates` (parity with habits). v53→v54 creates `medications` + `medication_doses` as a new top-level entity — backfilled from `self_care_steps WHERE routine_type='medication'` with duplicate-name collapse via `GROUP_CONCAT(DISTINCT label, ' / ')`, refill data merged inline from `medication_refills`. Source tables (self_care_steps, self_care_logs, medication_refills, the built-in 'Medication' habit) are preserved in quarantine tables and NOT deleted — Phase 2 cleanup migration drops them after a 2+ week convergence window. v54→v55 (v1.4.37) adds `cloud_id TEXT` + `updated_at INTEGER NOT NULL DEFAULT 0` + unique index on `cloud_id` across 7 config tables (`reminder_profiles`, `custom_sounds`, `saved_filters`, `nlp_shortcuts`, `habit_templates`, `project_templates`, `boundary_rules`) so config entities sync cross-device. v55→v56 (v1.4.38) does the same for 9 content tables (`check_in_logs`, `mood_energy_logs`, `focus_release_logs`, `medication_refills`, `weekly_reviews`, `daily_essential_slot_completions`, `assignments`, `attachments`, `study_logs`); `medication_refills` and `daily_essential_slot_completions` already carried `updated_at` from earlier migrations and skip that column. v56→v57 (A2 Eisenhower) adds `tasks.user_overrode_quadrant INTEGER NOT NULL DEFAULT 0` so manual quadrant moves survive subsequent auto-classification passes. v57→v58 (NLP batch ops) creates `batch_undo_log`, a device-local append-only table that records pre-mutation state for every entity touched by a batch command so the user can reverse the batch within a 24-hour window (no `cloud_id` — undo is intentionally per-device). v58→v59 (v1.5 medication slots, A2 #6 PR1) adds `medication_slots`, `medication_slot_overrides`, and the `medication_medication_slots` junction table; backfills one DEFAULT slot (ideal_time `09:00`, drift ±180min) and links every existing medication to it so v1.4.x UI continues to work. v59→v60 adds `medication_tier_states` (per-day achieved tier per slot) and backfills it from the legacy `self_care_logs.tiers_by_time` JSON column into the DEFAULT slot only — source `tiers_by_time` is preserved in quarantine. v60→v61 adds clock-vs-interval reminder mode columns: `medication_slots.reminder_mode` + `reminder_interval_minutes`, the same on `medications` (slot-then-global inheritance), and `medication_doses.is_synthetic_skip` so SKIPPED tier-state writes can re-anchor interval-mode reminders without polluting the user-visible dose history. v61→v62 (built-in habit template versioning) adds `source_version`, `is_user_modified`, `is_detached_from_template` to `habits` and `source_version` to `self_care_steps`, so the app can detect, diff, and merge updates to code-defined built-in habit definitions without losing user edits. v62→v63 (medication time-logging) adds `intended_time` (nullable) + `logged_at` (NOT NULL, backfilled from `updated_at`) to `medication_tier_states` and creates the `medication_marks` table for per-medication marks within a slot — note that `medication_marks` was an orphan (no production write path ever populated it; per-medication intended_time ended up on `medication_tier_states` instead) and is dropped in v63→v64 below. v63→v64 (PR #782) drops the orphan `medication_marks` table and its indexes; existing `medication_log_events` rows with `entity_type = "mark"` are preserved (audit log is append-only). See `docs/audits/PHASE_D_BUNDLE_AUDIT.md` Item 3 for the full rationale.
+- **Database**: Room version is `CURRENT_DB_VERSION` in `data/local/database/Migrations.kt` (cumulative `MIGRATION_1_2` through the latest). Read the migration file directly — per-migration intent + backfill SQL lives there, plus the audit doc that landed each one (e.g. `docs/audits/PHASE_D_BUNDLE_AUDIT.md` for v63→v64). Don't restate the migration history in this file — it drifts.
 - **Start-of-Day (SoD)**: `DayBoundary` utility (`util/DayBoundary.kt`) resolves "today" relative to a user-configurable `startOfDay` hour (stored in `UserPreferencesDataStore`). Habits, streaks, Today-screen task filter, Pomodoro stats, widgets, and NLP date parsing all derive the logical day from `DayBoundary`.
 - **Built-in habit identity**: `HabitEntity` carries `isBuiltIn` and `templateKey` fields (migration 48→49). `BuiltInHabitReconciler` deduplicates cloud-pulled built-in habits after sync; one-time repair flags live in `BuiltInSyncPreferences`.
 - **Daily Essentials**: `DailyEssentialsUseCase` + `DailyEssentialsPreferences` surface a daily housework + schoolwork card on Today; `housework_habit_id` / `schoolwork_habit_id` point to user-chosen habits and the use case hides the card gracefully when the habit is deleted or archived.
@@ -40,170 +40,39 @@
 
 ## Project Structure
 
+Top-level package layout under `app/src/main/java/com/averycorp/prismtask/`.
+This overview is intentionally shallow — list the directory directly for
+current sub-package contents (it drifts faster than this file is updated).
+
 ```
-app/src/main/java/com/averycorp/prismtask/
-├── MainActivity.kt                     # Single-activity entry point, notification permission
-├── PrismTaskApplication.kt             # @HiltAndroidApp
 ├── data/
-│   ├── billing/
-│   │   └── BillingManager.kt           # Google Play Billing: two-tier purchase flow, restore, cached status
-│   ├── calendar/
-│   │   ├── CalendarManager.kt          # Device calendar provider wrapper
-│   │   └── CalendarSyncPreferences.kt
-│   ├── export/
-│   │   ├── DataExporter.kt             # Full JSON export (all entities + config) + CSV
-│   │   ├── DataImporter.kt             # Full JSON import with merge/replace
-│   │   └── EntityJsonMerger.kt         # Entity-level merge helper
-│   ├── local/
-│   │   ├── converter/
-│   │   │   └── RecurrenceConverter.kt  # Gson JSON ↔ RecurrenceRule
-│   │   ├── dao/                       # Room DAOs
-│   │   │   ├── TaskDao.kt, ProjectDao.kt, TagDao.kt, AttachmentDao.kt
-│   │   │   ├── UsageLogDao.kt, SyncMetadataDao.kt, CalendarSyncDao.kt
-│   │   │   ├── HabitDao.kt, HabitCompletionDao.kt, HabitLogDao.kt
-│   │   │   ├── HabitTemplateDao.kt, TaskTemplateDao.kt, ProjectTemplateDao.kt
-│   │   │   ├── NlpShortcutDao.kt, SavedFilterDao.kt, NotificationProfileDao.kt
-│   │   │   ├── SelfCareDao.kt, LeisureDao.kt, SchoolworkDao.kt
-│   │   │   ├── TaskCompletionDao.kt        # Task completion history queries
-│   │   │   ├── BoundaryRuleDao.kt, CheckInLogDao.kt, CustomSoundDao.kt
-│   │   │   ├── FocusReleaseLogDao.kt, MedicationRefillDao.kt
-│   │   │   ├── MoodEnergyLogDao.kt, WeeklyReviewDao.kt
-│   │   ├── database/
-│   │   │   ├── PrismTaskDatabase.kt    # Room DB (@Database version = CURRENT_DB_VERSION; see Migrations.kt)
-│   │   │   └── Migrations.kt           # MIGRATION_1_2 … MIGRATION_63_64
-│   │   └── entity/                     # Room entities
-│   │       ├── TaskEntity.kt, ProjectEntity.kt, TagEntity.kt
-│   │       ├── TaskTagCrossRef.kt, TaskWithTags.kt, AttachmentEntity.kt
-│   │       ├── UsageLogEntity.kt, SyncMetadataEntity.kt, CalendarSyncEntity.kt
-│   │       ├── HabitEntity.kt, HabitCompletionEntity.kt, HabitLogEntity.kt (bookable)
-│   │       ├── HabitTemplateEntity.kt, TaskTemplateEntity.kt, ProjectTemplateEntity.kt
-│   │       ├── NlpShortcutEntity.kt, SavedFilterEntity.kt, NotificationProfileEntity.kt
-│   │       ├── SelfCareLogEntity.kt, SelfCareStepEntity.kt, StudyLogEntity.kt
-│   │       ├── TaskCompletionEntity.kt     # Task completion history record
-│   │       ├── LeisureLogEntity.kt, CourseEntity.kt, AssignmentEntity.kt, CourseCompletionEntity.kt
-│   │       ├── BoundaryRuleEntity.kt, CheckInLogEntity.kt, CustomSoundEntity.kt
-│   │       ├── FocusReleaseLogEntity.kt, MedicationRefillEntity.kt
-│   │       ├── MoodEnergyLogEntity.kt, WeeklyReviewEntity.kt
-│   ├── preferences/                    # DataStore preferences
-│   │   ├── UserPreferencesDataStore.kt # Centralized customization settings
-│   │   ├── ThemePreferences.kt, ArchivePreferences.kt, SortPreferences.kt
-│   │   ├── DashboardPreferences.kt, ProStatusPreferences.kt, HabitListPreferences.kt
-│   │   ├── TaskBehaviorPreferences.kt, TemplatePreferences.kt, TimerPreferences.kt
-│   │   ├── VoicePreferences.kt, A11yPreferences.kt, OnboardingPreferences.kt
-│   │   ├── TabPreferences.kt, LeisurePreferences.kt, MedicationPreferences.kt
-│   │   ├── CalendarPreferences.kt, BackendSyncPreferences.kt, CoachingPreferences.kt
-│   │   ├── AuthTokenPreferences.kt, NotificationPreferences.kt
-│   │   ├── MorningCheckInPreferences.kt, ShakePreferences.kt
-│   │   ├── FocusReleaseEnums.kt, NdPreferences.kt, NdPreferencesDataStore.kt, NdFeatureGate.kt
-│   ├── remote/
-│   │   ├── AuthManager.kt              # Firebase Auth + Google Sign-In
-│   │   ├── GoogleDriveService.kt       # Drive client (not wired into UI yet)
-│   │   ├── SyncService.kt              # Firestore push/pull/real-time
-│   │   ├── CalendarSyncService.kt      # Google Calendar two-way sync
-│   │   ├── ClaudeParserService.kt      # Backend NLP parse HTTP client
-│   │   ├── SyncTracker.kt
-│   │   ├── api/                        # Retrofit backend client
-│   │   │   ├── ApiClient.kt, ApiModels.kt, PrismTaskApi.kt
-│   │   ├── mapper/
-│   │   │   └── SyncMapper.kt           # Entity ↔ Firestore docs
-│   │   └── sync/                       # Backend sync split
-│   │       ├── BackendSyncService.kt, BackendSyncMappers.kt, SyncModels.kt
-│   ├── repository/                     # All repositories
-│   │   ├── TaskRepository.kt, ProjectRepository.kt, TagRepository.kt, AttachmentRepository.kt
-│   │   ├── TaskCompletionRepository.kt     # Task completion recording + analytics stats
-│   │   ├── HabitRepository.kt, TaskTemplateRepository.kt
-│   │   ├── NotificationProfileRepository.kt, ChatRepository.kt, CoachingRepository.kt
-│   │   ├── SelfCareRepository.kt, LeisureRepository.kt, SchoolworkRepository.kt
-│   │   ├── BoundaryRuleRepository.kt, CheckInLogRepository.kt, CustomSoundRepository.kt
-│   │   ├── MedicationRefillRepository.kt, MoodEnergyRepository.kt
-│   │   ├── SyllabusRepository.kt, WeeklyReviewRepository.kt
-│   └── seed/                           # Built-in content seeders
-├── di/
-│   ├── DatabaseModule.kt, BillingModule.kt, NetworkModule.kt, PreferencesModule.kt
-├── diagnostics/                        # Crash/event diagnostics helpers
+│   ├── local/         # Room DAOs, entities, Migrations.kt, converters
+│   ├── remote/        # Firebase Auth/Firestore/Drive, backend client, sync
+│   ├── repository/    # All repositories (Task, Project, Habit, Medication, …)
+│   ├── preferences/   # DataStore preferences (Theme, Pro status, ND, …)
+│   ├── billing/       # BillingManager (Google Play Billing two-tier)
+│   ├── calendar/      # CalendarManager + CalendarSyncPreferences
+│   ├── export/        # JSON full export + CSV; merge/replace import
+│   └── seed/          # Built-in content seeders
 ├── domain/
-│   ├── model/
-│   │   ├── RecurrenceRule.kt, TaskFilter.kt, LifeCategory.kt, BoundaryRule.kt
-│   │   ├── TaskCardDisplayConfig.kt, TaskMenuAction.kt, TodaySection.kt
-│   │   ├── SelfCareRoutine.kt, BugReport.kt, UiComplexityTier.kt, UserPreferenceEnums.kt
-│   │   └── notifications/              # NotificationProfile, EscalationChain,
-│   │                                   #   QuietHoursWindow, BuiltInSound, VibrationPatterns
-│   └── usecase/
-│       ├── RecurrenceEngine.kt, NaturalLanguageParser.kt, ParsedTaskResolver.kt
-│       ├── UrgencyScorer.kt, SuggestionEngine.kt, StreakCalculator.kt
-│       ├── ProFeatureGate.kt           # Two-tier access control
-│       ├── VoiceInputManager.kt, VoiceCommandParser.kt, TextToSpeechManager.kt
-│       ├── SmartDefaultsEngine.kt, QuietHoursDeferrer.kt
-│       ├── ChecklistParser.kt, TodoListParser.kt, DateShortcuts.kt
-│       ├── NotificationProfileResolver.kt, AntiReworkGuard.kt
-│       ├── LifeCategoryClassifier.kt, BalanceTracker.kt, BurnoutScorer.kt
-│       ├── BoundaryEnforcer.kt, BoundaryRuleParser.kt, ProfileAutoSwitcher.kt
-│       ├── MoodCorrelationEngine.kt, MorningCheckInResolver.kt, WeeklyReviewAggregator.kt
-│       ├── EnergyAwarePomodoro.kt, GoodEnoughTimerManager.kt
-│       ├── ShipItCelebrationManager.kt, SelfCareNudgeEngine.kt
-│       ├── ConversationTaskExtractor.kt, DuplicateCleanupPlanner.kt
-│       ├── RefillCalculator.kt, ClinicalReportGenerator.kt
-│       ├── ScreenshotCapture.kt, ShakeDetector.kt
-├── notifications/
-│   ├── NotificationHelper.kt, ReminderScheduler.kt, ReminderBroadcastReceiver.kt
-│   ├── EscalationScheduler.kt, EscalationBroadcastReceiver.kt
-│   ├── SoundResolver.kt, VibrationAdapter.kt, ExactAlarmHelper.kt, NotificationTester.kt
-│   ├── CompleteTaskReceiver.kt, BootReceiver.kt, OverloadCheckWorker.kt
-│   ├── WeeklyHabitSummary.kt, WeeklySummaryWorker.kt, HabitNotificationUtils.kt
-│   ├── HabitFollowUpReceiver.kt, HabitFollowUpDismissReceiver.kt
-│   ├── BriefingNotificationWorker.kt, EveningSummaryWorker.kt, ReengagementWorker.kt
-│   ├── MedicationReminderScheduler.kt, MedicationReminderReceiver.kt
-│   ├── MedStepReminderReceiver.kt, LogMedicationReceiver.kt, PomodoroTimerService.kt
-├── widget/                             # 8 Glance widgets with per-instance config
-│   ├── TodayWidget.kt, HabitStreakWidget.kt, QuickAddWidget.kt
-│   ├── CalendarWidget.kt, ProductivityWidget.kt, TimerWidget.kt, UpcomingWidget.kt
-│   ├── ProjectWidget.kt
-│   ├── WidgetActions.kt, WidgetColors.kt, WidgetTextStyles.kt, WidgetEmptyState.kt
-│   ├── WidgetConfigDataStore.kt, WidgetDataProvider.kt, WidgetUpdateManager.kt
-│   ├── WidgetRefreshWorker.kt, TimerStateDataStore.kt
-├── workers/                            # Background WorkManager workers
-├── util/, utils/                       # Shared helpers
-└── ui/
-    ├── a11y/                           # Accessibility helpers (TalkBack, font scaling, contrast)
-    ├── components/                     # Shared composables
-    │   ├── SubtaskSection.kt, RecurrenceSelector.kt, EmptyState.kt, FilterPanel.kt
-    │   ├── HighlightedText.kt, TagSelector.kt, QuickAddBar.kt, QuickAddViewModel.kt
-    │   ├── ProBadge.kt, ProUpgradePrompt.kt, StreakBadge.kt
-    │   ├── ContributionGrid.kt, WeeklyProgressDots.kt, QuickReschedulePopup.kt
-    │   └── settings/                   # Shared settings-screen composables
-    ├── navigation/
-    │   ├── NavGraph.kt                 # Top-level NavHost
-    │   └── FeatureRoutes.kt            # Feature group route definitions
-    ├── screens/
-    │   ├── auth/, today/, tasklist/, addedittask/, projects/
-    │   ├── weekview/, monthview/, timeline/, search/, archive/
-    │   ├── tags/, templates/, habits/, settings/
-    │   ├── today/components/           # PlanForTodaySheet + TodayComponents
-    │   ├── tasklist/components/        # Extracted task list components
-    │   ├── addedittask/tabs/           # DetailsTab, ScheduleTab, OrganizeTab
-    │   ├── settings/sections/          # 35 extracted settings sections (Accessibility,
-    │   │                               #   SwipeActions, Voice, TaskDefaults, DebugTier,
-    │   │                               #   Subscription, Appearance, AI, WorkLifeBalance,
-    │   │                               #   Boundaries, Modes, BrainMode, CheckInStreak,
-    │   │                               #   ClinicalReport, ForgivenessStreak, FocusRelease,
-    │   │                               #   Shake, UiComplexity, DebugLogAdmin, etc.)
-    │   ├── habits/components/, templates/components/
-    │   ├── leisure/, leisure/components/
-    │   ├── selfcare/, selfcare/components/
-    │   ├── medication/, medication/components/
-    │   ├── schoolwork/, briefing/, chat/, coaching/
-    │   ├── eisenhower/, pomodoro/, planner/, timer/, onboarding/
-    │   ├── analytics/                  # TaskAnalyticsScreen + TaskAnalyticsViewModel
-    │   ├── balance/                    # WeeklyBalanceReportScreen + life-category visualizations
-    │   ├── mood/                       # MoodAnalyticsScreen + mood/energy correlation views
-    │   ├── checkin/                    # MorningCheckInScreen + check-in streak UI
-    │   ├── review/                     # Weekly review flow screens
-    │   ├── extract/                    # ConversationTaskExtractor inbox
-    │   ├── notifications/              # Notification profile editor, escalation, custom sounds
-    │   ├── feedback/, debug/
-    └── theme/
-        ├── Color.kt, Theme.kt, Type.kt, PriorityColors.kt, LifeCategoryColors.kt
+│   ├── model/         # Pure data types (RecurrenceRule, TaskFilter, LifeCategory, …)
+│   └── usecase/       # NLP parser, urgency, suggestion, recurrence engine, …
+├── ui/
+│   ├── screens/       # Per-feature screens; tabbed editor + section composables
+│   ├── components/    # Shared composables (FilterPanel, QuickAddBar, …)
+│   ├── navigation/    # NavGraph + FeatureRoutes
+│   ├── theme/         # Color, Type, PriorityColors, LifeCategoryColors
+│   └── a11y/          # TalkBack, font scaling, contrast helpers
+├── notifications/     # Schedulers, receivers, sound resolvers, workers
+├── widget/            # 8 Glance widgets + per-instance config datastore
+├── workers/           # Background WorkManager workers
+├── di/                # Hilt modules
+├── diagnostics/       # Crash/event diagnostics helpers
+├── util/, utils/      # Shared helpers (DayBoundary, …)
+├── MainActivity.kt    # Single-activity entry point, notification permission
+└── PrismTaskApplication.kt   # @HiltAndroidApp
 ```
+
 
 ## Architecture
 
@@ -313,6 +182,7 @@ remains the final verification gate.
 - **PRs**: feature work lands via merged PR, not direct push to main. Small changes (docs, version bumps, trivial fixes) may go direct to main. The `pre-push` hook warns on non-merge pushes to main and requires explicit confirmation.
 - **Worktrees**: every new feature goes on a dedicated git worktree branched from latest main. Worktree + branch are both removed via `git worktree remove` + `git branch -d/-D` after the PR merges — no manual folder deletion.
 - **Fresh clones**: run `.\scripts\hooks\install.ps1` (Windows) or `./scripts/hooks/install.sh` (unix) to install git hooks. `.git/hooks/` is not version-controlled, so every fresh clone starts without them.
+- **Audit doc length**: cap each Phase at ~500 lines. Above that, split into batches with separate Phase 1 sweeps. The validated single-pass shape (`docs/audits/CONNECTED_TESTS_STABILIZATION_AUDIT.md`, PR #859) is 390 lines; mega-audits (e.g. `PRE_PHASE_F_MEGA_AUDIT.md` at 1,115 lines) cost wall-clock to write *and* to re-read.
 
 ## Important Files
 
