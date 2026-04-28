@@ -10,21 +10,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.averycorp.prismtask.domain.usecase.DailyEssentialsUiState
-import com.averycorp.prismtask.domain.usecase.MedicationDose
-import com.averycorp.prismtask.domain.usecase.MedicationSlot
 import com.averycorp.prismtask.ui.screens.today.components.CollapsibleSection
 import com.averycorp.prismtask.ui.screens.today.dailyessentials.cards.HabitCard
 import com.averycorp.prismtask.ui.screens.today.dailyessentials.cards.LeisureCard
-import com.averycorp.prismtask.ui.screens.today.dailyessentials.cards.MedicationCard
-import com.averycorp.prismtask.ui.screens.today.dailyessentials.cards.MedicationSlotBottomSheet
 import com.averycorp.prismtask.ui.screens.today.dailyessentials.cards.RoutineCard
 import com.averycorp.prismtask.ui.screens.today.dailyessentials.cards.SchoolworkCard
 import com.averycorp.prismtask.ui.theme.LocalPrismColors
@@ -38,25 +30,15 @@ data class DailyEssentialsActions(
     val onToggleMusicDone: () -> Unit,
     val onPickFlex: () -> Unit,
     val onToggleFlexDone: () -> Unit,
-    /**
-     * Batch-mark every dose in a medication slot. Second arg is the new
-     * "taken" state (checked ↔ unchecked). Implementations typically call
-     * ``DailyEssentialSlotCompletionRepository.toggleSlot`` and fan out to
-     * each dose's native completion log.
-     */
-    val onToggleMedicationSlot: (MedicationSlot, Boolean) -> Unit,
-    /** Single-dose toggle from inside the detail bottom sheet. */
-    val onToggleMedicationDose: (MedicationSlot, MedicationDose, Boolean) -> Unit,
     val onDismissHint: () -> Unit,
     val onOpenSettings: () -> Unit
 )
 
 /**
- * Collapsible section wrapper for the seven virtual Daily Essentials cards.
- * Cards render in a fixed order: Morning → Medication → Housework →
- * Schoolwork → Music → Flex → Bedtime. Empty cards are omitted entirely;
- * if the whole section is empty, a one-time onboarding banner links to
- * Settings → Daily Essentials.
+ * Collapsible section wrapper for the six virtual Daily Essentials cards.
+ * Cards render in a fixed order: Morning → Housework → Schoolwork → Music
+ * → Flex → Bedtime. Empty cards are omitted entirely; if the whole section
+ * is empty, a one-time onboarding banner links to Settings → Daily Essentials.
  */
 @Composable
 fun DailyEssentialsSection(
@@ -69,7 +51,6 @@ fun DailyEssentialsSection(
     val prismColors = LocalPrismColors.current
     val visibleCardCount = listOfNotNull(
         state.morning,
-        state.medication,
         state.housework,
         state.houseworkRoutine,
         state.schoolwork?.takeIf { it.hasContent },
@@ -79,17 +60,6 @@ fun DailyEssentialsSection(
     ).size
 
     if (state.isEmpty && state.hasSeenHint) return
-
-    var activeSlot by remember { mutableStateOf<MedicationSlot?>(null) }
-    activeSlot?.let { slot ->
-        MedicationSlotBottomSheet(
-            slot = slot,
-            onDismiss = { activeSlot = null },
-            onToggleDose = { dose, checked ->
-                actions.onToggleMedicationDose(slot, dose, checked)
-            }
-        )
-    }
 
     CollapsibleSection(
         emoji = "\u2728",
@@ -116,13 +86,6 @@ fun DailyEssentialsSection(
                 RoutineCard(
                     state = morning,
                     onToggleStep = { stepId -> actions.onToggleRoutineStep("morning", stepId) }
-                )
-            }
-            state.medication?.let { medication ->
-                MedicationCard(
-                    state = medication,
-                    onToggleSlot = actions.onToggleMedicationSlot,
-                    onOpenSlot = { slot -> activeSlot = slot }
                 )
             }
             state.housework?.let { housework ->
@@ -195,7 +158,7 @@ private fun EmptyStateHint(
             )
             Text(
                 text = "Pick the habits and routines you want to see every morning " +
-                    "— medication, housework, leisure, and more.",
+                    "— housework, leisure, and more.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

@@ -1,14 +1,12 @@
 package com.averycorp.prismtask.domain.usecase
 
 import com.averycorp.prismtask.core.time.LocalDateFlow
-import com.averycorp.prismtask.data.local.dao.DailyEssentialSlotCompletionDao
 import com.averycorp.prismtask.data.local.dao.HabitCompletionDao
 import com.averycorp.prismtask.data.local.dao.HabitDao
 import com.averycorp.prismtask.data.local.dao.SchoolworkDao
 import com.averycorp.prismtask.data.local.dao.SelfCareDao
 import com.averycorp.prismtask.data.local.entity.AssignmentEntity
 import com.averycorp.prismtask.data.local.entity.CourseEntity
-import com.averycorp.prismtask.data.local.entity.DailyEssentialSlotCompletionEntity
 import com.averycorp.prismtask.data.local.entity.HabitEntity
 import com.averycorp.prismtask.data.local.entity.LeisureLogEntity
 import com.averycorp.prismtask.data.preferences.DailyEssentialsPreferences
@@ -80,18 +78,6 @@ data class LeisureCardState(
     val enabled: Boolean = true
 )
 
-data class MedicationCardState(
-    val totalDueToday: Int,
-    val nextDose: MedicationDose,
-    val otherDoses: List<MedicationDose>,
-    /**
-     * Slot-grouped view of the same dose list. One entry per distinct clock
-     * time (plus an optional trailing "anytime" bucket). UI renders this as
-     * one row per slot with the "{time} meds: {a, b, c}" label.
-     */
-    val slots: List<MedicationSlot> = emptyList()
-)
-
 /**
  * Aggregated state for the Daily Essentials section. Any field may be null
  * when the corresponding card is unconfigured / empty and should be hidden.
@@ -106,7 +92,6 @@ data class DailyEssentialsUiState(
     val schoolwork: SchoolworkCardState?,
     val musicLeisure: LeisureCardState,
     val flexLeisure: LeisureCardState,
-    val medication: MedicationCardState?,
     val hasSeenHint: Boolean
 ) {
     val isEmpty: Boolean
@@ -115,7 +100,6 @@ data class DailyEssentialsUiState(
             housework == null &&
             houseworkRoutine == null &&
             (schoolwork == null || !schoolwork.hasContent) &&
-            medication == null &&
             musicLeisure.pickedForToday == null &&
             flexLeisure.pickedForToday == null
 
@@ -128,7 +112,6 @@ data class DailyEssentialsUiState(
             schoolwork = null,
             musicLeisure = LeisureCardState(LeisureKind.MUSIC, null, false),
             flexLeisure = LeisureCardState(LeisureKind.FLEX, null, false),
-            medication = null,
             hasSeenHint = false
         )
     }
@@ -144,8 +127,6 @@ constructor(
     private val habitDao: HabitDao,
     private val habitCompletionDao: HabitCompletionDao,
     private val leisureRepository: LeisureRepository,
-    private val medicationStatusUseCase: MedicationStatusUseCase,
-    private val slotCompletionDao: DailyEssentialSlotCompletionDao,
     private val dailyEssentialsPreferences: DailyEssentialsPreferences,
     private val taskBehaviorPreferences: TaskBehaviorPreferences,
     private val leisurePreferences: LeisurePreferences,
@@ -181,8 +162,6 @@ constructor(
                     observeRoutineCard("housework", "Housework", todayStart),
                     observeSchoolworkCard(todayLocal, windowStart, windowEnd),
                     leisureRepository.getTodayLog(),
-                    medicationStatusUseCase.observeDueDosesToday(),
-                    slotCompletionDao.observeForDate(todayStart),
                     dailyEssentialsPreferences.hasSeenHint,
                     leisurePreferences.getSlotConfig(LeisureSlotId.MUSIC),
                     leisurePreferences.getSlotConfig(LeisureSlotId.FLEX)
@@ -197,29 +176,9 @@ constructor(
         val houseworkRoutine = args[3] as RoutineCardState?
         val schoolwork = args[4] as SchoolworkCardState?
         val leisureLog = args[5] as LeisureLogEntity?
-        val dueDoses = args[6] as List<MedicationDose>
-        val materializedSlots = args[7] as List<DailyEssentialSlotCompletionEntity>
-        val seenHint = args[8] as Boolean
-        val musicConfig = args[9] as LeisureSlotConfig
-        val flexConfig = args[10] as LeisureSlotConfig
-
-        val allSlots = MedicationSlotGrouper.group(dueDoses, materializedSlots)
-        // The "medication card" should collapse when there are no pending
-        // doses AND no materialized slot is still checked. A materialized
-        // ``taken_at != null`` row for a slot whose doses were all taken
-        // virtually would otherwise flicker the card away prematurely; the
-        // virtual list already filters out taken interval/self-care doses,
-        // so ``dueDoses.isEmpty`` is the right signal here.
-        val medicationState = if (dueDoses.isEmpty()) {
-            null
-        } else {
-            MedicationCardState(
-                totalDueToday = dueDoses.size,
-                nextDose = dueDoses.first(),
-                otherDoses = dueDoses.drop(1),
-                slots = allSlots
-            )
-        }
+        val seenHint = args[6] as Boolean
+        val musicConfig = args[7] as LeisureSlotConfig
+        val flexConfig = args[8] as LeisureSlotConfig
 
         return DailyEssentialsUiState(
             morning = morning,
@@ -241,7 +200,6 @@ constructor(
                 label = flexConfig.label,
                 enabled = flexConfig.enabled
             ),
-            medication = medicationState,
             hasSeenHint = seenHint
         )
     }

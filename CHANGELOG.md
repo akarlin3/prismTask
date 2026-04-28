@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Removed
+
+- **Medication reminders on the Today (start) screen.** The Daily
+  Essentials medication card is gone — dose tracking lives on the
+  dedicated `MedicationScreen` (still reachable from the Habits tab,
+  Settings, the morning check-in, and refill projection). The Today-screen
+  Habits chip for the Medication habit no longer special-cases a
+  navigation route; it now toggles the habit completion the same way
+  every other Habits chip does. Background notification reminders
+  (`MedicationReminderScheduler`), refill projections, and sync
+  round-tripping of `daily_essential_slot_completions` rows are all
+  unchanged. Audit:
+  `docs/audits/REMOVE_MEDICATION_REMINDERS_FROM_START_SCREEN.md`.
+
 ### Added
 
 - **`DailyResetWorker.computeNextDelayMs(now)` helper + `now: Long` threading through `WidgetDataProvider`.**
