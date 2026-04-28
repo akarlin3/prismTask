@@ -148,9 +148,6 @@ object TestDatabaseModule {
         database.medicationTierStateDao()
 
     @Provides
-    fun provideTaskTimingDao(database: PrismTaskDatabase) = database.taskTimingDao()
-
-    @Provides
     @Singleton
     fun provideGson(): com.google.gson.Gson = com.google.gson.Gson()
 }
