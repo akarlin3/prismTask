@@ -260,3 +260,50 @@ screen by definition; they fire as system notifications. Out of scope;
 - **No CHANGELOG entry needed** unless explicitly user-facing — this is a
   UI removal of a feature already shipped, so add a short bullet under the
   Unreleased section.
+
+---
+
+## Phase 3 — Bundle summary (post-merge)
+
+- **Phase 1 (audit doc)**: PR #890 — merged 2026-04-28T07:16:34Z as
+  `3284a7eb`.
+- **Phase 2 (implementation)**: PR #891 — merged 2026-04-28T07:53:53Z as
+  `81ee5eeb`. Includes the `MedicationCard` removal, the Habits-chip
+  route removal, deletion of `MedicationStatusUseCase`, `MedicationSlotGrouper`,
+  and `DailyEssentialSlotCompletionRepository`, plus a CHANGELOG note
+  under "Unreleased > Removed."
+
+### Audit-vs-shipped delta
+
+The Phase 1 anti-pattern list claimed
+`DailyEssentialSlotCompletionRepository` was shared with morning / bedtime /
+housework slots and should not be deleted. **That premise was wrong.**
+On a fresh sweep before Phase 2, `slotCompletionRepository.toggleSlot`
+turned out to have only two call sites in the codebase — both inside
+the medication handlers being removed (`TodayViewModel.onToggleMedicationSlot`
+and `onToggleMedicationDose`). Morning/bedtime/housework slots write
+through `SelfCareDao` directly, not through this repository. The
+repository therefore went dead with the medication card and was deleted
+in Phase 2; the underlying DAO + Room table + sync mappers stay so the
+sync layer keeps round-tripping historical
+`daily_essential_slot_completions` rows.
+
+The corresponding `DailyEssentialSlotCompletionDaoTest.virtualToMaterializedTransition`
+case (which exercised the deleted repository) was dropped; the
+`uniqueIndexPreventsDuplicateSlotPerDay` case stays so the schema
+invariant the sync layer relies on remains pinned.
+
+### Memory entry candidates
+
+- **None added.** The wrong-premise on the repository's reach is a one-off
+  miscount; the lesson ("verify caller count before recommending 'don't
+  delete this'") is already captured by `feedback_audit_drive_by_migration_fixes.md`'s
+  spirit (search before recommending). Adding another rule for it would
+  duplicate.
+
+### Schedule for next audit
+
+- No follow-up scheduled. Items 3–6 (deferred surfaces — burnout-badge
+  text, default-hide medication chip, check-in summary subtitle,
+  notification scheduler) remain available to re-open if user feedback
+  surfaces them.

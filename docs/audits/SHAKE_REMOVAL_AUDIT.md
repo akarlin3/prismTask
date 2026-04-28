@@ -122,4 +122,42 @@ Single bundled PR is the right shape — every edit is part of one coherent remo
 
 ## Phase 3 — Bundle summary
 
-To be appended after merge with PR number, CI outcome, and any surprises.
+**Merged:** 2026-04-28 07:53Z, squash commit `4f5e7ca7`.
+
+### What landed
+
+- **PR #888** — `chore: remove shake-to-report-a-bug feature`. Net diff: **24 files, +156 / −840** (final squash; the audit doc itself accounts for ~150 of the additions). Every Phase 1 scope item executed exactly as specified — no items dropped, no items added mid-flight.
+- **PR #892** — `ci(android-integration): reinstall firebase-tools when symlink lost on cache restore`. Out-of-scope CI fix opened during Phase 3 to unblock the merge (see "Surprises" below).
+
+### CI outcome
+
+- All non-integration checks went green on the first PR run (lint-and-test, backend test, web lint+test, e2e).
+- `./gradlew assembleDebug`, `./gradlew testDebugUnitTest`, `./gradlew ktlintCheck` all green locally before push.
+- Integration CI (`connected-tests`, `cross-device-tests`) failed twice on the same `firebase: command not found` step before #892 landed and the third run went green.
+
+### Surprises (rank-ordered by future-relevance)
+
+1. **`actions/cache@v4` does not round-trip the `/usr/local/bin/firebase` symlink** that `npm install -g firebase-tools` creates. PR #884's caching layout listed the symlink path explicitly in `actions/cache@v4`'s `path:` block, the cache-hit path reported `Cache restored from key: firebase-tools-Linux-v15` cleanly, but the next step (`firebase --version`) immediately exited 127. The fix in PR #892 was to drop the `if: cache-hit != 'true'` gate on the install step in favor of `if ! command -v firebase`, which covers both cache miss AND the symlink-lost-on-restore case in one shape. Same regression hit at least one other PR (`chore/remove-medication-reminders-start-screen`) — it wasn't unique to this branch.
+2. **`gh pr update-branch` from a user token refires PR workflows; the GitHub bot's auto-update doesn't.** Already in memory (`feedback_auto_merge_branch_update_deadlock.md`) and confirmed again here: after my first `gh pr update-branch 888`, all PR workflows re-fired with new check-run IDs. The bot's silent merge-from-main between the user's update and the next required-check fire IS the deadlock shape; user-token update-branch dodges it.
+3. **`auto-update-branch.yml` workflow can supersede an in-flight CI run.** After PR #892 merged, `auto-update-branch` automatically merged main into PR #888 again (a third merge commit), cancelling the in-progress integration CI run and queueing a fresh one. Cost: ~25 min of wall-clock that I'd already paid for. Not a bug, but worth knowing — `update-branch` followed by a separate auto-update fire compounds.
+4. **`workflow file` change → integration CI SKIPPED → required-check passes on workflow-only PRs.** PR #892 modified only `.github/workflows/android-integration.yml`. The auto-label workflow's path detection (`label-integration-ci.yml`) only applies `ci:integration` for diffs touching `app/src/main/.../data/local/`, `app/src/androidTest/`, or specific DB files — workflow files don't trigger the label. So `connected-tests` and `cross-device-tests` were SKIPPED, GitHub treats skipped required checks as success (Oct-2022+ semantics), and the PR squash-merged in ~2 min. The integration workflow's own job-level `if:` gate (line 60-62) is what enables this; without it, workflow-only fix PRs would deadlock on their own broken integration CI.
+5. **Local main was 7 commits behind origin AND had a duplicate commit ahead at session start.** Mid-session `git pull --rebase` cleanly skipped the local cherry-pick (squash on origin had identical content; different SHA). Untouched WIP on `MedicationLogScreen.kt` and a new `MedicationLogTimeFormatTest.kt` that were uncommitted at session start ended up landing on origin via PR #891 ("remove medication reminders from the start screen") and were no longer visible in `git status` after the rebase. Working-tree-swap memory (`working_tree_branch_swap.md`) covered the related "branch swaps mid-session" failure mode; the new wrinkle is "in-progress untracked WIP can land on origin via someone else's PR while you're working on a parallel feature."
+
+### Memory candidates
+
+- **#1 (firebase-tools symlink)** is genuinely surprising and reusable — anyone working on the `actions/cache@v4` + npm-global-bin pattern in this repo (or elsewhere) will hit it again. Worth a feedback memory: `actions/cache@v4 does not round-trip /usr/local/bin/* symlinks; cache hits restore the package dir but the bin symlink is lost — gate install on `command -v` not `cache-hit`.`
+- **#3 (auto-update-branch superseding in-flight CI)** is repo-specific and timing-dependent; capture as a project memory: `auto-update-branch.yml can fire after manual update-branch and cancel in-flight runs; budget a second ~25-min CI cycle when chaining update-branch + main-side fixes.`
+- **#4 (workflow-only PRs skip integration CI)** is useful for any future workflow-fix PR that needs to land before a feature PR can merge — bundling workflow + non-workflow changes would block the bundle on the broken integration CI it's trying to fix.
+- #2, #5 are already covered by existing memories.
+
+### Re-baselined wall-clock
+
+| Activity | Estimate going in | Actual |
+|---|---|---|
+| Phase 1 audit | 15-20 min | 14 min |
+| Phase 2 implementation + local verify | 30-45 min | 38 min (build 1m35s, tests 23s, ktlint 17s) |
+| Phase 2 push + auto-merge wait | 25-40 min (one CI cycle) | ~110 min, three CI cycles + a workflow fix PR |
+| Phase 3 teardown + summary | 5-10 min | 8 min |
+
+The Phase 2 wall-clock blew up entirely because of the upstream firebase-tools regression. **Without #884's regression, this would have been a clean ~70-90 min job.** The single-bundled-PR shape and the audit doc both held up; nothing in the original plan needed revision.
+
