@@ -42,6 +42,7 @@ on:
   # GitHub reports skipped required checks as success (Oct 2022+).
   pull_request:
     types: [opened, synchronize, reopened, labeled]
+  merge_group:
 
 concurrency:
   group: android-integration-${{ github.ref }}
