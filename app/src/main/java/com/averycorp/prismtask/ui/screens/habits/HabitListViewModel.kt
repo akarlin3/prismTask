@@ -6,6 +6,8 @@ import com.averycorp.prismtask.data.local.entity.SelfCareLogEntity
 import com.averycorp.prismtask.data.local.entity.SelfCareStepEntity
 import com.averycorp.prismtask.data.preferences.BuiltInSortOrders
 import com.averycorp.prismtask.data.preferences.HabitListPreferences
+import com.averycorp.prismtask.data.repository.DailyCourseProgress
+import com.averycorp.prismtask.data.repository.DailyLeisureProgress
 import com.averycorp.prismtask.data.repository.HabitRepository
 import com.averycorp.prismtask.data.repository.HabitWithStatus
 import com.averycorp.prismtask.data.repository.LeisureRepository
@@ -29,6 +31,8 @@ data class SelfCareCardData(
     val isComplete: Boolean
 )
 
+data class BuiltInHabitProgress(val done: Int, val total: Int)
+
 sealed class HabitListItem {
     abstract val sortOrder: Int
 
@@ -47,7 +51,8 @@ sealed class HabitListItem {
     data class BuiltInHabitItem(
         val type: String,
         val habitWithStatus: HabitWithStatus,
-        override val sortOrder: Int
+        override val sortOrder: Int,
+        val progress: BuiltInHabitProgress? = null
     ) : HabitListItem()
 
     val key: Any get() = when (this) {
@@ -63,6 +68,8 @@ class HabitListViewModel
 constructor(
     private val habitRepository: HabitRepository,
     private val selfCareRepository: SelfCareRepository,
+    private val schoolworkRepository: SchoolworkRepository,
+    private val leisureRepository: LeisureRepository,
     private val habitListPreferences: HabitListPreferences,
     private val gson: Gson
 ) : ViewModel() {
@@ -137,6 +144,14 @@ constructor(
         .isHouseworkEnabled()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
 
+    private val schoolProgress: StateFlow<DailyCourseProgress> = schoolworkRepository
+        .getDailyCourseProgress()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DailyCourseProgress(0, 0))
+
+    private val leisureProgress: StateFlow<DailyLeisureProgress> = leisureRepository
+        .getDailyLeisureProgress()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DailyLeisureProgress(0, 0))
+
     val items: StateFlow<List<HabitListItem>> = combine(
         habits,
         morningLog,
@@ -152,7 +167,9 @@ constructor(
         leisureEnabled,
         houseworkLog,
         houseworkSteps,
-        houseworkEnabled
+        houseworkEnabled,
+        schoolProgress,
+        leisureProgress
     ) { values ->
         @Suppress("UNCHECKED_CAST")
         val habitList = values[0] as List<HabitWithStatus>
@@ -170,6 +187,8 @@ constructor(
         val hwLog = values[12] as SelfCareLogEntity?
         val hwSteps = values[13] as List<SelfCareStepEntity>
         val houseworkOn = values[14] as Boolean
+        val schoolProg = values[15] as DailyCourseProgress
+        val leisureProg = values[16] as DailyLeisureProgress
 
         val morningCard = computeCardData(mLog, mSteps, "morning")
         val bedtimeCard = computeCardData(bLog, bSteps, "bedtime")
@@ -213,10 +232,24 @@ constructor(
             allItems.add(HabitListItem.SelfCareItem("housework", houseworkCard, sortOrders.housework))
         }
         if (schoolOn && schoolHabit != null) {
-            allItems.add(HabitListItem.BuiltInHabitItem("school", schoolHabit, sortOrders.school))
+            allItems.add(
+                HabitListItem.BuiltInHabitItem(
+                    type = "school",
+                    habitWithStatus = schoolHabit,
+                    sortOrder = sortOrders.school,
+                    progress = BuiltInHabitProgress(schoolProg.done, schoolProg.total)
+                )
+            )
         }
         if (leisureOn && leisureHabit != null) {
-            allItems.add(HabitListItem.BuiltInHabitItem("leisure", leisureHabit, sortOrders.leisure))
+            allItems.add(
+                HabitListItem.BuiltInHabitItem(
+                    type = "leisure",
+                    habitWithStatus = leisureHabit,
+                    sortOrder = sortOrders.leisure,
+                    progress = BuiltInHabitProgress(leisureProg.done, leisureProg.total)
+                )
+            )
         }
         habitList
             .filter { it.habit.name !in allBuiltInNames }

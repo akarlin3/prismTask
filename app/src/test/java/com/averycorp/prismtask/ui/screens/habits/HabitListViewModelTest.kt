@@ -2,7 +2,11 @@ package com.averycorp.prismtask.ui.screens.habits
 
 import com.averycorp.prismtask.data.preferences.BuiltInSortOrders
 import com.averycorp.prismtask.data.preferences.HabitListPreferences
+import com.averycorp.prismtask.data.repository.DailyCourseProgress
+import com.averycorp.prismtask.data.repository.DailyLeisureProgress
 import com.averycorp.prismtask.data.repository.HabitRepository
+import com.averycorp.prismtask.data.repository.LeisureRepository
+import com.averycorp.prismtask.data.repository.SchoolworkRepository
 import com.averycorp.prismtask.data.repository.SelfCareRepository
 import com.google.gson.Gson
 import io.mockk.coEvery
@@ -32,6 +36,8 @@ class HabitListViewModelTest {
 
     private lateinit var habitRepository: HabitRepository
     private lateinit var selfCareRepository: SelfCareRepository
+    private lateinit var schoolworkRepository: SchoolworkRepository
+    private lateinit var leisureRepository: LeisureRepository
     private lateinit var habitListPreferences: HabitListPreferences
     private lateinit var gson: Gson
 
@@ -40,12 +46,16 @@ class HabitListViewModelTest {
         Dispatchers.setMain(dispatcher)
         habitRepository = mockk(relaxed = true)
         selfCareRepository = mockk(relaxed = true)
+        schoolworkRepository = mockk(relaxed = true)
+        leisureRepository = mockk(relaxed = true)
         habitListPreferences = mockk(relaxed = true)
         gson = Gson()
 
         coEvery { habitRepository.getHabitsWithFullStatus() } returns flowOf(emptyList())
         coEvery { selfCareRepository.getTodayLog(any()) } returns flowOf(null)
         coEvery { selfCareRepository.getSteps(any()) } returns flowOf(emptyList())
+        coEvery { schoolworkRepository.getDailyCourseProgress() } returns flowOf(DailyCourseProgress(0, 0))
+        coEvery { leisureRepository.getDailyLeisureProgress() } returns flowOf(DailyLeisureProgress(0, 0))
         coEvery { habitListPreferences.getBuiltInSortOrders() } returns flowOf(
             BuiltInSortOrders(
                 HabitListPreferences.DEFAULT_MORNING_ORDER,
@@ -69,7 +79,14 @@ class HabitListViewModelTest {
     }
 
     private fun newViewModel() =
-        HabitListViewModel(habitRepository, selfCareRepository, habitListPreferences, gson)
+        HabitListViewModel(
+            habitRepository,
+            selfCareRepository,
+            schoolworkRepository,
+            leisureRepository,
+            habitListPreferences,
+            gson
+        )
 
     @Test
     fun onToggleCompletion_currentlyCompleteRoutesToUncomplete() = runTest(dispatcher) {

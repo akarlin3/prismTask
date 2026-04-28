@@ -202,10 +202,11 @@ audited green-path stays green even as future PRs touch the file.
 
 PR shipped:
 
-- **#TBD** — `fix(leisure): regression test — addCustomSectionActivity preserves section`
+- **#918** — `fix(leisure): regression test — addCustomSectionActivity preserves section`
   Adds a Robolectric round-trip test verifying the user-reported
   symptom does not occur at the data layer. No production code
-  change. Hardening only.
+  change. Hardening only. Squash-merged at 2026-04-28T19:55:40Z
+  (commit `04a2c0e0`).
 
 The sync-layer integration test (Item 3) is **deferred** pending the
 user's Phase 4 answers — if the bug is single-device, the integration
@@ -214,7 +215,36 @@ PR.
 
 ## Phase 3 — Bundle summary
 
-(Appended after PR merges.)
+**Shipped (1 PR).**
+
+| PR | Scope | Impact |
+|----|-------|--------|
+| [#918](https://github.com/Akarlin3/PrismTask/pull/918) | Robolectric regression test for `addCustomSectionActivity` round-trip | Locks the data-layer green-path; future PRs touching `LeisurePreferences` get an early signal if the round-trip ever truncates a section. |
+
+**Deferred.**
+
+- **Sync-layer integration test (Item 3 / Improvement #3).** Scope
+  depends on the user's Phase 4 answers. If the bug is single-device
+  / no-sync, the integration test is wrong scope and the audit closes
+  GREEN with no further work. If the bug is multi-device, the next PR
+  is a `Fuzz`-style integration test for `leisure_prefs` round-trip
+  through `GenericPreferenceSyncService` — the `Fuzz06` shape is the
+  template, but only after Fuzz06 itself stabilizes (it's currently
+  quarantined per #914 — same generic-prefs LWW interleave family).
+
+**Re-baselined wall-clock estimate.** Phase 1 + the regression-test PR
+shipped in ~30 min wall-clock end-to-end (audit-doc + test + commit +
+push + auto-merge SQUASH). The deferred sync integration test would
+add ~2h if the user's repro answers point at the multi-device path.
+
+**Memory candidates.** None worth saving. The
+`runCatching` + `.sanitized()` pattern for synced JSON-encoded
+preferences is already covered by past PRs (#867, #870) and is
+re-confirmed here, not newly surfaced. The "STOP-and-report on wrong
+premises" lesson is already in the audit-first skill.
+
+**Schedule for next audit.** Driven by user's Phase 4 answer — see
+the handoff block below. No standing follow-up audit is scheduled.
 
 ## Phase 4 — Claude Chat handoff
 

@@ -7,6 +7,7 @@ import com.averycorp.prismtask.data.local.entity.HabitCompletionEntity
 import com.averycorp.prismtask.data.local.entity.HabitEntity
 import com.averycorp.prismtask.data.local.entity.LeisureLogEntity
 import com.averycorp.prismtask.data.preferences.LeisurePreferences
+import com.averycorp.prismtask.data.preferences.LeisureSlotId
 import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
 import com.averycorp.prismtask.data.remote.SyncTracker
 import com.averycorp.prismtask.util.DayBoundary
@@ -14,10 +15,13 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import javax.inject.Inject
 import javax.inject.Singleton
+
+data class DailyLeisureProgress(val done: Int, val total: Int)
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @Singleton
@@ -45,6 +49,24 @@ constructor(
     fun getTodayLog(): Flow<LeisureLogEntity?> =
         taskBehaviorPreferences.getDayStartHour().flatMapLatest { hour ->
             leisureDao.getLogForDate(DayBoundary.startOfCurrentDay(hour))
+        }
+
+    fun getDailyLeisureProgress(): Flow<DailyLeisureProgress> =
+        combine(
+            getTodayLog(),
+            leisurePreferences.getSlotConfig(LeisureSlotId.MUSIC),
+            leisurePreferences.getSlotConfig(LeisureSlotId.FLEX),
+            leisurePreferences.getCustomSections()
+        ) { log, music, flex, customs ->
+            val customStates = readCustomSectionStates(log)
+            val enabledCustoms = customs.filter { it.enabled }
+            val total = (if (music.enabled) 1 else 0) +
+                (if (flex.enabled) 1 else 0) +
+                enabledCustoms.size
+            val done = (if (music.enabled && log?.musicDone == true) 1 else 0) +
+                (if (flex.enabled && log?.flexDone == true) 1 else 0) +
+                enabledCustoms.count { customStates[it.id]?.done == true }
+            DailyLeisureProgress(done = done, total = total)
         }
 
     suspend fun setMusicPick(activityId: String) {

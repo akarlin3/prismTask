@@ -29,6 +29,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.averycorp.prismtask.data.repository.HabitWithStatus
 import com.averycorp.prismtask.ui.components.StreakBadge
+import com.averycorp.prismtask.ui.screens.habits.BuiltInHabitProgress
 import com.averycorp.prismtask.ui.theme.LocalPrismColors
 
 /**
@@ -42,7 +43,8 @@ internal fun BuiltInHabitCard(
     type: String,
     habitWithStatus: HabitWithStatus,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    progress: BuiltInHabitProgress? = null
 ) {
     val title = when (type) {
         "school" -> "Schoolwork"
@@ -130,7 +132,16 @@ internal fun BuiltInHabitCard(
                         .clip(CircleShape)
                         .border(2.dp, color, CircleShape),
                     contentAlignment = Alignment.Center
-                ) {}
+                ) {
+                    if (progress != null && progress.total > 0) {
+                        Text(
+                            text = "${progress.done}/${progress.total}",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = color
+                        )
+                    }
+                }
             }
         }
     }
