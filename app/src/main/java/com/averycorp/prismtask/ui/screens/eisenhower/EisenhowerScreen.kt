@@ -58,6 +58,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.averycorp.prismtask.data.local.entity.TaskEntity
+import com.averycorp.prismtask.ui.components.UpgradePrompt
 import com.averycorp.prismtask.ui.navigation.PrismTaskRoute
 import com.averycorp.prismtask.ui.theme.LocalPriorityColors
 import com.averycorp.prismtask.ui.theme.LocalPrismColors
@@ -96,7 +97,28 @@ fun EisenhowerScreen(
     val uiState by viewModel.uiState.collectAsState()
     val lastCategorizedAt by viewModel.lastCategorizedAt.collectAsState()
     val expandedQuadrant by viewModel.expandedQuadrant.collectAsState()
+    val showUpgradePrompt by viewModel.showUpgradePrompt.collectAsState()
+    val userTier by viewModel.userTier.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
+
+    if (showUpgradePrompt) {
+        AlertDialog(
+            onDismissRequest = { viewModel.dismissUpgradePrompt() },
+            confirmButton = {},
+            text = {
+                UpgradePrompt(
+                    currentTier = userTier,
+                    feature = "AI Eisenhower Matrix",
+                    description = "Let AI auto-classify your tasks across the four quadrants of urgency and importance.",
+                    onUpgrade = { _ ->
+                        viewModel.dismissUpgradePrompt()
+                        navController.navigate("settings/subscription")
+                    },
+                    onDismiss = { viewModel.dismissUpgradePrompt() }
+                )
+            }
+        )
+    }
 
     val isLoading = uiState is EisenhowerUiState.Loading
 

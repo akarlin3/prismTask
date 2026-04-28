@@ -141,7 +141,10 @@ fun SchoolworkScreen(
                 ProUpgradePrompt(
                     feature = ProFeature.SYLLABUS_IMPORT,
                     currentTier = userTier,
-                    onUpgrade = { _ -> },
+                    onUpgrade = { _ ->
+                        showUpgradePrompt = false
+                        navController.navigate("settings/subscription")
+                    },
                     onDismiss = { showUpgradePrompt = false }
                 )
             }

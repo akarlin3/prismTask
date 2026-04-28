@@ -60,7 +60,7 @@ Your data, your control
 
 Free vs Pro
 
-Everything you need to run your life — tasks, projects, tags, habits, templates, voice input, accessibility, themes, wellness features, medications, morning check-in, weekly review, boundary rules, burnout protection, and all four visual themes — is in the free tier. Pro ($3.99 / month) adds cross-device cloud sync, AI-assisted planning, analytics, time tracking, the clinical report export, and Google Drive backup.
+Everything you need to run your life — tasks, projects, tags, habits, templates, voice input, accessibility, themes, wellness features, medications, morning check-in, weekly review, boundary rules, burnout protection, and all four visual themes — is in the free tier. Pro ($7.99 / month, or $5 / month billed annually at $59.99 / year with a 7-day free trial) adds cross-device cloud sync, AI-assisted planning, analytics, time tracking, the clinical report export, and Google Drive backup.
 
 
 Currently in closed testing

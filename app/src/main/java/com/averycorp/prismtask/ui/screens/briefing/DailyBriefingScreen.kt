@@ -126,7 +126,10 @@ fun DailyBriefingScreen(
                 ProUpgradePrompt(
                     feature = ProFeature.AI_BRIEFING,
                     currentTier = userTier,
-                    onUpgrade = { _ -> },
+                    onUpgrade = { _ ->
+                        viewModel.dismissUpgradePrompt()
+                        navController.navigate("settings/subscription")
+                    },
                     onDismiss = {
                         viewModel.dismissUpgradePrompt()
                         navController.popBackStack()

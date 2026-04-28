@@ -66,6 +66,7 @@ import androidx.navigation.NavController
 import com.averycorp.prismtask.data.local.entity.TaskEntity
 import com.averycorp.prismtask.ui.components.MoveToProjectSheet
 import com.averycorp.prismtask.ui.components.QuickReschedulePopup
+import com.averycorp.prismtask.ui.components.UpgradePrompt
 import com.averycorp.prismtask.ui.navigation.PrismTaskRoute
 import com.averycorp.prismtask.ui.screens.addedittask.AddEditTaskSheetHost
 import com.averycorp.prismtask.ui.theme.LocalPriorityColors
@@ -614,14 +615,21 @@ fun TimelineScreen(
     }
 
     if (showUpgradePrompt) {
+        val userTier by viewModel.userTier.collectAsStateWithLifecycle()
         AlertDialog(
             onDismissRequest = { viewModel.dismissUpgradePrompt() },
-            title = { Text("Pro Feature") },
-            text = { Text("AI time blocking is a Pro feature. Upgrade to unlock AI-powered scheduling.") },
-            confirmButton = {
-                TextButton(onClick = { viewModel.dismissUpgradePrompt() }) {
-                    Text("OK")
-                }
+            confirmButton = {},
+            text = {
+                UpgradePrompt(
+                    currentTier = userTier,
+                    feature = "AI Time Blocking",
+                    description = "Let AI auto-schedule your tasks into focus blocks across your day or week.",
+                    onUpgrade = { _ ->
+                        viewModel.dismissUpgradePrompt()
+                        navController.navigate("settings/subscription")
+                    },
+                    onDismiss = { viewModel.dismissUpgradePrompt() }
+                )
             }
         )
     }

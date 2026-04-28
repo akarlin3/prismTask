@@ -33,8 +33,8 @@ def get_model(feature: str | None = None) -> str:
 
 # Sonnet pricing (~$3/M input, ~$15/M output) vs Haiku (~$0.25/M, ~$1.25/M).
 # Weekly planner / monthly review are Sonnet-backed; all other AI features
-# use Haiku to keep the margin healthy at the single $7.99/mo (or $4.99/mo
-# annual) Pro tier.
+# use Haiku to keep the margin healthy at the single $7.99/mo (or $5/mo
+# annual at $59.99/yr) Pro tier.
 
 
 def _get_client():

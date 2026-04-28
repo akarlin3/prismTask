@@ -231,7 +231,7 @@ app/src/main/java/com/averycorp/prismtask/
 - **Tabbed Editor**: Bottom sheet with Details/Schedule/Organize tabs (extracted into `addedittask/tabs/`)
 - **Sort Memory**: Per-screen sort preferences via DataStore
 - **Drag-to-Reorder**: Custom sort mode with persistent task order
-- **Two-Tier Pricing**: ProFeatureGate checks BillingManager tier (Free/Pro $3.99); Free gets core features, Pro unlocks everything else (cloud sync, AI Eisenhower/Pomodoro, analytics, briefing/planner, time blocking, collaboration, integrations, Drive backup)
+- **Two-Tier Pricing**: ProFeatureGate checks BillingManager tier (Free / Pro $7.99/mo or $5/mo billed annually at $59.99/yr with a 7-day free trial); Free gets core features, Pro unlocks everything else (cloud sync, AI Eisenhower/Pomodoro, analytics, briefing/planner, time blocking, collaboration, integrations, Drive backup)
 - **Billing**: Google Play Billing via BillingManager singleton; tier cached in DataStore for offline access; debug tier override in Settings
 - **Voice Input**: `VoiceInputManager` wraps Android SpeechRecognizer for dictation and continuous hands-free mode; `VoiceCommandParser` parses command grammar; `TextToSpeechManager` reads tasks and briefings
 - **Accessibility**: `ui/a11y/` helpers expose TalkBack labels, dynamic font scaling, high-contrast mode, keyboard focus traversal, and reduced-motion animation gates

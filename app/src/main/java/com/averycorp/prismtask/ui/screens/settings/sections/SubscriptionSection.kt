@@ -47,7 +47,7 @@ fun SubscriptionSection(
                 modifier = Modifier.padding(bottom = 4.dp)
             )
             val periodLabel = when (billingPeriod) {
-                BillingPeriod.ANNUAL -> "Billed Annually \u2014 \$4.99/mo (\$59.88/year)"
+                BillingPeriod.ANNUAL -> "Billed Annually \u2014 \$5/mo (\$59.99/year)"
                 BillingPeriod.MONTHLY -> "Billed Monthly \u2014 \$7.99/mo"
                 BillingPeriod.NONE -> "Subscription Active"
             }
@@ -109,7 +109,7 @@ fun SubscriptionSection(
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
-                        text = "Annual \u2014 \$4.99/mo (Save 37%)",
+                        text = "Annual \u2014 \$5/mo (\$59.99/year, Save 37%)",
                         fontWeight = FontWeight.Bold
                     )
                     Text(

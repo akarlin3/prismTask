@@ -129,8 +129,8 @@ function ProScreen({ theme }) {
 
         {/* Plans */}
         <div style={{ display: 'flex', gap: 10, marginBottom: 20, marginTop: 8 }}>
-          <PlanCard title="Monthly" price="$4.99" period={isMatrix ? '/ mo · billed monthly' : 'per month'}/>
-          <PlanCard title="Yearly" price="$29.99" period={isMatrix ? '/ yr · $2.50/mo' : 'per year · $2.50/mo'} savings={isMatrix ? '-50%' : 'Save 50%'} highlight/>
+          <PlanCard title="Monthly" price="$7.99" period={isMatrix ? '/ mo · billed monthly' : 'per month'}/>
+          <PlanCard title="Yearly" price="$59.99" period={isMatrix ? '/ yr · $5/mo · 7-day trial' : 'per year · $5/mo · 7-day trial'} savings={isMatrix ? '-37%' : 'Save 37%'} highlight/>
         </div>
 
         <div style={{

@@ -54,6 +54,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.averycorp.prismtask.ui.components.CircularCheckbox
+import com.averycorp.prismtask.ui.components.UpgradePrompt
 import com.averycorp.prismtask.ui.theme.ThemedSubScreenTitle
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -77,7 +78,28 @@ fun SmartPomodoroScreen(
     val preSessionCoaching by viewModel.preSessionCoaching.collectAsState()
     val breakSuggestion by viewModel.breakSuggestion.collectAsState()
     val sessionRecap by viewModel.sessionRecap.collectAsState()
+    val showUpgradePrompt by viewModel.showUpgradePrompt.collectAsState()
+    val userTier by viewModel.userTier.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
+
+    if (showUpgradePrompt) {
+        AlertDialog(
+            onDismissRequest = { viewModel.dismissUpgradePrompt() },
+            confirmButton = {},
+            text = {
+                UpgradePrompt(
+                    currentTier = userTier,
+                    feature = "AI Smart Focus",
+                    description = "Generate AI-tailored Pomodoro session plans across your incomplete tasks.",
+                    onUpgrade = { _ ->
+                        viewModel.dismissUpgradePrompt()
+                        navController.navigate("settings/subscription")
+                    },
+                    onDismiss = { viewModel.dismissUpgradePrompt() }
+                )
+            }
+        )
+    }
 
     // Error state also gets a snackbar as a secondary signal. Primary
     // rendering is the screen-level banner inside PlanningView.

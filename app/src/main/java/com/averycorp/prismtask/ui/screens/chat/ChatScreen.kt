@@ -122,7 +122,10 @@ fun ChatScreen(
                     currentTier = userTier,
                     feature = ProFeature.AI_CHAT.label,
                     description = ProFeature.AI_CHAT.description,
-                    onUpgrade = { _ -> viewModel.dismissUpgradePrompt() },
+                    onUpgrade = { _ ->
+                        viewModel.dismissUpgradePrompt()
+                        navController.navigate("settings/subscription")
+                    },
                     onDismiss = { viewModel.dismissUpgradePrompt() }
                 )
             }

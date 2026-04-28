@@ -36,7 +36,7 @@ NLP, app-update metadata, and analytics rollups.
 
 PrismTask ships with a two-tier pricing model.
 
-| Feature | Free | Pro ($3.99/mo or annual) |
+| Feature | Free | Pro ($7.99/mo or $5/mo billed annually at $59.99/yr, 7-day free trial) |
 |---------|------|--------------------------|
 | Task management, projects, tags, subtasks | Yes | Yes |
 | Habit tracking with streaks & analytics | Yes | Yes |

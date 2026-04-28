@@ -61,8 +61,11 @@ export function ProUpgradeModal({
 
         {/* Pricing */}
         <div className="mb-4">
-          <span className="text-3xl font-bold text-[var(--color-text-primary)]">$3.99</span>
+          <span className="text-3xl font-bold text-[var(--color-text-primary)]">$7.99</span>
           <span className="text-sm text-[var(--color-text-secondary)]"> / month</span>
+          <div className="text-sm text-[var(--color-text-secondary)]">
+            or $5 / month billed annually ($59.99 / year) — 7-day free trial
+          </div>
         </div>
 
         {/* CTA */}

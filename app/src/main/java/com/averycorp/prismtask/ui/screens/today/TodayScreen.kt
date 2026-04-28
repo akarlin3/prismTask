@@ -867,7 +867,7 @@ fun TodayScreen(
                 description = "Get personalized help when you're stuck on a task, plus energy-adaptive daily planning",
                 onUpgrade = { _ ->
                     coachingViewModel.dismissUpgradePrompt()
-                    navController.navigate(PrismTaskRoute.Settings.route)
+                    navController.navigate("settings/subscription")
                 },
                 onDismiss = { coachingViewModel.dismissUpgradePrompt() }
             )

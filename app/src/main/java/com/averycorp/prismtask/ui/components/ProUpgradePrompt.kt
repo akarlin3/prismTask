@@ -90,11 +90,11 @@ fun UpgradePrompt(
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
-                        text = "Annual \u2014 \$4.99/mo (Save 37%)",
+                        text = "Annual \u2014 \$5/mo (Save 37%)",
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "Best Value \u2014 \$59.88/year \u2022 7-Day Free Trial",
+                        text = "Best Value \u2014 \$59.99/year \u2022 7-Day Free Trial",
                         style = MaterialTheme.typography.bodySmall
                     )
                 }

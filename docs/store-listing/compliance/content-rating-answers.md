@@ -68,7 +68,7 @@ Answer every question below as written, then submit.
 
 | Question | Answer |
 |---|---|
-| Does the app allow users to make digital purchases? | **Yes** (Pro subscription via Google Play Billing — $3.99 / month) |
+| Does the app allow users to make digital purchases? | **Yes** (Pro subscription via Google Play Billing — $7.99 / month or $5 / month billed annually at $59.99 / year) |
 
 ## Miscellaneous
 

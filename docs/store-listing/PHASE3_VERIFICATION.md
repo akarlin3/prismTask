@@ -170,7 +170,7 @@ Every permission declared in the manifest has a justification entry in `complian
 | "One-tap full JSON export and a CSV task export" | §2 Data & sync — `DataExporter.kt` |
 | "Delete all of your data from Settings at any time" | §4 Data flow — claim retracted in open-issue-6; copy reworded to direct users to `privacy@prismtask.app` (see §Open-issue-6 below) |
 | "No ads … no analytics SDKs beyond crash reporting" | §4 Data flow — confirmed only Firebase Crashlytics |
-| "Pro ($3.99 / month) adds cross-device cloud sync, AI-assisted planning, analytics, time tracking, the clinical report export, and Google Drive backup" | README §"Free vs Pro" table — exact match |
+| "Pro ($7.99 / month, or $5 / month billed annually at $59.99 / year with a 7-day free trial) adds cross-device cloud sync, AI-assisted planning, analytics, time tracking, the clinical report export, and Google Drive backup" | README §"Free vs Pro" table — exact match |
 | "Currently in closed testing" | Track context — not a feature claim |
 
 **No widgets, Gmail, or Slack mentions in the copy** — `Grep` over `copy/` found zero matches for those terms (matching `widget|Gmail|Slack|Zapier`, case-insensitive). The only "#" hashtag in the copy is the NLP example `#home !high`, which is an accurate quick-add syntax demo.

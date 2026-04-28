@@ -46,7 +46,7 @@ The free tier of PrismTask includes:
 PrismTask Pro is available with two billing cadences:
 
 - **Monthly:** $7.99/month
-- **Annual:** $59.88/year (equivalent to $4.99/month, billed once per year)
+- **Annual:** $59.99/year (equivalent to $5/month, billed once per year)
 
 The annual plan includes a 7-day free trial for eligible new subscribers. The monthly plan does not include a free trial.
 
