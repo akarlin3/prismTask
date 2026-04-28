@@ -279,6 +279,7 @@ fun HabitListScreen(
                                             "leisure" -> navController.navigate(PrismTaskRoute.Leisure.route)
                                         }
                                     },
+                                    progress = listItem.progress,
                                     modifier = Modifier
                                         .shadow(elevation, MaterialTheme.shapes.medium)
                                         .longPressDraggableHandle()

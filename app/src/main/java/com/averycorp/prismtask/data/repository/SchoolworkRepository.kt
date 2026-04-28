@@ -13,10 +13,13 @@ import com.averycorp.prismtask.data.remote.SyncTracker
 import com.averycorp.prismtask.util.DayBoundary
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import javax.inject.Inject
 import javax.inject.Singleton
+
+data class DailyCourseProgress(val done: Int, val total: Int)
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @Singleton
@@ -106,6 +109,16 @@ constructor(
     fun getTodayCompletions(): Flow<List<CourseCompletionEntity>> =
         taskBehaviorPreferences.getDayStartHour().flatMapLatest { hour ->
             dao.getCompletionsForDate(DayBoundary.startOfCurrentDay(hour))
+        }
+
+    fun getDailyCourseProgress(): Flow<DailyCourseProgress> =
+        combine(getActiveCourses(), getTodayCompletions()) { courses, completions ->
+            val activeIds = courses.map { it.id }.toSet()
+            val doneIds = completions
+                .filter { it.completed && it.courseId in activeIds }
+                .map { it.courseId }
+                .toSet()
+            DailyCourseProgress(done = doneIds.size, total = activeIds.size)
         }
 
     suspend fun toggleCourseCompletion(courseId: Long) {
