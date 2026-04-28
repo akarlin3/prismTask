@@ -1,5 +1,6 @@
 package com.averycorp.prismtask.sync.fuzz
 
+import androidx.annotation.VisibleForTesting
 import kotlin.random.Random
 
 /**
@@ -18,7 +19,15 @@ import kotlin.random.Random
  * Generators are intentionally narrow — each [SyncFuzzGenerator] instance
  * targets a single entity type (Task, Habit, Project, Medication, …).
  * Cross-entity scenarios compose multiple generators in the same scope.
+ *
+ * Lives in `app/src/main/` rather than `androidTest/` because the JVM
+ * regression-gate test [SyncFuzzGeneratorTest] is under `app/src/test/`,
+ * and the `test/` and `androidTest/` source sets are isolated — neither
+ * can see the other's classpath. Putting this under `main/` lets both
+ * test source sets reference it. Debug-APK dex cost: ~1–2 KB; release
+ * builds strip via R8 since no production code references it.
  */
+@VisibleForTesting
 class SyncFuzzGenerator(
     private val random: Random,
     private val opTypes: Set<SyncFuzzOpType> = SyncFuzzOpType.entries.toSet(),
