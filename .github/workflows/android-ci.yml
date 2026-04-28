@@ -21,6 +21,7 @@ on:
   # running the full Gradle suite.
   pull_request:
     branches: [main]
+  merge_group:
 
 concurrency:
   group: android-ci-${{ github.ref }}
