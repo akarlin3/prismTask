@@ -234,7 +234,7 @@ class MultiCreateViewModelTest {
                 dueDate = any(),
                 dueTime = any(),
                 priority = any(),
-                projectId = capture(captured),
+                projectId = captureNullable(captured),
                 parentTaskId = any(),
                 lifeCategory = any(),
                 reminderOffset = any(),
