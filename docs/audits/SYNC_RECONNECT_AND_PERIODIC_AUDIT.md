@@ -133,3 +133,96 @@ both behaviors via a fake clock + fake `isOnline` flow.
   five `*Sync*Test.kt` files cover mappers and fuzz, not the
   orchestration logic. Add a focused unit test in this PR rather
   than expanding scope to a full SyncService test harness.
+
+## Phase 3 — bundle summary
+
+Both items shipped together in PR #944
+(`fix/sync-reconnect-and-periodic`, branched from
+`origin/main` at SHA `8d5ffe08`). Auto-merge enabled with squash;
+required CI gates the actual merge.
+
+**Per-improvement:**
+
+| # | Item | Result |
+|---|------|--------|
+| 1 | Reactive `isOnline` false→true → `fullSync` | Implemented in `ReactiveSyncDriver` and wired via `SyncService.startAutoSync`. Pending writes now push within ~1 s of network return instead of "next local edit / app restart". |
+| 2 | 30 s periodic `fullSync` ticker | Implemented in the same driver. `PERIODIC_SYNC_INTERVAL_MS = 30_000L` companion constant on `SyncService` documents the user-requested cap. |
+
+**Test coverage:** 6 unit tests under
+`app/src/test/java/com/averycorp/prismtask/data/remote/sync/ReactiveSyncDriverTest.kt`,
+all passing locally in 0.054 s total.
+
+**Anti-patterns from the audit revisited:**
+
+- Inline-launch sprawl in `startAutoSync` was deliberately preserved
+  (now 4 launches). Defer the `TODO(sync-refactor)` split.
+- `NetworkMonitor.STOP_TIMEOUT_MS` doc comment was updated in the
+  same PR to note that `SyncService` is now a permanent collector.
+
+**Wall-clock re-baseline:** end-to-end PR took ~30 minutes of work
+(audit + driver + tests + verification + commit). Real impact
+measurement requires a multi-device manual test the user can do once
+PR #944 lands.
+
+**Memory candidates (only the surprising ones):**
+
+- The repo's `kotlinx-coroutines-test` 1.9.0 makes `runTest`'s
+  `backgroundScope` the right place to launch never-ending coroutine
+  loops in tests — auto-cancelled at end of test, no manual `cancel`
+  needed. Worth remembering for future virtual-time tests.
+- `MockK 1.13.13` exposes `captureNullable` only as a method on
+  `MockKMatcherScope` (not as a top-level function), so importing
+  `io.mockk.captureNullable` fails with "Unresolved reference" but
+  calling it bare inside a `coEvery { ... }` block resolves fine.
+
+**Schedule for next audit:** none — both items closed.
+
+## Phase 4 — Claude Chat handoff
+
+```markdown
+**Scope.** PrismTask Android app — fix two sync cadence issues at once:
+(1) sync didn't fire when the network returned from airplane mode /
+Wi-Fi off, only on the next local edit or app restart; (2) user
+requested a 30 s maximum sync cadence floor while online + signed-in.
+
+**Verdicts.**
+
+| Item | Verdict | Finding |
+|------|---------|---------|
+| Reactive reconnect trigger | RED · PROCEED | `SyncService.startAutoSync` (`SyncService.kt:3068-3163`) reactive push loop only re-emits on pending-queue changes, not on `isOnline` flips, so offline writes stranded until next mutation. |
+| 30 s periodic floor | YELLOW · PROCEED | No periodic timer existed; `fullSync` only ran once per app launch + per-listener pull + per-queue-change push. |
+
+**Shipped.** PR #944 `fix(sync): trigger sync on reconnect + 30 s
+periodic floor` — adds `data/remote/sync/ReactiveSyncDriver.kt` with
+two coroutine launches (false→true edge + 30 s ticker), wires it from
+`startAutoSync`, plus 6 pure-JVM unit tests in
+`ReactiveSyncDriverTest`. Branched off `8d5ffe08`; auto-merge
+squashed. Also touched
+`utils/NetworkMonitor.kt` companion-object comment to reflect that
+`SyncService` is now a permanent collector.
+
+**Deferred / stopped.** None — both audited items shipped together.
+
+**Non-obvious findings.**
+
+- `NetworkMonitor.isOnline` uses `SharingStarted.WhileSubscribed(5_000)`,
+  which means before this PR the `ConnectivityManager.NetworkCallback`
+  was only registered while a UI subscriber was collecting. The new
+  driver's `isOnline.collect { }` makes `SyncService` a permanent
+  collector, so the callback now stays registered for the process
+  lifetime — the comment was updated to reflect this.
+- The repo had a parallel in-flight PR (#943) fixing a pre-existing
+  `compileDebugUnitTestKotlin` error in `MultiCreateViewModelTest`
+  (uses `capture(captured)` where `captured: CapturingSlot<Long?>`).
+  This blocks `testDebugUnitTest` on `main`. PR #944 was verified
+  locally after temporarily applying #943's `captureNullable` fix; CI
+  on #944 will need #943 to land first (or a rebase) to go green.
+- `fullSync` already has an `isSyncing` reentrancy guard
+  (`SyncService.kt:2917`), so firing it from both the reactive and the
+  periodic paths is safe — concurrent fires no-op.
+
+**Open questions.** None blocking. The user may want a follow-up to
+make periodic sync work in background via WorkManager (today's
+implementation is foreground/process-alive only), but that wasn't part
+of the original ask.
+```
