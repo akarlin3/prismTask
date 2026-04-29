@@ -19,6 +19,7 @@ class HabitSmokeTest : SmokeTestBase() {
         // Bottom-nav label is "Daily" for the habit list (see NavGraph).
         clickTab("Daily")
 
+        waitForExerciseRow()
         // Seeded habit names can appear on the list row and on a summary
         // panel; onFirst() tolerates both shapes.
         composeRule.onAllNodesWithText("Exercise").onFirst().assertIsDisplayed()
@@ -32,6 +33,9 @@ class HabitSmokeTest : SmokeTestBase() {
 
         // Tapping a habit opens its detail/analytics — we don't assert on the
         // detail screen specifically, just that the tap doesn't blow up the app.
+        // waitForExerciseRow() guards against the LazyColumn-not-yet-populated
+        // race that surfaced as "Can't retrieve node at index '0' of 'Exercise'".
+        waitForExerciseRow()
         composeRule.onAllNodesWithText("Exercise").onFirst().performClick()
         composeRule.waitForIdle()
     }
@@ -42,5 +46,11 @@ class HabitSmokeTest : SmokeTestBase() {
         // Today screen is the default destination; verify the tab itself
         // is rendered (generic "Today" text has 5+ matches on the screen).
         findTab("Today").assertIsDisplayed()
+    }
+
+    private fun waitForExerciseRow() {
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            composeRule.onAllNodesWithText("Exercise").fetchSemanticsNodes().isNotEmpty()
+        }
     }
 }

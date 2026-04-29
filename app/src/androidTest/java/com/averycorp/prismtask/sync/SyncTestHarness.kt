@@ -100,6 +100,28 @@ class SyncTestHarness private constructor(
     }
 
     /**
+     * Terminate device B's Firestore client so its
+     * `AndroidConnectivityMonitor` releases its `ConnectivityManager`
+     * default-network callback. Android caps registered callbacks per UID
+     * (~100); without this, a long instrumentation run that spins up many
+     * `FirebaseFirestore` clients eventually trips
+     * `ConnectivityManager$TooManyRequestsException` mid-test (e.g. the
+     * `setDeviceAOffline()` call on `harness_deviceAOfflineToggleDoesNotBlockDeviceBWrites`
+     * crashed Firestore's AsyncQueue with that exact panic). The next
+     * `createAndInit()` re-resolves `FirebaseFirestore.getInstance(deviceBApp)`
+     * to a fresh client off the cached `deviceB` `FirebaseApp`, so this is
+     * safe to call after every test.
+     *
+     * We deliberately do not terminate device A's Firestore: the default
+     * client is owned by Hilt's graph and shared with production code paths
+     * elsewhere in the test process — terminating it from the harness would
+     * leave dangling references in Hilt-injected services.
+     */
+    suspend fun shutdownDeviceB() {
+        runCatching { deviceBFirestore.terminate().await() }
+    }
+
+    /**
      * Disable network on device A's Firestore client. Writes and reads
      * continue to serve from cache; with `FirebaseFirestoreSettings.isPersistenceEnabled`
      * set to false (see `createAndInit`) the cache is in-memory only, so
