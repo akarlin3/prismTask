@@ -91,6 +91,17 @@ class GenericPreferenceSyncServiceEmulatorTest {
         } catch (_: IllegalStateException) {
             // Already routed.
         }
+        // firestore.rules requires request.auth != null; sign in to the
+        // Auth emulator so the real-SDK reads/writes below aren't rejected
+        // with PERMISSION_DENIED. The Firestore path uid is independent of
+        // the auth uid (rules don't check uid match), so the per-test
+        // synthetic userId still works.
+        runBlocking {
+            val auth = FirebaseAuth.getInstance()
+            if (auth.currentUser == null) {
+                auth.signInAnonymously().await()
+            }
+        }
         firestore = FirebaseFirestore.getInstance()
 
         // Unique per-test uid so back-to-back runs in the same emulator
