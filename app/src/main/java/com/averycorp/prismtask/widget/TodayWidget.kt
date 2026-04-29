@@ -9,7 +9,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
-import androidx.glance.GlanceTheme
 import androidx.glance.LocalSize
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
@@ -52,6 +51,7 @@ class TodayWidget : GlanceAppWidget() {
     override val sizeMode = SizeMode.Responsive(setOf(SMALL, MEDIUM, LARGE))
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
+        val palette = loadWidgetPalette(context)
         val data = try {
             WidgetDataProvider.getTodayData(context)
         } catch (_: Exception) {
@@ -59,19 +59,22 @@ class TodayWidget : GlanceAppWidget() {
         }
         provideContent {
             val size = LocalSize.current
-            GlanceTheme {
-                if (data != null) {
-                    TodayWidgetContent(context, data, size)
-                } else {
-                    WidgetLoadingState()
-                }
+            if (data != null) {
+                TodayWidgetContent(context, data, size, palette)
+            } else {
+                WidgetLoadingState(palette)
             }
         }
     }
 }
 
 @Composable
-private fun TodayWidgetContent(context: Context, data: TodayWidgetData, size: DpSize) {
+private fun TodayWidgetContent(
+    context: Context,
+    data: TodayWidgetData,
+    size: DpSize,
+    palette: WidgetThemePalette
+) {
     val isSmall = size.width < 250.dp
     val isLarge = size.width >= 350.dp
     val total = data.totalTasks
@@ -86,33 +89,32 @@ private fun TodayWidgetContent(context: Context, data: TodayWidgetData, size: Dp
     Column(
         modifier = GlanceModifier
             .fillMaxSize()
-            .cornerRadius(16.dp)
-            .background(GlanceTheme.colors.surface)
+            .cornerRadius(palette.widgetCornerRadius)
+            .background(palette.surface)
             .padding(if (isLarge) 12.dp else 8.dp)
     ) {
-        // Header row with title + productivity score dot
         Row(modifier = GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = GlanceModifier.defaultWeight()) {
                 Text(
                     text = "Today",
-                    style = WidgetTextStyles.header(GlanceTheme.colors.onSurface)
+                    style = WidgetTextStyles.header(palette.onSurface)
                 )
                 if (!isSmall) {
-                    Text(text = todayLabel, style = WidgetTextStyles.caption(GlanceTheme.colors.onSurfaceVariant))
+                    Text(text = todayLabel, style = WidgetTextStyles.caption(palette.onSurfaceVariant))
                 }
             }
-            ScoreBadge(score = data.productivityScore)
+            ScoreBadge(score = data.productivityScore, palette = palette)
         }
         if (isSmall) {
             Spacer(modifier = GlanceModifier.height(8.dp))
             Text(
                 text = "$completed/$total tasks done",
-                style = WidgetTextStyles.body(GlanceTheme.colors.onSurface)
+                style = WidgetTextStyles.body(palette.onSurface)
             )
             if (data.totalHabits > 0) {
                 Text(
                     text = "${data.completedHabits}/${data.totalHabits} habits",
-                    style = WidgetTextStyles.caption(GlanceTheme.colors.secondary)
+                    style = WidgetTextStyles.caption(palette.secondary)
                 )
             }
         } else {
@@ -120,34 +122,33 @@ private fun TodayWidgetContent(context: Context, data: TodayWidgetData, size: Dp
             LinearProgressIndicator(
                 progress = progress.coerceIn(0f, 1f),
                 modifier = GlanceModifier.fillMaxWidth().height(4.dp),
-                color = GlanceTheme.colors.primary,
-                backgroundColor = GlanceTheme.colors.surfaceVariant
+                color = palette.primary,
+                backgroundColor = palette.surfaceVariant
             )
             Spacer(modifier = GlanceModifier.height(2.dp))
             Text(
-                text = "$completed of $total tasks \u00b7 ${data.completedHabits}/${data.totalHabits} habits",
-                style = WidgetTextStyles.badge(GlanceTheme.colors.onSurfaceVariant)
+                text = "$completed of $total tasks · ${data.completedHabits}/${data.totalHabits} habits",
+                style = WidgetTextStyles.badge(palette.onSurfaceVariant)
             )
             Spacer(modifier = GlanceModifier.height(6.dp))
-            // Use config maxTasks for large, otherwise cap at 3
             val maxTasks = if (isLarge) 8 else 3
             if (data.tasks.isEmpty()) {
                 WidgetEmptyState(
-                    emoji = "\u2705",
-                    message = "All Caught Up!"
+                    emoji = "✅",
+                    message = "All Caught Up!",
+                    palette = palette
                 )
             } else {
                 data.tasks.take(maxTasks).forEach { task ->
-                    WidgetTaskRowView(context, task, showDate = isLarge)
+                    WidgetTaskRowView(context, task, palette = palette, showDate = isLarge)
                     Spacer(modifier = GlanceModifier.height(6.dp))
                 }
-                // Show next upcoming task if today's list is short
                 if (isLarge && data.tasks.size < 3) {
                     val nextTask = data.tasks.firstOrNull { !it.isOverdue && !it.isCompleted }
                     if (nextTask != null) {
                         Text(
                             text = "Next Up",
-                            style = WidgetTextStyles.badge(GlanceTheme.colors.primary)
+                            style = WidgetTextStyles.badge(palette.primary)
                         )
                         Spacer(modifier = GlanceModifier.height(2.dp))
                     }
@@ -163,7 +164,7 @@ private fun TodayWidgetContent(context: Context, data: TodayWidgetData, size: Dp
                     Spacer(modifier = GlanceModifier.width(4.dp))
                     Text(
                         text = "${data.completedHabits}/${data.totalHabits}",
-                        style = WidgetTextStyles.badge(GlanceTheme.colors.onSurfaceVariant)
+                        style = WidgetTextStyles.badge(palette.onSurfaceVariant)
                     )
                 }
             }
@@ -172,13 +173,13 @@ private fun TodayWidgetContent(context: Context, data: TodayWidgetData, size: Dp
                 Box(
                     modifier = GlanceModifier
                         .cornerRadius(8.dp)
-                        .background(WidgetColors.overdueBg)
+                        .background(palette.overdueBg)
                         .padding(horizontal = 8.dp, vertical = 3.dp)
                         .clickable(actionStartActivity(openTodayIntent))
                 ) {
                     Text(
-                        text = "\u26A0 $overdueCount overdue",
-                        style = WidgetTextStyles.badgeBold(WidgetColors.overdue)
+                        text = "⚠ $overdueCount overdue",
+                        style = WidgetTextStyles.badgeBold(palette.overdue)
                     )
                 }
             }
@@ -186,15 +187,20 @@ private fun TodayWidgetContent(context: Context, data: TodayWidgetData, size: Dp
         Spacer(modifier = GlanceModifier.defaultWeight())
         Box(modifier = GlanceModifier.fillMaxWidth().clickable(actionStartActivity(openTodayIntent))) {
             Text(
-                text = "View All \u2192",
-                style = WidgetTextStyles.caption(GlanceTheme.colors.primary)
+                text = "View All →",
+                style = WidgetTextStyles.caption(palette.primary)
             )
         }
     }
 }
 
 @Composable
-private fun WidgetTaskRowView(context: Context, task: WidgetTaskRow, showDate: Boolean = false) {
+private fun WidgetTaskRowView(
+    context: Context,
+    task: WidgetTaskRow,
+    palette: WidgetThemePalette,
+    showDate: Boolean = false
+) {
     val taskIntent = Intent(context, MainActivity::class.java).apply {
         flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
         putExtra(MainActivity.EXTRA_LAUNCH_ACTION, "open_task")
@@ -205,23 +211,21 @@ private fun WidgetTaskRowView(context: Context, task: WidgetTaskRow, showDate: B
             modifier = GlanceModifier
                 .size(width = 3.dp, height = 18.dp)
                 .cornerRadius(2.dp)
-                .background(priorityColorFor(task.priority))
+                .background(priorityColorFor(task.priority, palette))
         ) {}
         Spacer(modifier = GlanceModifier.width(4.dp))
         Box(
             modifier = GlanceModifier
                 .size(18.dp)
                 .cornerRadius(4.dp)
-                .background(
-                    if (task.isCompleted) GlanceTheme.colors.primary else GlanceTheme.colors.surfaceVariant
-                )
+                .background(if (task.isCompleted) palette.primary else palette.surfaceVariant)
                 .clickable(actionRunCallback<ToggleTaskFromWidgetAction>(parameters = taskIdParams(task.id))),
             contentAlignment = Alignment.Center
         ) {
             if (task.isCompleted) {
                 Text(
-                    text = "\u2713",
-                    style = TextStyle(fontSize = 12.sp, color = GlanceTheme.colors.onPrimary, fontWeight = FontWeight.Bold)
+                    text = "✓",
+                    style = TextStyle(fontSize = 12.sp, color = palette.onPrimary, fontWeight = FontWeight.Bold)
                 )
             }
         }
@@ -232,9 +236,9 @@ private fun WidgetTaskRowView(context: Context, task: WidgetTaskRow, showDate: B
                 style = TextStyle(
                     fontSize = 13.sp,
                     color = when {
-                        task.isOverdue -> GlanceTheme.colors.error
-                        task.isCompleted -> GlanceTheme.colors.onSurfaceVariant
-                        else -> GlanceTheme.colors.onSurface
+                        task.isOverdue -> palette.error
+                        task.isCompleted -> palette.onSurfaceVariant
+                        else -> palette.onSurface
                     },
                     textDecoration = if (task.isCompleted) TextDecoration.LineThrough else TextDecoration.None
                 ),
@@ -246,7 +250,7 @@ private fun WidgetTaskRowView(context: Context, task: WidgetTaskRow, showDate: B
                     text = smartDateLabel(task.dueDate, task.isOverdue),
                     style = TextStyle(
                         fontSize = 10.sp,
-                        color = if (task.isOverdue) GlanceTheme.colors.error else GlanceTheme.colors.onSurfaceVariant
+                        color = if (task.isOverdue) palette.error else palette.onSurfaceVariant
                     )
                 )
             }
@@ -268,16 +272,16 @@ private fun smartDateLabel(dueDate: Long, isOverdue: Boolean): String {
 }
 
 @Composable
-private fun ScoreBadge(score: Int) {
+private fun ScoreBadge(score: Int, palette: WidgetThemePalette) {
     val bgColor = when {
-        score >= 80 -> WidgetColors.scoreGreenBg
-        score >= 60 -> WidgetColors.scoreOrangeBg
-        else -> WidgetColors.scoreRedBg
+        score >= 80 -> palette.scoreGreenBg
+        score >= 60 -> palette.scoreOrangeBg
+        else -> palette.scoreRedBg
     }
     val textColor = when {
-        score >= 80 -> WidgetColors.scoreGreen
-        score >= 60 -> WidgetColors.scoreOrange
-        else -> WidgetColors.scoreRed
+        score >= 80 -> palette.scoreGreen
+        score >= 60 -> palette.scoreOrange
+        else -> palette.scoreRed
     }
     Box(
         modifier = GlanceModifier.size(36.dp).cornerRadius(18.dp).background(bgColor),
@@ -288,14 +292,6 @@ private fun ScoreBadge(score: Int) {
             style = WidgetTextStyles.bodyBold(textColor)
         )
     }
-}
-
-internal fun priorityColorFor(priority: Int): androidx.glance.unit.ColorProvider = when (priority) {
-    4 -> WidgetColors.priorityUrgent
-    3 -> WidgetColors.priorityHigh
-    2 -> WidgetColors.priorityMedium
-    1 -> WidgetColors.priorityLow
-    else -> WidgetColors.priorityNone
 }
 
 class TodayWidgetReceiver : GlanceAppWidgetReceiver() {

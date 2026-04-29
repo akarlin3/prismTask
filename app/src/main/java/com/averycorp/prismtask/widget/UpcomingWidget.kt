@@ -8,7 +8,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
-import androidx.glance.GlanceTheme
 import androidx.glance.LocalSize
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
@@ -49,6 +48,7 @@ class UpcomingWidget : GlanceAppWidget() {
     override val sizeMode = SizeMode.Responsive(setOf(MEDIUM, LARGE))
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
+        val palette = loadWidgetPalette(context)
         val data = try {
             WidgetDataProvider.getUpcomingData(context)
         } catch (_: Exception) {
@@ -57,19 +57,22 @@ class UpcomingWidget : GlanceAppWidget() {
 
         provideContent {
             val size = LocalSize.current
-            GlanceTheme {
-                if (data != null) {
-                    UpcomingContent(context, data, size)
-                } else {
-                    WidgetLoadingState()
-                }
+            if (data != null) {
+                UpcomingContent(context, data, size, palette)
+            } else {
+                WidgetLoadingState(palette)
             }
         }
     }
 }
 
 @Composable
-private fun UpcomingContent(context: Context, data: UpcomingWidgetData, size: DpSize) {
+private fun UpcomingContent(
+    context: Context,
+    data: UpcomingWidgetData,
+    size: DpSize,
+    palette: WidgetThemePalette
+) {
     val isLarge = size.width >= 350.dp
     val maxTasksPerColumn = if (isLarge) 5 else 3
 
@@ -84,8 +87,8 @@ private fun UpcomingContent(context: Context, data: UpcomingWidgetData, size: Dp
     Column(
         modifier = GlanceModifier
             .fillMaxSize()
-            .cornerRadius(16.dp)
-            .background(GlanceTheme.colors.surface)
+            .cornerRadius(palette.widgetCornerRadius)
+            .background(palette.surface)
             .padding(if (isLarge) 12.dp else 8.dp)
             .clickable(actionStartActivity(mainIntent))
     ) {
@@ -95,30 +98,29 @@ private fun UpcomingContent(context: Context, data: UpcomingWidgetData, size: Dp
         ) {
             Text(
                 text = "Upcoming",
-                style = WidgetTextStyles.header(GlanceTheme.colors.onSurface),
+                style = WidgetTextStyles.header(palette.onSurface),
                 modifier = GlanceModifier.defaultWeight()
             )
             Text(
                 text = "${data.totalCount} tasks",
-                style = WidgetTextStyles.caption(GlanceTheme.colors.onSurfaceVariant)
+                style = WidgetTextStyles.caption(palette.onSurfaceVariant)
             )
         }
 
-        // Overdue badge at top
         if (data.overdue.isNotEmpty()) {
             Spacer(modifier = GlanceModifier.height(4.dp))
             Box(
                 modifier = GlanceModifier
                     .fillMaxWidth()
                     .cornerRadius(6.dp)
-                    .background(WidgetColors.overdueBg)
+                    .background(palette.overdueBg)
                     .padding(6.dp)
                     .clickable(actionStartActivity(overdueIntent))
             ) {
                 Column {
                     Text(
-                        text = "\u26A0 ${data.overdue.size} overdue",
-                        style = WidgetTextStyles.badgeBold(WidgetColors.overdue)
+                        text = "⚠ ${data.overdue.size} overdue",
+                        style = WidgetTextStyles.badgeBold(palette.overdue)
                     )
                     data.overdue.take(2).forEach { row ->
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -126,12 +128,12 @@ private fun UpcomingContent(context: Context, data: UpcomingWidgetData, size: Dp
                                 modifier = GlanceModifier
                                     .size(4.dp)
                                     .cornerRadius(2.dp)
-                                    .background(priorityColorFor(row.priority))
+                                    .background(priorityColorFor(row.priority, palette))
                             ) {}
                             Spacer(modifier = GlanceModifier.width(3.dp))
                             Text(
                                 text = row.title,
-                                style = WidgetTextStyles.badge(WidgetColors.overdue),
+                                style = WidgetTextStyles.badge(palette.overdue),
                                 maxLines = 1
                             )
                         }
@@ -143,8 +145,9 @@ private fun UpcomingContent(context: Context, data: UpcomingWidgetData, size: Dp
         if (data.totalCount == 0) {
             Spacer(modifier = GlanceModifier.height(16.dp))
             WidgetEmptyState(
-                emoji = "\uD83D\uDCC5",
-                message = "Nothing Upcoming"
+                emoji = "📅",
+                message = "Nothing Upcoming",
+                palette = palette
             )
         } else {
             Spacer(modifier = GlanceModifier.height(6.dp))
@@ -154,6 +157,7 @@ private fun UpcomingContent(context: Context, data: UpcomingWidgetData, size: Dp
                     label = "Today",
                     tasks = data.today,
                     maxTasks = maxTasksPerColumn,
+                    palette = palette,
                     modifier = GlanceModifier.defaultWeight()
                 )
                 Spacer(modifier = GlanceModifier.width(6.dp))
@@ -161,15 +165,16 @@ private fun UpcomingContent(context: Context, data: UpcomingWidgetData, size: Dp
                     label = "Tomorrow",
                     tasks = data.tomorrow,
                     maxTasks = maxTasksPerColumn,
+                    palette = palette,
                     modifier = GlanceModifier.defaultWeight()
                 )
-                // Medium: 2 day columns; Large: 3 day columns
                 if (isLarge) {
                     Spacer(modifier = GlanceModifier.width(6.dp))
                     DayColumn(
                         label = "+2 Days",
                         tasks = data.dayAfter,
                         maxTasks = maxTasksPerColumn,
+                        palette = palette,
                         modifier = GlanceModifier.defaultWeight()
                     )
                 }
@@ -183,23 +188,24 @@ private fun DayColumn(
     label: String,
     tasks: List<WidgetTaskRow>,
     maxTasks: Int,
+    palette: WidgetThemePalette,
     modifier: GlanceModifier
 ) {
     Column(
         modifier = modifier
             .cornerRadius(8.dp)
-            .background(GlanceTheme.colors.surfaceVariant)
+            .background(palette.surfaceVariant)
             .padding(6.dp)
     ) {
         Text(
             text = label,
-            style = WidgetTextStyles.badgeBold(GlanceTheme.colors.primary)
+            style = WidgetTextStyles.badgeBold(palette.primary)
         )
         Spacer(modifier = GlanceModifier.height(4.dp))
         if (tasks.isEmpty()) {
             Text(
-                text = "\u2014",
-                style = WidgetTextStyles.badge(GlanceTheme.colors.onSurfaceVariant)
+                text = "—",
+                style = WidgetTextStyles.badge(palette.onSurfaceVariant)
             )
         } else {
             tasks.take(maxTasks).forEach { row ->
@@ -208,14 +214,14 @@ private fun DayColumn(
                         modifier = GlanceModifier
                             .size(4.dp)
                             .cornerRadius(2.dp)
-                            .background(priorityColorFor(row.priority))
+                            .background(priorityColorFor(row.priority, palette))
                     ) {}
                     Spacer(modifier = GlanceModifier.width(3.dp))
                     Text(
                         text = row.title,
                         style = TextStyle(
                             fontSize = 11.sp,
-                            color = GlanceTheme.colors.onSurface
+                            color = palette.onSurface
                         ),
                         maxLines = 1
                     )
@@ -227,7 +233,7 @@ private fun DayColumn(
                     text = "+${tasks.size - maxTasks} more",
                     style = TextStyle(
                         fontSize = 10.sp,
-                        color = GlanceTheme.colors.onSurfaceVariant
+                        color = palette.onSurfaceVariant
                     )
                 )
             }

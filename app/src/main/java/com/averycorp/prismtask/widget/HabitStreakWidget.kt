@@ -8,7 +8,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
-import androidx.glance.GlanceTheme
 import androidx.glance.LocalSize
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
@@ -44,6 +43,7 @@ class HabitStreakWidget : GlanceAppWidget() {
     override val sizeMode = SizeMode.Responsive(setOf(SMALL, MEDIUM, LARGE))
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
+        val palette = loadWidgetPalette(context)
         val data = try {
             WidgetDataProvider.getHabitData(context)
         } catch (_: Exception) {
@@ -51,19 +51,22 @@ class HabitStreakWidget : GlanceAppWidget() {
         }
         provideContent {
             val size = LocalSize.current
-            GlanceTheme {
-                if (data != null) {
-                    HabitStreakContent(context, data, size)
-                } else {
-                    WidgetLoadingState()
-                }
+            if (data != null) {
+                HabitStreakContent(context, data, size, palette)
+            } else {
+                WidgetLoadingState(palette)
             }
         }
     }
 }
 
 @Composable
-private fun HabitStreakContent(context: Context, data: HabitWidgetData, size: DpSize) {
+private fun HabitStreakContent(
+    context: Context,
+    data: HabitWidgetData,
+    size: DpSize,
+    palette: WidgetThemePalette
+) {
     val isSmall = size.width < 250.dp
     val isLarge = size.width >= 350.dp
     val habitsIntent = Intent(context, MainActivity::class.java).apply {
@@ -76,8 +79,8 @@ private fun HabitStreakContent(context: Context, data: HabitWidgetData, size: Dp
     Column(
         modifier = GlanceModifier
             .fillMaxSize()
-            .cornerRadius(16.dp)
-            .background(GlanceTheme.colors.surface)
+            .cornerRadius(palette.widgetCornerRadius)
+            .background(palette.surface)
             .padding(if (isLarge) 12.dp else 8.dp)
     ) {
         Row(
@@ -86,42 +89,37 @@ private fun HabitStreakContent(context: Context, data: HabitWidgetData, size: Dp
         ) {
             Text(
                 text = "Habits",
-                style = WidgetTextStyles.header(GlanceTheme.colors.onSurface),
+                style = WidgetTextStyles.header(palette.onSurface),
                 modifier = GlanceModifier.defaultWeight()
             )
             if (data.longestStreak > 0) {
                 Text(
-                    text = "\uD83D\uDD25 ${data.longestStreak} day${if (data.longestStreak != 1) "s" else ""}",
+                    text = "🔥 ${data.longestStreak} day${if (data.longestStreak != 1) "s" else ""}",
                     style = WidgetTextStyles.captionMedium(
-                        if (data.longestStreak > 30) {
-                            WidgetColors.streakGold
-                        } else {
-                            GlanceTheme.colors.primary
-                        }
+                        if (data.longestStreak > 30) palette.streakGold else palette.primary
                     )
                 )
             }
         }
-        // Subtitle: completed today count
         if (totalHabits > 0) {
             Text(
                 text = "$completedToday of $totalHabits done today",
-                style = WidgetTextStyles.badge(GlanceTheme.colors.onSurfaceVariant)
+                style = WidgetTextStyles.badge(palette.onSurfaceVariant)
             )
         }
         Spacer(modifier = GlanceModifier.height(6.dp))
         if (data.habits.isEmpty()) {
             WidgetEmptyState(
-                emoji = "\uD83C\uDF31",
-                message = "No Habits Yet"
+                emoji = "🌱",
+                message = "No Habits Yet",
+                palette = palette
             )
         } else if (isSmall) {
             data.habits.take(3).forEach { habit ->
-                SmallHabitRow(habit)
+                SmallHabitRow(habit, palette)
                 Spacer(modifier = GlanceModifier.height(4.dp))
             }
         } else {
-            // Large: show up to 16, Medium: show up to 6
             val maxHabits = if (isLarge) minOf(data.habits.size, 16) else 6
             val maxRows = if (isLarge) 8 else 3
             data.habits.take(maxHabits).chunked(2).take(maxRows).forEach { pair ->
@@ -130,7 +128,7 @@ private fun HabitStreakContent(context: Context, data: HabitWidgetData, size: Dp
                         if (index > 0) {
                             Spacer(modifier = GlanceModifier.width(6.dp))
                         }
-                        HabitCell(habit, showWeeklyDots = isLarge, modifier = GlanceModifier.defaultWeight())
+                        HabitCell(habit, palette = palette, showWeeklyDots = isLarge, modifier = GlanceModifier.defaultWeight())
                     }
                     if (pair.size == 1) {
                         Spacer(modifier = GlanceModifier.defaultWeight())
@@ -142,15 +140,15 @@ private fun HabitStreakContent(context: Context, data: HabitWidgetData, size: Dp
         Spacer(modifier = GlanceModifier.defaultWeight())
         Box(modifier = GlanceModifier.fillMaxWidth().clickable(actionStartActivity(habitsIntent))) {
             Text(
-                text = "View All \u2192",
-                style = WidgetTextStyles.badge(GlanceTheme.colors.primary)
+                text = "View All →",
+                style = WidgetTextStyles.badge(palette.primary)
             )
         }
     }
 }
 
 @Composable
-private fun SmallHabitRow(habit: HabitWidgetItem) {
+private fun SmallHabitRow(habit: HabitWidgetItem, palette: WidgetThemePalette) {
     Row(
         modifier = GlanceModifier.fillMaxWidth().clickable(
             actionRunCallback<ToggleHabitFromWidgetAction>(parameters = habitIdParams(habit.id))
@@ -161,23 +159,28 @@ private fun SmallHabitRow(habit: HabitWidgetItem) {
         Spacer(modifier = GlanceModifier.width(6.dp))
         Text(
             text = habit.name,
-            style = WidgetTextStyles.caption(GlanceTheme.colors.onSurface),
+            style = WidgetTextStyles.caption(palette.onSurface),
             maxLines = 1,
             modifier = GlanceModifier.defaultWeight()
         )
         Text(
-            text = if (habit.isCompletedToday) "\u2705" else "\u25CB",
+            text = if (habit.isCompletedToday) "✅" else "○",
             style = TextStyle(
                 fontSize = 14.sp,
-                color = if (habit.isCompletedToday) WidgetColors.habitComplete else GlanceTheme.colors.onSurfaceVariant
+                color = if (habit.isCompletedToday) palette.habitComplete else palette.onSurfaceVariant
             )
         )
     }
 }
 
 @Composable
-private fun HabitCell(habit: HabitWidgetItem, showWeeklyDots: Boolean, modifier: GlanceModifier) {
-    val tint = if (habit.isCompletedToday) WidgetColors.habitCompleteBg else GlanceTheme.colors.surfaceVariant
+private fun HabitCell(
+    habit: HabitWidgetItem,
+    palette: WidgetThemePalette,
+    showWeeklyDots: Boolean,
+    modifier: GlanceModifier
+) {
+    val tint = if (habit.isCompletedToday) palette.habitCompleteBg else palette.surfaceVariant
     Box(
         modifier = modifier
             .cornerRadius(8.dp)
@@ -192,38 +195,37 @@ private fun HabitCell(habit: HabitWidgetItem, showWeeklyDots: Boolean, modifier:
                 Column(modifier = GlanceModifier.defaultWeight()) {
                     Text(
                         text = habit.name,
-                        style = WidgetTextStyles.captionMedium(GlanceTheme.colors.onSurface),
+                        style = WidgetTextStyles.captionMedium(palette.onSurface),
                         maxLines = 1
                     )
                     if (habit.streak > 0) {
                         Text(
-                            text = "\uD83D\uDD25 ${habit.streak}",
-                            style = TextStyle(fontSize = 9.sp, color = WidgetColors.streakFire)
+                            text = "🔥 ${habit.streak}",
+                            style = TextStyle(fontSize = 9.sp, color = palette.streakFire)
                         )
                     }
                 }
                 Text(
-                    text = if (habit.isCompletedToday) "\u25CF" else "\u25CB",
+                    text = if (habit.isCompletedToday) "●" else "○",
                     style = TextStyle(
                         fontSize = 14.sp,
-                        color = if (habit.isCompletedToday) WidgetColors.habitComplete else GlanceTheme.colors.onSurfaceVariant
+                        color = if (habit.isCompletedToday) palette.habitComplete else palette.onSurfaceVariant
                     )
                 )
             }
             if (showWeeklyDots) {
                 Spacer(modifier = GlanceModifier.height(4.dp))
-                WeeklyDots(habit)
+                WeeklyDots(habit, palette)
             }
         }
     }
 }
 
 @Composable
-private fun WeeklyDots(habit: HabitWidgetItem) {
-    // last7Days: index 0 = 6 days ago, index 6 = today
+private fun WeeklyDots(habit: HabitWidgetItem, palette: WidgetThemePalette) {
     Row {
         habit.last7Days.forEachIndexed { index, completed ->
-            val dotColor = if (completed) WidgetColors.streakFire else WidgetColors.habitIncomplete
+            val dotColor = if (completed) palette.streakFire else palette.habitIncomplete
             Box(modifier = GlanceModifier.size(8.dp).cornerRadius(4.dp).background(dotColor)) {}
             if (index < habit.last7Days.size - 1) {
                 Spacer(modifier = GlanceModifier.width(2.dp))

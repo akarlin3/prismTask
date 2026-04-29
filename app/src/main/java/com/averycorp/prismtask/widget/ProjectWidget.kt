@@ -9,7 +9,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
-import androidx.glance.GlanceTheme
 import androidx.glance.LocalSize
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
@@ -30,7 +29,6 @@ import androidx.glance.layout.fillMaxSize
 import androidx.glance.layout.fillMaxWidth
 import androidx.glance.layout.height
 import androidx.glance.layout.padding
-import androidx.glance.layout.size
 import androidx.glance.layout.width
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
@@ -48,15 +46,10 @@ import com.averycorp.prismtask.MainActivity
  *   no open milestones.
  * - Footer: task count + "N days since activity" badge (only when > 3 days).
  *
- * A long-tap on the widget opens the app's [MainActivity] and navigates
- * straight to the project's detail screen via the `project_id` intent
- * extra (resolved by NavGraph's deep-link handler). The per-instance
- * project selection is held in [WidgetConfigDataStore.projectConfigFlow];
- * when unset the widget renders a "Tap To Configure" empty state.
- *
- * Refresh cadence matches the other widgets: `updatePeriodMillis` in the
- * meta-data XML drives the system path, and [WidgetUpdateManager] pokes
- * it on project / milestone / task events.
+ * The project's per-instance theme accent (a hex color stored on the
+ * project) drives the stripe + progress bar fill. Surrounding chrome
+ * (surface, on-surface, error) is themed by the user's selected
+ * [com.averycorp.prismtask.ui.theme.PrismTheme] via [WidgetThemePalette].
  */
 class ProjectWidget : GlanceAppWidget() {
     companion object {
@@ -68,9 +61,7 @@ class ProjectWidget : GlanceAppWidget() {
     override val sizeMode = SizeMode.Responsive(setOf(SMALL, MEDIUM, LARGE))
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
-        // Resolve the user's per-widget project selection, then snapshot the
-        // full data. Both calls happen *before* provideContent so the widget
-        // renders a single consistent frame — no mid-compose suspension.
+        val palette = loadWidgetPalette(context)
         val data = runCatching {
             val appWidgetId = GlanceAppWidgetManager(context).getAppWidgetId(id)
             val config = WidgetConfigDataStore.snapshotProjectConfig(context, appWidgetId)
@@ -80,16 +71,19 @@ class ProjectWidget : GlanceAppWidget() {
         }.getOrNull()
 
         provideContent {
-            GlanceTheme {
-                val size = LocalSize.current
-                ProjectWidgetContent(context = context, data = data, size = size)
-            }
+            val size = LocalSize.current
+            ProjectWidgetContent(context = context, data = data, size = size, palette = palette)
         }
     }
 }
 
 @Composable
-private fun ProjectWidgetContent(context: Context, data: ProjectWidgetData?, size: DpSize) {
+private fun ProjectWidgetContent(
+    context: Context,
+    data: ProjectWidgetData?,
+    size: DpSize,
+    palette: WidgetThemePalette
+) {
     val openApp = Intent(context, MainActivity::class.java).apply {
         flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
     }
@@ -98,12 +92,11 @@ private fun ProjectWidgetContent(context: Context, data: ProjectWidgetData?, siz
     Row(
         modifier = GlanceModifier
             .fillMaxSize()
-            .cornerRadius(16.dp)
-            .background(GlanceTheme.colors.surface)
+            .cornerRadius(palette.widgetCornerRadius)
+            .background(palette.surface)
             .clickable(actionStartActivity(openApp))
     ) {
-        // Theme-color stripe that mirrors the in-app ProjectCard.
-        val stripeColor = parseStripeColor(data?.themeColorHex)
+        val stripeColor = parseStripeColor(data?.themeColorHex, palette)
         Box(
             modifier = GlanceModifier
                 .width(5.dp)
@@ -112,7 +105,7 @@ private fun ProjectWidgetContent(context: Context, data: ProjectWidgetData?, siz
         ) { }
 
         if (data == null) {
-            EmptyState(isSmall = isSmall)
+            EmptyState(isSmall = isSmall, palette = palette)
             return@Row
         }
 
@@ -121,63 +114,58 @@ private fun ProjectWidgetContent(context: Context, data: ProjectWidgetData?, siz
                 .fillMaxSize()
                 .padding(if (isSmall) 8.dp else 12.dp)
         ) {
-            // Header: icon + name + streak
             Row(verticalAlignment = Alignment.CenterVertically, modifier = GlanceModifier.fillMaxWidth()) {
                 Text(text = data.icon, style = TextStyle(fontSize = 16.sp))
                 Spacer(modifier = GlanceModifier.width(6.dp))
                 Text(
                     text = data.name,
-                    style = WidgetTextStyles.header(GlanceTheme.colors.onSurface),
+                    style = WidgetTextStyles.header(palette.onSurface),
                     maxLines = 1,
                     modifier = GlanceModifier.defaultWeight()
                 )
                 if (data.streak > 0) {
                     Text(
-                        text = "\uD83D\uDD25 ${data.streak}",
-                        style = WidgetTextStyles.captionMedium(GlanceTheme.colors.primary)
+                        text = "🔥 ${data.streak}",
+                        style = WidgetTextStyles.captionMedium(palette.streakFire)
                     )
                 }
             }
 
             Spacer(modifier = GlanceModifier.height(6.dp))
 
-            // Progress bar (manual — Glance's LinearProgressIndicator doesn't
-            // let us tint with the project accent directly inside a stripe).
-            ProgressTrack(progress = data.milestoneProgress, accent = stripeColor)
+            ProgressTrack(progress = data.milestoneProgress, accent = stripeColor, palette = palette)
 
             Spacer(modifier = GlanceModifier.height(6.dp))
 
-            // Upcoming milestone OR next-due task
             val headline = data.upcomingMilestoneTitle ?: data.nextDueTaskTitle
             if (headline != null) {
                 Text(
                     text = if (data.upcomingMilestoneTitle != null) "Next: $headline" else "Task: $headline",
-                    style = WidgetTextStyles.caption(GlanceTheme.colors.onSurfaceVariant),
+                    style = WidgetTextStyles.caption(palette.onSurfaceVariant),
                     maxLines = 1
                 )
             } else {
                 Text(
                     text = "All Caught Up",
-                    style = WidgetTextStyles.caption(GlanceTheme.colors.onSurfaceVariant),
+                    style = WidgetTextStyles.caption(palette.onSurfaceVariant),
                     maxLines = 1
                 )
             }
 
             Spacer(modifier = GlanceModifier.defaultWeight())
 
-            // Footer: task count + days-since
             Row(verticalAlignment = Alignment.CenterVertically, modifier = GlanceModifier.fillMaxWidth()) {
                 val done = (data.totalTasks - data.openTasks).coerceAtLeast(0)
                 Text(
                     text = if (data.totalTasks > 0) "$done/${data.totalTasks}" else "No Tasks",
-                    style = WidgetTextStyles.badge(GlanceTheme.colors.onSurfaceVariant)
+                    style = WidgetTextStyles.badge(palette.onSurfaceVariant)
                 )
                 Spacer(modifier = GlanceModifier.defaultWeight())
                 val daysSince = data.daysSinceActivity
                 if (daysSince != null && daysSince > 3) {
                     Text(
                         text = "$daysSince d idle",
-                        style = WidgetTextStyles.badgeBold(GlanceTheme.colors.error)
+                        style = WidgetTextStyles.badgeBold(palette.error)
                     )
                 }
             }
@@ -186,20 +174,15 @@ private fun ProjectWidgetContent(context: Context, data: ProjectWidgetData?, siz
 }
 
 @Composable
-private fun ProgressTrack(progress: Float, accent: ColorProvider) {
+private fun ProgressTrack(progress: Float, accent: ColorProvider, palette: WidgetThemePalette) {
     val safe = progress.coerceIn(0f, 1f)
     Box(
         modifier = GlanceModifier
             .fillMaxWidth()
             .height(6.dp)
             .cornerRadius(3.dp)
-            .background(GlanceTheme.colors.surfaceVariant)
+            .background(palette.surfaceVariant)
     ) {
-        // A narrow Box with a width proportional to progress sits on top.
-        // Glance doesn't support fractional widths directly so we fake it
-        // with a fillMaxWidth + a right-side spacer. For a first-cut widget
-        // this is close enough to the in-app progress bar. Glance 2.x will
-        // likely add a fraction API.
         if (safe > 0f) {
             Box(
                 modifier = GlanceModifier
@@ -213,39 +196,37 @@ private fun ProgressTrack(progress: Float, accent: ColorProvider) {
 }
 
 @Composable
-private fun EmptyState(isSmall: Boolean) {
+private fun EmptyState(isSmall: Boolean, palette: WidgetThemePalette) {
     Column(
         modifier = GlanceModifier.fillMaxSize().padding(12.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
-            text = "\uD83D\uDCC2",
+            text = "📂",
             style = TextStyle(fontSize = if (isSmall) 20.sp else 28.sp)
         )
         Spacer(modifier = GlanceModifier.height(4.dp))
         Text(
             text = "Tap To Configure",
-            style = WidgetTextStyles.caption(GlanceTheme.colors.onSurfaceVariant)
+            style = WidgetTextStyles.caption(palette.onSurfaceVariant)
         )
     }
 }
 
 /**
  * Parse a project's stored hex (or future theme-token shim) into a
- * [ColorProvider] for the Glance stripe. Widgets run outside of the app's
- * [com.averycorp.prismtask.ui.theme.LocalPrismColors] Composition so we
- * can't resolve tokens here — a hex passthrough is the best we can do
- * until Glance gains theme-token awareness.
+ * [ColorProvider] for the Glance stripe. Falls back to the user's
+ * selected PrismTheme primary so the stripe still feels themed when
+ * the project lacks a custom color.
  */
-private fun parseStripeColor(hex: String?): ColorProvider {
-    val fallback = Color(android.graphics.Color.parseColor("#4A90D9"))
+private fun parseStripeColor(hex: String?, palette: WidgetThemePalette): ColorProvider {
     val parsed = hex
         ?.takeIf { it.isNotBlank() }
         ?.let {
             runCatching { Color(android.graphics.Color.parseColor(it)) }.getOrNull()
-        } ?: fallback
-    return ColorProvider(parsed)
+        }
+    return if (parsed != null) ColorProvider(parsed) else palette.primary
 }
 
 class ProjectWidgetReceiver : GlanceAppWidgetReceiver() {

@@ -6,7 +6,6 @@ import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
-import androidx.glance.GlanceTheme
 import androidx.glance.LocalSize
 import androidx.glance.action.actionStartActivity
 import androidx.glance.action.clickable
@@ -46,6 +45,7 @@ class ProductivityWidget : GlanceAppWidget() {
     override val sizeMode = SizeMode.Responsive(setOf(SMALL, LARGE))
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
+        val palette = loadWidgetPalette(context)
         val data = try {
             WidgetDataProvider.getProductivityData(context)
         } catch (_: Exception) {
@@ -54,47 +54,45 @@ class ProductivityWidget : GlanceAppWidget() {
 
         provideContent {
             val size = LocalSize.current
-            GlanceTheme {
-                if (data != null) {
-                    ProductivityContent(data, size)
-                } else {
-                    WidgetLoadingState()
-                }
+            if (data != null) {
+                ProductivityContent(data, size, palette)
+            } else {
+                WidgetLoadingState(palette)
             }
         }
     }
 }
 
 @Composable
-private fun ProductivityContent(data: ProductivityWidgetData, size: DpSize) {
+private fun ProductivityContent(data: ProductivityWidgetData, size: DpSize, palette: WidgetThemePalette) {
     val isLarge = size.width >= 200.dp
     val scoreColor = when {
-        data.score >= 80 -> WidgetColors.scoreGreen
-        data.score >= 60 -> WidgetColors.scoreOrange
-        else -> WidgetColors.scoreRed
+        data.score >= 80 -> palette.scoreGreen
+        data.score >= 60 -> palette.scoreOrange
+        else -> palette.scoreRed
     }
     val scoreBgColor = when {
-        data.score >= 80 -> WidgetColors.scoreGreenBg
-        data.score >= 60 -> WidgetColors.scoreOrangeBg
-        else -> WidgetColors.scoreRedBg
+        data.score >= 80 -> palette.scoreGreenBg
+        data.score >= 60 -> palette.scoreOrangeBg
+        else -> palette.scoreRedBg
     }
     val trendArrow = when {
-        data.trendPoints > 0 -> "\u2191"
-        data.trendPoints < 0 -> "\u2193"
-        else -> "\u2013"
+        data.trendPoints > 0 -> "↑"
+        data.trendPoints < 0 -> "↓"
+        else -> "–"
     }
     val trendLabel = when {
-        data.trendPoints > 0 -> "\u2191 ${data.trendPoints} pts"
-        data.trendPoints < 0 -> "\u2193 ${-data.trendPoints} pts"
-        else -> "\u2013 no change"
+        data.trendPoints > 0 -> "↑ ${data.trendPoints} pts"
+        data.trendPoints < 0 -> "↓ ${-data.trendPoints} pts"
+        else -> "– no change"
     }
     val yesterdayScore = (data.score - data.trendPoints).coerceIn(0, 100)
 
     Column(
         modifier = GlanceModifier
             .fillMaxSize()
-            .cornerRadius(16.dp)
-            .background(GlanceTheme.colors.surface)
+            .cornerRadius(palette.widgetCornerRadius)
+            .background(palette.surface)
             .padding(12.dp)
             .clickable(actionStartActivity<MainActivity>()),
         verticalAlignment = Alignment.CenterVertically,
@@ -102,23 +100,21 @@ private fun ProductivityContent(data: ProductivityWidgetData, size: DpSize) {
     ) {
         Text(
             text = "Productivity",
-            style = WidgetTextStyles.captionMedium(GlanceTheme.colors.onSurfaceVariant)
+            style = WidgetTextStyles.captionMedium(palette.onSurfaceVariant)
         )
         Spacer(modifier = GlanceModifier.height(4.dp))
 
         if (data.total == 0) {
-            // Empty state — no tasks/habits for today
             Text(
                 text = "0",
-                style = WidgetTextStyles.scoreLarge(GlanceTheme.colors.onSurfaceVariant)
+                style = WidgetTextStyles.scoreLarge(palette.onSurfaceVariant)
             )
             Spacer(modifier = GlanceModifier.height(4.dp))
             Text(
                 text = "Start Your Day!",
-                style = WidgetTextStyles.caption(GlanceTheme.colors.onSurfaceVariant)
+                style = WidgetTextStyles.caption(palette.onSurfaceVariant)
             )
         } else if (isLarge) {
-            // Large layout: score + details side-by-side
             Row(
                 modifier = GlanceModifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -140,20 +136,19 @@ private fun ProductivityContent(data: ProductivityWidgetData, size: DpSize) {
                 Column {
                     Text(
                         text = trendLabel,
-                        style = WidgetTextStyles.body(GlanceTheme.colors.onSurface)
+                        style = WidgetTextStyles.body(palette.onSurface)
                     )
                     Text(
                         text = "${data.completed}/${data.total} tasks",
-                        style = WidgetTextStyles.caption(GlanceTheme.colors.onSurfaceVariant)
+                        style = WidgetTextStyles.caption(palette.onSurfaceVariant)
                     )
                     Text(
                         text = "Yesterday: $yesterdayScore",
-                        style = WidgetTextStyles.badge(GlanceTheme.colors.onSurfaceVariant)
+                        style = WidgetTextStyles.badge(palette.onSurfaceVariant)
                     )
                 }
             }
         } else {
-            // Small layout: just score + trend arrow
             Box(
                 modifier = GlanceModifier
                     .size(70.dp)
@@ -169,7 +164,7 @@ private fun ProductivityContent(data: ProductivityWidgetData, size: DpSize) {
             Spacer(modifier = GlanceModifier.height(6.dp))
             Text(
                 text = "$trendArrow ${data.completed}/${data.total}",
-                style = WidgetTextStyles.captionMedium(GlanceTheme.colors.onSurface)
+                style = WidgetTextStyles.captionMedium(palette.onSurface)
             )
         }
     }

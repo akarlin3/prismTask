@@ -8,7 +8,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
-import androidx.glance.GlanceTheme
 import androidx.glance.LocalSize
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
@@ -44,6 +43,7 @@ class QuickAddWidget : GlanceAppWidget() {
     override val sizeMode = SizeMode.Responsive(setOf(SMALL, LARGE))
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
+        val palette = loadWidgetPalette(context)
         val templates = try {
             WidgetDataProvider.getTopTemplates(context, limit = 3)
         } catch (_: Exception) {
@@ -51,13 +51,18 @@ class QuickAddWidget : GlanceAppWidget() {
         }
         provideContent {
             val size = LocalSize.current
-            GlanceTheme { QuickAddContent(context, templates, size) }
+            QuickAddContent(context, templates, size, palette)
         }
     }
 }
 
 @Composable
-private fun QuickAddContent(context: Context, templates: List<TemplateShortcut>, size: DpSize) {
+private fun QuickAddContent(
+    context: Context,
+    templates: List<TemplateShortcut>,
+    size: DpSize,
+    palette: WidgetThemePalette
+) {
     val isLarge = size.height >= 100.dp
     val dayOfYear = Calendar.getInstance().get(Calendar.DAY_OF_YEAR)
     val placeholder = QuickAddWidget.PLACEHOLDERS[dayOfYear % QuickAddWidget.PLACEHOLDERS.size]
@@ -69,32 +74,32 @@ private fun QuickAddContent(context: Context, templates: List<TemplateShortcut>,
         flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
         putExtra(MainActivity.EXTRA_LAUNCH_ACTION, MainActivity.ACTION_VOICE_INPUT)
     }
-    Column(modifier = GlanceModifier.fillMaxSize().padding(8.dp).background(GlanceTheme.colors.background)) {
+    Column(modifier = GlanceModifier.fillMaxSize().padding(8.dp).background(palette.background)) {
         Row(
             modifier = GlanceModifier
                 .fillMaxWidth()
                 .cornerRadius(28.dp)
-                .background(GlanceTheme.colors.surfaceVariant)
+                .background(palette.surfaceVariant)
                 .padding(horizontal = 12.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(text = "\u25C6", style = TextStyle(fontSize = 16.sp, color = GlanceTheme.colors.primary))
+            Text(text = "◆", style = TextStyle(fontSize = 16.sp, color = palette.primary))
             Spacer(modifier = GlanceModifier.width(10.dp))
             Box(modifier = GlanceModifier.defaultWeight().clickable(actionStartActivity(addTaskIntent))) {
                 Text(
                     text = placeholder,
-                    style = WidgetTextStyles.body(GlanceTheme.colors.onSurfaceVariant)
+                    style = WidgetTextStyles.body(palette.onSurfaceVariant)
                 )
             }
             Spacer(modifier = GlanceModifier.width(8.dp))
             Box(
                 modifier = GlanceModifier
                     .cornerRadius(18.dp)
-                    .background(GlanceTheme.colors.primaryContainer)
+                    .background(palette.primaryContainer)
                     .padding(horizontal = 8.dp, vertical = 6.dp)
                     .clickable(actionStartActivity(voiceIntent))
             ) {
-                Text(text = "\uD83C\uDFA4", style = TextStyle(fontSize = 16.sp, color = GlanceTheme.colors.onPrimaryContainer))
+                Text(text = "🎤", style = TextStyle(fontSize = 16.sp, color = palette.onPrimaryContainer))
             }
         }
         if (isLarge && templates.isNotEmpty()) {
@@ -110,7 +115,7 @@ private fun QuickAddContent(context: Context, templates: List<TemplateShortcut>,
                         modifier = GlanceModifier
                             .defaultWeight()
                             .cornerRadius(8.dp)
-                            .background(GlanceTheme.colors.secondaryContainer)
+                            .background(palette.secondaryContainer)
                             .padding(vertical = 8.dp)
                             .clickable(actionStartActivity(tplIntent)),
                         contentAlignment = Alignment.Center
@@ -119,7 +124,7 @@ private fun QuickAddContent(context: Context, templates: List<TemplateShortcut>,
                             Text(text = tpl.icon, style = TextStyle(fontSize = 16.sp))
                             Text(
                                 text = tpl.name.take(10),
-                                style = WidgetTextStyles.badge(GlanceTheme.colors.onSecondaryContainer),
+                                style = WidgetTextStyles.badge(palette.onSecondaryContainer),
                                 maxLines = 1
                             )
                         }
