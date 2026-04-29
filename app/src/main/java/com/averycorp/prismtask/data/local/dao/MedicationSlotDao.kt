@@ -45,6 +45,9 @@ interface MedicationSlotDao {
     @Query("SELECT * FROM medication_slots WHERE cloud_id = :cloudId LIMIT 1")
     suspend fun getByCloudIdOnce(cloudId: String): MedicationSlotEntity?
 
+    @Query("SELECT * FROM medication_slots WHERE name = :name LIMIT 1")
+    suspend fun getByNameOnce(name: String): MedicationSlotEntity?
+
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insert(slot: MedicationSlotEntity): Long
 

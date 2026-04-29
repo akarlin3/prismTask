@@ -2070,16 +2070,40 @@ constructor(
         val medicationSlotsResult = pullCollection("medication_slots") { data, cloudId ->
             val localId = syncMetadataDao.getLocalId(cloudId, "medication_slot")
             if (localId == null) {
-                val slot = MedicationSyncMapper.mapToMedicationSlot(data, cloudId = cloudId)
-                val newId = medicationSlotDao.insert(slot)
-                syncMetadataDao.upsert(
-                    SyncMetadataEntity(
-                        localId = newId,
-                        entityType = "medication_slot",
-                        cloudId = cloudId,
-                        lastSyncedAt = System.currentTimeMillis()
+                val incoming = MedicationSyncMapper.mapToMedicationSlot(data, cloudId = cloudId)
+                // Natural-key dedup before INSERT (medication sync audit PR-A).
+                // medication_slots.name is not UNIQUE, so a fresh INSERT won't
+                // throw — but it produces visible duplicate slots ("Morning",
+                // "Morning") when both devices seeded the built-in slots
+                // independently and then pulled each other's docs. Adopt the
+                // existing same-name local row instead; bind its cloud_id and
+                // apply last-write-wins. Pattern mirrors medications-by-name
+                // dedup at lines 2103–2142 below.
+                val existingByName = medicationSlotDao.getByNameOnce(incoming.name)
+                if (existingByName != null) {
+                    syncMetadataDao.upsert(
+                        SyncMetadataEntity(
+                            localId = existingByName.id,
+                            entityType = "medication_slot",
+                            cloudId = cloudId,
+                            lastSyncedAt = System.currentTimeMillis()
+                        )
                     )
-                )
+                    val remoteUpdatedAt = (data["updatedAt"] as? Number)?.toLong() ?: 0L
+                    if (remoteUpdatedAt > existingByName.updatedAt) {
+                        medicationSlotDao.update(incoming.copy(id = existingByName.id))
+                    }
+                } else {
+                    val newId = medicationSlotDao.insert(incoming)
+                    syncMetadataDao.upsert(
+                        SyncMetadataEntity(
+                            localId = newId,
+                            entityType = "medication_slot",
+                            cloudId = cloudId,
+                            lastSyncedAt = System.currentTimeMillis()
+                        )
+                    )
+                }
             } else {
                 val local = medicationSlotDao.getByIdOnce(localId)
                 val remoteUpdatedAt = (data["updatedAt"] as? Number)?.toLong() ?: 0L
@@ -2216,21 +2240,44 @@ constructor(
                 ?: return@pullCollection false
             val localId = syncMetadataDao.getLocalId(cloudId, "medication_slot_override")
             if (localId == null) {
-                val override = MedicationSyncMapper.mapToMedicationSlotOverride(
+                val incoming = MedicationSyncMapper.mapToMedicationSlotOverride(
                     data,
                     medicationLocalId = medLocalId,
                     slotLocalId = slotLocalId,
                     cloudId = cloudId
                 )
-                val newId = medicationSlotOverrideDao.insert(override)
-                syncMetadataDao.upsert(
-                    SyncMetadataEntity(
-                        localId = newId,
-                        entityType = "medication_slot_override",
-                        cloudId = cloudId,
-                        lastSyncedAt = System.currentTimeMillis()
+                // Natural-key dedup before INSERT (medication sync audit PR-A).
+                // medication_slot_overrides has UNIQUE(medication_id, slot_id),
+                // so a fresh INSERT throws SQLiteConstraintException when both
+                // devices created an override for the same (med, slot) pair
+                // and pulled each other's docs. Adopt the existing local row;
+                // bind its cloud_id and apply last-write-wins. Pattern mirrors
+                // medications-by-name dedup at the medications block above.
+                val existingByPair = medicationSlotOverrideDao.getForPairOnce(medLocalId, slotLocalId)
+                if (existingByPair != null) {
+                    syncMetadataDao.upsert(
+                        SyncMetadataEntity(
+                            localId = existingByPair.id,
+                            entityType = "medication_slot_override",
+                            cloudId = cloudId,
+                            lastSyncedAt = System.currentTimeMillis()
+                        )
                     )
-                )
+                    val remoteUpdatedAt = (data["updatedAt"] as? Number)?.toLong() ?: 0L
+                    if (remoteUpdatedAt > existingByPair.updatedAt) {
+                        medicationSlotOverrideDao.update(incoming.copy(id = existingByPair.id))
+                    }
+                } else {
+                    val newId = medicationSlotOverrideDao.insert(incoming)
+                    syncMetadataDao.upsert(
+                        SyncMetadataEntity(
+                            localId = newId,
+                            entityType = "medication_slot_override",
+                            cloudId = cloudId,
+                            lastSyncedAt = System.currentTimeMillis()
+                        )
+                    )
+                }
             } else {
                 val local = medicationSlotOverrideDao.getByIdOnce(localId)
                 val remoteUpdatedAt = (data["updatedAt"] as? Number)?.toLong() ?: 0L
@@ -2262,21 +2309,48 @@ constructor(
                 ?: return@pullCollection false
             val localId = syncMetadataDao.getLocalId(cloudId, "medication_tier_state")
             if (localId == null) {
-                val state = MedicationSyncMapper.mapToMedicationTierState(
+                val incoming = MedicationSyncMapper.mapToMedicationTierState(
                     data,
                     medicationLocalId = medLocalId,
                     slotLocalId = slotLocalId,
                     cloudId = cloudId
                 )
-                val newId = medicationTierStateDao.insert(state)
-                syncMetadataDao.upsert(
-                    SyncMetadataEntity(
-                        localId = newId,
-                        entityType = "medication_tier_state",
-                        cloudId = cloudId,
-                        lastSyncedAt = System.currentTimeMillis()
-                    )
+                // Natural-key dedup before INSERT (medication sync audit PR-A).
+                // medication_tier_states has UNIQUE(medication_id, log_date,
+                // slot_id), so a fresh INSERT throws SQLiteConstraintException
+                // when both devices logged the same (med, slot, day) tier and
+                // pulled each other's docs. Adopt the existing local row;
+                // bind its cloud_id and apply last-write-wins. Pattern mirrors
+                // medications-by-name dedup at the medications block above.
+                val existingByTriple = medicationTierStateDao.getForTripleOnce(
+                    medicationId = medLocalId,
+                    date = incoming.logDate,
+                    slotId = slotLocalId
                 )
+                if (existingByTriple != null) {
+                    syncMetadataDao.upsert(
+                        SyncMetadataEntity(
+                            localId = existingByTriple.id,
+                            entityType = "medication_tier_state",
+                            cloudId = cloudId,
+                            lastSyncedAt = System.currentTimeMillis()
+                        )
+                    )
+                    val remoteUpdatedAt = (data["updatedAt"] as? Number)?.toLong() ?: 0L
+                    if (remoteUpdatedAt > existingByTriple.updatedAt) {
+                        medicationTierStateDao.update(incoming.copy(id = existingByTriple.id))
+                    }
+                } else {
+                    val newId = medicationTierStateDao.insert(incoming)
+                    syncMetadataDao.upsert(
+                        SyncMetadataEntity(
+                            localId = newId,
+                            entityType = "medication_tier_state",
+                            cloudId = cloudId,
+                            lastSyncedAt = System.currentTimeMillis()
+                        )
+                    )
+                }
             } else {
                 val local = medicationTierStateDao.getByIdOnce(localId)
                 val remoteUpdatedAt = (data["updatedAt"] as? Number)?.toLong() ?: 0L
