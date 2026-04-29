@@ -93,7 +93,8 @@ internal fun PlanForTodaySheet(
     onUnplan: (Long) -> Unit,
     onUseTemplate: (Long) -> Unit,
     onOpenManageTemplates: () -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    onMultiCreate: (String) -> Unit = {}
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
     var searchQuery by remember { mutableStateOf("") }
@@ -228,7 +229,8 @@ internal fun PlanForTodaySheet(
                 viewModel = hiltViewModel(key = "plan_sheet_quickadd"),
                 plannedDateOverride = startOfToday,
                 alwaysExpanded = true,
-                placeholder = "Add task for today..."
+                placeholder = "Add task for today...",
+                onMultiCreate = onMultiCreate
             )
 
             OutlinedTextField(

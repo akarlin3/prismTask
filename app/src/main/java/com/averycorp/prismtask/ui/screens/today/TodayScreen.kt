@@ -774,7 +774,13 @@ fun TodayScreen(
                 viewModel.onDismissPlanSheet()
                 navController.navigate(PrismTaskRoute.TemplateList.route)
             },
-            onDismiss = { viewModel.onDismissPlanSheet() }
+            onDismiss = { viewModel.onDismissPlanSheet() },
+            onMultiCreate = { rawText ->
+                viewModel.onDismissPlanSheet()
+                navController.navigate(
+                    PrismTaskRoute.MultiCreate.createRoute(rawText)
+                )
+            }
         )
     }
 
