@@ -4,6 +4,8 @@ import com.averycorp.prismtask.core.time.SystemTimeProvider
 import com.averycorp.prismtask.core.time.TimeProvider
 import com.averycorp.prismtask.data.preferences.StartOfDay
 import com.averycorp.prismtask.data.preferences.StartOfDayProvider
+import com.averycorp.prismtask.data.remote.api.ExtractFromTextRequest
+import com.averycorp.prismtask.data.remote.api.ExtractedTaskCandidateResponse
 import com.averycorp.prismtask.data.remote.api.ParseRequest
 import com.averycorp.prismtask.data.remote.api.ParsedTaskResponse
 import com.averycorp.prismtask.data.remote.api.PrismTaskApi
@@ -79,6 +81,13 @@ constructor(
         private val DefaultStartOfDayProvider = object : StartOfDayProvider {
             override suspend fun current(): StartOfDay = StartOfDay()
         }
+
+        /**
+         * Mirrors the backend Pydantic cap (`ExtractFromTextRequest.text`
+         * `max_length=10_000`) so [extractFromText] truncates client-side
+         * before we send a request the server is guaranteed to reject.
+         */
+        const val EXTRACT_INPUT_MAX_CHARS: Int = 10_000
     }
 
     /**
@@ -103,6 +112,74 @@ constructor(
         } catch (_: Exception) {
             parse(input)
         }
+    }
+
+    /**
+     * API-first multi-task extraction: posts [input] to
+     * `/api/v1/ai/tasks/extract-from-text` and returns the structured
+     * task candidates Haiku produces (title + due date + priority +
+     * project + confidence). On any failure — Pro gate off, network error,
+     * Retrofit deserialization failure, server 5xx, etc. — falls back to
+     * the offline [ConversationTaskExtractor] regex extractor so the user
+     * still sees something.
+     *
+     * Per the multi-task creation audit (Phase B / PR-B), input is
+     * truncated to [EXTRACT_INPUT_MAX_CHARS] (= 10,000) to match the
+     * backend Pydantic cap (`ExtractFromTextRequest.text` max_length).
+     * Empty / blank input returns an empty list without making any call.
+     *
+     * [isProEnabled] is invoked once at the start; passing `false`
+     * immediately routes to the regex extractor without a network call.
+     * The default `{ true }` lets unit tests and any caller that has
+     * already gated externally use this method without ceremony.
+     */
+    suspend fun extractFromText(
+        input: String,
+        source: String? = null,
+        isProEnabled: () -> Boolean = { true }
+    ): List<ExtractedTask> = withContext(Dispatchers.IO) {
+        if (input.isBlank()) return@withContext emptyList()
+        val truncated = if (input.length > EXTRACT_INPUT_MAX_CHARS) {
+            input.substring(0, EXTRACT_INPUT_MAX_CHARS)
+        } else {
+            input
+        }
+        if (!isProEnabled()) {
+            return@withContext regexFallback(truncated, source)
+        }
+        try {
+            val response = api.extractTasksFromText(
+                ExtractFromTextRequest(text = truncated, source = source)
+            )
+            response.tasks
+                .mapNotNull { it.toExtractedTask(source) }
+                .ifEmpty { regexFallback(truncated, source) }
+        } catch (_: Exception) {
+            regexFallback(truncated, source)
+        }
+    }
+
+    private fun regexFallback(input: String, source: String?): List<ExtractedTask> =
+        ConversationTaskExtractor().extract(input, source)
+
+    private fun ExtractedTaskCandidateResponse.toExtractedTask(
+        source: String?
+    ): ExtractedTask? {
+        val cleanTitle = title.trim()
+        if (cleanTitle.isEmpty()) return null
+        val dueMillis = suggestedDueDate
+            ?.let { parseIsoDate(it) }
+            ?.atStartOfDay(zone)
+            ?.toInstant()
+            ?.toEpochMilli()
+        return ExtractedTask(
+            title = cleanTitle,
+            confidence = confidence.coerceIn(0f, 1f),
+            source = source,
+            suggestedPriority = suggestedPriority.coerceIn(0, 4),
+            suggestedDueDate = dueMillis,
+            suggestedProject = suggestedProject?.takeIf { it.isNotBlank() }
+        )
     }
 
     private fun ParsedTaskResponse.toParsedTask(fallbackTitle: String): ParsedTask {

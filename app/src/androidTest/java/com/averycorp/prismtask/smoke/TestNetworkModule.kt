@@ -116,6 +116,10 @@ class FakePrismTaskApi : PrismTaskApi {
         request: com.averycorp.prismtask.data.remote.api.ParseRequest
     ) = error("Not used in offline tests")
 
+    override suspend fun extractTasksFromText(
+        request: com.averycorp.prismtask.data.remote.api.ExtractFromTextRequest
+    ) = error("Not used in offline tests")
+
     override suspend fun getVersion() = error("Not used in offline tests")
 
     override suspend fun syncPush(request: SyncPushRequest): SyncPushResponse {
