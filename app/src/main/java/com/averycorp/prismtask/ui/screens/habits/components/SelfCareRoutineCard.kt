@@ -27,6 +27,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.averycorp.prismtask.ui.components.StreakBadge
 import com.averycorp.prismtask.ui.screens.habits.SelfCareCardData
 import com.averycorp.prismtask.ui.theme.LocalPrismColors
 
@@ -109,6 +110,9 @@ internal fun SelfCareRoutineCard(
                         color = color.copy(alpha = 0.8f),
                         fontWeight = FontWeight.Bold
                     )
+                }
+                if (cardData.showStreak && cardData.currentStreak > 0) {
+                    StreakBadge(streak = cardData.currentStreak)
                 }
             }
 
