@@ -339,6 +339,9 @@ private class FakeMedicationSlotDao : MedicationSlotDao {
     override suspend fun getByCloudIdOnce(cloudId: String): MedicationSlotEntity? =
         rows.firstOrNull { it.cloudId == cloudId }
 
+    override suspend fun getByNameOnce(name: String): MedicationSlotEntity? =
+        rows.firstOrNull { it.name == name }
+
     override suspend fun insert(slot: MedicationSlotEntity): Long {
         val id = if (slot.id == 0L) nextId++ else slot.id
         rows += slot.copy(id = id)

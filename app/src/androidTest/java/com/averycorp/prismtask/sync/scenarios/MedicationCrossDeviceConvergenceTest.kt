@@ -3,6 +3,7 @@ package com.averycorp.prismtask.sync.scenarios
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.averycorp.prismtask.data.local.entity.MedicationEntity
 import com.averycorp.prismtask.data.repository.MedicationRepository
+import com.averycorp.prismtask.data.repository.MedicationSlotRepository
 import dagger.hilt.android.testing.HiltAndroidTest
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
@@ -38,6 +39,9 @@ class MedicationCrossDeviceConvergenceTest : SyncScenarioTestBase() {
 
     @Inject
     lateinit var medicationRepository: MedicationRepository
+
+    @Inject
+    lateinit var medicationSlotRepository: MedicationSlotRepository
 
     /**
      * Same-cloud_id concurrent edit: B's later write supersedes A's
@@ -442,7 +446,7 @@ class MedicationCrossDeviceConvergenceTest : SyncScenarioTestBase() {
                     updatedAt = 0L
                 )
             )
-            val slotId = database.medicationSlotDao().insert(
+            val slotId = medicationSlotRepository.insertSlot(
                 com.averycorp.prismtask.data.local.entity.MedicationSlotEntity(
                     name = "Lunch",
                     idealTime = "12:00",
@@ -539,7 +543,7 @@ class MedicationCrossDeviceConvergenceTest : SyncScenarioTestBase() {
                     updatedAt = 0L
                 )
             )
-            val slotId = database.medicationSlotDao().insert(
+            val slotId = medicationSlotRepository.insertSlot(
                 com.averycorp.prismtask.data.local.entity.MedicationSlotEntity(
                     name = "Bedtime",
                     idealTime = "22:00",
