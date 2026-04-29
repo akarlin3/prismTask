@@ -28,7 +28,9 @@ data class SelfCareCardData(
     val completedCount: Int,
     val totalCount: Int,
     val tierLabel: String,
-    val isComplete: Boolean
+    val isComplete: Boolean,
+    val currentStreak: Int = 0,
+    val showStreak: Boolean = false
 )
 
 data class BuiltInHabitProgress(val done: Int, val total: Int)
@@ -190,9 +192,13 @@ constructor(
         val schoolProg = values[15] as DailyCourseProgress
         val leisureProg = values[16] as DailyLeisureProgress
 
-        val morningCard = computeCardData(mLog, mSteps, "morning")
-        val bedtimeCard = computeCardData(bLog, bSteps, "bedtime")
-        val houseworkCard = computeCardData(hwLog, hwSteps, "housework")
+        val morningHabit = habitList.find { it.habit.name == SelfCareRepository.MORNING_HABIT_NAME }
+        val bedtimeHabit = habitList.find { it.habit.name == SelfCareRepository.BEDTIME_HABIT_NAME }
+        val houseworkHabit = habitList.find { it.habit.name == SelfCareRepository.HOUSEWORK_HABIT_NAME }
+
+        val morningCard = computeCardData(mLog, mSteps, "morning", morningHabit)
+        val bedtimeCard = computeCardData(bLog, bSteps, "bedtime", bedtimeHabit)
+        val houseworkCard = computeCardData(hwLog, hwSteps, "housework", houseworkHabit)
 
         val autoHabitNames = mutableSetOf<String>()
         if (selfCareOn) {
@@ -258,7 +264,12 @@ constructor(
         allItems.sortedBy { it.sortOrder }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    private fun computeCardData(log: SelfCareLogEntity?, steps: List<SelfCareStepEntity>, routineType: String): SelfCareCardData {
+    private fun computeCardData(
+        log: SelfCareLogEntity?,
+        steps: List<SelfCareStepEntity>,
+        routineType: String,
+        habit: HabitWithStatus?
+    ): SelfCareCardData {
         val tier = log?.selectedTier ?: if (routineType == "medication") {
             "prescription"
         } else {
@@ -268,6 +279,8 @@ constructor(
         }
         val tiers = SelfCareRoutines.getTiers(routineType)
         val tierLabel = tiers.find { it.id == tier }?.label ?: tier.replaceFirstChar { it.uppercase() }
+        val currentStreak = habit?.currentStreak ?: 0
+        val showStreak = habit?.habit?.showStreak == true
 
         if (routineType == "medication") {
             // Mirror MedicationScreen's counter: count how many time-of-day
@@ -282,7 +295,9 @@ constructor(
                 completedCount = clickedCount,
                 totalCount = scheduledTods.size,
                 tierLabel = tierLabel,
-                isComplete = scheduledTods.isNotEmpty() && clickedCount == scheduledTods.size
+                isComplete = scheduledTods.isNotEmpty() && clickedCount == scheduledTods.size,
+                currentStreak = currentStreak,
+                showStreak = showStreak
             )
         }
 
@@ -293,7 +308,9 @@ constructor(
             completedCount = completedCount,
             totalCount = visibleSteps.size,
             tierLabel = tierLabel,
-            isComplete = log?.isComplete == true
+            isComplete = log?.isComplete == true,
+            currentStreak = currentStreak,
+            showStreak = showStreak
         )
     }
 
