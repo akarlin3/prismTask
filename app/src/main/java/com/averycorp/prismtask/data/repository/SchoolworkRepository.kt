@@ -179,7 +179,8 @@ constructor(
                 targetFrequency = 1,
                 frequencyPeriod = "daily",
                 isBuiltIn = true,
-                templateKey = "builtin_school"
+                templateKey = "builtin_school",
+                showStreak = true
             )
         )
         return habitDao.getHabitByIdOnce(id)

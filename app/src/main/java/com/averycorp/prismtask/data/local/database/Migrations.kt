@@ -1898,6 +1898,34 @@ val MIGRATION_64_65 = object : Migration(64, 65) {
 }
 
 /**
+ * v65 → v66 — Backfills `show_streak = 1` on the 6 built-in habits.
+ *
+ * Built-ins seeded prior to this version inherited the `show_streak`
+ * column default of `0`, so the streak badge in `BuiltInHabitCard` /
+ * `SelfCareRoutineCard` never lit up even though the streak number is
+ * computed correctly upstream by `StreakCalculator`. New installs flip
+ * the field at seed time (see `SchoolworkRepository`,
+ * `LeisureRepository`, `SelfCareRepository`); this migration covers
+ * existing installs.
+ *
+ * Guard: only update rows where `is_user_modified = 0`, so a user who
+ * deliberately turned the streak off after install keeps that choice.
+ */
+val MIGRATION_65_66 = object : Migration(65, 66) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            UPDATE habits
+            SET show_streak = 1
+            WHERE is_built_in = 1
+              AND show_streak = 0
+              AND is_user_modified = 0
+            """.trimIndent()
+        )
+    }
+}
+
+/**
  * Single source of truth for the Room schema version. Referenced by both
  * `@Database(version = CURRENT_DB_VERSION)` on [PrismTaskDatabase] and by
  * `StartupCrashDiagnosticTest`. Bumping the schema means:
@@ -1909,7 +1937,7 @@ val MIGRATION_64_65 = object : Migration(64, 65) {
  * The diagnostic test will fail until all three are done, preventing the
  * "forgot to add migration" class of startup crash from reaching main.
  */
-const val CURRENT_DB_VERSION = 65
+const val CURRENT_DB_VERSION = 66
 
 val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_1_2,
@@ -1975,5 +2003,6 @@ val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_61_62,
     MIGRATION_62_63,
     MIGRATION_63_64,
-    MIGRATION_64_65
+    MIGRATION_64_65,
+    MIGRATION_65_66
 )

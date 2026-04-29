@@ -242,7 +242,8 @@ constructor(
                 targetFrequency = 1,
                 frequencyPeriod = "daily",
                 isBuiltIn = true,
-                templateKey = "builtin_leisure"
+                templateKey = "builtin_leisure",
+                showStreak = true
             )
         )
         return habitDao.getHabitByIdOnce(id)
