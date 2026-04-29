@@ -7,6 +7,7 @@ import com.averycorp.prismtask.data.local.entity.MedicationEntity
 import com.averycorp.prismtask.data.preferences.MedicationMigrationPreferences
 import com.averycorp.prismtask.data.remote.sync.PrismSyncLogger
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
@@ -24,6 +25,7 @@ class BuiltInMedicationReconcilerTest {
     private lateinit var medicationDao: FakeMedicationDao
     private lateinit var medicationDoseDao: FakeMedicationDoseDao
     private lateinit var migrationPrefs: MedicationMigrationPreferences
+    private lateinit var syncTracker: SyncTracker
     private lateinit var logger: PrismSyncLogger
     private lateinit var reconciler: BuiltInMedicationReconciler
 
@@ -32,6 +34,7 @@ class BuiltInMedicationReconcilerTest {
         medicationDao = FakeMedicationDao()
         medicationDoseDao = FakeMedicationDoseDao()
         migrationPrefs = mockk(relaxed = true)
+        syncTracker = mockk(relaxed = true)
         logger = mockk(relaxed = true)
         // Default: reconciliation hasn't run yet.
         coEvery { migrationPrefs.isReconciliationDone() } returns false
@@ -39,6 +42,7 @@ class BuiltInMedicationReconcilerTest {
             medicationDao = medicationDao,
             medicationDoseDao = medicationDoseDao,
             migrationPreferences = migrationPrefs,
+            syncTracker = syncTracker,
             logger = logger
         )
     }
@@ -155,6 +159,39 @@ class BuiltInMedicationReconcilerTest {
         reconciler.reconcileAfterSyncIfNeeded()
         assertTrue(medicationDao.rows.isEmpty())
     }
+
+    @Test
+    fun duplicates_queueLoserMedicationForCloudDelete() = runBlocking {
+        medicationDao.insert(MedicationEntity(id = 50, name = "Lipitor"))
+        medicationDao.insert(MedicationEntity(id = 51, name = "Lipitor"))
+        // Winner = 50 (smallest id; both zero doses).
+
+        reconciler.reconcileAfterSyncIfNeeded()
+
+        // Without trackDelete the loser's cloud document survives; the
+        // next pull re-introduces the duplicate locally as a fresh row
+        // with a fresh local_id, undoing the dedup.
+        coVerify(exactly = 1) { syncTracker.trackDelete(51L, "medication") }
+    }
+
+    @Test
+    fun duplicates_queueReassignedDosesForCloudUpdate() = runBlocking {
+        medicationDao.insert(MedicationEntity(id = 60, name = "Adderall"))
+        medicationDao.insert(MedicationEntity(id = 61, name = "Adderall"))
+
+        // id=60 wins on dose count; id=61's two doses get reassigned.
+        repeat(3) { medicationDoseDao.insertDoseForMed(60L) }
+        val loserDose1 = medicationDoseDao.insertAndReturnId(61L)
+        val loserDose2 = medicationDoseDao.insertAndReturnId(61L)
+
+        reconciler.reconcileAfterSyncIfNeeded()
+
+        // Each reassigned dose's cloud copy still carries the loser's
+        // medicationCloudId — push must re-upload them so the cloud
+        // medicationCloudId resolves to the keeper.
+        coVerify(exactly = 1) { syncTracker.trackUpdate(loserDose1, "medication_dose") }
+        coVerify(exactly = 1) { syncTracker.trackUpdate(loserDose2, "medication_dose") }
+    }
 }
 
 // --- in-memory fake DAOs ------------------------------------------------
@@ -218,13 +255,19 @@ private class FakeMedicationDoseDao : MedicationDoseDao {
     private var nextId = 1L
 
     fun insertDoseForMed(medicationId: Long) {
+        insertAndReturnId(medicationId)
+    }
+
+    fun insertAndReturnId(medicationId: Long): Long {
+        val id = nextId++
         rows += MedicationDoseEntity(
-            id = nextId++,
+            id = id,
             medicationId = medicationId,
             slotKey = "anytime",
             takenAt = System.currentTimeMillis(),
             takenDateLocal = "2026-04-22"
         )
+        return id
     }
 
     override suspend fun insert(dose: MedicationDoseEntity): Long {
