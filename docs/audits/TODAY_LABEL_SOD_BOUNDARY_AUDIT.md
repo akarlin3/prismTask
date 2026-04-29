@@ -275,3 +275,104 @@ fun `formatDueDate marks Apr 28 23:00 as Today at 02:00 Apr 29 with SoD 04:00`()
 ```
 
 Both should fail before the fix and pass after.
+
+---
+
+## Phase 3 — Bundle summary
+
+PROCEED items #1, #2, #3, #4 shipped together in **PR #935**
+(`fix/today-label-sod-boundary`).
+
+| # | Item | Outcome |
+|---|------|---------|
+| 1 | `TaskCardDueDate.formatDueDate` | Reads `LocalDayBounds.current` (SoD-anchored) instead of `Calendar.getInstance()`. |
+| 2 | `TaskCardDueDate.isTaskOverdue` | Deleted — confirmed dead (no callers in `app/src/main`). |
+| 3 | `DateShortcuts.today/tomorrow` | Untouched. The buggy caller (#4) was switched off them and onto `core.time.DayBoundary.logicalDate(...)`; the legitimate point-of-use snapshot caller (`TaskTemplateRepository`) keeps the no-arg form. |
+| 4 | `QuickRescheduleFormatter.describe` | New `sodHour`/`sodMinute`/`zone` overload using `DayBoundary.logicalDate`; 6 ViewModel callers (Today, TaskList, TaskListBulk, Week, Timeline, Month) plumb SoD via `taskBehaviorPreferences.getStartOfDay().first()`. MonthVM + TimelineVM gained a `TaskBehaviorPreferences` injection. |
+
+**Wiring:** `MainActivity` now installs `LocalDayBounds` from
+`localDateFlow.observe(taskBehaviorPreferences.getStartOfDay())` so card
+labels re-key at every Start-of-Day boundary crossing — same source-of-truth
+as `TodayViewModel.dayStart`/`dayEnd`.
+
+**Tests added:**
+
+- `TaskCardDueDateBoundsTest` — pure-logic repro on `classifyDueDate(...)`,
+  with a "calendar-bounds" branch that documents the pre-fix shape.
+- `QuickRescheduleFormatterSoDTest` — covers Today/Tomorrow under SoD=04:00
+  at wall-clock 02:00 + back-compat path with SoD=00:00.
+- `TimelineViewModelTest` — adjusted constructor call for the new
+  `TaskBehaviorPreferences` parameter.
+
+**Re-baselined Phase 2 estimate:** ~95 LOC of net main-source change
+(plus tests + audit doc), single coherent PR, ~1 hour wall-clock from
+Phase 1 commit to PR open. Bundling #1–#4 into one PR was the right call:
+they share the `LocalDayBounds`/`DayBoundary.logicalDate` plumbing and
+splitting would have been pure churn.
+
+**Memory entry candidates (only if a future Claude would benefit):**
+
+- None new. The bug class is already covered by
+  `feedback_localdateflow_for_logical_day_flows.md` and
+  `feedback_repro_first_for_time_boundary_bugs.md`.
+
+**Schedule for follow-up audit:** queue `NLP_LOGICAL_TODAY_AUDIT.md` to
+cover deferred items #5 (QuickReschedulePopup chips) and #6
+(`NaturalLanguageParser` regex `today` keyword). Both are write-side
+semantic changes that deserve their own brainstorming pass — they decide
+*what dueDate value gets persisted* when the user types "today" or taps
+the chip, not just what the label says.
+
+---
+
+## Phase 4 — Claude Chat handoff
+
+```markdown
+# PrismTask Today/Tomorrow label SoD-boundary fix — handoff
+
+**Repo:** github.com/averycorp/prismTask (Android, Kotlin/Compose)
+**Branch:** `fix/today-label-sod-boundary` → PR #935 (auto-merge SQUASH armed; CI gating)
+
+## Scope
+Audited every place a task's due date renders or is bucketed as "Today" /
+"Tomorrow" / "Overdue". A user reported "tasks should not show as being
+due the same day until the set Start of Day" — this is the *display side*
+of the SoD-boundary work that PRs #798/#811/#812 already shipped on the
+filter/grouping side.
+
+## Verdicts
+
+| Item | Risk | Finding |
+|------|------|---------|
+| `TaskCardDueDate.formatDueDate` | RED | Used `Calendar.getInstance()` midnight at render time, not SoD. |
+| `TaskCardDueDate.isTaskOverdue` | RED | Same bug shape AND dead (no callers in `app/src/main`). |
+| `DateShortcuts.today/tomorrow` | RED | No SoD parameter — buggy for display callers; legit for snapshot callers. |
+| `QuickRescheduleFormatter.describe` | RED | Transitive on DateShortcuts; 6 ViewModel callers. |
+| `QuickReschedulePopup` chips | YELLOW | Sets `dueDate = calendar today/tomorrow` on tap — write-side semantic, DEFERRED. |
+| `NaturalLanguageParser` `today` regex | YELLOW | Resolves "today" to calendar date, not logical — DEFERRED to NLP_LOGICAL_TODAY_AUDIT. |
+| Week/Month-view `today` highlight | GREEN | Calendar grid should highlight calendar-today, not logical-today. |
+| `TodayViewModel.dayStart` filter | GREEN | Already on `LocalDateFlow` (PR #811). |
+
+## Shipped
+- **PR #935** — `fix(ui): Today/Tomorrow card labels track Start of Day, not calendar midnight`
+  - New `LocalDayBounds` CompositionLocal installed at `MainActivity` from `LocalDateFlow.observe(...)`.
+  - `formatDueDate` reads `LocalDayBounds.current` instead of `Calendar.getInstance()`.
+  - SoD-aware overload on `QuickRescheduleFormatter.describe`; 6 ViewModel callers plumbed.
+  - Dead `isTaskOverdue` deleted.
+  - Repro tests: `TaskCardDueDateBoundsTest`, `QuickRescheduleFormatterSoDTest`.
+
+## Deferred / stopped
+- **YELLOW #5** (chip semantics) — DEFERRED: changing what `Today` chip *writes* changes reminder timing & recurrence anchors; the user's complaint is display, not write-side.
+- **YELLOW #6** (NLP `today` keyword) — DEFERRED to a separate `NLP_LOGICAL_TODAY_AUDIT.md`; same write-vs-display split as #5.
+- **GREEN #7, #8** — STOP, no work needed.
+
+## Non-obvious findings
+- The SoD-aware Today *filter* and TaskList *grouping* moved to `LocalDateFlow` in PRs #798/#811/#812 but the per-card *label* stayed on calendar midnight. Symptom: at 02:00 wall-clock with SoD=04:00, a task dated calendar-today afternoon would (correctly) sit in the "Tomorrow" group of the Tasks list, while the card text inside it (incorrectly) read "Today" — internally inconsistent within a single screen.
+- `formatDueDate` had no callers other than `TaskCard.TaskItem`, but `isTaskOverdue` (same buggy shape) had **no callers at all** — drive-by deletion in the same PR.
+- `DateShortcuts.today/tomorrow` is correctly used by `TaskTemplateRepository` (point-of-use snapshot when instantiating a template at user-tap time). Not every calendar-midnight call site is a bug — discriminator is "display label" vs "snapshot at user action".
+
+## Open questions
+- Should the `Today`/`Tomorrow` chips in `QuickReschedulePopup` write **logical** today/tomorrow or **calendar** today/tomorrow? Affects reminder timing, recurrence anchors. Worth a brainstorming pass before silently changing.
+- Same question for NLP "today"/"tomorrow" keyword resolution.
+```
+
