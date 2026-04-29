@@ -228,6 +228,12 @@ fun TodayScreen(
                         com.averycorp.prismtask.ui.navigation.PrismTaskRoute
                             .BatchPreview.createRoute(commandText)
                     )
+                },
+                onMultiCreate = { rawText ->
+                    navController.navigate(
+                        com.averycorp.prismtask.ui.navigation.PrismTaskRoute
+                            .MultiCreate.createRoute(rawText)
+                    )
                 }
             )
         },
@@ -768,7 +774,13 @@ fun TodayScreen(
                 viewModel.onDismissPlanSheet()
                 navController.navigate(PrismTaskRoute.TemplateList.route)
             },
-            onDismiss = { viewModel.onDismissPlanSheet() }
+            onDismiss = { viewModel.onDismissPlanSheet() },
+            onMultiCreate = { rawText ->
+                viewModel.onDismissPlanSheet()
+                navController.navigate(
+                    PrismTaskRoute.MultiCreate.createRoute(rawText)
+                )
+            }
         )
     }
 

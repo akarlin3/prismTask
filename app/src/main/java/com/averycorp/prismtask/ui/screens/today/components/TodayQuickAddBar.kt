@@ -37,7 +37,8 @@ import com.averycorp.prismtask.ui.theme.TerminalPrompt
 internal fun FloatingQuickAddBar(
     autoStartVoice: Boolean = false,
     onVoiceAutoStartConsumed: () -> Unit = {},
-    onBatchCommand: (String) -> Unit = {}
+    onBatchCommand: (String) -> Unit = {},
+    onMultiCreate: (String) -> Unit = {}
 ) {
     val colors = LocalPrismAttrs.current.let { _ -> LocalPrismColors.current }
     val attrs = LocalPrismAttrs.current
@@ -68,7 +69,8 @@ internal fun FloatingQuickAddBar(
                 QuickAddBar(
                     autoStartVoice = autoStartVoice,
                     onVoiceMessage = {},
-                    onBatchCommand = onBatchCommand
+                    onBatchCommand = onBatchCommand,
+                    onMultiCreate = onMultiCreate
                 )
             }
         }
@@ -91,7 +93,8 @@ internal fun FloatingQuickAddBar(
                 QuickAddBar(
                     autoStartVoice = autoStartVoice,
                     onVoiceMessage = {},
-                    onBatchCommand = onBatchCommand
+                    onBatchCommand = onBatchCommand,
+                    onMultiCreate = onMultiCreate
                 )
             }
         }
@@ -114,7 +117,8 @@ internal fun FloatingQuickAddBar(
                     autoStartVoice = autoStartVoice,
                     onVoiceMessage = {},
                     modifier = Modifier.weight(1f),
-                    onBatchCommand = onBatchCommand
+                    onBatchCommand = onBatchCommand,
+                    onMultiCreate = onMultiCreate
                 )
             }
         }
@@ -134,7 +138,8 @@ internal fun FloatingQuickAddBar(
                     QuickAddBar(
                         autoStartVoice = autoStartVoice,
                         onVoiceMessage = {},
-                        onBatchCommand = onBatchCommand
+                        onBatchCommand = onBatchCommand,
+                        onMultiCreate = onMultiCreate
                     )
                 }
             }

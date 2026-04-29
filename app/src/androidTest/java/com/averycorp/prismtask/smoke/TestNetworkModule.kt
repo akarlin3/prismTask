@@ -116,6 +116,26 @@ class FakePrismTaskApi : PrismTaskApi {
         request: com.averycorp.prismtask.data.remote.api.ParseRequest
     ) = error("Not used in offline tests")
 
+    /**
+     * Programmable response for `/api/v1/ai/tasks/extract-from-text`
+     * (multi-task creation audit, PR-C smoke). Set
+     * [extractTasksFromTextResult] in a test's `@Before` block to a
+     * canned [com.averycorp.prismtask.data.remote.api.ExtractFromTextResponse];
+     * leave it null to keep the default error behavior so the parser
+     * exercises its regex fallback path.
+     */
+    @Volatile
+    var extractTasksFromTextResult:
+        com.averycorp.prismtask.data.remote.api.ExtractFromTextResponse? = null
+
+    override suspend fun extractTasksFromText(
+        request: com.averycorp.prismtask.data.remote.api.ExtractFromTextRequest
+    ): com.averycorp.prismtask.data.remote.api.ExtractFromTextResponse {
+        requireOnline()
+        return extractTasksFromTextResult
+            ?: error("extractTasksFromTextResult not set — provide a canned response")
+    }
+
     override suspend fun getVersion() = error("Not used in offline tests")
 
     override suspend fun syncPush(request: SyncPushRequest): SyncPushResponse {

@@ -78,6 +78,23 @@ data class ParsedTaskResponse(
     val confidence: Double?
 )
 
+data class ExtractFromTextRequest(
+    val text: String,
+    val source: String? = null
+)
+
+data class ExtractedTaskCandidateResponse(
+    val title: String,
+    @SerializedName("suggested_due_date") val suggestedDueDate: String? = null,
+    @SerializedName("suggested_priority") val suggestedPriority: Int = 0,
+    @SerializedName("suggested_project") val suggestedProject: String? = null,
+    val confidence: Float = 0.5f
+)
+
+data class ExtractFromTextResponse(
+    val tasks: List<ExtractedTaskCandidateResponse> = emptyList()
+)
+
 // endregion
 
 // region App version

@@ -15,6 +15,7 @@ import com.averycorp.prismtask.ui.screens.checkin.MorningCheckInScreen
 import com.averycorp.prismtask.ui.screens.eisenhower.EisenhowerScreen
 import com.averycorp.prismtask.ui.screens.extract.PasteConversationScreen
 import com.averycorp.prismtask.ui.screens.mood.MoodAnalyticsScreen
+import com.averycorp.prismtask.ui.screens.multicreate.MultiCreateBottomSheet
 import com.averycorp.prismtask.ui.screens.planner.WeeklyPlannerScreen
 import com.averycorp.prismtask.ui.screens.pomodoro.SmartPomodoroScreen
 import com.averycorp.prismtask.ui.screens.review.WeeklyReviewDetailScreen
@@ -116,5 +117,21 @@ internal fun NavGraphBuilder.aiRoutes(
 
     composable(route = PrismTaskRoute.BatchHistory.route) {
         BatchHistoryScreen(navController)
+    }
+
+    composable(
+        route = PrismTaskRoute.MultiCreate.route,
+        arguments = listOf(
+            navArgument("text") {
+                type = NavType.StringType
+                defaultValue = ""
+            }
+        )
+    ) { backStackEntry ->
+        val initialText = backStackEntry.arguments?.getString("text").orEmpty()
+        MultiCreateBottomSheet(
+            navController = navController,
+            initialText = initialText
+        )
     }
 }

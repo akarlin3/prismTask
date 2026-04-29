@@ -104,6 +104,11 @@ class NaturalLanguageParserTest {
         override suspend fun parseTask(request: ParseRequest): ParsedTaskResponse =
             error("not used in offline parser tests")
 
+        override suspend fun extractTasksFromText(
+            request: com.averycorp.prismtask.data.remote.api.ExtractFromTextRequest
+        ): com.averycorp.prismtask.data.remote.api.ExtractFromTextResponse =
+            error("not used in offline parser tests")
+
         override suspend fun getVersion(): VersionResponse =
             error("not used in offline parser tests")
 

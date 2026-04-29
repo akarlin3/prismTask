@@ -718,7 +718,13 @@ fun TaskListScreen(
             )
 
             // Quick add bar
-            QuickAddBar()
+            QuickAddBar(
+                onMultiCreate = { rawText ->
+                    navController.navigate(
+                        PrismTaskRoute.MultiCreate.createRoute(rawText)
+                    )
+                }
+            )
 
             // Active filter pills
             if (currentFilter.isActive()) {
