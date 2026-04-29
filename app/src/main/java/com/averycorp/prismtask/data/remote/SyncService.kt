@@ -3374,6 +3374,7 @@ constructor(
 
     companion object {
         const val SOURCE_FIREBASE: String = "firebase"
+
         // 30 s — user-requested maximum interval between syncs while
         // online + signed in. Acts as a safety net for any reactive
         // trigger that doesn't fire (e.g. ConnectivityManager callback
