@@ -97,7 +97,14 @@ class MultiCreateDetector {
         private const val MIN_SEGMENT_LENGTH = 4
 
         private val CONTINUATION_CONJUNCTIONS = setOf(
-            "then", "or", "and", "but", "so", "because", "while", "if"
+            "then",
+            "or",
+            "and",
+            "but",
+            "so",
+            "because",
+            "while",
+            "if"
         )
 
         private val TIME_MARKER_REGEX = Regex(

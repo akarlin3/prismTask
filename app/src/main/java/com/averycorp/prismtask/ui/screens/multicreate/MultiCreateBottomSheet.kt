@@ -161,8 +161,11 @@ fun MultiCreateBottomSheet(
                     enabled = !isLoading && selectedCount > 0
                 ) {
                     Text(
-                        if (selectedCount == 0) "Approve"
-                        else "Create $selectedCount Task${if (selectedCount == 1) "" else "s"}"
+                        if (selectedCount == 0) {
+                            "Approve"
+                        } else {
+                            "Create $selectedCount Task${if (selectedCount == 1) "" else "s"}"
+                        }
                     )
                 }
             }
