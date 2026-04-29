@@ -39,6 +39,7 @@ import com.averycorp.prismtask.data.preferences.BuiltInSyncPreferences
 import com.averycorp.prismtask.data.remote.mapper.MedicationSyncMapper
 import com.averycorp.prismtask.data.remote.mapper.SyncMapper
 import com.averycorp.prismtask.data.remote.sync.PrismSyncLogger
+import com.averycorp.prismtask.data.remote.sync.ReactiveSyncDriver
 import com.averycorp.prismtask.data.remote.sync.SyncStateRepository
 import com.averycorp.prismtask.domain.usecase.ProFeatureGate
 import com.google.firebase.firestore.DocumentChange
@@ -3160,6 +3161,33 @@ constructor(
                     }
                 }
         }
+        // Backstop syncs:
+        //   1. Reactive — fire fullSync when isOnline flips false→true so
+        //      pending writes made offline don't sit in the queue until the
+        //      next local edit. observePending above only re-emits on queue
+        //      changes, so a network return alone never re-triggers it.
+        //   2. Periodic — bound worst-case staleness while online, even if
+        //      a connectivity callback is missed. fullSync's own isSyncing
+        //      guard makes this safe to fire concurrently with manual /
+        //      reactive runs.
+        ReactiveSyncDriver(
+            isOnline = syncStateRepository.isOnline,
+            isSignedIn = { authManager.userId != null },
+            periodMs = PERIODIC_SYNC_INTERVAL_MS,
+            onTrigger = { trigger ->
+                try {
+                    fullSync(trigger = trigger)
+                } catch (e: Exception) {
+                    // fullSync logs its own failures via markSyncCompleted.
+                    try {
+                        com.google.firebase.crashlytics.FirebaseCrashlytics
+                            .getInstance()
+                            .recordException(e)
+                    } catch (_: Exception) {
+                    }
+                }
+            }
+        ).start(scope)
     }
 
     fun startRealtimeListeners() {
@@ -3346,5 +3374,11 @@ constructor(
 
     companion object {
         const val SOURCE_FIREBASE: String = "firebase"
+
+        // 30 s — user-requested maximum interval between syncs while
+        // online + signed in. Acts as a safety net for any reactive
+        // trigger that doesn't fire (e.g. ConnectivityManager callback
+        // missed because no collector was active).
+        private const val PERIODIC_SYNC_INTERVAL_MS: Long = 30_000L
     }
 }

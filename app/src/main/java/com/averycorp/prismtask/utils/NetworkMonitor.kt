@@ -63,10 +63,13 @@ constructor(
 
     private companion object {
         // Register the ConnectivityManager callback only while something is
-        // collecting isOnline (the UI layer), and unregister 5s after the
-        // last subscriber goes away. Prevents the callback from leaking
-        // across instrumented-test SingletonComponent rebuilds, which at
-        // ~100 tests would trip ConnectivityManager$TooManyRequestsException.
+        // collecting isOnline, and unregister 5s after the last subscriber
+        // goes away. SyncService keeps a permanent collector via
+        // ReactiveSyncDriver, so during normal app execution the callback
+        // stays registered for the process lifetime; the timeout still
+        // matters in instrumented tests, where SingletonComponent rebuilds
+        // at ~100 tests would otherwise trip
+        // ConnectivityManager$TooManyRequestsException.
         const val STOP_TIMEOUT_MS = 5_000L
     }
 }
