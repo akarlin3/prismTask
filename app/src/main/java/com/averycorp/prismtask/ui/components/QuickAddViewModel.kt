@@ -17,6 +17,7 @@ import com.averycorp.prismtask.domain.model.LifeCategory
 import com.averycorp.prismtask.domain.model.ProjectStatus
 import com.averycorp.prismtask.domain.usecase.BatchIntentDetector
 import com.averycorp.prismtask.domain.usecase.LifeCategoryClassifier
+import com.averycorp.prismtask.domain.usecase.MultiCreateDetector
 import com.averycorp.prismtask.domain.usecase.NaturalLanguageParser
 import com.averycorp.prismtask.domain.usecase.ParsedTask
 import com.averycorp.prismtask.domain.usecase.ParsedTaskResolver
@@ -74,6 +75,7 @@ constructor(
 
     private val lifeCategoryClassifier = LifeCategoryClassifier()
     private val batchIntentDetector = BatchIntentDetector()
+    private val multiCreateDetector = MultiCreateDetector()
 
     /**
      * Emits when the user submits a batch-style command. The hosting
@@ -83,6 +85,18 @@ constructor(
      */
     private val _batchIntents = MutableSharedFlow<String>(extraBufferCapacity = 1)
     val batchIntents: SharedFlow<String> = _batchIntents.asSharedFlow()
+
+    /**
+     * Emits when the user submits multi-task input (rule-(a) newlines or
+     * rule-(b) ≥3-comma-segments + ≥50%-time-markers per the multi-task
+     * creation audit Item 2). The hosting screen navigates to the
+     * `MultiCreateBottomSheet` route with the raw text. Free-tier users
+     * skip this flow — the detector still fires but the gate at
+     * [onSubmit] drops them through to the single-task path because
+     * extract-from-text is a paid Haiku call.
+     */
+    private val _multiCreateIntents = MutableSharedFlow<String>(extraBufferCapacity = 1)
+    val multiCreateIntents: SharedFlow<String> = _multiCreateIntents.asSharedFlow()
 
     val inputText = MutableStateFlow("")
 
@@ -338,6 +352,24 @@ constructor(
             }
             viewModelScope.launch {
                 _batchIntents.emit(batchIntent.commandText)
+                inputText.value = ""
+            }
+            return
+        }
+
+        // Multi-task creation pre-pass (Phase B / PR-C). Routes
+        // newline-separated or comma-segmented + time-marker-dense
+        // input to the dedicated bottom sheet. Pro users only —
+        // extract-from-text is a paid Haiku call. Free users fall
+        // through to the single-task path even when the detector
+        // matches, matching the audit's "free users stay on single-task
+        // path" recommendation (Item 7).
+        val multiCreate = multiCreateDetector.detect(text)
+        if (multiCreate is MultiCreateDetector.Result.MultiCreate &&
+            proFeatureGate.hasAccess(ProFeatureGate.AI_NLP)
+        ) {
+            viewModelScope.launch {
+                _multiCreateIntents.emit(multiCreate.rawText)
                 inputText.value = ""
             }
             return

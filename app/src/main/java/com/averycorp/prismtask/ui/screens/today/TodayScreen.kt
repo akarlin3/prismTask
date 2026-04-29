@@ -228,6 +228,12 @@ fun TodayScreen(
                         com.averycorp.prismtask.ui.navigation.PrismTaskRoute
                             .BatchPreview.createRoute(commandText)
                     )
+                },
+                onMultiCreate = { rawText ->
+                    navController.navigate(
+                        com.averycorp.prismtask.ui.navigation.PrismTaskRoute
+                            .MultiCreate.createRoute(rawText)
+                    )
                 }
             )
         },

@@ -184,6 +184,11 @@ sealed class PrismTaskRoute(
 
     data object BatchHistory : PrismTaskRoute("settings/batch_history")
 
+    data object MultiCreate : PrismTaskRoute("multi_create?text={text}") {
+        fun createRoute(text: String): String =
+            "multi_create?text=${android.net.Uri.encode(text)}"
+    }
+
     data object MoodAnalytics : PrismTaskRoute("mood_analytics")
 
     data object WeeklyBalanceReport : PrismTaskRoute("weekly_balance_report")

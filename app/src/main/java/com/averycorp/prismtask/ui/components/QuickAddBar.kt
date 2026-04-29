@@ -67,7 +67,8 @@ fun QuickAddBar(
     placeholder: String = "Add task... (try: Buy milk tomorrow #groceries !high)",
     autoStartVoice: Boolean = false,
     onVoiceMessage: (String) -> Unit = {},
-    onBatchCommand: (String) -> Unit = {}
+    onBatchCommand: (String) -> Unit = {},
+    onMultiCreate: (String) -> Unit = {}
 ) {
     val inputText by viewModel.inputText.collectAsStateWithLifecycle()
     val parsedPreview by viewModel.parsedPreview.collectAsStateWithLifecycle()
@@ -103,6 +104,13 @@ fun QuickAddBar(
     // emits to `batchIntents`. The host screen navigates to the preview.
     LaunchedEffect(viewModel) {
         viewModel.batchIntents.collect { commandText -> onBatchCommand(commandText) }
+    }
+
+    // Multi-task creation (Phase B / PR-C). When the user submits
+    // newline / comma-list input matching MultiCreateDetector, the VM
+    // emits the raw text and the host navigates to the bottom sheet.
+    LaunchedEffect(viewModel) {
+        viewModel.multiCreateIntents.collect { rawText -> onMultiCreate(rawText) }
     }
 
     LaunchedEffect(autoStartVoice) {
