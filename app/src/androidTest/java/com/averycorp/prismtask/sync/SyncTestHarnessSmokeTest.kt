@@ -60,6 +60,12 @@ class SyncTestHarnessSmokeTest {
         if (::harness.isInitialized) {
             runBlocking {
                 runCatching { harness.cleanupFirestoreUser() }
+                // Release device B's ConnectivityManager callback. Android
+                // caps callbacks per UID (~100); long instrumentation runs
+                // that don't terminate Firestore clients eventually trip
+                // ConnectivityManager$TooManyRequestsException. See
+                // SyncTestHarness.shutdownDeviceB for details.
+                harness.shutdownDeviceB()
             }
             harness.signOutBothDevices()
         }
