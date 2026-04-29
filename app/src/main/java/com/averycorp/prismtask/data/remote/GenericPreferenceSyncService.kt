@@ -12,7 +12,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import java.util.concurrent.ConcurrentHashMap
@@ -71,6 +73,23 @@ class GenericPreferenceSyncService @Inject constructor(
                         pushIfChanged(spec)
                     }
             }
+        }
+        // Cold-start auth-restore race recovery. The collector above filters
+        // out emissions with `userId == null`, but on cold start FirebaseAuth
+        // restores `currentUser` asynchronously from disk and may not have
+        // completed by the time the 500ms-debounced first emission fires.
+        // Without this observer the silently-dropped first emission is never
+        // retried (fingerprint stays null in-memory, but no flow re-emits the
+        // unchanged DataStore), so any local-only state from before the
+        // process died fails to propagate until the user touches a setting.
+        scope.launch {
+            authManager.currentUser
+                .map { it != null }
+                .distinctUntilChanged()
+                .collect { signedIn ->
+                    if (!signedIn) return@collect
+                    specs.forEach { spec -> pushIfChanged(spec) }
+                }
         }
     }
 

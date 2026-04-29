@@ -9,6 +9,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
@@ -58,6 +60,26 @@ class ThemePreferencesSyncService @Inject constructor(
                 .debounce(500L)
                 .collect {
                     if (authManager.userId == null) return@collect
+                    val updatedAt = themePreferences.getThemeUpdatedAt()
+                    val lastSynced = themePreferences.getThemeLastSyncedAt()
+                    if (updatedAt <= lastSynced) return@collect
+                    pushNow()
+                }
+        }
+        // Cold-start auth-restore race recovery. The collector above filters
+        // out emissions with `userId == null`, but on cold start FirebaseAuth
+        // restores `currentUser` asynchronously from disk and may not have
+        // completed by the time the 500ms-debounced first emission fires.
+        // Without this observer the silently-dropped first emission is never
+        // retried (no flow re-emits the unchanged ThemePreferences), so any
+        // local-only state from before the process died fails to propagate
+        // until the user touches a theme setting.
+        scope.launch {
+            authManager.currentUser
+                .map { it != null }
+                .distinctUntilChanged()
+                .collect { signedIn ->
+                    if (!signedIn) return@collect
                     val updatedAt = themePreferences.getThemeUpdatedAt()
                     val lastSynced = themePreferences.getThemeLastSyncedAt()
                     if (updatedAt <= lastSynced) return@collect
