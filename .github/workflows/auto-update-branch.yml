@@ -52,8 +52,14 @@ permissions:
   contents: read
 
 concurrency:
+  # Serialize but DO NOT cancel: when several PRs land in quick
+  # succession, each push:main needs to fully run so all newly-BEHIND
+  # PRs get updated. cancel-in-progress: true caused the in-flight
+  # update to be killed by every successive merge, leaving the tail of
+  # PRs stuck BEHIND. Queueing accepts a few seconds of redundant work
+  # in exchange for the guarantee that every push:main is processed.
   group: auto-update-branch
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   update-behind-prs:
