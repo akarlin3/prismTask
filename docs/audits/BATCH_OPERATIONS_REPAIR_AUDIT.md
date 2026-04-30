@@ -240,3 +240,125 @@ Single bundled PR `fix/batch-operations-repair`:
    Item 6.
 
 Required CI green; no `[skip ci]`; squash-merge auto-merge.
+
+---
+
+## Phase 3 — Bundle summary
+
+**PR.** [#1014](https://github.com/averycorp/prismTask/pull/1014)
+`fix/batch-operations-repair` — bundles the Phase 1 audit doc and the
+three-file fix (TaskListScreen, PlanForTodaySheet, TodayScreen). Auto-
+squash-merge enabled, queued behind a pre-existing red on `main`.
+
+**Diff size.** 39 lines added, 2 removed across 3 production files,
+plus the audit doc.
+
+**Measured impact (post-merge, projected).** AI batch ops moves from
+"functional on 1 of 3 QuickAddBar hosts" to 3 of 3. Symptom (input
+cleared, no preview) goes from 100% reproducible on TaskList +
+Plan-for-Today to 0%. No measurable backend or DB change — pure UI
+wiring.
+
+**Pre-existing blocker discovered.** The most recent Android CI run
+on `main` (run @ 2026-04-30T22:11Z, head `4a1660f8`) failed with
+Compose API drift in
+`app/src/main/java/com/averycorp/prismtask/ui/screens/tasklist/components/TaskListItemScopes.kt:453-462`
+— `drawRoundRect`, `toPx`, `detectTapGestures`, `startTransfer`
+unresolved against the current Compose BOM. Touched last by
+`7d928cb0 refactor(ui): Migrate Card/Button/Chip callsites to theme
+shapes (partial)` plus a ktlint pass at `f1ba906f`. **This PR does
+not touch that file** — fix is out of scope for the batch audit.
+Surfaced so the user knows the merge backlog is gated on a separate
+workstream.
+
+**Memory candidates.**
+
+- `feedback_no_op_default_lambdas_on_load_bearing_callbacks.md` —
+  candidate. The `onBatchCommand: (String) -> Unit = {}` default
+  shape is what let this regression sit silently — the SharedFlow
+  emit + input-clear succeeded, the lambda ran (as a no-op), no
+  obvious failure surface for the host author. Future reviewers
+  should flag default-`{}` callbacks on parameters whose absence
+  corrupts UX. Decided: save (audit found a real concrete instance,
+  worth one line in MEMORY.md).
+
+**Wall-clock re-baseline.** Single-pass audit + bundled-fix shape
+held at ~242 audit lines + 39 fix lines + 1 PR. Comfortable below the
+500-line cap from `CLAUDE.md` "Audit doc length". Re-confirms the
+390-line shape from `CONNECTED_TESTS_STABILIZATION_AUDIT.md`
+(PR #859) is the right neighborhood.
+
+**Next audit.** Not scheduled. The user's broader request was a
+specific feature repair, not a recurring sweep. Worth a quick re-run
+after the `BatchUndoEventBus` replay is touched (Item 6 deferred) or
+when batch surfaces grow beyond Today/Tasks/Plan.
+
+---
+
+## Phase 4 — Claude Chat handoff
+
+```markdown
+# PrismTask — batch operations repair audit (handoff)
+
+## Scope
+PrismTask Android (`com.averycorp.prismtask`) — repair AI batch ops
+("Reschedule all overdue tasks to tomorrow") after user reported
+them "not working." Audit done on a worktree branched from
+`origin/main` @ `61502982`.
+
+## Verdicts
+
+| Item | Verdict | One-liner |
+|------|---------|-----------|
+| 1 — TaskListScreen QuickAddBar batch routing | RED | `onBatchCommand` not threaded; input cleared, no nav |
+| 2 — PlanForTodaySheet batch routing | RED | same gap inside the bottom sheet |
+| 3 — Repository / undo / history / sweep | GREEN | verified by code read + existing tests |
+| 4 — Multi-select bulk edit on TaskList | GREEN | independent path, atomic DAO ops, smoke tested |
+| 5 — Cross-host BatchUndoListener parity | YELLOW | partial-fix hazard; bundled into Item 1 PR |
+| 6 — BatchUndoEventBus `replay = 0` race | DEFERRED | theoretical; works on current Compose Nav |
+| 7 — Detector "two-signal" threshold | DEFERRED | deliberate false-negative bias, not a bug |
+
+## Shipped
+- PR [#1014](https://github.com/averycorp/prismTask/pull/1014)
+  `fix(batch): route QuickAddBar batch commands on TaskList +
+  PlanForToday` — wires `onBatchCommand` on both screens, mounts
+  `BatchUndoListenerViewModel` on TaskList, dismisses Plan-for-Today
+  sheet on batch nav. Auto-squash-merge enabled.
+
+## Deferred / stopped
+- **Items 3 / 4** — repository, undo log, history screen, sweep
+  worker, multi-select bulk edit DAO ops all healthy; no work needed.
+- **Item 6** — `replay = 1` would harden a millisecond-scale race
+  during nav pop, but introduces a stale-Snackbar risk; defer until
+  we touch the bus for another reason.
+- **Item 7** — `BatchIntentDetector` rejecting "Clear Thursday
+  afternoon" is documented + tested behavior; tuning is a product
+  decision, not a fix.
+
+## Non-obvious findings
+- `main` Android CI is currently red on a pre-existing Compose API
+  drift in `TaskListItemScopes.kt:453-462` (`drawRoundRect`, `toPx`,
+  `detectTapGestures`, `startTransfer` unresolved). PR #1014 doesn't
+  touch that file; CI on the PR will fail until the unrelated drift
+  is resolved. Worth chasing as its own ticket.
+- Anti-pattern: `onBatchCommand: (String) -> Unit = {}` on
+  QuickAddBar is exactly the no-op-default-lambda shape that let
+  this regression sit silently. The SharedFlow emit + input-clear
+  succeeded, the lambda ran as a no-op, and no obvious failure
+  surface presented itself to the host author. Same shape exists
+  for `onMultiCreate` and `onVoiceMessage` — they happen to be
+  wired everywhere now, but the structural fragility is the same.
+- Today's `BatchUndoListenerViewModel` survives the
+  Today→Preview→pop-back round-trip because Compose Navigation
+  keeps the backstack composition alive. The Preview's VM scope
+  (which calls `notifyApplied` via `tryEmit`) and Today's collector
+  (still subscribed) overlap. If anyone refactors to a route that
+  destroys the host composition, the Snackbar offer would be lost —
+  see `BatchUndoEventBus.kt`.
+
+## Open questions
+None — the user-reported breakage maps cleanly to Items 1 + 2 and
+the fix is bundled in PR #1014. If the user's report instead meant
+multi-select bulk edit (Item 4) or a specific batch verb that the
+detector rejects (Item 7), a follow-up scope would be needed.
+```
