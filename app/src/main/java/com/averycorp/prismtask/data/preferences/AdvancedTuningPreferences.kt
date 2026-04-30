@@ -6,12 +6,10 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
-import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -70,11 +68,21 @@ data class RefillUrgencyConfig(
 
 /** Per-energy-band Pomodoro session timing (minutes). */
 data class EnergyPomodoroConfig(
-    val veryLowWork: Int = 15, val veryLowBreak: Int = 10, val veryLowLong: Int = 20,
-    val lowWork: Int = 15, val lowBreak: Int = 10, val lowLong: Int = 20,
-    val mediumWork: Int = 25, val mediumBreak: Int = 5, val mediumLong: Int = 15,
-    val highWork: Int = 35, val highBreak: Int = 4, val highLong: Int = 12,
-    val veryHighWork: Int = 45, val veryHighBreak: Int = 3, val veryHighLong: Int = 10
+    val veryLowWork: Int = 15,
+    val veryLowBreak: Int = 10,
+    val veryLowLong: Int = 20,
+    val lowWork: Int = 15,
+    val lowBreak: Int = 10,
+    val lowLong: Int = 20,
+    val mediumWork: Int = 25,
+    val mediumBreak: Int = 5,
+    val mediumLong: Int = 15,
+    val highWork: Int = 35,
+    val highBreak: Int = 4,
+    val highLong: Int = 12,
+    val veryHighWork: Int = 45,
+    val veryHighBreak: Int = 3,
+    val veryHighLong: Int = 10
 )
 
 /** Good-Enough Timer (ND focus release) timings, in minutes. */
@@ -366,11 +374,21 @@ constructor(
 
     suspend fun setEnergyPomodoroConfig(c: EnergyPomodoroConfig) {
         context.advancedTuningDataStore.edit {
-            it[POM_VL_W] = c.veryLowWork; it[POM_VL_B] = c.veryLowBreak; it[POM_VL_L] = c.veryLowLong
-            it[POM_L_W] = c.lowWork; it[POM_L_B] = c.lowBreak; it[POM_L_L] = c.lowLong
-            it[POM_M_W] = c.mediumWork; it[POM_M_B] = c.mediumBreak; it[POM_M_L] = c.mediumLong
-            it[POM_H_W] = c.highWork; it[POM_H_B] = c.highBreak; it[POM_H_L] = c.highLong
-            it[POM_VH_W] = c.veryHighWork; it[POM_VH_B] = c.veryHighBreak; it[POM_VH_L] = c.veryHighLong
+            it[POM_VL_W] = c.veryLowWork
+            it[POM_VL_B] = c.veryLowBreak
+            it[POM_VL_L] = c.veryLowLong
+            it[POM_L_W] = c.lowWork
+            it[POM_L_B] = c.lowBreak
+            it[POM_L_L] = c.lowLong
+            it[POM_M_W] = c.mediumWork
+            it[POM_M_B] = c.mediumBreak
+            it[POM_M_L] = c.mediumLong
+            it[POM_H_W] = c.highWork
+            it[POM_H_B] = c.highBreak
+            it[POM_H_L] = c.highLong
+            it[POM_VH_W] = c.veryHighWork
+            it[POM_VH_B] = c.veryHighBreak
+            it[POM_VH_L] = c.veryHighLong
         }
     }
 
