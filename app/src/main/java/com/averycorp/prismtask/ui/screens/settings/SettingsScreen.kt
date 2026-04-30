@@ -327,18 +327,16 @@ fun SettingsScreen(
                     }
                 }
 
-                // Advanced — POWER only
-                if (uiTier.isAtLeast(UiComplexityTier.POWER)) {
-                    item {
-                        SettingsGroup(label = "Advanced") {
-                            SettingsNavRow(
-                                title = "Advanced Tuning",
-                                subtitle = "Power-user knobs for scoring, schedules, widgets",
-                                iconEmoji = "🔧",
-                                iconBgColor = ColAdvanced,
-                                onClick = { navController.navigate("settings/advanced_tuning") }
-                            )
-                        }
+                // Advanced — Power-user defaults are exposed by default since #952
+                item {
+                    SettingsGroup(label = "Advanced") {
+                        SettingsNavRow(
+                            title = "Advanced Tuning",
+                            subtitle = "Power-user knobs for scoring, schedules, widgets",
+                            iconEmoji = "🔧",
+                            iconBgColor = ColAdvanced,
+                            onClick = { navController.navigate("settings/advanced_tuning") }
+                        )
                     }
                 }
 

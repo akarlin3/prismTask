@@ -183,7 +183,6 @@ internal fun AddEditTaskFormFields(
     val projects by viewModel.projects.collectAsStateWithLifecycle()
     val allTags by viewModel.allTags.collectAsStateWithLifecycle()
     val attachments by viewModel.attachments.collectAsStateWithLifecycle()
-    val uiTier by viewModel.uiTier.collectAsStateWithLifecycle()
     val editorRows by viewModel.editorFieldRows.collectAsStateWithLifecycle()
 
     var showDatePicker by remember { mutableStateOf(false) }
