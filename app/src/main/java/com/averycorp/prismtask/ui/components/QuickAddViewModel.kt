@@ -74,6 +74,7 @@ constructor(
         advancedTuningPreferences.getQuickAddRows()
             .map { it.maxLines }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 5)
+
     /**
      * List of candidate templates shown in the disambiguation popup when a
      * "/query" shortcut matches more than one template. Null when the popup

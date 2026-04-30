@@ -39,31 +39,6 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
-import com.averycorp.prismtask.data.preferences.ApiNetworkConfig
-import com.averycorp.prismtask.data.preferences.BatchUndoConfig
-import com.averycorp.prismtask.data.preferences.BurnoutWeights
-import com.averycorp.prismtask.data.preferences.EditorFieldRows
-import com.averycorp.prismtask.data.preferences.EnergyPomodoroConfig
-import com.averycorp.prismtask.data.preferences.ExtractorConfig
-import com.averycorp.prismtask.data.preferences.GoodEnoughTimerConfig
-import com.averycorp.prismtask.data.preferences.HabitReminderFallback
-import com.averycorp.prismtask.data.preferences.LifeCategoryCustomKeywords
-import com.averycorp.prismtask.data.preferences.MoodCorrelationConfig
-import com.averycorp.prismtask.data.preferences.MorningCheckInPromptCutoff
-import com.averycorp.prismtask.data.preferences.OverloadCheckSchedule
-import com.averycorp.prismtask.data.preferences.ProductivityWeights
-import com.averycorp.prismtask.data.preferences.ProductivityWidgetThresholds
-import com.averycorp.prismtask.data.preferences.QuickAddRows
-import com.averycorp.prismtask.data.preferences.ReengagementConfig
-import com.averycorp.prismtask.data.preferences.RefillUrgencyConfig
-import com.averycorp.prismtask.data.preferences.SearchPreview
-import com.averycorp.prismtask.data.preferences.SelfCareTierDefaults
-import com.averycorp.prismtask.data.preferences.SmartDefaultsConfig
-import com.averycorp.prismtask.data.preferences.SuggestionConfig
-import com.averycorp.prismtask.data.preferences.UrgencyBands
-import com.averycorp.prismtask.data.preferences.UrgencyWindows
-import com.averycorp.prismtask.data.preferences.WeeklySummarySchedule
-import com.averycorp.prismtask.data.preferences.WidgetRefreshConfig
 import com.averycorp.prismtask.domain.model.SelfCareRoutines
 import com.averycorp.prismtask.ui.theme.ThemedSubScreenTitle
 
@@ -889,4 +864,3 @@ private fun TierCycleRow(
         )
     }
 }
-

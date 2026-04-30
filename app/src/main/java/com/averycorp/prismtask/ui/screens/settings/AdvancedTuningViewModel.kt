@@ -156,7 +156,9 @@ constructor(
     fun setExtractor(value: ExtractorConfig) = launchSet { prefs.setExtractorConfig(value) }
     fun setSmartDefaults(value: SmartDefaultsConfig) = launchSet { prefs.setSmartDefaultsConfig(value) }
     fun setMorningCheckIn(value: MorningCheckInPromptCutoff) = launchSet { prefs.setMorningCheckInPromptCutoff(value) }
-    fun setLifeCategoryKeywords(value: LifeCategoryCustomKeywords) = launchSet { prefs.setLifeCategoryCustomKeywords(value) }
+    fun setLifeCategoryKeywords(value: LifeCategoryCustomKeywords) = launchSet {
+        prefs.setLifeCategoryCustomKeywords(value)
+    }
     fun setWeeklySummary(value: WeeklySummarySchedule) = launchSet { prefs.setWeeklySummarySchedule(value) }
     fun setReengagement(value: ReengagementConfig) = launchSet { prefs.setReengagementConfig(value) }
     fun setOverloadCheck(value: OverloadCheckSchedule) = launchSet { prefs.setOverloadCheckSchedule(value) }
@@ -164,7 +166,9 @@ constructor(
     fun setHabitReminderFallback(value: HabitReminderFallback) = launchSet { prefs.setHabitReminderFallback(value) }
     fun setApiNetwork(value: ApiNetworkConfig) = launchSet { prefs.setApiNetworkConfig(value) }
     fun setWidgetRefresh(value: WidgetRefreshConfig) = launchSet { prefs.setWidgetRefreshConfig(value) }
-    fun setProductivityWidget(value: ProductivityWidgetThresholds) = launchSet { prefs.setProductivityWidgetThresholds(value) }
+    fun setProductivityWidget(value: ProductivityWidgetThresholds) = launchSet {
+        prefs.setProductivityWidgetThresholds(value)
+    }
     fun setEditorFieldRows(value: EditorFieldRows) = launchSet { prefs.setEditorFieldRows(value) }
     fun setQuickAddRows(value: QuickAddRows) = launchSet { prefs.setQuickAddRows(value) }
     fun setSearchPreview(value: SearchPreview) = launchSet { prefs.setSearchPreview(value) }
