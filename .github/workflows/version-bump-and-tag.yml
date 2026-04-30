@@ -66,6 +66,16 @@ permissions:
 jobs:
   version-bump-and-tag:
     name: Version Bump & Tag
+    # Cross-workflow lock so the tag-push critical section is owned by
+    # exactly one path at a time — android-ci.yml's `tag-and-release`
+    # shares this group. The pre-existing per-job `git ls-remote --tags`
+    # idempotency guards still close the loop on any race that slips
+    # through (e.g. a hand-pushed annotated tag), but this group makes
+    # the common case observably serialized rather than relying purely
+    # on the can't-clobber check. See CI_AUDIT_2026-04-30 F7.
+    concurrency:
+      group: tag-push-main
+      cancel-in-progress: false
     # Skip when the source auto-merge run failed or was cancelled —
     # nothing to bump. workflow_dispatch always runs.
     if: >-

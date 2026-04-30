@@ -388,6 +388,15 @@ jobs:
   tag-and-release:
     name: Tag & Release
     needs: [lint-and-test]
+    # Cross-workflow lock so the tag-push critical section is owned by
+    # exactly one path at a time — version-bump-and-tag.yml shares this
+    # group. The per-job `git ls-remote --tags` idempotency guards still
+    # close the loop on any race that slips through, but this group
+    # makes the common case observably serialized. See
+    # CI_AUDIT_2026-04-30 F7.
+    concurrency:
+      group: tag-push-main
+      cancel-in-progress: false
     if: >-
       github.event_name == 'push' &&
       github.ref == 'refs/heads/main' &&
