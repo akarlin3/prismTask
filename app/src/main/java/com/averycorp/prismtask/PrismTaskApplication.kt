@@ -15,7 +15,9 @@ import com.averycorp.prismtask.data.remote.MedicationMigrationRunner
 import com.averycorp.prismtask.data.repository.LeisureRepository
 import com.averycorp.prismtask.data.repository.SchoolworkRepository
 import com.averycorp.prismtask.data.seed.TemplateSeeder
+import com.averycorp.prismtask.notifications.MedicationClockRescheduler
 import com.averycorp.prismtask.notifications.MedicationIntervalRescheduler
+import com.averycorp.prismtask.notifications.MedicationReminderScheduler
 import com.averycorp.prismtask.notifications.NotificationWorkerScheduler
 import com.averycorp.prismtask.workers.AutoArchiveWorker
 import com.averycorp.prismtask.workers.CalendarSyncScheduler
@@ -70,6 +72,12 @@ class PrismTaskApplication :
     @Inject
     lateinit var medicationIntervalRescheduler: MedicationIntervalRescheduler
 
+    @Inject
+    lateinit var medicationClockRescheduler: MedicationClockRescheduler
+
+    @Inject
+    lateinit var medicationReminderScheduler: MedicationReminderScheduler
+
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private companion object {
@@ -119,7 +127,7 @@ class PrismTaskApplication :
             runDriftCleanup()
             runLifeCategoryBackfill()
             runMedicationMigrationPasses()
-            startMedicationIntervalRescheduler()
+            startMedicationReschedulers()
         } catch (e: Exception) {
             android.util.Log.e("PrismTaskApp", "Seeding kickoff failed", e)
             try {
@@ -336,14 +344,32 @@ class PrismTaskApplication :
     }
 
     /**
-     * Wires the medication-interval rescheduler's reactive Flow observer
-     * (PR2 of the v1.6.0 reminder-mode track). Every dose change — real,
-     * synthetic-skip, or pulled from sync — triggers a reschedule pass
-     * that re-anchors all INTERVAL-mode slot/medication alarms at
-     * `mostRecentDose.takenAt + intervalMinutes`. Also runs an initial
-     * pass at startup so alarms exist before the user touches anything.
+     * Re-arms every medication-reminder pipeline at app launch:
+     *
+     *  - The legacy [MedicationReminderScheduler]'s `rescheduleAll`, which
+     *    used to run only on `BOOT_COMPLETED`. Without this call a fresh
+     *    install / app update with a previously migrated medication would
+     *    have no CLOCK alarms until the device next rebooted.
+     *  - The slot-level [MedicationClockRescheduler] for CLOCK-mode slots.
+     *  - The slot/medication [MedicationIntervalRescheduler] for INTERVAL
+     *    mode, plus its reactive dose-change Flow observer so subsequent
+     *    doses re-anchor the next reminder.
      */
-    private fun startMedicationIntervalRescheduler() {
+    private fun startMedicationReschedulers() {
+        appScope.launch {
+            try {
+                medicationReminderScheduler.rescheduleAll()
+            } catch (e: Exception) {
+                android.util.Log.e("PrismTaskApp", "Initial legacy reschedule failed", e)
+            }
+        }
+        appScope.launch {
+            try {
+                medicationClockRescheduler.rescheduleAll()
+            } catch (e: Exception) {
+                android.util.Log.e("PrismTaskApp", "Initial clock reschedule failed", e)
+            }
+        }
         appScope.launch {
             try {
                 medicationIntervalRescheduler.rescheduleAll()
