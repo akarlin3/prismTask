@@ -42,6 +42,7 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -91,7 +92,7 @@ import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-private const val TOTAL_PAGES = 9
+private const val TOTAL_PAGES = 11
 private const val LAST_PAGE_INDEX = TOTAL_PAGES - 1
 
 @Composable
@@ -123,9 +124,11 @@ fun OnboardingScreen(
                 2 -> SmartTasksPage()
                 3 -> NaturalLanguagePage()
                 4 -> HabitsPage()
-                5 -> TemplatesPage(viewModel = viewModel)
-                6 -> ViewsPage()
-                7 -> BrainModePage(viewModel = viewModel)
+                5 -> LifeModesPage(viewModel = viewModel)
+                6 -> TemplatesPage(viewModel = viewModel)
+                7 -> ViewsPage()
+                8 -> BrainModePage(viewModel = viewModel)
+                9 -> AccessibilityPage(viewModel = viewModel)
                 LAST_PAGE_INDEX -> SetupPage(
                     viewModel = viewModel,
                     onComplete = {
@@ -565,6 +568,24 @@ private fun TemplatesPage(viewModel: OnboardingViewModel) {
             LaunchedEffect(Unit) { flow.collect { state.value = it } }
             state
         }
+    val selfCareEnabled by viewModel.selfCareEnabled
+        .let { flow ->
+            val state = remember { mutableStateOf(true) }
+            LaunchedEffect(Unit) { flow.collect { state.value = it } }
+            state
+        }
+    val houseworkEnabled by viewModel.houseworkEnabled
+        .let { flow ->
+            val state = remember { mutableStateOf(true) }
+            LaunchedEffect(Unit) { flow.collect { state.value = it } }
+            state
+        }
+    val leisureEnabled by viewModel.leisureEnabled
+        .let { flow ->
+            val state = remember { mutableStateOf(true) }
+            LaunchedEffect(Unit) { flow.collect { state.value = it } }
+            state
+        }
 
     var visible by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { visible = true }
@@ -603,11 +624,26 @@ private fun TemplatesPage(viewModel: OnboardingViewModel) {
             }
         }
         Spacer(modifier = Modifier.height(16.dp))
-        TemplatePickerContent(
-            state = selections,
-            onChange = viewModel::updateTemplateSelections,
-            modifier = Modifier.fillMaxWidth()
-        )
+        // Hide template sections whose owning Life Mode is off (toggled on the
+        // prior LifeModesPage). Settings "Browse Templates" still shows everything.
+        if (!selfCareEnabled && !houseworkEnabled && !leisureEnabled) {
+            Text(
+                text = "No template sections — every Life Mode is off. Tap Next to skip.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(top = 24.dp)
+            )
+        } else {
+            TemplatePickerContent(
+                state = selections,
+                onChange = viewModel::updateTemplateSelections,
+                modifier = Modifier.fillMaxWidth(),
+                showLeisure = leisureEnabled,
+                showSelfCare = selfCareEnabled,
+                showHousework = houseworkEnabled
+            )
+        }
     }
 }
 
@@ -1057,6 +1093,244 @@ private fun SetupPage(
             Text("Start Using PrismTask")
         }
     }
+}
+
+// ─── Life Modes Opt-In Page ──────────────────────────────────────────────
+//
+// Asks the user which Life Modes (self-care, medication, school, housework,
+// leisure) they want enabled, *before* `TemplatesPage` so it can hide
+// template sections whose mode is off. Defaults all five to on (matches
+// `HabitListPreferences` defaults), so toggling is opt-OUT.
+
+@Composable
+private fun LifeModesPage(viewModel: OnboardingViewModel) {
+    val selfCare by collectAsLocalState(viewModel.selfCareEnabled, initial = true)
+    val medication by collectAsLocalState(viewModel.medicationEnabled, initial = true)
+    val school by collectAsLocalState(viewModel.schoolEnabled, initial = true)
+    val housework by collectAsLocalState(viewModel.houseworkEnabled, initial = true)
+    val leisure by collectAsLocalState(viewModel.leisureEnabled, initial = true)
+
+    var visible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { visible = true }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(top = 60.dp, start = 24.dp, end = 24.dp, bottom = 140.dp)
+            .verticalScroll(rememberScrollState()),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        AnimatedVisibility(
+            visible = visible,
+            enter = fadeIn(tween(400)) + slideInVertically(tween(400)) { 30 }
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(text = "🧩", fontSize = 48.sp)
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "What Do You Want to Track?",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.asHeading()
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Turn off any modes that don't apply. You can flip these back on anytime in Settings → Life Modes.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
+        Spacer(modifier = Modifier.height(24.dp))
+
+        LifeModeRow(
+            emoji = "🌿",
+            title = "Self-Care",
+            subtitle = "Morning + bedtime routines, hydration, mental health",
+            checked = selfCare,
+            onCheckedChange = viewModel::setSelfCareEnabled
+        )
+        LifeModeRow(
+            emoji = "💊",
+            title = "Medication",
+            subtitle = "Dose reminders + adherence tracking",
+            checked = medication,
+            onCheckedChange = viewModel::setMedicationEnabled
+        )
+        LifeModeRow(
+            emoji = "🎓",
+            title = "Schoolwork",
+            subtitle = "Courses, assignments, due dates",
+            checked = school,
+            onCheckedChange = viewModel::setSchoolEnabled
+        )
+        LifeModeRow(
+            emoji = "🧹",
+            title = "Housework",
+            subtitle = "Daily home upkeep + chores",
+            checked = housework,
+            onCheckedChange = viewModel::setHouseworkEnabled
+        )
+        LifeModeRow(
+            emoji = "🎲",
+            title = "Leisure",
+            subtitle = "Music practice, hobbies, downtime",
+            checked = leisure,
+            onCheckedChange = viewModel::setLeisureEnabled
+        )
+    }
+}
+
+@Composable
+private fun LifeModeRow(
+    emoji: String,
+    title: String,
+    subtitle: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 6.dp)
+            .clickable { onCheckedChange(!checked) },
+        colors = CardDefaults.cardColors(
+            containerColor = if (checked) {
+                MaterialTheme.colorScheme.primaryContainer
+            } else {
+                MaterialTheme.colorScheme.surfaceVariant
+            }
+        ),
+        border = if (checked) {
+            BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
+        } else {
+            null
+        }
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(emoji, fontSize = 28.sp)
+            Spacer(modifier = Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = if (checked) {
+                        MaterialTheme.colorScheme.onPrimaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.onSurface
+                    }
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (checked) {
+                        MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    }
+                )
+            }
+            Switch(
+                checked = checked,
+                onCheckedChange = onCheckedChange
+            )
+        }
+    }
+}
+
+// ─── Accessibility Quick-Set Page ─────────────────────────────────────────
+//
+// Three opt-in toggles for app-level a11y. All default OFF — system-level
+// settings (TalkBack, font scale) take precedence; these are the
+// PrismTask-specific layers on top.
+
+@Composable
+private fun AccessibilityPage(viewModel: OnboardingViewModel) {
+    val reduceMotion by collectAsLocalState(viewModel.reduceMotion, initial = false)
+    val highContrast by collectAsLocalState(viewModel.highContrast, initial = false)
+    val largeTouchTargets by collectAsLocalState(viewModel.largeTouchTargets, initial = false)
+
+    var visible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { visible = true }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(top = 60.dp, start = 24.dp, end = 24.dp, bottom = 140.dp)
+            .verticalScroll(rememberScrollState()),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        AnimatedVisibility(
+            visible = visible,
+            enter = fadeIn(tween(400)) + slideInVertically(tween(400)) { 30 }
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(text = "♿", fontSize = 48.sp)
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "Accessibility",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.asHeading()
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Quick toggles for the most common needs. System-wide TalkBack and font " +
+                        "scaling work as expected on top of these.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
+        Spacer(modifier = Modifier.height(24.dp))
+
+        LifeModeRow(
+            emoji = "🌀",
+            title = "Reduce Motion",
+            subtitle = "Cut animations across the app",
+            checked = reduceMotion,
+            onCheckedChange = viewModel::setReduceMotion
+        )
+        LifeModeRow(
+            emoji = "🌓",
+            title = "High Contrast",
+            subtitle = "Stronger text and icon contrast",
+            checked = highContrast,
+            onCheckedChange = viewModel::setHighContrast
+        )
+        LifeModeRow(
+            emoji = "👆",
+            title = "Large Touch Targets",
+            subtitle = "Bigger tap zones on rows and chips",
+            checked = largeTouchTargets,
+            onCheckedChange = viewModel::setLargeTouchTargets
+        )
+    }
+}
+
+// Minimal `collectAsState`-style helper that accepts an initial value so the
+// returned `State<T>` is non-null and Compose can short-circuit recomposition
+// before the StateFlow emits its first value. Inline-defined here to avoid a
+// new shared util file for two callers.
+@Composable
+private fun <T> collectAsLocalState(
+    flow: kotlinx.coroutines.flow.StateFlow<T>,
+    initial: T
+): androidx.compose.runtime.State<T> {
+    val state = remember { mutableStateOf(initial) }
+    LaunchedEffect(flow) { flow.collect { state.value = it } }
+    return state
 }
 
 @Composable

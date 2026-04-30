@@ -2,6 +2,8 @@ package com.averycorp.prismtask.ui.screens.onboarding
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.averycorp.prismtask.data.preferences.A11yPreferences
+import com.averycorp.prismtask.data.preferences.HabitListPreferences
 import com.averycorp.prismtask.data.preferences.LeisurePreferences
 import com.averycorp.prismtask.data.preferences.LeisureSlotId
 import com.averycorp.prismtask.data.preferences.NdPreferencesDataStore
@@ -43,6 +45,8 @@ constructor(
     private val userPreferencesDataStore: UserPreferencesDataStore,
     private val taskBehaviorPreferences: TaskBehaviorPreferences,
     private val canonicalOnboardingSync: CanonicalOnboardingSync,
+    private val habitListPreferences: HabitListPreferences,
+    private val a11yPreferences: A11yPreferences,
     private val logger: PrismSyncLogger
 ) : ViewModel() {
     val hasCompletedOnboarding: StateFlow<Boolean> = onboardingPreferences
@@ -62,6 +66,32 @@ constructor(
 
     private val _templateSelections = MutableStateFlow(TemplateSelections())
     val templateSelections: StateFlow<TemplateSelections> = _templateSelections.asStateFlow()
+
+    val selfCareEnabled: StateFlow<Boolean> = habitListPreferences
+        .isSelfCareEnabled()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+    val medicationEnabled: StateFlow<Boolean> = habitListPreferences
+        .isMedicationEnabled()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+    val schoolEnabled: StateFlow<Boolean> = habitListPreferences
+        .isSchoolEnabled()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+    val houseworkEnabled: StateFlow<Boolean> = habitListPreferences
+        .isHouseworkEnabled()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+    val leisureEnabled: StateFlow<Boolean> = habitListPreferences
+        .isLeisureEnabled()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
+    val reduceMotion: StateFlow<Boolean> = a11yPreferences
+        .getReduceMotion()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+    val highContrast: StateFlow<Boolean> = a11yPreferences
+        .getHighContrast()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+    val largeTouchTargets: StateFlow<Boolean> = a11yPreferences
+        .getLargeTouchTargets()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     init {
         if (authManager.isSignedIn.value) {
@@ -164,6 +194,38 @@ constructor(
 
     fun updateTemplateSelections(selections: TemplateSelections) {
         _templateSelections.value = selections
+    }
+
+    fun setSelfCareEnabled(enabled: Boolean) {
+        viewModelScope.launch { habitListPreferences.setSelfCareEnabled(enabled) }
+    }
+
+    fun setMedicationEnabled(enabled: Boolean) {
+        viewModelScope.launch { habitListPreferences.setMedicationEnabled(enabled) }
+    }
+
+    fun setSchoolEnabled(enabled: Boolean) {
+        viewModelScope.launch { habitListPreferences.setSchoolEnabled(enabled) }
+    }
+
+    fun setHouseworkEnabled(enabled: Boolean) {
+        viewModelScope.launch { habitListPreferences.setHouseworkEnabled(enabled) }
+    }
+
+    fun setLeisureEnabled(enabled: Boolean) {
+        viewModelScope.launch { habitListPreferences.setLeisureEnabled(enabled) }
+    }
+
+    fun setReduceMotion(enabled: Boolean) {
+        viewModelScope.launch { a11yPreferences.setReduceMotion(enabled) }
+    }
+
+    fun setHighContrast(enabled: Boolean) {
+        viewModelScope.launch { a11yPreferences.setHighContrast(enabled) }
+    }
+
+    fun setLargeTouchTargets(enabled: Boolean) {
+        viewModelScope.launch { a11yPreferences.setLargeTouchTargets(enabled) }
     }
 
     fun completeOnboarding() {
