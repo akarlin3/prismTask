@@ -255,3 +255,48 @@ that deletes the enum but keeps `isAtLeast` callers cannot compile). One PR.
 No premise was wrong. `UiComplexityTier` exists, the gate sites exist as
 documented, and there is no backend coupling that would block deletion.
 Proceeding to Phase 2 in the same session per audit-first protocol.
+
+---
+
+## Phase 3 — Bundle summary
+
+**Shipped as one PR.** Branch `chore/remove-ui-tiers`, commit `cdebf2fb`,
+PR [#952](https://github.com/averycorp/prismTask/pull/952), auto-merge
+(squash) armed.
+
+**Diffstat:** 21 files changed, +452 / −1,262 (net **−810 LOC**). Removed
+5 source files + 3 unit test files; modified 11 source files; added 1
+audit doc.
+
+**Verification:**
+- `./gradlew compileDebugKotlin` — BUILD SUCCESSFUL.
+- `./gradlew testDebugUnitTest` — BUILD SUCCESSFUL.
+- Manual smoke deferred to post-merge.
+
+**Re-baselined wall-clock estimate:** the bundled-PR shape was correct.
+Per-item cost was XS–S; the real cost driver was multi-line-edit /
+surrogate-pair friction inside `SettingsScreen.kt`, which a Python
+script-based unwrap of the gate blocks resolved. Future "delete a
+progressive-disclosure system" work should default to a script that
+unwraps `if (gate) { body }` blocks instead of hand-editing each `if`.
+
+**Memory candidates considered, none promoted:** no surprising or
+non-obvious facts emerged that aren't already discoverable via `git log`
+or by reading the code directly.
+
+**Schedule for next audit:** none. The only follow-up is post-merge
+manual UX smoke; not worth a routine audit slot.
+
+## Phase 3 — Anti-pattern reminders
+
+- **Multi-line `if` gates are easy to write and hard to remove.** When a
+  feature gate wraps 5–10 lines of UI builder calls, the call site works
+  fine but every refactor pays a brace-counting tax. If a future
+  progressive-disclosure axis is reintroduced, prefer composition (e.g.
+  `tieredItem(min: Tier) { ... }` LazyListScope helper) over scattered
+  `if (tier.isAtLeast(X)) { ... }` blocks at each call site.
+- **Tier persistence pattern was inconsistent.** UI tier wrote a
+  `ui_complexity_tier` string key directly on `UserPreferencesDataStore`.
+  Most other feature gates live in dedicated `*Preferences.kt` data
+  classes. Future tier-like features should land in the `*Preferences`
+  pattern, not directly on `UserPreferencesDataStore`.
