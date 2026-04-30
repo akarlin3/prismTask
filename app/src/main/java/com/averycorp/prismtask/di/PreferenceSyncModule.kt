@@ -2,6 +2,7 @@ package com.averycorp.prismtask.di
 
 import android.content.Context
 import com.averycorp.prismtask.data.preferences.a11yDataStore
+import com.averycorp.prismtask.data.preferences.advancedTuningDataStore
 import com.averycorp.prismtask.data.preferences.archiveDataStore
 import com.averycorp.prismtask.data.preferences.coachingDataStore
 import com.averycorp.prismtask.data.preferences.dailyEssentialsDataStore
@@ -52,6 +53,7 @@ object PreferenceSyncModule {
         @ApplicationContext context: Context
     ): Set<PreferenceSyncSpec> = setOf(
         PreferenceSyncSpec("a11y_prefs", context.a11yDataStore),
+        PreferenceSyncSpec("advanced_tuning_prefs", context.advancedTuningDataStore),
         PreferenceSyncSpec("archive_prefs", context.archiveDataStore),
         PreferenceSyncSpec("coaching_prefs", context.coachingDataStore),
         PreferenceSyncSpec("daily_essentials_prefs", context.dailyEssentialsDataStore),

@@ -152,6 +152,7 @@ class DataImporterTest {
             templatePreferences,
             mockk(relaxed = true),
             mockk(relaxed = true),
+            mockk(relaxed = true),
             mockk(relaxed = true)
         )
     }

@@ -13,6 +13,7 @@ import com.averycorp.prismtask.data.local.dao.TaskCompletionDao
 import com.averycorp.prismtask.data.local.dao.TaskDao
 import com.averycorp.prismtask.data.local.database.PrismTaskDatabase
 import com.averycorp.prismtask.data.preferences.A11yPreferences
+import com.averycorp.prismtask.data.preferences.AdvancedTuningPreferences
 import com.averycorp.prismtask.data.preferences.ArchivePreferences
 import com.averycorp.prismtask.data.preferences.CoachingPreferences
 import com.averycorp.prismtask.data.preferences.DailyEssentialsPreferences
@@ -127,7 +128,8 @@ constructor(
     private val onboardingPreferences: OnboardingPreferences,
     private val templatePreferences: TemplatePreferences,
     private val coachingPreferences: CoachingPreferences,
-    private val sortPreferences: SortPreferences
+    private val sortPreferences: SortPreferences,
+    private val advancedTuningPreferences: AdvancedTuningPreferences
 ) {
     private val gson = GsonBuilder().serializeNulls().setPrettyPrinting().create()
     private val compactGson = Gson()
@@ -458,6 +460,7 @@ constructor(
         config.add("templates", exportTemplateConfig())
         config.add("coaching", exportCoachingConfig())
         config.add("sort", exportSortConfig())
+        config.add("advancedTuning", exportAdvancedTuningConfig())
 
         root.add("config", config)
 
@@ -609,6 +612,42 @@ constructor(
                 addProperty(key, value)
             }
         }
+    }
+
+    /**
+     * Power-user tuning knobs from [AdvancedTuningPreferences]. Each key
+     * corresponds to a typed config data class; the importer reverses the
+     * mapping by reading sub-keys and calling the matching `set*` method.
+     * Whole-object Gson dump (mirrors [exportNdConfig]) so new fields on any
+     * config data class flow through automatically.
+     */
+    private suspend fun exportAdvancedTuningConfig(): JsonObject = JsonObject().apply {
+        val p = advancedTuningPreferences
+        add("urgencyBands", gson.toJsonTree(p.getUrgencyBands().first()))
+        add("urgencyWindows", gson.toJsonTree(p.getUrgencyWindows().first()))
+        add("burnoutWeights", gson.toJsonTree(p.getBurnoutWeights().first()))
+        add("productivityWeights", gson.toJsonTree(p.getProductivityWeights().first()))
+        add("moodCorrelation", gson.toJsonTree(p.getMoodCorrelationConfig().first()))
+        add("refillUrgency", gson.toJsonTree(p.getRefillUrgencyConfig().first()))
+        add("energyPomodoro", gson.toJsonTree(p.getEnergyPomodoroConfig().first()))
+        add("goodEnoughTimer", gson.toJsonTree(p.getGoodEnoughTimerConfig().first()))
+        add("suggestion", gson.toJsonTree(p.getSuggestionConfig().first()))
+        add("extractor", gson.toJsonTree(p.getExtractorConfig().first()))
+        add("smartDefaults", gson.toJsonTree(p.getSmartDefaultsConfig().first()))
+        add("morningCheckInCutoff", gson.toJsonTree(p.getMorningCheckInPromptCutoff().first()))
+        add("lifeCategoryKeywords", gson.toJsonTree(p.getLifeCategoryCustomKeywords().first()))
+        add("weeklySummary", gson.toJsonTree(p.getWeeklySummarySchedule().first()))
+        add("reengagement", gson.toJsonTree(p.getReengagementConfig().first()))
+        add("overloadCheck", gson.toJsonTree(p.getOverloadCheckSchedule().first()))
+        add("batchUndo", gson.toJsonTree(p.getBatchUndoConfig().first()))
+        add("habitReminderFallback", gson.toJsonTree(p.getHabitReminderFallback().first()))
+        add("apiNetwork", gson.toJsonTree(p.getApiNetworkConfig().first()))
+        add("widgetRefresh", gson.toJsonTree(p.getWidgetRefreshConfig().first()))
+        add("productivityWidget", gson.toJsonTree(p.getProductivityWidgetThresholds().first()))
+        add("editorFieldRows", gson.toJsonTree(p.getEditorFieldRows().first()))
+        add("quickAddRows", gson.toJsonTree(p.getQuickAddRows().first()))
+        add("searchPreview", gson.toJsonTree(p.getSearchPreview().first()))
+        add("selfCareTierDefaults", gson.toJsonTree(p.getSelfCareTierDefaults().first()))
     }
 
     private suspend fun exportAttachments(): JsonArray {
