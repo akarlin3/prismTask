@@ -50,7 +50,7 @@ object WidgetConfigDataStore {
                 maxTasks = prefs[intPreferencesKey("widget_${appWidgetId}_max_tasks")]?.coerceIn(MAX_TASKS_RANGE) ?: 5,
                 showOverdueBadge = prefs[booleanPreferencesKey("widget_${appWidgetId}_show_overdue_badge")] ?: true,
                 backgroundOpacityPercent = prefs[intPreferencesKey("widget_${appWidgetId}_bg_opacity")]
-                    ?.coerceIn(60, 100) ?: 100
+                    ?.coerceIn(OPACITY_RANGE) ?: 100
             )
         }
 
@@ -61,33 +61,63 @@ object WidgetConfigDataStore {
             prefs[booleanPreferencesKey("widget_${appWidgetId}_show_habit_summary")] = config.showHabitSummary
             prefs[intPreferencesKey("widget_${appWidgetId}_max_tasks")] = config.maxTasks.coerceIn(MAX_TASKS_RANGE)
             prefs[booleanPreferencesKey("widget_${appWidgetId}_show_overdue_badge")] = config.showOverdueBadge
-            prefs[intPreferencesKey("widget_${appWidgetId}_bg_opacity")] = config.backgroundOpacityPercent.coerceIn(60, 100)
+            prefs[intPreferencesKey("widget_${appWidgetId}_bg_opacity")] =
+                config.backgroundOpacityPercent.coerceIn(OPACITY_RANGE)
         }
     }
+
+    // ---- Inbox widget ----
+    data class InboxConfig(
+        val maxItems: Int = 5
+    )
+
+    fun inboxConfigFlow(context: Context, appWidgetId: Int): Flow<InboxConfig> =
+        context.widgetConfigDataStore.data.map { prefs ->
+            InboxConfig(
+                maxItems = prefs[intPreferencesKey("widget_${appWidgetId}_inbox_max_items")]
+                    ?.coerceIn(INBOX_MAX_RANGE) ?: 5
+            )
+        }
+
+    suspend fun setInboxConfig(context: Context, appWidgetId: Int, config: InboxConfig) {
+        context.widgetConfigDataStore.edit { prefs ->
+            prefs[intPreferencesKey("widget_${appWidgetId}_inbox_max_items")] =
+                config.maxItems.coerceIn(INBOX_MAX_RANGE)
+        }
+    }
+
+    suspend fun snapshotInboxConfig(context: Context, appWidgetId: Int): InboxConfig =
+        inboxConfigFlow(context, appWidgetId).first()
 
     // ---- Habit streak widget ----
     data class HabitStreakConfig(
         val selectedHabitIds: List<Long> = emptyList(),
         val showStreakCount: Boolean = true,
-        val layoutGrid: Boolean = false
+        val layoutGrid: Boolean = false,
+        val maxItems: Int = 6
     )
 
     fun habitStreakConfigFlow(context: Context, appWidgetId: Int): Flow<HabitStreakConfig> =
         context.widgetConfigDataStore.data.map { prefs ->
+            val cap = prefs[intPreferencesKey("widget_${appWidgetId}_habit_max_items")]
+                ?.coerceIn(HABIT_STREAK_MAX_RANGE) ?: 6
             val csv = prefs[stringPreferencesKey("widget_${appWidgetId}_habit_ids")] ?: ""
             HabitStreakConfig(
-                selectedHabitIds = csv.split(",").mapNotNull { it.trim().toLongOrNull() }.take(6),
+                selectedHabitIds = csv.split(",").mapNotNull { it.trim().toLongOrNull() }.take(cap),
                 showStreakCount = prefs[booleanPreferencesKey("widget_${appWidgetId}_show_streak_count")] ?: true,
-                layoutGrid = prefs[booleanPreferencesKey("widget_${appWidgetId}_layout_grid")] ?: false
+                layoutGrid = prefs[booleanPreferencesKey("widget_${appWidgetId}_layout_grid")] ?: false,
+                maxItems = cap
             )
         }
 
     suspend fun setHabitStreakConfig(context: Context, appWidgetId: Int, config: HabitStreakConfig) {
+        val cap = config.maxItems.coerceIn(HABIT_STREAK_MAX_RANGE)
         context.widgetConfigDataStore.edit { prefs ->
             prefs[stringPreferencesKey("widget_${appWidgetId}_habit_ids")] =
-                config.selectedHabitIds.take(6).joinToString(",")
+                config.selectedHabitIds.take(cap).joinToString(",")
             prefs[booleanPreferencesKey("widget_${appWidgetId}_show_streak_count")] = config.showStreakCount
             prefs[booleanPreferencesKey("widget_${appWidgetId}_layout_grid")] = config.layoutGrid
+            prefs[intPreferencesKey("widget_${appWidgetId}_habit_max_items")] = cap
         }
     }
 
@@ -156,6 +186,19 @@ object WidgetConfigDataStore {
         quickAddConfigFlow(context, appWidgetId).first()
 
     private val MAX_TASKS_RANGE = 1..20
+
+    /**
+     * Lowered from `60..100` (D3): high-contrast wallpaper users may want
+     * a fully transparent widget. Coerced bottom is now 0; the widget's
+     * empty-state strip stays readable below ~30% in practice.
+     */
+    private val OPACITY_RANGE = 0..100
+
+    /** D2 — inbox widget item cap (small ≈ 3, max 12 for tablet rows). */
+    private val INBOX_MAX_RANGE = 1..12
+
+    /** D5 — habit-streak widget item cap (default 6, up to 12 for large widgets). */
+    private val HABIT_STREAK_MAX_RANGE = 1..12
 }
 
 private val cleanupScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
