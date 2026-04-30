@@ -98,3 +98,35 @@ open question for handoff).
 - `MedicationScreen` (which also has no back button) is intentionally tab-
   hosted from `MainTabs` (`NavGraph.kt:566-567`) — back button would be
   wrong there. Confirms the per-screen judgment matters.
+
+---
+
+## Phase 3 — Bundle summary
+
+- **PR #1011** — `fix(leisure): add back button to Leisure screen toolbar`
+  (branch `fix/leisure-back-button`, worktree
+  `/Users/averykarlin/prismTask-leisure-back-btn`).
+  - Touches: `app/.../ui/screens/leisure/LeisureScreen.kt` (one
+    `navigationIcon` slot + one import for `ArrowBack`) plus this audit
+    doc. Net: 2 files, 110 insertions, 0 deletions.
+  - Mirrors `SelfCareScreen.kt:106-110` exactly so the affordance matches
+    the rest of the life-mode cluster.
+- **Auto-merge intentionally NOT enabled.** `origin/main` is currently red
+  on Android CI: `TaskListItemScopes.kt` has unresolved references
+  (`drawRoundRect`, `toPx`, `detectTapGestures`, `startTransfer`)
+  introduced by `7d928cb0` (refactor partial — Card/Button/Chip callsite
+  migration). Same failure reproduces locally on a fresh worktree off
+  `origin/main`. The required Android CI check therefore can't pass
+  until main is fixed — auto-merge would just sit blocked. Re-evaluate
+  once main is green.
+- **No measured-impact follow-ups bundled here.** Schoolwork has the same
+  back-button gap (flagged in anti-patterns above) but is **explicitly
+  out of scope** since the user named only Leisure. Worth its own
+  one-paragraph audit if the user wants the sweep — call out as an open
+  question for handoff.
+- **Memory entry candidates.** Nothing surprising. The "feature routes
+  hide the bottom nav" rule is documented in this audit and visible in
+  `NavGraph.kt:361`; not worth a memory entry.
+- **Schedule for next audit.** No follow-up needed. If the user later
+  asks for a sweep across all life-mode screens, that warrants a fresh
+  audit — keep this one scoped to its single deliverable.
