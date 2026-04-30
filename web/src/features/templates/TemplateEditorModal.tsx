@@ -71,6 +71,7 @@ export function TemplateEditorModal({
 
   useEffect(() => {
     if (template) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- form-init: seed editor buffer from template prop on open
       setName(template.name);
       setDescription(template.description || '');
       setIcon(template.icon || '📋');

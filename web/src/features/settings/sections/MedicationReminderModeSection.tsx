@@ -40,6 +40,7 @@ export function MedicationReminderModeSection() {
 
   useEffect(() => {
     if (!uid) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- data-fetch effect: nothing to load when uid is missing
       setLoading(false);
       return;
     }
@@ -190,6 +191,7 @@ function IntervalPicker({
 
   // Keep the custom field in sync if the parent changes (e.g. preset click).
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- form-init: edit-buffer resync from parent's persisted value
     setCustomText(currentMinutes.toString());
   }, [currentMinutes]);
 

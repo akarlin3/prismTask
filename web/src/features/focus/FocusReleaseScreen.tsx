@@ -66,6 +66,7 @@ export function FocusReleaseScreen() {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- data-fetch effect: load history on mount
     loadHistory();
   }, [loadHistory]);
 

@@ -68,6 +68,7 @@ export function ArchiveScreen() {
   }, [fetchAllProjects]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- data-fetch effect: load archived items on mount
     fetchArchived();
   }, [fetchArchived]);
 

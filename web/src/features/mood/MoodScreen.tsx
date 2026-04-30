@@ -65,6 +65,7 @@ export function MoodScreen() {
   }, [start, end]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- data-fetch effect: load mood logs on mount and when range changes
     load();
   }, [load]);
 

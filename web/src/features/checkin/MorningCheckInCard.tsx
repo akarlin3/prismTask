@@ -48,6 +48,7 @@ export function MorningCheckInCard() {
   }, [todayIso]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- data-fetch effect: load check-in state on mount and when card visibility changes
     if (show) load();
   }, [show, load]);
 
@@ -134,6 +135,7 @@ function CheckInModal({
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- form-init: re-seed edit-buffer state from `initial` prop when the modal opens or the persisted record changes
     setSteps(initial?.steps_completed_csv ?? '');
     setMeds(initial?.medications_confirmed ?? false);
     setTasks(initial?.tasks_reviewed ?? false);

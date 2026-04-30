@@ -57,6 +57,7 @@ export function MedicationSlotEditor() {
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- data-fetch effect: load slot defs on mount and when uid changes
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [uid]);
@@ -285,6 +286,7 @@ function SlotReminderModeRow({
 
   // Resync the custom field when the parent updates the persisted value.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- form-init: edit-buffer resync from parent's persisted minutes value
     setCustomText(minutes.toString());
   }, [minutes]);
 

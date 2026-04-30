@@ -73,11 +73,13 @@ export function ProjectDetailScreen() {
   }, [projectId, fetchProject]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- data-fetch effect: load project detail on mount and when projectId changes
     loadData();
   }, [loadData]);
 
   useEffect(() => {
     if (project) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- form-init: seed editor buffer from loaded project (fetched async, can't initialize useState)
       setEditTitle(project.title);
       setEditDescription(project.description || '');
       setEditStatus(project.status);

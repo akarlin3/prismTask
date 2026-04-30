@@ -117,6 +117,7 @@ export function PomodoroScreen() {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- data-fetch effect: load tasks on mount
     loadTasks();
   }, [loadTasks]);
 

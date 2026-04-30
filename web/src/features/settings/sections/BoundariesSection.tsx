@@ -51,6 +51,7 @@ export function BoundariesSection() {
 
   useEffect(() => {
     if (!uid) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- data-fetch effect: load boundary rules on mount and when uid changes
     setLoading(true);
     getRules(uid)
       .then(setRules)

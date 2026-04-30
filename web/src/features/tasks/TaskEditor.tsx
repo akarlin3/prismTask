@@ -190,6 +190,7 @@ export default function TaskEditor({
   // Initialize form from task
   useEffect(() => {
     if (isCreate) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- form-init: seed editor state from task / reset on create-mode toggle (parent passes value via prop)
       setTitle('');
       setDescription('');
       setPriority(3);
@@ -242,6 +243,28 @@ export default function TaskEditor({
     }
   }, [task, isCreate, defaultProjectId]);
 
+  // Auto-save debounced (edit mode only)
+  const autoSave = useCallback(
+    (data: TaskUpdate) => {
+      if (isCreate || !task) return;
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = setTimeout(async () => {
+        setSaving(true);
+        try {
+          await updateTask(task.id, data);
+          setSaved(true);
+          setTimeout(() => setSaved(false), 2000);
+          onUpdate?.();
+        } catch {
+          toast.error('Failed to save changes');
+        } finally {
+          setSaving(false);
+        }
+      }, 1000);
+    },
+    [isCreate, task, updateTask, onUpdate],
+  );
+
   // Persist recurrence changes via auto-save. Rebuilds the JSON blob any
   // time any recurrence-related control moves so the saved shape stays
   // in sync with what the user sees.
@@ -280,28 +303,6 @@ export default function TaskEditor({
     recurrenceEndAfter,
     recurrenceEndDate,
   ]);
-
-  // Auto-save debounced (edit mode only)
-  const autoSave = useCallback(
-    (data: TaskUpdate) => {
-      if (isCreate || !task) return;
-      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-      saveTimerRef.current = setTimeout(async () => {
-        setSaving(true);
-        try {
-          await updateTask(task.id, data);
-          setSaved(true);
-          setTimeout(() => setSaved(false), 2000);
-          onUpdate?.();
-        } catch {
-          toast.error('Failed to save changes');
-        } finally {
-          setSaving(false);
-        }
-      }, 1000);
-    },
-    [isCreate, task, updateTask, onUpdate],
-  );
 
   useEffect(() => {
     return () => {

@@ -95,6 +95,7 @@ export function MedicationSlotList() {
   }, [date]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- data-fetch effect: load slots on mount and when date changes
     loadSlots();
   }, [loadSlots]);
 

@@ -164,6 +164,7 @@ export function AnalyticsScreen() {
   }, [isPro, dateParams, groupBy]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- data-fetch effect: load analytics on mount and when filters change
     loadAll();
   }, [loadAll]);
 

@@ -154,6 +154,7 @@ export function TaskListScreen() {
   }, [fetchAllProjects, fetchTags]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- data-fetch effect: load tasks/projects/tags on mount
     loadData();
   }, [loadData]);
 
@@ -181,6 +182,7 @@ export function TaskListScreen() {
   useEffect(() => {
     if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
     if (!searchQuery.trim()) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- data-fetch reset: clear stale results when search query empties
       setSearchResults(null);
       return;
     }

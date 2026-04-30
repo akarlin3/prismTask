@@ -62,6 +62,7 @@ export function PomodoroCoachPanel(props: PomodoroCoachPanelProps) {
   // Clear the message when the trigger switches (phase change) so we
   // don't show a stale tip from a prior phase.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- modal-open reset: clear stale tip when pomodoro phase trigger switches
     setMessage(null);
     setDismissed(false);
   }, [trigger]);

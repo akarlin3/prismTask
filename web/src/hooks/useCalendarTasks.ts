@@ -40,6 +40,7 @@ export function useCalendarTasks(startDate: Date, endDate: Date) {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- data-fetch effect: load calendar tasks on mount
     fetchTasks();
   }, [fetchTasks]);
 

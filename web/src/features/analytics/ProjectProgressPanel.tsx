@@ -50,6 +50,7 @@ export function ProjectProgressPanel({ startIso, endIso }: ProjectProgressPanelP
   // Default to the first available project once the list loads.
   useEffect(() => {
     if (!selectedProjectId && projects.length > 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- form-init: pick first project as default once async list arrives
       setSelectedProjectId(projects[0].id);
     }
   }, [projects, selectedProjectId]);
@@ -87,6 +88,7 @@ export function ProjectProgressPanel({ startIso, endIso }: ProjectProgressPanelP
   }, [selectedProject, startIso, endIso]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- data-fetch effect: load burndown on mount and when scope changes
     load();
   }, [load]);
 

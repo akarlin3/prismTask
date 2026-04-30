@@ -26,6 +26,7 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
   // Focus input on open
   useEffect(() => {
     if (isOpen) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- modal-open reset: clearing buffered query/results when modal toggles open
       setQuery('');
       setResults([]);
       setHighlightIndex(0);
@@ -59,6 +60,7 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
   useEffect(() => {
     if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
     if (!query.trim()) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- data-fetch reset: clearing previous async results when query becomes empty
       setResults([]);
       return;
     }

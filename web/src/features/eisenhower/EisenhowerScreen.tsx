@@ -383,6 +383,7 @@ export function EisenhowerScreen() {
   }, [fetchAllProjects]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- data-fetch effect: load tasks/projects on mount
     loadData();
   }, [loadData]);
 

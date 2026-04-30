@@ -209,7 +209,7 @@ export function TodayScreen() {
       setSelectedTask(task);
       setEditorOpen(true);
     },
-    [setSelectedTask],
+    [setSelectedTask, setEditorOpen],
   );
 
   // Filter out pending completions from active task lists

@@ -283,10 +283,12 @@ export function DebugLogsPanel() {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- data-fetch effect: load logs on mount and when filters change
     fetchLogs();
   }, [fetchLogs]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- data-fetch effect: load stats on mount
     fetchStats();
   }, [fetchStats]);
 

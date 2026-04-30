@@ -72,6 +72,7 @@ export function DailyBriefingScreen() {
   // where the briefing card populates in the background on Today.
   useEffect(() => {
     if (isPro && !briefing && !loading) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- data-fetch effect: auto-generate briefing once on mount for Pro users
       generate();
     }
     // Intentionally omitting deps: we only want the initial auto-generate,
