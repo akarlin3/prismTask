@@ -1,12 +1,9 @@
 #!/bin/sh
-REPO_ROOT=$(git rev-parse --show-toplevel)
-SRC_DIR="$REPO_ROOT/scripts/hooks"
-DST_DIR="$REPO_ROOT/.git/hooks"
-
-for hook in pre-push post-commit; do
-  if [ -f "$SRC_DIR/$hook" ]; then
-    cp "$SRC_DIR/$hook" "$DST_DIR/$hook"
-    chmod +x "$DST_DIR/$hook"
-    echo "Installed: $hook"
-  fi
-done
+# Point git at the version-controlled hooks directory. Idempotent —
+# rerunning is a no-op, and edits to scripts/hooks/* take effect on the
+# next git command without a re-install (was a copy-on-install before;
+# see CI_AUDIT_2026-04-30 F2).
+set -e
+git config core.hooksPath scripts/hooks
+echo "Configured core.hooksPath = scripts/hooks"
+echo "Active hooks: pre-push, post-commit"

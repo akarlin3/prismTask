@@ -1,23 +1,8 @@
-$repoRoot = git rev-parse --show-toplevel
-$srcDir = Join-Path $repoRoot "scripts\hooks"
-$dstDir = Join-Path $repoRoot ".git\hooks"
-
-if (-not (Test-Path $dstDir)) {
-  Write-Error "Not a git repository or .git/hooks missing"
-  exit 1
-}
-
-$hooks = @("pre-push", "post-commit")
-foreach ($hook in $hooks) {
-  $src = Join-Path $srcDir $hook
-  $dst = Join-Path $dstDir $hook
-  if (-not (Test-Path $src)) {
-    Write-Warning "Source hook not found: $src"
-    continue
-  }
-  Copy-Item -Path $src -Destination $dst -Force
-  Write-Host "Installed: $hook"
-}
-
-Write-Host ""
-Write-Host "Hooks installed. Test with: git commit --allow-empty -m 'test hook'"
+# Point git at the version-controlled hooks directory. Idempotent —
+# rerunning is a no-op, and edits to scripts/hooks/* take effect on the
+# next git command without a re-install (was a copy-on-install before;
+# see CI_AUDIT_2026-04-30 F2).
+$ErrorActionPreference = "Stop"
+git config core.hooksPath scripts/hooks
+Write-Host "Configured core.hooksPath = scripts/hooks"
+Write-Host "Active hooks: pre-push, post-commit"
