@@ -3,6 +3,7 @@ package com.averycorp.prismtask.ui.screens.addedittask
 import androidx.lifecycle.SavedStateHandle
 import com.averycorp.prismtask.data.local.entity.TaskEntity
 import com.averycorp.prismtask.data.preferences.NotificationPreferences
+import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
 import com.averycorp.prismtask.data.preferences.UserPreferencesDataStore
 import com.averycorp.prismtask.data.repository.AttachmentRepository
 import com.averycorp.prismtask.data.repository.BoundaryRuleRepository
@@ -48,6 +49,7 @@ class AddEditTaskViewModelTest {
     private lateinit var boundaryRuleRepository: BoundaryRuleRepository
     private lateinit var notificationPreferences: NotificationPreferences
     private lateinit var userPreferencesDataStore: UserPreferencesDataStore
+    private lateinit var taskBehaviorPreferences: TaskBehaviorPreferences
     private lateinit var savedStateHandle: SavedStateHandle
 
     @Before
@@ -63,6 +65,10 @@ class AddEditTaskViewModelTest {
         boundaryRuleRepository = mockk(relaxed = true)
         notificationPreferences = mockk(relaxed = true)
         userPreferencesDataStore = mockk(relaxed = true)
+        taskBehaviorPreferences = mockk(relaxed = true)
+        coEvery { taskBehaviorPreferences.getReminderPresets() } returns flowOf(
+            listOf(0L, 900_000L, 1_800_000L, 3_600_000L, 86_400_000L)
+        )
         savedStateHandle = SavedStateHandle()
 
         // Default StateFlow seeds so the VM init doesn't crash on relaxed mocks.
@@ -90,6 +96,7 @@ class AddEditTaskViewModelTest {
         boundaryRuleRepository,
         notificationPreferences,
         userPreferencesDataStore,
+        taskBehaviorPreferences,
         savedStateHandle
     )
 

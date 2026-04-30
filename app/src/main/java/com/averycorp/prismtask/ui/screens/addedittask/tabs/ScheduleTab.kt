@@ -398,8 +398,10 @@ internal fun ScheduleTabContent(viewModel: AddEditTaskViewModel) {
 
     // Reminder picker dialog
     if (showReminderDialog) {
+        val reminderPresets by viewModel.reminderPresets.collectAsState()
         ReminderPickerDialog(
             currentOffset = viewModel.reminderOffset,
+            presets = reminderPresets,
             onSelect = { offset ->
                 viewModel.onReminderOffsetChange(offset)
                 showReminderDialog = false

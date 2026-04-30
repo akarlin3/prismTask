@@ -146,21 +146,29 @@ jobs:
           #   (a) Cap dropped 30 → 18 attempts at 5s interval = 90s ceiling
           #       (still > 2× the 43s race window from PR #804).
           #   (b) Poll interval dropped 10s → 5s for faster detection.
-          #   (c) Per-iteration diagnostic prints MISSING + visible CHECK_RUNS
-          #       so future investigation can pinpoint the matching mismatch
-          #       (the immediate root-cause was not yet identified — the
-          #       MISSING list never empties even though CHECK_RUNS clearly
-          #       contains every REQUIRED name. Likely a trim/encoding edge
-          #       case in the comparison loop, but observability beats
-          #       guessing).
+          #   (c) Per-iteration diagnostic prints MISSING + visible CHECK_RUNS.
+          #       Audit F4 from CI_AUDIT_2026-04-30: the historic
+          #       MISSING-never-empties symptom traced to a trim/encoding
+          #       mismatch — `echo "$req" | xargs` left stray \r intact on
+          #       some runners (gh api JSON value CRLF), so `grep -qxF`
+          #       failed to match REQUIRED entries against CHECK_RUNS even
+          #       when the human-readable strings looked identical. Fix:
+          #       (1) trim with `tr -d '\r' | sed` instead of xargs so \r
+          #       is removed, (2) feed the haystack via `printf '%s\n'`
+          #       instead of `echo` so it emits exactly one trailing
+          #       newline regardless of `echo` flavor, and (3) on the
+          #       final warning, hex-dump REQUIRED + CHECK_RUNS so a
+          #       future regression has byte-level evidence on hand
+          #       without another round-trip.
           for attempt in $(seq 1 18); do
             CHECK_RUNS=$(gh api --paginate "repos/$REPO/commits/$HEAD_SHA/check-runs" \
               --jq '.check_runs[].name' | sort -u)
             MISSING=""
             while IFS= read -r req; do
               [ -z "$req" ] && continue
-              req_trimmed=$(echo "$req" | xargs)
-              if ! echo "$CHECK_RUNS" | grep -qxF "$req_trimmed"; then
+              req_trimmed=$(printf '%s' "$req" | tr -d '\r' | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')
+              [ -z "$req_trimmed" ] && continue
+              if ! printf '%s\n' "$CHECK_RUNS" | grep -Fxq -- "$req_trimmed"; then
                 MISSING="$MISSING $req_trimmed"
               fi
             done <<< "$REQUIRED"
@@ -169,10 +177,16 @@ jobs:
               exit 0
             fi
             echo "Attempt $attempt/18 — still missing:$MISSING"
-            echo "  Visible check-runs: $(echo "$CHECK_RUNS" | tr '\n' ',' | sed 's/,$//')"
+            echo "  Visible check-runs: $(printf '%s' "$CHECK_RUNS" | tr '\n' ',' | sed 's/,$//')"
             sleep 5
           done
           echo "::warning::Some required checks never queued after 90s:$MISSING — proceeding to wait-on-check-action anyway."
+          echo "::group::Diagnostic dump (REQUIRED vs CHECK_RUNS, hex — audit F4)"
+          echo "REQUIRED:"
+          printf '%s' "$REQUIRED" | xxd | head -20
+          echo "CHECK_RUNS:"
+          printf '%s' "$CHECK_RUNS" | xxd | head -20
+          echo "::endgroup::"
 
       - name: Wait for all other CI checks to pass
         if: steps.ci_check.outputs.has_ci == 'true'
