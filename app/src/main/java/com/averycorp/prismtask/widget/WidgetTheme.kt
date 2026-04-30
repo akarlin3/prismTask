@@ -81,11 +81,16 @@ data class WidgetThemePalette(
     val timerStop: ColorProvider,
     // Calendar
     val calendarEvent: ColorProvider,
-    // Eisenhower quadrants
+    // Eisenhower quadrants — foreground accent + 10% tinted background
+    // matching the `hexA(color, 0.10)` cell fill in the JSX widget mockup.
     val quadrantQ1: ColorProvider,
     val quadrantQ2: ColorProvider,
     val quadrantQ3: ColorProvider,
     val quadrantQ4: ColorProvider,
+    val quadrantQ1Bg: ColorProvider,
+    val quadrantQ2Bg: ColorProvider,
+    val quadrantQ3Bg: ColorProvider,
+    val quadrantQ4Bg: ColorProvider,
     // Semantic accents (used by Inbox / Medication / Sparkline widgets)
     val infoColor: ColorProvider,
     val warningColor: ColorProvider,
@@ -162,6 +167,10 @@ fun widgetThemePalette(theme: PrismTheme): WidgetThemePalette {
         quadrantQ2 = ColorProvider(c.quadrantQ2),
         quadrantQ3 = ColorProvider(c.quadrantQ3),
         quadrantQ4 = ColorProvider(c.quadrantQ4),
+        quadrantQ1Bg = ColorProvider(c.quadrantQ1.copy(alpha = 0.10f)),
+        quadrantQ2Bg = ColorProvider(c.quadrantQ2.copy(alpha = 0.10f)),
+        quadrantQ3Bg = ColorProvider(c.quadrantQ3.copy(alpha = 0.10f)),
+        quadrantQ4Bg = ColorProvider(c.quadrantQ4.copy(alpha = 0.10f)),
         infoColor = ColorProvider(c.infoColor),
         warningColor = ColorProvider(c.warningColor),
         successColor = ColorProvider(c.successColor),

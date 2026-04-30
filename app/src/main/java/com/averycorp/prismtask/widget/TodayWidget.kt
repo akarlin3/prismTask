@@ -103,7 +103,7 @@ private fun TodayWidgetContent(
                     Text(text = todayLabel, style = WidgetTextStyles.caption(palette.onSurfaceVariant))
                 }
             }
-            ScoreBadge(score = data.productivityScore, palette = palette)
+            ScoreBadge(score = data.productivityScore, palette = palette, sizeDp = if (isSmall) 30 else 34)
         }
         if (isSmall) {
             Spacer(modifier = GlanceModifier.height(8.dp))
@@ -272,7 +272,7 @@ private fun smartDateLabel(dueDate: Long, isOverdue: Boolean): String {
 }
 
 @Composable
-private fun ScoreBadge(score: Int, palette: WidgetThemePalette) {
+private fun ScoreBadge(score: Int, palette: WidgetThemePalette, sizeDp: Int = 34) {
     val bgColor = when {
         score >= 80 -> palette.scoreGreenBg
         score >= 60 -> palette.scoreOrangeBg
@@ -283,13 +283,19 @@ private fun ScoreBadge(score: Int, palette: WidgetThemePalette) {
         score >= 60 -> palette.scoreOrange
         else -> palette.scoreRed
     }
+    // Mockup ScoreBadge: fontSize = size * 0.38 (≈ 12.92sp at 34dp, ≈ 11.4sp at 30dp).
+    val fontSizeSp = (sizeDp * 0.38f).coerceAtLeast(10f)
     Box(
-        modifier = GlanceModifier.size(36.dp).cornerRadius(18.dp).background(bgColor),
+        modifier = GlanceModifier.size(sizeDp.dp).cornerRadius((sizeDp / 2).dp).background(bgColor),
         contentAlignment = Alignment.Center
     ) {
         Text(
             text = score.toString(),
-            style = WidgetTextStyles.bodyBold(textColor)
+            style = TextStyle(
+                fontSize = fontSizeSp.sp,
+                fontWeight = FontWeight.Bold,
+                color = textColor
+            )
         )
     }
 }

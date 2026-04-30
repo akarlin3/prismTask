@@ -122,7 +122,7 @@ private fun CalendarContent(
                 modifier = GlanceModifier.defaultWeight()
             )
             Text(
-                text = "${data.today.size} tasks, ${calendarEvents.size} events",
+                text = "${data.today.size} tasks · ${calendarEvents.size} events",
                 style = WidgetTextStyles.badge(palette.onSurfaceVariant)
             )
         }

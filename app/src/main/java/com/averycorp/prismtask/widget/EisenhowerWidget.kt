@@ -62,6 +62,7 @@ private data class Quad(
     val label: String,
     val count: Int,
     val color: ColorProvider,
+    val bgColor: ColorProvider,
     val top: String
 )
 
@@ -72,10 +73,10 @@ private fun EisenhowerContent(context: Context, size: DpSize, palette: WidgetThe
     // follow-up. Headlines mirror the design mockup so the widget renders
     // recognizably even before data is plumbed.
     val quads = listOf(
-        Quad("Q1", "Do", 3, palette.quadrantQ1, "Pay parking ticket"),
-        Quad("Q2", "Schedule", 5, palette.quadrantQ2, "Sketch onboarding flow"),
-        Quad("Q3", "Delegate", 2, palette.quadrantQ3, "Reply to design crit"),
-        Quad("Q4", "Drop", 4, palette.quadrantQ4, "News scroll session")
+        Quad("Q1", "Do", 3, palette.quadrantQ1, palette.quadrantQ1Bg, "Pay parking ticket"),
+        Quad("Q2", "Schedule", 5, palette.quadrantQ2, palette.quadrantQ2Bg, "Sketch onboarding flow"),
+        Quad("Q3", "Delegate", 2, palette.quadrantQ3, palette.quadrantQ3Bg, "Reply to design crit"),
+        Quad("Q4", "Drop", 4, palette.quadrantQ4, palette.quadrantQ4Bg, "News scroll session")
     )
     val total = quads.sumOf { it.count }
     val openMatrix = Intent(context, MainActivity::class.java).apply {
@@ -125,7 +126,7 @@ private fun QuadCell(q: Quad, palette: WidgetThemePalette, compact: Boolean, mod
     Box(
         modifier = modifier
             .cornerRadius(8.dp)
-            .background(palette.surfaceVariant)
+            .background(q.bgColor)
             .padding(if (compact) 6.dp else 8.dp)
     ) {
         Column {
