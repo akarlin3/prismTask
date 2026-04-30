@@ -6,6 +6,7 @@ import android.content.Intent
 import android.util.Log
 import com.averycorp.prismtask.data.local.dao.HabitDao
 import com.averycorp.prismtask.data.local.dao.MedicationDao
+import com.averycorp.prismtask.data.local.dao.MedicationSlotDao
 import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.CoroutineScope
@@ -21,12 +22,20 @@ import kotlinx.coroutines.launch
  * (pre v1.4 medication-top-level refactor). Still active — habits and
  * the transitional `MedicationPreferences.specificTimes` flow both use it.
  *
- * **New (medication) path** — intent carries a `"medicationId"` extra. Fires
- * for alarms scheduled by the v1.4+ [MedicationReminderScheduler] that
- * operates on [com.averycorp.prismtask.data.local.entity.MedicationEntity].
+ * **Medication path** — intent carries a `"medicationId"` extra. Fires for
+ * alarms scheduled by the v1.4+ [MedicationReminderScheduler] that operates
+ * on [com.averycorp.prismtask.data.local.entity.MedicationEntity].
  *
- * Dispatch is by extra presence; legacy and new alarms coexist during the
- * 2-week convergence window so existing PendingIntents don't get orphaned.
+ * **Slot-interval path** — intent carries an `"intervalSlotId"` extra and
+ * `medicationId == -1L`. Fires for INTERVAL-mode slot alarms registered by
+ * [MedicationIntervalRescheduler.registerAlarmForSlot]. Re-anchoring is
+ * handled by the rescheduler's dose-change Flow observer; this branch only
+ * surfaces the notification.
+ *
+ * Dispatch order is deliberate: medication > slot-interval > habit. The
+ * interval rescheduler's per-medication-override path uses the medication
+ * branch (it puts a real `medicationId`); only its per-slot path uses the
+ * slot-interval branch.
  */
 class MedicationReminderReceiver : BroadcastReceiver() {
     @dagger.hilt.EntryPoint
@@ -39,10 +48,13 @@ class MedicationReminderReceiver : BroadcastReceiver() {
         fun habitDao(): HabitDao
 
         fun medicationDao(): MedicationDao
+
+        fun medicationSlotDao(): MedicationSlotDao
     }
 
     override fun onReceive(context: Context, intent: Intent) {
         val medicationId = intent.getLongExtra("medicationId", -1L)
+        val intervalSlotId = intent.getLongExtra("intervalSlotId", -1L)
         val habitId = intent.getLongExtra("habitId", -1L)
 
         val entryPoint = EntryPointAccessors.fromApplication(
@@ -54,18 +66,24 @@ class MedicationReminderReceiver : BroadcastReceiver() {
         val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
         scope.launch {
             try {
-                when {
-                    medicationId >= 0 -> handleMedicationAlarm(context, intent, entryPoint, medicationId)
-                    habitId >= 0 -> handleHabitAlarm(context, intent, entryPoint, habitId)
-                    else -> Log.w(
+                when (val kind = classifyAlarm(medicationId, intervalSlotId, habitId)) {
+                    is AlarmKind.Medication ->
+                        handleMedicationAlarm(context, intent, entryPoint, kind.medicationId)
+                    is AlarmKind.SlotInterval ->
+                        handleSlotIntervalAlarm(context, entryPoint, kind.slotId)
+                    is AlarmKind.Habit ->
+                        handleHabitAlarm(context, intent, entryPoint, kind.habitId)
+                    AlarmKind.Unknown -> Log.w(
                         "MedReminderReceiver",
-                        "Alarm fired with neither habitId nor medicationId extra"
+                        "Alarm fired with no recognised id extra " +
+                            "(medId=$medicationId slotId=$intervalSlotId habitId=$habitId)"
                     )
                 }
             } catch (e: Exception) {
                 Log.e(
                     "MedReminderReceiver",
-                    "Failed to process alarm medId=$medicationId habitId=$habitId",
+                    "Failed to process alarm " +
+                        "medId=$medicationId slotId=$intervalSlotId habitId=$habitId",
                     e
                 )
             } finally {
@@ -149,5 +167,53 @@ class MedicationReminderReceiver : BroadcastReceiver() {
             0,
             1
         )
+    }
+
+    private suspend fun handleSlotIntervalAlarm(
+        context: Context,
+        entryPoint: MedReminderEntryPoint,
+        slotId: Long
+    ) {
+        val slot = entryPoint.medicationSlotDao().getByIdOnce(slotId)
+        if (slot == null || !slot.isActive) return
+
+        // No self-re-register: MedicationIntervalRescheduler observes
+        // medicationDoseDao.observeMostRecentDoseAny() and re-anchors the
+        // chain whenever a dose lands. The notification's "Log" tap is
+        // what produces that next emission.
+        NotificationHelper.showSlotIntervalReminder(
+            context = context,
+            slotId = slotId,
+            slotName = slot.name
+        )
+    }
+
+    companion object {
+        @Suppress("MemberVisibilityCanBePrivate")
+        internal sealed class AlarmKind {
+            data class Medication(val medicationId: Long) : AlarmKind()
+
+            data class SlotInterval(val slotId: Long) : AlarmKind()
+
+            data class Habit(val habitId: Long) : AlarmKind()
+
+            object Unknown : AlarmKind()
+        }
+
+        /**
+         * Pure dispatch helper. Routes by id-extra presence in priority order
+         * so legacy alarms (which set `habitId` only) never get pre-empted by
+         * the newer slot-interval path.
+         */
+        internal fun classifyAlarm(
+            medicationId: Long,
+            intervalSlotId: Long,
+            habitId: Long
+        ): AlarmKind = when {
+            medicationId >= 0 -> AlarmKind.Medication(medicationId)
+            intervalSlotId >= 0 -> AlarmKind.SlotInterval(intervalSlotId)
+            habitId >= 0 -> AlarmKind.Habit(habitId)
+            else -> AlarmKind.Unknown
+        }
     }
 }

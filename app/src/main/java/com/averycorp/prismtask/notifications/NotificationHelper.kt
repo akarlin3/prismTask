@@ -28,6 +28,7 @@ object NotificationHelper {
     private const val BASE_TIMER_CHANNEL_ID = "prismtask_timer_alerts"
     private const val TIMER_CHANNEL_NAME = "Timer Alerts"
     private const val TIMER_NOTIFICATION_ID = 8_001
+    private const val SLOT_NOTIFICATION_OFFSET = 500_000
 
     private const val LEGACY_CHANNEL_ID = "averytask_reminders"
     private const val LEGACY_MED_CHANNEL_ID = "averytask_medication_reminders"
@@ -378,6 +379,51 @@ object NotificationHelper {
 
         val manager = context.getSystemService(NotificationManager::class.java)
         manager.notify(habitId.toInt() + 200_000, builder.build())
+    }
+
+    /**
+     * Notification for an INTERVAL-mode slot reminder fired by
+     * [MedicationIntervalRescheduler]. Notification id offset of `500_000`
+     * matches the rescheduler's request-code namespace and stays clear of
+     * the medication / habit offsets (`200_000`).
+     */
+    suspend fun showSlotIntervalReminder(
+        context: Context,
+        slotId: Long,
+        slotName: String
+    ) {
+        val prefs = NotificationPreferences.from(context)
+        val enabled = prefs.medicationRemindersEnabled.first()
+        if (!enabled) {
+            Log.d("NotificationHelper", "Medication reminders disabled — skipping slot=$slotId")
+            return
+        }
+        createMedicationChannel(context)
+        val style = currentStyle(context)
+        val channelId = channelIdFor(BASE_MED_CHANNEL_ID, style)
+
+        val tapIntent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        val tapPending = PendingIntent.getActivity(
+            context,
+            slotId.toInt() + SLOT_NOTIFICATION_OFFSET,
+            tapIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val builder = NotificationCompat
+            .Builder(context, channelId)
+            .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
+            .setContentTitle("$slotName Medications")
+            .setContentText("Tap to log your $slotName dose.")
+            .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
+            .setAutoCancel(true)
+            .setContentIntent(tapPending)
+        applyStyle(builder, style, tapPending)
+
+        val manager = context.getSystemService(NotificationManager::class.java)
+        manager.notify(slotId.toInt() + SLOT_NOTIFICATION_OFFSET, builder.build())
     }
 
     suspend fun showMedStepReminder(
