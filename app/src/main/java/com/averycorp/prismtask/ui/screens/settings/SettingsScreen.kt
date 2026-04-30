@@ -65,6 +65,7 @@ private val ColNotifications = Color(0xFFFAEEDA)
 private val ColAccessibility = Color(0xFFE1F5EE)
 private val ColDataBackup = Color(0xFFF1EFE8)
 private val ColSupport = Color(0xFFF1EFE8)
+private val ColAdvanced = Color(0xFFEDE7F6)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -323,6 +324,21 @@ fun SettingsScreen(
                             iconBgColor = ColDataBackup,
                             onClick = { navController.navigate(PrismTaskRoute.BatchHistory.route) }
                         )
+                    }
+                }
+
+                // Advanced — POWER only
+                if (uiTier.isAtLeast(UiComplexityTier.POWER)) {
+                    item {
+                        SettingsGroup(label = "Advanced") {
+                            SettingsNavRow(
+                                title = "Advanced Tuning",
+                                subtitle = "Power-user knobs for scoring, schedules, widgets",
+                                iconEmoji = "🔧",
+                                iconBgColor = ColAdvanced,
+                                onClick = { navController.navigate("settings/advanced_tuning") }
+                            )
+                        }
                     }
                 }
 
