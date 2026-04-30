@@ -35,9 +35,15 @@ constructor(
     companion object {
         const val WORK_NAME = "widget_refresh_periodic"
 
-        fun schedule(workManager: WorkManager) {
+        /**
+         * Schedules the periodic widget refresh. [intervalMinutes] is
+         * coerced into [15, 240] — 15 is the WorkManager floor on every
+         * API level, and 240 (4h) is a battery-saver ceiling.
+         */
+        fun schedule(workManager: WorkManager, intervalMinutes: Int = 15) {
+            val cadence = intervalMinutes.coerceIn(15, 240).toLong()
             val request = PeriodicWorkRequestBuilder<WidgetRefreshWorker>(
-                15,
+                cadence,
                 TimeUnit.MINUTES
             ).setConstraints(
                 Constraints.Builder()

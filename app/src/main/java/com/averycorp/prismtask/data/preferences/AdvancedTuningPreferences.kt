@@ -166,6 +166,17 @@ data class ApiNetworkConfig(
     val retryAttempts: Int = 2
 )
 
+/** Periodic widget refresh cadence (15 = WorkManager floor, 240 = battery-saver ceiling). */
+data class WidgetRefreshConfig(
+    val intervalMinutes: Int = 15
+)
+
+/** Productivity widget score-to-color thresholds (≥green = green, ≥orange = orange, below = red). */
+data class ProductivityWidgetThresholds(
+    val greenScore: Int = 80,
+    val orangeScore: Int = 60
+)
+
 @Singleton
 class AdvancedTuningPreferences
 @Inject
@@ -280,6 +291,13 @@ constructor(
         // C9 — API network
         private val API_TIMEOUT = intPreferencesKey("api_network_timeout_seconds")
         private val API_RETRIES = intPreferencesKey("api_network_retry_attempts")
+
+        // D1 — widget refresh cadence
+        private val WIDGET_REFRESH_MINUTES = intPreferencesKey("widget_refresh_minutes")
+
+        // D4 — productivity widget thresholds
+        private val PROD_WIDGET_GREEN = intPreferencesKey("productivity_widget_green")
+        private val PROD_WIDGET_ORANGE = intPreferencesKey("productivity_widget_orange")
     }
 
     fun getUrgencyBands(): Flow<UrgencyBands> = context.advancedTuningDataStore.data.map {
@@ -599,6 +617,33 @@ constructor(
         context.advancedTuningDataStore.edit {
             it[API_TIMEOUT] = c.timeoutSeconds
             it[API_RETRIES] = c.retryAttempts
+        }
+    }
+
+    fun getWidgetRefreshConfig(): Flow<WidgetRefreshConfig> = context.advancedTuningDataStore.data.map {
+        WidgetRefreshConfig(
+            intervalMinutes = (it[WIDGET_REFRESH_MINUTES] ?: 15).coerceIn(15, 240)
+        )
+    }
+
+    suspend fun setWidgetRefreshConfig(c: WidgetRefreshConfig) {
+        context.advancedTuningDataStore.edit {
+            it[WIDGET_REFRESH_MINUTES] = c.intervalMinutes.coerceIn(15, 240)
+        }
+    }
+
+    fun getProductivityWidgetThresholds(): Flow<ProductivityWidgetThresholds> =
+        context.advancedTuningDataStore.data.map {
+            ProductivityWidgetThresholds(
+                greenScore = (it[PROD_WIDGET_GREEN] ?: 80).coerceIn(0, 100),
+                orangeScore = (it[PROD_WIDGET_ORANGE] ?: 60).coerceIn(0, 100)
+            )
+        }
+
+    suspend fun setProductivityWidgetThresholds(c: ProductivityWidgetThresholds) {
+        context.advancedTuningDataStore.edit {
+            it[PROD_WIDGET_GREEN] = c.greenScore.coerceIn(0, 100)
+            it[PROD_WIDGET_ORANGE] = c.orangeScore.coerceIn(0, 100)
         }
     }
 }

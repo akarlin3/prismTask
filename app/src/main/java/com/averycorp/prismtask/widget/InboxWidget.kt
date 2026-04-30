@@ -10,6 +10,7 @@ import androidx.glance.GlanceModifier
 import androidx.glance.LocalSize
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
+import androidx.glance.appwidget.GlanceAppWidgetManager
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
 import androidx.glance.appwidget.SizeMode
 import androidx.glance.appwidget.action.actionStartActivity
@@ -49,8 +50,10 @@ class InboxWidget : GlanceAppWidget() {
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val palette = loadWidgetPalette(context)
+        val appWidgetId = GlanceAppWidgetManager(context).getAppWidgetId(id)
+        val config = WidgetConfigDataStore.snapshotInboxConfig(context, appWidgetId)
         provideContent {
-            InboxContent(context, LocalSize.current, palette)
+            InboxContent(context, LocalSize.current, palette, config)
         }
     }
 }
@@ -63,7 +66,12 @@ private data class InboxItem(
 )
 
 @Composable
-private fun InboxContent(context: Context, size: DpSize, palette: WidgetThemePalette) {
+private fun InboxContent(
+    context: Context,
+    size: DpSize,
+    palette: WidgetThemePalette,
+    config: WidgetConfigDataStore.InboxConfig
+) {
     val isWide = size.width >= 450.dp
     val isMed = size.width < 350.dp
 
@@ -75,7 +83,10 @@ private fun InboxContent(context: Context, size: DpSize, palette: WidgetThemePal
         InboxItem("Cancel old domain renewal", "Yday", "Bills", palette.error),
         InboxItem("Find a 6-string set for the Strat", "Yday", "Music", palette.secondary)
     )
-    val visible = if (isMed) items.take(3) else items.take(5)
+    // Size-tier ceiling still applies so wide widgets don't render an
+    // overflow strip; the user-configured cap takes precedence below it.
+    val sizeTierCap = if (isMed) 3 else 5
+    val visible = items.take(minOf(config.maxItems, sizeTierCap))
 
     val openInbox = Intent(context, MainActivity::class.java).apply {
         flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP

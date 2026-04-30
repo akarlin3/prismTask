@@ -28,6 +28,7 @@ import androidx.glance.layout.size
 import androidx.glance.layout.width
 import androidx.glance.text.Text
 import com.averycorp.prismtask.MainActivity
+import com.averycorp.prismtask.data.preferences.ProductivityWidgetThresholds
 
 /**
  * Productivity Score widget. Shows today's 0-100 score with a trend.
@@ -51,11 +52,16 @@ class ProductivityWidget : GlanceAppWidget() {
         } catch (_: Exception) {
             null
         }
+        val thresholds = try {
+            WidgetDataProvider.getProductivityWidgetThresholds(context)
+        } catch (_: Exception) {
+            ProductivityWidgetThresholds()
+        }
 
         provideContent {
             val size = LocalSize.current
             if (data != null) {
-                ProductivityContent(data, size, palette)
+                ProductivityContent(data, size, palette, thresholds)
             } else {
                 WidgetLoadingState(palette)
             }
@@ -64,16 +70,21 @@ class ProductivityWidget : GlanceAppWidget() {
 }
 
 @Composable
-private fun ProductivityContent(data: ProductivityWidgetData, size: DpSize, palette: WidgetThemePalette) {
+private fun ProductivityContent(
+    data: ProductivityWidgetData,
+    size: DpSize,
+    palette: WidgetThemePalette,
+    thresholds: ProductivityWidgetThresholds
+) {
     val isLarge = size.width >= 200.dp
     val scoreColor = when {
-        data.score >= 80 -> palette.scoreGreen
-        data.score >= 60 -> palette.scoreOrange
+        data.score >= thresholds.greenScore -> palette.scoreGreen
+        data.score >= thresholds.orangeScore -> palette.scoreOrange
         else -> palette.scoreRed
     }
     val scoreBgColor = when {
-        data.score >= 80 -> palette.scoreGreenBg
-        data.score >= 60 -> palette.scoreOrangeBg
+        data.score >= thresholds.greenScore -> palette.scoreGreenBg
+        data.score >= thresholds.orangeScore -> palette.scoreOrangeBg
         else -> palette.scoreRedBg
     }
     val trendArrow = when {
