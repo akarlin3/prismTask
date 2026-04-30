@@ -206,8 +206,139 @@ audit.
 
 ## Phase 3 — Bundle summary
 
-_Filled in after Phase 2 PR merges._
+**Shipped (pending merge).**
+
+- **PR [#1001](https://github.com/averycorp/prismTask/pull/1001)** —
+  `feat(settings): wire AdvancedTuningPreferences into backup + sync` —
+  pushed to `feat/settings-backup-sync` (commit `7c42d92a`),
+  rebased onto `origin/main`. Diff is correct; round-trip test +
+  importer/exporter constructor tests pass locally
+  (`./gradlew :app:testDebugUnitTest` was 1753/0/0 before main
+  itself broke — see below).
+- **Auto-merge enable was rejected** because `feature/customizable-settings-ui-advanced`
+  had no required-checks protection; manual `gh pr merge` then
+  flagged the PR as `CONFLICTING / DIRTY` because the parent branch
+  was deleted on merge of PR #997. Resolved locally by rebasing onto
+  `origin/main` and dropping a stale `UiComplexityTier` import.
+
+**Wrong-premise STOP report.** Discovered during the rebase that
+`origin/main` itself does not compile — PR #997's squash merge
+(`7390a1db`) introduced four files referencing symbols that no
+longer exist:
+
+- `ui/screens/addedittask/AddEditTaskScreen.kt:186` — `uiTier`,
+  `UiComplexityTier`.
+- `ui/screens/settings/SettingsScreen.kt:331` — same dangling refs.
+- `ui/screens/tasklist/components/TaskListItemScopes.kt:453-462` —
+  `drawRoundRect`, `toPx`, `detectTapGestures`, `startTransfer`
+  (looks like missing imports).
+
+`UiComplexityTier` was removed from the codebase in
+[PR #952](https://github.com/averycorp/prismTask/pull/952) (commit
+`cd33cf29`); the merge of PR #997 reintroduced these dangling
+references. Origin's
+[android-ci log](https://raw.githubusercontent.com/averycorp/prismTask/ci-logs/ci-logs/android-ci/latest.log)
+shows `BUILD FAILED` on the post-merge tip.
+
+This blocks PR #1001 from going green even though its own diff is
+correct. Out of scope to fix here — captured for the operator.
+
+**Verification (pre-rebase, against the now-deleted base branch):**
+
+- `./gradlew :app:compileDebugKotlin` — clean.
+- `./gradlew :app:testDebugUnitTest` — 1753 tests, 0 failures, 0
+  errors. New `AdvancedTuningRoundTripTest` covers Gson round-trip
+  for all 25 config data classes.
+
+**Memory candidates.** One worth saving:
+
+- *Squash-merging long-lived feature branches that pulled in main
+  multiple times can drop intermediate fixes.* Specifically, when a
+  feature branch merges main → main removes symbol X → feature uses
+  X via its older copy → squash-merge picks the feature side, X is
+  reintroduced. Surface signal: post-merge main fails to compile on
+  the references that were "removed" weeks ago. Mitigation: prefer
+  rebase-merge for branches that have synced with main multiple
+  times, OR run a post-merge CI sweep on main.
+
+**Schedule for next audit.** Two follow-ups likely:
+
+1. Fix the four broken files on main (separate PR, blocks PR #1001
+   from merging green).
+2. Consider auto-discovering `PreferenceSyncSpec` via Hilt
+   multibinding so future preference classes can't silently miss
+   the sync wiring (anti-pattern flagged in Phase 1).
 
 ## Phase 4 — Claude Chat handoff
 
-_Emitted after Phase 3._
+```markdown
+**Scope.** Audit-first run on PrismTask: "Also make sure that every
+setting is backed up and synced." Verified that JSON export/import
+(`data/export/DataExporter.kt` + `DataImporter.kt`) and Firestore
+sync (`di/PreferenceSyncModule.kt` →
+`data/remote/GenericPreferenceSyncService.kt`) cover every DataStore
+preference. Audit doc:
+`docs/audits/SETTINGS_BACKUP_SYNC_AUDIT.md`.
+
+**Verdicts.**
+
+| # | Item | Verdict | Finding |
+|---|------|---------|---------|
+| 1 | `AdvancedTuningPreferences` missing from backup + sync | RED | 25 power-user knobs (Sections B–E + SelfCareTierDefaults) silently lost on fresh-install / second-device. |
+| 2 | `GenericPreferenceSyncService` is right tool for the new sync entry | GREEN | One line in `PreferenceSyncModule.provideSpecs` covers it. |
+| 3 | Backup pattern is `gson.toJsonTree` per data class | GREEN | Mirror `exportNdConfig`. |
+| 4 | Inventory of every other preference class | GREEN | All 25 covered or excluded by-design (auth tokens, billing cache, migration flags, calendar tokens). |
+| 5 | Widget per-instance config | DEFERRED | `widget/WidgetConfigDataStore` is a user-facing setting in spirit but widgets ship disabled (`WIDGETS_ENABLED = false`); revisit when widgets re-enable. |
+
+**Shipped (pending merge).**
+
+- PR #1001 — `feat(settings): wire AdvancedTuningPreferences into
+  backup + sync`. Pushed to `feat/settings-backup-sync` at commit
+  `7c42d92a`. Adds `exportAdvancedTuningConfig` (whole-object Gson
+  dump), `importAdvancedTuningConfig` (read-each-sub-key + setter
+  dispatch), `PreferenceSyncSpec("advanced_tuning_prefs", advancedTuningDataStore)`
+  in `PreferenceSyncModule`, and a 25-test round-trip suite.
+- PR is rebased and clean against `origin/main` but **CI is currently
+  red because main itself does not compile.**
+
+**Deferred / stopped.**
+
+- *Widget config sync* — deferred until widgets re-enable.
+- *Auto-discoverable PreferenceSyncSpec via Hilt multibinding* —
+  flagged in anti-patterns; out of scope.
+
+**Non-obvious findings.**
+
+- **Main is broken.** PR #997's squash merge (commit `7390a1db`)
+  reintroduced references to `UiComplexityTier` (deleted in PR #952)
+  and to Compose APIs (`drawRoundRect`, `toPx`, `detectTapGestures`,
+  `startTransfer`) without the matching imports. Files affected:
+  `AddEditTaskScreen.kt:186`, `SettingsScreen.kt:331`,
+  `TaskListItemScopes.kt:453-462`. The CI log
+  (`ci-logs/android-ci/latest.log`) confirms BUILD FAILED on the
+  post-merge tip. **PR #1001 cannot land green until this is
+  fixed.**
+- **Squash-merging long-lived feature branches that pulled in main
+  multiple times can drop intermediate fixes** — the "feature branch
+  used X before main removed it" pattern bites here. Worth a memory
+  entry for future audit-first runs.
+- **`AdvancedTuningPreferences.advancedTuningDataStore` is `internal`**
+  (matching every other DataStore extension). It's accessed across
+  packages from `di/PreferenceSyncModule.kt` — works because Kotlin
+  `internal` is module-wide.
+
+**Open questions.**
+
+- Should the four broken files on main be fixed by re-removing the
+  `UiComplexityTier` references (matches PR #952's intent) or by
+  re-introducing `UiComplexityTier` (matches what PR #997 expected)?
+  Likely the former — PR #952 was the last word on it.
+- Is there a missing import barrel for the Compose APIs in
+  `TaskListItemScopes.kt` (e.g. `androidx.compose.foundation.gestures.detectTapGestures`),
+  or did PR #997 expect a helper/wrapper that was also lost in the
+  squash?
+- After fixing main, should PR #1001 get a fresh rebase + green CI
+  sweep before merge, or admin-merge with the understanding that
+  main's underlying tree will pass once the fixes land?
+```
+
