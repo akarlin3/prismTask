@@ -162,58 +162,78 @@ const FINDINGS = [
     sev: "high",
     title: "Repo URL drift after the averycorp org transfer",
     body: "android-ci.yml (line 128–131) confirms the repo was transferred from a user account to the averycorp org on 2026-04-28 — yet CI_LOGS.md, scripts/setup-branch-protection.sh (defaults to akarlin3/prismTask), web/README.md badge URLs, and docs/privacy/*.md still reference akarlin3/prismTask. CLAUDE.md uses Akarlin3/PrismTask (also wrong). Three different out-of-date references, none of which match the live repo. Anyone fetching the documented `latest.log` URLs will 404.",
-    fix: "Single-pass find/replace: `akarlin3/prismTask` and `Akarlin3/PrismTask` → the actual current owner/repo (verify with `gh repo view` first). Update CI_LOGS.md, CLAUDE.md, web/README.md badges, docs/privacy/*.md, scripts/setup-branch-protection.sh REPO default."
+    fix: "Single-pass find/replace: `akarlin3/prismTask` and `Akarlin3/PrismTask` → the actual current owner/repo (verify with `gh repo view` first). Update CI_LOGS.md, CLAUDE.md, web/README.md badges, docs/privacy/*.md, scripts/setup-branch-protection.sh REPO default.",
+    resolution: { status: "open", pr: 954, branch: "chore/repo-url-drift", note: "All checks green; auto-merge enabled. Awaiting auto-update-branch rebase after #955/#956 landed." }
   },
   {
     id: "F2",
     sev: "high",
     title: "Local git hooks aren't installed in this checkout",
     body: "scripts/hooks/{pre-push,post-commit} exist in the repo but `.git/hooks/` only contains the default `.sample` files — confirmed via `ls`. The pre-push warning on direct-to-main pushes and the post-commit tag-reminder are silently no-ops on this machine. CLAUDE.md's repo conventions assume both run.",
-    fix: "Run `./scripts/hooks/install.sh` once. Longer term, consider `core.hooksPath = scripts/hooks` so a fresh clone gets them automatically without an install step (one-line `git config` per clone, but at least it's idempotent and discoverable from `git config --list`)."
+    fix: "Run `./scripts/hooks/install.sh` once. Longer term, consider `core.hooksPath = scripts/hooks` so a fresh clone gets them automatically without an install step (one-line `git config` per clone, but at least it's idempotent and discoverable from `git config --list`).",
+    resolution: { status: "merged", pr: 955, branch: "chore/git-hooks-core-hookspath", note: "Switched install.sh / install.ps1 to a one-liner setting `core.hooksPath = scripts/hooks`; marked the hook scripts executable in the git index." }
   },
   {
     id: "F3",
     sev: "high",
     title: "release.yml's versionCode bump is never committed → collisions with the next PR",
     body: "release.yml lines 76–89 sed-replace versionCode in build.gradle.kts to N+1, build the release APK with that value, but never `git commit` or `git push`. Meanwhile version-bump-and-tag.yml has already bumped main from N to N+1 before dispatching release.yml — so release.yml builds with versionCode N+2. Main stays at N+1. The next PR merge bumps main from N+1 to N+2, which collides with the previously released APK's versionCode. Play Store rejects duplicate versionCodes; the next release upload fails. The strategy comment (lines 25–27) was written before version-bump-and-tag.yml took over the bump path and is now stale.",
-    fix: "Delete the release.yml `Bump versionCode for release` step entirely. Build with whatever versionCode is on the tagged commit (which version-bump-and-tag.yml already bumped). One source of truth for versionCode = main's current value. Update the stale comment."
+    fix: "Delete the release.yml `Bump versionCode for release` step entirely. Build with whatever versionCode is on the tagged commit (which version-bump-and-tag.yml already bumped). One source of truth for versionCode = main's current value. Update the stale comment.",
+    resolution: { status: "ready", pr: null, branch: "ci/release-drop-versioncode-bump", note: "Replaced the in-workflow sed-bump with a read-only step; refreshed the strategy comment. Push blocked until the gh OAuth token gets `workflow` scope." }
   },
   {
     id: "F4",
     sev: "med",
     title: "auto-merge.yml's required-checks-have-queued loop has a known broken comparison",
     body: "auto-merge.yml lines 152–155 explicitly say: `the MISSING list never empties even though CHECK_RUNS clearly contains every REQUIRED name. Likely a trim/encoding edge case in the comparison loop, but observability beats guessing`. The 90s ceiling fires `::warning::` and proceeds anyway, so this is currently cosmetic noise — but it's the second time the same workflow has shipped a known-broken loop with diagnostics-instead-of-fix (per its own comment history). Rate of false warnings on every PR.",
-    fix: "Add `tr -d '[:space:]'` or `printf '%s' \"$req\" | xxd` diagnostics next iteration. Likely culprit: `echo \"$REQUIRED\" | grep -vE '^\\s*Auto-merge\\s*$'` leaves a trailing newline that `xargs` doesn't strip but `grep -qxF` does require to match. Try `printf '%s\\n' \"$REQUIRED\" | grep -Fxq -- \"$req_trimmed\"` instead of `echo`/`grep` chains."
+    fix: "Add `tr -d '[:space:]'` or `printf '%s' \"$req\" | xxd` diagnostics next iteration. Likely culprit: `echo \"$REQUIRED\" | grep -vE '^\\s*Auto-merge\\s*$'` leaves a trailing newline that `xargs` doesn't strip but `grep -qxF` does require to match. Try `printf '%s\\n' \"$REQUIRED\" | grep -Fxq -- \"$req_trimmed\"` instead of `echo`/`grep` chains.",
+    resolution: { status: "ready", pr: null, branch: "fix/auto-merge-required-checks-comparison", note: "Trim with `tr -d '\\r' | sed` instead of `echo | xargs`; haystack via `printf '%s\\n'`. xxd hex dump on final-attempt warning. Push blocked on workflow scope." }
   },
   {
     id: "F5",
     sev: "med",
     title: "No supply-chain pinning beyond one action; no Dependabot / CodeQL",
     body: "Only `lewagon/wait-on-check-action` is SHA-pinned. The other 11 third-party uses (actions/checkout@v4, dorny/paths-filter@v3, reactivecircus/android-emulator-runner@v2, android-actions/setup-android@v3, gradle/actions/setup-gradle@v4, etc.) ride the major tag — anyone with push access to those tags ships code into your CI. There's also no `.github/dependabot.yml` and no CodeQL / Trivy / npm-audit workflow. SECURITY.md exists but no automation backs it.",
-    fix: "(a) Pin third-party actions to commit SHAs (Dependabot can update them automatically afterward). (b) Add `.github/dependabot.yml` for `github-actions`, `gradle`, `pip`, `npm` ecosystems. (c) Optional: add CodeQL workflow for Kotlin + Python + JavaScript (free for public repos). Lowest-cost first: dependabot.yml is ~15 lines and covers everything else."
+    fix: "(a) Pin third-party actions to commit SHAs (Dependabot can update them automatically afterward). (b) Add `.github/dependabot.yml` for `github-actions`, `gradle`, `pip`, `npm` ecosystems. (c) Optional: add CodeQL workflow for Kotlin + Python + JavaScript (free for public repos). Lowest-cost first: dependabot.yml is ~15 lines and covers everything else.",
+    resolution: { status: "merged", pr: 956, branch: "chore/dependabot", note: "Shipped Dependabot for github-actions / gradle / pip / npm; first sweep already opened #967–#976. SHA-pinning will follow Dependabot's first github-actions PR. CodeQL (part c) deferred." }
   },
   {
     id: "F6",
     sev: "low",
     title: "Backend CI provisions Postgres even on irrelevant PRs",
     body: "backend-ci.yml gates each step on `steps.relevance.outputs.backend == 'true'`, but the `services: postgres:` block is workflow-level — Docker pulls and starts postgres:16 on every PR even when no backend/** changed. ~10–15s of waste per non-backend PR.",
-    fix: "Move the Postgres dependency to a separate job that's `if:`-gated on relevance, or set up Postgres inline (e.g. `docker run -d`) only when needed. Lower-effort: accept the cost — it's bounded and the simplification isn't worth churn."
+    fix: "Move the Postgres dependency to a separate job that's `if:`-gated on relevance, or set up Postgres inline (e.g. `docker run -d`) only when needed. Lower-effort: accept the cost — it's bounded and the simplification isn't worth churn.",
+    resolution: { status: "ready", pr: null, branch: "ci/backend-postgres-gate-on-relevance", note: "Replaced workflow-level `services: postgres:` with an inline `docker run -d` step gated on the existing dorny/paths-filter relevance output; 30s pg_isready loop. Push blocked on workflow scope." }
   },
   {
     id: "F7",
     sev: "low",
     title: "Two parallel paths can both push the same release tag (idempotent guard exists, worth noting)",
     body: "Both android-ci.yml's `tag-and-release` job (push:main path for direct-to-main commits) AND version-bump-and-tag.yml (auto-merge path) can push a vX.Y.Z tag and dispatch release.yml. Each has a `git ls-remote --tags` check before pushing, so they're safe — but a hand-pushed direct-to-main commit followed within the same window by an auto-merged PR could end up with both jobs racing on the same NEW_NAME if they computed the same patch number. The dispatch-already-exists check on release.yml side closes the loop.",
-    fix: "No action needed; flagging for awareness. The dual-path coverage is intentional (covers both merge styles)."
+    fix: "No action needed; flagging for awareness. The dual-path coverage is intentional (covers both merge styles).",
+    resolution: { status: "ready", pr: null, branch: "ci/share-tag-push-concurrency-group", note: "Originally GREEN/no-action; user requested a tightening. Added a job-level `concurrency: tag-push-main, cancel-in-progress: false` to both `version-bump-and-tag` and android-ci.yml's `tag-and-release` so the critical section serializes observably. Push blocked on workflow scope." }
   },
   {
     id: "F8",
     sev: "low",
     title: "android-integration.yml's `cross-device-tests` is a single-test lane that boots a full AVD + Firebase emulator",
     body: "Spinning up a 1200s emulator boot ceiling + Firebase emulators to run ONE test class (MedicationCrossDeviceConvergenceTest) is expensive. The comment justifies the quarantine, but as more cross-device scenarios get added the per-class job multiplication will hurt — the same boot cost amortizes badly when only one test is run per AVD.",
-    fix: "If the suite grows beyond ~3 quarantined classes, batch them via `-Pandroid.testInstrumentationRunnerArguments.package=com.averycorp.prismtask.sync.scenarios` instead of one class per job. Keep the single-class shape until then."
+    fix: "If the suite grows beyond ~3 quarantined classes, batch them via `-Pandroid.testInstrumentationRunnerArguments.package=com.averycorp.prismtask.sync.scenarios` instead of one class per job. Keep the single-class shape until then.",
+    resolution: { status: "ready", pr: null, branch: "docs/cross-device-batching-threshold", note: "Documented the batch threshold (3+ classes → switch from class-args to package-args runner). No behaviour change today. Push blocked on workflow scope." }
   },
 ];
+
+const PHASE2 = {
+  date: "2026-04-30",
+  // Sentinels — the audit doc itself shipped as #953.
+  auditDocPr: 953,
+  // Updated mid-roll-out: F1 still pending the auto-merge rebase after
+  // #955/#956 landed. Five remaining PRs (F3, F4, F6, F7, F8) are
+  // committed locally on the branches above but blocked on the gh OAuth
+  // token gaining the `workflow` scope before they can push to the
+  // `.github/workflows/*.yml` paths they touch.
+  authNote: "F3, F4, F6, F7, F8 committed locally. Push to `.github/workflows/` is blocked until the gh OAuth token is refreshed with the `workflow` scope (`gh auth refresh -s workflow`). F1 PR #954 is queued behind auto-update-branch.",
+};
 
 /* ─── helpers ─────────────────────────────────────────────────────────── */
 
@@ -236,6 +256,18 @@ const sevTone = {
   high: "bg-red-500/15 text-red-300 ring-red-500/30",
   med:  "bg-amber-500/15 text-amber-300 ring-amber-500/30",
   low:  "bg-slate-500/15 text-slate-300 ring-slate-500/30",
+};
+
+const statusTone = {
+  merged: "bg-emerald-500/15 text-emerald-300 ring-emerald-500/30",
+  open:   "bg-sky-500/15 text-sky-300 ring-sky-500/30",
+  ready:  "bg-amber-500/15 text-amber-300 ring-amber-500/30",
+};
+
+const statusLabel = {
+  merged: "MERGED",
+  open:   "PR OPEN",
+  ready:  "COMMIT READY",
 };
 
 /* ─── components ──────────────────────────────────────────────────────── */
@@ -284,18 +316,41 @@ function WorkflowCard({ wf, hotTrigger, onHover, onLeave }) {
 
 function FindingCard({ f }) {
   const [open, setOpen] = useState(false);
+  const r = f.resolution;
   return (
     <div className="rounded-xl bg-slate-900/60 ring-1 ring-white/5 p-3">
       <button onClick={() => setOpen(o => !o)} className="w-full text-left flex items-center gap-2">
         <span className={`pill ring-1 ${sevTone[f.sev]}`}>{f.sev.toUpperCase()}</span>
         <span className="font-mono text-[11px] text-slate-400">{f.id}</span>
         <span className="font-medium text-[13px] text-slate-100">{f.title}</span>
+        {r && (
+          <span className={`pill ring-1 ml-1 ${statusTone[r.status]}`}>
+            {statusLabel[r.status]}{r.pr ? ` · #${r.pr}` : ""}
+          </span>
+        )}
         <span className="ml-auto text-slate-500 text-xs">{open ? "▴" : "▾"}</span>
       </button>
       {open && (
         <div className="mt-3 space-y-2 text-[12px] text-slate-300">
           <div><span className="text-slate-400">Finding —</span> {f.body}</div>
           <div><span className="text-slate-400">Fix —</span> {f.fix}</div>
+          {r && (
+            <div className="rounded-lg bg-slate-950/60 ring-1 ring-white/5 p-2 mt-2">
+              <div className="flex items-center gap-2 text-[11px]">
+                <span className={`pill ring-1 ${statusTone[r.status]}`}>{statusLabel[r.status]}</span>
+                {r.pr && (
+                  <a
+                    href={`https://github.com/averycorp/prismTask/pull/${r.pr}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-sky-300 hover:underline"
+                  >#{r.pr}</a>
+                )}
+                <span className="font-mono text-slate-500">{r.branch}</span>
+              </div>
+              {r.note && <div className="text-[12px] text-slate-300 mt-1">{r.note}</div>}
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -306,6 +361,10 @@ function App() {
   const [hotTrigger, setHotTrigger] = useState(null);
   const [hotWf, setHotWf] = useState(null);
   const sevCounts = useMemo(() => FINDINGS.reduce((a, f) => (a[f.sev]++, a), {high:0, med:0, low:0}), []);
+  const statusCounts = useMemo(() => FINDINGS.reduce((a, f) => {
+    if (f.resolution) a[f.resolution.status]++;
+    return a;
+  }, {merged: 0, open: 0, ready: 0}), []);
 
   return (
     <div className="max-w-7xl mx-auto px-6 py-8 space-y-8">
@@ -317,6 +376,26 @@ function App() {
           Hover a trigger to highlight the workflows it fires; click a finding to expand.
         </p>
       </header>
+
+      {/* Phase 2 status banner */}
+      <section className="rounded-xl bg-slate-900/60 ring-1 ring-white/5 p-4">
+        <div className="flex items-baseline justify-between gap-3 flex-wrap">
+          <div>
+            <div className="text-xs uppercase tracking-widest text-slate-400">Phase 2 status · {PHASE2.date}</div>
+            <div className="text-[13px] text-slate-200 mt-0.5">
+              {FINDINGS.length}/{FINDINGS.length} findings actioned · audit doc shipped as
+              <a className="text-sky-300 hover:underline ml-1" target="_blank" rel="noreferrer"
+                href={`https://github.com/averycorp/prismTask/pull/${PHASE2.auditDocPr}`}>#{PHASE2.auditDocPr}</a>
+            </div>
+          </div>
+          <div className="flex gap-2 text-[11px]">
+            <span className={`pill ring-1 ${statusTone.merged}`}>{statusCounts.merged} merged</span>
+            <span className={`pill ring-1 ${statusTone.open}`}>{statusCounts.open} PR open</span>
+            <span className={`pill ring-1 ${statusTone.ready}`}>{statusCounts.ready} commit ready</span>
+          </div>
+        </div>
+        <div className="text-[12px] text-slate-400 mt-2 max-w-4xl">{PHASE2.authNote}</div>
+      </section>
 
       {/* Triggers row */}
       <section>
