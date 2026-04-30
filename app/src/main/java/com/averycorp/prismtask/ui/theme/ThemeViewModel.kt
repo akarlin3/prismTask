@@ -3,6 +3,7 @@ package com.averycorp.prismtask.ui.theme
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.averycorp.prismtask.data.preferences.ThemePreferences
+import com.averycorp.prismtask.widget.WidgetUpdateManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -21,7 +22,8 @@ import javax.inject.Inject
 class ThemeViewModel
 @Inject
 constructor(
-    private val themePreferences: ThemePreferences
+    private val themePreferences: ThemePreferences,
+    private val widgetUpdateManager: WidgetUpdateManager
 ) : ViewModel() {
     /**
      * The [PrismTheme] the user has selected. Falls back to [PrismTheme.VOID]
@@ -58,6 +60,11 @@ constructor(
     fun setTheme(theme: PrismTheme) {
         viewModelScope.launch {
             themePreferences.setPrismTheme(theme.name)
+            // Glance widgets cache their last-rendered RemoteViews and never
+            // observe DataStore on their own — push a refresh so home-screen
+            // widgets adopt the new palette immediately rather than waiting
+            // on the 15-min periodic worker.
+            widgetUpdateManager.updateAllWidgets()
         }
     }
 
@@ -68,6 +75,7 @@ constructor(
     fun setWidgetThemeOverride(theme: PrismTheme?) {
         viewModelScope.launch {
             themePreferences.setWidgetThemeOverride(theme?.name)
+            widgetUpdateManager.updateAllWidgets()
         }
     }
 

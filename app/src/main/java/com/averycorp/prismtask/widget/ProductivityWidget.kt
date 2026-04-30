@@ -107,7 +107,7 @@ private fun ProductivityContent(data: ProductivityWidgetData, size: DpSize, pale
         if (data.total == 0) {
             Text(
                 text = "0",
-                style = WidgetTextStyles.scoreLarge(palette.onSurfaceVariant)
+                style = WidgetTextStyles.scoreLargeThemed(palette, palette.onSurfaceVariant)
             )
             Spacer(modifier = GlanceModifier.height(4.dp))
             Text(
@@ -129,7 +129,7 @@ private fun ProductivityContent(data: ProductivityWidgetData, size: DpSize, pale
                 ) {
                     Text(
                         text = data.score.toString(),
-                        style = WidgetTextStyles.scoreLarge(scoreColor)
+                        style = WidgetTextStyles.scoreLargeThemed(palette, scoreColor)
                     )
                 }
                 Spacer(modifier = GlanceModifier.width(12.dp))
@@ -158,7 +158,7 @@ private fun ProductivityContent(data: ProductivityWidgetData, size: DpSize, pale
             ) {
                 Text(
                     text = data.score.toString(),
-                    style = WidgetTextStyles.scoreLarge(scoreColor)
+                    style = WidgetTextStyles.scoreLargeThemed(palette, scoreColor)
                 )
             }
             Spacer(modifier = GlanceModifier.height(6.dp))

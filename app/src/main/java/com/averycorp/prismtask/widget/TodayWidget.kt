@@ -96,8 +96,8 @@ private fun TodayWidgetContent(
         Row(modifier = GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = GlanceModifier.defaultWeight()) {
                 Text(
-                    text = "Today",
-                    style = WidgetTextStyles.header(palette.onSurface)
+                    text = WidgetTextStyles.headerLabel(palette, "Today"),
+                    style = WidgetTextStyles.headerThemed(palette, palette.onSurface)
                 )
                 if (!isSmall) {
                     Text(text = todayLabel, style = WidgetTextStyles.caption(palette.onSurfaceVariant))
@@ -294,6 +294,7 @@ private fun ScoreBadge(score: Int, palette: WidgetThemePalette, sizeDp: Int = 34
             style = TextStyle(
                 fontSize = fontSizeSp.sp,
                 fontWeight = FontWeight.Bold,
+                fontFamily = palette.displayFontFamily,
                 color = textColor
             )
         )

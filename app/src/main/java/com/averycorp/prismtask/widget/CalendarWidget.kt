@@ -117,8 +117,8 @@ private fun CalendarContent(
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                text = "Today's Schedule",
-                style = WidgetTextStyles.header(palette.onSurface),
+                text = WidgetTextStyles.headerLabel(palette, "Today's Schedule"),
+                style = WidgetTextStyles.headerThemed(palette, palette.onSurface),
                 modifier = GlanceModifier.defaultWeight()
             )
             Text(

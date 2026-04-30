@@ -87,8 +87,8 @@ private fun TimerWidgetContent(
     ) {
         if (!isActive) {
             Text(
-                text = "⏱️ Timer",
-                style = WidgetTextStyles.header(palette.onSurface)
+                text = WidgetTextStyles.headerLabel(palette, "⏱️ Timer"),
+                style = WidgetTextStyles.headerThemed(palette, palette.onSurface)
             )
             Spacer(modifier = GlanceModifier.height(8.dp))
             Text(
@@ -132,11 +132,13 @@ private fun TimerWidgetContent(
             Text(
                 text = timeText,
                 style = if (isLarge) {
-                    WidgetTextStyles.timerLarge(
+                    WidgetTextStyles.timerLargeThemed(
+                        palette,
                         if (state.isPaused) palette.onSurfaceVariant else palette.onSurface
                     )
                 } else {
-                    WidgetTextStyles.timerSmall(
+                    WidgetTextStyles.timerSmallThemed(
+                        palette,
                         if (state.isPaused) palette.onSurfaceVariant else palette.onSurface
                     )
                 }

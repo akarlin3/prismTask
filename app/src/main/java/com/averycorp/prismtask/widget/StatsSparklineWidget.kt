@@ -104,7 +104,7 @@ private fun SparklineContent(context: Context, size: DpSize, palette: WidgetThem
         Row(verticalAlignment = Alignment.Bottom) {
             Text(
                 text = total.toString(),
-                style = WidgetTextStyles.scoreLarge(palette.onSurface)
+                style = WidgetTextStyles.scoreLargeThemed(palette, palette.onSurface)
             )
             Spacer(modifier = GlanceModifier.width(6.dp))
             Text(

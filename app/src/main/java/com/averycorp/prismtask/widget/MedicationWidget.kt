@@ -140,8 +140,8 @@ private fun androidx.glance.layout.ColumnScope.CompactNextDose(
         )
     }
     Text(
-        text = nextSlot.name,
-        style = WidgetTextStyles.header(palette.onSurface)
+        text = WidgetTextStyles.headerLabel(palette, nextSlot.name),
+        style = WidgetTextStyles.headerThemed(palette, palette.onSurface)
     )
     Text(
         text = "${nextSlot.time} · ${nextSlot.total - nextSlot.taken} pending",
@@ -166,8 +166,8 @@ private fun FullDayView(
 ) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(
-            text = "Medication",
-            style = WidgetTextStyles.header(palette.onSurface),
+            text = WidgetTextStyles.headerLabel(palette, "Medication"),
+            style = WidgetTextStyles.headerThemed(palette, palette.onSurface),
             modifier = GlanceModifier.defaultWeight()
         )
         Text(

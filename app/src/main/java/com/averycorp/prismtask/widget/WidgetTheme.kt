@@ -5,11 +5,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.glance.ImageProvider
+import androidx.glance.text.FontFamily
 import androidx.glance.unit.ColorProvider
 import com.averycorp.prismtask.R
 import com.averycorp.prismtask.data.preferences.ThemePreferences
 import com.averycorp.prismtask.ui.theme.PrismTheme
 import com.averycorp.prismtask.ui.theme.PrismThemeColors
+import com.averycorp.prismtask.ui.theme.prismThemeAttrs
 import com.averycorp.prismtask.ui.theme.prismThemeColors
 import kotlinx.coroutines.flow.first
 
@@ -97,21 +99,39 @@ data class WidgetThemePalette(
     val successColor: ColorProvider,
     // Misc
     val onColored: ColorProvider,
-    // Shape
-    val widgetCornerRadius: Dp
+    // Shape — pulled from `prismThemeAttrs(theme).cardRadius` so widgets inherit
+    // the same corner language as in-app cards (Cyberpunk sharp, Matrix flat,
+    // Synthwave rounded, Void editorial).
+    val widgetCornerRadius: Dp,
+    // Display typography — drives the per-theme look of widget headers /
+    // timer / score numbers without needing each widget to know about
+    // PrismTheme. Mirrors the JSX mockup's `theme.fonts.display` and
+    // `displayUpper` / `displayTracking` tokens.
+    val displayFontFamily: FontFamily,
+    val displayUpper: Boolean
 )
 
 /** Default palette returned when the user's selection cannot be loaded. */
 private val DEFAULT_PRISM_THEME = PrismTheme.VOID
-
-/** Glance widget surface radius (Android 12+ system widget radius). */
-private val WIDGET_RADIUS = 22.dp
 
 private fun atmosphericBackground(theme: PrismTheme): Int = when (theme) {
     PrismTheme.CYBERPUNK -> R.drawable.widget_bg_cyberpunk
     PrismTheme.SYNTHWAVE -> R.drawable.widget_bg_synthwave
     PrismTheme.MATRIX -> R.drawable.widget_bg_matrix
     PrismTheme.VOID -> R.drawable.widget_bg_void
+}
+
+// Map PrismTheme display fonts onto Glance's limited [FontFamily] set.
+// Glance widgets render via RemoteViews and only resolve system family names,
+// so we pick the closest match for each theme's display character:
+//  - Matrix → Monospace (terminal / Vt323 vibe)
+//  - Void   → Serif     (Fraunces editorial)
+//  - Cyberpunk / Synthwave → SansSerif default
+private fun displayFontFor(theme: PrismTheme): FontFamily = when (theme) {
+    PrismTheme.MATRIX -> FontFamily.Monospace
+    PrismTheme.VOID -> FontFamily.Serif
+    PrismTheme.CYBERPUNK -> FontFamily.SansSerif
+    PrismTheme.SYNTHWAVE -> FontFamily.SansSerif
 }
 
 /**
@@ -123,6 +143,7 @@ private fun atmosphericBackground(theme: PrismTheme): Int = when (theme) {
  */
 fun widgetThemePalette(theme: PrismTheme): WidgetThemePalette {
     val c = prismThemeColors(theme)
+    val attrs = prismThemeAttrs(theme)
     return WidgetThemePalette(
         theme = theme,
         background = ColorProvider(c.background),
@@ -175,7 +196,9 @@ fun widgetThemePalette(theme: PrismTheme): WidgetThemePalette {
         warningColor = ColorProvider(c.warningColor),
         successColor = ColorProvider(c.successColor),
         onColored = ColorProvider(contrastOn(c.primary)),
-        widgetCornerRadius = WIDGET_RADIUS
+        widgetCornerRadius = attrs.cardRadius.dp,
+        displayFontFamily = displayFontFor(theme),
+        displayUpper = attrs.displayUpper
     )
 }
 

@@ -118,8 +118,8 @@ private fun ProjectWidgetContent(
                 Text(text = data.icon, style = TextStyle(fontSize = 16.sp))
                 Spacer(modifier = GlanceModifier.width(6.dp))
                 Text(
-                    text = data.name,
-                    style = WidgetTextStyles.header(palette.onSurface),
+                    text = WidgetTextStyles.headerLabel(palette, data.name),
+                    style = WidgetTextStyles.headerThemed(palette, palette.onSurface),
                     maxLines = 1,
                     modifier = GlanceModifier.defaultWeight()
                 )

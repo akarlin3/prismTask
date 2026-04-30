@@ -88,8 +88,8 @@ private fun HabitStreakContent(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "Habits",
-                style = WidgetTextStyles.header(palette.onSurface),
+                text = WidgetTextStyles.headerLabel(palette, "Habits"),
+                style = WidgetTextStyles.headerThemed(palette, palette.onSurface),
                 modifier = GlanceModifier.defaultWeight()
             )
             if (data.longestStreak > 0) {

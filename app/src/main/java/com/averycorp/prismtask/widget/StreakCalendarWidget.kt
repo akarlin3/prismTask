@@ -84,8 +84,8 @@ private fun StreakCalendarContent(context: Context, size: DpSize, palette: Widge
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                text = "Streak Calendar",
-                style = WidgetTextStyles.header(palette.onSurface),
+                text = WidgetTextStyles.headerLabel(palette, "Streak Calendar"),
+                style = WidgetTextStyles.headerThemed(palette, palette.onSurface),
                 modifier = GlanceModifier.defaultWeight()
             )
             Text(

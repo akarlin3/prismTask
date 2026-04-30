@@ -92,8 +92,8 @@ private fun InboxContent(context: Context, size: DpSize, palette: WidgetThemePal
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                text = "Inbox",
-                style = WidgetTextStyles.header(palette.onSurface),
+                text = WidgetTextStyles.headerLabel(palette, "Inbox"),
+                style = WidgetTextStyles.headerThemed(palette, palette.onSurface),
                 modifier = GlanceModifier.defaultWeight()
             )
             Text(

@@ -97,8 +97,8 @@ private fun UpcomingContent(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "Upcoming",
-                style = WidgetTextStyles.header(palette.onSurface),
+                text = WidgetTextStyles.headerLabel(palette, "Upcoming"),
+                style = WidgetTextStyles.headerThemed(palette, palette.onSurface),
                 modifier = GlanceModifier.defaultWeight()
             )
             Text(

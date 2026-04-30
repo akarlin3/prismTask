@@ -110,6 +110,7 @@ private fun FocusContent(
             style = TextStyle(
                 fontSize = if (isSmall) 15.sp else 18.sp,
                 fontWeight = FontWeight.Bold,
+                fontFamily = palette.displayFontFamily,
                 color = palette.onSurface
             ),
             maxLines = if (isSmall) 2 else 3

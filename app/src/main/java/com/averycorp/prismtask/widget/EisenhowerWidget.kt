@@ -94,8 +94,8 @@ private fun EisenhowerContent(context: Context, size: DpSize, palette: WidgetThe
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                text = "Matrix",
-                style = WidgetTextStyles.header(palette.onSurface),
+                text = WidgetTextStyles.headerLabel(palette, "Matrix"),
+                style = WidgetTextStyles.headerThemed(palette, palette.onSurface),
                 modifier = GlanceModifier.defaultWeight()
             )
             Text(
