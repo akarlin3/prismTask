@@ -122,3 +122,32 @@ breaks the build). Bundle into one PR.
 - **Five unreferenced supporting drawables** (`widget_preview_card`,
   `widget_preview_dot_error/success/warning`). Trivially cheap to keep;
   trim only if a future audit shows we never adopt them.
+
+## Phase 3 — Bundle summary (post-fan-out)
+
+| Improvement                                       | PR(s) | Notes                                                            |
+| ------------------------------------------------- | ----- | ---------------------------------------------------------------- |
+| Wire `previewLayout` on all 14 widgets + commit assets | #1008 | Auto-squash-merge enabled; lands on main when required CI green. |
+
+- **Measured impact (post-merge sanity to do on a real device):** install
+  the build with PR #1008 merged, open the launcher widget picker, and
+  confirm each widget shows its rich preview tile. Pre-Android-12
+  launchers continue to fall back to the app icon (this is by design —
+  `previewLayout` is API 31+).
+- **Re-baselined wall-clock estimate:** ~10 min implementation matched
+  the audit estimate; no rework.
+- **Memory entry candidates:** none — the failure mode (untracked
+  `widget_preview_*` layouts + missing `previewLayout` attribute) is
+  a one-off oversight from prior widget polish work, not a recurring
+  pattern. The `git status` and `grep -E "preview" *_widget_info.xml`
+  triage was sufficient and is generic.
+- **Schedule for next audit:** none queued from this scope. Optional
+  follow-up — generate `previewImage` PNGs to cover Android 8–11 users
+  if that segment becomes load-bearing.
+
+## Anti-patterns to fix in a separate sweep (not this audit)
+
+- **CLAUDE.md drift:** the project overview still says widgets are
+  scaffolded with `WIDGETS_ENABLED = false`. Actual code reads
+  `WIDGETS_ENABLED = true` and widgets are themed + shipped through
+  v1.7. A focused CLAUDE.md sweep should reconcile.
