@@ -511,8 +511,10 @@ internal fun AddEditTaskFormFields(
 
     // Reminder picker dialog
     if (showReminderDialog) {
+        val reminderPresets by viewModel.reminderPresets.collectAsStateWithLifecycle()
         ReminderPickerDialog(
             currentOffset = viewModel.reminderOffset,
+            presets = reminderPresets,
             onSelect = { offset ->
                 viewModel.onReminderOffsetChange(offset)
                 showReminderDialog = false
@@ -814,7 +816,14 @@ internal fun reminderOffsetLabel(offset: Long?): String = when (offset) {
     1_800_000L -> "30 minutes before"
     3_600_000L -> "1 hour before"
     86_400_000L -> "1 day before"
-    else -> "${offset / 60_000} min before"
+    else -> {
+        val minutes = offset / 60_000
+        when {
+            minutes % (24 * 60) == 0L -> "${minutes / (24 * 60)} day${if (minutes / (24 * 60) == 1L) "" else "s"} before"
+            minutes % 60 == 0L -> "${minutes / 60} hour${if (minutes / 60 == 1L) "" else "s"} before"
+            else -> "$minutes min before"
+        }
+    }
 }
 
 private data class ReminderOption(
@@ -822,28 +831,33 @@ private data class ReminderOption(
     val offset: Long?
 )
 
-private val reminderOptions = listOf(
-    ReminderOption("None", null),
-    ReminderOption("At due time", 0L),
-    ReminderOption("15 minutes before", 900_000L),
-    ReminderOption("30 minutes before", 1_800_000L),
-    ReminderOption("1 hour before", 3_600_000L),
-    ReminderOption("1 day before", 86_400_000L)
-)
+private val DEFAULT_REMINDER_OFFSETS = listOf(0L, 900_000L, 1_800_000L, 3_600_000L, 86_400_000L)
+
+private fun reminderOptionsFor(presets: List<Long>): List<ReminderOption> {
+    val source = if (presets.isEmpty()) DEFAULT_REMINDER_OFFSETS else presets
+    return buildList {
+        add(ReminderOption("None", null))
+        source.distinct().forEach { offset ->
+            add(ReminderOption(reminderOffsetLabel(offset), offset))
+        }
+    }
+}
 
 @Composable
 internal fun ReminderPickerDialog(
     currentOffset: Long?,
+    presets: List<Long> = DEFAULT_REMINDER_OFFSETS,
     onSelect: (Long?) -> Unit,
     onDismiss: () -> Unit
 ) {
+    val options = remember(presets) { reminderOptionsFor(presets) }
     androidx.compose.material3.AlertDialog(
         onDismissRequest = onDismiss,
         confirmButton = {},
         title = { Text("Set Reminder") },
         text = {
             Column {
-                reminderOptions.forEach { option ->
+                options.forEach { option ->
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
