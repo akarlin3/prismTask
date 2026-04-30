@@ -18,8 +18,8 @@ android {
         applicationId = "com.averycorp.prismtask"
         minSdk = 26
         targetSdk = 35
-        versionCode = 792
-        versionName = "1.7.92"
+        versionCode = 796
+        versionName = "1.7.96"
 
         testInstrumentationRunner = "com.averycorp.prismtask.HiltTestRunner"
         vectorDrawables { useSupportLibrary = true }
@@ -288,7 +288,7 @@ dependencies {
     implementation("com.squareup.retrofit2:converter-gson:2.11.0")
 
     // Coroutines
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
 
     // DataStore
     implementation("androidx.datastore:datastore-preferences:1.1.1")
@@ -314,9 +314,9 @@ dependencies {
     // gRPC — Firestore requires gRPC 1.62.2+ for InternalGlobalInterceptors,
     // but google-api-client-android pulls an older version that wins in resolution.
     // Force 1.65.0 to ensure the class exists at runtime.
-    implementation("io.grpc:grpc-api:1.65.0")
-    implementation("io.grpc:grpc-android:1.65.0")
-    implementation("io.grpc:grpc-okhttp:1.65.0")
+    implementation("io.grpc:grpc-api:1.80.0")
+    implementation("io.grpc:grpc-android:1.80.0")
+    implementation("io.grpc:grpc-okhttp:1.80.0")
 
     // Credential Manager (Google Sign-In)
     implementation("androidx.credentials:credentials:1.3.0")
@@ -338,7 +338,7 @@ dependencies {
     // Testing
     testImplementation("junit:junit:4.13.2")
     testImplementation("androidx.room:room-testing:2.8.4")
-    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2")
     testImplementation("io.mockk:mockk:1.13.13")
     testImplementation("app.cash.turbine:turbine:1.1.0")
     testImplementation("org.robolectric:robolectric:4.13")
@@ -351,7 +351,7 @@ dependencies {
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     androidTestImplementation("androidx.room:room-testing:2.8.4")
     androidTestImplementation("androidx.arch.core:core-testing:2.2.0")
-    androidTestImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
+    androidTestImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2")
     androidTestImplementation("com.google.dagger:hilt-android-testing:2.59.2")
     androidTestImplementation("io.mockk:mockk-android:1.13.13")
     androidTestImplementation("androidx.work:work-testing:2.9.1")

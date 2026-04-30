@@ -22,9 +22,14 @@ permissions:
   checks: read
   actions: read     # capture-failure-log fetches job logs via API
 
-# versionCode strategy: release.yml increments by 1 from current value in
-# build.gradle.kts. auto-merge.yml independently increments debug builds.
-# These are separate tracks and do not conflict.
+# versionCode strategy: main is the single source of truth. version-bump-and-tag.yml
+# bumps versionCode/versionName on every auto-merge BEFORE pushing the vX.Y.Z tag
+# and dispatching this workflow; android-ci.yml's tag-and-release covers the
+# direct-push-to-main path with the same bump-before-tag shape. release.yml
+# checks out the tagged commit and builds with whatever's already on it — no
+# bump here. (See CI_AUDIT_2026-04-30 F3: a previous in-workflow sed bump was
+# never committed, so it raced with main and produced versionCode collisions
+# that Play Store rejected on the next upload.)
 
 jobs:
   build-and-release:
@@ -73,20 +78,16 @@ jobs:
           }
           echo "has_keystore=true" >> $GITHUB_OUTPUT
 
-      - name: Bump versionCode for release
+      - name: Read version from build.gradle.kts
         if: steps.keystore.outputs.has_keystore == 'true'
         id: version
         run: |
           set -euo pipefail
-          # Read current versionCode from build.gradle.kts and increment by 1
-          # Document: release.yml owns release versionCode. auto-merge.yml owns debug patch bumps.
-          CURRENT=$(grep 'versionCode\s*=' app/build.gradle.kts | grep -o '[0-9]*')
-          NEW_CODE=$((CURRENT + 1))
-          sed -i "s/versionCode = $CURRENT/versionCode = $NEW_CODE/" app/build.gradle.kts
+          VERSION_CODE=$(grep 'versionCode\s*=' app/build.gradle.kts | grep -o '[0-9]*')
           VERSION_NAME=$(grep 'versionName' app/build.gradle.kts | head -1 | grep -oP '"\K[^"]+')
           echo "version_name=$VERSION_NAME" >> $GITHUB_OUTPUT
-          echo "version_code=$NEW_CODE" >> $GITHUB_OUTPUT
-          echo "Building v$VERSION_NAME (build $NEW_CODE)"
+          echo "version_code=$VERSION_CODE" >> $GITHUB_OUTPUT
+          echo "Building v$VERSION_NAME (build $VERSION_CODE)"
 
       - name: Build release APK and AAB
         if: steps.keystore.outputs.has_keystore == 'true'

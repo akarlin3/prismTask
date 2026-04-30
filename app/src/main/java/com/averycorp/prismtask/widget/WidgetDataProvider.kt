@@ -169,7 +169,8 @@ object WidgetDataProvider {
 
     suspend fun getTodayData(
         context: Context,
-        now: Long = System.currentTimeMillis()
+        now: Long = System.currentTimeMillis(),
+        maxTasks: Int = 8
     ): TodayWidgetData {
         val db = getDb(context)
         val dayStartHour = context.readDayStartHour()
@@ -197,10 +198,11 @@ object WidgetDataProvider {
         } else {
             0
         }
+        val taskFetchCap = maxTasks.coerceIn(1, 20)
         return TodayWidgetData(
             totalTasks = allTasks.size + completedToday.size,
             completedTasks = completedToday.size,
-            tasks = (completedToday + allTasks).take(8).map { it.toRow(startOfDay) },
+            tasks = (completedToday + allTasks).take(taskFetchCap).map { it.toRow(startOfDay) },
             totalHabits = habits.size,
             completedHabits = completedHabits,
             habitIcons = habits.take(6).map { it.icon },

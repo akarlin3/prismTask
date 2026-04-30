@@ -28,24 +28,14 @@ permissions:
 jobs:
   test:
     # Required status check for branch protection: must post even on PRs
-    # that don't touch `backend/**`. Postgres service + pytest only run
-    # when `relevance.outputs.backend` is true.
+    # that don't touch `backend/**`. Postgres + pytest only run when
+    # `relevance.outputs.backend` is true. The previous `services:
+    # postgres:` block was workflow-level so GitHub provisioned Postgres
+    # on every PR regardless — ~10–15s of wasted boot per non-backend PR
+    # (CI_AUDIT_2026-04-30 F6). Replaced with an inline `docker run -d`
+    # step that's `if:`-gated on relevance, so irrelevant PRs skip
+    # Postgres entirely.
     runs-on: ubuntu-latest
-
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: averytask_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U postgres"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
 
     defaults:
       run:
@@ -69,7 +59,39 @@ jobs:
               - '.github/workflows/backend-ci.yml'
       - name: Short-circuit (no backend changes)
         if: steps.relevance.outputs.backend != 'true'
-        run: echo "✓ No backend paths changed; test job is a no-op."
+        run: echo "✓ No backend paths changed; test job is a no-op (no Postgres provisioned)."
+
+      - name: Start Postgres (relevance-gated)
+        if: steps.relevance.outputs.backend == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run -d \
+            --name postgres \
+            -e POSTGRES_USER=postgres \
+            -e POSTGRES_PASSWORD=postgres \
+            -e POSTGRES_DB=averytask_test \
+            -p 5432:5432 \
+            --health-cmd 'pg_isready -U postgres' \
+            --health-interval 10s \
+            --health-timeout 5s \
+            --health-retries 5 \
+            postgres:16
+          # Block until pg_isready returns 0 — we don't trust the
+          # docker --health-* flags alone here because subsequent steps
+          # (alembic upgrade head, pytest fixtures) connect immediately
+          # and a flaky readiness probe would surface as a connection
+          # refused on alembic, not as a clean retry-here.
+          for attempt in $(seq 1 30); do
+            if docker exec postgres pg_isready -U postgres -d averytask_test >/dev/null 2>&1; then
+              echo "Postgres ready after ${attempt}s"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "::error::Postgres did not become ready within 30s"
+          docker logs postgres || true
+          exit 1
 
       - name: Set up Python 3.11
         if: steps.relevance.outputs.backend == 'true'

@@ -93,6 +93,7 @@ fun MonthViewScreen(
     val dayInfos by viewModel.monthDayInfos.collectAsStateWithLifecycle()
     val selectedDate by viewModel.selectedDate.collectAsStateWithLifecycle()
     val selectedDateTasks by viewModel.selectedDateTasks.collectAsStateWithLifecycle()
+    val firstDayOfWeek by viewModel.firstDayOfWeek.collectAsStateWithLifecycle()
     val today = LocalDate.now()
 
     var editorState by remember { mutableStateOf<MonthTaskEditorState?>(null) }
@@ -141,15 +142,9 @@ fun MonthViewScreen(
                     .fillMaxWidth()
                     .padding(horizontal = 8.dp)
             ) {
-                val daysOfWeek = listOf(
-                    DayOfWeek.MONDAY,
-                    DayOfWeek.TUESDAY,
-                    DayOfWeek.WEDNESDAY,
-                    DayOfWeek.THURSDAY,
-                    DayOfWeek.FRIDAY,
-                    DayOfWeek.SATURDAY,
-                    DayOfWeek.SUNDAY
-                )
+                val daysOfWeek = (0..6).map { offset ->
+                    DayOfWeek.of(((firstDayOfWeek.value - 1 + offset) % 7) + 1)
+                }
                 daysOfWeek.forEach { dow ->
                     Text(
                         text = dow.getDisplayName(TextStyle.SHORT, Locale.getDefault()),
@@ -171,7 +166,7 @@ fun MonthViewScreen(
             // Calendar grid
             val firstDayOfMonth = currentMonth.atDay(1)
             val daysInMonth = currentMonth.lengthOfMonth()
-            val startDayOffset = (firstDayOfMonth.dayOfWeek.value - 1) // Monday = 0
+            val startDayOffset = ((firstDayOfMonth.dayOfWeek.value - firstDayOfWeek.value) + 7) % 7
 
             // Build cell list: offset blanks + actual days
             val cells = buildList {

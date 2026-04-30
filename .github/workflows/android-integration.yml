@@ -229,6 +229,19 @@ jobs:
   #    timeout-exceeded). Real flakes now surface as honest failures
   #    rather than convergence-on-retry — matches the connected-tests
   #    job's no-retry shape (which sustains ~91% success).
+  #
+  # When to batch (CI_AUDIT_2026-04-30 F8): the AVD-boot + Firebase
+  # emulator boot amortizes across however many test classes you run
+  # in one connectedAndroidTest invocation, but right now the lane
+  # spends ~80% of its wall-clock on cold infra for a SINGLE class.
+  # That's fine at one or two quarantined classes; it gets wasteful
+  # past three. If a third class lands here, swap
+  # `-Pandroid.testInstrumentationRunnerArguments.class=...` for
+  # `-Pandroid.testInstrumentationRunnerArguments.package=
+  # com.averycorp.prismtask.sync.scenarios` and have all quarantined
+  # cross-device classes live under that package — one job runs the
+  # whole batch and the boot cost amortizes properly. Keep the
+  # single-class shape until then.
   cross-device-tests:
     if: >-
       github.event_name != 'pull_request' ||

@@ -18,6 +18,7 @@ import com.averycorp.prismtask.data.local.entity.ProjectEntity
 import com.averycorp.prismtask.data.local.entity.TagEntity
 import com.averycorp.prismtask.data.local.entity.TaskEntity
 import com.averycorp.prismtask.data.preferences.NotificationPreferences
+import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
 import com.averycorp.prismtask.data.repository.AttachmentRepository
 import com.averycorp.prismtask.data.repository.BoundaryRuleRepository
 import com.averycorp.prismtask.data.repository.ProjectRepository
@@ -73,6 +74,7 @@ constructor(
     private val notificationPreferences: NotificationPreferences,
     private val userPreferencesDataStore: com.averycorp.prismtask.data.preferences.UserPreferencesDataStore,
     private val advancedTuningPreferences: com.averycorp.prismtask.data.preferences.AdvancedTuningPreferences,
+    taskBehaviorPreferences: TaskBehaviorPreferences,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
     private val boundaryEnforcer = BoundaryEnforcer()
@@ -92,6 +94,20 @@ constructor(
                 SharingStarted.WhileSubscribed(5000),
                 com.averycorp.prismtask.data.preferences.EditorFieldRows()
             )
+
+    /**
+     * User-configurable reminder offsets (millis-before-due). Falls back to the
+     * factory list `0,15m,30m,1h,1d` when the user hasn't customized presets.
+     * The "None" option is added by the picker UI; this list is only the
+     * positive-offset choices.
+     */
+    val reminderPresets: StateFlow<List<Long>> = taskBehaviorPreferences
+        .getReminderPresets()
+        .stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5000),
+            listOf(0L, 900_000L, 1_800_000L, 3_600_000L, 86_400_000L)
+        )
 
     private val _errorMessages = MutableSharedFlow<String>()
     val errorMessages: SharedFlow<String> = _errorMessages.asSharedFlow()
