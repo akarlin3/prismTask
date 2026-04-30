@@ -423,16 +423,37 @@ jobs:
         run: |
           set -euo pipefail
           CURRENT_CODE=$(grep -oP 'versionCode\s*=\s*\K[0-9]+' app/build.gradle.kts | head -1)
+          if [ -z "${CURRENT_CODE:-}" ]; then
+            echo "::error::Could not parse current versionCode from app/build.gradle.kts"
+            exit 1
+          fi
           NEW_CODE=$(( CURRENT_CODE + 1 ))
           sed -i "s/versionCode = $CURRENT_CODE/versionCode = $NEW_CODE/" app/build.gradle.kts
 
           CURRENT_NAME=$(grep -oP 'versionName\s*=\s*"\K[^"]+' app/build.gradle.kts | head -1)
+          if [ -z "${CURRENT_NAME:-}" ]; then
+            echo "::error::Could not parse current versionName from app/build.gradle.kts"
+            exit 1
+          fi
           MAJOR=$(echo "$CURRENT_NAME" | cut -d. -f1)
           MINOR=$(echo "$CURRENT_NAME" | cut -d. -f2)
           PATCH=$(echo "$CURRENT_NAME" | cut -d. -f3)
           NEW_PATCH=$(( PATCH + 1 ))
           NEW_NAME="${MAJOR}.${MINOR}.${NEW_PATCH}"
           sed -i "s/versionName = \"${CURRENT_NAME}\"/versionName = \"${NEW_NAME}\"/" app/build.gradle.kts
+
+          # Hard verify the bump landed on disk before we let any
+          # downstream step (commit, tag, release dispatch) proceed.
+          # Belt-and-suspenders against a sed substitution that silently
+          # didn't match — the goal is "no release without a bump", and
+          # an unverified sed plus the no-diff fast-path in the next step
+          # could otherwise cut a release pointed at an unbumped commit.
+          ACTUAL_CODE=$(grep -oP 'versionCode\s*=\s*\K[0-9]+' app/build.gradle.kts | head -1)
+          ACTUAL_NAME=$(grep -oP 'versionName\s*=\s*"\K[^"]+' app/build.gradle.kts | head -1)
+          if [ "$ACTUAL_CODE" != "$NEW_CODE" ] || [ "$ACTUAL_NAME" != "$NEW_NAME" ]; then
+            echo "::error::Version bump did not land on disk (expected versionCode=$NEW_CODE versionName=$NEW_NAME, got versionCode=$ACTUAL_CODE versionName=$ACTUAL_NAME)"
+            exit 1
+          fi
 
           echo "version_name=$NEW_NAME" >> "$GITHUB_OUTPUT"
           echo "version_code=$NEW_CODE" >> "$GITHUB_OUTPUT"
@@ -444,9 +465,15 @@ jobs:
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           git add app/build.gradle.kts
+          # Strict: a release MUST be preceded by a real bump diff. The
+          # bump step above already verified the file changed on disk, so
+          # a missing staged diff here means the working tree was reset
+          # or the file was reverted between steps — fail loud rather
+          # than silently producing a release pointed at an unbumped
+          # main tip.
           if git diff --cached --quiet; then
-            echo "No version bump to commit"
-            exit 0
+            echo "::error::No staged version-bump diff after bump step. Refusing to tag/release without a real bump."
+            exit 1
           fi
           git commit -m "chore: bump to v${{ steps.version.outputs.version_name }} (build ${{ steps.version.outputs.version_code }}) [skip ci]"
           # Concurrent pushes to main can race the bump commit; rebase
