@@ -12,6 +12,7 @@ import androidx.glance.GlanceModifier
 import androidx.glance.LocalSize
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
+import androidx.glance.appwidget.GlanceAppWidgetManager
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
 import androidx.glance.appwidget.LinearProgressIndicator
 import androidx.glance.appwidget.SizeMode
@@ -52,15 +53,19 @@ class TodayWidget : GlanceAppWidget() {
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val palette = loadWidgetPalette(context)
+        val config = runCatching {
+            val appWidgetId = GlanceAppWidgetManager(context).getAppWidgetId(id)
+            WidgetConfigDataStore.snapshotTodayConfig(context, appWidgetId)
+        }.getOrNull() ?: WidgetConfigDataStore.TodayConfig()
         val data = try {
-            WidgetDataProvider.getTodayData(context)
+            WidgetDataProvider.getTodayData(context, maxTasks = config.maxTasks)
         } catch (_: Exception) {
             null
         }
         provideContent {
             val size = LocalSize.current
             if (data != null) {
-                TodayWidgetContent(context, data, size, palette)
+                TodayWidgetContent(context, data, size, palette, config.maxTasks)
             } else {
                 WidgetLoadingState(palette)
             }
@@ -73,7 +78,8 @@ private fun TodayWidgetContent(
     context: Context,
     data: TodayWidgetData,
     size: DpSize,
-    palette: WidgetThemePalette
+    palette: WidgetThemePalette,
+    configuredMaxTasks: Int
 ) {
     val isSmall = size.width < 250.dp
     val isLarge = size.width >= 350.dp
@@ -131,7 +137,7 @@ private fun TodayWidgetContent(
                 style = WidgetTextStyles.badge(palette.onSurfaceVariant)
             )
             Spacer(modifier = GlanceModifier.height(6.dp))
-            val maxTasks = if (isLarge) 8 else 3
+            val maxTasks = configuredMaxTasks.coerceIn(1, 20)
             if (data.tasks.isEmpty()) {
                 WidgetEmptyState(
                     emoji = "✅",
