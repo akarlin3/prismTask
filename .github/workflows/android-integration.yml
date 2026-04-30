@@ -69,7 +69,7 @@ jobs:
       # and Auth at the locally-running emulator instead of production.
       USE_FIREBASE_EMULATOR: "true"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           ref: ${{ github.head_ref || github.ref }}
 
@@ -251,7 +251,7 @@ jobs:
     env:
       USE_FIREBASE_EMULATOR: "true"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           ref: ${{ github.head_ref || github.ref }}
 
