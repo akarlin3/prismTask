@@ -57,8 +57,13 @@ class AdvancedTuningRoundTripTest {
     @Test
     fun burnoutWeights_roundTrip() {
         val v = BurnoutWeights(
-            workMax = 30, overdueMax = 25, selfCareMax = 18,
-            medicationMax = 12, streakMax = 8, restDeficitMax = 7, restDeficitDays = 3
+            workMax = 30,
+            overdueMax = 25,
+            selfCareMax = 18,
+            medicationMax = 12,
+            streakMax = 8,
+            restDeficitMax = 7,
+            restDeficitDays = 3
         )
         assertEquals(v, roundTrip(v))
     }
@@ -66,8 +71,11 @@ class AdvancedTuningRoundTripTest {
     @Test
     fun productivityWeights_roundTrip() {
         val v = ProductivityWeights(
-            taskWeight = 0.35f, onTimeWeight = 0.30f, habitWeight = 0.20f,
-            estimationWeight = 0.15f, trendThreshold = 4.0f
+            taskWeight = 0.35f,
+            onTimeWeight = 0.30f,
+            habitWeight = 0.20f,
+            estimationWeight = 0.15f,
+            trendThreshold = 4.0f
         )
         assertEquals(v, roundTrip(v))
     }
@@ -98,7 +106,8 @@ class AdvancedTuningRoundTripTest {
 
     @Test
     fun goodEnoughTimer_roundTrip() {
-        val v = GoodEnoughTimerConfig(gracePeriodMinutes = 5, nudgeCooldownMinutes = 12, dialogCooldownMinutes = 18, extensionMinutes = 7)
+        val v =
+            GoodEnoughTimerConfig(gracePeriodMinutes = 5, nudgeCooldownMinutes = 12, dialogCooldownMinutes = 18, extensionMinutes = 7)
         assertEquals(v, roundTrip(v))
     }
 
@@ -128,13 +137,24 @@ class AdvancedTuningRoundTripTest {
 
     @Test
     fun lifeCategoryKeywords_roundTrip() {
-        val v = LifeCategoryCustomKeywords(work = "lab,paper", personal = "kid,grocery", selfCare = "yoga", health = "appt")
+        val v =
+            LifeCategoryCustomKeywords(work = "lab,paper", personal = "kid,grocery", selfCare = "yoga", health = "appt")
         assertEquals(v, roundTrip(v))
     }
 
     @Test
     fun weeklySummary_roundTrip() {
-        val v = WeeklySummarySchedule(dayOfWeek = 1, taskSummaryHour = 18, taskSummaryMinute = 15, habitSummaryHour = 18, habitSummaryMinute = 45, reviewHour = 19, reviewMinute = 30, eveningSummaryHour = 21)
+        val v =
+            WeeklySummarySchedule(
+                dayOfWeek = 1,
+                taskSummaryHour = 18,
+                taskSummaryMinute = 15,
+                habitSummaryHour = 18,
+                habitSummaryMinute = 45,
+                reviewHour = 19,
+                reviewMinute = 30,
+                eveningSummaryHour = 21
+            )
         assertEquals(v, roundTrip(v))
     }
 
@@ -200,7 +220,8 @@ class AdvancedTuningRoundTripTest {
 
     @Test
     fun selfCareTierDefaults_roundTrip() {
-        val v = SelfCareTierDefaults(morning = "survival", bedtime = "full", medication = "essential", housework = "deep")
+        val v =
+            SelfCareTierDefaults(morning = "survival", bedtime = "full", medication = "essential", housework = "deep")
         assertEquals(v, roundTrip(v))
     }
 }
