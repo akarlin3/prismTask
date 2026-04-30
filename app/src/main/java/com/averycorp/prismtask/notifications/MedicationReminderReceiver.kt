@@ -32,10 +32,16 @@ import kotlinx.coroutines.launch
  * handled by the rescheduler's dose-change Flow observer; this branch only
  * surfaces the notification.
  *
- * Dispatch order is deliberate: medication > slot-interval > habit. The
- * interval rescheduler's per-medication-override path uses the medication
- * branch (it puts a real `medicationId`); only its per-slot path uses the
- * slot-interval branch.
+ * **Slot-clock path** — intent carries a `"clockSlotId"` extra and
+ * `medicationId == -1L`. Fires for CLOCK-mode slot alarms registered by
+ * [MedicationClockRescheduler.registerAlarmForSlot]. Tomorrow's
+ * occurrence is re-armed from the receiver before the notification is
+ * shown, since AlarmManager exact alarms are one-shot.
+ *
+ * Dispatch order is deliberate: medication > slot-clock > slot-interval >
+ * habit. The interval rescheduler's per-medication-override path uses the
+ * medication branch (it puts a real `medicationId`); only its per-slot path
+ * uses the slot-interval branch.
  */
 class MedicationReminderReceiver : BroadcastReceiver() {
     @dagger.hilt.EntryPoint
@@ -44,6 +50,8 @@ class MedicationReminderReceiver : BroadcastReceiver() {
         fun habitReminderScheduler(): HabitReminderScheduler
 
         fun medicationReminderScheduler(): MedicationReminderScheduler
+
+        fun medicationClockRescheduler(): MedicationClockRescheduler
 
         fun habitDao(): HabitDao
 
@@ -54,6 +62,7 @@ class MedicationReminderReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
         val medicationId = intent.getLongExtra("medicationId", -1L)
+        val clockSlotId = intent.getLongExtra("clockSlotId", -1L)
         val intervalSlotId = intent.getLongExtra("intervalSlotId", -1L)
         val habitId = intent.getLongExtra("habitId", -1L)
 
@@ -66,9 +75,18 @@ class MedicationReminderReceiver : BroadcastReceiver() {
         val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
         scope.launch {
             try {
-                when (val kind = classifyAlarm(medicationId, intervalSlotId, habitId)) {
+                when (
+                    val kind = classifyAlarm(
+                        medicationId = medicationId,
+                        clockSlotId = clockSlotId,
+                        intervalSlotId = intervalSlotId,
+                        habitId = habitId
+                    )
+                ) {
                     is AlarmKind.Medication ->
                         handleMedicationAlarm(context, intent, entryPoint, kind.medicationId)
+                    is AlarmKind.SlotClock ->
+                        handleSlotClockAlarm(context, entryPoint, kind.slotId)
                     is AlarmKind.SlotInterval ->
                         handleSlotIntervalAlarm(context, entryPoint, kind.slotId)
                     is AlarmKind.Habit ->
@@ -76,14 +94,16 @@ class MedicationReminderReceiver : BroadcastReceiver() {
                     AlarmKind.Unknown -> Log.w(
                         "MedReminderReceiver",
                         "Alarm fired with no recognised id extra " +
-                            "(medId=$medicationId slotId=$intervalSlotId habitId=$habitId)"
+                            "(medId=$medicationId clockSlot=$clockSlotId " +
+                            "intervalSlot=$intervalSlotId habitId=$habitId)"
                     )
                 }
             } catch (e: Exception) {
                 Log.e(
                     "MedReminderReceiver",
                     "Failed to process alarm " +
-                        "medId=$medicationId slotId=$intervalSlotId habitId=$habitId",
+                        "medId=$medicationId clockSlot=$clockSlotId " +
+                        "intervalSlot=$intervalSlotId habitId=$habitId",
                     e
                 )
             } finally {
@@ -188,10 +208,34 @@ class MedicationReminderReceiver : BroadcastReceiver() {
         )
     }
 
+    private suspend fun handleSlotClockAlarm(
+        context: Context,
+        entryPoint: MedReminderEntryPoint,
+        slotId: Long
+    ) {
+        val slot = entryPoint.medicationSlotDao().getByIdOnce(slotId)
+        if (slot == null || !slot.isActive) return
+
+        // Re-arm tomorrow's wall-clock alarm before showing the
+        // notification. AlarmManager exact alarms are one-shot, and
+        // MedicationClockRescheduler does not observe a Flow that would
+        // otherwise drive the next pass.
+        entryPoint.medicationClockRescheduler().onAlarmFired(slotId)
+
+        NotificationHelper.showSlotClockReminder(
+            context = context,
+            slotId = slotId,
+            slotName = slot.name,
+            idealTime = slot.idealTime
+        )
+    }
+
     companion object {
         @Suppress("MemberVisibilityCanBePrivate")
         internal sealed class AlarmKind {
             data class Medication(val medicationId: Long) : AlarmKind()
+
+            data class SlotClock(val slotId: Long) : AlarmKind()
 
             data class SlotInterval(val slotId: Long) : AlarmKind()
 
@@ -203,14 +247,16 @@ class MedicationReminderReceiver : BroadcastReceiver() {
         /**
          * Pure dispatch helper. Routes by id-extra presence in priority order
          * so legacy alarms (which set `habitId` only) never get pre-empted by
-         * the newer slot-interval path.
+         * the newer slot paths.
          */
         internal fun classifyAlarm(
             medicationId: Long,
+            clockSlotId: Long,
             intervalSlotId: Long,
             habitId: Long
         ): AlarmKind = when {
             medicationId >= 0 -> AlarmKind.Medication(medicationId)
+            clockSlotId >= 0 -> AlarmKind.SlotClock(clockSlotId)
             intervalSlotId >= 0 -> AlarmKind.SlotInterval(intervalSlotId)
             habitId >= 0 -> AlarmKind.Habit(habitId)
             else -> AlarmKind.Unknown

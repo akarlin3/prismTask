@@ -21,6 +21,8 @@ class BootReceiver : BroadcastReceiver() {
 
         fun medicationReminderScheduler(): MedicationReminderScheduler
 
+        fun medicationClockRescheduler(): MedicationClockRescheduler
+
         fun medicationIntervalRescheduler(): MedicationIntervalRescheduler
     }
 
@@ -52,6 +54,7 @@ class BootReceiver : BroadcastReceiver() {
                 entryPoint.reminderScheduler().rescheduleAllReminders()
                 entryPoint.habitReminderScheduler().rescheduleAll()
                 entryPoint.medicationReminderScheduler().rescheduleAll()
+                entryPoint.medicationClockRescheduler().rescheduleAll()
                 entryPoint.medicationIntervalRescheduler().rescheduleAll()
             } catch (e: Exception) {
                 Log.e("BootReceiver", "Failed to reschedule reminders on boot", e)
