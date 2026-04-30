@@ -7,7 +7,6 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.draganddrop.dragAndDropSource
 import androidx.compose.foundation.draganddrop.dragAndDropTarget
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -448,6 +447,12 @@ internal fun LazyListScope.draggableTaskItemWithSubtasks(
         // drag is in progress — native Android handles the actual
         // follow-the-pointer movement on top of that decoration.
         val dragShadowColor = MaterialTheme.colorScheme.primary
+        // Compose Foundation 1.8 replaced the legacy `dragAndDropSource(block:
+        // suspend DragAndDropSourceScope.() -> Unit)` signature (which let you
+        // call `startTransfer` from `detectTapGestures(onLongPress = ...)`)
+        // with a `transferData: (Offset) -> DragAndDropTransferData` lambda the
+        // framework calls when drag detection fires. Long-press handling is now
+        // built in, so the old `detectTapGestures` wrapper goes away.
         val dragHandleDragModifier = Modifier.dragAndDropSource(
             drawDragDecoration = {
                 drawRoundRect(
@@ -455,21 +460,13 @@ internal fun LazyListScope.draggableTaskItemWithSubtasks(
                     alpha = 0.5f,
                     cornerRadius = CornerRadius(8.dp.toPx(), 8.dp.toPx())
                 )
+            },
+            transferData = {
+                DragAndDropTransferData(
+                    clipData = ClipData.newPlainText("task_id", task.id.toString())
+                )
             }
-        ) {
-            detectTapGestures(
-                onLongPress = {
-                    startTransfer(
-                        DragAndDropTransferData(
-                            clipData = ClipData.newPlainText(
-                                "task_id",
-                                task.id.toString()
-                            )
-                        )
-                    )
-                }
-            )
-        }
+        )
 
         val dragModifier = Modifier
             .dragAndDropTarget(
