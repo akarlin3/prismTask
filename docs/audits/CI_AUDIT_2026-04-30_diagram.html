@@ -1,0 +1,472 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>PrismTask CI — Audit Diagram (2026-04-30)</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+  body { background: #0b0d12; color: #e5e7eb; font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .glow { box-shadow: 0 0 0 1px rgba(255,255,255,0.05), 0 8px 24px rgba(0,0,0,0.4); }
+  .arrow-tip { fill: #94a3b8; }
+  .conn { stroke: #475569; stroke-width: 1.5; fill: none; }
+  .conn.dim { stroke: #1f2937; }
+  .conn.hot { stroke: #38bdf8; stroke-width: 2.25; filter: drop-shadow(0 0 6px rgba(56,189,248,0.6)); }
+  .pill { font-size: 11px; padding: 2px 8px; border-radius: 9999px; }
+  .scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
+  .scrollbar::-webkit-scrollbar-thumb { background: #334155; border-radius: 8px; }
+</style>
+</head>
+<body>
+<div id="root" class="min-h-screen"></div>
+
+<script type="text/babel">
+const {useMemo, useState} = React;
+
+/* ─── data model ─────────────────────────────────────────────────────── */
+
+const TRIGGERS = [
+  { id: "t-pr",        label: "pull_request → main",          tone: "sky",     hint: "Most common — every PR open / sync / reopen / label" },
+  { id: "t-push-main", label: "push → main",                  tone: "emerald", hint: "After auto-merge squashes (only fires for hand-pushed direct-to-main commits — gh pr merge under GITHUB_TOKEN suppresses this)" },
+  { id: "t-tag",       label: "push → tag vX.Y.Z",            tone: "amber",   hint: "release.yml — but [skip ci] on the bump commit usually suppresses this; tag-and-release dispatches release.yml directly" },
+  { id: "t-label",     label: "PR labeled ci:integration",    tone: "violet",  hint: "Auto-applied by label-integration-ci.yml when DAO / Migrations / androidTest paths change" },
+  { id: "t-wfrun",     label: "workflow_run (chained)",       tone: "rose",    hint: "Documented exception to GITHUB_TOKEN anti-recursion rule — chains Auto-merge → Version Bump → Auto-update-branch" },
+  { id: "t-dispatch",  label: "workflow_dispatch (manual)",   tone: "slate",   hint: "Manual GitHub UI / gh workflow run" },
+  { id: "t-mergegrp",  label: "merge_group",                  tone: "slate",   hint: "GitHub merge queue (defined on android-ci, backend-ci, web-ci, android-integration but no merge queue is configured)" },
+];
+
+const WORKFLOWS = [
+  {
+    id: "android-ci",
+    name: "Android CI",
+    file: ".github/workflows/android-ci.yml",
+    triggers: ["t-pr", "t-push-main", "t-mergegrp", "t-dispatch"],
+    jobs: [
+      { name: "autofix",          notes: "PR-only. Runs ktlintFormat + detekt --auto-correct in PARALLEL with lint-and-test, commits style fixes back. Pushes via AUTOFIX_PAT (so downstream checks fire) with GITHUB_TOKEN fallback. Authoritative ktlintCheck verdict lives here." },
+      { name: "lint-and-test",    notes: "Required status check. Runs detekt + lintDebug (PR) or full lint (push:main) + compiles androidTest sources for type-check + testDebugUnitTest. Verifies JUnit XML belt-and-suspenders. Posts failure comment to PR.", required: true },
+      { name: "tag-and-release",  notes: "push:main only. Bumps versionCode/Name + commits with [skip ci] + pushes vX.Y.Z tag + dispatches release.yml. Covers hand-pushed direct-to-main commits. AUTO-merged PRs get bumped by Version Bump & Tag instead." },
+      { name: "capture-failure-log (reusable)", notes: "Fires on any job failure. Pushes log to ci-logs branch." },
+    ],
+    color: "emerald",
+  },
+  {
+    id: "android-integration",
+    name: "Android Integration CI",
+    file: ".github/workflows/android-integration.yml",
+    triggers: ["t-pr", "t-push-main", "t-mergegrp", "t-dispatch", "t-label"],
+    jobs: [
+      { name: "connected-tests",     notes: "Required status check. AVD (api 34, pixel_6, x86_64) + Firebase Emulator (firestore + auth) + connectedDebugAndroidTest. PRs need ci:integration label to actually run; otherwise the required check posts as skipped success.", required: true },
+      { name: "cross-device-tests",  notes: "Quarantined lane. Same AVD+Firebase shape but runs ONLY MedicationCrossDeviceConvergenceTest. NOT in branch-protection required list (kept separate because the connected-tests baseline flake rate is ~22%)." },
+      { name: "capture-failure-log (reusable)", notes: "Fires on connected-tests failure." },
+    ],
+    color: "indigo",
+  },
+  {
+    id: "backend-ci",
+    name: "Backend CI",
+    file: ".github/workflows/backend-ci.yml",
+    triggers: ["t-pr", "t-push-main", "t-mergegrp", "t-dispatch"],
+    jobs: [
+      { name: "test",  notes: "Required status check. Postgres 16 service + Python 3.11 + pip cache + ruff + alembic upgrade head + pytest -x with --junitxml. dorny/paths-filter short-circuits when no backend/** changes (but Postgres service still gets provisioned).", required: true },
+      { name: "capture-failure-log (reusable)", notes: "Fires on test failure." },
+    ],
+    color: "amber",
+  },
+  {
+    id: "web-ci",
+    name: "Web CI",
+    file: ".github/workflows/web-ci.yml",
+    triggers: ["t-pr", "t-push-main", "t-mergegrp", "t-dispatch"],
+    jobs: [
+      { name: "web-lint-and-test", notes: "Required status check. Node 22 + npm ci + ESLint + Vitest + tsc -b && vite build. Renamed from 'lint-and-test' to avoid colliding with Android CI's same-named job in branch protection (collision had let one workflow's failure slip through if the other passed).", required: true },
+      { name: "e2e",                notes: "needs: web-lint-and-test. Playwright (Chromium + Mobile Chrome) against `npm run dev` server. CI gets 2 retries, 1 worker, GitHub reporter. Cached browser binaries by package-lock hash. NOT a required status check." },
+      { name: "capture-failure-log (reusable)", notes: "Fires on either job failure." },
+    ],
+    color: "cyan",
+  },
+  {
+    id: "auto-merge",
+    name: "Auto-merge & Release",
+    file: ".github/workflows/auto-merge.yml",
+    triggers: ["t-pr", "t-dispatch"],
+    jobs: [
+      { name: "auto-merge",  notes: "Polls until non-Auto-merge checks queue (60s ceiling), waits until ALL required checks are visible (90s ceiling — comment notes the MISSING-list compare loop has an unidentified bug where it never empties), waits for all to pass via lewagon/wait-on-check-action (SHA-pinned), gh pr update-branch if BEHIND (uses AUTOFIX_PAT so downstream checks fire), then `gh pr merge --auto --squash --delete-branch`. Skips bot-authored synchronize events." },
+      { name: "capture-failure-log (reusable)", notes: "Fires on auto-merge failure." },
+    ],
+    color: "rose",
+  },
+  {
+    id: "version-bump",
+    name: "Version Bump & Tag",
+    file: ".github/workflows/version-bump-and-tag.yml",
+    triggers: ["t-wfrun", "t-dispatch"],
+    chainSource: "auto-merge",
+    jobs: [
+      { name: "version-bump-and-tag", notes: "workflow_run on Auto-merge completion. Resolves PR #, polls until MERGED (20-min ceiling), bumps versionCode + patch on main with [skip ci], pushes annotated vX.Y.Z tag, dispatches release.yml on the tag (needed because [skip ci] suppresses the tag-push trigger). Uses AUTOFIX_PAT to bypass branch protection for the bump push." },
+      { name: "capture-failure-log (reusable)", notes: "Fires on bump failure." },
+    ],
+    color: "fuchsia",
+  },
+  {
+    id: "auto-update-branch",
+    name: "Auto-update-branch",
+    file: ".github/workflows/auto-update-branch.yml",
+    triggers: ["t-push-main", "t-pr", "t-wfrun", "t-dispatch"],
+    chainSource: "version-bump",
+    jobs: [
+      { name: "update-behind-prs", notes: "Walks every open PR targeting main, calls gh pr update-branch on any with mergeStateStatus=BEHIND. Uses AUTOFIX_PAT so downstream required checks fire. Handles auth/conflict failures by posting deduped PR comments (auth=fatal, conflict=cosmetic). Opt-out via no-auto-update label." },
+    ],
+    color: "lime",
+  },
+  {
+    id: "label-integration",
+    name: "Auto-label ci:integration",
+    file: ".github/workflows/label-integration-ci.yml",
+    triggers: ["t-pr"],
+    jobs: [
+      { name: "maybe-label", notes: "Reads PR's changed files via REST. If any path matches data/local/, androidTest/, PrismTaskDatabase.kt, or Migrations.kt → applies ci:integration label, which makes Android Integration CI's connected-tests actually run." },
+    ],
+    color: "violet",
+  },
+  {
+    id: "release",
+    name: "Build and Release APK + AAB",
+    file: ".github/workflows/release.yml",
+    triggers: ["t-tag", "t-dispatch"],
+    chainSource: "version-bump",
+    jobs: [
+      { name: "build-and-release", notes: "Decodes keystore from secrets, bumps versionCode AGAIN (sed-only, never committed — see Finding F3), `gradle assembleRelease bundleRelease`, uploads artifacts, creates GitHub Release with --generate-notes, POSTs APK to backend's /api/v1/app/releases (continue-on-error)." },
+      { name: "capture-failure-log (reusable)", notes: "Fires on release failure." },
+    ],
+    color: "orange",
+  },
+  {
+    id: "capture-failure",
+    name: "Reusable Failure Capture",
+    file: ".github/workflows/capture-failure.yml",
+    triggers: [],
+    reusable: true,
+    jobs: [
+      { name: "capture", notes: "workflow_call only. Uses ./.github/actions/capture-failure-log to fetch the failing job's logs via REST API + write metadata, then ./.github/actions/commit-ci-log to clone the ci-logs orphan branch, append both `<timestamp>-<run-id>.log` (history) and `latest.log`, and push with rebase-on-reject retry (3 attempts)." },
+    ],
+    color: "stone",
+  },
+];
+
+const FINDINGS = [
+  {
+    id: "F1",
+    sev: "high",
+    title: "Repo URL drift after the averycorp org transfer",
+    body: "android-ci.yml (line 128–131) confirms the repo was transferred from a user account to the averycorp org on 2026-04-28 — yet CI_LOGS.md, scripts/setup-branch-protection.sh (defaults to akarlin3/prismTask), web/README.md badge URLs, and docs/privacy/*.md still reference akarlin3/prismTask. CLAUDE.md uses Akarlin3/PrismTask (also wrong). Three different out-of-date references, none of which match the live repo. Anyone fetching the documented `latest.log` URLs will 404.",
+    fix: "Single-pass find/replace: `akarlin3/prismTask` and `Akarlin3/PrismTask` → the actual current owner/repo (verify with `gh repo view` first). Update CI_LOGS.md, CLAUDE.md, web/README.md badges, docs/privacy/*.md, scripts/setup-branch-protection.sh REPO default."
+  },
+  {
+    id: "F2",
+    sev: "high",
+    title: "Local git hooks aren't installed in this checkout",
+    body: "scripts/hooks/{pre-push,post-commit} exist in the repo but `.git/hooks/` only contains the default `.sample` files — confirmed via `ls`. The pre-push warning on direct-to-main pushes and the post-commit tag-reminder are silently no-ops on this machine. CLAUDE.md's repo conventions assume both run.",
+    fix: "Run `./scripts/hooks/install.sh` once. Longer term, consider `core.hooksPath = scripts/hooks` so a fresh clone gets them automatically without an install step (one-line `git config` per clone, but at least it's idempotent and discoverable from `git config --list`)."
+  },
+  {
+    id: "F3",
+    sev: "high",
+    title: "release.yml's versionCode bump is never committed → collisions with the next PR",
+    body: "release.yml lines 76–89 sed-replace versionCode in build.gradle.kts to N+1, build the release APK with that value, but never `git commit` or `git push`. Meanwhile version-bump-and-tag.yml has already bumped main from N to N+1 before dispatching release.yml — so release.yml builds with versionCode N+2. Main stays at N+1. The next PR merge bumps main from N+1 to N+2, which collides with the previously released APK's versionCode. Play Store rejects duplicate versionCodes; the next release upload fails. The strategy comment (lines 25–27) was written before version-bump-and-tag.yml took over the bump path and is now stale.",
+    fix: "Delete the release.yml `Bump versionCode for release` step entirely. Build with whatever versionCode is on the tagged commit (which version-bump-and-tag.yml already bumped). One source of truth for versionCode = main's current value. Update the stale comment."
+  },
+  {
+    id: "F4",
+    sev: "med",
+    title: "auto-merge.yml's required-checks-have-queued loop has a known broken comparison",
+    body: "auto-merge.yml lines 152–155 explicitly say: `the MISSING list never empties even though CHECK_RUNS clearly contains every REQUIRED name. Likely a trim/encoding edge case in the comparison loop, but observability beats guessing`. The 90s ceiling fires `::warning::` and proceeds anyway, so this is currently cosmetic noise — but it's the second time the same workflow has shipped a known-broken loop with diagnostics-instead-of-fix (per its own comment history). Rate of false warnings on every PR.",
+    fix: "Add `tr -d '[:space:]'` or `printf '%s' \"$req\" | xxd` diagnostics next iteration. Likely culprit: `echo \"$REQUIRED\" | grep -vE '^\\s*Auto-merge\\s*$'` leaves a trailing newline that `xargs` doesn't strip but `grep -qxF` does require to match. Try `printf '%s\\n' \"$REQUIRED\" | grep -Fxq -- \"$req_trimmed\"` instead of `echo`/`grep` chains."
+  },
+  {
+    id: "F5",
+    sev: "med",
+    title: "No supply-chain pinning beyond one action; no Dependabot / CodeQL",
+    body: "Only `lewagon/wait-on-check-action` is SHA-pinned. The other 11 third-party uses (actions/checkout@v4, dorny/paths-filter@v3, reactivecircus/android-emulator-runner@v2, android-actions/setup-android@v3, gradle/actions/setup-gradle@v4, etc.) ride the major tag — anyone with push access to those tags ships code into your CI. There's also no `.github/dependabot.yml` and no CodeQL / Trivy / npm-audit workflow. SECURITY.md exists but no automation backs it.",
+    fix: "(a) Pin third-party actions to commit SHAs (Dependabot can update them automatically afterward). (b) Add `.github/dependabot.yml` for `github-actions`, `gradle`, `pip`, `npm` ecosystems. (c) Optional: add CodeQL workflow for Kotlin + Python + JavaScript (free for public repos). Lowest-cost first: dependabot.yml is ~15 lines and covers everything else."
+  },
+  {
+    id: "F6",
+    sev: "low",
+    title: "Backend CI provisions Postgres even on irrelevant PRs",
+    body: "backend-ci.yml gates each step on `steps.relevance.outputs.backend == 'true'`, but the `services: postgres:` block is workflow-level — Docker pulls and starts postgres:16 on every PR even when no backend/** changed. ~10–15s of waste per non-backend PR.",
+    fix: "Move the Postgres dependency to a separate job that's `if:`-gated on relevance, or set up Postgres inline (e.g. `docker run -d`) only when needed. Lower-effort: accept the cost — it's bounded and the simplification isn't worth churn."
+  },
+  {
+    id: "F7",
+    sev: "low",
+    title: "Two parallel paths can both push the same release tag (idempotent guard exists, worth noting)",
+    body: "Both android-ci.yml's `tag-and-release` job (push:main path for direct-to-main commits) AND version-bump-and-tag.yml (auto-merge path) can push a vX.Y.Z tag and dispatch release.yml. Each has a `git ls-remote --tags` check before pushing, so they're safe — but a hand-pushed direct-to-main commit followed within the same window by an auto-merged PR could end up with both jobs racing on the same NEW_NAME if they computed the same patch number. The dispatch-already-exists check on release.yml side closes the loop.",
+    fix: "No action needed; flagging for awareness. The dual-path coverage is intentional (covers both merge styles)."
+  },
+  {
+    id: "F8",
+    sev: "low",
+    title: "android-integration.yml's `cross-device-tests` is a single-test lane that boots a full AVD + Firebase emulator",
+    body: "Spinning up a 1200s emulator boot ceiling + Firebase emulators to run ONE test class (MedicationCrossDeviceConvergenceTest) is expensive. The comment justifies the quarantine, but as more cross-device scenarios get added the per-class job multiplication will hurt — the same boot cost amortizes badly when only one test is run per AVD.",
+    fix: "If the suite grows beyond ~3 quarantined classes, batch them via `-Pandroid.testInstrumentationRunnerArguments.package=com.averycorp.prismtask.sync.scenarios` instead of one class per job. Keep the single-class shape until then."
+  },
+];
+
+/* ─── helpers ─────────────────────────────────────────────────────────── */
+
+const toneClass = {
+  sky:     "bg-sky-500/10 text-sky-300 ring-sky-500/30",
+  emerald: "bg-emerald-500/10 text-emerald-300 ring-emerald-500/30",
+  amber:   "bg-amber-500/10 text-amber-300 ring-amber-500/30",
+  violet:  "bg-violet-500/10 text-violet-300 ring-violet-500/30",
+  rose:    "bg-rose-500/10 text-rose-300 ring-rose-500/30",
+  slate:   "bg-slate-500/10 text-slate-300 ring-slate-500/30",
+  indigo:  "bg-indigo-500/10 text-indigo-300 ring-indigo-500/30",
+  fuchsia: "bg-fuchsia-500/10 text-fuchsia-300 ring-fuchsia-500/30",
+  cyan:    "bg-cyan-500/10 text-cyan-300 ring-cyan-500/30",
+  lime:    "bg-lime-500/10 text-lime-300 ring-lime-500/30",
+  orange:  "bg-orange-500/10 text-orange-300 ring-orange-500/30",
+  stone:   "bg-stone-500/10 text-stone-300 ring-stone-500/30",
+};
+
+const sevTone = {
+  high: "bg-red-500/15 text-red-300 ring-red-500/30",
+  med:  "bg-amber-500/15 text-amber-300 ring-amber-500/30",
+  low:  "bg-slate-500/15 text-slate-300 ring-slate-500/30",
+};
+
+/* ─── components ──────────────────────────────────────────────────────── */
+
+function TriggerCard({ t, isHot, onHover, onLeave }) {
+  return (
+    <div
+      onMouseEnter={() => onHover(t.id)}
+      onMouseLeave={onLeave}
+      className={`rounded-xl px-3 py-2 ring-1 cursor-default transition-all ${toneClass[t.tone]} ${isHot ? "scale-[1.02] ring-2" : ""}`}
+      title={t.hint}
+    >
+      <div className="text-[13px] font-medium leading-tight">{t.label}</div>
+      <div className="text-[10px] opacity-70 mt-0.5 line-clamp-2">{t.hint}</div>
+    </div>
+  );
+}
+
+function WorkflowCard({ wf, hotTrigger, onHover, onLeave }) {
+  const isHot = hotTrigger && wf.triggers.includes(hotTrigger);
+  return (
+    <div
+      onMouseEnter={() => onHover(wf.id)}
+      onMouseLeave={onLeave}
+      className={`glow rounded-xl bg-slate-900/60 backdrop-blur ring-1 ring-white/5 p-3 transition-all ${isHot ? "ring-sky-400/50 bg-slate-900/80" : ""}`}
+    >
+      <div className="flex items-baseline justify-between gap-2">
+        <div className="font-semibold text-[14px]">{wf.name}</div>
+        <span className={`pill ring-1 ${toneClass[wf.color]}`}>{wf.jobs.length} job{wf.jobs.length !== 1 ? "s" : ""}</span>
+      </div>
+      <div className="text-[10px] text-slate-400 font-mono mt-0.5 truncate">{wf.file}</div>
+      <ul className="mt-2 space-y-1.5">
+        {wf.jobs.map((j, i) => (
+          <li key={i} className="text-[12px] leading-snug">
+            <div className="flex items-center gap-1.5">
+              <span className="text-slate-200">{j.name}</span>
+              {j.required && <span className="pill bg-red-500/15 text-red-300 ring-1 ring-red-500/30">required</span>}
+            </div>
+            <div className="text-[11px] text-slate-400 mt-0.5">{j.notes}</div>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function FindingCard({ f }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="rounded-xl bg-slate-900/60 ring-1 ring-white/5 p-3">
+      <button onClick={() => setOpen(o => !o)} className="w-full text-left flex items-center gap-2">
+        <span className={`pill ring-1 ${sevTone[f.sev]}`}>{f.sev.toUpperCase()}</span>
+        <span className="font-mono text-[11px] text-slate-400">{f.id}</span>
+        <span className="font-medium text-[13px] text-slate-100">{f.title}</span>
+        <span className="ml-auto text-slate-500 text-xs">{open ? "▴" : "▾"}</span>
+      </button>
+      {open && (
+        <div className="mt-3 space-y-2 text-[12px] text-slate-300">
+          <div><span className="text-slate-400">Finding —</span> {f.body}</div>
+          <div><span className="text-slate-400">Fix —</span> {f.fix}</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function App() {
+  const [hotTrigger, setHotTrigger] = useState(null);
+  const [hotWf, setHotWf] = useState(null);
+  const sevCounts = useMemo(() => FINDINGS.reduce((a, f) => (a[f.sev]++, a), {high:0, med:0, low:0}), []);
+
+  return (
+    <div className="max-w-7xl mx-auto px-6 py-8 space-y-8">
+      <header>
+        <div className="text-xs tracking-widest text-slate-400 uppercase">PrismTask · CI Audit · 2026-04-30</div>
+        <h1 className="text-2xl font-semibold mt-1">CI workflow map &amp; deep-audit findings</h1>
+        <p className="text-slate-400 text-sm mt-1 max-w-3xl">
+          10 GitHub Actions workflows + 4 composite actions + 2 git hooks + a setup script.
+          Hover a trigger to highlight the workflows it fires; click a finding to expand.
+        </p>
+      </header>
+
+      {/* Triggers row */}
+      <section>
+        <h2 className="text-xs uppercase tracking-widest text-slate-400 mb-2">Triggers</h2>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-2">
+          {TRIGGERS.map(t => (
+            <TriggerCard key={t.id} t={t} isHot={hotTrigger === t.id} onHover={setHotTrigger} onLeave={() => setHotTrigger(null)} />
+          ))}
+        </div>
+      </section>
+
+      {/* Workflows grid */}
+      <section>
+        <h2 className="text-xs uppercase tracking-widest text-slate-400 mb-2">Workflows ({WORKFLOWS.length})</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          {WORKFLOWS.map(wf => (
+            <WorkflowCard key={wf.id} wf={wf} hotTrigger={hotTrigger} onHover={setHotWf} onLeave={() => setHotWf(null)} />
+          ))}
+        </div>
+      </section>
+
+      {/* Chain diagram (svg) */}
+      <section>
+        <h2 className="text-xs uppercase tracking-widest text-slate-400 mb-2">PR-merge → Release pipeline (workflow_run chain)</h2>
+        <div className="rounded-xl bg-slate-900/60 ring-1 ring-white/5 p-4 overflow-x-auto scrollbar">
+          <svg viewBox="0 0 1080 320" className="w-full min-w-[900px] h-auto">
+            <defs>
+              <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+                <path d="M0,0 L10,5 L0,10 z" className="arrow-tip" />
+              </marker>
+            </defs>
+            {/* PR opens */}
+            <g transform="translate(20,40)">
+              <rect width="170" height="56" rx="10" fill="#0f172a" stroke="#38bdf8" strokeOpacity="0.4"/>
+              <text x="14" y="22" fill="#e2e8f0" fontSize="13" fontWeight="600">PR opened / synced</text>
+              <text x="14" y="40" fill="#94a3b8" fontSize="11">label-integration-ci adds</text>
+              <text x="14" y="52" fill="#94a3b8" fontSize="11">ci:integration if relevant</text>
+            </g>
+            {/* Required checks */}
+            <g transform="translate(220,20)">
+              <rect width="200" height="100" rx="10" fill="#0f172a" stroke="#22c55e" strokeOpacity="0.5"/>
+              <text x="14" y="20" fill="#e2e8f0" fontSize="13" fontWeight="600">Required checks (×4)</text>
+              <text x="14" y="40" fill="#86efac" fontSize="11">• lint-and-test (Android)</text>
+              <text x="14" y="56" fill="#86efac" fontSize="11">• connected-tests (Integration)</text>
+              <text x="14" y="72" fill="#86efac" fontSize="11">• test (Backend)</text>
+              <text x="14" y="88" fill="#86efac" fontSize="11">• web-lint-and-test (Web)</text>
+            </g>
+            {/* Auto-merge */}
+            <g transform="translate(450,20)">
+              <rect width="190" height="100" rx="10" fill="#0f172a" stroke="#fb7185" strokeOpacity="0.6"/>
+              <text x="14" y="20" fill="#e2e8f0" fontSize="13" fontWeight="600">Auto-merge &amp; Release</text>
+              <text x="14" y="40" fill="#fda4af" fontSize="11">wait-for-checks-to-queue</text>
+              <text x="14" y="56" fill="#fda4af" fontSize="11">wait-on-check-action (pinned)</text>
+              <text x="14" y="72" fill="#fda4af" fontSize="11">update-branch if BEHIND (PAT)</text>
+              <text x="14" y="88" fill="#fda4af" fontSize="11">gh pr merge --auto --squash</text>
+            </g>
+            {/* Version bump */}
+            <g transform="translate(670,20)">
+              <rect width="190" height="100" rx="10" fill="#0f172a" stroke="#e879f9" strokeOpacity="0.6"/>
+              <text x="14" y="20" fill="#e2e8f0" fontSize="13" fontWeight="600">Version Bump &amp; Tag</text>
+              <text x="14" y="40" fill="#f0abfc" fontSize="11">workflow_run on Auto-merge</text>
+              <text x="14" y="56" fill="#f0abfc" fontSize="11">poll until MERGED (≤20 min)</text>
+              <text x="14" y="72" fill="#f0abfc" fontSize="11">bump + [skip ci] commit</text>
+              <text x="14" y="88" fill="#f0abfc" fontSize="11">push tag + dispatch release</text>
+            </g>
+            {/* Release */}
+            <g transform="translate(890,20)">
+              <rect width="170" height="100" rx="10" fill="#0f172a" stroke="#fb923c" strokeOpacity="0.6"/>
+              <text x="14" y="20" fill="#e2e8f0" fontSize="13" fontWeight="600">Build + Release</text>
+              <text x="14" y="40" fill="#fed7aa" fontSize="11">decode keystore (secrets)</text>
+              <text x="14" y="56" fill="#fed7aa" fontSize="11">assembleRelease bundleRelease</text>
+              <text x="14" y="72" fill="#fed7aa" fontSize="11">gh release create</text>
+              <text x="14" y="88" fill="#fed7aa" fontSize="11">POST APK to backend (soft)</text>
+            </g>
+            {/* Auto-update-branch */}
+            <g transform="translate(450,180)">
+              <rect width="190" height="80" rx="10" fill="#0f172a" stroke="#a3e635" strokeOpacity="0.5"/>
+              <text x="14" y="20" fill="#e2e8f0" fontSize="13" fontWeight="600">Auto-update-branch</text>
+              <text x="14" y="40" fill="#bef264" fontSize="11">workflow_run on Version Bump</text>
+              <text x="14" y="56" fill="#bef264" fontSize="11">+ push:main, ready_for_review</text>
+              <text x="14" y="72" fill="#bef264" fontSize="11">walks open PRs, rebases BEHIND</text>
+            </g>
+            {/* ci-logs branch */}
+            <g transform="translate(20,200)">
+              <rect width="380" height="80" rx="10" fill="#0f172a" stroke="#78716c" strokeOpacity="0.5"/>
+              <text x="14" y="20" fill="#e2e8f0" fontSize="13" fontWeight="600">ci-logs orphan branch (failure capture)</text>
+              <text x="14" y="40" fill="#d6d3d1" fontSize="11">ANY workflow failure → reusable capture-failure job</text>
+              <text x="14" y="56" fill="#d6d3d1" fontSize="11">writes ci-logs/&lt;slug&gt;/{`{`}timestamp{`}`}-{`{`}runId{`}`}.log + latest.log</text>
+              <text x="14" y="72" fill="#d6d3d1" fontSize="11">unauth raw.githubusercontent.com URL — Claude can fetch w/o creds</text>
+            </g>
+            {/* arrows */}
+            <path className="conn" d="M190,68 C205,68 205,68 220,68" markerEnd="url(#arr)"/>
+            <path className="conn" d="M420,68 C435,68 435,68 450,68" markerEnd="url(#arr)"/>
+            <path className="conn hot" d="M640,68 C655,68 655,68 670,68" markerEnd="url(#arr)"/>
+            <path className="conn hot" d="M860,68 C875,68 875,68 890,68" markerEnd="url(#arr)"/>
+            <path className="conn" d="M765,120 C765,150 545,150 545,180" markerEnd="url(#arr)"/>
+            <path className="conn" d="M545,120 L545,150 L545,180" strokeDasharray="3,3" stroke="#475569"/>
+          </svg>
+          <div className="text-[11px] text-slate-500 mt-2">
+            Solid blue = workflow_run chain (the documented exception that lets these workflows actually fire after a GITHUB_TOKEN-driven merge). Dashed = optional same-trigger path.
+          </div>
+        </div>
+      </section>
+
+      {/* Findings */}
+      <section>
+        <div className="flex items-baseline justify-between mb-2">
+          <h2 className="text-xs uppercase tracking-widest text-slate-400">Audit findings</h2>
+          <div className="flex gap-2 text-[11px]">
+            <span className={`pill ring-1 ${sevTone.high}`}>{sevCounts.high} high</span>
+            <span className={`pill ring-1 ${sevTone.med}`}>{sevCounts.med} med</span>
+            <span className={`pill ring-1 ${sevTone.low}`}>{sevCounts.low} low</span>
+          </div>
+        </div>
+        <div className="space-y-2">
+          {FINDINGS.map(f => <FindingCard key={f.id} f={f} />)}
+        </div>
+      </section>
+
+      {/* Token / secret cheat sheet */}
+      <section>
+        <h2 className="text-xs uppercase tracking-widest text-slate-400 mb-2">Tokens &amp; secrets used</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-[12px]">
+          <div className="rounded-xl bg-slate-900/60 ring-1 ring-white/5 p-3">
+            <div className="font-semibold text-slate-100 mb-1">AUTOFIX_PAT</div>
+            <div className="text-slate-300">Fine-grained PAT (Contents: R+W, Pull Requests: R+W). Used by autofix push, update-branch, version-bump push to main. Required because GITHUB_TOKEN-driven pushes can NOT trigger downstream workflow runs (documented anti-recursion). Falls back to GITHUB_TOKEN with loud warnings if missing/expired.</div>
+          </div>
+          <div className="rounded-xl bg-slate-900/60 ring-1 ring-white/5 p-3">
+            <div className="font-semibold text-slate-100 mb-1">GITHUB_TOKEN</div>
+            <div className="text-slate-300">Default. Can dispatch workflows (one of two anti-recursion exceptions, alongside repository_dispatch). Used for gh pr merge, gh release create, ci-logs branch push (token-as-x-access-token URL).</div>
+          </div>
+          <div className="rounded-xl bg-slate-900/60 ring-1 ring-white/5 p-3">
+            <div className="font-semibold text-slate-100 mb-1">KEYSTORE_BASE64 + KEYSTORE_PASSWORD + KEY_ALIAS + KEY_PASSWORD</div>
+            <div className="text-slate-300">Release signing. Decoded inline in release.yml; if KEYSTORE_BASE64 is unset the workflow degrades to "no signed build" (warns but doesn't fail).</div>
+          </div>
+          <div className="rounded-xl bg-slate-900/60 ring-1 ring-white/5 p-3">
+            <div className="font-semibold text-slate-100 mb-1">API_BASE_URL + DEPLOY_API_KEY</div>
+            <div className="text-slate-300">Backend release notification (release.yml continue-on-error step). 5xx is non-fatal — release publishes regardless.</div>
+          </div>
+        </div>
+      </section>
+
+      <footer className="pt-6 border-t border-white/5 text-[11px] text-slate-500">
+        Generated 2026-04-30 · sources: .github/workflows/*.yml, .github/actions/*/action.yml, scripts/hooks/*, scripts/setup-branch-protection.sh
+      </footer>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>
