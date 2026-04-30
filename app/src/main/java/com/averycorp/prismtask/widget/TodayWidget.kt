@@ -57,10 +57,11 @@ class TodayWidget : GlanceAppWidget() {
         } catch (_: Exception) {
             null
         }
+        val quietMode = WidgetDataProvider.getQuietMode(context)
         provideContent {
             val size = LocalSize.current
             if (data != null) {
-                TodayWidgetContent(context, data, size, palette)
+                TodayWidgetContent(context, data, size, palette, quietMode)
             } else {
                 WidgetLoadingState(palette)
             }
@@ -73,7 +74,8 @@ private fun TodayWidgetContent(
     context: Context,
     data: TodayWidgetData,
     size: DpSize,
-    palette: WidgetThemePalette
+    palette: WidgetThemePalette,
+    quietMode: Boolean
 ) {
     val isSmall = size.width < 250.dp
     val isLarge = size.width >= 350.dp
@@ -136,7 +138,8 @@ private fun TodayWidgetContent(
                 WidgetEmptyState(
                     emoji = "✅",
                     message = "All Caught Up!",
-                    palette = palette
+                    palette = palette,
+                    quietMode = quietMode
                 )
             } else {
                 data.tasks.take(maxTasks).forEach { task ->

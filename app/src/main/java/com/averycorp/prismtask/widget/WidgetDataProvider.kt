@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import com.averycorp.prismtask.data.local.database.PrismTaskDatabase
 import com.averycorp.prismtask.data.local.entity.TaskEntity
 import com.averycorp.prismtask.data.preferences.AdvancedTuningPreferences
+import com.averycorp.prismtask.data.preferences.NdPreferencesDataStore
 import com.averycorp.prismtask.data.preferences.ProductivityWidgetThresholds
 import com.averycorp.prismtask.data.preferences.taskBehaviorDataStore
 import com.averycorp.prismtask.data.preferences.themePrefsDataStore
@@ -122,6 +123,7 @@ object WidgetDataProvider {
     interface WidgetDatabaseEntryPoint {
         fun database(): PrismTaskDatabase
         fun advancedTuningPreferences(): AdvancedTuningPreferences
+        fun ndPreferencesDataStore(): NdPreferencesDataStore
     }
 
     // Reuse the Hilt-provided singleton DB so we share the same
@@ -140,6 +142,21 @@ object WidgetDataProvider {
         entryPoint(context).advancedTuningPreferences()
             .getProductivityWidgetThresholds()
             .first()
+
+    /**
+     * Reads the user's NdPreferences.quietMode flag. Used by widget
+     * empty-state rendering (E4) to decide whether to show a celebratory
+     * emoji or fall back to a neutral glyph.
+     */
+    suspend fun getQuietMode(context: Context): Boolean =
+        try {
+            entryPoint(context).ndPreferencesDataStore()
+                .ndPreferencesFlow
+                .first()
+                .quietMode
+        } catch (_: Exception) {
+            false
+        }
 
     private fun TaskEntity.toRow(startOfDay: Long): WidgetTaskRow = WidgetTaskRow(
         id = id,

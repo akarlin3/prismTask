@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import javax.inject.Inject
 
@@ -27,9 +28,16 @@ class SearchViewModel
 constructor(
     private val taskRepository: TaskRepository,
     private val tagRepository: TagRepository,
-    private val projectRepository: ProjectRepository
+    private val projectRepository: ProjectRepository,
+    private val advancedTuningPreferences: com.averycorp.prismtask.data.preferences.AdvancedTuningPreferences
 ) : ViewModel() {
     val searchQuery = MutableStateFlow("")
+
+    /** User-configurable description preview lines for search results (E5). */
+    val descriptionPreviewLines: StateFlow<Int> =
+        advancedTuningPreferences.getSearchPreview()
+            .map { it.previewLines }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 2)
 
     private val debouncedQuery = searchQuery
         .debounce(300L)

@@ -80,6 +80,7 @@ fun QuickAddBar(
     val voiceEnabled by viewModel.voiceInputEnabled.collectAsStateWithLifecycle()
     val continuousActive by viewModel.continuousModeActive.collectAsStateWithLifecycle()
     val partialTranscript by viewModel.voicePartialText.collectAsStateWithLifecycle()
+    val quickAddMaxLines by viewModel.quickAddMaxLines.collectAsStateWithLifecycle()
 
     val context = LocalContext.current
     val voiceAvailable = remember { viewModel.voiceInputManager.isAvailable() }
@@ -286,10 +287,11 @@ fun QuickAddBar(
                     // Multi-line paste is required for batch add: MultiCreateDetector
                     // rule (a) only fires on actual newlines, so `singleLine = true`
                     // silently dropped multi-task pastes into a single combined title.
-                    // `maxLines = 5` keeps the field compact while preserving newlines;
-                    // `imeAction = Done` still routes Enter to submit on soft keyboards.
+                    // `quickAddMaxLines` (default 5, user-tunable via E2) keeps the
+                    // field compact while preserving newlines; `imeAction = Done`
+                    // still routes Enter to submit on soft keyboards.
                     singleLine = false,
-                    maxLines = 5,
+                    maxLines = quickAddMaxLines,
                     shape = RoundedCornerShape(12.dp)
                 )
                 if (showMic) {

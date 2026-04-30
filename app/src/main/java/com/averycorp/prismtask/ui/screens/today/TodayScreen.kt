@@ -91,6 +91,7 @@ private const val SECTION_OVERDUE = "overdue"
 private const val SECTION_TODAY_TASKS = "today_tasks"
 private const val SECTION_HABITS = "habits"
 private const val SECTION_DAILY_ESSENTIALS = "daily_essentials"
+private const val SECTION_SCHEDULED = "scheduled_today"
 private const val SECTION_PLANNED = "planned"
 private const val SECTION_PLAN_MORE = "plan_more"
 private const val SECTION_COMPLETED = "completed"
@@ -610,13 +611,14 @@ fun TodayScreen(
 
                     if (scheduledTodayHabits.isNotEmpty()) {
                         item(key = "section_scheduled_habits") {
+                            val expanded = SECTION_SCHEDULED !in collapsedSections
                             CollapsibleSection(
                                 emoji = "\uD83D\uDCC5",
                                 title = "Scheduled Today",
                                 count = scheduledTodayHabits.size,
                                 accentColor = prismColors.secondary,
-                                expanded = true,
-                                onToggle = {}
+                                expanded = expanded,
+                                onToggle = { viewModel.onToggleSectionCollapsed(SECTION_SCHEDULED) }
                             ) {
                                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                                     scheduledTodayHabits.forEach { hws ->

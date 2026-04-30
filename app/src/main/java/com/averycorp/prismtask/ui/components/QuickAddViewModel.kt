@@ -62,8 +62,18 @@ constructor(
     val voiceInputManager: VoiceInputManager,
     private val voiceCommandParser: VoiceCommandParser,
     private val tts: TextToSpeechManager,
-    private val voicePreferences: VoicePreferences
+    private val voicePreferences: VoicePreferences,
+    private val advancedTuningPreferences: com.averycorp.prismtask.data.preferences.AdvancedTuningPreferences
 ) : ViewModel() {
+
+    /**
+     * User-configurable max-lines cap for the QuickAdd input field (E2).
+     * Defaults to 5 to match the prior hardcoded value.
+     */
+    val quickAddMaxLines: StateFlow<Int> =
+        advancedTuningPreferences.getQuickAddRows()
+            .map { it.maxLines }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 5)
     /**
      * List of candidate templates shown in the disambiguation popup when a
      * "/query" shortcut matches more than one template. Null when the popup

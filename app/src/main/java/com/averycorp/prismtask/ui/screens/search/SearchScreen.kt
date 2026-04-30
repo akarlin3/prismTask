@@ -67,6 +67,7 @@ fun SearchScreen(
     val taskResults by viewModel.taskResults.collectAsStateWithLifecycle()
     val tagResults by viewModel.tagResults.collectAsStateWithLifecycle()
     val projectResults by viewModel.projectResults.collectAsStateWithLifecycle()
+    val descriptionPreviewLines by viewModel.descriptionPreviewLines.collectAsStateWithLifecycle()
 
     val focusRequester = remember { FocusRequester() }
 
@@ -151,7 +152,8 @@ fun SearchScreen(
                                         navController.navigate(
                                             PrismTaskRoute.AddEditTask.createRoute(task.id)
                                         )
-                                    }
+                                    },
+                                    descriptionMaxLines = descriptionPreviewLines
                                 )
                             }
                         }
@@ -209,7 +211,8 @@ private fun SectionHeader(title: String) {
 private fun SearchTaskItem(
     task: TaskEntity,
     query: String,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    descriptionMaxLines: Int = 2
 ) {
     Card(
         modifier = Modifier
@@ -243,7 +246,7 @@ private fun SearchTaskItem(
                     HighlightedText(
                         text = task.description,
                         query = query,
-                        maxLines = 2,
+                        maxLines = descriptionMaxLines,
                         fontSize = MaterialTheme.typography.bodySmall.fontSize
                     )
                 }

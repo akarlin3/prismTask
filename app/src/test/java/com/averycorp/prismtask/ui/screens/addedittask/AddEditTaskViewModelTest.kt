@@ -48,6 +48,7 @@ class AddEditTaskViewModelTest {
     private lateinit var boundaryRuleRepository: BoundaryRuleRepository
     private lateinit var notificationPreferences: NotificationPreferences
     private lateinit var userPreferencesDataStore: UserPreferencesDataStore
+    private lateinit var advancedTuningPreferences: com.averycorp.prismtask.data.preferences.AdvancedTuningPreferences
     private lateinit var savedStateHandle: SavedStateHandle
 
     @Before
@@ -63,6 +64,9 @@ class AddEditTaskViewModelTest {
         boundaryRuleRepository = mockk(relaxed = true)
         notificationPreferences = mockk(relaxed = true)
         userPreferencesDataStore = mockk(relaxed = true)
+        advancedTuningPreferences = mockk(relaxed = true)
+        coEvery { advancedTuningPreferences.getEditorFieldRows() } returns
+            flowOf(com.averycorp.prismtask.data.preferences.EditorFieldRows())
         savedStateHandle = SavedStateHandle()
 
         // Default StateFlow seeds so the VM init doesn't crash on relaxed mocks.
@@ -90,6 +94,7 @@ class AddEditTaskViewModelTest {
         boundaryRuleRepository,
         notificationPreferences,
         userPreferencesDataStore,
+        advancedTuningPreferences,
         savedStateHandle
     )
 

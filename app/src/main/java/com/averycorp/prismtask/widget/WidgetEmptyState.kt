@@ -30,20 +30,26 @@ fun WidgetEmptyState(
     message: String,
     palette: WidgetThemePalette,
     actionLabel: String? = null,
-    actionCallback: Class<out ActionCallback>? = null
+    actionCallback: Class<out ActionCallback>? = null,
+    quietMode: Boolean = false
 ) {
     WidgetEmptyState(
         emoji = emoji,
         message = message,
         messageColor = palette.onSurfaceVariant,
         actionLabel = actionLabel,
-        actionCallback = actionCallback
+        actionCallback = actionCallback,
+        quietMode = quietMode
     )
 }
 
 /**
  * Color-driven overload used by code paths that haven't been migrated to
  * the [WidgetThemePalette] flow yet (or that want a non-themed accent).
+ *
+ * When [quietMode] is true (i.e. the user has Calm Mode → Quiet Mode
+ * enabled in NdPreferences), the celebratory emoji is omitted entirely
+ * so ND users get a calmer, less performative empty state (E4).
  */
 @Composable
 fun WidgetEmptyState(
@@ -51,15 +57,18 @@ fun WidgetEmptyState(
     message: String,
     messageColor: ColorProvider,
     actionLabel: String? = null,
-    actionCallback: Class<out ActionCallback>? = null
+    actionCallback: Class<out ActionCallback>? = null,
+    quietMode: Boolean = false
 ) {
     Column(
         modifier = GlanceModifier.fillMaxSize(),
         verticalAlignment = Alignment.CenterVertically,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(emoji, style = TextStyle(fontSize = 24.sp))
-        Spacer(modifier = GlanceModifier.height(4.dp))
+        if (!quietMode) {
+            Text(emoji, style = TextStyle(fontSize = 24.sp))
+            Spacer(modifier = GlanceModifier.height(4.dp))
+        }
         Text(
             message,
             style = TextStyle(fontSize = 12.sp, color = messageColor)
