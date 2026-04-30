@@ -27,8 +27,8 @@ import com.averycorp.prismtask.data.preferences.AdvancedTuningPreferences
 import com.averycorp.prismtask.data.preferences.ApiNetworkConfig
 import com.averycorp.prismtask.data.preferences.ArchivePreferences
 import com.averycorp.prismtask.data.preferences.BatchUndoConfig
-import com.averycorp.prismtask.data.preferences.BurnoutWeights
 import com.averycorp.prismtask.data.preferences.BuiltInSortOrders
+import com.averycorp.prismtask.data.preferences.BurnoutWeights
 import com.averycorp.prismtask.data.preferences.CoachingPreferences
 import com.averycorp.prismtask.data.preferences.CustomLeisureActivity
 import com.averycorp.prismtask.data.preferences.DailyEssentialsPreferences
@@ -38,8 +38,8 @@ import com.averycorp.prismtask.data.preferences.EnergyPomodoroConfig
 import com.averycorp.prismtask.data.preferences.ExtractorConfig
 import com.averycorp.prismtask.data.preferences.ForgivenessPrefs
 import com.averycorp.prismtask.data.preferences.GoodEnoughTimerConfig
-import com.averycorp.prismtask.data.preferences.HabitReminderFallback
 import com.averycorp.prismtask.data.preferences.HabitListPreferences
+import com.averycorp.prismtask.data.preferences.HabitReminderFallback
 import com.averycorp.prismtask.data.preferences.LeisurePreferences
 import com.averycorp.prismtask.data.preferences.LifeCategoryCustomKeywords
 import com.averycorp.prismtask.data.preferences.MedicationPreferences
