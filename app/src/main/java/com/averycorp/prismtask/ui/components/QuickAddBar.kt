@@ -283,7 +283,13 @@ fun QuickAddBar(
                             onTaskCreated()
                         }
                     }),
-                    singleLine = true,
+                    // Multi-line paste is required for batch add: MultiCreateDetector
+                    // rule (a) only fires on actual newlines, so `singleLine = true`
+                    // silently dropped multi-task pastes into a single combined title.
+                    // `maxLines = 5` keeps the field compact while preserving newlines;
+                    // `imeAction = Done` still routes Enter to submit on soft keyboards.
+                    singleLine = false,
+                    maxLines = 5,
                     shape = RoundedCornerShape(12.dp)
                 )
                 if (showMic) {

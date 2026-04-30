@@ -359,18 +359,21 @@ constructor(
 
         // Multi-task creation pre-pass (Phase B / PR-C). Routes
         // newline-separated or comma-segmented + time-marker-dense
-        // input to the dedicated bottom sheet. Pro users only —
-        // extract-from-text is a paid Haiku call. Free users fall
-        // through to the single-task path even when the detector
-        // matches, matching the audit's "free users stay on single-task
-        // path" recommendation (Item 7).
+        // input to the dedicated bottom sheet. Pro users get the
+        // Haiku-backed extractor; Free users fall through to a local
+        // split-and-create-each loop so multi-line / multi-segment
+        // input creates one task per segment instead of collapsing
+        // into a single combined title (which previously read as
+        // "only the first task got added").
         val multiCreate = multiCreateDetector.detect(text)
-        if (multiCreate is MultiCreateDetector.Result.MultiCreate &&
-            proFeatureGate.hasAccess(ProFeatureGate.AI_NLP)
-        ) {
-            viewModelScope.launch {
-                _multiCreateIntents.emit(multiCreate.rawText)
-                inputText.value = ""
+        if (multiCreate is MultiCreateDetector.Result.MultiCreate) {
+            if (proFeatureGate.hasAccess(ProFeatureGate.AI_NLP)) {
+                viewModelScope.launch {
+                    _multiCreateIntents.emit(multiCreate.rawText)
+                    inputText.value = ""
+                }
+            } else {
+                createTasksLocallyFromSegments(multiCreate.segments, plannedDateOverride)
             }
             return
         }
@@ -511,6 +514,72 @@ constructor(
                 inputText.value = ""
             } catch (e: Exception) {
                 Log.e("QuickAddVM", "Failed to create task", e)
+            } finally {
+                _isSubmitting.value = false
+            }
+        }
+    }
+
+    /**
+     * Free-tier fallback for multi-task input. Runs the offline
+     * [NaturalLanguageParser] over each detected segment and inserts each
+     * resulting task sequentially. The Pro Haiku extractor + bottom-sheet
+     * preview is gated behind `ProFeatureGate.AI_NLP`; this path keeps the
+     * core "type a list, get a list of tasks" experience working without
+     * the network call.
+     */
+    private fun createTasksLocallyFromSegments(
+        segments: List<String>,
+        plannedDateOverride: Long?
+    ) {
+        viewModelScope.launch {
+            _isSubmitting.value = true
+            try {
+                var lastId: Long? = null
+                for (segment in segments) {
+                    val cleaned = segment.trim()
+                    if (cleaned.isEmpty()) continue
+                    val parsed = parser.parse(cleaned)
+                    val resolved = resolver.resolve(parsed)
+
+                    val newTagIds = resolved.unmatchedTags.map { tagName ->
+                        tagRepository.addTag(name = tagName)
+                    }
+                    val allTagIds = resolved.tagIds + newTagIds
+
+                    var projectId = resolved.projectId
+                    if (projectId == null && resolved.unmatchedProject != null) {
+                        projectId = projectRepository.addProject(name = resolved.unmatchedProject)
+                    }
+
+                    val recurrenceJson = resolved.recurrenceRule?.let { RecurrenceConverter.toJson(it) }
+                    val now = System.currentTimeMillis()
+                    val resolvedCategory = resolved.lifeCategory ?: run {
+                        val guess = lifeCategoryClassifier.classify(resolved.title)
+                        if (guess == LifeCategory.UNCATEGORIZED) null else guess.name
+                    }
+                    val task = TaskEntity(
+                        title = resolved.title,
+                        dueDate = resolved.dueDate,
+                        dueTime = resolved.dueTime,
+                        priority = resolved.priority,
+                        projectId = projectId,
+                        recurrenceRule = recurrenceJson,
+                        plannedDate = plannedDateOverride,
+                        lifeCategory = resolvedCategory,
+                        createdAt = now,
+                        updatedAt = now
+                    )
+                    val taskId = taskRepository.insertTask(task)
+                    lastId = taskId
+                    if (allTagIds.isNotEmpty()) {
+                        tagRepository.setTagsForTask(taskId, allTagIds)
+                    }
+                }
+                lastCreatedTaskId = lastId
+                inputText.value = ""
+            } catch (e: Exception) {
+                Log.e("QuickAddVM", "Local multi-task create failed", e)
             } finally {
                 _isSubmitting.value = false
             }
