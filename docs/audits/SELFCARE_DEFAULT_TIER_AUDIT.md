@@ -169,8 +169,103 @@ Single coherent scope → single PR per the fan-out bundling rule.
 
 ## Phase 3 — Bundle summary
 
-_Filled in after Phase 2 PR merges._
+**Shipped.**
+
+- **PR [#999](https://github.com/averycorp/prismTask/pull/999)** —
+  `feat(settings): make Self-Care default tier configurable per
+  routine` — merged into `feature/customizable-settings-ui-advanced`
+  on 2026-04-30 (squash, merge commit `b1a114e7`). Will reach `main`
+  when PR [#997](https://github.com/averycorp/prismTask/pull/997)
+  merges. Single coherent scope per the fan-out bundling rule.
+
+**Verification.**
+
+- `./gradlew :app:compileDebugKotlin` — clean.
+- `./gradlew :app:testDebugUnitTest` — 1728 tests, 0 failures, 0 errors.
+  New `AdvancedTuningSelfCareTierDefaultsTest` covers first-read
+  defaults + round-trip persistence.
+- Device smoke test (Advanced Tuning → Self-Care Default Tier → cycle
+  each routine → confirm SelfCare screen reflects the new starting
+  tier on a fresh day) is queued for the user — not run from this
+  audit session.
+
+**Stacked-PR note.** The user was iterating on
+`feature/customizable-settings-ui-advanced` (PR #997) when the request
+came in, and the new knob lives on `AdvancedTuningPreferences` which is
+introduced by that branch. Targeting #997 avoided synthesizing a
+parallel preferences singleton just to land on main today; the trade-off
+is that #999's net diff to main is gated on #997 merging.
+
+**Memory candidates.** None — the wiring follows the existing
+`LifeCategoryCustomKeywords` pattern faithfully and the
+`getSelectedTier` change is a local behavioural improvement, not a
+surprising convention. No memory entry warranted.
+
+**Schedule for next audit.** No follow-up audit needed. The lone
+anti-pattern surfaced (`SelfCareLogEntity.selectedTier = "solid"`
+literal default) is non-load-bearing and can be cleaned up opportunistically.
 
 ## Phase 4 — Claude Chat handoff
 
-_Emitted after Phase 3._
+```markdown
+**Scope.** Audit-first run on PrismTask: "Make a setting that allows
+the default tier of each self-care/cleaning habit to be set." Audit doc
+lives at `docs/audits/SELFCARE_DEFAULT_TIER_AUDIT.md`.
+
+**Verdicts.**
+
+| # | Item | Verdict | Finding |
+|---|------|---------|---------|
+| 1 | Tier concept exists for all 4 routines | GREEN | Morning/Bedtime/Medication/Housework each have `getTierOrder` in `domain/model/SelfCareRoutine.kt` |
+| 2 | Default-tier behaviour is implicit | GREEN | `SelfCareViewModel.getSelectedTier:145` falls back to penultimate-of-order; not user-tunable today |
+| 3 | Preference pattern established | GREEN | `LifeCategoryCustomKeywords` in `AdvancedTuningPreferences.kt` is the closest precedent (4-string config) |
+| 4 | Single consumer site | GREEN | Only `getSelectedTier` reads the fallback; no DB migration |
+| 5 | Habit-vs-routine wording | GREEN | Routine interpretation matches what users can configure today |
+
+**Shipped.**
+
+- PR #999 — `feat(settings): make Self-Care default tier configurable
+  per routine` — merged into the customizable-settings-ui-advanced
+  feature branch (PR #997). Hits main once #997 merges.
+  - `AdvancedTuningPreferences`: new `SelfCareTierDefaults` data class
+    + 4 `stringPreferencesKey` + getter / setter.
+  - `AdvancedTuningViewModel`: exposes the StateFlow + setter.
+  - `AdvancedTuningScreen`: new `SelfCareTierDefaultsGroup` with a
+    tap-to-cycle row per routine (modeled on `DayOfWeekRow`).
+  - `SelfCareViewModel`: injects the prefs, folds the user-pref into
+    `getSelectedTier(log)` with order-membership coercion.
+  - Unit test `AdvancedTuningSelfCareTierDefaultsTest` covers
+    first-read defaults + round-trip.
+
+**Deferred / stopped.** None. The audit's anti-pattern note about
+`SelfCareLogEntity.selectedTier = "solid"` literal default was left as
+drive-by territory — it does not affect this feature.
+
+**Non-obvious findings.**
+
+- `getSelectedTier` previously returned `log.selectedTier` raw, with no
+  validation that the tier id was in the routine's order. After this
+  change, an out-of-order id (e.g. legacy "solid" log on a housework
+  row, which would have caused empty-visible-steps) silently coerces
+  to the user-pref / penultimate fallback. Strictly an improvement,
+  but worth flagging if anyone investigates "why did my old self-care
+  log start showing different steps."
+- `SelfCareLogEntity.selectedTier = "solid"` is a schema-level default
+  that no insert site actually relies on for morning/bedtime, but
+  `SelfCareRepository.toggleStep` does insert without an explicit tier
+  — so a user toggling a step before tapping a tier chip on housework
+  used to write a broken `"solid"` log. The new coercion in
+  `getSelectedTier` masks that, but the entity-level default itself is
+  still misleading.
+
+**Open questions.**
+
+- Should `SelfCareRepository.toggleStep`'s "no log yet" insertLog also
+  read the new pref to seed `selectedTier`? Today it falls back to the
+  entity literal `"solid"`. Out of scope here; the `getSelectedTier`
+  coercion makes this latent rather than user-visible.
+- The user wrote "self-care/cleaning habit" — interpreted as the four
+  built-in routines. If they meant arbitrary user-created `HabitEntity`
+  rows, that would need a new column + migration and a different design.
+```
+
