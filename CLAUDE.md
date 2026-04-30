@@ -121,11 +121,11 @@ current sub-package contents (it drifts faster than this file is updated).
 
 Workflow failures are auto-committed to the `ci-logs` orphan branch of this public repo. Fetch the relevant log directly (no auth needed) instead of asking the user to paste CI output:
 
-- Android:    https://raw.githubusercontent.com/Akarlin3/PrismTask/ci-logs/ci-logs/android-ci/latest.log
-- Backend:    https://raw.githubusercontent.com/Akarlin3/PrismTask/ci-logs/ci-logs/backend-ci/latest.log
-- Web:        https://raw.githubusercontent.com/Akarlin3/PrismTask/ci-logs/ci-logs/web-ci/latest.log
-- Release:    https://raw.githubusercontent.com/Akarlin3/PrismTask/ci-logs/ci-logs/release/latest.log
-- Auto-merge: https://raw.githubusercontent.com/Akarlin3/PrismTask/ci-logs/ci-logs/auto-merge/latest.log
+- Android:    https://raw.githubusercontent.com/averycorp/prismTask/ci-logs/ci-logs/android-ci/latest.log
+- Backend:    https://raw.githubusercontent.com/averycorp/prismTask/ci-logs/ci-logs/backend-ci/latest.log
+- Web:        https://raw.githubusercontent.com/averycorp/prismTask/ci-logs/ci-logs/web-ci/latest.log
+- Release:    https://raw.githubusercontent.com/averycorp/prismTask/ci-logs/ci-logs/release/latest.log
+- Auto-merge: https://raw.githubusercontent.com/averycorp/prismTask/ci-logs/ci-logs/auto-merge/latest.log
 
 Historical failures: `ci-logs/<workflow-slug>/<timestamp>-<run-id>.log` on the same branch. See [`CI_LOGS.md`](CI_LOGS.md) for details.
 

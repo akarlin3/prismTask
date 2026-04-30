@@ -8,11 +8,11 @@
 [![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-Material%203-4285F4.svg)](https://developer.android.com/jetpack/compose)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688.svg)](https://fastapi.tiangolo.com)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791.svg)](https://postgresql.org)
-[![Android CI](https://github.com/akarlin3/prismTask/actions/workflows/android-ci.yml/badge.svg?branch=main)](https://github.com/akarlin3/prismTask/actions/workflows/android-ci.yml)
-[![Android Integration CI](https://github.com/akarlin3/prismTask/actions/workflows/android-integration.yml/badge.svg?branch=main)](https://github.com/akarlin3/prismTask/actions/workflows/android-integration.yml)
-[![Backend CI](https://github.com/akarlin3/prismTask/actions/workflows/backend-ci.yml/badge.svg?branch=main)](https://github.com/akarlin3/prismTask/actions/workflows/backend-ci.yml)
-[![Web CI](https://github.com/akarlin3/prismTask/actions/workflows/web-ci.yml/badge.svg?branch=main)](https://github.com/akarlin3/prismTask/actions/workflows/web-ci.yml)
-[![Release](https://github.com/akarlin3/prismTask/actions/workflows/release.yml/badge.svg)](https://github.com/akarlin3/prismTask/actions/workflows/release.yml)
+[![Android CI](https://github.com/averycorp/prismTask/actions/workflows/android-ci.yml/badge.svg?branch=main)](https://github.com/averycorp/prismTask/actions/workflows/android-ci.yml)
+[![Android Integration CI](https://github.com/averycorp/prismTask/actions/workflows/android-integration.yml/badge.svg?branch=main)](https://github.com/averycorp/prismTask/actions/workflows/android-integration.yml)
+[![Backend CI](https://github.com/averycorp/prismTask/actions/workflows/backend-ci.yml/badge.svg?branch=main)](https://github.com/averycorp/prismTask/actions/workflows/backend-ci.yml)
+[![Web CI](https://github.com/averycorp/prismTask/actions/workflows/web-ci.yml/badge.svg?branch=main)](https://github.com/averycorp/prismTask/actions/workflows/web-ci.yml)
+[![Release](https://github.com/averycorp/prismTask/actions/workflows/release.yml/badge.svg)](https://github.com/averycorp/prismTask/actions/workflows/release.yml)
 
 A cross-platform task manager and wellness-aware productivity layer.
 Features AI-powered NLP and batch ops, voice input, full accessibility,

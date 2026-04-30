@@ -1,6 +1,6 @@
 # PrismTask Web
 
-[![Web CI](https://github.com/akarlin3/prismTask/actions/workflows/web-ci.yml/badge.svg)](https://github.com/akarlin3/prismTask/actions/workflows/web-ci.yml)
+[![Web CI](https://github.com/averycorp/prismTask/actions/workflows/web-ci.yml/badge.svg)](https://github.com/averycorp/prismTask/actions/workflows/web-ci.yml)
 
 The web client for [PrismTask](../README.md) — a full-featured task manager with AI-powered NLP, habit tracking, calendar views, and productivity analytics. Built with React, TypeScript, and Vite, connecting to the shared FastAPI backend.
 

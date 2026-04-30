@@ -29,7 +29,7 @@
 
 set -euo pipefail
 
-REPO="${REPO:-akarlin3/prismTask}"
+REPO="${REPO:-averycorp/prismTask}"
 BRANCH="${BRANCH:-main}"
 
 REQUIRED_CHECKS=(

@@ -14,7 +14,7 @@ PrismTask is developed and operated by **Avery Karlin**, a solo developer based 
 
 - Contact for privacy requests: [privacy@prismtask.app](mailto:privacy@prismtask.app)
 - Web app: [https://app.prismtask.app](https://app.prismtask.app)
-- Source code: [https://github.com/akarlin3/prismTask](https://github.com/akarlin3/prismTask)
+- Source code: [https://github.com/averycorp/prismTask](https://github.com/averycorp/prismTask)
 
 This policy describes what data PrismTask collects when you use the Android app (package ID `com.averycorp.prismtask`) or the web app at `app.prismtask.app`, how that data is used, where it is stored, and what rights you have over it.
 

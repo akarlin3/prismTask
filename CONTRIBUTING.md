@@ -6,7 +6,7 @@ Thank you for your interest in contributing. This document covers development se
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/akarlin3/prismTask.git
+   git clone https://github.com/averycorp/prismTask.git
    cd prismTask
    ```
 
@@ -137,7 +137,7 @@ hardcode `Color(0xFF…)` literals in composables. Instead:
 
 ## Reporting Issues
 
-Use [GitHub Issues](https://github.com/akarlin3/prismTask/issues) to report bugs or request features. Include:
+Use [GitHub Issues](https://github.com/averycorp/prismTask/issues) to report bugs or request features. Include:
 
 - Steps to reproduce (for bugs)
 - Device/emulator info and Android version
