@@ -350,10 +350,13 @@ class PrismTaskApplication :
      *    used to run only on `BOOT_COMPLETED`. Without this call a fresh
      *    install / app update with a previously migrated medication would
      *    have no CLOCK alarms until the device next rebooted.
-     *  - The slot-level [MedicationClockRescheduler] for CLOCK-mode slots.
+     *  - The slot-level [MedicationClockRescheduler] for CLOCK-mode slots,
+     *    plus its reactive slot-change Flow observer so a slot rename or
+     *    `idealTime` edit re-arms the alarm in place of the stale one.
      *  - The slot/medication [MedicationIntervalRescheduler] for INTERVAL
-     *    mode, plus its reactive dose-change Flow observer so subsequent
-     *    doses re-anchor the next reminder.
+     *    mode, plus its reactive dose-change + slot-change Flow observers
+     *    so subsequent doses re-anchor the next reminder and slot edits
+     *    don't leave the rolling alarm pointing at a stale label.
      */
     private fun startMedicationReschedulers() {
         appScope.launch {
@@ -377,6 +380,7 @@ class PrismTaskApplication :
                 android.util.Log.e("PrismTaskApp", "Initial interval reschedule failed", e)
             }
         }
+        medicationClockRescheduler.start(appScope)
         medicationIntervalRescheduler.start(appScope)
     }
 
