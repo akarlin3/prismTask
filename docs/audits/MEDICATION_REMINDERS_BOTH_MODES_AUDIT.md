@@ -337,5 +337,112 @@ cost is ≈ 30–60 min including review iterations).
 
 ---
 
-*Phase 2 begins on commit of this audit. Phase 3 + Phase 4 will be
-appended below in this same file.*
+## Phase 3 — Bundle summary
+
+All five PROCEED items shipped via three implementation PRs stacked
+behind the audit doc PR. Stacking order `#977 → #979 → #980 → #986`;
+each later PR was branched off the prior so receiver-dispatch and
+NotificationHelper edits compose cleanly.
+
+| Item | Severity | Fix | PR | Status |
+|------|----------|-----|----|--------|
+| #1 — Slot INTERVAL receiver dispatch | RED | Add `intervalSlotId` branch + `NotificationHelper.showSlotIntervalReminder`; pure `classifyAlarm` helper for unit-testability | [#979](https://github.com/averycorp/prismTask/pull/979) | Auto-merge, CI pending |
+| #2 — CLOCK reminders for new meds | RED | New `MedicationClockRescheduler`; receiver `clockSlotId` branch; app-launch + boot reschedule of legacy + clock + interval | [#980](https://github.com/averycorp/prismTask/pull/980) | Auto-merge, CI pending |
+| #3 — Legacy scheduler reminderMode-aware | YELLOW | `scheduleForMedication` consults `MedicationReminderModeResolver`; skips wall-clock paths when resolved mode is INTERVAL | [#986](https://github.com/averycorp/prismTask/pull/986) | Auto-merge, CI pending |
+| #4 — `interval-override` re-arm guard | YELLOW | Receiver skips legacy `onAlarmFired` for `slotKey == "interval-override"` | [#986](https://github.com/averycorp/prismTask/pull/986) | Bundled with #3 |
+| #5 — Settings flip also re-arms CLOCK | YELLOW | `MedicationReminderModeSettingsViewModel.save` runs both reschedulers | [#980](https://github.com/averycorp/prismTask/pull/980) | Bundled with #2 |
+| #6 — Dispatch contract test | DEFERRED → PARTIAL | Co-shipped: `MedicationReminderReceiverDispatchTest` (7→9 cases across #979 / #980). Full receiver-end-to-end androidTest still deferred. | #979 + #980 | Co-shipped |
+
+### Wall-clock-per-PR
+
+- Phase 1 audit: ~50 min wall clock (read all schedulers + receiver +
+  resolver + entities; cross-check call sites; compose 341-line doc).
+- PR1 (slot INTERVAL): ~25 min (receiver edit, helper added in
+  `NotificationHelper`, 7-case unit test).
+- PR2 (CLOCK rescheduler): ~50 min (new ~150-LOC scheduler, receiver +
+  notif-helper + boot + app + settings VM all touched, 5-case helper
+  test).
+- PR3 (cleanup): ~20 min (two-file edit, no new tests required —
+  resolver tests already exercise the predicate the guard is built on).
+
+Total ~145 min for one RED-RED-YELLOW-YELLOW-YELLOW + audit. The
+single biggest cost was understanding the dual scheduler topology
+(legacy `MedicationReminderScheduler` per-med + new
+`MedicationIntervalRescheduler` per-slot), which is not surfaced
+anywhere in `CLAUDE.md` — see "Memory candidates" below.
+
+### Memory candidates
+
+- **Candidate**: medication reminders are scheduled by **two**
+  components that share a single `MedicationReminderReceiver`:
+  `MedicationReminderScheduler` (per-medication, scheduleMode-driven,
+  legacy) and `MedicationIntervalRescheduler` /
+  `MedicationClockRescheduler` (per-slot, resolver-driven, current).
+  The receiver's `classifyAlarm` companion routes by extra-id presence
+  with priority `medication > slot-clock > slot-interval > habit`.
+- **Recommendation**: hold this memory until v1.4-era
+  `MedicationPreferences` cleanup migration ships — the legacy
+  scheduler's `onAlarmFired` re-arm path goes away with that migration,
+  so the dual-ownership fact will collapse into a single component.
+  A premature memory entry would rot.
+
+### Schedule for next audit
+
+- 2026-05-15 — confirm `MedicationClockRescheduler` is firing for
+  fresh-install users, and verify no double-fire on legacy migrated
+  medications. If burnout/double-reminder telemetry surfaces earlier,
+  promote this check.
+- Pair with the broader medication-architecture sweep tracked in
+  `docs/audits/MEDICATION_SYNC_AUDIT.md` and
+  `docs/audits/MEDICATION_TAB_LOG_INVARIANT_AUDIT.md` so the cleanup
+  migration that retires `MedicationPreferences.specificTimes` /
+  `MedicationReminderScheduler` legacy paths can be planned with all
+  three audits' findings on the table.
+
+## Phase 4 — Claude Chat handoff
+
+```markdown
+## Medication reminders audit (PrismTask Android, 2026-04-30)
+
+**Scope.** End-to-end check of both medication reminder modes — CLOCK
+("Reminders fire at each slot's ideal time") and INTERVAL ("Reminders
+fire N minutes after the most recent dose"), as exposed by
+`MedicationReminderModeSection.kt`. Triggered by user ask: "Ensure
+both the types of medication reminders work appropriately." Run
+against `main` at commit `175a15ef`.
+
+**Verdicts.**
+
+| # | Item | Verdict | One-line finding |
+|---|------|---------|------------------|
+| 1 | Slot INTERVAL receiver dispatch | RED | `MedicationReminderReceiver` only checked `medicationId` / `habitId`; alarms with `medicationId=-1L` from `MedicationIntervalRescheduler.registerAlarmForSlot` silently logged. Slot INTERVAL reminders showed zero notifications. |
+| 2 | CLOCK reminders for new meds | RED | Legacy `MedicationReminderScheduler` reads `MedicationEntity.timesOfDay` / `specificTimes` — fields the medication editor never sets. New medications received zero CLOCK alarms. Compounded by the legacy scheduler being re-armed only on device boot, never at app launch. |
+| 3 | Legacy scheduler reminderMode-blind | YELLOW | `scheduleForMedication` switched on `scheduleMode` only, so a med with `reminderMode=INTERVAL` got both legacy CLOCK alarms AND the per-med override alarm — double-fire. |
+| 4 | `interval-override` re-arm | YELLOW | Receiver fed every medication-keyed alarm (including `MedicationIntervalRescheduler`'s per-med override) into the legacy `onAlarmFired` re-arm — at best a no-op lookup, at worst a double-anchor. |
+| 5 | Settings flip stale alarms | YELLOW | `MedicationReminderModeSettingsViewModel.save` only re-armed the interval rescheduler; CLOCK side stayed stale until next reboot. |
+| 6 | Dispatch contract test | DEFERRED-then-PARTIAL | Pure `classifyAlarm` helper test co-shipped; full receiver-end-to-end androidTest still deferred. |
+
+**Shipped.**
+
+- PR #977 (MERGED, e36a06a3) — Phase 1 audit doc (341 lines) at `docs/audits/MEDICATION_REMINDERS_BOTH_MODES_AUDIT.md`.
+- PR #979 (auto-merge enabled) — slot-INTERVAL receiver branch + `NotificationHelper.showSlotIntervalReminder` + 7-case dispatch helper unit test.
+- PR #980 (auto-merge enabled) — new `MedicationClockRescheduler` (symmetric with `MedicationIntervalRescheduler`), receiver `clockSlotId` branch, app-launch + boot reschedule of all three med schedulers, settings save also re-arms clock side.
+- PR #986 (auto-merge enabled) — legacy `MedicationReminderScheduler.scheduleForMedication` consults `MedicationReminderModeResolver` and skips wall-clock paths when mode is INTERVAL; receiver skips legacy `onAlarmFired` for `slotKey="interval-override"`.
+
+**Deferred / stopped.**
+
+- End-to-end androidTest of `MedicationReminderReceiver` dispatch (audit item #6 "DEFERRED") — needs a Robolectric / Hilt androidTest harness; the unit-level pure `classifyAlarm` helper test is sufficient regression coverage for the seam that broke this audit.
+- Legacy `MedicationReminderScheduler` retirement — kept alive for now because legacy migrated medications with populated `timesOfDay` / `specificTimes` / `intervalMillis` rely on it, and the `MedicationPreferences` cleanup migration is the right place to drop it.
+
+**Non-obvious findings.**
+
+- Medication reminders are scheduled by **two** parallel components, both routed through `MedicationReminderReceiver`: a per-medication legacy scheduler (`MedicationReminderScheduler`, request codes `400_000+`, switches on `scheduleMode`) and slot-driven reschedulers (`MedicationIntervalRescheduler` at `500_000+` / `600_000+`, `MedicationClockRescheduler` at `700_000+`, both consult `MedicationReminderModeResolver`). Neither audit doc nor `CLAUDE.md` flagged this duality before this sweep — the receiver's class doc-comment now says so.
+- `MedicationEntity.scheduleMode` (`TIMES_OF_DAY` / `SPECIFIC_TIMES` / `INTERVAL` / `AS_NEEDED`) and `MedicationEntity.reminderMode` (`CLOCK` / `INTERVAL` / null-inherit) describe **different** dimensions. The first decides which schedule the legacy scheduler walks; the second decides which rescheduler claims ownership. The medication editor exposes only `reminderMode` and never sets `scheduleMode` away from its `TIMES_OF_DAY` default — so for fresh-install users only the slot-driven path matters, which is exactly the path that was broken.
+- The medication editor (`MedicationEditorDialog`) and slot editor (`MedicationSlotEditorSheet`) both surface a Default/CLOCK/INTERVAL picker, and the resolver's three-level precedence (med → slot → global) was already correctly implemented; the failures were entirely on the scheduler / receiver / wiring side, not on the resolver itself.
+
+**Open questions.**
+
+- Should the legacy `MedicationReminderScheduler` be retired entirely once the `MedicationPreferences` cleanup migration ships? The `INTERVAL`-schedule-mode chained-alarm path overlaps with `MedicationIntervalRescheduler`'s per-medication-override path — only the legacy code reads `MedicationEntity.intervalMillis`, but no UI surface still writes that field. Carry into the next medication-architecture sweep.
+- Should slot-only CLOCK reminders fire for slots with no linked medications? Current behaviour: yes, with title "$slotName Medications" (matches the INTERVAL side's symmetric behaviour). Unclear whether that's noise — a follow-up "skip empty slots" optimization could land in either rescheduler if user reports come in.
+```
+
