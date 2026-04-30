@@ -26,6 +26,10 @@ name: Auto-update-branch
 #   - pull_request:
 #     ready_for_review    → catches drafts that flip to ready after
 #                            main advanced while they were drafty.
+#     auto_merge_enabled  → when a contributor flips on auto-merge on a
+#                            BEHIND PR, update it immediately so the
+#                            merge train doesn't stall waiting for the
+#                            next main advance to fire push:main.
 #   - workflow_dispatch   → manual debug.
 #
 # Opt-out: PRs carrying the `no-auto-update` label are skipped.
@@ -37,7 +41,7 @@ on:
   push:
     branches: [main]
   pull_request:
-    types: [ready_for_review]
+    types: [ready_for_review, auto_merge_enabled]
   workflow_run:
     workflows: ["Version Bump & Tag"]
     types: [completed]
