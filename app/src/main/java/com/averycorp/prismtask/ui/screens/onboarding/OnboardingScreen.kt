@@ -42,6 +42,7 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -92,7 +93,7 @@ import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-private const val TOTAL_PAGES = 11
+private const val TOTAL_PAGES = 15
 private const val LAST_PAGE_INDEX = TOTAL_PAGES - 1
 
 @Composable
@@ -123,12 +124,16 @@ fun OnboardingScreen(
                 1 -> ThemePickerPage()
                 2 -> SmartTasksPage()
                 3 -> NaturalLanguagePage()
-                4 -> HabitsPage()
+                4 -> HabitsPage(viewModel = viewModel)
                 5 -> LifeModesPage(viewModel = viewModel)
                 6 -> TemplatesPage(viewModel = viewModel)
                 7 -> ViewsPage()
                 8 -> BrainModePage(viewModel = viewModel)
                 9 -> AccessibilityPage(viewModel = viewModel)
+                10 -> PrivacyPage(viewModel = viewModel)
+                11 -> NotificationsPage(viewModel = viewModel)
+                12 -> DaySetupPage(viewModel = viewModel)
+                13 -> ConnectIntegrationsPage()
                 LAST_PAGE_INDEX -> SetupPage(
                     viewModel = viewModel,
                     onComplete = {
@@ -491,7 +496,7 @@ private fun ChipLabel(text: String, color: Color) {
 }
 
 @Composable
-private fun HabitsPage() {
+private fun HabitsPage(viewModel: OnboardingViewModel) {
     var streakCount by remember { mutableIntStateOf(0) }
     LaunchedEffect(Unit) {
         for (i in 1..14) {
@@ -500,6 +505,12 @@ private fun HabitsPage() {
         }
     }
 
+    val forgivenessEnabled by collectAsLocalState(viewModel.forgivenessStreaksEnabled, initial = true)
+    val streakMaxMissed by collectAsLocalState(
+        viewModel.streakMaxMissedDays,
+        initial = 1
+    )
+
     OnboardingPageLayout(
         emoji = "\uD83D\uDD25",
         headline = "Build Habits, Stay Focused",
@@ -507,7 +518,9 @@ private fun HabitsPage() {
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.padding(horizontal = 32.dp)
+            modifier = Modifier
+                .padding(horizontal = 24.dp)
+                .verticalScroll(rememberScrollState())
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -555,6 +568,53 @@ private fun HabitsPage() {
                     }
                 }
                 Spacer(modifier = Modifier.weight(1f))
+            }
+            Spacer(modifier = Modifier.height(20.dp))
+            // Forgiveness card \u2014 opt-in, default ON. Lets the user pick how
+            // forgiving their streak should be on the same page that explains
+            // streaks, rather than burying it in Settings \u2192 Habits & Streaks.
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant
+                )
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Forgiving Streaks",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "Skip a day without losing your streak.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = forgivenessEnabled,
+                            onCheckedChange = viewModel::setForgivenessStreaksEnabled
+                        )
+                    }
+                    AnimatedVisibility(visible = forgivenessEnabled) {
+                        Column {
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text(
+                                text = "Allow up to $streakMaxMissed missed " +
+                                    if (streakMaxMissed == 1) "day" else "days",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            Slider(
+                                value = streakMaxMissed.toFloat(),
+                                onValueChange = { viewModel.setStreakMaxMissedDays(it.toInt()) },
+                                valueRange = 1f..7f,
+                                steps = 5
+                            )
+                        }
+                    }
+                }
             }
         }
     }
@@ -1331,6 +1391,379 @@ private fun <T> collectAsLocalState(
     val state = remember { mutableStateOf(initial) }
     LaunchedEffect(flow) { flow.collect { state.value = it } }
     return state
+}
+
+// ─── Privacy & Permissions Page ───────────────────────────────────────────
+//
+// Voice input + AI features default ON in their respective preference
+// stores; this page surfaces both as opt-out toggles before the user
+// encounters them in-app. Microphone permission is intentionally NOT
+// requested here — it stays gated to first voice-input use so the system
+// dialog only fires when the user is actually trying to use voice.
+
+@Composable
+private fun PrivacyPage(viewModel: OnboardingViewModel) {
+    val voiceEnabled by collectAsLocalState(viewModel.voiceInputEnabled, initial = true)
+    val aiEnabled by collectAsLocalState(viewModel.aiFeaturesEnabled, initial = true)
+
+    var visible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { visible = true }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(top = 60.dp, start = 24.dp, end = 24.dp, bottom = 140.dp)
+            .verticalScroll(rememberScrollState()),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        AnimatedVisibility(
+            visible = visible,
+            enter = fadeIn(tween(400)) + slideInVertically(tween(400)) { 30 }
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(text = "🛡️", fontSize = 48.sp)
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "Privacy & Features",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.asHeading()
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Both default on. Turn off anything you don't want — " +
+                        "voice and AI can be flipped back on in Settings.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
+        Spacer(modifier = Modifier.height(24.dp))
+
+        LifeModeRow(
+            emoji = "🎙️",
+            title = "Voice Input",
+            subtitle = "Dictate tasks + hands-free commands. Mic permission only fires the first time you use it.",
+            checked = voiceEnabled,
+            onCheckedChange = viewModel::setVoiceInputEnabled
+        )
+        LifeModeRow(
+            emoji = "✨",
+            title = "AI Features",
+            subtitle = "NLP parsing, briefings, Eisenhower auto-classify, Pomodoro coaching.",
+            checked = aiEnabled,
+            onCheckedChange = viewModel::setAiFeaturesEnabled
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = "Mood + energy logging is opt-in via the Mood Analytics screen — " +
+                "nothing is recorded until you start a check-in there.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(horizontal = 8.dp)
+        )
+    }
+}
+
+// ─── Notifications & Briefings Page ───────────────────────────────────────
+//
+// Six default-ON notification streams. Toggling any of these here only
+// flips the local `*Enabled` flag; the POST_NOTIFICATIONS system permission
+// is still requested separately by `MainActivity` on first resume. Ordering
+// of writes is unimportant because no scheduler reads these flags during
+// onboarding.
+
+@Composable
+private fun NotificationsPage(viewModel: OnboardingViewModel) {
+    val daily by collectAsLocalState(viewModel.dailyBriefingEnabled, initial = true)
+    val evening by collectAsLocalState(viewModel.eveningSummaryEnabled, initial = true)
+    val weekly by collectAsLocalState(viewModel.weeklySummaryEnabled, initial = true)
+    val overload by collectAsLocalState(viewModel.overloadAlertsEnabled, initial = true)
+    val streaks by collectAsLocalState(viewModel.streakAlertsEnabled, initial = true)
+    val reengagement by collectAsLocalState(viewModel.reengagementEnabled, initial = true)
+
+    var visible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { visible = true }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(top = 60.dp, start = 24.dp, end = 24.dp, bottom = 140.dp)
+            .verticalScroll(rememberScrollState()),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        AnimatedVisibility(
+            visible = visible,
+            enter = fadeIn(tween(400)) + slideInVertically(tween(400)) { 30 }
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(text = "🔔", fontSize = 48.sp)
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "Reminders & Summaries",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.asHeading()
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "All on by default. Per-channel quiet hours and " +
+                        "fine-grained controls live in Settings → Notifications.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
+        Spacer(modifier = Modifier.height(24.dp))
+
+        LifeModeRow(
+            emoji = "🌅",
+            title = "Daily Briefing",
+            subtitle = "Morning summary of what's on your plate.",
+            checked = daily,
+            onCheckedChange = viewModel::setDailyBriefingEnabled
+        )
+        LifeModeRow(
+            emoji = "🌇",
+            title = "Evening Summary",
+            subtitle = "What got done + what's left.",
+            checked = evening,
+            onCheckedChange = viewModel::setEveningSummaryEnabled
+        )
+        LifeModeRow(
+            emoji = "📅",
+            title = "Weekly Review",
+            subtitle = "Habit + task summary at week's end.",
+            checked = weekly,
+            onCheckedChange = viewModel::setWeeklySummaryEnabled
+        )
+        LifeModeRow(
+            emoji = "⚠️",
+            title = "Overload Alerts",
+            subtitle = "Heads-up when your day looks too packed.",
+            checked = overload,
+            onCheckedChange = viewModel::setOverloadAlertsEnabled
+        )
+        LifeModeRow(
+            emoji = "🔥",
+            title = "Streak Alerts",
+            subtitle = "Reminder when a streak is about to break.",
+            checked = streaks,
+            onCheckedChange = viewModel::setStreakAlertsEnabled
+        )
+        LifeModeRow(
+            emoji = "👋",
+            title = "Re-engagement Nudges",
+            subtitle = "Occasional nudge if you've been away.",
+            checked = reengagement,
+            onCheckedChange = viewModel::setReengagementEnabled
+        )
+    }
+}
+
+// ─── Day Setup Page ───────────────────────────────────────────────────────
+//
+// Folds the legacy `MainActivity` Start-of-Day modal into the onboarding
+// pager so fresh installs set their day-roll-over hour in-flow. The modal
+// stays in `MainActivity` as deny-recovery for legacy installs that
+// completed onboarding before this page existed. `setStartOfDay` writes
+// the hour, the minute, and `hasSetStartOfDay = true` atomically — exactly
+// the same write the modal does — so the flag flip prevents a double-prompt.
+
+@Composable
+private fun DaySetupPage(viewModel: OnboardingViewModel) {
+    val hour by collectAsLocalState(viewModel.startOfDayHour, initial = 4)
+    val minute by collectAsLocalState(viewModel.startOfDayMinute, initial = 0)
+
+    var visible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { visible = true }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(top = 60.dp, start = 24.dp, end = 24.dp, bottom = 140.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        AnimatedVisibility(
+            visible = visible,
+            enter = fadeIn(tween(400)) + slideInVertically(tween(400)) { 30 }
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(text = "🕓", fontSize = 48.sp)
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "When Does Your Day Start?",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.asHeading()
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Habits and streaks roll over at this time. Most people " +
+                        "pick between 3–5 AM. Calendar dates and explicit due dates " +
+                        "are unaffected.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant
+            )
+        ) {
+            Column(
+                modifier = Modifier.padding(20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "%02d:%02d %s".format(
+                        if (hour == 0 || hour == 12) 12 else hour % 12,
+                        minute,
+                        if (hour < 12) "AM" else "PM"
+                    ),
+                    style = MaterialTheme.typography.headlineLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(text = "Hour", style = MaterialTheme.typography.labelMedium)
+                Slider(
+                    value = hour.toFloat(),
+                    onValueChange = { viewModel.setStartOfDay(it.toInt(), minute) },
+                    valueRange = 0f..23f,
+                    steps = 22
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(text = "Minute (5-min steps)", style = MaterialTheme.typography.labelMedium)
+                Slider(
+                    value = (minute / 5).toFloat(),
+                    onValueChange = { viewModel.setStartOfDay(hour, (it.toInt() * 5).coerceIn(0, 55)) },
+                    valueRange = 0f..11f,
+                    steps = 10
+                )
+            }
+        }
+    }
+}
+
+// ─── Connect Integrations Page ────────────────────────────────────────────
+//
+// Awareness-only page surfacing two integrations the user would otherwise
+// only discover by spelunking Settings: Google Calendar two-way sync and
+// Google Drive backup. Both are off by default and require scope grants;
+// rather than break the onboarding flow with an Activity-result detour,
+// this page just tells the user where to find each. The user lands in the
+// fully-functional app a moment later and can navigate to either screen.
+
+@Composable
+private fun ConnectIntegrationsPage() {
+    var visible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { visible = true }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(top = 60.dp, start = 24.dp, end = 24.dp, bottom = 140.dp)
+            .verticalScroll(rememberScrollState()),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        AnimatedVisibility(
+            visible = visible,
+            enter = fadeIn(tween(400)) + slideInVertically(tween(400)) { 30 }
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(text = "🔗", fontSize = 48.sp)
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "Connect More Later",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.asHeading()
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Two integrations live in Settings — both off by default " +
+                        "and ready when you want them.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
+        Spacer(modifier = Modifier.height(24.dp))
+
+        IntegrationInfoCard(
+            emoji = "📅",
+            title = "Google Calendar",
+            subtitle = "Two-way sync between PrismTask tasks and your calendar events.",
+            location = "Settings → Calendar"
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+        IntegrationInfoCard(
+            emoji = "💾",
+            title = "Google Drive Backup",
+            subtitle = "Encrypted manual + scheduled backups of your task data.",
+            location = "Settings → Data & Backup"
+        )
+    }
+}
+
+@Composable
+private fun IntegrationInfoCard(
+    emoji: String,
+    title: String,
+    subtitle: String,
+    location: String
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(emoji, fontSize = 28.sp)
+            Spacer(modifier = Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = location,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+        }
+    }
 }
 
 @Composable
