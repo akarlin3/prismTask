@@ -374,8 +374,137 @@ collapse into one PR; Item 5 co-ships. Items 3 / 4 deferred.
 
 ## Phase 3 — Bundle summary
 
-(Populated after Phase 2 PRs auto-merge.)
+All RED + co-shipped YELLOW items landed in a single squash-merged PR
+behind the audit doc. DEFERRED items are tracked here for the next
+sweep, not opened as PRs.
+
+| Item | Severity | Fix | PR | Status |
+|------|----------|-----|----|--------|
+| #1 — Slot edits don't re-arm AlarmManager | RED | `MedicationClockRescheduler.start(scope)` (new) + `MedicationIntervalRescheduler.start(scope)` extended; both observe `MedicationSlotDao.observeAll()` and trigger `rescheduleAll()` per emission. `PrismTaskApplication.startMedicationReschedulers` wires both. | [#1017](https://github.com/averycorp/prismTask/pull/1017) | Merged @ `d6c1090e` |
+| #2 — Cross-device sync rename doesn't re-arm | RED | Same Flow seam — Room emits to all `observeAll()` subscribers regardless of write origin, so sync-pulled slot rows trigger the same reschedule pass. | [#1017](https://github.com/averycorp/prismTask/pull/1017) | Bundled |
+| #5 — Test gap on rename → re-arm | YELLOW | `MedicationSlotFlowReschedulerTest` (Robolectric + mockk): clock-side slot emission triggers reschedule, interval-side slot emission triggers reschedule, dose emission still works. | [#1017](https://github.com/averycorp/prismTask/pull/1017) | Bundled |
+| #3 — Snapshot label at registration | YELLOW | DEFERRED. Defense-in-depth on top of #1; revisit if recurrence reported. | — | Deferred |
+| #4 — Honor `overrideIdealTime` | YELLOW | DEFERRED. Adjacent surface, separate scope (`SLOT_OVERRIDE_NOT_HONORED_AUDIT`). | — | Deferred |
+
+### Wall-clock-per-PR
+
+- Phase 1 audit (`#1016`): ~30 min wall clock (cross-check four
+  hypotheses against actual scheduler / receiver / repo wiring; cite
+  line numbers; 381-line doc inside the 500-line cap).
+- Phase 2 fix (`#1017`): ~40 min wall clock (two-line wiring + companion
+  defaultScope on clock side, three-line extension on interval side,
+  `PrismTaskApplication` symmetry, ~150-line Robolectric test, two
+  iterations on the test type signature against `MedicationDoseEntity?`).
+- Total ~70 min for one RED + one RED + one YELLOW + audit. Most of
+  the time was investigation; the actual fix is one Flow observer
+  mirrored across two reschedulers.
+
+### Memory candidates
+
+- **Candidate**: when a Room-backed entity drives an AlarmManager
+  schedule, the rescheduler must observe the *entity table* — not just
+  its dependent tables (e.g. doses driving interval reschedule). Sync
+  writes go through the DAO, so a Flow observer on
+  `entityDao.observeAll()` is the single point of truth for both local
+  edits AND sync-pulled rows.
+- **Recommendation**: hold this memory for now — it's already half-encoded
+  by the dose-Flow observer pattern in `MedicationIntervalRescheduler`,
+  and CLAUDE.md's "Reactive data" section names the convention. Promote
+  it only if a third recurrence of "edit-doesn't-reschedule" appears
+  outside the medication surface.
+
+### Schedule for next audit
+
+- 2026-05-15 — confirm the slot-Flow observer fired in production. Look
+  for: zero new wrong-slot-label reports in Phase F test feedback;
+  spot-check telemetry for `rescheduleAll` invocation frequency on the
+  CLOCK side now that slot edits trigger it (sanity bound: a slot edit
+  is rare, so we shouldn't see runaway pass-counts).
+- Pair with the deferred Item 4 (`overrideIdealTime` honored) at the
+  next medication-architecture sweep — same surface, different
+  invariant.
 
 ## Phase 4 — Claude Chat handoff
 
-(Populated last in this run, in a fenced markdown block.)
+```markdown
+## Medication slot-label drift audit (PrismTask Android, 2026-04-30)
+
+**Scope.** P1 follow-up on the 2026-04-30 medication reminders audit
+(`docs/audits/MEDICATION_REMINDERS_BOTH_MODES_AUDIT.md`, PRs #977 /
+#979 / #980 / #986 / #991 — those closed dispatch + fresh-install +
+flip stale alarms). New report: a notification fired at the right
+wall-clock time but the body's slot label and `idealTime` were wrong.
+Single occurrence on production build. Run against `main` at
+`61502982`; merged on top at `d6c1090e`.
+
+**Verdicts.**
+
+| # | Item | Verdict | One-line finding |
+|---|------|---------|------------------|
+| 1 | Slot edits don't re-arm AlarmManager | RED | `MedicationSlotsViewModel.{create,update,softDelete,restore}` and `MedicationSlotRepository` write the row but never call any rescheduler. AlarmManager keeps the original `triggerMillis`; the receiver renders the slot fresh from DB → label/time mismatch at fire. |
+| 2 | Cross-device sync rename doesn't re-arm | RED | `SyncService.pullCollection("medication_slots")` writes straight to `MedicationSlotDao`. Same triggerMillis-staleness manifests on a sync-pulled rename. |
+| 3 | Snapshot label at registration | YELLOW | Defense-in-depth on top of #1+#2; not the root cause; deferred. |
+| 4 | Honor `overrideIdealTime` in clock rescheduler | YELLOW | Adjacent bug — per-medication slot-time overrides aren't consulted by `MedicationClockRescheduler`. Separate scope, deferred. |
+| 5 | Test gap on rename → re-arm | YELLOW | No coverage for the Flow seam between slot writes and `rescheduleAll`. Co-shipped with #1+#2. |
+| H2 | Slot resolver confusion at fire time | GREEN | Receiver uses concrete `slotId` from intent extra; no time-window picking exists. |
+| H4 | User-error in slot config | GREEN | `slot.name` and `slot.idealTime` are independent by design (e.g. "Before bed"). Not a bug. |
+
+**Shipped.**
+
+- PR #1016 (MERGED, `48120bb5`) — Phase 1 audit doc (381 lines) at
+  `docs/audits/MEDICATION_SLOT_LABEL_DRIFT_AUDIT.md`.
+- PR #1017 (MERGED, `d6c1090e`) — slot-Flow observer added to
+  `MedicationClockRescheduler.start(scope)` (new) and extended on
+  `MedicationIntervalRescheduler.start(scope)`, both wired from
+  `PrismTaskApplication.startMedicationReschedulers`. Robolectric +
+  mockk regression test (`MedicationSlotFlowReschedulerTest`, 3
+  cases) pins the contract.
+
+**Deferred / stopped.**
+
+- Item 3 (snapshot label at registration). Adds redundant intent
+  extras alongside DB rows; only useful as a safety net once #1+#2
+  land. Revisit if a recurrence is reported.
+- Item 4 (`overrideIdealTime` honored). Adjacent bug, separate scope —
+  the per-medication slot-time override surface needs its own
+  request-code namespace decision. Track at
+  `SLOT_OVERRIDE_NOT_HONORED_AUDIT` next sweep.
+- End-to-end androidTest for receiver→AlarmManager→receiver round-trip
+  remains deferred (carried forward from the Apr-30 audit). The
+  unit-level Flow-seam test in #1017 is sufficient regression cover
+  for the bug class that produced this P1.
+
+**Non-obvious findings.**
+
+- The legacy `MedicationReminderScheduler` (per-medication `400_000+`
+  request codes, switches on `MedicationEntity.scheduleMode`) is *not*
+  the path that produced this bug — `MedicationViewModel` doesn't set
+  `scheduleMode` away from its `TIMES_OF_DAY` default and doesn't
+  populate `timesOfDay` / `specificTimes`, so the legacy scheduler
+  registers zero alarms for any post-v1.4 user (closed in the prior
+  audit). Every visible medication notification today comes from the
+  slot-driven path (`MedicationClockRescheduler` /
+  `MedicationIntervalRescheduler`), and that's where the drift was.
+- Notification body for slot CLOCK reads
+  `"$slotName Medications"` and `"It's $idealTime — time for your $slotName dose."`
+  — both fields pulled fresh from the slot row at fire time, against
+  an AlarmManager `triggerMillis` set during the last `rescheduleAll`.
+  The mismatch surface is *exactly* the period between any slot write
+  and the next `rescheduleAll` trigger (boot, app launch, settings
+  flip, dose log on the interval side). Slot edits and sync renames
+  fell through every one of those triggers.
+- Room's `Flow<List<Entity>>` emits regardless of whether the write
+  came from local code or a `SyncService` pull. One slot-Flow observer
+  closes both #1 and #2 with zero added entry points.
+
+**Open questions.**
+
+- Will the new clock-side observer cause measurable CPU on devices
+  with heavy slot-table churn? `MedicationTierStateEntity` is a
+  *separate* table from slots, but worth a sanity check at the
+  2026-05-15 follow-up — sample `rescheduleAll` invocation count on
+  the CLOCK side post-deploy.
+- Should the legacy `MedicationReminderScheduler` retire entirely now
+  that the slot-driven paths cover both modes? Carry into the next
+  medication-architecture sweep — not in scope here.
+```
