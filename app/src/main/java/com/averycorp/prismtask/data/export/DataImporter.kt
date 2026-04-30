@@ -46,7 +46,6 @@ import com.averycorp.prismtask.data.preferences.ThemePreferences
 import com.averycorp.prismtask.data.preferences.TimerPreferences
 import com.averycorp.prismtask.data.preferences.UrgencyWeights
 import com.averycorp.prismtask.data.preferences.VoicePreferences
-import com.averycorp.prismtask.domain.model.UiComplexityTier
 import com.google.gson.Gson
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
@@ -1210,7 +1209,6 @@ constructor(
             importQuickAddPrefs(userPrefs)
             importWorkLifeBalancePrefs(userPrefs)
             importForgivenessPrefs(userPrefs)
-            importUiTierPrefs(userPrefs)
             importTaskMenuActionsPrefs(userPrefs)
             importTaskCardDisplayPrefs(userPrefs)
         }
@@ -1228,17 +1226,6 @@ constructor(
                         ?: current.allowedMisses
                 )
             )
-        }
-    }
-
-    private suspend fun importUiTierPrefs(userPrefs: JsonObject) {
-        userPrefs.get("uiComplexityTier")?.takeIf { !it.isJsonNull }?.asString?.let { raw ->
-            runCatching { UiComplexityTier.valueOf(raw) }
-                .getOrNull()
-                ?.let { userPreferencesDataStore.setUiComplexityTier(it) }
-        }
-        if (userPrefs.get("tierOnboardingShown")?.takeIf { !it.isJsonNull }?.asBoolean == true) {
-            userPreferencesDataStore.markTierOnboardingShown()
         }
     }
 

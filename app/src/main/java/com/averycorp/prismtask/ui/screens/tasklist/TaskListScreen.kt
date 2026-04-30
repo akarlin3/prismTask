@@ -74,7 +74,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.averycorp.prismtask.data.local.entity.TaskEntity
-import com.averycorp.prismtask.domain.model.isAtLeast
 import com.averycorp.prismtask.ui.components.BatchEditBar
 import com.averycorp.prismtask.ui.components.BatchMoveToProjectDialog
 import com.averycorp.prismtask.ui.components.BatchTagsDialog
@@ -127,7 +126,6 @@ fun TaskListScreen(
     navController: NavController,
     viewModel: TaskListViewModel = hiltViewModel()
 ) {
-    val uiTier by viewModel.uiTier.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
     val swipePrefs by viewModel.swipePrefs.collectAsStateWithLifecycle()
     val filteredTasks by viewModel.filteredTasks.collectAsStateWithLifecycle()
@@ -449,30 +447,28 @@ fun TaskListScreen(
                             )
                         }
                         // Filter button — STANDARD+ only
-                        if (uiTier.isAtLeast(com.averycorp.prismtask.domain.model.UiComplexityTier.STANDARD)) {
-                            IconButton(onClick = { showFilterSheet = true }) {
-                                val filterCount = currentFilter.activeFilterCount()
-                                if (filterCount > 0) {
-                                    BadgedBox(
-                                        badge = {
-                                            Badge(
-                                                containerColor = MaterialTheme.colorScheme.error
-                                            ) {
-                                                Text("$filterCount")
-                                            }
+                        IconButton(onClick = { showFilterSheet = true }) {
+                            val filterCount = currentFilter.activeFilterCount()
+                            if (filterCount > 0) {
+                                BadgedBox(
+                                    badge = {
+                                        Badge(
+                                            containerColor = MaterialTheme.colorScheme.error
+                                        ) {
+                                            Text("$filterCount")
                                         }
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.FilterList,
-                                            contentDescription = "Filters"
-                                        )
                                     }
-                                } else {
+                                ) {
                                     Icon(
                                         imageVector = Icons.Default.FilterList,
                                         contentDescription = "Filters"
                                     )
                                 }
+                            } else {
+                                Icon(
+                                    imageVector = Icons.Default.FilterList,
+                                    contentDescription = "Filters"
+                                )
                             }
                         }
                         var showViewMenu by remember { mutableStateOf(false) }
@@ -586,16 +582,7 @@ fun TaskListScreen(
                                 expanded = showSortMenu,
                                 onDismissRequest = { showSortMenu = false }
                             ) {
-                                val basicSortOptions =
-                                    setOf(SortOption.DUE_DATE, SortOption.PRIORITY, SortOption.CREATED)
-                                val visibleSortOptions = SortOption.entries.filter { option ->
-                                    when {
-                                        uiTier == com.averycorp.prismtask.domain.model.UiComplexityTier.BASIC ->
-                                            option in basicSortOptions
-                                        else -> true
-                                    }
-                                }
-                                visibleSortOptions.forEach { option ->
+                                SortOption.entries.forEach { option ->
                                     DropdownMenuItem(
                                         text = { Text(option.label) },
                                         onClick = {

@@ -173,27 +173,6 @@ constructor(
         }
     }
 
-    // --- UI Complexity Tier ---
-    val uiComplexityTier: StateFlow<com.averycorp.prismtask.domain.model.UiComplexityTier> =
-        userPreferencesDataStore.uiComplexityTier
-            .stateIn(
-                viewModelScope,
-                SharingStarted.WhileSubscribed(5000),
-                com.averycorp.prismtask.domain.model.UiComplexityTier.STANDARD
-            )
-
-    fun setUiComplexityTier(tier: com.averycorp.prismtask.domain.model.UiComplexityTier) {
-        viewModelScope.launch { userPreferencesDataStore.setUiComplexityTier(tier) }
-    }
-
-    val tierOnboardingShown: StateFlow<Boolean> =
-        userPreferencesDataStore.tierOnboardingShown
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
-
-    fun markTierOnboardingShown() {
-        viewModelScope.launch { userPreferencesDataStore.markTierOnboardingShown() }
-    }
-
     // --- v1.3.0 User Preferences ---
     val appearancePrefs: StateFlow<com.averycorp.prismtask.data.preferences.AppearancePrefs> =
         userPreferencesDataStore.appearanceFlow

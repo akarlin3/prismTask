@@ -10,7 +10,6 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import com.averycorp.prismtask.domain.model.AutoDueDate
 import com.averycorp.prismtask.domain.model.StartOfWeek
 import com.averycorp.prismtask.domain.model.SwipeAction
-import com.averycorp.prismtask.domain.model.UiComplexityTier
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
@@ -210,10 +209,6 @@ class UserPreferencesDataStore(
         val KEY_FORGIVENESS_GRACE_DAYS = intPreferencesKey("forgiveness_grace_days")
         val KEY_FORGIVENESS_ALLOWED_MISSES = intPreferencesKey("forgiveness_allowed_misses")
 
-        // UI Complexity Tier (v1.4.0)
-        val KEY_UI_TIER = stringPreferencesKey("ui_complexity_tier")
-        val KEY_TIER_ONBOARDING_SHOWN = booleanPreferencesKey("tier_onboarding_shown")
-
         // Work-Life Balance (v1.4.0 V1)
         val KEY_WLB_WORK_TARGET = intPreferencesKey("wlb_work_target")
         val KEY_WLB_PERSONAL_TARGET = intPreferencesKey("wlb_personal_target")
@@ -241,16 +236,6 @@ class UserPreferencesDataStore(
     }
 
     // region Flows ---------------------------------------------------------
-
-    /** Current UI complexity tier. Defaults to STANDARD. */
-    val uiComplexityTier: Flow<UiComplexityTier> = dataStore.data.map { prefs ->
-        UiComplexityTier.fromName(prefs[KEY_UI_TIER])
-    }
-
-    /** Whether the tier onboarding bottom sheet has been shown. */
-    val tierOnboardingShown: Flow<Boolean> = dataStore.data.map { prefs ->
-        prefs[KEY_TIER_ONBOARDING_SHOWN] ?: false
-    }
 
     val appearanceFlow: Flow<AppearancePrefs> = dataStore.data.map { prefs ->
         AppearancePrefs(
@@ -493,16 +478,6 @@ class UserPreferencesDataStore(
 
     suspend fun setShowBalanceBar(enabled: Boolean) {
         dataStore.edit { it[KEY_WLB_SHOW_BAR] = enabled }
-    }
-
-    /** Persist the chosen UI complexity tier. */
-    suspend fun setUiComplexityTier(tier: UiComplexityTier) {
-        dataStore.edit { it[KEY_UI_TIER] = tier.name }
-    }
-
-    /** Mark the tier onboarding bottom sheet as shown. */
-    suspend fun markTierOnboardingShown() {
-        dataStore.edit { it[KEY_TIER_ONBOARDING_SHOWN] = true }
     }
 
     suspend fun setEisenhowerAutoClassifyEnabled(enabled: Boolean) {

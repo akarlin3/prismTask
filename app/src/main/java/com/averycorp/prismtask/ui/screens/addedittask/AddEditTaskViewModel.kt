@@ -76,14 +76,6 @@ constructor(
 ) : ViewModel() {
     private val boundaryEnforcer = BoundaryEnforcer()
 
-    val uiTier: StateFlow<com.averycorp.prismtask.domain.model.UiComplexityTier> =
-        userPreferencesDataStore.uiComplexityTier
-            .stateIn(
-                viewModelScope,
-                SharingStarted.WhileSubscribed(5000),
-                com.averycorp.prismtask.domain.model.UiComplexityTier.STANDARD
-            )
-
     private val _errorMessages = MutableSharedFlow<String>()
     val errorMessages: SharedFlow<String> = _errorMessages.asSharedFlow()
 

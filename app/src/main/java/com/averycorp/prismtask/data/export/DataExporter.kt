@@ -434,9 +434,6 @@ constructor(
         forgivenessJson.addProperty("allowedMisses", forgiveness.allowedMisses)
         userPrefs.add("forgiveness", forgivenessJson)
 
-        userPrefs.addProperty("uiComplexityTier", userPreferencesDataStore.uiComplexityTier.first().name)
-        userPrefs.addProperty("tierOnboardingShown", userPreferencesDataStore.tierOnboardingShown.first())
-
         userPrefs.add(
             "taskMenuActions",
             compactGson.toJsonTree(userPreferencesDataStore.taskMenuActionsFlow.first())

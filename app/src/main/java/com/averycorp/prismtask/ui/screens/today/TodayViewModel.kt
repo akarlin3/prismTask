@@ -89,15 +89,6 @@ constructor(
     private val leisureRepository: LeisureRepository,
     private val localDateFlow: LocalDateFlow
 ) : ViewModel() {
-    /** UI complexity tier — gates dashboard customization in the Today screen. */
-    val uiTier: StateFlow<com.averycorp.prismtask.domain.model.UiComplexityTier> =
-        userPreferencesDataStore.uiComplexityTier
-            .stateIn(
-                viewModelScope,
-                SharingStarted.WhileSubscribed(5000),
-                com.averycorp.prismtask.domain.model.UiComplexityTier.STANDARD
-            )
-
     /**
      * True when the morning check-in banner should render on the Today
      * screen. Derived reactively from three signals (so it flips off the

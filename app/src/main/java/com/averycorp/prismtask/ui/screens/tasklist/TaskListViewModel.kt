@@ -85,15 +85,6 @@ constructor(
     private val userPreferencesDataStore: com.averycorp.prismtask.data.preferences.UserPreferencesDataStore,
     private val localDateFlow: LocalDateFlow
 ) : ViewModel() {
-    /** UI complexity tier — gates sort/filter/grouping options. */
-    val uiTier: StateFlow<com.averycorp.prismtask.domain.model.UiComplexityTier> =
-        userPreferencesDataStore.uiComplexityTier
-            .stateIn(
-                viewModelScope,
-                SharingStarted.WhileSubscribed(5000),
-                com.averycorp.prismtask.domain.model.UiComplexityTier.STANDARD
-            )
-
     val swipePrefs: StateFlow<com.averycorp.prismtask.data.preferences.SwipePrefs> =
         userPreferencesDataStore.swipeFlow
             .stateIn(
