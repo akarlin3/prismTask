@@ -1,18 +1,31 @@
 name: Auto-merge & Release
 
-# Single-job workflow that waits for CI, then squash-merges via
-# `gh pr merge --auto`. The post-merge version bump + tag push lives
-# in `.github/workflows/version-bump-and-tag.yml`, triggered on
-# `workflow_run` of THIS workflow's completion. That keeps this
-# workflow's status check turning green fast (no waiting on the
-# post-merge bump) while still firing the bump → tag → release chain.
+# Thin wrapper that flips on GitHub's native auto-merge for the PR and
+# exits. The actual wait-for-CI-then-merge work happens server-side
+# (no runner) — GitHub handles the queue once `gh pr merge --auto` is
+# enabled. The post-merge version bump + tag push lives in
+# `.github/workflows/version-bump-and-tag.yml`, triggered on
+# `workflow_run` of THIS workflow's completion. Version-bump itself
+# polls for the PR to flip to MERGED before bumping (20-min ceiling),
+# so we don't need to make THIS workflow's runner sit idle waiting.
 #
-# Why workflow_run for the split (not `push` to main)? GitHub's anti-
-# recursion rule blocks workflow runs when the push to main was
-# produced by gh pr merge using GITHUB_TOKEN. workflow_run is the
-# documented exception — it fires from the completion of this workflow
-# (which itself was triggered by a non-bot pull_request event) even
-# though this workflow uses GITHUB_TOKEN to perform the merge.
+# History: prior versions of this workflow ran `wait-on-check-action`
+# inline, which occupied one runner per open PR for the full CI
+# duration. With ~25 open PRs each holding a runner just to poll, the
+# GitHub Actions queue saturated and `lint-and-test`/`web-lint-and-test`/
+# `test` jobs (the ones the polling was waiting for) couldn't get
+# runners — a self-inflicted deadlock. Stripped to fire-and-exit on
+# 2026-04-30; see commit message for context.
+#
+# Why workflow_run for the version-bump trigger (not `push: main`)?
+# GitHub's anti-recursion rule blocks workflow runs when the push to
+# main was produced by gh pr merge using GITHUB_TOKEN. workflow_run is
+# the documented exception — it fires from the completion of this
+# workflow (which itself was triggered by a non-bot pull_request
+# event) even though this workflow uses GITHUB_TOKEN to perform the
+# merge. The race (workflow_run firing on this workflow's completion
+# *before* the merge actually lands) is handled by version-bump-and-
+# tag.yml's own poll-for-merge step.
 
 on:
   pull_request:
@@ -20,27 +33,17 @@ on:
     branches: [main]
   workflow_dispatch:
 
-env:
-  # Audit PR #876 → CI pathway efficiency: dropped 30→15. Required checks
-  # complete in <30s on docs/trivial PRs; 30s polling interval added 15-30s
-  # of buffer for no reliability gain. wait-on-check-action handles fast
-  # completion correctly at 15s.
-  WAIT_INTERVAL: 15  # seconds between CI check polls
-
 permissions:
-  contents: write        # includes push access needed by capture job for ci-logs branch
+  contents: write
   pull-requests: write
-  checks: read
-  actions: read          # capture-failure-log fetches job logs via API
 
 jobs:
   # ── PR Auto-merge ─────────────────────────────────────────────────
   auto-merge:
     name: Auto-merge
-    # Audit item #7 — skip `synchronize` events produced by the autofix
-    # bot's auto-format commit. Those commits always carry [skip ci], so
-    # kicking off another auto-merge run for them burns runner minutes
-    # waiting on checks that won't re-run.
+    # Skip `synchronize` events produced by the autofix bot's auto-format
+    # commit — those carry [skip ci] and re-enabling auto-merge on them
+    # is a no-op against an already-enabled PR.
     if: >-
       github.event_name == 'pull_request' &&
       github.event.pull_request.draft == false &&
@@ -48,220 +51,18 @@ jobs:
       github.event.sender.type != 'Bot'
     runs-on: ubuntu-latest
     steps:
-      - name: Detect whether any CI workflows were triggered
-        id: ci_check
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-          REPO: ${{ github.repository }}
-        run: |
-          set -euo pipefail
-          # Audit item #5 — poll check-runs for up to 60s instead of a bare
-          # 20s sleep. On a busy runner cohort the initial 20s wasn't enough
-          # for the API to reflect queued workflow runs, which could merge
-          # PRs without waiting for CI. Bail out early as soon as ≥1 real
-          # check shows up.
-          COUNT=0
-          for i in $(seq 1 6); do
-            sleep 10
-            COUNT=$(gh api "repos/$REPO/commits/$HEAD_SHA/check-runs" \
-              --jq '[.check_runs[] | select(.name != "Auto-merge")] | length')
-            if [ "$COUNT" -gt 0 ]; then
-              echo "Found $COUNT non-Auto-merge check(s) after ${i}0s"
-              break
-            fi
-            echo "No non-Auto-merge checks yet (attempt $i/6)"
-          done
-          if [ "$COUNT" -gt 0 ]; then
-            echo "has_ci=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "has_ci=false" >> "$GITHUB_OUTPUT"
-            echo "No CI checks on this PR after 60s — will merge without waiting."
-          fi
-
-      - name: Wait until all required-status checks have queued
-        # Witnessed on PR #804 (2026-04-26): the next step's
-        # `wait-on-check-action` exited after ~43s because only one
-        # required check (Backend `test`) had completed and Android
-        # `lint-and-test` hadn't been queued yet. wait-on-check-action's
-        # exit condition is "all *currently visible* check-runs are in
-        # allowed-conclusions" — which is a race with GitHub's queueing
-        # of slower workflows. Auto-merge then ran `gh pr merge --auto`
-        # immediately, the merge queued behind the still-pending real
-        # CI, and the version-bump workflow_run trigger fired with a
-        # PR-head sha 14 min before the actual merge — its 10-min "wait
-        # for PR to merge" step timed out before the merge completed,
-        # silently dropping the auto-bump.
-        #
-        # This step closes the race by polling the required-status-check
-        # list from branch protection and waiting until every required
-        # check has at least appeared in `commits/{sha}/check-runs`.
-        # Once they're all visible, wait-on-check-action's exit
-        # condition correctly waits for ALL of them (not just the fast
-        # subset).
-        #
-        # Falls back to a hardcoded list if the branch-protection API is
-        # 403/404 (the default GITHUB_TOKEN has `Administration: read`
-        # in most repos, but if you've explicitly removed that scope or
-        # branch protection isn't configured yet, we degrade gracefully
-        # rather than block the merge forever).
-        if: steps.ci_check.outputs.has_ci == 'true'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-          REPO: ${{ github.repository }}
-          # Hardcoded fallback if branch-protection API is unavailable.
-          # Keep in sync with the canonical list at:
-          #   Settings → Branches → main → Require status checks to pass
-          # Last verified 2026-04-26 against the live ruleset.
-          FALLBACK_REQUIRED: |
-            lint-and-test
-            connected-tests
-            test
-            web-lint-and-test
-        run: |
-          set -euo pipefail
-          REQUIRED=$(gh api "repos/$REPO/branches/main/protection/required_status_checks" \
-            --jq '.contexts[]' 2>/dev/null || true)
-          if [ -z "$REQUIRED" ]; then
-            echo "::warning::Could not query branch protection (likely a permission issue) — using hardcoded fallback list."
-            REQUIRED="$FALLBACK_REQUIRED"
-          fi
-          # Strip Auto-merge from the required list so we don't wait on
-          # ourselves (it's listed because we ARE the running workflow).
-          REQUIRED=$(echo "$REQUIRED" | grep -vE '^\s*Auto-merge\s*$' | grep -vE '^\s*$' || true)
-          if [ -z "$REQUIRED" ]; then
-            echo "No required checks beyond Auto-merge; skipping queue wait."
-            exit 0
-          fi
-          echo "Waiting until these required checks queue:"
-          echo "$REQUIRED" | sed 's/^/  /'
-          # Audit PR #876 → CI pathway efficiency: this loop was burning
-          # ~315s/PR (PR #874 run 25035518360 + PR #873 run 25035513300)
-          # while underlying required checks were observably complete in
-          # ~30s. Mean job wall-clock was 343s with std-dev ~7s across 10
-          # runs — i.e. the loop almost always ran to its 5-minute ceiling.
-          # Two compensating mitigations + diagnostics:
-          #
-          #   (a) Cap dropped 30 → 18 attempts at 5s interval = 90s ceiling
-          #       (still > 2× the 43s race window from PR #804).
-          #   (b) Poll interval dropped 10s → 5s for faster detection.
-          #   (c) Per-iteration diagnostic prints MISSING + visible CHECK_RUNS.
-          #       Audit F4 from CI_AUDIT_2026-04-30: the historic
-          #       MISSING-never-empties symptom traced to a trim/encoding
-          #       mismatch — `echo "$req" | xargs` left stray \r intact on
-          #       some runners (gh api JSON value CRLF), so `grep -qxF`
-          #       failed to match REQUIRED entries against CHECK_RUNS even
-          #       when the human-readable strings looked identical. Fix:
-          #       (1) trim with `tr -d '\r' | sed` instead of xargs so \r
-          #       is removed, (2) feed the haystack via `printf '%s\n'`
-          #       instead of `echo` so it emits exactly one trailing
-          #       newline regardless of `echo` flavor, and (3) on the
-          #       final warning, hex-dump REQUIRED + CHECK_RUNS so a
-          #       future regression has byte-level evidence on hand
-          #       without another round-trip.
-          for attempt in $(seq 1 18); do
-            CHECK_RUNS=$(gh api --paginate "repos/$REPO/commits/$HEAD_SHA/check-runs" \
-              --jq '.check_runs[].name' | sort -u)
-            MISSING=""
-            while IFS= read -r req; do
-              [ -z "$req" ] && continue
-              req_trimmed=$(printf '%s' "$req" | tr -d '\r' | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')
-              [ -z "$req_trimmed" ] && continue
-              if ! printf '%s\n' "$CHECK_RUNS" | grep -Fxq -- "$req_trimmed"; then
-                MISSING="$MISSING $req_trimmed"
-              fi
-            done <<< "$REQUIRED"
-            if [ -z "$MISSING" ]; then
-              echo "All required checks have queued after attempt $attempt (~$((attempt * 5))s)."
-              exit 0
-            fi
-            echo "Attempt $attempt/18 — still missing:$MISSING"
-            echo "  Visible check-runs: $(printf '%s' "$CHECK_RUNS" | tr '\n' ',' | sed 's/,$//')"
-            sleep 5
-          done
-          echo "::warning::Some required checks never queued after 90s:$MISSING — proceeding to wait-on-check-action anyway."
-          echo "::group::Diagnostic dump (REQUIRED vs CHECK_RUNS, hex — audit F4)"
-          echo "REQUIRED:"
-          printf '%s' "$REQUIRED" | xxd | head -20
-          echo "CHECK_RUNS:"
-          printf '%s' "$CHECK_RUNS" | xxd | head -20
-          echo "::endgroup::"
-
-      - name: Wait for all other CI checks to pass
-        if: steps.ci_check.outputs.has_ci == 'true'
-        # Audit item #9 — include `neutral` in allowed-conclusions so
-        # checks that report neutral (rare but possible for skipped
-        # workflows under path filters) don't block auto-merge forever.
-        # Pinned to v1.3.4 SHA for supply-chain safety.
-        uses: lewagon/wait-on-check-action@ccfb013c15c8afb7bf2b7c028fb74dc5a068cccc
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-          running-workflow-name: Auto-merge
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-          wait-interval: ${{ env.WAIT_INTERVAL }}
-          allowed-conclusions: success,skipped,neutral
-
-      - name: Update branch if behind main
-        # Audit item #4 — when the PR merged cleanly against its base but
-        # its base has since advanced with a commit that makes one of the
-        # PR's tests break (classic "test was fine in isolation, breaks
-        # after a parallel merge"), rebase onto the new base and let the
-        # re-run of CI verify it. Witnessed in PR #699 this session.
-        #
-        # Token choice — same rationale as android-ci.yml's autofix step:
-        # GITHUB_TOKEN-driven pushes never trigger downstream workflow
-        # runs (documented GitHub Actions anti-recursion). When `gh pr
-        # update-branch` runs under GITHUB_TOKEN, the resulting "Update
-        # branch" commit on the PR head leaves required checks stale, so
-        # auto-merge waits forever for workflows that will never fire.
-        # Witnessed on PRs #772 + #774 (residual GITHUB_TOKEN-CI bug —
-        # the autofix path was already on AUTOFIX_PAT, but this path
-        # wasn't). Falls back to GITHUB_TOKEN gracefully — update-branch
-        # still works under GITHUB_TOKEN, the resulting commit just
-        # won't retrigger CI (same as today's behavior).
-        #
-        # NOTE on PAT scope: `gh pr update-branch` calls
-        # `PUT /repos/{owner}/{repo}/pulls/{n}/update-branch`, which
-        # requires `pull_requests: write` on the PAT. If AUTOFIX_PAT was
-        # provisioned with `Pull Requests: Read` only (per its original
-        # autofix-only scope), expand it to Read+Write or this step will
-        # 403 and fall through to the merge attempt with stale checks.
-        if: steps.ci_check.outputs.has_ci == 'true'
-        env:
-          GH_TOKEN: ${{ secrets.AUTOFIX_PAT || secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          REPO: ${{ github.repository }}
-        run: |
-          set -euo pipefail
-          STATE=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json mergeStateStatus -q '.mergeStateStatus')
-          echo "mergeStateStatus=$STATE"
-          case "$STATE" in
-            BEHIND)
-              echo "PR base has advanced; updating branch and re-entering check wait."
-              gh pr update-branch "$PR_NUMBER" --repo "$REPO" || {
-                echo "::warning::update-branch failed; continuing to merge attempt anyway."
-              }
-              ;;
-            *)
-              echo "No rebase needed."
-              ;;
-          esac
-
-      - name: Merge PR (squash)
+      - name: Enable native auto-merge
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_URL: ${{ github.event.pull_request.html_url }}
         run: |
           set -euo pipefail
-          # Use --auto so GitHub still waits for required reviews (if any).
-          # --delete-branch removes the head branch once the merge completes
-          # so feature branches don't accumulate.
-          # The post-merge version bump + tag push lives in
-          # .github/workflows/version-bump-and-tag.yml, triggered on
-          # `workflow_run` of THIS workflow's completion. See PR #800 for
-          # the rationale of removing the duplicate inline job that lived
-          # here from PR #771 → PR #799.
+          # --auto: GitHub waits for required reviews + status checks.
+          # --squash: matches the repo merge style.
+          # --delete-branch: clean up feature branches automatically.
+          # The `|| echo` swallows the "already enabled / already merged
+          # / disabled by repo setting" non-error exit so this job does
+          # not flap red on benign re-runs.
           gh pr merge --auto --squash --delete-branch "$PR_URL" || \
             echo "Auto-merge could not be enabled (already enabled, already merged, or repo setting disabled)."
 
