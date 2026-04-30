@@ -146,3 +146,53 @@ Single improvement; not a fan-out audit.
 | Improvement | Implementation cost | Wall-clock savings (qualitative) |
 |-------------|---------------------|----------------------------------|
 | Add LANGUAGE leisure slot with 5 default languages, plumbed through onboarding template picker, leisure screen, leisure settings, and daily essentials card | Medium (~14 files + 3 tests, additive Room migration) | High — unblocks language-practice users opting in at first launch with no manual section-creation friction |
+
+## Phase 3 — Bundle summary
+
+- **PR**: [#1015](https://github.com/averycorp/prismTask/pull/1015) — `feat(leisure): add Language as a third built-in leisure slot`. Single bundled PR; auto-merge with squash enabled.
+- **Files touched**: 13 source + 3 test + 1 new migration test (17 total). One additive Room migration (`MIGRATION_66_67`, `CURRENT_DB_VERSION` 66 → 67).
+- **Scope deviation from Phase 1**: skipped the proposed `DailyEssentialsUseCase` extension. Rationale: `DailyEssentialsUseCase` only reads `LeisureSlotId` as a parameter (no exhaustive `when`), so omitting LANGUAGE there does not break compilation, and surfacing a third Today-screen leisure card is a UX decision orthogonal to the onboarding scope. The dedicated `LeisureScreen` and progress aggregation in `LeisureRepository.getDailyLeisureProgress` already cover language; a follow-up PR can add the per-language Today card if user feedback warrants. This avoids the `combineDailyEssentials` index-drift risk flagged in Phase 1.
+- **LANGUAGE default switched from enabled → disabled** during implementation. The Phase 1 default was `enabled = true` mirroring MUSIC / FLEX. Implementation revealed that `syncHabitCompletion` in `LeisureRepository` uses `log.musicDone && log.flexDone` (no `enabled` gating) to decide whether the shared "Leisure" meta-habit fires for the day. Adding LANGUAGE with `enabled = true` would have silently broken the meta-habit on every existing install (suddenly required `languageDone` too). Switching the default to disabled + adding an enable-on-pick step in `OnboardingViewModel.applyTemplateSelections` and `TemplateBrowserViewModel.commit` keeps the meta-habit definition stable for existing users while still surfacing the slot for new users who opt in.
+- **Memory entry candidate** *(non-obvious)*: when extending a slot-keyed feature, audit `syncHabitCompletion` (or any aggregate-completion logic) for hard-coded slot-list assumptions. Several aggregation paths (here `log.musicDone && log.flexDone`) are not gated by `config.enabled` and will silently change behavior when a new slot is added with `enabled = true`. **Pending PR merge** before considering for memory.
+- **Schedule for next audit**: none queued. Future cleanup candidates flagged but not scheduled — the `combine(...)` over `Array<Any?>` pattern in `DailyEssentialsUseCase`, and the per-slot duplicated repository methods (`setMusicPick` / `setFlexPick` / `setLanguagePick`), are documented anti-patterns that don't justify their own audit until a fourth slot is requested.
+
+## Phase 4 — Claude Chat handoff
+
+```markdown
+# PrismTask · Language leisure category audit
+
+## Scope
+Add a "Language" leisure category as a default option in onboarding for the
+PrismTask Android app, with Italian / French / Spanish / German / Chinese as
+built-in selectable options. Mirror the existing MUSIC + FLEX built-in slot
+pattern.
+
+## Verdicts
+
+| Item | Verdict | Finding |
+|------|---------|---------|
+| Add `LeisureSlotId.LANGUAGE` slot end-to-end | GREEN → SHIPPED | One coherent additive feature; mechanical extension of the existing 2-slot pattern |
+| Surface `DailyEssentialsUseCase` language card | DEFERRED | Phase 1 listed it; implementation skipped it because the use case takes `LeisureSlotId` as a parameter rather than `when`-matching, so omission doesn't break compile. UX decision deferred to follow-up PR |
+| `combine(...)` over `Array<Any?>` index drift in `DailyEssentialsUseCase` | YELLOW (defer) | Pre-existing fragility flagged but not fixed; out of scope |
+| Per-slot duplicated repository methods (`setMusicPick` / `setFlexPick` / `setLanguagePick`) | YELLOW (defer) | Out of scope; would refactor to parametric `setBuiltInPick(slot, id)` in a future cleanup |
+
+## Shipped
+
+- PR [#1015](https://github.com/averycorp/prismTask/pull/1015) — `feat(leisure): add Language as a third built-in leisure slot`.
+
+## Deferred / stopped
+
+- **DailyEssentialsUseCase language card** — listed in Phase 1, skipped in Phase 2. Compilation does not require it (only `getSlotConfig(slot)` calls, no exhaustive `when`); surfacing a per-language Today-screen card is a UX call deferred to a follow-up PR.
+
+## Non-obvious findings
+
+- `LeisureRepository.syncHabitCompletion` uses `log.musicDone && log.flexDone` directly — it does NOT gate by `LeisureSlotConfig.enabled`. Adding LANGUAGE with `enabled = true` would have silently broken the shared "Leisure" meta-habit completion on every existing install. The fix was to default LANGUAGE to disabled and flip it on inside `OnboardingViewModel.applyTemplateSelections` + `TemplateBrowserViewModel.commit` only when the user actually picks a language. The aggregate-completion logic still requires `languageDone` only when the slot is enabled.
+- Firestore is schema-less (map-backed), so the new `languagePick` / `languageDone` keys round-trip cleanly with older clients via `as?`-style reads on missing keys (default `null` / `false`). No cross-platform compat break.
+- `exportSchema = false` on the Room database means migration tests hand-roll their own pre-migration schema via `SupportSQLiteOpenHelper` instead of using `MigrationTestHelper`. Pattern is well-established (`Migration51To52Test`, `Migration53To54Test`, etc.). The new `Migration66To67Test` follows the same shape.
+- `TemplateSelections` is the contract between the onboarding template picker UI and `OnboardingViewModel.applyTemplateSelections` / `TemplateBrowserViewModel.commit`. All callers use named parameters or empty constructors, so inserting the new `languageIds` field at position 3 is safe.
+
+## Open questions
+
+- Should the Today screen's daily-essentials card surface a per-language tracker once the LANGUAGE slot is enabled? Phase 1 included this; implementation deferred. UX research / user feedback should drive a follow-up PR if so.
+- Should `syncHabitCompletion` be refactored to gate ALL slots (including MUSIC + FLEX) by `config.enabled` for consistency? Pre-existing behavior treats MUSIC / FLEX as always-required regardless of slot enable flag. Out of scope here, but worth a stand-alone audit.
+```
