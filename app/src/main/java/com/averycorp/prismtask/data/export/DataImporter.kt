@@ -23,29 +23,55 @@ import com.averycorp.prismtask.data.local.entity.TaskCompletionEntity
 import com.averycorp.prismtask.data.local.entity.TaskEntity
 import com.averycorp.prismtask.data.local.entity.TaskTagCrossRef
 import com.averycorp.prismtask.data.preferences.A11yPreferences
+import com.averycorp.prismtask.data.preferences.AdvancedTuningPreferences
+import com.averycorp.prismtask.data.preferences.ApiNetworkConfig
 import com.averycorp.prismtask.data.preferences.ArchivePreferences
+import com.averycorp.prismtask.data.preferences.BatchUndoConfig
+import com.averycorp.prismtask.data.preferences.BurnoutWeights
 import com.averycorp.prismtask.data.preferences.BuiltInSortOrders
 import com.averycorp.prismtask.data.preferences.CoachingPreferences
 import com.averycorp.prismtask.data.preferences.CustomLeisureActivity
 import com.averycorp.prismtask.data.preferences.DailyEssentialsPreferences
 import com.averycorp.prismtask.data.preferences.DashboardPreferences
+import com.averycorp.prismtask.data.preferences.EditorFieldRows
+import com.averycorp.prismtask.data.preferences.EnergyPomodoroConfig
+import com.averycorp.prismtask.data.preferences.ExtractorConfig
 import com.averycorp.prismtask.data.preferences.ForgivenessPrefs
+import com.averycorp.prismtask.data.preferences.GoodEnoughTimerConfig
+import com.averycorp.prismtask.data.preferences.HabitReminderFallback
 import com.averycorp.prismtask.data.preferences.HabitListPreferences
 import com.averycorp.prismtask.data.preferences.LeisurePreferences
+import com.averycorp.prismtask.data.preferences.LifeCategoryCustomKeywords
 import com.averycorp.prismtask.data.preferences.MedicationPreferences
 import com.averycorp.prismtask.data.preferences.MedicationScheduleMode
+import com.averycorp.prismtask.data.preferences.MoodCorrelationConfig
 import com.averycorp.prismtask.data.preferences.MorningCheckInPreferences
+import com.averycorp.prismtask.data.preferences.MorningCheckInPromptCutoff
 import com.averycorp.prismtask.data.preferences.NdPreferencesDataStore
 import com.averycorp.prismtask.data.preferences.NotificationPreferences
 import com.averycorp.prismtask.data.preferences.OnboardingPreferences
+import com.averycorp.prismtask.data.preferences.OverloadCheckSchedule
+import com.averycorp.prismtask.data.preferences.ProductivityWeights
+import com.averycorp.prismtask.data.preferences.ProductivityWidgetThresholds
+import com.averycorp.prismtask.data.preferences.QuickAddRows
+import com.averycorp.prismtask.data.preferences.ReengagementConfig
+import com.averycorp.prismtask.data.preferences.RefillUrgencyConfig
+import com.averycorp.prismtask.data.preferences.SearchPreview
+import com.averycorp.prismtask.data.preferences.SelfCareTierDefaults
+import com.averycorp.prismtask.data.preferences.SmartDefaultsConfig
 import com.averycorp.prismtask.data.preferences.SortPreferences
+import com.averycorp.prismtask.data.preferences.SuggestionConfig
 import com.averycorp.prismtask.data.preferences.TabPreferences
 import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
 import com.averycorp.prismtask.data.preferences.TemplatePreferences
 import com.averycorp.prismtask.data.preferences.ThemePreferences
 import com.averycorp.prismtask.data.preferences.TimerPreferences
+import com.averycorp.prismtask.data.preferences.UrgencyBands
 import com.averycorp.prismtask.data.preferences.UrgencyWeights
+import com.averycorp.prismtask.data.preferences.UrgencyWindows
 import com.averycorp.prismtask.data.preferences.VoicePreferences
+import com.averycorp.prismtask.data.preferences.WeeklySummarySchedule
+import com.averycorp.prismtask.data.preferences.WidgetRefreshConfig
 import com.google.gson.Gson
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
@@ -176,7 +202,8 @@ constructor(
     private val templatePreferences: TemplatePreferences,
     private val onboardingPreferences: OnboardingPreferences,
     private val coachingPreferences: CoachingPreferences,
-    private val sortPreferences: SortPreferences
+    private val sortPreferences: SortPreferences,
+    private val advancedTuningPreferences: AdvancedTuningPreferences
 ) {
     private val gson = Gson()
 
@@ -937,6 +964,7 @@ constructor(
                 importOnboardingConfig(config)
                 importCoachingConfig(config)
                 importSortConfig(config)
+                importAdvancedTuningConfig(config)
                 ctx.configImported = true
             } catch (e: Exception) {
                 ctx.errors.add("Failed to import config: ${e.message}")
@@ -1600,6 +1628,93 @@ constructor(
             if (keys.isNotEmpty()) {
                 sortPreferences.applyRemoteSnapshot(keys, System.currentTimeMillis())
             }
+        }
+    }
+
+    /**
+     * Restores power-user tuning knobs ([AdvancedTuningPreferences]) from a
+     * v5+ backup. Each sub-key maps to a typed config data class; missing
+     * sub-keys (older backups) silently no-op so the local default stands.
+     * Each setter applies its own clamping, so out-of-range stored values
+     * cannot land in the live preference.
+     */
+    private suspend fun importAdvancedTuningConfig(config: JsonObject) {
+        val a = config.getAsJsonObject("advancedTuning") ?: return
+        val p = advancedTuningPreferences
+        a.getAsJsonObject("urgencyBands")?.let {
+            p.setUrgencyBands(gson.fromJson(it, UrgencyBands::class.java))
+        }
+        a.getAsJsonObject("urgencyWindows")?.let {
+            p.setUrgencyWindows(gson.fromJson(it, UrgencyWindows::class.java))
+        }
+        a.getAsJsonObject("burnoutWeights")?.let {
+            p.setBurnoutWeights(gson.fromJson(it, BurnoutWeights::class.java))
+        }
+        a.getAsJsonObject("productivityWeights")?.let {
+            p.setProductivityWeights(gson.fromJson(it, ProductivityWeights::class.java))
+        }
+        a.getAsJsonObject("moodCorrelation")?.let {
+            p.setMoodCorrelationConfig(gson.fromJson(it, MoodCorrelationConfig::class.java))
+        }
+        a.getAsJsonObject("refillUrgency")?.let {
+            p.setRefillUrgencyConfig(gson.fromJson(it, RefillUrgencyConfig::class.java))
+        }
+        a.getAsJsonObject("energyPomodoro")?.let {
+            p.setEnergyPomodoroConfig(gson.fromJson(it, EnergyPomodoroConfig::class.java))
+        }
+        a.getAsJsonObject("goodEnoughTimer")?.let {
+            p.setGoodEnoughTimerConfig(gson.fromJson(it, GoodEnoughTimerConfig::class.java))
+        }
+        a.getAsJsonObject("suggestion")?.let {
+            p.setSuggestionConfig(gson.fromJson(it, SuggestionConfig::class.java))
+        }
+        a.getAsJsonObject("extractor")?.let {
+            p.setExtractorConfig(gson.fromJson(it, ExtractorConfig::class.java))
+        }
+        a.getAsJsonObject("smartDefaults")?.let {
+            p.setSmartDefaultsConfig(gson.fromJson(it, SmartDefaultsConfig::class.java))
+        }
+        a.getAsJsonObject("morningCheckInCutoff")?.let {
+            p.setMorningCheckInPromptCutoff(gson.fromJson(it, MorningCheckInPromptCutoff::class.java))
+        }
+        a.getAsJsonObject("lifeCategoryKeywords")?.let {
+            p.setLifeCategoryCustomKeywords(gson.fromJson(it, LifeCategoryCustomKeywords::class.java))
+        }
+        a.getAsJsonObject("weeklySummary")?.let {
+            p.setWeeklySummarySchedule(gson.fromJson(it, WeeklySummarySchedule::class.java))
+        }
+        a.getAsJsonObject("reengagement")?.let {
+            p.setReengagementConfig(gson.fromJson(it, ReengagementConfig::class.java))
+        }
+        a.getAsJsonObject("overloadCheck")?.let {
+            p.setOverloadCheckSchedule(gson.fromJson(it, OverloadCheckSchedule::class.java))
+        }
+        a.getAsJsonObject("batchUndo")?.let {
+            p.setBatchUndoConfig(gson.fromJson(it, BatchUndoConfig::class.java))
+        }
+        a.getAsJsonObject("habitReminderFallback")?.let {
+            p.setHabitReminderFallback(gson.fromJson(it, HabitReminderFallback::class.java))
+        }
+        a.getAsJsonObject("apiNetwork")?.let {
+            p.setApiNetworkConfig(gson.fromJson(it, ApiNetworkConfig::class.java))
+        }
+        a.getAsJsonObject("widgetRefresh")?.let {
+            p.setWidgetRefreshConfig(gson.fromJson(it, WidgetRefreshConfig::class.java))
+        }
+        a.getAsJsonObject("productivityWidget")?.let {
+            p.setProductivityWidgetThresholds(gson.fromJson(it, ProductivityWidgetThresholds::class.java))
+        }
+        a.getAsJsonObject("editorFieldRows")?.let {
+            p.setEditorFieldRows(gson.fromJson(it, EditorFieldRows::class.java))
+        }
+        a.getAsJsonObject("quickAddRows")?.let {
+            p.setQuickAddRows(gson.fromJson(it, QuickAddRows::class.java))
+        }
+        a.getAsJsonObject("searchPreview")?.let {
+            p.setSearchPreview(gson.fromJson(it, SearchPreview::class.java))
+        }
+        a.getAsJsonObject("selfCareTierDefaults")?.let {
+            p.setSelfCareTierDefaults(gson.fromJson(it, SelfCareTierDefaults::class.java))
         }
     }
 
