@@ -61,6 +61,7 @@ constructor(
         AI_REENGAGEMENT, AI_DAILY_PLANNING,
         AI_BATCH_OPS,
         CLOUD_SYNC,
+        ANALYTICS_FULL, ANALYTICS_CORRELATIONS,
         SYLLABUS_IMPORT -> UserTier.PRO
 
         else -> UserTier.FREE
@@ -84,5 +85,19 @@ constructor(
         const val AI_REENGAGEMENT = "ai_reengagement"
         const val AI_BATCH_OPS = "ai_batch_ops"
         const val SYLLABUS_IMPORT = "syllabus_import"
+
+        /**
+         * Full analytics dashboard (productivity score area chart,
+         * time-tracking bars, summary tiles). Free tier sees the basic
+         * task-completion stats; Pro unlocks the score chart + time chart.
+         */
+        const val ANALYTICS_FULL = "analytics_full"
+
+        /**
+         * Habit correlation analysis (calls `/analytics/habit-correlations`,
+         * Anthropic-backed). Pro-only. Currently deferred to a follow-up
+         * audit — constant is reserved here for forward compatibility.
+         */
+        const val ANALYTICS_CORRELATIONS = "analytics_correlations"
     }
 }

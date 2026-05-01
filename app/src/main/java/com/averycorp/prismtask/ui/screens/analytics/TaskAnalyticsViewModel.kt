@@ -163,7 +163,13 @@ constructor(
         }
     }
 
-    private val isProFlow: Flow<Boolean> = proFeatureGate.userTier.map { it == UserTier.PRO }
+    private val isProFlow: Flow<Boolean> = proFeatureGate.userTier.map {
+        // Both ANALYTICS_FULL and the legacy isPro check resolve to the same
+        // PRO tier; using the gate keyword keeps the Pro feature inventory in
+        // ProFeatureGate authoritative, so swapping the analytics tier (e.g.
+        // moving to a freemium split later) only requires editing the gate.
+        proFeatureGate.hasAccess(ProFeatureGate.ANALYTICS_FULL)
+    }
 
     private val projectsAndDowFlow = combine(
         projectRepository.getAllProjects(),
