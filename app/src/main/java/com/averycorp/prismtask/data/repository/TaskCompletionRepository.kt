@@ -38,7 +38,20 @@ constructor(
     private val taskCompletionDao: TaskCompletionDao,
     private val syncTracker: SyncTracker
 ) {
-    suspend fun recordCompletion(task: TaskEntity, tags: List<TagEntity>) {
+    /**
+     * Records a completion entry for [task]. When the parent carries a
+     * recurrence rule, [spawnedRecurrenceId] is the id of the next-instance
+     * row that was just inserted alongside this completion — stored on the
+     * completion row so a later `TaskRepository.uncompleteTask` can find
+     * and roll back the spawn even on the toggle-uncomplete path (no Undo
+     * snackbar). Audit:
+     * `docs/audits/RECURRING_TASKS_DUPLICATE_DAILY_AUDIT.md` (Item 2).
+     */
+    suspend fun recordCompletion(
+        task: TaskEntity,
+        tags: List<TagEntity>,
+        spawnedRecurrenceId: Long? = null
+    ): Long {
         val now = System.currentTimeMillis()
         val todayMidnight = normalizeToMidnight(now)
         val wasOverdue = task.dueDate != null && task.dueDate < todayMidnight
@@ -52,10 +65,26 @@ constructor(
             priority = task.priority,
             wasOverdue = wasOverdue,
             daysToComplete = daysToComplete,
-            tags = if (tags.isNotEmpty()) tags.joinToString(",") { it.name } else null
+            tags = if (tags.isNotEmpty()) tags.joinToString(",") { it.name } else null,
+            spawnedRecurrenceId = spawnedRecurrenceId
         )
         val completionId = taskCompletionDao.insert(completion)
         syncTracker.trackCreate(completionId, "task_completion")
+        return completionId
+    }
+
+    /**
+     * Returns the most recent completion entry for [taskId] (or null if the
+     * task has never been completed). Used by `uncompleteTask` to look up
+     * the spawned next-instance link when the caller didn't provide one.
+     */
+    suspend fun getLatestCompletionForTask(taskId: Long): TaskCompletionEntity? =
+        taskCompletionDao.getLatestCompletionForTask(taskId)
+
+    /** Deletes a single completion entry by id, mirroring it through sync. */
+    suspend fun deleteCompletionById(completionId: Long) {
+        syncTracker.trackDelete(completionId, "task_completion")
+        taskCompletionDao.deleteById(completionId)
     }
 
     suspend fun deleteCompletionsForTask(taskId: Long) {

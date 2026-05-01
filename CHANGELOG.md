@@ -128,6 +128,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Toggle-uncomplete also rolls back the spawned recurrence (Item 2
+  residual).** Closes the second duplication path from the
+  recurring-tasks audit. `task_completions` now carries a
+  `spawned_recurrence_id` column (Room migration 66 → 67) populated by
+  `TaskRepository.completeTask` so `uncompleteTask` can find and delete
+  the spawned next-instance even when the user un-toggles via the
+  checkbox (no Undo snackbar). The completion entry itself is also
+  removed on uncomplete so re-completion starts from a clean slate.
+  Field round-trips through the Firebase sync mapper. Two new
+  connected tests cover toggle-uncomplete-rollback and
+  toggle-complete-uncomplete-recomplete-no-duplicate. Audit:
+  `docs/audits/RECURRING_TASKS_DUPLICATE_DAILY_AUDIT.md` (Item 2
+  residual, was DEFERRED).
+
+- **Recurring tasks no longer duplicate on Undo + redo.**
+  `TaskRepository.completeTask` now reads the row fresh inside its
+  transaction and bails out when `is_completed = 1`, so a rapid
+  double-tap or any other re-invocation cannot spawn a second
+  next-instance. Snackbar Undo callers (Today swipe, TaskList swipe,
+  bulk complete) capture the spawned next-instance id and pass it back
+  to a new `uncompleteTask(id, spawnedRecurrenceId)` overload that
+  deletes the spawned child before flipping the parent incomplete —
+  matching audit
+  `docs/audits/RECURRING_TASKS_DUPLICATE_DAILY_AUDIT.md`. Three new
+  connected tests gate the idempotence guard, the snackbar Undo +
+  redo flow, and the legacy toggle-uncomplete behavior.
+
 - **Eisenhower / Pomodoro task completion now spawns recurrences and
   cancels reminders.** `EisenhowerViewModel.completeTask` and
   `SmartPomodoroViewModel.completeTask` previously called

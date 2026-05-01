@@ -786,14 +786,14 @@ constructor(
     fun onCompleteWithUndo(taskId: Long) {
         viewModelScope.launch {
             try {
-                taskRepository.completeTask(taskId)
+                val spawnedRecurrenceId = taskRepository.completeTask(taskId)
                 val result = snackbarHostState.showSnackbar(
                     message = "Task Completed",
                     actionLabel = "UNDO",
                     duration = SnackbarDuration.Short
                 )
                 if (result == SnackbarResult.ActionPerformed) {
-                    taskRepository.uncompleteTask(taskId)
+                    taskRepository.uncompleteTask(taskId, spawnedRecurrenceId)
                 }
             } catch (e: Exception) {
                 Log.e("TodayVM", "Failed to complete task", e)

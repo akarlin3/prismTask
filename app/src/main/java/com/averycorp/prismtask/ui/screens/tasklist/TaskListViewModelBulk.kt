@@ -18,7 +18,11 @@ internal fun TaskListViewModel.onBulkComplete() {
     val ids = selectedTaskIds.value.toList()
     viewModelScope.launch {
         try {
-            ids.forEach { taskRepository.completeTask(it) }
+            // Capture per-id spawned next-instance so Undo rolls back both
+            // the parent's completion AND the recurrence child. Without
+            // this, Undo + redo on a daily-recurring task duplicates the
+            // next-day row.
+            val spawnedRecurrenceIds = ids.associateWith { taskRepository.completeTask(it) }
             onExitMultiSelect()
             val result = snackbarHostState.showSnackbar(
                 message = "${ids.size} tasks completed",
@@ -26,7 +30,9 @@ internal fun TaskListViewModel.onBulkComplete() {
                 duration = SnackbarDuration.Short
             )
             if (result == SnackbarResult.ActionPerformed) {
-                ids.forEach { taskRepository.uncompleteTask(it) }
+                ids.forEach { id ->
+                    taskRepository.uncompleteTask(id, spawnedRecurrenceIds[id])
+                }
             }
         } catch (e: Exception) {
             Log.e("TaskListVM", "Failed to bulk complete", e)

@@ -80,6 +80,16 @@ interface TaskCompletionDao {
     @Query("DELETE FROM task_completions WHERE task_id = :taskId")
     suspend fun deleteByTaskId(taskId: Long)
 
+    // Returns the most recent completion for a task, scoped to the row that
+    // was inserted most recently (completed_at_time DESC) so a same-day
+    // complete-uncomplete-recomplete cycle finds the right entry. NULL if
+    // the task has never been completed.
+    @Query(
+        "SELECT * FROM task_completions WHERE task_id = :taskId " +
+            "ORDER BY completed_at_time DESC LIMIT 1"
+    )
+    suspend fun getLatestCompletionForTask(taskId: Long): TaskCompletionEntity?
+
     @Query("SELECT * FROM task_completions ORDER BY completed_date DESC")
     suspend fun getAllCompletionsOnce(): List<TaskCompletionEntity>
 
