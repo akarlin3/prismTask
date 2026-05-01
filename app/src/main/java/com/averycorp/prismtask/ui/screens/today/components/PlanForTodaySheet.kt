@@ -94,7 +94,8 @@ internal fun PlanForTodaySheet(
     onUseTemplate: (Long) -> Unit,
     onOpenManageTemplates: () -> Unit,
     onDismiss: () -> Unit,
-    onMultiCreate: (String) -> Unit = {}
+    onMultiCreate: (String) -> Unit = {},
+    onBatchCommand: (String) -> Unit = {}
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
     var searchQuery by remember { mutableStateOf("") }
@@ -230,7 +231,8 @@ internal fun PlanForTodaySheet(
                 plannedDateOverride = startOfToday,
                 alwaysExpanded = true,
                 placeholder = "Add task for today...",
-                onMultiCreate = onMultiCreate
+                onMultiCreate = onMultiCreate,
+                onBatchCommand = onBatchCommand
             )
 
             OutlinedTextField(

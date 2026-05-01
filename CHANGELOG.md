@@ -141,6 +141,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   connected tests gate the idempotence guard, the snackbar Undo +
   redo flow, and the legacy toggle-uncomplete behavior.
 
+- **Eisenhower / Pomodoro task completion now spawns recurrences and
+  cancels reminders.** `EisenhowerViewModel.completeTask` and
+  `SmartPomodoroViewModel.completeTask` previously called
+  `taskDao.markCompleted` directly, bypassing `TaskRepository.completeTask`.
+  Recurring tasks completed from those screens silently disappeared
+  (no next-instance), stale reminder alarms could still fire for the
+  finished row, and sync tracking / calendar push / widget updates were
+  all skipped. Both view models now route through `taskRepository.completeTask`,
+  matching every other complete entry point. Audit:
+  `docs/audits/RECURRING_TASKS_DUPLICATE_DAILY_AUDIT.md` (Item 3).
+
 - **`HiltTestRunner.isAndroidEmulator()` now detects modern AVDs.** The
   test-runner heuristic copied from `PrismTaskApplication` (around the
   PR #791 era) had drifted out of sync — production picked up

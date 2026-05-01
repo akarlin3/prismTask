@@ -16,6 +16,7 @@ import com.averycorp.prismtask.data.preferences.TimerPreferences
 import com.averycorp.prismtask.data.remote.api.PomodoroRequest
 import com.averycorp.prismtask.data.remote.api.PrismTaskApi
 import com.averycorp.prismtask.data.repository.MoodEnergyRepository
+import com.averycorp.prismtask.data.repository.TaskRepository
 import com.averycorp.prismtask.data.repository.TaskTimingRepository
 import com.averycorp.prismtask.domain.usecase.DefaultPomodoroConfig
 import com.averycorp.prismtask.domain.usecase.EnergyAwarePomodoro
@@ -148,6 +149,7 @@ class SmartPomodoroViewModel
 constructor(
     @ApplicationContext private val appContext: Context,
     private val taskDao: TaskDao,
+    private val taskRepository: TaskRepository,
     private val api: PrismTaskApi,
     private val proFeatureGate: ProFeatureGate,
     private val moodEnergyRepository: MoodEnergyRepository,
@@ -633,9 +635,14 @@ constructor(
         startTimer(remaining, sessionType)
     }
 
+    // Routes through TaskRepository so recurring tasks spawn their next
+    // occurrence, the active reminder is cancelled, and the completion is
+    // mirrored to the sync tracker / calendar push / widgets — same path
+    // every other complete entry point uses. Audit:
+    // docs/audits/RECURRING_TASKS_DUPLICATE_DAILY_AUDIT.md (Item 3).
     fun completeTask(taskId: Long) {
         viewModelScope.launch {
-            taskDao.markCompleted(taskId, System.currentTimeMillis())
+            taskRepository.completeTask(taskId)
             _completedTaskIds.value = _completedTaskIds.value + taskId
             _stats.value = _stats.value.copy(tasksCompleted = _stats.value.tasksCompleted + 1)
         }

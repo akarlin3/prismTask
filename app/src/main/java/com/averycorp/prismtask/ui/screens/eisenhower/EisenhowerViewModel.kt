@@ -176,9 +176,14 @@ constructor(
         }
     }
 
+    // Routes through TaskRepository so recurring tasks spawn their next
+    // occurrence, the active reminder is cancelled, and the completion is
+    // mirrored to the sync tracker / calendar push / widgets — same path
+    // every other complete entry point uses. Audit:
+    // docs/audits/RECURRING_TASKS_DUPLICATE_DAILY_AUDIT.md (Item 3).
     fun completeTask(taskId: Long) {
         viewModelScope.launch {
-            taskDao.markCompleted(taskId, System.currentTimeMillis())
+            taskRepository.completeTask(taskId)
         }
     }
 

@@ -2,13 +2,18 @@ package com.averycorp.prismtask.ui.screens.onboarding
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.averycorp.prismtask.data.preferences.A11yPreferences
+import com.averycorp.prismtask.data.preferences.ForgivenessPrefs
+import com.averycorp.prismtask.data.preferences.HabitListPreferences
 import com.averycorp.prismtask.data.preferences.LeisurePreferences
 import com.averycorp.prismtask.data.preferences.LeisureSlotId
 import com.averycorp.prismtask.data.preferences.NdPreferencesDataStore
+import com.averycorp.prismtask.data.preferences.NotificationPreferences
 import com.averycorp.prismtask.data.preferences.OnboardingPreferences
 import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
 import com.averycorp.prismtask.data.preferences.ThemePreferences
 import com.averycorp.prismtask.data.preferences.UserPreferencesDataStore
+import com.averycorp.prismtask.data.preferences.VoicePreferences
 import com.averycorp.prismtask.data.remote.AuthManager
 import com.averycorp.prismtask.data.remote.CanonicalOnboardingSync
 import com.averycorp.prismtask.data.remote.SyncService
@@ -23,6 +28,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
@@ -43,6 +49,10 @@ constructor(
     private val userPreferencesDataStore: UserPreferencesDataStore,
     private val taskBehaviorPreferences: TaskBehaviorPreferences,
     private val canonicalOnboardingSync: CanonicalOnboardingSync,
+    private val habitListPreferences: HabitListPreferences,
+    private val a11yPreferences: A11yPreferences,
+    private val notificationPreferences: NotificationPreferences,
+    private val voicePreferences: VoicePreferences,
     private val logger: PrismSyncLogger
 ) : ViewModel() {
     val hasCompletedOnboarding: StateFlow<Boolean> = onboardingPreferences
@@ -62,6 +72,77 @@ constructor(
 
     private val _templateSelections = MutableStateFlow(TemplateSelections())
     val templateSelections: StateFlow<TemplateSelections> = _templateSelections.asStateFlow()
+
+    val selfCareEnabled: StateFlow<Boolean> = habitListPreferences
+        .isSelfCareEnabled()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+    val medicationEnabled: StateFlow<Boolean> = habitListPreferences
+        .isMedicationEnabled()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+    val schoolEnabled: StateFlow<Boolean> = habitListPreferences
+        .isSchoolEnabled()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+    val houseworkEnabled: StateFlow<Boolean> = habitListPreferences
+        .isHouseworkEnabled()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+    val leisureEnabled: StateFlow<Boolean> = habitListPreferences
+        .isLeisureEnabled()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
+    val reduceMotion: StateFlow<Boolean> = a11yPreferences
+        .getReduceMotion()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+    val highContrast: StateFlow<Boolean> = a11yPreferences
+        .getHighContrast()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+    val largeTouchTargets: StateFlow<Boolean> = a11yPreferences
+        .getLargeTouchTargets()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    val voiceInputEnabled: StateFlow<Boolean> = voicePreferences
+        .getVoiceInputEnabled()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+    val aiFeaturesEnabled: StateFlow<Boolean> = userPreferencesDataStore
+        .aiFeaturePrefsFlow
+        .map { it.enabled }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+    val forgivenessStreaksEnabled: StateFlow<Boolean> = userPreferencesDataStore
+        .forgivenessFlow
+        .map { it.enabled }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+    val streakMaxMissedDays: StateFlow<Int> = habitListPreferences
+        .getStreakMaxMissedDays()
+        .stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5000),
+            HabitListPreferences.DEFAULT_STREAK_MAX_MISSED_DAYS
+        )
+
+    val dailyBriefingEnabled: StateFlow<Boolean> = notificationPreferences
+        .dailyBriefingEnabled
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+    val eveningSummaryEnabled: StateFlow<Boolean> = notificationPreferences
+        .eveningSummaryEnabled
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+    val weeklySummaryEnabled: StateFlow<Boolean> = notificationPreferences
+        .weeklySummaryEnabled
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+    val overloadAlertsEnabled: StateFlow<Boolean> = notificationPreferences
+        .overloadAlertsEnabled
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+    val streakAlertsEnabled: StateFlow<Boolean> = notificationPreferences
+        .streakAlertsEnabled
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+    val reengagementEnabled: StateFlow<Boolean> = notificationPreferences
+        .reengagementEnabled
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
+    val startOfDayHour: StateFlow<Int> = taskBehaviorPreferences
+        .getDayStartHour()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 4)
+    val startOfDayMinute: StateFlow<Int> = taskBehaviorPreferences
+        .getDayStartMinute()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
     init {
         if (authManager.isSignedIn.value) {
@@ -164,6 +245,100 @@ constructor(
 
     fun updateTemplateSelections(selections: TemplateSelections) {
         _templateSelections.value = selections
+    }
+
+    fun setSelfCareEnabled(enabled: Boolean) {
+        viewModelScope.launch { habitListPreferences.setSelfCareEnabled(enabled) }
+    }
+
+    fun setMedicationEnabled(enabled: Boolean) {
+        viewModelScope.launch { habitListPreferences.setMedicationEnabled(enabled) }
+    }
+
+    fun setSchoolEnabled(enabled: Boolean) {
+        viewModelScope.launch { habitListPreferences.setSchoolEnabled(enabled) }
+    }
+
+    fun setHouseworkEnabled(enabled: Boolean) {
+        viewModelScope.launch { habitListPreferences.setHouseworkEnabled(enabled) }
+    }
+
+    fun setLeisureEnabled(enabled: Boolean) {
+        viewModelScope.launch { habitListPreferences.setLeisureEnabled(enabled) }
+    }
+
+    fun setReduceMotion(enabled: Boolean) {
+        viewModelScope.launch { a11yPreferences.setReduceMotion(enabled) }
+    }
+
+    fun setHighContrast(enabled: Boolean) {
+        viewModelScope.launch { a11yPreferences.setHighContrast(enabled) }
+    }
+
+    fun setLargeTouchTargets(enabled: Boolean) {
+        viewModelScope.launch { a11yPreferences.setLargeTouchTargets(enabled) }
+    }
+
+    fun setVoiceInputEnabled(enabled: Boolean) {
+        viewModelScope.launch { voicePreferences.setVoiceInputEnabled(enabled) }
+    }
+
+    fun setAiFeaturesEnabled(enabled: Boolean) {
+        viewModelScope.launch { userPreferencesDataStore.setAiFeaturesEnabled(enabled) }
+    }
+
+    fun setForgivenessStreaksEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            userPreferencesDataStore.setForgivenessPrefs(ForgivenessPrefs(enabled = enabled))
+        }
+    }
+
+    fun setStreakMaxMissedDays(days: Int) {
+        viewModelScope.launch { habitListPreferences.setStreakMaxMissedDays(days) }
+    }
+
+    fun setDailyBriefingEnabled(enabled: Boolean) {
+        viewModelScope.launch { notificationPreferences.setDailyBriefingEnabled(enabled) }
+    }
+
+    fun setEveningSummaryEnabled(enabled: Boolean) {
+        viewModelScope.launch { notificationPreferences.setEveningSummaryEnabled(enabled) }
+    }
+
+    /**
+     * Toggles the *combined* "weekly summary" stream — sets both the habit-
+     * weekly-summary and task-weekly-summary flags together so a single
+     * onboarding switch matches the user's mental model. Settings still
+     * exposes the two flags separately for fine-grained control.
+     */
+    fun setWeeklySummaryEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            notificationPreferences.setWeeklySummaryEnabled(enabled)
+            notificationPreferences.setWeeklyTaskSummaryEnabled(enabled)
+        }
+    }
+
+    fun setOverloadAlertsEnabled(enabled: Boolean) {
+        viewModelScope.launch { notificationPreferences.setOverloadAlertsEnabled(enabled) }
+    }
+
+    fun setStreakAlertsEnabled(enabled: Boolean) {
+        viewModelScope.launch { notificationPreferences.setStreakAlertsEnabled(enabled) }
+    }
+
+    fun setReengagementEnabled(enabled: Boolean) {
+        viewModelScope.launch { notificationPreferences.setReengagementEnabled(enabled) }
+    }
+
+    /**
+     * Atomically sets the start-of-day hour + minute and flips
+     * `hasSetStartOfDay = true`. Wired to the Day Setup onboarding page so a
+     * user who passes this page never sees the legacy MainActivity StartOfDay
+     * modal afterwards. The modal stays in place as deny-recovery for legacy
+     * installs that completed onboarding before this page existed.
+     */
+    fun setStartOfDay(hour: Int, minute: Int) {
+        viewModelScope.launch { taskBehaviorPreferences.setStartOfDay(hour, minute) }
     }
 
     fun completeOnboarding() {

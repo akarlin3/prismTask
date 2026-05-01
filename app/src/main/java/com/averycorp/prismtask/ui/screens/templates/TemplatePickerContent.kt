@@ -41,51 +41,64 @@ import com.averycorp.prismtask.ui.screens.leisure.components.LeisureOption
  *
  * [state] and [onChange] are hoisted so the caller owns persistence; this
  * composable only drives UI state (expansion, customize toggle).
+ *
+ * The `show*` flags let onboarding hide sections whose owning Life Mode the
+ * user just turned off on the prior page. Settings "Browse Templates" omits
+ * them so all sections render unconditionally.
  */
 @Composable
 fun TemplatePickerContent(
     state: TemplateSelections,
     onChange: (TemplateSelections) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    showLeisure: Boolean = true,
+    showSelfCare: Boolean = true,
+    showHousework: Boolean = true
 ) {
     Column(
         modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        LeisureSectionCard(
-            emoji = "\uD83C\uDFB5",
-            title = "Music",
-            subtitle = "Instruments to practice",
-            options = LeisureViewModel.DEFAULT_INSTRUMENTS,
-            selected = state.musicIds,
-            onToggle = { id -> onChange(state.withMusicToggled(id)) },
-            initiallyExpanded = true
-        )
-        LeisureSectionCard(
-            emoji = "\uD83C\uDFB2",
-            title = "Flex Activities",
-            subtitle = "Leisure options to rotate",
-            options = LeisureViewModel.DEFAULT_FLEX_OPTIONS,
-            selected = state.flexIds,
-            onToggle = { id -> onChange(state.withFlexToggled(id)) },
-            initiallyExpanded = false
-        )
-        RoutineSectionCard(
-            emoji = "\uD83C\uDF05",
-            title = "Self-Care",
-            subtitle = "Morning and bedtime routines",
-            state = state,
-            onChange = onChange,
-            routineTypes = listOf("morning" to "Morning", "bedtime" to "Bedtime")
-        )
-        RoutineSectionCard(
-            emoji = "\uD83E\uDDF9",
-            title = "Housework",
-            subtitle = "Daily home upkeep",
-            state = state,
-            onChange = onChange,
-            routineTypes = listOf("housework" to "Housework")
-        )
+        if (showLeisure) {
+            LeisureSectionCard(
+                emoji = "\uD83C\uDFB5",
+                title = "Music",
+                subtitle = "Instruments to practice",
+                options = LeisureViewModel.DEFAULT_INSTRUMENTS,
+                selected = state.musicIds,
+                onToggle = { id -> onChange(state.withMusicToggled(id)) },
+                initiallyExpanded = true
+            )
+            LeisureSectionCard(
+                emoji = "\uD83C\uDFB2",
+                title = "Flex Activities",
+                subtitle = "Leisure options to rotate",
+                options = LeisureViewModel.DEFAULT_FLEX_OPTIONS,
+                selected = state.flexIds,
+                onToggle = { id -> onChange(state.withFlexToggled(id)) },
+                initiallyExpanded = false
+            )
+        }
+        if (showSelfCare) {
+            RoutineSectionCard(
+                emoji = "\uD83C\uDF05",
+                title = "Self-Care",
+                subtitle = "Morning and bedtime routines",
+                state = state,
+                onChange = onChange,
+                routineTypes = listOf("morning" to "Morning", "bedtime" to "Bedtime")
+            )
+        }
+        if (showHousework) {
+            RoutineSectionCard(
+                emoji = "\uD83E\uDDF9",
+                title = "Housework",
+                subtitle = "Daily home upkeep",
+                state = state,
+                onChange = onChange,
+                routineTypes = listOf("housework" to "Housework")
+            )
+        }
     }
 }
 

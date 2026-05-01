@@ -50,7 +50,9 @@ import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.SmallFloatingActionButton
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -87,6 +89,7 @@ import com.averycorp.prismtask.ui.components.TaskListSkeleton
 import com.averycorp.prismtask.ui.components.computeInitialTagStates
 import com.averycorp.prismtask.ui.navigation.PrismTaskRoute
 import com.averycorp.prismtask.ui.screens.addedittask.AddEditTaskSheetHost
+import com.averycorp.prismtask.ui.screens.batch.BatchUndoListenerViewModel
 import com.averycorp.prismtask.ui.screens.projects.ProjectsPane
 import com.averycorp.prismtask.ui.screens.tasklist.components.ActiveFilterPills
 import com.averycorp.prismtask.ui.screens.tasklist.components.DuplicateDialogState
@@ -180,6 +183,27 @@ fun TaskListScreen(
     }
     val filterSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
+
+    // AI batch ops — listens to BatchUndoEventBus so we can offer an Undo
+    // Snackbar after the user pops back here from BatchPreviewScreen.
+    val batchUndoListener: BatchUndoListenerViewModel = hiltViewModel()
+    LaunchedEffect(batchUndoListener) {
+        batchUndoListener.events.collect { event ->
+            val msg = if (event.skippedCount > 0) {
+                "${event.appliedCount} changes applied (${event.skippedCount} skipped)"
+            } else {
+                "${event.appliedCount} changes applied"
+            }
+            val result = viewModel.snackbarHostState.showSnackbar(
+                message = msg,
+                actionLabel = "Undo",
+                duration = SnackbarDuration.Short
+            )
+            if (result == SnackbarResult.ActionPerformed) {
+                batchUndoListener.undo(event.batchId)
+            }
+        }
+    }
 
     val filePicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
@@ -709,6 +733,11 @@ fun TaskListScreen(
                 onMultiCreate = { rawText ->
                     navController.navigate(
                         PrismTaskRoute.MultiCreate.createRoute(rawText)
+                    )
+                },
+                onBatchCommand = { commandText ->
+                    navController.navigate(
+                        PrismTaskRoute.BatchPreview.createRoute(commandText)
                     )
                 }
             )

@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@drawable/widget_preview_surface"
+    android:padding="12dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="10dp">
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Today, Apr 30"
+            android:textColor="#E8E8EA"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="4 events"
+            android:textColor="#8A8A94"
+            android:textSize="11sp" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="6dp">
+        <TextView
+            android:layout_width="46dp"
+            android:layout_height="wrap_content"
+            android:text="9:00"
+            android:textColor="#8A8A94"
+            android:textSize="11sp" />
+        <View
+            android:layout_width="3dp"
+            android:layout_height="14dp"
+            android:background="#3B82F6"
+            android:layout_marginEnd="8dp" />
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Standup meeting"
+            android:textColor="#E8E8EA"
+            android:textSize="11sp"
+            android:singleLine="true" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="6dp">
+        <TextView
+            android:layout_width="46dp"
+            android:layout_height="wrap_content"
+            android:text="11:30"
+            android:textColor="#8A8A94"
+            android:textSize="11sp" />
+        <View
+            android:layout_width="3dp"
+            android:layout_height="14dp"
+            android:background="#7C5CFF"
+            android:layout_marginEnd="8dp" />
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Design review"
+            android:textColor="#E8E8EA"
+            android:textSize="11sp"
+            android:singleLine="true" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="6dp">
+        <TextView
+            android:layout_width="46dp"
+            android:layout_height="wrap_content"
+            android:text="14:00"
+            android:textColor="#8A8A94"
+            android:textSize="11sp" />
+        <View
+            android:layout_width="3dp"
+            android:layout_height="14dp"
+            android:background="#4ADE80"
+            android:layout_marginEnd="8dp" />
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Focus block"
+            android:textColor="#E8E8EA"
+            android:textSize="11sp"
+            android:singleLine="true" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+        <TextView
+            android:layout_width="46dp"
+            android:layout_height="wrap_content"
+            android:text="16:30"
+            android:textColor="#8A8A94"
+            android:textSize="11sp" />
+        <View
+            android:layout_width="3dp"
+            android:layout_height="14dp"
+            android:background="#F59E0B"
+            android:layout_marginEnd="8dp" />
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Ship release notes"
+            android:textColor="#E8E8EA"
+            android:textSize="11sp"
+            android:singleLine="true" />
+    </LinearLayout>
+</LinearLayout>

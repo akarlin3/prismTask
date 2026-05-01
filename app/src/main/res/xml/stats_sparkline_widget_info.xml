@@ -7,4 +7,5 @@
     android:targetCellWidth="5"
     android:targetCellHeight="3"
     android:updatePeriodMillis="3600000"
-    android:widgetCategory="home_screen" />
+    android:widgetCategory="home_screen"
+    android:previewLayout="@layout/widget_preview_stats_sparkline" />

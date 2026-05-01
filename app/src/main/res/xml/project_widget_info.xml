@@ -9,4 +9,5 @@
     android:updatePeriodMillis="900000"
     android:widgetCategory="home_screen"
     android:widgetFeatures="reconfigurable"
-    android:configure="com.averycorp.prismtask.widget.ProjectWidgetConfigActivity" />
+    android:configure="com.averycorp.prismtask.widget.ProjectWidgetConfigActivity"
+    android:previewLayout="@layout/widget_preview_project" />

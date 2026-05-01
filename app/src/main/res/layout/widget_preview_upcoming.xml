@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@drawable/widget_preview_surface"
+    android:padding="12dp">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Upcoming"
+        android:textColor="#E8E8EA"
+        android:textSize="14sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="8dp" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="6dp">
+        <TextView
+            android:layout_width="58dp"
+            android:layout_height="wrap_content"
+            android:text="TODAY"
+            android:textColor="#7C5CFF"
+            android:textSize="9sp"
+            android:textStyle="bold"
+            android:letterSpacing="0.1" />
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Ship release notes"
+            android:textColor="#E8E8EA"
+            android:textSize="11sp"
+            android:singleLine="true" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="6dp">
+        <TextView
+            android:layout_width="58dp"
+            android:layout_height="wrap_content"
+            android:text=""
+            android:textSize="9sp" />
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Review PR #142"
+            android:textColor="#E8E8EA"
+            android:textSize="11sp"
+            android:singleLine="true" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="6dp">
+        <TextView
+            android:layout_width="58dp"
+            android:layout_height="wrap_content"
+            android:text="TOMORROW"
+            android:textColor="#3B82F6"
+            android:textSize="9sp"
+            android:textStyle="bold"
+            android:letterSpacing="0.1" />
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Sync w/ design"
+            android:textColor="#E8E8EA"
+            android:textSize="11sp"
+            android:singleLine="true" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+        <TextView
+            android:layout_width="58dp"
+            android:layout_height="wrap_content"
+            android:text="FRI"
+            android:textColor="#8A8A94"
+            android:textSize="9sp"
+            android:textStyle="bold"
+            android:letterSpacing="0.1" />
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Plan next sprint"
+            android:textColor="#E8E8EA"
+            android:textSize="11sp"
+            android:singleLine="true" />
+    </LinearLayout>
+</LinearLayout>

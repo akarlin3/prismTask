@@ -776,6 +776,12 @@ fun TodayScreen(
                 navController.navigate(
                     PrismTaskRoute.MultiCreate.createRoute(rawText)
                 )
+            },
+            onBatchCommand = { commandText ->
+                viewModel.onDismissPlanSheet()
+                navController.navigate(
+                    PrismTaskRoute.BatchPreview.createRoute(commandText)
+                )
             }
         )
     }
