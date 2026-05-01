@@ -790,6 +790,18 @@ class TaskRepositoryTest {
 
         override suspend fun getCompletedTodayOnce(startOfToday: Long): List<TaskEntity> = emptyList()
 
+        override suspend fun getIncompleteRootTasksOnce(): List<TaskEntity> =
+            tasks.filter { !it.isCompleted && it.parentTaskId == null }
+
+        override suspend fun getInboxCandidatesOnce(limit: Int): List<TaskEntity> =
+            tasks
+                .filter {
+                    !it.isCompleted && it.parentTaskId == null && it.archivedAt == null &&
+                        it.projectId == null && it.dueDate == null
+                }
+                .sortedByDescending { it.createdAt }
+                .take(limit)
+
         override fun getTasksNotInToday(startOfToday: Long, endOfToday: Long): Flow<List<TaskEntity>> = flowOf(emptyList())
 
         override suspend fun clearExpiredPlans(startOfToday: Long, now: Long) {}

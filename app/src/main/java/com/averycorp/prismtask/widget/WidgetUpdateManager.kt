@@ -34,6 +34,7 @@ constructor(
     private var timerWidgetJob: Job? = null
     private var productivityWidgetJob: Job? = null
     private var projectWidgetJob: Job? = null
+    private var medicationWidgetJob: Job? = null
 
     /** Refreshes every registered widget (debounced). */
     suspend fun updateAllWidgets() {
@@ -72,7 +73,13 @@ constructor(
         }
     }
 
-    /** Refreshes task-related widgets: Today, Upcoming, Calendar, Productivity (debounced). */
+    /**
+     * Refreshes every widget that consumes task data (debounced):
+     * Today, Upcoming, Calendar, Productivity, Eisenhower, Focus, Inbox,
+     * StatsSparkline. Eisenhower / Inbox / StatsSparkline read live from
+     * the tasks table; Focus tracks the user's "next" task; the original
+     * four follow same-day / planned / overdue projections.
+     */
     suspend fun updateTaskWidgets() {
         if (!BuildConfig.WIDGETS_ENABLED) return
         taskWidgetsJob?.cancel()
@@ -82,10 +89,17 @@ constructor(
             safeUpdate { UpcomingWidget().updateAll(context) }
             safeUpdate { CalendarWidget().updateAll(context) }
             safeUpdate { ProductivityWidget().updateAll(context) }
+            safeUpdate { EisenhowerWidget().updateAll(context) }
+            safeUpdate { FocusWidget().updateAll(context) }
+            safeUpdate { InboxWidget().updateAll(context) }
+            safeUpdate { StatsSparklineWidget().updateAll(context) }
         }
     }
 
-    /** Refreshes habit-related widgets: HabitStreak + Today (habits appear on Today) (debounced). */
+    /**
+     * Refreshes habit-related widgets (debounced): HabitStreak, Today
+     * (habits appear on Today), and StreakCalendar (heatmap).
+     */
     suspend fun updateHabitWidgets() {
         if (!BuildConfig.WIDGETS_ENABLED) return
         habitWidgetsJob?.cancel()
@@ -93,6 +107,17 @@ constructor(
             delay(DEBOUNCE_MILLIS)
             safeUpdate { HabitStreakWidget().updateAll(context) }
             safeUpdate { TodayWidget().updateAll(context) }
+            safeUpdate { StreakCalendarWidget().updateAll(context) }
+        }
+    }
+
+    /** Refreshes the MedicationWidget only (debounced). */
+    suspend fun updateMedicationWidget() {
+        if (!BuildConfig.WIDGETS_ENABLED) return
+        medicationWidgetJob?.cancel()
+        medicationWidgetJob = scope.launch {
+            delay(DEBOUNCE_MILLIS)
+            safeUpdate { MedicationWidget().updateAll(context) }
         }
     }
 
@@ -142,7 +167,8 @@ constructor(
         /**
          * Refreshes habit-related widgets from a Glance ActionCallback
          * where Hilt injection is unavailable. Mirrors [updateHabitWidgets]
-         * but runs synchronously without debounce.
+         * but runs synchronously without debounce. Includes StreakCalendar
+         * so the heatmap reflects same-day completions immediately.
          */
         suspend fun refreshHabitWidgets(context: Context) {
             if (!BuildConfig.WIDGETS_ENABLED) return
@@ -160,6 +186,11 @@ constructor(
                 ProductivityWidget().updateAll(context)
             } catch (e: Exception) {
                 Log.w(TAG, "ProductivityWidget refresh failed: ${e.message}")
+            }
+            try {
+                StreakCalendarWidget().updateAll(context)
+            } catch (e: Exception) {
+                Log.w(TAG, "StreakCalendarWidget refresh failed: ${e.message}")
             }
         }
     }

@@ -20,6 +20,7 @@ import androidx.glance.background
 import androidx.glance.layout.Alignment
 import androidx.glance.layout.Box
 import androidx.glance.layout.Column
+import androidx.glance.layout.ColumnScope
 import androidx.glance.layout.Row
 import androidx.glance.layout.Spacer
 import androidx.glance.layout.fillMaxSize
@@ -35,11 +36,13 @@ import com.averycorp.prismtask.MainActivity
 /**
  * Medication widget — mirrors the in-app meds slot/tier model.
  *
- * Tier color mapping (matches the in-app screen):
+ * Tier color mapping:
  *   ESSENTIAL    → primary
  *   PRESCRIPTION → infoColor
  *   COMPLETE     → successColor
  *   SKIPPED      → muted
+ *
+ * Reads slot + dose state for today via [WidgetDataProvider.getMedicationData].
  *
  * Three sizes (declared via SizeMode.Responsive):
  * - SMALL_WIDE (4×1): compact "next dose" headline + day progress bar
@@ -57,42 +60,34 @@ class MedicationWidget : GlanceAppWidget() {
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val palette = loadWidgetPalette(context)
+        val data = try {
+            WidgetDataProvider.getMedicationData(context)
+        } catch (_: Exception) {
+            MedicationWidgetData(slots = emptyList(), totalDoses = 0, takenDoses = 0, nextSlotIndex = -1)
+        }
         provideContent {
-            MedicationContent(context, LocalSize.current, palette)
+            MedicationContent(context, LocalSize.current, palette, data)
         }
     }
 }
 
-private enum class MedTier { ESSENTIAL, PRESCRIPTION, COMPLETE, SKIPPED }
-
-private data class MedSlot(
-    val name: String,
-    val time: String,
-    val tier: MedTier,
-    val taken: Int,
-    val total: Int,
-    val active: Boolean,
-    val isNext: Boolean = false
-)
-
 @Composable
-private fun MedicationContent(context: Context, size: DpSize, palette: WidgetThemePalette) {
+private fun MedicationContent(
+    context: Context,
+    size: DpSize,
+    palette: WidgetThemePalette,
+    data: MedicationWidgetData
+) {
     val isSmall = size.height < 130.dp
     val openMeds = Intent(context, MainActivity::class.java).apply {
         flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
         putExtra(MainActivity.EXTRA_LAUNCH_ACTION, "open_medication")
     }
 
-    // Sample state — wiring to MedicationRefillRepository is a follow-up.
-    val slots = listOf(
-        MedSlot("Morning", "8:00 AM", MedTier.COMPLETE, 3, 3, active = true),
-        MedSlot("Afternoon", "1:00 PM", MedTier.PRESCRIPTION, 1, 2, active = true),
-        MedSlot("Evening", "7:00 PM", MedTier.ESSENTIAL, 0, 3, active = true, isNext = true),
-        MedSlot("Night", "10:30 PM", MedTier.SKIPPED, 0, 1, active = false)
-    )
-    val totalDoses = slots.sumOf { it.total }
-    val takenDoses = slots.sumOf { it.taken }
-    val nextSlot = slots.firstOrNull { it.isNext } ?: slots.first { it.active && it.taken < it.total }
+    val slots = data.slots
+    val totalDoses = data.totalDoses
+    val takenDoses = data.takenDoses
+    val nextSlot = data.nextSlot
 
     Column(
         modifier = GlanceModifier
@@ -102,22 +97,31 @@ private fun MedicationContent(context: Context, size: DpSize, palette: WidgetThe
             .padding(if (isSmall) 11.dp else 12.dp)
             .clickable(actionStartActivity(openMeds))
     ) {
-        if (isSmall) {
-            CompactNextDose(palette, nextSlot, takenDoses, totalDoses)
-        } else {
-            FullDayView(palette, slots, takenDoses, totalDoses, nextSlot)
+        when {
+            slots.isEmpty() -> EmptyMedicationView(palette)
+            isSmall && nextSlot != null -> CompactNextDose(palette, nextSlot, takenDoses, totalDoses)
+            else -> FullDayView(palette, slots, takenDoses, totalDoses, nextSlot)
         }
     }
 }
 
-// Receiver bound to ColumnScope so `GlanceModifier.defaultWeight()` (which
-// is declared as a ColumnScope/RowScope extension) resolves when this
-// widget body is emitted directly into the parent Column in
-// [MedicationContent].
 @Composable
-private fun androidx.glance.layout.ColumnScope.CompactNextDose(
+private fun ColumnScope.EmptyMedicationView(palette: WidgetThemePalette) {
+    Text(
+        text = WidgetTextStyles.headerLabel(palette, "Medication"),
+        style = WidgetTextStyles.headerThemed(palette, palette.onSurface)
+    )
+    Spacer(modifier = GlanceModifier.height(8.dp))
+    Text(
+        text = "No medication slots yet",
+        style = WidgetTextStyles.caption(palette.onSurfaceVariant)
+    )
+}
+
+@Composable
+private fun ColumnScope.CompactNextDose(
     palette: WidgetThemePalette,
-    nextSlot: MedSlot,
+    nextSlot: MedicationWidgetSlot,
     takenDoses: Int,
     totalDoses: Int
 ) {
@@ -135,7 +139,7 @@ private fun androidx.glance.layout.ColumnScope.CompactNextDose(
             modifier = GlanceModifier.defaultWeight()
         )
         Text(
-            text = "$takenDoses/$totalDoses",
+            text = "$takenDoses/${totalDoses.coerceAtLeast(0)}",
             style = WidgetTextStyles.badge(palette.onSurfaceVariant)
         )
     }
@@ -144,12 +148,12 @@ private fun androidx.glance.layout.ColumnScope.CompactNextDose(
         style = WidgetTextStyles.headerThemed(palette, palette.onSurface)
     )
     Text(
-        text = "${nextSlot.time} · ${nextSlot.total - nextSlot.taken} pending",
+        text = "${nextSlot.time} · ${(nextSlot.total - nextSlot.taken).coerceAtLeast(0)} pending",
         style = WidgetTextStyles.caption(palette.onSurfaceVariant)
     )
     Spacer(modifier = GlanceModifier.defaultWeight())
     LinearProgressIndicator(
-        progress = (takenDoses.toFloat() / totalDoses).coerceIn(0f, 1f),
+        progress = safeProgress(takenDoses, totalDoses),
         modifier = GlanceModifier.fillMaxWidth().height(4.dp),
         color = palette.successColor,
         backgroundColor = palette.surfaceVariant
@@ -157,12 +161,12 @@ private fun androidx.glance.layout.ColumnScope.CompactNextDose(
 }
 
 @Composable
-private fun FullDayView(
+private fun ColumnScope.FullDayView(
     palette: WidgetThemePalette,
-    slots: List<MedSlot>,
+    slots: List<MedicationWidgetSlot>,
     takenDoses: Int,
     totalDoses: Int,
-    nextSlot: MedSlot
+    nextSlot: MedicationWidgetSlot?
 ) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(
@@ -171,13 +175,13 @@ private fun FullDayView(
             modifier = GlanceModifier.defaultWeight()
         )
         Text(
-            text = "$takenDoses/$totalDoses",
+            text = "$takenDoses/${totalDoses.coerceAtLeast(0)}",
             style = WidgetTextStyles.captionMedium(palette.successColor)
         )
     }
     Spacer(modifier = GlanceModifier.height(6.dp))
     LinearProgressIndicator(
-        progress = (takenDoses.toFloat() / totalDoses).coerceIn(0f, 1f),
+        progress = safeProgress(takenDoses, totalDoses),
         modifier = GlanceModifier.fillMaxWidth().height(5.dp),
         color = palette.successColor,
         backgroundColor = palette.surfaceVariant
@@ -189,10 +193,13 @@ private fun FullDayView(
     }
 }
 
+private fun safeProgress(taken: Int, total: Int): Float =
+    if (total <= 0) 0f else (taken.toFloat() / total).coerceIn(0f, 1f)
+
 @Composable
-private fun SlotRow(slot: MedSlot, palette: WidgetThemePalette, highlight: Boolean) {
+private fun SlotRow(slot: MedicationWidgetSlot, palette: WidgetThemePalette, highlight: Boolean) {
     val tcolor = tierColor(slot.tier, palette)
-    val allDone = slot.active && slot.taken == slot.total
+    val allDone = slot.active && slot.total > 0 && slot.taken >= slot.total
     val rowBg: ColorProvider = if (highlight) palette.primaryContainer else palette.surfaceVariant
     Row(
         modifier = GlanceModifier
@@ -227,11 +234,11 @@ private fun SlotRow(slot: MedSlot, palette: WidgetThemePalette, highlight: Boole
     }
 }
 
-private fun tierColor(tier: MedTier, palette: WidgetThemePalette): ColorProvider = when (tier) {
-    MedTier.ESSENTIAL -> palette.primary
-    MedTier.PRESCRIPTION -> palette.infoColor
-    MedTier.COMPLETE -> palette.successColor
-    MedTier.SKIPPED -> palette.onSurfaceVariant
+private fun tierColor(tier: MedicationWidgetTier, palette: WidgetThemePalette): ColorProvider = when (tier) {
+    MedicationWidgetTier.ESSENTIAL -> palette.primary
+    MedicationWidgetTier.PRESCRIPTION -> palette.infoColor
+    MedicationWidgetTier.COMPLETE -> palette.successColor
+    MedicationWidgetTier.SKIPPED -> palette.onSurfaceVariant
 }
 
 class MedicationWidgetReceiver : GlanceAppWidgetReceiver() {

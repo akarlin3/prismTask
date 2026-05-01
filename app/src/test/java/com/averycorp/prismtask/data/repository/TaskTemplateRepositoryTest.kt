@@ -607,6 +607,10 @@ class TaskTemplateRepositoryTest {
 
         override suspend fun getCompletedTodayOnce(startOfToday: Long): List<TaskEntity> = unsupported()
 
+        override suspend fun getIncompleteRootTasksOnce(): List<TaskEntity> = unsupported()
+
+        override suspend fun getInboxCandidatesOnce(limit: Int): List<TaskEntity> = unsupported()
+
         override suspend fun setPlanDate(id: Long, plannedDate: Long?, now: Long) = unsupported()
 
         override fun getTasksNotInToday(startOfToday: Long, endOfToday: Long): Flow<List<TaskEntity>> = unsupported()

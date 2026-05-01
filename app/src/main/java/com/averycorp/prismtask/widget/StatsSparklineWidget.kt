@@ -53,26 +53,39 @@ class StatsSparklineWidget : GlanceAppWidget() {
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val palette = loadWidgetPalette(context)
+        val data = try {
+            WidgetDataProvider.getStatsSparklineData(context)
+        } catch (_: Exception) {
+            StatsSparklineWidgetData(
+                thisWeek = List(7) { 0 },
+                lastWeek = List(7) { 0 },
+                total = 0,
+                lastTotal = 0,
+                deltaPct = 0,
+                up = true
+            )
+        }
         provideContent {
-            SparklineContent(context, LocalSize.current, palette)
+            SparklineContent(context, LocalSize.current, palette, data)
         }
     }
 }
 
 @Composable
-private fun SparklineContent(context: Context, size: DpSize, palette: WidgetThemePalette) {
+private fun SparklineContent(
+    context: Context,
+    size: DpSize,
+    palette: WidgetThemePalette,
+    data: StatsSparklineWidgetData
+) {
     val isWide = size.width >= 450.dp
     val isSmall = size.height < 130.dp
 
-    // Sample state. Wiring through TaskCompletionRepository.weeklyCounts() is
-    // a follow-up.
-    val thisWeek = listOf(12, 8, 15, 11, 18, 14, 9)
-    val lastWeek = listOf(10, 13, 11, 9, 14, 12, 16)
-    val total = thisWeek.sum()
-    val lastTotal = lastWeek.sum()
-    val delta = total - lastTotal
-    val deltaPct = ((delta.toFloat() / lastTotal) * 100).roundToInt()
-    val up = delta >= 0
+    val thisWeek = data.thisWeek
+    val total = data.total
+    val lastTotal = data.lastTotal
+    val deltaPct = data.deltaPct
+    val up = data.up
     val maxBar = (thisWeek.maxOrNull() ?: 1).coerceAtLeast(1)
 
     val openInsights = Intent(context, MainActivity::class.java).apply {

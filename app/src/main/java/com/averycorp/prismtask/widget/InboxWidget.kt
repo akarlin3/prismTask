@@ -35,9 +35,10 @@ import com.averycorp.prismtask.MainActivity
 /**
  * Inbox widget — recently captured items waiting to be triaged.
  *
- * Companion to [QuickAddWidget]: capture there, triage here. Each row
- * surfaces a "→ project" suggestion chip whose color comes from the
- * active [WidgetThemePalette]'s semantic / categorical accents.
+ * Companion to [QuickAddWidget]: capture there, triage here. Items are
+ * the user's incomplete root tasks with no project + no due date, ordered
+ * by created_at DESC. Each row shows a priority chip whose color comes
+ * from the active [WidgetThemePalette]'s priority tokens.
  */
 class InboxWidget : GlanceAppWidget() {
     companion object {
@@ -52,17 +53,22 @@ class InboxWidget : GlanceAppWidget() {
         val palette = loadWidgetPalette(context)
         val appWidgetId = GlanceAppWidgetManager(context).getAppWidgetId(id)
         val config = WidgetConfigDataStore.snapshotInboxConfig(context, appWidgetId)
+        val data = try {
+            WidgetDataProvider.getInboxData(context, limit = config.maxItems.coerceAtMost(8))
+        } catch (_: Exception) {
+            InboxWidgetData(items = emptyList())
+        }
         provideContent {
-            InboxContent(context, LocalSize.current, palette, config)
+            InboxContent(context, LocalSize.current, palette, config, data)
         }
     }
 }
 
-private data class InboxItem(
+private data class InboxRowVm(
     val text: String,
     val age: String,
-    val suggest: String,
-    val suggestColor: ColorProvider
+    val priorityChipColor: ColorProvider,
+    val priorityLabel: String
 )
 
 @Composable
@@ -70,23 +76,22 @@ private fun InboxContent(
     context: Context,
     size: DpSize,
     palette: WidgetThemePalette,
-    config: WidgetConfigDataStore.InboxConfig
+    config: WidgetConfigDataStore.InboxConfig,
+    data: InboxWidgetData
 ) {
     val isWide = size.width >= 450.dp
     val isMed = size.width < 350.dp
 
-    val items = listOf(
-        InboxItem("Call dentist re: cleaning", "12m", "Errands", palette.warningColor),
-        InboxItem("Look up M3 expressive guidelines", "38m", "Apollo", palette.primary),
-        InboxItem("Restock olive oil", "2h", "Groceries", palette.successColor),
-        InboxItem("Reply to Sam about Q4 plan", "4h", "Inbox", palette.infoColor),
-        InboxItem("Cancel old domain renewal", "Yday", "Bills", palette.error),
-        InboxItem("Find a 6-string set for the Strat", "Yday", "Music", palette.secondary)
-    )
-    // Size-tier ceiling still applies so wide widgets don't render an
-    // overflow strip; the user-configured cap takes precedence below it.
+    val rows = data.items.map { item ->
+        InboxRowVm(
+            text = item.title,
+            age = item.ageLabel,
+            priorityChipColor = priorityColorFor(item.priority, palette),
+            priorityLabel = priorityLabelFor(item.priority)
+        )
+    }
     val sizeTierCap = if (isMed) 3 else 5
-    val visible = items.take(minOf(config.maxItems, sizeTierCap))
+    val visible = rows.take(minOf(config.maxItems, sizeTierCap))
 
     val openInbox = Intent(context, MainActivity::class.java).apply {
         flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
@@ -108,25 +113,41 @@ private fun InboxContent(
                 modifier = GlanceModifier.defaultWeight()
             )
             Text(
-                text = "${items.size} to triage",
+                text = "${data.items.size} to triage",
                 style = WidgetTextStyles.badge(palette.onSurfaceVariant)
             )
         }
         Text(
-            text = "tap a chip to file",
+            text = "tap to triage",
             style = WidgetTextStyles.badge(palette.onSurfaceVariant)
         )
         Spacer(modifier = GlanceModifier.height(8.dp))
 
-        visible.forEach { item ->
-            InboxRow(item, palette, wide = isWide)
-            Spacer(modifier = GlanceModifier.height(if (isWide) 6.dp else 5.dp))
+        if (visible.isEmpty()) {
+            Spacer(modifier = GlanceModifier.height(8.dp))
+            Text(
+                text = "Inbox zero",
+                style = WidgetTextStyles.captionMedium(palette.onSurfaceVariant)
+            )
+        } else {
+            visible.forEach { item ->
+                InboxRow(item, palette, wide = isWide)
+                Spacer(modifier = GlanceModifier.height(if (isWide) 6.dp else 5.dp))
+            }
         }
     }
 }
 
+private fun priorityLabelFor(priority: Int): String = when (priority) {
+    4 -> "Urgent"
+    3 -> "High"
+    2 -> "Medium"
+    1 -> "Low"
+    else -> "None"
+}
+
 @Composable
-private fun InboxRow(item: InboxItem, palette: WidgetThemePalette, wide: Boolean) {
+private fun InboxRow(item: InboxRowVm, palette: WidgetThemePalette, wide: Boolean) {
     Row(
         modifier = GlanceModifier
             .fillMaxWidth()
@@ -139,7 +160,7 @@ private fun InboxRow(item: InboxItem, palette: WidgetThemePalette, wide: Boolean
             modifier = GlanceModifier
                 .size(6.dp)
                 .cornerRadius(3.dp)
-                .background(palette.onSurfaceVariant)
+                .background(item.priorityChipColor)
         ) {}
         Spacer(modifier = GlanceModifier.width(8.dp))
         Text(
@@ -153,25 +174,27 @@ private fun InboxRow(item: InboxItem, palette: WidgetThemePalette, wide: Boolean
             text = item.age,
             style = WidgetTextStyles.badge(palette.onSurfaceVariant)
         )
-        Spacer(modifier = GlanceModifier.width(8.dp))
-        Box(
-            modifier = GlanceModifier
-                .cornerRadius(9.dp)
-                .background(palette.surfaceVariant)
-                .padding(horizontal = 6.dp, vertical = 2.dp)
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = GlanceModifier
-                        .size(5.dp)
-                        .cornerRadius(3.dp)
-                        .background(item.suggestColor)
-                ) {}
-                Spacer(modifier = GlanceModifier.width(4.dp))
-                Text(
-                    text = "→ ${item.suggest}",
-                    style = WidgetTextStyles.badgeBold(item.suggestColor)
-                )
+        if (wide) {
+            Spacer(modifier = GlanceModifier.width(8.dp))
+            Box(
+                modifier = GlanceModifier
+                    .cornerRadius(9.dp)
+                    .background(palette.surfaceVariant)
+                    .padding(horizontal = 6.dp, vertical = 2.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = GlanceModifier
+                            .size(5.dp)
+                            .cornerRadius(3.dp)
+                            .background(item.priorityChipColor)
+                    ) {}
+                    Spacer(modifier = GlanceModifier.width(4.dp))
+                    Text(
+                        text = item.priorityLabel,
+                        style = WidgetTextStyles.badgeBold(item.priorityChipColor)
+                    )
+                }
             }
         }
     }

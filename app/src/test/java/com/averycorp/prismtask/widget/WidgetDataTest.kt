@@ -186,6 +186,82 @@ class WidgetDataTest {
         assertEquals(0, none.priority)
     }
 
+    @Test
+    fun `eisenhower total sums per quadrant`() {
+        val data = EisenhowerWidgetData(
+            q1 = EisenhowerQuadrantSummary(3, "Pay rent"),
+            q2 = EisenhowerQuadrantSummary(5, "Plan trip"),
+            q3 = EisenhowerQuadrantSummary(2, "Reply email"),
+            q4 = EisenhowerQuadrantSummary(4, null)
+        )
+        assertEquals(14, data.total)
+    }
+
+    @Test
+    fun `medication next slot returns null when index out of range`() {
+        val empty = MedicationWidgetData(slots = emptyList(), totalDoses = 0, takenDoses = 0, nextSlotIndex = -1)
+        assertEquals(null, empty.nextSlot)
+
+        val slot = MedicationWidgetSlot(
+            slotId = 1L,
+            name = "Morning",
+            time = "08:00",
+            tier = MedicationWidgetTier.ESSENTIAL,
+            taken = 1,
+            total = 2,
+            active = true
+        )
+        val populated = MedicationWidgetData(slots = listOf(slot), totalDoses = 2, takenDoses = 1, nextSlotIndex = 0)
+        assertEquals("Morning", populated.nextSlot?.name)
+
+        val outOfRange = MedicationWidgetData(slots = listOf(slot), totalDoses = 2, takenDoses = 1, nextSlotIndex = 5)
+        assertEquals(null, outOfRange.nextSlot)
+    }
+
+    @Test
+    fun `formatRelativeAge bucketing matches inbox spec`() {
+        val sec = 1_000L
+        val min = 60 * sec
+        val hour = 60 * min
+        val day = 24 * hour
+        assertEquals("now", WidgetDataProvider.formatRelativeAge(0))
+        assertEquals("now", WidgetDataProvider.formatRelativeAge(30 * sec))
+        assertEquals("12m", WidgetDataProvider.formatRelativeAge(12 * min))
+        assertEquals("59m", WidgetDataProvider.formatRelativeAge(59 * min))
+        assertEquals("1h", WidgetDataProvider.formatRelativeAge(1 * hour))
+        assertEquals("23h", WidgetDataProvider.formatRelativeAge(23 * hour))
+        assertEquals("Yday", WidgetDataProvider.formatRelativeAge(1 * day))
+        assertEquals("Yday", WidgetDataProvider.formatRelativeAge(36 * hour))
+        assertEquals("3d", WidgetDataProvider.formatRelativeAge(3 * day))
+        assertEquals("10d", WidgetDataProvider.formatRelativeAge(10 * day))
+    }
+
+    @Test
+    fun `stats sparkline up flag and delta math`() {
+        val data = StatsSparklineWidgetData(
+            thisWeek = listOf(1, 2, 3, 4, 5, 6, 7),
+            lastWeek = listOf(7, 6, 5, 4, 3, 2, 1),
+            total = 28,
+            lastTotal = 28,
+            deltaPct = 0,
+            up = true
+        )
+        assertEquals(28, data.total)
+        assertTrue(data.up)
+    }
+
+    @Test
+    fun `streak calendar intensities length matches weeks times seven`() {
+        val data = StreakCalendarWidgetData(
+            intensities = List(8 * 7) { 0 },
+            activeDays = 0,
+            longestStreak = 0,
+            weeks = 8
+        )
+        assertEquals(56, data.intensities.size)
+        assertEquals(8, data.weeks)
+    }
+
     private fun sampleRow(
         id: Long,
         title: String,

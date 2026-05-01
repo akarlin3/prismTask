@@ -32,19 +32,23 @@ class ToggleTaskFromWidgetAction : ActionCallback {
         } catch (_: Exception) {
             // fail silently — widget will redraw next tick
         }
-        // Refresh every widget that might show this task.
-        TodayWidget().updateAll(context)
-        try {
-            UpcomingWidget().updateAll(context)
-        } catch (_: Exception) {
-        }
-        try {
-            ProductivityWidget().updateAll(context)
-        } catch (_: Exception) {
-        }
-        try {
-            CalendarWidget().updateAll(context)
-        } catch (_: Exception) {
+        // Refresh every widget that might show this task. Mirrors the
+        // widget set covered by [WidgetUpdateManager.updateTaskWidgets].
+        val updaters = listOf<suspend () -> Unit>(
+            { TodayWidget().updateAll(context) },
+            { UpcomingWidget().updateAll(context) },
+            { CalendarWidget().updateAll(context) },
+            { ProductivityWidget().updateAll(context) },
+            { EisenhowerWidget().updateAll(context) },
+            { FocusWidget().updateAll(context) },
+            { InboxWidget().updateAll(context) },
+            { StatsSparklineWidget().updateAll(context) }
+        )
+        updaters.forEach { update ->
+            try {
+                update()
+            } catch (_: Exception) {
+            }
         }
     }
 }
