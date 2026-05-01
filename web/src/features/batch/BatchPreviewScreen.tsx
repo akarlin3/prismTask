@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { useBatchStore } from '@/stores/batchStore';
 import type { BatchMutationType, ProposedMutation } from '@/types/batch';
+import { DisambiguationPicker } from './DisambiguationPicker';
 
 const UNDO_TOAST_MS = 30_000;
 
@@ -57,9 +58,11 @@ export function BatchPreviewScreen() {
   const navigate = useNavigate();
   const pendingCommand = useBatchStore((s) => s.pendingCommand);
   const pendingResponse = useBatchStore((s) => s.pendingResponse);
+  const medicationCandidates = useBatchStore((s) => s.medicationCandidates);
   const isParsing = useBatchStore((s) => s.isParsing);
   const parseError = useBatchStore((s) => s.parseError);
   const parsePendingCommand = useBatchStore((s) => s.parsePendingCommand);
+  const resolveAmbiguity = useBatchStore((s) => s.resolveAmbiguity);
   const clearPending = useBatchStore((s) => s.clearPending);
   const commit = useBatchStore((s) => s.commit);
   const undo = useBatchStore((s) => s.undo);
@@ -206,12 +209,25 @@ export function BatchPreviewScreen() {
                     {pendingResponse.stripped_ambiguous_count === 1
                       ? 'mutation was'
                       : 'mutations were'}{' '}
-                    not shown — refine your command and try again.
+                    not shown — pick below or refine your command and try again.
                   </p>
                 )}
               </div>
             </div>
           )}
+
+          {pendingResponse.ambiguous_entities.map((hint, idx) => {
+            const candidates = medicationCandidates[idx];
+            if (!candidates || candidates.length === 0) return null;
+            return (
+              <DisambiguationPicker
+                key={`${hint.phrase}-${idx}`}
+                hint={hint}
+                candidates={candidates}
+                onPick={(picked) => resolveAmbiguity(idx, picked)}
+              />
+            );
+          })}
 
           {mutations.length === 0 ? (
             <EmptyState

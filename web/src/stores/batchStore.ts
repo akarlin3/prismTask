@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 import * as firestoreTasks from '@/api/firestore/tasks';
 import * as firestoreHabits from '@/api/firestore/habits';
 import * as firestoreProjects from '@/api/firestore/projects';
+import * as firestoreMedications from '@/api/firestore/medications';
 import { nlpBatchApi } from '@/api/nlpBatch';
 import { webToAndroidPriority } from '@/api/firestore/converters';
 import { getFirebaseUid } from '@/stores/firebaseUid';
@@ -104,11 +105,12 @@ function expandMatchResult(result: MatchResult): {
  *  response. Mirrors `BatchPreviewViewModel.loadPreview` on Android: any
  *  mutation whose entity_id appears in `committedIds` is exempt from both
  *  guards because the deterministic matcher has already proven its
- *  correctness. */
+ *  correctness. The `strippedMutations` come back so the picker can recover
+ *  the original mutation shape when the user picks a candidate. */
 function applyClientSafeguards(
   response: BatchParseResponse,
   committedIds: Set<string>,
-): BatchParseResponse {
+): { response: BatchParseResponse; stripped: StrippedMutation[] } {
   const ambiguousIds = new Set(
     response.ambiguous_entities.flatMap((h) => h.candidate_entity_ids),
   );
@@ -156,18 +158,50 @@ function applyClientSafeguards(
     });
   }
   return {
-    ...response,
-    mutations: keptMutations,
-    ambiguous_entities: augmented,
-    stripped_ambiguous_count: stripped.length,
+    response: {
+      ...response,
+      mutations: keptMutations,
+      ambiguous_entities: augmented,
+      stripped_ambiguous_count: stripped.length,
+    },
+    stripped,
   };
 }
 
+async function resolveMedicationCandidates(
+  uid: string,
+  ambiguousEntities: AmbiguousEntityHint[],
+): Promise<Record<number, MedicationCandidateOption[]>> {
+  const out: Record<number, MedicationCandidateOption[]> = {};
+  for (let idx = 0; idx < ambiguousEntities.length; idx += 1) {
+    const hint = ambiguousEntities[idx];
+    if (hint.candidate_entity_type !== 'MEDICATION') continue;
+    if (hint.candidate_entity_ids.length === 0) continue;
+    try {
+      const meds = await firestoreMedications.getMedicationsByIds(
+        uid,
+        hint.candidate_entity_ids,
+      );
+      if (meds.length === 0) continue;
+      out[idx] = meds.map((m) => ({
+        entity_id: m.id,
+        name: m.name,
+        display_label: m.display_label,
+      }));
+    } catch {
+      // Skip this hint silently — the banner copy still surfaces it; the
+      // picker just won't render for the failing fetch.
+    }
+  }
+  return out;
+}
+
 async function buildUserContext(uid: string): Promise<BatchUserContext> {
-  const [tasks, habits, projects] = await Promise.all([
+  const [tasks, habits, projects, medications] = await Promise.all([
     firestoreTasks.getAllTasks(uid),
     firestoreHabits.getHabits(uid),
     firestoreProjects.getProjects(uid),
+    firestoreMedications.getMedications(uid).catch(() => []),
   ]);
 
   const projectNameById = new Map(projects.map((p) => [p.id, p.title]));
@@ -201,15 +235,39 @@ async function buildUserContext(uid: string): Promise<BatchUserContext> {
       name: p.title,
       status: p.status,
     })),
-    medications: [],
+    medications: medications.map((m) => ({
+      id: m.id,
+      name: m.name,
+      display_label: m.display_label,
+    })),
   };
 }
+
+/** Resolved local candidates for one ambiguous-MEDICATION hint, keyed by
+ *  the hint's index in `pendingResponse.ambiguous_entities`. Populated
+ *  alongside the parse response and consumed by the picker. */
+export interface MedicationCandidateOption {
+  entity_id: string;
+  name: string;
+  display_label: string | null;
+}
+
+/** Mutations the safeguards stripped before showing them to the user. We
+ *  hold onto these so the picker can recover and substitute the picked
+ *  entity_id when the user disambiguates a medication phrase. */
+type StrippedMutation = ProposedMutation;
 
 interface BatchStoreState {
   /** Current preview — set by QuickAddBar on batch detection, read by
    *  BatchPreviewScreen, cleared on commit or dismiss. */
   pendingCommand: string | null;
   pendingResponse: BatchParseResponse | null;
+  /** Candidates per ambiguous-hint index (only MEDICATION-typed hints
+   *  whose candidate ids resolve to live local rows are populated). */
+  medicationCandidates: Record<number, MedicationCandidateOption[]>;
+  /** Mutations the auto-strip / low-confidence safeguards removed. The
+   *  picker recovers from this list when the user disambiguates a phrase. */
+  strippedMutations: StrippedMutation[];
   isParsing: boolean;
   parseError: string | null;
 
@@ -219,6 +277,7 @@ interface BatchStoreState {
 
   setPendingCommand: (commandText: string | null) => void;
   parsePendingCommand: () => Promise<void>;
+  resolveAmbiguity: (hintIndex: number, pickedEntityId: string) => void;
   clearPending: () => void;
 
   hydrate: (uid: string) => void;
@@ -233,6 +292,8 @@ interface BatchStoreState {
 export const useBatchStore = create<BatchStoreState>((set, get) => ({
   pendingCommand: null,
   pendingResponse: null,
+  medicationCandidates: {},
+  strippedMutations: [],
   isParsing: false,
   parseError: null,
   history: [],
@@ -241,13 +302,21 @@ export const useBatchStore = create<BatchStoreState>((set, get) => ({
     set({
       pendingCommand: commandText,
       pendingResponse: null,
+      medicationCandidates: {},
+      strippedMutations: [],
       parseError: null,
     }),
 
   parsePendingCommand: async () => {
     const commandText = get().pendingCommand;
     if (!commandText) return;
-    set({ isParsing: true, parseError: null, pendingResponse: null });
+    set({
+      isParsing: true,
+      parseError: null,
+      pendingResponse: null,
+      medicationCandidates: {},
+      strippedMutations: [],
+    });
     try {
       const uid = getFirebaseUid();
       const userContext = await buildUserContext(uid);
@@ -276,11 +345,20 @@ export const useBatchStore = create<BatchStoreState>((set, get) => ({
         user_context: enrichedContext,
       });
 
-      const safeguardedResponse = applyClientSafeguards(
+      const { response: safeguardedResponse, stripped } = applyClientSafeguards(
         response,
         new Set(Object.values(committed)),
       );
-      set({ pendingResponse: safeguardedResponse, isParsing: false });
+      const candidates = await resolveMedicationCandidates(
+        uid,
+        safeguardedResponse.ambiguous_entities,
+      );
+      set({
+        pendingResponse: safeguardedResponse,
+        medicationCandidates: candidates,
+        strippedMutations: stripped,
+        isParsing: false,
+      });
     } catch (e) {
       set({
         isParsing: false,
@@ -289,8 +367,61 @@ export const useBatchStore = create<BatchStoreState>((set, get) => ({
     }
   },
 
+  resolveAmbiguity: (hintIndex, pickedEntityId) => {
+    const state = get();
+    const response = state.pendingResponse;
+    if (!response) return;
+    const hint = response.ambiguous_entities[hintIndex];
+    if (!hint) return;
+    if (!hint.candidate_entity_ids.includes(pickedEntityId)) return;
+    const candidateSet = new Set(hint.candidate_entity_ids);
+    const recovered = state.strippedMutations.filter(
+      (m) =>
+        candidateSet.has(m.entity_id) &&
+        m.entity_type === hint.candidate_entity_type,
+    );
+    if (recovered.length === 0) return;
+    const resolved = recovered.map((m) => ({
+      ...m,
+      entity_id: pickedEntityId,
+    }));
+    const remainingStripped = state.strippedMutations.filter(
+      (m) => !recovered.includes(m),
+    );
+    const remainingHints = response.ambiguous_entities.filter(
+      (_, i) => i !== hintIndex,
+    );
+    const remainingStrippedCount = Math.max(
+      (response.stripped_ambiguous_count ?? 0) - recovered.length,
+      0,
+    );
+    const newCandidates: Record<number, MedicationCandidateOption[]> = {};
+    for (const [k, v] of Object.entries(state.medicationCandidates)) {
+      const oldIdx = Number(k);
+      if (oldIdx === hintIndex) continue;
+      const newIdx = oldIdx > hintIndex ? oldIdx - 1 : oldIdx;
+      newCandidates[newIdx] = v;
+    }
+    set({
+      pendingResponse: {
+        ...response,
+        mutations: [...response.mutations, ...resolved],
+        ambiguous_entities: remainingHints,
+        stripped_ambiguous_count: remainingStrippedCount,
+      },
+      strippedMutations: remainingStripped,
+      medicationCandidates: newCandidates,
+    });
+  },
+
   clearPending: () =>
-    set({ pendingCommand: null, pendingResponse: null, parseError: null }),
+    set({
+      pendingCommand: null,
+      pendingResponse: null,
+      medicationCandidates: {},
+      strippedMutations: [],
+      parseError: null,
+    }),
 
   hydrate: (uid) => {
     const history = loadHistory(uid).filter(

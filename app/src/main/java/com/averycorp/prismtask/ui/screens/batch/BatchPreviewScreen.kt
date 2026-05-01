@@ -179,21 +179,21 @@ private fun LoadedBody(
                 )
             }
             // Inline radio-group picker for each MEDICATION-typed hint that
-            // has resolvable local candidates. Calm Mode (simplifiedUi) skips
-            // the picker — the user is routed to Cancel-and-retype via the
-            // banner copy alone, matching the "fewer simultaneous decisions"
-            // intent of the sensory-reduction tier.
-            if (!simplifiedUi) {
-                state.ambiguousEntities.forEachIndexed { idx, hint ->
-                    val candidates = state.medicationCandidates[idx]
-                    if (!candidates.isNullOrEmpty()) {
-                        item {
-                            DisambiguationPicker(
-                                hint = hint,
-                                candidates = candidates,
-                                onPick = { picked -> onPickCandidate(idx, picked) }
-                            )
-                        }
+            // has resolvable local candidates. Calm Mode (simplifiedUi) keeps
+            // the picker but switches to a compact styling — single-column,
+            // larger touch targets, no tonal elevation, no icons or color
+            // accents — so the sensory-reduction tier still gets to choose
+            // a candidate without forcing a Cancel-and-retype loop.
+            state.ambiguousEntities.forEachIndexed { idx, hint ->
+                val candidates = state.medicationCandidates[idx]
+                if (!candidates.isNullOrEmpty()) {
+                    item {
+                        DisambiguationPicker(
+                            hint = hint,
+                            candidates = candidates,
+                            compactStyling = simplifiedUi,
+                            onPick = { picked -> onPickCandidate(idx, picked) }
+                        )
                     }
                 }
             }
@@ -286,15 +286,25 @@ private fun AmbiguityBanner(
  * below. Keyboard-navigable: the Row is `selectable` with `Role.RadioButton`,
  * which is what TalkBack reads to announce the picker as a single radio
  * group.
+ *
+ * [compactStyling] toggles a sensory-reduced layout for Calm Mode: no tonal
+ * elevation, no display-label subtitle, ≥56dp touch targets, and a single
+ * column. Visual fidelity drops, but the choice is still available.
  */
 @Composable
 private fun DisambiguationPicker(
     hint: AmbiguousEntityHintResponse,
     candidates: List<MedicationCandidate>,
+    compactStyling: Boolean,
     onPick: (entityId: String) -> Unit
 ) {
+    val containerColor = if (compactStyling) {
+        MaterialTheme.colorScheme.surface
+    } else {
+        MaterialTheme.colorScheme.surfaceVariant
+    }
     Surface(
-        color = MaterialTheme.colorScheme.surfaceVariant,
+        color = containerColor,
         shape = RoundedCornerShape(8.dp)
     ) {
         Column(
@@ -320,7 +330,7 @@ private fun DisambiguationPicker(
                             onClick = { onPick(candidate.entityId) },
                             role = Role.RadioButton
                         )
-                        .padding(vertical = 4.dp),
+                        .padding(vertical = if (compactStyling) 12.dp else 4.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     RadioButton(
@@ -333,7 +343,8 @@ private fun DisambiguationPicker(
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Medium
                         )
-                        if (!candidate.displayLabel.isNullOrBlank() &&
+                        if (!compactStyling &&
+                            !candidate.displayLabel.isNullOrBlank() &&
                             candidate.displayLabel != candidate.name
                         ) {
                             Text(
