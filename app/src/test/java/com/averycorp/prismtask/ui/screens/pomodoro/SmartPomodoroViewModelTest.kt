@@ -10,6 +10,7 @@ import com.averycorp.prismtask.data.remote.api.PomodoroSessionResponse
 import com.averycorp.prismtask.data.remote.api.PrismTaskApi
 import com.averycorp.prismtask.data.remote.api.SessionTaskResponse
 import com.averycorp.prismtask.data.repository.MoodEnergyRepository
+import com.averycorp.prismtask.data.repository.TaskRepository
 import com.averycorp.prismtask.data.repository.TaskTimingRepository
 import com.averycorp.prismtask.domain.usecase.PomodoroAICoach
 import com.averycorp.prismtask.domain.usecase.ProFeatureGate
@@ -46,6 +47,7 @@ class SmartPomodoroViewModelTest {
 
     private lateinit var appContext: Context
     private lateinit var taskDao: TaskDao
+    private lateinit var taskRepository: TaskRepository
     private lateinit var api: PrismTaskApi
     private lateinit var proFeatureGate: ProFeatureGate
     private lateinit var timerPreferences: TimerPreferences
@@ -58,6 +60,7 @@ class SmartPomodoroViewModelTest {
         Dispatchers.setMain(dispatcher)
         appContext = mockk(relaxed = true)
         taskDao = mockk(relaxed = true)
+        taskRepository = mockk(relaxed = true)
         // Default cloud-id resolution for the standard fixtures used across
         // generatePlan tests. Individual tests can override as needed.
         coEvery { taskDao.getIdByCloudId("cloud-1") } returns 1L
@@ -91,6 +94,7 @@ class SmartPomodoroViewModelTest {
     private fun newViewModel() = SmartPomodoroViewModel(
         appContext,
         taskDao,
+        taskRepository,
         api,
         proFeatureGate,
         moodEnergyRepository,
@@ -259,12 +263,17 @@ class SmartPomodoroViewModelTest {
     }
 
     @Test
-    fun completeTask_delegatesToDaoAndMarksIdComplete() = runTest(dispatcher) {
+    fun completeTask_routesThroughTaskRepository() = runTest(dispatcher) {
         val vm = newViewModel()
         vm.completeTask(42L)
         advanceUntilIdle()
 
-        coVerify { taskDao.markCompleted(42L, any()) }
+        // Audit: docs/audits/RECURRING_TASKS_DUPLICATE_DAILY_AUDIT.md (Item 3).
+        // Going through TaskRepository is what spawns the recurrence's next
+        // occurrence, cancels the reminder, and triggers sync/widget updates.
+        // The pre-fix path called `taskDao.markCompleted` directly and skipped
+        // every one of those side effects.
+        coVerify { taskRepository.completeTask(42L) }
         assertTrue(42L in vm.completedTaskIds.value)
     }
 
