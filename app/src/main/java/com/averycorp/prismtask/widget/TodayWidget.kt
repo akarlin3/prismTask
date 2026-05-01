@@ -139,7 +139,9 @@ private fun TodayWidgetContent(
                 style = WidgetTextStyles.badge(palette.onSurfaceVariant)
             )
             Spacer(modifier = GlanceModifier.height(6.dp))
-            val maxTasks = configuredMaxTasks.coerceIn(1, 20)
+            val sizeTierCap = if (isLarge) 8 else 3
+            val effective = minOf(configuredMaxTasks, sizeTierCap)
+            val maxTasks = effective.coerceIn(1, 20)
             if (data.tasks.isEmpty()) {
                 WidgetEmptyState(
                     emoji = "✅",

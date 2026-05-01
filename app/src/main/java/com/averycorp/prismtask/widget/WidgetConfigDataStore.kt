@@ -36,7 +36,7 @@ object WidgetConfigDataStore {
         val showProgress: Boolean = true,
         val showTaskList: Boolean = true,
         val showHabitSummary: Boolean = true,
-        val maxTasks: Int = 5,
+        val maxTasks: Int = 8,
         val showOverdueBadge: Boolean = true,
         val backgroundOpacityPercent: Int = 100
     )
@@ -47,7 +47,7 @@ object WidgetConfigDataStore {
                 showProgress = prefs[booleanPreferencesKey("widget_${appWidgetId}_show_progress")] ?: true,
                 showTaskList = prefs[booleanPreferencesKey("widget_${appWidgetId}_show_task_list")] ?: true,
                 showHabitSummary = prefs[booleanPreferencesKey("widget_${appWidgetId}_show_habit_summary")] ?: true,
-                maxTasks = prefs[intPreferencesKey("widget_${appWidgetId}_max_tasks")]?.coerceIn(MAX_TASKS_RANGE) ?: 5,
+                maxTasks = prefs[intPreferencesKey("widget_${appWidgetId}_max_tasks")]?.coerceIn(MAX_TASKS_RANGE) ?: 8,
                 showOverdueBadge = prefs[booleanPreferencesKey("widget_${appWidgetId}_show_overdue_badge")] ?: true,
                 backgroundOpacityPercent = prefs[intPreferencesKey("widget_${appWidgetId}_bg_opacity")]
                     ?.coerceIn(OPACITY_RANGE) ?: 100

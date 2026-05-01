@@ -13,12 +13,16 @@ import org.junit.Test
  */
 class WidgetConfigDefaultsTest {
     @Test
-    fun `today config defaults show everything with max 5 tasks`() {
+    fun `today config defaults show everything with max 8 tasks`() {
+        // Default raised from 5 → 8 in the A3 fix so a default-config large
+        // widget renders 8 rows again. TodayWidget's size-tier-cap then
+        // collapses to 3 for small/medium. Restores prior behavior from
+        // before PR #987 commit 4b9fdc21 removed `if (isLarge) 8 else 3`.
         val cfg = WidgetConfigDataStore.TodayConfig()
         assertTrue(cfg.showProgress)
         assertTrue(cfg.showTaskList)
         assertTrue(cfg.showHabitSummary)
-        assertEquals(5, cfg.maxTasks)
+        assertEquals(8, cfg.maxTasks)
         assertTrue(cfg.showOverdueBadge)
         assertEquals(100, cfg.backgroundOpacityPercent)
     }
