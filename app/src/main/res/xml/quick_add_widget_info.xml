@@ -8,4 +8,5 @@
     android:targetCellHeight="1"
     android:updatePeriodMillis="0"
     android:widgetCategory="home_screen"
-    android:widgetFeatures="reconfigurable" />
+    android:widgetFeatures="reconfigurable"
+    android:previewLayout="@layout/widget_preview_quick_add" />
