@@ -8,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
+from app.middleware.ai_gate import require_ai_features_enabled
 from app.middleware.auth import get_current_user
 from app.models import (
     IntegrationConfig,
@@ -63,6 +64,15 @@ def _suggestion_to_response(s: SuggestedTask) -> SuggestedTaskResponse:
 @router.post(
     "/integrations/gmail/scan",
     response_model=GmailScanResponse,
+    # AI-features opt-out gate (PII egress audit follow-up, 2026-05-01).
+    # `scan_gmail` calls Anthropic's Claude API with user email subjects /
+    # snippets / from-addresses (see `gmail_integration.py:227`), so it has
+    # to honor the same `X-PrismTask-AI-Features: disabled` opt-out as the
+    # `/ai/*` and `/tasks/parse*` routes. The original PR #788/#790 audit
+    # missed this endpoint because the integrations router landed two weeks
+    # earlier (commit 385b340d, 2026-04-11). The 2026-05-01 re-audit
+    # (`cowork_outputs/pii_leak_surface_reaudit_REPORT.md`) caught it.
+    dependencies=[Depends(require_ai_features_enabled)],
 )
 async def scan_gmail_inbox(
     since_hours: int = Query(default=24, ge=1, le=168),

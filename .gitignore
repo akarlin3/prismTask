@@ -3,6 +3,11 @@
 build/
 local.properties
 
+# Worktrees — local isolated checkouts created via `git worktree add`.
+# These are not meant to be tracked from the parent checkout.
+.worktrees/
+worktrees/
+
 # Build outputs are produced by CI — do not commit
 # app/build/ is already covered by build/ above
 

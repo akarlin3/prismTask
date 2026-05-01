@@ -3,7 +3,7 @@
 **PrismTask**
 **Developer:** AveryCorp (Avery Karlin)
 **Contact:** privacy@prismtask.app
-**Effective Date:** 2026-04-24
+**Effective Date:** 2026-05-01
 
 ---
 
@@ -67,10 +67,16 @@ We use the following third-party services:
 
 ### Anthropic (Claude AI)
 
-- Task parsing, Eisenhower categorization, and Pomodoro planning (Pro features)
-- Task titles, descriptions, and metadata are sent to Anthropic's API for AI processing
+- Task parsing, Eisenhower categorization, Pomodoro planning, daily/weekly briefings, time-blocking, batch NLP commands, conversation extraction, syllabus parsing, and Gmail-to-task extraction (all Pro features)
+- The following data is sent to Anthropic's API when you use the corresponding feature:
+  - Task titles, descriptions, due dates, priorities, projects, tags, and life-category labels
+  - Habit names and project names referenced in AI prompts
+  - Medication names (id + name only — not dosage, frequency, or prescriber) when you invoke an AI batch NLP command on a medication (e.g. "Skip my Adderall today")
+  - Free text you submit to AI surfaces (natural-language commands, syllabus PDF text, conversation extraction text)
+  - **Gmail integration only:** when you trigger a Gmail inbox scan (Pro + opt-in), email subjects, snippets, sender addresses, and message dates from the inbox window you scanned are sent to Anthropic for task extraction. Email bodies and attachments are not sent.
+- Anthropic does not train its models on inputs (Anthropic Commercial Terms § B). Anthropic standard API retention is 30 days, extending up to 2 years if a request is flagged for Trust & Safety review
+- You can disable all Anthropic processing in Settings → AI Features → "Use Claude AI for advanced features." When disabled, the app makes no Anthropic calls and the AI-powered features (including Gmail scan) become unavailable
 - Subject to [Anthropic's Privacy Policy](https://www.anthropic.com/privacy)
-- Anthropic's data retention policy applies to data processed through their API
 
 ### Google Calendar API
 
@@ -85,7 +91,7 @@ We use the following third-party services:
 ## Data Sharing
 
 - **Collaboration:** Task data in shared projects is visible to project members you invite
-- **AI processing:** Task metadata is sent to Anthropic for AI features (Pro only)
+- **AI processing:** Task metadata, medication names (for batch NLP commands), and — when you opt into Gmail integration — email subjects/snippets/sender addresses are sent to Anthropic for AI features (Pro only)
 - **We do not sell your data to third parties**
 - **We do not use your data for advertising**
 - **We do not share your data with third parties for their marketing purposes**
