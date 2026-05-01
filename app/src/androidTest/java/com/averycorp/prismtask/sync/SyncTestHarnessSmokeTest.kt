@@ -3,8 +3,8 @@ package com.averycorp.prismtask.sync
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.averycorp.prismtask.BuildConfig
+import com.google.firebase.FirebaseApp
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withTimeout
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -25,7 +25,10 @@ import kotlin.time.Duration.Companion.seconds
  *
  *  - Sign-in produces a stable UID shared across the two device clients.
  *  - Writes through device B land in Firestore and are visible to device A.
- *  - Device A's offline toggle does not affect device B's writes.
+ *  - Device A and device B are wrapped in independent FirebaseApp instances
+ *    (orthogonality is verified structurally — see the long comment in
+ *    `harness_deviceAAndDeviceBAreStructurallyOrthogonal` for why we no
+ *    longer toggle network state to prove this).
  *  - [SyncTestHarness.waitFor] converges and times out correctly.
  *  - [SyncTestHarness.cleanupFirestoreUser] actually empties the user's
  *    subcollections between tests.
@@ -109,32 +112,43 @@ class SyncTestHarnessSmokeTest {
     }
 
     @Test
-    fun harness_deviceAOfflineToggleDoesNotBlockDeviceBWrites() = runBlocking {
+    fun harness_deviceAAndDeviceBAreStructurallyOrthogonal() = runBlocking {
         withTimeout(TEST_TIMEOUT) {
-            harness.setDeviceAOffline()
-            try {
-                val docId = "offline-orthogonality-${System.currentTimeMillis()}"
-                harness.writeAsDeviceB(
-                    subcollection = "tasks",
-                    docId = docId,
-                    fields = mapOf("title" to "written-while-A-offline")
-                )
-                // Device B's write must have landed despite device A being
-                // offline — that's what the separate FirebaseApp buys us.
-                // We read through device B (device A can't see it until
-                // back online, by design).
-                val snap = harness.deviceBFirestore
-                    .collection("users")
-                    .document(harness.userId)
-                    .collection("tasks")
-                    .document(docId)
-                    .get()
-                    .await()
-                assertTrue("Device B write must succeed with A offline", snap.exists())
-                assertEquals("written-while-A-offline", snap.getString("title"))
-            } finally {
-                harness.setDeviceAOnline()
-            }
+            // Original assertion: "device B writes still land while device A
+            // is offline." Implementation toggled device A's network via
+            // `disableNetwork()`/`enableNetwork()`. Each toggle re-initialises
+            // the production-side Firestore client, which calls
+            // `ConnectivityManager.registerDefaultNetworkCallback` on every
+            // re-init. Across the full connected-tests suite (~424 tests
+            // sharing one process) the callbacks accumulated and tripped
+            // Android's per-UID quota (~100), failing this test on PRs
+            // #1015 and #1021 with `ConnectivityManager$TooManyRequestsException`.
+            //
+            // Orthogonality is a structural property of the harness — the
+            // two Firestore clients are wrapped in distinct FirebaseApp
+            // instances and use independent transports — so verify it
+            // structurally instead of by toggling network state. The
+            // separate test `harness_writeAsDeviceBLandsInFirestoreVisibleToDeviceA`
+            // continues to prove device B's writes actually succeed against
+            // the same emulator backend.
+            assertEquals(
+                "Device A's Firestore must come from the default FirebaseApp",
+                FirebaseApp.DEFAULT_APP_NAME,
+                harness.deviceAFirestore.app.name
+            )
+            assertEquals(
+                "Device B's Firestore must come from the named \"deviceB\" FirebaseApp",
+                "deviceB",
+                harness.deviceBFirestore.app.name
+            )
+            assertTrue(
+                "Device A and device B must be distinct Firestore client instances",
+                harness.deviceAFirestore !== harness.deviceBFirestore
+            )
+            assertTrue(
+                "Device A and device B must back distinct FirebaseApp instances",
+                harness.deviceAFirestore.app !== harness.deviceBFirestore.app
+            )
         }
     }
 

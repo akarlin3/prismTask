@@ -128,6 +128,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Connected-tests `harness_deviceAOfflineToggleDoesNotBlockDeviceBWrites`
+  no longer trips `ConnectivityManager$TooManyRequestsException`.** The
+  smoke test's `disableNetwork()`/`enableNetwork()` cycle on device A's
+  Firestore re-initialised the production-side `FirestoreClient`, which
+  registers a fresh `AndroidConnectivityMonitor` callback each time —
+  across the 424-test connected-tests suite this exhausted Android's
+  per-UID callback quota (~100) and failed PRs #1015 and #1021 at
+  position ~423. Replaced the network-toggle smoke test with a
+  structural-orthogonality assertion (distinct FirebaseApp + Firestore
+  instances), since real offline-toggle behaviour is still exercised
+  by `Test7OfflineEditReconnectTest`, `Test10ConcurrentDeleteTest`, and
+  `Test11OfflineDuringRemoteWriteTest`. The follow-on Firebase-test-isolation
+  audit (flagged in `docs/audits/RECURRING_TASKS_DUPLICATE_DAILY_AUDIT.md`)
+  will tackle the underlying Firestore-client churn structurally.
+
 - **Toggle-uncomplete also rolls back the spawned recurrence (Item 2
   residual).** Closes the second duplication path from the
   recurring-tasks audit. `task_completions` now carries a
