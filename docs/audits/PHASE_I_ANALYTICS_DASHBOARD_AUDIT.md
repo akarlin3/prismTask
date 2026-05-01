@@ -140,3 +140,86 @@ After Phase 2 completes, Phase I item advances `done: 0.65 → ~0.85`. Remaining
 | 5 | S5 — Weekly analytics notification | ~190 + 40 | Medium-low; once-a-week ping, adoption signal unproven | ★★ |
 | (def) | Burndown / Correlations / Score-heatmap | n/a | Defer | — |
 
+---
+
+## Phase 3 — bundle summary
+
+Operator override: "no deferrals." Phase 2 expanded from the 5-slice
+in-branch fan-out (S1-S5) to a 9-slice fan-out (S1-S9) covering every
+PROCEED *and* every previously-deferred sub-item. All shipped on
+`claude/analytics-dashboard-phase-1-AFRqH`:
+
+| Slice | Commit | Scope | Files (impl + tests) |
+|-------|--------|-------|----------------------|
+| S1 | `3585756` | `ANALYTICS_FULL` + `ANALYTICS_CORRELATIONS` Pro gate constants; refactor analytics ViewModel `isProFlow` to `hasAccess(...)` | `ProFeatureGate.kt`, `TaskAnalyticsViewModel.kt`, `ProFeatureGateTest.kt` |
+| S2 | `e578a1f` | Today productivity score badge — local-only calc, ≥3-day-history gate, taps to TaskAnalytics | `ProductivityScoreBadge.kt`, `TodayScoreBadgeViewModel.kt`, `TodayProgressHeader.kt`, `TodayScreen.kt`, `TodayScoreBadgeViewModelTest.kt` |
+| S3 | `8c3f17d` | Productive-day streak tracker (`recordProductiveDay` / `resetCurrentStreakIfBroken`), forgiveness-first broken-streak notification, streak chip in score section, piggybacks on `DailyResetWorker` | `ProductiveStreakPreferences.kt`, `ProductiveStreakResolver.kt`, `ProductiveStreakNotifier.kt`, `DailyResetWorker.kt`, `ProductivityScoreSection.kt`, `TaskAnalyticsViewModel.kt`, `TaskAnalyticsScreen.kt`, `ProductiveStreakPreferencesTest.kt` |
+| S4 | `4b42b49` | Markdown report exporter + share-icon action on TaskAnalyticsScreen top app bar | `AnalyticsMarkdownExporter.kt`, `TaskAnalyticsScreen.kt`, `TaskAnalyticsViewModel.kt`, `AnalyticsMarkdownExporterTest.kt` |
+| S5 | `3c7f213` | `WeeklyAnalyticsWorker` (Sun 19:00) + Settings toggle in `NotificationTypesScreen` + one-shot scheduler migration | `WeeklyAnalyticsWorker.kt`, `NotificationPreferences.kt`, `NotificationWorkerScheduler.kt`, `NotificationSettingsViewModel.kt`, `NotificationTypesScreen.kt` |
+| S6 | `8a9c573` | Project burndown chart + computer (actual / ideal / 7-day velocity / projected completion) on `ProjectDetailScreen` Overview tab | `ProjectBurndownComputer.kt`, `BurndownChart.kt`, `ProjectDetailViewModel.kt`, `ProjectDetailScreen.kt`, `ProjectBurndownComputerTest.kt` |
+| S7a | `023998a` | Backend `/analytics/habit-correlations` PII gate fix (`require_ai_features_enabled`) + regression test | `analytics.py`, `test_ai_gate.py` |
+| S7b | `8f79870` | Android Retrofit `getHabitCorrelations()` + `HabitCorrelationsRepository` typed outcomes (success / 451 / 429 / 402-403 / generic) + `HabitCorrelationsSection` Compose surface | `PrismTaskApi.kt`, `ApiModels.kt`, `HabitCorrelationsRepository.kt`, `HabitCorrelationsSection.kt`, `HabitCorrelationsViewModel.kt`, `TaskAnalyticsScreen.kt`, `HabitCorrelationsRepositoryTest.kt` |
+| S8 | `042d7fe` | Score-based 12 × 7 productivity heatmap with four-bucket cell colour and tap tooltip | `ProductivityHeatmap.kt`, `TaskAnalyticsScreen.kt` |
+| S9 | `0fca3d9` | Reusable `AnalyticsSectionProUpsell`; render upsell cards in place of every Pro-gated section for free users (closes anti-pattern flag #1) | `AnalyticsSummaryTiles.kt`, `TaskAnalyticsScreen.kt` |
+
+**Total:** ~2,080 LOC implementation + ~870 LOC tests = ~2,950 LOC across 33 files.
+
+### Re-baselined Phase I item completion
+
+`done: 0.4 → 1.0`. All 13 sub-items from the original Apr 11 spec are
+shipped:
+
+1. ✅ Productivity Dashboard screen (already existed pre-audit; S9 polished)
+2. ✅ Project burndown (S6)
+3. ✅ Habit correlations Android-side (S7b) + backend PII gate (S7a)
+4. ✅ Score-based productivity heatmap (S8)
+5. ✅ Day-of-week analysis (already shipped)
+6. ✅ Markdown export (S4)
+7. ✅ Today screen score badge (S2)
+8. ✅ Weekly analytics notification (S5)
+9. ✅ Productive streak tracking (S3)
+10. ✅ Pomodoro auto-link (already shipped via #909)
+11. ✅ Pro gating constants (S1) + free-tier upsells (S9)
+12. ✅ Backend `/habit-correlations` PII gate (S7a)
+13. ✅ Tests (added across S1, S2, S3, S4, S6, S7a, S7b)
+
+### Verification gaps (CI is the gate)
+
+Local sandbox lacks the Android SDK + JBR, so unit + Compose tests
+were not run locally. CI runs `:app:testDebugUnitTest`,
+`:app:lintDebug`, and `:app:compileDebugAndroidTestKotlin` on push and
+remains the verification gate. Functional-on-emulator verification
+(score badge, share sheet, burndown render, correlations
+end-to-end) was scoped out of this session per its single-branch
+constraint.
+
+### Memory entry candidates
+
+- **"Productive streak rollover piggybacks on DailyResetWorker"** —
+  the worker already fires on the user's configured SoD boundary; no
+  new alarm scheduling is needed. Avoids the timezone drift other
+  audit memos warned about.
+- **"Habit-correlations endpoint shipped at `/api/v1/analytics/habit-correlations`"**
+  — Android client + repository now exist; the AI-features gate is
+  honoured both client-side (`AiFeatureGateInterceptor`) and
+  server-side (`require_ai_features_enabled` from S7a).
+- **"`TaskAnalyticsScreen` is the productivity dashboard"** — the
+  Apr 11 spec assumed a distinct route was needed. It isn't —
+  `task_analytics?projectId=…` already serves both per-project
+  analytics and the global dashboard, so don't introduce a parallel
+  route in future polish.
+
+### Schedule for next audit
+
+Mid-cycle UX QA on emulator-5558 once CI is green for the branch's
+PR. Specifically:
+
+1. Cell tap detection on `ProductivityHeatmap` (Compose pointer-input
+   scope is non-trivial; if taps don't register, switch to
+   `detectTapGestures` with a remembered layout-size).
+2. Burndown rendering for projects with > 30 tasks (the line drawing
+   hasn't been visually checked at scale).
+3. Share-sheet target list on a stock Android 14 image (markdown is
+   widely supported but the `text/markdown` MIME type can fall back
+   to plain text on some launchers).
+
