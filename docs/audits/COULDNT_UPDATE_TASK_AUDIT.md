@@ -377,3 +377,116 @@ snackbar. So a user who reports "Couldn't update task" definitely
 tapped from Task List, not Today. This asymmetry should be normalised
 either way (both should snackbar, or neither should), but that's a
 copy/UX decision, not a bug.
+
+---
+
+## Phase 3 — Bundle summary
+
+**Status — both PROCEED items shipped on the same branch.** Per the
+session's git-development-branch instruction, Items 1 and 2 land in a
+single PR rather than fanning out (the audit-first skill's per-item
+fan-out shape is overridden by the explicit single-branch directive).
+Item 4 (the broader sibling-handler sweep across all 13
+`Couldn't ...` snackbars in `TaskListViewModel` + the bulk variants)
+is intentionally **deferred** to a follow-up audit — it would balloon
+the PR by ~150 LOC and dilute the user-reported scope.
+
+### Per-item PR refs
+
+| Item | Title | Commit | Verdict | Path on branch |
+|-----:|-------|--------|---------|----------------|
+| Audit doc | Phase 1 itself | `33dbfea` | RED → AUDIT | `docs/audits/COULDNT_UPDATE_TASK_AUDIT.md` |
+| 1 | Diagnostic enrichment on `onToggleComplete` + `onToggleSubtaskComplete` (exception class in log + snackbar, Crashlytics non-fatal) | `7e6e550` | RED → SHIPPED | `TaskListViewModel.kt` (catch blocks 678-687, 698-707; new private `recordNonFatal` helper) |
+| 2 | Gate `completeTask` + `uncompleteTask` post-transaction side effects on actual mutation | `7e6e550` | YELLOW → SHIPPED | `TaskRepository.kt` (`completeTask` returns `Pair<Boolean, Long?>` from `withTransaction`; `uncompleteTask` early-returns when already-incomplete) |
+| 1+2 tests | Two new TaskRepositoryTest cases pinning the no-op side-effect skip | `7e6e550` | — | `TaskRepositoryTest.kt:257-285` |
+| 4 | Sibling sweep across 13 other `Couldn't ...` snackbars | — | YELLOW → DEFERRED | follow-up audit |
+
+### Re-baselined wall-clock estimates
+
+Phase 1 audit doc: ~45m to write (379 lines, well under the 500-line
+cap). Phase 2 implementation: ~25m for the diagnostic enrichment + the
+`Pair<Boolean, Long?>` refactor + 2 unit tests. Smaller than the
+recurring-tasks audit (PR #1019/#1021/#1022 chain, ~3h end-to-end)
+because:
+
+- The user gave us the exact snackbar string after the first round
+  trip, which collapsed the search space immediately. **Memory
+  candidate:** when a user reports a vague symptom, ask for the
+  literal UI string up front rather than self-investigating
+  exhaustively first — saves ~15-20m of grep churn per audit.
+- No connected-tests flake gate (Phase 2 lands purely on unit tests
+  for the repository changes; the diagnostic enrichment is
+  observability-only and can't be unit-tested without spinning up
+  Crashlytics, which is out of scope).
+
+### Follow-up audits flagged (no schedule)
+
+1. **Sibling sweep across all 13 `TaskListViewModel` catch blocks
+   (Item 4).** Same pattern, same diagnostic gap. Estimated PR size
+   ~50 LOC if the existing `recordNonFatal` helper is promoted to a
+   tiny extension. Triggered by Item 1's design choice — the helper is
+   already in place; the rest of the work is mechanical.
+2. **`TodayViewModel` / `EisenhowerViewModel` / `SmartPomodoroViewModel`
+   completion paths.** Today + bulk handlers + Eisenhower /
+   SmartPomodoro all funnel through `TaskRepository.completeTask` (PR
+   #1022 unified those paths), but their UI catch blocks were not
+   touched here. If a user later reports "Couldn't complete task" from
+   the Today swipe path or Eisenhower's tap-to-complete, the same
+   diagnostic enrichment would unblock that report. Bundle with #1
+   above.
+3. **Pre-transaction-read anti-pattern (open follow-up from
+   `RECURRING_TASKS_DUPLICATE_DAILY_AUDIT.md` Phase 3).** `tags` is
+   still read outside the transaction in `completeTask`. Not addressed
+   here — same scope-creep concern as Item 4. The recurring-tasks
+   audit already flagged this; cross-link maintained.
+
+**Schedule for next audit.** None. The user-visible symptom
+("Couldn't update task" with no information) is now diagnosable in the
+field, and the no-op side-effect spurious-work is closed. Items 1+4
+sibling sweep is a YELLOW worth picking up when CI noise warrants.
+
+---
+
+## Phase 4 — Claude Chat handoff summary
+
+```markdown
+# "Couldn't update task" Snackbar — Audit + Fix Summary
+
+## Scope
+Audit + fix for the user-reported snackbar "Couldn't update task" that
+fires when toggling a task's checkbox in the Task List screen of the
+PrismTask Android app (`com.averycorp.prismtask`, baseline `main` @
+`50205ef` / v1.8.15). The underlying exception was swallowed to logcat,
+making field reports un-debuggable.
+
+## Verdicts table
+| Item | Title | Verdict | One-line finding |
+|---:|---|---|---|
+| 1 | Observability gap on `TaskListViewModel.onToggleComplete` catch | RED → SHIPPED | Exception was logged via `Log.e(tag, msg, e)` only — no Crashlytics non-fatal, no class name in the user-visible snackbar. |
+| 2 | Post-transaction side effects always fire even when `completeTask` short-circuits | YELLOW → SHIPPED | `syncTracker.trackUpdate` + `calendarPushDispatcher.enqueueDeleteTaskEvent` + `widgetUpdateManager.updateTaskWidgets` ran on already-completed re-taps; same symmetry-break in `uncompleteTask`. |
+| 3 | Stale `isCurrentlyCompleted` parameter | GREEN | UI passes a snapshot from rendered list; idempotence guard in `TaskRepository.completeTask:333` (PR #1021) keeps the race safe — no fix needed. |
+| 4 | Sibling sweep across 13 other `Couldn't ...` catch blocks in `TaskListViewModel` | YELLOW → DEFERRED | Same antipattern, deferred to a follow-up audit to keep this PR scoped to the user's report. |
+| 5 | `tagDao.getTagsForTask(id).first()` could throw on empty Flow | GREEN | Room invariant: flows always emit at least once on first collect — empty list, never `NoSuchElementException`. |
+
+## Shipped (single PR — branch `claude/fix-audit-tasks-dlniO`)
+- Commit `33dbfea`: Phase 1 audit doc (`docs/audits/COULDNT_UPDATE_TASK_AUDIT.md`, 379 lines)
+- Commit `7e6e550`: Item 1 + Item 2 fix
+  - `TaskListViewModel.kt` — `onToggleComplete` + `onToggleSubtaskComplete` catch blocks now log task id + exception class + message, pipe the exception into `FirebaseCrashlytics.recordException()` via a new private `recordNonFatal` helper, and append the exception class name to the snackbar (e.g. "Couldn't update task (SQLiteConstraintException)").
+  - `TaskRepository.kt` — `completeTask`'s `withTransaction` block now returns `Pair<Boolean, Long?>`; the post-transaction `syncTracker.trackUpdate` / calendar push / widget refresh are gated on `didComplete = true`. `uncompleteTask` early-returns when the row is already incomplete.
+  - `TaskRepositoryTest.kt` — two new tests (`completeTask_alreadyCompleted_skipsPostTransactionSideEffects` + `uncompleteTask_neverCompleted_skipsSideEffects`) pinning the no-op gate via `coVerify(exactly = 0) { ... }`.
+
+## Deferred / stopped
+- **Item 4 (sibling sweep across 13 other catch blocks)** — same antipattern, but expanding the PR to all 13 sites would dilute the user-reported scope from "make this one report diagnosable" to "rewrite the entire ViewModel's error handling". Follow-up audit candidate; the `recordNonFatal` helper is already in place to make the sweep mechanical.
+- **`TodayViewModel` / `EisenhowerViewModel` / `SmartPomodoroViewModel` parity** — Today's `onToggleComplete:772` doesn't even show a snackbar; Eisenhower / SmartPomodoro funnel through `TaskRepository.completeTask` per PR #1022 but their UI catch blocks weren't touched.
+
+## Non-obvious findings
+- The literal snackbar string `"Couldn't update task"` only exists at one site (`TaskListViewModel.kt:679`), so the user's report localises **uniquely** to the Task List checkbox path — not Today, not the notification "Complete" action, not bulk handlers.
+- `nextRecurrenceId` from the transaction was being used as the side-effect signal (non-null → spawned next instance, null → either no recurrence OR no-op). Three states collapsed into two, which is why the no-op case still ran the post-transaction work. The fix introduces a `Pair<Boolean, Long?>` so the three states are distinguishable.
+- The project ships `FirebaseCrashlytics.recordException()` already (used in `PrismTaskApplication.kt:130,146` and `BugReportViewModel.kt:282`), so no new dependency was needed.
+- Without an actual stack trace from the field, the audit could not pinpoint the *specific* exception that triggers the user's symptom. The most plausible candidate is a partial migration state where `task_completions.spawned_recurrence_id` (added in `MIGRATION_66_67`) is missing on a device whose v66→v67 migration committed mid-step. Item 1's diagnostic enrichment is what makes the **next** report from this user (or any user) self-diagnosing.
+
+## Open questions
+- The fix doesn't actually identify which exception fires for the original reporter. Once they update past this PR and re-tap a checkbox that triggers the snackbar, the snackbar copy will show the exception class (e.g. "Couldn't update task (SQLiteConstraintException)") and Crashlytics will receive the stack trace. That data is what closes the loop on the actual root-cause fix; this PR is the diagnostic foundation, not the cure.
+- Should the `recordNonFatal` helper graduate to a project-wide utility? Currently it's private to `TaskListViewModel`. Item 4's deferred sweep would benefit from a shared `ui.errors` package, but doing it now would be premature abstraction — wait until the second consumer materialises.
+```
+
