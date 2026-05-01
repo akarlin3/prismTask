@@ -26,7 +26,14 @@ data class TimerWidgetState(
     // "work" or "break"
     val sessionType: String = "work",
     val currentSession: Int = 0,
-    val totalSessions: Int = 4
+    val totalSessions: Int = 4,
+    // True when the current break is a Pomodoro long break. Lets the widget
+    // mirror the in-app "Long Break" / "Short Break" label split.
+    val isLongBreak: Boolean = false,
+    // True when the user has Pomodoro mode on. Drives the session-indicator
+    // dot row in the widget — without this the dots would render even for
+    // plain work/break/custom sessions where they're meaningless.
+    val pomodoroEnabled: Boolean = false
 )
 
 object TimerStateDataStore {
@@ -38,6 +45,8 @@ object TimerStateDataStore {
     private val SESSION_TYPE = stringPreferencesKey("timer_session_type")
     private val CURRENT_SESSION = intPreferencesKey("timer_current_session")
     private val TOTAL_SESSIONS = intPreferencesKey("timer_total_sessions")
+    private val IS_LONG_BREAK = booleanPreferencesKey("timer_is_long_break")
+    private val POMODORO_ENABLED = booleanPreferencesKey("timer_pomodoro_enabled")
 
     suspend fun write(context: Context, state: TimerWidgetState) {
         context.timerStateDataStore.edit { prefs ->
@@ -53,6 +62,8 @@ object TimerStateDataStore {
             prefs[SESSION_TYPE] = state.sessionType
             prefs[CURRENT_SESSION] = state.currentSession
             prefs[TOTAL_SESSIONS] = state.totalSessions
+            prefs[IS_LONG_BREAK] = state.isLongBreak
+            prefs[POMODORO_ENABLED] = state.pomodoroEnabled
         }
     }
 
@@ -66,7 +77,9 @@ object TimerStateDataStore {
             totalSeconds = prefs[TOTAL_SECONDS] ?: 0,
             sessionType = prefs[SESSION_TYPE] ?: "work",
             currentSession = prefs[CURRENT_SESSION] ?: 0,
-            totalSessions = prefs[TOTAL_SESSIONS] ?: 4
+            totalSessions = prefs[TOTAL_SESSIONS] ?: 4,
+            isLongBreak = prefs[IS_LONG_BREAK] ?: false,
+            pomodoroEnabled = prefs[POMODORO_ENABLED] ?: false
         )
     }
 

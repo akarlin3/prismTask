@@ -21,11 +21,14 @@ import androidx.glance.background
 import androidx.glance.layout.Alignment
 import androidx.glance.layout.Box
 import androidx.glance.layout.Column
+import androidx.glance.layout.Row
 import androidx.glance.layout.Spacer
 import androidx.glance.layout.fillMaxSize
 import androidx.glance.layout.fillMaxWidth
 import androidx.glance.layout.height
 import androidx.glance.layout.padding
+import androidx.glance.layout.size
+import androidx.glance.layout.width
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
@@ -115,10 +118,17 @@ private fun TimerWidgetContent(
             val timeText = "%d:%02d".format(minutes, seconds)
             val progress = if (state.totalSeconds > 0) 1f - (state.remainingSeconds.toFloat() / state.totalSeconds) else 0f
 
-            val sessionLabel = if (isWork) {
-                "Session ${state.currentSession} of ${state.totalSessions}"
-            } else {
-                "Break Time"
+            // Mirror the in-app TimerScreen label split: Pomodoro mode shows
+            // "Focus Session N of M" / "Long Break" / "Short Break"; plain
+            // mode collapses to the generic "Break Time" the widget used to
+            // always show. See WIDGET_TAB_PARITY_AUDIT.md item 1.4.
+            val sessionLabel = when {
+                isWork && state.pomodoroEnabled ->
+                    "Session ${state.currentSession} of ${state.totalSessions}"
+                isWork -> "Focus"
+                state.pomodoroEnabled && state.isLongBreak -> "Long Break"
+                state.pomodoroEnabled -> "Short Break"
+                else -> "Break Time"
             }
             Text(
                 text = sessionLabel,
@@ -166,6 +176,17 @@ private fun TimerWidgetContent(
                 color = accentColor,
                 backgroundColor = palette.surfaceVariant
             )
+
+            if (isLarge && state.pomodoroEnabled && state.totalSessions > 0) {
+                Spacer(modifier = GlanceModifier.height(6.dp))
+                PomodoroSessionDots(
+                    completed = (state.currentSession - if (isWork) 1 else 0)
+                        .coerceAtLeast(0),
+                    total = state.totalSessions,
+                    activeColor = accentColor,
+                    mutedColor = palette.surfaceVariant
+                )
+            }
             Spacer(modifier = GlanceModifier.height(6.dp))
 
             // No pause/resume/skip controls here: the live countdown lives
@@ -177,6 +198,26 @@ private fun TimerWidgetContent(
                 text = if (state.isPaused) "Tap to resume" else "Tap to manage",
                 style = WidgetTextStyles.caption(palette.onSurfaceVariant)
             )
+        }
+    }
+}
+
+@Composable
+private fun PomodoroSessionDots(
+    completed: Int,
+    total: Int,
+    activeColor: androidx.glance.unit.ColorProvider,
+    mutedColor: androidx.glance.unit.ColorProvider
+) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        for (i in 0 until total) {
+            if (i > 0) Spacer(modifier = GlanceModifier.width(4.dp))
+            Box(
+                modifier = GlanceModifier
+                    .size(6.dp)
+                    .cornerRadius(3.dp)
+                    .background(if (i < completed) activeColor else mutedColor)
+            ) {}
         }
     }
 }

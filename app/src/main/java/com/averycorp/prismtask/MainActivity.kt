@@ -131,6 +131,7 @@ class MainActivity : ComponentActivity() {
         const val ACTION_VOICE_INPUT = "voice_input"
         const val ACTION_OPEN_HABITS = "open_habits"
         const val ACTION_OPEN_TIMER = "open_timer"
+        const val ACTION_OPEN_MATRIX = "open_matrix"
     }
 
     private val launchActionState = mutableStateOf<String?>(null)

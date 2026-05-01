@@ -25,10 +25,12 @@ import androidx.glance.layout.fillMaxSize
 import androidx.glance.layout.fillMaxWidth
 import androidx.glance.layout.height
 import androidx.glance.layout.padding
+import androidx.glance.layout.size
 import androidx.glance.layout.width
 import androidx.glance.text.Text
 import androidx.glance.unit.ColorProvider
 import com.averycorp.prismtask.MainActivity
+import java.util.concurrent.TimeUnit
 
 /**
  * Eisenhower Matrix widget — at-a-glance 2×2 quadrant snapshot.
@@ -73,7 +75,9 @@ private data class Quad(
     val count: Int,
     val color: ColorProvider,
     val bgColor: ColorProvider,
-    val top: String?
+    val top: String?,
+    val topPriority: Int?,
+    val topDueDate: Long?
 )
 
 @Composable
@@ -85,15 +89,27 @@ private fun EisenhowerContent(
 ) {
     val isLarge = size.width >= 350.dp
     val quads = listOf(
-        Quad("Q1", "Do", data.q1.count, palette.quadrantQ1, palette.quadrantQ1Bg, data.q1.topTaskTitle),
-        Quad("Q2", "Schedule", data.q2.count, palette.quadrantQ2, palette.quadrantQ2Bg, data.q2.topTaskTitle),
-        Quad("Q3", "Delegate", data.q3.count, palette.quadrantQ3, palette.quadrantQ3Bg, data.q3.topTaskTitle),
-        Quad("Q4", "Drop", data.q4.count, palette.quadrantQ4, palette.quadrantQ4Bg, data.q4.topTaskTitle)
+        Quad(
+            "Q1", "Do", data.q1.count, palette.quadrantQ1, palette.quadrantQ1Bg,
+            data.q1.topTaskTitle, data.q1.topTaskPriority, data.q1.topTaskDueDate
+        ),
+        Quad(
+            "Q2", "Schedule", data.q2.count, palette.quadrantQ2, palette.quadrantQ2Bg,
+            data.q2.topTaskTitle, data.q2.topTaskPriority, data.q2.topTaskDueDate
+        ),
+        Quad(
+            "Q3", "Delegate", data.q3.count, palette.quadrantQ3, palette.quadrantQ3Bg,
+            data.q3.topTaskTitle, data.q3.topTaskPriority, data.q3.topTaskDueDate
+        ),
+        Quad(
+            "Q4", "Drop", data.q4.count, palette.quadrantQ4, palette.quadrantQ4Bg,
+            data.q4.topTaskTitle, data.q4.topTaskPriority, data.q4.topTaskDueDate
+        )
     )
     val total = data.total
     val openMatrix = Intent(context, MainActivity::class.java).apply {
         flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-        putExtra(MainActivity.EXTRA_LAUNCH_ACTION, "open_matrix")
+        putExtra(MainActivity.EXTRA_LAUNCH_ACTION, MainActivity.ACTION_OPEN_MATRIX)
     }
 
     Column(
@@ -157,13 +173,57 @@ private fun QuadCell(q: Quad, palette: WidgetThemePalette, compact: Boolean, mod
             }
             if (!compact) {
                 Spacer(modifier = GlanceModifier.height(2.dp))
-                Text(
-                    text = q.top ?: "—",
-                    style = WidgetTextStyles.badge(palette.onSurfaceVariant),
-                    maxLines = 1
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (q.top != null && q.topPriority != null) {
+                        Box(
+                            modifier = GlanceModifier
+                                .size(6.dp)
+                                .cornerRadius(3.dp)
+                                .background(priorityColor(q.topPriority, palette))
+                        ) {}
+                        Spacer(modifier = GlanceModifier.width(4.dp))
+                    }
+                    Text(
+                        text = q.top ?: "—",
+                        style = WidgetTextStyles.badge(palette.onSurfaceVariant),
+                        maxLines = 1,
+                        modifier = GlanceModifier.defaultWeight()
+                    )
+                    val dueLabel = q.topDueDate?.let { dueDateLabel(it) }
+                    if (dueLabel != null) {
+                        Spacer(modifier = GlanceModifier.width(4.dp))
+                        Text(
+                            text = dueLabel.text,
+                            style = WidgetTextStyles.badge(
+                                if (dueLabel.overdue) palette.overdue else palette.onSurfaceVariant
+                            ),
+                            maxLines = 1
+                        )
+                    }
+                }
             }
         }
+    }
+}
+
+private fun priorityColor(priority: Int, palette: WidgetThemePalette): ColorProvider = when (priority) {
+    4 -> palette.priorityUrgent
+    3 -> palette.priorityHigh
+    2 -> palette.priorityMedium
+    1 -> palette.priorityLow
+    else -> palette.priorityNone
+}
+
+private data class DueDateLabel(val text: String, val overdue: Boolean)
+
+private fun dueDateLabel(dueDate: Long, now: Long = System.currentTimeMillis()): DueDateLabel {
+    val diffMs = dueDate - now
+    val days = TimeUnit.MILLISECONDS.toDays(diffMs).toInt()
+    return when {
+        days < 0 -> DueDateLabel("${-days}d ago", overdue = true)
+        days == 0 -> DueDateLabel("Today", overdue = false)
+        days == 1 -> DueDateLabel("Tmrw", overdue = false)
+        else -> DueDateLabel("${days}d", overdue = false)
     }
 }
 

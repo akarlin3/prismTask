@@ -369,6 +369,17 @@ fun PrismTaskNavGraph(
         }
     }
 
+    // Navigate to the Eisenhower Matrix screen when launched from the
+    // EisenhowerWidget. Mirrors the open_timer wiring landed in PR #1042 —
+    // before this, "open_matrix" was a dead string only emitted by the
+    // widget, so tapping the widget opened the app on its default tab
+    // instead of the matrix.
+    LaunchedEffect(initialLaunchAction) {
+        if (initialLaunchAction == com.averycorp.prismtask.MainActivity.ACTION_OPEN_MATRIX) {
+            navController.navigate(PrismTaskRoute.EisenhowerMatrix.route)
+        }
+    }
+
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
     val showBottomBar = currentRoute == null || currentRoute == PrismTaskRoute.MainTabs.route

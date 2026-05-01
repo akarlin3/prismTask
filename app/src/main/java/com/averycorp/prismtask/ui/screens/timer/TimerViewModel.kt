@@ -66,15 +66,19 @@ constructor(
     private var tickJob: Job? = null
 
     init {
-        // Sync pomodoro preferences
+        // Sync pomodoro preferences. Also push the new value into
+        // TimerStateDataStore so widget consumers see the toggle without
+        // waiting for a control tap to flush the snapshot.
         viewModelScope.launch {
             timerPreferences.getPomodoroEnabled().collect { enabled ->
                 _uiState.value = _uiState.value.copy(pomodoroEnabled = enabled)
+                syncWidgetState()
             }
         }
         viewModelScope.launch {
             timerPreferences.getSessionsUntilLongBreak().collect { sessions ->
                 _uiState.value = _uiState.value.copy(sessionsUntilLongBreak = sessions)
+                syncWidgetState()
             }
         }
         viewModelScope.launch {
@@ -373,7 +377,9 @@ constructor(
                         TimerMode.CUSTOM -> "custom"
                     },
                     currentSession = s.completedSessions + if (s.mode == TimerMode.WORK) 1 else 0,
-                    totalSessions = s.sessionsUntilLongBreak
+                    totalSessions = s.sessionsUntilLongBreak,
+                    isLongBreak = s.isLongBreak,
+                    pomodoroEnabled = s.pomodoroEnabled
                 )
             )
         }

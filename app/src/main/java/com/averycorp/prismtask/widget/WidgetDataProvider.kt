@@ -111,7 +111,12 @@ data class EisenhowerWidgetData(
 
 data class EisenhowerQuadrantSummary(
     val count: Int,
-    val topTaskTitle: String?
+    val topTaskTitle: String?,
+    // Priority + due date for the top task so the widget can render the
+    // same priority dot + due-date hint the in-app CompactTaskCard shows.
+    // Both null when [topTaskTitle] is null or the underlying field was unset.
+    val topTaskPriority: Int? = null,
+    val topTaskDueDate: Long? = null
 )
 
 data class InboxWidgetData(
@@ -456,8 +461,12 @@ object WidgetDataProvider {
             val top = matches
                 .sortedWith(compareByDescending<TaskEntity> { it.priority }.thenBy { it.dueDate ?: Long.MAX_VALUE })
                 .firstOrNull()
-                ?.title
-            return EisenhowerQuadrantSummary(count = matches.size, topTaskTitle = top)
+            return EisenhowerQuadrantSummary(
+                count = matches.size,
+                topTaskTitle = top?.title,
+                topTaskPriority = top?.priority,
+                topTaskDueDate = top?.dueDate
+            )
         }
         return EisenhowerWidgetData(
             q1 = summarize("Q1"),
