@@ -90,20 +90,44 @@ private fun EisenhowerContent(
     val isLarge = size.width >= 350.dp
     val quads = listOf(
         Quad(
-            "Q1", "Do", data.q1.count, palette.quadrantQ1, palette.quadrantQ1Bg,
-            data.q1.topTaskTitle, data.q1.topTaskPriority, data.q1.topTaskDueDate
+            "Q1",
+            "Do",
+            data.q1.count,
+            palette.quadrantQ1,
+            palette.quadrantQ1Bg,
+            data.q1.topTaskTitle,
+            data.q1.topTaskPriority,
+            data.q1.topTaskDueDate
         ),
         Quad(
-            "Q2", "Schedule", data.q2.count, palette.quadrantQ2, palette.quadrantQ2Bg,
-            data.q2.topTaskTitle, data.q2.topTaskPriority, data.q2.topTaskDueDate
+            "Q2",
+            "Schedule",
+            data.q2.count,
+            palette.quadrantQ2,
+            palette.quadrantQ2Bg,
+            data.q2.topTaskTitle,
+            data.q2.topTaskPriority,
+            data.q2.topTaskDueDate
         ),
         Quad(
-            "Q3", "Delegate", data.q3.count, palette.quadrantQ3, palette.quadrantQ3Bg,
-            data.q3.topTaskTitle, data.q3.topTaskPriority, data.q3.topTaskDueDate
+            "Q3",
+            "Delegate",
+            data.q3.count,
+            palette.quadrantQ3,
+            palette.quadrantQ3Bg,
+            data.q3.topTaskTitle,
+            data.q3.topTaskPriority,
+            data.q3.topTaskDueDate
         ),
         Quad(
-            "Q4", "Drop", data.q4.count, palette.quadrantQ4, palette.quadrantQ4Bg,
-            data.q4.topTaskTitle, data.q4.topTaskPriority, data.q4.topTaskDueDate
+            "Q4",
+            "Drop",
+            data.q4.count,
+            palette.quadrantQ4,
+            palette.quadrantQ4Bg,
+            data.q4.topTaskTitle,
+            data.q4.topTaskPriority,
+            data.q4.topTaskDueDate
         )
     )
     val total = data.total
