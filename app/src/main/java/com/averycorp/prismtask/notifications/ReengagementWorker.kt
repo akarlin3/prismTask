@@ -29,7 +29,7 @@ import dagger.assisted.AssistedInject
 import kotlinx.coroutines.flow.first
 import java.util.concurrent.TimeUnit
 
-private val Context.reengagementStore by preferencesDataStore(name = "reengagement_prefs")
+internal val Context.reengagementStore by preferencesDataStore(name = "reengagement_prefs")
 
 /**
  * Fires as a push notification when the user has been absent for at least
