@@ -11,6 +11,7 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.flow.first
+import java.time.Clock
 import javax.inject.Singleton
 
 @Module
@@ -28,5 +29,9 @@ abstract class TimeModule {
         ): StartOfDayProvider = object : StartOfDayProvider {
             override suspend fun current(): StartOfDay = prefs.getStartOfDay().first()
         }
+
+        @Provides
+        @Singleton
+        fun provideClock(): Clock = Clock.systemDefaultZone()
     }
 }

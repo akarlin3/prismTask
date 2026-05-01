@@ -51,7 +51,8 @@ class TodayScoreBadgeViewModelTest {
         val days = TodayScoreBadgeViewModel.activeDayCount(
             tasks = listOf(taskCompletedOn(day1), taskCompletedOn(day2)),
             habitCompletions = listOf(
-                habitCompletionOn(day2), // overlaps with task day → dedup
+                // overlaps with task day → dedup
+                habitCompletionOn(day2),
                 habitCompletionOn(day3)
             ),
             zone = zone

@@ -19,6 +19,7 @@ import com.averycorp.prismtask.data.remote.api.EisenhowerResponse
 import com.averycorp.prismtask.data.remote.api.EveningSummaryRequest
 import com.averycorp.prismtask.data.remote.api.EveningSummaryResponse
 import com.averycorp.prismtask.data.remote.api.FirebaseTokenRequest
+import com.averycorp.prismtask.data.remote.api.HabitCorrelationsResponse
 import com.averycorp.prismtask.data.remote.api.ImportResponse
 import com.averycorp.prismtask.data.remote.api.LoginRequest
 import com.averycorp.prismtask.data.remote.api.ParseChecklistRequest
@@ -194,6 +195,9 @@ class NaturalLanguageParserTest {
             reportId: String,
             body: BugReportStatusUpdateRequest
         ): AdminBugReportResponse =
+            error("not used in offline parser tests")
+
+        override suspend fun getHabitCorrelations(): HabitCorrelationsResponse =
             error("not used in offline parser tests")
     }
 

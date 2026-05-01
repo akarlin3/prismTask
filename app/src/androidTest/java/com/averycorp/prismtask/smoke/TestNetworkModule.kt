@@ -253,4 +253,7 @@ class FakePrismTaskApi : PrismTaskApi {
         request: com.averycorp.prismtask.data.remote.api.SyllabusConfirmRequest
     ): com.averycorp.prismtask.data.remote.api.SyllabusConfirmResponse =
         error("Not used in offline tests")
+
+    override suspend fun getHabitCorrelations(): com.averycorp.prismtask.data.remote.api.HabitCorrelationsResponse =
+        error("Not used in offline tests")
 }
