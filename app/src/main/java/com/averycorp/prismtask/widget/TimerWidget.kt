@@ -14,7 +14,6 @@ import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
 import androidx.glance.appwidget.LinearProgressIndicator
 import androidx.glance.appwidget.SizeMode
-import androidx.glance.appwidget.action.actionRunCallback
 import androidx.glance.appwidget.action.actionStartActivity
 import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.provideContent
@@ -22,17 +21,14 @@ import androidx.glance.background
 import androidx.glance.layout.Alignment
 import androidx.glance.layout.Box
 import androidx.glance.layout.Column
-import androidx.glance.layout.Row
 import androidx.glance.layout.Spacer
 import androidx.glance.layout.fillMaxSize
 import androidx.glance.layout.fillMaxWidth
 import androidx.glance.layout.height
 import androidx.glance.layout.padding
-import androidx.glance.layout.width
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
-import androidx.glance.unit.ColorProvider
 import com.averycorp.prismtask.MainActivity
 
 class TimerWidget : GlanceAppWidget() {
@@ -74,6 +70,7 @@ private fun TimerWidgetContent(
     val accentColor = if (isWork) palette.timerWork else palette.timerBreak
     val launchIntent = Intent(context, MainActivity::class.java).apply {
         flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        putExtra(MainActivity.EXTRA_LAUNCH_ACTION, MainActivity.ACTION_OPEN_TIMER)
     }
     Column(
         modifier = GlanceModifier
@@ -98,7 +95,7 @@ private fun TimerWidgetContent(
             Spacer(modifier = GlanceModifier.height(10.dp))
             val timerIntent = Intent(context, MainActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                putExtra(MainActivity.EXTRA_LAUNCH_ACTION, "open_timer")
+                putExtra(MainActivity.EXTRA_LAUNCH_ACTION, MainActivity.ACTION_OPEN_TIMER)
             }
             Box(
                 modifier = GlanceModifier
@@ -171,48 +168,16 @@ private fun TimerWidgetContent(
             )
             Spacer(modifier = GlanceModifier.height(6.dp))
 
-            Row(
-                modifier = GlanceModifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                if (state.isPaused) {
-                    WidgetButton("▶", accentColor, palette.onColored, actionRunCallback<ResumeTimerAction>())
-                    if (isLarge) {
-                        Spacer(modifier = GlanceModifier.width(8.dp))
-                        WidgetButton("■", palette.timerStop, palette.onColored, actionRunCallback<StopTimerAction>())
-                    }
-                } else {
-                    WidgetButton("⏸", accentColor, palette.onColored, actionRunCallback<PauseTimerAction>())
-                    if (isLarge && !isWork) {
-                        Spacer(modifier = GlanceModifier.width(8.dp))
-                        WidgetButton("⏭", palette.secondaryContainer, palette.onSecondaryContainer, actionRunCallback<SkipBreakAction>())
-                    }
-                }
-            }
+            // No pause/resume/skip controls here: the live countdown lives
+            // in TimerViewModel.viewModelScope, which doesn't observe this
+            // DataStore, so any widget-side mutation is overwritten by the
+            // next ViewModel sync. The whole widget is clickable to open
+            // the Timer screen, where the in-app controls work.
+            Text(
+                text = if (state.isPaused) "Tap to resume" else "Tap to manage",
+                style = WidgetTextStyles.caption(palette.onSurfaceVariant)
+            )
         }
-    }
-}
-
-@Composable
-private fun WidgetButton(
-    text: String,
-    backgroundColor: ColorProvider,
-    foregroundColor: ColorProvider,
-    onClick: androidx.glance.action.Action
-) {
-    Box(
-        modifier = GlanceModifier
-            .cornerRadius(16.dp)
-            .background(backgroundColor)
-            .padding(horizontal = 12.dp, vertical = 6.dp)
-            .clickable(onClick),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = text,
-            style = TextStyle(fontSize = 14.sp, fontWeight = FontWeight.Bold, color = foregroundColor)
-        )
     }
 }
 

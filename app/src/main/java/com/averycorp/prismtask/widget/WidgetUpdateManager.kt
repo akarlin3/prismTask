@@ -131,6 +131,26 @@ constructor(
         }
     }
 
+    /**
+     * Clears the TimerWidget DataStore and refreshes the widget on the
+     * application-scoped [scope]. Called from `TimerViewModel.onCleared`,
+     * where `viewModelScope` is already cancelled and cannot run cleanup
+     * coroutines — without this entry point a "running" flag in the
+     * DataStore would survive ViewModel teardown and leave the widget
+     * showing a frozen clock.
+     */
+    fun clearTimerStateAndUpdate() {
+        if (!BuildConfig.WIDGETS_ENABLED) return
+        scope.launch {
+            try {
+                TimerStateDataStore.clear(context)
+            } catch (e: Exception) {
+                Log.w(TAG, "TimerStateDataStore.clear failed: ${e.message}")
+            }
+            safeUpdate { TimerWidget().updateAll(context) }
+        }
+    }
+
     /** Refreshes the ProductivityWidget only (debounced). */
     suspend fun updateProductivityWidget() {
         if (!BuildConfig.WIDGETS_ENABLED) return
