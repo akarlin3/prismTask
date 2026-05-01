@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@drawable/widget_preview_surface"
+    android:padding="12dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="10dp">
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Meditate"
+            android:textColor="#E8E8EA"
+            android:textSize="13sp"
+            android:textStyle="bold" />
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="🔥 24 day streak"
+            android:textColor="#F59E0B"
+            android:textSize="11sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="vertical"
+        android:gravity="center_vertical">
+
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginBottom="2dp">
+            <View android:layout_width="0dp" android:layout_height="12dp" android:layout_weight="1" android:layout_marginEnd="2dp" android:background="@drawable/widget_preview_heat_1" />
+            <View android:layout_width="0dp" android:layout_height="12dp" android:layout_weight="1" android:layout_marginEnd="2dp" android:background="@drawable/widget_preview_heat_2" />
+            <View android:layout_width="0dp" android:layout_height="12dp" android:layout_weight="1" android:layout_marginEnd="2dp" android:background="@drawable/widget_preview_heat_0" />
+            <View android:layout_width="0dp" android:layout_height="12dp" android:layout_weight="1" android:layout_marginEnd="2dp" android:background="@drawable/widget_preview_heat_3" />
+            <View android:layout_width="0dp" android:layout_height="12dp" android:layout_weight="1" android:layout_marginEnd="2dp" android:background="@drawable/widget_preview_heat_2" />
+            <View android:layout_width="0dp" android:layout_height="12dp" android:layout_weight="1" android:layout_marginEnd="2dp" android:background="@drawable/widget_preview_heat_4" />
+            <View android:layout_width="0dp" android:layout_height="12dp" android:layout_weight="1" android:layout_marginEnd="2dp" android:background="@drawable/widget_preview_heat_3" />
+            <View android:layout_width="0dp" android:layout_height="12dp" android:layout_weight="1" android:layout_marginEnd="2dp" android:background="@drawable/widget_preview_heat_4" />
+            <View android:layout_width="0dp" android:layout_height="12dp" android:layout_weight="1" android:layout_marginEnd="2dp" android:background="@drawable/widget_preview_heat_4" />
+            <View android:layout_width="0dp" android:layout_height="12dp" android:layout_weight="1" android:background="@drawable/widget_preview_heat_3" />
+        </LinearLayout>
+
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginBottom="2dp">
+            <View android:layout_width="0dp" android:layout_height="12dp" android:layout_weight="1" android:layout_marginEnd="2dp" android:background="@drawable/widget_preview_heat_2" />
+            <View android:layout_width="0dp" android:layout_height="12dp" android:layout_weight="1" android:layout_marginEnd="2dp" android:background="@drawable/widget_preview_heat_3" />
+            <View android:layout_width="0dp" android:layout_height="12dp" android:layout_weight="1" android:layout_marginEnd="2dp" android:background="@drawable/widget_preview_heat_1" />
+            <View android:layout_width="0dp" android:layout_height="12dp" android:layout_weight="1" android:layout_marginEnd="2dp" android:background="@drawable/widget_preview_heat_4" />
+            <View android:layout_width="0dp" android:layout_height="12dp" android:layout_weight="1" android:layout_marginEnd="2dp" android:background="@drawable/widget_preview_heat_3" />
+            <View android:layout_width="0dp" android:layout_height="12dp" android:layout_weight="1" android:layout_marginEnd="2dp" android:background="@drawable/widget_preview_heat_4" />
+            <View android:layout_width="0dp" android:layout_height="12dp" android:layout_weight="1" android:layout_marginEnd="2dp" android:background="@drawable/widget_preview_heat_4" />
+            <View android:layout_width="0dp" android:layout_height="12dp" android:layout_weight="1" android:layout_marginEnd="2dp" android:background="@drawable/widget_preview_heat_3" />
+            <View android:layout_width="0dp" android:layout_height="12dp" android:layout_weight="1" android:layout_marginEnd="2dp" android:background="@drawable/widget_preview_heat_4" />
+            <View android:layout_width="0dp" android:layout_height="12dp" android:layout_weight="1" android:background="@drawable/widget_preview_heat_4" />
+        </LinearLayout>
+
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginBottom="2dp">
+            <View android:layout_width="0dp" android:layout_height="12dp" android:layout_weight="1" android:layout_marginEnd="2dp" android:background="@drawable/widget_preview_heat_0" />
+            <View android:layout_width="0dp" android:layout_height="12dp" android:layout_weight="1" android:layout_marginEnd="2dp" android:background="@drawable/widget_preview_heat_2" />
+            <View android:layout_width="0dp" android:layout_height="12dp" android:layout_weight="1" android:layout_marginEnd="2dp" android:background="@drawable/widget_preview_heat_3" />
+            <View android:layout_width="0dp" android:layout_height="12dp" android:layout_weight="1" android:layout_marginEnd="2dp" android:background="@drawable/widget_preview_heat_4" />
+            <View android:layout_width="0dp" android:layout_height="12dp" android:layout_weight="1" android:layout_marginEnd="2dp" android:background="@drawable/widget_preview_heat_2" />
+            <View android:layout_width="0dp" android:layout_height="12dp" android:layout_weight="1" android:layout_marginEnd="2dp" android:background="@drawable/widget_preview_heat_3" />
+            <View android:layout_width="0dp" android:layout_height="12dp" android:layout_weight="1" android:layout_marginEnd="2dp" android:background="@drawable/widget_preview_heat_4" />
+            <View android:layout_width="0dp" android:layout_height="12dp" android:layout_weight="1" android:layout_marginEnd="2dp" android:background="@drawable/widget_preview_heat_4" />
+            <View android:layout_width="0dp" android:layout_height="12dp" android:layout_weight="1" android:layout_marginEnd="2dp" android:background="@drawable/widget_preview_heat_3" />
+            <View android:layout_width="0dp" android:layout_height="12dp" android:layout_weight="1" android:background="@drawable/widget_preview_heat_4" />
+        </LinearLayout>
+
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginBottom="2dp">
+            <View android:layout_width="0dp" android:layout_height="12dp" android:layout_weight="1" android:layout_marginEnd="2dp" android:background="@drawable/widget_preview_heat_1" />
+            <View android:layout_width="0dp" android:layout_height="12dp" android:layout_weight="1" android:layout_marginEnd="2dp" android:background="@drawable/widget_preview_heat_0" />
+            <View android:layout_width="0dp" android:layout_height="12dp" android:layout_weight="1" android:layout_marginEnd="2dp" android:background="@drawable/widget_preview_heat_2" />
+            <View android:layout_width="0dp" android:layout_height="12dp" android:layout_weight="1" android:layout_marginEnd="2dp" android:background="@drawable/widget_preview_heat_3" />
+            <View android:layout_width="0dp" android:layout_height="12dp" android:layout_weight="1" android:layout_marginEnd="2dp" android:background="@drawable/widget_preview_heat_4" />
+            <View android:layout_width="0dp" android:layout_height="12dp" android:layout_weight="1" android:layout_marginEnd="2dp" android:background="@drawable/widget_preview_heat_4" />
+            <View android:layout_width="0dp" android:layout_height="12dp" android:layout_weight="1" android:layout_marginEnd="2dp" android:background="@drawable/widget_preview_heat_3" />
+            <View android:layout_width="0dp" android:layout_height="12dp" android:layout_weight="1" android:layout_marginEnd="2dp" android:background="@drawable/widget_preview_heat_4" />
+            <View android:layout_width="0dp" android:layout_height="12dp" android:layout_weight="1" android:layout_marginEnd="2dp" android:background="@drawable/widget_preview_heat_4" />
+            <View android:layout_width="0dp" android:layout_height="12dp" android:layout_weight="1" android:background="@drawable/widget_preview_heat_4" />
+        </LinearLayout>
+
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
+            <View android:layout_width="0dp" android:layout_height="12dp" android:layout_weight="1" android:layout_marginEnd="2dp" android:background="@drawable/widget_preview_heat_2" />
+            <View android:layout_width="0dp" android:layout_height="12dp" android:layout_weight="1" android:layout_marginEnd="2dp" android:background="@drawable/widget_preview_heat_3" />
+            <View android:layout_width="0dp" android:layout_height="12dp" android:layout_weight="1" android:layout_marginEnd="2dp" android:background="@drawable/widget_preview_heat_4" />
+            <View android:layout_width="0dp" android:layout_height="12dp" android:layout_weight="1" android:layout_marginEnd="2dp" android:background="@drawable/widget_preview_heat_2" />
+            <View android:layout_width="0dp" android:layout_height="12dp" android:layout_weight="1" android:layout_marginEnd="2dp" android:background="@drawable/widget_preview_heat_4" />
+            <View android:layout_width="0dp" android:layout_height="12dp" android:layout_weight="1" android:layout_marginEnd="2dp" android:background="@drawable/widget_preview_heat_3" />
+            <View android:layout_width="0dp" android:layout_height="12dp" android:layout_weight="1" android:layout_marginEnd="2dp" android:background="@drawable/widget_preview_heat_4" />
+            <View android:layout_width="0dp" android:layout_height="12dp" android:layout_weight="1" android:layout_marginEnd="2dp" android:background="@drawable/widget_preview_heat_4" />
+            <View android:layout_width="0dp" android:layout_height="12dp" android:layout_weight="1" android:layout_marginEnd="2dp" android:background="@drawable/widget_preview_heat_4" />
+            <View android:layout_width="0dp" android:layout_height="12dp" android:layout_weight="1" android:background="@drawable/widget_preview_heat_4" />
+        </LinearLayout>
+
+    </LinearLayout>
+</LinearLayout>

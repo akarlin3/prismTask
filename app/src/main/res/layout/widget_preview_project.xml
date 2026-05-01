@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@drawable/widget_preview_surface"
+    android:padding="12dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="8dp">
+        <View
+            android:layout_width="8dp"
+            android:layout_height="8dp"
+            android:background="@drawable/widget_preview_dot_primary"
+            android:layout_marginEnd="6dp" />
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Q2 Launch"
+            android:textColor="#E8E8EA"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            android:singleLine="true" />
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="68%"
+            android:textColor="#7C5CFF"
+            android:textSize="11sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="6dp"
+        android:background="@drawable/widget_preview_pill"
+        android:layout_marginBottom="10dp">
+        <View
+            android:layout_width="120dp"
+            android:layout_height="match_parent"
+            android:background="@drawable/widget_preview_pill_primary" />
+    </FrameLayout>
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Next milestone"
+        android:textColor="#8A8A94"
+        android:textSize="9sp"
+        android:textStyle="bold"
+        android:letterSpacing="0.1"
+        android:layout_marginBottom="3dp" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Beta release · Fri"
+        android:textColor="#E8E8EA"
+        android:textSize="11sp"
+        android:singleLine="true" />
+</LinearLayout>
