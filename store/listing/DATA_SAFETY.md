@@ -48,11 +48,11 @@ intent) and is never automatically uploaded.
 ## Data Shared with Third Parties
 
 ### Anthropic (Claude AI)
-- **What data:** Task titles, descriptions, and metadata
-- **Purpose:** AI-powered task categorization (Eisenhower), focus planning (Pomodoro), NLP parsing, and AI briefing/planner features
-- **User control:** Users can opt out by not using AI features (Pro-only features)
-- **Data processing:** Processed by Anthropic's API, subject to Anthropic's data retention policy
-- **Health data:** Mood, energy, medication, and check-in data is **never** sent to Anthropic
+- **What data:** Task titles, descriptions, and metadata; medication names (id + name only — not dosage, frequency, or prescriber) when AI batch NLP commands operate on a medication; for Gmail integration only, email subjects/snippets/sender addresses/dates from the inbox window the user scans (email bodies and attachments are not sent)
+- **Purpose:** AI-powered task categorization (Eisenhower), focus planning (Pomodoro), NLP parsing, AI briefing/planner features, and Gmail-to-task suggestion extraction
+- **User control:** Users can opt out via Settings → AI Features → "Use Claude AI for advanced features." When off, the Android client and the FastAPI backend both block Anthropic-touching endpoints (including Gmail scans) with HTTP 451
+- **Data processing:** Processed by Anthropic's API, subject to Anthropic's data retention policy (30 days standard, up to 2 years if flagged for Trust & Safety review)
+- **Health data:** Mood, energy, dose history, and check-in data is **never** sent to Anthropic (medication *names* are, only when invoked via batch NLP commands)
 
 ### Firebase (Google)
 - **What data:** Email, task and habit data (when cloud sync is enabled)

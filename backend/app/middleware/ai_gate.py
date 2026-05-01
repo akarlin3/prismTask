@@ -33,14 +33,26 @@ async def require_ai_features_enabled(
     """FastAPI dependency that rejects requests carrying the AI opt-out header.
 
     Wire as a router-level dependency on every router whose endpoints
-    egress user data to Anthropic. As of 2026-04-26 that is:
+    egress user data to Anthropic. As of 2026-05-01 that is:
       - app.routers.ai (the AI feature router — Eisenhower, Pomodoro,
         briefing, planner, time-block, weekly review, extract,
         Pomodoro coaching, batch parse)
       - the parse-import / parse-checklist endpoints in app.routers.tasks
       - the parse_syllabus endpoint in app.routers.syllabus
+      - the scan_gmail_inbox endpoint in app.routers.integrations
+        (added 2026-05-01 to close the gap surfaced by
+        ``cowork_outputs/pii_leak_surface_reaudit_REPORT.md`` —
+        the original PR #788/#790 enumeration missed it because the
+        Gmail integration landed before that audit was scoped)
 
     When the caller has not opted out, this is a no-op.
+
+    Maintenance note: any new route that egresses user data to Anthropic
+    MUST be added to (a) this list, (b) the route decorator's
+    ``dependencies=[Depends(require_ai_features_enabled)]``, and (c) the
+    Android client's ``AI_PATH_PREFIXES`` in
+    ``AiFeatureGateInterceptor.kt`` so the client short-circuits the
+    request before it hits the network.
     """
     if x_prismtask_ai_features is None:
         return

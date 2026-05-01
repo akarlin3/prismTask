@@ -3,7 +3,7 @@
 **Destination:** Play Console → Policy → Data safety.
 **Source of truth:** Phase 1 audit §4. This document must stay consistent with `../../privacy/index.md` — if one changes, update the other.
 
-This file answers every question on Play Console's current Data safety form as of 2026-04-26. Copy each answer into the corresponding Play Console field.
+This file answers every question on Play Console's current Data safety form as of 2026-05-01. Copy each answer into the corresponding Play Console field.
 
 ---
 
@@ -58,11 +58,13 @@ This file answers every question on Play Console's current Data safety form as o
 
 ### Messages
 
-| Data type | Collected? | Notes |
-|---|---|---|
-| Emails | **No** | — |
-| SMS / MMS | **No** | — |
-| Other in-app messages | **No** | Coaching chat is stored locally and in Firestore if signed in; no third-party messaging providers. |
+| Data type | Collected? | Optional? | Linked to user? | Shared? | Purpose |
+|---|---|---|---|---|---|
+| Emails (Gmail integration only — subject, snippet, sender address, message date) | Yes | **Yes — entirely optional. Requires the user to (a) be on Pro, (b) connect their Gmail account, and (c) trigger an inbox scan.** | Yes (when scanned) | **Yes — sent to Anthropic for AI task extraction. Email bodies and attachments are NOT sent.** | App functionality (Gmail-to-task suggestion extraction). Disable in Settings → AI Features. |
+| SMS / MMS | **No** | — | — | — | — |
+| Other in-app messages | **No** | — | — | — | Coaching chat is stored locally and in Firestore if signed in; no third-party messaging providers. |
+
+**Note on email data:** PrismTask does not retain email content. The Gmail scan endpoint reads the inbox window the user requests (`since_hours`, default 24h, max 168h), forwards the subject / snippet / from-address / date of each message to Anthropic's Claude API for extraction, stores only the resulting *suggested tasks* in our database, and then discards the raw email metadata. Email bodies are never read. The full message (in Gmail) is unaffected. Toggling Settings → AI Features → "Use Claude AI for advanced features" off blocks the scan endpoint on both the Android client and the FastAPI backend (returns HTTP 451 before any Anthropic call).
 
 ### Photos and videos
 
@@ -136,14 +138,14 @@ This file answers every question on Play Console's current Data safety form as o
 | Processor | Data seen | Purpose |
 |---|---|---|
 | Google (Firebase Auth, Firestore, Cloud Storage, Crashlytics, Google Sign-In, Google Speech Services, Google Calendar API, Google Play Billing) | All synced user data; voice audio during recognition; calendar events on user's own Calendar; crash reports | Auth, cloud sync, diagnostics, voice input, calendar sync, billing |
-| Anthropic PBC (Claude Haiku and Claude Sonnet, via PrismTask backend) | Task content strings submitted for NLP parsing; AI-feature prompts and context (Eisenhower, Pomodoro planning, briefing, weekly review, NLP batch commands); medication names (id + name only — not dosage, frequency, or prescriber) when AI batch NLP commands operate on medications | AI features. Anthropic does not train on inputs (Commercial Terms § B). Anthropic standard API retention is 30 days (up to 2 years if a request is flagged for Trust & Safety review) |
+| Anthropic PBC (Claude Haiku and Claude Sonnet, via PrismTask backend) | Task content strings submitted for NLP parsing; AI-feature prompts and context (Eisenhower, Pomodoro planning, briefing, weekly review, NLP batch commands); medication names (id + name only — not dosage, frequency, or prescriber) when AI batch NLP commands operate on medications; **email subjects, snippets, sender addresses, and message dates from the user's Gmail inbox when they invoke the Gmail-to-task scan (Pro + opt-in; gated by Settings → AI Features)** | AI features. Anthropic does not train on inputs (Commercial Terms § B). Anthropic standard API retention is 30 days (up to 2 years if a request is flagged for Trust & Safety review) |
 | Railway Corp | In-transit traffic to the FastAPI backend | Hosting |
 
 ---
 
 ## 4. Security practices statement (free-text in Play Console)
 
-> Data is encrypted in transit using TLS. Android users can delete their account in-app from Settings → Account & Sync → Delete Account, with a 30-day grace period during which signing back in restores the account. After the grace window the backend permanently deletes the Postgres user record and the Firebase Auth account via Firebase Admin SDK. Users who cannot access the Android app can request deletion by emailing privacy@prismtask.app, or wipe local-only data by uninstalling the app and clearing storage. Users can export a full JSON backup of their data at any time from Settings. PrismTask does not sell user data, does not use tracking SDKs beyond Firebase Crashlytics for crash diagnostics, and does not serve ads. AI features process task content (and, for NLP batch commands, medication names) through the PrismTask backend which calls Anthropic's Claude API under Anthropic's standard commercial terms — Anthropic does not train models on API inputs (Commercial Terms § B) and inputs/outputs are deleted within 30 days (up to 2 years if a request is flagged for Anthropic Trust & Safety review). Users can disable all AI processing in Settings → AI Features → "Use Claude AI for advanced features"; when disabled, the app makes no Anthropic calls and the AI-powered features become unavailable.
+> Data is encrypted in transit using TLS. Android users can delete their account in-app from Settings → Account & Sync → Delete Account, with a 30-day grace period during which signing back in restores the account. After the grace window the backend permanently deletes the Postgres user record and the Firebase Auth account via Firebase Admin SDK. Users who cannot access the Android app can request deletion by emailing privacy@prismtask.app, or wipe local-only data by uninstalling the app and clearing storage. Users can export a full JSON backup of their data at any time from Settings. PrismTask does not sell user data, does not use tracking SDKs beyond Firebase Crashlytics for crash diagnostics, and does not serve ads. AI features process task content (and, for NLP batch commands, medication names; for Gmail integration, email subjects/snippets/sender addresses) through the PrismTask backend which calls Anthropic's Claude API under Anthropic's standard commercial terms — Anthropic does not train models on API inputs (Commercial Terms § B) and inputs/outputs are deleted within 30 days (up to 2 years if a request is flagged for Anthropic Trust & Safety review). Users can disable all AI processing in Settings → AI Features → "Use Claude AI for advanced features"; when disabled, the app makes no Anthropic calls (including no Gmail scans) and the AI-powered features become unavailable.
 
 ---
 

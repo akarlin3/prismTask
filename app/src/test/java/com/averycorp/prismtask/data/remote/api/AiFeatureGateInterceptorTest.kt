@@ -3,6 +3,7 @@ package com.averycorp.prismtask.data.remote.api
 import com.averycorp.prismtask.data.preferences.UserPreferencesDataStore
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.slot
 import io.mockk.verify
 import okhttp3.Interceptor
 import okhttp3.MediaType.Companion.toMediaType
@@ -257,5 +258,104 @@ class AiFeatureGateInterceptorTest {
                 "/tasks/list".startsWith(it)
             }
         )
+    }
+
+    // ── Gmail integration scan gate (PII re-audit follow-up, 2026-05-01) ─
+
+    @Test
+    fun `gmail scan path short-circuits when AI is disabled`() {
+        // Privacy invariant: when the user disables AI features, the
+        // Gmail scan endpoint (which ships email subjects/snippets to
+        // Anthropic) must NOT make a network call. Closes the gap from
+        // `cowork_outputs/pii_leak_surface_reaudit_REPORT.md` (2026-05-01).
+        val req = requestTo("https://api.prismtask.app/integrations/gmail/scan")
+        every { prefs.isAiFeaturesEnabledBlocking() } returns false
+        every { chain.request() } returns req
+
+        val result = interceptor.intercept(chain)
+
+        assertEquals(
+            "Disabled AI request to /integrations/gmail/scan must return synthetic 451",
+            451,
+            result.code
+        )
+        verify(exactly = 0) { chain.proceed(any()) }
+    }
+
+    @Test
+    fun `gmail scan path proceeds and stamps disable header is absent when AI is enabled`() {
+        // Happy path — when the user has AI enabled, the request proceeds
+        // unchanged and the interceptor does NOT inject the disable header
+        // (otherwise the backend would 451 the opted-in user).
+        val req = requestTo("https://api.prismtask.app/integrations/gmail/scan")
+        every { prefs.isAiFeaturesEnabledBlocking() } returns true
+        every { chain.request() } returns req
+        val captured = slot<okhttp3.Request>()
+        every { chain.proceed(capture(captured)) } returns successResponse(req)
+
+        val result = interceptor.intercept(chain)
+
+        assertEquals(200, result.code)
+        verify(exactly = 1) { chain.proceed(any()) }
+        assertEquals(
+            "Enabled-state outbound request must NOT carry the disabled header",
+            null,
+            captured.captured.header(AiFeatureGateInterceptor.HEADER_AI_FEATURES)
+        )
+    }
+
+    @Test
+    fun `synthetic 451 carries the disable header on its request as defense-in-depth`() {
+        // The interceptor stamps `X-PrismTask-AI-Features: disabled` on the
+        // request that the synthetic 451 response references. If a future
+        // refactor or interceptor reordering converts this short-circuit
+        // into a real `chain.proceed`, the header is already present so
+        // the server-side `require_ai_features_enabled` dependency still
+        // rejects the call.
+        val req = requestTo("https://api.prismtask.app/integrations/gmail/scan")
+        every { prefs.isAiFeaturesEnabledBlocking() } returns false
+        every { chain.request() } returns req
+
+        val result = interceptor.intercept(chain)
+
+        assertEquals(
+            "Tagged request must carry the disable header",
+            "disabled",
+            result.request.header(AiFeatureGateInterceptor.HEADER_AI_FEATURES)
+        )
+    }
+
+    @Test
+    fun `non-anthropic integrations paths are not gated when AI is disabled`() {
+        // Regression guard: only `/integrations/gmail/scan` egresses to
+        // Anthropic. The suggestion inbox / accept / reject endpoints do
+        // not touch Anthropic and MUST keep working when the user opts
+        // out — otherwise the user can't manage suggestions that were
+        // already extracted before the toggle was flipped. Catches a
+        // regression where someone shortens the prefix to `/integrations/`.
+        every { prefs.isAiFeaturesEnabledBlocking() } returns false
+
+        val nonAnthropicIntegrationPaths = listOf(
+            "/integrations/suggestions",
+            "/integrations/suggestions/42/accept",
+            "/integrations/suggestions/42/reject",
+            "/integrations/suggestions/batch",
+            "/integrations/calendar/status",
+            "/integrations/calendar/authorize"
+        )
+
+        nonAnthropicIntegrationPaths.forEach { path ->
+            val req = requestTo("https://api.prismtask.app$path")
+            every { chain.request() } returns req
+            every { chain.proceed(req) } returns successResponse(req)
+
+            val result = interceptor.intercept(chain)
+
+            assertEquals(
+                "Path $path must NOT be gated — only /integrations/gmail/scan touches Anthropic",
+                200,
+                result.code
+            )
+        }
     }
 }

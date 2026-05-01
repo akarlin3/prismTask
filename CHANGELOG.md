@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Privacy
+
+- **Closed Gmail integration AI-features opt-out gap.** Toggling Settings →
+  AI Features → "Use Claude AI for advanced features" off now also blocks
+  `POST /integrations/gmail/scan` on both the Android client (the
+  `AiFeatureGateInterceptor` short-circuits the request before it hits the
+  network) and the FastAPI backend (the `require_ai_features_enabled`
+  dependency on the route returns HTTP 451 before any Anthropic call). The
+  Gmail integration framework had landed two weeks before the opt-out gate
+  shipped (PR #790), and the original audit's endpoint enumeration missed
+  it; the 2026-05-01 re-audit
+  (`cowork_outputs/pii_leak_surface_reaudit_REPORT.md`) caught the gap.
+  Privacy policy and Data Safety form were updated to disclose Gmail
+  subjects/snippets/sender addresses as data sent to Anthropic when the
+  user opts into the Gmail integration. Audit doc updated with a
+  forward-looking checklist for any future `/integrations/*` route that
+  egresses to Anthropic. The Android interceptor also now stamps
+  `X-PrismTask-AI-Features: disabled` on the synthetic 451's request as
+  defense-in-depth against future interceptor reordering. Adds 2 backend
+  pytest cases, 4 Android interceptor cases.
+
 ### Added
 
 - **Cross-device Firestore sync for `task_timings`.** P2-E of the analytics

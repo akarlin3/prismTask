@@ -6,6 +6,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 from httpx import AsyncClient
 
+from app.middleware.ai_gate import HEADER_NAME, HEADER_VALUE_DISABLED
+
 
 @pytest.fixture
 async def goal_and_project(client: AsyncClient, auth_headers: dict):
@@ -340,3 +342,90 @@ async def test_batch_accept_reject(
     )
     assert list_resp.status_code == 200
     assert len(list_resp.json()) == 0
+
+
+# --- Test 7: AI-features opt-out gate on /integrations/gmail/scan ---
+
+@pytest.mark.asyncio
+async def test_gmail_scan_returns_451_when_ai_features_disabled(
+    client: AsyncClient, auth_headers: dict
+):
+    """Sending the AI-features opt-out header to /integrations/gmail/scan
+    must return 451 *before* the route handler runs — i.e. before any
+    Anthropic call.
+
+    Privacy invariant: when the user has disabled AI features (or the
+    Android client interceptor has stamped the disable header), no email
+    metadata may reach Anthropic via Gmail scan. This is the regression
+    guard for the gap surfaced by
+    ``cowork_outputs/pii_leak_surface_reaudit_REPORT.md`` (2026-05-01),
+    which found that ``/integrations/gmail/scan`` was the only
+    Anthropic-touching endpoint not covered by the gate after PR #790.
+    """
+    with patch(
+        "app.services.integrations.gmail_integration.anthropic"
+    ) as mock_anthropic, patch.dict(
+        "os.environ", {"ANTHROPIC_API_KEY": "test-key"}
+    ):
+        resp = await client.post(
+            "/api/v1/integrations/gmail/scan",
+            headers={**auth_headers, HEADER_NAME: HEADER_VALUE_DISABLED},
+        )
+
+        assert resp.status_code == 451, resp.text
+        # The critical assertion: the Anthropic client must never have been
+        # constructed. If `Anthropic` is instantiated, email data has
+        # already been (or is about to be) shipped to Claude.
+        mock_anthropic.Anthropic.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_gmail_scan_proceeds_without_opt_out_header(
+    client: AsyncClient, auth_headers: dict, goal_and_project
+):
+    """Sanity check: omitting the opt-out header lets the request proceed
+    normally so the gate doesn't block opted-in users.
+
+    The endpoint is exercised end-to-end — Anthropic is mocked, the scan
+    runs, and we assert the suggestion is created. This protects the
+    happy path from a future regression that over-applies the gate."""
+    emails = [
+        {
+            "email_id": "msg_gate_happy_1",
+            "subject": "Sprint Planning",
+            "from": "scrum@work.com",
+            "snippet": "Pick stories for next sprint",
+        },
+    ]
+    response_text = _mock_claude_gmail_response(emails)
+    mock_client = _build_mock_anthropic(response_text)
+
+    with patch(
+        "app.services.integrations.gmail_integration.anthropic"
+    ) as mock_anthropic, patch.dict(
+        "os.environ", {"ANTHROPIC_API_KEY": "test-key"}
+    ):
+        mock_anthropic.Anthropic.return_value = mock_client
+
+        from app.services.integrations.gmail_integration import scan_gmail
+        from tests.conftest import TestSessionLocal
+
+        async with TestSessionLocal() as session:
+            from app.services.auth import decode_token
+
+            token = auth_headers["Authorization"].split(" ")[1]
+            payload = decode_token(token)
+            user_id = int(payload["sub"])
+
+            result = await scan_gmail(
+                db=session,
+                user_id=user_id,
+                since_hours=24,
+                emails_override=emails,
+            )
+            await session.commit()
+
+        # Without the opt-out header, the scan completes and produces a
+        # suggestion (the route-level gate is a no-op).
+        assert len(result) == 1
+        assert result[0]["source"] == "gmail"

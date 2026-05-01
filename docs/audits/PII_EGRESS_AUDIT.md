@@ -599,3 +599,104 @@ grep -B 2 -A 5 "user_context_dict" backend/app/routers/ai.py
 *This audit was written before any PoC code was written. Per the rules of
 the engagement: no implementation, no branch, no tokenization scaffolding
 exists. Decision on Options A/B/C/D required before Phase 2 work begins.*
+
+---
+
+## Follow-up — 2026-05-01: closing the `/integrations/gmail/scan` gap
+
+### What was missed in PR #788 / PR #790
+
+The original endpoint enumeration (Section 1, table above) lists site #15
+`scan_gmail` as Anthropic-touching. PR #788's gating scope, however, was
+written against a smaller subset — only `/ai/*`, `/tasks/parse*`, and
+`/syllabus/parse` were wired with `Depends(require_ai_features_enabled)`.
+PR #790 inherited that scope and shipped without closing the gap.
+
+The Gmail integration framework
+(`backend/app/services/integrations/gmail_integration.py` +
+`POST /api/v1/integrations/gmail/scan`) had landed at commit `385b340d`
+on 2026-04-11 — fifteen days before PR #790 — and was therefore not in
+the audit author's working set when scope was decided. Result: the
+endpoint shipped to production transmitting user email subjects, snippets,
+and sender addresses to Anthropic regardless of the user's AI-features
+toggle setting. Layer 4 (server middleware) was the only ungated layer;
+Layers 1–3 were correctly built, so a user toggling the setting OFF
+would believe AI processing had stopped while Gmail scans continued
+silently.
+
+### How it was caught
+
+The 2026-05-01 re-audit
+(`cowork_outputs/pii_leak_surface_reaudit_REPORT.md`) re-ran the
+endpoint inventory after +210 PRs of churn since PR #790 shipped. The
+re-audit's Section C table re-listed every Anthropic-touching endpoint
+and flagged `POST /integrations/gmail/scan` as **RED P0 — NONE** under
+"Middleware Coverage." Verdict: **RED-P0-UNGATED REGRESSION**.
+
+### What changed in this PR
+
+Four-layer fix landing together:
+
+1. **Server route gate** — `backend/app/routers/integrations.py`:
+   `scan_gmail_inbox` decorator now carries
+   `dependencies=[Depends(require_ai_features_enabled)]`. The
+   suggestion inbox / accept / reject / batch endpoints are
+   intentionally left ungated — they don't call Anthropic and gating
+   them would prevent opted-out users from triaging suggestions that
+   were extracted before they flipped the toggle.
+2. **Middleware docstring** — `backend/app/middleware/ai_gate.py`:
+   `require_ai_features_enabled` docstring now enumerates the Gmail
+   scan endpoint alongside the `/ai/*` router and parse endpoints, plus
+   a maintenance note pointing future contributors at the three things
+   that must change in lockstep when adding a new Anthropic-touching
+   route.
+3. **Android interceptor prefix** — `AiFeatureGateInterceptor.kt`:
+   `AI_PATH_PREFIXES` now includes the precise
+   `/integrations/gmail/scan` prefix (not the broader `/integrations/`)
+   so the suggestion-inbox UI keeps working when AI is off.
+4. **Android interceptor outbound stamping** — same file:
+   `intercept(...)` now stamps `X-PrismTask-AI-Features: disabled` on
+   the request attached to the synthetic 451 response. Defense-in-depth
+   for any future refactor that converts the short-circuit into a real
+   `chain.proceed` — the request already carries the header, so the
+   server gate still rejects it.
+
+Plus disclosure deltas:
+
+5. **Privacy policy** — `docs/PRIVACY_POLICY.md`: enumerated Gmail
+   subjects/snippets/sender-addresses/dates as data sent to Anthropic
+   when the user opts into the Gmail integration.
+6. **Data Safety form** — `docs/store-listing/compliance/data-safety-form.md`:
+   moved the "Emails" row out of the "No" column and into a full
+   collected-and-shared declaration; updated the Anthropic processor row
+   and the security-practices statement to mention Gmail data.
+
+### Forward-looking maintenance checklist
+
+Going forward, **any new `/integrations/*` endpoint that calls Anthropic
+must update all three places in lockstep**:
+
+- The route decorator's `dependencies=[Depends(require_ai_features_enabled)]`
+  in `backend/app/routers/integrations.py`.
+- The docstring scope list in `backend/app/middleware/ai_gate.py`.
+- The Android client's `AI_PATH_PREFIXES` list in
+  `AiFeatureGateInterceptor.kt`.
+
+This list is also captured in the `ai_gate.py` docstring as a
+maintenance note so contributors see it at the call site.
+
+If the project has a PR template, consider adding a checklist line:
+"☐ This PR adds a new Anthropic-touching endpoint — gated on backend
+AND added to Android `AI_PATH_PREFIXES`."
+
+### Out-of-scope follow-ups (post-launch)
+
+- **Option B / on-device parsing** for Gmail scan (Phase G+ per PR #788).
+  The current fix keeps the existing server-mediated flow but gates it
+  correctly; replacing it with on-device parsing would remove the egress
+  surface entirely.
+- **iOS gating parity** (Phase K per PR #790) — the iOS client when it
+  ships will need a corresponding `AI_PATH_PREFIXES` equivalent,
+  including this Gmail entry.
+- **Anthropic ZDR + BAA** (Section 5D / Option D above) remains the
+  long-term hardening track for medication-name + Gmail-metadata egress.

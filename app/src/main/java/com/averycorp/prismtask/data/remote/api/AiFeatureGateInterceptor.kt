@@ -49,10 +49,19 @@ constructor(
             return chain.proceed(original)
         }
 
-        // AI is disabled — short-circuit with a 451. The backend never
-        // sees the request, so no PrismTask data reaches Anthropic.
+        // AI is disabled — stamp the disable header on the request *before*
+        // short-circuiting (defense-in-depth: if a buggy build re-orders
+        // interceptors so the synthetic-451 step gets bypassed, the request
+        // already carries the header and the server's
+        // ``require_ai_features_enabled`` dependency will still reject it).
+        val tagged = original.newBuilder()
+            .header(HEADER_AI_FEATURES, HEADER_VALUE_DISABLED)
+            .build()
+
+        // Short-circuit with a 451. The backend never sees the request, so
+        // no PrismTask data reaches Anthropic.
         return Response.Builder()
-            .request(original)
+            .request(tagged)
             .protocol(Protocol.HTTP_1_1)
             .code(HTTP_451_UNAVAILABLE_FOR_LEGAL_REASONS)
             .header(HEADER_AI_FEATURES, HEADER_VALUE_DISABLED)
@@ -85,7 +94,15 @@ constructor(
         val AI_PATH_PREFIXES: List<String> = listOf(
             "/ai/",
             "/tasks/parse",
-            "/syllabus/parse"
+            "/syllabus/parse",
+            // PII egress to Anthropic via Gmail scan — the integrations
+            // router landed two weeks before PR #790 and the original audit
+            // missed it; closed by 2026-05-01 follow-up. The precise
+            // `/integrations/gmail/scan` prefix is intentional: the
+            // suggestion inbox / accept / reject endpoints under
+            // `/integrations/suggestions*` do NOT call Anthropic and must
+            // keep working when the user opts out.
+            "/integrations/gmail/scan"
         )
     }
 }
