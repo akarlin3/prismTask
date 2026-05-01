@@ -382,13 +382,11 @@ constructor(
     override fun onCleared() {
         super.onCleared()
         tickJob?.cancel()
-        // Clear widget state when the timer screen is closed
-        viewModelScope.launch {
-            val s = _uiState.value
-            if (!s.isRunning) {
-                TimerStateDataStore.clear(appContext)
-                widgetUpdateManager.updateTimerWidget()
-            }
-        }
+        // Always clear widget state on close: tickJob has just been
+        // cancelled, so any "running" flag in the DataStore would now be
+        // a lie and the widget would show a frozen clock. Routed through
+        // an application-scoped scope because viewModelScope is already
+        // cancelled by the time onCleared runs.
+        widgetUpdateManager.clearTimerStateAndUpdate()
     }
 }

@@ -357,6 +357,18 @@ fun PrismTaskNavGraph(
         }
     }
 
+    // Navigate to Timer tab when launched from the TimerWidget / FocusWidget.
+    LaunchedEffect(initialLaunchAction) {
+        if (initialLaunchAction == com.averycorp.prismtask.MainActivity.ACTION_OPEN_TIMER) {
+            val timerIndex = bottomNavItems.indexOfFirst {
+                it.route == PrismTaskRoute.Timer.route
+            }
+            if (timerIndex >= 0) {
+                pagerState.scrollToPage(timerIndex)
+            }
+        }
+    }
+
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
     val showBottomBar = currentRoute == null || currentRoute == PrismTaskRoute.MainTabs.route

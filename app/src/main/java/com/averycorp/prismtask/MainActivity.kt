@@ -130,7 +130,10 @@ class MainActivity : ComponentActivity() {
         const val ACTION_OPEN_TEMPLATES = "open_templates"
         const val ACTION_VOICE_INPUT = "voice_input"
         const val ACTION_OPEN_HABITS = "open_habits"
+        const val ACTION_OPEN_TIMER = "open_timer"
     }
+
+    private val launchActionState = mutableStateOf<String?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
@@ -184,7 +187,7 @@ class MainActivity : ComponentActivity() {
         } catch (e: Exception) {
             Log.e("MainActivity", "Crashlytics user ID setup failed", e)
         }
-        val launchAction = intent?.getStringExtra(EXTRA_LAUNCH_ACTION)
+        launchActionState.value = intent?.getStringExtra(EXTRA_LAUNCH_ACTION)
         // v1.4.0 V9: support Android share-intent entry into the Paste
         // Conversation screen. When another app sends text to PrismTask
         // (ACTION_SEND, text/plain) the text is forwarded to the nav
@@ -576,6 +579,7 @@ class MainActivity : ComponentActivity() {
                                 .fillMaxSize()
                                 .themeOverlay(currentPrismTheme)
                         ) {
+                            val launchAction by launchActionState
                             PrismTaskNavGraph(
                                 modifier = Modifier.fillMaxSize(),
                                 navController = navController,
@@ -610,6 +614,12 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        launchActionState.value = intent.getStringExtra(EXTRA_LAUNCH_ACTION)
     }
 
     private fun setCrashlyticsUserId() {
