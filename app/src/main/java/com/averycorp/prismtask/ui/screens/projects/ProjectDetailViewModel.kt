@@ -9,6 +9,8 @@ import com.averycorp.prismtask.data.local.entity.MilestoneEntity
 import com.averycorp.prismtask.data.local.entity.TaskEntity
 import com.averycorp.prismtask.data.repository.ProjectRepository
 import com.averycorp.prismtask.domain.model.ProjectDetail
+import com.averycorp.prismtask.domain.usecase.ProjectBurndown
+import com.averycorp.prismtask.domain.usecase.ProjectBurndownComputer
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -16,10 +18,14 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
 import javax.inject.Inject
 
 /**
@@ -36,6 +42,7 @@ class ProjectDetailViewModel
 constructor(
     private val projectRepository: ProjectRepository,
     private val taskDao: TaskDao,
+    private val projectBurndownComputer: ProjectBurndownComputer,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
     val projectId: Long = savedStateHandle.get<Long>("projectId") ?: -1L
@@ -57,6 +64,31 @@ constructor(
             }
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /**
+     * Burndown projection for the project, refreshed whenever the
+     * project's task list or lifecycle dates change. Null when the
+     * project has no tasks (the chart is hidden in that case).
+     */
+    val burndown: StateFlow<ProjectBurndown?> = combine(detail, tasks) { d, taskList ->
+        if (d == null || taskList.isEmpty()) {
+            null
+        } else {
+            val zone = ZoneId.systemDefault()
+            val today = LocalDate.now(zone)
+            projectBurndownComputer.compute(
+                tasks = taskList,
+                zone = zone,
+                today = today,
+                projectStart = d.project.startDate?.let {
+                    Instant.ofEpochMilli(it).atZone(zone).toLocalDate()
+                },
+                projectEnd = d.project.endDate?.let {
+                    Instant.ofEpochMilli(it).atZone(zone).toLocalDate()
+                }
+            )
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     // -------------------- Project lifecycle --------------------
 

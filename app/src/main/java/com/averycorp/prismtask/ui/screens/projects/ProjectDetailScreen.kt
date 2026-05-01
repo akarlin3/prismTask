@@ -236,8 +236,9 @@ fun ProjectDetailScreen(
                 }
             }
 
+            val burndown by viewModel.burndown.collectAsStateWithLifecycle()
             when (selectedTab) {
-                0 -> OverviewSection(detail = detail)
+                0 -> OverviewSection(detail = detail, burndown = burndown)
                 1 -> MilestonesSection(
                     milestones = detail?.milestones.orEmpty(),
                     onAdd = viewModel::addMilestone,
@@ -286,7 +287,10 @@ fun ProjectDetailScreen(
 // ---------------------------------------------------------------------
 
 @Composable
-private fun OverviewSection(detail: ProjectDetail?) {
+private fun OverviewSection(
+    detail: ProjectDetail?,
+    burndown: com.averycorp.prismtask.domain.usecase.ProjectBurndown? = null
+) {
     val prismColors = LocalPrismColors.current
     if (detail == null) {
         Box(modifier = Modifier.fillMaxSize()) { /* blank while loading */ }
@@ -382,6 +386,16 @@ private fun OverviewSection(detail: ProjectDetail?) {
                         .background(accent)
                 )
             }
+        }
+
+        // Burndown chart — only when we have tasks AND a non-degenerate
+        // computation (the computer returns null for empty task lists).
+        burndown?.let {
+            SectionHeader("Progress")
+            com.averycorp.prismtask.ui.screens.projects.components.BurndownChart(
+                burndown = it,
+                accent = accent
+            )
         }
     }
 }

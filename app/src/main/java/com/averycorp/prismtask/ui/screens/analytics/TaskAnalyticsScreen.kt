@@ -1,5 +1,6 @@
 package com.averycorp.prismtask.ui.screens.analytics
 
+import android.content.Intent
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
@@ -20,6 +21,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenuItem
@@ -50,6 +52,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -70,6 +73,7 @@ fun TaskAnalyticsScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val accentColor = MaterialTheme.colorScheme.primary
+    val context = LocalContext.current
 
     Scaffold(
         topBar = {
@@ -78,6 +82,30 @@ fun TaskAnalyticsScreen(
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                actions = {
+                    if (state.isPro && state.stats != null) {
+                        IconButton(onClick = {
+                            val markdown = viewModel.buildExportMarkdown()
+                            val intent = Intent(Intent.ACTION_SEND).apply {
+                                type = "text/markdown"
+                                putExtra(Intent.EXTRA_SUBJECT, "PrismTask Analytics Report")
+                                putExtra(Intent.EXTRA_TEXT, markdown)
+                            }
+                            try {
+                                context.startActivity(
+                                    Intent.createChooser(intent, "Share Analytics Report")
+                                )
+                            } catch (_: Exception) {
+                                // No share targets available — silent no-op.
+                            }
+                        }) {
+                            Icon(
+                                imageVector = Icons.Filled.Share,
+                                contentDescription = "Share Analytics Report"
+                            )
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -123,8 +151,15 @@ fun TaskAnalyticsScreen(
                         response = productivity,
                         selectedRange = state.productivityRange,
                         onRangeSelected = { viewModel.setProductivityRange(it) },
-                        accent = accentColor
+                        accent = accentColor,
+                        streak = state.streak
                     )
+                    if (productivity.scores.isNotEmpty()) {
+                        ProductivityHeatmap(
+                            scores = productivity.scores,
+                            accent = accentColor
+                        )
+                    }
                 }
                 // Time-tracking bar chart \u2014 Pro-gated (P2-C, C4 + C5)
                 state.timeTracking?.let { timeTracking ->
@@ -135,6 +170,26 @@ fun TaskAnalyticsScreen(
                         accent = accentColor
                     )
                 }
+                // Habit correlations \u2014 Pro-gated, on-demand (server
+                // rate-limits to 1 call/day so don't auto-fetch).
+                HabitCorrelationsSection(accent = accentColor)
+            } else {
+                // Free-tier replacements so the screen doesn't have a
+                // silent gap where the Pro charts would render. Each
+                // upsell mirrors the section it stands in for so users
+                // see exactly which feature unlocks with Pro.
+                AnalyticsSectionProUpsell(
+                    title = "Unlock Productivity Score Chart",
+                    body = "Daily 0\u2013100 score with trend, best/worst-day callouts, and a 12-week heatmap \u2014 included with Pro."
+                )
+                AnalyticsSectionProUpsell(
+                    title = "Unlock Time Tracking",
+                    body = "Daily logged-time bars from manual logs and Pomodoro auto-tracking \u2014 included with Pro."
+                )
+                AnalyticsSectionProUpsell(
+                    title = "Unlock Habit Correlations",
+                    body = "AI-powered analysis of which habits boost your productivity \u2014 included with Pro."
+                )
             }
 
             if (stats == null || stats.totalCompleted == 0) {

@@ -145,6 +145,25 @@ private fun SummaryTile(
  */
 @Composable
 fun AnalyticsSummaryProUpsell(modifier: Modifier = Modifier) {
+    AnalyticsSectionProUpsell(
+        title = "Unlock Productivity Summary",
+        body = "Today, week trend, streak, and habit completion at a glance — included with Pro.",
+        modifier = modifier
+    )
+}
+
+/**
+ * Generic Pro upsell card used in place of the score chart, time
+ * tracking chart, heatmap, and habit correlations sections when the
+ * user is on the free tier. Mirrors [AnalyticsSummaryProUpsell]'s shape
+ * so all four free-tier replacements look consistent.
+ */
+@Composable
+fun AnalyticsSectionProUpsell(
+    title: String,
+    body: String,
+    modifier: Modifier = Modifier
+) {
     Surface(
         modifier = modifier
             .fillMaxWidth()
@@ -163,12 +182,12 @@ fun AnalyticsSummaryProUpsell(modifier: Modifier = Modifier) {
             )
             Column(modifier = Modifier.padding(start = 12.dp)) {
                 Text(
-                    text = "Unlock Productivity Summary",
+                    text = title,
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold
                 )
                 Text(
-                    text = "Today, week trend, streak, and habit completion at a glance — included with Pro.",
+                    text = body,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

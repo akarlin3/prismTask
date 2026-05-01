@@ -795,3 +795,26 @@ data class ParseChecklistResponse(
 )
 
 // endregion
+
+// region Habit correlations (Phase I)
+
+/**
+ * Per-habit correlation entry from `/analytics/habit-correlations`.
+ * Mirrors `backend/app/schemas/analytics.py::HabitCorrelation`.
+ */
+data class HabitCorrelationItem(
+    val habit: String,
+    @SerializedName("done_productivity") val doneProductivity: Double,
+    @SerializedName("not_done_productivity") val notDoneProductivity: Double,
+    /** "positive", "negative", "neutral", or weak variants. */
+    val correlation: String,
+    val interpretation: String
+)
+
+data class HabitCorrelationsResponse(
+    val correlations: List<HabitCorrelationItem>,
+    @SerializedName("top_insight") val topInsight: String,
+    val recommendation: String
+)
+
+// endregion

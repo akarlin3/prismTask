@@ -75,6 +75,7 @@ import com.averycorp.prismtask.ui.screens.today.components.HabitChipRow
 import com.averycorp.prismtask.ui.screens.today.components.MorningCheckInBanner
 import com.averycorp.prismtask.ui.screens.today.components.OverloadBanner
 import com.averycorp.prismtask.ui.screens.today.components.PlanForTodaySheet
+import com.averycorp.prismtask.ui.screens.today.components.ProductivityScoreBadge
 import com.averycorp.prismtask.ui.screens.today.components.SelfCareNudgeCard
 import com.averycorp.prismtask.ui.screens.today.components.SwipeableTaskItem
 import com.averycorp.prismtask.ui.screens.today.components.TodayBalanceSection
@@ -215,6 +216,11 @@ fun TodayScreen(
                 progress = combinedProgress,
                 progressStyle = progressStyle,
                 onAnalyticsClick = { navController.navigate(PrismTaskRoute.TaskAnalytics.createRoute()) },
+                productivityBadge = {
+                    ProductivityScoreBadge(
+                        onClick = { navController.navigate(PrismTaskRoute.TaskAnalytics.createRoute()) }
+                    )
+                },
                 trailingActions = { SyncIndicatorHost() }
             )
         },

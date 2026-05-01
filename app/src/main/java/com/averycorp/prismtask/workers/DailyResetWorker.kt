@@ -9,8 +9,10 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.averycorp.prismtask.BuildConfig
 import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
+import com.averycorp.prismtask.notifications.ProductiveStreakNotifier
 import com.averycorp.prismtask.util.DayBoundary
 import com.averycorp.prismtask.widget.WidgetUpdateManager
+import com.averycorp.prismtask.workers.streak.ProductiveStreakResolver
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.flow.first
@@ -38,7 +40,9 @@ constructor(
     @Assisted private val appContext: Context,
     @Assisted workerParams: WorkerParameters,
     private val taskBehaviorPreferences: TaskBehaviorPreferences,
-    private val widgetUpdateManager: WidgetUpdateManager
+    private val widgetUpdateManager: WidgetUpdateManager,
+    private val productiveStreakResolver: ProductiveStreakResolver,
+    private val productiveStreakNotifier: ProductiveStreakNotifier
 ) : CoroutineWorker(appContext, workerParams) {
     override suspend fun doWork(): Result {
         // Refresh widgets so the new day's tasks/habits are visible immediately.
@@ -48,6 +52,19 @@ constructor(
             } catch (_: Throwable) {
                 // Best-effort: don't fail the worker if widget update throws.
             }
+        }
+
+        // Roll the productive-day streak forward for the day that just ended.
+        // Piggybacks on this worker (which already fires on SoD) rather than
+        // scheduling its own alarm — see audit § "Productive streak rollover"
+        // critical implementation rule.
+        try {
+            val outcome = productiveStreakResolver.resolveYesterday()
+            if (outcome.brokenStreakLength > 0) {
+                productiveStreakNotifier.notifyBrokenStreak(outcome.brokenStreakLength)
+            }
+        } catch (_: Throwable) {
+            // Best-effort: streak update should never fail the day-boundary worker.
         }
 
         // Reschedule for the next day boundary using hour + minute.

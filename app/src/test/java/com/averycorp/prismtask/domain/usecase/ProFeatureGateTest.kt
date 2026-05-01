@@ -41,6 +41,7 @@ class ProFeatureGateTest {
             ProFeatureGate.AI_BRIEFING, ProFeatureGate.AI_WEEKLY_PLAN,
             ProFeatureGate.AI_TIME_BLOCK, ProFeatureGate.AI_CONVERSATIONAL,
             ProFeatureGate.AI_DAILY_PLANNING, ProFeatureGate.AI_REENGAGEMENT,
+            ProFeatureGate.ANALYTICS_FULL, ProFeatureGate.ANALYTICS_CORRELATIONS,
             ProFeatureGate.SYLLABUS_IMPORT -> UserTier.PRO
 
             else -> UserTier.FREE
@@ -67,6 +68,8 @@ class ProFeatureGateTest {
         ProFeatureGate.AI_CONVERSATIONAL,
         ProFeatureGate.AI_DAILY_PLANNING,
         ProFeatureGate.AI_REENGAGEMENT,
+        ProFeatureGate.ANALYTICS_FULL,
+        ProFeatureGate.ANALYTICS_CORRELATIONS,
         ProFeatureGate.SYLLABUS_IMPORT
     )
 

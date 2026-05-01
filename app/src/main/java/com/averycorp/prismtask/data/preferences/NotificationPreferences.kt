@@ -138,6 +138,15 @@ class NotificationPreferences(
         private val WEEKLY_REVIEW_WORKER_SEEDED =
             booleanPreferencesKey("weekly_review_worker_seeded_v14")
 
+        // Weekly analytics roll-up notification (Phase I). Fires Sunday
+        // evening with a one-line score + completed-task + habit-rate
+        // summary so the user has a passive weekly health check
+        // without needing to open the dashboard.
+        private val WEEKLY_ANALYTICS_NOTIFICATION_ENABLED =
+            booleanPreferencesKey("weekly_analytics_notification_enabled")
+        private val WEEKLY_ANALYTICS_WORKER_SEEDED =
+            booleanPreferencesKey("weekly_analytics_worker_seeded_v17")
+
         // One-shot flag for seeding the WeeklyTaskSummaryWorker unique
         // work on first launch post-update. Mirrors the habit-summary
         // migration flag, but keyed independently so the two migrations
@@ -644,6 +653,24 @@ class NotificationPreferences(
 
     suspend fun setWeeklyReviewWorkerSeeded() {
         dataStore.edit { it[WEEKLY_REVIEW_WORKER_SEEDED] = true }
+    }
+
+    // endregion
+
+    // region Weekly analytics notification (Phase I)
+
+    val weeklyAnalyticsNotificationEnabled: Flow<Boolean> = dataStore.data
+        .map { it[WEEKLY_ANALYTICS_NOTIFICATION_ENABLED] ?: true }
+
+    suspend fun setWeeklyAnalyticsNotificationEnabled(enabled: Boolean) {
+        dataStore.edit { it[WEEKLY_ANALYTICS_NOTIFICATION_ENABLED] = enabled }
+    }
+
+    suspend fun getWeeklyAnalyticsWorkerSeededOnce(): Boolean =
+        dataStore.data.first()[WEEKLY_ANALYTICS_WORKER_SEEDED] ?: false
+
+    suspend fun setWeeklyAnalyticsWorkerSeeded() {
+        dataStore.edit { it[WEEKLY_ANALYTICS_WORKER_SEEDED] = true }
     }
 
     // endregion

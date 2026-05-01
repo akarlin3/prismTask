@@ -195,4 +195,15 @@ interface PrismTaskApi {
         @Path("reportId") reportId: String,
         @Body body: BugReportStatusUpdateRequest
     ): AdminBugReportResponse
+
+    /**
+     * Anthropic-backed habit-correlation analysis. Server enforces a
+     * 1-call/day/user rate limit (returns 429), the
+     * require_ai_features_enabled gate (returns 451 when the master AI
+     * toggle is disabled), and Pro-tier billing. Surface those distinct
+     * states to the user — `Result.failure` with a clearly typed
+     * exception is fine since this isn't a blocking flow.
+     */
+    @GET("api/v1/analytics/habit-correlations")
+    suspend fun getHabitCorrelations(): HabitCorrelationsResponse
 }

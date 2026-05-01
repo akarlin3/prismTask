@@ -36,6 +36,7 @@ fun NotificationTypesScreen(
     val weekly by viewModel.weeklySummaryEnabled.collectAsStateWithLifecycle()
     val weeklyReviewAuto by viewModel.weeklyReviewAutoGenerateEnabled.collectAsStateWithLifecycle()
     val weeklyReviewNotify by viewModel.weeklyReviewNotificationEnabled.collectAsStateWithLifecycle()
+    val weeklyAnalytics by viewModel.weeklyAnalyticsNotificationEnabled.collectAsStateWithLifecycle()
     val weeklyTask by viewModel.weeklyTaskSummaryEnabled.collectAsStateWithLifecycle()
     val streak by viewModel.streakAlertsEnabled.collectAsStateWithLifecycle()
     val reengage by viewModel.reengagementEnabled.collectAsStateWithLifecycle()
@@ -147,6 +148,12 @@ fun NotificationTypesScreen(
             subtitle = "Post a notification when a new weekly review is available",
             checked = weeklyReviewNotify,
             onCheckedChange = viewModel::setWeeklyReviewNotificationEnabled
+        )
+        SettingsToggleRow(
+            title = "Weekly Analytics Summary",
+            subtitle = "One-line score + tasks + habit-rate recap (Sunday 7 PM)",
+            checked = weeklyAnalytics,
+            onCheckedChange = viewModel::setWeeklyAnalyticsNotificationEnabled
         )
         SettingsRowWithSubtitle(
             title = "Weekly Review History",

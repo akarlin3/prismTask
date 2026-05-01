@@ -72,6 +72,7 @@ internal fun CompactProgressHeader(
     progress: Float,
     progressStyle: String = "ring",
     onAnalyticsClick: (() -> Unit)? = null,
+    productivityBadge: @Composable (() -> Unit)? = null,
     trailingActions: @Composable (() -> Unit)? = null
 ) {
     val dateLabel = remember {
@@ -306,6 +307,10 @@ internal fun CompactProgressHeader(
                 color = colors.primary
             )
 
+            if (productivityBadge != null) {
+                Spacer(modifier = Modifier.width(4.dp))
+                productivityBadge()
+            }
             if (onAnalyticsClick != null) {
                 Spacer(modifier = Modifier.width(4.dp))
                 IconButton(

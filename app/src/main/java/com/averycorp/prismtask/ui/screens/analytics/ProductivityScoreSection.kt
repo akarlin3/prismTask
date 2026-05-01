@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.TrendingDown
 import androidx.compose.material.icons.filled.TrendingFlat
 import androidx.compose.material.icons.filled.TrendingUp
@@ -32,6 +33,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.averycorp.prismtask.data.preferences.ProductiveStreakSnapshot
 import com.averycorp.prismtask.domain.model.BestWorstDay
 import com.averycorp.prismtask.domain.model.DailyScore
 import com.averycorp.prismtask.domain.model.ProductivityRange
@@ -52,14 +54,15 @@ fun ProductivityScoreSection(
     selectedRange: ProductivityRange,
     onRangeSelected: (ProductivityRange) -> Unit,
     accent: Color,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    streak: ProductiveStreakSnapshot? = null
 ) {
     Surface(
         modifier = modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)),
         color = MaterialTheme.colorScheme.surfaceVariant
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
-            ProductivityHeader(response = response)
+            ProductivityHeader(response = response, streak = streak)
             Spacer(modifier = Modifier.height(8.dp))
             ProductivityRangeSelector(
                 selected = selectedRange,
@@ -90,7 +93,10 @@ fun ProductivityScoreSection(
 }
 
 @Composable
-private fun ProductivityHeader(response: ProductivityScoreResponse) {
+private fun ProductivityHeader(
+    response: ProductivityScoreResponse,
+    streak: ProductiveStreakSnapshot?
+) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
@@ -107,7 +113,37 @@ private fun ProductivityHeader(response: ProductivityScoreResponse) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
+        if (streak != null && streak.hasAnyHistory) {
+            ProductiveStreakChip(streak = streak)
+            Spacer(modifier = Modifier.size(8.dp))
+        }
         TrendChip(trend = response.trend)
+    }
+}
+
+@Composable
+private fun ProductiveStreakChip(streak: ProductiveStreakSnapshot) {
+    val tint = MaterialTheme.colorScheme.primary
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Icon(
+            imageVector = Icons.Filled.LocalFireDepartment,
+            contentDescription = null,
+            tint = tint,
+            modifier = Modifier.size(14.dp)
+        )
+        Text(
+            text = "${streak.currentDays}d",
+            style = MaterialTheme.typography.labelSmall,
+            color = tint,
+            modifier = Modifier.padding(start = 4.dp)
+        )
+        if (streak.longestDays > streak.currentDays) {
+            Text(
+                text = " · best ${streak.longestDays}d",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
     }
 }
 
