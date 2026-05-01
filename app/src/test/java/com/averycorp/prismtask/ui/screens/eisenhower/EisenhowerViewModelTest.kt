@@ -176,14 +176,19 @@ class EisenhowerViewModelTest {
     }
 
     @Test
-    fun completeTask_marksDaoCompleted() = runTest(dispatcher) {
+    fun completeTask_routesThroughTaskRepository() = runTest(dispatcher) {
         val vm = newViewModel()
         advanceUntilIdle()
 
         vm.completeTask(42L)
         advanceUntilIdle()
 
-        coVerify { taskDao.markCompleted(42L, any()) }
+        // Audit: docs/audits/RECURRING_TASKS_DUPLICATE_DAILY_AUDIT.md (Item 3).
+        // Going through TaskRepository is what spawns the recurrence's next
+        // occurrence, cancels the reminder, and triggers sync/widget updates.
+        // The pre-fix path called `taskDao.markCompleted` directly and skipped
+        // every one of those side effects.
+        coVerify { taskRepository.completeTask(42L) }
     }
 
     @Test
