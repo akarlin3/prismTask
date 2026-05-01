@@ -1,7 +1,7 @@
 package com.averycorp.prismtask.notifications
 
-import com.averycorp.prismtask.notifications.MedicationReminderReceiver.AlarmKind
-import com.averycorp.prismtask.notifications.MedicationReminderReceiver.classifyAlarm
+import com.averycorp.prismtask.notifications.MedicationReminderReceiver.Companion.AlarmKind
+import com.averycorp.prismtask.notifications.MedicationReminderReceiver.Companion.classifyAlarm
 import org.junit.Assert.assertEquals
 import org.junit.Test
 

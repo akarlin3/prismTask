@@ -130,8 +130,14 @@ constructor(
     }
 
     /**
-     * Wire a Flow observer so any dose insert/update/delete triggers a
-     * reschedule pass after the configured debounce window.
+     * Wire two Flow observers so reschedule runs whenever the world that
+     * feeds the rescheduler changes:
+     *  - dose inserts/updates/deletes (re-anchor the rolling alarm)
+     *  - slot row inserts/updates/soft-deletes/restores (label-drift fix:
+     *    a slot rename or reminder-mode flip would otherwise leave the
+     *    armed alarm pointing at the old slot state, even though the
+     *    notification body is rendered from the slot row at fire time —
+     *    see `docs/audits/MEDICATION_SLOT_LABEL_DRIFT_AUDIT.md`).
      *
      * We do not use Flow.debounce here because Room's reactive Flows
      * already emit at most once per write transaction, and the overhead
@@ -141,6 +147,9 @@ constructor(
      */
     fun start(scope: CoroutineScope = defaultScope) {
         medicationDoseDao.observeMostRecentDoseAny()
+            .onEach { scope.launch { rescheduleAll() } }
+            .launchIn(scope)
+        medicationSlotDao.observeAll()
             .onEach { scope.launch { rescheduleAll() } }
             .launchIn(scope)
     }
