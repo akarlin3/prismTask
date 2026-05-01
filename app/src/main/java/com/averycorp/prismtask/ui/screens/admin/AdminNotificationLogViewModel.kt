@@ -35,7 +35,7 @@ constructor(
             _isLoading.value = true
             _error.value = null
             try {
-                _notifications.value = projector.projectNext(limit = 10)
+                _notifications.value = projector.projectAll()
             } catch (e: Exception) {
                 _error.value = e.message ?: e.javaClass.simpleName
             } finally {

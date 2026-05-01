@@ -26,8 +26,8 @@ fun AdminNotificationLogSection(
     )
 
     Text(
-        text = "Preview the next 10 notifications the app expects to fire, with their text and " +
-            "scheduled time. Useful for verifying reminder scheduling.",
+        text = "Preview every notification the app expects to fire in the next 7 days, with their " +
+            "text and scheduled time. Useful for verifying reminder scheduling end-to-end.",
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.padding(bottom = 8.dp)

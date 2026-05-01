@@ -78,9 +78,12 @@ fun AdminNotificationLogScreen(
         ) {
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Projected next 10 notifications. Covers task reminders and habit daily-time " +
-                    "reminders. Habit-interval, medication, escalation, and worker-driven " +
-                    "notifications (briefing, weekly summaries) are not yet projected.",
+                text = "Projected notifications in the next 7 days (${notifications.size} total). " +
+                    "Covers task and habit reminders, top-level medications, legacy specific-times, " +
+                    "and the periodic workers (briefing, evening summary, re-engagement, weekly habit " +
+                    "and task summaries, overload check, weekly review). Reactive sources — escalation " +
+                    "chains and habit follow-up nags — fire only after an upstream reminder, so they " +
+                    "are not pre-projected.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -191,7 +194,7 @@ private fun CenteredEmpty() {
         )
         Spacer(modifier = Modifier.height(4.dp))
         Text(
-            "No task or habit notifications are scheduled to fire in the future.",
+            "Nothing is scheduled to fire in the next 7 days.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
