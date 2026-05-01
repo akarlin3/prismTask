@@ -149,7 +149,25 @@ export const useBatchStore = create<BatchStoreState>((set, get) => ({
         command_text: commandText,
         user_context: userContext,
       });
-      set({ pendingResponse: response, isParsing: false });
+      // Belt-and-suspenders: even if Haiku flagged a phrase as ambiguous,
+      // it may still emit a mutation for one of the candidate IDs (Hard
+      // Rule #3 in the system prompt is non-deterministic). Strip those
+      // mutations before they can be silently approved. The hint stays
+      // so the banner still surfaces the ambiguity to the user.
+      const ambiguousIds = new Set(
+        response.ambiguous_entities.flatMap((h) => h.candidate_entity_ids),
+      );
+      const keptMutations = response.mutations.filter(
+        (m) => !ambiguousIds.has(m.entity_id),
+      );
+      const strippedAmbiguousCount =
+        response.mutations.length - keptMutations.length;
+      const safeguardedResponse = {
+        ...response,
+        mutations: keptMutations,
+        stripped_ambiguous_count: strippedAmbiguousCount,
+      };
+      set({ pendingResponse: safeguardedResponse, isParsing: false });
     } catch (e) {
       set({
         isParsing: false,

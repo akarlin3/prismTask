@@ -47,7 +47,19 @@ constructor(
         viewModelScope.launch {
             try {
                 val response = repository.parseCommand(commandText)
-                val tagChangeTaskIds = response.mutations
+                // Belt-and-suspenders: even if Haiku flagged a phrase as
+                // ambiguous via `ambiguous_entities`, Hard Rule #3 in the
+                // system prompt is non-deterministic — Haiku may still emit
+                // a mutation for one of the candidates. Strip those before
+                // they can be silently approved. The hint itself stays so
+                // the banner can surface the ambiguity to the user.
+                val ambiguousIds: Set<String> = response.ambiguousEntities
+                    .flatMap { it.candidateEntityIds }
+                    .toSet()
+                val (strippedMutations, keptMutations) = response.mutations.partition {
+                    it.entityId in ambiguousIds
+                }
+                val tagChangeTaskIds = keptMutations
                     .asSequence()
                     .filter { it.mutationType == "TAG_CHANGE" && it.entityType == "TASK" }
                     .mapNotNull { it.entityId.toLongOrNull() }
@@ -56,10 +68,11 @@ constructor(
                 val currentTags = repository.getTagNamesForTasks(tagChangeTaskIds)
                 _state.value = BatchPreviewState.Loaded(
                     commandText = commandText,
-                    mutations = response.mutations,
+                    mutations = keptMutations,
                     confidence = response.confidence,
                     ambiguousEntities = response.ambiguousEntities,
-                    currentTags = currentTags
+                    currentTags = currentTags,
+                    strippedAmbiguousCount = strippedMutations.size
                 )
                 _excluded.value = emptySet()
             } catch (e: Exception) {
@@ -133,7 +146,14 @@ sealed class BatchPreviewState {
          * targeted by TAG_CHANGE mutations. The preview row renders a
          * before/after diff against this list.
          */
-        val currentTags: Map<Long, List<String>> = emptyMap()
+        val currentTags: Map<Long, List<String>> = emptyMap(),
+        /**
+         * Number of mutations that were dropped from [mutations] because
+         * their `entity_id` appeared in `ambiguous_entities[].candidate_entity_ids`.
+         * Surfaced in the AmbiguityBanner copy so the user knows that
+         * Haiku-flagged-ambiguous mutations were withheld.
+         */
+        val strippedAmbiguousCount: Int = 0
     ) : BatchPreviewState()
     data class Committing(val commandText: String) : BatchPreviewState()
     data class Error(val commandText: String, val message: String) : BatchPreviewState()

@@ -163,7 +163,12 @@ private fun LoadedBody(
         }
 
         if (state.ambiguousEntities.isNotEmpty()) {
-            item { AmbiguityBanner(state.ambiguousEntities) }
+            item {
+                AmbiguityBanner(
+                    hints = state.ambiguousEntities,
+                    strippedAmbiguousCount = state.strippedAmbiguousCount
+                )
+            }
         }
 
         if (state.mutations.isEmpty()) {
@@ -218,7 +223,10 @@ private fun ConfidenceBanner(confidence: Float) {
 }
 
 @Composable
-private fun AmbiguityBanner(hints: List<AmbiguousEntityHintResponse>) {
+private fun AmbiguityBanner(
+    hints: List<AmbiguousEntityHintResponse>,
+    strippedAmbiguousCount: Int
+) {
     Surface(
         color = MaterialTheme.colorScheme.errorContainer,
         shape = RoundedCornerShape(8.dp)
@@ -229,6 +237,14 @@ private fun AmbiguityBanner(hints: List<AmbiguousEntityHintResponse>) {
                 Text(
                     "• \"${h.phrase}\" — ${h.note ?: "multiple matches"}",
                     style = MaterialTheme.typography.bodySmall
+                )
+            }
+            if (strippedAmbiguousCount > 0) {
+                val noun = if (strippedAmbiguousCount == 1) "mutation was" else "mutations were"
+                Text(
+                    "$strippedAmbiguousCount ambiguous $noun not shown — refine your command and try again.",
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(top = 6.dp)
                 )
             }
         }
