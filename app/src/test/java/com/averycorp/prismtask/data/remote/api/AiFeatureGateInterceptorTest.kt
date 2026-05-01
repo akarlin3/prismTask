@@ -341,7 +341,7 @@ class AiFeatureGateInterceptorTest {
             "/integrations/suggestions/42/reject",
             "/integrations/suggestions/batch",
             "/integrations/calendar/status",
-            "/integrations/calendar/authorize",
+            "/integrations/calendar/authorize"
         )
 
         nonAnthropicIntegrationPaths.forEach { path ->
