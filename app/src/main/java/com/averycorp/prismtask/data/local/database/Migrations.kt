@@ -2036,7 +2036,9 @@ val MIGRATION_68_69 = object : Migration(68, 69) {
             "CREATE UNIQUE INDEX IF NOT EXISTS `index_medication_doses_cloud_id` ON `medication_doses` (`cloud_id`)"
         )
         db.execSQL(
-            "CREATE INDEX IF NOT EXISTS `index_medication_doses_medication_id_taken_date_local` ON `medication_doses` (`medication_id`, `taken_date_local`)"
+            "CREATE INDEX IF NOT EXISTS " +
+                "`index_medication_doses_medication_id_taken_date_local` " +
+                "ON `medication_doses` (`medication_id`, `taken_date_local`)"
         )
         db.execSQL(
             "CREATE INDEX IF NOT EXISTS `index_medication_doses_taken_date_local` ON `medication_doses` (`taken_date_local`)"
