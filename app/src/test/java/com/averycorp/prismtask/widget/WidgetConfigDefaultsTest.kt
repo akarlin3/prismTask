@@ -76,10 +76,25 @@ class WidgetConfigDefaultsTest {
 
     @Test
     fun `today config opacity valid range`() {
+        // OPACITY_RANGE was widened from 60..100 → 0..100 in commit
+        // 7390a1db (PR #997 Advanced Tuning UI rollup). The 60 case is
+        // retained because it round-trips a value that used to be the
+        // floor; the 0 case pins the new floor so a future re-tightening
+        // to 60..100 flips this test red.
+        val zero = WidgetConfigDataStore.TodayConfig(backgroundOpacityPercent = 0)
+        assertEquals(0, zero.backgroundOpacityPercent)
         val cfg = WidgetConfigDataStore.TodayConfig(backgroundOpacityPercent = 60)
         assertEquals(60, cfg.backgroundOpacityPercent)
         val full = WidgetConfigDataStore.TodayConfig(backgroundOpacityPercent = 100)
         assertEquals(100, full.backgroundOpacityPercent)
+    }
+
+    @Test
+    fun `today config opacity default unchanged at 100 after band widening`() {
+        // Default unchanged (100) — the 7390a1db widening only affected
+        // the lower bound. Existing stored values (60..100) are untouched.
+        val cfg = WidgetConfigDataStore.TodayConfig()
+        assertEquals(100, cfg.backgroundOpacityPercent)
     }
 
     @Test
