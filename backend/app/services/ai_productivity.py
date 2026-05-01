@@ -783,7 +783,7 @@ You are given:
 - A list of TASKS the user has, with id, title, due_date, scheduled_start_time, priority, project, tags, life_category, is_completed
 - A list of HABITS the user tracks, with id and name
 - A list of PROJECTS the user has, with id and name
-- A list of MEDICATIONS the user takes, with id and name
+- A list of MEDICATIONS the user takes, with id, name, and optional display_label (a user-facing alias, e.g. brand name when name is the generic). When matching a user's spoken phrase against medications, consider both 'name' and 'display_label' as valid match targets.
 
 You must return strict JSON with this shape (no prose, no markdown fences):
 {

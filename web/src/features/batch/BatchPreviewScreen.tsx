@@ -200,6 +200,15 @@ export function BatchPreviewScreen() {
                     </li>
                   ))}
                 </ul>
+                {(pendingResponse.stripped_ambiguous_count ?? 0) > 0 && (
+                  <p className="mt-2 text-sm text-[var(--color-text-secondary)]">
+                    {pendingResponse.stripped_ambiguous_count} ambiguous{' '}
+                    {pendingResponse.stripped_ambiguous_count === 1
+                      ? 'mutation was'
+                      : 'mutations were'}{' '}
+                    not shown — refine your command and try again.
+                  </p>
+                )}
               </div>
             </div>
           )}

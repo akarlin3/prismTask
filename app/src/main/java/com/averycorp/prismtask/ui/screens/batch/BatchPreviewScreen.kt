@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
@@ -25,6 +27,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -35,6 +38,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -63,6 +67,7 @@ fun BatchPreviewScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val excluded by viewModel.excluded.collectAsStateWithLifecycle()
+    val simplifiedUi by viewModel.simplifiedUi.collectAsStateWithLifecycle()
 
     LaunchedEffect(commandText) {
         viewModel.loadPreview(commandText)
@@ -106,7 +111,9 @@ fun BatchPreviewScreen(
             is BatchPreviewState.Loaded -> LoadedBody(
                 state = s,
                 excluded = excluded,
+                simplifiedUi = simplifiedUi,
                 onToggle = viewModel::toggleExclusion,
+                onPickCandidate = viewModel::resolveAmbiguity,
                 padding = padding
             )
         }
@@ -148,7 +155,9 @@ private fun ErrorBody(message: String, padding: PaddingValues, onRetry: () -> Un
 private fun LoadedBody(
     state: BatchPreviewState.Loaded,
     excluded: Set<Int>,
+    simplifiedUi: Boolean,
     onToggle: (Int) -> Unit,
+    onPickCandidate: (hintIndex: Int, pickedEntityId: String) -> Unit,
     padding: PaddingValues
 ) {
     LazyColumn(
@@ -163,7 +172,31 @@ private fun LoadedBody(
         }
 
         if (state.ambiguousEntities.isNotEmpty()) {
-            item { AmbiguityBanner(state.ambiguousEntities) }
+            item {
+                AmbiguityBanner(
+                    hints = state.ambiguousEntities,
+                    strippedAmbiguousCount = state.strippedAmbiguousCount
+                )
+            }
+            // Inline radio-group picker for each MEDICATION-typed hint that
+            // has resolvable local candidates. Calm Mode (simplifiedUi) skips
+            // the picker — the user is routed to Cancel-and-retype via the
+            // banner copy alone, matching the "fewer simultaneous decisions"
+            // intent of the sensory-reduction tier.
+            if (!simplifiedUi) {
+                state.ambiguousEntities.forEachIndexed { idx, hint ->
+                    val candidates = state.medicationCandidates[idx]
+                    if (!candidates.isNullOrEmpty()) {
+                        item {
+                            DisambiguationPicker(
+                                hint = hint,
+                                candidates = candidates,
+                                onPick = { picked -> onPickCandidate(idx, picked) }
+                            )
+                        }
+                    }
+                }
+            }
         }
 
         if (state.mutations.isEmpty()) {
@@ -218,7 +251,10 @@ private fun ConfidenceBanner(confidence: Float) {
 }
 
 @Composable
-private fun AmbiguityBanner(hints: List<AmbiguousEntityHintResponse>) {
+private fun AmbiguityBanner(
+    hints: List<AmbiguousEntityHintResponse>,
+    strippedAmbiguousCount: Int
+) {
     Surface(
         color = MaterialTheme.colorScheme.errorContainer,
         shape = RoundedCornerShape(8.dp)
@@ -230,6 +266,84 @@ private fun AmbiguityBanner(hints: List<AmbiguousEntityHintResponse>) {
                     "• \"${h.phrase}\" — ${h.note ?: "multiple matches"}",
                     style = MaterialTheme.typography.bodySmall
                 )
+            }
+            if (strippedAmbiguousCount > 0) {
+                val noun = if (strippedAmbiguousCount == 1) "mutation was" else "mutations were"
+                Text(
+                    "$strippedAmbiguousCount ambiguous $noun not shown — pick below or refine your command and try again.",
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(top = 6.dp)
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Inline radio-group picker for a single ambiguous medication phrase. The
+ * user picks one candidate; the ViewModel substitutes the picked id into
+ * the recovered (stripped) mutation and the row appears in the main list
+ * below. Keyboard-navigable: the Row is `selectable` with `Role.RadioButton`,
+ * which is what TalkBack reads to announce the picker as a single radio
+ * group.
+ */
+@Composable
+private fun DisambiguationPicker(
+    hint: AmbiguousEntityHintResponse,
+    candidates: List<MedicationCandidate>,
+    onPick: (entityId: String) -> Unit
+) {
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        shape = RoundedCornerShape(8.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .padding(12.dp)
+                .selectableGroup()
+        ) {
+            Text(
+                "Pick the medication you meant",
+                style = MaterialTheme.typography.titleSmall
+            )
+            Text(
+                "\"${hint.phrase}\"",
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(bottom = 4.dp)
+            )
+            for (candidate in candidates) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .selectable(
+                            selected = false,
+                            onClick = { onPick(candidate.entityId) },
+                            role = Role.RadioButton
+                        )
+                        .padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    RadioButton(
+                        selected = false,
+                        onClick = null
+                    )
+                    Column(modifier = Modifier.padding(start = 8.dp)) {
+                        Text(
+                            candidate.name,
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Medium
+                        )
+                        if (!candidate.displayLabel.isNullOrBlank() &&
+                            candidate.displayLabel != candidate.name
+                        ) {
+                            Text(
+                                candidate.displayLabel,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
             }
         }
     }

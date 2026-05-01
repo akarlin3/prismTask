@@ -336,6 +336,23 @@ class TestBatchParseService:
             "tier field missing from STATE_CHANGE schema"
         )
 
+    def test_system_prompt_documents_display_label(self):
+        """The MEDICATIONS context schema must mention `display_label` so
+        Haiku knows to consider it as a match target. If this falls out
+        of the prompt, users with brand-name display labels (e.g.
+        `name="Bupropion HCL XL"`, `display_label="Wellbutrin"`) will
+        silently lose name resolution on spoken-phrase batch commands."""
+        from app.services.ai_productivity import _BATCH_PARSE_SYSTEM_PROMPT
+
+        assert "display_label" in _BATCH_PARSE_SYSTEM_PROMPT, (
+            "display_label missing from MEDICATIONS context schema"
+        )
+        # The both-fields matching instruction guards against Haiku
+        # treating `name` as the only match target.
+        assert "display_label" in _BATCH_PARSE_SYSTEM_PROMPT and (
+            "match" in _BATCH_PARSE_SYSTEM_PROMPT.lower()
+        ), "display_label match instruction missing from prompt"
+
     def test_pydantic_accepts_state_change_mutation_type(self):
         """Schemas regex must include STATE_CHANGE — otherwise Pydantic
         rejects the AI response and the whole batch fails."""
@@ -462,6 +479,106 @@ class TestBatchParseService:
             assert mutation["mutation_type"] == "STATE_CHANGE"
             assert mutation["proposed_new_values"]["tier"] == "prescription"
             assert mutation["proposed_new_values"]["slot_key"] == "evening"
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "sk-test-key"})
+    def test_surfaces_ambiguity_for_medications(self):
+        """When two medication names share a prefix (e.g. two Wellbutrins),
+        Haiku's expected behavior is to populate `ambiguous_entities` with
+        the candidates and either skip or low-confidence the mutation. The
+        service must round-trip the ambiguous-entity shape verbatim — the
+        Android client's auto-strip safeguard reads this list to decide
+        which mutations to withhold from the preview."""
+        from app.services.ai_productivity import parse_batch_command
+
+        with patch("app.services.ai_productivity.anthropic") as mock_anthropic:
+            mock_client = MagicMock()
+            mock_anthropic.Anthropic.return_value = mock_client
+            mock_client.messages.create.return_value = _make_mock_response(
+                {
+                    "mutations": [],
+                    "confidence": 0.4,
+                    "ambiguous_entities": [
+                        {
+                            "phrase": "Wellbutrin",
+                            "candidate_entity_type": "MEDICATION",
+                            "candidate_entity_ids": ["med-1", "med-2"],
+                            "note": "Two medications match 'Wellbutrin'",
+                        }
+                    ],
+                }
+            )
+
+            ctx = _user_context(
+                medications=[
+                    {"id": "med-1", "name": "Wellbutrin XL 150mg"},
+                    {"id": "med-2", "name": "Wellbutrin SR 100mg"},
+                ]
+            )
+            result = parse_batch_command("took my Wellbutrin", ctx, tier="PRO")
+            assert result["mutations"] == []
+            assert len(result["ambiguous_entities"]) == 1
+            hint = result["ambiguous_entities"][0]
+            assert hint["candidate_entity_type"] == "MEDICATION"
+            assert set(hint["candidate_entity_ids"]) == {"med-1", "med-2"}
+            assert result["confidence"] == pytest.approx(0.4)
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "sk-test-key"})
+    def test_complete_on_medication_with_display_label_round_trips(self):
+        """Haiku may match against `display_label` rather than `name`; the
+        service must round-trip the resulting COMPLETE mutation faithfully.
+        Haiku decides the matching, but the round-trip plumbing must
+        preserve whatever entity_id Haiku picked."""
+        from app.services.ai_productivity import parse_batch_command
+
+        with patch("app.services.ai_productivity.anthropic") as mock_anthropic:
+            mock_client = MagicMock()
+            mock_anthropic.Anthropic.return_value = mock_client
+            mock_client.messages.create.return_value = _make_mock_response(
+                {
+                    "mutations": [
+                        {
+                            "entity_type": "MEDICATION",
+                            "entity_id": "med-1",
+                            "mutation_type": "COMPLETE",
+                            "proposed_new_values": {
+                                "date": "2026-04-25",
+                                "slot_key": "morning",
+                            },
+                            "human_readable_description": (
+                                "Mark Wellbutrin (morning) as taken"
+                            ),
+                        }
+                    ],
+                    "confidence": 0.94,
+                    "ambiguous_entities": [],
+                }
+            )
+
+            # display_label is the user-facing alias; canonical name is the
+            # generic form. Spoken phrase "Wellbutrin" should resolve via
+            # display_label per the both-fields match instruction.
+            ctx = _user_context(
+                medications=[
+                    {
+                        "id": "med-1",
+                        "name": "Bupropion HCL XL 150mg",
+                        "display_label": "Wellbutrin",
+                    }
+                ]
+            )
+            result = parse_batch_command(
+                "took my morning Wellbutrin", ctx, tier="PRO"
+            )
+            mutation = result["mutations"][0]
+            assert mutation["entity_id"] == "med-1"
+            assert mutation["mutation_type"] == "COMPLETE"
+            assert mutation["proposed_new_values"]["slot_key"] == "morning"
+            # And the display_label landed in the prompt-bound payload.
+            sent_payload = mock_client.messages.create.call_args.kwargs[
+                "messages"
+            ][0]["content"]
+            assert "Wellbutrin" in sent_payload
+            assert "display_label" in sent_payload
 
     @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "sk-test-key"})
     def test_drops_completed_tasks_from_prompt_context(self):

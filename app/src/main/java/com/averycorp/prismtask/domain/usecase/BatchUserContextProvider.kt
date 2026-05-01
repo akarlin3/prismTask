@@ -91,7 +91,8 @@ constructor(
         val medications = medicationDao.getActiveOnce().map { m ->
             BatchMedicationContext(
                 id = m.id.toString(),
-                name = m.name
+                name = m.name,
+                displayLabel = m.displayLabel?.takeIf { it.isNotBlank() }
             )
         }
 

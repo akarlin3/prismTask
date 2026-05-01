@@ -90,6 +90,21 @@ constructor(
     }
 
     /**
+     * Resolve current local medication rows for [ids]. The preview screen
+     * calls this when the AI flagged ambiguous medication candidates so
+     * the disambiguation picker can show name + display_label without
+     * a second API round-trip. Archived / missing rows are filtered out
+     * because the picker shouldn't offer choices the user has already
+     * removed.
+     */
+    suspend fun getMedicationsByIds(
+        ids: List<Long>
+    ): List<com.averycorp.prismtask.data.local.entity.MedicationEntity> {
+        if (ids.isEmpty()) return emptyList()
+        return ids.mapNotNull { medicationDao.getByIdOnce(it) }.filter { !it.isArchived }
+    }
+
+    /**
      * Resolve current tag names for [taskIds]. The preview screen calls
      * this so a TAG_CHANGE row can render a before/after diff (kept tags
      * neutral, additions green, removals red) without round-tripping

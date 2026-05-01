@@ -402,6 +402,7 @@ class BatchProjectContext(BaseModel):
 class BatchMedicationContext(BaseModel):
     id: str
     name: str
+    display_label: Optional[str] = None
 
 
 class BatchUserContext(BaseModel):

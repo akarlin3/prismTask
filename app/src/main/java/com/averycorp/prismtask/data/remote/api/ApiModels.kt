@@ -443,7 +443,8 @@ data class BatchProjectContext(
 
 data class BatchMedicationContext(
     val id: String,
-    val name: String
+    val name: String,
+    @SerializedName("display_label") val displayLabel: String? = null
 )
 
 data class BatchUserContext(

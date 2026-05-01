@@ -53,6 +53,10 @@ export interface BatchProjectContext {
 export interface BatchMedicationContext {
   id: string;
   name: string;
+  /** User-facing alias (e.g. brand name when `name` is the generic) sent to
+   *  Haiku as a secondary match target — keeps spoken phrases like "took my
+   *  Wellbutrin" resolvable when the canonical `name` is "Bupropion HCL XL". */
+  display_label?: string | null;
 }
 
 export interface BatchUserContext {
@@ -93,6 +97,11 @@ export interface BatchParseResponse {
   ambiguous_entities: AmbiguousEntityHint[];
   /** Server always returns true; included for contract visibility. */
   proposed: boolean;
+  /** Client-side annotation: how many mutations were dropped from
+   *  `mutations` because their `entity_id` appeared in any
+   *  `ambiguous_entities[].candidate_entity_ids`. Server never sets this —
+   *  it's populated by the auto-strip safeguard in `batchStore`. */
+  stripped_ambiguous_count?: number;
 }
 
 /** Per-entry record persisted in the batch history (localStorage, per-uid).

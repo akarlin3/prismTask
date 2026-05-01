@@ -104,6 +104,76 @@ describe('useBatchStore', () => {
     expect(s.pendingResponse?.mutations).toHaveLength(1);
   });
 
+  it('parsePendingCommand strips mutations whose entity_id appears in ambiguous_entities', async () => {
+    // Web parity for the Android auto-strip safeguard. Even if Haiku
+    // emits a mutation despite flagging the phrase as ambiguous, the
+    // store must drop the mutation before it reaches the preview UI.
+    const { nlpBatchApi } = await import('@/api/nlpBatch');
+    (nlpBatchApi.parse as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      mutations: [
+        {
+          entity_type: 'MEDICATION',
+          entity_id: 'med-1',
+          mutation_type: 'COMPLETE',
+          proposed_new_values: { slot_key: 'morning', date: '2026-04-25' },
+          human_readable_description: 'Mark medication taken',
+        },
+      ],
+      confidence: 0.4,
+      ambiguous_entities: [
+        {
+          phrase: 'Wellbutrin',
+          candidate_entity_type: 'MEDICATION',
+          candidate_entity_ids: ['med-1', 'med-2'],
+          note: 'Two medications match',
+        },
+      ],
+      proposed: true,
+    });
+
+    useBatchStore.getState().setPendingCommand('took my Wellbutrin');
+    await useBatchStore.getState().parsePendingCommand();
+
+    const s = useBatchStore.getState();
+    expect(s.pendingResponse?.mutations).toHaveLength(0);
+    expect(s.pendingResponse?.stripped_ambiguous_count).toBe(1);
+    // Hint stays so the banner renders.
+    expect(s.pendingResponse?.ambiguous_entities).toHaveLength(1);
+  });
+
+  it('parsePendingCommand keeps mutations whose entity_id is NOT in ambiguous_entities', async () => {
+    // Don't be overzealous: a mutation whose entity_id is unrelated to
+    // the ambiguous candidates passes through unchanged.
+    const { nlpBatchApi } = await import('@/api/nlpBatch');
+    (nlpBatchApi.parse as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      mutations: [
+        {
+          entity_type: 'TASK',
+          entity_id: 'task-99',
+          mutation_type: 'COMPLETE',
+          proposed_new_values: {},
+          human_readable_description: 'Complete unrelated task',
+        },
+      ],
+      confidence: 0.7,
+      ambiguous_entities: [
+        {
+          phrase: 'Wellbutrin',
+          candidate_entity_type: 'MEDICATION',
+          candidate_entity_ids: ['med-1', 'med-2'],
+        },
+      ],
+      proposed: true,
+    });
+
+    useBatchStore.getState().setPendingCommand('mixed command');
+    await useBatchStore.getState().parsePendingCommand();
+
+    const s = useBatchStore.getState();
+    expect(s.pendingResponse?.mutations).toHaveLength(1);
+    expect(s.pendingResponse?.stripped_ambiguous_count).toBe(0);
+  });
+
   it('clearPending wipes the preview state', () => {
     useBatchStore.setState({
       pendingCommand: 'foo',
