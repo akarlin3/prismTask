@@ -254,6 +254,38 @@ class TaskRepositoryTest {
         assertNull(reverted.completedAt)
     }
 
+    // Audit: docs/audits/COULDNT_UPDATE_TASK_AUDIT.md (Item 2). A re-tap of an
+    // already-completed task must not enqueue calendar deletes / sync updates /
+    // widget refreshes — those side effects are gated on the transaction
+    // actually flipping is_completed = 1.
+    @Test
+    fun completeTask_alreadyCompleted_skipsPostTransactionSideEffects() = runBlocking {
+        val id = taskDao.insert(
+            taskFixture(title = "Already done", isCompleted = true, completedAt = 555L)
+        )
+
+        val result = repo.completeTask(id)
+
+        assertNull("No spawn for already-completed task", result)
+        io.mockk.verify(exactly = 0) { calendarPushDispatcher.enqueueDeleteTaskEvent(id) }
+        coVerify(exactly = 0) { syncTracker.trackUpdate(id, "task") }
+        io.mockk.verify(exactly = 0) { widgetUpdateManager.updateTaskWidgets() }
+    }
+
+    // Audit: docs/audits/COULDNT_UPDATE_TASK_AUDIT.md (Item 2). Symmetric guard
+    // for the toggle-uncomplete path: an uncomplete on a never-completed row
+    // must skip side effects too.
+    @Test
+    fun uncompleteTask_neverCompleted_skipsSideEffects() = runBlocking {
+        val id = taskDao.insert(taskFixture(title = "Fresh task", isCompleted = false))
+
+        repo.uncompleteTask(id)
+
+        coVerify(exactly = 0) { syncTracker.trackUpdate(id, "task") }
+        io.mockk.verify(exactly = 0) { calendarPushDispatcher.enqueuePushTask(id) }
+        io.mockk.verify(exactly = 0) { widgetUpdateManager.updateTaskWidgets() }
+    }
+
     // ---------------------------------------------------------------------
     // Reschedule / reminders
     // ---------------------------------------------------------------------

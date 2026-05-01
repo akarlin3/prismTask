@@ -324,13 +324,18 @@ constructor(
         // subtask) because they all funnel through this function.
         reminderScheduler.cancelReminder(id)
 
-        val nextRecurrenceId = transactionRunner.withTransaction {
+        // didComplete distinguishes a real completion (case: row was incomplete
+        // and we flipped it) from a no-op (row already completed, or deleted
+        // out from under us). nextRecurrenceId is null on both no-ops AND on
+        // a real completion of a non-recurring task — so it can't carry the
+        // signal alone. Audit: docs/audits/COULDNT_UPDATE_TASK_AUDIT.md (Item 2).
+        val (didComplete, nextRecurrenceId) = transactionRunner.withTransaction {
             // Re-read fresh inside the transaction. A concurrent completeTask
             // (rapid double-tap) reaches this point after the winning call
             // commits — it must observe is_completed = 1 and bail out before
             // spawning a duplicate next-instance.
-            val fresh = taskDao.getTaskByIdOnce(id) ?: return@withTransaction null
-            if (fresh.isCompleted) return@withTransaction null
+            val fresh = taskDao.getTaskByIdOnce(id) ?: return@withTransaction (false to null)
+            if (fresh.isCompleted) return@withTransaction (false to null)
 
             val nextId = if (fresh.recurrenceRule != null && fresh.dueDate != null) {
                 val rule = RecurrenceConverter.fromJson(fresh.recurrenceRule)
@@ -360,8 +365,14 @@ constructor(
             // residual Item 2 path that the Undo-only fix didn't cover.
             taskCompletionRepository.recordCompletion(fresh, tags, spawnedRecurrenceId = nextId)
             taskDao.markCompleted(id, now)
-            nextId
+            true to nextId
         }
+
+        // Skip side effects when the transaction was a no-op (already-completed
+        // row, deleted-out-from-under-us). Without this guard, a re-tap of an
+        // already-completed task would still enqueue a calendar delete + sync
+        // update + widget refresh.
+        if (!didComplete) return null
 
         if (nextRecurrenceId != null) {
             syncTracker.trackCreate(nextRecurrenceId, "task")
@@ -406,6 +417,15 @@ constructor(
      * residual).
      */
     suspend fun uncompleteTask(id: Long, spawnedRecurrenceId: Long? = null) {
+        // Skip work + side effects when the row is already incomplete. The
+        // toggle-uncomplete path can be invoked for a task that was never
+        // completed (stale UI state racing a notification "Complete" that
+        // got undone elsewhere); without this guard the call would still
+        // queue a sync update + calendar push + widget refresh for a no-op.
+        // Audit: docs/audits/COULDNT_UPDATE_TASK_AUDIT.md (Item 2).
+        val current = taskDao.getTaskByIdOnce(id) ?: return
+        if (!current.isCompleted) return
+
         val effectiveSpawnId: Long?
         val latestCompletionId: Long?
         if (spawnedRecurrenceId != null) {
