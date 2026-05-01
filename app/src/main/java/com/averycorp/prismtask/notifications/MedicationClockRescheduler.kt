@@ -10,7 +10,13 @@ import com.averycorp.prismtask.data.preferences.MedicationReminderMode
 import com.averycorp.prismtask.data.preferences.UserPreferencesDataStore
 import com.averycorp.prismtask.domain.usecase.MedicationReminderModeResolver
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.launch
 import java.util.Calendar
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -42,6 +48,13 @@ import javax.inject.Singleton
  * notification, so a process death between fire and re-register doesn't
  * leave the slot dark — the next [rescheduleAll] (boot, app launch,
  * settings save) repairs it.
+ *
+ * **Slot-edit reactivity.** [start] subscribes to
+ * [MedicationSlotDao.observeAll] so any local edit, soft-delete, restore,
+ * or sync-pulled slot row triggers a fresh [rescheduleAll] pass — the
+ * notification body is rendered from the slot row at fire time, so a
+ * stale `triggerMillis` against a renamed slot would otherwise drift the
+ * label/time display out of sync with the alarm's wall-clock.
  */
 @Singleton
 class MedicationClockRescheduler
@@ -76,6 +89,25 @@ constructor(
             val triggerMillis = nextTriggerForClock(slot.idealTime, now) ?: continue
             registerAlarmForSlot(slot, triggerMillis)
         }
+    }
+
+    /**
+     * Wire a Flow observer so any slot insert/update/soft-delete/restore
+     * — whether from a local edit or a sync-pulled row — triggers a fresh
+     * reschedule pass. This is the seam that prevents
+     * "alarm fires at old triggerMillis, notification renders fresh slot
+     * row → label/time mismatch" drift.
+     *
+     * No debounce: Room emits at most once per write transaction, and the
+     * dominant cost in [rescheduleAll] is AlarmManager IPC. The interval
+     * rescheduler made the same trade-off (see
+     * [MedicationIntervalRescheduler.start]); a slot edit is rare enough
+     * that even a small burst is fine.
+     */
+    fun start(scope: CoroutineScope = defaultScope) {
+        medicationSlotDao.observeAll()
+            .onEach { scope.launch { rescheduleAll() } }
+            .launchIn(scope)
     }
 
     /**
@@ -129,6 +161,9 @@ constructor(
 
     companion object {
         internal const val SLOT_BASE_REQUEST_CODE = 700_000
+
+        private val defaultScope: CoroutineScope =
+            CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
         internal fun slotRequestCode(slotId: Long): Int =
             SLOT_BASE_REQUEST_CODE + (slotId % 1000L).toInt()

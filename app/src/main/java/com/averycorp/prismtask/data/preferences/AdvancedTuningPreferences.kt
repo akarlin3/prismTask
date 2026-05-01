@@ -127,7 +127,8 @@ data class LifeCategoryCustomKeywords(
 
 /** Day-of-week (1=Mon..7=Sun) and clock time for weekly summary workers. */
 data class WeeklySummarySchedule(
-    val dayOfWeek: Int = 7, // Sunday
+    // 7 = Sunday.
+    val dayOfWeek: Int = 7,
     val taskSummaryHour: Int = 19,
     val taskSummaryMinute: Int = 30,
     val habitSummaryHour: Int = 19,

@@ -60,14 +60,17 @@ class SyncTestHarnessSmokeTest {
         if (::harness.isInitialized) {
             runBlocking {
                 runCatching { harness.cleanupFirestoreUser() }
-                // Release device B's ConnectivityManager callback. Android
-                // caps callbacks per UID (~100); long instrumentation runs
-                // that don't terminate Firestore clients eventually trip
-                // ConnectivityManager$TooManyRequestsException. See
-                // SyncTestHarness.shutdownDeviceB for details.
-                harness.shutdownDeviceB()
             }
             harness.signOutBothDevices()
+            // We deliberately do NOT terminate device B's Firestore here:
+            // each `terminate()` voids the per-app Firestore singleton, so
+            // the next test's `createAndInit` resolves a fresh client which
+            // registers its own ConnectivityManager callback. Android caps
+            // those at ~100 per UID, and a long suite would otherwise trip
+            // `ConnectivityManager$TooManyRequestsException` mid-test (the
+            // 396/422 failure that motivated this comment). The harness
+            // caches the device-B client process-wide instead — see
+            // SyncTestHarness.getOrCacheDeviceBFirestore.
         }
     }
 

@@ -68,7 +68,8 @@ fun AdvancedTuningScreen(
                 .padding(horizontal = 16.dp)
         ) {
             Text(
-                text = "Power-user knobs for scoring, scheduling, widgets, and editor caps. Defaults are tuned for most users — change only if you know what you're doing.",
+                text = "Power-user knobs for scoring, scheduling, widgets, and editor caps. " +
+                    "Defaults are tuned for most users — change only if you know what you're doing.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(vertical = 12.dp)

@@ -63,8 +63,19 @@ class SyncTestHarness private constructor(
     /** Device A's auth — shares the default FirebaseApp with production code. */
     val deviceAAuth: FirebaseAuth = FirebaseAuth.getInstance()
 
-    /** Device B's Firestore — independent client pointed at the same emulator. */
-    val deviceBFirestore: FirebaseFirestore = FirebaseFirestore.getInstance(deviceBApp)
+    /**
+     * Device B's Firestore — independent client pointed at the same emulator.
+     *
+     * Resolved through the process-level cache in [getOrCacheDeviceBFirestore]
+     * rather than calling `FirebaseFirestore.getInstance(deviceBApp)` per test
+     * instance. Each fresh client registers its own
+     * `ConnectivityManager.registerDefaultNetworkCallback`, and Android caps
+     * those at ~100 per UID — long instrumentation runs that recreated the
+     * client every test exhausted the quota mid-suite (the
+     * `harness_waitForReturnsAsSoonAsPredicateIsTrue` failure at test ~396/422
+     * with `ConnectivityManager$TooManyRequestsException`).
+     */
+    val deviceBFirestore: FirebaseFirestore = getOrCacheDeviceBFirestore(deviceBApp)
 
     /** Device B's auth — independent client pointed at the same emulator. */
     val deviceBAuth: FirebaseAuth = FirebaseAuth.getInstance(deviceBApp)
@@ -97,28 +108,6 @@ class SyncTestHarness private constructor(
     fun signOutBothDevices() {
         runCatching { deviceAAuth.signOut() }
         runCatching { deviceBAuth.signOut() }
-    }
-
-    /**
-     * Terminate device B's Firestore client so its
-     * `AndroidConnectivityMonitor` releases its `ConnectivityManager`
-     * default-network callback. Android caps registered callbacks per UID
-     * (~100); without this, a long instrumentation run that spins up many
-     * `FirebaseFirestore` clients eventually trips
-     * `ConnectivityManager$TooManyRequestsException` mid-test (e.g. the
-     * `setDeviceAOffline()` call on `harness_deviceAOfflineToggleDoesNotBlockDeviceBWrites`
-     * crashed Firestore's AsyncQueue with that exact panic). The next
-     * `createAndInit()` re-resolves `FirebaseFirestore.getInstance(deviceBApp)`
-     * to a fresh client off the cached `deviceB` `FirebaseApp`, so this is
-     * safe to call after every test.
-     *
-     * We deliberately do not terminate device A's Firestore: the default
-     * client is owned by Hilt's graph and shared with production code paths
-     * elsewhere in the test process — terminating it from the harness would
-     * leave dangling references in Hilt-injected services.
-     */
-    suspend fun shutdownDeviceB() {
-        runCatching { deviceBFirestore.terminate().await() }
     }
 
     /**
@@ -299,6 +288,32 @@ class SyncTestHarness private constructor(
                 FirebaseAuth.getInstance(app).useEmulator(EMULATOR_HOST, AUTH_PORT)
                 app
             }
+        }
+
+        /**
+         * Process-wide cache for device B's Firestore client. The first
+         * harness instance resolves it via `FirebaseFirestore.getInstance(app)`;
+         * subsequent harnesses (one per test) reuse the same client.
+         *
+         * Reusing the client is the whole point: each fresh
+         * `FirebaseFirestore` instance registers a new
+         * `ConnectivityManager.registerDefaultNetworkCallback`, and Android
+         * caps those at ~100 per UID. A long instrumentation run that
+         * recreated the client every test (the prior behaviour, which
+         * paired creation with a `terminate()` in `@After`) burnt the quota
+         * around test ~395/422 and trashed every later test with
+         * `ConnectivityManager$TooManyRequestsException`. Holding one
+         * client for the lifetime of the process keeps the count at one.
+         */
+        @Volatile
+        private var cachedDeviceBFirestore: FirebaseFirestore? = null
+
+        @Synchronized
+        private fun getOrCacheDeviceBFirestore(deviceBApp: FirebaseApp): FirebaseFirestore {
+            cachedDeviceBFirestore?.let { return it }
+            val firestore = FirebaseFirestore.getInstance(deviceBApp)
+            cachedDeviceBFirestore = firestore
+            return firestore
         }
     }
 }
