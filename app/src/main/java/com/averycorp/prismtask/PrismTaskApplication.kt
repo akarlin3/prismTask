@@ -9,6 +9,7 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import com.averycorp.prismtask.data.diagnostics.MigrationInstrumentor
 import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
+import com.averycorp.prismtask.data.preferences.ThemePreferences
 import com.averycorp.prismtask.data.remote.BuiltInHabitReconciler
 import com.averycorp.prismtask.data.remote.LifeCategoryBackfiller
 import com.averycorp.prismtask.data.remote.MedicationMigrationRunner
@@ -19,6 +20,7 @@ import com.averycorp.prismtask.notifications.MedicationClockRescheduler
 import com.averycorp.prismtask.notifications.MedicationIntervalRescheduler
 import com.averycorp.prismtask.notifications.MedicationReminderScheduler
 import com.averycorp.prismtask.notifications.NotificationWorkerScheduler
+import com.averycorp.prismtask.widget.WidgetUpdateManager
 import com.averycorp.prismtask.workers.AutoArchiveWorker
 import com.averycorp.prismtask.workers.CalendarSyncScheduler
 import com.averycorp.prismtask.workers.DailyResetWorker
@@ -31,6 +33,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
@@ -78,6 +83,12 @@ class PrismTaskApplication :
     @Inject
     lateinit var medicationReminderScheduler: MedicationReminderScheduler
 
+    @Inject
+    lateinit var themePreferences: ThemePreferences
+
+    @Inject
+    lateinit var widgetUpdateManager: WidgetUpdateManager
+
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private companion object {
@@ -110,6 +121,7 @@ class PrismTaskApplication :
             scheduleDailyReset()
             scheduleNotificationWorkers()
             scheduleWidgetRefresh()
+            observeThemeChangesForWidgets()
             scheduleCalendarSync()
             scheduleBatchUndoSweep()
         } catch (e: Exception) {
@@ -323,6 +335,43 @@ class PrismTaskApplication :
         // Widgets disabled for v1.0 — cancel periodic refresh worker instead of scheduling.
         // Re-enable in v1.2: replace cancelUniqueWork with WidgetRefreshWorker.schedule(...)
         WorkManager.getInstance(this).cancelUniqueWork("widget_refresh_periodic")
+    }
+
+    /**
+     * Drives a same-process listener that repaints every Glance widget the
+     * moment the user (or a cloud-sync write) changes the active app theme
+     * or widget-theme override. Glance widgets cache RemoteViews and never
+     * observe DataStore on their own, so without this hook a remote theme
+     * change waits on the periodic refresh worker (currently disabled —
+     * see [scheduleWidgetRefresh]).
+     *
+     * The first emission from `combine` is dropped so cold-start launches
+     * don't trigger a redundant repaint right after boot — the widget
+     * already painted with the current theme on its first `provideGlance`.
+     * `distinctUntilChanged` plus the singleton [WidgetUpdateManager]'s
+     * built-in 500ms debounce coalesce rapid double-emissions (e.g. when
+     * the user picks a theme and the override is cleared in the same edit).
+     *
+     * Misses theme changes that happen while the app process is dead;
+     * those get applied on the next app open. That's the explicit design
+     * tradeoff vs. an AlarmManager poll loop.
+     */
+    private fun observeThemeChangesForWidgets() {
+        appScope.launch {
+            try {
+                combine(
+                    themePreferences.getPrismTheme(),
+                    themePreferences.getWidgetThemeOverride()
+                ) { app, override -> app to override }
+                    .distinctUntilChanged()
+                    .drop(1)
+                    .collectLatest {
+                        widgetUpdateManager.updateAllWidgets()
+                    }
+            } catch (e: Exception) {
+                android.util.Log.e("PrismTaskApp", "Theme listener for widgets failed", e)
+            }
+        }
     }
 
     /**
