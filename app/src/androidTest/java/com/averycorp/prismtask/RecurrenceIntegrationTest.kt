@@ -10,6 +10,8 @@ import com.averycorp.prismtask.data.local.entity.TaskEntity
 import com.averycorp.prismtask.data.preferences.EisenhowerPrefs
 import com.averycorp.prismtask.data.preferences.UserPreferencesDataStore
 import com.averycorp.prismtask.data.remote.EisenhowerClassifier
+import com.averycorp.prismtask.data.remote.SyncTracker
+import com.averycorp.prismtask.data.repository.TaskCompletionRepository
 import com.averycorp.prismtask.data.repository.TaskRepository
 import com.averycorp.prismtask.domain.model.RecurrenceRule
 import com.averycorp.prismtask.domain.model.RecurrenceType
@@ -45,15 +47,28 @@ class RecurrenceIntegrationTest {
             ).allowMainThreadQueries()
             .build()
 
+        // Use a real TaskCompletionRepository so the spawned-recurrence-id
+        // round-trips through `task_completions` end-to-end. The toggle-
+        // uncomplete rollback path reads
+        // `getLatestCompletionForTask(id).spawnedRecurrenceId`, which is
+        // only populated when `recordCompletion` actually runs against
+        // Room. The previous mocked repo silently returned null and made
+        // those assertions vacuous.
+        val syncTrackerMock = mockk<SyncTracker>(relaxed = true)
+        val completionRepository = TaskCompletionRepository(
+            taskCompletionDao = database.taskCompletionDao(),
+            syncTracker = syncTrackerMock
+        )
+
         repository = TaskRepository(
             transactionRunner = DatabaseTransactionRunner(database),
             taskDao = database.taskDao(),
             tagDao = database.tagDao(),
-            syncTracker = mockk(relaxed = true),
+            syncTracker = syncTrackerMock,
             calendarPushDispatcher = mockk(relaxed = true),
             reminderScheduler = mockk(relaxed = true),
             widgetUpdateManager = mockk(relaxed = true),
-            taskCompletionRepository = mockk(relaxed = true),
+            taskCompletionRepository = completionRepository,
             eisenhowerClassifier = mockk<EisenhowerClassifier>(relaxed = true),
             userPreferences = mockk<UserPreferencesDataStore> {
                 every { eisenhowerFlow } returns flowOf(EisenhowerPrefs(autoClassifyEnabled = false))
@@ -228,12 +243,14 @@ class RecurrenceIntegrationTest {
         assertEquals(secondSpawn, onlyChild.id)
     }
 
-    // Audit: docs/audits/RECURRING_TASKS_DUPLICATE_DAILY_AUDIT.md (Item 2).
-    // Toggle-style uncomplete (no Undo snackbar) preserves the spawn — the
-    // user explicitly opted into "today done, tomorrow scheduled" before
-    // changing their mind about the parent.
+    // Audit: docs/audits/RECURRING_TASKS_DUPLICATE_DAILY_AUDIT.md (Item 2
+    // residual). Toggle-style uncomplete (checkbox, no Undo snackbar) reads
+    // the latest completion entry's `spawned_recurrence_id` and rolls the
+    // spawn back too. Without this, complete → uncomplete → re-complete on
+    // the same daily-recurring row leaves the first spawn behind and
+    // duplicates the next-day row on the second complete.
     @Test
-    fun test_uncompleteWithoutSpawnedId_leavesChildIntact() = runTest {
+    fun test_uncompleteWithoutSpawnedId_rollsBackViaCompletionLink() = runTest {
         val rule = RecurrenceRule(type = RecurrenceType.DAILY)
         val ruleJson = RecurrenceConverter.toJson(rule)
         val taskId = database.taskDao().insert(
@@ -248,7 +265,42 @@ class RecurrenceIntegrationTest {
         repository.uncompleteTask(taskId)
 
         val allTasks = database.taskDao().getAllTasks().first()
-        assertEquals(2, allTasks.size)
+        assertEquals(
+            "toggle-uncomplete must roll back the spawned next-instance",
+            1,
+            allTasks.size
+        )
         assertFalse(allTasks.single { it.id == taskId }.isCompleted)
+    }
+
+    // Toggle complete → uncomplete → re-complete is the historical
+    // duplication path that the residual fix targets. After this fix,
+    // re-complete spawns a single fresh next-instance, not two.
+    @Test
+    fun test_toggleCompleteUncompleteRecomplete_doesNotDuplicate() = runTest {
+        val rule = RecurrenceRule(type = RecurrenceType.DAILY)
+        val ruleJson = RecurrenceConverter.toJson(rule)
+        val taskId = database.taskDao().insert(
+            TaskEntity(
+                title = "Daily toggle-redo",
+                dueDate = LocalDate.of(2025, 1, 6).toMillis(),
+                recurrenceRule = ruleJson
+            )
+        )
+
+        repository.completeTask(taskId)
+        repository.uncompleteTask(taskId)
+        repository.completeTask(taskId)
+
+        val allTasks = database.taskDao().getAllTasks().first()
+        assertEquals(
+            "toggle-uncomplete + recomplete must NOT leave a duplicate next-instance",
+            2,
+            allTasks.size
+        )
+        val parent = allTasks.single { it.id == taskId }
+        val child = allTasks.single { it.id != taskId }
+        assertTrue(parent.isCompleted)
+        assertFalse(child.isCompleted)
     }
 }

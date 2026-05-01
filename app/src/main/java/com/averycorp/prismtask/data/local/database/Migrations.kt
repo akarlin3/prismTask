@@ -1926,6 +1926,35 @@ val MIGRATION_65_66 = object : Migration(65, 66) {
 }
 
 /**
+ * v66 → v67 — Adds `spawned_recurrence_id` column to `task_completions`.
+ *
+ * Each completion of a recurring task spawns the next occurrence as a new
+ * row in `tasks`. Pre-this-migration, the spawned row had no link back to
+ * the completion entry, so a "toggle uncomplete" path (no Undo snackbar)
+ * could not find the spawn to roll it back. This column closes that hole:
+ * `TaskRepository.completeTask` writes the spawned row's id here, and
+ * `uncompleteTask` reads the most-recent completion row for the parent and
+ * deletes its spawned child before flipping the parent incomplete.
+ *
+ * Default `NULL` for existing rows is correct — pre-existing completions
+ * predate the link, so rolling them back will not delete any spawn (the
+ * historical, partial-reverse behavior is preserved for them).
+ *
+ * Audit: `docs/audits/RECURRING_TASKS_DUPLICATE_DAILY_AUDIT.md` (Item 2
+ * residual).
+ */
+val MIGRATION_66_67 = object : Migration(66, 67) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            ALTER TABLE task_completions
+            ADD COLUMN spawned_recurrence_id INTEGER DEFAULT NULL
+            """.trimIndent()
+        )
+    }
+}
+
+/**
  * Single source of truth for the Room schema version. Referenced by both
  * `@Database(version = CURRENT_DB_VERSION)` on [PrismTaskDatabase] and by
  * `StartupCrashDiagnosticTest`. Bumping the schema means:
@@ -1937,7 +1966,7 @@ val MIGRATION_65_66 = object : Migration(65, 66) {
  * The diagnostic test will fail until all three are done, preventing the
  * "forgot to add migration" class of startup crash from reaching main.
  */
-const val CURRENT_DB_VERSION = 66
+const val CURRENT_DB_VERSION = 67
 
 val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_1_2,
@@ -2004,5 +2033,6 @@ val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_62_63,
     MIGRATION_63_64,
     MIGRATION_64_65,
-    MIGRATION_65_66
+    MIGRATION_65_66,
+    MIGRATION_66_67
 )

@@ -47,5 +47,11 @@ data class TaskCompletionEntity(
     val wasOverdue: Boolean = false,
     @ColumnInfo(name = "days_to_complete")
     val daysToComplete: Int? = null,
-    val tags: String? = null
+    val tags: String? = null,
+    // Set to the id of the next-instance row when the parent task carries a
+    // recurrence rule; NULL otherwise. Lets `uncompleteTask` find and remove
+    // the spawned child even on the toggle-uncomplete path (no Undo snackbar).
+    // Audit: docs/audits/RECURRING_TASKS_DUPLICATE_DAILY_AUDIT.md (Item 2).
+    @ColumnInfo(name = "spawned_recurrence_id")
+    val spawnedRecurrenceId: Long? = null
 )

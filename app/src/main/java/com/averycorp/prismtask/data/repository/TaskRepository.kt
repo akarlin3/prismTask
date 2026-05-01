@@ -332,8 +332,6 @@ constructor(
             val fresh = taskDao.getTaskByIdOnce(id) ?: return@withTransaction null
             if (fresh.isCompleted) return@withTransaction null
 
-            taskCompletionRepository.recordCompletion(fresh, tags)
-
             val nextId = if (fresh.recurrenceRule != null && fresh.dueDate != null) {
                 val rule = RecurrenceConverter.fromJson(fresh.recurrenceRule)
                 val nextDueDate = rule?.let { RecurrenceEngine.calculateNextDueDate(fresh.dueDate, it) }
@@ -356,6 +354,11 @@ constructor(
             } else {
                 null
             }
+            // Recorded after the spawn so the completion row carries the
+            // spawned-id link. The toggle-uncomplete path (no Undo snackbar)
+            // reads this back to roll the spawn child back, closing the
+            // residual Item 2 path that the Undo-only fix didn't cover.
+            taskCompletionRepository.recordCompletion(fresh, tags, spawnedRecurrenceId = nextId)
             taskDao.markCompleted(id, now)
             nextId
         }
@@ -389,17 +392,35 @@ constructor(
     /**
      * Reverts a [completeTask] call.
      *
-     * When [spawnedRecurrenceId] is non-null, the spawned next-instance
-     * created by the matching completeTask is deleted before the parent
-     * is flipped back to incomplete — this is the Undo-snackbar path
-     * (Today swipe, TaskList swipe, bulk complete) where letting the
-     * spawn linger after Undo + redo would duplicate the next-day row.
-     * For toggle-style un-completion (no Undo snackbar) callers pass null
-     * and the historical, partial-reverse behavior is preserved.
+     * When [spawnedRecurrenceId] is non-null (Undo-snackbar path: Today
+     * swipe, TaskList swipe, bulk complete), the spawned next-instance is
+     * deleted before the parent is flipped back to incomplete.
+     *
+     * When [spawnedRecurrenceId] is null (toggle-uncomplete path), the
+     * latest completion row for the task is consulted via
+     * `getLatestCompletionForTask` and its stored `spawned_recurrence_id`
+     * is used to roll the same spawn back. The completion row itself is
+     * also deleted so a subsequent re-complete starts from a clean slate
+     * (no double-counted analytics, no stale spawn link). Audit:
+     * `docs/audits/RECURRING_TASKS_DUPLICATE_DAILY_AUDIT.md` (Item 2 +
+     * residual).
      */
     suspend fun uncompleteTask(id: Long, spawnedRecurrenceId: Long? = null) {
+        val effectiveSpawnId: Long?
+        val latestCompletionId: Long?
         if (spawnedRecurrenceId != null) {
-            deleteTask(spawnedRecurrenceId)
+            effectiveSpawnId = spawnedRecurrenceId
+            latestCompletionId = null
+        } else {
+            val latest = taskCompletionRepository.getLatestCompletionForTask(id)
+            effectiveSpawnId = latest?.spawnedRecurrenceId
+            latestCompletionId = latest?.id
+        }
+        if (effectiveSpawnId != null) {
+            deleteTask(effectiveSpawnId)
+        }
+        if (latestCompletionId != null) {
+            taskCompletionRepository.deleteCompletionById(latestCompletionId)
         }
         taskDao.markIncomplete(id, System.currentTimeMillis())
         syncTracker.trackUpdate(id, "task")

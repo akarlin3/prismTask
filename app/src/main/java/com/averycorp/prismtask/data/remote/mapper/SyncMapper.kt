@@ -401,7 +401,12 @@ object SyncMapper {
         "priority" to completion.priority,
         "wasOverdue" to completion.wasOverdue,
         "daysToComplete" to completion.daysToComplete,
-        "tags" to completion.tags
+        "tags" to completion.tags,
+        // Synced because the spawned task itself syncs via clientId — when
+        // a peer device pulls this completion + the spawned task together,
+        // local toggle-uncomplete on that peer can still find and roll
+        // back the spawn. NULL on legacy rows is fine.
+        "spawnedRecurrenceId" to completion.spawnedRecurrenceId
     )
 
     fun taskTimingToMap(
@@ -452,7 +457,8 @@ object SyncMapper {
             priority = (data["priority"] as? Number)?.toInt() ?: 0,
             wasOverdue = data["wasOverdue"] as? Boolean ?: false,
             daysToComplete = (data["daysToComplete"] as? Number)?.toInt(),
-            tags = data["tags"] as? String
+            tags = data["tags"] as? String,
+            spawnedRecurrenceId = (data["spawnedRecurrenceId"] as? Number)?.toLong()
         )
 
     fun mapToTaskTemplate(
