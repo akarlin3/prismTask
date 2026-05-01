@@ -149,7 +149,8 @@ class AnalyticsMarkdownExporterTest {
 
         val populated = TimeTrackingResponse(
             buckets = emptyList(),
-            totalMinutes = 145, // 2h 25m
+            // 2h 25m
+            totalMinutes = 145,
             averageMinutesPerActiveDay = 30,
             activeDayCount = 5,
             range = ProductivityRange.SEVEN_DAYS

@@ -144,7 +144,9 @@ class BatchIntentDetector {
      * don't expand this regex.
      */
     private val recurrencePatternRegex = Regex(
-        """\b(every|each)\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday|day|week|month|year|morning|evening|night|hour|other)\b""",
+        """\b(every|each)\s+""" +
+            """(monday|tuesday|wednesday|thursday|friday|saturday|sunday|""" +
+            """day|week|month|year|morning|evening|night|hour|other)\b""",
         RegexOption.IGNORE_CASE
     )
 
