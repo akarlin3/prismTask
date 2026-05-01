@@ -80,6 +80,13 @@ constructor(
         // preference-driven apply below takes over on subsequent boots.
         WeeklyReviewSchedulerMigration.runIfNeeded(context, notificationPreferences)
         applyWeeklyReview(notificationPreferences.weeklyReviewAutoGenerateEnabled.first())
+
+        // Weekly analytics roll-up (Phase I). Same one-shot seed shape as
+        // the weekly review worker — first launch after upgrade enqueues
+        // the periodic work once, then applyWeeklyAnalytics keeps it in
+        // sync with the user's toggle on every subsequent boot.
+        WeeklyAnalyticsSchedulerMigration.runIfNeeded(context, notificationPreferences)
+        applyWeeklyAnalytics(notificationPreferences.weeklyAnalyticsNotificationEnabled.first())
     }
 
     suspend fun applyBriefing(enabled: Boolean) {
@@ -167,6 +174,17 @@ constructor(
         }
     }
 
+    suspend fun applyWeeklyAnalytics(enabled: Boolean) {
+        if (enabled) {
+            // Hard-coded to Sunday 19:00 — earlier than the weekly review
+            // (20:00) so the two notifications stagger. Configurability
+            // can come later if users actually ask for it.
+            WeeklyAnalyticsWorker.schedule(context)
+        } else {
+            WeeklyAnalyticsWorker.cancel(context)
+        }
+    }
+
     /**
      * Cancel every periodic worker the app may have scheduled for the
      * current account. Used by the account-deletion path to prevent
@@ -182,6 +200,7 @@ constructor(
         OverloadCheckWorker.cancel(context)
         ReengagementWorker.cancel(context)
         WeeklyReviewWorker.cancel(context)
+        WeeklyAnalyticsWorker.cancel(context)
         BatchUndoSweepWorker.cancel(context)
         try {
             WorkManager.getInstance(context).cancelAllWork()
@@ -265,5 +284,23 @@ private object WeeklyReviewSchedulerMigration {
             WeeklyReviewWorker.schedule(context)
         }
         prefs.setWeeklyReviewWorkerSeeded()
+    }
+}
+
+/**
+ * One-shot seed for the v1.7 [WeeklyAnalyticsWorker]. Same shape as
+ * [WeeklyReviewSchedulerMigration] — guarantees the periodic work is
+ * enqueued exactly once on the first launch after the upgrade so
+ * existing users start receiving Sunday-evening summaries without
+ * having to touch Settings. Subsequent applyAll calls keep the
+ * schedule in sync via UPDATE policy.
+ */
+private object WeeklyAnalyticsSchedulerMigration {
+    suspend fun runIfNeeded(context: Context, prefs: NotificationPreferences) {
+        if (prefs.getWeeklyAnalyticsWorkerSeededOnce()) return
+        if (prefs.weeklyAnalyticsNotificationEnabled.first()) {
+            WeeklyAnalyticsWorker.schedule(context)
+        }
+        prefs.setWeeklyAnalyticsWorkerSeeded()
     }
 }

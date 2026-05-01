@@ -76,6 +76,8 @@ constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
     val weeklyReviewNotificationEnabled = prefs.weeklyReviewNotificationEnabled
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+    val weeklyAnalyticsNotificationEnabled = prefs.weeklyAnalyticsNotificationEnabled
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
     val weeklyTaskSummaryEnabled = prefs.weeklyTaskSummaryEnabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
     val streakAlertsEnabled = prefs.streakAlertsEnabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
     val reengagementEnabled = prefs.reengagementEnabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
@@ -199,6 +201,16 @@ constructor(
 
     fun setWeeklyReviewNotificationEnabled(enabled: Boolean) = viewModelScope.launch {
         prefs.setWeeklyReviewNotificationEnabled(enabled)
+    }
+
+    /**
+     * Toggle for the Sunday-evening weekly analytics summary notification.
+     * Pref-only flip — the next [NotificationWorkerScheduler.applyAll]
+     * call will re-align WorkManager. The worker also re-checks the pref
+     * inside doWork() so any in-flight enqueue stays consistent.
+     */
+    fun setWeeklyAnalyticsNotificationEnabled(enabled: Boolean) = viewModelScope.launch {
+        prefs.setWeeklyAnalyticsNotificationEnabled(enabled)
     }
 
     fun setStreakAlertsEnabled(enabled: Boolean) = viewModelScope.launch { prefs.setStreakAlertsEnabled(enabled) }
