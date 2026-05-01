@@ -7,6 +7,7 @@ import com.averycorp.prismtask.data.local.entity.MedicationEntity
 import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
 import com.averycorp.prismtask.data.remote.SyncTracker
 import com.averycorp.prismtask.util.DayBoundary
+import com.averycorp.prismtask.widget.WidgetUpdateManager
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import javax.inject.Inject
@@ -29,7 +30,8 @@ constructor(
     private val medicationDao: MedicationDao,
     private val medicationDoseDao: MedicationDoseDao,
     private val syncTracker: SyncTracker,
-    private val taskBehaviorPreferences: TaskBehaviorPreferences
+    private val taskBehaviorPreferences: TaskBehaviorPreferences,
+    private val widgetUpdateManager: WidgetUpdateManager
 ) {
     fun observeActive(): Flow<List<MedicationEntity>> = medicationDao.getActive()
 
@@ -113,6 +115,7 @@ constructor(
         )
         val id = medicationDoseDao.insert(dose)
         syncTracker.trackCreate(id, "medication_dose")
+        widgetUpdateManager.updateMedicationWidget()
         return id
     }
 
@@ -145,18 +148,21 @@ constructor(
         )
         val id = medicationDoseDao.insert(dose)
         syncTracker.trackCreate(id, "medication_dose")
+        widgetUpdateManager.updateMedicationWidget()
         return id
     }
 
     suspend fun unlogDose(dose: MedicationDoseEntity) {
         medicationDoseDao.delete(dose)
         syncTracker.trackDelete(dose.id, "medication_dose")
+        widgetUpdateManager.updateMedicationWidget()
     }
 
     suspend fun updateDose(dose: MedicationDoseEntity) {
         val updated = dose.copy(updatedAt = System.currentTimeMillis())
         medicationDoseDao.update(updated)
         syncTracker.trackUpdate(updated.id, "medication_dose")
+        widgetUpdateManager.updateMedicationWidget()
     }
 
     suspend fun countDosesForMedOnDateOnce(medicationId: Long, date: String): Int =

@@ -319,6 +319,8 @@ private class FakeMedicationDoseDao : MedicationDoseDao {
 
     override fun observeAll() = error("flow read not exercised in this test")
     override fun getForDate(date: String) = error("flow read not exercised in this test")
+    override suspend fun getForDateOnce(date: String): List<MedicationDoseEntity> =
+        rows.filter { it.takenDateLocal == date }
     override fun getForMedOnDate(medicationId: Long, date: String) =
         error("flow read not exercised in this test")
 

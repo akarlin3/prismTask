@@ -51,8 +51,18 @@ class EisenhowerWidget : GlanceAppWidget() {
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val palette = loadWidgetPalette(context)
+        val data = try {
+            WidgetDataProvider.getEisenhowerData(context)
+        } catch (_: Exception) {
+            EisenhowerWidgetData(
+                EisenhowerQuadrantSummary(0, null),
+                EisenhowerQuadrantSummary(0, null),
+                EisenhowerQuadrantSummary(0, null),
+                EisenhowerQuadrantSummary(0, null)
+            )
+        }
         provideContent {
-            EisenhowerContent(context, LocalSize.current, palette)
+            EisenhowerContent(context, LocalSize.current, palette, data)
         }
     }
 }
@@ -63,22 +73,24 @@ private data class Quad(
     val count: Int,
     val color: ColorProvider,
     val bgColor: ColorProvider,
-    val top: String
+    val top: String?
 )
 
 @Composable
-private fun EisenhowerContent(context: Context, size: DpSize, palette: WidgetThemePalette) {
+private fun EisenhowerContent(
+    context: Context,
+    size: DpSize,
+    palette: WidgetThemePalette,
+    data: EisenhowerWidgetData
+) {
     val isLarge = size.width >= 350.dp
-    // Sample state — wiring through a TaskRepository.eisenhowerCounts() is a
-    // follow-up. Headlines mirror the design mockup so the widget renders
-    // recognizably even before data is plumbed.
     val quads = listOf(
-        Quad("Q1", "Do", 3, palette.quadrantQ1, palette.quadrantQ1Bg, "Pay parking ticket"),
-        Quad("Q2", "Schedule", 5, palette.quadrantQ2, palette.quadrantQ2Bg, "Sketch onboarding flow"),
-        Quad("Q3", "Delegate", 2, palette.quadrantQ3, palette.quadrantQ3Bg, "Reply to design crit"),
-        Quad("Q4", "Drop", 4, palette.quadrantQ4, palette.quadrantQ4Bg, "News scroll session")
+        Quad("Q1", "Do", data.q1.count, palette.quadrantQ1, palette.quadrantQ1Bg, data.q1.topTaskTitle),
+        Quad("Q2", "Schedule", data.q2.count, palette.quadrantQ2, palette.quadrantQ2Bg, data.q2.topTaskTitle),
+        Quad("Q3", "Delegate", data.q3.count, palette.quadrantQ3, palette.quadrantQ3Bg, data.q3.topTaskTitle),
+        Quad("Q4", "Drop", data.q4.count, palette.quadrantQ4, palette.quadrantQ4Bg, data.q4.topTaskTitle)
     )
-    val total = quads.sumOf { it.count }
+    val total = data.total
     val openMatrix = Intent(context, MainActivity::class.java).apply {
         flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
         putExtra(MainActivity.EXTRA_LAUNCH_ACTION, "open_matrix")
@@ -146,7 +158,7 @@ private fun QuadCell(q: Quad, palette: WidgetThemePalette, compact: Boolean, mod
             if (!compact) {
                 Spacer(modifier = GlanceModifier.height(2.dp))
                 Text(
-                    text = q.top,
+                    text = q.top ?: "—",
                     style = WidgetTextStyles.badge(palette.onSurfaceVariant),
                     maxLines = 1
                 )

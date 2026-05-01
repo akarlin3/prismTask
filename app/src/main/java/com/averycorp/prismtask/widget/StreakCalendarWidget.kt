@@ -3,7 +3,6 @@ package com.averycorp.prismtask.widget
 import android.content.Context
 import android.content.Intent
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.glance.GlanceId
@@ -32,8 +31,6 @@ import androidx.glance.text.Text
 import androidx.glance.unit.ColorProvider
 import com.averycorp.prismtask.MainActivity
 import com.averycorp.prismtask.ui.theme.prismThemeColors
-import kotlin.math.cos
-import kotlin.math.sin
 
 /**
  * Streak Calendar widget — GitHub-style heatmap of the last N weeks of
@@ -54,21 +51,42 @@ class StreakCalendarWidget : GlanceAppWidget() {
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val palette = loadWidgetPalette(context)
+        // Snapshot 12 weeks; the @Composable picks 12 vs 8 visually based on
+        // current size, but always reads from the same backing data so a
+        // live size change doesn't trigger a fresh DB read.
+        val data = try {
+            WidgetDataProvider.getStreakCalendarData(context, weeks = 12)
+        } catch (_: Exception) {
+            StreakCalendarWidgetData(
+                intensities = List(12 * 7) { 0 },
+                activeDays = 0,
+                longestStreak = 0,
+                weeks = 12
+            )
+        }
         provideContent {
-            StreakCalendarContent(context, LocalSize.current, palette)
+            StreakCalendarContent(context, LocalSize.current, palette, data)
         }
     }
 }
 
 @Composable
-private fun StreakCalendarContent(context: Context, size: DpSize, palette: WidgetThemePalette) {
+private fun StreakCalendarContent(
+    context: Context,
+    size: DpSize,
+    palette: WidgetThemePalette,
+    data: StreakCalendarWidgetData
+) {
     val isLarge = size.width >= 350.dp
-    val weeks = if (isLarge) 12 else 8
-    val data = remember(weeks) { makeHeatmapPattern(weeks * 7) }
+    val weeks = if (isLarge) data.weeks else minOf(data.weeks, 8)
     val cellSize = if (isLarge) 14.dp else 11.dp
     val gap = 3.dp
-    val totalDays = data.count { it > 0 }
-    val longestStreak = 18
+    // Slice the most-recent `weeks` columns from the 12-week buffer.
+    val sourceWeeks = data.weeks
+    val startCol = (sourceWeeks - weeks).coerceAtLeast(0)
+    val intensities = data.intensities
+    val totalDays = data.activeDays
+    val longestStreak = data.longestStreak
     val openHabits = Intent(context, MainActivity::class.java).apply {
         flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
         putExtra(MainActivity.EXTRA_LAUNCH_ACTION, MainActivity.ACTION_OPEN_HABITS)
@@ -103,7 +121,8 @@ private fun StreakCalendarContent(context: Context, size: DpSize, palette: Widge
             for (wi in 0 until weeks) {
                 Column {
                     for (di in 0 until 7) {
-                        val v = data[wi * 7 + di]
+                        val sourceIdx = (startCol + wi) * 7 + di
+                        val v = intensities.getOrElse(sourceIdx) { 0 }
                         Box(
                             modifier = GlanceModifier
                                 .size(cellSize)
@@ -147,24 +166,6 @@ private fun heatColor(v: Int, palette: WidgetThemePalette): ColorProvider {
         else -> 1.0f
     }
     return ColorProvider(base.copy(alpha = alpha))
-}
-
-private fun makeHeatmapPattern(n: Int): IntArray {
-    val out = IntArray(n)
-    for (i in 0 until n) {
-        val recency = i.toFloat() / n
-        val weekend = (i % 7) >= 5
-        var r = ((sin(i * 0.7) + sin(i * 0.31) + cos(i * 1.13)) + 3) / 6
-        r *= (0.55 + recency * 0.45) * (if (weekend) 0.7 else 1.0)
-        out[i] = when {
-            r < 0.20 -> 0
-            r < 0.40 -> 1
-            r < 0.60 -> 2
-            r < 0.80 -> 3
-            else -> 4
-        }
-    }
-    return out
 }
 
 class StreakCalendarWidgetReceiver : GlanceAppWidgetReceiver() {

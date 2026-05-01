@@ -42,7 +42,8 @@ class MedicationRepositoryTest {
             medicationDao = medicationDao,
             medicationDoseDao = medicationDoseDao,
             syncTracker = syncTracker,
-            taskBehaviorPreferences = taskBehaviorPreferences
+            taskBehaviorPreferences = taskBehaviorPreferences,
+            widgetUpdateManager = mockk(relaxed = true)
         )
     }
 
@@ -382,6 +383,9 @@ private class FakeMedicationDoseDaoForRepo : MedicationDoseDao {
     override fun getForDate(date: String) = error("flow not exercised")
     override fun getForMedOnDate(medicationId: Long, date: String) =
         error("flow not exercised")
+
+    override suspend fun getForDateOnce(date: String): List<MedicationDoseEntity> =
+        rows.filter { it.takenDateLocal == date }
 
     override suspend fun getMostRecentDoseAnyOnce(): MedicationDoseEntity? =
         rows.maxByOrNull { it.takenAt }

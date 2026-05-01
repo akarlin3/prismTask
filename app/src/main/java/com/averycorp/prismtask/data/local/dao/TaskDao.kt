@@ -214,6 +214,25 @@ interface TaskDao {
     )
     suspend fun getCompletedTodayOnce(startOfToday: Long): List<TaskEntity>
 
+    @Query(
+        "SELECT * FROM tasks WHERE is_completed = 0 AND archived_at IS NULL " +
+            "AND parent_task_id IS NULL ORDER BY due_date ASC, priority DESC"
+    )
+    suspend fun getIncompleteRootTasksOnce(): List<TaskEntity>
+
+    /**
+     * One-shot inbox snapshot for [com.averycorp.prismtask.widget.InboxWidget].
+     * Mirrors the in-app inbox heuristic: unfiled (no project), unscheduled
+     * (no due date) root tasks ordered by most-recently-captured. Synced + local
+     * tasks both appear; archived rows are excluded.
+     */
+    @Query(
+        "SELECT * FROM tasks WHERE is_completed = 0 AND archived_at IS NULL " +
+            "AND parent_task_id IS NULL AND project_id IS NULL AND due_date IS NULL " +
+            "ORDER BY created_at DESC LIMIT :limit"
+    )
+    suspend fun getInboxCandidatesOnce(limit: Int): List<TaskEntity>
+
     @Query("UPDATE tasks SET planned_date = :plannedDate, updated_at = :now WHERE id = :id")
     suspend fun setPlanDate(id: Long, plannedDate: Long?, now: Long = System.currentTimeMillis())
 

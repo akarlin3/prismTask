@@ -100,6 +100,68 @@ data class TemplateShortcut(
  * is only populated when the project has no upcoming milestones — the
  * widget falls back to it per Phase 3 spec.
  */
+data class EisenhowerWidgetData(
+    val q1: EisenhowerQuadrantSummary,
+    val q2: EisenhowerQuadrantSummary,
+    val q3: EisenhowerQuadrantSummary,
+    val q4: EisenhowerQuadrantSummary
+) {
+    val total: Int get() = q1.count + q2.count + q3.count + q4.count
+}
+
+data class EisenhowerQuadrantSummary(
+    val count: Int,
+    val topTaskTitle: String?
+)
+
+data class InboxWidgetData(
+    val items: List<InboxWidgetItem>
+)
+
+data class InboxWidgetItem(
+    val id: Long,
+    val title: String,
+    val ageLabel: String,
+    val priority: Int
+)
+
+data class StatsSparklineWidgetData(
+    val thisWeek: List<Int>,
+    val lastWeek: List<Int>,
+    val total: Int,
+    val lastTotal: Int,
+    val deltaPct: Int,
+    val up: Boolean
+)
+
+data class StreakCalendarWidgetData(
+    val intensities: List<Int>,
+    val activeDays: Int,
+    val longestStreak: Int,
+    val weeks: Int
+)
+
+data class MedicationWidgetData(
+    val slots: List<MedicationWidgetSlot>,
+    val totalDoses: Int,
+    val takenDoses: Int,
+    val nextSlotIndex: Int
+) {
+    val nextSlot: MedicationWidgetSlot? get() = slots.getOrNull(nextSlotIndex)
+}
+
+data class MedicationWidgetSlot(
+    val slotId: Long,
+    val name: String,
+    val time: String,
+    val tier: MedicationWidgetTier,
+    val taken: Int,
+    val total: Int,
+    val active: Boolean
+)
+
+enum class MedicationWidgetTier { ESSENTIAL, PRESCRIPTION, COMPLETE, SKIPPED }
+
 data class ProjectWidgetData(
     val projectId: Long,
     val name: String,
@@ -364,11 +426,10 @@ object WidgetDataProvider {
             icon = project.icon,
             themeColorHex = project.themeColorKey ?: project.color,
             status = project.status,
-            milestoneProgress = if ((aggregate?.totalMilestones ?: 0) == 0) {
-                0f
-            } else {
-                (aggregate!!.completedMilestones.toFloat() / aggregate.totalMilestones).coerceIn(0f, 1f)
-            },
+            milestoneProgress = aggregate
+                ?.takeIf { it.totalMilestones > 0 }
+                ?.let { (it.completedMilestones.toFloat() / it.totalMilestones).coerceIn(0f, 1f) }
+                ?: 0f,
             completedMilestones = aggregate?.completedMilestones ?: 0,
             totalMilestones = aggregate?.totalMilestones ?: 0,
             upcomingMilestoneTitle = upcomingMilestoneTitle,
@@ -378,6 +439,255 @@ object WidgetDataProvider {
             streak = streak,
             daysSinceActivity = daysSince
         )
+    }
+
+    /**
+     * Eisenhower quadrant counts + the highest-priority task title in each
+     * quadrant. Pulled from `tasks.eisenhower_quadrant` (Q1..Q4 codes); rows
+     * with a null code roll up into [EisenhowerQuadrant.UNCLASSIFIED] which
+     * the widget doesn't render — only the four canonical quadrants surface.
+     */
+    suspend fun getEisenhowerData(context: Context): EisenhowerWidgetData {
+        val db = getDb(context)
+        val tasks = db.taskDao().getIncompleteRootTasksOnce()
+            .filter { it.archivedAt == null }
+        fun summarize(code: String): EisenhowerQuadrantSummary {
+            val matches = tasks.filter { it.eisenhowerQuadrant == code }
+            val top = matches
+                .sortedWith(compareByDescending<TaskEntity> { it.priority }.thenBy { it.dueDate ?: Long.MAX_VALUE })
+                .firstOrNull()
+                ?.title
+            return EisenhowerQuadrantSummary(count = matches.size, topTaskTitle = top)
+        }
+        return EisenhowerWidgetData(
+            q1 = summarize("Q1"),
+            q2 = summarize("Q2"),
+            q3 = summarize("Q3"),
+            q4 = summarize("Q4")
+        )
+    }
+
+    /**
+     * Inbox snapshot for [InboxWidget]. Returns up to [limit] root tasks that
+     * are unfiled (no project) and unscheduled (no due date), ordered most
+     * recently captured first. Age labels are formatted relative to [now].
+     */
+    suspend fun getInboxData(
+        context: Context,
+        limit: Int = 6,
+        now: Long = System.currentTimeMillis()
+    ): InboxWidgetData {
+        val db = getDb(context)
+        val candidates = db.taskDao().getInboxCandidatesOnce(limit.coerceIn(1, 20))
+        return InboxWidgetData(
+            items = candidates.map {
+                InboxWidgetItem(
+                    id = it.id,
+                    title = it.title,
+                    ageLabel = formatRelativeAge(now - it.createdAt),
+                    priority = it.priority
+                )
+            }
+        )
+    }
+
+    /**
+     * Per-day completion counts for the current week + previous week. Both
+     * lists run oldest → today (length 7); today's bucket is the last entry.
+     * `up` is true when this-week's total >= last-week's total. Used by
+     * [StatsSparklineWidget] to render a 7-bar chart + ▲/▼ delta header.
+     */
+    suspend fun getStatsSparklineData(
+        context: Context,
+        now: Long = System.currentTimeMillis()
+    ): StatsSparklineWidgetData {
+        val db = getDb(context)
+        val dayStartHour = context.readDayStartHour()
+        val dayStartMinute = context.readDayStartMinute()
+        val startOfToday = DayBoundary.startOfCurrentDay(
+            dayStartHour = dayStartHour,
+            now = now,
+            dayStartMinute = dayStartMinute
+        )
+        // 14 buckets covering [today - 13 days, today], aligned to user SoD.
+        val startOfWindow = startOfToday - 13L * DayBoundary.DAY_MILLIS
+        val endOfWindow = startOfToday + DayBoundary.DAY_MILLIS
+        val rows = db.taskCompletionDao()
+            .getCompletionCountByDate(startOfWindow, endOfWindow - 1)
+            .first()
+        // Map epoch-day-bucket → count. Room returns DateCount(date=epochMillis, count=N)
+        // grouped by midnight UTC, but we need user-SoD buckets. Re-bucket in Kotlin.
+        val bucketed = IntArray(14)
+        rows.forEach { row ->
+            val deltaDays = ((row.date - startOfWindow) / DayBoundary.DAY_MILLIS).toInt()
+            if (deltaDays in 0..13) bucketed[deltaDays] += row.count
+        }
+        val lastWeek = bucketed.slice(0..6)
+        val thisWeek = bucketed.slice(7..13)
+        val total = thisWeek.sum()
+        val lastTotal = lastWeek.sum()
+        val deltaPct = if (lastTotal > 0) {
+            (((total - lastTotal).toFloat() / lastTotal) * 100).toInt()
+        } else if (total > 0) {
+            100
+        } else {
+            0
+        }
+        return StatsSparklineWidgetData(
+            thisWeek = thisWeek,
+            lastWeek = lastWeek,
+            total = total,
+            lastTotal = lastTotal,
+            deltaPct = deltaPct,
+            up = total >= lastTotal
+        )
+    }
+
+    /**
+     * Heatmap data for [StreakCalendarWidget]. Returns one intensity bucket
+     * (0..4) per day across the requested [weeks] window, ordered by week
+     * then day-of-week. Buckets are derived from per-day completion counts:
+     *  - 0: no completions
+     *  - 1: 1 completion
+     *  - 2: 2-3 completions
+     *  - 3: 4-5 completions
+     *  - 4: 6+ completions
+     * Also returns the longest current streak (consecutive days with ≥1
+     * completion ending at today, or just before today if today is empty).
+     */
+    suspend fun getStreakCalendarData(
+        context: Context,
+        weeks: Int = 12,
+        now: Long = System.currentTimeMillis()
+    ): StreakCalendarWidgetData {
+        val totalDays = (weeks * 7).coerceAtLeast(7)
+        val db = getDb(context)
+        val dayStartHour = context.readDayStartHour()
+        val dayStartMinute = context.readDayStartMinute()
+        val startOfToday = DayBoundary.startOfCurrentDay(
+            dayStartHour = dayStartHour,
+            now = now,
+            dayStartMinute = dayStartMinute
+        )
+        val startOfWindow = startOfToday - (totalDays - 1L) * DayBoundary.DAY_MILLIS
+        val endOfWindow = startOfToday + DayBoundary.DAY_MILLIS
+        val rows = db.habitCompletionDao()
+            .getAllCompletionsInRange(startOfWindow, endOfWindow - 1)
+            .first()
+        val perDay = IntArray(totalDays)
+        rows.forEach { row ->
+            val deltaDays = ((row.completedDate - startOfWindow) / DayBoundary.DAY_MILLIS).toInt()
+            if (deltaDays in 0 until totalDays) perDay[deltaDays] += 1
+        }
+        val intensities = perDay.map { count ->
+            when {
+                count <= 0 -> 0
+                count == 1 -> 1
+                count <= 3 -> 2
+                count <= 5 -> 3
+                else -> 4
+            }
+        }
+        val activeDays = perDay.count { it > 0 }
+        // Streak: walk back from today; if today empty, allow starting at yesterday.
+        var longest = 0
+        var idx = totalDays - 1
+        if (idx >= 0 && perDay[idx] == 0) idx -= 1
+        while (idx >= 0 && perDay[idx] > 0) {
+            longest += 1
+            idx -= 1
+        }
+        return StreakCalendarWidgetData(
+            intensities = intensities,
+            activeDays = activeDays,
+            longestStreak = longest,
+            weeks = weeks
+        )
+    }
+
+    /**
+     * Per-slot dose progress for today, used by [MedicationWidget]. Slots
+     * are sorted by ideal time; each slot's `taken` count is the number of
+     * non-synthetic doses with a `slot_key` matching the slot's name (case
+     * insensitive) on today's local date. The "next" slot is the first
+     * active slot whose ideal time hasn't passed *and* still has unfilled
+     * doses; falls back to the first under-filled active slot.
+     */
+    suspend fun getMedicationData(
+        context: Context,
+        now: Long = System.currentTimeMillis()
+    ): MedicationWidgetData {
+        val db = getDb(context)
+        val slotDao = db.medicationSlotDao()
+        val medDao = db.medicationDao()
+        val doseDao = db.medicationDoseDao()
+        val activeSlots = slotDao.getActiveOnce().sortedBy { it.idealTime }
+        val activeMeds = medDao.getActiveOnce()
+        val medIdToSlotIds: Map<Long, List<Long>> = activeMeds.associate { med ->
+            med.id to slotDao.getSlotIdsForMedicationOnce(med.id)
+        }
+        val dayStartHour = context.readDayStartHour()
+        val dayStartMinute = context.readDayStartMinute()
+        val startOfToday = DayBoundary.startOfCurrentDay(
+            dayStartHour = dayStartHour,
+            now = now,
+            dayStartMinute = dayStartMinute
+        )
+        val todayLocal = epochToLocalDateString(startOfToday)
+        val doses = doseDao.getForDateOnce(todayLocal).filter { !it.isSyntheticSkip }
+        val nowMinutes = ((now - startOfToday) / 60_000L).toInt()
+        val slots = activeSlots.map { slot ->
+            val medsInSlot = activeMeds.count { (medIdToSlotIds[it.id] ?: emptyList()).contains(slot.id) }
+            val takenInSlot = doses.count { it.slotKey.equals(slot.name, ignoreCase = true) }
+            val tier = when {
+                !slot.isActive -> MedicationWidgetTier.SKIPPED
+                medsInSlot > 0 && takenInSlot >= medsInSlot -> MedicationWidgetTier.COMPLETE
+                slot.name.contains("prescription", ignoreCase = true) -> MedicationWidgetTier.PRESCRIPTION
+                else -> MedicationWidgetTier.ESSENTIAL
+            }
+            MedicationWidgetSlot(
+                slotId = slot.id,
+                name = slot.name,
+                time = slot.idealTime,
+                tier = tier,
+                taken = takenInSlot,
+                total = medsInSlot,
+                active = slot.isActive
+            )
+        }
+        val totalDoses = slots.sumOf { it.total }
+        val takenDoses = slots.sumOf { it.taken }
+        val nextIndex = slots.indexOfFirst { slot ->
+            slot.active && slot.taken < slot.total && minutesOfDay(slot.time) >= nowMinutes
+        }.let {
+            if (it >= 0) it else slots.indexOfFirst { s -> s.active && s.taken < s.total }
+        }
+        return MedicationWidgetData(
+            slots = slots,
+            totalDoses = totalDoses,
+            takenDoses = takenDoses,
+            nextSlotIndex = nextIndex
+        )
+    }
+
+    private fun minutesOfDay(hhmm: String): Int {
+        val parts = hhmm.split(":")
+        if (parts.size < 2) return 0
+        val h = parts[0].toIntOrNull() ?: 0
+        val m = parts[1].toIntOrNull() ?: 0
+        return h * 60 + m
+    }
+
+    /** "12m" / "2h" / "Yday" / "3d" age labels for the inbox widget. */
+    internal fun formatRelativeAge(deltaMillis: Long): String {
+        val minutes = deltaMillis / 60_000L
+        return when {
+            minutes < 1 -> "now"
+            minutes < 60 -> "${minutes}m"
+            minutes < 24 * 60 -> "${minutes / 60}h"
+            minutes < 2 * 24 * 60 -> "Yday"
+            else -> "${minutes / (24 * 60)}d"
+        }
     }
 
     suspend fun getTopTemplates(context: Context, limit: Int = 3): List<TemplateShortcut> {
