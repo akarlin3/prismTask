@@ -33,7 +33,10 @@ import org.junit.Test
  * as ambiguous AND emits a mutation for one of the candidates, the user
  * could approve a wrong-medication dose without realising. The auto-strip
  * safeguard in [BatchPreviewViewModel.loadPreview] is the belt-and-suspenders
- * guard regardless of whether the picker is ever shown.
+ * guard regardless of whether the picker is ever shown. The GREEN-GO pass
+ * adds a deterministic [BatchOperationsRepository.BatchParseOutcome] hook
+ * that lets the matcher commit known-correct entity_ids; tests covering
+ * the override + the new low-confidence guard live below.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class BatchPreviewViewModelAmbiguityTest {
@@ -61,17 +64,19 @@ class BatchPreviewViewModelAmbiguityTest {
 
     @Test
     fun loadPreview_stripsMutationsListedInAmbiguousCandidates() = runTest(dispatcher) {
-        coEvery { repository.parseCommand(any()) } returns BatchParseResponse(
-            mutations = listOf(
-                medicationCompleteMutation(entityId = "42", slotKey = "morning")
-            ),
-            confidence = 0.5f,
-            ambiguousEntities = listOf(
-                AmbiguousEntityHintResponse(
-                    phrase = "Wellbutrin",
-                    candidateEntityType = "MEDICATION",
-                    candidateEntityIds = listOf("42", "43"),
-                    note = "Two medications match"
+        stubParse(
+            response = BatchParseResponse(
+                mutations = listOf(
+                    medicationCompleteMutation(entityId = "42", slotKey = "morning")
+                ),
+                confidence = 0.5f,
+                ambiguousEntities = listOf(
+                    AmbiguousEntityHintResponse(
+                        phrase = "Wellbutrin",
+                        candidateEntityType = "MEDICATION",
+                        candidateEntityIds = listOf("42", "43"),
+                        note = "Two medications match"
+                    )
                 )
             )
         )
@@ -96,20 +101,18 @@ class BatchPreviewViewModelAmbiguityTest {
 
     @Test
     fun loadPreview_keepsMutationsNotListedInAmbiguousCandidates() = runTest(dispatcher) {
-        // Haiku flagged Wellbutrin as ambiguous (candidates 42, 43) but emitted
-        // a mutation against entity 99 — that's NOT in the candidate list,
-        // so it must pass through. Otherwise the safeguard becomes overzealous
-        // and drops legitimate work.
-        coEvery { repository.parseCommand(any()) } returns BatchParseResponse(
-            mutations = listOf(
-                medicationCompleteMutation(entityId = "99", slotKey = "evening")
-            ),
-            confidence = 0.7f,
-            ambiguousEntities = listOf(
-                AmbiguousEntityHintResponse(
-                    phrase = "Wellbutrin",
-                    candidateEntityType = "MEDICATION",
-                    candidateEntityIds = listOf("42", "43")
+        stubParse(
+            response = BatchParseResponse(
+                mutations = listOf(
+                    medicationCompleteMutation(entityId = "99", slotKey = "evening")
+                ),
+                confidence = 0.95f,
+                ambiguousEntities = listOf(
+                    AmbiguousEntityHintResponse(
+                        phrase = "Wellbutrin",
+                        candidateEntityType = "MEDICATION",
+                        candidateEntityIds = listOf("42", "43")
+                    )
                 )
             )
         )
@@ -126,13 +129,15 @@ class BatchPreviewViewModelAmbiguityTest {
 
     @Test
     fun loadPreview_emptyAmbiguousEntities_keepsAllMutations() = runTest(dispatcher) {
-        coEvery { repository.parseCommand(any()) } returns BatchParseResponse(
-            mutations = listOf(
-                medicationCompleteMutation(entityId = "42", slotKey = "morning"),
-                medicationCompleteMutation(entityId = "43", slotKey = "evening")
-            ),
-            confidence = 0.95f,
-            ambiguousEntities = emptyList()
+        stubParse(
+            response = BatchParseResponse(
+                mutations = listOf(
+                    medicationCompleteMutation(entityId = "42", slotKey = "morning"),
+                    medicationCompleteMutation(entityId = "43", slotKey = "evening")
+                ),
+                confidence = 0.95f,
+                ambiguousEntities = emptyList()
+            )
         )
 
         val viewModel = newViewModel()
@@ -146,17 +151,120 @@ class BatchPreviewViewModelAmbiguityTest {
     }
 
     @Test
-    fun resolveAmbiguity_substitutesPickedEntityIdAndRemovesHint() = runTest(dispatcher) {
-        coEvery { repository.parseCommand(any()) } returns BatchParseResponse(
-            mutations = listOf(
-                medicationCompleteMutation(entityId = "42", slotKey = "morning")
+    fun loadPreview_shortCircuitsForUnambiguousMedicationOnlyCommand() = runTest(dispatcher) {
+        // Matcher committed entity_id "42" — Haiku still flagged Wellbutrin as
+        // ambiguous, but the override must keep the committed mutation in the
+        // live list. This proves the deterministic pre-resolver wins over a
+        // false-positive Haiku ambiguity flag.
+        stubParse(
+            response = BatchParseResponse(
+                mutations = listOf(
+                    medicationCompleteMutation(entityId = "42", slotKey = "morning")
+                ),
+                confidence = 0.95f,
+                ambiguousEntities = listOf(
+                    AmbiguousEntityHintResponse(
+                        phrase = "Wellbutrin",
+                        candidateEntityType = "MEDICATION",
+                        candidateEntityIds = listOf("42", "43")
+                    )
+                )
             ),
-            confidence = 0.4f,
-            ambiguousEntities = listOf(
-                AmbiguousEntityHintResponse(
-                    phrase = "Wellbutrin",
-                    candidateEntityType = "MEDICATION",
-                    candidateEntityIds = listOf("42", "43")
+            committedIds = setOf("42")
+        )
+
+        val viewModel = newViewModel()
+        viewModel.loadPreview("took my Wellbutrin")
+        advanceUntilIdle()
+
+        val loaded = viewModel.state.value as BatchPreviewState.Loaded
+        assertEquals(
+            "committed match overrides Haiku's ambiguity flag",
+            1,
+            loaded.mutations.size
+        )
+        assertEquals("42", loaded.mutations.single().entityId)
+        assertEquals(0, loaded.strippedAmbiguousCount)
+    }
+
+    @Test
+    fun loadPreview_stripsLowConfidenceMedicationMutation() = runTest(dispatcher) {
+        // Haiku confidence below the 0.85 floor + medication NOT committed by
+        // the matcher → strip and surface a synthetic ambiguous hint so the
+        // user can pick. This is the audit's failure-mode #2 firewall.
+        stubParse(
+            response = BatchParseResponse(
+                mutations = listOf(
+                    medicationCompleteMutation(entityId = "42", slotKey = "morning")
+                ),
+                confidence = 0.6f,
+                ambiguousEntities = emptyList()
+            )
+        )
+
+        val viewModel = newViewModel()
+        viewModel.loadPreview("took my Welbutrn") // typo — matcher returns NoMatch
+        advanceUntilIdle()
+
+        val loaded = viewModel.state.value as BatchPreviewState.Loaded
+        assertTrue(loaded.mutations.isEmpty())
+        assertEquals(1, loaded.strippedAmbiguousCount)
+        assertEquals(
+            "synthetic ambiguous hint surfaced for stripped low-confidence med",
+            1,
+            loaded.ambiguousEntities.size
+        )
+        assertEquals(
+            listOf("42"),
+            loaded.ambiguousEntities.single().candidateEntityIds
+        )
+    }
+
+    @Test
+    fun loadPreview_keepsLowConfidenceTaskMutation() = runTest(dispatcher) {
+        // TASK mutations are intentionally exempt from the medication
+        // confidence floor — wrong-day scheduling is recoverable, wrong-
+        // medication is not. Haiku confidence well below 0.85 must still
+        // pass the task mutation through.
+        stubParse(
+            response = BatchParseResponse(
+                mutations = listOf(
+                    ProposedMutationResponse(
+                        entityType = "TASK",
+                        entityId = "7",
+                        mutationType = "RESCHEDULE",
+                        proposedNewValues = mapOf("due_date" to "2026-05-02"),
+                        humanReadableDescription = "Reschedule task 7"
+                    )
+                ),
+                confidence = 0.4f,
+                ambiguousEntities = emptyList()
+            )
+        )
+
+        val viewModel = newViewModel()
+        viewModel.loadPreview("push my task to friday")
+        advanceUntilIdle()
+
+        val loaded = viewModel.state.value as BatchPreviewState.Loaded
+        assertEquals(1, loaded.mutations.size)
+        assertEquals(0, loaded.strippedAmbiguousCount)
+    }
+
+    @Test
+    fun resolveAmbiguity_substitutesPickedEntityIdAndRemovesHint() = runTest(dispatcher) {
+        stubParse(
+            response = BatchParseResponse(
+                mutations = listOf(
+                    medicationCompleteMutation(entityId = "42", slotKey = "morning")
+                ),
+                confidence = 0.4f,
+                ambiguousEntities = listOf(
+                    AmbiguousEntityHintResponse(
+                        phrase = "Wellbutrin",
+                        candidateEntityType = "MEDICATION",
+                        candidateEntityIds = listOf("42", "43")
+                    )
                 )
             )
         )
@@ -169,12 +277,10 @@ class BatchPreviewViewModelAmbiguityTest {
         viewModel.loadPreview("took my Wellbutrin")
         advanceUntilIdle()
 
-        // Sanity: stripped state set up, picker candidates resolved.
         val loadedBefore = viewModel.state.value as BatchPreviewState.Loaded
         assertEquals(1, loadedBefore.strippedAmbiguousCount)
         assertNotNull(loadedBefore.medicationCandidates[0])
 
-        // User picks the SR — substitute and re-emit.
         viewModel.resolveAmbiguity(hintIndex = 0, pickedEntityId = "43")
 
         val loadedAfter = viewModel.state.value as BatchPreviewState.Loaded
@@ -195,11 +301,73 @@ class BatchPreviewViewModelAmbiguityTest {
         assertEquals(0, loadedAfter.strippedAmbiguousCount)
     }
 
+    @Test
+    fun resolveAmbiguity_recoversAllStrippedMutationsForOneHint() = runTest(dispatcher) {
+        // "skip my morning AND evening Wellbutrin" — same ambiguous phrase
+        // can fan out into multiple stripped mutations (different slot_keys).
+        // Picking once must recover BOTH; the previous firstOrNull shape
+        // silently dropped everything except the first.
+        stubParse(
+            response = BatchParseResponse(
+                mutations = listOf(
+                    medicationCompleteMutation(entityId = "42", slotKey = "morning"),
+                    medicationCompleteMutation(entityId = "42", slotKey = "evening")
+                ),
+                confidence = 0.4f,
+                ambiguousEntities = listOf(
+                    AmbiguousEntityHintResponse(
+                        phrase = "Wellbutrin",
+                        candidateEntityType = "MEDICATION",
+                        candidateEntityIds = listOf("42", "43")
+                    )
+                )
+            )
+        )
+        coEvery { repository.getMedicationsByIds(listOf(42L, 43L)) } returns listOf(
+            MedicationEntity(id = 42L, name = "Wellbutrin XL 150mg"),
+            MedicationEntity(id = 43L, name = "Wellbutrin SR 100mg")
+        )
+
+        val viewModel = newViewModel()
+        viewModel.loadPreview("took my morning and evening Wellbutrin")
+        advanceUntilIdle()
+
+        val before = viewModel.state.value as BatchPreviewState.Loaded
+        assertEquals(2, before.strippedAmbiguousCount)
+        assertEquals(2, before.strippedMutations.size)
+
+        viewModel.resolveAmbiguity(hintIndex = 0, pickedEntityId = "43")
+
+        val after = viewModel.state.value as BatchPreviewState.Loaded
+        assertEquals(
+            "both stripped mutations recovered with the picked id",
+            2,
+            after.mutations.size
+        )
+        assertTrue(after.mutations.all { it.entityId == "43" })
+        val slotKeys = after.mutations.map { it.proposedNewValues["slot_key"] }.toSet()
+        assertEquals(setOf("morning", "evening"), slotKeys)
+        assertTrue("hint dropped", after.ambiguousEntities.isEmpty())
+        assertEquals(0, after.strippedAmbiguousCount)
+        assertTrue("strippedMutations drained", after.strippedMutations.isEmpty())
+    }
+
     private fun newViewModel(): BatchPreviewViewModel = BatchPreviewViewModel(
         repository = repository,
         undoBus = undoBus,
         ndPreferencesDataStore = ndPreferencesDataStore
     )
+
+    private fun stubParse(
+        response: BatchParseResponse,
+        committedIds: Set<String> = emptySet()
+    ) {
+        coEvery { repository.parseCommand(any()) } returns
+            BatchOperationsRepository.BatchParseOutcome(
+                response = response,
+                committedMedicationIds = committedIds
+            )
+    }
 
     private fun medicationCompleteMutation(
         entityId: String,

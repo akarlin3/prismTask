@@ -175,27 +175,35 @@ constructor(
 
     /**
      * User picked [pickedEntityId] from the picker for [hintIndex]. Look up
-     * the stripped mutation that originally targeted one of this hint's
-     * candidates, swap its entity_id to the user's pick, append it to the
-     * mutations list, and drop both the hint + the recovered stripped
-     * mutation from state. The picker is one-way per hint — there's no
-     * "change my mind" path; user can still uncheck the row from the
-     * normal mutation list.
+     * EVERY stripped mutation that originally targeted one of this hint's
+     * candidates, swap each entity_id to the user's pick, append the lot
+     * to the mutations list, and drop both the hint + the recovered
+     * stripped mutations from state. The picker is one-way per hint —
+     * there's no "change my mind" path; the user can still uncheck the
+     * row from the normal mutation list.
+     *
+     * Multi-recovery matters when a single ambiguous phrase fans out into
+     * several mutations. Example: "skip my morning AND evening Wellbutrin"
+     * produces two SKIP mutations (one per slot_key). Picking once should
+     * recover both — the previous `firstOrNull` shape silently dropped
+     * everything except the first match.
      */
     fun resolveAmbiguity(hintIndex: Int, pickedEntityId: String) {
         val loaded = _state.value as? BatchPreviewState.Loaded ?: return
         val hint = loaded.ambiguousEntities.getOrNull(hintIndex) ?: return
         if (pickedEntityId !in hint.candidateEntityIds) return
         val candidateSet = hint.candidateEntityIds.toSet()
-        val recovered = loaded.strippedMutations.firstOrNull {
+        val recovered = loaded.strippedMutations.filter {
             it.entityId in candidateSet && it.entityType == hint.candidateEntityType
-        } ?: return
-        val resolved = recovered.copy(entityId = pickedEntityId)
+        }
+        if (recovered.isEmpty()) return
+        val resolved = recovered.map { it.copy(entityId = pickedEntityId) }
+        val recoveredSet = recovered.toSet()
         _state.value = loaded.copy(
             mutations = loaded.mutations + resolved,
             ambiguousEntities = loaded.ambiguousEntities.filterIndexed { i, _ -> i != hintIndex },
-            strippedMutations = loaded.strippedMutations - recovered,
-            strippedAmbiguousCount = (loaded.strippedAmbiguousCount - 1).coerceAtLeast(0),
+            strippedMutations = loaded.strippedMutations - recoveredSet,
+            strippedAmbiguousCount = (loaded.strippedAmbiguousCount - recovered.size).coerceAtLeast(0),
             medicationCandidates = loaded.medicationCandidates
                 .filterKeys { it != hintIndex }
                 .mapKeys { (k, _) -> if (k > hintIndex) k - 1 else k }

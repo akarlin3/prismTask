@@ -609,6 +609,148 @@ class TestBatchParseService:
             assert "open" in sent_task_ids
             assert "done" not in sent_task_ids
 
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "sk-test-key"})
+    def test_backend_drops_haiku_mutation_for_unknown_medication_id(self):
+        """Defensive guard: if Haiku invents a MEDICATION entity_id that
+        isn't in the user's medications list, drop the mutation. Closes
+        the audit's failure-mode #1 (silent wrong-medication pick) even if
+        the model ignores the system prompt's "never invent ids" rule.
+        """
+        from app.services.ai_productivity import parse_batch_command
+
+        ctx = _user_context()
+        ctx["medications"] = [
+            {"id": "med-1", "name": "Wellbutrin", "display_label": None},
+        ]
+
+        with patch("app.services.ai_productivity.anthropic") as mock_anthropic:
+            mock_client = MagicMock()
+            mock_anthropic.Anthropic.return_value = mock_client
+            mock_client.messages.create.return_value = _make_mock_response(
+                {
+                    "mutations": [
+                        {
+                            "entity_type": "MEDICATION",
+                            "entity_id": "med-99",
+                            "mutation_type": "COMPLETE",
+                            "proposed_new_values": {
+                                "slot_key": "morning",
+                                "date": "2026-04-23",
+                            },
+                            "human_readable_description": "took med-99",
+                        },
+                        {
+                            "entity_type": "MEDICATION",
+                            "entity_id": "med-1",
+                            "mutation_type": "COMPLETE",
+                            "proposed_new_values": {
+                                "slot_key": "morning",
+                                "date": "2026-04-23",
+                            },
+                            "human_readable_description": "took Wellbutrin",
+                        },
+                    ],
+                    "confidence": 0.9,
+                    "ambiguous_entities": [],
+                }
+            )
+
+            result = parse_batch_command("took my Wellbutrin", ctx, tier="PRO")
+
+        ids = [m["entity_id"] for m in result["mutations"]]
+        assert ids == ["med-1"], (
+            "MEDICATION mutation referencing a non-listed id must be dropped"
+        )
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "sk-test-key"})
+    def test_backend_appends_forced_ambiguous_phrases_to_response(self):
+        """Defensive guard: phrases the client classified as ambiguous get
+        unconditionally appended to `ambiguous_entities` so the picker
+        always surfaces them, even if Haiku returned a clean response."""
+        from app.services.ai_productivity import parse_batch_command
+
+        ctx = _user_context()
+        ctx["medications"] = [
+            {"id": "med-30", "name": "Wellbutrin"},
+            {"id": "med-31", "name": "Wellbutrin"},
+        ]
+        ctx["forced_ambiguous_phrases"] = [
+            {
+                "phrase": "wellbutrin",
+                "candidate_entity_type": "MEDICATION",
+                "candidate_entity_ids": ["med-30", "med-31"],
+            }
+        ]
+
+        with patch("app.services.ai_productivity.anthropic") as mock_anthropic:
+            mock_client = MagicMock()
+            mock_anthropic.Anthropic.return_value = mock_client
+            mock_client.messages.create.return_value = _make_mock_response(
+                {
+                    "mutations": [],
+                    "confidence": 0.95,
+                    "ambiguous_entities": [],
+                }
+            )
+
+            result = parse_batch_command("took my Wellbutrin", ctx, tier="PRO")
+
+        assert len(result["ambiguous_entities"]) == 1
+        forced = result["ambiguous_entities"][0]
+        assert forced["phrase"] == "wellbutrin"
+        assert sorted(forced["candidate_entity_ids"]) == ["med-30", "med-31"]
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "sk-test-key"})
+    def test_backend_dedupes_forced_ambiguous_phrases(self):
+        """If Haiku already returned the same (phrase, ids) pair the client
+        forced, don't add a duplicate."""
+        from app.services.ai_productivity import parse_batch_command
+
+        ctx = _user_context()
+        ctx["medications"] = [
+            {"id": "med-30", "name": "Wellbutrin"},
+            {"id": "med-31", "name": "Wellbutrin"},
+        ]
+        ctx["forced_ambiguous_phrases"] = [
+            {
+                "phrase": "wellbutrin",
+                "candidate_entity_type": "MEDICATION",
+                "candidate_entity_ids": ["med-30", "med-31"],
+            }
+        ]
+
+        with patch("app.services.ai_productivity.anthropic") as mock_anthropic:
+            mock_client = MagicMock()
+            mock_anthropic.Anthropic.return_value = mock_client
+            mock_client.messages.create.return_value = _make_mock_response(
+                {
+                    "mutations": [],
+                    "confidence": 0.95,
+                    "ambiguous_entities": [
+                        {
+                            "phrase": "wellbutrin",
+                            "candidate_entity_type": "MEDICATION",
+                            "candidate_entity_ids": ["med-30", "med-31"],
+                            "note": "two matches",
+                        }
+                    ],
+                }
+            )
+
+            result = parse_batch_command("took my Wellbutrin", ctx, tier="PRO")
+
+        assert len(result["ambiguous_entities"]) == 1, (
+            "duplicate (phrase, ids) entry must not be appended a second time"
+        )
+
+    def test_system_prompt_documents_committed_medication_matches(self):
+        """The system prompt must call out the new authoritative-hint
+        fields so Haiku honors them instead of re-doing the matching."""
+        from app.services.ai_productivity import _BATCH_PARSE_SYSTEM_PROMPT
+
+        assert "committed_medication_matches" in _BATCH_PARSE_SYSTEM_PROMPT
+        assert "forced_ambiguous_phrases" in _BATCH_PARSE_SYSTEM_PROMPT
+
 
 class TestBatchParseEndpoint:
     @pytest.mark.asyncio
