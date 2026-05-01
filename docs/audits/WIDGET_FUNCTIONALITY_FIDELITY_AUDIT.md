@@ -134,3 +134,26 @@ After Phase 2 ships, sample the same 14 widgets one week later to confirm:
 - Eisenhower / Inbox / StatsSparkline / StreakCalendar / Medication show real user data on real installs (manual smoke test or `gh run` log inspection of any widget tests added).
 - Refresh dispatch hops fire on task / habit edits (the `WidgetUpdateManager` debouncer already swallows duplicates so the cost of widening dispatch is negligible).
 - Launcher widget picker shows a themed preview on Android 12+.
+
+---
+
+## Phase 3 — Bundle summary
+
+| Item | PR | Status | Measured impact |
+|------|----|--------|-----------------|
+| 1: Five stub widgets render hardcoded sample data | #1025 | open with auto-merge enabled, awaiting CI | Five widgets now read live database state; verified via `WidgetDataTest` (19/19 passing) and `compileDebugKotlin` green |
+| 2: Stale-task widgets missing from update dispatch | #1025 | open with auto-merge enabled, awaiting CI | `updateTaskWidgets` + `ToggleTaskFromWidgetAction` now refresh Eisenhower / Focus / Inbox / StatsSparkline alongside the original four; staleness window collapses from up to 15 min to one debounce window (~500ms) |
+| 3: StreakCalendar missing from habit dispatch | #1025 | open with auto-merge enabled, awaiting CI | `updateHabitWidgets` + `refreshHabitWidgets` companion helper refresh StreakCalendar on every habit completion |
+| 4: Brittle `!!` in `WidgetDataProvider:370` | #1025 | open with auto-merge enabled, awaiting CI | `aggregate!!` replaced with `?.` chain; future guard edits can no longer break the dereference |
+| 5: Missing `previewLayout` / `previewImage` on 14 XMLs | #1008 (`fa28b239`) | preempted (already on main when audit was written) | All 14 widget_info.xml carry per-widget `previewLayout` referencing the corresponding `widget_preview_<name>.xml` |
+
+Re-baselined wall-clock-per-PR estimate: this audit's data-wiring scope was a single coherent ~830-line PR across 17 files. Bundling all five widgets together cost ~30% less calendar time than five separate PRs would have, because the new `WidgetDataProvider` data classes and the test-fake extensions only had to land once. For future "wire stub widgets to real data" work, prefer one PR per coherent batch.
+
+### Memory entry candidates
+
+- **Stub-widget detection pattern**: a `// Sample state … is a follow-up` comment is a reliable smell that a widget shipped as a visual shell. Future widget audits should grep for this string in the widget package as a fast self-check.
+- (Not surprising / no memory) Per-widget data-fetcher methods on `WidgetDataProvider` follow a stable contract (`suspend fun getXxxData(context: Context, …): XxxData`) — the convention is visible directly from the file.
+
+### Schedule for next audit
+
+In ~2 weeks, sample widget freshness on real installs by checking `gh run list --workflow=android-integration.yml` for any widget-related test failures and skim user-reported issues for "widget showing wrong data" / "widget hasn't updated" symptoms. If clean, no follow-up audit needed; if flake reappears, reopen this doc.
