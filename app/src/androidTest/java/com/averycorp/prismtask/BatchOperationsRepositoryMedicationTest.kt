@@ -235,6 +235,21 @@ class BatchOperationsRepositoryMedicationTest {
         assertEquals(1, result.skipped.size)
     }
 
+    @Test
+    fun applyMedicationComplete_silentSkipReason_includesMedicationNotFound() = runTest {
+        // Closes audit Section E.2 gap: failure-mode-#4 silent-skip behavior
+        // must be observable via the skip reason, not just a count, so a
+        // future UX can surface "we couldn't find the medication you named"
+        // rather than an opaque "1 skipped".
+        val result = repository.applyBatch(
+            commandText = "took unknown med",
+            mutations = listOf(completeMutation(99999L, slotKey = "morning", date = "2026-04-25"))
+        )
+
+        assertEquals(1, result.skipped.size)
+        assertEquals("medication not found", result.skipped.single().reason)
+    }
+
     // -------------------------------------------------------------------
     // Undo paths
     // -------------------------------------------------------------------
