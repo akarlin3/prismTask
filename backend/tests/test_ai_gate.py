@@ -129,6 +129,25 @@ class TestAiRouterRejectsOptOutHeader:
             assert resp.status_code == 451, resp.text
             mock_cat.assert_not_called()
 
+    def test_habit_correlations_returns_451_with_opt_out_header(self):
+        # Path is `/api/v1/analytics/habit-correlations`. The endpoint
+        # calls Anthropic via `analyze_habit_correlations`, so the gate
+        # must reject before the route handler runs (PR closing the gap
+        # left when the endpoint was originally written without the dep).
+        with patch(
+            "app.services.ai_productivity.analyze_habit_correlations"
+        ) as mock_analyze:
+            client = _client()
+            resp = client.get(
+                "/api/v1/analytics/habit-correlations",
+                headers={HEADER_NAME: HEADER_VALUE_DISABLED},
+            )
+            assert resp.status_code == 451, resp.text
+            # Critical privacy invariant: habit names + completion
+            # patterns must NOT reach Anthropic when the user has opted
+            # out of AI features.
+            mock_analyze.assert_not_called()
+
 
 class TestParseEndpointsRejectOptOutHeader:
     """The /tasks/parse* and /syllabus/parse endpoints have endpoint-level

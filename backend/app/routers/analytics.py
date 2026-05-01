@@ -5,6 +5,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
+from app.middleware.ai_gate import require_ai_features_enabled
 from app.middleware.auth import get_current_user
 from app.middleware.rate_limit import RateLimiter
 from app.models import Habit, HabitCompletion, Task, TaskStatus, User
@@ -134,7 +135,17 @@ async def project_progress(
     return ProjectProgressResponse(**result)
 
 
-@router.get("/habit-correlations", response_model=HabitCorrelationResponse)
+@router.get(
+    "/habit-correlations",
+    response_model=HabitCorrelationResponse,
+    # The endpoint calls Anthropic via `analyze_habit_correlations`, so it
+    # has to honour the per-user master AI toggle just like every other
+    # AI-touching endpoint does (see `tasks.py:213`, `syllabus.py:121`).
+    # Without this dependency, a user who disabled AI features could still
+    # trigger an LLM call by hitting this route — the same gap PR #1038
+    # closed for `/integrations/gmail/scan`.
+    dependencies=[Depends(require_ai_features_enabled)],
+)
 async def habit_correlations(
     request: Request,
     current_user: User = Depends(get_current_user),
