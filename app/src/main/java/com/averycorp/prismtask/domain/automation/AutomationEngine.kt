@@ -191,8 +191,9 @@ class AutomationEngine @Inject constructor(
         is AutomationTrigger.DayOfWeekTime -> {
             val tick = event as? AutomationEvent.TimeTick ?: return false
             if (tick.hour != trigger.hour || tick.minute != trigger.minute) return false
-            val day = java.time.LocalDate
-                .ofInstant(java.time.Instant.ofEpochMilli(tick.occurredAt), java.time.ZoneId.systemDefault())
+            val day = java.time.Instant.ofEpochMilli(tick.occurredAt)
+                .atZone(java.time.ZoneId.systemDefault())
+                .toLocalDate()
                 .dayOfWeek
                 .name
             day in trigger.daysOfWeek
