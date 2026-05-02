@@ -250,7 +250,7 @@ async def parse_debug(current_user: User = Depends(get_current_user)):
         anthropic_installed = False
 
     return {
-        "api_key_length": len(api_key),
+        "api_key_configured": bool(api_key),
         "model": "claude-haiku-4-5-20251001",
         "anthropic_installed": anthropic_installed,
     }

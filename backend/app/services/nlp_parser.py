@@ -52,9 +52,6 @@ def parse_task_input(
             "ANTHROPIC_API_KEY environment variable is not set"
         )
 
-    logger.info(f"API key length: {len(api_key)}")
-    print(f"NLP: API key length: {len(api_key)}")
-
     if anthropic is None:
         logger.error("anthropic package is not installed")
         raise RuntimeError("anthropic package is not installed")
