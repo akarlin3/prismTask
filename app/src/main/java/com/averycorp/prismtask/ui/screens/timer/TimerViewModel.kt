@@ -187,6 +187,12 @@ constructor(
                         current.mode.name
                     )
                     onTimerCompleted()
+                    // onTimerCompleted flips mode (WORK -> BREAK or BREAK ->
+                    // WORK) and isLongBreak; resync so the widget reflects
+                    // the post-completion state even when both auto-start
+                    // flags are off.
+                    syncWidgetState()
+                    widgetUpdateManager.updateTimerWidget()
                     break
                 } else {
                     _uiState.value = current.copy(remainingSeconds = next)
