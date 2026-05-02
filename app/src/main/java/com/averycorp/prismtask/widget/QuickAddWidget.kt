@@ -30,6 +30,7 @@ import androidx.glance.layout.width
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import com.averycorp.prismtask.MainActivity
+import com.averycorp.prismtask.widget.launch.WidgetLaunchAction
 import java.util.Calendar
 
 class QuickAddWidget : GlanceAppWidget() {
@@ -68,11 +69,11 @@ private fun QuickAddContent(
     val placeholder = QuickAddWidget.PLACEHOLDERS[dayOfYear % QuickAddWidget.PLACEHOLDERS.size]
     val addTaskIntent = Intent(context, MainActivity::class.java).apply {
         flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-        putExtra(MainActivity.EXTRA_LAUNCH_ACTION, MainActivity.ACTION_QUICK_ADD)
+        putExtra(MainActivity.EXTRA_LAUNCH_ACTION, WidgetLaunchAction.QuickAdd.wireId)
     }
     val voiceIntent = Intent(context, MainActivity::class.java).apply {
         flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-        putExtra(MainActivity.EXTRA_LAUNCH_ACTION, MainActivity.ACTION_VOICE_INPUT)
+        putExtra(MainActivity.EXTRA_LAUNCH_ACTION, WidgetLaunchAction.VoiceInput.wireId)
     }
     Column(modifier = GlanceModifier.fillMaxSize().padding(8.dp).background(palette.background)) {
         Row(
@@ -109,7 +110,7 @@ private fun QuickAddContent(
                     if (index > 0) Spacer(modifier = GlanceModifier.width(6.dp))
                     val tplIntent = Intent(context, MainActivity::class.java).apply {
                         flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                        putExtra(MainActivity.EXTRA_LAUNCH_ACTION, MainActivity.ACTION_OPEN_TEMPLATES)
+                        putExtra(MainActivity.EXTRA_LAUNCH_ACTION, WidgetLaunchAction.OpenTemplates.wireId)
                     }
                     Box(
                         modifier = GlanceModifier

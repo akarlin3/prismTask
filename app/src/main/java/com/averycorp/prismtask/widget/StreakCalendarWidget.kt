@@ -31,6 +31,7 @@ import androidx.glance.text.Text
 import androidx.glance.unit.ColorProvider
 import com.averycorp.prismtask.MainActivity
 import com.averycorp.prismtask.ui.theme.prismThemeColors
+import com.averycorp.prismtask.widget.launch.WidgetLaunchAction
 
 /**
  * Streak Calendar widget — GitHub-style heatmap of the last N weeks of
@@ -89,7 +90,7 @@ private fun StreakCalendarContent(
     val longestStreak = data.longestStreak
     val openHabits = Intent(context, MainActivity::class.java).apply {
         flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-        putExtra(MainActivity.EXTRA_LAUNCH_ACTION, MainActivity.ACTION_OPEN_HABITS)
+        putExtra(MainActivity.EXTRA_LAUNCH_ACTION, WidgetLaunchAction.OpenHabits.wireId)
     }
 
     Column(

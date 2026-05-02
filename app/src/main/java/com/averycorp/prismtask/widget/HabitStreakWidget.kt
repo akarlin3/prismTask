@@ -32,6 +32,7 @@ import androidx.glance.layout.width
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import com.averycorp.prismtask.MainActivity
+import com.averycorp.prismtask.widget.launch.WidgetLaunchAction
 
 class HabitStreakWidget : GlanceAppWidget() {
     companion object {
@@ -71,7 +72,7 @@ private fun HabitStreakContent(
     val isLarge = size.width >= 350.dp
     val habitsIntent = Intent(context, MainActivity::class.java).apply {
         flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-        putExtra(MainActivity.EXTRA_LAUNCH_ACTION, MainActivity.ACTION_OPEN_HABITS)
+        putExtra(MainActivity.EXTRA_LAUNCH_ACTION, WidgetLaunchAction.OpenHabits.wireId)
     }
     val completedToday = data.habits.count { it.isCompletedToday }
     val totalHabits = data.habits.size

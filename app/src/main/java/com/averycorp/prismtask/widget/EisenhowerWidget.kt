@@ -30,6 +30,7 @@ import androidx.glance.layout.width
 import androidx.glance.text.Text
 import androidx.glance.unit.ColorProvider
 import com.averycorp.prismtask.MainActivity
+import com.averycorp.prismtask.widget.launch.WidgetLaunchAction
 import java.util.concurrent.TimeUnit
 
 /**
@@ -133,7 +134,7 @@ private fun EisenhowerContent(
     val total = data.total
     val openMatrix = Intent(context, MainActivity::class.java).apply {
         flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-        putExtra(MainActivity.EXTRA_LAUNCH_ACTION, MainActivity.ACTION_OPEN_MATRIX)
+        putExtra(MainActivity.EXTRA_LAUNCH_ACTION, WidgetLaunchAction.OpenMatrix.wireId)
     }
 
     Column(

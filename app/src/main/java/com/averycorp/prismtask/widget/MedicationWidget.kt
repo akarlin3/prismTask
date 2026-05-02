@@ -32,6 +32,7 @@ import androidx.glance.layout.width
 import androidx.glance.text.Text
 import androidx.glance.unit.ColorProvider
 import com.averycorp.prismtask.MainActivity
+import com.averycorp.prismtask.widget.launch.WidgetLaunchAction
 
 /**
  * Medication widget — mirrors the in-app meds slot/tier model.
@@ -81,7 +82,7 @@ private fun MedicationContent(
     val isSmall = size.height < 130.dp
     val openMeds = Intent(context, MainActivity::class.java).apply {
         flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-        putExtra(MainActivity.EXTRA_LAUNCH_ACTION, "open_medication")
+        putExtra(MainActivity.EXTRA_LAUNCH_ACTION, WidgetLaunchAction.OpenMedication.wireId)
     }
 
     val slots = data.slots
