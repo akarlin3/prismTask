@@ -261,3 +261,51 @@ Within auditable single-PR range (engine doc § A9 budget was ~3960 in one PR; t
 Phase 2 commits 2-7 land on this branch immediately after the audit commit. PR opens once commit 7 lands; CI and ready-for-review per operator branch policy.
 
 Phase 3 bundle summary appends to this doc after the PR squash-merges (commit-numbers + measured impact — wall-clock for the Phase 1→2→3 cycle, rule-parse smoke results, on-device verification notes).
+
+---
+
+## Phase 3 — Bundle Summary (appended pre-merge)
+
+**PR:** Single PR on `claude/automation-starter-library-roo9B` (created post-push).
+
+**Commits shipped:**
+
+| # | SHA | Scope | LOC delta |
+|---|---|---|---|
+| 1 | `1a6534d` | Phase 1 audit doc | +263 |
+| 2 | `d6f48e6` | Engine extensions (tag mutation + DayOfWeekTime + event.dayOfWeek + task.createdAt) | +175 / −16 |
+| 3 | `d082aa1` | AutomationStarterLibrary.kt with 27 templates + parse-smoke + structural tests | +675 |
+| 4 | `2db02ba` | AutomationTemplateRepository + seeder refactor + tests | +210 / −101 |
+| 5 | `0402af8` | Library Compose UI (screen + sheet + ViewModel + tests) | +623 |
+| 6 | `23e82c6` | Browse-Templates entry point + nav route + DayOfWeekTime label fix on rule-list VM | +37 / −1 |
+| 7 | (this commit) | `docs/automation/STARTER_LIBRARY.md` + delete `sample_rules.json` + Phase 3 append | TBD |
+
+**Measured against the audit's LOC budget:** projected ~2750, actual through commit 6 is ~2050 (+ this commit). Underran by ~25% — the savings came from reusing `BatchOperationsRepository.applyTagDelta`'s case-insensitive find-or-create pattern inline instead of widening TagRepository, and from leaning on existing `AutomationLogScreen`'s shape for the empty-state copy.
+
+**STOP-condition outcomes (Phase 2):**
+
+| STOP-condition | Triggered? | Outcome |
+|---|---|---|
+| >2 rules fail parse-smoke | No | Parse-smoke test (`AutomationStarterLibraryTest.every_template_round_trips_through_json_adapter`) iterates all 27 templates and round-trips each via `AutomationJsonAdapter`. |
+| UI > 1500 LOC | No | Library screen + ViewModel + sheet = ~620 LOC. Well under cap — the 7-category-as-sections decision (no tab bar, no per-category screens) collapsed a meaningful slice of the UI surface. |
+| Rule-list screen regression | No | Existing `AutomationRuleListScreen` is additive: new top-bar action button, no removal. `triggerLabelOf` extension covers DayOfWeekTime so imported weekly rules render correctly. |
+| Seeder requires Room migration | No | `templateKey` + `isBuiltIn` columns already exist on `automation_rules` (per PR #1056 § A2). Seeder refactor is pure Kotlin — same `getByTemplateKeyOnce` dedup pattern, just sources from library subset. |
+| Export-as-template scope creep | No | Stayed deferred per audit constraint. |
+
+**Audit drift caught at content-write time:**
+
+- A4 prose said "AI-shaped rules: 4". Re-tally: 5 (focus + medication weekly summary + 3 power user). Test (`aiTemplates_correctly_flagged`) asserts the correct count. Fix: tally corrected here, not in A4 (audit doc remains a record of the decision; this Phase 3 captures the count drift).
+
+**Necessary defers (kept):**
+
+- `mutate.medication` — handler doc-comment explicitly requires slot/tier-state coherence audit.
+- `schedule.timer` — handler doc-comment requires service-start permission flow alongside rule-edit screen v1.1.
+- SyncService routing for `automation_rule` — explicitly carved out from this PR by operator. Imported templates are device-local until that lands. Cross-device verification (Phase 3.5 in original prompt) deferred to a separate PR.
+
+**Memory entry candidates (none high-priority):**
+
+- The "JSON file is a documentation artifact, not the seeder source" surprise (premise verification YELLOW row) is the kind of drift that recurs — but the codebase's existing pattern of "kotlin-native seed data with stable templateKey" is already established (PR #1056). The lesson here is "verify the seeder reads what the audit assumes, before promoting JSON to canonical." Not memory-worthy on its own (memory at 30/30; lesson is captured durably in this audit doc).
+- `AutomationRuleListViewModel.triggerLabelOf` had a `null -> "Unparseable trigger"` fallback that masks new trigger variants. Adding any new trigger variant must be paired with the corresponding `triggerLabelOf` arm — caught and fixed here in commit 6. Pattern is small enough to live in the engine doc rather than memory.
+
+**Schedule for next audit:** When SyncService routing for `automation_rule` lands (Phase I follow-up), run a short audit on cross-device template-import semantics (does importing the same template on two devices create a duplicate? Should it dedup by `templateKey`?). Inline checkpoint, not a fresh mega-audit.
+
