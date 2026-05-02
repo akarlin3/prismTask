@@ -10,6 +10,7 @@ import com.averycorp.prismtask.data.remote.EisenhowerClassifier
 import com.averycorp.prismtask.data.remote.SyncTracker
 import com.averycorp.prismtask.data.repository.TaskCompletionRepository
 import com.averycorp.prismtask.data.repository.TaskRepository
+import com.averycorp.prismtask.domain.automation.AutomationEventBus
 import com.averycorp.prismtask.domain.model.RecurrenceRule
 import com.averycorp.prismtask.domain.model.RecurrenceType
 import com.averycorp.prismtask.notifications.ReminderScheduler
@@ -42,7 +43,8 @@ class RecurrenceSmokeTest : SmokeTestBase() {
         eisenhowerClassifier = mockk<EisenhowerClassifier>(relaxed = true),
         userPreferences = mockk<UserPreferencesDataStore> {
             every { eisenhowerFlow } returns flowOf(EisenhowerPrefs(autoClassifyEnabled = false))
-        }
+        },
+        automationEventBus = mockk<AutomationEventBus>(relaxed = true)
     )
 
     @Test
