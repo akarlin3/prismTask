@@ -22,6 +22,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.averycorp.prismtask.data.preferences.MedicationReminderMode
 import com.averycorp.prismtask.ui.components.settings.SectionHeader
+import com.averycorp.prismtask.ui.screens.medication.components.applyMinuteFieldEdit
 import kotlinx.coroutines.launch
 
 /**
@@ -152,15 +153,17 @@ private fun IntervalPicker(currentMinutes: Int, onSave: (Int) -> Unit) {
             )
         }
         if (isCustom) {
+            val outOfRange = customText.toIntOrNull()
+                ?.let { it !in 60..1440 } == true
             OutlinedTextField(
                 value = customText,
                 onValueChange = { raw ->
-                    customText = raw.filter { it.isDigit() }.take(4)
-                    customText.toIntOrNull()?.let { mins ->
-                        onSave(mins.coerceIn(60, 1440))
-                    }
+                    val update = applyMinuteFieldEdit(raw, 60, 1440)
+                    customText = update.text
+                    update.newMinutes?.let(onSave)
                 },
                 label = { Text("Custom interval (minutes, 60–1440)") },
+                isError = outOfRange,
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )

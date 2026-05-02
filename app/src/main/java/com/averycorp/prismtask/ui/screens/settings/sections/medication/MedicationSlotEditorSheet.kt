@@ -22,6 +22,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.averycorp.prismtask.ui.screens.medication.components.applyMinuteFieldEdit
 
 /**
  * Tri-state reminder-mode selection for the slot editor:
@@ -158,15 +159,17 @@ internal fun MedicationSlotEditorSheet(
                     )
                 }
                 if (isCustomDrift) {
+                    val driftOutOfRange = customDriftText.toIntOrNull()
+                        ?.let { it !in 1..1440 } == true
                     OutlinedTextField(
                         value = customDriftText,
                         onValueChange = { raw ->
-                            customDriftText = raw.filter { it.isDigit() }.take(4)
-                            customDriftText.toIntOrNull()?.let { mins ->
-                                driftMinutes = mins.coerceIn(1, 1440)
-                            }
+                            val update = applyMinuteFieldEdit(raw, 1, 1440)
+                            customDriftText = update.text
+                            update.newMinutes?.let { driftMinutes = it }
                         },
                         label = { Text("Custom drift (minutes)") },
+                        isError = driftOutOfRange,
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -252,15 +255,17 @@ internal fun MedicationSlotEditorSheet(
                         )
                     }
                     if (isCustomInterval) {
+                        val intervalOutOfRange = customIntervalText.toIntOrNull()
+                            ?.let { it !in 60..1440 } == true
                         OutlinedTextField(
                             value = customIntervalText,
                             onValueChange = { raw ->
-                                customIntervalText = raw.filter { it.isDigit() }.take(4)
-                                customIntervalText.toIntOrNull()?.let { mins ->
-                                    intervalMinutes = mins.coerceIn(60, 1440)
-                                }
+                                val update = applyMinuteFieldEdit(raw, 60, 1440)
+                                customIntervalText = update.text
+                                update.newMinutes?.let { intervalMinutes = it }
                             },
                             label = { Text("Custom interval (minutes, 60–1440)") },
+                            isError = intervalOutOfRange,
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth()
                         )
