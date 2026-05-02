@@ -201,15 +201,17 @@ fun MedicationEditorDialog(
                         )
                     }
                     if (isCustomInterval) {
+                        val intervalOutOfRange = customIntervalText.toIntOrNull()
+                            ?.let { it !in 60..1440 } == true
                         OutlinedTextField(
                             value = customIntervalText,
                             onValueChange = { raw ->
-                                customIntervalText = raw.filter { it.isDigit() }.take(4)
-                                customIntervalText.toIntOrNull()?.let { mins ->
-                                    intervalMinutes = mins.coerceIn(60, 1440)
-                                }
+                                val update = applyMinuteFieldEdit(raw, 60, 1440)
+                                customIntervalText = update.text
+                                update.newMinutes?.let { intervalMinutes = it }
                             },
                             label = { Text("Custom interval (minutes, 60–1440)") },
+                            isError = intervalOutOfRange,
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth()
                         )
