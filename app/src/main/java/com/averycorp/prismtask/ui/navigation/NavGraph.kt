@@ -276,6 +276,9 @@ sealed class PrismTaskRoute(
         fun createRoute(ruleId: Long? = null): String =
             if (ruleId != null) "automation_log?ruleId=$ruleId" else "automation_log"
     }
+
+    /** v1.7+ Automation starter library — browse + import templates. */
+    data object AutomationTemplateLibrary : PrismTaskRoute("automation_template_library")
 }
 
 data class BottomNavItem(

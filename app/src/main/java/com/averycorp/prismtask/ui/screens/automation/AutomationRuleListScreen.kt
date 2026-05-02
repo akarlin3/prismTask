@@ -13,6 +13,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.LibraryBooks
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
@@ -58,6 +59,14 @@ fun AutomationRuleListScreen(
                 },
                 actions = {
                     IconButton(onClick = {
+                        navController.navigate(PrismTaskRoute.AutomationTemplateLibrary.route)
+                    }) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.LibraryBooks,
+                            contentDescription = "Browse Templates"
+                        )
+                    }
+                    IconButton(onClick = {
                         navController.navigate(PrismTaskRoute.AutomationLog.createRoute())
                     }) {
                         Icon(Icons.Filled.History, contentDescription = "Run History")
@@ -102,7 +111,7 @@ private fun EmptyState(modifier: Modifier = Modifier) {
         )
         Spacer(Modifier.height(8.dp))
         Text(
-            text = "Sample rules are seeded on first launch and appear here disabled. Toggle one on to try it out.",
+            text = "Sample rules are seeded on first launch and appear here disabled. Toggle one on, or tap the library icon above to browse the full starter catalog.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )

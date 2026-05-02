@@ -9,6 +9,7 @@ import androidx.navigation.navArgument
 import com.averycorp.prismtask.ui.navigation.PrismTaskRoute
 import com.averycorp.prismtask.ui.screens.automation.AutomationLogScreen
 import com.averycorp.prismtask.ui.screens.automation.AutomationRuleListScreen
+import com.averycorp.prismtask.ui.screens.automation.library.AutomationTemplateLibraryScreen
 import com.averycorp.prismtask.ui.screens.settings.AccessibilityScreen
 import com.averycorp.prismtask.ui.screens.settings.AccountSyncScreen
 import com.averycorp.prismtask.ui.screens.settings.AdvancedTuningScreen
@@ -68,6 +69,14 @@ internal fun NavGraphBuilder.settingsSubScreenRoutes(navController: NavHostContr
         popEnterTransition = horizontalSlidePopEnter,
         popExitTransition = horizontalSlidePopExit
     ) { AutomationRuleListScreen(navController) }
+
+    composable(
+        route = PrismTaskRoute.AutomationTemplateLibrary.route,
+        enterTransition = horizontalSlideEnter,
+        exitTransition = horizontalSlideExit,
+        popEnterTransition = horizontalSlidePopEnter,
+        popExitTransition = horizontalSlidePopExit
+    ) { AutomationTemplateLibraryScreen(navController) }
 
     composable(
         route = PrismTaskRoute.AutomationLog.route,

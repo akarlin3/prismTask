@@ -55,8 +55,23 @@ class AutomationRuleListViewModel @Inject constructor(
         null -> "Unparseable trigger"
         is AutomationTrigger.EntityEvent -> "When ${trigger.eventKind}"
         is AutomationTrigger.TimeOfDay -> "Daily at %02d:%02d".format(trigger.hour, trigger.minute)
+        is AutomationTrigger.DayOfWeekTime ->
+            "%s at %02d:%02d".format(
+                humanizeDays(trigger.daysOfWeek),
+                trigger.hour,
+                trigger.minute
+            )
         AutomationTrigger.Manual -> "Manual run only"
         is AutomationTrigger.Composed -> "After rule #${trigger.parentRuleId}"
+    }
+
+    private fun humanizeDays(days: Set<String>): String = when {
+        days == setOf("SATURDAY", "SUNDAY") -> "Weekends"
+        days == setOf("MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY") -> "Weekdays"
+        days.size == 1 -> days.first().lowercase().replaceFirstChar { it.uppercase() }
+        else -> days.joinToString(", ") {
+            it.take(3).lowercase().replaceFirstChar { c -> c.uppercase() }
+        }
     }
 }
 
