@@ -81,3 +81,4 @@ class ApplyBatchActionHandler @Inject constructor() : AutomationActionHandler {
         "apply.batch deferred to v1.1 — needs BatchOperationsRepository.applyBatchSynthetic extraction"
     )
 }
+
