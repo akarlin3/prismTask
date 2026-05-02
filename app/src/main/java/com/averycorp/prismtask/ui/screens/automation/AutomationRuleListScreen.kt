@@ -14,10 +14,12 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.LibraryBooks
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Card
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -73,6 +75,13 @@ fun AutomationRuleListScreen(
                     }
                 }
             )
+        },
+        floatingActionButton = {
+            FloatingActionButton(onClick = {
+                navController.navigate(PrismTaskRoute.AutomationEdit.createRoute())
+            }) {
+                Icon(Icons.Filled.Add, contentDescription = "New Rule")
+            }
         }
     ) { padding ->
         if (rules.isEmpty()) {
@@ -91,6 +100,9 @@ fun AutomationRuleListScreen(
                     onRunNow = { viewModel.runNow(row.id) },
                     onViewLog = {
                         navController.navigate(PrismTaskRoute.AutomationLog.createRoute(row.id))
+                    },
+                    onEdit = {
+                        navController.navigate(PrismTaskRoute.AutomationEdit.createRoute(row.id))
                     },
                     onDelete = { viewModel.delete(row.id) }
                 )
@@ -111,8 +123,9 @@ private fun EmptyState(modifier: Modifier = Modifier) {
         )
         Spacer(Modifier.height(8.dp))
         Text(
-            text = "Sample rules are seeded on first launch and appear here disabled. " +
-                "Toggle one on, or tap the library icon above to browse the full starter catalog.",
+            text = "Tap + to build a rule from scratch, or tap the library icon above " +
+                "to import from the starter catalog. Seeded sample rules also land here " +
+                "disabled — toggle one on to try it.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -125,6 +138,7 @@ private fun RuleCard(
     onToggle: (Boolean) -> Unit,
     onRunNow: () -> Unit,
     onViewLog: () -> Unit,
+    onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
@@ -172,6 +186,7 @@ private fun RuleCard(
                     }
                 }
                 OverflowMenu(
+                    onEdit = onEdit,
                     onViewLog = onViewLog,
                     onDelete = if (row.isBuiltIn) null else onDelete
                 )
@@ -181,13 +196,21 @@ private fun RuleCard(
 }
 
 @Composable
-private fun OverflowMenu(onViewLog: () -> Unit, onDelete: (() -> Unit)?) {
+private fun OverflowMenu(
+    onEdit: () -> Unit,
+    onViewLog: () -> Unit,
+    onDelete: (() -> Unit)?
+) {
     var expanded by remember { mutableStateOf(false) }
     Column {
         IconButton(onClick = { expanded = true }) {
             Icon(Icons.Filled.MoreVert, contentDescription = "More")
         }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            DropdownMenuItem(
+                text = { Text("Edit Rule") },
+                onClick = { expanded = false; onEdit() }
+            )
             DropdownMenuItem(
                 text = { Text("View Run History") },
                 onClick = {

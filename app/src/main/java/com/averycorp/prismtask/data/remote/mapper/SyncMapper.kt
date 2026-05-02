@@ -2,6 +2,7 @@ package com.averycorp.prismtask.data.remote.mapper
 
 import com.averycorp.prismtask.data.local.entity.AssignmentEntity
 import com.averycorp.prismtask.data.local.entity.AttachmentEntity
+import com.averycorp.prismtask.data.local.entity.AutomationRuleEntity
 import com.averycorp.prismtask.data.local.entity.BoundaryRuleEntity
 import com.averycorp.prismtask.data.local.entity.CheckInLogEntity
 import com.averycorp.prismtask.data.local.entity.CourseCompletionEntity
@@ -1241,6 +1242,58 @@ object SyncMapper {
         assignmentPick = assignmentPickLocalId,
         assignmentDone = data["assignmentDone"] as? Boolean ?: false,
         startedAt = (data["startedAt"] as? Number)?.toLong(),
+        createdAt = (data["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
+        updatedAt = (data["updatedAt"] as? Number)?.toLong() ?: 0L
+    )
+
+    // ── Automation Rules ─────────────────────────────────────────────────────
+    //
+    // Full-doc LWW (matches the medication pattern, simplest correct
+    // behavior). All three structural blobs (`triggerJson`, `conditionJson`,
+    // `actionJson`) round-trip as opaque strings — Firestore stores them
+    // verbatim, the decoder is local. The metadata cols (enabled, priority,
+    // fire counters) sync as plain scalars. Logs are local-only and do
+    // NOT round-trip — they're observability, not state.
+
+    fun automationRuleToMap(rule: AutomationRuleEntity): Map<String, Any?> = mapOf(
+        "localId" to rule.id,
+        "name" to rule.name,
+        "description" to rule.description,
+        "enabled" to rule.enabled,
+        "priority" to rule.priority,
+        "isBuiltIn" to rule.isBuiltIn,
+        "templateKey" to rule.templateKey,
+        "triggerJson" to rule.triggerJson,
+        "conditionJson" to rule.conditionJson,
+        "actionJson" to rule.actionJson,
+        "lastFiredAt" to rule.lastFiredAt,
+        "fireCount" to rule.fireCount,
+        "dailyFireCount" to rule.dailyFireCount,
+        "dailyFireCountDate" to rule.dailyFireCountDate,
+        "createdAt" to rule.createdAt,
+        "updatedAt" to rule.updatedAt
+    )
+
+    fun mapToAutomationRule(
+        data: Map<String, Any?>,
+        localId: Long = 0,
+        cloudId: String? = null
+    ): AutomationRuleEntity = AutomationRuleEntity(
+        id = localId,
+        cloudId = cloudId,
+        name = data["name"] as? String ?: "",
+        description = data["description"] as? String,
+        enabled = data["enabled"] as? Boolean ?: true,
+        priority = (data["priority"] as? Number)?.toInt() ?: 0,
+        isBuiltIn = data["isBuiltIn"] as? Boolean ?: false,
+        templateKey = data["templateKey"] as? String,
+        triggerJson = data["triggerJson"] as? String ?: "",
+        conditionJson = data["conditionJson"] as? String,
+        actionJson = data["actionJson"] as? String ?: "[]",
+        lastFiredAt = (data["lastFiredAt"] as? Number)?.toLong(),
+        fireCount = (data["fireCount"] as? Number)?.toInt() ?: 0,
+        dailyFireCount = (data["dailyFireCount"] as? Number)?.toInt() ?: 0,
+        dailyFireCountDate = data["dailyFireCountDate"] as? String,
         createdAt = (data["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
         updatedAt = (data["updatedAt"] as? Number)?.toLong() ?: 0L
     )

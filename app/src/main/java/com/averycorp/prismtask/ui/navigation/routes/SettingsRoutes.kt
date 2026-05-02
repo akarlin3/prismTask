@@ -8,6 +8,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.averycorp.prismtask.ui.navigation.PrismTaskRoute
 import com.averycorp.prismtask.ui.screens.automation.AutomationLogScreen
+import com.averycorp.prismtask.ui.screens.automation.AutomationRuleEditScreen
 import com.averycorp.prismtask.ui.screens.automation.AutomationRuleListScreen
 import com.averycorp.prismtask.ui.screens.automation.library.AutomationTemplateLibraryScreen
 import com.averycorp.prismtask.ui.screens.settings.AccessibilityScreen
@@ -95,4 +96,19 @@ internal fun NavGraphBuilder.settingsSubScreenRoutes(navController: NavHostContr
         val ruleId = backStack.arguments?.getString("ruleId")?.toLongOrNull()
         AutomationLogScreen(navController, ruleIdFilter = ruleId)
     }
+
+    composable(
+        route = PrismTaskRoute.AutomationEdit.route,
+        arguments = listOf(
+            navArgument("ruleId") {
+                type = NavType.StringType
+                nullable = true
+                defaultValue = null
+            }
+        ),
+        enterTransition = horizontalSlideEnter,
+        exitTransition = horizontalSlideExit,
+        popEnterTransition = horizontalSlidePopEnter,
+        popExitTransition = horizontalSlidePopExit
+    ) { AutomationRuleEditScreen(navController) }
 }
