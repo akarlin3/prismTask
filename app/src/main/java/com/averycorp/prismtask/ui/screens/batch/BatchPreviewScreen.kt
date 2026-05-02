@@ -105,6 +105,7 @@ fun BatchPreviewScreen(
             BatchPreviewState.Idle -> Box(Modifier.fillMaxSize().padding(padding))
             is BatchPreviewState.Loading -> LoadingBody(s.commandText, padding)
             is BatchPreviewState.Committing -> LoadingBody("Applying \"${s.commandText}\"…", padding)
+            is BatchPreviewState.Applied -> LoadingBody("Applied", padding)
             is BatchPreviewState.Error -> ErrorBody(
                 kind = s.kind,
                 message = s.message,

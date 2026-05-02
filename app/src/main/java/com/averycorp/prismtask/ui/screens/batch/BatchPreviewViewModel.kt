@@ -58,7 +58,22 @@ constructor(
         .stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
     fun loadPreview(commandText: String) {
-        if (_state.value is BatchPreviewState.Loading) return
+        // Re-entry guards. The screen's `LaunchedEffect(commandText)` can
+        // re-fire on recomposition (Compose Navigation transition / config
+        // change), and we MUST NOT re-run Haiku once the user has already
+        // tapped Approve — re-parsing would burn a Haiku call on now-stale
+        // state and, for non-idempotent operations like tag adds or date
+        // increments, risk a double-apply if the user taps Approve on the
+        // re-fired preview. See docs/audits/BATCH_PREVIEW_REFIRE_AUDIT.md
+        // for the full failure analysis.
+        when (val current = _state.value) {
+            is BatchPreviewState.Loading,
+            is BatchPreviewState.Committing,
+            is BatchPreviewState.Applied -> return
+            is BatchPreviewState.Loaded ->
+                if (current.commandText == commandText) return
+            BatchPreviewState.Idle, is BatchPreviewState.Error -> Unit
+        }
         _state.value = BatchPreviewState.Loading(commandText)
         viewModelScope.launch {
             try {
@@ -255,6 +270,11 @@ constructor(
                         skippedCount = result.skipped.size
                     )
                 )
+                _state.value = BatchPreviewState.Applied(
+                    batchId = result.batchId,
+                    appliedCount = result.appliedCount,
+                    skippedCount = result.skipped.size
+                )
                 _events.emit(
                     BatchEvent.Approved(
                         batchId = result.batchId,
@@ -325,6 +345,19 @@ sealed class BatchPreviewState {
         val medicationCandidates: Map<Int, List<MedicationCandidate>> = emptyMap()
     ) : BatchPreviewState()
     data class Committing(val commandText: String) : BatchPreviewState()
+    /**
+     * Terminal state after [BatchPreviewViewModel.approve] commits the
+     * batch successfully. The screen pops back via the `Approved` event
+     * collector almost immediately, so this is rendered the same as
+     * [Committing] (a loading body) — its load-bearing job is to
+     * short-circuit a re-fire of `loadPreview` if `LaunchedEffect`
+     * recomposes during the pop transition.
+     */
+    data class Applied(
+        val batchId: String,
+        val appliedCount: Int,
+        val skippedCount: Int
+    ) : BatchPreviewState()
     data class Error(
         val commandText: String,
         val kind: BatchPreviewErrorKind,

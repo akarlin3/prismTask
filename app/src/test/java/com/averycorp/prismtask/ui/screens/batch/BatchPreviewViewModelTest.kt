@@ -194,6 +194,126 @@ class BatchPreviewViewModelTest {
         coVerify { undoBus.notifyApplied(match { it.batchId == "batch-abc" }) }
     }
 
+    @Test
+    fun approve_success_transitionsToAppliedTerminalState() = runTest(dispatcher) {
+        stubParse(
+            BatchParseResponse(
+                mutations = listOf(taskRescheduleMutation(entityId = "7", due = "2026-05-03")),
+                confidence = 0.95f,
+                ambiguousEntities = emptyList()
+            )
+        )
+        coEvery { repository.applyBatch(any(), any()) } returns
+            BatchOperationsRepository.BatchApplyResult(
+                batchId = "batch-applied",
+                commandText = "anything",
+                appliedCount = 3,
+                skipped = listOf(
+                    BatchOperationsRepository.SkippedMutation(
+                        mutation = taskRescheduleMutation(entityId = "9", due = "2026-05-04"),
+                        reason = "stale"
+                    )
+                )
+            )
+
+        val viewModel = newViewModel()
+        viewModel.loadPreview("anything")
+        advanceUntilIdle()
+        viewModel.approve()
+        advanceUntilIdle()
+
+        val terminal = viewModel.state.value as BatchPreviewState.Applied
+        assertEquals("batch-applied", terminal.batchId)
+        assertEquals(3, terminal.appliedCount)
+        assertEquals(1, terminal.skippedCount)
+    }
+
+    @Test
+    fun loadPreview_doesNotReParseWhenStateIsApplied() = runTest(dispatcher) {
+        stubParse(
+            BatchParseResponse(
+                mutations = listOf(taskRescheduleMutation(entityId = "7", due = "2026-05-03")),
+                confidence = 0.95f,
+                ambiguousEntities = emptyList()
+            )
+        )
+        coEvery { repository.applyBatch(any(), any()) } returns
+            BatchOperationsRepository.BatchApplyResult(
+                batchId = "batch-applied",
+                commandText = "complete all tasks today",
+                appliedCount = 1,
+                skipped = emptyList()
+            )
+
+        val viewModel = newViewModel()
+        viewModel.loadPreview("complete all tasks today")
+        advanceUntilIdle()
+        viewModel.approve()
+        advanceUntilIdle()
+        // Sanity: state is now terminal Applied.
+        assertTrue(viewModel.state.value is BatchPreviewState.Applied)
+
+        // Simulate the LaunchedEffect re-firing during the pop transition —
+        // this is the audit's CAUSE-C symptom (Phase 1, A4 Defect C-1):
+        // before the fix, the guard only caught Loading, so a re-call would
+        // pass through, kick a second Haiku call, and overwrite Applied.
+        viewModel.loadPreview("complete all tasks today")
+        advanceUntilIdle()
+
+        // parseCommand must have run exactly once, and state must still be
+        // the post-approve terminal Applied.
+        coVerify(exactly = 1) { repository.parseCommand("complete all tasks today") }
+        assertTrue(viewModel.state.value is BatchPreviewState.Applied)
+    }
+
+    @Test
+    fun loadPreview_doesNotReParseWhenStateIsLoadedSameCommand() = runTest(dispatcher) {
+        stubParse(
+            BatchParseResponse(
+                mutations = listOf(taskRescheduleMutation(entityId = "7", due = "2026-05-03")),
+                confidence = 0.95f,
+                ambiguousEntities = emptyList()
+            )
+        )
+
+        val viewModel = newViewModel()
+        viewModel.loadPreview("push my task to friday")
+        advanceUntilIdle()
+        // First-pass populates exclusions; if we re-parsed, exclusions would
+        // be wiped (line 118 in loadPreview). Lock one in to detect that.
+        viewModel.toggleExclusion(0)
+
+        viewModel.loadPreview("push my task to friday")
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) { repository.parseCommand("push my task to friday") }
+        assertTrue(0 in viewModel.excluded.value)
+    }
+
+    @Test
+    fun loadPreview_reParsesWhenStateIsLoadedButCommandTextDiffers() = runTest(dispatcher) {
+        // Regression guard: the same-commandText short-circuit must NOT
+        // block legitimate re-parses for a different command (e.g. nav arg
+        // genuinely changes). This case isn't on the BatchPreview entry
+        // path today, but the guard shape must permit it.
+        stubParse(
+            BatchParseResponse(
+                mutations = listOf(taskRescheduleMutation(entityId = "7", due = "2026-05-03")),
+                confidence = 0.95f,
+                ambiguousEntities = emptyList()
+            )
+        )
+
+        val viewModel = newViewModel()
+        viewModel.loadPreview("first command")
+        advanceUntilIdle()
+        viewModel.loadPreview("second command")
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) { repository.parseCommand("first command") }
+        coVerify(exactly = 1) { repository.parseCommand("second command") }
+    }
+
     private fun newViewModel(): BatchPreviewViewModel = BatchPreviewViewModel(
         repository = repository,
         undoBus = undoBus,
