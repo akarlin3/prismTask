@@ -1,0 +1,62 @@
+[
+  {
+    "templateKey": "builtin.notify_overdue_urgent",
+    "name": "Notify When Overdue Urgent Task",
+    "description": "Pings you when an urgent task crosses its due date.",
+    "trigger": { "type": "ENTITY_EVENT", "eventKind": "TaskUpdated" },
+    "condition": {
+      "op": "AND",
+      "children": [
+        { "op": "GTE", "field": "task.priority", "value": 3 },
+        { "op": "LT", "field": "task.dueDate", "value": { "@now": null } },
+        { "op": "NOT", "child": { "op": "EXISTS", "field": "task.completedAt", "value": null } }
+      ]
+    },
+    "actions": [
+      {
+        "type": "notify",
+        "title": "Overdue Urgent Task",
+        "body": "An urgent task is past its due date — tap to review.",
+        "priority": 0
+      }
+    ]
+  },
+  {
+    "templateKey": "builtin.autotag_today",
+    "name": "Auto-Tag Tasks Created Today",
+    "description": "Adds the #today tag to any new task as soon as it's created.",
+    "trigger": { "type": "ENTITY_EVENT", "eventKind": "TaskCreated" },
+    "condition": null,
+    "actions": [{ "type": "log", "message": "Tagged new task as #today" }]
+  },
+  {
+    "templateKey": "builtin.morning_routine",
+    "name": "Daily Morning Routine",
+    "description": "Posts a morning kickoff notification at 7:00.",
+    "trigger": { "type": "TIME_OF_DAY", "hour": 7, "minute": 0 },
+    "condition": null,
+    "actions": [
+      { "type": "notify", "title": "Good Morning", "body": "Your day's plan is ready.", "priority": 0 },
+      { "type": "log", "message": "Morning routine fired" }
+    ]
+  },
+  {
+    "templateKey": "builtin.streak_achievement",
+    "name": "Streak Achievement",
+    "description": "Celebrates when a habit hits a 7-day streak.",
+    "trigger": { "type": "ENTITY_EVENT", "eventKind": "HabitStreakHit" },
+    "condition": { "op": "GTE", "field": "habit.streakCount", "value": 7 },
+    "actions": [
+      { "type": "notify", "title": "Streak Hit", "body": "You hit a milestone streak — keep it going!", "priority": 0 },
+      { "type": "log", "message": "Streak achievement fired" }
+    ]
+  },
+  {
+    "templateKey": "builtin.ai_summary_completions",
+    "name": "AI Summarize Recent Completions",
+    "description": "Asks AI to summarize your last 50 completed tasks (requires AI features enabled).",
+    "trigger": { "type": "ENTITY_EVENT", "eventKind": "TaskCompleted" },
+    "condition": null,
+    "actions": [{ "type": "ai.summarize", "scope": "recent_completions", "maxItems": 50 }]
+  }
+]

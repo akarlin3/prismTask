@@ -43,7 +43,8 @@ class MedicationRepositoryTest {
             medicationDoseDao = medicationDoseDao,
             syncTracker = syncTracker,
             taskBehaviorPreferences = taskBehaviorPreferences,
-            widgetUpdateManager = mockk(relaxed = true)
+            widgetUpdateManager = mockk(relaxed = true),
+            automationEventBus = com.averycorp.prismtask.domain.automation.AutomationEventBus()
         )
     }
 

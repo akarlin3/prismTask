@@ -10,6 +10,8 @@ import com.averycorp.prismtask.data.local.entity.TaskTagCrossRef
 import com.averycorp.prismtask.data.preferences.UserPreferencesDataStore
 import com.averycorp.prismtask.data.remote.EisenhowerClassifier
 import com.averycorp.prismtask.data.remote.SyncTracker
+import com.averycorp.prismtask.domain.automation.AutomationEvent
+import com.averycorp.prismtask.domain.automation.AutomationEventBus
 import com.averycorp.prismtask.domain.model.EisenhowerQuadrant
 import com.averycorp.prismtask.domain.model.LifeCategory
 import com.averycorp.prismtask.domain.usecase.LifeCategoryClassifier
@@ -42,7 +44,8 @@ constructor(
     private val widgetUpdateManager: WidgetUpdateManager,
     private val taskCompletionRepository: TaskCompletionRepository,
     private val eisenhowerClassifier: EisenhowerClassifier,
-    private val userPreferences: UserPreferencesDataStore
+    private val userPreferences: UserPreferencesDataStore,
+    private val automationEventBus: AutomationEventBus
 ) {
     private val lifeCategoryClassifier = LifeCategoryClassifier()
 
@@ -182,6 +185,7 @@ constructor(
         val resolved = task.copy(lifeCategory = resolveLifeCategoryForInsert(task))
         val id = taskDao.insert(resolved)
         syncTracker.trackCreate(id, "task")
+        automationEventBus.emit(AutomationEvent.TaskCreated(id))
         calendarPushDispatcher.enqueuePushTask(id)
         widgetUpdateManager.updateTaskWidgets()
         if (resolved.reminderOffset != null && resolved.dueDate != null) {
@@ -251,6 +255,7 @@ constructor(
         val updated = task.copy(updatedAt = System.currentTimeMillis())
         taskDao.update(updated)
         syncTracker.trackUpdate(task.id, "task")
+        automationEventBus.emit(AutomationEvent.TaskUpdated(updated.id))
         calendarPushDispatcher.enqueuePushTask(updated.id)
         widgetUpdateManager.updateTaskWidgets()
         if (updated.reminderOffset != null && updated.dueDate != null) {
@@ -395,6 +400,7 @@ constructor(
             }
         }
         syncTracker.trackUpdate(id, "task")
+        automationEventBus.emit(AutomationEvent.TaskCompleted(id))
         calendarPushDispatcher.enqueueDeleteTaskEvent(id)
         widgetUpdateManager.updateTaskWidgets()
         return nextRecurrenceId
@@ -474,6 +480,7 @@ constructor(
         calendarPushDispatcher.enqueueDeleteTaskEvent(id)
         syncTracker.trackDelete(id, "task")
         taskDao.deleteById(id)
+        automationEventBus.emit(AutomationEvent.TaskDeleted(id))
         widgetUpdateManager.updateTaskWidgets()
     }
 

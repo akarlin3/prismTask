@@ -2046,7 +2046,81 @@ val MIGRATION_68_69 = object : Migration(68, 69) {
     }
 }
 
-const val CURRENT_DB_VERSION = 69
+/**
+ * v69 → v70 — Adds the automation engine tables: `automation_rules` and
+ * `automation_logs`.
+ *
+ * Both tables are net-new (no schema mutation of existing tables), so the
+ * migration is purely additive and cannot lose data on existing installs.
+ *
+ * Storage shape is the CAUSE-C hybrid picked in
+ * `docs/audits/AUTOMATION_ENGINE_ARCHITECTURE.md` § A2: queryable metadata
+ * columns side-by-side with three JSON blobs (`trigger_json`,
+ * `condition_json`, `action_json`) that hold the rule structure. Indexes on
+ * `cloud_id` (sync round-trip) and `enabled` (engine-side fast path) plus
+ * the `(rule_id, fired_at)` composite for log lookups.
+ *
+ * Logs FK CASCADE-deletes when the parent rule is removed — log history is
+ * observability, not state, and there's no point keeping orphan rows.
+ */
+val MIGRATION_69_70 = object : Migration(69, 70) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `automation_rules` (
+              `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+              `cloud_id` TEXT,
+              `name` TEXT NOT NULL,
+              `description` TEXT,
+              `enabled` INTEGER NOT NULL,
+              `priority` INTEGER NOT NULL,
+              `is_built_in` INTEGER NOT NULL DEFAULT 0,
+              `template_key` TEXT,
+              `trigger_json` TEXT NOT NULL,
+              `condition_json` TEXT,
+              `action_json` TEXT NOT NULL,
+              `last_fired_at` INTEGER,
+              `fire_count` INTEGER NOT NULL DEFAULT 0,
+              `daily_fire_count` INTEGER NOT NULL DEFAULT 0,
+              `daily_fire_count_date` TEXT,
+              `created_at` INTEGER NOT NULL,
+              `updated_at` INTEGER NOT NULL
+            )
+            """.trimIndent()
+        )
+        db.execSQL(
+            "CREATE UNIQUE INDEX IF NOT EXISTS `index_automation_rules_cloud_id` ON `automation_rules` (`cloud_id`)"
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_automation_rules_enabled` ON `automation_rules` (`enabled`)"
+        )
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `automation_logs` (
+              `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+              `rule_id` INTEGER NOT NULL,
+              `fired_at` INTEGER NOT NULL,
+              `trigger_event_json` TEXT,
+              `condition_passed` INTEGER NOT NULL,
+              `actions_executed_json` TEXT,
+              `errors_json` TEXT,
+              `duration_ms` INTEGER NOT NULL,
+              `chain_depth` INTEGER NOT NULL DEFAULT 0,
+              `parent_log_id` INTEGER,
+              FOREIGN KEY(`rule_id`) REFERENCES `automation_rules`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE
+            )
+            """.trimIndent()
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_automation_logs_rule_id_fired_at` ON `automation_logs` (`rule_id`, `fired_at`)"
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_automation_logs_fired_at` ON `automation_logs` (`fired_at`)"
+        )
+    }
+}
+
+const val CURRENT_DB_VERSION = 70
 
 val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_1_2,
@@ -2116,5 +2190,6 @@ val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_65_66,
     MIGRATION_66_67,
     MIGRATION_67_68,
-    MIGRATION_68_69
+    MIGRATION_68_69,
+    MIGRATION_69_70
 )

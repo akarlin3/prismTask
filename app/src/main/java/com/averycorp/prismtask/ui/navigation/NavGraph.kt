@@ -267,6 +267,15 @@ sealed class PrismTaskRoute(
     data object NotificationWatch : PrismTaskRoute("notifications_watch")
 
     data object NotificationTester : PrismTaskRoute("notifications_tester")
+
+    /** v1.7+ Automation engine — list of user rules. */
+    data object Automation : PrismTaskRoute("automation")
+
+    /** v1.7+ Automation engine — execution log; optional ruleId filter. */
+    data object AutomationLog : PrismTaskRoute("automation_log?ruleId={ruleId}") {
+        fun createRoute(ruleId: Long? = null): String =
+            if (ruleId != null) "automation_log?ruleId=$ruleId" else "automation_log"
+    }
 }
 
 data class BottomNavItem(

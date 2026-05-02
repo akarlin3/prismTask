@@ -72,7 +72,8 @@ class RecurrenceIntegrationTest {
             eisenhowerClassifier = mockk<EisenhowerClassifier>(relaxed = true),
             userPreferences = mockk<UserPreferencesDataStore> {
                 every { eisenhowerFlow } returns flowOf(EisenhowerPrefs(autoClassifyEnabled = false))
-            }
+            },
+            automationEventBus = com.averycorp.prismtask.domain.automation.AutomationEventBus()
         )
     }
 

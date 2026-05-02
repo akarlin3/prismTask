@@ -30,6 +30,9 @@ interface TagDao {
     @Query("SELECT tagId FROM task_tags WHERE taskId = :taskId")
     suspend fun getTagIdsForTaskOnce(taskId: Long): List<Long>
 
+    @Query("SELECT t.name FROM tags t INNER JOIN task_tags tt ON t.id = tt.tagId WHERE tt.taskId = :taskId")
+    suspend fun getTagNamesForTaskOnce(taskId: Long): List<String>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(tag: TagEntity): Long
 
