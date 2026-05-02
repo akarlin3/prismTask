@@ -11,6 +11,8 @@ import com.averycorp.prismtask.data.local.entity.HabitLogEntity
 import com.averycorp.prismtask.data.preferences.HabitListPreferences
 import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
 import com.averycorp.prismtask.data.remote.SyncTracker
+import com.averycorp.prismtask.domain.automation.AutomationEvent
+import com.averycorp.prismtask.domain.automation.AutomationEventBus
 import com.averycorp.prismtask.domain.usecase.StreakCalculator
 import com.averycorp.prismtask.notifications.HabitReminderScheduler
 import com.averycorp.prismtask.util.DayBoundary
@@ -53,7 +55,8 @@ constructor(
     private val medicationReminderScheduler: HabitReminderScheduler,
     private val taskBehaviorPreferences: TaskBehaviorPreferences,
     private val habitListPreferences: HabitListPreferences,
-    private val widgetUpdateManager: WidgetUpdateManager
+    private val widgetUpdateManager: WidgetUpdateManager,
+    private val automationEventBus: AutomationEventBus
 ) {
     private suspend fun currentDayStartHour(): Int = taskBehaviorPreferences.getDayStartHour().first()
 
@@ -181,6 +184,9 @@ constructor(
         // Cancel any pending follow-up now that the habit is completed
         medicationReminderScheduler.cancelFollowUp(habitId)
         syncTracker.trackCreate(result.newId, "habit_completion")
+        automationEventBus.emit(
+            AutomationEvent.HabitCompleted(habitId = habitId, date = normalizedLocalDate)
+        )
         widgetUpdateManager.updateHabitWidgets()
 
         val habit = result.habit

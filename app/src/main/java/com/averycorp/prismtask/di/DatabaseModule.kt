@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.room.Room
 import com.averycorp.prismtask.data.diagnostics.MigrationInstrumentor
 import com.averycorp.prismtask.data.local.dao.AttachmentDao
+import com.averycorp.prismtask.data.local.dao.AutomationLogDao
+import com.averycorp.prismtask.data.local.dao.AutomationRuleDao
 import com.averycorp.prismtask.data.local.dao.BatchUndoLogDao
 import com.averycorp.prismtask.data.local.dao.BoundaryRuleDao
 import com.averycorp.prismtask.data.local.dao.CalendarSyncDao
@@ -188,6 +190,12 @@ object DatabaseModule {
 
     @Provides
     fun provideBatchUndoLogDao(database: PrismTaskDatabase): BatchUndoLogDao = database.batchUndoLogDao()
+
+    @Provides
+    fun provideAutomationRuleDao(database: PrismTaskDatabase): AutomationRuleDao = database.automationRuleDao()
+
+    @Provides
+    fun provideAutomationLogDao(database: PrismTaskDatabase): AutomationLogDao = database.automationLogDao()
 }
 
 /**

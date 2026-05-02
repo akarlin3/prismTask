@@ -325,6 +325,13 @@ fun SettingsScreen(
                             iconBgColor = ColDataBackup,
                             onClick = { navController.navigate(PrismTaskRoute.BatchHistory.route) }
                         )
+                        SettingsNavRow(
+                            title = "Automation",
+                            subtitle = "If-this-then-that rules across tasks, habits, time",
+                            iconEmoji = "⚡",
+                            iconBgColor = ColAi,
+                            onClick = { navController.navigate(PrismTaskRoute.Automation.route) }
+                        )
                     }
                 }
 

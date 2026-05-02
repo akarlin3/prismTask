@@ -72,7 +72,8 @@ class HabitRepositoryTest {
             medicationReminderScheduler,
             taskBehaviorPreferences,
             habitListPreferences,
-            widgetUpdateManager
+            widgetUpdateManager,
+            com.averycorp.prismtask.domain.automation.AutomationEventBus()
         )
     }
 

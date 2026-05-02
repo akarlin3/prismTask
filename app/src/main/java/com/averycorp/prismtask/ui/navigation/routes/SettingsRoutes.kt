@@ -4,6 +4,11 @@ import androidx.compose.runtime.Composable
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.composable
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
+import com.averycorp.prismtask.ui.navigation.PrismTaskRoute
+import com.averycorp.prismtask.ui.screens.automation.AutomationLogScreen
+import com.averycorp.prismtask.ui.screens.automation.AutomationRuleListScreen
 import com.averycorp.prismtask.ui.screens.settings.AccessibilityScreen
 import com.averycorp.prismtask.ui.screens.settings.AccountSyncScreen
 import com.averycorp.prismtask.ui.screens.settings.AdvancedTuningScreen
@@ -54,5 +59,31 @@ internal fun NavGraphBuilder.settingsSubScreenRoutes(navController: NavHostContr
             popEnterTransition = horizontalSlidePopEnter,
             popExitTransition = horizontalSlidePopExit
         ) { content() }
+    }
+
+    composable(
+        route = PrismTaskRoute.Automation.route,
+        enterTransition = horizontalSlideEnter,
+        exitTransition = horizontalSlideExit,
+        popEnterTransition = horizontalSlidePopEnter,
+        popExitTransition = horizontalSlidePopExit
+    ) { AutomationRuleListScreen(navController) }
+
+    composable(
+        route = PrismTaskRoute.AutomationLog.route,
+        arguments = listOf(
+            navArgument("ruleId") {
+                type = NavType.StringType
+                nullable = true
+                defaultValue = null
+            }
+        ),
+        enterTransition = horizontalSlideEnter,
+        exitTransition = horizontalSlideExit,
+        popEnterTransition = horizontalSlidePopEnter,
+        popExitTransition = horizontalSlidePopExit
+    ) { backStack ->
+        val ruleId = backStack.arguments?.getString("ruleId")?.toLongOrNull()
+        AutomationLogScreen(navController, ruleIdFilter = ruleId)
     }
 }

@@ -15,7 +15,10 @@ import com.averycorp.prismtask.data.remote.LifeCategoryBackfiller
 import com.averycorp.prismtask.data.remote.MedicationMigrationRunner
 import com.averycorp.prismtask.data.repository.LeisureRepository
 import com.averycorp.prismtask.data.repository.SchoolworkRepository
+import com.averycorp.prismtask.data.seed.AutomationSampleRulesSeeder
 import com.averycorp.prismtask.data.seed.TemplateSeeder
+import com.averycorp.prismtask.domain.automation.AutomationEngine
+import com.averycorp.prismtask.workers.AutomationTimeTickWorker
 import com.averycorp.prismtask.notifications.MedicationClockRescheduler
 import com.averycorp.prismtask.notifications.MedicationIntervalRescheduler
 import com.averycorp.prismtask.notifications.MedicationReminderScheduler
@@ -89,6 +92,12 @@ class PrismTaskApplication :
     @Inject
     lateinit var widgetUpdateManager: WidgetUpdateManager
 
+    @Inject
+    lateinit var automationEngine: AutomationEngine
+
+    @Inject
+    lateinit var automationSampleRulesSeeder: AutomationSampleRulesSeeder
+
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private companion object {
@@ -140,6 +149,7 @@ class PrismTaskApplication :
             runLifeCategoryBackfill()
             runMedicationMigrationPasses()
             startMedicationReschedulers()
+            startAutomationEngine()
         } catch (e: Exception) {
             android.util.Log.e("PrismTaskApp", "Seeding kickoff failed", e)
             try {
@@ -431,6 +441,36 @@ class PrismTaskApplication :
         }
         medicationClockRescheduler.start(appScope)
         medicationIntervalRescheduler.start(appScope)
+    }
+
+    /**
+     * Cold-start hook for the automation engine: seed sample rules on first
+     * install (idempotent — keyed off `templateKey`), enqueue the periodic
+     * time-tick worker that drives `TimeOfDay` triggers, and start the bus
+     * collector. The engine is `@Singleton` and `start()` is idempotent, so
+     * a second call from a hot restart is a no-op.
+     */
+    private fun startAutomationEngine() {
+        appScope.launch {
+            try {
+                automationSampleRulesSeeder.seedIfNeeded()
+            } catch (e: Exception) {
+                android.util.Log.e("PrismTaskApp", "Automation rules seed failed", e)
+            }
+        }
+        try {
+            val workRequest = PeriodicWorkRequestBuilder<AutomationTimeTickWorker>(
+                15, TimeUnit.MINUTES
+            ).build()
+            WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+                "automation_time_tick",
+                ExistingPeriodicWorkPolicy.UPDATE,
+                workRequest
+            )
+        } catch (e: Exception) {
+            android.util.Log.e("PrismTaskApp", "Automation time-tick scheduling failed", e)
+        }
+        automationEngine.start()
     }
 
     private fun scheduleAutoArchive() {

@@ -31,7 +31,8 @@ constructor(
     private val medicationDoseDao: MedicationDoseDao,
     private val syncTracker: SyncTracker,
     private val taskBehaviorPreferences: TaskBehaviorPreferences,
-    private val widgetUpdateManager: WidgetUpdateManager
+    private val widgetUpdateManager: WidgetUpdateManager,
+    private val automationEventBus: com.averycorp.prismtask.domain.automation.AutomationEventBus
 ) {
     fun observeActive(): Flow<List<MedicationEntity>> = medicationDao.getActive()
 
@@ -115,6 +116,12 @@ constructor(
         )
         val id = medicationDoseDao.insert(dose)
         syncTracker.trackCreate(id, "medication_dose")
+        automationEventBus.emit(
+            com.averycorp.prismtask.domain.automation.AutomationEvent.MedicationLogged(
+                medicationId = medicationId,
+                slotKey = slotKey
+            )
+        )
         widgetUpdateManager.updateMedicationWidget()
         return id
     }

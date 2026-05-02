@@ -78,7 +78,8 @@ class TaskRepositoryTest {
                 widgetUpdateManager,
                 taskCompletionRepository,
                 eisenhowerClassifier,
-                userPreferences
+                userPreferences,
+                com.averycorp.prismtask.domain.automation.AutomationEventBus()
             )
     }
 
