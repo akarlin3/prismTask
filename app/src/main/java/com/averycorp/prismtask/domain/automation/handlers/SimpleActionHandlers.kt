@@ -4,6 +4,9 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
 import androidx.core.app.NotificationCompat
+import com.averycorp.prismtask.data.local.dao.TagDao
+import com.averycorp.prismtask.data.local.entity.TagEntity
+import com.averycorp.prismtask.data.local.entity.TaskTagCrossRef
 import com.averycorp.prismtask.data.repository.HabitRepository
 import com.averycorp.prismtask.data.repository.TaskRepository
 import com.averycorp.prismtask.domain.automation.ActionResult
@@ -63,15 +66,18 @@ class NotifyActionHandler @Inject constructor(
 }
 
 /**
- * `mutate.task` handler. Supports the same field set as the manual
- * task editor — title, description, priority, dueDate, isFlagged,
- * lifeCategory, projectId — by translating the [updates] map into a
- * [TaskRepository.updateTask] call against a copy of the trigger event's
- * task.
+ * `mutate.task` handler. Supports field updates — title, description,
+ * priority, dueDate, isFlagged, lifeCategory, projectId — by translating
+ * the [updates] map into a [TaskRepository.updateTask] call against a copy
+ * of the trigger event's task. Also supports two list-shaped keys —
+ * `tagsAdd` and `tagsRemove` — which mirror the case-insensitive
+ * find-or-create logic from [BatchOperationsRepository.applyTagDelta]
+ * (`docs/audits/AUTOMATION_STARTER_LIBRARY_ARCHITECTURE.md` § A0).
  */
 @Singleton
 class MutateTaskActionHandler @Inject constructor(
-    private val taskRepository: TaskRepository
+    private val taskRepository: TaskRepository,
+    private val tagDao: TagDao
 ) : AutomationActionHandler {
     override val type: String = "mutate.task"
 
@@ -93,11 +99,41 @@ class MutateTaskActionHandler @Inject constructor(
                 "isFlagged" -> next.copy(isFlagged = value as? Boolean ?: next.isFlagged)
                 "lifeCategory" -> next.copy(lifeCategory = value as? String)
                 "projectId" -> next.copy(projectId = (value as? Number)?.toLong())
+                "tagsAdd", "tagsRemove" -> next  // handled separately below
                 else -> next  // unknown fields silently ignored — handler is best-effort
             }
         }
-        taskRepository.updateTask(next)
+        if (next != task) taskRepository.updateTask(next)
+
+        applyTagDelta(
+            taskId = task.id,
+            addRaw = mutate.updates["tagsAdd"] as? List<*>,
+            removeRaw = mutate.updates["tagsRemove"] as? List<*>
+        )
+
         return ActionResult.Ok(type, "updated task ${task.id} (${mutate.updates.keys})")
+    }
+
+    private suspend fun applyTagDelta(
+        taskId: Long,
+        addRaw: List<*>?,
+        removeRaw: List<*>?
+    ) {
+        if (addRaw.isNullOrEmpty() && removeRaw.isNullOrEmpty()) return
+        val nameToId = tagDao.getAllTagsOnce().associate { it.name.lowercase() to it.id }
+        addRaw?.forEach { raw ->
+            val name = (raw as? String)?.removePrefix("#")?.trim().orEmpty()
+            if (name.isEmpty()) return@forEach
+            val tagId = nameToId[name.lowercase()]
+                ?: tagDao.insert(TagEntity(name = name))
+            tagDao.addTagToTask(TaskTagCrossRef(taskId = taskId, tagId = tagId))
+        }
+        removeRaw?.forEach { raw ->
+            val name = (raw as? String)?.removePrefix("#")?.trim().orEmpty()
+            if (name.isEmpty()) return@forEach
+            val tagId = nameToId[name.lowercase()] ?: return@forEach
+            tagDao.removeTagFromTask(taskId, tagId)
+        }
     }
 }
 

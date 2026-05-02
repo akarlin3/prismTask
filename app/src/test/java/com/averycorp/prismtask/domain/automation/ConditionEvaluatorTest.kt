@@ -122,6 +122,45 @@ class ConditionEvaluatorTest {
         ))
     }
 
+    @Test fun eventDayOfWeek_resolvesFromOccurredAt() {
+        // 2026-05-02 is a Saturday (verified at audit time).
+        val saturdayMillis = java.time.LocalDateTime
+            .of(2026, 5, 2, 12, 0)
+            .atZone(java.time.ZoneId.systemDefault())
+            .toInstant()
+            .toEpochMilli()
+        val ctx = EvaluationContext(
+            event = AutomationEvent.TaskCreated(taskId = 1L, occurredAt = saturdayMillis),
+            now = saturdayMillis
+        )
+        assertTrue(evaluator.evaluate(
+            AutomationCondition.Compare(Op.EQ, "event.dayOfWeek", "SATURDAY"), ctx
+        ))
+        assertFalse(evaluator.evaluate(
+            AutomationCondition.Compare(Op.EQ, "event.dayOfWeek", "MONDAY"), ctx
+        ))
+    }
+
+    @Test fun taskCreatedAt_resolvesAndComparesNumeric() {
+        val task = TaskEntity(
+            id = 1L,
+            title = "x",
+            createdAt = 5_000L,
+            updatedAt = 0L
+        )
+        val ctx = EvaluationContext(
+            event = AutomationEvent.TaskUpdated(taskId = 1L, occurredAt = now),
+            task = task,
+            now = now
+        )
+        assertTrue(evaluator.evaluate(
+            AutomationCondition.Compare(Op.LT, "task.createdAt", 10_000L), ctx
+        ))
+        assertFalse(evaluator.evaluate(
+            AutomationCondition.Compare(Op.GT, "task.createdAt", 10_000L), ctx
+        ))
+    }
+
     @Test fun habitFieldsResolveOnHabitEvent() {
         val habit = HabitEntity(id = 7, name = "meditate", category = "self-care", createdAt = 0, updatedAt = 0)
         val ctx = EvaluationContext(

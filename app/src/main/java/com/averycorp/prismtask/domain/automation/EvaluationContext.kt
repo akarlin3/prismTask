@@ -10,14 +10,18 @@ import com.averycorp.prismtask.data.local.entity.TaskEntity
  * DAO round-trip per condition node) plus the optional list of tag names
  * for tasks (for `task.tags CONTAINS "#urgent"` style conditions).
  *
- * Field-path resolution table (the exhaustive list from § A4):
+ * Field-path resolution table:
  *
- *  - `event.occurredAt`
+ *  - `event.occurredAt`, `event.dayOfWeek`
  *  - `task.id`, `task.title`, `task.priority`, `task.dueDate`,
- *    `task.completedAt`, `task.tags`, `task.projectId`,
+ *    `task.completedAt`, `task.createdAt`, `task.tags`, `task.projectId`,
  *    `task.lifeCategory`, `task.isFlagged`
  *  - `habit.id`, `habit.name`, `habit.streakCount`, `habit.category`
  *  - `medication.id`, `medication.name`, `medication.lastTakenAt`
+ *
+ * The `event.dayOfWeek` + `task.createdAt` paths are the starter-library
+ * extension (`docs/audits/AUTOMATION_STARTER_LIBRARY_ARCHITECTURE.md` § A0)
+ * and are computed lazily — no engine pre-load needed.
  */
 data class EvaluationContext(
     val event: AutomationEvent,
@@ -36,11 +40,16 @@ data class EvaluationContext(
      */
     fun resolve(path: String): Any? = when (path) {
         "event.occurredAt" -> event.occurredAt
+        "event.dayOfWeek" -> java.time.LocalDate
+            .ofInstant(java.time.Instant.ofEpochMilli(event.occurredAt), java.time.ZoneId.systemDefault())
+            .dayOfWeek
+            .name
         "task.id" -> task?.id
         "task.title" -> task?.title
         "task.priority" -> task?.priority
         "task.dueDate" -> task?.dueDate
         "task.completedAt" -> task?.completedAt
+        "task.createdAt" -> task?.createdAt
         "task.tags" -> taskTags
         "task.projectId" -> task?.projectId
         "task.lifeCategory" -> task?.lifeCategory

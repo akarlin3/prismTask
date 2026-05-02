@@ -24,6 +24,19 @@ class AutomationJsonAdapterTest {
         assertEquals(original, decoded)
     }
 
+    @Test fun trigger_dayOfWeekTime_roundTrip() {
+        val original = AutomationTrigger.DayOfWeekTime(
+            daysOfWeek = setOf("SATURDAY", "SUNDAY"),
+            hour = 18,
+            minute = 0
+        )
+        val json = AutomationJsonAdapter.encodeTrigger(original)
+        assertTrue(json.contains("\"type\":\"DAY_OF_WEEK_TIME\""))
+        assertTrue(json.contains("\"daysOfWeek\""))
+        val decoded = AutomationJsonAdapter.decodeTrigger(json)
+        assertEquals(original, decoded)
+    }
+
     @Test fun trigger_manual_roundTrip() {
         val decoded = AutomationJsonAdapter.decodeTrigger(
             AutomationJsonAdapter.encodeTrigger(AutomationTrigger.Manual)
@@ -93,5 +106,26 @@ class AutomationJsonAdapterTest {
         ) as List<AutomationAction.MutateTask>
         assertEquals(4L, (decoded[0].updates["priority"] as Number).toLong())
         assertEquals(true, decoded[0].updates["isFlagged"])
+    }
+
+    @Test fun action_mutateTask_tagsRoundTrip() {
+        val original = listOf(
+            AutomationAction.MutateTask(
+                updates = mapOf(
+                    "tagsAdd" to listOf("#today", "personal"),
+                    "tagsRemove" to listOf("#archived"),
+                    "lifeCategory" to "PERSONAL"
+                )
+            )
+        )
+        @Suppress("UNCHECKED_CAST")
+        val decoded = AutomationJsonAdapter.decodeActions(
+            AutomationJsonAdapter.encodeActions(original)
+        ) as List<AutomationAction.MutateTask>
+        val tagsAdd = decoded[0].updates["tagsAdd"] as List<*>
+        val tagsRemove = decoded[0].updates["tagsRemove"] as List<*>
+        assertEquals(listOf<Any?>("#today", "personal"), tagsAdd)
+        assertEquals(listOf<Any?>("#archived"), tagsRemove)
+        assertEquals("PERSONAL", decoded[0].updates["lifeCategory"])
     }
 }

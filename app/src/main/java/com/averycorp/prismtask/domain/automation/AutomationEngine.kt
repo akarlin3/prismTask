@@ -185,6 +185,15 @@ class AutomationEngine @Inject constructor(
             val tick = event as? AutomationEvent.TimeTick ?: return false
             tick.hour == trigger.hour && tick.minute == trigger.minute
         }
+        is AutomationTrigger.DayOfWeekTime -> {
+            val tick = event as? AutomationEvent.TimeTick ?: return false
+            if (tick.hour != trigger.hour || tick.minute != trigger.minute) return false
+            val day = java.time.LocalDate
+                .ofInstant(java.time.Instant.ofEpochMilli(tick.occurredAt), java.time.ZoneId.systemDefault())
+                .dayOfWeek
+                .name
+            day in trigger.daysOfWeek
+        }
         AutomationTrigger.Manual -> {
             val mt = event as? AutomationEvent.ManualTrigger ?: return false
             mt.ruleId == ruleId

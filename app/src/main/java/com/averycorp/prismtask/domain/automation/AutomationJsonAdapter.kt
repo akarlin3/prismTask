@@ -66,6 +66,12 @@ object AutomationJsonAdapter {
                 is AutomationTrigger.TimeOfDay -> {
                     addProperty("hour", src.hour); addProperty("minute", src.minute)
                 }
+                is AutomationTrigger.DayOfWeekTime -> {
+                    addProperty("hour", src.hour); addProperty("minute", src.minute)
+                    add("daysOfWeek", JsonArray().also { arr ->
+                        src.daysOfWeek.forEach { arr.add(JsonPrimitive(it)) }
+                    })
+                }
                 is AutomationTrigger.Composed -> addProperty("parentRuleId", src.parentRuleId)
                 AutomationTrigger.Manual -> {}
             }
@@ -82,6 +88,14 @@ object AutomationJsonAdapter {
                     AutomationTrigger.EntityEvent(obj.get("eventKind").asString)
                 AutomationTrigger.TimeOfDay.TYPE ->
                     AutomationTrigger.TimeOfDay(obj.get("hour").asInt, obj.get("minute").asInt)
+                AutomationTrigger.DayOfWeekTime.TYPE ->
+                    AutomationTrigger.DayOfWeekTime(
+                        daysOfWeek = obj.getAsJsonArray("daysOfWeek")
+                            .map { it.asString }
+                            .toSet(),
+                        hour = obj.get("hour").asInt,
+                        minute = obj.get("minute").asInt
+                    )
                 AutomationTrigger.Manual.TYPE ->
                     AutomationTrigger.Manual
                 AutomationTrigger.Composed.TYPE ->
