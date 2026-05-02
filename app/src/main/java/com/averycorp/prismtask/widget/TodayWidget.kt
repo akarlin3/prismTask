@@ -37,6 +37,7 @@ import androidx.glance.text.Text
 import androidx.glance.text.TextDecoration
 import androidx.glance.text.TextStyle
 import com.averycorp.prismtask.MainActivity
+import com.averycorp.prismtask.widget.launch.WidgetLaunchAction
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -92,7 +93,7 @@ private fun TodayWidgetContent(
     val overdueCount = data.tasks.count { it.isOverdue }
     val openTodayIntent = Intent(context, MainActivity::class.java).apply {
         flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-        putExtra(MainActivity.EXTRA_LAUNCH_ACTION, "open_today")
+        putExtra(MainActivity.EXTRA_LAUNCH_ACTION, WidgetLaunchAction.OpenToday.wireId)
     }
     Column(
         modifier = GlanceModifier
@@ -214,7 +215,7 @@ private fun WidgetTaskRowView(
 ) {
     val taskIntent = Intent(context, MainActivity::class.java).apply {
         flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-        putExtra(MainActivity.EXTRA_LAUNCH_ACTION, "open_task")
+        putExtra(MainActivity.EXTRA_LAUNCH_ACTION, WidgetLaunchAction.OpenTask.WIRE_ID)
         putExtra("task_id", task.id)
     }
     Row(modifier = GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {

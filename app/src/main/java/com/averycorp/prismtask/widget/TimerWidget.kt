@@ -33,6 +33,7 @@ import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import com.averycorp.prismtask.MainActivity
+import com.averycorp.prismtask.widget.launch.WidgetLaunchAction
 
 class TimerWidget : GlanceAppWidget() {
     companion object {
@@ -73,7 +74,7 @@ private fun TimerWidgetContent(
     val accentColor = if (isWork) palette.timerWork else palette.timerBreak
     val launchIntent = Intent(context, MainActivity::class.java).apply {
         flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-        putExtra(MainActivity.EXTRA_LAUNCH_ACTION, MainActivity.ACTION_OPEN_TIMER)
+        putExtra(MainActivity.EXTRA_LAUNCH_ACTION, WidgetLaunchAction.OpenTimer.wireId)
     }
     Column(
         modifier = GlanceModifier
@@ -98,7 +99,7 @@ private fun TimerWidgetContent(
             Spacer(modifier = GlanceModifier.height(10.dp))
             val timerIntent = Intent(context, MainActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                putExtra(MainActivity.EXTRA_LAUNCH_ACTION, MainActivity.ACTION_OPEN_TIMER)
+                putExtra(MainActivity.EXTRA_LAUNCH_ACTION, WidgetLaunchAction.OpenTimer.wireId)
             }
             Box(
                 modifier = GlanceModifier

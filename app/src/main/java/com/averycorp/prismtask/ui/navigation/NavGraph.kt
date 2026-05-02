@@ -59,6 +59,7 @@ import com.averycorp.prismtask.ui.screens.settings.SettingsScreen
 import com.averycorp.prismtask.ui.screens.tasklist.TaskListScreen
 import com.averycorp.prismtask.ui.screens.timer.TimerScreen
 import com.averycorp.prismtask.ui.screens.today.TodayScreen
+import com.averycorp.prismtask.widget.launch.WidgetLaunchAction
 import com.averycorp.prismtask.ui.theme.LocalPrismAttrs
 import com.averycorp.prismtask.ui.theme.LocalPrismColors
 import com.averycorp.prismtask.ui.theme.LocalPrismFonts
@@ -303,22 +304,17 @@ fun PrismTaskNavGraph(
     navController: NavHostController = rememberNavController(),
     tabOrder: List<String> = ALL_BOTTOM_NAV_ITEMS.map { it.route },
     hiddenTabs: Set<String> = emptySet(),
-    initialLaunchAction: String? = null,
+    initialLaunchAction: WidgetLaunchAction? = null,
     initialSharedText: String? = null,
     hasCompletedOnboarding: Boolean = true
 ) {
-    // Handle deep-link intents from the QuickAdd widget: "open_templates"
-    // routes straight to the Template List screen. "voice_input" keeps the
-    // user on Today and auto-starts speech recognition.
+    // Voice-input is the only launch action handled inline on Today (the rest
+    // route via the exhaustive `when` below), so it gets its own keep-alive
+    // state.
     val autoStartVoice = androidx.compose.runtime.remember(initialLaunchAction) {
         androidx.compose.runtime.mutableStateOf(
-            initialLaunchAction == com.averycorp.prismtask.MainActivity.ACTION_VOICE_INPUT
+            initialLaunchAction is WidgetLaunchAction.VoiceInput
         )
-    }
-    LaunchedEffect(initialLaunchAction) {
-        if (initialLaunchAction == com.averycorp.prismtask.MainActivity.ACTION_OPEN_TEMPLATES) {
-            navController.navigate(PrismTaskRoute.TemplateList.route)
-        }
     }
     // v1.4.0 V9: route incoming shared text into the Paste Conversation
     // screen with a pre-filled input. The screen observes its
@@ -345,38 +341,54 @@ fun PrismTaskNavGraph(
     val pagerState = rememberPagerState(pageCount = { bottomNavItems.size })
     val coroutineScope = rememberCoroutineScope()
 
-    // Navigate to Habits tab when launched from the HabitStreakWidget.
+    // Single dispatch site for every widget launch action. The compiler
+    // enforces exhaustiveness against [WidgetLaunchAction]; adding a new
+    // subclass without wiring it up is a build error rather than a silent
+    // no-op (see docs/audits/DEFECT_FAMILY_HARDENING_AUDIT.md §C).
     LaunchedEffect(initialLaunchAction) {
-        if (initialLaunchAction == com.averycorp.prismtask.MainActivity.ACTION_OPEN_HABITS) {
-            val habitIndex = bottomNavItems.indexOfFirst {
-                it.route == PrismTaskRoute.HabitList.route
+        // Exhaustive `when` expression. Assigning to `_` forces the compiler
+        // to validate every sealed subclass is covered — adding a new case
+        // without a branch here is a build error.
+        @Suppress("UNUSED_VARIABLE")
+        val handled: Unit = when (val action = initialLaunchAction) {
+            null -> Unit
+            WidgetLaunchAction.OpenToday -> Unit
+            WidgetLaunchAction.OpenTemplates ->
+                navController.navigate(PrismTaskRoute.TemplateList.route)
+            WidgetLaunchAction.OpenMatrix ->
+                navController.navigate(PrismTaskRoute.EisenhowerMatrix.route)
+            WidgetLaunchAction.OpenInbox ->
+                navController.navigate(PrismTaskRoute.TaskList.route)
+            WidgetLaunchAction.OpenMedication ->
+                navController.navigate(PrismTaskRoute.Medication.route)
+            WidgetLaunchAction.OpenInsights ->
+                navController.navigate(PrismTaskRoute.TaskAnalytics.createRoute())
+            WidgetLaunchAction.QuickAdd ->
+                navController.navigate(PrismTaskRoute.AddEditTask.createRoute())
+            is WidgetLaunchAction.OpenTask ->
+                navController.navigate(
+                    PrismTaskRoute.AddEditTask.createRoute(taskId = action.taskId)
+                )
+            // VoiceInput keeps the user on Today and is consumed by
+            // [autoStartVoice] above — speech recognition starts inline
+            // without a navigate() call.
+            WidgetLaunchAction.VoiceInput -> Unit
+            WidgetLaunchAction.OpenHabits -> {
+                val habitIndex = bottomNavItems.indexOfFirst {
+                    it.route == PrismTaskRoute.HabitList.route
+                }
+                if (habitIndex >= 0) {
+                    pagerState.scrollToPage(habitIndex)
+                }
             }
-            if (habitIndex >= 0) {
-                pagerState.scrollToPage(habitIndex)
+            WidgetLaunchAction.OpenTimer -> {
+                val timerIndex = bottomNavItems.indexOfFirst {
+                    it.route == PrismTaskRoute.Timer.route
+                }
+                if (timerIndex >= 0) {
+                    pagerState.scrollToPage(timerIndex)
+                }
             }
-        }
-    }
-
-    // Navigate to Timer tab when launched from the TimerWidget / FocusWidget.
-    LaunchedEffect(initialLaunchAction) {
-        if (initialLaunchAction == com.averycorp.prismtask.MainActivity.ACTION_OPEN_TIMER) {
-            val timerIndex = bottomNavItems.indexOfFirst {
-                it.route == PrismTaskRoute.Timer.route
-            }
-            if (timerIndex >= 0) {
-                pagerState.scrollToPage(timerIndex)
-            }
-        }
-    }
-
-    // Navigate to the Eisenhower Matrix screen when launched from the
-    // EisenhowerWidget. Mirrors the open_timer wiring landed in PR #1042 —
-    // before this, "open_matrix" was a dead string only emitted by the
-    // widget, so tapping the widget opened the app on its default tab
-    // instead of the matrix.
-    LaunchedEffect(initialLaunchAction) {
-        if (initialLaunchAction == com.averycorp.prismtask.MainActivity.ACTION_OPEN_MATRIX) {
-            navController.navigate(PrismTaskRoute.EisenhowerMatrix.route)
         }
     }
 

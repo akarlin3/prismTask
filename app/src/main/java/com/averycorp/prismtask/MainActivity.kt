@@ -62,6 +62,7 @@ import com.averycorp.prismtask.ui.theme.PriorityColors
 import com.averycorp.prismtask.ui.theme.PrismTaskTheme
 import com.averycorp.prismtask.ui.theme.ThemeViewModel
 import com.averycorp.prismtask.ui.theme.themeOverlay
+import com.averycorp.prismtask.widget.launch.WidgetLaunchAction
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 import dagger.hilt.android.AndroidEntryPoint
@@ -124,17 +125,13 @@ class MainActivity : ComponentActivity() {
     lateinit var localDateFlow: LocalDateFlow
 
     companion object {
-        /** Intent extra key set by the QuickAdd widget to route deep-links. */
+        /** Intent extra key set by widgets to route deep-links. Wire-id values
+         * live on [WidgetLaunchAction] subclasses. */
         const val EXTRA_LAUNCH_ACTION = "com.averycorp.prismtask.LAUNCH_ACTION"
-        const val ACTION_QUICK_ADD = "quick_add"
-        const val ACTION_OPEN_TEMPLATES = "open_templates"
-        const val ACTION_VOICE_INPUT = "voice_input"
-        const val ACTION_OPEN_HABITS = "open_habits"
-        const val ACTION_OPEN_TIMER = "open_timer"
-        const val ACTION_OPEN_MATRIX = "open_matrix"
+        const val EXTRA_TASK_ID = "task_id"
     }
 
-    private val launchActionState = mutableStateOf<String?>(null)
+    private val launchActionState = mutableStateOf<WidgetLaunchAction?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
@@ -188,7 +185,7 @@ class MainActivity : ComponentActivity() {
         } catch (e: Exception) {
             Log.e("MainActivity", "Crashlytics user ID setup failed", e)
         }
-        launchActionState.value = intent?.getStringExtra(EXTRA_LAUNCH_ACTION)
+        launchActionState.value = parseLaunchAction(intent)
         // v1.4.0 V9: support Android share-intent entry into the Paste
         // Conversation screen. When another app sends text to PrismTask
         // (ACTION_SEND, text/plain) the text is forwarded to the nav
@@ -620,7 +617,16 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        launchActionState.value = intent.getStringExtra(EXTRA_LAUNCH_ACTION)
+        launchActionState.value = parseLaunchAction(intent)
+    }
+
+    private fun parseLaunchAction(intent: Intent?): WidgetLaunchAction? {
+        if (intent == null) return null
+        val taskId = intent.getLongExtra(EXTRA_TASK_ID, -1L).takeIf { it >= 0 }
+        return WidgetLaunchAction.deserialize(
+            wireId = intent.getStringExtra(EXTRA_LAUNCH_ACTION),
+            taskId = taskId
+        )
     }
 
     private fun setCrashlyticsUserId() {

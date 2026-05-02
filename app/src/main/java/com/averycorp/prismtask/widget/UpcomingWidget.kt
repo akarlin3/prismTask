@@ -31,6 +31,7 @@ import androidx.glance.layout.width
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import com.averycorp.prismtask.MainActivity
+import com.averycorp.prismtask.widget.launch.WidgetLaunchAction
 
 /**
  * Upcoming widget — shows tasks for today, tomorrow, and the day after.
@@ -81,7 +82,7 @@ private fun UpcomingContent(
     }
     val overdueIntent = Intent(context, MainActivity::class.java).apply {
         flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-        putExtra(MainActivity.EXTRA_LAUNCH_ACTION, "open_today")
+        putExtra(MainActivity.EXTRA_LAUNCH_ACTION, WidgetLaunchAction.OpenToday.wireId)
     }
 
     Column(
