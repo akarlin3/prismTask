@@ -109,6 +109,23 @@ Single coherent scope ⇒ single PR (per fan-out bundling guidance: "bundle mult
 
 Worth flagging to the codebase generally; not fixing the GREEN site (`OverrideEditor`) opportunistically because it doesn't currently exhibit the bug — the trigger for fixing it would be the next time someone adds coercion there.
 
-## Phase 3 / Phase 4 placeholder
+## Phase 3 — Bundle summary
 
-To be appended after Phase 2 PRs land.
+**Shipped (1 PR, single coherent scope per fan-out rule):**
+
+- **PR #1051** — `fix(medication): preserve typed digits in custom interval/drift fields` (squash-merged 2026-05-02 04:14 UTC, merge SHA `4ecf0450`). Touched four call sites (per-med interval, settings-default interval, slot interval, slot drift) by routing them through a new pure helper `applyMinuteFieldEdit` in `app/src/main/java/com/averycorp/prismtask/ui/screens/medication/components/MinuteFieldInput.kt`. Locked the contract with `MinuteFieldInputTest` (10 cases, all green).
+
+**Measured impact (post-merge):**
+
+- Behavioral: typing any sub-floor digit no longer round-trips through `coerceIn(60,1440)` → re-keyed `remember(...)` → text-field clobber. Verified by the new unit tests; manual UI verification deferred to release validation per the "QA can't repro on Compose UI in CI" carve-out.
+- Code-debt: collapsed 4 copies of the same anti-pattern into one helper. Future numeric pickers should reuse `applyMinuteFieldEdit` rather than re-deriving the parse-+-clamp logic.
+
+**Wall-clock per PR:** Phase 1 audit + Phase 2 fix + tests landed in one session (~25 min including CI wait — under cache TTL). The audit doc itself is 114 lines (well under the 500-line cap).
+
+**Memory entry candidates:**
+
+- *Surprising:* `remember(intMutatedByInputHandler) { mutableStateOf(int.toString()) }` is a structural Compose anti-pattern that *looks* idempotent but silently clobbers typed text whenever the input handler coerces. Worth a feedback memory because the failure mode is invisible in code review (each line looks fine in isolation) and is a likely repeat occurrence in any numeric `OutlinedTextField`. **Save.**
+- *Not surprising:* the "extract a pure helper to test composable input logic" pattern was already established by `composeIntendedTime`; following it here didn't reveal anything new. Skip.
+
+**Schedule for next audit:** none queued — this was a single-bug audit. The anti-pattern memory will catch the next instance during normal review.
+
