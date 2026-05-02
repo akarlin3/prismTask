@@ -1,5 +1,6 @@
 package com.averycorp.prismtask.ui.screens.medication.components
 
+import android.text.format.DateFormat
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -24,6 +25,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import java.time.Instant
@@ -62,10 +64,12 @@ fun LogCustomDoseSheet(
     var note by remember { mutableStateOf("") }
 
     val nowCal = remember { Calendar.getInstance() }
+    val context = LocalContext.current
+    val is24Hour = remember(context) { DateFormat.is24HourFormat(context) }
     val timeState = rememberTimePickerState(
         initialHour = nowCal.get(Calendar.HOUR_OF_DAY),
         initialMinute = nowCal.get(Calendar.MINUTE),
-        is24Hour = false
+        is24Hour = is24Hour
     )
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
@@ -103,6 +107,21 @@ fun LogCustomDoseSheet(
             )
             Spacer(modifier = Modifier.height(4.dp))
             TimePicker(state = timeState, modifier = Modifier.align(Alignment.CenterHorizontally))
+            Spacer(modifier = Modifier.height(4.dp))
+            // Source-of-truth readout — the dial + AM/PM toggle can mislead
+            // about the picked half-of-day; this label reads from
+            // timeState.hour/timeState.minute, which are exactly what
+            // todayAt(...) below will save.
+            Text(
+                text = "Selected: ${formatPickedTime(
+                    timeState.hour,
+                    timeState.minute,
+                    is24Hour
+                )}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.align(Alignment.CenterHorizontally)
+            )
 
             Spacer(modifier = Modifier.height(12.dp))
             OutlinedTextField(

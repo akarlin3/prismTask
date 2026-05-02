@@ -1,5 +1,6 @@
 package com.averycorp.prismtask.ui.screens.medication.components
 
+import android.text.format.DateFormat
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -20,6 +21,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import java.time.Instant
@@ -60,10 +62,12 @@ fun MedicationTimeEditSheet(
     val seedTime = remember(seed) {
         Instant.ofEpochMilli(seed).atZone(zone).toLocalTime()
     }
+    val context = LocalContext.current
+    val is24Hour = remember(context) { DateFormat.is24HourFormat(context) }
     val timePickerState = rememberTimePickerState(
         initialHour = seedTime.hour,
         initialMinute = seedTime.minute,
-        is24Hour = false
+        is24Hour = is24Hour
     )
 
     ModalBottomSheet(
@@ -89,6 +93,20 @@ fun MedicationTimeEditSheet(
             )
             Spacer(modifier = Modifier.height(20.dp))
             TimePicker(state = timePickerState)
+            Spacer(modifier = Modifier.height(8.dp))
+            // Source-of-truth readout — see MedicationTimePickerLabel docs.
+            // The dial + AM/PM toggle can mislead about the picked half-of-day;
+            // this label reads from state.hour/state.minute, which are exactly
+            // what composeIntendedTime will save below.
+            Text(
+                text = "Selected: ${formatPickedTime(
+                    timePickerState.hour,
+                    timePickerState.minute,
+                    is24Hour
+                )}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
             Spacer(modifier = Modifier.height(16.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
