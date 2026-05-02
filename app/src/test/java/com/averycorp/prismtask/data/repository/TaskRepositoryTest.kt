@@ -269,7 +269,7 @@ class TaskRepositoryTest {
         assertNull("No spawn for already-completed task", result)
         io.mockk.verify(exactly = 0) { calendarPushDispatcher.enqueueDeleteTaskEvent(id) }
         coVerify(exactly = 0) { syncTracker.trackUpdate(id, "task") }
-        io.mockk.verify(exactly = 0) { widgetUpdateManager.updateTaskWidgets() }
+        coVerify(exactly = 0) { widgetUpdateManager.updateTaskWidgets() }
     }
 
     // Audit: docs/audits/COULDNT_UPDATE_TASK_AUDIT.md (Item 2). Symmetric guard
@@ -283,7 +283,7 @@ class TaskRepositoryTest {
 
         coVerify(exactly = 0) { syncTracker.trackUpdate(id, "task") }
         io.mockk.verify(exactly = 0) { calendarPushDispatcher.enqueuePushTask(id) }
-        io.mockk.verify(exactly = 0) { widgetUpdateManager.updateTaskWidgets() }
+        coVerify(exactly = 0) { widgetUpdateManager.updateTaskWidgets() }
     }
 
     // ---------------------------------------------------------------------
