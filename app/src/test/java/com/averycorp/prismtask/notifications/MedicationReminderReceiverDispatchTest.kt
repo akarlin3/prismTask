@@ -8,14 +8,17 @@ import org.junit.Test
 /**
  * Pure-function tests for the alarm-extra dispatch contract.
  *
- * Regression coverage for two RED bugs:
+ * Regression coverage for three classes of bug:
  *  - Slot-INTERVAL alarms previously dropped because the receiver only
  *    inspected `medicationId` / `habitId`.
  *  - Slot-CLOCK alarms didn't exist at all — they live on this branch.
+ *  - Per-(med, slot) CLOCK alarms (override + per-med-CLOCK-over-non-CLOCK
+ *    cases) need a distinct dispatch from legacy per-med alarms even
+ *    though they share the `medicationId` extra.
  *
- * Priority order: medication > slot-clock > slot-interval > habit. A
- * malformed intent that somehow stamps multiple id extras must still
- * route to a single handler so we never double-fire.
+ * Priority order: med-slot-clock > medication > slot-clock > slot-interval
+ * > habit. A malformed intent that somehow stamps multiple id extras must
+ * still route to a single handler so we never double-fire.
  */
 class MedicationReminderReceiverDispatchTest {
 
@@ -77,10 +80,41 @@ class MedicationReminderReceiverDispatchTest {
     }
 
     @Test
-    fun medicationId_winsWhenMultipleIdsPresent() {
+    fun medSlotClock_winsWhenBothMedicationAndClockSlotSet() {
+        // Per-(med, slot) CLOCK alarms set BOTH medicationId AND
+        // clockSlotId. Must route to MedSlotClock; otherwise the
+        // legacy `handleMedicationAlarm` would fire and double-up
+        // with whatever the slot-level path schedules.
         val kind = classifyAlarm(
             medicationId = 1L,
             clockSlotId = 2L,
+            intervalSlotId = -1L,
+            habitId = -1L
+        )
+        assertEquals(AlarmKind.MedSlotClock(1L, 2L), kind)
+    }
+
+    @Test
+    fun medSlotClock_winsOverEverythingElse() {
+        // Even if a stale intervalSlotId or habitId somehow sticks
+        // around, the (med, slot) shape is the most specific dispatch.
+        val kind = classifyAlarm(
+            medicationId = 1L,
+            clockSlotId = 2L,
+            intervalSlotId = 3L,
+            habitId = 4L
+        )
+        assertEquals(AlarmKind.MedSlotClock(1L, 2L), kind)
+    }
+
+    @Test
+    fun medicationId_winsWhenMultipleNonSlotIdsPresent() {
+        // Legacy per-med alarms set medicationId only (no clockSlotId).
+        // Must route to Medication, not get pre-empted by intervalSlotId
+        // or habitId stale extras.
+        val kind = classifyAlarm(
+            medicationId = 1L,
+            clockSlotId = -1L,
             intervalSlotId = 3L,
             habitId = 4L
         )
@@ -113,7 +147,7 @@ class MedicationReminderReceiverDispatchTest {
 
     @Test
     fun zero_idsAreValid() {
-        // The receiver's previous `>= 0` predicate accepted 0; preserved here
+        // The receiver's `>= 0` predicate accepts 0; preserved here
         // because Room autoincrement could theoretically hit 0 on first row.
         assertEquals(
             AlarmKind.Medication(0L),
@@ -139,6 +173,15 @@ class MedicationReminderReceiverDispatchTest {
                 medicationId = -1L,
                 clockSlotId = -1L,
                 intervalSlotId = 0L,
+                habitId = -1L
+            )
+        )
+        assertEquals(
+            AlarmKind.MedSlotClock(0L, 0L),
+            classifyAlarm(
+                medicationId = 0L,
+                clockSlotId = 0L,
+                intervalSlotId = -1L,
                 habitId = -1L
             )
         )

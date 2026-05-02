@@ -9,6 +9,7 @@ import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
 import com.averycorp.prismtask.data.repository.BatchOperationsRepository
 import com.averycorp.prismtask.data.repository.MedicationRepository
 import com.averycorp.prismtask.data.repository.MedicationSlotRepository
+import com.averycorp.prismtask.notifications.MedicationClockRescheduler
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
@@ -44,6 +45,7 @@ class MedicationSlotTodayStatePerMedTimeTest {
     private lateinit var taskBehaviorPreferences: TaskBehaviorPreferences
     private lateinit var batchOperationsRepository: BatchOperationsRepository
     private lateinit var localDateFlow: LocalDateFlow
+    private lateinit var clockRescheduler: MedicationClockRescheduler
 
     private val today = "2026-04-27"
 
@@ -65,6 +67,7 @@ class MedicationSlotTodayStatePerMedTimeTest {
         taskBehaviorPreferences = mockk(relaxed = true)
         batchOperationsRepository = mockk(relaxed = true)
         localDateFlow = mockk(relaxed = true)
+        clockRescheduler = mockk(relaxed = true)
 
         every { taskBehaviorPreferences.getStartOfDay() } returns
             MutableStateFlow(StartOfDay(hour = 0, minute = 0, hasBeenSet = true))
@@ -88,7 +91,8 @@ class MedicationSlotTodayStatePerMedTimeTest {
         slotRepository = slotRepository,
         taskBehaviorPreferences = taskBehaviorPreferences,
         batchOperationsRepository = batchOperationsRepository,
-        localDateFlow = localDateFlow
+        localDateFlow = localDateFlow,
+        clockRescheduler = clockRescheduler
     )
 
     /** See MedicationViewModelBulkMarkTest for the rationale of warmStateFlows. */

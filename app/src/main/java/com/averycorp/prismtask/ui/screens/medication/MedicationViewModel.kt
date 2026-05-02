@@ -19,6 +19,7 @@ import com.averycorp.prismtask.domain.model.medication.BulkMarkScope
 import com.averycorp.prismtask.domain.model.medication.MedicationTier
 import com.averycorp.prismtask.domain.model.medication.TierSource
 import com.averycorp.prismtask.domain.usecase.MedicationTierComputer
+import com.averycorp.prismtask.notifications.MedicationClockRescheduler
 import com.averycorp.prismtask.ui.screens.medication.components.MedicationSlotSelection
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -86,7 +87,8 @@ constructor(
     private val slotRepository: MedicationSlotRepository,
     private val taskBehaviorPreferences: TaskBehaviorPreferences,
     private val batchOperationsRepository: BatchOperationsRepository,
-    private val localDateFlow: LocalDateFlow
+    private val localDateFlow: LocalDateFlow,
+    private val clockRescheduler: MedicationClockRescheduler
 ) : ViewModel() {
     private val _editMode = MutableStateFlow(false)
     val editMode: StateFlow<Boolean> = _editMode
@@ -321,6 +323,12 @@ constructor(
             // Bump the med so its embedded slotCloudIds list re-pushes.
             val inserted = medicationRepository.getByIdOnce(id) ?: return@launch
             medicationRepository.update(inserted)
+            // Junction-table writes (medication_medication_slots) don't
+            // emit a Flow that the clock rescheduler observes, so a
+            // newly-linked med wouldn't fire its CLOCK alarm until the
+            // next slot/med edit. Invoke the rescheduler explicitly to
+            // close that gap.
+            clockRescheduler.rescheduleAll()
         }
     }
 
@@ -367,6 +375,9 @@ constructor(
             slotSelections
                 .filter { !it.hasOverride }
                 .forEach { sel -> slotRepository.deleteOverrideForPair(medication.id, sel.slotId) }
+            // Junction edits aren't covered by any rescheduler Flow; trigger
+            // explicitly so re-linked / unlinked slots take effect immediately.
+            clockRescheduler.rescheduleAll()
         }
     }
 
