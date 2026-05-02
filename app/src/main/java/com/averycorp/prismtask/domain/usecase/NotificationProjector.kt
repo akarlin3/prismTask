@@ -4,15 +4,20 @@ import com.averycorp.prismtask.data.local.dao.HabitCompletionDao
 import com.averycorp.prismtask.data.local.dao.HabitDao
 import com.averycorp.prismtask.data.local.dao.MedicationDao
 import com.averycorp.prismtask.data.local.dao.MedicationDoseDao
+import com.averycorp.prismtask.data.local.dao.MedicationSlotDao
 import com.averycorp.prismtask.data.local.dao.TaskDao
 import com.averycorp.prismtask.data.local.entity.HabitEntity
 import com.averycorp.prismtask.data.local.entity.MedicationEntity
+import com.averycorp.prismtask.data.local.entity.MedicationSlotEntity
 import com.averycorp.prismtask.data.preferences.AdvancedTuningPreferences
 import com.averycorp.prismtask.data.preferences.MedicationPreferences
+import com.averycorp.prismtask.data.preferences.MedicationReminderMode
 import com.averycorp.prismtask.data.preferences.MedicationScheduleMode
 import com.averycorp.prismtask.data.preferences.NotificationPreferences
 import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
+import com.averycorp.prismtask.data.preferences.UserPreferencesDataStore
 import com.averycorp.prismtask.notifications.HabitReminderScheduler
+import com.averycorp.prismtask.notifications.MedicationClockRescheduler
 import com.averycorp.prismtask.notifications.ReminderScheduler
 import com.averycorp.prismtask.util.DayBoundary
 import kotlinx.coroutines.flow.first
@@ -38,6 +43,8 @@ data class ProjectedNotification(
         HABIT_INTERVAL("Habit Reminder (Interval)"),
         HABIT_LEGACY_SPECIFIC_TIME("Medication Reminder (Legacy)"),
         MEDICATION("Medication"),
+        MEDICATION_SLOT_CLOCK("Medication (Slot, Clock)"),
+        MEDICATION_SLOT_INTERVAL("Medication (Slot, Interval)"),
         BRIEFING("Daily Briefing"),
         EVENING_SUMMARY("Evening Summary"),
         REENGAGEMENT("Re-Engagement Nudge"),
@@ -57,8 +64,21 @@ data class ProjectedNotification(
  *  - [HabitReminderScheduler.computeNextDailyTrigger] for habit daily-time reminders
  *  - [HabitReminderScheduler.scheduleNext] interval math for habit-interval reminders
  *  - [HabitReminderScheduler.timeStringToNextTrigger] for legacy medication specific-times
- *  - [com.averycorp.prismtask.notifications.MedicationReminderScheduler] for top-level meds
+ *  - [com.averycorp.prismtask.notifications.MedicationReminderScheduler] for legacy
+ *    `MedicationEntity.scheduleMode`-driven meds (no linked active slot)
+ *  - [com.averycorp.prismtask.notifications.MedicationClockRescheduler] for slot-driven
+ *    CLOCK reminders (`MedicationSlotEntity.idealTime`)
+ *  - [com.averycorp.prismtask.notifications.MedicationIntervalRescheduler] for slot-driven
+ *    INTERVAL reminders (rolling, anchored on most-recent dose)
  *  - [com.averycorp.prismtask.notifications.NotificationWorkerScheduler] for periodic workers
+ *
+ * The slot-driven schedulers are the source of truth whenever a medication
+ * has at least one linked active slot — the legacy
+ * [com.averycorp.prismtask.notifications.MedicationReminderScheduler] still
+ * fires for medications with no slot links (legacy migrations, sync-pulled
+ * rows that predate the slot system). The projector mirrors that split so
+ * a slot-linked medication's row appears once at the slot's wall-clock,
+ * not also at the legacy hard-coded bucket clock.
  *
  * Reactive sources — escalation chains and habit follow-up nags — are
  * intentionally NOT projected: their trigger times are only known after an
@@ -73,10 +93,12 @@ class NotificationProjector @Inject constructor(
     private val habitCompletionDao: HabitCompletionDao,
     private val medicationDao: MedicationDao,
     private val medicationDoseDao: MedicationDoseDao,
+    private val medicationSlotDao: MedicationSlotDao,
     private val notificationPreferences: NotificationPreferences,
     private val advancedTuningPreferences: AdvancedTuningPreferences,
     private val medicationPreferences: MedicationPreferences,
-    private val taskBehaviorPreferences: TaskBehaviorPreferences
+    private val taskBehaviorPreferences: TaskBehaviorPreferences,
+    private val userPreferencesDataStore: UserPreferencesDataStore
 ) {
     suspend fun projectAll(
         horizonMillis: Long = DEFAULT_HORIZON_MILLIS,
@@ -89,6 +111,8 @@ class NotificationProjector @Inject constructor(
             addAll(projectHabitsInterval(nowMillis))
             addAll(projectHabitsLegacySpecificTimes(nowMillis, horizonEnd))
             addAll(projectMedications(nowMillis, horizonEnd))
+            addAll(projectMedicationSlotsClock(nowMillis, horizonEnd))
+            addAll(projectMedicationSlotsInterval(nowMillis))
             addAll(projectBriefing(nowMillis, horizonEnd))
             addAll(projectEveningSummary(nowMillis, horizonEnd))
             addAll(projectReengagement(nowMillis, horizonEnd))
@@ -201,9 +225,24 @@ class NotificationProjector @Inject constructor(
 
     // --- Medications (top-level v1.4+) ----------------------------------
 
+    /**
+     * Legacy `MedicationEntity.scheduleMode`-driven projection. Skipped for
+     * any medication that has at least one linked active slot — those
+     * alarms are owned by [com.averycorp.prismtask.notifications.MedicationClockRescheduler]
+     * and [com.averycorp.prismtask.notifications.MedicationIntervalRescheduler],
+     * which read [MedicationSlotEntity.idealTime] /
+     * [MedicationSlotEntity.reminderIntervalMinutes] respectively. Without
+     * the skip, slot-linked meds with a populated legacy
+     * `scheduleMode` (sync-pulled rows that predate the slot system) would
+     * project a phantom row at the hard-coded TIME_OF_DAY_CLOCK time even
+     * though the real alarm fires from the slot.
+     */
     private suspend fun projectMedications(now: Long, horizonEnd: Long): List<ProjectedNotification> {
         val active = medicationDao.getActiveOnce()
         return active.flatMap { med ->
+            if (medicationSlotDao.getSlotIdsForMedicationOnce(med.id).isNotEmpty()) {
+                return@flatMap emptyList()
+            }
             when (med.scheduleMode) {
                 "TIMES_OF_DAY" -> projectMedicationFixedTimes(
                     med = med,
@@ -219,6 +258,133 @@ class NotificationProjector @Inject constructor(
                 )
                 "INTERVAL" -> projectMedicationInterval(med, now)
                 else -> emptyList()
+            }
+        }
+    }
+
+    // --- Slot-driven medication reminders -------------------------------
+
+    /**
+     * Mirrors [com.averycorp.prismtask.notifications.MedicationClockRescheduler.rescheduleAll]:
+     * walks active slots, resolves the reminder mode against the global
+     * default via [MedicationReminderModeResolver], and projects daily
+     * occurrences at `slot.idealTime` for any slot resolving to CLOCK
+     * mode.
+     *
+     * Linked-medication-name fanout: a slot can link to multiple
+     * medications. We emit one projected row per `(slot, medication)`
+     * pair so the log labels stay specific. Slots with no linked meds
+     * still project one row labelled with the slot name so the user can
+     * verify timing.
+     */
+    private suspend fun projectMedicationSlotsClock(
+        now: Long,
+        horizonEnd: Long
+    ): List<ProjectedNotification> {
+        val global = userPreferencesDataStore.medicationReminderModeFlow.first()
+        val slots = medicationSlotDao.getActiveOnce()
+        if (slots.isEmpty()) return emptyList()
+
+        return slots.flatMap { slot ->
+            val mode = MedicationReminderModeResolver.resolveReminderMode(
+                medication = null,
+                slot = slot,
+                global = global
+            )
+            if (mode != MedicationReminderMode.CLOCK) return@flatMap emptyList()
+            val firstTrigger = MedicationClockRescheduler.nextTriggerForClock(slot.idealTime, now)
+                ?: return@flatMap emptyList()
+            val occurrences = expandDailyOccurrencesFromAbsolute(firstTrigger, horizonEnd)
+            if (occurrences.isEmpty()) return@flatMap emptyList()
+
+            val medIds = medicationSlotDao.getMedicationIdsForSlotOnce(slot.id)
+            val medsForSlot = medIds.mapNotNull { medicationDao.getByIdOnce(it) }
+            slotProjectionsForSlot(slot, medsForSlot, occurrences)
+        }
+    }
+
+    /**
+     * Mirrors [com.averycorp.prismtask.notifications.MedicationIntervalRescheduler.rescheduleAll]
+     * for the slot path: anchors on the most-recent dose row across all
+     * medications, falling back to `now` when no dose exists. Projects
+     * one upcoming row per INTERVAL-mode slot. Subsequent rolls depend on
+     * future user logging we can't predict, so only the next fire is
+     * projected.
+     */
+    private suspend fun projectMedicationSlotsInterval(now: Long): List<ProjectedNotification> {
+        val global = userPreferencesDataStore.medicationReminderModeFlow.first()
+        val slots = medicationSlotDao.getActiveOnce()
+        if (slots.isEmpty()) return emptyList()
+
+        val anchorMillis = medicationDoseDao.getMostRecentDoseAnyOnce()?.takenAt
+
+        return slots.flatMap { slot ->
+            val mode = MedicationReminderModeResolver.resolveReminderMode(
+                medication = null,
+                slot = slot,
+                global = global
+            )
+            if (mode != MedicationReminderMode.INTERVAL) return@flatMap emptyList()
+            val intervalMinutes = MedicationReminderModeResolver.resolveIntervalMinutes(
+                medication = null,
+                slot = slot,
+                global = global
+            )
+            val intervalMillis = intervalMinutes * MILLIS_PER_MINUTE
+            val baseMillis = anchorMillis ?: now
+            val trigger = maxOf(baseMillis + intervalMillis, now + MIN_LEAD_MILLIS)
+
+            val medIds = medicationSlotDao.getMedicationIdsForSlotOnce(slot.id)
+            val medsForSlot = medIds.mapNotNull { medicationDao.getByIdOnce(it) }
+            if (medsForSlot.isEmpty()) {
+                listOf(
+                    ProjectedNotification(
+                        triggerAtMillis = trigger,
+                        title = "${slot.name} — Heads Up",
+                        body = "Next interval-scheduled dose for ${slot.name}.",
+                        source = ProjectedNotification.Source.MEDICATION_SLOT_INTERVAL,
+                        sourceId = slot.id
+                    )
+                )
+            } else {
+                medsForSlot.map { med ->
+                    ProjectedNotification(
+                        triggerAtMillis = trigger,
+                        title = "${med.displayLabel ?: med.name} — Heads Up",
+                        body = "Next interval-scheduled dose of ${med.name} (${slot.name}).",
+                        source = ProjectedNotification.Source.MEDICATION_SLOT_INTERVAL,
+                        sourceId = med.id
+                    )
+                }
+            }
+        }
+    }
+
+    private fun slotProjectionsForSlot(
+        slot: MedicationSlotEntity,
+        medsForSlot: List<MedicationEntity>,
+        occurrences: List<Long>
+    ): List<ProjectedNotification> {
+        if (medsForSlot.isEmpty()) {
+            return occurrences.map { trigger ->
+                ProjectedNotification(
+                    triggerAtMillis = trigger,
+                    title = "${slot.name} — Heads Up",
+                    body = "Time for your ${slot.name} dose (${slot.idealTime}).",
+                    source = ProjectedNotification.Source.MEDICATION_SLOT_CLOCK,
+                    sourceId = slot.id
+                )
+            }
+        }
+        return occurrences.flatMap { trigger ->
+            medsForSlot.map { med ->
+                ProjectedNotification(
+                    triggerAtMillis = trigger,
+                    title = "${med.displayLabel ?: med.name} — Heads Up",
+                    body = "Time for your ${med.name} dose (${slot.idealTime}, ${slot.name}).",
+                    source = ProjectedNotification.Source.MEDICATION_SLOT_CLOCK,
+                    sourceId = med.id
+                )
             }
         }
     }
@@ -496,6 +662,8 @@ class NotificationProjector @Inject constructor(
 
     companion object {
         const val DEFAULT_HORIZON_MILLIS: Long = 7L * 24 * 60 * 60 * 1000
+        private const val MILLIS_PER_MINUTE = 60_000L
+        private const val MIN_LEAD_MILLIS = 1_000L
 
         private val TIME_OF_DAY_CLOCK = mapOf(
             "morning" to "08:00",

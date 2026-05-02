@@ -4,19 +4,24 @@ import com.averycorp.prismtask.data.local.dao.HabitCompletionDao
 import com.averycorp.prismtask.data.local.dao.HabitDao
 import com.averycorp.prismtask.data.local.dao.MedicationDao
 import com.averycorp.prismtask.data.local.dao.MedicationDoseDao
+import com.averycorp.prismtask.data.local.dao.MedicationSlotDao
 import com.averycorp.prismtask.data.local.dao.TaskDao
 import com.averycorp.prismtask.data.local.entity.HabitCompletionEntity
 import com.averycorp.prismtask.data.local.entity.HabitEntity
 import com.averycorp.prismtask.data.local.entity.MedicationDoseEntity
 import com.averycorp.prismtask.data.local.entity.MedicationEntity
+import com.averycorp.prismtask.data.local.entity.MedicationSlotEntity
 import com.averycorp.prismtask.data.local.entity.TaskEntity
 import com.averycorp.prismtask.data.preferences.AdvancedTuningPreferences
 import com.averycorp.prismtask.data.preferences.MedicationPreferences
+import com.averycorp.prismtask.data.preferences.MedicationReminderMode
+import com.averycorp.prismtask.data.preferences.MedicationReminderModePrefs
 import com.averycorp.prismtask.data.preferences.MedicationScheduleMode
 import com.averycorp.prismtask.data.preferences.NotificationPreferences
 import com.averycorp.prismtask.data.preferences.OverloadCheckSchedule
 import com.averycorp.prismtask.data.preferences.ReengagementConfig
 import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
+import com.averycorp.prismtask.data.preferences.UserPreferencesDataStore
 import com.averycorp.prismtask.data.preferences.WeeklySummarySchedule
 import io.mockk.coEvery
 import io.mockk.every
@@ -43,10 +48,12 @@ class NotificationProjectorTest {
     private lateinit var habitCompletionDao: HabitCompletionDao
     private lateinit var medicationDao: MedicationDao
     private lateinit var medicationDoseDao: MedicationDoseDao
+    private lateinit var medicationSlotDao: MedicationSlotDao
     private lateinit var notificationPreferences: NotificationPreferences
     private lateinit var advancedTuningPreferences: AdvancedTuningPreferences
     private lateinit var medicationPreferences: MedicationPreferences
     private lateinit var taskBehaviorPreferences: TaskBehaviorPreferences
+    private lateinit var userPreferencesDataStore: UserPreferencesDataStore
     private lateinit var projector: NotificationProjector
 
     @Before
@@ -56,20 +63,24 @@ class NotificationProjectorTest {
         habitCompletionDao = mockk()
         medicationDao = mockk()
         medicationDoseDao = mockk()
+        medicationSlotDao = mockk()
         notificationPreferences = mockk()
         advancedTuningPreferences = mockk()
         medicationPreferences = mockk()
         taskBehaviorPreferences = mockk()
+        userPreferencesDataStore = mockk()
         projector = NotificationProjector(
             taskDao,
             habitDao,
             habitCompletionDao,
             medicationDao,
             medicationDoseDao,
+            medicationSlotDao,
             notificationPreferences,
             advancedTuningPreferences,
             medicationPreferences,
-            taskBehaviorPreferences
+            taskBehaviorPreferences,
+            userPreferencesDataStore
         )
         defaultEmptyDataSources()
         silenceWorkers()
@@ -80,9 +91,16 @@ class NotificationProjectorTest {
         coEvery { habitDao.getHabitsWithDailyTimeReminder() } returns emptyList()
         coEvery { habitDao.getHabitsWithIntervalReminder() } returns emptyList()
         coEvery { medicationDao.getActiveOnce() } returns emptyList()
+        coEvery { medicationSlotDao.getActiveOnce() } returns emptyList()
+        coEvery { medicationSlotDao.getSlotIdsForMedicationOnce(any()) } returns emptyList()
+        coEvery { medicationSlotDao.getMedicationIdsForSlotOnce(any()) } returns emptyList()
+        coEvery { medicationDoseDao.getMostRecentDoseAnyOnce() } returns null
         coEvery { medicationPreferences.getScheduleModeOnce() } returns MedicationScheduleMode.INTERVAL
         coEvery { medicationPreferences.getSpecificTimesOnce() } returns emptySet()
         every { taskBehaviorPreferences.getDayStartHour() } returns flowOf(0)
+        every { userPreferencesDataStore.medicationReminderModeFlow } returns flowOf(
+            MedicationReminderModePrefs(mode = MedicationReminderMode.CLOCK, intervalDefaultMinutes = 240)
+        )
     }
 
     /**
@@ -259,6 +277,107 @@ class NotificationProjectorTest {
     }
 
     @Test
+    fun `slot CLOCK projects daily occurrences at slot idealTime`() = runBlocking {
+        val now = baseInstant(2026, Calendar.MAY, 1, 6, 0)
+        val morningSlot = slot(id = 21L, name = "Morning", idealTime = "07:30")
+        coEvery { medicationSlotDao.getActiveOnce() } returns listOf(morningSlot)
+        coEvery { medicationSlotDao.getMedicationIdsForSlotOnce(21L) } returns emptyList()
+
+        val result = projector.projectAll(nowMillis = now)
+
+        val slotRows = result.filter { it.source == ProjectedNotification.Source.MEDICATION_SLOT_CLOCK }
+        assertEquals(7, slotRows.size)
+        val expectedFirst = baseInstant(2026, Calendar.MAY, 1, 7, 30)
+        assertEquals(expectedFirst, slotRows[0].triggerAtMillis)
+        assertEquals("Morning — Heads Up", slotRows[0].title)
+    }
+
+    @Test
+    fun `slot CLOCK fans out one row per linked medication`() = runBlocking {
+        val now = baseInstant(2026, Calendar.MAY, 1, 6, 0)
+        val morningSlot = slot(id = 22L, name = "Morning", idealTime = "08:15")
+        val vitamin = medication(id = 101L, name = "Vitamin D", scheduleMode = "TIMES_OF_DAY")
+        val statin = medication(id = 102L, name = "Statin", scheduleMode = "TIMES_OF_DAY")
+        coEvery { medicationSlotDao.getActiveOnce() } returns listOf(morningSlot)
+        coEvery { medicationSlotDao.getMedicationIdsForSlotOnce(22L) } returns listOf(101L, 102L)
+        coEvery { medicationDao.getByIdOnce(101L) } returns vitamin
+        coEvery { medicationDao.getByIdOnce(102L) } returns statin
+        coEvery { medicationDao.getActiveOnce() } returns listOf(vitamin, statin)
+        coEvery { medicationSlotDao.getSlotIdsForMedicationOnce(101L) } returns listOf(22L)
+        coEvery { medicationSlotDao.getSlotIdsForMedicationOnce(102L) } returns listOf(22L)
+
+        val result = projector.projectAll(nowMillis = now)
+
+        val slotRows = result.filter { it.source == ProjectedNotification.Source.MEDICATION_SLOT_CLOCK }
+        assertEquals(14, slotRows.size)
+        assertTrue(slotRows.any { it.title.startsWith("Vitamin D") })
+        assertTrue(slotRows.any { it.title.startsWith("Statin") })
+    }
+
+    @Test
+    fun `slot-linked medication is skipped by legacy projection to avoid double-count`() = runBlocking {
+        val now = baseInstant(2026, Calendar.MAY, 1, 6, 0)
+        val morningSlot = slot(id = 31L, name = "Morning", idealTime = "07:30")
+        val vitamin = medication(
+            id = 201L, name = "Vitamin D",
+            scheduleMode = "TIMES_OF_DAY", timesOfDay = "morning"
+        )
+        coEvery { medicationDao.getActiveOnce() } returns listOf(vitamin)
+        coEvery { medicationDao.getByIdOnce(201L) } returns vitamin
+        coEvery { medicationSlotDao.getActiveOnce() } returns listOf(morningSlot)
+        coEvery { medicationSlotDao.getSlotIdsForMedicationOnce(201L) } returns listOf(31L)
+        coEvery { medicationSlotDao.getMedicationIdsForSlotOnce(31L) } returns listOf(201L)
+
+        val result = projector.projectAll(nowMillis = now)
+
+        assertTrue(result.none { it.source == ProjectedNotification.Source.MEDICATION })
+        val slotRows = result.filter { it.source == ProjectedNotification.Source.MEDICATION_SLOT_CLOCK }
+        assertEquals(7, slotRows.size)
+        val expectedFirst = baseInstant(2026, Calendar.MAY, 1, 7, 30)
+        assertEquals(expectedFirst, slotRows[0].triggerAtMillis)
+    }
+
+    @Test
+    fun `slot INTERVAL anchors on most recent dose plus interval minutes`() = runBlocking {
+        val now = baseInstant(2026, Calendar.MAY, 1, 10, 0)
+        val lastDose = baseInstant(2026, Calendar.MAY, 1, 9, 0)
+        val intervalSlot = slot(
+            id = 41L, name = "Rolling", idealTime = "00:00",
+            reminderMode = "INTERVAL", reminderIntervalMinutes = 90
+        )
+        coEvery { medicationSlotDao.getActiveOnce() } returns listOf(intervalSlot)
+        coEvery { medicationSlotDao.getMedicationIdsForSlotOnce(41L) } returns emptyList()
+        coEvery { medicationDoseDao.getMostRecentDoseAnyOnce() } returns dose(0L, lastDose)
+
+        val result = projector.projectAll(nowMillis = now)
+
+        val intervalRows = result.filter {
+            it.source == ProjectedNotification.Source.MEDICATION_SLOT_INTERVAL
+        }
+        assertEquals(1, intervalRows.size)
+        assertEquals(lastDose + 90L * 60_000L, intervalRows[0].triggerAtMillis)
+    }
+
+    @Test
+    fun `slot INTERVAL bootstraps to now plus interval when no dose exists`() = runBlocking {
+        val now = baseInstant(2026, Calendar.MAY, 1, 10, 0)
+        val intervalSlot = slot(
+            id = 42L, name = "Rolling", idealTime = "00:00",
+            reminderMode = "INTERVAL", reminderIntervalMinutes = 60
+        )
+        coEvery { medicationSlotDao.getActiveOnce() } returns listOf(intervalSlot)
+        coEvery { medicationSlotDao.getMedicationIdsForSlotOnce(42L) } returns emptyList()
+
+        val result = projector.projectAll(nowMillis = now)
+
+        val intervalRows = result.filter {
+            it.source == ProjectedNotification.Source.MEDICATION_SLOT_INTERVAL
+        }
+        assertEquals(1, intervalRows.size)
+        assertEquals(now + 60L * 60_000L, intervalRows[0].triggerAtMillis)
+    }
+
+    @Test
     fun `briefing worker projects daily occurrences when enabled`() = runBlocking {
         val now = baseInstant(2026, Calendar.MAY, 1, 6, 0)
         every { notificationPreferences.dailyBriefingEnabled } returns flowOf(true)
@@ -385,4 +504,20 @@ class NotificationProjectorTest {
             takenAt = takenAt,
             takenDateLocal = "2026-05-01"
         )
+
+    private fun slot(
+        id: Long,
+        name: String,
+        idealTime: String,
+        reminderMode: String? = null,
+        reminderIntervalMinutes: Int? = null,
+        isActive: Boolean = true
+    ): MedicationSlotEntity = MedicationSlotEntity(
+        id = id,
+        name = name,
+        idealTime = idealTime,
+        reminderMode = reminderMode,
+        reminderIntervalMinutes = reminderIntervalMinutes,
+        isActive = isActive
+    )
 }
