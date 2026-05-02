@@ -56,6 +56,7 @@ import javax.inject.Singleton
 
 @Module
 @InstallIn(SingletonComponent::class)
+@Suppress("TooManyFunctions") // DI module: provides functions grow linearly with DAO count.
 object DatabaseModule {
     @Provides
     @Singleton

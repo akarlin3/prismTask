@@ -111,7 +111,8 @@ private fun EmptyState(modifier: Modifier = Modifier) {
         )
         Spacer(Modifier.height(8.dp))
         Text(
-            text = "Sample rules are seeded on first launch and appear here disabled. Toggle one on, or tap the library icon above to browse the full starter catalog.",
+            text = "Sample rules are seeded on first launch and appear here disabled. " +
+                "Toggle one on, or tap the library icon above to browse the full starter catalog.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )

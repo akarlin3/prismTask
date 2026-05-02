@@ -84,9 +84,6 @@ object AutomationStarterLibrary {
     private fun cmpContains(field: String, value: Any) =
         AutomationCondition.Compare(Op.CONTAINS, field, value)
 
-    private fun cmpLt(field: String, value: Any) =
-        AutomationCondition.Compare(Op.LT, field, value)
-
     private fun cmpExists(field: String) =
         AutomationCondition.Compare(Op.EXISTS, field)
 
