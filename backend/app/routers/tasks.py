@@ -122,6 +122,34 @@ async def create_task(
     return _task_to_response(task, [])
 
 
+@router.get("/tasks/parse-debug")
+async def parse_debug(current_user: User = Depends(get_current_user)):
+    """Diagnostic endpoint for the NLP parser configuration.
+
+    Restricted to admin users outside of non-production environments so
+    operators don't leak infrastructure details to callers.
+
+    Defined before `/tasks/{task_id}` so FastAPI matches the literal
+    path first; otherwise `parse-debug` is treated as a `task_id` value
+    and rejected with 422.
+    """
+    if settings.is_production and not current_user.is_admin:
+        raise HTTPException(status_code=404, detail="Not found")
+
+    api_key = os.environ.get("ANTHROPIC_API_KEY") or settings.ANTHROPIC_API_KEY or ""
+    try:
+        import anthropic  # noqa: F401
+        anthropic_installed = True
+    except ImportError:
+        anthropic_installed = False
+
+    return {
+        "api_key_configured": bool(api_key),
+        "model": "claude-haiku-4-5-20251001",
+        "anthropic_installed": anthropic_installed,
+    }
+
+
 @router.get("/tasks/{task_id}", response_model=TaskResponse)
 async def get_task(
     task_id: int,
@@ -230,30 +258,6 @@ async def parse_task(data: ParseRequest, request: Request):
         raise HTTPException(status_code=422, detail=str(e))
 
     return ParseResponse(**parsed.model_dump(), needs_confirmation=True)
-
-
-@router.get("/tasks/parse-debug")
-async def parse_debug(current_user: User = Depends(get_current_user)):
-    """Diagnostic endpoint for the NLP parser configuration.
-
-    Restricted to admin users outside of non-production environments so
-    operators don't leak infrastructure details to callers.
-    """
-    if settings.is_production and not current_user.is_admin:
-        raise HTTPException(status_code=404, detail="Not found")
-
-    api_key = os.environ.get("ANTHROPIC_API_KEY") or settings.ANTHROPIC_API_KEY or ""
-    try:
-        import anthropic  # noqa: F401
-        anthropic_installed = True
-    except ImportError:
-        anthropic_installed = False
-
-    return {
-        "api_key_configured": bool(api_key),
-        "model": "claude-haiku-4-5-20251001",
-        "anthropic_installed": anthropic_installed,
-    }
 
 
 def _call_haiku(api_key: str, system_prompt: str, user_content: str, max_tokens: int) -> str:
