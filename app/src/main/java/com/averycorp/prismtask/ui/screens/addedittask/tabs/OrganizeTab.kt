@@ -63,8 +63,8 @@ import com.averycorp.prismtask.ui.screens.addedittask.SectionLabel
 import com.averycorp.prismtask.ui.screens.addedittask.TAG_COLORS
 import com.averycorp.prismtask.ui.screens.addedittask.parseColorOr
 import com.averycorp.prismtask.ui.theme.LifeCategoryColor
-import com.averycorp.prismtask.ui.theme.TaskModeColor
 import com.averycorp.prismtask.ui.theme.LocalPrismShapes
+import com.averycorp.prismtask.ui.theme.TaskModeColor
 import kotlinx.coroutines.launch
 
 @Composable

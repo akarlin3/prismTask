@@ -27,8 +27,8 @@ import com.averycorp.prismtask.data.repository.TaskRepository
 import com.averycorp.prismtask.data.repository.TaskTemplateRepository
 import com.averycorp.prismtask.data.repository.TaskTimingRepository
 import com.averycorp.prismtask.domain.model.LifeCategory
-import com.averycorp.prismtask.domain.model.TaskMode
 import com.averycorp.prismtask.domain.model.RecurrenceRule
+import com.averycorp.prismtask.domain.model.TaskMode
 import com.averycorp.prismtask.domain.usecase.BoundaryDecision
 import com.averycorp.prismtask.domain.usecase.BoundaryEnforcer
 import com.averycorp.prismtask.domain.usecase.LifeCategoryClassifier
