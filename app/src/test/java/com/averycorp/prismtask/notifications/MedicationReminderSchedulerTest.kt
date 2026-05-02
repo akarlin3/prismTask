@@ -89,7 +89,7 @@ class MedicationReminderSchedulerTest {
 
     @Test
     fun `time-of-day clock mapping uses the canonical bucket times`() {
-        val map = MedicationReminderScheduler.TIME_OF_DAY_CLOCK
+        val map = MEDICATION_TIME_OF_DAY_CLOCK
         assertEquals("08:00", map["morning"])
         assertEquals("13:00", map["afternoon"])
         assertEquals("18:00", map["evening"])

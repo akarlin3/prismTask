@@ -17,6 +17,7 @@ import com.averycorp.prismtask.data.preferences.NotificationPreferences
 import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
 import com.averycorp.prismtask.data.preferences.UserPreferencesDataStore
 import com.averycorp.prismtask.notifications.HabitReminderScheduler
+import com.averycorp.prismtask.notifications.MEDICATION_TIME_OF_DAY_CLOCK
 import com.averycorp.prismtask.notifications.MedicationClockRescheduler
 import com.averycorp.prismtask.notifications.ReminderScheduler
 import com.averycorp.prismtask.util.DayBoundary
@@ -234,7 +235,7 @@ class NotificationProjector @Inject constructor(
      * [MedicationSlotEntity.reminderIntervalMinutes] respectively. Without
      * the skip, slot-linked meds with a populated legacy
      * `scheduleMode` (sync-pulled rows that predate the slot system) would
-     * project a phantom row at the hard-coded TIME_OF_DAY_CLOCK time even
+     * project a phantom row at the hard-coded MEDICATION_TIME_OF_DAY_CLOCK time even
      * though the real alarm fires from the slot.
      */
     private suspend fun projectMedications(now: Long, horizonEnd: Long): List<ProjectedNotification> {
@@ -246,7 +247,7 @@ class NotificationProjector @Inject constructor(
             when (med.scheduleMode) {
                 "TIMES_OF_DAY" -> projectMedicationFixedTimes(
                     med = med,
-                    clocks = parseTimesOfDay(med.timesOfDay).mapNotNull { TIME_OF_DAY_CLOCK[it] },
+                    clocks = parseTimesOfDay(med.timesOfDay).mapNotNull { MEDICATION_TIME_OF_DAY_CLOCK[it] },
                     now = now,
                     horizonEnd = horizonEnd
                 )
@@ -635,7 +636,7 @@ class NotificationProjector @Inject constructor(
         raw.orEmpty()
             .split(',')
             .map { it.trim().lowercase() }
-            .filter { it in TIME_OF_DAY_CLOCK }
+            .filter { it in MEDICATION_TIME_OF_DAY_CLOCK }
             .distinct()
 
     private fun parseSpecificTimes(raw: String?): List<String> =
@@ -664,12 +665,5 @@ class NotificationProjector @Inject constructor(
         const val DEFAULT_HORIZON_MILLIS: Long = 7L * 24 * 60 * 60 * 1000
         private const val MILLIS_PER_MINUTE = 60_000L
         private const val MIN_LEAD_MILLIS = 1_000L
-
-        private val TIME_OF_DAY_CLOCK = mapOf(
-            "morning" to "08:00",
-            "afternoon" to "13:00",
-            "evening" to "18:00",
-            "night" to "21:00"
-        )
     }
 }

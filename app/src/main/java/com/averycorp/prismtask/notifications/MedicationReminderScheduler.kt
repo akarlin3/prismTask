@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import com.averycorp.prismtask.data.local.dao.MedicationDao
 import com.averycorp.prismtask.data.local.dao.MedicationDoseDao
+import com.averycorp.prismtask.data.local.dao.MedicationSlotDao
 import com.averycorp.prismtask.data.local.entity.MedicationEntity
 import com.averycorp.prismtask.data.preferences.MedicationReminderMode
 import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
@@ -25,7 +26,7 @@ import javax.inject.Singleton
  * Schedule modes (see [MedicationEntity.scheduleMode]):
  *  - `TIMES_OF_DAY` — one alarm per time-of-day bucket in
  *    [MedicationEntity.timesOfDay]; buckets map to clock times per
- *    [TIME_OF_DAY_CLOCK].
+ *    [MEDICATION_TIME_OF_DAY_CLOCK].
  *  - `SPECIFIC_TIMES` — one alarm per `"HH:mm"` in
  *    [MedicationEntity.specificTimes].
  *  - `INTERVAL` — one chained alarm fired [MedicationEntity.intervalMillis]
@@ -46,6 +47,7 @@ constructor(
     @ApplicationContext private val context: Context,
     private val medicationDao: MedicationDao,
     private val medicationDoseDao: MedicationDoseDao,
+    private val medicationSlotDao: MedicationSlotDao,
     private val taskBehaviorPreferences: TaskBehaviorPreferences,
     private val userPreferences: UserPreferencesDataStore
 ) {
@@ -66,6 +68,12 @@ constructor(
      */
     suspend fun scheduleForMedication(med: MedicationEntity) {
         if (med.isArchived) return
+        // Slots are canonical when present (NotificationProjector.kt:243
+        // already gates legacy projections the same way). Sync-pulled
+        // medications carry both legacy `timesOfDay`/`specificTimes` AND
+        // linked slots; without this guard both schedulers fire and the
+        // user sees duplicate notifications.
+        if (medicationSlotDao.getSlotIdsForMedicationOnce(med.id).isNotEmpty()) return
         val mode = resolvedReminderMode(med)
         when (med.scheduleMode) {
             "TIMES_OF_DAY" -> if (mode == MedicationReminderMode.CLOCK) scheduleTimesOfDay(med)
@@ -191,7 +199,7 @@ constructor(
         raw.orEmpty()
             .split(',')
             .map { it.trim().lowercase() }
-            .filter { it in TIME_OF_DAY_CLOCK }
+            .filter { it in MEDICATION_TIME_OF_DAY_CLOCK }
             .distinct()
 
     private fun parseSpecificTimes(raw: String?): List<String> =
@@ -214,7 +222,7 @@ constructor(
         }
 
     private fun nextTriggerForTimeOfDay(slot: String): Long? {
-        val clock = TIME_OF_DAY_CLOCK[slot.lowercase()] ?: return null
+        val clock = MEDICATION_TIME_OF_DAY_CLOCK[slot.lowercase()] ?: return null
         return nextTriggerForSpecificTime(clock)
     }
 
@@ -246,13 +254,6 @@ constructor(
         internal const val BASE_REQUEST_CODE = 400_000
         internal const val SLOT_CAPACITY = 10
         private const val INTERVAL_SLOT_INDEX = 9
-
-        internal val TIME_OF_DAY_CLOCK = mapOf(
-            "morning" to "08:00",
-            "afternoon" to "13:00",
-            "evening" to "18:00",
-            "night" to "21:00"
-        )
 
         internal fun baseRequestCode(medicationId: Long): Int =
             BASE_REQUEST_CODE + ((medicationId % 1000L).toInt()) * SLOT_CAPACITY
