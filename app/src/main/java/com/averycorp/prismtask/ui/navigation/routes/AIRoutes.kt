@@ -95,6 +95,10 @@ internal fun NavGraphBuilder.aiRoutes(
         ChatScreen(navController)
     }
 
+    // Modal preview-then-pop flow: skip the slide transition so the
+    // destination feels like a sheet over its caller, not a forward
+    // navigation. Same convention as other modal-style entries across
+    // the route files (NotificationRoutes, FeedbackRoutes, etc.).
     composable(
         route = PrismTaskRoute.BatchPreview.route,
         arguments = listOf(
