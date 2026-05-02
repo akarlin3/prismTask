@@ -7,6 +7,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.averycorp.prismtask.data.local.dao.MedicationDao
 import com.averycorp.prismtask.data.local.dao.MedicationDoseDao
 import com.averycorp.prismtask.data.local.dao.MedicationSlotDao
+import com.averycorp.prismtask.data.local.dao.MedicationSlotOverrideDao
 import com.averycorp.prismtask.data.local.entity.MedicationDoseEntity
 import com.averycorp.prismtask.data.local.entity.MedicationSlotEntity
 import com.averycorp.prismtask.data.preferences.MedicationReminderMode
@@ -84,13 +85,30 @@ class MedicationSlotFlowReschedulerTest {
     @Test
     fun clockRescheduler_slotEmissionTriggersReschedulePass() = runBlocking {
         val slotsFlow = MutableSharedFlow<List<MedicationSlotEntity>>(replay = 0)
+        val medsFlow = MutableSharedFlow<List<com.averycorp.prismtask.data.local.entity.MedicationEntity>>(
+            replay = 0
+        )
+        val overridesFlow =
+            MutableSharedFlow<List<com.averycorp.prismtask.data.local.entity.MedicationSlotOverrideEntity>>(
+            replay = 0
+        )
         val slotDao: MedicationSlotDao = mockk(relaxed = true) {
             every { observeAll() } returns slotsFlow
             coEvery { getActiveOnce() } returns emptyList()
         }
+        val medDao: MedicationDao = mockk(relaxed = true) {
+            every { getAll() } returns medsFlow
+            coEvery { getActiveOnce() } returns emptyList()
+        }
+        val overrideDao: MedicationSlotOverrideDao = mockk(relaxed = true) {
+            every { observeAll() } returns overridesFlow
+            coEvery { getAllOnce() } returns emptyList()
+        }
         val rescheduler = MedicationClockRescheduler(
             context = appContext(),
+            medicationDao = medDao,
             medicationSlotDao = slotDao,
+            medicationSlotOverrideDao = overrideDao,
             userPreferences = stubUserPrefs()
         )
 
@@ -108,6 +126,17 @@ class MedicationSlotFlowReschedulerTest {
         slotsFlow.emit(listOf(newSlot(name = "Morning", idealTime = "08:00")))
         yield()
         coVerify(exactly = 2) { slotDao.getActiveOnce() }
+
+        // Override-only edit (different table) also triggers reschedule —
+        // the per-(med, slot) audit fix's whole point.
+        overridesFlow.emit(emptyList())
+        yield()
+        coVerify(exactly = 3) { slotDao.getActiveOnce() }
+
+        // Med edit (e.g. flipping reminderMode) also triggers reschedule.
+        medsFlow.emit(emptyList())
+        yield()
+        coVerify(exactly = 4) { slotDao.getActiveOnce() }
     }
 
     @Test

@@ -419,6 +419,10 @@ private class FakeMedicationSlotOverrideDao : MedicationSlotOverrideDao {
         emit(rows.filter { it.medicationId == medicationId })
     }
 
+    override fun observeAll(): Flow<List<MedicationSlotOverrideEntity>> = flow {
+        emit(rows.toList())
+    }
+
     override suspend fun getForMedicationOnce(medicationId: Long): List<MedicationSlotOverrideEntity> =
         rows.filter { it.medicationId == medicationId }
 

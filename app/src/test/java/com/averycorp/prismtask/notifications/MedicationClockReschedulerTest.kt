@@ -1,9 +1,14 @@
 package com.averycorp.prismtask.notifications
 
+import com.averycorp.prismtask.data.preferences.MedicationReminderMode
+import com.averycorp.prismtask.notifications.MedicationClockRescheduler.Companion.MED_SLOT_BASE_REQUEST_CODE
 import com.averycorp.prismtask.notifications.MedicationClockRescheduler.Companion.SLOT_BASE_REQUEST_CODE
+import com.averycorp.prismtask.notifications.MedicationClockRescheduler.Companion.medSlotRequestCode
+import com.averycorp.prismtask.notifications.MedicationClockRescheduler.Companion.needsPerMedAlarm
 import com.averycorp.prismtask.notifications.MedicationClockRescheduler.Companion.nextTriggerForClock
 import com.averycorp.prismtask.notifications.MedicationClockRescheduler.Companion.slotRequestCode
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -82,6 +87,97 @@ class MedicationClockReschedulerTest {
         assertNotNull(trigger)
         // Same wall-clock time — should fire the same time tomorrow.
         assertEquals(MS_IN_DAY, trigger!! - now)
+    }
+
+    @Test
+    fun medSlotRequestCode_isStableAndNamespaceDistinct() {
+        // Base + (medId%1000)*1000 + (slotId%1000) — 800_000-1_799_999 range.
+        assertEquals(MED_SLOT_BASE_REQUEST_CODE, medSlotRequestCode(0L, 0L))
+        assertEquals(MED_SLOT_BASE_REQUEST_CODE + 1, medSlotRequestCode(0L, 1L))
+        assertEquals(MED_SLOT_BASE_REQUEST_CODE + 1_000, medSlotRequestCode(1L, 0L))
+        assertEquals(MED_SLOT_BASE_REQUEST_CODE + 7_042, medSlotRequestCode(7L, 42L))
+
+        // Medication and slot indices wrap at 1000 — collisions only when
+        // (medId mod 1000) AND (slotId mod 1000) both match. Acceptable in
+        // practice since meds are archived rather than hard-deleted.
+        assertEquals(medSlotRequestCode(0L, 0L), medSlotRequestCode(1000L, 1000L))
+
+        // Distinct namespace from slot-level CLOCK alarms (700_000+999 =
+        // 700_999) and from interval namespaces (500_000, 600_000).
+        assertTrue(MED_SLOT_BASE_REQUEST_CODE > SLOT_BASE_REQUEST_CODE + 999)
+        assertTrue(MED_SLOT_BASE_REQUEST_CODE > MedicationIntervalRescheduler.MED_BASE_REQUEST_CODE + 999)
+    }
+
+    @Test
+    fun needsPerMedAlarm_overrideDifferingFromSlotTriggersOwnAlarm() {
+        // Override 08:30 against slot's 08:00 → per-pair alarm needed
+        // (med-specific reminder fires at the override time alongside the
+        // slot-level reminder at 08:00).
+        assertTrue(
+            needsPerMedAlarm(
+                overrideIdealTime = "08:30",
+                slotIdealTime = "08:00",
+                medReminderMode = null,
+                slotResolvedMode = MedicationReminderMode.CLOCK
+            )
+        )
+    }
+
+    @Test
+    fun needsPerMedAlarm_overrideMatchingSlotDoesNotTriggerOwnAlarm() {
+        // Override exists but matches slot.idealTime — slot-level alarm
+        // already covers this med, no need to double-fire.
+        assertFalse(
+            needsPerMedAlarm(
+                overrideIdealTime = "08:00",
+                slotIdealTime = "08:00",
+                medReminderMode = null,
+                slotResolvedMode = MedicationReminderMode.CLOCK
+            )
+        )
+    }
+
+    @Test
+    fun needsPerMedAlarm_nullOverrideAndSlotResolvesToClockSkipsPerPair() {
+        // No override, slot-level alarm covers the med. Skip per-pair to
+        // avoid duplicate notifications.
+        assertFalse(
+            needsPerMedAlarm(
+                overrideIdealTime = null,
+                slotIdealTime = "08:00",
+                medReminderMode = null,
+                slotResolvedMode = MedicationReminderMode.CLOCK
+            )
+        )
+    }
+
+    @Test
+    fun needsPerMedAlarm_medOptsIntoClockOverNonClockSlotTriggersOwnAlarm() {
+        // Slot resolves to INTERVAL (e.g. global=INTERVAL, slot inherits),
+        // but med opts into CLOCK explicitly — slot-level alarm doesn't
+        // fire for CLOCK, so this med needs its own.
+        assertTrue(
+            needsPerMedAlarm(
+                overrideIdealTime = null,
+                slotIdealTime = "08:00",
+                medReminderMode = MedicationReminderMode.CLOCK.name,
+                slotResolvedMode = MedicationReminderMode.INTERVAL
+            )
+        )
+    }
+
+    @Test
+    fun needsPerMedAlarm_medOptsIntoIntervalDoesNotTriggerClockOwnAlarm() {
+        // Med says INTERVAL — that's the interval rescheduler's
+        // responsibility; clock side stays out of it.
+        assertFalse(
+            needsPerMedAlarm(
+                overrideIdealTime = null,
+                slotIdealTime = "08:00",
+                medReminderMode = MedicationReminderMode.INTERVAL.name,
+                slotResolvedMode = MedicationReminderMode.CLOCK
+            )
+        )
     }
 
     private fun nowAtNoon(): Long {

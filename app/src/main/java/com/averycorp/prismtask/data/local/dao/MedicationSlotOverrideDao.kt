@@ -14,6 +14,16 @@ interface MedicationSlotOverrideDao {
     @Query("SELECT * FROM medication_slot_overrides WHERE medication_id = :medicationId")
     fun observeForMedication(medicationId: Long): Flow<List<MedicationSlotOverrideEntity>>
 
+    /**
+     * Reactive Flow over every override row, regardless of medication. Used
+     * by [com.averycorp.prismtask.notifications.MedicationClockRescheduler]
+     * so per-(medication, slot) override edits re-arm the clock alarms — the
+     * scheduler's other Flow seams (slots, meds) miss override-only edits
+     * because the override row lives in its own table.
+     */
+    @Query("SELECT * FROM medication_slot_overrides")
+    fun observeAll(): Flow<List<MedicationSlotOverrideEntity>>
+
     @Query("SELECT * FROM medication_slot_overrides WHERE medication_id = :medicationId")
     suspend fun getForMedicationOnce(medicationId: Long): List<MedicationSlotOverrideEntity>
 

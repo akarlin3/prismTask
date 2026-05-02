@@ -13,6 +13,7 @@ import com.averycorp.prismtask.data.repository.MedicationSlotRepository
 import com.averycorp.prismtask.domain.model.BatchMutationType
 import com.averycorp.prismtask.domain.model.medication.AchievedTier
 import com.averycorp.prismtask.domain.model.medication.BulkMarkScope
+import com.averycorp.prismtask.notifications.MedicationClockRescheduler
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -51,6 +52,7 @@ class MedicationViewModelBulkMarkTest {
     private lateinit var taskBehaviorPreferences: TaskBehaviorPreferences
     private lateinit var batchOperationsRepository: BatchOperationsRepository
     private lateinit var localDateFlow: LocalDateFlow
+    private lateinit var clockRescheduler: MedicationClockRescheduler
 
     private val today = "2026-04-27"
 
@@ -73,6 +75,7 @@ class MedicationViewModelBulkMarkTest {
         taskBehaviorPreferences = mockk(relaxed = true)
         batchOperationsRepository = mockk(relaxed = true)
         localDateFlow = mockk(relaxed = true)
+        clockRescheduler = mockk(relaxed = true)
 
         every { taskBehaviorPreferences.getStartOfDay() } returns
             MutableStateFlow(StartOfDay(hour = 0, minute = 0, hasBeenSet = true))
@@ -107,7 +110,8 @@ class MedicationViewModelBulkMarkTest {
         slotRepository = slotRepository,
         taskBehaviorPreferences = taskBehaviorPreferences,
         batchOperationsRepository = batchOperationsRepository,
-        localDateFlow = localDateFlow
+        localDateFlow = localDateFlow,
+        clockRescheduler = clockRescheduler
     )
 
     /**

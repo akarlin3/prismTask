@@ -51,6 +51,7 @@ object NotificationHelper {
     private const val TIMER_NOTIFICATION_ID = 8_001
     private const val SLOT_INTERVAL_NOTIFICATION_OFFSET = 500_000
     private const val SLOT_CLOCK_NOTIFICATION_OFFSET = 700_000
+    private const val MED_SLOT_CLOCK_NOTIFICATION_OFFSET = 800_000
 
     private const val LEGACY_CHANNEL_ID = "averytask_reminders"
     private const val LEGACY_MED_CHANNEL_ID = "averytask_medication_reminders"
@@ -463,6 +464,36 @@ object NotificationHelper {
         title = "$slotName Medications",
         contentText = "It's $idealTime — time for your $slotName dose."
     )
+
+    /**
+     * Notification for a per-(medication, slot) CLOCK alarm fired by
+     * [MedicationClockRescheduler.registerAlarmForMedSlot]. Names the
+     * medication explicitly so the user can distinguish this med-specific
+     * reminder from the slot-level "Morning Medications" reminder when
+     * both fire (e.g. when the user set an idealTime override). The
+     * notification id is keyed off the (med, slot) pair to avoid
+     * collisions with the slot-level offset (`700_000`) and other
+     * notification namespaces.
+     */
+    suspend fun showMedSlotClockReminder(
+        context: Context,
+        medicationId: Long,
+        slotId: Long,
+        medName: String,
+        slotName: String,
+        idealTime: String
+    ) {
+        val notificationId = MED_SLOT_CLOCK_NOTIFICATION_OFFSET +
+            (medicationId % 1000L).toInt() * 1000 +
+            (slotId % 1000L).toInt()
+        showSlotReminder(
+            context = context,
+            slotId = slotId,
+            notificationId = notificationId,
+            title = medName,
+            contentText = "It's $idealTime — your $slotName dose of $medName."
+        )
+    }
 
     private suspend fun showSlotReminder(
         context: Context,

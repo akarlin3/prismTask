@@ -345,6 +345,7 @@ sealed class BatchPreviewState {
         val medicationCandidates: Map<Int, List<MedicationCandidate>> = emptyMap()
     ) : BatchPreviewState()
     data class Committing(val commandText: String) : BatchPreviewState()
+
     /**
      * Terminal state after [BatchPreviewViewModel.approve] commits the
      * batch successfully. The screen pops back via the `Approved` event
