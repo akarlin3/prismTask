@@ -10,9 +10,9 @@ import javax.inject.Singleton
 
 /**
  * `ai.complete` and `ai.summarize` action handlers — routed through the
- * backend `/api/v1/ai/automation/*` endpoints, which inherit the existing
- * `/ai/` prefix entry in [AiFeatureGateInterceptor.AI_PATH_PREFIXES] (no
- * prefix-list update required — see § A5 of the architecture doc).
+ * backend `/api/v1/ai/automation/{action}` endpoints, which inherit the
+ * existing `/ai/` prefix entry in [AiFeatureGateInterceptor.AI_PATH_PREFIXES]
+ * (no prefix-list update required — see § A5 of the architecture doc).
  *
  * v1 behavior: the handlers double-check the master AI toggle locally
  * (defense-in-depth — the OkHttp interceptor would short-circuit a 451
@@ -20,7 +20,7 @@ import javax.inject.Singleton
  * skip reason instead of an error).
  *
  * The actual Anthropic round-trip ships in a follow-up PR alongside the
- * backend `/ai/automation/*` routes; the action type is registered so
+ * backend `/ai/automation/{action}` routes; the action type is registered so
  * sample rules importing it parse + log cleanly, surfacing as a "Skipped:
  * backend endpoint pending" rather than a parse error.
  */
