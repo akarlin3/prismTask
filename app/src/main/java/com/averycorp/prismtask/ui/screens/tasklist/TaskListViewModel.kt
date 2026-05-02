@@ -675,8 +675,14 @@ constructor(
                     taskRepository.completeTask(taskId)
                 }
             } catch (e: Exception) {
-                Log.e("TaskListVM", "Failed to toggle complete", e)
-                snackbarHostState.showSnackbar("Couldn't update task")
+                Log.e(
+                    "TaskListVM",
+                    "Failed to toggle complete id=$taskId wasCompleted=$isCurrentlyCompleted: " +
+                        "${e::class.simpleName}: ${e.message}",
+                    e
+                )
+                recordNonFatal(e)
+                snackbarHostState.showSnackbar("Couldn't update task (${e::class.simpleName})")
             }
         }
     }
@@ -690,9 +696,27 @@ constructor(
                     taskRepository.completeTask(subtaskId)
                 }
             } catch (e: Exception) {
-                Log.e("TaskListVM", "Failed to toggle subtask", e)
-                snackbarHostState.showSnackbar("Couldn't update subtask")
+                Log.e(
+                    "TaskListVM",
+                    "Failed to toggle subtask id=$subtaskId wasCompleted=$isCompleted: " +
+                        "${e::class.simpleName}: ${e.message}",
+                    e
+                )
+                recordNonFatal(e)
+                snackbarHostState.showSnackbar("Couldn't update subtask (${e::class.simpleName})")
             }
+        }
+    }
+
+    private fun recordNonFatal(e: Throwable) {
+        try {
+            com.google.firebase.crashlytics.FirebaseCrashlytics
+                .getInstance()
+                .recordException(e)
+        } catch (_: Exception) {
+            // Crashlytics may not be initialized in tests / debug builds without
+            // google-services.json. Swallow so the host catch still shows the
+            // snackbar.
         }
     }
 
