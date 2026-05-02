@@ -88,7 +88,8 @@ class MedicationSlotFlowReschedulerTest {
         val medsFlow = MutableSharedFlow<List<com.averycorp.prismtask.data.local.entity.MedicationEntity>>(
             replay = 0
         )
-        val overridesFlow = MutableSharedFlow<List<com.averycorp.prismtask.data.local.entity.MedicationSlotOverrideEntity>>(
+        val overridesFlow =
+            MutableSharedFlow<List<com.averycorp.prismtask.data.local.entity.MedicationSlotOverrideEntity>>(
             replay = 0
         )
         val slotDao: MedicationSlotDao = mockk(relaxed = true) {
