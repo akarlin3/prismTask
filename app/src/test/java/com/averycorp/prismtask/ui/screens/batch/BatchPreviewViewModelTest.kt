@@ -1,0 +1,224 @@
+package com.averycorp.prismtask.ui.screens.batch
+
+import app.cash.turbine.test
+import com.averycorp.prismtask.data.preferences.NdPreferences
+import com.averycorp.prismtask.data.preferences.NdPreferencesDataStore
+import com.averycorp.prismtask.data.remote.api.BatchParseResponse
+import com.averycorp.prismtask.data.remote.api.ProposedMutationResponse
+import com.averycorp.prismtask.data.repository.BatchOperationsRepository
+import io.mockk.coEvery
+import io.mockk.coVerify
+import io.mockk.every
+import io.mockk.mockk
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.ResponseBody.Companion.toResponseBody
+import org.junit.After
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
+import org.junit.Before
+import org.junit.Test
+import retrofit2.HttpException
+import retrofit2.Response
+
+/**
+ * Covers the four [BatchPreviewState] transitions the audit's Phase 1.1
+ * flagged MISSING — Ready, EmptyMutations (treated as Loaded with no
+ * mutations + a friendly message), AiGate451, ParseFailure — plus the
+ * happy-path apply transition. The ambiguity-handling branches live in
+ * [BatchPreviewViewModelAmbiguityTest].
+ */
+@OptIn(ExperimentalCoroutinesApi::class)
+class BatchPreviewViewModelTest {
+    private val dispatcher = StandardTestDispatcher()
+
+    private lateinit var repository: BatchOperationsRepository
+    private lateinit var undoBus: BatchUndoEventBus
+    private lateinit var ndPreferencesDataStore: NdPreferencesDataStore
+
+    @Before
+    fun setUp() {
+        Dispatchers.setMain(dispatcher)
+        repository = mockk()
+        undoBus = mockk(relaxed = true)
+        ndPreferencesDataStore = mockk()
+        every { ndPreferencesDataStore.ndPreferencesFlow } returns flowOf(NdPreferences())
+        coEvery { repository.getTagNamesForTasks(any()) } returns emptyMap()
+        coEvery { repository.getMedicationsByIds(any()) } returns emptyList()
+    }
+
+    @After
+    fun tearDown() {
+        Dispatchers.resetMain()
+    }
+
+    @Test
+    fun loadPreview_success_transitionsToLoadedWithMutations() = runTest(dispatcher) {
+        stubParse(
+            BatchParseResponse(
+                mutations = listOf(taskRescheduleMutation(entityId = "7", due = "2026-05-03")),
+                confidence = 0.95f,
+                ambiguousEntities = emptyList()
+            )
+        )
+
+        val viewModel = newViewModel()
+        viewModel.loadPreview("push my task to friday")
+        advanceUntilIdle()
+
+        val loaded = viewModel.state.value as BatchPreviewState.Loaded
+        assertEquals("push my task to friday", loaded.commandText)
+        assertEquals(1, loaded.mutations.size)
+        assertEquals("7", loaded.mutations.single().entityId)
+    }
+
+    @Test
+    fun loadPreview_emptyMutations_transitionsToLoadedWithEmptyList() = runTest(dispatcher) {
+        // The screen renders an explicit "no matching changes" hint when
+        // mutations is empty; the state must still be Loaded (not Error)
+        // so the user can hit Cancel without seeing a parse-failure scare.
+        stubParse(
+            BatchParseResponse(
+                mutations = emptyList(),
+                confidence = 0.95f,
+                ambiguousEntities = emptyList()
+            )
+        )
+
+        val viewModel = newViewModel()
+        viewModel.loadPreview("nothing to do")
+        advanceUntilIdle()
+
+        val loaded = viewModel.state.value as BatchPreviewState.Loaded
+        assertTrue(loaded.mutations.isEmpty())
+        assertEquals("nothing to do", loaded.commandText)
+    }
+
+    @Test
+    fun loadPreview_http451_transitionsToAiGateError() = runTest(dispatcher) {
+        // AiFeatureGateInterceptor short-circuits AI-touching requests with
+        // a synthetic 451 when the user has disabled AI features. The
+        // preview must surface a Settings-pointing copy, not a generic
+        // parse-failure message.
+        coEvery { repository.parseCommand(any()) } throws HttpException(
+            Response.error<Any>(
+                451,
+                "{}".toResponseBody("application/json".toMediaType())
+            )
+        )
+
+        val viewModel = newViewModel()
+        viewModel.loadPreview("delete my tasks")
+        advanceUntilIdle()
+
+        val error = viewModel.state.value as BatchPreviewState.Error
+        assertEquals(BatchPreviewErrorKind.AiGate451, error.kind)
+        assertTrue(
+            "AI-gate copy should mention Settings",
+            error.message.contains("Settings", ignoreCase = true)
+        )
+    }
+
+    @Test
+    fun loadPreview_otherHttpFailure_transitionsToNetworkError() = runTest(dispatcher) {
+        coEvery { repository.parseCommand(any()) } throws HttpException(
+            Response.error<Any>(
+                503,
+                "{}".toResponseBody("application/json".toMediaType())
+            )
+        )
+
+        val viewModel = newViewModel()
+        viewModel.loadPreview("anything")
+        advanceUntilIdle()
+
+        val error = viewModel.state.value as BatchPreviewState.Error
+        assertEquals(BatchPreviewErrorKind.Network, error.kind)
+    }
+
+    @Test
+    fun loadPreview_genericException_transitionsToParseFailure() = runTest(dispatcher) {
+        coEvery { repository.parseCommand(any()) } throws IllegalStateException("malformed")
+
+        val viewModel = newViewModel()
+        viewModel.loadPreview("anything")
+        advanceUntilIdle()
+
+        val error = viewModel.state.value as BatchPreviewState.Error
+        assertEquals(BatchPreviewErrorKind.ParseFailure, error.kind)
+        assertEquals("malformed", error.message)
+    }
+
+    @Test
+    fun approve_success_emitsApprovedEventAndNotifiesUndoBus() = runTest(dispatcher) {
+        stubParse(
+            BatchParseResponse(
+                mutations = listOf(taskRescheduleMutation(entityId = "7", due = "2026-05-03")),
+                confidence = 0.95f,
+                ambiguousEntities = emptyList()
+            )
+        )
+        coEvery { repository.applyBatch(any(), any()) } returns
+            BatchOperationsRepository.BatchApplyResult(
+                batchId = "batch-abc",
+                commandText = "push my task to friday",
+                appliedCount = 1,
+                skipped = emptyList()
+            )
+
+        val viewModel = newViewModel()
+        viewModel.loadPreview("push my task to friday")
+        advanceUntilIdle()
+
+        // Turbine subscribes BEFORE we trigger approve, which matters because
+        // _events is a SharedFlow with replay = 0 — emissions delivered
+        // before subscription are lost. With Turbine, the test() block
+        // owns the subscription lifecycle and pumps awaitItem suspensions
+        // through the StandardTestDispatcher cleanly.
+        viewModel.events.test {
+            viewModel.approve()
+            val event = awaitItem()
+            assertTrue(event is BatchEvent.Approved)
+            val approved = event as BatchEvent.Approved
+            assertEquals("batch-abc", approved.batchId)
+            assertEquals(1, approved.appliedCount)
+            cancelAndIgnoreRemainingEvents()
+        }
+        coVerify { undoBus.notifyApplied(match { it.batchId == "batch-abc" }) }
+    }
+
+    private fun newViewModel(): BatchPreviewViewModel = BatchPreviewViewModel(
+        repository = repository,
+        undoBus = undoBus,
+        ndPreferencesDataStore = ndPreferencesDataStore
+    )
+
+    private fun stubParse(
+        response: BatchParseResponse,
+        committedIds: Set<String> = emptySet()
+    ) {
+        coEvery { repository.parseCommand(any()) } returns
+            BatchOperationsRepository.BatchParseOutcome(
+                response = response,
+                committedMedicationIds = committedIds
+            )
+    }
+
+    private fun taskRescheduleMutation(
+        entityId: String,
+        due: String
+    ): ProposedMutationResponse = ProposedMutationResponse(
+        entityType = "TASK",
+        entityId = entityId,
+        mutationType = "RESCHEDULE",
+        proposedNewValues = mapOf("due_date" to due),
+        humanReadableDescription = "Reschedule task $entityId to $due"
+    )
+}

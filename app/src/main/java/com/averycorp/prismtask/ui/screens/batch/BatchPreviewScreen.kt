@@ -105,9 +105,12 @@ fun BatchPreviewScreen(
             BatchPreviewState.Idle -> Box(Modifier.fillMaxSize().padding(padding))
             is BatchPreviewState.Loading -> LoadingBody(s.commandText, padding)
             is BatchPreviewState.Committing -> LoadingBody("Applying \"${s.commandText}\"…", padding)
-            is BatchPreviewState.Error -> ErrorBody(s.message, padding, onRetry = {
-                viewModel.loadPreview(s.commandText)
-            })
+            is BatchPreviewState.Error -> ErrorBody(
+                kind = s.kind,
+                message = s.message,
+                padding = padding,
+                onRetry = { viewModel.loadPreview(s.commandText) }
+            )
             is BatchPreviewState.Loaded -> LoadedBody(
                 state = s,
                 excluded = excluded,
@@ -135,19 +138,34 @@ private fun LoadingBody(label: String, padding: PaddingValues) {
 }
 
 @Composable
-private fun ErrorBody(message: String, padding: PaddingValues, onRetry: () -> Unit) {
+private fun ErrorBody(
+    kind: BatchPreviewErrorKind,
+    message: String,
+    padding: PaddingValues,
+    onRetry: () -> Unit
+) {
+    val title = when (kind) {
+        BatchPreviewErrorKind.AiGate451 -> "AI features are off"
+        BatchPreviewErrorKind.Network -> "Couldn't reach the backend"
+        BatchPreviewErrorKind.ParseFailure -> "Couldn't parse that command"
+    }
     Column(
         modifier = Modifier.fillMaxSize().padding(padding).padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Text("Couldn't parse that command", style = MaterialTheme.typography.titleMedium)
+        Text(title, style = MaterialTheme.typography.titleMedium)
         Text(
             message,
             style = MaterialTheme.typography.bodySmall,
             modifier = Modifier.padding(vertical = 12.dp)
         )
-        OutlinedButton(onClick = onRetry) { Text("Retry") }
+        // Retry only when retrying could actually succeed. AI-gate 451 needs
+        // the user to flip the Settings toggle first; retrying without
+        // changing that just round-trips back to the same error.
+        if (kind != BatchPreviewErrorKind.AiGate451) {
+            OutlinedButton(onClick = onRetry) { Text("Retry") }
+        }
     }
 }
 

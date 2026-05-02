@@ -962,12 +962,17 @@ constructor(
         }
     }
 
-    fun showSnackbar(message: String, actionLabel: String? = null, onAction: (() -> Unit)? = null) {
+    fun showSnackbar(
+        message: String,
+        actionLabel: String? = null,
+        duration: SnackbarDuration = SnackbarDuration.Short,
+        onAction: (() -> Unit)? = null
+    ) {
         viewModelScope.launch {
             val result = snackbarHostState.showSnackbar(
                 message = message,
                 actionLabel = actionLabel,
-                duration = SnackbarDuration.Short
+                duration = duration
             )
             if (result == SnackbarResult.ActionPerformed) {
                 onAction?.invoke()

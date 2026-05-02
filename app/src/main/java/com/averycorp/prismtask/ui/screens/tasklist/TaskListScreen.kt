@@ -194,10 +194,15 @@ fun TaskListScreen(
             } else {
                 "${event.appliedCount} changes applied"
             }
+            // Long (~10s) is the floor for the batch-undo affordance — the
+            // 4s default Short window made the Undo action effectively
+            // un-clickable on the audit's recorded sessions (Phase 1.2 of
+            // the BatchPreview audit). 30s would need a custom snackbar
+            // host; revisit if Avery requires it.
             val result = viewModel.snackbarHostState.showSnackbar(
                 message = msg,
                 actionLabel = "Undo",
-                duration = SnackbarDuration.Short
+                duration = SnackbarDuration.Long
             )
             if (result == SnackbarResult.ActionPerformed) {
                 batchUndoListener.undo(event.batchId)

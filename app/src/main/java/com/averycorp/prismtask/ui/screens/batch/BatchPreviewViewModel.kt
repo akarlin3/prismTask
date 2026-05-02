@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import retrofit2.HttpException
 import javax.inject.Inject
 
 /**
@@ -115,9 +116,24 @@ constructor(
                     medicationCandidates = medCandidates
                 )
                 _excluded.value = emptySet()
+            } catch (e: HttpException) {
+                _state.value = if (e.code() == HTTP_AI_FEATURES_DISABLED) {
+                    BatchPreviewState.Error(
+                        commandText = commandText,
+                        kind = BatchPreviewErrorKind.AiGate451,
+                        message = "AI features are disabled — enable them in Settings → AI Features."
+                    )
+                } else {
+                    BatchPreviewState.Error(
+                        commandText = commandText,
+                        kind = BatchPreviewErrorKind.Network,
+                        message = e.message ?: "Backend unavailable"
+                    )
+                }
             } catch (e: Exception) {
                 _state.value = BatchPreviewState.Error(
                     commandText = commandText,
+                    kind = BatchPreviewErrorKind.ParseFailure,
                     message = e.message ?: "Failed to parse batch command"
                 )
             }
@@ -249,6 +265,7 @@ constructor(
             } catch (e: Exception) {
                 _state.value = BatchPreviewState.Error(
                     commandText = loaded.commandText,
+                    kind = BatchPreviewErrorKind.Network,
                     message = e.message ?: "Failed to commit batch"
                 )
             }
@@ -269,6 +286,7 @@ constructor(
         // wrong-medication blast radius is the only one we won't tolerate
         // silently.
         const val MEDICATION_CONFIDENCE_FLOOR = 0.85f
+        const val HTTP_AI_FEATURES_DISABLED = 451
     }
 }
 
@@ -307,8 +325,22 @@ sealed class BatchPreviewState {
         val medicationCandidates: Map<Int, List<MedicationCandidate>> = emptyMap()
     ) : BatchPreviewState()
     data class Committing(val commandText: String) : BatchPreviewState()
-    data class Error(val commandText: String, val message: String) : BatchPreviewState()
+    data class Error(
+        val commandText: String,
+        val kind: BatchPreviewErrorKind,
+        val message: String
+    ) : BatchPreviewState()
 }
+
+/**
+ * Distinguishes the user-actionable failure modes for batch parsing so the
+ * preview screen can render copy that points at the right fix:
+ *  - [AiGate451] — master AI toggle is off (HTTP 451). Send the user to
+ *    Settings, no Retry.
+ *  - [Network]   — backend unreachable / 5xx. Retry is meaningful.
+ *  - [ParseFailure] — backend reachable but response unparseable / unexpected.
+ */
+enum class BatchPreviewErrorKind { AiGate451, Network, ParseFailure }
 
 data class MedicationCandidate(
     val entityId: String,

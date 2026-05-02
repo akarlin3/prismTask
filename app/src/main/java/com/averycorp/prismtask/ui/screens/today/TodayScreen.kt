@@ -148,7 +148,13 @@ fun TodayScreen(
             } else {
                 "${event.appliedCount} changes applied"
             }
-            viewModel.showSnackbar(msg, "Undo") {
+            // Long (~10s) — Phase 1.2 of the BatchPreview audit found the
+            // 4s default un-clickable for users on slower-tap workflows.
+            viewModel.showSnackbar(
+                message = msg,
+                actionLabel = "Undo",
+                duration = androidx.compose.material3.SnackbarDuration.Long
+            ) {
                 batchUndoListener.undo(event.batchId)
             }
         }
