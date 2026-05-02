@@ -85,6 +85,12 @@ constructor(
         syncTracker.trackUpdate(id, "medication")
     }
 
+    suspend fun unarchive(id: Long) {
+        val now = System.currentTimeMillis()
+        medicationDao.unarchive(id, now)
+        syncTracker.trackUpdate(id, "medication")
+    }
+
     /**
      * Deletes the medication AND its dose history via the FK CASCADE.
      * UI primary affordance should be [archive], not delete — this call

@@ -309,3 +309,17 @@ Phase 3 bundle summary appends to this doc after the PR squash-merges (commit-nu
 
 **Schedule for next audit:** When SyncService routing for `automation_rule` lands (Phase I follow-up), run a short audit on cross-device template-import semantics (does importing the same template on two devices create a duplicate? Should it dedup by `templateKey`?). Inline checkpoint, not a fresh mega-audit.
 
+---
+
+## Phase 3.1 — Operator follow-up: necessary defers addressed (post-Phase-3)
+
+Operator directive 2026-05-02 ("do the deferred items") supersedes the audit's "necessary defer" treatment of the two action-handler stubs. Two of the three deferred items addressed in a follow-up commit; one (SyncService routing) stays deferred per the original prompt's explicit DO-NOT carve-out.
+
+| Deferred item | Addressed? | How |
+|---|---|---|
+| `mutate.medication` handler stub | YES | Now supports `isArchived` toggle + `name` rename via `MedicationRepository.archive/unarchive/update`. Added `MedicationDao.unarchive` query for symmetry (mirrors existing `archive(id, now)`). Dose-logging mutations (COMPLETE / SKIP / STATE_CHANGE) deliberately remain out — the tier-state coherence risk surface called out in `BatchOperationsRepository.applyMedicationMutation` still applies; rules that need those go through `apply.batch`. |
+| `schedule.timer` handler stub | YES | Now calls `PomodoroTimerService.start(...)` via the canonical companion entry point. `mode` string maps to session type (`FOCUS`/`WORK` → SESSION_TYPE_WORK, `BREAK` → SESSION_TYPE_BREAK, `LONG_BREAK` → SESSION_TYPE_LONG_BREAK). `ForegroundServiceStartNotAllowedException` is caught + reported as `ActionResult.Error` so background-triggered firings on Android 12+ log a clean row instead of crashing — Manual triggers (running while the rule list screen is in the foreground) work normally. |
+| SyncService routing for `automation_rule` | NO — kept deferred | Original prompt: "DO NOT make changes that re-open PR #1056's outstanding 15%." Explicit constraint, not just a soft defer. Imported templates remain device-local until the operator's separate Phase I PR for that work lands. |
+
+**Library inventory — unchanged.** Both un-stubbed handlers are now fully supported, but no library template currently uses `mutate.medication` or `schedule.timer`. Removing the stubs is unblock-only work — future library additions or user-authored rules can now use these actions without hitting a `Skipped` result.
+

@@ -8,11 +8,13 @@ import com.averycorp.prismtask.data.local.dao.TagDao
 import com.averycorp.prismtask.data.local.entity.TagEntity
 import com.averycorp.prismtask.data.local.entity.TaskTagCrossRef
 import com.averycorp.prismtask.data.repository.HabitRepository
+import com.averycorp.prismtask.data.repository.MedicationRepository
 import com.averycorp.prismtask.data.repository.TaskRepository
 import com.averycorp.prismtask.domain.automation.ActionResult
 import com.averycorp.prismtask.domain.automation.AutomationAction
 import com.averycorp.prismtask.domain.automation.AutomationActionHandler
 import com.averycorp.prismtask.domain.automation.ExecutionContext
+import com.averycorp.prismtask.notifications.PomodoroTimerService
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -187,15 +189,23 @@ class LogActionHandler @Inject constructor() : AutomationActionHandler {
 }
 
 /**
- * `schedule.timer` handler — v1 ships a no-op stub that records the
- * intent to start a timer. Wiring through to [PomodoroTimerService]
- * requires a service-start permission flow that's better landed
- * alongside the rule-edit screen in v1.1, where the user is in the
- * loop. The stub keeps the action type registered + observable so a
- * rule that uses it logs cleanly instead of failing.
+ * `schedule.timer` handler — starts the existing [PomodoroTimerService]
+ * foreground service via its canonical `start(...)` companion entry
+ * point. [AutomationAction.ScheduleTimer.mode] maps to the service's
+ * session-type constants (`FOCUS` / `WORK` → `SESSION_TYPE_WORK`,
+ * `BREAK` → `SESSION_TYPE_BREAK`, `LONG_BREAK` → `SESSION_TYPE_LONG_BREAK`).
+ *
+ * Foreground-service start may throw `ForegroundServiceStartNotAllowedException`
+ * on Android 12+ when the app is fully backgrounded (entity-event triggers
+ * and time-based ticks both qualify). The handler catches that path and
+ * returns [ActionResult.Error] so the engine logs a clean row rather than
+ * crashing. Manual ("Run Now") triggers run while the rule list screen
+ * is in the foreground and are unaffected.
  */
 @Singleton
-class ScheduleTimerActionHandler @Inject constructor() : AutomationActionHandler {
+class ScheduleTimerActionHandler @Inject constructor(
+    @ApplicationContext private val context: Context
+) : AutomationActionHandler {
     override val type: String = "schedule.timer"
 
     override suspend fun execute(
@@ -204,30 +214,82 @@ class ScheduleTimerActionHandler @Inject constructor() : AutomationActionHandler
     ): ActionResult {
         val timer = action as? AutomationAction.ScheduleTimer
             ?: return ActionResult.Error(type, "wrong action shape")
-        return ActionResult.Skipped(
-            type,
-            "timer scheduling deferred to v1.1 (would start ${timer.mode} for ${timer.durationMinutes}m)"
-        )
+        if (timer.durationMinutes <= 0) {
+            return ActionResult.Error(type, "duration must be > 0 minutes")
+        }
+        val sessionType = when (timer.mode.uppercase()) {
+            "FOCUS", "WORK" -> PomodoroTimerService.SESSION_TYPE_WORK
+            "BREAK" -> PomodoroTimerService.SESSION_TYPE_BREAK
+            "LONG_BREAK" -> PomodoroTimerService.SESSION_TYPE_LONG_BREAK
+            else -> PomodoroTimerService.SESSION_TYPE_WORK
+        }
+        return runCatching {
+            PomodoroTimerService.start(
+                context = context,
+                durationSeconds = timer.durationMinutes * 60,
+                sessionIndex = 0,
+                sessionType = sessionType
+            )
+            ActionResult.Ok(type, "started ${timer.mode} timer for ${timer.durationMinutes}m")
+        }.getOrElse { e ->
+            ActionResult.Error(
+                type,
+                "could not start timer: ${e.message ?: e::class.java.simpleName}"
+            )
+        }
     }
 }
 
 /**
- * `mutate.medication` handler — v1 ships as a no-op stub. Mutating
- * medication entities through the engine has the same risk surface as
- * batch ops on medications (slot resolution, tier-state coherence,
- * synthetic-skip semantics) and warrants the same audit-first treatment
- * that produced [BatchOperationsRepository.applyMedicationMutation].
- * Tracking ticket: mirror the batch handler's semantics in v1.1.
+ * `mutate.medication` handler — supports the mutations that don't touch
+ * dose / slot / tier-state: `isArchived` toggle and `name` rename. Mirrors
+ * the [MutateHabitActionHandler] shape (boolean toggle) and the standard
+ * [MedicationRepository.update] path. Dose-logging mutations (taking,
+ * skipping) deliberately stay out of this handler because they have the
+ * tier-state coherence risk surface called out in
+ * [BatchOperationsRepository.applyMedicationMutation]; rules that need
+ * those should use the `apply.batch` action with structured mutations
+ * instead.
  */
 @Singleton
-class MutateMedicationActionHandler @Inject constructor() : AutomationActionHandler {
+class MutateMedicationActionHandler @Inject constructor(
+    private val medicationRepository: MedicationRepository
+) : AutomationActionHandler {
     override val type: String = "mutate.medication"
 
     override suspend fun execute(
         action: AutomationAction,
         ctx: ExecutionContext
-    ): ActionResult = ActionResult.Skipped(
-        type,
-        "medication mutations deferred to v1.1 — needs slot/tier-state coherence audit"
-    )
+    ): ActionResult {
+        val mutate = action as? AutomationAction.MutateMedication
+            ?: return ActionResult.Error(type, "wrong action shape")
+        val medication = ctx.evaluation.medication
+            ?: return ActionResult.Skipped(type, "no medication on event")
+        var didSomething = false
+
+        val nextArchived = mutate.updates["isArchived"] as? Boolean
+        if (nextArchived != null) {
+            if (nextArchived) medicationRepository.archive(medication.id)
+            else medicationRepository.unarchive(medication.id)
+            didSomething = true
+        }
+
+        val nextName = mutate.updates["name"] as? String
+        if (nextName != null && nextName.isNotBlank() && nextName != medication.name) {
+            medicationRepository.update(medication.copy(name = nextName))
+            didSomething = true
+        }
+
+        return if (didSomething) {
+            ActionResult.Ok(
+                type,
+                "updated medication ${medication.id} (${mutate.updates.keys})"
+            )
+        } else {
+            ActionResult.Skipped(
+                type,
+                "no supported updates (only isArchived + name; dose mutations go through apply.batch)"
+            )
+        }
+    }
 }

@@ -52,6 +52,9 @@ interface MedicationDao {
     @Query("UPDATE medications SET is_archived = 1, updated_at = :now WHERE id = :id")
     suspend fun archive(id: Long, now: Long)
 
+    @Query("UPDATE medications SET is_archived = 0, updated_at = :now WHERE id = :id")
+    suspend fun unarchive(id: Long, now: Long)
+
     @Delete
     suspend fun delete(medication: MedicationEntity)
 
