@@ -54,7 +54,15 @@ data class ParsedTask(
      * enum name. Orthogonal to [lifeCategory] — see `docs/WORK_PLAY_RELAX.md`.
      * Null when no mode tag was present.
      */
-    val taskMode: String? = null
+    val taskMode: String? = null,
+    /**
+     * Start-friction load extracted from `#easy-load`, `#medium-load`, or
+     * `#hard-load`. Stored as the
+     * [com.averycorp.prismtask.domain.model.CognitiveLoad] enum name.
+     * Orthogonal to [lifeCategory] / [taskMode] — see
+     * `docs/COGNITIVE_LOAD.md`. Null when no load tag was present.
+     */
+    val cognitiveLoad: String? = null
 )
 
 @Singleton
@@ -305,6 +313,18 @@ constructor(
             }
             text = modeRegex.replace(text, "")
         }
+
+        // 1a-ter. Hyphenated cognitive-load tags (#easy-load / #medium-load /
+        // #hard-load). Same hyphenation strategy as task-mode — stripped
+        // before the generic #\w+ regex. Load tags are NOT promoted into
+        // the regular tag list (see docs/COGNITIVE_LOAD.md).
+        //
+        // Extracted into a helper to keep the cyclomatic complexity of
+        // `parse` under detekt's threshold (65) — the parallel mode tag
+        // path is intentionally left inline so the detekt drift is
+        // localized to the dimension that pushed it past.
+        val (textAfterLoad, cognitiveLoad) = extractCognitiveLoadTag(text)
+        text = textAfterLoad
 
         // 1. Tags — #word but not C# (must be preceded by space or at start)
         val tags = mutableListOf<String>()
@@ -607,8 +627,28 @@ constructor(
             priority = priority,
             recurrenceHint = recurrenceHint,
             lifeCategory = lifeCategory,
-            taskMode = taskMode
+            taskMode = taskMode,
+            cognitiveLoad = cognitiveLoad
         )
+    }
+
+    /**
+     * Strip a `#easy-load` / `#medium-load` / `#hard-load` hashtag from
+     * [text] and return the cleaned text alongside the matched load enum
+     * name (or null when no tag was present). Extracted out of `parse(...)`
+     * to keep the parser's cyclomatic complexity under detekt's threshold
+     * — see `docs/COGNITIVE_LOAD.md` § NLP hashtags.
+     */
+    private fun extractCognitiveLoadTag(text: String): Pair<String, String?> {
+        val regex = Regex("""(?i)(?:^|(?<=\s))#(easy|medium|hard)[-_]load(?=\s|$)""")
+        val match = regex.find(text) ?: return text to null
+        val load = when (match.groupValues[1].lowercase(Locale.ROOT)) {
+            "easy" -> "EASY"
+            "medium" -> "MEDIUM"
+            "hard" -> "HARD"
+            else -> null
+        }
+        return regex.replace(text, "") to load
     }
 
     private fun dayNames(): String =

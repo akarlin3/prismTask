@@ -28,9 +28,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.averycorp.prismtask.domain.model.CognitiveLoad
 import com.averycorp.prismtask.domain.model.LifeCategory
 import com.averycorp.prismtask.domain.usecase.BalanceState
 import com.averycorp.prismtask.domain.usecase.BurnoutResult
+import com.averycorp.prismtask.domain.usecase.CognitiveLoadBalanceState
+import com.averycorp.prismtask.ui.theme.CognitiveLoadColor
 import com.averycorp.prismtask.ui.theme.LifeCategoryColor
 
 /**
@@ -138,6 +141,77 @@ private fun BalanceStackedBar(ratios: Map<LifeCategory, Float>) {
                         .weight(ratio)
                         .fillMaxSize()
                         .background(LifeCategoryColor.forCategory(category))
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Compact cognitive-load balance section. Mirrors [TodayBalanceSection] but
+ * for the Easy / Medium / Hard start-friction dimension — see
+ * `docs/COGNITIVE_LOAD.md`. Renders the three tracked tiers as a horizontal
+ * stacked bar; segment widths are proportional to the load's share of the
+ * user's last 7 days of tracked tasks.
+ *
+ * Hidden until the user has tagged at least one task with a load (mirrors
+ * the LifeCategory bar's `totalTracked > 0` gate).
+ */
+@Composable
+internal fun TodayCognitiveLoadSection(
+    state: CognitiveLoadBalanceState,
+    onClick: () -> Unit = {}
+) {
+    val hasLoadData = state.totalTracked > 0
+    if (!hasLoadData) return
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp)
+            .clip(MaterialTheme.shapes.medium)
+            .clickable(onClick = onClick)
+            .padding(vertical = 8.dp, horizontal = 12.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Cognitive Load",
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.weight(1f))
+            Text(
+                text = CognitiveLoad.label(state.dominantLoad),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Spacer(modifier = Modifier.height(6.dp))
+        CognitiveLoadStackedBar(ratios = state.currentRatios)
+    }
+}
+
+@Composable
+private fun CognitiveLoadStackedBar(ratios: Map<CognitiveLoad, Float>) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(10.dp)
+            .clip(RoundedCornerShape(6.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+    ) {
+        CognitiveLoad.TRACKED.forEach { load ->
+            val ratio = (ratios[load] ?: 0f).coerceIn(0f, 1f)
+            if (ratio > 0f) {
+                Box(
+                    modifier = Modifier
+                        .weight(ratio)
+                        .fillMaxSize()
+                        .background(CognitiveLoadColor.forLoad(load))
                 )
             }
         }

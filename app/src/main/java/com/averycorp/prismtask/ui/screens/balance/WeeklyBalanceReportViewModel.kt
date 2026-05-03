@@ -11,6 +11,9 @@ import com.averycorp.prismtask.domain.usecase.BalanceState
 import com.averycorp.prismtask.domain.usecase.BalanceTracker
 import com.averycorp.prismtask.domain.usecase.BurnoutBand
 import com.averycorp.prismtask.domain.usecase.BurnoutScorer
+import com.averycorp.prismtask.domain.usecase.CognitiveLoadBalanceConfig
+import com.averycorp.prismtask.domain.usecase.CognitiveLoadBalanceState
+import com.averycorp.prismtask.domain.usecase.CognitiveLoadBalanceTracker
 import com.averycorp.prismtask.domain.usecase.WeeklyReviewAggregator
 import com.averycorp.prismtask.domain.usecase.WeeklyReviewStats
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -40,6 +43,7 @@ constructor(
 ) : ViewModel() {
     private val aggregator = WeeklyReviewAggregator()
     private val balanceTracker = BalanceTracker()
+    private val cognitiveLoadBalanceTracker = CognitiveLoadBalanceTracker()
     private val burnoutScorer = BurnoutScorer()
 
     private val _state = MutableStateFlow(WeeklyBalanceReportState())
@@ -66,6 +70,13 @@ constructor(
                 val balance = balanceTracker.compute(
                     tasks,
                     config,
+                    now = reference,
+                    dayStartHour = sod.hour,
+                    dayStartMinute = sod.minute
+                )
+                val cognitiveLoadBalance = cognitiveLoadBalanceTracker.compute(
+                    tasks,
+                    CognitiveLoadBalanceConfig(),
                     now = reference,
                     dayStartHour = sod.hour,
                     dayStartMinute = sod.minute
@@ -106,6 +117,7 @@ constructor(
                 _state.value = WeeklyBalanceReportState(
                     stats = stats,
                     balance = balance,
+                    cognitiveLoadBalance = cognitiveLoadBalance,
                     burnoutScore = burnout.score,
                     burnoutBand = burnout.band,
                     reference = reference,
@@ -134,6 +146,7 @@ constructor(
 data class WeeklyBalanceReportState(
     val stats: WeeklyReviewStats? = null,
     val balance: BalanceState = BalanceState.EMPTY,
+    val cognitiveLoadBalance: CognitiveLoadBalanceState = CognitiveLoadBalanceState.EMPTY,
     val burnoutScore: Int = 0,
     val burnoutBand: BurnoutBand = BurnoutBand.BALANCED,
     val reference: Long = System.currentTimeMillis(),

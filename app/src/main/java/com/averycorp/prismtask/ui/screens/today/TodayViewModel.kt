@@ -36,6 +36,9 @@ import com.averycorp.prismtask.domain.usecase.BalanceState
 import com.averycorp.prismtask.domain.usecase.BalanceTracker
 import com.averycorp.prismtask.domain.usecase.BurnoutResult
 import com.averycorp.prismtask.domain.usecase.BurnoutScorer
+import com.averycorp.prismtask.domain.usecase.CognitiveLoadBalanceConfig
+import com.averycorp.prismtask.domain.usecase.CognitiveLoadBalanceState
+import com.averycorp.prismtask.domain.usecase.CognitiveLoadBalanceTracker
 import com.averycorp.prismtask.domain.usecase.DailyEssentialsUiState
 import com.averycorp.prismtask.domain.usecase.DailyEssentialsUseCase
 import com.averycorp.prismtask.domain.usecase.HabitTodayVisibilityResolver
@@ -228,6 +231,7 @@ constructor(
     }
 
     private val balanceTracker: BalanceTracker = BalanceTracker()
+    private val cognitiveLoadBalanceTracker: CognitiveLoadBalanceTracker = CognitiveLoadBalanceTracker()
     private val burnoutScorer: BurnoutScorer = BurnoutScorer()
     private val nudgeEngine: SelfCareNudgeEngine = SelfCareNudgeEngine()
 
@@ -314,6 +318,26 @@ constructor(
                 dayStartMinute = sod.minute
             )
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), BalanceState.EMPTY)
+
+    /**
+     * Live [CognitiveLoadBalanceState] derived from the same task pool. The
+     * Today balance bar's load section subscribes to this to render the
+     * Easy / Medium / Hard split. Targets default to even three-way until
+     * a future PR exposes per-load target sliders. See
+     * `docs/COGNITIVE_LOAD.md`.
+     */
+    val cognitiveLoadBalanceState: StateFlow<CognitiveLoadBalanceState> =
+        combine(
+            taskRepository.getAllTasks(),
+            taskBehaviorPreferences.getStartOfDay()
+        ) { allTasks, sod ->
+            cognitiveLoadBalanceTracker.compute(
+                allTasks,
+                CognitiveLoadBalanceConfig(),
+                dayStartHour = sod.hour,
+                dayStartMinute = sod.minute
+            )
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), CognitiveLoadBalanceState.EMPTY)
 
     /**
      * Composite burnout score (v1.4.0 V2). Derived from the same task pool +

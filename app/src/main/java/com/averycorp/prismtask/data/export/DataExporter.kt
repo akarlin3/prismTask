@@ -637,6 +637,7 @@ constructor(
         add("morningCheckInCutoff", gson.toJsonTree(p.getMorningCheckInPromptCutoff().first()))
         add("lifeCategoryKeywords", gson.toJsonTree(p.getLifeCategoryCustomKeywords().first()))
         add("taskModeKeywords", gson.toJsonTree(p.getTaskModeCustomKeywords().first()))
+        add("cognitiveLoadKeywords", gson.toJsonTree(p.getCognitiveLoadCustomKeywords().first()))
         add("weeklySummary", gson.toJsonTree(p.getWeeklySummarySchedule().first()))
         add("reengagement", gson.toJsonTree(p.getReengagementConfig().first()))
         add("overloadCheck", gson.toJsonTree(p.getOverloadCheckSchedule().first()))

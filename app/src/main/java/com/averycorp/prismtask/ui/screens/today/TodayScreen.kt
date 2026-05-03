@@ -79,6 +79,7 @@ import com.averycorp.prismtask.ui.screens.today.components.ProductivityScoreBadg
 import com.averycorp.prismtask.ui.screens.today.components.SelfCareNudgeCard
 import com.averycorp.prismtask.ui.screens.today.components.SwipeableTaskItem
 import com.averycorp.prismtask.ui.screens.today.components.TodayBalanceSection
+import com.averycorp.prismtask.ui.screens.today.components.TodayCognitiveLoadSection
 import com.averycorp.prismtask.ui.screens.today.components.neutralGray
 import com.averycorp.prismtask.ui.screens.today.dailyessentials.DailyEssentialsActions
 import com.averycorp.prismtask.ui.screens.today.dailyessentials.DailyEssentialsSection
@@ -128,6 +129,7 @@ fun TodayScreen(
     val habitCompletedCount by viewModel.habitCompletedCount.collectAsStateWithLifecycle()
     val habitTotalCount by viewModel.habitTotalCount.collectAsStateWithLifecycle()
     val balanceState by viewModel.balanceState.collectAsStateWithLifecycle()
+    val cognitiveLoadBalanceState by viewModel.cognitiveLoadBalanceState.collectAsStateWithLifecycle()
     val workLifeBalancePrefs by viewModel.workLifeBalancePrefs.collectAsStateWithLifecycle()
     val burnoutResult by viewModel.burnoutResult.collectAsStateWithLifecycle()
     val showCheckInPrompt by viewModel.showCheckInPrompt.collectAsStateWithLifecycle()
@@ -359,6 +361,12 @@ fun TodayScreen(
                             TodayBalanceSection(
                                 state = balanceState,
                                 burnout = burnoutResult,
+                                onClick = { navController.navigate(PrismTaskRoute.WeeklyBalanceReport.route) }
+                            )
+                        }
+                        item(key = "cognitive_load_bar") {
+                            TodayCognitiveLoadSection(
+                                state = cognitiveLoadBalanceState,
                                 onClick = { navController.navigate(PrismTaskRoute.WeeklyBalanceReport.route) }
                             )
                         }

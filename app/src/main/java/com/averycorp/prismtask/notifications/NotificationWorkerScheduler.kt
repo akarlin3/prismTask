@@ -147,8 +147,18 @@ constructor(
                 hourOfDay = schedule.hourOfDay,
                 minute = schedule.minute
             )
+            // Cognitive-load imbalance check piggybacks the same daily slot
+            // and reuses the same `overloadAlertsEnabled` toggle (single
+            // user-visible knob for "do I want prescriptive balance pings"
+            // — see docs/COGNITIVE_LOAD.md § Descriptive, not prescriptive).
+            CognitiveLoadOverloadCheckWorker.schedule(
+                context,
+                hourOfDay = schedule.hourOfDay,
+                minute = schedule.minute
+            )
         } else {
             OverloadCheckWorker.cancel(context)
+            CognitiveLoadOverloadCheckWorker.cancel(context)
         }
     }
 
@@ -201,6 +211,7 @@ constructor(
         WeeklyHabitSummaryWorker.cancel(context)
         WeeklyTaskSummaryWorker.cancel(context)
         OverloadCheckWorker.cancel(context)
+        CognitiveLoadOverloadCheckWorker.cancel(context)
         ReengagementWorker.cancel(context)
         WeeklyReviewWorker.cancel(context)
         WeeklyAnalyticsWorker.cancel(context)
