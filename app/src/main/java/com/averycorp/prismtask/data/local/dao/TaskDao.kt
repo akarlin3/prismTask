@@ -28,6 +28,28 @@ interface TaskDao {
     @Query("SELECT * FROM tasks WHERE project_id = :projectId")
     suspend fun getTasksByProjectOnce(projectId: Long): List<TaskEntity>
 
+    /**
+     * PrismTask-timeline-class scope, view-mode UI: tasks grouped under
+     * a specific phase. Excludes archived tasks so the roadmap stays
+     * focused on live work.
+     */
+    @Query(
+        "SELECT * FROM tasks WHERE phase_id = :phaseId AND archived_at IS NULL " +
+            "ORDER BY sort_order ASC, created_at ASC"
+    )
+    suspend fun getTasksForPhaseOnce(phaseId: Long): List<TaskEntity>
+
+    /**
+     * Tasks under a project that are NOT assigned to any phase. Useful
+     * for the roadmap's "Unphased" bucket so legacy / pre-phase tasks
+     * remain visible.
+     */
+    @Query(
+        "SELECT * FROM tasks WHERE project_id = :projectId AND phase_id IS NULL " +
+            "AND archived_at IS NULL ORDER BY sort_order ASC, created_at ASC"
+    )
+    suspend fun getUnphasedTasksForProjectOnce(projectId: Long): List<TaskEntity>
+
     @Query("DELETE FROM tasks WHERE project_id = :projectId")
     suspend fun deleteTasksByProjectId(projectId: Long)
 

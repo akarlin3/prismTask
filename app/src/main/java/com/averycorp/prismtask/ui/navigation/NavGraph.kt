@@ -91,6 +91,18 @@ sealed class PrismTaskRoute(
         fun createRoute(projectId: Long): String = "project_detail?projectId=$projectId"
     }
 
+    /**
+     * PrismTask-timeline-class scope (v1.8.x), audit § P10 option (b)
+     * per O3 override: read-only roadmap surface — phases-with-tasks
+     * (fractional progress bars), risk register, external anchors.
+     * Distinct from [Timeline] (the daily time-block screen) per the
+     * audit's naming-collision flag — Roadmap stays reserved for the
+     * phase-Gantt surface.
+     */
+    data object ProjectRoadmap : PrismTaskRoute("project_roadmap?projectId={projectId}") {
+        fun createRoute(projectId: Long): String = "project_roadmap?projectId=$projectId"
+    }
+
     data object Settings : PrismTaskRoute("settings")
 
     data object TagManagement : PrismTaskRoute("tag_management")

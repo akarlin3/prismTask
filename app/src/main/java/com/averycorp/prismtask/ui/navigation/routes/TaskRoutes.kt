@@ -12,6 +12,7 @@ import com.averycorp.prismtask.ui.screens.monthview.MonthViewScreen
 import com.averycorp.prismtask.ui.screens.projects.AddEditProjectScreen
 import com.averycorp.prismtask.ui.screens.projects.ProjectDetailScreen
 import com.averycorp.prismtask.ui.screens.projects.ProjectListScreen
+import com.averycorp.prismtask.ui.screens.projects.roadmap.ProjectRoadmapScreen
 import com.averycorp.prismtask.ui.screens.search.SearchScreen
 import com.averycorp.prismtask.ui.screens.tags.TagManagementScreen
 import com.averycorp.prismtask.ui.screens.timeline.TimelineScreen
@@ -60,6 +61,18 @@ internal fun NavGraphBuilder.taskRoutes(navController: NavHostController) {
         )
     ) {
         ProjectDetailScreen(navController)
+    }
+
+    horizontalSlideComposable(
+        route = PrismTaskRoute.ProjectRoadmap.route,
+        arguments = listOf(
+            navArgument("projectId") {
+                type = NavType.LongType
+                defaultValue = -1L
+            }
+        )
+    ) {
+        ProjectRoadmapScreen(navController)
     }
 
     horizontalSlideComposable(PrismTaskRoute.TagManagement.route) {
