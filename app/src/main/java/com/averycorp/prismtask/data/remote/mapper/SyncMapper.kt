@@ -285,6 +285,38 @@ object SyncMapper {
             updatedAt = (data["updatedAt"] as? Number)?.toLong() ?: System.currentTimeMillis()
         )
 
+    /**
+     * Task dependency edges round-trip both task cloud ids; the
+     * SyncService callers resolve `(blocker, blocked)` cloud ↔ local at
+     * push and pull time, mirroring the project_phase / milestone
+     * pattern.
+     */
+    fun taskDependencyToMap(
+        dependency: TaskDependencyEntity,
+        blockerTaskCloudId: String,
+        blockedTaskCloudId: String
+    ): Map<String, Any?> = mapOf(
+        "localId" to dependency.id,
+        "blockerTaskCloudId" to blockerTaskCloudId,
+        "blockedTaskCloudId" to blockedTaskCloudId,
+        "createdAt" to dependency.createdAt
+    )
+
+    fun mapToTaskDependency(
+        data: Map<String, Any?>,
+        blockerTaskLocalId: Long,
+        blockedTaskLocalId: Long,
+        localId: Long = 0,
+        cloudId: String? = null
+    ): TaskDependencyEntity =
+        TaskDependencyEntity(
+            id = localId,
+            cloudId = cloudId,
+            blockerTaskId = blockerTaskLocalId,
+            blockedTaskId = blockedTaskLocalId,
+            createdAt = (data["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis()
+        )
+
     fun tagToMap(tag: TagEntity): Map<String, Any?> = mapOf(
         "localId" to tag.id,
         "name" to tag.name,

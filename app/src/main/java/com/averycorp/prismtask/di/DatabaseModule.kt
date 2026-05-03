@@ -39,6 +39,7 @@ import com.averycorp.prismtask.data.local.dao.SyncMetadataDao
 import com.averycorp.prismtask.data.local.dao.TagDao
 import com.averycorp.prismtask.data.local.dao.TaskCompletionDao
 import com.averycorp.prismtask.data.local.dao.TaskDao
+import com.averycorp.prismtask.data.local.dao.TaskDependencyDao
 import com.averycorp.prismtask.data.local.dao.TaskTemplateDao
 import com.averycorp.prismtask.data.local.dao.TaskTimingDao
 import com.averycorp.prismtask.data.local.dao.UsageLogDao
@@ -205,6 +206,9 @@ object DatabaseModule {
 
     @Provides
     fun provideProjectRiskDao(database: PrismTaskDatabase): ProjectRiskDao = database.projectRiskDao()
+
+    @Provides
+    fun provideTaskDependencyDao(database: PrismTaskDatabase): TaskDependencyDao = database.taskDependencyDao()
 }
 
 /**

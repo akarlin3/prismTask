@@ -32,6 +32,7 @@ import com.averycorp.prismtask.data.local.dao.SyncMetadataDao
 import com.averycorp.prismtask.data.local.dao.TagDao
 import com.averycorp.prismtask.data.local.dao.TaskCompletionDao
 import com.averycorp.prismtask.data.local.dao.TaskDao
+import com.averycorp.prismtask.data.local.dao.TaskDependencyDao
 import com.averycorp.prismtask.data.local.dao.TaskTemplateDao
 import com.averycorp.prismtask.data.local.dao.WeeklyReviewDao
 import com.averycorp.prismtask.data.local.entity.SyncMetadataEntity
@@ -171,6 +172,7 @@ constructor(
     // PrismTask-timeline-class scope, PR-1.
     private val projectPhaseDao: ProjectPhaseDao,
     private val projectRiskDao: ProjectRiskDao,
+    private val taskDependencyDao: TaskDependencyDao,
     private val logger: PrismSyncLogger
 ) {
     /**
@@ -284,6 +286,11 @@ constructor(
         }
         healFamily("project_risks", "project_risk", fetcher) {
             projectRiskDao.getAllRisksOnce().mapNotNull { entity ->
+                entity.cloudId?.takeIf { it.isNotBlank() }?.let { CloudIdRow(entity.id, it) }
+            }
+        }
+        healFamily("task_dependencies", "task_dependency", fetcher) {
+            taskDependencyDao.getAllOnce().mapNotNull { entity ->
                 entity.cloudId?.takeIf { it.isNotBlank() }?.let { CloudIdRow(entity.id, it) }
             }
         }

@@ -2228,7 +2228,53 @@ val MIGRATION_71_72 = object : Migration(71, 72) {
     }
 }
 
-const val CURRENT_DB_VERSION = 72
+/**
+ * v72 → v73 — PrismTask-timeline-class scope, PR-2 (dependencies).
+ *
+ * Adds the `task_dependencies` table representing directed
+ * `(blocker, blocked)` edges between tasks. Both columns CASCADE on
+ * task deletion so a removed task takes its incoming + outgoing edges
+ * with it. Unique `(blocker, blocked)` index prevents duplicate edges;
+ * cycle prevention happens at the domain layer via
+ * `DependencyCycleGuard` (mirror of the AutomationEngine lineage check
+ * from PR #1056).
+ *
+ * Pure-additive migration. Audit:
+ * `docs/audits/PRISMTASK_TIMELINE_CLASS_AUDIT.md`.
+ */
+val MIGRATION_72_73 = object : Migration(72, 73) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `task_dependencies` (
+              `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+              `cloud_id` TEXT,
+              `blocker_task_id` INTEGER NOT NULL,
+              `blocked_task_id` INTEGER NOT NULL,
+              `created_at` INTEGER NOT NULL,
+              FOREIGN KEY(`blocker_task_id`) REFERENCES `tasks`(`id`)
+                ON UPDATE NO ACTION ON DELETE CASCADE,
+              FOREIGN KEY(`blocked_task_id`) REFERENCES `tasks`(`id`)
+                ON UPDATE NO ACTION ON DELETE CASCADE
+            )
+            """.trimIndent()
+        )
+        db.execSQL(
+            "CREATE UNIQUE INDEX IF NOT EXISTS `index_task_dependencies_blocker_task_id_blocked_task_id` " +
+                "ON `task_dependencies` (`blocker_task_id`, `blocked_task_id`)"
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_task_dependencies_blocked_task_id` " +
+                "ON `task_dependencies` (`blocked_task_id`)"
+        )
+        db.execSQL(
+            "CREATE UNIQUE INDEX IF NOT EXISTS `index_task_dependencies_cloud_id` " +
+                "ON `task_dependencies` (`cloud_id`)"
+        )
+    }
+}
+
+const val CURRENT_DB_VERSION = 73
 
 val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_1_2,
@@ -2301,5 +2347,6 @@ val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_68_69,
     MIGRATION_69_70,
     MIGRATION_70_71,
-    MIGRATION_71_72
+    MIGRATION_71_72,
+    MIGRATION_72_73
 )

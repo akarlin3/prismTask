@@ -38,6 +38,7 @@ import com.averycorp.prismtask.data.local.dao.SyncMetadataDao
 import com.averycorp.prismtask.data.local.dao.TagDao
 import com.averycorp.prismtask.data.local.dao.TaskCompletionDao
 import com.averycorp.prismtask.data.local.dao.TaskDao
+import com.averycorp.prismtask.data.local.dao.TaskDependencyDao
 import com.averycorp.prismtask.data.local.dao.TaskTemplateDao
 import com.averycorp.prismtask.data.local.dao.TaskTimingDao
 import com.averycorp.prismtask.data.local.dao.UsageLogDao
@@ -82,6 +83,7 @@ import com.averycorp.prismtask.data.local.entity.StudyLogEntity
 import com.averycorp.prismtask.data.local.entity.SyncMetadataEntity
 import com.averycorp.prismtask.data.local.entity.TagEntity
 import com.averycorp.prismtask.data.local.entity.TaskCompletionEntity
+import com.averycorp.prismtask.data.local.entity.TaskDependencyEntity
 import com.averycorp.prismtask.data.local.entity.TaskEntity
 import com.averycorp.prismtask.data.local.entity.TaskTagCrossRef
 import com.averycorp.prismtask.data.local.entity.TaskTemplateEntity
@@ -136,7 +138,8 @@ import com.averycorp.prismtask.data.local.entity.WeeklyReviewEntity
         AutomationRuleEntity::class,
         AutomationLogEntity::class,
         ProjectPhaseEntity::class,
-        ProjectRiskEntity::class
+        ProjectRiskEntity::class,
+        TaskDependencyEntity::class
     ],
     version = CURRENT_DB_VERSION,
     exportSchema = false
@@ -221,4 +224,6 @@ abstract class PrismTaskDatabase : RoomDatabase() {
     abstract fun projectPhaseDao(): ProjectPhaseDao
 
     abstract fun projectRiskDao(): ProjectRiskDao
+
+    abstract fun taskDependencyDao(): TaskDependencyDao
 }
