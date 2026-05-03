@@ -16,11 +16,14 @@ import com.averycorp.prismtask.data.local.entity.HabitLogEntity
 import com.averycorp.prismtask.data.local.entity.HabitTemplateEntity
 import com.averycorp.prismtask.data.local.entity.LeisureLogEntity
 import com.averycorp.prismtask.data.local.entity.MedicationRefillEntity
+import com.averycorp.prismtask.data.local.entity.ExternalAnchorEntity
 import com.averycorp.prismtask.data.local.entity.MilestoneEntity
 import com.averycorp.prismtask.data.local.entity.MoodEnergyLogEntity
 import com.averycorp.prismtask.data.local.entity.NlpShortcutEntity
 import com.averycorp.prismtask.data.local.entity.NotificationProfileEntity
 import com.averycorp.prismtask.data.local.entity.ProjectEntity
+import com.averycorp.prismtask.data.local.entity.ProjectPhaseEntity
+import com.averycorp.prismtask.data.local.entity.ProjectRiskEntity
 import com.averycorp.prismtask.data.local.entity.ProjectTemplateEntity
 import com.averycorp.prismtask.data.local.entity.SavedFilterEntity
 import com.averycorp.prismtask.data.local.entity.SelfCareLogEntity
@@ -28,6 +31,7 @@ import com.averycorp.prismtask.data.local.entity.SelfCareStepEntity
 import com.averycorp.prismtask.data.local.entity.StudyLogEntity
 import com.averycorp.prismtask.data.local.entity.TagEntity
 import com.averycorp.prismtask.data.local.entity.TaskCompletionEntity
+import com.averycorp.prismtask.data.local.entity.TaskDependencyEntity
 import com.averycorp.prismtask.data.local.entity.TaskEntity
 import com.averycorp.prismtask.data.local.entity.TaskTemplateEntity
 import com.averycorp.prismtask.data.local.entity.TaskTimingEntity
@@ -40,7 +44,8 @@ object SyncMapper {
         tagIds: List<String> = emptyList(),
         projectCloudId: String? = null,
         parentTaskCloudId: String? = null,
-        sourceHabitCloudId: String? = null
+        sourceHabitCloudId: String? = null,
+        phaseCloudId: String? = null
     ): Map<String, Any?> = mapOf(
         "localId" to task.id,
         "title" to task.title,
@@ -71,6 +76,8 @@ object SyncMapper {
         "revisionCount" to task.revisionCount,
         "revisionLocked" to task.revisionLocked,
         "cumulativeEditMinutes" to task.cumulativeEditMinutes,
+        "phaseId" to phaseCloudId,
+        "progressPercent" to task.progressPercent,
         "createdAt" to task.createdAt,
         "updatedAt" to task.updatedAt,
         "completedAt" to task.completedAt,
@@ -83,6 +90,7 @@ object SyncMapper {
         projectLocalId: Long? = null,
         parentTaskLocalId: Long? = null,
         sourceHabitLocalId: Long? = null,
+        phaseLocalId: Long? = null,
         cloudId: String? = null
     ): TaskEntity = TaskEntity(
         id = localId,
@@ -114,6 +122,8 @@ object SyncMapper {
         revisionCount = (data["revisionCount"] as? Number)?.toInt() ?: 0,
         revisionLocked = data["revisionLocked"] as? Boolean ?: false,
         cumulativeEditMinutes = (data["cumulativeEditMinutes"] as? Number)?.toInt() ?: 0,
+        phaseId = phaseLocalId,
+        progressPercent = (data["progressPercent"] as? Number)?.toInt(),
         createdAt = (data["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
         updatedAt = (data["updatedAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
         completedAt = (data["completedAt"] as? Number)?.toLong(),
@@ -193,6 +203,134 @@ object SyncMapper {
             createdAt = (data["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
             updatedAt = (data["updatedAt"] as? Number)?.toLong() ?: System.currentTimeMillis()
         )
+
+    // PrismTask-Timeline-Class child collections (audit
+    // `docs/audits/PRISMTASK_TIMELINE_CLASS_AUDIT.md` § P11). Each child
+    // type lives at its own subcollection — the project's cloud_id
+    // travels in the document body as `projectCloudId`, mirroring the
+    // milestone precedent above.
+
+    fun projectPhaseToMap(phase: ProjectPhaseEntity, projectCloudId: String): Map<String, Any?> = mapOf(
+        "localId" to phase.id,
+        "projectCloudId" to projectCloudId,
+        "title" to phase.title,
+        "description" to phase.description,
+        "colorKey" to phase.colorKey,
+        "startDate" to phase.startDate,
+        "endDate" to phase.endDate,
+        "versionAnchor" to phase.versionAnchor,
+        "versionNote" to phase.versionNote,
+        "orderIndex" to phase.orderIndex,
+        "completedAt" to phase.completedAt,
+        "createdAt" to phase.createdAt,
+        "updatedAt" to phase.updatedAt
+    )
+
+    fun mapToProjectPhase(
+        data: Map<String, Any?>,
+        projectLocalId: Long,
+        localId: Long = 0,
+        cloudId: String? = null
+    ): ProjectPhaseEntity = ProjectPhaseEntity(
+        id = localId,
+        cloudId = cloudId,
+        projectId = projectLocalId,
+        title = data["title"] as? String ?: "",
+        description = data["description"] as? String,
+        colorKey = data["colorKey"] as? String,
+        startDate = (data["startDate"] as? Number)?.toLong(),
+        endDate = (data["endDate"] as? Number)?.toLong(),
+        versionAnchor = data["versionAnchor"] as? String,
+        versionNote = data["versionNote"] as? String,
+        orderIndex = (data["orderIndex"] as? Number)?.toInt() ?: 0,
+        completedAt = (data["completedAt"] as? Number)?.toLong(),
+        createdAt = (data["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
+        updatedAt = (data["updatedAt"] as? Number)?.toLong() ?: System.currentTimeMillis()
+    )
+
+    fun projectRiskToMap(risk: ProjectRiskEntity, projectCloudId: String): Map<String, Any?> = mapOf(
+        "localId" to risk.id,
+        "projectCloudId" to projectCloudId,
+        "title" to risk.title,
+        "level" to risk.level,
+        "mitigation" to risk.mitigation,
+        "resolvedAt" to risk.resolvedAt,
+        "createdAt" to risk.createdAt,
+        "updatedAt" to risk.updatedAt
+    )
+
+    fun mapToProjectRisk(
+        data: Map<String, Any?>,
+        projectLocalId: Long,
+        localId: Long = 0,
+        cloudId: String? = null
+    ): ProjectRiskEntity = ProjectRiskEntity(
+        id = localId,
+        cloudId = cloudId,
+        projectId = projectLocalId,
+        title = data["title"] as? String ?: "",
+        level = data["level"] as? String ?: "MEDIUM",
+        mitigation = data["mitigation"] as? String,
+        resolvedAt = (data["resolvedAt"] as? Number)?.toLong(),
+        createdAt = (data["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
+        updatedAt = (data["updatedAt"] as? Number)?.toLong() ?: System.currentTimeMillis()
+    )
+
+    fun externalAnchorToMap(
+        anchor: ExternalAnchorEntity,
+        projectCloudId: String,
+        phaseCloudId: String? = null
+    ): Map<String, Any?> = mapOf(
+        "localId" to anchor.id,
+        "projectCloudId" to projectCloudId,
+        "phaseCloudId" to phaseCloudId,
+        "label" to anchor.label,
+        "anchorJson" to anchor.anchorJson,
+        "createdAt" to anchor.createdAt,
+        "updatedAt" to anchor.updatedAt
+    )
+
+    fun mapToExternalAnchor(
+        data: Map<String, Any?>,
+        projectLocalId: Long,
+        phaseLocalId: Long? = null,
+        localId: Long = 0,
+        cloudId: String? = null
+    ): ExternalAnchorEntity = ExternalAnchorEntity(
+        id = localId,
+        cloudId = cloudId,
+        projectId = projectLocalId,
+        phaseId = phaseLocalId,
+        label = data["label"] as? String ?: "",
+        anchorJson = data["anchorJson"] as? String ?: "{}",
+        createdAt = (data["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
+        updatedAt = (data["updatedAt"] as? Number)?.toLong() ?: System.currentTimeMillis()
+    )
+
+    fun taskDependencyToMap(
+        dependency: TaskDependencyEntity,
+        blockerCloudId: String,
+        blockedCloudId: String
+    ): Map<String, Any?> = mapOf(
+        "localId" to dependency.id,
+        "blockerTaskCloudId" to blockerCloudId,
+        "blockedTaskCloudId" to blockedCloudId,
+        "createdAt" to dependency.createdAt
+    )
+
+    fun mapToTaskDependency(
+        data: Map<String, Any?>,
+        blockerLocalId: Long,
+        blockedLocalId: Long,
+        localId: Long = 0,
+        cloudId: String? = null
+    ): TaskDependencyEntity = TaskDependencyEntity(
+        id = localId,
+        cloudId = cloudId,
+        blockerTaskId = blockerLocalId,
+        blockedTaskId = blockedLocalId,
+        createdAt = (data["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis()
+    )
 
     fun tagToMap(tag: TagEntity): Map<String, Any?> = mapOf(
         "localId" to tag.id,

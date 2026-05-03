@@ -6,6 +6,7 @@ import com.averycorp.prismtask.data.local.dao.BoundaryRuleDao
 import com.averycorp.prismtask.data.local.dao.CheckInLogDao
 import com.averycorp.prismtask.data.local.dao.CustomSoundDao
 import com.averycorp.prismtask.data.local.dao.DailyEssentialSlotCompletionDao
+import com.averycorp.prismtask.data.local.dao.ExternalAnchorDao
 import com.averycorp.prismtask.data.local.dao.FocusReleaseLogDao
 import com.averycorp.prismtask.data.local.dao.HabitCompletionDao
 import com.averycorp.prismtask.data.local.dao.HabitDao
@@ -23,6 +24,8 @@ import com.averycorp.prismtask.data.local.dao.MoodEnergyLogDao
 import com.averycorp.prismtask.data.local.dao.NlpShortcutDao
 import com.averycorp.prismtask.data.local.dao.NotificationProfileDao
 import com.averycorp.prismtask.data.local.dao.ProjectDao
+import com.averycorp.prismtask.data.local.dao.ProjectPhaseDao
+import com.averycorp.prismtask.data.local.dao.ProjectRiskDao
 import com.averycorp.prismtask.data.local.dao.ProjectTemplateDao
 import com.averycorp.prismtask.data.local.dao.SavedFilterDao
 import com.averycorp.prismtask.data.local.dao.SchoolworkDao
@@ -31,6 +34,7 @@ import com.averycorp.prismtask.data.local.dao.SyncMetadataDao
 import com.averycorp.prismtask.data.local.dao.TagDao
 import com.averycorp.prismtask.data.local.dao.TaskCompletionDao
 import com.averycorp.prismtask.data.local.dao.TaskDao
+import com.averycorp.prismtask.data.local.dao.TaskDependencyDao
 import com.averycorp.prismtask.data.local.dao.TaskTemplateDao
 import com.averycorp.prismtask.data.local.dao.TaskTimingDao
 import com.averycorp.prismtask.data.local.dao.WeeklyReviewDao
@@ -111,7 +115,11 @@ constructor(
     private val dailyEssentialSlotCompletionDao: DailyEssentialSlotCompletionDao,
     private val attachmentDao: AttachmentDao,
     private val builtInSyncPreferences: BuiltInSyncPreferences,
-    private val database: com.averycorp.prismtask.data.local.database.PrismTaskDatabase
+    private val database: com.averycorp.prismtask.data.local.database.PrismTaskDatabase,
+    private val projectPhaseDao: ProjectPhaseDao,
+    private val projectRiskDao: ProjectRiskDao,
+    private val externalAnchorDao: ExternalAnchorDao,
+    private val taskDependencyDao: TaskDependencyDao
 ) {
     private val firestore by lazy { FirebaseFirestore.getInstance() }
     private val listeners = mutableListOf<ListenerRegistration>()
@@ -259,6 +267,98 @@ constructor(
             }
         }
 
+        // PrismTask-Timeline-Class scope: phases must upload BEFORE tasks so
+        // any task with `phase_id` set can resolve its phase's cloud ID.
+        // Risks are independent of tasks; anchors depend on phases; task
+        // dependencies depend on tasks (uploaded later in this same pass).
+        logger.debug("upload.project_phases", status = "begin")
+        for (project in projects) {
+            val projectCloudId = syncMetadataDao.getCloudId(project.id, "project") ?: continue
+            val phases = projectPhaseDao.getPhasesOnce(project.id)
+            for (phase in phases) {
+                try {
+                    if (syncMetadataDao.getCloudId(phase.id, "project_phase") != null) continue
+                    val docRef = userCollection("project_phases")?.document() ?: continue
+                    docRef.set(SyncMapper.projectPhaseToMap(phase, projectCloudId)).await()
+                    syncMetadataDao.upsert(
+                        SyncMetadataEntity(
+                            localId = phase.id,
+                            entityType = "project_phase",
+                            cloudId = docRef.id,
+                            lastSyncedAt = System.currentTimeMillis()
+                        )
+                    )
+                } catch (e: Exception) {
+                    logger.error(
+                        operation = "upload.project_phase",
+                        entity = "project_phase",
+                        id = phase.id.toString(),
+                        detail = phase.title,
+                        throwable = e
+                    )
+                }
+            }
+        }
+
+        logger.debug("upload.project_risks", status = "begin")
+        for (project in projects) {
+            val projectCloudId = syncMetadataDao.getCloudId(project.id, "project") ?: continue
+            val risks = projectRiskDao.getRisksOnce(project.id)
+            for (risk in risks) {
+                try {
+                    if (syncMetadataDao.getCloudId(risk.id, "project_risk") != null) continue
+                    val docRef = userCollection("project_risks")?.document() ?: continue
+                    docRef.set(SyncMapper.projectRiskToMap(risk, projectCloudId)).await()
+                    syncMetadataDao.upsert(
+                        SyncMetadataEntity(
+                            localId = risk.id,
+                            entityType = "project_risk",
+                            cloudId = docRef.id,
+                            lastSyncedAt = System.currentTimeMillis()
+                        )
+                    )
+                } catch (e: Exception) {
+                    logger.error(
+                        operation = "upload.project_risk",
+                        entity = "project_risk",
+                        id = risk.id.toString(),
+                        detail = risk.title,
+                        throwable = e
+                    )
+                }
+            }
+        }
+
+        logger.debug("upload.external_anchors", status = "begin")
+        for (project in projects) {
+            val projectCloudId = syncMetadataDao.getCloudId(project.id, "project") ?: continue
+            val anchors = externalAnchorDao.getAnchorsForProjectOnce(project.id)
+            for (anchor in anchors) {
+                try {
+                    if (syncMetadataDao.getCloudId(anchor.id, "external_anchor") != null) continue
+                    val docRef = userCollection("external_anchors")?.document() ?: continue
+                    val phaseCloudId = anchor.phaseId?.let { syncMetadataDao.getCloudId(it, "project_phase") }
+                    docRef.set(SyncMapper.externalAnchorToMap(anchor, projectCloudId, phaseCloudId)).await()
+                    syncMetadataDao.upsert(
+                        SyncMetadataEntity(
+                            localId = anchor.id,
+                            entityType = "external_anchor",
+                            cloudId = docRef.id,
+                            lastSyncedAt = System.currentTimeMillis()
+                        )
+                    )
+                } catch (e: Exception) {
+                    logger.error(
+                        operation = "upload.external_anchor",
+                        entity = "external_anchor",
+                        id = anchor.id.toString(),
+                        detail = anchor.label,
+                        throwable = e
+                    )
+                }
+            }
+        }
+
         val tags = tagDao.getAllTagsOnce()
         logger.debug("upload.tags", status = "begin", detail = "count=${tags.size}")
         for (tag in tags) {
@@ -378,8 +478,13 @@ constructor(
                 val projectCloudId = task.projectId?.let { syncMetadataDao.getCloudId(it, "project") }
                 val parentTaskCloudId = task.parentTaskId?.let { syncMetadataDao.getCloudId(it, "task") }
                 val sourceHabitCloudId = task.sourceHabitId?.let { syncMetadataDao.getCloudId(it, "habit") }
+                val phaseCloudId = task.phaseId?.let { syncMetadataDao.getCloudId(it, "project_phase") }
                 val docRef = userCollection("tasks")?.document() ?: continue
-                docRef.set(SyncMapper.taskToMap(task, tagIds, projectCloudId, parentTaskCloudId, sourceHabitCloudId)).await()
+                docRef.set(
+                    SyncMapper.taskToMap(
+                        task, tagIds, projectCloudId, parentTaskCloudId, sourceHabitCloudId, phaseCloudId
+                    )
+                ).await()
                 syncMetadataDao.upsert(
                     SyncMetadataEntity(
                         localId = task.id,
@@ -394,6 +499,36 @@ constructor(
                     entity = "task",
                     id = task.id.toString(),
                     detail = task.title,
+                    throwable = e
+                )
+            }
+        }
+
+        // PrismTask-Timeline-Class scope: dependencies after tasks so both
+        // `blocker_task_id` and `blocked_task_id` resolve via sync_metadata.
+        logger.debug("upload.task_dependencies", status = "begin")
+        for (dependency in taskDependencyDao.getAllDependenciesOnce()) {
+            try {
+                if (syncMetadataDao.getCloudId(dependency.id, "task_dependency") != null) continue
+                val blockerCloudId = syncMetadataDao.getCloudId(dependency.blockerTaskId, "task")
+                    ?: continue
+                val blockedCloudId = syncMetadataDao.getCloudId(dependency.blockedTaskId, "task")
+                    ?: continue
+                val docRef = userCollection("task_dependencies")?.document() ?: continue
+                docRef.set(SyncMapper.taskDependencyToMap(dependency, blockerCloudId, blockedCloudId)).await()
+                syncMetadataDao.upsert(
+                    SyncMetadataEntity(
+                        localId = dependency.id,
+                        entityType = "task_dependency",
+                        cloudId = docRef.id,
+                        lastSyncedAt = System.currentTimeMillis()
+                    )
+                )
+            } catch (e: Exception) {
+                logger.error(
+                    operation = "upload.task_dependency",
+                    entity = "task_dependency",
+                    id = dependency.id.toString(),
                     throwable = e
                 )
             }
@@ -1169,6 +1304,10 @@ constructor(
         "assignment" -> "assignments"
         "attachment" -> "attachments"
         "study_log" -> "study_logs"
+        "project_phase" -> "project_phases"
+        "project_risk" -> "project_risks"
+        "external_anchor" -> "external_anchors"
+        "task_dependency" -> "task_dependencies"
         else -> entityType + "s"
     }
 
@@ -1186,7 +1325,8 @@ constructor(
                 val projectCloudId = task.projectId?.let { syncMetadataDao.getCloudId(it, "project") }
                 val parentTaskCloudId = task.parentTaskId?.let { syncMetadataDao.getCloudId(it, "task") }
                 val sourceHabitCloudId = task.sourceHabitId?.let { syncMetadataDao.getCloudId(it, "habit") }
-                SyncMapper.taskToMap(task, tagIds, projectCloudId, parentTaskCloudId, sourceHabitCloudId)
+                val phaseCloudId = task.phaseId?.let { syncMetadataDao.getCloudId(it, "project_phase") }
+                SyncMapper.taskToMap(task, tagIds, projectCloudId, parentTaskCloudId, sourceHabitCloudId, phaseCloudId)
             }
             "project" -> {
                 val project = projectDao.getProjectByIdOnce(meta.localId) ?: return
@@ -1367,6 +1507,28 @@ constructor(
                 }
                 SyncMapper.studyLogToMap(log, coursePickCloudId, assignmentPickCloudId)
             }
+            "project_phase" -> {
+                val phase = projectPhaseDao.getByIdOnce(meta.localId) ?: return
+                val projectCloudId = syncMetadataDao.getCloudId(phase.projectId, "project") ?: return
+                SyncMapper.projectPhaseToMap(phase, projectCloudId)
+            }
+            "project_risk" -> {
+                val risk = projectRiskDao.getByIdOnce(meta.localId) ?: return
+                val projectCloudId = syncMetadataDao.getCloudId(risk.projectId, "project") ?: return
+                SyncMapper.projectRiskToMap(risk, projectCloudId)
+            }
+            "external_anchor" -> {
+                val anchor = externalAnchorDao.getByIdOnce(meta.localId) ?: return
+                val projectCloudId = syncMetadataDao.getCloudId(anchor.projectId, "project") ?: return
+                val phaseCloudId = anchor.phaseId?.let { syncMetadataDao.getCloudId(it, "project_phase") }
+                SyncMapper.externalAnchorToMap(anchor, projectCloudId, phaseCloudId)
+            }
+            "task_dependency" -> {
+                val dependency = taskDependencyDao.getByIdOnce(meta.localId) ?: return
+                val blockerCloudId = syncMetadataDao.getCloudId(dependency.blockerTaskId, "task") ?: return
+                val blockedCloudId = syncMetadataDao.getCloudId(dependency.blockedTaskId, "task") ?: return
+                SyncMapper.taskDependencyToMap(dependency, blockerCloudId, blockedCloudId)
+            }
             else -> return
         }
         docRef.set(data).await()
@@ -1389,7 +1551,8 @@ constructor(
                 val projectCloudId = task.projectId?.let { syncMetadataDao.getCloudId(it, "project") }
                 val parentTaskCloudId = task.parentTaskId?.let { syncMetadataDao.getCloudId(it, "task") }
                 val sourceHabitCloudId = task.sourceHabitId?.let { syncMetadataDao.getCloudId(it, "habit") }
-                SyncMapper.taskToMap(task, tagIds, projectCloudId, parentTaskCloudId, sourceHabitCloudId)
+                val phaseCloudId = task.phaseId?.let { syncMetadataDao.getCloudId(it, "project_phase") }
+                SyncMapper.taskToMap(task, tagIds, projectCloudId, parentTaskCloudId, sourceHabitCloudId, phaseCloudId)
             }
             "project" -> {
                 val project = projectDao.getProjectByIdOnce(meta.localId) ?: return
@@ -1537,6 +1700,28 @@ constructor(
                 }
                 SyncMapper.studyLogToMap(log, coursePickCloudId, assignmentPickCloudId)
             }
+            "project_phase" -> {
+                val phase = projectPhaseDao.getByIdOnce(meta.localId) ?: return
+                val projectCloudId = syncMetadataDao.getCloudId(phase.projectId, "project") ?: return
+                SyncMapper.projectPhaseToMap(phase, projectCloudId)
+            }
+            "project_risk" -> {
+                val risk = projectRiskDao.getByIdOnce(meta.localId) ?: return
+                val projectCloudId = syncMetadataDao.getCloudId(risk.projectId, "project") ?: return
+                SyncMapper.projectRiskToMap(risk, projectCloudId)
+            }
+            "external_anchor" -> {
+                val anchor = externalAnchorDao.getByIdOnce(meta.localId) ?: return
+                val projectCloudId = syncMetadataDao.getCloudId(anchor.projectId, "project") ?: return
+                val phaseCloudId = anchor.phaseId?.let { syncMetadataDao.getCloudId(it, "project_phase") }
+                SyncMapper.externalAnchorToMap(anchor, projectCloudId, phaseCloudId)
+            }
+            "task_dependency" -> {
+                val dependency = taskDependencyDao.getByIdOnce(meta.localId) ?: return
+                val blockerCloudId = syncMetadataDao.getCloudId(dependency.blockerTaskId, "task") ?: return
+                val blockedCloudId = syncMetadataDao.getCloudId(dependency.blockedTaskId, "task") ?: return
+                SyncMapper.taskDependencyToMap(dependency, blockerCloudId, blockedCloudId)
+            }
             else -> return
         }
         // Delete-wins contract: use `docRef.update(...)` rather than `docRef.set(...)`.
@@ -1678,6 +1863,42 @@ constructor(
         skipped += habitsResult.skipped
         skippedPermanent += habitsResult.skippedPermanent
 
+        // PrismTask-Timeline-Class: pull project_phases BEFORE tasks so that
+        // any pulled task with a phase cloud-id can resolve its phase row
+        // via sync_metadata in the same pull pass. (audit § P11)
+        val projectPhasesResult = pullCollection("project_phases") { data, cloudId ->
+            val localId = syncMetadataDao.getLocalId(cloudId, "project_phase")
+            val projectCloudId = data["projectCloudId"] as? String
+                ?: return@pullCollection false
+            val projectLocalId = syncMetadataDao.getLocalId(projectCloudId, "project")
+                ?: return@pullCollection false
+            if (localId == null) {
+                val phase = SyncMapper.mapToProjectPhase(data, projectLocalId, cloudId = cloudId)
+                val newId = projectPhaseDao.insert(phase)
+                syncMetadataDao.upsert(
+                    SyncMetadataEntity(
+                        localId = newId,
+                        entityType = "project_phase",
+                        cloudId = cloudId,
+                        lastSyncedAt = System.currentTimeMillis()
+                    )
+                )
+            } else {
+                val localPhase = projectPhaseDao.getByIdOnce(localId)
+                val remoteUpdatedAt = (data["updatedAt"] as? Number)?.toLong() ?: 0L
+                if (localPhase == null || remoteUpdatedAt > localPhase.updatedAt) {
+                    projectPhaseDao.update(
+                        SyncMapper.mapToProjectPhase(data, projectLocalId, localId, cloudId = cloudId)
+                    )
+                    syncMetadataDao.clearPendingAction(localId, "project_phase")
+                }
+            }
+            true
+        }
+        applied += projectPhasesResult.applied
+        skipped += projectPhasesResult.skipped
+        skippedPermanent += projectPhasesResult.skippedPermanent
+
         val tasksResult = pullCollection("tasks") { data, cloudId ->
             val localId = syncMetadataDao.getLocalId(cloudId, "task")
             val projectCloudId = data["projectId"] as? String
@@ -1687,8 +1908,12 @@ constructor(
             val parentTaskLocalId = parentTaskCloudId?.let { syncMetadataDao.getLocalId(it, "task") }
             val sourceHabitCloudId = data["sourceHabitId"] as? String
             val sourceHabitLocalId = sourceHabitCloudId?.let { syncMetadataDao.getLocalId(it, "habit") }
+            val phaseCloudId = data["phaseId"] as? String
+            val phaseLocalId = phaseCloudId?.let { syncMetadataDao.getLocalId(it, "project_phase") }
             if (localId == null) {
-                val task = SyncMapper.mapToTask(data, 0, projectLocalId, parentTaskLocalId, sourceHabitLocalId, cloudId = cloudId)
+                val task = SyncMapper.mapToTask(
+                    data, 0, projectLocalId, parentTaskLocalId, sourceHabitLocalId, phaseLocalId, cloudId = cloudId
+                )
                 val newId = taskDao.insert(task)
                 syncMetadataDao.upsert(
                     SyncMetadataEntity(
@@ -1709,7 +1934,9 @@ constructor(
                 val remoteUpdatedAt = (data["updatedAt"] as? Number)?.toLong() ?: 0L
                 if (localTask == null || remoteUpdatedAt > localTask.updatedAt) {
                     taskDao.update(
-                        SyncMapper.mapToTask(data, localId, projectLocalId, parentTaskLocalId, sourceHabitLocalId, cloudId = cloudId)
+                        SyncMapper.mapToTask(
+                            data, localId, projectLocalId, parentTaskLocalId, sourceHabitLocalId, phaseLocalId, cloudId = cloudId
+                        )
                     )
                     syncMetadataDao.clearPendingAction(localId, "task")
                 }
@@ -1906,6 +2133,108 @@ constructor(
         applied += milestonesResult.applied
         skipped += milestonesResult.skipped
         skippedPermanent += milestonesResult.skippedPermanent
+
+        // PrismTask-Timeline-Class child collections.
+        val projectRisksResult = pullCollection("project_risks") { data, cloudId ->
+            val localId = syncMetadataDao.getLocalId(cloudId, "project_risk")
+            val projectCloudId = data["projectCloudId"] as? String
+                ?: return@pullCollection false
+            val projectLocalId = syncMetadataDao.getLocalId(projectCloudId, "project")
+                ?: return@pullCollection false
+            if (localId == null) {
+                val risk = SyncMapper.mapToProjectRisk(data, projectLocalId, cloudId = cloudId)
+                val newId = projectRiskDao.insert(risk)
+                syncMetadataDao.upsert(
+                    SyncMetadataEntity(
+                        localId = newId,
+                        entityType = "project_risk",
+                        cloudId = cloudId,
+                        lastSyncedAt = System.currentTimeMillis()
+                    )
+                )
+            } else {
+                val localRisk = projectRiskDao.getByIdOnce(localId)
+                val remoteUpdatedAt = (data["updatedAt"] as? Number)?.toLong() ?: 0L
+                if (localRisk == null || remoteUpdatedAt > localRisk.updatedAt) {
+                    projectRiskDao.update(SyncMapper.mapToProjectRisk(data, projectLocalId, localId, cloudId = cloudId))
+                    syncMetadataDao.clearPendingAction(localId, "project_risk")
+                }
+            }
+            true
+        }
+        applied += projectRisksResult.applied
+        skipped += projectRisksResult.skipped
+        skippedPermanent += projectRisksResult.skippedPermanent
+
+        val externalAnchorsResult = pullCollection("external_anchors") { data, cloudId ->
+            val localId = syncMetadataDao.getLocalId(cloudId, "external_anchor")
+            val projectCloudId = data["projectCloudId"] as? String
+                ?: return@pullCollection false
+            val projectLocalId = syncMetadataDao.getLocalId(projectCloudId, "project")
+                ?: return@pullCollection false
+            val phaseCloudId = data["phaseCloudId"] as? String
+            val phaseLocalId = phaseCloudId?.let { syncMetadataDao.getLocalId(it, "project_phase") }
+            if (localId == null) {
+                val anchor = SyncMapper.mapToExternalAnchor(data, projectLocalId, phaseLocalId, cloudId = cloudId)
+                val newId = externalAnchorDao.insert(anchor)
+                syncMetadataDao.upsert(
+                    SyncMetadataEntity(
+                        localId = newId,
+                        entityType = "external_anchor",
+                        cloudId = cloudId,
+                        lastSyncedAt = System.currentTimeMillis()
+                    )
+                )
+            } else {
+                val localAnchor = externalAnchorDao.getByIdOnce(localId)
+                val remoteUpdatedAt = (data["updatedAt"] as? Number)?.toLong() ?: 0L
+                if (localAnchor == null || remoteUpdatedAt > localAnchor.updatedAt) {
+                    externalAnchorDao.update(
+                        SyncMapper.mapToExternalAnchor(data, projectLocalId, phaseLocalId, localId, cloudId = cloudId)
+                    )
+                    syncMetadataDao.clearPendingAction(localId, "external_anchor")
+                }
+            }
+            true
+        }
+        applied += externalAnchorsResult.applied
+        skipped += externalAnchorsResult.skipped
+        skippedPermanent += externalAnchorsResult.skippedPermanent
+
+        val taskDependenciesResult = pullCollection("task_dependencies") { data, cloudId ->
+            val localId = syncMetadataDao.getLocalId(cloudId, "task_dependency")
+            val blockerCloudId = data["blockerTaskCloudId"] as? String
+                ?: return@pullCollection false
+            val blockedCloudId = data["blockedTaskCloudId"] as? String
+                ?: return@pullCollection false
+            val blockerLocalId = syncMetadataDao.getLocalId(blockerCloudId, "task")
+                ?: return@pullCollection false
+            val blockedLocalId = syncMetadataDao.getLocalId(blockedCloudId, "task")
+                ?: return@pullCollection false
+            if (localId == null) {
+                val dependency = SyncMapper.mapToTaskDependency(
+                    data, blockerLocalId, blockedLocalId, cloudId = cloudId
+                )
+                val newId = taskDependencyDao.insert(dependency)
+                if (newId > 0) {
+                    syncMetadataDao.upsert(
+                        SyncMetadataEntity(
+                            localId = newId,
+                            entityType = "task_dependency",
+                            cloudId = cloudId,
+                            lastSyncedAt = System.currentTimeMillis()
+                        )
+                    )
+                }
+            }
+            // Dependencies are immutable edges (id + endpoints + createdAt).
+            // No update branch — there's nothing to update. Treat repeated
+            // pulls as no-ops via the unique pair index in the schema.
+            true
+        }
+        applied += taskDependenciesResult.applied
+        skipped += taskDependenciesResult.skipped
+        skippedPermanent += taskDependenciesResult.skippedPermanent
 
         val taskTemplatesResult = pullCollection("task_templates") { data, cloudId ->
             val localId = syncMetadataDao.getLocalId(cloudId, "task_template")
@@ -3264,7 +3593,8 @@ constructor(
             "automation_rules",
             "check_in_logs", "mood_energy_logs", "focus_release_logs",
             "medication_refills", "weekly_reviews", "daily_essential_slot_completions",
-            "assignments", "attachments", "study_logs"
+            "assignments", "attachments", "study_logs",
+            "project_phases", "project_risks", "external_anchors", "task_dependencies"
         ).forEach { collection ->
             val reg = userCollection(collection)?.addSnapshotListener { snapshot, error ->
                 if (error != null) {
@@ -3359,6 +3689,10 @@ constructor(
             "assignments" -> "assignment"
             "attachments" -> "attachment"
             "study_logs" -> "study_log"
+            "project_phases" -> "project_phase"
+            "project_risks" -> "project_risk"
+            "external_anchors" -> "external_anchor"
+            "task_dependencies" -> "task_dependency"
             else -> return
         }
         var deleted = 0
@@ -3404,6 +3738,10 @@ constructor(
                     "assignment" -> schoolworkDao.deleteAssignment(localId)
                     "attachment" -> attachmentDao.deleteById(localId)
                     "study_log" -> schoolworkDao.deleteStudyLogById(localId)
+                    "project_phase" -> projectPhaseDao.deleteById(localId)
+                    "project_risk" -> projectRiskDao.deleteById(localId)
+                    "external_anchor" -> externalAnchorDao.deleteById(localId)
+                    "task_dependency" -> taskDependencyDao.deleteById(localId)
                 }
                 syncMetadataDao.delete(localId, entityType)
                 logger.info(
