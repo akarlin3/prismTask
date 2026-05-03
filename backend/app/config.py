@@ -35,6 +35,10 @@ class Settings(BaseSettings):
     FIREBASE_SERVICE_ACCOUNT_KEY: str = ""
     FIREBASE_SERVICE_ACCOUNT_KEY_PATH: str = ""
     FIREBASE_STORAGE_BUCKET: str = "prismtask-app.firebasestorage.app"
+    # Bearer token Grafana Cloud's hosted scraper presents on every GET
+    # /metrics. Empty default keeps the endpoint inert in dev — the route
+    # is registered unconditionally but returns 503 until a token is set.
+    METRICS_SCRAPE_TOKEN: str = ""
     ENVIRONMENT: str = "dev"
     # Default to an explicit allowlist. The wildcard is NOT included by
     # default — operators must opt in by setting CORS_ORIGINS="*" in dev.
