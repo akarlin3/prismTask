@@ -148,6 +148,12 @@ object TestDatabaseModule {
         database.medicationTierStateDao()
 
     @Provides
+    fun provideAutomationRuleDao(database: PrismTaskDatabase) = database.automationRuleDao()
+
+    @Provides
+    fun provideAutomationLogDao(database: PrismTaskDatabase) = database.automationLogDao()
+
+    @Provides
     @Singleton
     fun provideGson(): com.google.gson.Gson = com.google.gson.Gson()
 }

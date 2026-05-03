@@ -25,6 +25,11 @@ import java.lang.reflect.Type
 object AutomationJsonAdapter {
 
     val gson: Gson = GsonBuilder()
+        // Preserve null members so structured tokens like the `@now` map
+        // (`{"@now": null}` — see AutomationStarterLibrary) survive
+        // round-trip; default Gson would drop them and corrupt template
+        // semantics.
+        .serializeNulls()
         .registerTypeAdapter(AutomationTrigger::class.java, TriggerAdapter)
         .registerTypeAdapter(AutomationCondition::class.java, ConditionAdapter)
         .registerTypeAdapter(AutomationAction::class.java, ActionAdapter)
@@ -252,9 +257,19 @@ object AutomationJsonAdapter {
             val p = el.asJsonPrimitive
             when {
                 p.isBoolean -> p.asBoolean
-                p.isNumber -> p.asNumber.toLong().let { l ->
-                    // Try long-first to avoid 1.0 noise on integer-shaped values.
-                    if (p.asString.contains('.')) p.asDouble else l
+                p.isNumber -> {
+                    if (p.asString.contains('.')) {
+                        p.asDouble
+                    } else {
+                        // Narrow to Int when it fits — production callers
+                        // construct Compare values with Int literals (e.g.
+                        // priority thresholds, weekday ints), and structural
+                        // round-trip equality requires we preserve that.
+                        // ConditionEvaluator coerces both sides to Double
+                        // for numeric ops, so widening at runtime is fine.
+                        val l = p.asNumber.toLong()
+                        if (l in Int.MIN_VALUE..Int.MAX_VALUE) l.toInt() else l
+                    }
                 }
                 else -> p.asString
             }

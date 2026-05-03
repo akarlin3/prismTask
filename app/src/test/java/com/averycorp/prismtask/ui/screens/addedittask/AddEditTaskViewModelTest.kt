@@ -249,6 +249,7 @@ class AddEditTaskViewModelTest {
                 any(),
                 any(),
                 any(),
+                any(),
                 any()
             )
         } returns 55L
@@ -274,6 +275,7 @@ class AddEditTaskViewModelTest {
                 projectId = null,
                 parentTaskId = null,
                 lifeCategory = any(),
+                taskMode = any(),
                 reminderOffset = any(),
                 recurrenceRule = any(),
                 estimatedDuration = any()
