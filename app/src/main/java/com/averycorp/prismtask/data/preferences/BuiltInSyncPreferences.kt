@@ -37,6 +37,8 @@ constructor(
             booleanPreferencesKey("built_in_task_templates_reconciled")
         private val TASK_TEMPLATE_BACKFILL_DONE =
             booleanPreferencesKey("task_template_backfill_done")
+        private val AUTOMATION_DUP_BACKFILL_DONE =
+            booleanPreferencesKey("automation_dup_backfill_done")
 
         // Per-family flags for the v1.4 "new entity" upload loops in
         // [com.averycorp.prismtask.data.remote.SyncService.maybeRunEntityBackfill].
@@ -163,6 +165,20 @@ constructor(
 
     suspend fun setTaskTemplateBackfillDone(done: Boolean) {
         context.builtInSyncDataStore.edit { it[TASK_TEMPLATE_BACKFILL_DONE] = done }
+    }
+
+    /**
+     * Guard for the one-shot pass that collapses cross-device duplicates of
+     * the same automation template. Bridges the small window between
+     * SyncService routing for `automation_rule` (PR #1070, 2026-05-03) and
+     * the `naturalKeyLookup` adoption fix that prevents new duplicates from
+     * forming. See [com.averycorp.prismtask.data.remote.AutomationDuplicateBackfiller].
+     */
+    suspend fun isAutomationDupBackfillDone(): Boolean =
+        context.builtInSyncDataStore.data.first()[AUTOMATION_DUP_BACKFILL_DONE] ?: false
+
+    suspend fun setAutomationDupBackfillDone(done: Boolean) {
+        context.builtInSyncDataStore.edit { it[AUTOMATION_DUP_BACKFILL_DONE] = done }
     }
 
     /**

@@ -10,6 +10,7 @@ import androidx.work.WorkManager
 import com.averycorp.prismtask.data.diagnostics.MigrationInstrumentor
 import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
 import com.averycorp.prismtask.data.preferences.ThemePreferences
+import com.averycorp.prismtask.data.remote.AutomationDuplicateBackfiller
 import com.averycorp.prismtask.data.remote.BuiltInHabitReconciler
 import com.averycorp.prismtask.data.remote.LifeCategoryBackfiller
 import com.averycorp.prismtask.data.remote.MedicationMigrationRunner
@@ -97,6 +98,9 @@ class PrismTaskApplication :
 
     @Inject
     lateinit var automationSampleRulesSeeder: AutomationSampleRulesSeeder
+
+    @Inject
+    lateinit var automationDuplicateBackfiller: AutomationDuplicateBackfiller
 
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -456,6 +460,15 @@ class PrismTaskApplication :
                 automationSampleRulesSeeder.seedIfNeeded()
             } catch (e: Exception) {
                 android.util.Log.e("PrismTaskApp", "Automation rules seed failed", e)
+            }
+            // One-shot dedup pass for the small #1070→naturalKeyLookup
+            // window. Idempotent and gated by a DataStore flag; runs after
+            // seeding so we never collapse a seed-row against an in-flight
+            // pull from the same install.
+            try {
+                automationDuplicateBackfiller.runIfNeeded()
+            } catch (e: Exception) {
+                android.util.Log.e("PrismTaskApp", "Automation dup backfill failed", e)
             }
         }
         try {
