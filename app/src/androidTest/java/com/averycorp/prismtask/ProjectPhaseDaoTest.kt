@@ -21,7 +21,7 @@ import org.junit.runner.RunWith
 
 /**
  * Schema-level coverage for the `project_phases` table introduced in
- * `MIGRATION_71_72`. Pins parent FK CASCADE + order-index management.
+ * `MIGRATION_72_73`. Pins parent FK CASCADE + order-index management.
  */
 @RunWith(AndroidJUnit4::class)
 class ProjectPhaseDaoTest {

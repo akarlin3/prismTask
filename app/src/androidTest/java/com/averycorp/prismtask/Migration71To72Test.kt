@@ -6,17 +6,26 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.averycorp.prismtask.data.local.database.MIGRATION_71_72
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * Migration test for v71 → v72 — PrismTask-timeline-class scope, PR-1.
- * Adds `project_phases` + `project_risks` tables and `tasks.phase_id` /
- * `tasks.progress_percent` columns. See
- * `docs/audits/PRISMTASK_TIMELINE_CLASS_AUDIT.md`.
+ * Direct-SQL migration test for v71 → v72 (additive `cognitive_load TEXT`
+ * column on `tasks` for the start-friction Easy / Medium / Hard
+ * dimension — see `docs/COGNITIVE_LOAD.md`).
+ *
+ * Stripped-down v71 schema only includes the columns we need to verify
+ * the migration; full schema isn't required because we're testing the
+ * single ALTER TABLE.
+ *
+ * Covers:
+ *  - Existing rows survive the migration with their original column data.
+ *  - `cognitive_load` defaults to NULL on pre-existing rows (no
+ *    retroactive auto-classification).
+ *  - New writes can populate `cognitive_load` post-migration with each
+ *    enum value.
  */
 @RunWith(AndroidJUnit4::class)
 class Migration71To72Test {
@@ -28,129 +37,104 @@ class Migration71To72Test {
             .name(null)
             .callback(object : SupportSQLiteOpenHelper.Callback(71) {
                 override fun onCreate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
-                    db.execSQL("PRAGMA foreign_keys = ON")
-                    // Minimal v71 shape — only the tables the new schema
-                    // references as parents. `tasks.task_mode` matches the
-                    // v70→v71 ALTER so the sqlite_master state mirrors a real
-                    // device upgrading from v71.
                     db.execSQL(
-                        "CREATE TABLE `projects` (" +
-                            "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
-                            "`name` TEXT NOT NULL" +
-                            ")"
+                        """CREATE TABLE `tasks` (
+                            `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                            `cloud_id` TEXT,
+                            `title` TEXT NOT NULL,
+                            `description` TEXT,
+                            `due_date` INTEGER,
+                            `priority` INTEGER NOT NULL DEFAULT 0,
+                            `is_completed` INTEGER NOT NULL DEFAULT 0,
+                            `created_at` INTEGER NOT NULL,
+                            `updated_at` INTEGER NOT NULL,
+                            `life_category` TEXT,
+                            `task_mode` TEXT
+                        )"""
                     )
-                    db.execSQL(
-                        "CREATE TABLE `tasks` (" +
-                            "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
-                            "`title` TEXT NOT NULL, " +
-                            "`task_mode` TEXT" +
-                            ")"
-                    )
-                    db.execSQL("INSERT INTO `projects` (id, name) VALUES (5, 'PrismTask')")
-                    db.execSQL("INSERT INTO `tasks` (id, title) VALUES (1, 'Phase F kickoff')")
                 }
 
                 override fun onUpgrade(
                     db: androidx.sqlite.db.SupportSQLiteDatabase,
                     oldVersion: Int,
                     newVersion: Int
-                ) = Unit
+                ) {
+                    // Migration invoked manually in each test.
+                }
             })
             .build()
         return FrameworkSQLiteOpenHelperFactory().create(config)
     }
 
     @Test
-    fun migration_createsProjectPhasesAndRisksTables() {
+    fun migrate_addsCognitiveLoadColumnWithNullDefault() {
         val helper = openV71()
         val db = helper.writableDatabase
 
-        val pre = mutableSetOf<String>()
-        db.query("SELECT name FROM sqlite_master WHERE type = 'table'").use { c ->
-            while (c.moveToNext()) pre.add(c.getString(0))
-        }
-        assertFalse("project_phases absent pre-migration", "project_phases" in pre)
-        assertFalse("project_risks absent pre-migration", "project_risks" in pre)
-
-        MIGRATION_71_72.migrate(db)
-
-        val post = mutableSetOf<String>()
-        db.query("SELECT name FROM sqlite_master WHERE type = 'table'").use { c ->
-            while (c.moveToNext()) post.add(c.getString(0))
-        }
-        assertTrue("project_phases created", "project_phases" in post)
-        assertTrue("project_risks created", "project_risks" in post)
-
-        val indexes = mutableSetOf<String>()
-        db.query(
-            "SELECT name FROM sqlite_master WHERE type = 'index'"
-        ).use { c -> while (c.moveToNext()) indexes.add(c.getString(0)) }
-        assertTrue(
-            "project_phases cloud_id unique index",
-            "index_project_phases_cloud_id" in indexes
-        )
-        assertTrue(
-            "project_phases project_id index",
-            "index_project_phases_project_id" in indexes
-        )
-        assertTrue(
-            "project_risks cloud_id unique index",
-            "index_project_risks_cloud_id" in indexes
-        )
-        assertTrue(
-            "tasks phase_id index",
-            "index_tasks_phase_id" in indexes
-        )
-
-        helper.close()
-    }
-
-    @Test
-    fun migration_addsTaskColumnsBackfilledNull() {
-        val helper = openV71()
-        val db = helper.writableDatabase
-        MIGRATION_71_72.migrate(db)
-
-        // Pre-existing tasks must read NULL for the new nullable columns.
-        db.query("SELECT phase_id, progress_percent FROM tasks WHERE id = 1").use { c ->
-            assertTrue("row exists", c.moveToFirst())
-            assertTrue("phase_id null", c.isNull(0))
-            assertTrue("progress_percent null", c.isNull(1))
-        }
-        helper.close()
-    }
-
-    @Test
-    fun migration_phaseDeletionCascadesAndOrphansTasks() {
-        val helper = openV71()
-        val db = helper.writableDatabase
-        MIGRATION_71_72.migrate(db)
-        db.execSQL("PRAGMA foreign_keys = ON")
-
+        // Two existing rows: one carrying both prior axes, one plain. Neither
+        // had a cognitive_load column on v71, so both should get NULL.
         db.execSQL(
-            "INSERT INTO `project_phases` " +
-                "(id, project_id, title, order_index, created_at, updated_at) " +
-                "VALUES (7, 5, 'Phase F', 0, 1, 1)"
+            "INSERT INTO tasks " +
+                "(id, title, life_category, task_mode, created_at, updated_at) " +
+                "VALUES (1, 'existing tagged task', 'WORK', 'PLAY', 100, 100)"
         )
-        db.execSQL("UPDATE `tasks` SET phase_id = 7 WHERE id = 1")
+        db.execSQL(
+            "INSERT INTO tasks " +
+                "(id, title, created_at, updated_at) " +
+                "VALUES (2, 'plain task', 200, 200)"
+        )
 
-        // Project deletion CASCADEs to phases.
-        db.execSQL("DELETE FROM `projects` WHERE id = 5")
-        var phaseCount = -1
-        db.query("SELECT COUNT(*) FROM project_phases").use { c ->
-            c.moveToFirst()
-            phaseCount = c.getInt(0)
-        }
-        assertEquals("phase removed via cascade", 0, phaseCount)
+        MIGRATION_71_72.migrate(db)
 
-        // Task survives but phase_id was nulled out (SET NULL).
-        var phaseFkAfterDelete: Int? = -1
-        db.query("SELECT phase_id FROM tasks WHERE id = 1").use { c ->
+        db.query(
+            "SELECT id, title, life_category, task_mode, cognitive_load FROM tasks ORDER BY id"
+        ).use { c ->
             assertTrue(c.moveToFirst())
-            phaseFkAfterDelete = if (c.isNull(0)) null else c.getInt(0)
-        }
-        assertNull("task phase_id reset to NULL", phaseFkAfterDelete)
+            assertEquals(1, c.getLong(0))
+            assertEquals("existing tagged task", c.getString(1))
+            assertEquals("WORK", c.getString(2))
+            assertEquals("PLAY", c.getString(3))
+            assertTrue(
+                "cognitive_load must default to NULL on pre-existing rows " +
+                    "(no retroactive auto-classification)",
+                c.isNull(4)
+            )
 
+            assertTrue(c.moveToNext())
+            assertEquals(2, c.getLong(0))
+            assertNull(c.getString(2))
+            assertNull(c.getString(3))
+            assertTrue(c.isNull(4))
+        }
+        helper.close()
+    }
+
+    @Test
+    fun migrate_allowsWritingEachCognitiveLoadValue() {
+        val helper = openV71()
+        val db = helper.writableDatabase
+        MIGRATION_71_72.migrate(db)
+
+        for ((id, load) in listOf(
+            10L to "EASY",
+            11L to "MEDIUM",
+            12L to "HARD",
+            13L to "UNCATEGORIZED"
+        )) {
+            db.execSQL(
+                "INSERT INTO tasks (id, title, cognitive_load, created_at, updated_at) " +
+                    "VALUES ($id, 'task $id', '$load', $id, $id)"
+            )
+        }
+
+        db.query("SELECT id, cognitive_load FROM tasks WHERE id >= 10 ORDER BY id").use { c ->
+            val seen = mutableMapOf<Long, String?>()
+            while (c.moveToNext()) seen[c.getLong(0)] = c.getString(1)
+            assertEquals("EASY", seen[10L])
+            assertEquals("MEDIUM", seen[11L])
+            assertEquals("HARD", seen[12L])
+            assertEquals("UNCATEGORIZED", seen[13L])
+        }
         helper.close()
     }
 }

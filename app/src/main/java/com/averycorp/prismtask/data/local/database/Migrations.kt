@@ -2140,7 +2140,26 @@ val MIGRATION_70_71 = object : Migration(70, 71) {
 }
 
 /**
- * v71 → v72 — PrismTask-timeline-class scope, PR-1 (foundation).
+ * v71 → v72 — Adds `cognitive_load` to `tasks` for the start-friction
+ * (Easy / Medium / Hard) classifier (orthogonal to `life_category`,
+ * `task_mode`, and `eisenhower_quadrant` per `docs/COGNITIVE_LOAD.md`).
+ *
+ * Pure additive migration. Existing rows backfill to NULL, which the
+ * domain layer reads as `CognitiveLoad.UNCATEGORIZED` via
+ * `CognitiveLoad.fromStorage(...)`. No retroactive auto-classification —
+ * the classifier only runs on new tasks created after the feature
+ * ships, so a user's archived history is not silently re-tagged.
+ *
+ * Audit: `docs/audits/COGNITIVE_LOAD_AUDIT.md`.
+ */
+val MIGRATION_71_72 = object : Migration(71, 72) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `tasks` ADD COLUMN `cognitive_load` TEXT")
+    }
+}
+
+/**
+ * v72 → v73 — PrismTask-timeline-class scope, PR-1 (foundation).
  *
  * Adds two new tables and two `tasks` columns so projects can carry
  * phases (with date ranges + version anchors) and a risk register, and
@@ -2161,7 +2180,7 @@ val MIGRATION_70_71 = object : Migration(70, 71) {
  * `fallbackToDestructiveMigration` if the migration fails on a tester
  * device; Firestore pull restores data on next sign-in.
  */
-val MIGRATION_71_72 = object : Migration(71, 72) {
+val MIGRATION_72_73 = object : Migration(72, 73) {
     override fun migrate(db: SupportSQLiteDatabase) {
         // project_phases
         db.execSQL(
@@ -2229,7 +2248,7 @@ val MIGRATION_71_72 = object : Migration(71, 72) {
 }
 
 /**
- * v72 → v73 — PrismTask-timeline-class scope, PR-2 (dependencies).
+ * v73 → v74 — PrismTask-timeline-class scope, PR-2 (dependencies).
  *
  * Adds the `task_dependencies` table representing directed
  * `(blocker, blocked)` edges between tasks. Both columns CASCADE on
@@ -2242,7 +2261,7 @@ val MIGRATION_71_72 = object : Migration(71, 72) {
  * Pure-additive migration. Audit:
  * `docs/audits/PRISMTASK_TIMELINE_CLASS_AUDIT.md`.
  */
-val MIGRATION_72_73 = object : Migration(72, 73) {
+val MIGRATION_73_74 = object : Migration(73, 74) {
     override fun migrate(db: SupportSQLiteDatabase) {
         db.execSQL(
             """
@@ -2275,7 +2294,7 @@ val MIGRATION_72_73 = object : Migration(72, 73) {
 }
 
 /**
- * v73 → v74 — PrismTask-timeline-class scope, PR-3 (external anchors).
+ * v74 → v75 — PrismTask-timeline-class scope, PR-3 (external anchors).
  *
  * Adds the `external_anchors` table — a polymorphic anchor (calendar
  * deadline / numeric threshold / boolean gate) attached to a project
@@ -2287,7 +2306,7 @@ val MIGRATION_72_73 = object : Migration(72, 73) {
  * SET_NULL so deleting a phase doesn't drop a still-relevant
  * project-level anchor. Pure-additive migration.
  */
-val MIGRATION_73_74 = object : Migration(73, 74) {
+val MIGRATION_74_75 = object : Migration(74, 75) {
     override fun migrate(db: SupportSQLiteDatabase) {
         db.execSQL(
             """
@@ -2322,7 +2341,7 @@ val MIGRATION_73_74 = object : Migration(73, 74) {
     }
 }
 
-const val CURRENT_DB_VERSION = 74
+const val CURRENT_DB_VERSION = 75
 
 val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_1_2,
@@ -2397,5 +2416,6 @@ val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_70_71,
     MIGRATION_71_72,
     MIGRATION_72_73,
-    MIGRATION_73_74
+    MIGRATION_73_74,
+    MIGRATION_74_75
 )

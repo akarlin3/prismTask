@@ -7,15 +7,13 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.averycorp.prismtask.data.local.database.MIGRATION_73_74
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * Migration test for v73 → v74 — PrismTask-timeline-class scope, PR-3.
- * Adds the `external_anchors` table with FK CASCADE on project and
- * SET_NULL on phase.
+ * Migration test for v73 → v74 — PrismTask-timeline-class scope, PR-2.
+ * Adds `task_dependencies` table with FK CASCADE on both endpoints.
  */
 @RunWith(AndroidJUnit4::class)
 class Migration73To74Test {
@@ -29,27 +27,13 @@ class Migration73To74Test {
                 override fun onCreate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
                     db.execSQL("PRAGMA foreign_keys = ON")
                     db.execSQL(
-                        "CREATE TABLE `projects` (" +
+                        "CREATE TABLE `tasks` (" +
                             "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
-                            "`name` TEXT NOT NULL" +
+                            "`title` TEXT NOT NULL" +
                             ")"
                     )
-                    db.execSQL(
-                        "CREATE TABLE `project_phases` (" +
-                            "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
-                            "`project_id` INTEGER NOT NULL, " +
-                            "`title` TEXT NOT NULL, " +
-                            "`order_index` INTEGER NOT NULL DEFAULT 0, " +
-                            "`created_at` INTEGER NOT NULL, " +
-                            "`updated_at` INTEGER NOT NULL, " +
-                            "FOREIGN KEY(`project_id`) REFERENCES `projects`(`id`) ON DELETE CASCADE" +
-                            ")"
-                    )
-                    db.execSQL("INSERT INTO `projects` (id, name) VALUES (1, 'PrismTask')")
-                    db.execSQL(
-                        "INSERT INTO `project_phases` (id, project_id, title, created_at, updated_at) " +
-                            "VALUES (10, 1, 'Phase F', 0, 0)"
-                    )
+                    db.execSQL("INSERT INTO `tasks` (id, title) VALUES (1, 'A')")
+                    db.execSQL("INSERT INTO `tasks` (id, title) VALUES (2, 'B')")
                 }
 
                 override fun onUpgrade(
@@ -63,7 +47,7 @@ class Migration73To74Test {
     }
 
     @Test
-    fun migration_createsExternalAnchorsTable() {
+    fun migration_createsTaskDependenciesTable() {
         val helper = openV73()
         val db = helper.writableDatabase
 
@@ -71,7 +55,7 @@ class Migration73To74Test {
         db.query("SELECT name FROM sqlite_master WHERE type = 'table'").use { c ->
             while (c.moveToNext()) pre.add(c.getString(0))
         }
-        assertFalse("external_anchors absent pre-migration", "external_anchors" in pre)
+        assertFalse("task_dependencies absent pre-migration", "task_dependencies" in pre)
 
         MIGRATION_73_74.migrate(db)
 
@@ -79,50 +63,78 @@ class Migration73To74Test {
         db.query("SELECT name FROM sqlite_master WHERE type = 'table'").use { c ->
             while (c.moveToNext()) post.add(c.getString(0))
         }
-        assertTrue("external_anchors created", "external_anchors" in post)
+        assertTrue("task_dependencies created", "task_dependencies" in post)
 
         val indexes = mutableSetOf<String>()
         db.query(
-            "SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'external_anchors'"
+            "SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'task_dependencies'"
         ).use { c -> while (c.moveToNext()) indexes.add(c.getString(0)) }
-        assertTrue("cloud_id unique", "index_external_anchors_cloud_id" in indexes)
-        assertTrue("project_id index", "index_external_anchors_project_id" in indexes)
-        assertTrue("phase_id index", "index_external_anchors_phase_id" in indexes)
+        assertTrue(
+            "(blocker, blocked) unique index",
+            "index_task_dependencies_blocker_task_id_blocked_task_id" in indexes
+        )
+        assertTrue(
+            "blocked_task_id index",
+            "index_task_dependencies_blocked_task_id" in indexes
+        )
+        assertTrue(
+            "cloud_id unique index",
+            "index_task_dependencies_cloud_id" in indexes
+        )
 
         helper.close()
     }
 
     @Test
-    fun migration_phaseDeleteSetsPhaseIdNullProjectDeleteCascades() {
+    fun migration_uniquePairConstraintEnforced() {
+        val helper = openV73()
+        val db = helper.writableDatabase
+        MIGRATION_73_74.migrate(db)
+
+        db.execSQL(
+            "INSERT INTO `task_dependencies` " +
+                "(blocker_task_id, blocked_task_id, created_at) VALUES (1, 2, 100)"
+        )
+        // Second identical insert should fail the unique index.
+        var threw = false
+        try {
+            db.execSQL(
+                "INSERT INTO `task_dependencies` " +
+                    "(blocker_task_id, blocked_task_id, created_at) VALUES (1, 2, 200)"
+            )
+        } catch (_: Exception) {
+            threw = true
+        }
+        assertTrue("unique pair index rejected duplicate", threw)
+
+        var count = -1
+        db.query("SELECT COUNT(*) FROM task_dependencies").use { c ->
+            c.moveToFirst()
+            count = c.getInt(0)
+        }
+        assertEquals(1, count)
+        helper.close()
+    }
+
+    @Test
+    fun migration_cascadesEdgesWhenEitherEndpointDeleted() {
         val helper = openV73()
         val db = helper.writableDatabase
         MIGRATION_73_74.migrate(db)
         db.execSQL("PRAGMA foreign_keys = ON")
 
         db.execSQL(
-            "INSERT INTO `external_anchors` " +
-                "(id, project_id, phase_id, label, anchor_json, created_at, updated_at) " +
-                "VALUES (100, 1, 10, 'Anchor', '{\"type\":\"calendar_deadline\",\"epochMs\":0}', 1, 1)"
+            "INSERT INTO `task_dependencies` " +
+                "(blocker_task_id, blocked_task_id, created_at) VALUES (1, 2, 100)"
         )
+        db.execSQL("DELETE FROM `tasks` WHERE id = 1")
 
-        // Phase delete -> SET NULL.
-        db.execSQL("DELETE FROM `project_phases` WHERE id = 10")
-        var phaseFk: Int? = -1
-        db.query("SELECT phase_id FROM external_anchors WHERE id = 100").use { c ->
-            assertTrue(c.moveToFirst())
-            phaseFk = if (c.isNull(0)) null else c.getInt(0)
-        }
-        assertNull("phase_id reset to NULL", phaseFk)
-
-        // Project delete -> CASCADE.
-        db.execSQL("DELETE FROM `projects` WHERE id = 1")
         var count = -1
-        db.query("SELECT COUNT(*) FROM external_anchors").use { c ->
+        db.query("SELECT COUNT(*) FROM task_dependencies").use { c ->
             c.moveToFirst()
             count = c.getInt(0)
         }
-        assertEquals("CASCADE removed orphan anchor", 0, count)
-
+        assertEquals("CASCADE removed orphaned edge", 0, count)
         helper.close()
     }
 }

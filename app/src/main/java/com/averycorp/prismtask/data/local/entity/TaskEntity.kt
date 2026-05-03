@@ -112,6 +112,17 @@ data class TaskEntity(
     @ColumnInfo(name = "task_mode")
     val taskMode: String? = null,
     /**
+     * Start-friction / cognitive-load-to-start dimension. Stored as the
+     * [com.averycorp.prismtask.domain.model.CognitiveLoad] enum name
+     * (e.g. "EASY", "MEDIUM", "HARD"). Null or unknown values are treated
+     * as [com.averycorp.prismtask.domain.model.CognitiveLoad.UNCATEGORIZED].
+     *
+     * Orthogonal to [lifeCategory], [taskMode], and [eisenhowerQuadrant] —
+     * see `docs/COGNITIVE_LOAD.md`.
+     */
+    @ColumnInfo(name = "cognitive_load")
+    val cognitiveLoad: String? = null,
+    /**
      * Focus & Release Mode per-task overrides.
      *
      * Good Enough Timer override in minutes. Null = use global default.

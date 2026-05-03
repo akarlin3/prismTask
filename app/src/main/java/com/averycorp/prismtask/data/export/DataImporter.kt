@@ -30,6 +30,7 @@ import com.averycorp.prismtask.data.preferences.BatchUndoConfig
 import com.averycorp.prismtask.data.preferences.BuiltInSortOrders
 import com.averycorp.prismtask.data.preferences.BurnoutWeights
 import com.averycorp.prismtask.data.preferences.CoachingPreferences
+import com.averycorp.prismtask.data.preferences.CognitiveLoadCustomKeywords
 import com.averycorp.prismtask.data.preferences.CustomLeisureActivity
 import com.averycorp.prismtask.data.preferences.DailyEssentialsPreferences
 import com.averycorp.prismtask.data.preferences.DashboardPreferences
@@ -1693,6 +1694,9 @@ constructor(
         }
         a.getAsJsonObject("taskModeKeywords")?.let {
             p.setTaskModeCustomKeywords(gson.fromJson(it, TaskModeCustomKeywords::class.java))
+        }
+        a.getAsJsonObject("cognitiveLoadKeywords")?.let {
+            p.setCognitiveLoadCustomKeywords(gson.fromJson(it, CognitiveLoadCustomKeywords::class.java))
         }
         a.getAsJsonObject("weeklySummary")?.let {
             p.setWeeklySummarySchedule(gson.fromJson(it, WeeklySummarySchedule::class.java))
