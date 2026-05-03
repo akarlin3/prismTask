@@ -323,6 +323,57 @@ class LeisurePreferencesTest {
         assertEquals("Books", section.customActivities.single().label)
     }
 
+    /**
+     * Defensive guard: if the target section is no longer present (e.g.
+     * because a sync pull wiped `custom_sections` between dialog-open and
+     * dialog-submit), the mutation must skip the write entirely instead of
+     * writing back the unchanged list. The assignment would still trigger a
+     * Preferences emission and noise the sync-fingerprint cache without
+     * changing observable state. See
+     * docs/audits/LEISURE_ADD_ACTIVITY_DELETES_SECTION_AUDIT.md (Phase 1
+     * batch 2, Item 2').
+     */
+    @Test
+    fun addCustomSectionActivity_skipsWriteWhenSectionMissing() = runTest {
+        val a = prefs.addCustomSection("A", "🔵")
+        val b = prefs.addCustomSection("B", "🟢")
+
+        prefs.addCustomSectionActivity("nonexistent_id", "Phantom", "👻")
+
+        val sections = prefs.getCustomSections().first()
+        assertEquals(2, sections.size)
+        val byId = sections.associateBy { it.id }
+        assertTrue(byId[a]?.customActivities?.isEmpty() == true)
+        assertTrue(byId[b]?.customActivities?.isEmpty() == true)
+    }
+
+    @Test
+    fun removeCustomSectionActivity_skipsWriteWhenSectionMissing() = runTest {
+        val a = prefs.addCustomSection("A", "🔵")
+        prefs.addCustomSectionActivity(a, "Books", "📕")
+
+        prefs.removeCustomSectionActivity("nonexistent_id", "any_activity_id")
+
+        val sections = prefs.getCustomSections().first()
+        assertEquals(1, sections.size)
+        assertEquals(1, sections.single().customActivities.size)
+        assertEquals("Books", sections.single().customActivities.single().label)
+    }
+
+    @Test
+    fun updateCustomSection_skipsWriteWhenSectionMissing() = runTest {
+        val a = prefs.addCustomSection("A", "🔵")
+
+        prefs.updateCustomSection("nonexistent_id", enabled = false, label = "Renamed")
+
+        val sections = prefs.getCustomSections().first()
+        assertEquals(1, sections.size)
+        // Original section unchanged.
+        assertEquals(a, sections.single().id)
+        assertEquals("A", sections.single().label)
+        assertTrue(sections.single().enabled)
+    }
+
     @Test
     fun getCustomSections_dropsActivitiesWithNullIdOrLabel() = runTest {
         val ctx = ApplicationProvider.getApplicationContext<Context>()

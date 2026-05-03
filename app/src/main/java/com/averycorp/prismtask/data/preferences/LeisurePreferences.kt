@@ -388,6 +388,14 @@ constructor(
     ) {
         context.leisureDataStore.edit { prefs ->
             val current = readCustomSections(prefs)
+            // If the target section is no longer present (e.g. wiped by a
+            // sync pull between dialog-open and dialog-submit), don't write
+            // back the unchanged list — the assignment would still trigger
+            // a Preferences emission and add noise to the sync-fingerprint
+            // cache without changing observable state. See
+            // docs/audits/LEISURE_ADD_ACTIVITY_DELETES_SECTION_AUDIT.md
+            // (Phase 1 batch 2, Item 2').
+            if (current.none { it.id == id }) return@edit
             val updated = current.map { section ->
                 if (section.id != id) return@map section
                 section.copy(
@@ -413,6 +421,7 @@ constructor(
         if (trimmedLabel.isEmpty() || trimmedIcon.isEmpty()) return
         context.leisureDataStore.edit { prefs ->
             val current = readCustomSections(prefs)
+            if (current.none { it.id == sectionId }) return@edit
             val updated = current.map { section ->
                 if (section.id != sectionId) return@map section
                 val activity = CustomLeisureActivity(
@@ -429,6 +438,7 @@ constructor(
     suspend fun removeCustomSectionActivity(sectionId: String, activityId: String) {
         context.leisureDataStore.edit { prefs ->
             val current = readCustomSections(prefs)
+            if (current.none { it.id == sectionId }) return@edit
             val updated = current.map { section ->
                 if (section.id != sectionId) return@map section
                 section.copy(customActivities = section.customActivities.filter { it.id != activityId })
