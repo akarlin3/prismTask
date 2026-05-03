@@ -26,7 +26,9 @@ sealed class ExternalAnchor {
 
     data class CalendarDeadline(val epochMs: Long) : ExternalAnchor() {
         override val type: String = TYPE
-        companion object { const val TYPE = "calendar.deadline" }
+        companion object {
+            const val TYPE = "calendar.deadline"
+        }
     }
 
     data class NumericThreshold(
@@ -35,7 +37,9 @@ sealed class ExternalAnchor {
         val value: Double
     ) : ExternalAnchor() {
         override val type: String = TYPE
-        companion object { const val TYPE = "numeric.threshold" }
+        companion object {
+            const val TYPE = "numeric.threshold"
+        }
     }
 
     data class BooleanGate(
@@ -43,7 +47,9 @@ sealed class ExternalAnchor {
         val expectedState: Boolean
     ) : ExternalAnchor() {
         override val type: String = TYPE
-        companion object { const val TYPE = "boolean.gate" }
+        companion object {
+            const val TYPE = "boolean.gate"
+        }
     }
 }
 

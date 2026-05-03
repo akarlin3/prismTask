@@ -482,7 +482,12 @@ constructor(
                 val docRef = userCollection("tasks")?.document() ?: continue
                 docRef.set(
                     SyncMapper.taskToMap(
-                        task, tagIds, projectCloudId, parentTaskCloudId, sourceHabitCloudId, phaseCloudId
+                        task,
+                        tagIds,
+                        projectCloudId,
+                        parentTaskCloudId,
+                        sourceHabitCloudId,
+                        phaseCloudId
                     )
                 ).await()
                 syncMetadataDao.upsert(
@@ -1912,7 +1917,13 @@ constructor(
             val phaseLocalId = phaseCloudId?.let { syncMetadataDao.getLocalId(it, "project_phase") }
             if (localId == null) {
                 val task = SyncMapper.mapToTask(
-                    data, 0, projectLocalId, parentTaskLocalId, sourceHabitLocalId, phaseLocalId, cloudId = cloudId
+                    data,
+                    0,
+                    projectLocalId,
+                    parentTaskLocalId,
+                    sourceHabitLocalId,
+                    phaseLocalId,
+                    cloudId = cloudId
                 )
                 val newId = taskDao.insert(task)
                 syncMetadataDao.upsert(
@@ -1935,7 +1946,13 @@ constructor(
                 if (localTask == null || remoteUpdatedAt > localTask.updatedAt) {
                     taskDao.update(
                         SyncMapper.mapToTask(
-                            data, localId, projectLocalId, parentTaskLocalId, sourceHabitLocalId, phaseLocalId, cloudId = cloudId
+                            data,
+                            localId,
+                            projectLocalId,
+                            parentTaskLocalId,
+                            sourceHabitLocalId,
+                            phaseLocalId,
+                            cloudId = cloudId
                         )
                     )
                     syncMetadataDao.clearPendingAction(localId, "task")
@@ -2213,7 +2230,10 @@ constructor(
                 ?: return@pullCollection false
             if (localId == null) {
                 val dependency = SyncMapper.mapToTaskDependency(
-                    data, blockerLocalId, blockedLocalId, cloudId = cloudId
+                    data,
+                    blockerLocalId,
+                    blockedLocalId,
+                    cloudId = cloudId
                 )
                 val newId = taskDependencyDao.insert(dependency)
                 if (newId > 0) {

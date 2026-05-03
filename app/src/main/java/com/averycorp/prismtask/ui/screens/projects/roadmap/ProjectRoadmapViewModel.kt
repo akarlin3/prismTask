@@ -66,23 +66,26 @@ constructor(
         // need a per-phase grouping that the DAO doesn't pre-compute.
         projectDao.getProjectById(projectId)
             .flatMapLatest { project ->
-                if (project == null) flowOf(ProjectRoadmapState())
-                else combine(
-                    phaseRepository.observePhases(projectId),
-                    riskRepository.observeRisks(projectId),
-                    anchorRepository.observeAnchorsForProject(projectId)
-                ) { phases, risks, anchors ->
-                    val phaseWithTasks = phases.map { phase ->
-                        PhaseWithTasks(phase, taskDao.getTasksForPhaseOnce(phase.id))
+                if (project == null) {
+                    flowOf(ProjectRoadmapState())
+                } else {
+                    combine(
+                        phaseRepository.observePhases(projectId),
+                        riskRepository.observeRisks(projectId),
+                        anchorRepository.observeAnchorsForProject(projectId)
+                    ) { phases, risks, anchors ->
+                        val phaseWithTasks = phases.map { phase ->
+                            PhaseWithTasks(phase, taskDao.getTasksForPhaseOnce(phase.id))
+                        }
+                        val unphased = taskDao.getUnphasedTasksForProjectOnce(projectId)
+                        ProjectRoadmapState(
+                            project = project,
+                            phases = phaseWithTasks,
+                            unphasedTasks = unphased,
+                            risks = risks,
+                            anchors = anchors
+                        )
                     }
-                    val unphased = taskDao.getUnphasedTasksForProjectOnce(projectId)
-                    ProjectRoadmapState(
-                        project = project,
-                        phases = phaseWithTasks,
-                        unphasedTasks = unphased,
-                        risks = risks,
-                        anchors = anchors
-                    )
                 }
             }
     }.stateIn(

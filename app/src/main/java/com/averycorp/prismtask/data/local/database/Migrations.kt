@@ -2285,7 +2285,9 @@ val MIGRATION_72_73 = object : Migration(72, 73) {
             )
             """.trimIndent()
         )
-        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_task_dependencies_pair` ON `task_dependencies` (`blocker_task_id`, `blocked_task_id`)")
+        db.execSQL(
+            "CREATE UNIQUE INDEX IF NOT EXISTS `index_task_dependencies_pair` ON `task_dependencies` (`blocker_task_id`, `blocked_task_id`)"
+        )
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_task_dependencies_blocked_task_id` ON `task_dependencies` (`blocked_task_id`)")
         db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_task_dependencies_cloud_id` ON `task_dependencies` (`cloud_id`)")
 

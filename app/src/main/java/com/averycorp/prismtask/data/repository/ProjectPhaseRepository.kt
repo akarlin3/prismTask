@@ -78,5 +78,7 @@ constructor(
         phaseDao.deleteById(id)
     }
 
-    companion object { const val ENTITY_TYPE = "project_phase" }
+    companion object {
+        const val ENTITY_TYPE = "project_phase"
+    }
 }

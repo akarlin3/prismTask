@@ -78,5 +78,7 @@ constructor(
         return false
     }
 
-    companion object { const val ENTITY_TYPE = "task_dependency" }
+    companion object {
+        const val ENTITY_TYPE = "task_dependency"
+    }
 }

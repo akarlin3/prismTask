@@ -63,5 +63,7 @@ constructor(
         riskDao.deleteById(id)
     }
 
-    companion object { const val ENTITY_TYPE = "project_risk" }
+    companion object {
+        const val ENTITY_TYPE = "project_risk"
+    }
 }

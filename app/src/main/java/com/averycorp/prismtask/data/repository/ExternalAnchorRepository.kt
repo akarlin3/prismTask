@@ -88,5 +88,7 @@ constructor(
         val anchor: ExternalAnchor?
     )
 
-    companion object { const val ENTITY_TYPE = "external_anchor" }
+    companion object {
+        const val ENTITY_TYPE = "external_anchor"
+    }
 }
