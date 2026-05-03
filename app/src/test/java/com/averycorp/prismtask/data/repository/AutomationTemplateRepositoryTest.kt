@@ -1,5 +1,7 @@
 package com.averycorp.prismtask.data.repository
 
+import com.averycorp.prismtask.data.local.entity.AutomationRuleEntity
+import com.averycorp.prismtask.data.repository.AutomationTemplateRepository.ImportResult
 import com.averycorp.prismtask.data.seed.AutomationStarterLibrary
 import com.averycorp.prismtask.data.seed.AutomationTemplateCategory
 import com.averycorp.prismtask.domain.automation.AutomationAction
@@ -65,6 +67,7 @@ class AutomationTemplateRepositoryTest {
     }
 
     @Test fun importTemplate_createsRule_disabled_with_templateKey() = runBlocking {
+        coEvery { ruleRepository.getByTemplateKeyOnce(any()) } returns null
         coEvery {
             ruleRepository.create(
                 name = any(),
@@ -80,8 +83,8 @@ class AutomationTemplateRepositoryTest {
         } returns 42L
 
         val templateId = "starter.friction.auto_flag_urgent"
-        val newId = repo.importTemplate(templateId)
-        assertEquals(42L, newId)
+        val result = repo.importTemplate(templateId)
+        assertEquals(ImportResult.Created(42L), result)
         coVerify(exactly = 1) {
             ruleRepository.create(
                 name = "Auto-Flag Urgent Tasks",
@@ -99,9 +102,9 @@ class AutomationTemplateRepositoryTest {
         }
     }
 
-    @Test fun importTemplate_unknownId_returnsNullAndDoesNotCreate() = runBlocking {
-        val newId = repo.importTemplate("starter.bogus.id")
-        assertNull(newId)
+    @Test fun importTemplate_unknownId_returnsNotFoundAndDoesNotCreate() = runBlocking {
+        val result = repo.importTemplate("starter.bogus.id")
+        assertEquals(ImportResult.NotFound, result)
         coVerify(exactly = 0) {
             ruleRepository.create(
                 name = any(),
@@ -118,4 +121,64 @@ class AutomationTemplateRepositoryTest {
         // sanity — search still works
         assertFalse(repo.search("bogus").any { it.id == "starter.bogus.id" })
     }
+
+    @Test fun importTemplate_existingTemplateKey_returnsAlreadyImported_doesNotCreate() = runBlocking {
+        val templateId = "builtin.notify_overdue_urgent"
+        coEvery { ruleRepository.getByTemplateKeyOnce(templateId) } returns
+            stubRuleEntity(id = 7L, templateKey = templateId)
+
+        val result = repo.importTemplate(templateId)
+        assertEquals(ImportResult.AlreadyImported(7L), result)
+        coVerify(exactly = 0) {
+            ruleRepository.create(
+                name = any(),
+                description = any(),
+                trigger = any(),
+                condition = any(),
+                actions = any(),
+                priority = any(),
+                enabled = any(),
+                isBuiltIn = any(),
+                templateKey = any()
+            )
+        }
+    }
+
+    @Test fun importTemplate_afterDeletion_createsRowAgain() = runBlocking {
+        val templateId = "builtin.notify_overdue_urgent"
+        // First call: row exists → AlreadyImported.
+        coEvery { ruleRepository.getByTemplateKeyOnce(templateId) } returns
+            stubRuleEntity(id = 11L, templateKey = templateId)
+        val firstResult = repo.importTemplate(templateId)
+        assertEquals(ImportResult.AlreadyImported(11L), firstResult)
+
+        // Simulate deletion: lookup now returns null. Re-import creates a new row.
+        coEvery { ruleRepository.getByTemplateKeyOnce(templateId) } returns null
+        coEvery {
+            ruleRepository.create(
+                name = any(),
+                description = any(),
+                trigger = any(),
+                condition = any(),
+                actions = any(),
+                priority = any(),
+                enabled = any(),
+                isBuiltIn = any(),
+                templateKey = any()
+            )
+        } returns 99L
+        val secondResult = repo.importTemplate(templateId)
+        assertEquals(ImportResult.Created(99L), secondResult)
+    }
+
+    private fun stubRuleEntity(id: Long, templateKey: String): AutomationRuleEntity =
+        AutomationRuleEntity(
+            id = id,
+            name = "stub",
+            templateKey = templateKey,
+            triggerJson = "{}",
+            actionJson = "[]",
+            createdAt = 0L,
+            updatedAt = 0L
+        )
 }

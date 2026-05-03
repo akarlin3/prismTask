@@ -441,3 +441,105 @@ defensive guards" constraint.
 
 **Schedule for next audit.** Driven by operator's logcat capture.
 
+## Phase 1 — Batch 2 (re-audit, branch `claude/fix-leisure-category-bug-auK1O`)
+
+User re-reported the same symptom on a fresh task without supplying the
+device-count / sync-timing repro details deferred at end of batch 1.
+Re-running the audit on the current `main` snapshot:
+
+### Item 1' — `LeisurePreferences.addCustomSectionActivity` (GREEN, re-confirmed)
+
+`addCustomSectionActivity_preservesSection_andAppendsActivity` (PR #918,
+commit `04a2c0e0`) still passes locally and in CI. The data-layer
+round-trip remains verifiably correct. **Premise unchanged: the bug is
+not in the data-layer write path.**
+
+### Item 2' — `addCustomSectionActivity` no-op write when target missing (YELLOW → PROCEED)
+
+**Finding (new).** When `sectionId` is not in the current section list
+(e.g. because a sync pull wiped it between dialog-open and
+dialog-submit), the existing code still writes `gson.toJson(updated)`
+back to DataStore — `updated` is bit-for-bit identical to `current`,
+but the assignment still triggers a `Preferences` emission. Same shape
+in `removeCustomSectionActivity` and `updateCustomSection`. None of
+these mutate observable state when the target is missing, but the
+spurious write makes ordering-sensitive sync-fingerprint logic noisier
+than it needs to be and complicates root-cause traces.
+
+**Verdict.** YELLOW → PROCEED on a defensive guard. Skipping the write
+when the target is missing is strictly an information-preserving
+change (no behavioural divergence on the happy path) and lets the
+sync layer's last-pushed-fingerprint cache do its job without churn.
+Does not by itself fix the reported symptom — see Item 3' — but
+removes one source of confusion from the trace.
+
+### Item 3' — Sync-layer overwrite (YELLOW, kept-DEFERRED with reasoning)
+
+**Re-confirmed.** `GenericPreferenceSyncService.applyRemote` still
+overwrites `custom_sections` whole-cloth via
+`PreferenceSyncSerialization.applyTyped` (`stringPreferencesKey(name)`
+write). The `__pref_device_id` self-echo guard prevents same-device
+clobber on the happy path, but multi-device and reinstall-race paths
+remain wide open.
+
+**Why still DEFERRED (vs. PROCEED).** A real merge-by-id fix requires
+either (a) a per-spec `MergeStrategy` hook in `PreferenceSyncSpec` so
+`leisure_prefs.custom_sections` opts into element-merge while everything
+else keeps LWW, or (b) a wholesale schema migration that splits
+`custom_sections` into per-section preference keys. Both are
+multi-PR scopes and risk regressions elsewhere (theme prefs, sort
+prefs, dashboard prefs all share the same generic sync pipeline).
+Without a confirmed multi-device repro from the user, the
+risk/wall-clock ratio is unfavourable.
+
+**Verdict.** YELLOW, DEFERRED again. The defensive guard in Item 2'
+is the strict subset that ships safely without the user's repro
+details.
+
+### Item 4' — Regression test for missing-section guard (PROCEED)
+
+Robolectric repro: pre-seed `custom_sections` with two real sections,
+call `addCustomSectionActivity` with an unknown id, assert no write
+occurred (both sections unchanged, no spurious emission). Same shape
+for `removeCustomSectionActivity` and `updateCustomSection`. Locks in
+the Item 2' guard against future drift.
+
+---
+
+## Phase 2 (batch 2)
+
+Implemented in this branch (`claude/fix-leisure-category-bug-auK1O`):
+
+1. `LeisurePreferences.addCustomSectionActivity` — early-returns
+   from the `edit` block when `sectionId` is not in `current`.
+2. `LeisurePreferences.removeCustomSectionActivity` — same guard.
+3. `LeisurePreferences.updateCustomSection` — same guard.
+4. New regression tests in `LeisurePreferencesTest`:
+   - `addCustomSectionActivity_skipsWriteWhenSectionMissing`
+   - `removeCustomSectionActivity_skipsWriteWhenSectionMissing`
+   - `updateCustomSection_skipsWriteWhenSectionMissing`
+
+The merge-by-id sync-layer fix (Item 3') stays DEFERRED.
+
+## Phase 3 — Bundle summary (batch 2)
+
+**Shipped (this branch).**
+
+| Change | Scope | Impact |
+|--------|-------|--------|
+| Defensive guard + tests | `LeisurePreferences` mutating methods skip writes when target missing | Removes spurious DataStore emissions on stale-id mutation paths; locks the defensive contract against future drift. |
+
+**Still deferred.**
+
+- **Sync-layer merge-by-id (Item 3').** Needs either user-confirmed
+  multi-device repro or a `MergeStrategy` hook in `PreferenceSyncSpec`
+  so the change can land scoped to `leisure_prefs.custom_sections`
+  rather than generically.
+
+**Memory candidates.** None worth saving — the "skip the write when
+the target is missing" pattern is a one-off mitigation, not a
+generalisable rule.
+
+**Schedule for next audit.** Driven by user's eventual Phase 4 answers
+(device count + sync timing) or by independent Crashlytics signal that
+points at sync-layer overwrite.

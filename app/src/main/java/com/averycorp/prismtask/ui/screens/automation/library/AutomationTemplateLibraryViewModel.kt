@@ -3,6 +3,7 @@ package com.averycorp.prismtask.ui.screens.automation.library
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.averycorp.prismtask.data.repository.AutomationTemplateRepository
+import com.averycorp.prismtask.data.repository.AutomationTemplateRepository.ImportResult
 import com.averycorp.prismtask.data.seed.AutomationTemplate
 import com.averycorp.prismtask.data.seed.AutomationTemplateCategory
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -56,20 +57,22 @@ class AutomationTemplateLibraryViewModel @Inject constructor(
 
     fun importTemplate(templateId: String) {
         viewModelScope.launch {
-            val ruleId = templateRepository.importTemplate(templateId)
+            val result = templateRepository.importTemplate(templateId)
             val template = templateRepository.findById(templateId)
-            _events.trySend(
-                if (ruleId != null && template != null) {
-                    LibraryEvent.Imported(template.name)
-                } else {
-                    LibraryEvent.ImportFailed
-                }
-            )
+            val event = when (result) {
+                is ImportResult.Created ->
+                    template?.let { LibraryEvent.Imported(it.name) } ?: LibraryEvent.ImportFailed
+                is ImportResult.AlreadyImported ->
+                    template?.let { LibraryEvent.AlreadyImported(it.name) } ?: LibraryEvent.ImportFailed
+                ImportResult.NotFound -> LibraryEvent.ImportFailed
+            }
+            _events.trySend(event)
         }
     }
 
     sealed interface LibraryEvent {
         data class Imported(val templateName: String) : LibraryEvent
+        data class AlreadyImported(val templateName: String) : LibraryEvent
         data object ImportFailed : LibraryEvent
     }
 }
