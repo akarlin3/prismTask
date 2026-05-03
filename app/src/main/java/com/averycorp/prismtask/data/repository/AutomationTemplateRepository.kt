@@ -49,15 +49,24 @@ class AutomationTemplateRepository @Inject constructor(
     /**
      * One-tap import. Persists the template as a user rule with
      * `enabled = false` (per PR #1056 UX choice — never auto-fire on
-     * update install). Returns the new rule id.
+     * update install).
      *
      * `isBuiltIn = false` so the rule is user-deletable; `templateKey`
      * carries the source template id so later UI can show "imported from
      * X" without grepping JSON.
+     *
+     * Idempotent on `templateKey`: if a rule with the same `templateKey`
+     * already exists on this device, returns [ImportResult.AlreadyImported]
+     * with the existing rule id and does not insert a second row. PR #1077
+     * handles the cross-device case via natural-key adoption; this guard
+     * closes the same-device case.
      */
-    suspend fun importTemplate(templateId: String): Long? {
-        val template = findById(templateId) ?: return null
-        return ruleRepository.create(
+    suspend fun importTemplate(templateId: String): ImportResult {
+        val template = findById(templateId) ?: return ImportResult.NotFound
+        ruleRepository.getByTemplateKeyOnce(template.id)?.let { existing ->
+            return ImportResult.AlreadyImported(existing.id)
+        }
+        val newId = ruleRepository.create(
             name = template.name,
             description = template.description,
             trigger = template.trigger,
@@ -68,5 +77,12 @@ class AutomationTemplateRepository @Inject constructor(
             isBuiltIn = false,
             templateKey = template.id
         )
+        return ImportResult.Created(newId)
+    }
+
+    sealed interface ImportResult {
+        data class Created(val ruleId: Long) : ImportResult
+        data class AlreadyImported(val ruleId: Long) : ImportResult
+        data object NotFound : ImportResult
     }
 }

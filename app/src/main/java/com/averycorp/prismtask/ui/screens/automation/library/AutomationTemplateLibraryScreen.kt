@@ -75,6 +75,10 @@ fun AutomationTemplateLibraryScreen(
                     snackbarHostState.showSnackbar(
                         "Added \"${event.templateName}\" — toggle to enable in Automation"
                     )
+                is AutomationTemplateLibraryViewModel.LibraryEvent.AlreadyImported ->
+                    snackbarHostState.showSnackbar(
+                        "Already added \"${event.templateName}\" — find it in Automation"
+                    )
                 AutomationTemplateLibraryViewModel.LibraryEvent.ImportFailed ->
                     snackbarHostState.showSnackbar("Could not import template — please try again")
             }
