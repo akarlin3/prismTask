@@ -161,4 +161,149 @@ describe('computeProjectBurndown', () => {
     expect(result.projected_completion).toBe('2026-04-05');
     expect(result.is_on_track).toBe(true);
   });
+
+  // PrismTask-timeline-class scope, PR-4 (audit P9 option a).
+
+  it('counts a fractional task as its progress percent / 100', () => {
+    const tasks: Task[] = [
+      task({
+        id: 'a',
+        project_id: 'p1',
+        created_at: isoAt(2026, 4, 1),
+        status: 'in_progress',
+        progress_percent: 60,
+      }),
+    ];
+    const result = computeProjectBurndown({
+      project: PROJECT,
+      tasks,
+      startIso: '2026-04-01',
+      endIso: '2026-04-03',
+    });
+    // 60% of one task → 0.6 completed units, rounded to 0.6.
+    expect(result.completed_tasks).toBe(0.6);
+  });
+
+  it('open fractional tasks contribute on the report last day only', () => {
+    const tasks: Task[] = [
+      task({
+        id: 'a',
+        project_id: 'p1',
+        created_at: isoAt(2026, 4, 1),
+        status: 'in_progress',
+        progress_percent: 40,
+      }),
+    ];
+    const result = computeProjectBurndown({
+      project: PROJECT,
+      tasks,
+      startIso: '2026-04-01',
+      endIso: '2026-04-03',
+    });
+    // Days 1-2 carry the unit as "still 1 outstanding"; only the last
+    // day reflects the 40% open progress.
+    expect(result.burndown[0]).toMatchObject({
+      date: '2026-04-01',
+      completed_cumulative: 0,
+    });
+    expect(result.burndown[1]).toMatchObject({
+      date: '2026-04-02',
+      completed_cumulative: 0,
+    });
+    expect(result.burndown[2]).toMatchObject({
+      date: '2026-04-03',
+      completed_cumulative: 0.4,
+    });
+  });
+
+  it('completed fractional tasks contribute their fractional value, not 1.0', () => {
+    // A task that was marked DONE but carries progress_percent = 80
+    // (e.g. user shipped at 80% and called it good enough) contributes
+    // 0.8 — the explicit fractional value beats the binary status.
+    const tasks: Task[] = [
+      task({
+        id: 'a',
+        project_id: 'p1',
+        created_at: isoAt(2026, 4, 1),
+        status: 'done',
+        completed_at: isoAt(2026, 4, 2),
+        progress_percent: 80,
+      }),
+    ];
+    const result = computeProjectBurndown({
+      project: PROJECT,
+      tasks,
+      startIso: '2026-04-01',
+      endIso: '2026-04-03',
+    });
+    expect(result.completed_tasks).toBe(0.8);
+    expect(result.burndown[1]).toMatchObject({
+      date: '2026-04-02',
+      completed_cumulative: 0.8,
+    });
+  });
+
+  it('clamps out-of-range progress_percent to [0, 100]', () => {
+    const tasks: Task[] = [
+      task({
+        id: 'low',
+        project_id: 'p1',
+        created_at: isoAt(2026, 4, 1),
+        status: 'in_progress',
+        progress_percent: -50,
+      }),
+      task({
+        id: 'high',
+        project_id: 'p1',
+        created_at: isoAt(2026, 4, 1),
+        status: 'in_progress',
+        progress_percent: 250,
+      }),
+    ];
+    const result = computeProjectBurndown({
+      project: PROJECT,
+      tasks,
+      startIso: '2026-04-01',
+      endIso: '2026-04-03',
+    });
+    // -50 clamps to 0, 250 clamps to 100 → 0 + 1 = 1.0 unit.
+    expect(result.completed_tasks).toBe(1);
+  });
+
+  it('mixed binary + fractional tasks compose without breaking pre-PR-4 callers', () => {
+    const tasks: Task[] = [
+      // Legacy binary done task — progress_percent absent; treated as 1.
+      task({
+        id: 'legacy',
+        project_id: 'p1',
+        created_at: isoAt(2026, 4, 1),
+        status: 'done',
+        completed_at: isoAt(2026, 4, 2),
+      }),
+      // Fractional in-progress — counted at 0.5 on the last day.
+      task({
+        id: 'fractional',
+        project_id: 'p1',
+        created_at: isoAt(2026, 4, 1),
+        status: 'in_progress',
+        progress_percent: 50,
+      }),
+      // Plain todo — still 0.
+      task({
+        id: 'todo',
+        project_id: 'p1',
+        created_at: isoAt(2026, 4, 1),
+        status: 'todo',
+      }),
+    ];
+    const result = computeProjectBurndown({
+      project: PROJECT,
+      tasks,
+      startIso: '2026-04-01',
+      endIso: '2026-04-03',
+    });
+    expect(result.total_tasks).toBe(3);
+    // 1.0 + 0.5 + 0 = 1.5
+    expect(result.completed_tasks).toBe(1.5);
+  });
 });

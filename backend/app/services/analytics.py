@@ -359,23 +359,42 @@ async def compute_project_burndown(
     )
     total_tasks = total_result.scalar() or 0
 
-    # Completed tasks count
-    completed_result = await db.execute(
-        select(func.count()).select_from(Task).where(
-            Task.project_id == project_id,
-            Task.status == TaskStatus.DONE,
-        )
-    )
-    completed_tasks = completed_result.scalar() or 0
-
-    # Fetch all tasks with their created_at and completed_at
+    # Fetch all tasks with the columns burndown needs.
+    # progress_percent (PR-4 of the PrismTask-timeline-class scope) carries
+    # fractional progress in 0..100 when present; NULL preserves legacy
+    # binary semantics (status == DONE → 100, else 0). This unifies the
+    # two scoring models without breaking pre-PR-4 rows.
     tasks_result = await db.execute(
-        select(Task.created_at, Task.completed_at, Task.status).where(
+        select(
+            Task.created_at,
+            Task.completed_at,
+            Task.status,
+            Task.progress_percent,
+        ).where(
             Task.project_id == project_id,
             Task.status != TaskStatus.CANCELLED,
         )
     )
     all_tasks = tasks_result.all()
+
+    def _progress_units(task) -> float:
+        """Per-task contribution to the cumulative-completed metric.
+
+        Returns a value in [0.0, 1.0]. Fractional rows pass through
+        ``progress_percent / 100``; binary rows return 1.0 if DONE else
+        0.0. A task at 60% contributes 0.6 toward the burndown line.
+        """
+        pct = task.progress_percent
+        if pct is not None:
+            return max(0.0, min(100.0, float(pct))) / 100.0
+        return 1.0 if task.status == TaskStatus.DONE else 0.0
+
+    completed_units = sum(_progress_units(t) for t in all_tasks)
+    # Round to one decimal so callers see a stable "X.X tasks done" shape
+    # (pre-PR-4 readers compared this against an integer; rounding keeps
+    # them happy for whole-task projects and exposes fractional only when
+    # someone actually authored a non-NULL progress_percent).
+    completed_tasks = round(completed_units, 1)
 
     # Build day-by-day burndown
     burndown = []
@@ -387,13 +406,33 @@ async def compute_project_burndown(
             if t.created_at is not None and t.created_at.date() <= current
         )
 
-        # Count tasks completed by end of this day
-        tasks_done = sum(
-            1 for t in all_tasks
-            if t.completed_at is not None and t.completed_at.date() <= current
-        )
+        # Cumulative progress units by end of this day. Whole-task
+        # completions add their full unit (or fractional value if the
+        # task carried a progress_percent at completion time); open
+        # fractional tasks don't add interim values for historical days
+        # because we don't snapshot mid-window — they only show up on
+        # the report's last day.
+        units_done_today = 0.0
+        for t in all_tasks:
+            if t.completed_at is not None and t.completed_at.date() <= current:
+                if t.progress_percent is not None:
+                    units_done_today += (
+                        max(0.0, min(100.0, float(t.progress_percent))) / 100.0
+                    )
+                else:
+                    units_done_today += 1.0
+        if current == end_date:
+            # Open fractional tasks contribute their current progress
+            # only on the report's last day. Avoids fabricating mid-window
+            # snapshots the database can't justify and keeps day-by-day
+            # values monotonic non-decreasing.
+            for t in all_tasks:
+                if t.completed_at is None and t.progress_percent is not None:
+                    units_done_today += (
+                        max(0.0, min(100.0, float(t.progress_percent))) / 100.0
+                    )
 
-        remaining = tasks_existing - tasks_done
+        remaining = tasks_existing - units_done_today
 
         # Tasks added today
         added_today = sum(
@@ -403,8 +442,8 @@ async def compute_project_burndown(
 
         burndown.append({
             "date": current,
-            "remaining": remaining,
-            "completed_cumulative": tasks_done,
+            "remaining": round(remaining, 2),
+            "completed_cumulative": round(units_done_today, 2),
             "added": added_today,
         })
 

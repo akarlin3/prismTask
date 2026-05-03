@@ -21,6 +21,10 @@ class TaskUpdate(BaseModel):
     due_date: Optional[date] = None
     sort_order: Optional[int] = None
     eisenhower_quadrant: Optional[str] = None
+    # PrismTask-timeline-class scope, PR-4 (audit P9 option a). Fractional
+    # progress in 0..100; null restores binary semantics (status as
+    # source of truth for burndown).
+    progress_percent: Optional[int] = None
 
 
 class SubtaskCreate(BaseModel):
@@ -47,6 +51,9 @@ class TaskResponse(BaseModel):
     eisenhower_updated_at: Optional[datetime] = None
     sort_order: int
     depth: int
+    # PrismTask-timeline-class scope, PR-4. Fractional progress 0..100;
+    # null preserves legacy binary (status-as-source-of-truth) semantics.
+    progress_percent: Optional[int] = None
     created_at: datetime
     updated_at: datetime
     subtasks: list["TaskResponse"] = []

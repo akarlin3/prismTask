@@ -46,9 +46,29 @@ function parseDateInput(iso: string): Date {
 
 export interface BurndownInput {
   project: Pick<Project, 'id' | 'title' | 'due_date'>;
-  tasks: Pick<Task, 'id' | 'project_id' | 'status' | 'created_at' | 'completed_at'>[];
+  tasks: Pick<
+    Task,
+    'id' | 'project_id' | 'status' | 'created_at' | 'completed_at' | 'progress_percent'
+  >[];
   startIso: string;
   endIso: string;
+}
+
+/**
+ * Per-task contribution to the cumulative-completed metric. Mirrors
+ * `_progress_units` in `backend/app/services/analytics.py`. Returns a
+ * value in `[0, 1]`. Fractional rows pass through `progress_percent /
+ * 100`; binary rows return 1 if `status === 'done'` else 0. PR-4 of
+ * the PrismTask-timeline-class scope.
+ */
+function progressUnits(
+  t: Pick<Task, 'status' | 'progress_percent'>,
+): number {
+  const pct = t.progress_percent;
+  if (pct != null) {
+    return Math.max(0, Math.min(100, pct)) / 100;
+  }
+  return t.status === 'done' ? 1 : 0;
 }
 
 export function computeProjectBurndown({
@@ -62,13 +82,23 @@ export function computeProjectBurndown({
   );
 
   const totalTasks = projectTasks.length;
-  const completedTasks = projectTasks.filter((t) => t.status === 'done').length;
+  // Whole-task notion preserved: sum of progress units, rounded to one
+  // decimal so callers reading "completed_tasks" still see an integer
+  // for binary projects.
+  const completedUnits = projectTasks.reduce((s, t) => s + progressUnits(t), 0);
+  const completedTasks = Math.round(completedUnits * 10) / 10;
 
-  // Pre-compute per-task created + completed date-only values so the
-  // per-day inner loop doesn't re-parse on every iteration.
+  // Pre-compute per-task created + completed date-only values + progress
+  // units so the per-day inner loop doesn't re-parse on every iteration.
   const taskDates = projectTasks.map((t) => ({
     created: toDateOnly(t.created_at),
     completed: toDateOnly(t.completed_at),
+    units: progressUnits(t),
+    isOpenFractional: t.completed_at == null && t.progress_percent != null,
+    openFractionalUnits:
+      t.progress_percent != null
+        ? Math.max(0, Math.min(100, t.progress_percent)) / 100
+        : 0,
   }));
 
   const startDate = parseDateInput(startIso);
@@ -81,18 +111,24 @@ export function computeProjectBurndown({
     d = new Date(d.getTime() + DAY_MS)
   ) {
     const dayMs = d.getTime();
+    const isLastDay = dayMs === endDate.getTime();
     let existing = 0;
-    let done = 0;
+    let unitsDone = 0;
     let added = 0;
     for (const td of taskDates) {
       if (td.created && td.created.getTime() <= dayMs) existing += 1;
-      if (td.completed && td.completed.getTime() <= dayMs) done += 1;
+      if (td.completed && td.completed.getTime() <= dayMs) unitsDone += td.units;
       if (td.created && td.created.getTime() === dayMs) added += 1;
+      // Open fractional tasks contribute only on the report's last day —
+      // see backend rationale; we don't snapshot mid-window progress.
+      if (isLastDay && td.isOpenFractional) {
+        unitsDone += td.openFractionalUnits;
+      }
     }
     burndown.push({
       date: formatDate(d),
-      remaining: existing - done,
-      completed_cumulative: done,
+      remaining: Math.round((existing - unitsDone) * 100) / 100,
+      completed_cumulative: Math.round(unitsDone * 100) / 100,
       added,
     });
   }

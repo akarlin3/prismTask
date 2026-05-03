@@ -207,6 +207,10 @@ class Task(Base):
     actual_duration = Column(Integer, nullable=True)  # minutes
     sort_order = Column(Integer, default=0)
     depth = Column(Integer, default=0)
+    # Fractional progress in 0..100. NULL means "binary" — the burndown
+    # treats this task as 100 if status == DONE else 0. PrismTask-timeline-
+    # class scope, PR-4 (audit P9 option a).
+    progress_percent = Column(Integer, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=lambda: datetime.now(timezone.utc))
 

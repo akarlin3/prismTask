@@ -43,6 +43,14 @@ export interface Task {
   user_overrode_quadrant?: boolean;
   /** Whether the task is flagged. Round-tripped from Android. */
   is_flagged?: boolean;
+  /**
+   * Fractional progress in `0..100`. `null` / undefined means the task
+   * is binary — its status field (`done` / not) is the source of truth
+   * for burndown and progress UIs. Non-null values are only authored on
+   * tasks under a project (PrismTask-timeline-class scope, PR-4; audit
+   * P9 option a).
+   */
+  progress_percent?: number | null;
 }
 
 export interface TaskCreate {

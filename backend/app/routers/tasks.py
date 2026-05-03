@@ -55,6 +55,7 @@ def _task_to_response(task: Task, subtasks: list | None = None) -> TaskResponse:
         eisenhower_updated_at=task.eisenhower_updated_at,
         sort_order=task.sort_order,
         depth=task.depth,
+        progress_percent=task.progress_percent,
         created_at=task.created_at,
         updated_at=task.updated_at,
         subtasks=child_responses,
