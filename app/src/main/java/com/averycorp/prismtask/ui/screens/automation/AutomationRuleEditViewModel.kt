@@ -42,10 +42,54 @@ class AutomationRuleEditViewModel @Inject constructor(
     private val _saved = MutableStateFlow(false)
     val saved: StateFlow<Boolean> = _saved.asStateFlow()
 
+    private val _composedCandidates = MutableStateFlow<List<ParentRuleOption>>(emptyList())
+    val composedCandidates: StateFlow<List<ParentRuleOption>> = _composedCandidates.asStateFlow()
+
     init {
+        viewModelScope.launch { loadComposedCandidates() }
         if (ruleId != null) {
             viewModelScope.launch { loadFromExisting(ruleId) }
         }
+    }
+
+    /**
+     * Builds the parent-rule picker list for the [TriggerKind.COMPOSED]
+     * editor. Excludes:
+     *  - the rule currently being edited (no self-reference)
+     *  - rules that already point at *this* rule via Composed (would
+     *    immediately form a 2-cycle on save)
+     *
+     * Deeper cycle detection (length 3+) lives in [AutomationEngine] —
+     * the user can still author a 3-cycle through the UI, the engine
+     * will abort the chain at fire time. Per § A6 of the architecture
+     * doc, that is the chosen safety boundary.
+     */
+    private suspend fun loadComposedCandidates() {
+        val all = ruleRepository.getAllOnce()
+        val descendants = ruleId?.let { collectComposedDescendants(it, all) } ?: emptySet()
+        _composedCandidates.value = all
+            .filter { it.id != ruleId && it.id !in descendants }
+            .map { ParentRuleOption(it.id, it.name) }
+    }
+
+    private fun collectComposedDescendants(
+        startId: Long,
+        all: List<com.averycorp.prismtask.data.local.entity.AutomationRuleEntity>
+    ): Set<Long> {
+        val children = mutableSetOf<Long>()
+        val stack = ArrayDeque<Long>()
+        stack.add(startId)
+        val byParent = all.groupBy { row ->
+            val trigger = AutomationJsonAdapter.decodeTrigger(row.triggerJson)
+            (trigger as? AutomationTrigger.Composed)?.parentRuleId
+        }
+        while (stack.isNotEmpty()) {
+            val parent = stack.removeFirst()
+            byParent[parent].orEmpty().forEach { child ->
+                if (children.add(child.id)) stack.add(child.id)
+            }
+        }
+        return children
     }
 
     private suspend fun loadFromExisting(id: Long) {
@@ -68,10 +112,7 @@ class AutomationRuleEditViewModel @Inject constructor(
             daysOfWeek = (trigger as? AutomationTrigger.DayOfWeekTime)?.daysOfWeek
                 ?: emptySet(),
             composedParentRuleId = (trigger as? AutomationTrigger.Composed)?.parentRuleId?.toString().orEmpty(),
-            conditionEnabled = condition is AutomationCondition.Compare,
-            conditionField = (condition as? AutomationCondition.Compare)?.field ?: CONDITION_FIELDS.first(),
-            conditionOp = (condition as? AutomationCondition.Compare)?.opType ?: Op.GTE,
-            conditionValue = (condition as? AutomationCondition.Compare)?.value?.toString().orEmpty(),
+            condition = ConditionDraft.fromCondition(condition),
             actions = actions.mapNotNull { it.toDraft() }.ifEmpty { listOf(ActionDraft.Notify()) }
         )
     }
@@ -90,10 +131,14 @@ class AutomationRuleEditViewModel @Inject constructor(
     }
     fun setComposedParentRuleId(value: String) = _draft.update { it.copy(composedParentRuleId = value) }
 
-    fun setConditionEnabled(value: Boolean) = _draft.update { it.copy(conditionEnabled = value) }
-    fun setConditionField(value: String) = _draft.update { it.copy(conditionField = value) }
-    fun setConditionOp(value: Op) = _draft.update { it.copy(conditionOp = value) }
-    fun setConditionValue(value: String) = _draft.update { it.copy(conditionValue = value) }
+    fun setConditionEnabled(value: Boolean) = _draft.update {
+        it.copy(condition = if (value) it.condition ?: ConditionDraft.Leaf() else null)
+    }
+
+    fun replaceConditionAt(path: List<Int>, transform: (ConditionDraft) -> ConditionDraft?) =
+        _draft.update { it.copy(condition = it.condition?.replaceAt(path, transform)) }
+
+    fun setConditionRoot(node: ConditionDraft?) = _draft.update { it.copy(condition = node) }
 
     fun addAction() = _draft.update { it.copy(actions = it.actions + ActionDraft.Notify()) }
     fun removeAction(index: Int) = _draft.update { d ->
@@ -185,6 +230,8 @@ class AutomationRuleEditViewModel @Inject constructor(
     }
 }
 
+data class ParentRuleOption(val id: Long, val name: String)
+
 enum class TriggerKind(val label: String) {
     ENTITY_EVENT("When an event happens"),
     TIME_OF_DAY("Daily at a time"),
@@ -205,10 +252,7 @@ data class RuleDraft(
     val timeMinute: Int = 0,
     val daysOfWeek: Set<String> = emptySet(),
     val composedParentRuleId: String = "",
-    val conditionEnabled: Boolean = false,
-    val conditionField: String = "task.priority",
-    val conditionOp: Op = Op.GTE,
-    val conditionValue: String = "",
+    val condition: ConditionDraft? = null,
     val actions: List<ActionDraft> = listOf(ActionDraft.Notify())
 ) {
     fun toTrigger(): AutomationTrigger? = when (triggerKind) {
@@ -220,13 +264,96 @@ data class RuleDraft(
         TriggerKind.COMPOSED -> composedParentRuleId.toLongOrNull()?.let { AutomationTrigger.Composed(it) }
     }
 
-    fun toCondition(): AutomationCondition? {
-        if (!conditionEnabled) return null
-        // Numeric coercion: when the value looks like a number, parse it
-        // as Long; otherwise keep as String. Matters for the evaluator's
-        // numeric-comparison fast path.
-        val coerced: Any = conditionValue.toLongOrNull() ?: conditionValue
-        return AutomationCondition.Compare(conditionOp, conditionField, coerced)
+    fun toCondition(): AutomationCondition? = condition?.toCondition()
+}
+
+/**
+ * Working representation of an [AutomationCondition] for the editor.
+ * The disk shape ([AutomationCondition]) is the same sealed-tree
+ * structure; the draft mirrors it so the recursive Composable can
+ * render and mutate without touching JSON.
+ *
+ * Path-based mutations: each node in a composite is addressable by a
+ * `List<Int>` index path from the root. Empty list = root. Used by the
+ * UI's add/remove/wrap callbacks.
+ */
+sealed class ConditionDraft {
+    abstract fun toCondition(): AutomationCondition?
+
+    data class Leaf(
+        val field: String = "task.priority",
+        val op: AutomationCondition.Op = AutomationCondition.Op.GTE,
+        val value: String = ""
+    ) : ConditionDraft() {
+        override fun toCondition(): AutomationCondition {
+            val coerced: Any = value.toLongOrNull() ?: value
+            return AutomationCondition.Compare(op, field, coerced)
+        }
+    }
+
+    data class And(val children: List<ConditionDraft> = listOf(Leaf())) : ConditionDraft() {
+        override fun toCondition(): AutomationCondition? = children
+            .mapNotNull { it.toCondition() }
+            .takeIf { it.isNotEmpty() }
+            ?.let { AutomationCondition.And(it) }
+    }
+
+    data class Or(val children: List<ConditionDraft> = listOf(Leaf())) : ConditionDraft() {
+        override fun toCondition(): AutomationCondition? = children
+            .mapNotNull { it.toCondition() }
+            .takeIf { it.isNotEmpty() }
+            ?.let { AutomationCondition.Or(it) }
+    }
+
+    data class Not(val child: ConditionDraft = Leaf()) : ConditionDraft() {
+        override fun toCondition(): AutomationCondition? =
+            child.toCondition()?.let { AutomationCondition.Not(it) }
+    }
+
+    /**
+     * Replace the node at `path` with the result of `transform(node)`.
+     * Returns the new tree. If `transform` returns null and the parent
+     * is composite, the node is removed.
+     */
+    fun replaceAt(
+        path: List<Int>,
+        transform: (ConditionDraft) -> ConditionDraft?
+    ): ConditionDraft? = if (path.isEmpty()) {
+        transform(this)
+    } else {
+        val head = path.first()
+        val tail = path.drop(1)
+        when (this) {
+            is Leaf -> this
+            is And -> {
+                val updated = children.toMutableList().apply {
+                    val replaced = this[head].replaceAt(tail, transform)
+                    if (replaced == null) removeAt(head) else this[head] = replaced
+                }
+                if (updated.isEmpty()) null else copy(children = updated)
+            }
+            is Or -> {
+                val updated = children.toMutableList().apply {
+                    val replaced = this[head].replaceAt(tail, transform)
+                    if (replaced == null) removeAt(head) else this[head] = replaced
+                }
+                if (updated.isEmpty()) null else copy(children = updated)
+            }
+            is Not -> {
+                val replaced = child.replaceAt(tail, transform)
+                replaced?.let { copy(child = it) }
+            }
+        }
+    }
+
+    companion object {
+        fun fromCondition(c: AutomationCondition?): ConditionDraft? = when (c) {
+            null -> null
+            is AutomationCondition.Compare -> Leaf(c.field, c.opType, c.value?.toString().orEmpty())
+            is AutomationCondition.And -> And(c.children.mapNotNull { fromCondition(it) })
+            is AutomationCondition.Or -> Or(c.children.mapNotNull { fromCondition(it) })
+            is AutomationCondition.Not -> fromCondition(c.child)?.let { Not(it) }
+        }
     }
 }
 
