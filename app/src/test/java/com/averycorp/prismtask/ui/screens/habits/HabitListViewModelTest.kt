@@ -1,7 +1,9 @@
 package com.averycorp.prismtask.ui.screens.habits
 
+import com.averycorp.prismtask.data.preferences.AdvancedTuningPreferences
 import com.averycorp.prismtask.data.preferences.BuiltInSortOrders
 import com.averycorp.prismtask.data.preferences.HabitListPreferences
+import com.averycorp.prismtask.data.preferences.SelfCareTierDefaults
 import com.averycorp.prismtask.data.repository.DailyCourseProgress
 import com.averycorp.prismtask.data.repository.DailyLeisureProgress
 import com.averycorp.prismtask.data.repository.HabitRepository
@@ -39,6 +41,7 @@ class HabitListViewModelTest {
     private lateinit var schoolworkRepository: SchoolworkRepository
     private lateinit var leisureRepository: LeisureRepository
     private lateinit var habitListPreferences: HabitListPreferences
+    private lateinit var advancedTuningPreferences: AdvancedTuningPreferences
     private lateinit var gson: Gson
 
     @Before
@@ -49,7 +52,10 @@ class HabitListViewModelTest {
         schoolworkRepository = mockk(relaxed = true)
         leisureRepository = mockk(relaxed = true)
         habitListPreferences = mockk(relaxed = true)
+        advancedTuningPreferences = mockk(relaxed = true)
         gson = Gson()
+
+        coEvery { advancedTuningPreferences.getSelfCareTierDefaults() } returns flowOf(SelfCareTierDefaults())
 
         coEvery { habitRepository.getHabitsWithFullStatus() } returns flowOf(emptyList())
         coEvery { selfCareRepository.getTodayLog(any()) } returns flowOf(null)
@@ -85,6 +91,7 @@ class HabitListViewModelTest {
             schoolworkRepository,
             leisureRepository,
             habitListPreferences,
+            advancedTuningPreferences,
             gson
         )
 

@@ -13,6 +13,12 @@ interface AutomationRuleDao {
     @Query("SELECT * FROM automation_rules ORDER BY priority DESC, name ASC")
     fun observeAll(): Flow<List<AutomationRuleEntity>>
 
+    @Query("SELECT * FROM automation_rules ORDER BY priority DESC, name ASC")
+    suspend fun getAllOnce(): List<AutomationRuleEntity>
+
+    @Query("UPDATE automation_rules SET cloud_id = :cloudId WHERE id = :id")
+    suspend fun setCloudId(id: Long, cloudId: String)
+
     @Query("SELECT * FROM automation_rules WHERE enabled = 1 ORDER BY priority DESC, id ASC")
     fun observeEnabled(): Flow<List<AutomationRuleEntity>>
 

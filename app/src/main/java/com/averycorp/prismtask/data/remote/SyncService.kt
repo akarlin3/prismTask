@@ -1,6 +1,7 @@
 package com.averycorp.prismtask.data.remote
 
 import com.averycorp.prismtask.data.local.dao.AttachmentDao
+import com.averycorp.prismtask.data.local.dao.AutomationRuleDao
 import com.averycorp.prismtask.data.local.dao.BoundaryRuleDao
 import com.averycorp.prismtask.data.local.dao.CheckInLogDao
 import com.averycorp.prismtask.data.local.dao.CustomSoundDao
@@ -101,6 +102,7 @@ constructor(
     private val habitTemplateDao: HabitTemplateDao,
     private val projectTemplateDao: ProjectTemplateDao,
     private val boundaryRuleDao: BoundaryRuleDao,
+    private val automationRuleDao: AutomationRuleDao,
     private val checkInLogDao: CheckInLogDao,
     private val moodEnergyLogDao: MoodEnergyLogDao,
     private val focusReleaseLogDao: FocusReleaseLogDao,
@@ -527,6 +529,13 @@ constructor(
             rows = boundaryRuleDao.getAllOnce(),
             rowId = { it.id },
             toMap = { SyncMapper.boundaryRuleToMap(it) }
+        )
+        uploadRoomConfigFamily(
+            entityType = "automation_rule",
+            collection = "automation_rules",
+            rows = automationRuleDao.getAllOnce(),
+            rowId = { it.id },
+            toMap = { SyncMapper.automationRuleToMap(it) }
         )
 
         // --- v1.4.38 content families (FK-free) ---
@@ -1150,6 +1159,7 @@ constructor(
         "habit_template" -> "habit_templates"
         "project_template" -> "project_templates"
         "boundary_rule" -> "boundary_rules"
+        "automation_rule" -> "automation_rules"
         "check_in_log" -> "check_in_logs"
         "mood_energy_log" -> "mood_energy_logs"
         "focus_release_log" -> "focus_release_logs"
@@ -1307,6 +1317,10 @@ constructor(
             "boundary_rule" -> {
                 val rule = boundaryRuleDao.getByIdOnce(meta.localId) ?: return
                 SyncMapper.boundaryRuleToMap(rule)
+            }
+            "automation_rule" -> {
+                val rule = automationRuleDao.getByIdOnce(meta.localId) ?: return
+                SyncMapper.automationRuleToMap(rule)
             }
             "check_in_log" -> {
                 val log = checkInLogDao.getByIdOnce(meta.localId) ?: return
@@ -1473,6 +1487,10 @@ constructor(
             "boundary_rule" -> {
                 val rule = boundaryRuleDao.getByIdOnce(meta.localId) ?: return
                 SyncMapper.boundaryRuleToMap(rule)
+            }
+            "automation_rule" -> {
+                val rule = automationRuleDao.getByIdOnce(meta.localId) ?: return
+                SyncMapper.automationRuleToMap(rule)
             }
             "check_in_log" -> {
                 val log = checkInLogDao.getByIdOnce(meta.localId) ?: return
@@ -2505,6 +2523,21 @@ constructor(
         skipped += boundaryRulesResult.skipped
         skippedPermanent += boundaryRulesResult.skippedPermanent
 
+        val automationRulesResult = pullRoomConfigFamily(
+            collection = "automation_rules",
+            entityType = "automation_rule",
+            getLocalUpdatedAt = { automationRuleDao.getByIdOnce(it)?.updatedAt },
+            insert = { data, cloudId ->
+                automationRuleDao.insert(SyncMapper.mapToAutomationRule(data, cloudId = cloudId))
+            },
+            update = { data, localId, cloudId ->
+                automationRuleDao.update(SyncMapper.mapToAutomationRule(data, localId, cloudId))
+            }
+        )
+        applied += automationRulesResult.applied
+        skipped += automationRulesResult.skipped
+        skippedPermanent += automationRulesResult.skippedPermanent
+
         // v1.4.38 content families (FK-free) — same LWW semantics as above.
         val checkInLogsResult = pullRoomConfigFamily(
             collection = "check_in_logs",
@@ -3218,6 +3251,7 @@ constructor(
             "medication_slots", "medication_slot_overrides", "medication_tier_states",
             "notification_profiles", "custom_sounds", "saved_filters", "nlp_shortcuts",
             "habit_templates", "project_templates", "boundary_rules",
+            "automation_rules",
             "check_in_logs", "mood_energy_logs", "focus_release_logs",
             "medication_refills", "weekly_reviews", "daily_essential_slot_completions",
             "assignments", "attachments", "study_logs"
@@ -3305,6 +3339,7 @@ constructor(
             "habit_templates" -> "habit_template"
             "project_templates" -> "project_template"
             "boundary_rules" -> "boundary_rule"
+            "automation_rules" -> "automation_rule"
             "check_in_logs" -> "check_in_log"
             "mood_energy_logs" -> "mood_energy_log"
             "focus_release_logs" -> "focus_release_log"
@@ -3349,6 +3384,7 @@ constructor(
                     "habit_template" -> habitTemplateDao.deleteById(localId)
                     "project_template" -> projectTemplateDao.deleteById(localId)
                     "boundary_rule" -> boundaryRuleDao.delete(localId)
+                    "automation_rule" -> automationRuleDao.deleteById(localId)
                     "check_in_log" -> checkInLogDao.deleteById(localId)
                     "mood_energy_log" -> moodEnergyLogDao.deleteById(localId)
                     "focus_release_log" -> focusReleaseLogDao.deleteById(localId)
