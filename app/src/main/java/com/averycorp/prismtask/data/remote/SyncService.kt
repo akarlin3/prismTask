@@ -439,7 +439,12 @@ constructor(
                 val docRef = userCollection("tasks")?.document() ?: continue
                 docRef.set(
                     SyncMapper.taskToMap(
-                        task, tagIds, projectCloudId, parentTaskCloudId, sourceHabitCloudId, phaseCloudId
+                        task,
+                        tagIds,
+                        projectCloudId,
+                        parentTaskCloudId,
+                        sourceHabitCloudId,
+                        phaseCloudId
                     )
                 ).await()
                 syncMetadataDao.upsert(
@@ -1781,8 +1786,13 @@ constructor(
             val phaseLocalId = phaseCloudId?.let { syncMetadataDao.getLocalId(it, "project_phase") }
             if (localId == null) {
                 val task = SyncMapper.mapToTask(
-                    data, 0, projectLocalId, parentTaskLocalId, sourceHabitLocalId,
-                    cloudId = cloudId, phaseLocalId = phaseLocalId
+                    data,
+                    0,
+                    projectLocalId,
+                    parentTaskLocalId,
+                    sourceHabitLocalId,
+                    cloudId = cloudId,
+                    phaseLocalId = phaseLocalId
                 )
                 val newId = taskDao.insert(task)
                 syncMetadataDao.upsert(
@@ -1805,8 +1815,13 @@ constructor(
                 if (localTask == null || remoteUpdatedAt > localTask.updatedAt) {
                     taskDao.update(
                         SyncMapper.mapToTask(
-                            data, localId, projectLocalId, parentTaskLocalId, sourceHabitLocalId,
-                            cloudId = cloudId, phaseLocalId = phaseLocalId
+                            data,
+                            localId,
+                            projectLocalId,
+                            parentTaskLocalId,
+                            sourceHabitLocalId,
+                            cloudId = cloudId,
+                            phaseLocalId = phaseLocalId
                         )
                     )
                     syncMetadataDao.clearPendingAction(localId, "task")
