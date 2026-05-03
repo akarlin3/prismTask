@@ -12,6 +12,7 @@ import com.averycorp.prismtask.data.local.dao.CalendarSyncDao
 import com.averycorp.prismtask.data.local.dao.CheckInLogDao
 import com.averycorp.prismtask.data.local.dao.CustomSoundDao
 import com.averycorp.prismtask.data.local.dao.DailyEssentialSlotCompletionDao
+import com.averycorp.prismtask.data.local.dao.ExternalAnchorDao
 import com.averycorp.prismtask.data.local.dao.FocusReleaseLogDao
 import com.averycorp.prismtask.data.local.dao.HabitCompletionDao
 import com.averycorp.prismtask.data.local.dao.HabitDao
@@ -209,6 +210,9 @@ object DatabaseModule {
 
     @Provides
     fun provideTaskDependencyDao(database: PrismTaskDatabase): TaskDependencyDao = database.taskDependencyDao()
+
+    @Provides
+    fun provideExternalAnchorDao(database: PrismTaskDatabase): ExternalAnchorDao = database.externalAnchorDao()
 }
 
 /**

@@ -2274,7 +2274,55 @@ val MIGRATION_72_73 = object : Migration(72, 73) {
     }
 }
 
-const val CURRENT_DB_VERSION = 73
+/**
+ * v73 → v74 — PrismTask-timeline-class scope, PR-3 (external anchors).
+ *
+ * Adds the `external_anchors` table — a polymorphic anchor (calendar
+ * deadline / numeric threshold / boolean gate) attached to a project
+ * and optionally a phase within that project. The variant payload is
+ * JSON-serialized via `ExternalAnchorJsonAdapter`, mirroring the
+ * AutomationEngine's sealed-class round-trip pattern (PR #1056).
+ *
+ * `project_id` CASCADEs (anchors are project-scoped); `phase_id` is
+ * SET_NULL so deleting a phase doesn't drop a still-relevant
+ * project-level anchor. Pure-additive migration.
+ */
+val MIGRATION_73_74 = object : Migration(73, 74) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `external_anchors` (
+              `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+              `cloud_id` TEXT,
+              `project_id` INTEGER NOT NULL,
+              `phase_id` INTEGER,
+              `label` TEXT NOT NULL,
+              `anchor_json` TEXT NOT NULL,
+              `created_at` INTEGER NOT NULL,
+              `updated_at` INTEGER NOT NULL,
+              FOREIGN KEY(`project_id`) REFERENCES `projects`(`id`)
+                ON UPDATE NO ACTION ON DELETE CASCADE,
+              FOREIGN KEY(`phase_id`) REFERENCES `project_phases`(`id`)
+                ON UPDATE NO ACTION ON DELETE SET NULL
+            )
+            """.trimIndent()
+        )
+        db.execSQL(
+            "CREATE UNIQUE INDEX IF NOT EXISTS `index_external_anchors_cloud_id` " +
+                "ON `external_anchors` (`cloud_id`)"
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_external_anchors_project_id` " +
+                "ON `external_anchors` (`project_id`)"
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_external_anchors_phase_id` " +
+                "ON `external_anchors` (`phase_id`)"
+        )
+    }
+}
+
+const val CURRENT_DB_VERSION = 74
 
 val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_1_2,
@@ -2348,5 +2396,6 @@ val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_69_70,
     MIGRATION_70_71,
     MIGRATION_71_72,
-    MIGRATION_72_73
+    MIGRATION_72_73,
+    MIGRATION_73_74
 )

@@ -9,6 +9,7 @@ import com.averycorp.prismtask.data.local.entity.CourseCompletionEntity
 import com.averycorp.prismtask.data.local.entity.CourseEntity
 import com.averycorp.prismtask.data.local.entity.CustomSoundEntity
 import com.averycorp.prismtask.data.local.entity.DailyEssentialSlotCompletionEntity
+import com.averycorp.prismtask.data.local.entity.ExternalAnchorEntity
 import com.averycorp.prismtask.data.local.entity.FocusReleaseLogEntity
 import com.averycorp.prismtask.data.local.entity.HabitCompletionEntity
 import com.averycorp.prismtask.data.local.entity.HabitEntity
@@ -281,6 +282,45 @@ object SyncMapper {
             level = data["level"] as? String ?: "MEDIUM",
             mitigation = data["mitigation"] as? String,
             resolvedAt = (data["resolvedAt"] as? Number)?.toLong(),
+            createdAt = (data["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
+            updatedAt = (data["updatedAt"] as? Number)?.toLong() ?: System.currentTimeMillis()
+        )
+
+    /**
+     * External anchors live as a child subcollection under a project.
+     * `phaseCloudId` is optional — anchors may be project-scoped only.
+     * The polymorphic [com.averycorp.prismtask.domain.model.ExternalAnchor]
+     * payload is already JSON-serialized in `anchor_json`; this mapper
+     * just round-trips the column verbatim.
+     */
+    fun externalAnchorToMap(
+        anchor: ExternalAnchorEntity,
+        projectCloudId: String,
+        phaseCloudId: String? = null
+    ): Map<String, Any?> = mapOf(
+        "localId" to anchor.id,
+        "projectCloudId" to projectCloudId,
+        "phaseCloudId" to phaseCloudId,
+        "label" to anchor.label,
+        "anchorJson" to anchor.anchorJson,
+        "createdAt" to anchor.createdAt,
+        "updatedAt" to anchor.updatedAt
+    )
+
+    fun mapToExternalAnchor(
+        data: Map<String, Any?>,
+        projectLocalId: Long,
+        phaseLocalId: Long? = null,
+        localId: Long = 0,
+        cloudId: String? = null
+    ): ExternalAnchorEntity =
+        ExternalAnchorEntity(
+            id = localId,
+            cloudId = cloudId,
+            projectId = projectLocalId,
+            phaseId = phaseLocalId,
+            label = data["label"] as? String ?: "",
+            anchorJson = data["anchorJson"] as? String ?: "",
             createdAt = (data["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
             updatedAt = (data["updatedAt"] as? Number)?.toLong() ?: System.currentTimeMillis()
         )

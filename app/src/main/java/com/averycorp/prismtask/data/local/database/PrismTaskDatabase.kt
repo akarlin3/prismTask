@@ -11,6 +11,7 @@ import com.averycorp.prismtask.data.local.dao.CalendarSyncDao
 import com.averycorp.prismtask.data.local.dao.CheckInLogDao
 import com.averycorp.prismtask.data.local.dao.CustomSoundDao
 import com.averycorp.prismtask.data.local.dao.DailyEssentialSlotCompletionDao
+import com.averycorp.prismtask.data.local.dao.ExternalAnchorDao
 import com.averycorp.prismtask.data.local.dao.FocusReleaseLogDao
 import com.averycorp.prismtask.data.local.dao.HabitCompletionDao
 import com.averycorp.prismtask.data.local.dao.HabitDao
@@ -55,6 +56,7 @@ import com.averycorp.prismtask.data.local.entity.CourseCompletionEntity
 import com.averycorp.prismtask.data.local.entity.CourseEntity
 import com.averycorp.prismtask.data.local.entity.CustomSoundEntity
 import com.averycorp.prismtask.data.local.entity.DailyEssentialSlotCompletionEntity
+import com.averycorp.prismtask.data.local.entity.ExternalAnchorEntity
 import com.averycorp.prismtask.data.local.entity.FocusReleaseLogEntity
 import com.averycorp.prismtask.data.local.entity.HabitCompletionEntity
 import com.averycorp.prismtask.data.local.entity.HabitEntity
@@ -139,7 +141,8 @@ import com.averycorp.prismtask.data.local.entity.WeeklyReviewEntity
         AutomationLogEntity::class,
         ProjectPhaseEntity::class,
         ProjectRiskEntity::class,
-        TaskDependencyEntity::class
+        TaskDependencyEntity::class,
+        ExternalAnchorEntity::class
     ],
     version = CURRENT_DB_VERSION,
     exportSchema = false
@@ -226,4 +229,6 @@ abstract class PrismTaskDatabase : RoomDatabase() {
     abstract fun projectRiskDao(): ProjectRiskDao
 
     abstract fun taskDependencyDao(): TaskDependencyDao
+
+    abstract fun externalAnchorDao(): ExternalAnchorDao
 }
