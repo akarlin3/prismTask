@@ -477,7 +477,7 @@ Sorted by wall-clock-savings ÷ implementation-cost, descending.
 
 | PR | Title | LOC | Scope vs original prompt | CI status (at handoff) |
 |----|-------|-----|---------------------------|-------------------------|
-| #1084 | feat(load): Cognitive Load — Phase 1 audit + EASY/MEDIUM/HARD orthogonal task dimension | +1,656 / −9 across 22 files (479-line audit doc + 1,177-line implementation) | Single mega-PR carrying both the Phase 1 audit doc and the Phase 2 implementation. Matches the prompt's scope: TaskEntity-only, descriptive-only v1, 3-tier EASY/MEDIUM/HARD with tie-break EASY>MEDIUM>HARD, web field+sync (no UI editor), no backend Haiku route, no overload worker. | Pending — autofix / lint-and-test / web-lint-and-test / test / maybe-label all in_progress at handoff time; connected-tests / cross-device-tests skipped (path/emulator gating). |
+| #1084 | feat(load): Cognitive Load — Phase 1 audit + EASY/MEDIUM/HARD orthogonal task dimension + un-defer follow-ons | ≈+2,300 net adds across 33 files (audit + impl + un-defer batch) | Single mega-PR. Original scope: TaskEntity-only, descriptive-only v1, 3-tier EASY/MEDIUM/HARD with tie-break EASY>MEDIUM>HARD, web field+sync (no UI editor), no backend Haiku route, no overload worker. **Operator override mid-PR ("nothing deferred if possible") expanded scope to land six previously-deferred items in additional commits — see § Operator overrides during Phase 1 → Phase 2 transition.** | Pending — multi-batch CI runs across audit-only, impl, and un-defer commits. |
 
 **Measured impact:** not measurable until merge (no migration, classifier,
 or balance computation runs in production until v1.8.x ships). The
@@ -493,12 +493,42 @@ shape costs ~half the first" heuristic. Future orthogonal-dimension
 PRs (e.g. an Energy / Time-of-Day / Mood axis if scoped) should plan
 on the same single-session shape.
 
+**Operator overrides during Phase 1 → Phase 2 transition:**
+
+1. "**Phase 3 + 4 fire pre-merge from now on, every time.**" Captured in
+   `CLAUDE.md § Repo conventions`. Override of audit-first skill default.
+2. "**I want nothing deferred if possible.**" Mid-PR scope expansion.
+   Landed six previously-deferred items in a follow-on commit:
+   - `/ai/cognitive-load/classify_text` backend Haiku route + AI gate.
+   - `CognitiveLoadOverloadCheckWorker` (bidirectional prescriptive,
+     0.80 threshold per tier — flips audit P4 design call).
+   - `TodayCognitiveLoadSection` + Today screen wiring.
+   - Weekly Balance Report load section.
+   - `TaskEditor.tsx` web UI editor (Cognitive Load `<select>`).
+   - `NotificationWorkerScheduler` co-scheduling alongside the
+     LifeCategory overload worker.
+
+   Items still deferred *with explicit reasoning surfaced to operator:*
+   - **`DayBoundary.kt` dedup** — mid-flight 17-file API migration with
+     semantic difference (millis legacy vs LocalDate canonical); the
+     codebase explicitly notes the migration is "incremental". Not a
+     same-PR un-defer.
+   - **`MultiAxisBalanceTracker<T>` refactor** — audit explicitly
+     recommended against (refactor blast radius mid-feature). Operator
+     override would override the audit's own recommendation; flagged
+     for confirmation rather than land.
+   - **Habit / project / medication per-load classification** — none of
+     the three entities carry ANY orthogonal axis today. Pioneering the
+     axis across three entity hierarchies in one PR would be multi-day
+     work with high regression risk on built-in habit reconciliation,
+     project-detail joins, and medication slot logic.
+   - **Per-load streak strictness** — streaks live on habits/projects,
+     not tasks. Blocked on the habit-classification defer above.
+
 **Memory entry candidates:**
 
 1. **Audit-first Phase 3 + 4 pre-merge override** — captured in
-   `CLAUDE.md` § Repo conventions during this session. Future audit-first
-   runs in this repo should fire Phase 3 + 4 as soon as the impl PR is
-   opened, not after merge.
+   `CLAUDE.md` § Repo conventions. Pre-merge handoff is now standard.
 2. **Mega-PR template clones cost ~half the original.** When PR #N
    establishes a parallel-axis pattern (orthogonal column + classifier +
    balance tracker + NLP + UI selector + web parity), PR #N+1 cloning
@@ -506,27 +536,36 @@ on the same single-session shape.
    landing than a multi-day landing. Anti-pattern: scoping such a clone
    as a multi-PR fan-out — it expands wall-clock without de-risking,
    because the template is already proven.
+3. **Operator-override defer-minimization.** "I want nothing deferred"
+   is a meaningful override of the audit-first skill's defer-minimization
+   default. The right response is to triage defers into "feature defer
+   landable in this session" vs "refactor / pioneering scope explicitly
+   recommended against by the audit". Land the first set; surface the
+   second with reasoning rather than auto-overriding the audit.
 
 **Schedule for next audit:** none currently scoped. The defer list
 below seeds Phase F+1 candidates if the operator wants follow-ups.
 
-**Defers (audit doc only — not auto-filed as timeline items per
-defer-minimization principle):**
+**Defers post-operator-override (audit doc only — not auto-filed as
+timeline items per defer-minimization principle):**
 
-- Backend Haiku route + `Depends(require_ai_features_enabled)` for
-  AI-inferred load.
-- Web UI editor surface for picking load (mirrors WPR A6 deferral).
-- `CognitiveLoadOverloadCheckWorker` if user research justifies a
-  prescriptive bidirectional-imbalance notification.
-- Per-load streak strictness composing with `DailyForgivenessStreakCore`.
-- Habit / project / medication classification by load.
-- Today balance bar / weekly report load section (lands once load
-  data exists in DB).
-- `MultiAxisBalanceTracker<T>` refactor — three parallel trackers
-  (`BalanceTracker`, `ModeBalanceTracker`, `CognitiveLoadBalanceTracker`)
-  share ~85% of their cutoff/ratio code. Operator's own PR if/when
-  the duplication bites.
-- `DayBoundary.kt` dedup (`util/` and `core/time/` both exist).
+- ~~Backend Haiku route~~ — **landed** as `/ai/cognitive-load/classify_text`.
+- ~~Web UI editor~~ — **landed** in `TaskEditor.tsx` (`<select>` next to
+  Life Category picker).
+- ~~`CognitiveLoadOverloadCheckWorker`~~ — **landed** (bidirectional 0.80
+  threshold; flips audit P4 to prescriptive per operator override).
+- ~~Today balance bar / weekly report load section~~ — **landed** in
+  `TodayCognitiveLoadSection` + `WeeklyBalanceReportScreen.CognitiveLoadSection`.
+- **Habit / project / medication classification by load** — still
+  deferred. None of the three entities carries any orthogonal axis
+  today; multi-entity pioneering scope.
+- **Per-load streak strictness** — still deferred. Blocked on
+  habit/project per-load defer (streaks live on those entities).
+- **`MultiAxisBalanceTracker<T>` refactor** — still deferred (audit
+  recommended against; refactor blast radius mid-feature).
+- **`DayBoundary.kt` dedup** — still deferred (in-progress 17-file API
+  migration with semantic difference between millis and LocalDate
+  layers; explicitly incremental in the codebase's own KDoc).
 
 **Phase F kickoff impact:** Cognitive Load ships before the May 15
 kickoff if PR #1084 merges in the next 12 days. If CI flakes or
