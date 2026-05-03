@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
@@ -42,7 +43,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
@@ -308,14 +308,20 @@ private fun ConditionNode(
                     modifier = Modifier.weight(1f)
                 )
                 NodeKindMenu(current = node) { newNode ->
-                    if (isRoot) vm.setConditionRoot(newNode)
-                    else vm.replaceConditionAt(path) { newNode }
+                    if (isRoot) {
+                        vm.setConditionRoot(newNode)
+                    } else {
+                        vm.replaceConditionAt(path) { newNode }
+                    }
                 }
                 if (!isRoot) {
                     IconButton(
                         onClick = {
-                            if (path.isEmpty()) vm.setConditionRoot(null)
-                            else vm.replaceConditionAt(path) { null }
+                            if (path.isEmpty()) {
+                                vm.setConditionRoot(null)
+                            } else {
+                                vm.replaceConditionAt(path) { null }
+                            }
                         }
                     ) {
                         Icon(Icons.Filled.Delete, contentDescription = "Remove clause")
@@ -324,8 +330,11 @@ private fun ConditionNode(
             }
             when (node) {
                 is ConditionDraft.Leaf -> LeafEditor(node) { newLeaf ->
-                    if (isRoot) vm.setConditionRoot(newLeaf)
-                    else vm.replaceConditionAt(path) { newLeaf }
+                    if (isRoot) {
+                        vm.setConditionRoot(newLeaf)
+                    } else {
+                        vm.replaceConditionAt(path) { newLeaf }
+                    }
                 }
                 is ConditionDraft.And -> {
                     node.children.forEachIndexed { i, child ->
@@ -575,7 +584,10 @@ private fun <T> DropdownPicker(
             options.forEach { (label, item) ->
                 DropdownMenuItem(
                     text = { Text(label) },
-                    onClick = { expanded = false; onPick(item) }
+                    onClick = {
+                        expanded = false
+                        onPick(item)
+                    }
                 )
             }
         }

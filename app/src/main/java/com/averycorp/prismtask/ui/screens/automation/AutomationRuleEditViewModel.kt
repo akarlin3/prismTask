@@ -200,7 +200,7 @@ class AutomationRuleEditViewModel @Inject constructor(
         // Other action shapes are storage-supported but not rendered in
         // the v1.1 visual builder. Drop into the draft list as a Log
         // placeholder so users at least see something for them.
-        else -> ActionDraft.Log("(${type})")
+        else -> ActionDraft.Log("($type)")
     }
 
     companion object {
@@ -214,7 +214,13 @@ class AutomationRuleEditViewModel @Inject constructor(
             "MedicationLogged"
         )
         val DAYS_OF_WEEK = listOf(
-            "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"
+            "MONDAY",
+            "TUESDAY",
+            "WEDNESDAY",
+            "THURSDAY",
+            "FRIDAY",
+            "SATURDAY",
+            "SUNDAY"
         )
         val CONDITION_FIELDS = listOf(
             "task.priority",
