@@ -224,13 +224,31 @@ private fun TriggerSection(draft: RuleDraft, vm: AutomationRuleEditViewModel) {
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                TriggerKind.COMPOSED -> OutlinedTextField(
-                    value = draft.composedParentRuleId,
-                    onValueChange = { vm.setComposedParentRuleId(it) },
-                    label = { Text("Parent Rule ID") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.fillMaxWidth()
-                )
+                TriggerKind.COMPOSED -> {
+                    val candidates by vm.composedCandidates.collectAsStateWithLifecycle()
+                    if (candidates.isEmpty()) {
+                        Text(
+                            "No other rules available — create a primary rule first, then this one can chain off it.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    } else {
+                        DropdownPicker(
+                            label = "Parent Rule",
+                            value = candidates
+                                .firstOrNull { it.id.toString() == draft.composedParentRuleId }
+                                ?.name
+                                ?: "Pick a rule",
+                            options = candidates.map { it.name to it.id.toString() }
+                        ) { vm.setComposedParentRuleId(it) }
+                        Text(
+                            "Cycles of length 5+ abort at fire time. The picker hides the rule " +
+                                "being edited and any rule that already chains off it.",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
             }
         }
     }
@@ -241,34 +259,214 @@ private fun ConditionSection(draft: RuleDraft, vm: AutomationRuleEditViewModel) 
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Only If", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                Switch(checked = draft.conditionEnabled, onCheckedChange = { vm.setConditionEnabled(it) })
-            }
-            if (draft.conditionEnabled) {
-                DropdownPicker(
-                    label = "Field",
-                    value = draft.conditionField,
-                    options = AutomationRuleEditViewModel.CONDITION_FIELDS.map { it to it }
-                ) { vm.setConditionField(it) }
-                DropdownPicker(
-                    label = "Operator",
-                    value = draft.conditionOp.name,
-                    options = Op.values().map { it.name to it }
-                ) { vm.setConditionOp(it) }
-                OutlinedTextField(
-                    value = draft.conditionValue,
-                    onValueChange = { vm.setConditionValue(it) },
-                    label = { Text("Value") },
-                    modifier = Modifier.fillMaxWidth()
-                )
                 Text(
-                    "Tip: numeric values like 3 or timestamps are coerced; tag matches use #tag form.",
-                    style = MaterialTheme.typography.bodySmall,
+                    "Only If",
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.weight(1f)
+                )
+                Switch(
+                    checked = draft.condition != null,
+                    onCheckedChange = { vm.setConditionEnabled(it) }
+                )
+            }
+            val node = draft.condition
+            if (node != null) {
+                ConditionNode(node = node, path = emptyList(), depth = 0, vm = vm)
+                Text(
+                    "Tip: numeric values are coerced from text; tag matches use #tag form. Wrap clauses in AND/OR/NOT to combine them.",
+                    style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
     }
+}
+
+@Composable
+private fun ConditionNode(
+    node: ConditionDraft,
+    path: List<Int>,
+    depth: Int,
+    vm: AutomationRuleEditViewModel
+) {
+    val isRoot = path.isEmpty()
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = (depth * 12).dp),
+        colors = androidx.compose.material3.CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(8.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = nodeLabel(node),
+                    style = MaterialTheme.typography.labelMedium,
+                    modifier = Modifier.weight(1f)
+                )
+                NodeKindMenu(current = node) { newNode ->
+                    if (isRoot) {
+                        vm.setConditionRoot(newNode)
+                    } else {
+                        vm.replaceConditionAt(path) { newNode }
+                    }
+                }
+                if (!isRoot) {
+                    IconButton(
+                        onClick = {
+                            if (path.isEmpty()) {
+                                vm.setConditionRoot(null)
+                            } else {
+                                vm.replaceConditionAt(path) { null }
+                            }
+                        }
+                    ) {
+                        Icon(Icons.Filled.Delete, contentDescription = "Remove clause")
+                    }
+                }
+            }
+            when (node) {
+                is ConditionDraft.Leaf -> LeafEditor(node) { newLeaf ->
+                    if (isRoot) {
+                        vm.setConditionRoot(newLeaf)
+                    } else {
+                        vm.replaceConditionAt(path) { newLeaf }
+                    }
+                }
+                is ConditionDraft.And -> {
+                    node.children.forEachIndexed { i, child ->
+                        ConditionNode(child, path + i, depth + 1, vm)
+                    }
+                    OutlinedButton(
+                        onClick = {
+                            if (isRoot) {
+                                vm.setConditionRoot(node.copy(children = node.children + ConditionDraft.Leaf()))
+                            } else {
+                                vm.replaceConditionAt(path) { current ->
+                                    (current as ConditionDraft.And).copy(
+                                        children = current.children + ConditionDraft.Leaf()
+                                    )
+                                }
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Filled.Add, contentDescription = null)
+                        Spacer(Modifier.width(4.dp))
+                        Text("Add Clause")
+                    }
+                }
+                is ConditionDraft.Or -> {
+                    node.children.forEachIndexed { i, child ->
+                        ConditionNode(child, path + i, depth + 1, vm)
+                    }
+                    OutlinedButton(
+                        onClick = {
+                            if (isRoot) {
+                                vm.setConditionRoot(node.copy(children = node.children + ConditionDraft.Leaf()))
+                            } else {
+                                vm.replaceConditionAt(path) { current ->
+                                    (current as ConditionDraft.Or).copy(
+                                        children = current.children + ConditionDraft.Leaf()
+                                    )
+                                }
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Filled.Add, contentDescription = null)
+                        Spacer(Modifier.width(4.dp))
+                        Text("Add Clause")
+                    }
+                }
+                is ConditionDraft.Not -> {
+                    ConditionNode(node.child, path + 0, depth + 1, vm)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun NodeKindMenu(
+    current: ConditionDraft,
+    onPick: (ConditionDraft) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        OutlinedButton(
+            onClick = { expanded = true },
+            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
+        ) {
+            Text(currentKindLabel(current), style = MaterialTheme.typography.labelSmall)
+            Icon(Icons.Filled.ArrowDropDown, contentDescription = null)
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            DropdownMenuItem(text = { Text("Leaf") }, onClick = {
+                expanded = false
+                onPick(currentLeaf(current))
+            })
+            DropdownMenuItem(text = { Text("AND group") }, onClick = {
+                expanded = false
+                onPick(ConditionDraft.And(listOf(currentLeaf(current))))
+            })
+            DropdownMenuItem(text = { Text("OR group") }, onClick = {
+                expanded = false
+                onPick(ConditionDraft.Or(listOf(currentLeaf(current))))
+            })
+            DropdownMenuItem(text = { Text("NOT (negate)") }, onClick = {
+                expanded = false
+                onPick(ConditionDraft.Not(currentLeaf(current)))
+            })
+        }
+    }
+}
+
+private fun currentKindLabel(node: ConditionDraft): String = when (node) {
+    is ConditionDraft.Leaf -> "Leaf"
+    is ConditionDraft.And -> "AND"
+    is ConditionDraft.Or -> "OR"
+    is ConditionDraft.Not -> "NOT"
+}
+
+private fun currentLeaf(node: ConditionDraft): ConditionDraft.Leaf = when (node) {
+    is ConditionDraft.Leaf -> node
+    is ConditionDraft.And -> node.children.firstOrNull() as? ConditionDraft.Leaf
+        ?: ConditionDraft.Leaf()
+    is ConditionDraft.Or -> node.children.firstOrNull() as? ConditionDraft.Leaf
+        ?: ConditionDraft.Leaf()
+    is ConditionDraft.Not -> currentLeaf(node.child)
+}
+
+private fun nodeLabel(node: ConditionDraft): String = when (node) {
+    is ConditionDraft.Leaf -> "${node.field} ${node.op.key} ${node.value.ifEmpty { "?" }}"
+    is ConditionDraft.And -> "All of (${node.children.size})"
+    is ConditionDraft.Or -> "Any of (${node.children.size})"
+    is ConditionDraft.Not -> "Not"
+}
+
+@Composable
+private fun LeafEditor(leaf: ConditionDraft.Leaf, onChange: (ConditionDraft.Leaf) -> Unit) {
+    DropdownPicker(
+        label = "Field",
+        value = leaf.field,
+        options = AutomationRuleEditViewModel.CONDITION_FIELDS.map { it to it }
+    ) { onChange(leaf.copy(field = it)) }
+    DropdownPicker(
+        label = "Operator",
+        value = leaf.op.name,
+        options = Op.values().map { it.name to it }
+    ) { onChange(leaf.copy(op = it)) }
+    OutlinedTextField(
+        value = leaf.value,
+        onValueChange = { onChange(leaf.copy(value = it)) },
+        label = { Text("Value") },
+        modifier = Modifier.fillMaxWidth()
+    )
 }
 
 @Composable

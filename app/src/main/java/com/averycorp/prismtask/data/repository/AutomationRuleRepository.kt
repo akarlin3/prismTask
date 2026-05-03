@@ -10,6 +10,7 @@ import com.averycorp.prismtask.domain.automation.AutomationCondition
 import com.averycorp.prismtask.domain.automation.AutomationJsonAdapter
 import com.averycorp.prismtask.domain.automation.AutomationTrigger
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -27,6 +28,7 @@ class AutomationRuleRepository @Inject constructor(
     fun observeAll(): Flow<List<AutomationRuleEntity>> = ruleDao.observeAll()
     fun observeEnabled(): Flow<List<AutomationRuleEntity>> = ruleDao.observeEnabled()
     suspend fun getEnabledOnce(): List<AutomationRuleEntity> = ruleDao.getEnabledOnce()
+    suspend fun getAllOnce(): List<AutomationRuleEntity> = ruleDao.observeAll().first()
     suspend fun getByIdOnce(id: Long): AutomationRuleEntity? = ruleDao.getByIdOnce(id)
     suspend fun getByTemplateKeyOnce(key: String): AutomationRuleEntity? =
         ruleDao.getByTemplateKeyOnce(key)
