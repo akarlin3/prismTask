@@ -26,11 +26,13 @@ import com.averycorp.prismtask.data.repository.TagRepository
 import com.averycorp.prismtask.data.repository.TaskRepository
 import com.averycorp.prismtask.data.repository.TaskTemplateRepository
 import com.averycorp.prismtask.data.repository.TaskTimingRepository
+import com.averycorp.prismtask.domain.model.CognitiveLoad
 import com.averycorp.prismtask.domain.model.LifeCategory
 import com.averycorp.prismtask.domain.model.RecurrenceRule
 import com.averycorp.prismtask.domain.model.TaskMode
 import com.averycorp.prismtask.domain.usecase.BoundaryDecision
 import com.averycorp.prismtask.domain.usecase.BoundaryEnforcer
+import com.averycorp.prismtask.domain.usecase.CognitiveLoadClassifier
 import com.averycorp.prismtask.domain.usecase.LifeCategoryClassifier
 import com.averycorp.prismtask.domain.usecase.TaskModeClassifier
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -171,6 +173,20 @@ constructor(
     private val taskModeClassifier = TaskModeClassifier()
 
     /**
+     * Start-friction for this task. `null` means "Auto" — the save path
+     * runs [CognitiveLoadClassifier] to guess one before persisting.
+     * Orthogonal to [lifeCategory] / [taskMode] (see
+     * `docs/COGNITIVE_LOAD.md`).
+     */
+    var cognitiveLoad by mutableStateOf<CognitiveLoad?>(null)
+        private set
+
+    var cognitiveLoadManuallySet by mutableStateOf(false)
+        private set
+
+    private val cognitiveLoadClassifier = CognitiveLoadClassifier()
+
+    /**
      * Boundary-rule decision for the task currently being edited. The save
      * path checks this and bubbles a [BoundaryDecision.Block] up to the UI
      * via [pendingBoundaryBlock]; [BoundaryDecision.Suggest] pre-fills the
@@ -237,6 +253,7 @@ constructor(
     private var initialSelectedTagIds: Set<Long> = emptySet()
     private var initialLifeCategory: LifeCategory? = null
     private var initialTaskMode: TaskMode? = null
+    private var initialCognitiveLoad: CognitiveLoad? = null
 
     val projects: StateFlow<List<ProjectEntity>> = projectRepository
         .getAllProjects()
@@ -330,6 +347,8 @@ constructor(
         lifeCategoryManuallySet = false
         taskMode = null
         taskModeManuallySet = false
+        cognitiveLoad = null
+        cognitiveLoadManuallySet = false
         titleError = false
         pendingSubtasks.clear()
         nextPendingSubtaskId = 1L
@@ -367,6 +386,9 @@ constructor(
                         val loadedMode = TaskMode.fromStorage(task.taskMode)
                         taskMode = loadedMode.takeIf { it != TaskMode.UNCATEGORIZED }
                         taskModeManuallySet = taskMode != null
+                        val loadedLoad = CognitiveLoad.fromStorage(task.cognitiveLoad)
+                        cognitiveLoad = loadedLoad.takeIf { it != CognitiveLoad.UNCATEGORIZED }
+                        cognitiveLoadManuallySet = cognitiveLoad != null
                         snapshotInitialValuesFromTask(task, tagIds)
                     } else {
                         snapshotInitialValuesForCreate(projectId, initialDate)
@@ -422,6 +444,9 @@ constructor(
         initialTaskMode = TaskMode.fromStorage(task.taskMode).takeIf {
             it != TaskMode.UNCATEGORIZED
         }
+        initialCognitiveLoad = CognitiveLoad.fromStorage(task.cognitiveLoad).takeIf {
+            it != CognitiveLoad.UNCATEGORIZED
+        }
     }
 
     private fun snapshotInitialValuesForCreate(projectId: Long?, initialDate: Long?) {
@@ -439,6 +464,7 @@ constructor(
         initialSelectedTagIds = emptySet()
         initialLifeCategory = null
         initialTaskMode = null
+        initialCognitiveLoad = null
     }
 
     val hasUnsavedChanges: Boolean
@@ -457,7 +483,8 @@ constructor(
                     notes != initialNotes ||
                     selectedTagIds != initialSelectedTagIds ||
                     lifeCategory != initialLifeCategory ||
-                    taskMode != initialTaskMode
+                    taskMode != initialTaskMode ||
+                    cognitiveLoad != initialCognitiveLoad
                 )
 
     fun onTitleChange(value: String) {
@@ -547,6 +574,15 @@ constructor(
     }
 
     /**
+     * Set the [CognitiveLoad] chip. Passing `null` switches back to "Auto"
+     * — the classifier will run at save time to guess one.
+     */
+    fun onCognitiveLoadChange(value: CognitiveLoad?) {
+        cognitiveLoad = value
+        cognitiveLoadManuallySet = value != null
+    }
+
+    /**
      * Resolve the final life_category value to persist:
      *  - If the user picked one, use it.
      *  - Otherwise run the keyword classifier on title + description.
@@ -570,6 +606,19 @@ constructor(
             return taskMode?.name ?: TaskMode.UNCATEGORIZED.name
         }
         val guess = taskModeClassifier.classify(title, description.ifBlank { null })
+        return guess.name
+    }
+
+    /**
+     * Resolve the final cognitive_load value to persist. Same shape as
+     * [resolveLifeCategoryForSave] but for the orthogonal start-friction
+     * dimension. See `docs/COGNITIVE_LOAD.md`.
+     */
+    internal fun resolveCognitiveLoadForSave(): String {
+        if (cognitiveLoadManuallySet && cognitiveLoad != null) {
+            return cognitiveLoad?.name ?: CognitiveLoad.UNCATEGORIZED.name
+        }
+        val guess = cognitiveLoadClassifier.classify(title, description.ifBlank { null })
         return guess.name
     }
 
@@ -761,6 +810,7 @@ constructor(
             val recurrenceJson = recurrenceRule?.let { RecurrenceConverter.toJson(it) }
             val resolvedLifeCategory = resolveLifeCategoryForSave()
             val resolvedTaskMode = resolveTaskModeForSave()
+            val resolvedCognitiveLoad = resolveCognitiveLoadForSave()
             val existing = existingTask
             val savedId: Long
             if (existing != null) {
@@ -778,7 +828,8 @@ constructor(
                         estimatedDuration = estimatedDuration,
                         notes = trimmedNotes,
                         lifeCategory = resolvedLifeCategory,
-                        taskMode = resolvedTaskMode
+                        taskMode = resolvedTaskMode,
+                        cognitiveLoad = resolvedCognitiveLoad
                     )
                 )
                 savedId = existing.id
@@ -793,6 +844,7 @@ constructor(
                     parentTaskId = parentTaskId,
                     lifeCategory = resolvedLifeCategory,
                     taskMode = resolvedTaskMode,
+                    cognitiveLoad = resolvedCognitiveLoad,
                     reminderOffset = reminderOffset,
                     recurrenceRule = recurrenceJson,
                     estimatedDuration = estimatedDuration

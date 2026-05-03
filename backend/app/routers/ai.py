@@ -23,6 +23,8 @@ from app.schemas.ai import (
     ChatTokensUsed,
     DailyBriefingRequest,
     DailyBriefingResponse,
+    CognitiveLoadClassifyTextRequest,
+    CognitiveLoadClassifyTextResponse,
     EisenhowerClassifyTextRequest,
     EisenhowerClassifyTextResponse,
     EisenhowerRequest,
@@ -75,6 +77,10 @@ ai_rate_limiter = RateLimiter(max_requests=1, window_seconds=300)
 # normal burst creation (voice capture, paste-to-extract dumps) without
 # handing out free Claude calls.
 eisenhower_classify_text_rate_limiter = RateLimiter(max_requests=20, window_seconds=60)
+
+# Cognitive-load text-classify mirrors Eisenhower's per-task creation flow,
+# so the same 20/min ceiling applies — burst-tolerant for normal task entry.
+cognitive_load_classify_text_rate_limiter = RateLimiter(max_requests=20, window_seconds=60)
 
 # Rate limiters for new AI endpoints
 briefing_rate_limiter = RateLimiter(max_requests=1, window_seconds=3600)  # 1 per hour
@@ -239,6 +245,48 @@ async def classify_eisenhower_text(
 
     return EisenhowerClassifyTextResponse(
         quadrant=result["quadrant"],
+        reason=result["reason"],
+    )
+
+
+@router.post("/cognitive-load/classify_text", response_model=CognitiveLoadClassifyTextResponse)
+async def classify_cognitive_load_text(
+    data: CognitiveLoadClassifyTextRequest,
+    request: Request,
+    current_user: User = Depends(get_active_user),
+):
+    """Per-task text-based cognitive-load classification.
+
+    Optional AI upgrade over the on-device keyword classifier. Called
+    fire-and-forget from clients on task creation when AI Features are
+    enabled — the on-device `CognitiveLoadClassifier` keyword fallback
+    is what runs synchronously at save time. Rate-limited separately
+    from the Eisenhower endpoint via
+    ``cognitive_load_classify_text_rate_limiter``.
+
+    See ``docs/COGNITIVE_LOAD.md`` § Inference rules.
+    """
+    cognitive_load_classify_text_rate_limiter.check(request)
+    tier = current_user.effective_tier
+    daily_ai_rate_limiter.check(current_user.id, tier)
+
+    try:
+        from app.services.ai_productivity import (
+            classify_cognitive_load_text as ai_classify_load,
+        )
+
+        result = ai_classify_load(
+            title=data.title,
+            description=data.description,
+            tier=tier,
+        )
+    except RuntimeError:
+        raise HTTPException(status_code=503, detail="AI service temporarily unavailable")
+    except ValueError:
+        raise HTTPException(status_code=500, detail="AI returned an invalid response")
+
+    return CognitiveLoadClassifyTextResponse(
+        load=result["load"],
         reason=result["reason"],
     )
 

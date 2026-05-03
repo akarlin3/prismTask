@@ -194,6 +194,7 @@ remains the final verification gate.
 - **Worktrees**: every new feature goes on a dedicated git worktree branched from latest main. Worktree + branch are both removed via `git worktree remove` + `git branch -d/-D` after the PR merges — no manual folder deletion.
 - **Fresh clones**: run `.\scripts\hooks\install.ps1` (Windows) or `./scripts/hooks/install.sh` (unix) once. Each script just sets `core.hooksPath = scripts/hooks` so the version-controlled hooks run directly — no per-clone copy step, and edits to `scripts/hooks/*` take effect on the next git command. `core.hooksPath` is a per-clone config (it lives in `.git/config`, not the tree), which is why a fresh clone still needs the one-time invocation.
 - **Audit doc length**: cap each Phase at ~500 lines. Above that, split into batches with separate Phase 1 sweeps. The validated single-pass shape (`docs/audits/CONNECTED_TESTS_STABILIZATION_AUDIT.md`, PR #859) is 390 lines; mega-audits (e.g. `PRE_PHASE_F_MEGA_AUDIT.md` at 1,115 lines) cost wall-clock to write *and* to re-read.
+- **Audit-first Phase 3 + 4 fire pre-merge.** Override the skill's default ("after Phase 2 PRs merge"). Append Phase 3 (bundle summary) and emit Phase 4 (Claude Chat handoff block) as soon as the implementation PR is opened — don't wait for CI green or merge. Rationale: operator wants the handoff block ready to paste into a follow-up Chat thread without round-tripping back through this session post-merge.
 
 ## Important Files
 

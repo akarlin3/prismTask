@@ -249,3 +249,297 @@ the handoff block below. No standing follow-up audit is scheduled.
 ## Phase 4 — Claude Chat handoff
 
 (Emitted at the end of the run.)
+
+---
+
+## Phase 1 — Batch 3 (single-device persistent repro re-audit, branch `claude/audit-leisure-section-loss-DIc4T`)
+
+**Trigger.** Operator follow-on May 3 2026. Bug re-reproduced with new
+diagnostic facts: **single device**, no recent sign-out / reinstall /
+clear-data, repros from BOTH the customization screen and the Leisure
+Mode screen "+" affordance, and **persists across force-stop +
+relaunch** (DataStore-level, not in-memory drift).
+
+**Premise framing.** PR #1080 is **open, not yet merged** on
+`claude/fix-leisure-category-bug-auK1O` (commit `ec3553e`,
+`refs/pull/1080/head`). Its defensive guard adds
+`if (current.none { it.id == id }) return@edit` to
+`addCustomSectionActivity`, `removeCustomSectionActivity`, and
+`updateCustomSection`. Batch 3 reasons about the bug *as if PR #1080
+were merged* — the guard is a strict no-op-skip so its presence cannot
+itself delete a section, but it changes which downstream hypotheses
+are still live.
+
+### A0 — Recon-first quad sweep (memory #18 + sibling-primitives axis)
+
+| Axis | Result |
+|------|--------|
+| (a) drive-by since PR #1080 | No newer leisure fix shipped. PR #1080 is open, not merged. Highest merged PR is #1077. |
+| (b) parked branches | Only `claude/fix-leisure-category-bug-auK1O` (PR #1080) and the audit branch itself. |
+| (c) shape-grep `custom_sections` writes | Six writers, all in `LeisurePreferences.kt`. No `DataExporter`/`DataImporter` touch (they only handle `customMusicActivities` / `customFlexActivities`, not the section list). No backup/restore touch. |
+| (d) both-screen entry paths | `LeisureScreen` "+" → `LeisureViewModel.addActivity` → `leisurePreferences.addCustomSectionActivity`. `LeisureSettingsScreen` "Add Activity" → `LeisureSettingsViewModel.addCustomSectionActivity` → same mutator. **Identical write path.** |
+| (e) sibling primitives | `grep -rln "fun sanitized" data/preferences/` returns only `LeisurePreferences.kt`. No reusable "stale-read-then-write" anti-pattern fix elsewhere to mine. |
+
+### Item 5' — Enumerate every `custom_sections` write path (GREEN, complete)
+
+Exhaustive list:
+
+1. `LeisurePreferences.addCustomSection` (creates)
+2. `LeisurePreferences.removeCustomSection` (deletes — explicit user "Remove Section" + confirmation)
+3. `LeisurePreferences.updateCustomSection` (PR #1080 adds defensive guard)
+4. `LeisurePreferences.addCustomSectionActivity` (PR #1080 adds defensive guard)
+5. `LeisurePreferences.removeCustomSectionActivity` (PR #1080 adds defensive guard)
+6. `LeisurePreferences.clearAll` — only called from `SettingsViewModel:1489` under `options.preferencesAndSettings` reset (explicit user action — would also wipe themePreferences/dashboardPreferences/etc., very visible)
+7. `GenericPreferenceSyncService.applyRemote` whole-cloth overwrite — **ruled out by single-device repro**
+8. `AccountDeletionService.kt:311` — wipes `leisure_prefs` file as part of account-delete sequence (explicit destructive user action)
+
+**No third-party writer found.** Both UI screens converge on the same five mutators. Path #6/#7/#8 are explicit user actions inconsistent with the symptom.
+
+### Item 6' — `sanitized()` over-aggressive hypothesis (RED, refuted by code analysis)
+
+`CustomLeisureSection.sanitized()` (LeisurePreferences.kt:323) drops a
+section **only when `id == null`**. label/emoji fall back to safe
+defaults (`"Section"` / `"✨"`); `customActivities = emptyList()` is
+preserved (no "section needs ≥1 activity" filter); `durationMinutes` /
+`gridColumns` are coerced into bounds. `addCustomSection` always sets
+a non-null id (`"custom_section_${System.currentTimeMillis()}"`,
+LeisurePreferences.kt:355). For sanitization to drop a freshly-added
+section, gson would have to nullify a populated `id` field on
+round-trip — implausible for the stable schema and not seen in any
+test artifact.
+
+**Verdict.** Code-only analysis says NO. The over-aggressive
+sanitization hypothesis cannot explain a freshly-added section
+disappearing on a single device.
+
+### Item 7' — Reactive observer chain / read-modify-write race (RED, refuted by code analysis)
+
+All five mutators perform `readCustomSections(prefs)` inside a single
+`leisureDataStore.edit { … }` block. DataStore `edit { … }` is atomic
+per-key and serializes mutations, so concurrent writes cannot
+interleave. The two `getCustomSections()` consumers
+(`LeisureViewModel`, `LeisureSettingsViewModel`) and the two
+repository reads (`LeisureRepository.getDailyLeisureProgress`,
+`syncHabitCompletion`) are **read-only** — no reactive write loop
+surfaced. The Compose `combine { sections, log → … }` chains are also
+pure projections; nothing observes the flow and writes back.
+
+**Verdict.** Code-only analysis says NO. No race or self-triggered
+write loop in the read-modify-write cycle.
+
+### Item 8' — `addCustomSectionActivity` cannot delete a section (NEW, RED for the user-claimed mechanism)
+
+With or without PR #1080's guard:
+
+- **Without guard (current main):** `current.map { section → if (section.id != sectionId) return@map section else section.copy(customActivities = section.customActivities + activity) }` returns the unchanged list when `sectionId` doesn't match (the activity is silently dropped, but every section is preserved). When `sectionId` matches, the activity is appended and every other section is preserved.
+- **With guard (PR #1080):** if `sectionId` is missing, the entire write is skipped. Existing on-disk sections are unchanged.
+
+**In neither path does this mutator delete a section.** The
+user-claimed mechanism ("adding an activity deletes the section") is
+**inconsistent with the data-layer contract** — the reported symptom
+must be caused by a different action on the same screen, by a
+different code path entirely, or by visual misattribution.
+
+### A4 — Recommended logcat verification protocol
+
+Before any Phase 2 fix, capture the on-device behaviour:
+
+```bash
+adb logcat -c && adb logcat \
+  '*:S' AndroidRuntime:E DataStore:V LeisurePrefs:V Compose:E
+```
+
+(Add a temporary `Log.d("LeisurePrefs", "...")` to each `edit { }`
+block in `LeisurePreferences` — entry, after `readCustomSections`, and
+after the assignment — for the capture window only. Strip before
+landing any fix.)
+
+Then perform the operator's reported sequence:
+1. Open Leisure Mode screen — note section is visible.
+2. Tap "+" on the section, add activity "X".
+3. Confirm in dialog.
+4. Force-stop the app.
+5. Relaunch.
+6. Open Leisure Mode screen — observe section state.
+
+**Diagnostic decision tree based on logcat output:**
+- If logcat shows `addCustomSectionActivity` `edit { }` block fired and `readCustomSections` returned a list **already missing** the section → root cause is upstream (a prior write deleted the section, or sanitize-on-read dropped it). Continue tracing the prior write.
+- If logcat shows `addCustomSectionActivity` `edit { }` fired with the section present and writeback contains the section → bug is downstream (read-side sanitization on next session, or render-time filter). Re-audit the read path.
+- If logcat shows **no** `addCustomSectionActivity` entry between dialog-confirm and disappearance → the dialog's confirm didn't fire, or it routed through a different code path. Re-audit the UI binding.
+- If logcat shows `removeCustomSection` firing unexpectedly → mis-tap or rogue invocation; trace the call stack.
+
+### Verdict — HARD STOP per audit prompt
+
+All three primary hypotheses (A1 unaudited write path / A2 sanitized
+over-aggressive / A3 reactive observer chain) come back **negative on
+code-only analysis**. Per the prompt's explicit STOP-condition:
+
+> **HARD STOP if all 3 hypotheses (A1/A2/A3) come back inconclusive.**
+> Escalate to operator with logcat capture + audit findings rather
+> than ship a guess.
+
+**Phase 2 does NOT auto-fire.** The defer-minimization principle
+(memory #30) and the prompt's "no more defensive guards" constraint
+together rule out shipping speculative code. The honest finding is:
+
+- The data-layer contract for `addCustomSectionActivity` is provably
+  preservation-only — it cannot delete a section. PR #918's regression
+  test (still green) locks this in.
+- PR #1080's defensive guard is correct and worth landing on its own
+  merits, but cannot be the root-cause fix for the reported symptom
+  because the unguarded mutator already cannot delete a section.
+- The single-device persistent repro means the loss happens via
+  **some action other than `addCustomSectionActivity`**, OR via
+  runtime state (DataStore corruption, OS-level file truncation,
+  Compose mis-binding to wrong section id) that static code review
+  cannot surface.
+
+### Recommended next step (operator action, not Phase 2)
+
+1. **Land PR #1080 on its own merits** (defensive guard + tests). It
+   shrinks the cone of possible causes and removes spurious DataStore
+   emissions, which makes future logcat traces cleaner. It does not
+   resolve this bug, and the audit doc should not pretend it does.
+2. **Capture the logcat trace per A4 protocol** on a fresh AVD with
+   the temporary debug logging patch. Save the full session log,
+   including the pre-add and post-relaunch reads.
+3. **Re-open Phase 1 batch 4 with the logcat artifact attached.**
+   With concrete on-device traces, the diagnostic tree above
+   collapses to a single confirmed branch and Phase 2 becomes a
+   one-PR scope.
+
+If a new hypothesis surfaces during logcat capture (e.g., logcat shows
+`removeCustomSection` firing right after the add — a UI mis-binding),
+that branch becomes Phase 1 batch 4's primary lead; the audit doc here
+captures the negative results so batch 4 doesn't re-litigate them.
+
+## Phase 2 — Batch 3
+
+**Not implemented.** HARD STOP fired per audit prompt — all three
+primary hypotheses negative on code-only analysis, no confirmed root
+cause to fix. Shipping a speculative defensive guard would duplicate
+PR #1080 (already on the table) and violate the prompt's "no more
+defensive guards" constraint.
+
+## Phase 3 — Bundle summary (batch 3)
+
+**Shipped.** None. Audit-only batch.
+
+**Deferred / blocked.**
+
+- **Root-cause fix.** Blocked on operator-supplied logcat from the
+  A4 protocol. Re-opens as Phase 1 batch 4 with concrete on-device
+  evidence.
+- **Sync-layer merge-by-id (Item 3' from batch 2).** Stays DEFERRED.
+  Single-device repro confirmed by the operator means the sync
+  hypothesis is wrong scope for this bug — but the multi-device
+  whole-cloth overwrite remains a real latent risk and should be
+  unblocked when (a) Crashlytics signals it, or (b) a multi-device
+  repro lands independently.
+
+**Memory candidates.** None.
+
+**Schedule for next audit.** Driven by operator's logcat capture.
+
+## Phase 1 — Batch 2 (re-audit, branch `claude/fix-leisure-category-bug-auK1O`)
+
+User re-reported the same symptom on a fresh task without supplying the
+device-count / sync-timing repro details deferred at end of batch 1.
+Re-running the audit on the current `main` snapshot:
+
+### Item 1' — `LeisurePreferences.addCustomSectionActivity` (GREEN, re-confirmed)
+
+`addCustomSectionActivity_preservesSection_andAppendsActivity` (PR #918,
+commit `04a2c0e0`) still passes locally and in CI. The data-layer
+round-trip remains verifiably correct. **Premise unchanged: the bug is
+not in the data-layer write path.**
+
+### Item 2' — `addCustomSectionActivity` no-op write when target missing (YELLOW → PROCEED)
+
+**Finding (new).** When `sectionId` is not in the current section list
+(e.g. because a sync pull wiped it between dialog-open and
+dialog-submit), the existing code still writes `gson.toJson(updated)`
+back to DataStore — `updated` is bit-for-bit identical to `current`,
+but the assignment still triggers a `Preferences` emission. Same shape
+in `removeCustomSectionActivity` and `updateCustomSection`. None of
+these mutate observable state when the target is missing, but the
+spurious write makes ordering-sensitive sync-fingerprint logic noisier
+than it needs to be and complicates root-cause traces.
+
+**Verdict.** YELLOW → PROCEED on a defensive guard. Skipping the write
+when the target is missing is strictly an information-preserving
+change (no behavioural divergence on the happy path) and lets the
+sync layer's last-pushed-fingerprint cache do its job without churn.
+Does not by itself fix the reported symptom — see Item 3' — but
+removes one source of confusion from the trace.
+
+### Item 3' — Sync-layer overwrite (YELLOW, kept-DEFERRED with reasoning)
+
+**Re-confirmed.** `GenericPreferenceSyncService.applyRemote` still
+overwrites `custom_sections` whole-cloth via
+`PreferenceSyncSerialization.applyTyped` (`stringPreferencesKey(name)`
+write). The `__pref_device_id` self-echo guard prevents same-device
+clobber on the happy path, but multi-device and reinstall-race paths
+remain wide open.
+
+**Why still DEFERRED (vs. PROCEED).** A real merge-by-id fix requires
+either (a) a per-spec `MergeStrategy` hook in `PreferenceSyncSpec` so
+`leisure_prefs.custom_sections` opts into element-merge while everything
+else keeps LWW, or (b) a wholesale schema migration that splits
+`custom_sections` into per-section preference keys. Both are
+multi-PR scopes and risk regressions elsewhere (theme prefs, sort
+prefs, dashboard prefs all share the same generic sync pipeline).
+Without a confirmed multi-device repro from the user, the
+risk/wall-clock ratio is unfavourable.
+
+**Verdict.** YELLOW, DEFERRED again. The defensive guard in Item 2'
+is the strict subset that ships safely without the user's repro
+details.
+
+### Item 4' — Regression test for missing-section guard (PROCEED)
+
+Robolectric repro: pre-seed `custom_sections` with two real sections,
+call `addCustomSectionActivity` with an unknown id, assert no write
+occurred (both sections unchanged, no spurious emission). Same shape
+for `removeCustomSectionActivity` and `updateCustomSection`. Locks in
+the Item 2' guard against future drift.
+
+---
+
+## Phase 2 (batch 2)
+
+Implemented in this branch (`claude/fix-leisure-category-bug-auK1O`):
+
+1. `LeisurePreferences.addCustomSectionActivity` — early-returns
+   from the `edit` block when `sectionId` is not in `current`.
+2. `LeisurePreferences.removeCustomSectionActivity` — same guard.
+3. `LeisurePreferences.updateCustomSection` — same guard.
+4. New regression tests in `LeisurePreferencesTest`:
+   - `addCustomSectionActivity_skipsWriteWhenSectionMissing`
+   - `removeCustomSectionActivity_skipsWriteWhenSectionMissing`
+   - `updateCustomSection_skipsWriteWhenSectionMissing`
+
+The merge-by-id sync-layer fix (Item 3') stays DEFERRED.
+
+## Phase 3 — Bundle summary (batch 2)
+
+**Shipped (this branch).**
+
+| Change | Scope | Impact |
+|--------|-------|--------|
+| Defensive guard + tests | `LeisurePreferences` mutating methods skip writes when target missing | Removes spurious DataStore emissions on stale-id mutation paths; locks the defensive contract against future drift. |
+
+**Still deferred.**
+
+- **Sync-layer merge-by-id (Item 3').** Needs either user-confirmed
+  multi-device repro or a `MergeStrategy` hook in `PreferenceSyncSpec`
+  so the change can land scoped to `leisure_prefs.custom_sections`
+  rather than generically.
+
+**Memory candidates.** None worth saving — the "skip the write when
+the target is missing" pattern is a one-off mitigation, not a
+generalisable rule.
+
+**Schedule for next audit.** Driven by user's eventual Phase 4 answers
+(device count + sync timing) or by independent Crashlytics signal that
+points at sync-layer overwrite.

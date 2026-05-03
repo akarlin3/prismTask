@@ -38,6 +38,12 @@ export interface Task {
    * `life_category` — see `docs/WORK_PLAY_RELAX.md`.
    */
   task_mode?: TaskMode | null;
+  /**
+   * Optional cognitive load (Easy / Medium / Hard) — start-friction
+   * dimension orthogonal to `life_category`, `task_mode`, and the
+   * Eisenhower quadrant. See `docs/COGNITIVE_LOAD.md`.
+   */
+  cognitive_load?: CognitiveLoad | null;
   /** Whether the user manually pinned an Eisenhower quadrant. Round-tripped
    *  from Android so web doesn't undo the pin on the next save. */
   user_overrode_quadrant?: boolean;
@@ -83,6 +89,12 @@ export interface TaskCreate {
    * Firestore semantics as `lifeCategory` to avoid clobbering Android.
    */
   taskMode?: TaskMode | null;
+  /**
+   * Cognitive load — must match Android `CognitiveLoad` enum names
+   * (`EASY` | `MEDIUM` | `HARD` | `UNCATEGORIZED`). Same omit-when-null
+   * Firestore semantics as `lifeCategory` to avoid clobbering Android.
+   */
+  cognitiveLoad?: CognitiveLoad | null;
 }
 
 export interface TaskUpdate {
@@ -107,6 +119,7 @@ export interface TaskUpdate {
   isFlagged?: boolean;
   lifeCategory?: LifeCategory | null;
   taskMode?: TaskMode | null;
+  cognitiveLoad?: CognitiveLoad | null;
   project_id?: string;
 }
 
@@ -115,6 +128,9 @@ export type LifeCategory = 'WORK' | 'PERSONAL' | 'SELF_CARE' | 'HEALTH' | 'UNCAT
 
 /** Mirrors the Android `TaskMode` enum (`domain/model/TaskMode.kt`). */
 export type TaskMode = 'WORK' | 'PLAY' | 'RELAX' | 'UNCATEGORIZED';
+
+/** Mirrors the Android `CognitiveLoad` enum (`domain/model/CognitiveLoad.kt`). */
+export type CognitiveLoad = 'EASY' | 'MEDIUM' | 'HARD' | 'UNCATEGORIZED';
 
 export interface SubtaskCreate {
   title: string;

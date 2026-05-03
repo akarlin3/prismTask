@@ -2140,7 +2140,26 @@ val MIGRATION_70_71 = object : Migration(70, 71) {
 }
 
 /**
- * v71 → v72 — PrismTask-Timeline-Class scope. Extends [ProjectEntity] with
+ * v71 → v72 — Adds `cognitive_load` to `tasks` for the start-friction
+ * (Easy / Medium / Hard) classifier (orthogonal to `life_category`,
+ * `task_mode`, and `eisenhower_quadrant` per `docs/COGNITIVE_LOAD.md`).
+ *
+ * Pure additive migration. Existing rows backfill to NULL, which the
+ * domain layer reads as `CognitiveLoad.UNCATEGORIZED` via
+ * `CognitiveLoad.fromStorage(...)`. No retroactive auto-classification —
+ * the classifier only runs on new tasks created after the feature
+ * ships, so a user's archived history is not silently re-tagged.
+ *
+ * Audit: `docs/audits/COGNITIVE_LOAD_AUDIT.md`.
+ */
+val MIGRATION_71_72 = object : Migration(71, 72) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `tasks` ADD COLUMN `cognitive_load` TEXT")
+    }
+}
+
+/**
+ * v72 → v73 — PrismTask-Timeline-Class scope. Extends [ProjectEntity] with
  * five capabilities so PrismTask itself can be managed as a project inside
  * PrismTask: multi-phase grouping, risk register, task dependencies,
  * external anchors, and per-item fractional progress on tasks under
@@ -2177,7 +2196,7 @@ val MIGRATION_70_71 = object : Migration(70, 71) {
  * by a one-time rebuild flag and re-pull from Firestore — same
  * precedent as PR #1056 (Automation Engine v69 → v70).
  */
-val MIGRATION_71_72 = object : Migration(71, 72) {
+val MIGRATION_72_73 = object : Migration(72, 73) {
     override fun migrate(db: SupportSQLiteDatabase) {
         // Phases (parent rows for `tasks.phase_id` and the optional
         // anchor.phase_id FK).
@@ -2281,7 +2300,7 @@ val MIGRATION_71_72 = object : Migration(71, 72) {
     }
 }
 
-const val CURRENT_DB_VERSION = 72
+const val CURRENT_DB_VERSION = 73
 
 val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_1_2,
@@ -2354,5 +2373,6 @@ val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_68_69,
     MIGRATION_69_70,
     MIGRATION_70_71,
-    MIGRATION_71_72
+    MIGRATION_71_72,
+    MIGRATION_72_73
 )

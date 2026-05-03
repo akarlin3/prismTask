@@ -24,6 +24,7 @@ import { useTagStore } from '@/stores/tagStore';
 import { PRIORITY_CONFIG } from '@/utils/priority';
 import { formatRelative } from '@/utils/dates';
 import type {
+  CognitiveLoad,
   LifeCategory,
   Task,
   TaskPriority,
@@ -114,6 +115,16 @@ const LIFE_CATEGORY_OPTIONS: { value: LifeCategory | ''; label: string }[] = [
   { value: 'HEALTH', label: 'Health' },
 ];
 
+// Mirrors Android's `CognitiveLoad` enum; values must match
+// `CognitiveLoad.kt` so the start-friction classifier on Android picks
+// them up unchanged. See `docs/COGNITIVE_LOAD.md`.
+const COGNITIVE_LOAD_OPTIONS: { value: CognitiveLoad | ''; label: string }[] = [
+  { value: '', label: 'Uncategorized' },
+  { value: 'EASY', label: 'Easy' },
+  { value: 'MEDIUM', label: 'Medium' },
+  { value: 'HARD', label: 'Hard' },
+];
+
 export default function TaskEditor({
   onClose,
   onUpdate,
@@ -166,6 +177,10 @@ export default function TaskEditor({
   // still operate. Only when the user explicitly picks a category do we
   // write it (parity audit § Surface 3 / T-S2).
   const [lifeCategory, setLifeCategory] = useState<LifeCategory | ''>('');
+  // Cognitive load (start-friction). Same omit-on-empty semantics as
+  // lifeCategory — the Firestore writer omits the field when value is
+  // empty/null so Android-side state isn't clobbered.
+  const [cognitiveLoad, setCognitiveLoad] = useState<CognitiveLoad | ''>('');
 
   // Subtasks
   const [subtasks, setSubtasks] = useState<Task[]>([]);
@@ -202,6 +217,7 @@ export default function TaskEditor({
       setSubtasks([]);
       setTaskTagIds([]);
       setLifeCategory('');
+      setCognitiveLoad('');
       return;
     }
     if (!task) return;
@@ -219,6 +235,7 @@ export default function TaskEditor({
 
     setPlannedDate(task.planned_date || '');
     setLifeCategory((task.life_category as LifeCategory | null) ?? '');
+    setCognitiveLoad((task.cognitive_load as CognitiveLoad | null) ?? '');
     if (task.recurrence_json) {
       try {
         const rule = JSON.parse(task.recurrence_json);
@@ -351,6 +368,13 @@ export default function TaskEditor({
     autoSave({ lifeCategory: v === '' ? null : v });
   };
 
+  const handleCognitiveLoadChange = (v: CognitiveLoad | '') => {
+    setCognitiveLoad(v);
+    // Same semantics as lifeCategory — empty => null lets the Android
+    // CognitiveLoadClassifier take over again on the next save.
+    autoSave({ cognitiveLoad: v === '' ? null : v });
+  };
+
   const handleCreate = async () => {
     if (!title.trim()) {
       toast.error('Title is required');
@@ -371,6 +395,7 @@ export default function TaskEditor({
         due_date: dueDate || undefined,
         due_time: dueTime || undefined,
         lifeCategory: lifeCategory || undefined,
+        cognitiveLoad: cognitiveLoad || undefined,
       });
       toast.success('Task created');
       onUpdate?.();
@@ -963,6 +988,33 @@ export default function TaskEditor({
                   <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
                     Powers the Work-Life Balance dashboard. Leave as
                     Uncategorized to let Android auto-classify.
+                  </p>
+                </div>
+
+                {/* Cognitive Load (start-friction) */}
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-[var(--color-text-secondary)]">
+                    Cognitive Load
+                  </label>
+                  <select
+                    value={cognitiveLoad}
+                    onChange={(e) =>
+                      handleCognitiveLoadChange(
+                        (e.target.value as CognitiveLoad | '') || '',
+                      )
+                    }
+                    className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-secondary)] px-3 py-2 text-sm text-[var(--color-text-primary)] outline-none focus:border-[var(--color-accent)]"
+                  >
+                    {COGNITIVE_LOAD_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
+                    How hard is it to start? Independent of duration,
+                    importance, and reward type. Leave as Uncategorized to
+                    let Android auto-classify.
                   </p>
                 </div>
 

@@ -48,6 +48,25 @@ class EisenhowerClassifyTextResponse(BaseModel):
     reason: str
 
 
+class CognitiveLoadClassifyTextRequest(BaseModel):
+    """Single-task text-based cognitive-load classification.
+
+    Accepts raw task fields so the client can classify a freshly-created
+    task before the local row has been synced to the backend. Mirrors the
+    on-device ``CognitiveLoadClassifier.classify(task)`` shape — the AI
+    path is the optional, AI-Features-gated upgrade over the keyword
+    classifier. See ``docs/COGNITIVE_LOAD.md``.
+    """
+
+    title: str = Field(min_length=1, max_length=500)
+    description: Optional[str] = Field(default=None, max_length=4000)
+
+
+class CognitiveLoadClassifyTextResponse(BaseModel):
+    load: str  # "EASY" | "MEDIUM" | "HARD"
+    reason: str
+
+
 # --- Pomodoro ---
 
 

@@ -211,6 +211,7 @@ constructor(
         parentTaskId: Long? = null,
         lifeCategory: String? = null,
         taskMode: String? = null,
+        cognitiveLoad: String? = null,
         reminderOffset: Long? = null,
         recurrenceRule: String? = null,
         estimatedDuration: Int? = null
@@ -229,6 +230,7 @@ constructor(
                 sortOrder = nextSortOrder,
                 lifeCategory = lifeCategory,
                 taskMode = taskMode,
+                cognitiveLoad = cognitiveLoad,
                 reminderOffset = reminderOffset,
                 recurrenceRule = recurrenceRule,
                 estimatedDuration = estimatedDuration,

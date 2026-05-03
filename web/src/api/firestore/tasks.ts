@@ -14,7 +14,7 @@ import {
   type DocumentData,
 } from 'firebase/firestore';
 import { firestore } from '@/lib/firebase';
-import type { LifeCategory, Task, TaskMode, TaskStatus } from '@/types/task';
+import type { CognitiveLoad, LifeCategory, Task, TaskMode, TaskStatus } from '@/types/task';
 import {
   timestampToDateStr,
   timestampToTimeStr,
@@ -73,6 +73,7 @@ function docToTask(docId: string, data: DocumentData, uid: string): Task {
     tag_ids: tagIds,
     life_category: parseLifeCategory(data.lifeCategory),
     task_mode: parseTaskMode(data.taskMode),
+    cognitive_load: parseCognitiveLoad(data.cognitiveLoad),
     user_overrode_quadrant: data.userOverrodeQuadrant === true,
     is_flagged: data.isFlagged === true,
   };
@@ -98,6 +99,19 @@ function parseTaskMode(value: unknown): TaskMode | null {
     case 'WORK':
     case 'PLAY':
     case 'RELAX':
+    case 'UNCATEGORIZED':
+      return value;
+    default:
+      return null;
+  }
+}
+
+function parseCognitiveLoad(value: unknown): CognitiveLoad | null {
+  if (typeof value !== 'string') return null;
+  switch (value) {
+    case 'EASY':
+    case 'MEDIUM':
+    case 'HARD':
     case 'UNCATEGORIZED':
       return value;
     default:
@@ -138,6 +152,7 @@ function taskCreateToDoc(
     isFlagged?: boolean;
     lifeCategory?: string | null;
     taskMode?: string | null;
+    cognitiveLoad?: string | null;
     eisenhowerReason?: string | null;
     userOverrodeQuadrant?: boolean;
   },
@@ -184,6 +199,11 @@ function taskCreateToDoc(
   // Android-side state (see docs/WORK_PLAY_RELAX.md § Defaults & migration).
   if (data.taskMode !== undefined && data.taskMode !== null) {
     doc.taskMode = data.taskMode;
+  }
+  // Cognitive load: same omit-on-null semantics — see
+  // docs/COGNITIVE_LOAD.md § Defaults & migration.
+  if (data.cognitiveLoad !== undefined && data.cognitiveLoad !== null) {
+    doc.cognitiveLoad = data.cognitiveLoad;
   }
   if (data.eisenhowerReason !== undefined) doc.eisenhowerReason = data.eisenhowerReason;
   if (data.userOverrodeQuadrant !== undefined) {
@@ -247,6 +267,7 @@ function taskUpdateToDoc(data: Record<string, unknown>): Record<string, unknown>
   if (data.eisenhowerReason !== undefined) doc.eisenhowerReason = data.eisenhowerReason;
   if (data.lifeCategory !== undefined) doc.lifeCategory = data.lifeCategory;
   if (data.taskMode !== undefined) doc.taskMode = data.taskMode;
+  if (data.cognitiveLoad !== undefined) doc.cognitiveLoad = data.cognitiveLoad;
   if (data.isFlagged !== undefined) doc.isFlagged = data.isFlagged;
   if (data.tag_ids !== undefined && Array.isArray(data.tag_ids)) {
     doc.tagIds = (data.tag_ids as string[]).filter((x) => typeof x === 'string');

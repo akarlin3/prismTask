@@ -176,6 +176,77 @@ Respond ONLY with valid JSON (no markdown, no prose):
     raise ValueError(f"Failed to parse AI response: {last_error}")
 
 
+def classify_cognitive_load_text(
+    title: str,
+    description: str | None,
+    tier: str = "FREE",
+) -> dict:
+    """Classify a single task into a cognitive-load tier from raw text.
+
+    Returns ``{"load": "EASY|MEDIUM|HARD", "reason": "..."}``. Raises
+    ``ValueError`` on malformed AI response, ``RuntimeError`` when the
+    Anthropic client is unavailable — mirrors ``classify_eisenhower_text``.
+
+    The classifier intentionally never inflates HARD when ambiguous —
+    over-classifying triggers procrastination preemptively. Tie-break
+    bias mirrors the on-device tie-break (EASY > MEDIUM > HARD), which
+    matches ``docs/COGNITIVE_LOAD.md`` § Inference rules.
+    """
+    client = _get_client()
+    model = get_model("eisenhower")  # same Haiku tier as Eisenhower text-classify
+    task_summary = {
+        "title": title,
+        "description": description or "",
+    }
+    prompt = f"""You are a productivity assistant. Categorize ONE task into a cognitive-load tier — *how much friction stands between the user and starting?* — independent of duration, importance, or reward type.
+
+Tiers:
+- EASY: Low start-friction. The user can begin without a deliberate decision (quick reply, archive, water plant).
+- MEDIUM: Moderate start-friction. Needs a beat of attention before starting (review PR, compose notes).
+- HARD: High start-friction. Beginning IS the work (draft difficult email, debug, start the novel).
+
+Rules:
+- Cognitive load is NOT duration: a 30-second task can be HARD; a 90-min task can be EASY.
+- Cognitive load is NOT importance: that's the Eisenhower axis.
+- When ambiguous, prefer EASY > MEDIUM > HARD. Never over-classify as HARD — that triggers procrastination preemptively.
+
+Task:
+{json.dumps(task_summary, default=str, indent=2)}
+
+Respond ONLY with valid JSON (no markdown, no prose):
+{{"load": "EASY", "reason": "brief reason"}}"""
+
+    last_error = None
+    for attempt in range(2):
+        try:
+            message = client.messages.create(
+                model=model,
+                max_tokens=256,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            content = message.content[0].text
+            result = _parse_ai_json(content)
+            if not isinstance(result, dict):
+                raise ValueError("Expected a JSON object")
+            load = result.get("load")
+            if load not in {"EASY", "MEDIUM", "HARD"}:
+                raise ValueError(f"Invalid load: {load!r}")
+            return {
+                "load": load,
+                "reason": str(result.get("reason", ""))[:500],
+            }
+        except (json.JSONDecodeError, KeyError, TypeError, IndexError, ValueError) as e:
+            last_error = e
+            logger.error(f"Failed to parse cognitive-load text-classify response (attempt {attempt + 1}): {e}")
+            if attempt == 0:
+                continue
+            raise ValueError(f"Failed to parse AI response after retry: {e}") from e
+        except Exception as e:
+            logger.error(f"Cognitive-load text-classify AI error: {type(e).__name__}: {e}")
+            raise
+    raise ValueError(f"Failed to parse AI response: {last_error}")
+
+
 def plan_pomodoro(tasks: list[dict], available_minutes: int, session_length: int, break_length: int, long_break_length: int, focus_preference: str, today: date, tier: str = "FREE") -> dict:
     """Call Claude to generate a Pomodoro focus session plan."""
     client = _get_client()

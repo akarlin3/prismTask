@@ -136,6 +136,17 @@ data class TaskModeCustomKeywords(
     val relax: String = ""
 )
 
+/**
+ * Per-load extra keywords (CSV) appended to the built-in
+ * [com.averycorp.prismtask.domain.usecase.CognitiveLoadClassifier] list.
+ * See `docs/COGNITIVE_LOAD.md` § Inference rules.
+ */
+data class CognitiveLoadCustomKeywords(
+    val easy: String = "",
+    val medium: String = "",
+    val hard: String = ""
+)
+
 /** Day-of-week (1=Mon..7=Sun) and clock time for weekly summary workers. */
 data class WeeklySummarySchedule(
     // 7 = Sunday.
@@ -327,6 +338,11 @@ constructor(
         private val MODE_CK_PLAY = stringPreferencesKey("mode_custom_keywords_play")
         private val MODE_CK_RELAX = stringPreferencesKey("mode_custom_keywords_relax")
 
+        // B17 — cognitive-load custom keywords (Easy / Medium / Hard)
+        private val LOAD_CK_EASY = stringPreferencesKey("load_custom_keywords_easy")
+        private val LOAD_CK_MEDIUM = stringPreferencesKey("load_custom_keywords_medium")
+        private val LOAD_CK_HARD = stringPreferencesKey("load_custom_keywords_hard")
+
         // C1 — weekly summary schedule
         private val WS_DAY = intPreferencesKey("weekly_summary_day_of_week")
         private val WS_TASK_HR = intPreferencesKey("weekly_summary_task_hour")
@@ -498,6 +514,14 @@ constructor(
         )
     }
 
+    fun getCognitiveLoadCustomKeywords(): Flow<CognitiveLoadCustomKeywords> = context.advancedTuningDataStore.data.map {
+        CognitiveLoadCustomKeywords(
+            easy = it[LOAD_CK_EASY] ?: "",
+            medium = it[LOAD_CK_MEDIUM] ?: "",
+            hard = it[LOAD_CK_HARD] ?: ""
+        )
+    }
+
     suspend fun setUrgencyBands(bands: UrgencyBands) {
         context.advancedTuningDataStore.edit {
             it[URGENCY_BAND_CRITICAL] = bands.critical
@@ -621,6 +645,14 @@ constructor(
             it[MODE_CK_WORK] = k.work
             it[MODE_CK_PLAY] = k.play
             it[MODE_CK_RELAX] = k.relax
+        }
+    }
+
+    suspend fun setCognitiveLoadCustomKeywords(k: CognitiveLoadCustomKeywords) {
+        context.advancedTuningDataStore.edit {
+            it[LOAD_CK_EASY] = k.easy
+            it[LOAD_CK_MEDIUM] = k.medium
+            it[LOAD_CK_HARD] = k.hard
         }
     }
 

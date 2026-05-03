@@ -49,9 +49,12 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.averycorp.prismtask.data.local.entity.TaskEntity
+import com.averycorp.prismtask.domain.model.CognitiveLoad
 import com.averycorp.prismtask.domain.model.LifeCategory
 import com.averycorp.prismtask.domain.usecase.BurnoutBand
+import com.averycorp.prismtask.domain.usecase.CognitiveLoadBalanceState
 import com.averycorp.prismtask.domain.usecase.WeeklyReviewStats
+import com.averycorp.prismtask.ui.theme.CognitiveLoadColor
 import com.averycorp.prismtask.ui.theme.LifeCategoryColor
 import com.averycorp.prismtask.ui.theme.LocalPrismColors
 import java.text.SimpleDateFormat
@@ -119,8 +122,91 @@ fun WeeklyBalanceReportScreen(
 
             BurnoutSection(score = state.burnoutScore, band = state.burnoutBand)
 
+            if (state.cognitiveLoadBalance.totalTracked > 0) {
+                CognitiveLoadSection(state = state.cognitiveLoadBalance)
+            }
+
             if (stats.carryForward.isNotEmpty()) {
                 CarryForwardSection(tasks = stats.carryForward)
+            }
+        }
+    }
+}
+
+// ─── Cognitive Load section ───────────────────────────────────────────────
+
+@Composable
+private fun CognitiveLoadSection(state: CognitiveLoadBalanceState) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = "Cognitive Load",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(modifier = Modifier.weight(1f))
+                Text(
+                    text = "Dominant: ${CognitiveLoad.label(state.dominantLoad)}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Text(
+                text = "${state.totalTracked} task${if (state.totalTracked == 1) "" else "s"} tagged this week",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            // Stacked bar (current week)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(12.dp)
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(MaterialTheme.colorScheme.surface)
+            ) {
+                CognitiveLoad.TRACKED.forEach { load ->
+                    val ratio = (state.currentRatios[load] ?: 0f).coerceIn(0f, 1f)
+                    if (ratio > 0f) {
+                        Box(
+                            modifier = Modifier
+                                .weight(ratio)
+                                .fillMaxSize()
+                                .background(CognitiveLoadColor.forLoad(load))
+                        )
+                    }
+                }
+            }
+            // Per-tier breakdown rows: dot + label + percent.
+            CognitiveLoad.TRACKED.forEach { load ->
+                val pct = ((state.currentRatios[load] ?: 0f) * 100).toInt()
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(10.dp)
+                            .clip(RoundedCornerShape(5.dp))
+                            .background(CognitiveLoadColor.forLoad(load))
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = CognitiveLoad.label(load),
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Text(
+                        text = "$pct%",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         }
     }

@@ -1,6 +1,7 @@
 package com.averycorp.prismtask.ui.screens.automation.library
 
 import app.cash.turbine.test
+import com.averycorp.prismtask.data.local.entity.AutomationRuleEntity
 import com.averycorp.prismtask.data.repository.AutomationRuleRepository
 import com.averycorp.prismtask.data.repository.AutomationTemplateRepository
 import com.averycorp.prismtask.data.seed.AutomationStarterLibrary
@@ -68,6 +69,7 @@ class AutomationTemplateLibraryViewModelTest {
     }
 
     @Test fun importTemplate_emitsImportedEvent() = runTest {
+        coEvery { ruleRepository.getByTemplateKeyOnce(any()) } returns null
         coEvery {
             ruleRepository.create(
                 name = any(),
@@ -89,6 +91,31 @@ class AutomationTemplateLibraryViewModelTest {
             testDispatcher.scheduler.advanceUntilIdle()
             val event = awaitItem()
             assertTrue(event is AutomationTemplateLibraryViewModel.LibraryEvent.Imported)
+        }
+    }
+
+    @Test fun importTemplate_existingTemplate_emitsAlreadyImportedEvent() = runTest {
+        val tpl = AutomationStarterLibrary.ALL_TEMPLATES.first()
+        coEvery { ruleRepository.getByTemplateKeyOnce(tpl.id) } returns
+            AutomationRuleEntity(
+                id = 5L,
+                name = "stub",
+                templateKey = tpl.id,
+                triggerJson = "{}",
+                actionJson = "[]",
+                createdAt = 0L,
+                updatedAt = 0L
+            )
+
+        viewModel.events.test {
+            viewModel.importTemplate(tpl.id)
+            testDispatcher.scheduler.advanceUntilIdle()
+            val event = awaitItem()
+            assertTrue(event is AutomationTemplateLibraryViewModel.LibraryEvent.AlreadyImported)
+            assertEquals(
+                tpl.name,
+                (event as AutomationTemplateLibraryViewModel.LibraryEvent.AlreadyImported).templateName
+            )
         }
     }
 
