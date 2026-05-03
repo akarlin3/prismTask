@@ -10,9 +10,9 @@ import com.averycorp.prismtask.data.repository.TagRepository
 import com.averycorp.prismtask.data.repository.TaskRepository
 import com.averycorp.prismtask.data.repository.TaskTemplateRepository
 import com.averycorp.prismtask.domain.usecase.NaturalLanguageParser
+import com.averycorp.prismtask.domain.usecase.ParsedTaskResolver
 import com.averycorp.prismtask.domain.usecase.ProFeatureGate
 import com.averycorp.prismtask.domain.usecase.ProjectIntentParser
-import com.averycorp.prismtask.domain.usecase.ParsedTaskResolver
 import com.averycorp.prismtask.domain.usecase.TextToSpeechManager
 import com.averycorp.prismtask.domain.usecase.VoiceCommandParser
 import com.averycorp.prismtask.domain.usecase.VoiceInputManager
