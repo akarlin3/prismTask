@@ -6,7 +6,9 @@ import com.averycorp.prismtask.data.local.dao.SelfCareDao
 import com.averycorp.prismtask.data.local.entity.HabitEntity
 import com.averycorp.prismtask.data.local.entity.SelfCareLogEntity
 import com.averycorp.prismtask.data.local.entity.SelfCareStepEntity
+import com.averycorp.prismtask.data.preferences.AdvancedTuningPreferences
 import com.averycorp.prismtask.data.preferences.MedicationPreferences
+import com.averycorp.prismtask.data.preferences.SelfCareTierDefaults
 import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
 import com.averycorp.prismtask.domain.model.SelfCareRoutines
 import com.google.gson.Gson
@@ -35,6 +37,7 @@ class SelfCareRepositorySeedingTest {
     private lateinit var habitCompletionDao: HabitCompletionDao
     private lateinit var medicationPreferences: MedicationPreferences
     private lateinit var taskBehaviorPreferences: TaskBehaviorPreferences
+    private lateinit var advancedTuningPreferences: AdvancedTuningPreferences
     private lateinit var repo: SelfCareRepository
 
     @Before
@@ -44,6 +47,8 @@ class SelfCareRepositorySeedingTest {
         habitCompletionDao = mockk(relaxed = true)
         medicationPreferences = mockk(relaxed = true)
         taskBehaviorPreferences = mockk(relaxed = true)
+        advancedTuningPreferences = mockk(relaxed = true)
+        coEvery { advancedTuningPreferences.getSelfCareTierDefaults() } returns flowOf(SelfCareTierDefaults())
 
         // Return a different id on each insert so we can distinguish inserted
         // habits from stubs; the repository just needs a valid HabitEntity back.
@@ -68,7 +73,8 @@ class SelfCareRepositorySeedingTest {
             gson = Gson(),
             syncTracker = mockk(relaxed = true),
             medicationDao = mockk(relaxed = true),
-            medicationDoseDao = mockk(relaxed = true)
+            medicationDoseDao = mockk(relaxed = true),
+            advancedTuningPreferences = advancedTuningPreferences
         )
     }
 

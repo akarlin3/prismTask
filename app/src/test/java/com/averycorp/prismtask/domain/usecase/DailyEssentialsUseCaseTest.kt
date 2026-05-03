@@ -127,6 +127,40 @@ class DailyEssentialsUseCaseTest {
     }
 
     @Test
+    fun `resolveSelectedTier prefers the user-configured default when the log is missing`() {
+        val morningOrder = listOf("survival", "solid", "full")
+        assertEquals(
+            "survival",
+            DailyEssentialsUseCase.resolveSelectedTier(null, morningOrder, "survival")
+        )
+        assertEquals(
+            "full",
+            DailyEssentialsUseCase.resolveSelectedTier("", morningOrder, "full")
+        )
+    }
+
+    @Test
+    fun `resolveSelectedTier coerces a stale default not in the order back to penultimate`() {
+        val morningOrder = listOf("survival", "solid", "full")
+        // "ultra" was retired in a hypothetical later build — the stored
+        // default is unknown to the current order and should not poison
+        // the read.
+        assertEquals(
+            "solid",
+            DailyEssentialsUseCase.resolveSelectedTier(null, morningOrder, "ultra")
+        )
+    }
+
+    @Test
+    fun `resolveSelectedTier ignores the configured default when the log already has a tier`() {
+        val morningOrder = listOf("survival", "solid", "full")
+        assertEquals(
+            "full",
+            DailyEssentialsUseCase.resolveSelectedTier("full", morningOrder, "survival")
+        )
+    }
+
+    @Test
     fun `RoutineCardState allComplete mirrors every step`() {
         val routine = RoutineCardState(
             routineType = "morning",
