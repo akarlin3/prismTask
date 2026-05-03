@@ -611,4 +611,46 @@ class NaturalLanguageParserTest {
         val result = parser.parse("Buy milk #groceries")
         assertNull(result.taskMode)
     }
+
+    // ──────────────────────────────────────────────────────────────────
+    // Cognitive Load hashtags (Easy / Medium / Hard — see docs/COGNITIVE_LOAD.md)
+
+    @Test
+    fun test_easyLoadHashtagSetsCognitiveLoad() {
+        val result = parser.parse("Quick reply to mom #easy-load")
+        assertEquals("Quick reply to mom", result.title)
+        assertEquals("EASY", result.cognitiveLoad)
+        // Load tag is NOT promoted into the regular tag list — separate
+        // dimension, not a tag (parallel to mode hashtag rule).
+        assertFalse(result.tags.contains("easy-load"))
+    }
+
+    @Test
+    fun test_mediumLoadHashtagSetsCognitiveLoad() {
+        val result = parser.parse("Review the PR #medium-load")
+        assertEquals("Review the PR", result.title)
+        assertEquals("MEDIUM", result.cognitiveLoad)
+    }
+
+    @Test
+    fun test_hardLoadHashtagSetsCognitiveLoad() {
+        val result = parser.parse("Start the recommendation letter #hard-load")
+        assertEquals("Start the recommendation letter", result.title)
+        assertEquals("HARD", result.cognitiveLoad)
+    }
+
+    @Test
+    fun test_loadIsOrthogonalToModeAndCategory() {
+        // A health-mode-easy task is a real shape — see docs/COGNITIVE_LOAD.md.
+        val result = parser.parse("Pickup basketball #health #play-mode #easy-load")
+        assertEquals("HEALTH", result.lifeCategory)
+        assertEquals("PLAY", result.taskMode)
+        assertEquals("EASY", result.cognitiveLoad)
+    }
+
+    @Test
+    fun test_noLoadHashtagLeavesCognitiveLoadNull() {
+        val result = parser.parse("Buy milk #groceries")
+        assertNull(result.cognitiveLoad)
+    }
 }

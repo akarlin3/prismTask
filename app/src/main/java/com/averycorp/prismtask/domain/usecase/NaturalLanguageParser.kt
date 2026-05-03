@@ -54,7 +54,15 @@ data class ParsedTask(
      * enum name. Orthogonal to [lifeCategory] — see `docs/WORK_PLAY_RELAX.md`.
      * Null when no mode tag was present.
      */
-    val taskMode: String? = null
+    val taskMode: String? = null,
+    /**
+     * Start-friction load extracted from `#easy-load`, `#medium-load`, or
+     * `#hard-load`. Stored as the
+     * [com.averycorp.prismtask.domain.model.CognitiveLoad] enum name.
+     * Orthogonal to [lifeCategory] / [taskMode] — see
+     * `docs/COGNITIVE_LOAD.md`. Null when no load tag was present.
+     */
+    val cognitiveLoad: String? = null
 )
 
 @Singleton
@@ -304,6 +312,23 @@ constructor(
                 else -> null
             }
             text = modeRegex.replace(text, "")
+        }
+
+        // 1a-ter. Hyphenated cognitive-load tags (#easy-load / #medium-load /
+        // #hard-load). Same hyphenation strategy as task-mode — stripped
+        // before the generic #\w+ regex. Load tags are NOT promoted into
+        // the regular tag list (see docs/COGNITIVE_LOAD.md).
+        var cognitiveLoad: String? = null
+        val loadRegex = Regex("""(?i)(?:^|(?<=\s))#(easy|medium|hard)[-_]load(?=\s|$)""")
+        val loadMatch = loadRegex.find(text)
+        if (loadMatch != null) {
+            cognitiveLoad = when (loadMatch.groupValues[1].lowercase(Locale.ROOT)) {
+                "easy" -> "EASY"
+                "medium" -> "MEDIUM"
+                "hard" -> "HARD"
+                else -> null
+            }
+            text = loadRegex.replace(text, "")
         }
 
         // 1. Tags — #word but not C# (must be preceded by space or at start)
@@ -607,7 +632,8 @@ constructor(
             priority = priority,
             recurrenceHint = recurrenceHint,
             lifeCategory = lifeCategory,
-            taskMode = taskMode
+            taskMode = taskMode,
+            cognitiveLoad = cognitiveLoad
         )
     }
 

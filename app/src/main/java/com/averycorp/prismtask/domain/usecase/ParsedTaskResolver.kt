@@ -21,7 +21,9 @@ data class ResolvedTask(
     /** Work-Life Balance category carried over from NLP parsing. */
     val lifeCategory: String? = null,
     /** Reward / output mode carried over from NLP parsing (`#work-mode` etc). */
-    val taskMode: String? = null
+    val taskMode: String? = null,
+    /** Start-friction load carried over from NLP parsing (`#easy-load` etc). */
+    val cognitiveLoad: String? = null
 )
 
 @Singleton
@@ -76,7 +78,8 @@ constructor(
             unmatchedTags = unmatchedTags,
             unmatchedProject = unmatchedProject,
             lifeCategory = parsed.lifeCategory,
-            taskMode = parsed.taskMode
+            taskMode = parsed.taskMode,
+            cognitiveLoad = parsed.cognitiveLoad
         )
     }
 }

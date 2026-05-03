@@ -55,6 +55,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.averycorp.prismtask.data.local.entity.ProjectEntity
 import com.averycorp.prismtask.data.local.entity.TagEntity
+import com.averycorp.prismtask.domain.model.CognitiveLoad
 import com.averycorp.prismtask.domain.model.LifeCategory
 import com.averycorp.prismtask.domain.model.TaskMode
 import com.averycorp.prismtask.ui.screens.addedittask.AddEditTaskViewModel
@@ -62,6 +63,7 @@ import com.averycorp.prismtask.ui.screens.addedittask.PROJECT_COLORS
 import com.averycorp.prismtask.ui.screens.addedittask.SectionLabel
 import com.averycorp.prismtask.ui.screens.addedittask.TAG_COLORS
 import com.averycorp.prismtask.ui.screens.addedittask.parseColorOr
+import com.averycorp.prismtask.ui.theme.CognitiveLoadColor
 import com.averycorp.prismtask.ui.theme.LifeCategoryColor
 import com.averycorp.prismtask.ui.theme.LocalPrismShapes
 import com.averycorp.prismtask.ui.theme.TaskModeColor
@@ -139,6 +141,14 @@ internal fun OrganizeTabContent(
         selected = viewModel.taskMode,
         manuallySet = viewModel.taskModeManuallySet,
         onSelect = { viewModel.onTaskModeChange(it) }
+    )
+
+    // ---- Cognitive Load section (Easy / Medium / Hard — see docs/COGNITIVE_LOAD.md) ----
+    SectionLabel("Cognitive Load")
+    CognitiveLoadSelector(
+        selected = viewModel.cognitiveLoad,
+        manuallySet = viewModel.cognitiveLoadManuallySet,
+        onSelect = { viewModel.onCognitiveLoadChange(it) }
     )
 
     // ---- Parent task section ----
@@ -859,6 +869,49 @@ internal fun TaskModeSelector(
             color = TaskModeColor.RELAX,
             selected = selected == TaskMode.RELAX,
             onClick = { onSelect(TaskMode.RELAX) }
+        )
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Organize tab: Cognitive Load selector (Easy / Medium / Hard)
+// ---------------------------------------------------------------------------
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+internal fun CognitiveLoadSelector(
+    selected: CognitiveLoad?,
+    manuallySet: Boolean,
+    onSelect: (CognitiveLoad?) -> Unit
+) {
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        LifeCategoryChip(
+            label = "Auto",
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            selected = !manuallySet,
+            onClick = { onSelect(null) }
+        )
+        LifeCategoryChip(
+            label = CognitiveLoad.label(CognitiveLoad.EASY),
+            color = CognitiveLoadColor.EASY,
+            selected = selected == CognitiveLoad.EASY,
+            onClick = { onSelect(CognitiveLoad.EASY) }
+        )
+        LifeCategoryChip(
+            label = CognitiveLoad.label(CognitiveLoad.MEDIUM),
+            color = CognitiveLoadColor.MEDIUM,
+            selected = selected == CognitiveLoad.MEDIUM,
+            onClick = { onSelect(CognitiveLoad.MEDIUM) }
+        )
+        LifeCategoryChip(
+            label = CognitiveLoad.label(CognitiveLoad.HARD),
+            color = CognitiveLoadColor.HARD,
+            selected = selected == CognitiveLoad.HARD,
+            onClick = { onSelect(CognitiveLoad.HARD) }
         )
     }
 }

@@ -2139,7 +2139,26 @@ val MIGRATION_70_71 = object : Migration(70, 71) {
     }
 }
 
-const val CURRENT_DB_VERSION = 71
+/**
+ * v71 → v72 — Adds `cognitive_load` to `tasks` for the start-friction
+ * (Easy / Medium / Hard) classifier (orthogonal to `life_category`,
+ * `task_mode`, and `eisenhower_quadrant` per `docs/COGNITIVE_LOAD.md`).
+ *
+ * Pure additive migration. Existing rows backfill to NULL, which the
+ * domain layer reads as `CognitiveLoad.UNCATEGORIZED` via
+ * `CognitiveLoad.fromStorage(...)`. No retroactive auto-classification —
+ * the classifier only runs on new tasks created after the feature
+ * ships, so a user's archived history is not silently re-tagged.
+ *
+ * Audit: `docs/audits/COGNITIVE_LOAD_AUDIT.md`.
+ */
+val MIGRATION_71_72 = object : Migration(71, 72) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `tasks` ADD COLUMN `cognitive_load` TEXT")
+    }
+}
+
+const val CURRENT_DB_VERSION = 72
 
 val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_1_2,
@@ -2211,5 +2230,6 @@ val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_67_68,
     MIGRATION_68_69,
     MIGRATION_69_70,
-    MIGRATION_70_71
+    MIGRATION_70_71,
+    MIGRATION_71_72
 )

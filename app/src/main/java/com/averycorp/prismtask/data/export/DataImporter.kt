@@ -41,6 +41,7 @@ import com.averycorp.prismtask.data.preferences.GoodEnoughTimerConfig
 import com.averycorp.prismtask.data.preferences.HabitListPreferences
 import com.averycorp.prismtask.data.preferences.HabitReminderFallback
 import com.averycorp.prismtask.data.preferences.LeisurePreferences
+import com.averycorp.prismtask.data.preferences.CognitiveLoadCustomKeywords
 import com.averycorp.prismtask.data.preferences.LifeCategoryCustomKeywords
 import com.averycorp.prismtask.data.preferences.MedicationPreferences
 import com.averycorp.prismtask.data.preferences.MedicationScheduleMode
@@ -1693,6 +1694,9 @@ constructor(
         }
         a.getAsJsonObject("taskModeKeywords")?.let {
             p.setTaskModeCustomKeywords(gson.fromJson(it, TaskModeCustomKeywords::class.java))
+        }
+        a.getAsJsonObject("cognitiveLoadKeywords")?.let {
+            p.setCognitiveLoadCustomKeywords(gson.fromJson(it, CognitiveLoadCustomKeywords::class.java))
         }
         a.getAsJsonObject("weeklySummary")?.let {
             p.setWeeklySummarySchedule(gson.fromJson(it, WeeklySummarySchedule::class.java))
