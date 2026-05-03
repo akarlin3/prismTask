@@ -373,3 +373,106 @@ Worth noting for memory but not necessarily fixing now:
   (BATCH_PREVIEW_REFIRE_AUDIT) defended this within one VM via the
   `loadPreview` re-entry guard; but that guard is per-VM and cannot
   see a sibling VM. Upstream-guard is the only correct fix.
+
+---
+
+## Phase 3 — Bundle summary
+
+Single PR shipped:
+
+| PR | Items closed | Notes |
+|----|--------------|-------|
+| [#1068](https://github.com/averycorp/prismTask/pull/1068) `fix(quickadd): close batch + multi-create double-emit on rapid resubmit` | A4 (RED), A5 (RED), A7 (YELLOW), A6 (free, YELLOW) | Synchronous `_isSubmitting` check + set at top of `onSubmit`; `try/finally` on the batch + multi-create + paywall coroutines; IME `Done` predicate adds `&& !isSubmitting`. New test `QuickAddViewModelBatchSubmitGuardTest` covers both batch and multi-create double-tap, plus a regression that the flag releases. |
+
+Deferred items (no PR):
+
+- **A8** — `DefaultCalendarPushDispatcher.enqueue` not unique. Removed
+  from the critical path by A4's upstream fix. Revisit if telemetry
+  ever shows duplicate calendar event spam.
+- **A9** — `TaskListViewModelBulk` re-entry guards. No observable
+  user-facing effect (DAO ops are idempotent at the unique-constraint
+  / `FLAG_UPDATE_CURRENT` layer). Revisit if a future bulk op grows
+  non-idempotent semantics (e.g. AI-driven bulk reword).
+
+**Re-baselined wall-clock per PR:** ~45min from audit-doc commit to
+PR-open including a new unit-test file with three coverage cases. The
+audit doc itself was 375 lines — well under the 500-line cap and
+within the validated single-pass shape.
+
+**Memory entry candidates:**
+
+- *Do not set submit-locks inside `viewModelScope.launch{}` for click
+  handlers — the launch returns synchronously, leaving a window for a
+  second click to slip past the lock.* Set the lock in the
+  synchronous prelude of the click handler, before any launch. Worth
+  a memory entry — this exact race exists in three of four
+  `onSubmit` branches today and is a recurring shape across other
+  Android Compose codebases.
+- *When chasing a "fires twice" symptom in a Compose-Navigation flow,
+  always trace the upstream emit-to-navigate chain — the defense
+  cannot live in the destination ViewModel because each
+  `NavBackStackEntry` gets its own VM.* The prior audit (#1049) called
+  this out in its scope-doc; we re-confirmed empirically here.
+
+**Schedule for next audit:** none — the user's reported symptom is
+closed. If a follow-up "still feels like it runs twice" report comes
+in, the next-most-likely surface is `TaskListViewModelBulk` (A9),
+which would require a different repro shape (multi-select +
+double-tap on a bulk action button rather than QuickAdd batch
+submit).
+
+---
+
+## Phase 4 — Claude Chat handoff
+
+```markdown
+## Scope
+PrismTask Android — investigated user report "all batch operations
+seem to try and run twice; sometimes it offers different options in
+the second go." Goal: find which surface double-fires and ship a fix.
+
+## Verdicts
+| Item | Verdict | One-line finding |
+|------|---------|------------------|
+| A1 — batch operation surface map | GREEN | DAO/repo layers are `@Transaction`-wrapped + idempotent; only the AI batch flow can produce non-deterministic double-output |
+| A2 — `BatchPreviewViewModel` re-entry | GREEN | Already closed by PR #1049 (terminal `Applied` state + widened guard) |
+| A3 — `BatchPreviewScreen.LaunchedEffect(commandText)` | GREEN | Per-screen guard fine; sibling-VM case unreachable from one screen |
+| A4 — `QuickAddViewModel.onSubmit` batch race | RED | No re-entry guard; double-tap emits twice on `_batchIntents` |
+| A5 — `onSubmit` multi-create race | RED | Same shape, different branch |
+| A6 — `onSubmit` regular-task race | YELLOW | Same launch-window race; closed for free by A4's sync set |
+| A7 — `QuickAddBar` IME `Done` skips `!isSubmitting` | YELLOW | One-line symmetric fix bundled with A4 |
+| A8 — `CalendarPushDispatcher.enqueue` not unique | DEFERRED | No trigger left after A4; idempotent payload anyway |
+| A9 — `TaskListViewModelBulk` lacks re-entry guards | DEFERRED | DAO-level idempotency masks any double-execution |
+
+## Shipped
+- PR #1068 — `fix(quickadd): close batch + multi-create double-emit on rapid resubmit` (A4 + A5 + A7 + A6-for-free)
+  + new test `QuickAddViewModelBatchSubmitGuardTest` (3 cases)
+
+## Deferred
+- A8: removed from critical path by A4; revisit only on telemetry
+- A9: idempotent at DAO; revisit if bulk semantics turn non-idempotent
+
+## Non-obvious findings
+- This is **Path P2** of the prior `BATCH_PREVIEW_REFIRE_AUDIT.md`
+  (PR #1049). That audit explicitly named "_batchIntents re-emit"
+  as the next-most-likely trigger if its in-VM guard didn't close
+  the symptom. The user's *"different options the second time"*
+  uniquely indicts a non-deterministic Haiku re-parse, which only
+  the AI batch flow does.
+- The defense has to live at the navigation trigger, not the
+  destination ViewModel — each `NavBackStackEntry` gets its own
+  `hiltViewModel()` instance, and the in-VM `loadPreview` re-entry
+  guard cannot see a sibling VM created by a duplicate navigation.
+- `_isSubmitting` was already set inside `viewModelScope.launch{}`
+  for three of four `onSubmit` branches, but the launch returns
+  synchronously — a second click handler can run in the same
+  main-thread frame before the coroutine flips the flag. Always
+  set the lock *before* the launch.
+
+## Open questions
+None. The fix is a minimum-viable defense that closes the user's
+specific symptom and the two related races (A5 + A6) for free.
+The deferred items (A8 / A9) have explicit re-trigger criteria
+in the audit doc.
+```
+
