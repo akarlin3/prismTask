@@ -20,11 +20,18 @@ import androidx.room.PrimaryKey
             parentColumns = ["id"],
             childColumns = ["parent_task_id"],
             onDelete = ForeignKey.CASCADE
+        ),
+        ForeignKey(
+            entity = ProjectPhaseEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["phase_id"],
+            onDelete = ForeignKey.SET_NULL
         )
     ],
     indices = [
         Index("project_id"),
         Index("parent_task_id"),
+        Index("phase_id"),
         Index("due_date"),
         Index("is_completed"),
         Index("priority"),
@@ -122,5 +129,26 @@ data class TaskEntity(
     val revisionLocked: Boolean = false,
     /** Cumulative editing time in minutes (for Good Enough Timer tracking). */
     @ColumnInfo(name = "cumulative_edit_minutes", defaultValue = "0")
-    val cumulativeEditMinutes: Int = 0
+    val cumulativeEditMinutes: Int = 0,
+    /**
+     * Optional [ProjectPhaseEntity] this task belongs to. NULL when the
+     * task is unphased (the legacy default) or when the task has no
+     * project at all. Phase deletion sets this back to NULL via FK.
+     *
+     * Added in v1.8.x as part of the PrismTask-timeline-class scope (PR-1).
+     */
+    @ColumnInfo(name = "phase_id")
+    val phaseId: Long? = null,
+    /**
+     * Per-task fractional progress in `0..100`. NULL means "binary" —
+     * the task uses [isCompleted] as its source of truth (legacy
+     * default). Non-NULL values are only authored by tasks that live
+     * under a project (P9 option a from
+     * `docs/audits/PRISMTASK_TIMELINE_CLASS_AUDIT.md`); other surfaces
+     * keep reading [isCompleted].
+     *
+     * Added in v1.8.x as part of the PrismTask-timeline-class scope (PR-1).
+     */
+    @ColumnInfo(name = "progress_percent")
+    val progressPercent: Int? = null
 )

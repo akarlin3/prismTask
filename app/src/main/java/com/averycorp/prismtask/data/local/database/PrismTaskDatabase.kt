@@ -28,6 +28,8 @@ import com.averycorp.prismtask.data.local.dao.MoodEnergyLogDao
 import com.averycorp.prismtask.data.local.dao.NlpShortcutDao
 import com.averycorp.prismtask.data.local.dao.NotificationProfileDao
 import com.averycorp.prismtask.data.local.dao.ProjectDao
+import com.averycorp.prismtask.data.local.dao.ProjectPhaseDao
+import com.averycorp.prismtask.data.local.dao.ProjectRiskDao
 import com.averycorp.prismtask.data.local.dao.ProjectTemplateDao
 import com.averycorp.prismtask.data.local.dao.SavedFilterDao
 import com.averycorp.prismtask.data.local.dao.SchoolworkDao
@@ -70,6 +72,8 @@ import com.averycorp.prismtask.data.local.entity.MoodEnergyLogEntity
 import com.averycorp.prismtask.data.local.entity.NlpShortcutEntity
 import com.averycorp.prismtask.data.local.entity.NotificationProfileEntity
 import com.averycorp.prismtask.data.local.entity.ProjectEntity
+import com.averycorp.prismtask.data.local.entity.ProjectPhaseEntity
+import com.averycorp.prismtask.data.local.entity.ProjectRiskEntity
 import com.averycorp.prismtask.data.local.entity.ProjectTemplateEntity
 import com.averycorp.prismtask.data.local.entity.SavedFilterEntity
 import com.averycorp.prismtask.data.local.entity.SelfCareLogEntity
@@ -130,7 +134,9 @@ import com.averycorp.prismtask.data.local.entity.WeeklyReviewEntity
         MedicationTierStateEntity::class,
         TaskTimingEntity::class,
         AutomationRuleEntity::class,
-        AutomationLogEntity::class
+        AutomationLogEntity::class,
+        ProjectPhaseEntity::class,
+        ProjectRiskEntity::class
     ],
     version = CURRENT_DB_VERSION,
     exportSchema = false
@@ -211,4 +217,8 @@ abstract class PrismTaskDatabase : RoomDatabase() {
     abstract fun automationRuleDao(): AutomationRuleDao
 
     abstract fun automationLogDao(): AutomationLogDao
+
+    abstract fun projectPhaseDao(): ProjectPhaseDao
+
+    abstract fun projectRiskDao(): ProjectRiskDao
 }

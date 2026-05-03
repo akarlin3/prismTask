@@ -2,9 +2,13 @@ package com.averycorp.prismtask.data.repository
 
 import com.averycorp.prismtask.data.local.dao.MilestoneDao
 import com.averycorp.prismtask.data.local.dao.ProjectDao
+import com.averycorp.prismtask.data.local.dao.ProjectPhaseDao
+import com.averycorp.prismtask.data.local.dao.ProjectRiskDao
 import com.averycorp.prismtask.data.local.dao.ProjectWithCount
 import com.averycorp.prismtask.data.local.entity.MilestoneEntity
 import com.averycorp.prismtask.data.local.entity.ProjectEntity
+import com.averycorp.prismtask.data.local.entity.ProjectPhaseEntity
+import com.averycorp.prismtask.data.local.entity.ProjectRiskEntity
 import com.averycorp.prismtask.data.remote.SyncTracker
 import com.averycorp.prismtask.domain.model.ProjectDetail
 import com.averycorp.prismtask.domain.model.ProjectStatus
@@ -29,7 +33,9 @@ class ProjectRepository
 constructor(
     private val projectDao: ProjectDao,
     private val syncTracker: SyncTracker,
-    private val milestoneDao: MilestoneDao
+    private val milestoneDao: MilestoneDao,
+    private val projectPhaseDao: ProjectPhaseDao,
+    private val projectRiskDao: ProjectRiskDao
 ) {
 
     // ---------------------------------------------------------------------
@@ -325,5 +331,107 @@ constructor(
             out.add(Instant.ofEpochMilli(ms).atZone(zone).toLocalDate())
         }
         return out
+    }
+
+    // ---------------------------------------------------------------------
+    // Phases (PrismTask-timeline-class scope, PR-1).
+    // ---------------------------------------------------------------------
+
+    fun observePhases(projectId: Long): Flow<List<ProjectPhaseEntity>> =
+        projectPhaseDao.observePhases(projectId)
+
+    suspend fun getPhasesOnce(projectId: Long): List<ProjectPhaseEntity> =
+        projectPhaseDao.getPhasesOnce(projectId)
+
+    suspend fun addPhase(
+        projectId: Long,
+        title: String,
+        description: String? = null,
+        colorKey: String? = null,
+        startDate: Long? = null,
+        endDate: Long? = null,
+        versionAnchor: String? = null,
+        versionNote: String? = null
+    ): Long {
+        val now = System.currentTimeMillis()
+        val nextOrder = projectPhaseDao.getMaxOrderIndex(projectId) + 1
+        val phase = ProjectPhaseEntity(
+            projectId = projectId,
+            title = title,
+            description = description,
+            colorKey = colorKey,
+            startDate = startDate,
+            endDate = endDate,
+            versionAnchor = versionAnchor,
+            versionNote = versionNote,
+            orderIndex = nextOrder,
+            createdAt = now,
+            updatedAt = now
+        )
+        val id = projectPhaseDao.insert(phase)
+        syncTracker.trackCreate(id, "project_phase")
+        return id
+    }
+
+    suspend fun updatePhase(phase: ProjectPhaseEntity) {
+        projectPhaseDao.update(phase.copy(updatedAt = System.currentTimeMillis()))
+        syncTracker.trackUpdate(phase.id, "project_phase")
+    }
+
+    suspend fun deletePhase(phase: ProjectPhaseEntity) {
+        syncTracker.trackDelete(phase.id, "project_phase")
+        projectPhaseDao.delete(phase)
+    }
+
+    /**
+     * Persists a user-driven re-order in a single batch. Caller is
+     * expected to have already swapped the [orderIndex] values; this
+     * method simply bumps `updated_at` and writes the rows.
+     */
+    suspend fun reorderPhases(phases: List<ProjectPhaseEntity>) {
+        if (phases.isEmpty()) return
+        val now = System.currentTimeMillis()
+        projectPhaseDao.updateAll(phases.map { it.copy(updatedAt = now) })
+        for (phase in phases) syncTracker.trackUpdate(phase.id, "project_phase")
+    }
+
+    // ---------------------------------------------------------------------
+    // Risks (PrismTask-timeline-class scope, PR-1).
+    // ---------------------------------------------------------------------
+
+    fun observeRisks(projectId: Long): Flow<List<ProjectRiskEntity>> =
+        projectRiskDao.observeRisks(projectId)
+
+    suspend fun getRisksOnce(projectId: Long): List<ProjectRiskEntity> =
+        projectRiskDao.getRisksOnce(projectId)
+
+    suspend fun addRisk(
+        projectId: Long,
+        title: String,
+        level: String = "MEDIUM",
+        mitigation: String? = null
+    ): Long {
+        val now = System.currentTimeMillis()
+        val risk = ProjectRiskEntity(
+            projectId = projectId,
+            title = title,
+            level = level,
+            mitigation = mitigation,
+            createdAt = now,
+            updatedAt = now
+        )
+        val id = projectRiskDao.insert(risk)
+        syncTracker.trackCreate(id, "project_risk")
+        return id
+    }
+
+    suspend fun updateRisk(risk: ProjectRiskEntity) {
+        projectRiskDao.update(risk.copy(updatedAt = System.currentTimeMillis()))
+        syncTracker.trackUpdate(risk.id, "project_risk")
+    }
+
+    suspend fun deleteRisk(risk: ProjectRiskEntity) {
+        syncTracker.trackDelete(risk.id, "project_risk")
+        projectRiskDao.delete(risk)
     }
 }

@@ -22,6 +22,8 @@ import com.averycorp.prismtask.data.local.dao.MoodEnergyLogDao
 import com.averycorp.prismtask.data.local.dao.NlpShortcutDao
 import com.averycorp.prismtask.data.local.dao.NotificationProfileDao
 import com.averycorp.prismtask.data.local.dao.ProjectDao
+import com.averycorp.prismtask.data.local.dao.ProjectPhaseDao
+import com.averycorp.prismtask.data.local.dao.ProjectRiskDao
 import com.averycorp.prismtask.data.local.dao.ProjectTemplateDao
 import com.averycorp.prismtask.data.local.dao.SavedFilterDao
 import com.averycorp.prismtask.data.local.dao.SchoolworkDao
@@ -166,6 +168,9 @@ constructor(
     private val medicationSlotDao: MedicationSlotDao,
     private val medicationSlotOverrideDao: MedicationSlotOverrideDao,
     private val medicationTierStateDao: MedicationTierStateDao,
+    // PrismTask-timeline-class scope, PR-1.
+    private val projectPhaseDao: ProjectPhaseDao,
+    private val projectRiskDao: ProjectRiskDao,
     private val logger: PrismSyncLogger
 ) {
     /**
@@ -269,6 +274,16 @@ constructor(
         }
         healFamily("milestones", "milestone", fetcher) {
             milestoneDao.getAllMilestonesOnce().mapNotNull { entity ->
+                entity.cloudId?.takeIf { it.isNotBlank() }?.let { CloudIdRow(entity.id, it) }
+            }
+        }
+        healFamily("project_phases", "project_phase", fetcher) {
+            projectPhaseDao.getAllPhasesOnce().mapNotNull { entity ->
+                entity.cloudId?.takeIf { it.isNotBlank() }?.let { CloudIdRow(entity.id, it) }
+            }
+        }
+        healFamily("project_risks", "project_risk", fetcher) {
+            projectRiskDao.getAllRisksOnce().mapNotNull { entity ->
                 entity.cloudId?.takeIf { it.isNotBlank() }?.let { CloudIdRow(entity.id, it) }
             }
         }

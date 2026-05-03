@@ -21,6 +21,8 @@ import com.averycorp.prismtask.data.local.entity.MoodEnergyLogEntity
 import com.averycorp.prismtask.data.local.entity.NlpShortcutEntity
 import com.averycorp.prismtask.data.local.entity.NotificationProfileEntity
 import com.averycorp.prismtask.data.local.entity.ProjectEntity
+import com.averycorp.prismtask.data.local.entity.ProjectPhaseEntity
+import com.averycorp.prismtask.data.local.entity.ProjectRiskEntity
 import com.averycorp.prismtask.data.local.entity.ProjectTemplateEntity
 import com.averycorp.prismtask.data.local.entity.SavedFilterEntity
 import com.averycorp.prismtask.data.local.entity.SelfCareLogEntity
@@ -40,7 +42,8 @@ object SyncMapper {
         tagIds: List<String> = emptyList(),
         projectCloudId: String? = null,
         parentTaskCloudId: String? = null,
-        sourceHabitCloudId: String? = null
+        sourceHabitCloudId: String? = null,
+        phaseCloudId: String? = null
     ): Map<String, Any?> = mapOf(
         "localId" to task.id,
         "title" to task.title,
@@ -71,6 +74,8 @@ object SyncMapper {
         "revisionCount" to task.revisionCount,
         "revisionLocked" to task.revisionLocked,
         "cumulativeEditMinutes" to task.cumulativeEditMinutes,
+        "phaseId" to phaseCloudId,
+        "progressPercent" to task.progressPercent,
         "createdAt" to task.createdAt,
         "updatedAt" to task.updatedAt,
         "completedAt" to task.completedAt,
@@ -83,7 +88,8 @@ object SyncMapper {
         projectLocalId: Long? = null,
         parentTaskLocalId: Long? = null,
         sourceHabitLocalId: Long? = null,
-        cloudId: String? = null
+        cloudId: String? = null,
+        phaseLocalId: Long? = null
     ): TaskEntity = TaskEntity(
         id = localId,
         cloudId = cloudId,
@@ -114,6 +120,8 @@ object SyncMapper {
         revisionCount = (data["revisionCount"] as? Number)?.toInt() ?: 0,
         revisionLocked = data["revisionLocked"] as? Boolean ?: false,
         cumulativeEditMinutes = (data["cumulativeEditMinutes"] as? Number)?.toInt() ?: 0,
+        phaseId = phaseLocalId,
+        progressPercent = (data["progressPercent"] as? Number)?.toInt(),
         createdAt = (data["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
         updatedAt = (data["updatedAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
         completedAt = (data["completedAt"] as? Number)?.toLong(),
@@ -190,6 +198,89 @@ object SyncMapper {
             isCompleted = data["isCompleted"] as? Boolean ?: false,
             completedAt = (data["completedAt"] as? Number)?.toLong(),
             orderIndex = (data["orderIndex"] as? Number)?.toInt() ?: 0,
+            createdAt = (data["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
+            updatedAt = (data["updatedAt"] as? Number)?.toLong() ?: System.currentTimeMillis()
+        )
+
+    /**
+     * Project phases live as a child subcollection under a project,
+     * mirroring milestones (P11 audit recommendation: subcollection from
+     * day 1 to avoid the 1 MiB embedded-array cliff).
+     */
+    fun projectPhaseToMap(
+        phase: ProjectPhaseEntity,
+        projectCloudId: String
+    ): Map<String, Any?> = mapOf(
+        "localId" to phase.id,
+        "projectCloudId" to projectCloudId,
+        "title" to phase.title,
+        "description" to phase.description,
+        "colorKey" to phase.colorKey,
+        "startDate" to phase.startDate,
+        "endDate" to phase.endDate,
+        "versionAnchor" to phase.versionAnchor,
+        "versionNote" to phase.versionNote,
+        "orderIndex" to phase.orderIndex,
+        "completedAt" to phase.completedAt,
+        "createdAt" to phase.createdAt,
+        "updatedAt" to phase.updatedAt
+    )
+
+    fun mapToProjectPhase(
+        data: Map<String, Any?>,
+        projectLocalId: Long,
+        localId: Long = 0,
+        cloudId: String? = null
+    ): ProjectPhaseEntity =
+        ProjectPhaseEntity(
+            id = localId,
+            cloudId = cloudId,
+            projectId = projectLocalId,
+            title = data["title"] as? String ?: "",
+            description = data["description"] as? String,
+            colorKey = data["colorKey"] as? String,
+            startDate = (data["startDate"] as? Number)?.toLong(),
+            endDate = (data["endDate"] as? Number)?.toLong(),
+            versionAnchor = data["versionAnchor"] as? String,
+            versionNote = data["versionNote"] as? String,
+            orderIndex = (data["orderIndex"] as? Number)?.toInt() ?: 0,
+            completedAt = (data["completedAt"] as? Number)?.toLong(),
+            createdAt = (data["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
+            updatedAt = (data["updatedAt"] as? Number)?.toLong() ?: System.currentTimeMillis()
+        )
+
+    /**
+     * Project risks live as a child subcollection under a project. Same
+     * shape rationale as phases.
+     */
+    fun projectRiskToMap(
+        risk: ProjectRiskEntity,
+        projectCloudId: String
+    ): Map<String, Any?> = mapOf(
+        "localId" to risk.id,
+        "projectCloudId" to projectCloudId,
+        "title" to risk.title,
+        "level" to risk.level,
+        "mitigation" to risk.mitigation,
+        "resolvedAt" to risk.resolvedAt,
+        "createdAt" to risk.createdAt,
+        "updatedAt" to risk.updatedAt
+    )
+
+    fun mapToProjectRisk(
+        data: Map<String, Any?>,
+        projectLocalId: Long,
+        localId: Long = 0,
+        cloudId: String? = null
+    ): ProjectRiskEntity =
+        ProjectRiskEntity(
+            id = localId,
+            cloudId = cloudId,
+            projectId = projectLocalId,
+            title = data["title"] as? String ?: "",
+            level = data["level"] as? String ?: "MEDIUM",
+            mitigation = data["mitigation"] as? String,
+            resolvedAt = (data["resolvedAt"] as? Number)?.toLong(),
             createdAt = (data["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
             updatedAt = (data["updatedAt"] as? Number)?.toLong() ?: System.currentTimeMillis()
         )
