@@ -229,3 +229,140 @@ fan-out bundling rule.
 - **Doc-comment drift on `DailyEssentialsUseCase.resolveSelectedTier`
   companion** ("matching SelfCareViewModel's default") — was true
   pre-#999, false now. Phase 2 #1 will rewrite the comment.
+
+---
+
+## Phase 3 — Bundle summary
+
+**Shipped (single PR per the fan-out bundling rule).**
+
+- **PR [#1067](https://github.com/averycorp/prismTask/pull/1067)** —
+  `fix(selfcare): default-tier preference now applies on Today,
+  Habits, and after step toggles`. Branch
+  `claude/fix-self-care-defaults-0TxnC`.
+  - `AdvancedTuningPreferences.SelfCareTierDefaults` gains
+    `forRoutine(routineType)` so the four call sites look up the
+    same way regardless of consumer.
+  - `DailyEssentialsUseCase`: injects `AdvancedTuningPreferences`,
+    folds `getSelfCareTierDefaults()` into `observeRoutineCard()`'s
+    `combine()`, and passes the per-routine default to
+    `resolveSelectedTier(...)`. `resolveSelectedTier` gains an
+    optional `defaultTier: String?` arg with the precedence:
+    stored log → user pref → penultimate-of-order. Doc comment
+    rewritten.
+  - `HabitListViewModel`: injects `AdvancedTuningPreferences`, adds
+    a `tierDefaults` `StateFlow`, threads it through the (now
+    18-arg) `combine()` and into `computeCardData()`. Removes the
+    duplicated `"prescription"` literal — uses the canonical
+    default from `SelfCareTierDefaults.medication` instead.
+  - `SelfCareRepository`: injects `AdvancedTuningPreferences`. New
+    `resolveStartingTier(routineType)` helper mirrors the
+    read-side precedence; `toggleStep` and `setTierForTime` now
+    seed `selectedTier` from it instead of relying on the
+    schema-level `"solid"` entity default.
+  - Tests: three new cases on `DailyEssentialsUseCaseTest` (user
+    pref precedence / stale-default coercion / log-precedence-over-
+    default), three new cases on `SelfCareRepositoryConflictTest`
+    (toggleStep + setTierForTime seed from pref, plus stale-
+    default coercion). Existing `HabitListViewModelTest` and
+    `SelfCareRepositorySeedingTest` updated for the new
+    constructor argument.
+
+**Verification.**
+
+- Local Gradle is unavailable on this Linux sandbox (Android SDK
+  not installed; CLAUDE.md notes the toolchain lives on the user's
+  Windows env). CI on PR #1067 is the verification gate — `test`,
+  `lint-and-test`, `web-lint-and-test`, and `e2e` were green-or-
+  pending at PR-open time; `connected-tests` / `cross-device-tests`
+  / `capture-failure-log` skipped per their usual gating.
+- Manual smoke (Settings → Advanced Tuning → Self-Care Default
+  Tier → cycle Morning to Survival → confirm Today screen Daily
+  Essentials morning card and Habits screen morning row both pick
+  up the survival-tier step set on a fresh day) is queued for the
+  user — not run from this audit session.
+
+**Re-baseline.**
+
+- Original `SELFCARE_DEFAULT_TIER_AUDIT.md` shipped under PR #999
+  with Item 4 verdict "single consumer site". This follow-up
+  surfaces three additional sites — re-baselined estimate for
+  "user-overridable hardcoded fallback X" features should assume
+  N consumer sites where N ≥ 4 unless the sweep specifically
+  greps for fallback-shape tokens.
+
+**Memory candidate.**
+
+- One memory entry candidate (logged inline in Item 5 of Phase 1):
+  when shipping a "user can override hardcoded fallback X"
+  preference, grep for the fallback *shape*
+  (`tierOrder.size - 2`, `getOrNull(... - 2)`, hardcoded enum
+  literals matching the canonical default) across the entire
+  `main/` tree, not just the symbol the new pref reader is added
+  to. Worth promoting if the same shape recurs on the next
+  similar PR.
+
+**Schedule for next audit.** No follow-up audit needed for this
+scope. The remaining anti-pattern note —
+`SelfCareLogEntity.selectedTier = "solid"` schema default — is
+fully dead after this PR's writer fix and can be cleaned up
+opportunistically; not load-bearing.
+
+## Phase 4 — Claude Chat handoff
+
+```markdown
+**Scope.** Audit-first follow-up sweep on PrismTask: user reported
+"Self-care default tier settings don't work." Audit doc lives at
+`docs/audits/SELFCARE_DEFAULT_TIER_FOLLOWUP_AUDIT.md`. Original
+feature shipped under PR #999 wired only one of the four affected
+sites; this run swept the rest.
+
+**Verdicts.**
+
+| # | Item | Verdict | Finding |
+|---|------|---------|---------|
+| 1 | `SelfCareViewModel.getSelectedTier` honours pref | GREEN | Already wired in PR #999; no work. |
+| 2 | `DailyEssentialsUseCase.resolveSelectedTier` ignores pref | RED | Hardcoded penultimate-of-order — Today screen Daily Essentials cards show wrong tier. |
+| 3 | `HabitListViewModel.computeCardData` ignores pref | RED | Same hardcode, plus duplicate `"prescription"` literal — Habits screen rows show wrong card data. |
+| 4 | Writers (`toggleStep`, `setTierForTime`) leak `"solid"` into fresh logs | RED | Schema-level `"solid"` default leaks in via insertLog without explicit `selectedTier`; silently overrides the user's preference for the rest of the day. Structurally invalid for medication. |
+| 5 | Original audit's "single consumer" claim was incomplete | YELLOW | Process learning, not a load-bearing bug. |
+
+**Shipped.**
+
+- PR #1067 — `fix(selfcare): default-tier preference now applies
+  on Today, Habits, and after step toggles`. Single coherent scope
+  per the fan-out bundling rule; bundles the three RED fixes with
+  a `forRoutine` helper on `SelfCareTierDefaults` so the four
+  routines look up the same way everywhere.
+
+**Deferred / stopped.**
+
+- Item 1 (STOP-no-work-needed) — already fixed in PR #999.
+- "Promote user-pref-else-penultimate rule to a single helper on
+  `SelfCareRoutines`" (DEFER) — cross-call-site refactor, not
+  load-bearing, skipped.
+- `SelfCareLogEntity.selectedTier = "solid"` schema default —
+  fully dead after #1067 lands; can be deleted opportunistically.
+
+**Non-obvious findings.**
+
+- The original audit explicitly flagged the writer bug in its
+  Open Questions section ("Should `toggleStep`'s no-log-yet
+  insertLog also read the new pref?") and dismissed it as latent.
+  It was not latent — once writers leak `"solid"` into the log,
+  every other consumer that does check `log.selectedTier` first
+  (Items 2 and 3) sees the override and ignores the user pref.
+- For medication, `"solid"` is **not** in `medicationTierOrder`,
+  so a `setTierForTime` write before this PR would persist a
+  structurally invalid tier id. `SelfCareViewModel.getSelectedTier`
+  coerced it via `takeIf { it in order }`, but Items 2 and 3 did
+  not — so the bug was masked on the dedicated screen but visible
+  on Today / Habits.
+- Process learning: a grep for `getSelectedTier` from PR #999's
+  branch wouldn't surface Items 2 or 3. A grep for the *fallback
+  shape* (`tierOrder.size - 2`, hardcoded `"prescription"`) would
+  have. Memory candidate filed.
+
+**Open questions.** None — the four-routine interpretation from the
+original audit still holds, no architectural ambiguity surfaced.
+```
