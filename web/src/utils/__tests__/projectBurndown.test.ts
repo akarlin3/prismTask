@@ -34,6 +34,12 @@ function task(partial: Partial<Task> & { id: string; project_id: string }): Task
     updated_at: partial.created_at ?? isoAt(2026, 4, 1),
     subtasks: [],
     tags: [],
+    // PrismTask-timeline-class scope (PR-4): the burndown tests author
+    // a per-task `progress_percent` via the partial; without explicit
+    // propagation here it gets dropped and every fractional case
+    // collapses to 0.
+    progress_percent: partial.progress_percent ?? null,
+    phase_id: partial.phase_id ?? null,
   };
 }
 

@@ -59,15 +59,25 @@ class TimeTrackingResponse(BaseModel):
 
 class BurndownEntry(BaseModel):
     date: date
-    remaining: int
-    completed_cumulative: int
+    # `remaining` and `completed_cumulative` are floats since the
+    # PrismTask-timeline-class scope (P9 option a) — a task with
+    # progress_percent = 60 contributes 0.6 of a unit. `added` stays
+    # int because it counts task rows created on a day, not fractional
+    # progress.
+    remaining: float
+    completed_cumulative: float
     added: int
 
 
 class ProjectProgressResponse(BaseModel):
     project_name: str
     total_tasks: int
-    completed_tasks: int
+    # `completed_tasks` is the project-wide sum of fractional
+    # contributions (`progress_percent / 100` per task, with a fallback
+    # of 1.0 for binary-DONE rows). Float because partial-progress rows
+    # land non-integer values; legacy int-only consumers should round
+    # at the call site.
+    completed_tasks: float
     burndown: list[BurndownEntry]
     velocity: float
     projected_completion: Optional[date] = None
