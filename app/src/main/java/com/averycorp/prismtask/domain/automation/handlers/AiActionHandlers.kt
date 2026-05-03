@@ -170,23 +170,60 @@ private fun buildEventContext(
 }
 
 /**
- * `apply.batch` handler — v1 stub. Threading [BatchOperationsRepository]
- * through here introduces a circular DI hazard (BatchOps depends on the
- * Anthropic-touching `parseCommand`; the engine should be able to apply
- * pre-built mutations *without* a parse round-trip, which means a small
- * `applyBatchSynthetic` extraction). Tracked for v1.1 alongside the rule
- * edit screen, where the user is in the loop on what mutations get
- * applied.
+ * `apply.batch` handler — converts each [Map] in
+ * [AutomationAction.ApplyBatch.mutations] into a
+ * [com.averycorp.prismtask.data.remote.api.ProposedMutationResponse] and
+ * delegates to [com.averycorp.prismtask.data.repository.BatchOperationsRepository.applyBatch].
+ *
+ * Bypasses the Anthropic-touching `parseCommand` round-trip — the engine
+ * supplies the mutation plan directly, so this handler is *not*
+ * AI-gated even though the underlying repository can be when called via
+ * its NLP entry point.
+ *
+ * Expected shape per map entry:
+ *  - `entityType`: TASK / HABIT / PROJECT / MEDICATION
+ *  - `entityId`: stringified row id
+ *  - `mutationType`: COMPLETE / RESCHEDULE / DELETE / etc. (see [BatchMutationType])
+ *  - any other keys land in `proposedNewValues` verbatim
  */
 @Singleton
-class ApplyBatchActionHandler @Inject constructor() : AutomationActionHandler {
+class ApplyBatchActionHandler @Inject constructor(
+    private val batchOperationsRepository: com.averycorp.prismtask.data.repository.BatchOperationsRepository
+) : AutomationActionHandler {
     override val type: String = "apply.batch"
 
     override suspend fun execute(
         action: AutomationAction,
         ctx: ExecutionContext
-    ): ActionResult = ActionResult.Skipped(
-        type,
-        "apply.batch deferred to v1.1 — needs BatchOperationsRepository.applyBatchSynthetic extraction"
-    )
+    ): ActionResult {
+        val batch = action as? AutomationAction.ApplyBatch
+            ?: return ActionResult.Error(type, "wrong action shape")
+        if (batch.mutations.isEmpty()) {
+            return ActionResult.Skipped(type, "no mutations to apply")
+        }
+        val proposed = batch.mutations.mapNotNull { m ->
+            val entityType = m["entityType"] as? String ?: return@mapNotNull null
+            val entityId = m["entityId"]?.toString() ?: return@mapNotNull null
+            val mutationType = m["mutationType"] as? String ?: return@mapNotNull null
+            val proposedValues = m.filterKeys { it !in setOf("entityType", "entityId", "mutationType") }
+            com.averycorp.prismtask.data.remote.api.ProposedMutationResponse(
+                entityType = entityType,
+                entityId = entityId,
+                mutationType = mutationType,
+                proposedNewValues = proposedValues,
+                humanReadableDescription = "automation rule ${ctx.rule.id}: $mutationType $entityType $entityId"
+            )
+        }
+        if (proposed.isEmpty()) {
+            return ActionResult.Skipped(type, "no well-formed mutations after parse")
+        }
+        val result = batchOperationsRepository.applyBatch(
+            commandText = "automation:rule_${ctx.rule.id}",
+            mutations = proposed
+        )
+        return ActionResult.Ok(
+            type,
+            "applied ${result.appliedCount} of ${proposed.size} (batch=${result.batchId})"
+        )
+    }
 }

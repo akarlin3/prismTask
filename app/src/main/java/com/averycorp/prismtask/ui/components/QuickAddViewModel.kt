@@ -347,6 +347,20 @@ constructor(
         val text = inputText.value.trim()
         if (text.isBlank()) return
 
+        // Re-entry guard. Compose dispatches click events serially on the
+        // main thread, but `viewModelScope.launch{}` returns immediately —
+        // without claiming `_isSubmitting` synchronously *here*, a second
+        // tap (or a Send-then-IME-Done combo) lands before the launched
+        // coroutine flips the flag, races through, and emits
+        // `_batchIntents` / `_multiCreateIntents` twice. Two emissions =
+        // two navigations = two fresh `BatchPreviewViewModel`s = two
+        // Haiku calls returning non-deterministic mutations (the user
+        // sees "different options the second time"). See
+        // docs/audits/BATCH_OPERATIONS_DOUBLE_RUN_AUDIT.md (A4 / A5 /
+        // A6 — three branches, one race shape).
+        if (_isSubmitting.value) return
+        _isSubmitting.value = true
+
         // A2 NLP batch ops — heuristic intercept BEFORE template / project
         // intent / single-task NLP. False positives here would trap normal
         // users in the heavier batch flow, so the detector requires two
@@ -360,15 +374,23 @@ constructor(
         if (batchIntent is BatchIntentDetector.Result.Batch) {
             if (!proFeatureGate.hasAccess(ProFeatureGate.AI_BATCH_OPS)) {
                 viewModelScope.launch {
-                    _voiceMessages.emit(
-                        "Batch commands are a Pro feature — upgrade to use them."
-                    )
+                    try {
+                        _voiceMessages.emit(
+                            "Batch commands are a Pro feature — upgrade to use them."
+                        )
+                    } finally {
+                        _isSubmitting.value = false
+                    }
                 }
                 return
             }
             viewModelScope.launch {
-                _batchIntents.emit(batchIntent.commandText)
-                inputText.value = ""
+                try {
+                    _batchIntents.emit(batchIntent.commandText)
+                    inputText.value = ""
+                } finally {
+                    _isSubmitting.value = false
+                }
             }
             return
         }
@@ -385,10 +407,20 @@ constructor(
         if (multiCreate is MultiCreateDetector.Result.MultiCreate) {
             if (proFeatureGate.hasAccess(ProFeatureGate.AI_NLP)) {
                 viewModelScope.launch {
-                    _multiCreateIntents.emit(multiCreate.rawText)
-                    inputText.value = ""
+                    try {
+                        _multiCreateIntents.emit(multiCreate.rawText)
+                        inputText.value = ""
+                    } finally {
+                        _isSubmitting.value = false
+                    }
                 }
             } else {
+                // createTasksLocallyFromSegments runs its own
+                // viewModelScope.launch and toggles _isSubmitting in a
+                // finally block. The outer sync set above + the inner
+                // toggle compose cleanly: outer sets true, inner sets
+                // true (no-op), inner sets false in finally — flag
+                // released after the local create finishes.
                 createTasksLocallyFromSegments(multiCreate.segments, plannedDateOverride)
             }
             return

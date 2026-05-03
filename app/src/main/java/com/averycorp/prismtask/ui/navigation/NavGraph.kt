@@ -279,6 +279,12 @@ sealed class PrismTaskRoute(
 
     /** v1.7+ Automation starter library — browse + import templates. */
     data object AutomationTemplateLibrary : PrismTaskRoute("automation_template_library")
+
+    /** v1.7+ Automation engine — block-based rule editor; null ruleId = create. */
+    data object AutomationEdit : PrismTaskRoute("automation_edit?ruleId={ruleId}") {
+        fun createRoute(ruleId: Long? = null): String =
+            if (ruleId != null) "automation_edit?ruleId=$ruleId" else "automation_edit"
+    }
 }
 
 data class BottomNavItem(

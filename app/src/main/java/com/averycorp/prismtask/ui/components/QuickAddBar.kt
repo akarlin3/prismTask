@@ -279,7 +279,14 @@ fun QuickAddBar(
                     },
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                     keyboardActions = KeyboardActions(onDone = {
-                        if (inputText.isNotBlank()) {
+                        // Mirror the Send IconButton's enabled gate so a
+                        // hardware-keyboard Enter or fast soft-keyboard
+                        // double-Done can't race the submit slot. The
+                        // upstream `_isSubmitting` re-entry guard in
+                        // QuickAddViewModel.onSubmit catches a slip-through,
+                        // but this is the symmetric belt-and-suspenders
+                        // matching the IconButton at line ~275.
+                        if (inputText.isNotBlank() && !isSubmitting) {
                             viewModel.onSubmit(plannedDateOverride)
                             onTaskCreated()
                         }

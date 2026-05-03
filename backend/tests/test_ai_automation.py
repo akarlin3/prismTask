@@ -85,11 +85,13 @@ class TestAutomationCompleteService:
             assert "Draft a follow-up note" in user_payload
             assert "Send proposal" in user_payload
 
-    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": ""}, clear=False)
     def test_raises_runtime_error_without_api_key(self):
+        from app.services import ai_productivity
         from app.services.ai_productivity import generate_automation_completion
 
-        with patch.dict("os.environ", {}, clear=True):
+        with patch.dict("os.environ", {}, clear=True), patch.object(
+            ai_productivity.settings, "ANTHROPIC_API_KEY", ""
+        ):
             with pytest.raises(RuntimeError):
                 generate_automation_completion(prompt="hi")
 
