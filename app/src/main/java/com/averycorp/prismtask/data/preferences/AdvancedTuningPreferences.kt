@@ -226,7 +226,15 @@ data class SelfCareTierDefaults(
     val bedtime: String = "solid",
     val medication: String = "prescription",
     val housework: String = "regular"
-)
+) {
+    fun forRoutine(routineType: String): String? = when (routineType) {
+        "morning" -> morning
+        "bedtime" -> bedtime
+        "medication" -> medication
+        "housework" -> housework
+        else -> null
+    }
+}
 
 @Singleton
 class AdvancedTuningPreferences

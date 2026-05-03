@@ -9,6 +9,7 @@ import com.averycorp.prismtask.data.local.entity.AssignmentEntity
 import com.averycorp.prismtask.data.local.entity.CourseEntity
 import com.averycorp.prismtask.data.local.entity.HabitEntity
 import com.averycorp.prismtask.data.local.entity.LeisureLogEntity
+import com.averycorp.prismtask.data.preferences.AdvancedTuningPreferences
 import com.averycorp.prismtask.data.preferences.DailyEssentialsPreferences
 import com.averycorp.prismtask.data.preferences.LeisurePreferences
 import com.averycorp.prismtask.data.preferences.LeisureSlotConfig
@@ -130,6 +131,7 @@ constructor(
     private val dailyEssentialsPreferences: DailyEssentialsPreferences,
     private val taskBehaviorPreferences: TaskBehaviorPreferences,
     private val leisurePreferences: LeisurePreferences,
+    private val advancedTuningPreferences: AdvancedTuningPreferences,
     private val localDateFlow: LocalDateFlow
 ) {
     /**
@@ -210,11 +212,13 @@ constructor(
         todayStart: Long
     ): Flow<RoutineCardState?> = combine(
         selfCareDao.getStepsForRoutine(routineType),
-        selfCareDao.getLogForDate(routineType, todayStart)
-    ) { steps, log ->
+        selfCareDao.getLogForDate(routineType, todayStart),
+        advancedTuningPreferences.getSelfCareTierDefaults()
+    ) { steps, log, tierDefaults ->
         if (steps.isEmpty()) return@combine null
         val tierOrder = SelfCareRoutines.getTierOrder(routineType)
-        val selectedTier = resolveSelectedTier(log?.selectedTier, tierOrder)
+        val defaultTier = tierDefaults.forRoutine(routineType)
+        val selectedTier = resolveSelectedTier(log?.selectedTier, tierOrder, defaultTier)
             ?: return@combine null
         val visibleSteps = steps.filter {
             SelfCareRoutines.tierIncludes(tierOrder, selectedTier, it.tier)
@@ -313,16 +317,21 @@ constructor(
 
     companion object {
         /**
-         * Resolves the tier used to filter a routine's steps. When the user
-         * hasn't logged the routine yet today, we fall back to the second-to-
-         * last tier in the order (matching SelfCareViewModel's default) so new
-         * days start at a reasonable mid-tier rather than the lightest or the
-         * heaviest variant.
+         * Resolves the tier used to filter a routine's steps. Order of
+         * precedence: today's persisted log → user-configured default from
+         * [SelfCareTierDefaults] → penultimate-of-order. Mirrors
+         * `SelfCareViewModel.getSelectedTier` so the Today / Daily Essentials
+         * cards agree with the dedicated Self-Care screen on a fresh day.
          */
         @JvmStatic
-        internal fun resolveSelectedTier(logTier: String?, tierOrder: List<String>): String? {
+        internal fun resolveSelectedTier(
+            logTier: String?,
+            tierOrder: List<String>,
+            defaultTier: String? = null
+        ): String? {
             if (!logTier.isNullOrBlank() && logTier in tierOrder) return logTier
             if (tierOrder.isEmpty()) return null
+            if (!defaultTier.isNullOrBlank() && defaultTier in tierOrder) return defaultTier
             return tierOrder.getOrNull(tierOrder.size - 2) ?: tierOrder.last()
         }
 

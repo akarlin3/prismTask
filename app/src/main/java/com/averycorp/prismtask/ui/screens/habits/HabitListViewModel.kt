@@ -4,8 +4,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.averycorp.prismtask.data.local.entity.SelfCareLogEntity
 import com.averycorp.prismtask.data.local.entity.SelfCareStepEntity
+import com.averycorp.prismtask.data.preferences.AdvancedTuningPreferences
 import com.averycorp.prismtask.data.preferences.BuiltInSortOrders
 import com.averycorp.prismtask.data.preferences.HabitListPreferences
+import com.averycorp.prismtask.data.preferences.SelfCareTierDefaults
 import com.averycorp.prismtask.data.repository.DailyCourseProgress
 import com.averycorp.prismtask.data.repository.DailyLeisureProgress
 import com.averycorp.prismtask.data.repository.HabitRepository
@@ -73,6 +75,7 @@ constructor(
     private val schoolworkRepository: SchoolworkRepository,
     private val leisureRepository: LeisureRepository,
     private val habitListPreferences: HabitListPreferences,
+    private val advancedTuningPreferences: AdvancedTuningPreferences,
     private val gson: Gson
 ) : ViewModel() {
     private val habits: StateFlow<List<HabitWithStatus>> = habitRepository
@@ -154,6 +157,10 @@ constructor(
         .getDailyLeisureProgress()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DailyLeisureProgress(0, 0))
 
+    private val tierDefaults: StateFlow<SelfCareTierDefaults> = advancedTuningPreferences
+        .getSelfCareTierDefaults()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), SelfCareTierDefaults())
+
     val items: StateFlow<List<HabitListItem>> = combine(
         habits,
         morningLog,
@@ -171,7 +178,8 @@ constructor(
         houseworkSteps,
         houseworkEnabled,
         schoolProgress,
-        leisureProgress
+        leisureProgress,
+        tierDefaults
     ) { values ->
         @Suppress("UNCHECKED_CAST")
         val habitList = values[0] as List<HabitWithStatus>
@@ -191,14 +199,15 @@ constructor(
         val houseworkOn = values[14] as Boolean
         val schoolProg = values[15] as DailyCourseProgress
         val leisureProg = values[16] as DailyLeisureProgress
+        val defaults = values[17] as SelfCareTierDefaults
 
         val morningHabit = habitList.find { it.habit.name == SelfCareRepository.MORNING_HABIT_NAME }
         val bedtimeHabit = habitList.find { it.habit.name == SelfCareRepository.BEDTIME_HABIT_NAME }
         val houseworkHabit = habitList.find { it.habit.name == SelfCareRepository.HOUSEWORK_HABIT_NAME }
 
-        val morningCard = computeCardData(mLog, mSteps, "morning", morningHabit)
-        val bedtimeCard = computeCardData(bLog, bSteps, "bedtime", bedtimeHabit)
-        val houseworkCard = computeCardData(hwLog, hwSteps, "housework", houseworkHabit)
+        val morningCard = computeCardData(mLog, mSteps, "morning", morningHabit, defaults)
+        val bedtimeCard = computeCardData(bLog, bSteps, "bedtime", bedtimeHabit, defaults)
+        val houseworkCard = computeCardData(hwLog, hwSteps, "housework", houseworkHabit, defaults)
 
         val autoHabitNames = mutableSetOf<String>()
         if (selfCareOn) {
@@ -268,15 +277,16 @@ constructor(
         log: SelfCareLogEntity?,
         steps: List<SelfCareStepEntity>,
         routineType: String,
-        habit: HabitWithStatus?
+        habit: HabitWithStatus?,
+        tierDefaults: SelfCareTierDefaults
     ): SelfCareCardData {
-        val tier = log?.selectedTier ?: if (routineType == "medication") {
-            "prescription"
-        } else {
-            SelfCareRoutines.getTierOrder(routineType).let {
-                if (it.size >= 2) it[it.size - 2] else it.first()
-            }
-        }
+        val tierOrder = SelfCareRoutines.getTierOrder(routineType)
+        val storedTier = log?.selectedTier?.takeIf { it in tierOrder }
+        val configuredDefault = tierDefaults.forRoutine(routineType)?.takeIf { it in tierOrder }
+        val tier = storedTier
+            ?: configuredDefault
+            ?: tierOrder.getOrNull(tierOrder.size - 2)
+            ?: tierOrder.first()
         val tiers = SelfCareRoutines.getTiers(routineType)
         val tierLabel = tiers.find { it.id == tier }?.label ?: tier.replaceFirstChar { it.uppercase() }
         val currentStreak = habit?.currentStreak ?: 0

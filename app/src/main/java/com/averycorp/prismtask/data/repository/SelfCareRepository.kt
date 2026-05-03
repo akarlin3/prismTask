@@ -15,6 +15,7 @@ import com.averycorp.prismtask.data.local.entity.MedicationDoseEntity
 import com.averycorp.prismtask.data.local.entity.MedicationEntity
 import com.averycorp.prismtask.data.local.entity.SelfCareLogEntity
 import com.averycorp.prismtask.data.local.entity.SelfCareStepEntity
+import com.averycorp.prismtask.data.preferences.AdvancedTuningPreferences
 import com.averycorp.prismtask.data.preferences.MedicationPreferences
 import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
 import com.averycorp.prismtask.data.remote.SyncTracker
@@ -169,10 +170,30 @@ constructor(
      * that might take SelfCareRepository as a dep.
      */
     private val medicationDao: MedicationDao,
-    private val medicationDoseDao: MedicationDoseDao
+    private val medicationDoseDao: MedicationDoseDao,
+    private val advancedTuningPreferences: AdvancedTuningPreferences
 ) {
     private suspend fun startOfToday(): Long =
         DayBoundary.startOfCurrentDay(taskBehaviorPreferences.getDayStartHour().first())
+
+    /**
+     * Resolves the starting `selectedTier` for a freshly inserted
+     * [SelfCareLogEntity] when no log exists yet today. Mirrors the read-side
+     * precedence used by `SelfCareViewModel.getSelectedTier` and
+     * `DailyEssentialsUseCase.resolveSelectedTier`: user-configured default
+     * → penultimate-of-order. Without this, fresh logs created by
+     * `toggleStep` / `setTierForTime` would carry the schema-level "solid"
+     * default (which is also structurally invalid for medication and
+     * housework tier orders), silently overriding the user's preference for
+     * the rest of the day.
+     */
+    private suspend fun resolveStartingTier(routineType: String): String {
+        val order = SelfCareRoutines.getTierOrder(routineType)
+        val configured = advancedTuningPreferences.getSelfCareTierDefaults().first()
+            .forRoutine(routineType)
+        if (configured != null && configured in order) return configured
+        return order.getOrNull(order.size - 2) ?: order.firstOrNull() ?: ""
+    }
 
     private suspend fun todayLocalString(): String =
         DayBoundary.currentLocalDateString(taskBehaviorPreferences.getDayStartHour().first())
@@ -572,6 +593,7 @@ constructor(
                 SelfCareLogEntity(
                     routineType = routineType,
                     date = today,
+                    selectedTier = resolveStartingTier(routineType),
                     startedAt = System.currentTimeMillis()
                 )
             )
@@ -797,6 +819,7 @@ constructor(
                 SelfCareLogEntity(
                     routineType = routineType,
                     date = today,
+                    selectedTier = resolveStartingTier(routineType),
                     startedAt = System.currentTimeMillis()
                 )
             )

@@ -6,7 +6,9 @@ import com.averycorp.prismtask.data.local.dao.SelfCareDao
 import com.averycorp.prismtask.data.local.entity.HabitEntity
 import com.averycorp.prismtask.data.local.entity.SelfCareLogEntity
 import com.averycorp.prismtask.data.local.entity.SelfCareStepEntity
+import com.averycorp.prismtask.data.preferences.AdvancedTuningPreferences
 import com.averycorp.prismtask.data.preferences.MedicationPreferences
+import com.averycorp.prismtask.data.preferences.SelfCareTierDefaults
 import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
 import com.averycorp.prismtask.data.remote.SyncTracker
 import com.averycorp.prismtask.util.DayBoundary
@@ -40,6 +42,7 @@ class SelfCareRepositoryConflictTest {
     private lateinit var syncTracker: SyncTracker
     private lateinit var taskBehaviorPreferences: TaskBehaviorPreferences
     private lateinit var medicationPreferences: MedicationPreferences
+    private lateinit var advancedTuningPreferences: AdvancedTuningPreferences
     private lateinit var repo: SelfCareRepository
 
     @Before
@@ -50,8 +53,10 @@ class SelfCareRepositoryConflictTest {
         syncTracker = mockk(relaxed = true)
         taskBehaviorPreferences = mockk(relaxed = true)
         medicationPreferences = mockk(relaxed = true)
+        advancedTuningPreferences = mockk(relaxed = true)
 
         coEvery { taskBehaviorPreferences.getDayStartHour() } returns flowOf(0)
+        coEvery { advancedTuningPreferences.getSelfCareTierDefaults() } returns flowOf(SelfCareTierDefaults())
         coEvery { habitDao.getHabitByName(any()) } returns null
         coEvery { habitDao.insert(any()) } returns 100L
         coEvery { habitDao.getHabitByIdOnce(any()) } answers {
@@ -69,7 +74,8 @@ class SelfCareRepositoryConflictTest {
             gson = Gson(),
             syncTracker = syncTracker,
             medicationDao = mockk(relaxed = true),
-            medicationDoseDao = mockk(relaxed = true)
+            medicationDoseDao = mockk(relaxed = true),
+            advancedTuningPreferences = advancedTuningPreferences
         )
     }
 
@@ -152,6 +158,76 @@ class SelfCareRepositoryConflictTest {
     }
 
     // ── toggleStep: updatedAt stamping ────────────────────────────────────────
+
+    @Test
+    fun toggleStep_seedsSelectedTier_fromUserConfiguredDefault() = runBlocking {
+        // No log yet today: a fresh log should pick up the user's
+        // configured default tier instead of falling back to the schema-
+        // level "solid" entity default. Without this, the user's
+        // preference would be silently overridden the moment they tapped
+        // a step before tapping a tier chip.
+        coEvery { advancedTuningPreferences.getSelfCareTierDefaults() } returns flowOf(
+            SelfCareTierDefaults(morning = "survival")
+        )
+        selfCareDao.seedStep(
+            SelfCareStepEntity(
+                id = 10,
+                stepId = "sc_wash",
+                routineType = "morning",
+                label = "Wash",
+                duration = "2 min",
+                tier = "survival",
+                phase = "Hygiene"
+            )
+        )
+
+        repo.toggleStep("morning", "sc_wash")
+
+        val inserted = selfCareDao.insertedLog ?: error("insertLog was never called")
+        assertEquals("survival", inserted.selectedTier)
+    }
+
+    @Test
+    fun toggleStep_seedsSelectedTier_coercesUnknownDefaultBackToPenultimate() = runBlocking {
+        // A stale preference value not in the routine's tier order falls
+        // back to penultimate-of-order — never written verbatim.
+        coEvery { advancedTuningPreferences.getSelfCareTierDefaults() } returns flowOf(
+            SelfCareTierDefaults(housework = "ultra_deep_2027")
+        )
+        selfCareDao.seedStep(
+            SelfCareStepEntity(
+                id = 11,
+                stepId = "hw_dishes",
+                routineType = "housework",
+                label = "Dishes",
+                duration = "5 min",
+                tier = "quick",
+                phase = "Kitchen"
+            )
+        )
+
+        repo.toggleStep("housework", "hw_dishes")
+
+        val inserted = selfCareDao.insertedLog ?: error("insertLog was never called")
+        assertEquals("regular", inserted.selectedTier)
+    }
+
+    @Test
+    fun setTierForTime_seedsSelectedTier_fromUserConfiguredDefault() = runBlocking {
+        // The medication "tier-for-time" entry point also creates a log
+        // when none exists. It must read the user's medication default
+        // rather than falling through to "solid" (which is not even a
+        // valid medication tier id).
+        coEvery { advancedTuningPreferences.getSelfCareTierDefaults() } returns flowOf(
+            SelfCareTierDefaults(medication = "essential")
+        )
+        coEvery { medicationPreferences.getReminderIntervalMinutesOnce() } returns 0
+
+        repo.setTierForTime("morning", "essential")
+
+        val inserted = selfCareDao.insertedLog ?: error("insertLog was never called")
+        assertEquals("essential", inserted.selectedTier)
+    }
 
     @Test
     fun toggleStep_stampsUpdatedAt() = runBlocking {
