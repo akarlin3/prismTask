@@ -191,3 +191,43 @@ via `gh pr merge --auto --squash`. Required CI green. No `[skip ci]`.
 PR title: `fix(automation): importTemplate idempotency guard — same-device dedup`
 
 Commit message references PR #1077 lineage so future audits trace it.
+
+---
+
+## Phase 3 — Bundle summary
+
+| Item | PR | Status |
+|---|---|---|
+| importTemplate idempotency guard (repo + ViewModel + UI + tests) | [#1078](https://github.com/averycorp/prismTask/pull/1078) | Open, CI in flight |
+
+**Measured impact (vs Phase 1 estimate):**
+
+| Surface | Phase 1 estimate | Actual |
+|---|---|---|
+| Repository | ~15 LOC | +24 / -7 (net +17) |
+| ViewModel | ~10 LOC | +19 / -8 (net +11) |
+| Screen | ~5 LOC | +4 |
+| Repository tests | ~50 LOC | +71 |
+| ViewModel tests | ~15 LOC | +27 |
+| **Total inserted** | **~95** | **130** |
+| **Total net** | — | **+113** |
+
+Core implementation (Repo + ViewModel + Screen) landed at +32 LOC, exactly
+within the ≤32 LOC core estimate. Test surface ran ~30% over estimate
+(+98 vs ~65 estimated) — driven by mockk setup boilerplate around the
+`AutomationRuleEntity` stub helper and the `importTemplate_afterDeletion_createsRowAgain`
+test, which double-mocks `getByTemplateKeyOnce` to model the
+delete-then-import state transition.
+
+Within the operator's hard 100-LOC core ceiling. Phase 1 STOP-conditions
+all stayed clear during implementation — no scope drift, no UX
+harmonization detected, no race-condition surprises.
+
+**Memory entry candidates:** None. Single-fix work, no architectural
+patterns emerged. The audit constraint already says "No new memory edits
+unless durable architectural lesson emerges" — none did.
+
+**Next audit:** None scheduled. Cross-device dedup story is end-to-end
+(PR #1077 cross-device + PR #1078 same-device). Schema-level UNIQUE
+index on `template_key` remains a separate audit if it becomes
+necessary; the application-level guard is currently sufficient.
