@@ -197,6 +197,94 @@ class TestBurndown:
         assert "is_on_track" in data
 
     @pytest.mark.asyncio
+    async def test_burndown_treats_fractional_progress_as_partial_completion(
+        self, client: AsyncClient, auth_headers: dict
+    ):
+        """PrismTask-timeline-class scope, PR-4 (audit P9 option a).
+
+        A task with ``progress_percent = 60`` contributes 0.6 toward
+        ``completed_cumulative`` even when its status is still
+        ``in_progress``. Open fractional rows only contribute on the
+        report's last day so day-by-day values stay monotonic.
+        """
+        today = date.today()
+        today_str = today.isoformat()
+        project_id = await _create_project(client, auth_headers, "Frac Project")
+
+        # 3 tasks: one binary done, one fractional 60%, one plain todo.
+        binary_done = await _create_task(
+            client, auth_headers, project_id, "binary_done",
+            due_date=today_str, status="done",
+        )
+        fractional = await _create_task(
+            client, auth_headers, project_id, "fractional",
+            due_date=today_str, status="in_progress",
+        )
+        await _create_task(client, auth_headers, project_id, "todo", due_date=today_str)
+
+        # Author the fractional progress via PATCH.
+        await client.patch(
+            f"/api/v1/tasks/{fractional}",
+            json={"progress_percent": 60},
+            headers=auth_headers,
+        )
+
+        resp = await client.get(
+            "/api/v1/analytics/project-progress",
+            params={
+                "project_id": project_id,
+                "start_date": today_str,
+                "end_date": today_str,
+            },
+            headers=auth_headers,
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["total_tasks"] == 3
+        # 1.0 (binary done) + 0.6 (fractional) + 0 = 1.6
+        assert data["completed_tasks"] == 1.6
+        # Same value reported as the day's cumulative on the only day.
+        assert data["burndown"][0]["completed_cumulative"] == 1.6
+        # 3 existing - 1.6 done = 1.4 remaining.
+        assert data["burndown"][0]["remaining"] == 1.4
+        # Untouched binary_done still works.
+        assert binary_done > 0
+
+    @pytest.mark.asyncio
+    async def test_burndown_clamps_out_of_range_progress_percent(
+        self, client: AsyncClient, auth_headers: dict
+    ):
+        """Defensive clamp at the burndown layer — a malformed row with
+        ``progress_percent`` outside [0, 100] is bounded rather than
+        breaking the report."""
+        today = date.today()
+        today_str = today.isoformat()
+        project_id = await _create_project(client, auth_headers, "Clamp Project")
+
+        too_high = await _create_task(
+            client, auth_headers, project_id, "too_high",
+            due_date=today_str, status="in_progress",
+        )
+        await client.patch(
+            f"/api/v1/tasks/{too_high}",
+            json={"progress_percent": 250},
+            headers=auth_headers,
+        )
+
+        resp = await client.get(
+            "/api/v1/analytics/project-progress",
+            params={
+                "project_id": project_id,
+                "start_date": today_str,
+                "end_date": today_str,
+            },
+            headers=auth_headers,
+        )
+        assert resp.status_code == 200
+        # 250 clamps to 100 → 1.0 unit.
+        assert resp.json()["completed_tasks"] == 1.0
+
+    @pytest.mark.asyncio
     async def test_burndown_not_found(self, client: AsyncClient, auth_headers: dict):
         """Test that non-existent project returns 404."""
         resp = await client.get(
