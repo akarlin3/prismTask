@@ -391,3 +391,37 @@ $ grep -n "Blocker\|blocker\|dependency\|Dependency" \
     app/src/main/java/com/averycorp/prismtask/ui/screens/addedittask/tabs/OrganizeTab.kt
 (no output)
 ```
+
+---
+
+## Phase 3 — Bundle summary (PRE-MERGE per CLAUDE.md)
+
+### PRs opened
+- **PR #1119** — `docs(audits): Phase 1 — Web TaskDependency parity (STOP-and-reframe)`
+  - Branch: `claude/web-task-dependency-parity-hxjm0`
+  - Commit: `1ec5b9c`
+  - Net change: +393 lines, 1 file (`docs/audits/WEB_TASK_DEPENDENCY_PARITY_AUDIT.md`)
+  - State: open, ready for review (not draft)
+
+### PRs merged
+None. Phase 2 paused per audit-first hard rule.
+
+### Measured impact
+- F.8a item closure: **0 → 0** (path not yet picked; cannot close without operator decision)
+- Asymmetry status: **documented, not closed**
+- Wall-clock saved by NOT shipping wrong scope: estimated 4-8 hours of code that would have shipped a stranded surface (Path 3 outcome)
+
+### Memory entry candidates
+- **Default:** no memory edit. The pattern "STOP-and-report on wrong premises" is already memory-encoded (audit-first hard rule).
+- **Possible candidate:** capture the cycle-guard-port-from-Kotlin pattern as a durable template for future client-side validation ports — but only after Phase 2 actually ships and the pattern is validated.
+- **Anti-pattern flag:** when a prompt cites a PR number, **always verify the PR exists** before scoping work that mirrors its claimed deliverable. The audit-first drive-by sweep (`git log -p -S`) catches this, but only if the PR-existence check is run early.
+
+### Schedule for next audit
+None scheduled. Re-audit only triggers if operator picks Path 1 (then a new prompt for F.7 web roadmap port is needed) or Path 2/3 (this prompt's Phase 2 unblocks).
+
+---
+
+## Phase 4 — Claude Chat handoff
+
+See the fenced block at the end of the session output.
+
