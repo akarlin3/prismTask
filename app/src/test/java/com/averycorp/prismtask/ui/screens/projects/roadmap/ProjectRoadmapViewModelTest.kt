@@ -175,9 +175,13 @@ class ProjectRoadmapViewModelTest {
     @Test
     fun `saveAnchor routes update to repo when existing row provided`() = runTest {
         val existing = ExternalAnchorEntity(
-            id = 11L, projectId = 1L, phaseId = null,
-            label = "Old", anchorJson = "{}",
-            createdAt = 0L, updatedAt = 0L
+            id = 11L,
+            projectId = 1L,
+            phaseId = null,
+            label = "Old",
+            anchorJson = "{}",
+            createdAt = 0L,
+            updatedAt = 0L
         )
         coEvery { externalAnchorRepository.updateAnchor(any(), any(), any(), any()) } just Runs
         val vm = newViewModel()
