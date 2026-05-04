@@ -129,6 +129,10 @@ internal fun OrganizeTabContent(
 
     // ---- Life Category section (Work-Life Balance Engine v1.4.0 V1) ----
     SectionLabel("Life Category")
+    OrganizeSectionDescription(
+        "Which area of life this task belongs to. Used by the work-life " +
+            "balance bar and weekly report."
+    )
     LifeCategorySelector(
         selected = viewModel.lifeCategory,
         manuallySet = viewModel.lifeCategoryManuallySet,
@@ -137,6 +141,10 @@ internal fun OrganizeTabContent(
 
     // ---- Task Mode section (Work / Play / Relax — see docs/WORK_PLAY_RELAX.md) ----
     SectionLabel("Task Mode")
+    OrganizeSectionDescription(
+        "Whether this task is heads-down work, something playful, or " +
+            "something restful. Helps mode-aware suggestions and Brain Mode."
+    )
     TaskModeSelector(
         selected = viewModel.taskMode,
         manuallySet = viewModel.taskModeManuallySet,
@@ -145,6 +153,10 @@ internal fun OrganizeTabContent(
 
     // ---- Cognitive Load section (Easy / Medium / Hard — see docs/COGNITIVE_LOAD.md) ----
     SectionLabel("Cognitive Load")
+    OrganizeSectionDescription(
+        "How mentally demanding this task is, regardless of how long it " +
+            "takes. Drives smart-pomodoro pacing and energy-aware planning."
+    )
     CognitiveLoadSelector(
         selected = viewModel.cognitiveLoad,
         manuallySet = viewModel.cognitiveLoadManuallySet,
@@ -980,4 +992,14 @@ internal fun ColorDot(
             )
         }
     }
+}
+
+@Composable
+private fun OrganizeSectionDescription(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(top = 2.dp, bottom = 4.dp)
+    )
 }
