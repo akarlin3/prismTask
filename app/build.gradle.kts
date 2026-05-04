@@ -320,8 +320,8 @@ dependencies {
     implementation("sh.calvin.reorderable:reorderable:2.4.3")
 
     // Glance Widgets
-    implementation("androidx.glance:glance-appwidget:1.1.0")
-    implementation("androidx.glance:glance-material3:1.1.0")
+    implementation("androidx.glance:glance-appwidget:1.1.1")
+    implementation("androidx.glance:glance-material3:1.1.1")
 
     // Firebase
     implementation(platform("com.google.firebase:firebase-bom:33.16.0"))
