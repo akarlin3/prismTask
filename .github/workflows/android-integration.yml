@@ -82,7 +82,7 @@ jobs:
       # connectedDebugAndroidTest depends on a debug APK build; cache hit
       # skips the cold compile and shaves ~30-60s off labeled
       # `ci:integration` PR runs.
-      - uses: actions/cache@v4
+      - uses: actions/cache@v5
         with:
           path: app/build
           key: app-build-${{ runner.os }}-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties', 'gradle/libs.versions.toml') }}
@@ -107,7 +107,7 @@ jobs:
       # serve an older 15.x point release until invalidated.
       - name: Cache firebase-tools install
         id: fb-tools-cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.npm
@@ -264,7 +264,7 @@ jobs:
       # connectedDebugAndroidTest depends on a debug APK build; cache hit
       # skips the cold compile and shaves ~30-60s off labeled
       # `ci:integration` PR runs.
-      - uses: actions/cache@v4
+      - uses: actions/cache@v5
         with:
           path: app/build
           key: app-build-${{ runner.os }}-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties', 'gradle/libs.versions.toml') }}
@@ -289,7 +289,7 @@ jobs:
       # serve an older 15.x point release until invalidated.
       - name: Cache firebase-tools install
         id: fb-tools-cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.npm
