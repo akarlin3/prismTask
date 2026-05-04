@@ -2,7 +2,7 @@ import {
   doc,
   updateDoc,
   getDoc,
-  addDoc,
+  setDoc,
   deleteDoc,
   collection,
   query,
@@ -64,6 +64,21 @@ function projectDoc(uid: string, id: string) {
 
 function habitCompletionsCol(uid: string) {
   return collection(firestore, 'users', uid, 'habit_completions');
+}
+
+/**
+ * Mirrors `web/src/api/firestore/habits.ts habitCompletionId`. Doc id =
+ * `${habitCloudId}__${completedDateLocal}` so two devices completing
+ * the same habit on the same logical day collapse into one Firestore
+ * doc rather than producing siblings. See
+ * `docs/audits/WEB_CANONICAL_ROW_DEDUP_PARITY_AUDIT.md`.
+ */
+function habitCompletionId(habitCloudId: string, completedDateLocal: string): string {
+  return `${habitCloudId}__${completedDateLocal}`;
+}
+
+function habitCompletionDoc(uid: string, completionId: string) {
+  return doc(firestore, 'users', uid, 'habit_completions', completionId);
 }
 
 function parseIsoDateToMillis(iso: string): number | null {
@@ -294,12 +309,18 @@ async function applyHabitMutation(
         ? values.date
         : new Date().toISOString().slice(0, 10);
       const dateMs = parseIsoDateToMillis(dateIso) ?? now;
-      const ref = await addDoc(habitCompletionsCol(uid), {
-        habitCloudId: id,
-        completedDate: dateMs,
-        completedAt: now,
-        notes: null,
-      });
+      const completionId = habitCompletionId(id, dateIso);
+      await setDoc(
+        habitCompletionDoc(uid, completionId),
+        {
+          habitCloudId: id,
+          completedDate: dateMs,
+          completedDateLocal: dateIso,
+          completedAt: now,
+          notes: null,
+        },
+        { merge: true },
+      );
       return {
         applied: true,
         entry: {
@@ -308,7 +329,7 @@ async function applyHabitMutation(
           mutation_type: mutationType,
           pre_state: {
             date_iso: dateIso,
-            completion_doc_id: ref.id,
+            completion_doc_id: completionId,
           },
           applied: true,
         },
@@ -567,11 +588,15 @@ async function undoHabitEntry(
         data: DocumentData;
       }>) ?? [];
       for (const d of deleted) {
-        // Best-effort re-create: we let Firestore assign a fresh doc id
-        // rather than reusing the prior one (addDoc is simpler than
-        // setDoc here, and the habit_completions collection has no
-        // id-based references).
-        await addDoc(habitCompletionsCol(uid), d.data);
+        // Re-create with the original doc id via `setDoc(merge=true)`
+        // so the round-trip is idempotent (a second SKIP→undo doesn't
+        // produce a fresh sibling) and so undo respects the canonical-
+        // row dedup contract — see WEB_CANONICAL_ROW_DEDUP_PARITY_AUDIT.md.
+        await setDoc(
+          doc(firestore, 'users', uid, 'habit_completions', d.id),
+          d.data,
+          { merge: true },
+        );
       }
       return true;
     }

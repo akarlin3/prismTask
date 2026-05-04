@@ -48,7 +48,7 @@ jobs:
       # platform SDK, etc.) required by bundleRelease. JDK + Gradle alone
       # are not sufficient for Android builds.
       - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
 
       - name: Decode keystore
         id: keystore
@@ -114,7 +114,7 @@ jobs:
       # to the GitHub release + workflow artifacts.
       - name: Upload release artifacts
         if: steps.keystore.outputs.has_keystore == 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: release-${{ steps.version.outputs.version_name }}-${{ steps.version.outputs.version_code }}
           path: |

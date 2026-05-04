@@ -97,7 +97,7 @@ jobs:
       # tasks restore from cache. ~/.gradle/caches is already managed by
       # gradle/actions/setup-gradle@v4 (called inside setup-android), so
       # this only handles the project build/ outputs.
-      - uses: actions/cache@v4
+      - uses: actions/cache@v5
         if: steps.relevance.outputs.android == 'true'
         with:
           path: app/build
@@ -224,7 +224,7 @@ jobs:
       # Audit C3 — same `app/build/` cache as the autofix job. Both jobs
       # share the cache key so the second job to run benefits from the
       # first's writes (actions/cache writes on job success).
-      - uses: actions/cache@v4
+      - uses: actions/cache@v5
         if: steps.relevance.outputs.android == 'true'
         with:
           path: app/build
@@ -324,7 +324,7 @@ jobs:
           echo "All ${#xmls[@]} JUnit XML reports clean."
       - name: Post failure details to PR
         if: failure() && github.event_name == 'pull_request' && steps.relevance.outputs.android == 'true'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const fs = require('fs');
@@ -352,21 +352,21 @@ jobs:
             });
       - name: Upload lint report
         if: always() && steps.relevance.outputs.android == 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: lint-report
           path: app/build/reports/lint-results-debug.html
           retention-days: 7
       - name: Upload detekt report
         if: always() && steps.relevance.outputs.android == 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: detekt-report
           path: app/build/reports/detekt/
           retention-days: 7
       - name: Upload test results
         if: always() && steps.relevance.outputs.android == 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: test-results
           path: app/build/test-results/

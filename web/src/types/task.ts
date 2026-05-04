@@ -57,6 +57,13 @@ export interface Task {
    * P9 option a).
    */
   progress_percent?: number | null;
+  /**
+   * Optional parent-phase id (Firestore doc id of a row in
+   * `project_phases`, mirroring Android `tasks.phase_id`). `null` /
+   * undefined means the task belongs to the project but no phase. Set
+   * from the Roadmap surface; carried through Firestore as `phaseId`.
+   */
+  phase_id?: string | null;
 }
 
 export interface TaskCreate {
@@ -120,6 +127,12 @@ export interface TaskUpdate {
   taskMode?: TaskMode | null;
   cognitiveLoad?: CognitiveLoad | null;
   project_id?: string;
+  /** Set from the Roadmap surface to attach (or detach) a task from a
+   *  phase. `null` clears the phase link; `undefined` leaves it
+   *  untouched (omit-on-undefined merge semantics, see PR #836). */
+  phase_id?: string | null;
+  /** Fractional progress 0..100 inclusive; `null` clears it. */
+  progress_percent?: number | null;
 }
 
 /** Mirrors the Android `LifeCategory` enum (`domain/model/LifeCategory.kt`). */

@@ -4,6 +4,7 @@ import {
   getDoc,
   getDocs,
   addDoc,
+  setDoc,
   updateDoc,
   deleteDoc,
   query,
@@ -29,6 +30,30 @@ function habitDoc(uid: string, habitId: string) {
 
 function completionsCol(uid: string) {
   return collection(firestore, 'users', uid, 'habit_completions');
+}
+
+/**
+ * Deterministic doc id for the natural-key `(habitCloudId, completedDateLocal)`.
+ * Mirrors Android's natural-key dedup contract at
+ * `SyncService.kt:2022-2052` (`habit_completions` pull path) but applies
+ * it on the write path so two devices completing the same habit on the
+ * same logical day collapse into a single Firestore doc rather than
+ * relying on a Room-layer absorb on pull. Same shape as
+ * `moodEnergyLogs.ts moodLogId` (`${dateIso}__${timeOfDay}`).
+ *
+ * Keys on `completedDateLocal` (TZ-neutral logical day, `YYYY-MM-DD`),
+ * not on the legacy `completedDate` epoch ms — two devices in different
+ * timezones agree on the logical-day key but disagree on the epoch
+ * derived from `new Date(date+"T00:00:00").getTime()`.
+ *
+ * See `docs/audits/WEB_CANONICAL_ROW_DEDUP_PARITY_AUDIT.md`.
+ */
+function habitCompletionId(habitCloudId: string, completedDateLocal: string): string {
+  return `${habitCloudId}__${completedDateLocal}`;
+}
+
+function completionDoc(uid: string, completionId: string) {
+  return doc(firestore, 'users', uid, 'habit_completions', completionId);
 }
 
 // ── Firestore doc → Web Habit ─────────────────────────────────
@@ -197,6 +222,39 @@ export async function deleteHabit(uid: string, habitId: string): Promise<void> {
 
 // ── Completions ──────────────────────────────────────────────
 
+/**
+ * Defense-in-depth read coalesce.
+ *
+ * Pre-fix random-id docs and the post-fix canonical-id doc can both
+ * exist in Firestore for the same `(habit_id, date)` natural key
+ * during the cleanup window. Collapse them at read time so the UI
+ * never sees doubles. Prefer the canonical-id row (deterministic
+ * `${habit_id}__${date}`) when present; otherwise keep the row with
+ * the newest `created_at`. Legacy duplicates eventually disappear
+ * because `toggleCompletion`'s sweep deletes them on the next toggle.
+ */
+function coalesceCompletions(rows: HabitCompletion[]): HabitCompletion[] {
+  const byKey = new Map<string, HabitCompletion>();
+  for (const row of rows) {
+    const key = habitCompletionId(row.habit_id, row.date);
+    const existing = byKey.get(key);
+    if (existing == null) {
+      byKey.set(key, row);
+      continue;
+    }
+    const existingIsCanonical = existing.id === key;
+    const rowIsCanonical = row.id === key;
+    if (rowIsCanonical && !existingIsCanonical) {
+      byKey.set(key, row);
+    } else if (!rowIsCanonical && existingIsCanonical) {
+      // keep existing (canonical wins)
+    } else if (row.created_at > existing.created_at) {
+      byKey.set(key, row);
+    }
+  }
+  return Array.from(byKey.values());
+}
+
 export async function getCompletions(
   uid: string,
   habitId: string,
@@ -211,7 +269,9 @@ export async function getCompletions(
   // Firestore doesn't allow inequality on different fields easily, so
   // we fetch all completions for the habit and filter client-side for date range
   const snap = await getDocs(q);
-  let completions = snap.docs.map((d) => docToCompletion(d.id, d.data()));
+  let completions = coalesceCompletions(
+    snap.docs.map((d) => docToCompletion(d.id, d.data())),
+  );
 
   if (startDate) {
     completions = completions.filter((c) => c.date >= startDate);
@@ -225,7 +285,9 @@ export async function getCompletions(
 
 export async function getAllCompletions(uid: string): Promise<HabitCompletion[]> {
   const snap = await getDocs(completionsCol(uid));
-  return snap.docs.map((d) => docToCompletion(d.id, d.data()));
+  return coalesceCompletions(
+    snap.docs.map((d) => docToCompletion(d.id, d.data())),
+  );
 }
 
 export async function toggleCompletion(
@@ -233,44 +295,106 @@ export async function toggleCompletion(
   habitId: string,
   date: string,
 ): Promise<{ action: 'added' | 'removed'; completion?: HabitCompletion }> {
-  // Check if completion already exists for this habit+date
-  const dateMs = new Date(date + 'T00:00:00').getTime();
-  const q = query(
-    completionsCol(uid),
-    where('habitCloudId', '==', habitId),
-    where('completedDate', '==', dateMs),
-  );
-  const snap = await getDocs(q);
+  // Natural-key write: doc id = `${habitCloudId}__${completedDateLocal}`.
+  // Two devices completing the same habit on the same logical day
+  // resolve to the same Firestore doc path, so parallel `setDoc(...,
+  // {merge: true})` calls converge to one doc rather than racing into
+  // two siblings (the prior `getDocs` pre-query → `addDoc` shape had a
+  // TOCTOU window). See WEB_CANONICAL_ROW_DEDUP_PARITY_AUDIT.md.
+  const completionId = habitCompletionId(habitId, date);
+  const canonicalRef = completionDoc(uid, completionId);
+  const canonicalSnap = await getDoc(canonicalRef);
 
-  if (snap.empty) {
-    // Add a new completion. Populate the `completedDateLocal` field
-    // (Android v50, migration 49→50) with the SoD-relative logical
-    // day key the caller already computed via `useLogicalToday(...)`.
-    // The `date` argument is the contractually correct value here:
-    // callers in `HabitListScreen` / `TodayScreen` pass the user's
-    // current logical day in `YYYY-MM-DD` form, which matches Android's
-    // `DayBoundary` shape byte-for-byte. Without this, Android's
-    // day-comparison drifts across DST transitions because the legacy
-    // `completedDate` epoch decomposes back to a different calendar
-    // day in the device's current timezone vs. the device that wrote
-    // it. See parity audit H-S4.
-    const now = Date.now();
-    const firestoreData = {
-      habitCloudId: habitId,
-      completedDate: dateMs,
-      completedDateLocal: date,
-      completedAt: now,
-      notes: null,
-    };
-    const ref = await addDoc(completionsCol(uid), firestoreData);
-    const completion = docToCompletion(ref.id, firestoreData);
-    return { action: 'added', completion };
-  } else {
-    // Remove the existing completion(s)
-    for (const d of snap.docs) {
-      await deleteDoc(d.ref);
+  if (canonicalSnap.exists()) {
+    // Toggle off — also sweep up legacy duplicate docs (different IDs,
+    // same natural key) left behind by the pre-fix `addDoc` path.
+    await deleteDoc(canonicalRef);
+    await deleteLegacyDuplicateCompletions(uid, habitId, date);
+    return { action: 'removed' };
+  }
+
+  // The `date` argument is the SoD-relative logical day key
+  // (`YYYY-MM-DD`) callers in `HabitListScreen` / `TodayScreen`
+  // already computed via `useLogicalToday(...)`. It matches Android's
+  // `DayBoundary` shape byte-for-byte so cross-device DST comparisons
+  // line up. The legacy `completedDate` epoch is still written for
+  // back-compat with older Android clients reading via
+  // `SyncMapper.mapToHabitCompletion`'s fallback path.
+  const dateMs = new Date(date + 'T00:00:00').getTime();
+  const now = Date.now();
+  const firestoreData = {
+    habitCloudId: habitId,
+    completedDate: dateMs,
+    completedDateLocal: date,
+    completedAt: now,
+    notes: null,
+  };
+
+  // Sweep legacy duplicates first: if a pre-fix random-id doc exists
+  // for this natural key, treat the toggle as "remove" (consistent
+  // with prior semantics where any matching doc made the toggle a
+  // delete).
+  const legacy = await findLegacyDuplicateCompletions(uid, habitId, date);
+  if (legacy.length > 0) {
+    for (const ref of legacy) {
+      await deleteDoc(ref);
     }
     return { action: 'removed' };
+  }
+
+  await setDoc(canonicalRef, firestoreData, { merge: true });
+  const completion = docToCompletion(completionId, firestoreData);
+  return { action: 'added', completion };
+}
+
+async function findLegacyDuplicateCompletions(
+  uid: string,
+  habitId: string,
+  dateLocal: string,
+): Promise<Array<ReturnType<typeof completionDoc>>> {
+  // Legacy docs were keyed only on `(habitCloudId, completedDate)`, so
+  // we have to query both the TZ-neutral `completedDateLocal` (post-fix
+  // canonical key) and the legacy epoch — but we exclude the canonical
+  // doc id, since that's handled by the explicit `getDoc` path.
+  const dateMs = new Date(dateLocal + 'T00:00:00').getTime();
+  const canonicalId = habitCompletionId(habitId, dateLocal);
+  const refs: Array<ReturnType<typeof completionDoc>> = [];
+
+  const byLocal = await getDocs(
+    query(
+      completionsCol(uid),
+      where('habitCloudId', '==', habitId),
+      where('completedDateLocal', '==', dateLocal),
+    ),
+  );
+  for (const d of byLocal.docs) {
+    if (d.id !== canonicalId) refs.push(d.ref);
+  }
+
+  const byEpoch = await getDocs(
+    query(
+      completionsCol(uid),
+      where('habitCloudId', '==', habitId),
+      where('completedDate', '==', dateMs),
+    ),
+  );
+  for (const d of byEpoch.docs) {
+    if (d.id !== canonicalId && !refs.some((r) => r.id === d.id)) {
+      refs.push(d.ref);
+    }
+  }
+
+  return refs;
+}
+
+async function deleteLegacyDuplicateCompletions(
+  uid: string,
+  habitId: string,
+  dateLocal: string,
+): Promise<void> {
+  const refs = await findLegacyDuplicateCompletions(uid, habitId, dateLocal);
+  for (const ref of refs) {
+    await deleteDoc(ref);
   }
 }
 
@@ -292,7 +416,9 @@ export function subscribeToCompletions(
   callback: (completions: HabitCompletion[]) => void,
 ): Unsubscribe {
   return onSnapshot(completionsCol(uid), (snap) => {
-    const completions = snap.docs.map((d) => docToCompletion(d.id, d.data()));
+    const completions = coalesceCompletions(
+      snap.docs.map((d) => docToCompletion(d.id, d.data())),
+    );
     callback(completions);
   });
 }

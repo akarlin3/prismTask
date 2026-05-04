@@ -76,6 +76,9 @@ function docToTask(docId: string, data: DocumentData, uid: string): Task {
     cognitive_load: parseCognitiveLoad(data.cognitiveLoad),
     user_overrode_quadrant: data.userOverrodeQuadrant === true,
     is_flagged: data.isFlagged === true,
+    progress_percent:
+      typeof data.progressPercent === 'number' ? data.progressPercent : null,
+    phase_id: typeof data.phaseId === 'string' ? data.phaseId : null,
   };
 }
 
@@ -212,6 +215,11 @@ function taskCreateToDoc(
   if (Array.isArray(data.tag_ids)) {
     doc.tagIds = data.tag_ids.filter((x): x is string => typeof x === 'string');
   }
+  // Roadmap fields. Both follow omit-on-undefined semantics so an
+  // ordinary task create (no roadmap context) doesn't write `null`
+  // placeholders that would clobber Android-side state.
+  if (data.phase_id !== undefined) doc.phaseId = data.phase_id;
+  if (data.progress_percent !== undefined) doc.progressPercent = data.progress_percent;
   return doc;
 }
 
@@ -272,6 +280,11 @@ function taskUpdateToDoc(data: Record<string, unknown>): Record<string, unknown>
   if (data.tag_ids !== undefined && Array.isArray(data.tag_ids)) {
     doc.tagIds = (data.tag_ids as string[]).filter((x) => typeof x === 'string');
   }
+  // Roadmap fields. `phase_id: null` clears the link; omit leaves it
+  // alone. `progress_percent: null` clears fractional progress (binary
+  // task again); omit leaves it alone.
+  if (data.phase_id !== undefined) doc.phaseId = data.phase_id;
+  if (data.progress_percent !== undefined) doc.progressPercent = data.progress_percent;
   return doc;
 }
 
