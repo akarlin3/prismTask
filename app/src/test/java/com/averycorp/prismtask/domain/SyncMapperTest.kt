@@ -1,5 +1,6 @@
 package com.averycorp.prismtask.domain
 
+import com.averycorp.prismtask.data.local.entity.AutomationRuleEntity
 import com.averycorp.prismtask.data.local.entity.HabitCompletionEntity
 import com.averycorp.prismtask.data.local.entity.HabitEntity
 import com.averycorp.prismtask.data.local.entity.ProjectEntity
@@ -8,6 +9,7 @@ import com.averycorp.prismtask.data.local.entity.TaskEntity
 import com.averycorp.prismtask.data.remote.mapper.SyncMapper
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class SyncMapperTest {
@@ -218,5 +220,99 @@ class SyncMapperTest {
         assertEquals(7L, completion.habitId)
         assertEquals(2000L, completion.completedDate)
         assertEquals("test note", completion.notes)
+    }
+
+    // --- Automation Rule (covers PR #1069 / #1070 test-coverage gap; see
+    //     AUTOMATION_VALIDATION_T2_T4_AUDIT.md § B.6) ---
+
+    @Test
+    fun automationRule_roundTrip_preservesAllFields() {
+        val rule = AutomationRuleEntity(
+            id = 42L,
+            cloudId = "cloud_rule_42",
+            name = "Morning routine",
+            description = "Trigger morning tasks at 07:00",
+            enabled = true,
+            priority = 5,
+            isBuiltIn = false,
+            templateKey = "starter.stay_on_top.morning_routine",
+            triggerJson = """{"type":"TIME_OF_DAY","hour":7,"minute":0}""",
+            conditionJson = """{"op":"EQ","field":"task.priority","value":3}""",
+            actionJson = """[{"type":"notify","title":"Good morning"}]""",
+            lastFiredAt = 1_700_000_000_000L,
+            fireCount = 17,
+            dailyFireCount = 1,
+            dailyFireCountDate = "2026-05-04",
+            createdAt = 1_690_000_000_000L,
+            updatedAt = 1_700_000_000_000L
+        )
+        val map = SyncMapper.automationRuleToMap(rule)
+        // localId is what the remote round-trip carries; cloudId is supplied
+        // out-of-band to mapToAutomationRule (mirrors how SyncService calls it).
+        val restored = SyncMapper.mapToAutomationRule(map, localId = 42L, cloudId = "cloud_rule_42")
+
+        assertEquals(rule.id, restored.id)
+        assertEquals(rule.cloudId, restored.cloudId)
+        assertEquals(rule.name, restored.name)
+        assertEquals(rule.description, restored.description)
+        assertEquals(rule.enabled, restored.enabled)
+        assertEquals(rule.priority, restored.priority)
+        assertEquals(rule.isBuiltIn, restored.isBuiltIn)
+        assertEquals(rule.templateKey, restored.templateKey)
+        assertEquals(rule.triggerJson, restored.triggerJson)
+        assertEquals(rule.conditionJson, restored.conditionJson)
+        assertEquals(rule.actionJson, restored.actionJson)
+        assertEquals(rule.lastFiredAt, restored.lastFiredAt)
+        assertEquals(rule.fireCount, restored.fireCount)
+        assertEquals(rule.dailyFireCount, restored.dailyFireCount)
+        assertEquals(rule.dailyFireCountDate, restored.dailyFireCountDate)
+        assertEquals(rule.createdAt, restored.createdAt)
+        assertEquals(rule.updatedAt, restored.updatedAt)
+    }
+
+    @Test
+    fun automationRule_roundTrip_handlesNullableFields() {
+        val rule = AutomationRuleEntity(
+            id = 1L,
+            cloudId = null,
+            name = "Minimal",
+            description = null,
+            templateKey = null,
+            triggerJson = """{"type":"MANUAL"}""",
+            conditionJson = null,
+            actionJson = "[]",
+            lastFiredAt = null,
+            dailyFireCountDate = null,
+            createdAt = 0L,
+            updatedAt = 0L
+        )
+        val map = SyncMapper.automationRuleToMap(rule)
+        val restored = SyncMapper.mapToAutomationRule(map, localId = 1L, cloudId = null)
+        assertNull(restored.description)
+        assertNull(restored.templateKey)
+        assertNull(restored.conditionJson)
+        assertNull(restored.lastFiredAt)
+        assertNull(restored.dailyFireCountDate)
+        assertEquals("[]", restored.actionJson)
+    }
+
+    @Test
+    fun automationRule_toMap_emitsUpdatedAtForLww() {
+        val rule = AutomationRuleEntity(
+            id = 1L,
+            name = "n",
+            triggerJson = "{}",
+            actionJson = "[]",
+            createdAt = 100L,
+            updatedAt = 999L
+        )
+        val map = SyncMapper.automationRuleToMap(rule)
+        // updatedAt must round-trip — without it, last-write-wins reconciliation
+        // in pullRoomConfigFamily would treat every pull as fresher than local.
+        assertEquals(999L, (map["updatedAt"] as? Number)?.toLong())
+        assertTrue(
+            "automation_rule map must carry updatedAt for LWW (audit § B.3)",
+            map.containsKey("updatedAt")
+        )
     }
 }

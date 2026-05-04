@@ -119,6 +119,16 @@ constructor(
 
     @Volatile private var isSyncing = false
 
+    // Guards [startAutoSync] against being installed twice in the same
+    // process. Without this, the post-sign-in path (AuthViewModel.runPost-
+    // SignInSync) and the cold-start path (MainActivity.onCreate) could each
+    // call startAutoSync once, installing two reactive-push subscribers and
+    // two periodic ReactiveSyncDriver instances racing on the same
+    // sync_metadata queue. Set inside startAutoSync's idempotency guard;
+    // never reset within the lifetime of the process. See PR-B of
+    // `docs/audits/AUTOMATION_VALIDATION_T2_T4_AUDIT.md`.
+    @Volatile private var autoSyncStarted = false
+
     private fun userCollection(collection: String) =
         authManager.userId?.let { firestore.collection("users").document(it).collection(collection) }
 
@@ -3127,8 +3137,27 @@ constructor(
         }
     }
 
+    /**
+     * Installs the realtime listeners, the reactive-push subscriber, and
+     * the periodic sync driver, then kicks off the first fullSync.
+     * Idempotent — repeat calls are no-ops once the auto-sync machinery
+     * is installed for the lifetime of this process. Idempotency matters
+     * because both [com.averycorp.prismtask.MainActivity.onCreate] and
+     * [com.averycorp.prismtask.ui.screens.auth.AuthViewModel.runPostSignInSync]
+     * call this; without the guard the second caller would install a
+     * duplicate `observePending` subscriber and a duplicate periodic
+     * driver that race on the `sync_metadata` queue. See PR-B of
+     * `docs/audits/AUTOMATION_VALIDATION_T2_T4_AUDIT.md` — the missing
+     * post-sign-in invocation was the root cause of Test 4 RED on the
+     * May 3 AVD validation run.
+     */
     fun startAutoSync() {
         if (authManager.userId == null) return
+        if (autoSyncStarted) {
+            logger.debug(operation = "startAutoSync.skipped", detail = "reason=already_started")
+            return
+        }
+        autoSyncStarted = true
         startRealtimeListeners()
         scope.launch {
             // Phase 2.5 — re-populate `cloud_id` on pre-existing rows

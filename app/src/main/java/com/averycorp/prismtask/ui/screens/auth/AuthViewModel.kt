@@ -230,6 +230,16 @@ constructor(
             // Error already logged by initialUpload.
         }
         syncService.startRealtimeListeners()
+        // PR-B of AUTOMATION_VALIDATION_T2_T4_AUDIT.md — without this call
+        // the reactive-push subscriber and 30s periodic driver, both
+        // installed inside [SyncService.startAutoSync], are never wired
+        // for users who interactively sign in this session. The
+        // resulting hole let imported automation_rule rows sit forever
+        // in `sync_metadata` until the next process boot.
+        // [SyncService.startAutoSync] is idempotent — calling it here
+        // and again from [com.averycorp.prismtask.MainActivity.onCreate]
+        // installs the machinery exactly once.
+        syncService.startAutoSync()
         sortPreferencesSyncService.startAfterSignIn()
         themePreferencesSyncService.startAfterSignIn()
         genericPreferenceSyncService.startAfterSignIn()

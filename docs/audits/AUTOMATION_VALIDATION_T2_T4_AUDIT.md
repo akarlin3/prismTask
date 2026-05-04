@@ -335,3 +335,133 @@ Memory updates that may fire:
 - Memory #22 disposition: **HIGH** confidence — verification fired and cleared PR #1070; not escalated.
 
 **Audit doc length:** approximately 410 lines (under both 500 and 600 caps). Single-pass shape, no batch split needed.
+
+---
+
+## Phase 3 — bundle summary (post-implementation, pre-merge per memory #16)
+
+Both PRs landed as sequential commits on the single branch
+`claude/fix-audit-engine-tests-WjtHa` (PR #1093). The 2-PR fan-out was preserved
+at the commit level rather than as separate GitHub PRs because the system-prompt
+branch constraint allowed only one branch per session. Each commit retains its
+own scope, micro-audit context, and verification gate.
+
+### PR-A — Test 2 fix (commit `5beccbb`)
+
+- **Scope:** option (ii) selected by operator. Tighten the worker's first
+  fire to a clock-aligned 15-min slot via `setInitialDelay`. Matcher
+  unchanged (still exact-minute equality). Sibling-primitive axis (e)
+  parity preserved — `DayOfWeekTime` inherits the fix because both
+  branches share the same matcher dispatch.
+- **Touched:** `AutomationTimeTickWorker.kt` (+ `computeAlignedDelayMs`
+  helper, `INTERVAL_MIN` constant, doc-comment rewrite),
+  `PrismTaskApplication.kt` (+ `setInitialDelay` plumb-through),
+  `AutomationEngine.kt` (extract matcher to companion `matchTrigger`
+  for unit testability), `AutomationTrigger.kt` (kdoc drift),
+  `AUTOMATION_ENGINE_ARCHITECTURE.md` (drift cleanup at L44 + L148).
+- **New tests:** `AutomationTimeTickWorkerScheduleTest` (10 cases for
+  `computeAlignedDelayMs`), `AutomationEngineMatcherTest` (13 cases
+  across all matcher branches incl. axis-(e) DayOfWeekTime parity).
+- **LOC:** +393 / -44 (incl. 211 lines of new test).
+- **Documented UX trade-off:** rules whose minute is not 0/15/30/45
+  will not fire. Rule-editor UI constraint deferred — out of PR-A
+  scope. Surfaced in worker kdoc + `AutomationTrigger.kt` kdoc.
+
+### PR-B — Test 4 fix (commit on top of PR-A)
+
+- **Scope:** branch (B.γ) — operator did not have boundary_rule end-to-end
+  data; emulator confirmation killed the production-Firestore-rules
+  hypothesis. PR-B recon (Phase 1.5) found the actual root cause:
+  `SyncService.startAutoSync()` is called only from
+  `MainActivity.onCreate` and `OnboardingViewModel`; the post-
+  interactive-sign-in path (`AuthViewModel.runPostSignInSync`) calls
+  `fullSync` + `initialUpload` + `startRealtimeListeners` but never
+  installs the reactive-push subscriber or the 30s periodic
+  `ReactiveSyncDriver` that live inside `startAutoSync`. Result:
+  any local edit (rule import included) made in the same session as
+  a fresh sign-in is enqueued to `sync_metadata` but never pushed
+  until the next process boot.
+- **Touched:** `SyncService.kt` (+ `autoSyncStarted` `@Volatile` flag
+  + idempotency guard at the top of `startAutoSync`),
+  `AuthViewModel.kt` (+ `syncService.startAutoSync()` call at end of
+  `runPostSignInSync`).
+- **Test additions (covers audit B.6 gap):** three new
+  `SyncMapperTest::automationRule_*` cases —
+  `roundTrip_preservesAllFields`, `roundTrip_handlesNullableFields`,
+  `toMap_emitsUpdatedAtForLww` (the latter pinning the LWW invariant
+  the audit B.3 verdict depends on).
+- **LOC:** ~+95 / -1 (incl. ~85 lines of new SyncMapper tests).
+- **SyncService idempotency unit test deferred:** the constructor
+  takes ~50 injected DAOs/services; standing up MockK coverage
+  costs more than the fix it protects. AVD pair re-run is the
+  primary verification gate (B.γ branch's "ship missing test
+  coverage; ask operator to re-run on AVD pair" prescription).
+
+### Updated Phase-1 verdict matrix (post-fix)
+
+| Item | Phase 1 risk | Phase 2 disposition |
+|------|-------------|--------------------|
+| Test 2 matcher exact-minute equality | RED | Preserved (option ii); paired with worker scheduling fix. |
+| Test 2 worker missing setInitialDelay | YELLOW | FIXED in PR-A (`setInitialDelay = computeAlignedDelayMs(now)`). |
+| Test 2 DayOfWeekTime axis-(e) parity | RED | FIXED via shared matcher dispatch (no separate change). |
+| Test 2 architecture-doc drift | YELLOW | FIXED in PR-A. |
+| Test 2 missing test coverage | RED | FIXED in PR-A (+23 cases). |
+| Test 4 `startAutoSync` post-sign-in gap | (NOT IN PHASE 1) | FIXED in PR-B. Recon-emerging finding. |
+| Test 4 SyncMapper round-trip coverage gap (B.6) | YELLOW | FIXED in PR-B (3 new SyncMapperTest cases). |
+| Test 4 SyncService idempotency unit test | NEW | DEFERRED — DI graph cost exceeds AVD validation cost. |
+| AutomationRuleDao.setCloudId signature drift | GREEN | Still STOP-no-work-needed (dormant). |
+
+### Process incidents
+
+- **Memory #22 fired and *cleared* PR #1070** (audit B.1). Verification
+  is working in both directions — catches falsified claims AND avoids
+  false-positive escalations.
+- **Memory #18 axis (e) caught DayOfWeekTime** alongside TimeOfDay
+  (audit A.4). Fifth consecutive use.
+- **Recon-emerging finding (Test 4 root cause):** Phase 1's MEDIUM-
+  confidence verdict turned into a HIGH-confidence diagnosis after
+  one extra round of recon focused on the call-graph for
+  `startAutoSync`. The audit framework's "operator-input gates Phase
+  2" pattern paid off — without the operator's emulator + B.γ
+  answers, Phase 2 would have shipped the wrong fix shape.
+- **2-PR fan-out collapsed to a single PR (#1093)** by system-prompt
+  branch constraint. Logical separation preserved; merge granularity
+  changed. Worth a one-line memory note: "branch-constrained sessions
+  ship sequential commits, not separate PRs — verify whether the
+  constraint is intentional before splitting work."
+
+### Re-baselined wall-clock per PR
+
+PR-A: ~25 min (recon → impl → tests → push). PR-B: ~30 min including
+the second recon round. Both well under the audit's 200-line micro-
+audit cap.
+
+### Memory entry candidates
+
+- **Strengthen memory #22**: add line — "fired-and-cleared PR #1070
+  routing claim. Verification is bidirectional discipline."
+- **Strengthen memory #18**: fifth consecutive (e) axis catch. Pattern
+  is durable; no new entry needed.
+- **New candidate** — "post-sign-in vs cold-start sync paths must
+  install the same machinery; if `startAutoSync` exists as a single
+  installer it must be idempotent and called from BOTH paths." Defer
+  unless this pattern repeats in another sync surface.
+- **New candidate (deferred)** — "config-family entity sync extensions
+  ship without round-trip + integration tests; routing-without-tests
+  is the dominant failure mode for sync regressions." Confirmed by
+  PR-B recon — this same gap masked the missing post-sign-in
+  invocation for as long as PR #1070 has been in main. Worth promoting
+  to a tracked memory if it bites a third time.
+
+### Schedule for next audit
+
+Engine validation D5 (the parent item this audit unblocks) closes at
+done: 1.0 once the AVD pair re-runs Tests 1–6 GREEN on the merged
+PR-B commit. No further audits needed for this scope.
+
+---
+
+## Phase 4 — Claude Chat handoff summary
+
+Emitted as the last block of the run — see the assistant's final
+message for a paste-ready fenced markdown block.
