@@ -7,6 +7,7 @@ import {
   Edit2,
   Trash2,
   CheckSquare,
+  Map as MapIcon,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useProjectStore } from '@/stores/projectStore';
@@ -216,6 +217,14 @@ export function ProjectDetailScreen() {
               </div>
             </div>
             <div className="flex items-center gap-2">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => navigate(`/projects/${projectId}/roadmap`)}
+              >
+                <MapIcon className="h-4 w-4" />
+                Roadmap
+              </Button>
               <Button
                 variant="secondary"
                 size="sm"

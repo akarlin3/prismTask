@@ -18,8 +18,8 @@ android {
         applicationId = "com.averycorp.prismtask"
         minSdk = 26
         targetSdk = 35
-        versionCode = 823
-        versionName = "1.8.25"
+        versionCode = 824
+        versionName = "1.8.26"
 
         testInstrumentationRunner = "com.averycorp.prismtask.HiltTestRunner"
         // Wipe app state between instrumented test methods so each method
@@ -262,7 +262,7 @@ android.applicationVariants.all {
 dependencies {
     // Core
     implementation("androidx.core:core-ktx:1.15.0")
-    implementation("androidx.core:core-splashscreen:1.0.1")
+    implementation("androidx.core:core-splashscreen:1.2.0")
     implementation("androidx.activity:activity-compose:1.9.3")
 
     // Compose BOM
@@ -274,7 +274,7 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended")
 
     // Navigation
-    implementation("androidx.navigation:navigation-compose:2.8.5")
+    implementation("androidx.navigation:navigation-compose:2.9.8")
 
     // Lifecycle
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
@@ -320,8 +320,8 @@ dependencies {
     implementation("sh.calvin.reorderable:reorderable:2.4.3")
 
     // Glance Widgets
-    implementation("androidx.glance:glance-appwidget:1.1.0")
-    implementation("androidx.glance:glance-material3:1.1.0")
+    implementation("androidx.glance:glance-appwidget:1.1.1")
+    implementation("androidx.glance:glance-material3:1.1.1")
 
     // Firebase
     implementation(platform("com.google.firebase:firebase-bom:33.16.0"))
@@ -350,7 +350,7 @@ dependencies {
 
     // Google Calendar API
     implementation("com.google.apis:google-api-services-calendar:v3-rev20241101-2.0.0")
-    implementation("com.google.http-client:google-http-client-gson:1.45.3")
+    implementation("com.google.http-client:google-http-client-gson:2.1.0")
 
     // Google Play Billing
     implementation("com.android.billingclient:billing-ktx:7.1.1")

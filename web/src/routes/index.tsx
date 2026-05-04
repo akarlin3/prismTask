@@ -23,6 +23,7 @@ import { ProjectListScreen } from '@/features/projects/ProjectListScreen';
 /* eslint-disable react-refresh/only-export-components */
 const TaskDetailScreen = lazy(() => import('@/features/tasks/TaskDetailScreen').then(m => ({ default: m.TaskDetailScreen })));
 const ProjectDetailScreen = lazy(() => import('@/features/projects/ProjectDetailScreen').then(m => ({ default: m.ProjectDetailScreen })));
+const ProjectRoadmapScreen = lazy(() => import('@/features/projects/ProjectRoadmapScreen').then(m => ({ default: m.ProjectRoadmapScreen })));
 const HabitListScreen = lazy(() => import('@/features/habits/HabitListScreen').then(m => ({ default: m.HabitListScreen })));
 const HabitAnalyticsScreen = lazy(() => import('@/features/habits/HabitAnalyticsScreen').then(m => ({ default: m.HabitAnalyticsScreen })));
 const WeekViewScreen = lazy(() => import('@/features/calendar/WeekViewScreen').then(m => ({ default: m.WeekViewScreen })));
@@ -104,6 +105,7 @@ const routes: RouteObject[] = [
       { path: 'tasks/:id', element: <LazyRoute Component={TaskDetailScreen} fallback={<TaskListSkeleton />} /> },
       { path: 'projects', element: <ProjectListScreen /> },
       { path: 'projects/:id', element: <LazyRoute Component={ProjectDetailScreen} fallback={<ProjectListSkeleton />} /> },
+      { path: 'projects/:id/roadmap', element: <LazyRoute Component={ProjectRoadmapScreen} fallback={<ProjectListSkeleton />} /> },
       { path: 'habits', element: <LazyRoute Component={HabitListScreen} fallback={<HabitListSkeleton />} /> },
       { path: 'habits/:id/analytics', element: <LazyRoute Component={HabitAnalyticsScreen} /> },
       { path: 'calendar', element: <LazyRoute Component={CalendarRedirect} /> },

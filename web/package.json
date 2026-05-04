@@ -19,8 +19,8 @@
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@hookform/resolvers": "^5.2.2",
-    "@tailwindcss/vite": "^4.2.2",
-    "axios": "^1.15.0",
+    "@tailwindcss/vite": "^4.2.4",
+    "axios": "^1.16.0",
     "date-fns": "^4.1.0",
     "firebase": "^12.12.0",
     "lucide-react": "^1.8.0",
@@ -30,7 +30,7 @@
     "react-router-dom": "^7.14.2",
     "recharts": "^3.8.1",
     "sonner": "^2.0.7",
-    "tailwindcss": "^4.2.2",
+    "tailwindcss": "^4.2.4",
     "zod": "^4.3.6",
     "zustand": "^5.0.12"
   },
@@ -51,8 +51,8 @@
     "jsdom": "^29.0.2",
     "rollup-plugin-visualizer": "^7.0.1",
     "typescript": "~6.0.3",
-    "typescript-eslint": "^8.58.0",
+    "typescript-eslint": "^8.59.1",
     "vite": "^8.0.4",
-    "vitest": "^4.1.4"
+    "vitest": "^4.1.5"
   }
 }
