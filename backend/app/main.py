@@ -1,5 +1,7 @@
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from prometheus_client import generate_latest
+from prometheus_fastapi_instrumentator import Instrumentator
 
 from app.config import settings
 from app.routers import ai, analytics, app_update, auth, calendar, daily_essentials, dashboard, export, feedback, goals, habits, integrations, medications, nd_preferences, projects, search, syllabus, sync, tags, tasks, templates
@@ -51,6 +53,37 @@ app.include_router(daily_essentials.router, prefix="/api/v1")
 app.include_router(medications.router, prefix="/api/v1")
 app.include_router(admin_activity_logs.router, prefix="/api/v1")
 app.include_router(admin_debug_logs.router, prefix="/api/v1")
+
+# Wire the prometheus HTTP middleware so default request-count and
+# request-duration histograms (used by the P1/P2 alert rules) flow into
+# the same registry as the audit-emit counter.
+Instrumentator(
+    should_group_status_codes=True,
+    should_ignore_untemplated=True,
+    excluded_handlers=["/metrics"],
+).instrument(app)
+
+
+def _require_scrape_token(request: Request) -> None:
+    """Bearer-token gate for /metrics. Empty token → 503 (endpoint inert).
+
+    Grafana Cloud's hosted scraper presents the same token in
+    ``Authorization: Bearer <token>`` on every scrape; mismatch returns
+    401 to keep the endpoint useless to anonymous callers.
+    """
+    if not settings.METRICS_SCRAPE_TOKEN:
+        raise HTTPException(status_code=503, detail="metrics endpoint not configured")
+    auth = request.headers.get("authorization", "")
+    if auth != f"Bearer {settings.METRICS_SCRAPE_TOKEN}":
+        raise HTTPException(status_code=401, detail="invalid scrape token")
+
+
+@app.get("/metrics")
+async def metrics(_: None = Depends(_require_scrape_token)) -> Response:
+    return Response(
+        content=generate_latest(),
+        media_type="text/plain; version=0.0.4; charset=utf-8",
+    )
 
 
 @app.on_event("startup")

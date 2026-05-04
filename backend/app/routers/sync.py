@@ -3,6 +3,7 @@ from datetime import date as date_cls, datetime, timezone
 from typing import Any
 
 from fastapi import APIRouter, Depends, Query
+from prometheus_client import Counter
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -37,13 +38,17 @@ from app.schemas.sync import (
 
 logger = logging.getLogger(__name__)
 
-# Process-level audit-emit failure counter, keyed by entity_type. Used by the
-# medication migration safety net to surface silent loss of audit events.
-# Cloud Logging can also count `audit_emit_failed=true` log events directly,
-# but this in-process counter exposes the same number to a future /metrics
-# endpoint without re-querying logs. Reset on process restart — appropriate
-# for the always-on FastAPI deployment model.
-audit_emit_failures_total: dict[str, int] = {}
+# Process-level audit-emit failure counter, labelled by entity_type. Used by
+# the medication migration safety net to surface silent loss of audit events.
+# Exposed via /metrics for Grafana Cloud scraping; the structured WARN log
+# below carries the same per-entity count for grep-friendly Cloud Logging
+# filters. Reset on process restart — appropriate for the always-on FastAPI
+# deployment model.
+audit_emit_failures_total = Counter(
+    "audit_emit_failures_total",
+    "Number of best-effort audit-emit savepoint failures since process start",
+    labelnames=["entity_type"],
+)
 
 router = APIRouter(prefix="/sync", tags=["sync"])
 
@@ -298,9 +303,8 @@ async def _emit_audit_events(db: AsyncSession, records: list[dict[str, Any]]) ->
                 db.add(MedicationLogEvent(**r))
         except Exception as exc:  # noqa: BLE001
             entity_type = r.get("entity_type", "unknown")
-            audit_emit_failures_total[entity_type] = (
-                audit_emit_failures_total.get(entity_type, 0) + 1
-            )
+            child = audit_emit_failures_total.labels(entity_type=entity_type)
+            child.inc()
             # Structured fields land in Cloud Logging's jsonPayload so a
             # log-based metric `audit_emit_failed=true` counts these without
             # re-querying message text. The medication migration safety net
@@ -315,7 +319,7 @@ async def _emit_audit_events(db: AsyncSession, records: list[dict[str, Any]]) ->
                     "entity_type": entity_type,
                     "entity_cloud_id": r.get("entity_cloud_id"),
                     "exception_class": type(exc).__name__,
-                    "audit_emit_failures_total": audit_emit_failures_total[entity_type],
+                    "audit_emit_failures_total": int(child._value.get()),
                 },
             )
 
