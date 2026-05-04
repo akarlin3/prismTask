@@ -411,3 +411,69 @@ None blocking. Recommendation defaults applied:
   Material 3.
 - ✅ Not duplicating burndown logic — `utils/projectBurndown.ts` already
   reads `progress_percent`; no edits needed there.
+
+---
+
+## Phase 3 — Bundle summary (post-implementation, pre-merge)
+
+Phase 2 landed in a single commit on `claude/port-roadmap-web-ib0xY`
+(SHA `1872624`), 20 files changed, +2,846 LOC. Phase 1 estimated
+~1,500 LOC; actual is ~1.9x the estimate. Cause: the page component
+(`ProjectRoadmapScreen.tsx`) and dialog file
+(`ProjectRoadmapDialogs.tsx`) are denser than projected because the
+existing `Modal` + `Select` primitives still need per-section row
+components inline (no shared "row with edit/delete chrome" primitive
+exists on web). Splitting the row primitives into a shared component is
+a follow-on, not blocking.
+
+Verification gates (all GREEN locally):
+- `npm run lint` — clean (no errors, no warnings on the new files).
+- `npx tsc -b --noEmit` — clean.
+- `npm run test:run` — 491 / 491 pass; the 36 new tests are 5 from
+  `projectPhases.test.ts`, 7 from `projectRisks.test.ts`, 10 from
+  `externalAnchors.test.ts`, 4 from `taskDependencies.test.ts`, and 10
+  from `dependencyCycleGuard.test.ts`. Existing `tasks.test.ts`
+  payload-shape tests still green — confirms the omit-on-undefined edits
+  for `phaseId` / `progressPercent` didn't regress the merge semantics.
+
+Per-improvement table:
+
+| Item | File(s) | PR | LOC | Status |
+|---|---|---|---|---|
+| 4 web types + Task.phase_id | `web/src/types/{projectPhase,projectRisk,externalAnchor,taskDependency,task}.ts` | TBD | ~280 | shipped |
+| Dependency cycle guard | `web/src/utils/dependencyCycleGuard.ts` | TBD | ~55 | shipped |
+| 4 Firestore mappers + tasks edit | `web/src/api/firestore/{projectPhases,projectRisks,externalAnchors,taskDependencies,tasks}.ts` | TBD | ~620 | shipped |
+| Page component | `web/src/features/projects/ProjectRoadmapScreen.tsx` | TBD | ~620 | shipped |
+| Edit dialogs | `web/src/features/projects/ProjectRoadmapDialogs.tsx` | TBD | ~530 | shipped |
+| Routing + nav button | `web/src/routes/index.tsx` + `ProjectDetailScreen.tsx` | TBD | ~10 | shipped |
+| Tests | 5 test files | TBD | ~430 | shipped (491/491 green) |
+
+**Memory-entry candidates** (only if surprising / non-obvious):
+
+1. **Android SyncMapper "subcollection" comments lie about layout** —
+   the Kotlin doc-strings on `projectPhaseToMap` / `projectRiskToMap` /
+   `externalAnchorToMap` say "child subcollection under a project," but
+   the implementation in `SyncService.kt:279, 302, 328, 517` writes them
+   as TOP-LEVEL `users/<uid>/<collection>/` collections discriminated by
+   a `projectCloudId` field. A future audit of any cross-platform port
+   must read the SyncService upload code, not the SyncMapper comments.
+   Worth capturing if the operator hasn't already filed it.
+2. **Web doc.id IS Android's `cloudId`** — there's no per-platform ID
+   translation table on web. When mirroring an Android cloud_id-using
+   field, web writes `<entity>.id` directly. Already implicit in
+   existing mappers but easy to miss when porting a new entity family.
+
+**Re-baselined wall-clock estimate:** Single-session port of an
+Android Compose surface (~500 LOC view + ~370 LOC dialogs + ~270 LOC
+view-model) translates to ~2.8x LOC on web (~2,400) plus tests
+(~430). Useful for estimating future Android→web ports.
+
+Schedule for next audit: F.7 close-out fully unblocked.
+
+---
+
+## Phase 4 — Claude Chat handoff summary
+
+Emitted as a fenced markdown block in the session-output for paste into
+a fresh Claude Chat thread. Not duplicated in this doc to keep the file
+single-source-of-truth scoped to repo history; see the session log.
