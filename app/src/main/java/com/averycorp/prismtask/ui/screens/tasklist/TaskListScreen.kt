@@ -27,7 +27,9 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.FormatListBulleted
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Inventory2
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SelectAll
@@ -631,6 +633,44 @@ fun TaskListScreen(
                                         }
                                     )
                                 }
+                            }
+                        }
+                        var showMoreMenu by remember { mutableStateOf(false) }
+                        Box {
+                            IconButton(onClick = { showMoreMenu = true }) {
+                                Icon(
+                                    imageVector = Icons.Default.MoreVert,
+                                    contentDescription = "More"
+                                )
+                            }
+                            DropdownMenu(
+                                expanded = showMoreMenu,
+                                onDismissRequest = { showMoreMenu = false }
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text("Automation Rules") },
+                                    leadingIcon = {
+                                        Icon(Icons.Default.AutoAwesome, null)
+                                    },
+                                    onClick = {
+                                        showMoreMenu = false
+                                        navController.navigate(
+                                            PrismTaskRoute.Automation.route
+                                        )
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Extract from Conversation") },
+                                    leadingIcon = {
+                                        Icon(Icons.Default.ContentPaste, null)
+                                    },
+                                    onClick = {
+                                        showMoreMenu = false
+                                        navController.navigate(
+                                            PrismTaskRoute.PasteConversation.route
+                                        )
+                                    }
+                                )
                             }
                         }
                     },
