@@ -103,6 +103,7 @@ fun AddEditTaskScreen(
     viewModel: AddEditTaskViewModel = hiltViewModel()
 ) {
     val scope = rememberCoroutineScope()
+    var showDeleteDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -117,12 +118,7 @@ fun AddEditTaskScreen(
                 },
                 actions = {
                     if (viewModel.isEditMode) {
-                        IconButton(onClick = {
-                            scope.launch {
-                                viewModel.deleteTask()
-                                navController.popBackStack()
-                            }
-                        }) {
+                        IconButton(onClick = { showDeleteDialog = true }) {
                             Icon(
                                 Icons.Default.Delete,
                                 contentDescription = "Delete",
@@ -167,6 +163,38 @@ fun AddEditTaskScreen(
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
+            }
+        )
+    }
+
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("Delete Task?") },
+            text = {
+                Text(
+                    "This will remove the task and its history. You can " +
+                        "still undo from the snackbar after it's deleted."
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    showDeleteDialog = false
+                    scope.launch {
+                        viewModel.deleteTask()
+                        navController.popBackStack()
+                    }
+                }) {
+                    Text(
+                        text = "Delete",
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text("Cancel")
+                }
             }
         )
     }
