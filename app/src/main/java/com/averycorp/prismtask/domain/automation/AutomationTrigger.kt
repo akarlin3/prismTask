@@ -31,8 +31,11 @@ sealed class AutomationTrigger(val type: String) {
     /**
      * Wall-clock trigger. [hour] / [minute] are 24h local time. The engine's
      * [AutomationTimeTickWorker] enqueues a [AutomationEvent.TimeTick] at
-     * 5-minute granularity; matching rules fire when their target time
-     * falls inside the elapsed window.
+     * 1-minute granularity (per `AUTOMATION_MINUTE_CADENCE_PHASE_2_AUDIT.md`);
+     * matching rules fire on exact `hour`/`minute` equality, so the rule
+     * lands within ~1 minute of its target time on awake devices. Doze
+     * may defer firings to the next maintenance window on sleeping
+     * devices — see worker kdoc for caveats.
      */
     data class TimeOfDay(
         val hour: Int,
@@ -46,9 +49,10 @@ sealed class AutomationTrigger(val type: String) {
     /**
      * Wall-clock trigger restricted to a set of days of week. [daysOfWeek]
      * is a non-empty set of [java.time.DayOfWeek] names (e.g. "MONDAY",
-     * "SUNDAY"); [hour]/[minute] match the same 5-min-granularity window
-     * as [TimeOfDay]. Engine matches when the [AutomationEvent.TimeTick]
-     * lands on one of [daysOfWeek] and `hour`/`minute` line up.
+     * "SUNDAY"); [hour]/[minute] match the same 1-minute-granularity
+     * cadence as [TimeOfDay]. Engine matches when the
+     * [AutomationEvent.TimeTick] lands on one of [daysOfWeek] and
+     * `hour`/`minute` line up.
      */
     data class DayOfWeekTime(
         val daysOfWeek: Set<String>,

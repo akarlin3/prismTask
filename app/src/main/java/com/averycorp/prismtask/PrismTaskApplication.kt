@@ -472,15 +472,12 @@ class PrismTaskApplication :
             }
         }
         try {
-            val workRequest = PeriodicWorkRequestBuilder<AutomationTimeTickWorker>(
-                15,
-                TimeUnit.MINUTES
-            ).build()
-            WorkManager.getInstance(this).enqueueUniquePeriodicWork(
-                "automation_time_tick",
-                ExistingPeriodicWorkPolicy.UPDATE,
-                workRequest
-            )
+            // Bootstraps the per-minute self-rescheduling chain. Same
+            // unique work name as the legacy PeriodicWork(15min) call
+            // site, so first launch after upgrade transparently swaps
+            // the scheduling shape via ExistingWorkPolicy.REPLACE. See
+            // docs/audits/AUTOMATION_MINUTE_CADENCE_PHASE_2_AUDIT.md.
+            AutomationTimeTickWorker.schedule(this)
         } catch (e: Exception) {
             android.util.Log.e("PrismTaskApp", "Automation time-tick scheduling failed", e)
         }
