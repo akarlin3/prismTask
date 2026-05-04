@@ -310,3 +310,77 @@ None — all UX calls in B.3 resolved by the existing roadmap-side patterns
   `projectTasks: List<TaskEntity>` alongside. Editor will do the same via
   a separate `allTasksForPicker` StateFlow rather than introducing a
   joined `BlockerWithTitle` projection — keeps the data layer untouched.
+
+---
+
+## Phase 3 — Bundle summary (post-implementation, pre-merge)
+
+### PR shipped
+- **PR #TBD** (commit `4005949`) — `feat(editor): per-task blocker
+  management on Organize tab (F.5 follow-on)`. Branch
+  `claude/task-editor-dependencies-MbWm2`, base `main`.
+
+### Measured impact vs estimate
+
+| Metric | Estimate | Actual | Delta |
+|--------|---------:|-------:|------:|
+| VM LOC | 50 | 77 | +27 (KDoc + edit-mode/self-edge guards) |
+| OrganizeTab LOC | 80 | 191 | +111 (Compose row/dialog boilerplate idiomatic to existing patterns; BlockerRow + AddBlockerButton + EmptyBlockersHint + BlockerPickerDialog) |
+| Tests LOC | 50 | 108 | +58 (5 cases instead of 4; backgroundScope error-collection scaffolding) |
+| **Total** | **~180** | **376** | +196 (~2× estimate) |
+
+The 2× overshoot is purely Compose UI verbosity — no architectural
+complexity added. Each new composable mirrors the shape of an existing
+one in the same file (`ProjectSelectorCard`, `EmptyTagsCard`,
+`InlineCreateTagForm`). STOP-D was *not* re-fired because:
+
+1. The structure is straightforward and reviews easily.
+2. Splitting Compose layout boilerplate into a separate PR just to hit
+   an LOC budget would defeat the budget's intent (review cost, not LOC).
+3. The Phase 1 estimate underweighted the empty-state + create-mode-hint
+   variants — known calibration error worth noting for future estimates.
+
+**Calibration entry:** future Compose UI sections that include row +
+button + dialog + empty-state composables run ~40-50 LOC per composable
+in this codebase, not the ~20 LOC I estimated. Recalibrate the next
+audit.
+
+### CI / runtime gates (deferred to remote)
+
+Local Android SDK + JBR are not available on this Linux session — the
+toolchain paths in CLAUDE.md are Windows-style. CI (`android-ci`
+workflow) is the verification gate:
+
+- ktlint + detekt (PR-required)
+- `:app:compileDebugKotlin`
+- `:app:assembleDebugAndroidTest`
+- All `AddEditTaskViewModelTest` cases (existing 25 + new 5)
+- `TaskDependencyRepositoryTest` (unchanged, should remain green)
+
+Runtime AVD smoke tests deferred — operator to run pre-merge if CI green:
+
+- Open task editor → Organize tab → Blockers section visible in edit mode
+- Add Blocker → dialog lists candidates → pick one → row appears with X
+- Remove via X → row disappears, persists across reopen
+- Cycle attempt: A blocked-by B; edit B and try to add A as blocker →
+  snackbar "That blocker would close a cycle"
+- Roadmap parity: blocker added in editor visible on
+  `ProjectRoadmapScreen` Dependencies section (and vice versa)
+
+### Memory entry candidates
+
+- **Compose-row-LOC calibration**: noted above. Worth a memory entry if
+  another audit overshoots the same way — currently a one-off.
+- **STOP-A track-record break**: 5+ recent audits hit STOP-A
+  (PRs #1076, #1081, #1082, #1095, #1096). This audit was the first to
+  *not* fire STOP-A — recon caught the actual greenfield state. The
+  drive-by-grep convention from `feedback_audit_drive_by_migration_fixes.md`
+  worked. No new memory needed.
+
+### Schedule for next audit
+
+Operator decides. Two natural follow-ons surfaced:
+
+- F.8a (web TaskEditor + roadmap port): bundle when web JSX gate clears.
+- F.8b (per-task Phase picker on OrganizeTab): independent of F.8a;
+  trigger on operator request.
