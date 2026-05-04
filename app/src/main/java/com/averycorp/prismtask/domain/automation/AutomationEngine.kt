@@ -182,31 +182,7 @@ class AutomationEngine @Inject constructor(
         trigger: AutomationTrigger,
         event: AutomationEvent,
         ruleId: Long
-    ): Boolean = when (trigger) {
-        is AutomationTrigger.EntityEvent -> trigger.eventKind == event.kind()
-        is AutomationTrigger.TimeOfDay -> {
-            val tick = event as? AutomationEvent.TimeTick ?: return false
-            tick.hour == trigger.hour && tick.minute == trigger.minute
-        }
-        is AutomationTrigger.DayOfWeekTime -> {
-            val tick = event as? AutomationEvent.TimeTick ?: return false
-            if (tick.hour != trigger.hour || tick.minute != trigger.minute) return false
-            val day = java.time.Instant.ofEpochMilli(tick.occurredAt)
-                .atZone(java.time.ZoneId.systemDefault())
-                .toLocalDate()
-                .dayOfWeek
-                .name
-            day in trigger.daysOfWeek
-        }
-        AutomationTrigger.Manual -> {
-            val mt = event as? AutomationEvent.ManualTrigger ?: return false
-            mt.ruleId == ruleId
-        }
-        is AutomationTrigger.Composed -> {
-            val rf = event as? AutomationEvent.RuleFired ?: return false
-            rf.ruleId == trigger.parentRuleId
-        }
-    }
+    ): Boolean = matchTrigger(trigger, event, ruleId)
 
     private suspend fun buildEvaluationContext(event: AutomationEvent): EvaluationContext {
         val task = when (event) {
@@ -283,5 +259,49 @@ class AutomationEngine @Inject constructor(
     companion object {
         const val MAX_CHAIN_DEPTH = 5
         private const val TAG = "AutomationEngine"
+
+        /**
+         * Pure matcher: does [trigger] fire for [event]? Extracted as a
+         * companion-object function so it can be unit-tested without
+         * standing up the full engine + DAO graph.
+         *
+         * Time semantics: [AutomationTrigger.TimeOfDay] and
+         * [AutomationTrigger.DayOfWeekTime] both require exact-minute
+         * equality between trigger and tick. The worker
+         * [com.averycorp.prismtask.workers.AutomationTimeTickWorker]
+         * schedules ticks at 15-min clock-aligned slots (00/15/30/45),
+         * so rules whose minute is not 0/15/30/45 will not fire — this
+         * is option (ii) per `docs/audits/AUTOMATION_VALIDATION_T2_T4_AUDIT.md`
+         * Part D.
+         */
+        fun matchTrigger(
+            trigger: AutomationTrigger,
+            event: AutomationEvent,
+            ruleId: Long
+        ): Boolean = when (trigger) {
+            is AutomationTrigger.EntityEvent -> trigger.eventKind == event.kind()
+            is AutomationTrigger.TimeOfDay -> {
+                val tick = event as? AutomationEvent.TimeTick ?: return false
+                tick.hour == trigger.hour && tick.minute == trigger.minute
+            }
+            is AutomationTrigger.DayOfWeekTime -> {
+                val tick = event as? AutomationEvent.TimeTick ?: return false
+                if (tick.hour != trigger.hour || tick.minute != trigger.minute) return false
+                val day = java.time.Instant.ofEpochMilli(tick.occurredAt)
+                    .atZone(java.time.ZoneId.systemDefault())
+                    .toLocalDate()
+                    .dayOfWeek
+                    .name
+                day in trigger.daysOfWeek
+            }
+            AutomationTrigger.Manual -> {
+                val mt = event as? AutomationEvent.ManualTrigger ?: return false
+                mt.ruleId == ruleId
+            }
+            is AutomationTrigger.Composed -> {
+                val rf = event as? AutomationEvent.RuleFired ?: return false
+                rf.ruleId == trigger.parentRuleId
+            }
+        }
     }
 }

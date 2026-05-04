@@ -29,10 +29,13 @@ sealed class AutomationTrigger(val type: String) {
     }
 
     /**
-     * Wall-clock trigger. [hour] / [minute] are 24h local time. The engine's
-     * [AutomationTimeTickWorker] enqueues a [AutomationEvent.TimeTick] at
-     * 5-minute granularity; matching rules fire when their target time
-     * falls inside the elapsed window.
+     * Wall-clock trigger. [hour] / [minute] are 24h local time. The
+     * `AutomationTimeTickWorker` enqueues a [AutomationEvent.TimeTick] at
+     * 15-minute clock-aligned slots (00/15/30/45 past the hour); the
+     * engine's matcher requires exact-minute equality, so [minute] must
+     * itself be 0, 15, 30, or 45 to fire. See
+     * `docs/audits/AUTOMATION_VALIDATION_T2_T4_AUDIT.md` Part D for the
+     * design rationale.
      */
     data class TimeOfDay(
         val hour: Int,
@@ -46,9 +49,10 @@ sealed class AutomationTrigger(val type: String) {
     /**
      * Wall-clock trigger restricted to a set of days of week. [daysOfWeek]
      * is a non-empty set of [java.time.DayOfWeek] names (e.g. "MONDAY",
-     * "SUNDAY"); [hour]/[minute] match the same 5-min-granularity window
-     * as [TimeOfDay]. Engine matches when the [AutomationEvent.TimeTick]
-     * lands on one of [daysOfWeek] and `hour`/`minute` line up.
+     * "SUNDAY"); [hour]/[minute] match the same 15-min clock-aligned
+     * cadence as [TimeOfDay] (so [minute] must be 0/15/30/45). Engine
+     * matches when the [AutomationEvent.TimeTick] lands on one of
+     * [daysOfWeek] and `hour`/`minute` line up exactly.
      */
     data class DayOfWeekTime(
         val daysOfWeek: Set<String>,

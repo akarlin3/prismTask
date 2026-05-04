@@ -41,7 +41,7 @@ Explicitly out of scope for v1 (per operator constraints in the original prompt)
 | AI gate | `data/remote/api/AiFeatureGateInterceptor.kt` (`AI_PATH_PREFIXES`) | All `ai.*` actions add `/ai/automation` prefix; defense-in-depth via `X-PrismTask-AI-Features: disabled` header. |
 | Notifications | `notifications/NotificationHelper.kt` (`showTaskReminderFor`, `showTaskReminder`) | `notify` action calls into a new lightweight `AutomationNotificationHelper` that wraps `NotificationCompat.Builder` against the existing reminder channels. |
 | Batch ops | `data/repository/BatchOperationsRepository.kt` (`applyBatch`, `parseCommand`) | `apply.batch` action constructs a `List<ProposedMutationResponse>` programmatically and delegates to `applyBatch()`. |
-| Schedulers | `notifications/ReminderScheduler.kt`, `workers/DailyResetWorker.kt` (WorkManager pattern) | Time-based triggers go through a new `AutomationTriggerScheduler` (PeriodicWorkRequest, one chained worker per active time-based rule). |
+| Schedulers | `notifications/ReminderScheduler.kt`, `workers/DailyResetWorker.kt` (WorkManager pattern) | Time-based triggers go through `workers/AutomationTimeTickWorker.kt` — single PeriodicWorkRequest at 15-min interval with `setInitialDelay = AutomationTimeTickWorker.computeAlignedDelayMs(now)` so ticks land on clock-aligned 00/15/30/45 slots. (Original design called for one chained worker per active rule; the simpler shared-worker pattern shipped instead — see `AUTOMATION_VALIDATION_T2_T4_AUDIT.md` Part D.) |
 | Sync | `data/remote/SyncService.kt` + `data/remote/mapper/SyncMapper.kt` | Full-doc LWW for `automation_rules` (matches the medication pattern, simplest correct behavior). |
 | Anthropic API client | `data/remote/api/PrismTaskApi.kt` | New `parseAutomationAi(...)` method on the same `Retrofit` instance (interceptor chain unchanged). |
 | Repositories | All 28 under `data/repository/` | Engine needs write hooks on TaskRepo, HabitRepo, MedicationRepo, ProjectRepo. Each gets a single line: `eventBus.tryEmit(...)` after the DAO call. |
@@ -132,7 +132,7 @@ sealed class AutomationEvent {
     data class HabitCompleted(val habitId: Long, val date: String, override val occurredAt: Long) : AutomationEvent()
     data class HabitStreakHit(val habitId: Long, val streak: Int, override val occurredAt: Long) : AutomationEvent()
     data class MedicationLogged(val medicationId: Long, val slotKey: String, override val occurredAt: Long) : AutomationEvent()
-    data class TimeTick(val timeOfDay: String, override val occurredAt: Long) : AutomationEvent()  // emitted by AutomationTriggerScheduler worker
+    data class TimeTick(val timeOfDay: String, override val occurredAt: Long) : AutomationEvent()  // emitted by AutomationTimeTickWorker (shipped as data class TimeTick(hour:Int, minute:Int, occurredAt:Long))
     data class ManualTrigger(val ruleId: Long, override val occurredAt: Long) : AutomationEvent()
     data class RuleFired(val ruleId: Long, val parentLogId: Long?, override val occurredAt: Long) : AutomationEvent()
 }
@@ -145,7 +145,7 @@ sealed class AutomationEvent {
 - `TaskRepository.deleteTask` / archive → emit `TaskDeleted`
 - `HabitRepository.completeHabit` → emit `HabitCompleted` (+ optional `HabitStreakHit` if `StreakCalculator` returns a milestone)
 - `MedicationRepository.logDose` → emit `MedicationLogged`
-- `AutomationTriggerScheduler` PeriodicWorkRequest fires → emits `TimeTick` events at 5-min granularity
+- `AutomationTimeTickWorker` PeriodicWorkRequest fires → emits `TimeTick` events at 15-min clock-aligned slots (00/15/30/45). Engine matcher requires exact-minute equality, so user-authored TimeOfDay rules must use minutes 0/15/30/45 — see `AUTOMATION_VALIDATION_T2_T4_AUDIT.md` Part D for the design choice.
 
 **Subscriber:** `AutomationEngine.start()` collects `bus.events` in a `coroutineScope.launch { ... }`. One subscriber, one collector — no fan-out concerns.
 

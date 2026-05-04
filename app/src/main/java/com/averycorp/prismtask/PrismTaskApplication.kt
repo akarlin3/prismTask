@@ -472,10 +472,15 @@ class PrismTaskApplication :
             }
         }
         try {
+            val initialDelayMs = AutomationTimeTickWorker.computeAlignedDelayMs(
+                System.currentTimeMillis()
+            )
             val workRequest = PeriodicWorkRequestBuilder<AutomationTimeTickWorker>(
-                15,
+                AutomationTimeTickWorker.INTERVAL_MIN.toLong(),
                 TimeUnit.MINUTES
-            ).build()
+            )
+                .setInitialDelay(initialDelayMs, TimeUnit.MILLISECONDS)
+                .build()
             WorkManager.getInstance(this).enqueueUniquePeriodicWork(
                 "automation_time_tick",
                 ExistingPeriodicWorkPolicy.UPDATE,
