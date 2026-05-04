@@ -449,3 +449,48 @@ rate.
 Top-1 (annotate the in-source TODO with audit-doc reference) is the only
 zero-risk action that ships value immediately. Every other path requires
 operator decision first.
+
+---
+
+## Phase 3 — Bundle summary (pre-merge per CLAUDE.md)
+
+**PR shipped:** [#1118](https://github.com/averycorp/prismtask/pull/1118)
+— `docs(audits): SyncService god-class refactor — Phase 1 (Option C)`.
+Branch `claude/syncservice-god-class-audit-q71FP`, commit `c12c2c1`.
+
+**Per-improvement table:**
+
+| Item                            | PR     | Status     | Measured impact            |
+|---------------------------------|-------:|------------|----------------------------|
+| Phase 1 audit doc               | #1118  | open       | doc-only; no behavior change |
+| Path-1 surface-axis split       | —      | DEFERRED   | gated on operator decision |
+| Path-2 per-entity handlers      | —      | NOT REC.   | contradicts in-source author |
+| Path-3 defer entirely           | —      | DEFERRED   | F.6 stays at 0/1            |
+| Top-1 annotate line-63 TODO     | —      | DEFERRED   | trivial, can ship anytime  |
+
+**Re-baselined wall-clock-per-PR estimate:** Path-1 Strangler Fig at
+3-5 sessions across 6 PRs (Slice 0 test-shoring + Slices 1-5). Original
+prompt under-anchored (assumed 2,930 LOC; actual 3,839 LOC).
+
+**Memory entry candidates (only if surprising / non-obvious):**
+- *Candidate:* When recon finds a competing in-source `TODO(refactor)`
+  with explicit axis preference, surface that contradiction as the FIRST
+  premise correction in the audit doc — operator's prompt may be working
+  from a stale or different mental model. (3-of-3 audits this week have
+  surfaced source-of-truth contradictions; pattern is durable.)
+- *Skip:* The "31% size drift since prompt was written" finding is
+  not surprising for a long-lived prompt; STOP-B exists for exactly
+  this and is already documented.
+
+**Schedule for next audit:** After operator picks Path 1 / 2 / 3.
+If Path 1 is picked, the next audit is Slice 0 (test-shoring PR scoping).
+If Path 3 is picked, no next audit required.
+
+---
+
+## Phase 4 — Claude Chat handoff
+
+See the handoff block emitted at the end of the session-summary message
+(it is not duplicated here to keep the audit doc canonical-source for the
+verdicts and out of paste-block formatting).
+
