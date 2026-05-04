@@ -299,5 +299,123 @@ None. Phase 2 fires immediately.
 
 ---
 
-(Phase 3 + Phase 4 will be appended below once the Phase 2 bundle is
-committed and pushed, pre-merge per CLAUDE.md.)
+## Phase 3 — Bundle summary (pre-merge per CLAUDE.md)
+
+**Bundle PR:** #1123 (`claude/audit-d-series-ux-KznZ8` → `main`),
+opened pre-merge. Contains the Phase 1 audit doc + 5 Phase 2 fixes.
+
+| Fix | Commit | Files touched | Net LOC |
+|---|---|---|---|
+| Phase 1 audit | `e4d1d60` | `docs/audits/D_SERIES_UX_AUDIT.md` (new) | +303 doc |
+| IA-1 ProjectRoadmap entry | `7ce64db` | `ProjectDetailScreen.kt` | +13 |
+| IA-2 MoodAnalytics entry | `db389ce` | `EnergyCheckInCard.kt`, `TodayScreen.kt` | +14 |
+| ED-1 OrganizeTab descriptions | `76bf504` | `OrganizeTab.kt` | +22 |
+| ED-2 BrainMode subtitles | `b32575b` | `BrainModeSection.kt` | +10 −9 |
+| ER-1 Task delete confirm | `81ae277` | `AddEditTaskScreen.kt` | +34 −6 |
+
+Code-only LOC delta: ~93. Within hybrid-PR convention (≤100 LOC each
+fix; bundled into a single PR). Zero >100 LOC fan-out PRs needed.
+
+**Verification path.**
+- Local detekt-rules subproject built clean (`./gradlew :detekt-rules:test`).
+- Main app build requires Android SDK, not present in this environment;
+  CI is the verification gate per CLAUDE.md § Build Commands.
+- Runtime verification (AVD smoke per fix) is enumerated as the PR test
+  plan — operator-driven post-merge.
+
+**Memory #29 operator-action gates.** None fired. All five fixes are
+pure UI / nav with no sync, scheduling, or storage primitive touches.
+
+**Memory entry candidates.** None. The "discovery audit produces
+N items skewing toward bucket X" pattern needs a second data point
+(memory #30 wait-for-second-data-point rule); this run alone isn't
+durable. Same applies to "hybrid bundle structure works" — operator's
+locked structure shipped cleanly here, but one data point.
+
+**Re-baselined wall-clock.** Audit-first-mega across 5 buckets with
+parallel sub-agent recon: ~1 session, ~93 LOC implementation. Well
+under the speculated launch-slip risk operator pre-acknowledged.
+
+## Phase 4 — Claude Chat handoff
+
+```markdown
+## D-series UX audit — pre-merge handoff
+
+**Scope.** 5-bucket UX discovery audit (info architecture, in-app
+education, onboarding, feature ergonomics, feature discovery) ahead of
+Phase F kickoff May 15 / soft launch June 14. Audit-first-mega with
+hybrid PR structure (≤100 LOC fixes bundled, >100 LOC fixes fan out).
+
+**Verdicts table.**
+
+| Bucket | Verdict | One-line finding |
+|---|---|---|
+| Information architecture | YELLOW (2 fixed) | 2 orphan screens (ProjectRoadmap, MoodAnalytics) shipped with no nav entry; rest are P2 settings-only-discovery deferrals |
+| In-app education | YELLOW (2 fixed) | OrganizeTab pickers (Life Category / Task Mode / Cognitive Load) and BrainMode ADHD/Calm toggles missing plain-English context |
+| Onboarding | GREEN (paper-closed) | Prior `ONBOARDING_COVERAGE_AUDIT.md` shipped 8 PROCEED items; current 15-page flow at `OnboardingScreen.kt:99–137` |
+| Feature ergonomics | YELLOW (1 fixed) | Task delete bypassed AlertDialog gate used by project/template/medication delete |
+| Feature discovery | DEFERRED | 6 "zero non-Settings discovery" items re-triaged as P2 against operator's strict P0 rubric (blocks core loop) — F-series follow-on with re-trigger criteria |
+
+**Shipped (PR #1123).**
+- `e4d1d60` Phase 1 audit doc (`docs/audits/D_SERIES_UX_AUDIT.md`, 303 lines)
+- `7ce64db` IA-1 — `ProjectDetailScreen` overflow menu now exposes
+  ProjectRoadmap (PR #1120 ported the screen but never wired it)
+- `db389ce` IA-2 — `EnergyCheckInCard` now has a "View Trends" button
+  routing to `MoodAnalyticsScreen` (route was registered with no caller)
+- `76bf504` ED-1 — `OrganizeTab` adds plain-English descriptions to the
+  Life Category, Task Mode, and Cognitive Load sections
+- `b32575b` ED-2 — BrainMode ADHD/Calm toggles converted from bare
+  `ModeToggleRow` to `SettingsToggleRow` with subtitles
+- `81ae277` ER-1 — `AddEditTaskScreen` top-bar delete now gated by
+  `AlertDialog`, matching project/template/medication delete pattern
+
+Total code delta: ~93 LOC across 5 files. Bundle merged via standard
+auto-merge once CI green.
+
+**Deferred / stopped (NOT auto-filed per memory #30, full list in
+audit doc § "Deferred items"):**
+- IA-3..4 settings-only feature discovery (Automation, Boundaries,
+  Custom Sort, Saved Filter Presets, Time Blocking, Smart Suggestions)
+- ED-3..7 ModesSection toggle subtitles, escalation-chain /
+  break-through allowlist jargon, app-wide affordance-hint system,
+  app-wide help-icon system
+- OB-1..2 POST_NOTIFICATIONS permission timing (fires after
+  NotificationsPage, not during), Skip-button writes-through partial
+  state
+- ER-2 Today-screen medication quick-tap
+- DI-1..6 zero-discovery features (Conversation Extract,
+  Time Blocking, Smart Suggestions, Saved Filter Presets, Custom Sort,
+  Automation rules)
+
+Re-trigger criterion for all deferrals: post-Phase E tester-feedback
+report or post-launch feature-usage analytics indicating <X% reach.
+Phase E UX-feedback portion has not started — no signal yet.
+
+**Non-obvious findings.**
+
+1. **Sub-agents over-classify "zero discovery surface" as P0.** When
+   running discovery audits, sub-agents tend to flag "this feature has
+   no entry point outside Settings" as a launch-blocker. Per the
+   operator's strict rubric (P0 = blocks the create / complete / see
+   progress core loop), zero discovery surface ≠ launch-blocker. The
+   re-triage trimmed sub-agent P0 counts from 12 → 0 and made the
+   bundle ship in a single PR rather than triggering STOP-E (>5 P0).
+
+2. **Onboarding bucket paper-closed.** The prior
+   `ONBOARDING_COVERAGE_AUDIT.md` is fully shipped — fresh installs
+   traverse 15 pages with consent screens for Life Modes, Privacy,
+   Notifications, Day Setup, Connect, and Accessibility. Re-running an
+   onboarding audit without Phase E user-feedback signal produces
+   speculation, not findings.
+
+3. **Two recently-ported features are orphans.** PR #1120 (ProjectRoadmap
+   port from Android to web) and the Mood Analytics route both
+   registered the route + screen + ViewModel but never wired any
+   `navigate()` call. Rule of thumb: any new route in
+   `NavGraph.kt` should immediately be paired with a `grep -rnE
+   "navigate.*<RouteName>"` check in the same PR.
+
+**Open questions for operator.** None. Phase 2 fired without a
+Phase 1→2 confirmation gate (operator-acknowledged) and shipped clean.
+```
+
