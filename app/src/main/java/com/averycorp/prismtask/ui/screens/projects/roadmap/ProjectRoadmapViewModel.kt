@@ -66,23 +66,26 @@ constructor(
         // re-querying is cheap relative to Compose recomposition.
         projectRepository.observeProject(projectId)
             .flatMapLatest { detail ->
-                if (detail == null) flowOf(ProjectRoadmapState())
-                else combine(
-                    projectRepository.observePhases(projectId),
-                    projectRepository.observeRisks(projectId),
-                    externalAnchorRepository.observeAnchors(projectId)
-                ) { phases, risks, anchors ->
-                    val phaseWithTasks = phases.map { phase ->
-                        PhaseWithTasks(phase, taskDao.getTasksForPhaseOnce(phase.id))
+                if (detail == null) {
+                    flowOf(ProjectRoadmapState())
+                } else {
+                    combine(
+                        projectRepository.observePhases(projectId),
+                        projectRepository.observeRisks(projectId),
+                        externalAnchorRepository.observeAnchors(projectId)
+                    ) { phases, risks, anchors ->
+                        val phaseWithTasks = phases.map { phase ->
+                            PhaseWithTasks(phase, taskDao.getTasksForPhaseOnce(phase.id))
+                        }
+                        val unphased = taskDao.getUnphasedTasksForProjectOnce(projectId)
+                        ProjectRoadmapState(
+                            project = detail.project,
+                            phases = phaseWithTasks,
+                            unphasedTasks = unphased,
+                            risks = risks,
+                            anchors = anchors
+                        )
                     }
-                    val unphased = taskDao.getUnphasedTasksForProjectOnce(projectId)
-                    ProjectRoadmapState(
-                        project = detail.project,
-                        phases = phaseWithTasks,
-                        unphasedTasks = unphased,
-                        risks = risks,
-                        anchors = anchors
-                    )
                 }
             }
     }.stateIn(

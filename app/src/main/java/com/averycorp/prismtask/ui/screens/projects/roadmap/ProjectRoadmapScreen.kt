@@ -232,8 +232,11 @@ private fun TaskRow(task: TaskEntity) {
             LinearProgressIndicator(
                 progress = { fraction },
                 modifier = Modifier.fillMaxWidth(),
-                color = if (task.isCompleted) MaterialTheme.colorScheme.tertiary
-                    else MaterialTheme.colorScheme.primary
+                color = if (task.isCompleted) {
+                    MaterialTheme.colorScheme.tertiary
+                } else {
+                    MaterialTheme.colorScheme.primary
+                }
             )
         }
         Text(
