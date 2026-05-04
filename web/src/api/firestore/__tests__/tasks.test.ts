@@ -95,6 +95,31 @@ describe('createTask payload shape', () => {
     expect(payload.lifeCategory).toBe('SELF_CARE');
   });
 
+  it('writes taskMode when explicitly set', async () => {
+    await createTask('uid-1', {
+      title: 'Recharge walk',
+      taskMode: 'RELAX',
+    } as Parameters<typeof createTask>[1] & { taskMode?: string });
+    const payload = addDocMock.mock.calls[0][1] as Record<string, unknown>;
+    expect(payload.taskMode).toBe('RELAX');
+  });
+
+  it('writes cognitiveLoad when explicitly set', async () => {
+    await createTask('uid-1', {
+      title: 'Tax filing',
+      cognitiveLoad: 'HARD',
+    } as Parameters<typeof createTask>[1] & { cognitiveLoad?: string });
+    const payload = addDocMock.mock.calls[0][1] as Record<string, unknown>;
+    expect(payload.cognitiveLoad).toBe('HARD');
+  });
+
+  it('does not write taskMode or cognitiveLoad when not provided', async () => {
+    await createTask('uid-1', { title: 'No dimensions' });
+    const payload = addDocMock.mock.calls[0][1] as Record<string, unknown>;
+    expect('taskMode' in payload).toBe(false);
+    expect('cognitiveLoad' in payload).toBe(false);
+  });
+
   it('does not write Android-only fields (archivedAt, eisenhowerReason, focus-release) on create', async () => {
     await createTask('uid-1', { title: 'Plain task' });
     const payload = addDocMock.mock.calls[0][1] as Record<string, unknown>;
@@ -159,6 +184,24 @@ describe('updateTask merge-write payload shape', () => {
     await updateTask('uid-1', 'task-1', { lifeCategory: 'PERSONAL' });
     const payload = updateDocMock.mock.calls[0][1] as Record<string, unknown>;
     expect(payload.lifeCategory).toBe('PERSONAL');
+  });
+
+  it('includes taskMode when explicitly set on update', async () => {
+    await updateTask('uid-1', 'task-1', { taskMode: 'PLAY' });
+    const payload = updateDocMock.mock.calls[0][1] as Record<string, unknown>;
+    expect(payload.taskMode).toBe('PLAY');
+  });
+
+  it('includes cognitiveLoad when explicitly set on update', async () => {
+    await updateTask('uid-1', 'task-1', { cognitiveLoad: 'EASY' });
+    const payload = updateDocMock.mock.calls[0][1] as Record<string, unknown>;
+    expect(payload.cognitiveLoad).toBe('EASY');
+  });
+
+  it('clears taskMode (explicit null) when set to null', async () => {
+    await updateTask('uid-1', 'task-1', { taskMode: null });
+    const payload = updateDocMock.mock.calls[0][1] as Record<string, unknown>;
+    expect(payload.taskMode).toBeNull();
   });
 
   it('writes userOverrodeQuadrant: true alongside an explicit eisenhower_quadrant move', async () => {

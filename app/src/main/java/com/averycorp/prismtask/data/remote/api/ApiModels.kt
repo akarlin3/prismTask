@@ -315,6 +315,8 @@ data class WeeklyTaskSummary(
     val priority: Int,
     @SerializedName("eisenhower_quadrant") val eisenhowerQuadrant: String? = null,
     @SerializedName("life_category") val lifeCategory: String? = null,
+    @SerializedName("task_mode") val taskMode: String? = null,
+    @SerializedName("cognitive_load") val cognitiveLoad: String? = null,
     @SerializedName("project_id") val projectId: String? = null
 )
 
@@ -426,6 +428,8 @@ data class BatchTaskContext(
     @SerializedName("project_name") val projectName: String? = null,
     val tags: List<String> = emptyList(),
     @SerializedName("life_category") val lifeCategory: String? = null,
+    @SerializedName("task_mode") val taskMode: String? = null,
+    @SerializedName("cognitive_load") val cognitiveLoad: String? = null,
     @SerializedName("is_completed") val isCompleted: Boolean = false
 )
 

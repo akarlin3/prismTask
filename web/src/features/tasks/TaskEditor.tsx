@@ -27,6 +27,7 @@ import type {
   CognitiveLoad,
   LifeCategory,
   Task,
+  TaskMode,
   TaskPriority,
   TaskStatus,
   TaskUpdate,
@@ -125,6 +126,16 @@ const COGNITIVE_LOAD_OPTIONS: { value: CognitiveLoad | ''; label: string }[] = [
   { value: 'HARD', label: 'Hard' },
 ];
 
+// Mirrors Android's `TaskMode` enum; values must match `TaskMode.kt`
+// so the Work / Play / Relax classifier on Android picks them up
+// unchanged. See `docs/WORK_PLAY_RELAX.md`.
+const TASK_MODE_OPTIONS: { value: TaskMode | ''; label: string }[] = [
+  { value: '', label: 'Uncategorized' },
+  { value: 'WORK', label: 'Work' },
+  { value: 'PLAY', label: 'Play' },
+  { value: 'RELAX', label: 'Relax' },
+];
+
 export default function TaskEditor({
   onClose,
   onUpdate,
@@ -181,6 +192,9 @@ export default function TaskEditor({
   // lifeCategory — the Firestore writer omits the field when value is
   // empty/null so Android-side state isn't clobbered.
   const [cognitiveLoad, setCognitiveLoad] = useState<CognitiveLoad | ''>('');
+  // Reward / output mode (Work / Play / Relax). Same omit-on-empty
+  // semantics as lifeCategory + cognitiveLoad.
+  const [taskMode, setTaskMode] = useState<TaskMode | ''>('');
 
   // Subtasks
   const [subtasks, setSubtasks] = useState<Task[]>([]);
@@ -218,6 +232,7 @@ export default function TaskEditor({
       setTaskTagIds([]);
       setLifeCategory('');
       setCognitiveLoad('');
+      setTaskMode('');
       return;
     }
     if (!task) return;
@@ -236,6 +251,7 @@ export default function TaskEditor({
     setPlannedDate(task.planned_date || '');
     setLifeCategory((task.life_category as LifeCategory | null) ?? '');
     setCognitiveLoad((task.cognitive_load as CognitiveLoad | null) ?? '');
+    setTaskMode((task.task_mode as TaskMode | null) ?? '');
     if (task.recurrence_json) {
       try {
         const rule = JSON.parse(task.recurrence_json);
@@ -375,6 +391,12 @@ export default function TaskEditor({
     autoSave({ cognitiveLoad: v === '' ? null : v });
   };
 
+  const handleTaskModeChange = (v: TaskMode | '') => {
+    setTaskMode(v);
+    // Same omit-on-null semantics as the other orthogonal dimensions.
+    autoSave({ taskMode: v === '' ? null : v });
+  };
+
   const handleCreate = async () => {
     if (!title.trim()) {
       toast.error('Title is required');
@@ -396,6 +418,7 @@ export default function TaskEditor({
         due_time: dueTime || undefined,
         lifeCategory: lifeCategory || undefined,
         cognitiveLoad: cognitiveLoad || undefined,
+        taskMode: taskMode || undefined,
       });
       toast.success('Task created');
       onUpdate?.();
@@ -1015,6 +1038,33 @@ export default function TaskEditor({
                     How hard is it to start? Independent of duration,
                     importance, and reward type. Leave as Uncategorized to
                     let Android auto-classify.
+                  </p>
+                </div>
+
+                {/* Task Mode (Work / Play / Relax) */}
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-[var(--color-text-secondary)]">
+                    Task Mode
+                  </label>
+                  <select
+                    value={taskMode}
+                    onChange={(e) =>
+                      handleTaskModeChange(
+                        (e.target.value as TaskMode | '') || '',
+                      )
+                    }
+                    className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-secondary)] px-3 py-2 text-sm text-[var(--color-text-primary)] outline-none focus:border-[var(--color-accent)]"
+                  >
+                    {TASK_MODE_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
+                    What kind of output does this produce? Orthogonal to
+                    Life Category and Cognitive Load. Leave as Uncategorized
+                    to let Android auto-classify.
                   </p>
                 </div>
 

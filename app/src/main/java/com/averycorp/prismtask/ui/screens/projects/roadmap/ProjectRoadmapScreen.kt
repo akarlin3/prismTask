@@ -14,7 +14,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Circle
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Card
@@ -25,9 +28,12 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -40,6 +46,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.averycorp.prismtask.data.local.entity.ProjectPhaseEntity
 import com.averycorp.prismtask.data.local.entity.ProjectRiskEntity
+import com.averycorp.prismtask.data.local.entity.TaskDependencyEntity
 import com.averycorp.prismtask.data.local.entity.TaskEntity
 import com.averycorp.prismtask.data.repository.ExternalAnchorRepository
 import com.averycorp.prismtask.domain.model.ExternalAnchor
@@ -49,17 +56,15 @@ import java.util.Date
 import java.util.Locale
 
 /**
- * Read-only roadmap surface (audit § P10 option (b), per O3 override).
+ * Roadmap surface (PrismTask-timeline-class scope, audit § P10 option (b))
+ * — now writable. Renders phases-with-tasks, the project's unphased
+ * tasks, the risk register, external anchors, and the dependency edge
+ * set, with edit/delete affordances on each row and an "Add" action
+ * per section. Editor dialogs live in [ProjectRoadmapEditDialogs] and
+ * delegate writes to the underlying repos via [ProjectRoadmapViewModel].
  *
- * Renders phases-with-tasks (with each task's fractional progress
- * bar), the project's unphased tasks, the risk register (color-coded
- * by [RiskLevel]), and external anchors with variant-aware bodies for
- * [ExternalAnchor.CalendarDeadline], [ExternalAnchor.NumericThreshold],
- * and [ExternalAnchor.BooleanGate].
- *
- * Naming note: distinct from [com.averycorp.prismtask.ui.screens.timeline.TimelineScreen]
- * (the daily time-block view) per the audit's naming-collision flag —
- * "Roadmap" stays reserved for the phase-Gantt surface.
+ * Naming note: distinct from `ui.screens.timeline.TimelineScreen` (the
+ * daily time-block view) per the audit's naming-collision flag.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -68,6 +73,15 @@ fun ProjectRoadmapScreen(
     viewModel: ProjectRoadmapViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val editor by viewModel.editor.collectAsStateWithLifecycle()
+    val error by viewModel.error.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
+    LaunchedEffect(error) {
+        error?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.dismissError()
+        }
+    }
     Scaffold(
         topBar = {
             TopAppBar(
@@ -78,7 +92,8 @@ fun ProjectRoadmapScreen(
                     }
                 }
             )
-        }
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { padding ->
         if (state.project == null) {
             Box(
@@ -92,18 +107,28 @@ fun ProjectRoadmapScreen(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            item { SectionHeader("Phases (${state.phases.size})") }
+            item {
+                SectionHeader(
+                    title = "Phases (${state.phases.size})",
+                    onAdd = { viewModel.openEditor(RoadmapEditor.PhaseEditor()) }
+                )
+            }
             if (state.phases.isEmpty()) {
-                item { EmptySection("No phases yet — add one from the Project edit screen.") }
+                item { EmptySection("No phases yet — tap + to add one.") }
             } else {
                 items(state.phases.size) { i ->
                     val pwt = state.phases[i]
-                    PhaseCard(phase = pwt.phase, tasks = pwt.tasks)
+                    PhaseCard(
+                        phase = pwt.phase,
+                        tasks = pwt.tasks,
+                        onEdit = { viewModel.openEditor(RoadmapEditor.PhaseEditor(pwt.phase)) },
+                        onDelete = { viewModel.deletePhase(pwt.phase) }
+                    )
                 }
             }
 
             if (state.unphasedTasks.isNotEmpty()) {
-                item { SectionHeader("Unphased Tasks (${state.unphasedTasks.size})") }
+                item { SectionHeader(title = "Unphased Tasks (${state.unphasedTasks.size})") }
                 item {
                     Card(modifier = Modifier.fillMaxWidth()) {
                         Column(modifier = Modifier.padding(12.dp)) {
@@ -115,30 +140,117 @@ fun ProjectRoadmapScreen(
                 }
             }
 
-            item { SectionHeader("Risks (${state.risks.size})") }
+            item {
+                SectionHeader(
+                    title = "Risks (${state.risks.size})",
+                    onAdd = { viewModel.openEditor(RoadmapEditor.RiskEditor()) }
+                )
+            }
             if (state.risks.isEmpty()) {
                 item { EmptySection("No risks logged.") }
             } else {
-                items(state.risks.size) { i -> RiskRow(state.risks[i]) }
+                items(state.risks.size) { i ->
+                    val risk = state.risks[i]
+                    RiskRow(
+                        risk = risk,
+                        onEdit = { viewModel.openEditor(RoadmapEditor.RiskEditor(risk)) },
+                        onDelete = { viewModel.deleteRisk(risk) }
+                    )
+                }
             }
 
-            item { SectionHeader("External Anchors (${state.anchors.size})") }
+            item {
+                SectionHeader(
+                    title = "External Anchors (${state.anchors.size})",
+                    onAdd = { viewModel.openEditor(RoadmapEditor.AnchorEditor()) }
+                )
+            }
             if (state.anchors.isEmpty()) {
                 item { EmptySection("No external anchors.") }
             } else {
-                items(state.anchors.size) { i -> AnchorRow(state.anchors[i]) }
+                items(state.anchors.size) { i ->
+                    val decoded = state.anchors[i]
+                    AnchorRow(
+                        decoded = decoded,
+                        onEdit = {
+                            viewModel.openEditor(
+                                RoadmapEditor.AnchorEditor(decoded.entity, decoded.anchor)
+                            )
+                        },
+                        onDelete = { viewModel.deleteAnchor(decoded.entity) }
+                    )
+                }
+            }
+
+            item {
+                SectionHeader(
+                    title = "Dependencies (${state.dependencies.size})",
+                    onAdd = { viewModel.openEditor(RoadmapEditor.DependencyEditor) }
+                )
+            }
+            if (state.dependencies.isEmpty()) {
+                item { EmptySection("No task dependencies in this project.") }
+            } else {
+                items(state.dependencies.size) { i ->
+                    val edge = state.dependencies[i]
+                    DependencyRow(
+                        edge = edge,
+                        projectTasks = state.projectTasks,
+                        onDelete = { viewModel.deleteDependency(edge) }
+                    )
+                }
             }
         }
+    }
+
+    when (val ed = editor) {
+        is RoadmapEditor.PhaseEditor -> PhaseEditDialog(
+            existing = ed.existing,
+            onDismiss = viewModel::closeEditor,
+            onSave = { title, description, startDate, endDate, versionAnchor ->
+                viewModel.savePhase(ed.existing, title, description, startDate, endDate, versionAnchor)
+            }
+        )
+        is RoadmapEditor.RiskEditor -> RiskEditDialog(
+            existing = ed.existing,
+            onDismiss = viewModel::closeEditor,
+            onSave = { title, level, mitigation ->
+                viewModel.saveRisk(ed.existing, title, level, mitigation)
+            }
+        )
+        is RoadmapEditor.AnchorEditor -> AnchorEditDialog(
+            existing = ed.existing,
+            decoded = ed.decoded,
+            onDismiss = viewModel::closeEditor,
+            onSave = { label, anchor -> viewModel.saveAnchor(ed.existing, label, anchor) }
+        )
+        is RoadmapEditor.DependencyEditor -> DependencyAddDialog(
+            projectTasks = state.projectTasks,
+            onDismiss = viewModel::closeEditor,
+            onSave = { blockerId, blockedId -> viewModel.addDependency(blockerId, blockedId) }
+        )
+        null -> Unit
     }
 }
 
 @Composable
-private fun SectionHeader(text: String) {
-    Text(
-        text = text,
-        style = MaterialTheme.typography.titleMedium,
-        fontWeight = FontWeight.SemiBold
-    )
+private fun SectionHeader(title: String, onAdd: (() -> Unit)? = null) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.weight(1f)
+        )
+        if (onAdd != null) {
+            IconButton(onClick = onAdd) {
+                Icon(Icons.Filled.Add, contentDescription = "Add")
+            }
+        }
+    }
 }
 
 @Composable
@@ -151,7 +263,12 @@ private fun EmptySection(text: String) {
 }
 
 @Composable
-private fun PhaseCard(phase: ProjectPhaseEntity, tasks: List<TaskEntity>) {
+private fun PhaseCard(
+    phase: ProjectPhaseEntity,
+    tasks: List<TaskEntity>,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit
+) {
     val df = remember { SimpleDateFormat("MMM d", Locale.getDefault()) }
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -176,6 +293,12 @@ private fun PhaseCard(phase: ProjectPhaseEntity, tasks: List<TaskEntity>) {
                             containerColor = MaterialTheme.colorScheme.tertiaryContainer
                         )
                     )
+                }
+                IconButton(onClick = onEdit) {
+                    Icon(Icons.Filled.Edit, contentDescription = "Edit phase")
+                }
+                IconButton(onClick = onDelete) {
+                    Icon(Icons.Filled.Delete, contentDescription = "Delete phase")
                 }
             }
             val dateRange = listOfNotNull(
@@ -212,8 +335,6 @@ private fun PhaseCard(phase: ProjectPhaseEntity, tasks: List<TaskEntity>) {
 
 @Composable
 private fun TaskRow(task: TaskEntity) {
-    // Mirrors the burndown's `progress_percent ?: (DONE ? 100 : 0)`
-    // semantics so the bar stays consistent with the analytics layer.
     val fraction = task.progressPercent?.coerceIn(0, 100)?.div(100f)
         ?: if (task.isCompleted) 1f else 0f
     Row(
@@ -248,7 +369,11 @@ private fun TaskRow(task: TaskEntity) {
 }
 
 @Composable
-private fun RiskRow(risk: ProjectRiskEntity) {
+private fun RiskRow(
+    risk: ProjectRiskEntity,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit
+) {
     val level = RiskLevel.fromStorage(risk.level)
     val (label, color) = when (level) {
         RiskLevel.LOW -> "LOW" to MaterialTheme.colorScheme.tertiary
@@ -283,17 +408,25 @@ private fun RiskRow(risk: ProjectRiskEntity) {
                 }
             }
             AssistChip(onClick = {}, label = { Text(label) })
+            IconButton(onClick = onEdit) {
+                Icon(Icons.Filled.Edit, contentDescription = "Edit risk")
+            }
+            IconButton(onClick = onDelete) {
+                Icon(Icons.Filled.Delete, contentDescription = "Delete risk")
+            }
         }
     }
 }
 
 @Composable
-private fun AnchorRow(decoded: ExternalAnchorRepository.Decoded) {
+private fun AnchorRow(
+    decoded: ExternalAnchorRepository.Decoded,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit
+) {
     val df = remember { SimpleDateFormat("MMM d, yyyy", Locale.getDefault()) }
     val (typeLabel, body) = when (val a = decoded.anchor) {
         is ExternalAnchor.CalendarDeadline -> "DATE" to df.format(Date(a.epochMs))
-        // ComparisonOp carries a glyph (`<`, `<=`, `>`, `>=`, `==`) — render it
-        // verbatim so the row matches how the user authored the threshold.
         is ExternalAnchor.NumericThreshold -> "METRIC" to "${a.metric} ${a.op.symbol} ${a.value}"
         is ExternalAnchor.BooleanGate -> "GATE" to "${a.gateKey} = ${a.expectedState}"
         null -> "?" to "(unsupported anchor type)"
@@ -316,6 +449,46 @@ private fun AnchorRow(decoded: ExternalAnchorRepository.Decoded) {
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+            }
+            IconButton(onClick = onEdit) {
+                Icon(Icons.Filled.Edit, contentDescription = "Edit anchor")
+            }
+            IconButton(onClick = onDelete) {
+                Icon(Icons.Filled.Delete, contentDescription = "Delete anchor")
+            }
+        }
+    }
+}
+
+@Composable
+private fun DependencyRow(
+    edge: TaskDependencyEntity,
+    projectTasks: List<TaskEntity>,
+    onDelete: () -> Unit
+) {
+    val blocker = projectTasks.firstOrNull { it.id == edge.blockerTaskId }?.title
+        ?: "task #${edge.blockerTaskId}"
+    val blocked = projectTasks.firstOrNull { it.id == edge.blockedTaskId }?.title
+        ?: "task #${edge.blockedTaskId}"
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "$blocker  →  $blocked",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Text(
+                    text = "Blocker must finish before blocked starts.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            IconButton(onClick = onDelete) {
+                Icon(Icons.Filled.Delete, contentDescription = "Delete dependency")
             }
         }
     }

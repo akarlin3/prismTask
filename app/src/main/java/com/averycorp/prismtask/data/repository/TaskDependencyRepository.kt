@@ -33,6 +33,10 @@ constructor(
     suspend fun getBlockedBy(taskId: Long): List<TaskDependencyEntity> =
         taskDependencyDao.getBlockedByOnce(taskId)
 
+    /** Snapshot of every edge in the table — caller is expected to filter. */
+    suspend fun getAllOnce(): List<TaskDependencyEntity> =
+        taskDependencyDao.getAllOnce()
+
     /**
      * Adds an edge from [blockerTaskId] to [blockedTaskId].
      *

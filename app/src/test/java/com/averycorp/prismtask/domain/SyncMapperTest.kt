@@ -79,7 +79,34 @@ class SyncMapperTest {
         assertNull(task.description)
         assertNull(task.dueDate)
         assertNull(task.sourceHabitId)
+        assertNull(task.taskMode)
+        assertNull(task.cognitiveLoad)
         assertEquals(0, task.priority)
+    }
+
+    @Test
+    fun task_orthogonalDimensions_roundTrip() {
+        // Regression for the v70-v72 sync gap: task_mode + cognitive_load
+        // columns shipped to Room without sync wiring, so Android-side values
+        // were silently dropped on push and re-overwritten as null on pull.
+        val task = TaskEntity(
+            id = 1,
+            title = "Three-axis task",
+            lifeCategory = "WORK",
+            taskMode = "PLAY",
+            cognitiveLoad = "HARD",
+            createdAt = 0,
+            updatedAt = 0
+        )
+        val map = SyncMapper.taskToMap(task)
+        assertEquals("WORK", map["lifeCategory"])
+        assertEquals("PLAY", map["taskMode"])
+        assertEquals("HARD", map["cognitiveLoad"])
+
+        val restored = SyncMapper.mapToTask(map, localId = 1)
+        assertEquals("WORK", restored.lifeCategory)
+        assertEquals("PLAY", restored.taskMode)
+        assertEquals("HARD", restored.cognitiveLoad)
     }
 
     @Test
