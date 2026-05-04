@@ -350,7 +350,7 @@ dependencies {
 
     // Google Calendar API
     implementation("com.google.apis:google-api-services-calendar:v3-rev20241101-2.0.0")
-    implementation("com.google.http-client:google-http-client-gson:1.45.3")
+    implementation("com.google.http-client:google-http-client-gson:2.1.0")
 
     // Google Play Billing
     implementation("com.android.billingclient:billing-ktx:7.1.1")
