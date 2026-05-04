@@ -13,8 +13,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import android.content.Intent
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -29,6 +31,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -53,6 +56,7 @@ fun MoodAnalyticsScreen(
     viewModel: MoodAnalyticsViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val context = LocalContext.current
 
     Scaffold(
         topBar = {
@@ -61,6 +65,46 @@ fun MoodAnalyticsScreen(
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                actions = {
+                    if (state.logs.isNotEmpty()) {
+                        IconButton(onClick = {
+                            val avgMood = state.logs.map { it.mood }.average()
+                            val avgEnergy = state.logs.map { it.energy }.average()
+                            val report = buildString {
+                                appendLine("PrismTask Mood & Energy — Last 30 Days")
+                                appendLine()
+                                appendLine("Entries: ${state.logs.size}")
+                                appendLine("Average mood: %.1f / 5".format(avgMood))
+                                appendLine("Average energy: %.1f / 5".format(avgEnergy))
+                                if (state.observations.size >= MoodCorrelationEngine.MIN_OBSERVATIONS) {
+                                    appendLine()
+                                    appendLine("Top mood correlations:")
+                                    state.moodResults.take(3).forEach {
+                                        appendLine("• " + it.plainEnglish())
+                                    }
+                                    appendLine()
+                                    appendLine("Top energy correlations:")
+                                    state.energyResults.take(3).forEach {
+                                        appendLine("• " + it.plainEnglish())
+                                    }
+                                }
+                            }
+                            val intent = Intent(Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                putExtra(Intent.EXTRA_TEXT, report)
+                                putExtra(
+                                    Intent.EXTRA_SUBJECT,
+                                    "PrismTask Mood & Energy report"
+                                )
+                            }
+                            context.startActivity(
+                                Intent.createChooser(intent, "Share report")
+                            )
+                        }) {
+                            Icon(Icons.Default.Share, contentDescription = "Share report")
+                        }
                     }
                 }
             )

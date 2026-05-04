@@ -16,10 +16,12 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import android.content.Intent
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -42,6 +44,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -81,6 +84,7 @@ fun WeeklyBalanceReportScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val dateFormat = remember { SimpleDateFormat("MMM d", Locale.getDefault()) }
+    val context = LocalContext.current
 
     Scaffold(
         topBar = {
@@ -89,6 +93,52 @@ fun WeeklyBalanceReportScreen(
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                actions = {
+                    val stats = state.stats
+                    if (stats != null) {
+                        IconButton(onClick = {
+                            val report = buildString {
+                                appendLine(
+                                    "PrismTask Weekly Balance — " +
+                                        dateFormat.format(Date(stats.weekStart)) +
+                                        " to " +
+                                        dateFormat.format(Date(stats.weekEnd))
+                                )
+                                appendLine()
+                                appendLine("Completed: ${stats.completed}")
+                                appendLine("Slipped: ${stats.slipped}")
+                                appendLine("Rescheduled: ${stats.rescheduled}")
+                                appendLine(
+                                    "Completion rate: %.0f%%".format(
+                                        stats.completionRate * 100
+                                    )
+                                )
+                                if (stats.byCategory.isNotEmpty()) {
+                                    appendLine()
+                                    appendLine("By life category:")
+                                    stats.byCategory.entries
+                                        .sortedByDescending { it.value }
+                                        .forEach { (category, count) ->
+                                            appendLine("• ${category.name}: $count")
+                                        }
+                                }
+                            }
+                            val intent = Intent(Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                putExtra(Intent.EXTRA_TEXT, report)
+                                putExtra(
+                                    Intent.EXTRA_SUBJECT,
+                                    "PrismTask weekly balance report"
+                                )
+                            }
+                            context.startActivity(
+                                Intent.createChooser(intent, "Share report")
+                            )
+                        }) {
+                            Icon(Icons.Default.Share, contentDescription = "Share report")
+                        }
                     }
                 }
             )
