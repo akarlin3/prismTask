@@ -41,6 +41,8 @@ internal fun taskToOperation(task: TaskEntity): SyncOperation {
         if (task.scheduledStartTime != null) addProperty("scheduled_start_time", task.scheduledStartTime)
         if (task.sourceHabitId != null) addProperty("source_habit_id", task.sourceHabitId)
         if (task.lifeCategory != null) addProperty("life_category", task.lifeCategory)
+        if (task.taskMode != null) addProperty("task_mode", task.taskMode)
+        if (task.cognitiveLoad != null) addProperty("cognitive_load", task.cognitiveLoad)
         if (task.goodEnoughMinutesOverride != null) addProperty("good_enough_minutes_override", task.goodEnoughMinutesOverride)
         if (task.maxRevisionsOverride != null) addProperty("max_revisions_override", task.maxRevisionsOverride)
         addProperty("revision_count", task.revisionCount)

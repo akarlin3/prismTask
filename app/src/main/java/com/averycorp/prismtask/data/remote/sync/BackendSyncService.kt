@@ -442,7 +442,9 @@ constructor(
                 estimatedDuration = data.optInt("estimated_duration"),
                 scheduledStartTime = data.optLong("scheduled_start_time"),
                 sourceHabitId = data.optLong("source_habit_id"),
-                lifeCategory = data.optString("life_category")
+                lifeCategory = data.optString("life_category"),
+                taskMode = data.optString("task_mode"),
+                cognitiveLoad = data.optString("cognitive_load")
             )
             taskDao.insert(task)
             applied++
