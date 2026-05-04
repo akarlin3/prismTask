@@ -382,3 +382,95 @@ only if Phase 4 confirms this is durable convention, not one-off.
 
 Per the original prompt's HARD STOP: "do not begin Phase 2 until operator approves Phase 1
 verdict + sequencing." Audit doc commits, then waits for operator approval before fan-out.
+
+Operator response to Phase 1: *"Add the fields, don't be afraid of expanding scope."* —
+Phase 2 unblocked with explicit approval of PR-D's expanded scope.
+
+---
+
+## Phase 3 — Bundle summary (pre-merge, per memory #16)
+
+3 implementation commits land on branch `claude/f7-architectural-cleanup-5F3qH` ahead of
+PR open. Per the system-prompt branch policy ("DEVELOP all your changes on the designated
+branch above"), they ship as one PR holding the bundle rather than 3 separate PRs.
+
+| Commit | Item | Files | LOC | Status |
+|---|---|---|---|---|
+| `b630d19` | Phase 1 audit doc | `docs/audits/F7_ARCHITECTURAL_CLEANUP_BATCH_AUDIT.md` | +384 | ✅ |
+| `62e45a3` | PR-D: sync fields | `SyncMapper.kt`, `BackendSyncMappers.kt`, `BackendSyncService.kt`, `ApiModels.kt`, `SyncMapperTest.kt` | +40 / -1 | ✅ |
+| `27def09` | PR-A: web TaskMode editor | `TaskEditor.tsx`, `tasks.test.ts` | +93 | ✅ |
+| `061b420` | PR-B: roadmap editors | `ProjectRoadmapViewModel.kt`, `ProjectRoadmapEditDialogs.kt`, `ProjectRoadmapScreen.kt`, `TaskDependencyRepository.kt`, `ProjectRoadmapViewModelTest.kt` | +1008 / -50 | ✅ |
+
+**Total**: 4 commits, 12 files, ~1525 LOC. Roughly tracks the audit's per-PR estimates;
+PR-B came in at the upper end of its 300–500 estimate (~600 net) once tests + Compose
+boilerplate were in.
+
+### Verification status (CI is the green gate; local Android build is unavailable on this
+runner — Linux env without the Android SDK)
+
+- **PR-D**: 4 sync surfaces wired symmetrically; `SyncMapperTest.task_orthogonalDimensions_roundTrip`
+  asserts all 3 orthogonal dimensions round-trip. Pre-existing 17 SyncMapper tests
+  unchanged. CI will catch any Kotlin-compile drift.
+- **PR-A**: `TASK_MODE_OPTIONS` constant + `<select>` mirror the freshly-shipped Cognitive
+  Load editor verbatim. Tests cover create + update payload shape for both new fields.
+  Web Firestore round-trip already in place (PR #1061 type def, mapping in
+  `web/src/api/firestore/tasks.ts`).
+- **PR-B**: ViewModel test exercises validation guards (blank title, self-edge), trim
+  semantics, add-vs-update routing, sealed-variant ExternalAnchor save, and cycle-rejection
+  error mapping. Compose Preview + screen-level smoke unchanged from the read-only baseline
+  except for the 5 new affordances.
+
+### Scope deltas vs Phase 1
+
+- **PR-D**: scope grew from "fix taskMode in SyncMapper only" to "fix taskMode +
+  cognitiveLoad across SyncMapper + BackendSyncMappers + BackendSyncService + ApiModels."
+  Operator-approved per the Phase 2 entry note. Cognitive Load was the audit's surprise
+  finding (memory #18 quad sweep (e) sibling-primitive axis), and shipping it in the same
+  commit kept the silent-data-loss surface uniform across both fields.
+- **PR-A**: scope expanded slightly to also fill in the missing `cognitiveLoad`
+  Firestore-mapper test cases (PR #1084 added the cognitiveLoad mapper but no tests).
+  ~30 LOC added on top of the TaskMode editor work. Same operator-approved expansion
+  spirit — closes the orthogonal-dimension test gap as a bonus.
+- **PR-B**: TaskDependency editor implementation kept on the roadmap surface (rather than
+  on the task editor where it more naturally belongs), to avoid a 4-file pattern split.
+  Trade-off: the dependency UI is functional but minimal — single-edge add + delete.
+  Per-task-blocker management remains a follow-on for the task editor surface.
+
+### Items closed in F.7
+
+| Item | Disposition | Trail |
+|---|---|---|
+| 4 (taskMode SyncMapper gap) | Shipped + cognitiveLoad co-fix | Commit `62e45a3` |
+| 1 (web TaskMode editor) | Shipped + cognitiveLoad test gap fill | Commit `27def09` |
+| 2 (Timeline-class editor UI) | Shipped (3 entity types fully editable; dependency add/delete on roadmap) | Commit `061b420` |
+| 3 (CloudIdOrphanHealer extension) | Already done in PR #1085 — no work needed | Audit Item 3 finding |
+| 5 (DayBoundary cleanup) | Deferred — wider API-design pass needed | Audit Item 5 verdict |
+| 6 (Web ProjectRoadmapScreen.tsx port) | Deferred — JSX upload gate not satisfied | Pre-flight finding |
+
+**F.7 net change**: 8 → 2 (item 5 reframed as "SoD canonical API design" follow-on, item 6
+re-arms when JSX uploaded, plus 1 follow-on for per-task dependency management on the task
+editor surface).
+
+### Memory candidates
+
+1. **PROBABLY YES**: *"Every new orthogonal task-dimension column ships its sync wiring
+   (4 surfaces: SyncMapper, BackendSyncMappers, BackendSyncService, ApiModels) AND its
+   web TaskEditor surface in the same PR as the migration."* — verified by both PR #1061
+   and PR #1084 having repeated the same omission across 4 surfaces. Adding this to the
+   migration checklist would have caught both bugs at code-review time. Memory at 29/30;
+   this is durable enough to claim the slot.
+
+2. **MAYBE**: *"audit-first-mega 'recon-first quad sweep' (e) sibling-primitive axis
+   reliably surfaces sibling-class regressions."* — PR-D's broader-than-stated gap was
+   surfaced exactly because the audit deliberately enumerated cognitive_load alongside
+   taskMode under sibling-primitive. Worth capturing if memory #18 doesn't already cover
+   it explicitly enough. Skip if redundant.
+
+### Schedule for next audit
+
+- F.7's 2 remaining items (item 5 SoD design, item 6 web port) ride forward with concrete
+  unblock triggers. No new audit needed — they pick up the next time their gates are
+  satisfied.
+- The 1 follow-on (per-task dependency management on task editor surface) is a new F-bucket
+  candidate; surface to operator for placement.
+
