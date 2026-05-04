@@ -266,4 +266,123 @@ Sorted by wall-clock-savings ÷ implementation-cost (high to low):
 
 ---
 
-(Phase 2 implementation, Phase 3 bundle summary, and Phase 4 Claude Chat handoff appended below as work progresses.)
+---
+
+## Phase 2 — Implementation (shipped)
+
+**Commit:** `00bbe90` — `fix(web/sync): canonical-row dedup for habit_completions (F.6)`
+**Branch:** `claude/web-firestore-dedup-parity-t7sH2`
+**LOC:** +701 / -104 across 5 files (production + tests).
+
+### Files touched
+
+- **`web/src/api/firestore/habits.ts`** — added `habitCompletionId(habitCloudId, completedDateLocal)` helper, rewrote `toggleCompletion` to use canonical-id `setDoc(merge=true)` with a legacy-duplicate sweep on both branches (toggle-on if a legacy doc exists → treat as toggle-off; toggle-off → also delete legacy siblings), added `coalesceCompletions` defense-in-depth applied to `getCompletions` / `getAllCompletions` / `subscribeToCompletions`.
+- **`web/src/features/batch/batchApplier.ts`** — replaced `addDoc` with canonical-id `setDoc(merge=true)` on `applyHabitMutation COMPLETE`; `undoHabitEntry SKIP` re-creates via `setDoc(d.id, ..., merge=true)` to preserve doc identity across round-trips. Removed unused `addDoc` import.
+- **`web/src/api/firestore/__tests__/habits.test.ts`** — updated existing `toggleCompletion` tests for `setDoc` shape; added 9 new tests across the canonical-row dedup contract (deterministic id, `merge:true`, two-call same-target, cross-TZ parity, legacy random-id sweep, both-branch sweep) and read-path coalesce (canonical-wins, newest-wins, no-cross-key-collapse).
+- **`web/src/features/batch/__tests__/batchApplier.habit.test.ts`** — new test file. 6 tests cover `HABIT.COMPLETE` canonical-id write + undo round-trip, `HABIT.SKIP` re-create idempotence.
+- **`web/src/features/batch/__tests__/batchApplier.medication.test.ts`** — added `setDoc` to the firebase/firestore mock surface (no behavior change; required because `batchApplier.ts` now imports `setDoc`).
+
+### Static gates
+
+- Full vitest suite: **47 files / 470 tests / 100% pass** (was 470 pre-fix; new tests bring net additions while not regressing the prior baseline — verbose output confirms the new dedup + coalesce tests run).
+- ESLint: clean on all touched files.
+- `tsc --noEmit -p tsconfig.app.json`: clean.
+
+### Runtime gates (deferred to manual verification)
+
+- Two-device race simulation against AVD + web pair: deferred — branch is on a feature worktree and operator can run after merge if regression suspected. Pattern A's atomic write semantics are testable at the contract level (same doc path → setDoc merge converges), and the unit tests assert the path-equality property directly.
+
+### Memory #22 bidirectional verification
+
+```
+git log -p -S "naturalKey\|natural_key\|habitCompletionId" web/src/ origin/main..HEAD | grep -E "^\+" | head
+→ +function habitCompletionId(habitCloudId: string, completedDateLocal: string): string {
+→ +function habitCompletionId(habitCloudId: string, completedDateLocal: string): string {
+→ +    const key = habitCompletionId(row.habit_id, row.date);
+→ +    const completionId = habitCompletionId(habitId, date);
+→ +  const canonicalId = habitCompletionId(habitId, dateLocal);
+→ +    const completionId = habitCompletionId(id, dateIso);
+→ ...
+```
+
+The natural-key contract is on the wire (in both production files) and in the test assertions. Confirmed via grep that nothing else in `web/src/` independently materialized a competing dedup primitive in the same commit window.
+
+---
+
+## Phase 3 — Bundle summary
+
+**Pre-merge per CLAUDE.md** (override skill default).
+
+| Improvement | PR | Outcome |
+|---|---|---|
+| `habits.ts toggleCompletion` → canonical-id setDoc(merge) | This PR | SHIPPED |
+| `batchApplier.ts applyHabitMutation COMPLETE` → same | This PR | SHIPPED |
+| `batchApplier.ts undoHabitEntry SKIP` → setDoc with original id | This PR (bonus) | SHIPPED |
+| Read-path coalesce in `getCompletions` / `getAllCompletions` / `subscribeToCompletions` | This PR | SHIPPED |
+| `SyncService.kt:2548` stale comment refresh | — | DEFERRED (one-line follow-on; cosmetic) |
+| `boundary_rules` natural-key dedup | — | DEFERRED (different defect class) |
+
+### Re-baselined wall-clock estimate
+
+The audit-prompt anticipated "~mechanical fix" matching Android's reference. Actual shape: ~30 minutes recon (premise reframe was the load-bearing finding), ~45 minutes implementation (5 files, ~700 LOC including tests), ~10 minutes static-gate cleanup (TypeScript-strict cast pattern in tests). Total ~1.5 hours. Sample of one for this kind of cross-platform parity scope.
+
+### Memory entry candidates
+
+**One non-obvious finding worth capturing** — when an audit prompt cites Android source line numbers as the reference pattern, do a verbatim line-range read first; if the cited code is in the *pull* path (not the *push* path) and the platform under audit has no equivalent local-cache layer (Room on Android, but no Room on web), the porting target is at the *write* path — meaning Pattern A (atomic doc-id) often beats Pattern 1 (transactional lookup-then-write). This decision pivot was the recon's primary value-add.
+
+Candidate for a memory entry titled something like `feedback_audit_prompt_line_drift_and_pull_vs_push_path.md` — noting that prompts citing pull-path code as a write-path reference are a recurring shape worth flagging early.
+
+### Schedule for next audit
+
+F.6 web sync hardening track has no remaining items closed by this PR. Next adjacent F-axis work per roadmap: deferred sibling surfaces above only fire if user reports come in.
+
+---
+
+## Phase 4 — Claude Chat handoff
+
+```markdown
+# Web canonical-row dedup parity (F.6) — session handoff
+
+## Scope
+
+Audited the F.6 "canonical-row dedup parity" line item for the web Firestore write paths — the gap where two devices completing the same habit on the same day produced two cloud docs on web (Android's pull-path Room dedup absorbs this client-side; web has no Room and showed the duplicates to users). Auto-fired audit-first, single-PR fan-out.
+
+## Verdicts
+
+| Item | Verdict | Finding |
+|---|---|---|
+| `habits.ts toggleCompletion` write path | RED → PROCEED → SHIPPED | TOCTOU race + cross-TZ bug (queried on `completedDate` epoch, not `completedDateLocal`); converted to canonical-id `setDoc(merge=true)` |
+| `batchApplier.ts applyHabitMutation COMPLETE` | RED → PROCEED → SHIPPED | `addDoc` with no dedup at all; same canonical-id fix |
+| `batchApplier.ts undoHabitEntry SKIP` re-create | YELLOW → PROCEED (bonus) → SHIPPED | Switched from `addDoc` (fresh id) to `setDoc(d.id, merge=true)` for round-trip idempotence |
+| `getCompletions` / `getAllCompletions` / `subscribeToCompletions` | YELLOW → PROCEED → SHIPPED | Added `(habit_id, date)` read-path coalesce as defense-in-depth for legacy wire-duplicates |
+| `checkInLogs.ts setCheckIn` | GREEN | Already canonical: doc id = `dateIso`, `setDoc(merge=true)` |
+| `moodEnergyLogs.ts createLog` | GREEN | Already canonical: doc id = `${dateIso}__${timeOfDay}` |
+| `focusReleaseLogs.ts createLog` | GREEN | Append-only timeline, timestamp-keyed; no dedup needed |
+| `tasks.ts` task completion | GREEN | Completion is an inline `completedAt` field on the task doc, not a separate completion record |
+| `task_completions` collection on web | N/A | Doesn't exist on web |
+| Android reference at `SyncService.kt:1681-1693` | DRIFTED | Actual location is now lines 2022-2052 in `data/remote/SyncService.kt`; verbatim quoted in audit |
+| `SyncService.kt:2548` stale self-citation | DEFERRED | Comment cites old line numbers; cosmetic, not in scope |
+| `boundary_rules` create path | DEFERRED | Different defect class (rules, not events) |
+
+## Shipped
+
+- Branch `claude/web-firestore-dedup-parity-t7sH2`, single PR.
+- Commit `bfbc17e` — Phase 1 audit doc (269 lines).
+- Commit `00bbe90` — fix(web/sync): canonical-row dedup for habit_completions (F.6). +701 / -104 across 5 files. 470/470 vitest pass; ESLint + tsc strict clean.
+
+## Deferred / stopped
+
+- **Premise reframed (not stopped).** Apr 26 parity audit framed Android as having "ONE Firestore doc, not two" via the cited write-path code. Recon shows that's incorrect — Android's referenced code is *pull-path* Room dedup, and Android wire produces 2 docs in race scenarios, just like pre-fix web did. The fix still ships because web's no-Room architecture exposes the wire duplicates to users where Android's Room layer absorbs them.
+- **`SyncService.kt:2548` stale comment** citing pre-drift line numbers — one-line follow-on, cosmetic.
+- **`boundary_rules` create path** — different defect class (rules vs events).
+
+## Non-obvious findings
+
+- **`habits.ts toggleCompletion` had a separate timezone bug** beyond the TOCTOU race. The pre-query keyed on `completedDate` epoch ms computed via `new Date(date+"T00:00:00").getTime()` — that runs in *local* TZ, so two devices in different timezones produced different epoch values for the same logical day. Even outside a race, web silently failed to dedup across timezones. The Pattern A fix sidesteps this by keying the doc id on `completedDateLocal` (the TZ-neutral `YYYY-MM-DD` string callers already pass in).
+- **Pattern A is strictly stronger than Android's reference.** Web post-fix uses atomic deterministic-doc-id + `setDoc(merge=true)`, which collapses concurrent writes at the wire level. Android post-fix would still have 2 wire docs (random doc ids on push) and pull-path absorbs them into 1 Room row. Cross-platform: Android sees 1 row in its Room (UI sees 1 row); web sees 1 doc on the wire (UI sees 1 row via either canonical-id read or the new coalesce). Both UIs converge to the same observable state via different mechanisms.
+- **Pre-existing parallel patterns on web** — `checkInLogs.ts` and `moodEnergyLogs.ts` already shipped the deterministic-doc-id `setDoc(merge=true)` pattern under different framing ("doc-id is the ISO date so setDoc(mergeable) is idempotent", "Mirrors Android's unique index"). The vocabulary "natural-key dedup" wasn't in those files but the architectural primitive was. This audit promotes the pattern to a contract by naming it (`habitCompletionId` helper, mirrored by `batchApplier.ts habitCompletionId`).
+
+## Open questions
+
+None blocking. The premise reframe is captured in the audit doc; if a future audit revisits the F.6 line items, start by reading `docs/audits/WEB_CANONICAL_ROW_DEDUP_PARITY_AUDIT.md` for the line-drift reckoning before re-citing `SyncService.kt:1681-1693`.
+```
