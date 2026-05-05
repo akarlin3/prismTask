@@ -102,8 +102,19 @@ constructor(
                 _error.value = "I need an internet connection to chat. Your tasks are still available offline."
             } catch (e: java.net.ConnectException) {
                 _error.value = "I need an internet connection to chat. Your tasks are still available offline."
+            } catch (e: retrofit2.HttpException) {
+                android.util.Log.e("ChatViewModel", "Chat HTTP ${e.code()} ${e.message()}", e)
+                _error.value = when (e.code()) {
+                    401 -> "Sign in to use chat — your session has expired."
+                    403 -> "Chat requires Pro. Upgrade in Settings to continue."
+                    429 -> "Daily chat limit reached. Try again later."
+                    451 -> "AI features are disabled. Re-enable them in Settings → AI Features."
+                    503 -> "Chat backend is unavailable. Try again in a moment."
+                    else -> "Chat is unavailable right now (HTTP ${e.code()})."
+                }
             } catch (e: Exception) {
-                _error.value = "Chat is unavailable right now. Try again."
+                android.util.Log.e("ChatViewModel", "Chat send failed", e)
+                _error.value = "Chat is unavailable right now: ${e.javaClass.simpleName} — ${e.message ?: "unknown error"}"
             } finally {
                 _isTyping.value = false
             }
