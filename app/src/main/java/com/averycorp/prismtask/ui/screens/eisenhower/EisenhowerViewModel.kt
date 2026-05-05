@@ -167,12 +167,27 @@ constructor(
     }
 
     /**
-     * Clear any manual override and fire a fresh AI classification. The new
-     * quadrant lands asynchronously via TaskRepository's background scope.
+     * Clear any manual override and run a fresh AI classification inline.
+     * Pro-gated: Free users get the upgrade prompt instead of a silent
+     * no-op. Failures surface through [EisenhowerUiState.Error] so the
+     * existing screen banner + Snackbar render the message.
      */
     fun reclassify(taskId: Long) {
+        if (!proFeatureGate.hasAccess(ProFeatureGate.AI_EISENHOWER)) {
+            _showUpgradePrompt.value = true
+            return
+        }
         viewModelScope.launch {
-            taskRepository.reclassify(taskId)
+            _uiState.value = EisenhowerUiState.Loading
+            val result = taskRepository.reclassify(taskId)
+            if (result.isSuccess) {
+                _uiState.value = EisenhowerUiState.Idle
+            } else {
+                Log.w("EisenhowerVM", "Reclassify failed", result.exceptionOrNull())
+                _uiState.value = EisenhowerUiState.Error(
+                    "Couldn't reach the AI classifier. Check your connection and try again."
+                )
+            }
         }
     }
 

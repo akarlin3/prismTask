@@ -62,6 +62,7 @@ import com.averycorp.prismtask.data.billing.UserTier
 import com.averycorp.prismtask.ui.components.BreakdownResultCard
 import com.averycorp.prismtask.ui.components.CircularCheckbox
 import com.averycorp.prismtask.ui.components.CoachingCard
+import com.averycorp.prismtask.ui.components.CoachingErrorCard
 import com.averycorp.prismtask.ui.components.TierBadge
 import com.averycorp.prismtask.ui.components.UpgradePrompt
 import com.averycorp.prismtask.ui.screens.addedittask.AddEditTaskViewModel
@@ -161,6 +162,7 @@ internal fun DetailsTabContent(
     val perfectionismMessage by coachingViewModel.perfectionismMessage.collectAsStateWithLifecycle()
     val perfectionismLoading by coachingViewModel.perfectionismLoading.collectAsStateWithLifecycle()
     val coachingUpgradePrompt by coachingViewModel.showUpgradePrompt.collectAsStateWithLifecycle()
+    val coachingErrorMessage by coachingViewModel.errorMessage.collectAsStateWithLifecycle()
 
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
@@ -231,6 +233,16 @@ internal fun DetailsTabContent(
             onDismiss = { coachingViewModel.dismissBreakdown() }
         )
     }
+
+    // Coaching AI failure (inline). Pre-fix the VM set _errorMessage on
+    // CoachingResult.Error but no UI consumed it, so AI/backend failures
+    // looked like silent no-ops on Help Me Start / Break It Down. See
+    // docs/audits/AUTO_BUTTON_AI_FAILURE_AND_UPGRADE_MESSAGES_AUDIT.md
+    // (items #4, #5).
+    CoachingErrorCard(
+        message = coachingErrorMessage,
+        onDismiss = { coachingViewModel.dismissError() }
+    )
 
     // Coaching upgrade prompt (inline)
     if (coachingUpgradePrompt) {

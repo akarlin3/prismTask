@@ -548,7 +548,9 @@ class TaskRepositoryTest {
 
     @Test
     fun reclassify_clearsOverrideAndFiresClassify() = runBlocking {
-        enableAutoClassify()
+        // Explicit reclassify bypasses the autoClassifyEnabled preference
+        // and runs the classifier inline so the caller can surface
+        // success/failure to the user — no enableAutoClassify() needed.
         coEvery { eisenhowerClassifier.classify(any()) } returns Result.success(
             EisenhowerClassifier.Classification(
                 quadrant = com.averycorp.prismtask.domain.model.EisenhowerQuadrant.NOT_URGENT_NOT_IMPORTANT,
@@ -560,13 +562,32 @@ class TaskRepositoryTest {
                 .copy(eisenhowerQuadrant = "Q1", userOverrodeQuadrant = true)
         )
 
-        repo.reclassify(55L)
-        kotlinx.coroutines.delay(50)
+        val result = repo.reclassify(55L)
 
+        assertTrue(result.isSuccess)
         val stored = taskDao.tasks.first { it.id == 55L }
         assertFalse(stored.userOverrodeQuadrant)
         assertEquals("Q4", stored.eisenhowerQuadrant)
         coVerify { eisenhowerClassifier.classify(any()) }
+    }
+
+    @Test
+    fun reclassify_propagatesClassifierFailure() = runBlocking {
+        coEvery { eisenhowerClassifier.classify(any()) } returns
+            Result.failure(IllegalStateException("Backend offline"))
+        taskDao.tasks.add(
+            taskFixture(id = 56L, title = "AI down")
+                .copy(eisenhowerQuadrant = "Q1", userOverrodeQuadrant = true)
+        )
+
+        val result = repo.reclassify(56L)
+
+        assertTrue(result.isFailure)
+        // Manual override is still cleared (the user's intent was honored)
+        // even though the AI call failed — the next successful classify
+        // can land cleanly.
+        val stored = taskDao.tasks.first { it.id == 56L }
+        assertFalse(stored.userOverrodeQuadrant)
     }
 
     @Test

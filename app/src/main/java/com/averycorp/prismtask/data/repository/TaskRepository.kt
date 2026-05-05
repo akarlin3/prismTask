@@ -621,14 +621,31 @@ constructor(
     }
 
     /**
-     * Clear any prior manual override and fire a fresh classification. The
-     * classification is still fire-and-forget — the new quadrant lands via
-     * the background scope when the API responds. Returns immediately.
+     * Explicit user-initiated reclassification. Clears any prior manual
+     * override and runs the classifier inline so the caller can surface
+     * success/failure to the user. Bypasses [UserPreferencesDataStore]'s
+     * `autoClassifyEnabled` gate — that preference governs background
+     * classification on insert/update only; an explicit "Reclassify With AI"
+     * tap is the user telling the app they want it now.
      */
-    suspend fun reclassify(taskId: Long) {
+    suspend fun reclassify(taskId: Long): Result<Unit> {
         taskDao.clearManualQuadrantOverride(taskId)
         syncTracker.trackUpdate(taskId, "task")
-        classifyInBackground(taskId)
+        val task = taskDao.getTaskByIdOnce(taskId)
+            ?: return Result.failure(IllegalStateException("Task $taskId not found"))
+        val classification = eisenhowerClassifier.classify(task).getOrElse {
+            return Result.failure(it)
+        }
+        val code = classification.quadrant.code
+            ?: return Result.failure(IllegalStateException("Unknown quadrant"))
+        taskDao.updateEisenhowerQuadrantIfNotOverridden(
+            id = taskId,
+            quadrant = code,
+            reason = classification.reason
+        )
+        syncTracker.trackUpdate(taskId, "task")
+        widgetUpdateManager.updateTaskWidgets()
+        return Result.success(Unit)
     }
 
     suspend fun batchReschedule(taskIds: List<Long>, newDueDate: Long?) {
