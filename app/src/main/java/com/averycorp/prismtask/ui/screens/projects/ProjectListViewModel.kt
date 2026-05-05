@@ -15,8 +15,8 @@ import com.averycorp.prismtask.data.repository.ProjectRepository
 import com.averycorp.prismtask.data.repository.TaskDependencyRepository
 import com.averycorp.prismtask.data.repository.TaskRepository
 import com.averycorp.prismtask.domain.model.ExternalAnchor
-import com.averycorp.prismtask.domain.usecase.ChecklistParser
 import com.averycorp.prismtask.domain.usecase.ChecklistParsedTask
+import com.averycorp.prismtask.domain.usecase.ChecklistParser
 import com.averycorp.prismtask.domain.usecase.ComprehensiveImportResult
 import com.averycorp.prismtask.domain.usecase.ParsedTodoItem
 import com.averycorp.prismtask.domain.usecase.TodoListParser
@@ -115,7 +115,7 @@ constructor(
                 checklist.risks.isNotEmpty() ||
                 checklist.externalAnchors.isNotEmpty() ||
                 checklist.taskDependencies.isNotEmpty()
-        )
+            )
         if (checklist != null && hasRichExtras) {
             importComprehensive(checklist)
             return
