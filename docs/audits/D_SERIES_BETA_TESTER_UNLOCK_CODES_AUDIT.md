@@ -438,8 +438,63 @@ on a fresh worktree branched from latest `main`.
 
 ---
 
-## Phase 2 — Implementation (auto-fires after this Phase 1 lands)
+## Phase 2 — Implementation (gated on operator confirmation)
 
-Per audit-first convention, Phase 2 fires automatically. Branch:
-`feat/beta-tester-unlock-codes` (worktree off latest `main`). PR opens
-ready-for-review. Phase 3 + 4 emit pre-merge per CLAUDE.md.
+Per the operator's prompt: "Pre-condition: Phase 1 ships, no STOP fires,
+audit doc merged. Operator confirmed Phase 1's verdicts on tier-gating +
+backend infra." This overrides the audit-first skill default of auto-firing
+Phase 2; the three open questions above and the verdict on STOP-B both want
+operator eyes before the implementation PR opens.
+
+Implementation branch when greenlit: `feat/beta-tester-unlock-codes`,
+worktree off latest `main`, single PR per operator lock.
+
+---
+
+## Phase 3 — Bundle summary
+
+### Shipped this session
+
+| PR | Branch | Status | What it contains |
+|---|---|---|---|
+| **#1124** | `claude/audit-unlock-codes-j1kKZ` | open | This Phase 1 audit document (445 lines, under the 500 cap). |
+
+### Not shipped this session
+
+- **Phase 2 implementation PR** — gated on operator confirmation of
+  Phase 1 verdicts + the three open questions. Will open as
+  `feat/beta-tester-unlock-codes` when greenlit.
+- **Phase 2-adjacent** infra changes (CHANGELOG bump, version tag) —
+  defer to Phase 2 PR per repo convention.
+
+### Measured impact (audit-only, no merged code yet)
+
+- STOP-B cleared cleanly: server-authoritative `effective_tier` is the
+  existing pattern. Net Phase 2 scope ≈ ~1310 LOC vs. "rebuild
+  entitlements + add codes" (~3000+).
+- Schema corrections vs prompt's straw (BIGSERIAL → SERIAL, TEXT →
+  VARCHAR(64), Firebase UID → `users.id` FK) — saves a Phase 2
+  round-trip.
+
+### Memory entry candidates
+
+- **Backend CLI convention.** `scripts/set_admin.py` is the precedent.
+  If `scripts/beta_codes.py` ships in Phase 2 that's two CLIs — at that
+  point a memory entry earns its keep (wait-for-second-data-point rule).
+- **Server-authoritative `effective_tier` extension pattern.** Worth
+  documenting only on a third extension (beyond admin + beta-pro).
+
+### Re-baselined wall-clock estimate for Phase 2
+
+- Backend (~620 LOC): ~3–4 hr incl. local pytest GREEN.
+- CLI (~190 LOC): ~1 hr.
+- Android (~525 LOC, 2× Compose cal applied): ~3–4 hr incl. AVD smoke.
+- Multi-surface verification: ~30–60 min.
+
+**Total Phase 2 wall-clock: ~8–10 hr, single session, single PR.**
+
+### Schedule for next audit
+
+When operator greenlights Phase 2, this doc gets a final post-merge update
+with PR number + AVD verification outcome. Phase F GREEN-GO impact is
+neutral assuming clean Phase 2 landing before June 1.
