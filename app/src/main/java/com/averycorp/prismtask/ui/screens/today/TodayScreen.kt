@@ -351,6 +351,9 @@ fun TodayScreen(
                                 onDismiss = { coachingViewModel.dismissEnergyCheckIn() },
                                 onUpgrade = {
                                     navController.navigate(PrismTaskRoute.Settings.route)
+                                },
+                                onViewTrends = {
+                                    navController.navigate(PrismTaskRoute.MoodAnalytics.route)
                                 }
                             )
                         }

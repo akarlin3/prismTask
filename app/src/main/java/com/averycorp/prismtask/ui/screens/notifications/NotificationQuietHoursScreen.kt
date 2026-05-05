@@ -99,7 +99,9 @@ fun NotificationQuietHoursScreen(
 
             SubHeader("Break-through allowlist")
             Text(
-                "Urgency tiers that can still fire during quiet hours.",
+                "Urgency tiers that can still fire during quiet hours. " +
+                    "Allow High and Critical so medication doses and " +
+                    "time-sensitive reminders aren't silenced.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

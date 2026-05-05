@@ -19,7 +19,6 @@ import androidx.compose.ui.unit.dp
 import com.averycorp.prismtask.data.preferences.CelebrationIntensity
 import com.averycorp.prismtask.data.preferences.GoodEnoughEscalation
 import com.averycorp.prismtask.data.preferences.NdPreferences
-import com.averycorp.prismtask.ui.components.settings.ModeToggleRow
 import com.averycorp.prismtask.ui.components.settings.SectionHeader
 import com.averycorp.prismtask.ui.components.settings.SettingsToggleRow
 
@@ -44,16 +43,18 @@ fun BrainModeSection(
 ) {
     SectionHeader("Brain Mode")
 
-    ModeToggleRow(
-        label = "ADHD Mode",
-        enabled = ndPrefs.adhdModeEnabled,
-        onToggle = onAdhdModeChange
+    SettingsToggleRow(
+        title = "ADHD Mode",
+        subtitle = "Bigger nudges and quick-start prompts to help you begin",
+        checked = ndPrefs.adhdModeEnabled,
+        onCheckedChange = onAdhdModeChange
     )
 
-    ModeToggleRow(
-        label = "Calm Mode",
-        enabled = ndPrefs.calmModeEnabled,
-        onToggle = onCalmModeChange
+    SettingsToggleRow(
+        title = "Calm Mode",
+        subtitle = "Softer animations and gentler reminders",
+        checked = ndPrefs.calmModeEnabled,
+        onCheckedChange = onCalmModeChange
     )
 
     SettingsToggleRow(

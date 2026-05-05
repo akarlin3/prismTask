@@ -31,6 +31,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Timeline
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
@@ -182,6 +183,18 @@ fun ProjectDetailScreen(
                             }
                             null -> Unit
                         }
+                        DropdownMenuItem(
+                            text = { Text("View Roadmap") },
+                            leadingIcon = { Icon(Icons.Default.Timeline, null) },
+                            onClick = {
+                                menuOpen = false
+                                navController.navigate(
+                                    PrismTaskRoute.ProjectRoadmap.createRoute(
+                                        viewModel.projectId
+                                    )
+                                )
+                            }
+                        )
                         DropdownMenuItem(
                             text = { Text("Delete", color = prismColors.urgentAccent) },
                             leadingIcon = {

@@ -70,6 +70,16 @@ fun NotificationEscalationScreen(
 
         SectionSpacer()
         SubHeader("Steps")
+        Text(
+            text = "Each step picks how loudly that attempt fires:\n" +
+                "• Gentle ping — quiet sound, no vibration\n" +
+                "• Standard alert — your profile's normal sound + vibration\n" +
+                "• Louder + vibrate — stronger pattern, may bypass ringer\n" +
+                "• Full-screen takeover — fills the lock screen",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
         if (chain.steps.isEmpty()) {
             Text("No steps yet \u2014 add one below.", style = MaterialTheme.typography.bodyMedium)
         }

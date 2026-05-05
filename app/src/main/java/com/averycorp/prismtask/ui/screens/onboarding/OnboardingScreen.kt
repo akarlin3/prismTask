@@ -1,6 +1,11 @@
 package com.averycorp.prismtask.ui.screens.onboarding
 
+import android.Manifest
 import android.app.Activity
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
@@ -1471,11 +1476,13 @@ private fun PrivacyPage(viewModel: OnboardingViewModel) {
 
 // ─── Notifications & Briefings Page ───────────────────────────────────────
 //
-// Six default-ON notification streams. Toggling any of these here only
-// flips the local `*Enabled` flag; the POST_NOTIFICATIONS system permission
-// is still requested separately by `MainActivity` on first resume. Ordering
-// of writes is unimportant because no scheduler reads these flags during
-// onboarding.
+// Six default-ON notification streams. Toggling any of these here flips
+// the local `*Enabled` flag and — on Android 13+ — also fires the system
+// POST_NOTIFICATIONS permission dialog the first time this page is reached
+// so the user encounters the permission ask while the consent context
+// (the explanatory page they just landed on) is still on screen, instead
+// of after onboarding completes. `MainActivity.kt` keeps a re-check for
+// users who skipped the page entirely.
 
 @Composable
 private fun NotificationsPage(viewModel: OnboardingViewModel) {
@@ -1485,6 +1492,22 @@ private fun NotificationsPage(viewModel: OnboardingViewModel) {
     val overload by collectAsLocalState(viewModel.overloadAlertsEnabled, initial = true)
     val streaks by collectAsLocalState(viewModel.streakAlertsEnabled, initial = true)
     val reengagement by collectAsLocalState(viewModel.reengagementEnabled, initial = true)
+
+    val context = LocalContext.current
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { /* result handled by MainActivity's existing on-resume re-check */ }
+
+    LaunchedEffect(Unit) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val granted = context.checkSelfPermission(
+                Manifest.permission.POST_NOTIFICATIONS
+            ) == PackageManager.PERMISSION_GRANTED
+            if (!granted) {
+                permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
+    }
 
     var visible by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { visible = true }

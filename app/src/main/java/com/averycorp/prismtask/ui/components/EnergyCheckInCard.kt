@@ -26,6 +26,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -48,6 +49,7 @@ fun EnergyCheckInCard(
     onSelectEnergy: (String) -> Unit,
     onDismiss: () -> Unit,
     onUpgrade: () -> Unit,
+    onViewTrends: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     AnimatedVisibility(
@@ -161,6 +163,15 @@ fun EnergyCheckInCard(
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSecondaryContainer
                     )
+                }
+
+                if (userTier != UserTier.FREE && selectedEnergy != null) {
+                    TextButton(
+                        onClick = onViewTrends,
+                        modifier = Modifier.align(Alignment.End)
+                    ) {
+                        Text("View Trends")
+                    }
                 }
             }
         }
