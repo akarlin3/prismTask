@@ -3,9 +3,6 @@ package com.averycorp.prismtask.ui.screens.addedittask
 import androidx.lifecycle.SavedStateHandle
 import com.averycorp.prismtask.data.local.entity.TaskDependencyEntity
 import com.averycorp.prismtask.data.local.entity.TaskEntity
-import com.averycorp.prismtask.domain.model.CognitiveLoad
-import com.averycorp.prismtask.domain.model.LifeCategory
-import com.averycorp.prismtask.domain.model.TaskMode
 import com.averycorp.prismtask.data.preferences.NotificationPreferences
 import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
 import com.averycorp.prismtask.data.preferences.UserPreferencesDataStore
@@ -17,6 +14,9 @@ import com.averycorp.prismtask.data.repository.TaskDependencyRepository
 import com.averycorp.prismtask.data.repository.TaskRepository
 import com.averycorp.prismtask.data.repository.TaskTemplateRepository
 import com.averycorp.prismtask.data.repository.TaskTimingRepository
+import com.averycorp.prismtask.domain.model.CognitiveLoad
+import com.averycorp.prismtask.domain.model.LifeCategory
+import com.averycorp.prismtask.domain.model.TaskMode
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
