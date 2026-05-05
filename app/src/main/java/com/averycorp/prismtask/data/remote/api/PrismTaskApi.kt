@@ -24,6 +24,11 @@ interface PrismTaskApi {
     @GET("api/v1/auth/me")
     suspend fun getMe(): UserInfoResponse
 
+    @PATCH("api/v1/auth/me/tier")
+    suspend fun updateTier(
+        @Body request: UpdateTierRequest
+    ): UserInfoResponse
+
     @POST("api/v1/auth/register")
     suspend fun register(
         @Body request: RegisterRequest

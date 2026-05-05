@@ -46,6 +46,12 @@ data class UserInfoResponse(
     @SerializedName("effective_tier") val effectiveTier: String = "FREE"
 )
 
+data class UpdateTierRequest(
+    val tier: String,
+    @SerializedName("purchase_token") val purchaseToken: String? = null,
+    @SerializedName("product_id") val productId: String? = null
+)
+
 data class DeletionRequest(
     @SerializedName("initiated_from") val initiatedFrom: String = "android"
 )

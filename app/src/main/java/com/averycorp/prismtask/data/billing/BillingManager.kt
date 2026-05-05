@@ -17,7 +17,10 @@ import com.android.billingclient.api.PurchasesUpdatedListener
 import com.android.billingclient.api.QueryProductDetailsParams
 import com.android.billingclient.api.QueryPurchasesParams
 import com.averycorp.prismtask.BuildConfig
+import com.averycorp.prismtask.data.preferences.AuthTokenPreferences
 import com.averycorp.prismtask.data.preferences.ProStatusPreferences
+import com.averycorp.prismtask.data.remote.api.PrismTaskApi
+import com.averycorp.prismtask.data.remote.api.UpdateTierRequest
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -55,7 +58,9 @@ class BillingManager
 @Inject
 constructor(
     @ApplicationContext private val context: Context,
-    private val proStatusPreferences: ProStatusPreferences
+    private val proStatusPreferences: ProStatusPreferences,
+    private val api: PrismTaskApi,
+    private val authTokenPreferences: AuthTokenPreferences
 ) {
     companion object {
         const val PRODUCT_ID_PRO_MONTHLY = "prismtask_pro_monthly"
@@ -227,6 +232,8 @@ constructor(
         var matchedTier = UserTier.FREE
         var matchedPeriod = BillingPeriod.NONE
         var hasActivePurchase = false
+        var matchedToken: String? = null
+        var matchedProductId: String? = null
         for (purchase in purchases) {
             val period = when {
                 purchase.products.contains(PRODUCT_ID_PRO_ANNUAL) -> BillingPeriod.ANNUAL
@@ -242,6 +249,12 @@ constructor(
                     // Prefer annual over monthly if both are somehow active
                     if (period == BillingPeriod.ANNUAL || matchedPeriod == BillingPeriod.NONE) {
                         matchedPeriod = period
+                        matchedToken = purchase.purchaseToken
+                        matchedProductId = if (period == BillingPeriod.ANNUAL) {
+                            PRODUCT_ID_PRO_ANNUAL
+                        } else {
+                            PRODUCT_ID_PRO_MONTHLY
+                        }
                     }
                     hasActivePurchase = true
                 }
@@ -250,7 +263,10 @@ constructor(
             }
         }
         if (hasActivePurchase) {
-            updateTierStatus(matchedTier, matchedPeriod, SubscriptionState.SUBSCRIBED)
+            updateTierStatus(
+                matchedTier, matchedPeriod, SubscriptionState.SUBSCRIBED,
+                purchaseToken = matchedToken, productId = matchedProductId
+            )
         } else {
             updateTierStatus(UserTier.FREE, BillingPeriod.NONE, SubscriptionState.EXPIRED)
         }
@@ -303,7 +319,9 @@ constructor(
     private suspend fun updateTierStatus(
         tier: UserTier,
         period: BillingPeriod,
-        state: SubscriptionState
+        state: SubscriptionState,
+        purchaseToken: String? = null,
+        productId: String? = null
     ) {
         realTier = tier
         realPeriod = period
@@ -324,6 +342,44 @@ constructor(
             proStatusPreferences.setTierExpiresAt(0)
         }
         proStatusPreferences.setLastVerifiedAt(System.currentTimeMillis())
+        pushTierToBackend(tier, purchaseToken, productId)
+    }
+
+    /**
+     * Best-effort PATCH `/auth/me/tier` so the backend tier matches the
+     * Google Play purchase state. Without this, the server-side AI rate
+     * limiter denies every Pro endpoint with 403 because `User.tier` stays
+     * at its default "FREE". Failures are logged but do not block local
+     * Pro access — the next [restorePurchases] / [handlePurchaseUpdate]
+     * cycle will retry.
+     */
+    private fun pushTierToBackend(
+        tier: UserTier,
+        purchaseToken: String?,
+        productId: String?
+    ) {
+        // Skip when not signed in: the backend has no row to update and
+        // the call would 401. The next launch after sign-in will re-fire.
+        if (authTokenPreferences.getAccessTokenBlocking().isNullOrBlank()) return
+        // Paid tiers require a token + product_id (backend rejects with
+        // 402 otherwise). If we somehow lost the token, skip rather than
+        // PATCH a broken request that the server will reject.
+        if (tier != UserTier.FREE && (purchaseToken.isNullOrBlank() || productId.isNullOrBlank())) {
+            return
+        }
+        scope.launch {
+            try {
+                api.updateTier(
+                    UpdateTierRequest(
+                        tier = tier.name,
+                        purchaseToken = purchaseToken,
+                        productId = productId
+                    )
+                )
+            } catch (e: Exception) {
+                Log.w("BillingManager", "Backend tier sync failed (will retry next cycle)", e)
+            }
+        }
     }
 
     /**
