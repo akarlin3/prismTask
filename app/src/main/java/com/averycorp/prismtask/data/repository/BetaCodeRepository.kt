@@ -31,7 +31,7 @@ class BetaCodeRepository
 @Inject
 constructor(
     private val api: PrismTaskApi,
-    private val backendSyncService: BackendSyncService,
+    private val backendSyncService: BackendSyncService
 ) {
     suspend fun redeem(code: String): BetaRedeemOutcome {
         val trimmed = code.trim()
