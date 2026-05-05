@@ -21,6 +21,7 @@ from app.services.auth import (
     verify_firebase_token,
     verify_password,
 )
+from app.services.beta_codes import has_active_beta_pro
 from app.services.billing import validate_purchase
 
 logger = logging.getLogger(__name__)
@@ -181,8 +182,17 @@ async def refresh(request: Request, body: TokenRefresh, db: AsyncSession = Depen
 
 
 @router.get("/me", response_model=UserResponse)
-async def get_me(current_user: User = Depends(get_current_user)):
-    return current_user
+async def get_me(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return the current user. ``effective_tier`` is elevated to PRO
+    when the user has an active beta-code redemption (sync property
+    on ``User`` already handles the admin override)."""
+    payload = UserResponse.model_validate(current_user)
+    if payload.effective_tier == "FREE" and await has_active_beta_pro(db, current_user.id):
+        payload.effective_tier = "PRO"
+    return payload
 
 
 @router.patch("/me/tier", response_model=UserResponse)

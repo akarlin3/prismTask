@@ -79,6 +79,16 @@ constructor(
     private val _isAdmin = MutableStateFlow(false)
     val isAdmin: StateFlow<Boolean> = _isAdmin.asStateFlow()
 
+    /**
+     * Server-validated beta-tester Pro entitlement. Mirrors the [_isAdmin]
+     * lever so [applyEffectiveTier] forces PRO when the user has redeemed
+     * an active beta-tester unlock code. Source of truth lives on the
+     * backend (`User.effective_tier` + `beta_code_redemptions`); the client
+     * just trusts what `/auth/me` returned on the most recent fetch.
+     */
+    private val _isBetaPro = MutableStateFlow(false)
+    val isBetaPro: StateFlow<Boolean> = _isBetaPro.asStateFlow()
+
     private var realTier: UserTier = UserTier.FREE
     private var realPeriod: BillingPeriod = BillingPeriod.NONE
     private var realState: SubscriptionState = SubscriptionState.NOT_SUBSCRIBED
@@ -317,11 +327,12 @@ constructor(
     }
 
     /**
-     * Apply the effective tier, taking admin status into account.
-     * Admin users always get PRO tier.
+     * Apply the effective tier, taking admin status and beta-tester
+     * Pro entitlement into account. Either lever forces PRO regardless
+     * of the billing state.
      */
     private fun applyEffectiveTier(tier: UserTier, period: BillingPeriod, state: SubscriptionState) {
-        if (_isAdmin.value) {
+        if (_isAdmin.value || _isBetaPro.value) {
             _userTier.value = UserTier.PRO
             _billingPeriod.value = period
             _proSubscriptionState.value = SubscriptionState.SUBSCRIBED
@@ -338,6 +349,18 @@ constructor(
      */
     fun setAdminStatus(isAdmin: Boolean) {
         _isAdmin.value = isAdmin
+        if (_debugTierOverride.value == null) {
+            applyEffectiveTier(realTier, realPeriod, realState)
+        }
+    }
+
+    /**
+     * Set beta-tester Pro entitlement. Sourced from `/auth/me`'s
+     * `effective_tier` field whenever the server says PRO without a
+     * matching billing or admin signal.
+     */
+    fun setBetaProStatus(isBetaPro: Boolean) {
+        _isBetaPro.value = isBetaPro
         if (_debugTierOverride.value == null) {
             applyEffectiveTier(realTier, realPeriod, realState)
         }

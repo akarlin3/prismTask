@@ -103,6 +103,11 @@ class NaturalLanguageParserTest {
         override suspend fun purgeAccount(): retrofit2.Response<Unit> =
             error("not used in offline parser tests")
 
+        override suspend fun redeemBetaCode(
+            request: com.averycorp.prismtask.data.remote.api.BetaRedeemRequest
+        ): com.averycorp.prismtask.data.remote.api.BetaRedeemResponse =
+            error("not used in offline parser tests")
+
         override suspend fun parseTask(request: ParseRequest): ParsedTaskResponse =
             error("not used in offline parser tests")
 

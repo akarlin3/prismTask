@@ -117,7 +117,16 @@ class User(Base):
 
     @property
     def effective_tier(self) -> str:
-        """Return PRO for admins, otherwise the stored tier."""
+        """Return PRO for admins, otherwise the stored tier.
+
+        Beta-code Pro entitlement is NOT computed here — that requires a
+        DB lookup against ``beta_code_redemptions`` and is resolved in
+        the ``/auth/me`` handler via
+        ``app.services.beta_codes.has_active_beta_pro``. Keeping this
+        property sync + DB-free preserves its use in eager serialization
+        contexts (e.g. test fixtures that read ``user.effective_tier``
+        without a session).
+        """
         if self.is_admin:
             return "PRO"
         return self.tier or "FREE"
@@ -738,3 +747,51 @@ class RtdnEvent(Base):
         nullable=False,
         index=True,
     )
+
+
+class BetaCode(Base):
+    """Admin-issued unlock code that grants Pro tier on redemption.
+
+    Per ``docs/audits/D_SERIES_BETA_TESTER_UNLOCK_CODES_AUDIT.md``.
+    Codes are account-bound: a single account cannot redeem the same
+    code twice, but ``max_redemptions`` distinct accounts can each
+    redeem it once. ``revoked_at`` marks the code unusable for *future*
+    redemptions; existing redemptions stay valid until their snapshot
+    ``grants_pro_until`` expires.
+    """
+
+    __tablename__ = "beta_codes"
+
+    code = Column(String(64), primary_key=True)
+    description = Column(String(500), nullable=True)
+    valid_from = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    valid_until = Column(DateTime(timezone=True), nullable=True)
+    grants_pro_until = Column(DateTime(timezone=True), nullable=True)
+    max_redemptions = Column(Integer, nullable=True)
+    redemption_count = Column(Integer, server_default="0", default=0, nullable=False)
+    revoked_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    redemptions = relationship(
+        "BetaCodeRedemption", back_populates="code_row", cascade="all, delete-orphan"
+    )
+
+
+class BetaCodeRedemption(Base):
+    """Per-(code, user) redemption row. ``grants_pro_until`` snapshots
+    the code's value at redemption time so a later code revoke does not
+    retroactively expire active redemptions."""
+
+    __tablename__ = "beta_code_redemptions"
+    __table_args__ = (
+        UniqueConstraint("code", "user_id", name="uq_beta_redeem_code_user"),
+    )
+
+    id = Column(Integer, primary_key=True)
+    code = Column(String(64), ForeignKey("beta_codes.code"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    redeemed_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    grants_pro_until = Column(DateTime(timezone=True), nullable=True)
+
+    code_row = relationship("BetaCode", back_populates="redemptions")
+    user = relationship("User")

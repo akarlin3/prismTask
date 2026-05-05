@@ -112,6 +112,10 @@ class FakePrismTaskApi : PrismTaskApi {
 
     override suspend fun purgeAccount(): retrofit2.Response<Unit> = error("Not used in offline tests")
 
+    override suspend fun redeemBetaCode(
+        request: com.averycorp.prismtask.data.remote.api.BetaRedeemRequest
+    ) = error("Not used in offline tests")
+
     override suspend fun parseTask(
         request: com.averycorp.prismtask.data.remote.api.ParseRequest
     ) = error("Not used in offline tests")

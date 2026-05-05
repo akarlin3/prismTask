@@ -58,6 +58,11 @@ interface PrismTaskApi {
     @POST("api/v1/auth/me/purge")
     suspend fun purgeAccount(): retrofit2.Response<Unit>
 
+    @POST("api/v1/beta/redeem")
+    suspend fun redeemBetaCode(
+        @Body request: BetaRedeemRequest
+    ): BetaRedeemResponse
+
     @POST("api/v1/tasks/parse")
     suspend fun parseTask(
         @Body request: ParseRequest

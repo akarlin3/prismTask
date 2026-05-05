@@ -16,6 +16,7 @@ import com.averycorp.prismtask.ui.screens.settings.AccountSyncScreen
 import com.averycorp.prismtask.ui.screens.settings.AdvancedTuningScreen
 import com.averycorp.prismtask.ui.screens.settings.AiFeaturesScreen
 import com.averycorp.prismtask.ui.screens.settings.AppearanceScreen
+import com.averycorp.prismtask.ui.screens.settings.BetaCodeRedemptionScreen
 import com.averycorp.prismtask.ui.screens.settings.BrainModeScreen
 import com.averycorp.prismtask.ui.screens.settings.CalendarScreen
 import com.averycorp.prismtask.ui.screens.settings.DataBackupScreen
@@ -38,6 +39,7 @@ internal fun NavGraphBuilder.settingsSubScreenRoutes(navController: NavHostContr
     listOf<Pair<String, @Composable () -> Unit>>(
         "settings/account_sync" to { AccountSyncScreen(navController) },
         "settings/subscription" to { SubscriptionScreen(navController) },
+        "settings/beta_code" to { BetaCodeRedemptionScreen(navController) },
         "settings/appearance" to { AppearanceScreen(navController) },
         "settings/layout" to { LayoutScreen(navController) },
         "settings/task_defaults" to { TaskDefaultsScreen(navController) },

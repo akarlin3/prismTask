@@ -50,6 +50,15 @@ data class DeletionRequest(
     @SerializedName("initiated_from") val initiatedFrom: String = "android"
 )
 
+data class BetaRedeemRequest(
+    val code: String
+)
+
+data class BetaRedeemResponse(
+    val granted: Boolean,
+    @SerializedName("pro_until") val proUntil: String? = null
+)
+
 data class DeletionStatusResponse(
     @SerializedName("deletion_pending_at") val deletionPendingAt: String? = null,
     @SerializedName("deletion_scheduled_for") val deletionScheduledFor: String? = null,

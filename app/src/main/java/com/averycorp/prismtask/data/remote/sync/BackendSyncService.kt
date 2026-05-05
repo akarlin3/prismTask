@@ -126,10 +126,18 @@ constructor(
         try {
             val userInfo = api.getMe()
             billingManager.setAdminStatus(userInfo.isAdmin)
+            // Beta-tester Pro: server reports PRO via effective_tier but
+            // the user is neither admin nor a paid PRO. The remaining
+            // path is an active beta-code redemption — extend the
+            // existing _isAdmin override pattern with a parallel lever.
+            val betaPro = userInfo.effectiveTier == "PRO" &&
+                !userInfo.isAdmin &&
+                userInfo.tier != "PRO"
+            billingManager.setBetaProStatus(betaPro)
             logger.debug(
                 operation = "auth.admin_status",
                 status = "fetched",
-                detail = "isAdmin=${userInfo.isAdmin}"
+                detail = "isAdmin=${userInfo.isAdmin} betaPro=$betaPro"
             )
         } catch (e: Exception) {
             logger.warn(

@@ -178,6 +178,13 @@ fun SettingsScreen(
                             iconBgColor = ColSubscription,
                             onClick = { navController.navigate("settings/subscription") }
                         )
+                        SettingsNavRow(
+                            title = "Redeem Beta Code",
+                            subtitle = "Unlock Pro with a tester code",
+                            iconEmoji = "\uD83C\uDFAB",
+                            iconBgColor = ColSubscription,
+                            onClick = { navController.navigate("settings/beta_code") }
+                        )
                     }
                 }
 
