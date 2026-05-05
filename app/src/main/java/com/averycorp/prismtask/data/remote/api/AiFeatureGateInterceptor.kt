@@ -88,13 +88,19 @@ constructor(
          * Path prefixes that egress user data to Anthropic via the backend.
          * Sourced from `docs/audits/PII_EGRESS_AUDIT.md` Section 1.
          *
+         * Prefixes must match the *full* outbound URL path (including the
+         * `/api/v1` API version prefix), because OkHttp interceptors see
+         * the resolved Retrofit baseUrl + endpoint path — not the relative
+         * Retrofit annotation path. Stripping the version prefix here
+         * silently disables the gate for every real production request.
+         *
          * Keep in sync with `backend/app/middleware/ai_gate.py` and the
          * router-level dependency wiring on the backend.
          */
         val AI_PATH_PREFIXES: List<String> = listOf(
-            "/ai/",
-            "/tasks/parse",
-            "/syllabus/parse",
+            "/api/v1/ai/",
+            "/api/v1/tasks/parse",
+            "/api/v1/syllabus/parse",
             // PII egress to Anthropic via Gmail scan — the integrations
             // router landed two weeks before PR #790 and the original audit
             // missed it; closed by 2026-05-01 follow-up. The precise
@@ -102,7 +108,7 @@ constructor(
             // suggestion inbox / accept / reject endpoints under
             // `/integrations/suggestions*` do NOT call Anthropic and must
             // keep working when the user opts out.
-            "/integrations/gmail/scan"
+            "/api/v1/integrations/gmail/scan"
         )
     }
 }

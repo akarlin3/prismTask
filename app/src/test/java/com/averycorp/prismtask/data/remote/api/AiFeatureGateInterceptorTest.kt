@@ -80,7 +80,7 @@ class AiFeatureGateInterceptorTest {
 
     @Test
     fun `passes through when AI is enabled and path is AI-touching`() {
-        val req = requestTo("https://api.prismtask.app/ai/batch/parse")
+        val req = requestTo("https://api.prismtask.app/api/v1/ai/batch/parse")
         every { prefs.isAiFeaturesEnabledBlocking() } returns true
         every { chain.request() } returns req
         every { chain.proceed(req) } returns successResponse(req)
@@ -93,7 +93,7 @@ class AiFeatureGateInterceptorTest {
 
     @Test
     fun `passes through non-AI path even when AI is disabled`() {
-        val req = requestTo("https://api.prismtask.app/tasks/list", method = "GET")
+        val req = requestTo("https://api.prismtask.app/api/v1/tasks/list", method = "GET")
         every { prefs.isAiFeaturesEnabledBlocking() } returns false
         every { chain.request() } returns req
         every { chain.proceed(req) } returns successResponse(req)
@@ -108,7 +108,7 @@ class AiFeatureGateInterceptorTest {
 
     @Test
     fun `short-circuits AI request when AI is disabled — chain proceed NEVER called`() {
-        val req = requestTo("https://api.prismtask.app/ai/batch/parse")
+        val req = requestTo("https://api.prismtask.app/api/v1/ai/batch/parse")
         every { prefs.isAiFeaturesEnabledBlocking() } returns false
         every { chain.request() } returns req
 
@@ -126,7 +126,7 @@ class AiFeatureGateInterceptorTest {
 
     @Test
     fun `synthetic response carries the disabled X-PrismTask-AI-Features header`() {
-        val req = requestTo("https://api.prismtask.app/ai/batch/parse")
+        val req = requestTo("https://api.prismtask.app/api/v1/ai/batch/parse")
         every { prefs.isAiFeaturesEnabledBlocking() } returns false
         every { chain.request() } returns req
 
@@ -140,7 +140,7 @@ class AiFeatureGateInterceptorTest {
 
     @Test
     fun `synthetic response body is parseable JSON with a detail field`() {
-        val req = requestTo("https://api.prismtask.app/ai/batch/parse")
+        val req = requestTo("https://api.prismtask.app/api/v1/ai/batch/parse")
         every { prefs.isAiFeaturesEnabledBlocking() } returns false
         every { chain.request() } returns req
 
@@ -190,14 +190,17 @@ class AiFeatureGateInterceptorTest {
     fun `non-AI paths do NOT trigger the gate even when AI is disabled`() {
         every { prefs.isAiFeaturesEnabledBlocking() } returns false
 
-        // Paths that should NOT match any AI_PATH_PREFIXES entry.
+        // Paths that should NOT match any AI_PATH_PREFIXES entry. These
+        // mirror real production URL paths (Retrofit baseUrl + endpoint
+        // resolves to `/api/v1/...`), so the gate must distinguish AI-
+        // touching paths from sibling non-AI paths under the same prefix.
         val nonAiPaths = listOf(
-            "/tasks/list",
-            "/tasks/123/complete",
-            "/habits/today",
-            "/sync/push",
-            "/auth/me",
-            "/projects/active"
+            "/api/v1/tasks/list",
+            "/api/v1/tasks/123/complete",
+            "/api/v1/habits/today",
+            "/api/v1/sync/push",
+            "/api/v1/auth/me",
+            "/api/v1/projects/active"
         )
 
         nonAiPaths.forEach { path ->
@@ -215,10 +218,10 @@ class AiFeatureGateInterceptorTest {
 
     @Test
     fun `tasks slash list does NOT match the tasks slash parse prefix`() {
-        // Defensive — `/tasks/parse` is the prefix; `/tasks/list` shares
-        // the `/tasks/` root but must not be gated. Catches a regression
-        // where someone shortens the prefix to `/tasks/`.
-        val req = requestTo("https://api.prismtask.app/tasks/list", method = "GET")
+        // Defensive — `/api/v1/tasks/parse` is the prefix; `/api/v1/tasks/list`
+        // shares the `/api/v1/tasks/` root but must not be gated. Catches a
+        // regression where someone shortens the prefix to `/api/v1/tasks/`.
+        val req = requestTo("https://api.prismtask.app/api/v1/tasks/list", method = "GET")
         every { prefs.isAiFeaturesEnabledBlocking() } returns false
         every { chain.request() } returns req
         every { chain.proceed(req) } returns successResponse(req)
@@ -231,7 +234,7 @@ class AiFeatureGateInterceptorTest {
 
     @Test
     fun `disabled flag is checked once per intercept call`() {
-        val req = requestTo("https://api.prismtask.app/ai/batch/parse")
+        val req = requestTo("https://api.prismtask.app/api/v1/ai/batch/parse")
         every { prefs.isAiFeaturesEnabledBlocking() } returns false
         every { chain.request() } returns req
 
@@ -245,7 +248,7 @@ class AiFeatureGateInterceptorTest {
         // Optimization invariant — if the path is non-AI, the interceptor
         // must NOT call `isAiFeaturesEnabledBlocking()` (avoids a DataStore
         // read on every non-AI request).
-        val req = requestTo("https://api.prismtask.app/tasks/list", method = "GET")
+        val req = requestTo("https://api.prismtask.app/api/v1/tasks/list", method = "GET")
         every { chain.request() } returns req
         every { chain.proceed(req) } returns successResponse(req)
 
@@ -253,9 +256,9 @@ class AiFeatureGateInterceptorTest {
 
         verify(exactly = 0) { prefs.isAiFeaturesEnabledBlocking() }
         assertFalse(
-            "AI path matcher must reject /tasks/list",
+            "AI path matcher must reject /api/v1/tasks/list",
             AiFeatureGateInterceptor.AI_PATH_PREFIXES.any {
-                "/tasks/list".startsWith(it)
+                "/api/v1/tasks/list".startsWith(it)
             }
         )
     }
@@ -268,7 +271,7 @@ class AiFeatureGateInterceptorTest {
         // Gmail scan endpoint (which ships email subjects/snippets to
         // Anthropic) must NOT make a network call. Closes the gap from
         // `cowork_outputs/pii_leak_surface_reaudit_REPORT.md` (2026-05-01).
-        val req = requestTo("https://api.prismtask.app/integrations/gmail/scan")
+        val req = requestTo("https://api.prismtask.app/api/v1/integrations/gmail/scan")
         every { prefs.isAiFeaturesEnabledBlocking() } returns false
         every { chain.request() } returns req
 
@@ -287,7 +290,7 @@ class AiFeatureGateInterceptorTest {
         // Happy path — when the user has AI enabled, the request proceeds
         // unchanged and the interceptor does NOT inject the disable header
         // (otherwise the backend would 451 the opted-in user).
-        val req = requestTo("https://api.prismtask.app/integrations/gmail/scan")
+        val req = requestTo("https://api.prismtask.app/api/v1/integrations/gmail/scan")
         every { prefs.isAiFeaturesEnabledBlocking() } returns true
         every { chain.request() } returns req
         val captured = slot<okhttp3.Request>()
@@ -312,7 +315,7 @@ class AiFeatureGateInterceptorTest {
         // into a real `chain.proceed`, the header is already present so
         // the server-side `require_ai_features_enabled` dependency still
         // rejects the call.
-        val req = requestTo("https://api.prismtask.app/integrations/gmail/scan")
+        val req = requestTo("https://api.prismtask.app/api/v1/integrations/gmail/scan")
         every { prefs.isAiFeaturesEnabledBlocking() } returns false
         every { chain.request() } returns req
 
@@ -336,12 +339,12 @@ class AiFeatureGateInterceptorTest {
         every { prefs.isAiFeaturesEnabledBlocking() } returns false
 
         val nonAnthropicIntegrationPaths = listOf(
-            "/integrations/suggestions",
-            "/integrations/suggestions/42/accept",
-            "/integrations/suggestions/42/reject",
-            "/integrations/suggestions/batch",
-            "/integrations/calendar/status",
-            "/integrations/calendar/authorize"
+            "/api/v1/integrations/suggestions",
+            "/api/v1/integrations/suggestions/42/accept",
+            "/api/v1/integrations/suggestions/42/reject",
+            "/api/v1/integrations/suggestions/batch",
+            "/api/v1/integrations/calendar/status",
+            "/api/v1/integrations/calendar/authorize"
         )
 
         nonAnthropicIntegrationPaths.forEach { path ->
