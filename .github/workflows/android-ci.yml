@@ -277,6 +277,40 @@ jobs:
       - name: Compile androidTest sources (type-check only)
         if: always() && steps.relevance.outputs.android == 'true'
         run: ./gradlew compileDebugAndroidTestKotlin --continue
+      # Robolectric's MavenArtifactFetcher downloads the instrumented Android
+      # SDK jar to ~/.m2/repository at test runtime. Its retry semantics are
+      # weak (no exponential backoff, no --retry-all-errors equivalent), so a
+      # single transient Maven Central CDN 404 wipes out every Robolectric
+      # test class — run 25356775019 hit this and 89 unit tests across 13
+      # classes failed with FileNotFoundException on
+      # `13-robolectric-9030017-i6.{jar,pom,*.sha512}` even though the
+      # artifacts exist. Pre-fetching with curl --retry seeds the cache so
+      # the runtime fetcher finds it locally and skips the network entirely.
+      #
+      # Pin: SDK 13 (API 33) is what every @Config(sdk = [33]) test uses,
+      # and -i6 is Robolectric 4.13's instrumentation level. Bumping
+      # Robolectric in app/build.gradle.kts requires updating the i6 suffix
+      # below (4.14 → i7).
+      - name: Prefetch Robolectric SDK 33 (Maven Central flake guard)
+        if: always() && steps.relevance.outputs.android == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="13-robolectric-9030017-i6"
+          DEP_DIR="$HOME/.m2/repository/org/robolectric/android-all-instrumented/${VERSION}"
+          BASE_URL="https://repo1.maven.org/maven2/org/robolectric/android-all-instrumented/${VERSION}"
+          ARTIFACT="android-all-instrumented-${VERSION}"
+          mkdir -p "$DEP_DIR"
+          for ext in jar pom jar.sha512 pom.sha512; do
+            file="${ARTIFACT}.${ext}"
+            if [ -s "$DEP_DIR/$file" ]; then
+              echo "cached: $file"
+              continue
+            fi
+            curl -fsSL --retry 5 --retry-delay 5 --retry-all-errors \
+              -o "$DEP_DIR/$file" "$BASE_URL/$file"
+            echo "fetched: $file ($(stat -c%s "$DEP_DIR/$file") bytes)"
+          done
       - name: Unit tests
         # `set -o pipefail` is on by default in GitHub's bash shell, but we
         # make it explicit so a regression in the shell config can't hide a
