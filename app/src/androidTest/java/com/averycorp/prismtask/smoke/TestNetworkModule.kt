@@ -86,6 +86,25 @@ class FakePrismTaskApi : PrismTaskApi {
         )
     }
 
+    override suspend fun updateTier(
+        request: com.averycorp.prismtask.data.remote.api.UpdateTierRequest
+    ): UserInfoResponse {
+        // Smoke tests don't exercise Google Play Billing → backend sync;
+        // BillingManager fires this best-effort on every state change so a
+        // synthetic offline failure here is fine. The success branch echoes
+        // back the requested tier so callers that read the response see a
+        // consistent shape with /auth/me.
+        requireOnline()
+        return UserInfoResponse(
+            id = 1,
+            email = "test@example.com",
+            name = "Test",
+            tier = request.tier,
+            isAdmin = false,
+            effectiveTier = request.tier
+        )
+    }
+
     override suspend fun register(
         request: com.averycorp.prismtask.data.remote.api.RegisterRequest
     ) = error("Not used in offline tests")
