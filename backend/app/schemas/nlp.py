@@ -23,6 +23,12 @@ class ParseRequest(BaseModel):
     # A task title is at most a few hundred characters; cap generously at 2k
     # to prevent the unauthenticated endpoint being used as a token sink.
     text: str = Field(..., min_length=1, max_length=2_000)
+    # Optional Start-of-Day hour/minute forwarded from the Android client so
+    # "today"/"tomorrow" in the prompt resolves to the user's *logical* day
+    # rather than calendar midnight UTC. Older clients omit these fields and
+    # the server falls back to ``date.today()``.
+    start_of_day_hour: Optional[int] = Field(default=None, ge=0, le=23)
+    start_of_day_minute: Optional[int] = Field(default=None, ge=0, le=59)
 
 
 class ParseResponse(ParsedTask):

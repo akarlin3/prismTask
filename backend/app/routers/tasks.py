@@ -1,7 +1,7 @@
 import json
 import logging
 import os
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Request, status
 from pydantic import BaseModel
@@ -236,6 +236,33 @@ async def create_subtask(
     return _task_to_response(subtask, [])
 
 
+def _logical_today(
+    now: datetime,
+    sod_hour: int | None,
+    sod_minute: int | None,
+) -> date:
+    """Return the user's *logical* calendar date for [now], honoring
+    Start-of-Day when the client supplied it.
+
+    Server is intentionally TZ-naive (no auth context, no per-user TZ —
+    ``date.today()`` already runs in the server's local zone), so we
+    honor SoD by comparing wall-clock minutes. With SoD = 4 AM and the
+    server's local time = 02:00 the logical day is "yesterday", so the
+    parser receives yesterday's date — matching the on-device behavior.
+
+    When ``sod_hour`` is None (older clients), falls back to the
+    calendar date for [now] — exactly what ``date.today()`` returns.
+    """
+    today = now.date()
+    if sod_hour is None:
+        return today
+    minutes_now = now.hour * 60 + now.minute
+    minutes_sod = sod_hour * 60 + (sod_minute or 0)
+    if minutes_now < minutes_sod:
+        return today - timedelta(days=1)
+    return today
+
+
 @router.post(
     "/tasks/parse",
     response_model=ParseResponse,
@@ -254,7 +281,12 @@ async def parse_task(data: ParseRequest, request: Request):
     parse_rate_limiter.check(request)
     try:
         from app.services.nlp_parser import parse_task_input
-        parsed = parse_task_input(data.text, [], date.today())
+        today = _logical_today(
+            datetime.now(),
+            sod_hour=data.start_of_day_hour,
+            sod_minute=data.start_of_day_minute,
+        )
+        parsed = parse_task_input(data.text, [], today)
     except (ValueError, RuntimeError) as e:
         raise HTTPException(status_code=422, detail=str(e))
 

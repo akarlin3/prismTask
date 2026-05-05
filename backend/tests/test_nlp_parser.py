@@ -236,3 +236,52 @@ class TestNlpParser:
              patch.object(settings, "ANTHROPIC_API_KEY", ""):
             with pytest.raises(RuntimeError, match="ANTHROPIC_API_KEY"):
                 parse_task_input("Test task", [], date(2026, 4, 6))
+
+
+class TestLogicalToday:
+    """The /tasks/parse handler resolves "today" against the user's
+    Start-of-Day so "buy milk today" at 02:00 with SoD = 04:00 dates the
+    task to yesterday's calendar date — matching the on-device parser and
+    every other surface that honors SoD.
+    """
+
+    def test_returns_calendar_date_when_sod_not_supplied(self):
+        from datetime import datetime
+        from app.routers.tasks import _logical_today
+
+        # Older Android builds omit start_of_day_*; behavior matches
+        # date.today() for backwards compatibility.
+        now = datetime(2026, 5, 15, 2, 0)
+        assert _logical_today(now, sod_hour=None, sod_minute=None) == date(2026, 5, 15)
+
+    def test_returns_previous_day_when_now_is_before_sod(self):
+        from datetime import datetime
+        from app.routers.tasks import _logical_today
+
+        # 02:00 < 04:00 SoD → still inside the previous logical day.
+        now = datetime(2026, 5, 15, 2, 0)
+        assert _logical_today(now, sod_hour=4, sod_minute=0) == date(2026, 5, 14)
+
+    def test_returns_current_day_when_now_is_after_sod(self):
+        from datetime import datetime
+        from app.routers.tasks import _logical_today
+
+        # 06:00 > 04:00 SoD → already in the new logical day.
+        now = datetime(2026, 5, 15, 6, 0)
+        assert _logical_today(now, sod_hour=4, sod_minute=0) == date(2026, 5, 15)
+
+    def test_honors_minute_precision_at_boundary(self):
+        from datetime import datetime
+        from app.routers.tasks import _logical_today
+
+        # 04:15 with SoD = 04:30 → still 15 minutes before SoD → previous day.
+        now = datetime(2026, 5, 15, 4, 15)
+        assert _logical_today(now, sod_hour=4, sod_minute=30) == date(2026, 5, 14)
+
+    def test_handles_midnight_sod_as_calendar_today(self):
+        from datetime import datetime
+        from app.routers.tasks import _logical_today
+
+        # SoD = 00:00 (default) means logical day == calendar day at any hour.
+        now = datetime(2026, 5, 15, 2, 0)
+        assert _logical_today(now, sod_hour=0, sod_minute=0) == date(2026, 5, 15)

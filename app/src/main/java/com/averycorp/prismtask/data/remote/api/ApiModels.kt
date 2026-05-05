@@ -73,7 +73,16 @@ data class DeletionStatusResponse(
 // region Tasks
 
 data class ParseRequest(
-    val text: String
+    val text: String,
+    /**
+     * User's Start-of-Day hour (0..23). When supplied, the backend
+     * resolves "today"/"tomorrow" relative to the user's *logical* day
+     * — matching how habits, streaks, and the on-device parser behave.
+     * Null falls back to calendar today on the server side, which keeps
+     * older Android builds working unchanged.
+     */
+    @SerializedName("start_of_day_hour") val startOfDayHour: Int? = null,
+    @SerializedName("start_of_day_minute") val startOfDayMinute: Int? = null
 )
 
 data class ParsedTaskResponse(
