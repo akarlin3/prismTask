@@ -77,6 +77,10 @@ class NaturalLanguageParserTest {
         override suspend fun getMe(): UserInfoResponse =
             error("not used in offline parser tests")
 
+        override suspend fun updateTier(
+            request: com.averycorp.prismtask.data.remote.api.UpdateTierRequest
+        ): UserInfoResponse = error("not used in offline parser tests")
+
         override suspend fun register(request: RegisterRequest): TokenResponse =
             error("not used in offline parser tests")
 
