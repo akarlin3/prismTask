@@ -165,7 +165,10 @@ class EisenhowerViewModelTest {
     }
 
     @Test
-    fun reclassify_delegatesToRepository() = runTest(dispatcher) {
+    fun reclassify_proTierDelegatesToRepository() = runTest(dispatcher) {
+        every { proFeatureGate.hasAccess(ProFeatureGate.AI_EISENHOWER) } returns true
+        coEvery { taskRepository.reclassify(99L) } returns Result.success(Unit)
+
         val vm = newViewModel()
         advanceUntilIdle()
 
@@ -173,6 +176,37 @@ class EisenhowerViewModelTest {
         advanceUntilIdle()
 
         coVerify { taskRepository.reclassify(99L) }
+        assertEquals(EisenhowerUiState.Idle, vm.uiState.value)
+    }
+
+    @Test
+    fun reclassify_freeTierShowsUpgradePromptAndSkipsRepository() = runTest(dispatcher) {
+        every { proFeatureGate.hasAccess(ProFeatureGate.AI_EISENHOWER) } returns false
+
+        val vm = newViewModel()
+        advanceUntilIdle()
+
+        vm.reclassify(99L)
+        advanceUntilIdle()
+
+        assertTrue(vm.showUpgradePrompt.value)
+        coVerify(exactly = 0) { taskRepository.reclassify(any()) }
+    }
+
+    @Test
+    fun reclassify_aiFailureSurfacesErrorState() = runTest(dispatcher) {
+        every { proFeatureGate.hasAccess(ProFeatureGate.AI_EISENHOWER) } returns true
+        coEvery { taskRepository.reclassify(99L) } returns
+            Result.failure(IllegalStateException("Backend down"))
+
+        val vm = newViewModel()
+        advanceUntilIdle()
+
+        vm.reclassify(99L)
+        advanceUntilIdle()
+
+        val state = vm.uiState.value
+        assertTrue(state is EisenhowerUiState.Error)
     }
 
     @Test
