@@ -17,7 +17,7 @@ import pytest
 from sqlalchemy import select
 
 from app.models import BetaCode
-from tests.conftest import TestSessionLocal, engine as test_engine
+from tests.conftest import TestSessionLocal
 
 
 # Load scripts/beta_codes.py as a module without importing through the
