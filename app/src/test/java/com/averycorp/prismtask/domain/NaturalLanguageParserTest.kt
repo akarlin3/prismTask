@@ -707,7 +707,9 @@ class NaturalLanguageParserTest {
         val provider = object : com.averycorp.prismtask.data.preferences.StartOfDayProvider {
             override suspend fun current() =
                 com.averycorp.prismtask.data.preferences.StartOfDay(
-                    hour = 4, minute = 0, hasBeenSet = true
+                    hour = 4,
+                    minute = 0,
+                    hasBeenSet = true
                 )
         }
         val sodParser = NaturalLanguageParser(
@@ -735,7 +737,9 @@ class NaturalLanguageParserTest {
         val provider = object : com.averycorp.prismtask.data.preferences.StartOfDayProvider {
             override suspend fun current() =
                 com.averycorp.prismtask.data.preferences.StartOfDay(
-                    hour = 4, minute = 0, hasBeenSet = true
+                    hour = 4,
+                    minute = 0,
+                    hasBeenSet = true
                 )
         }
         val sodParser = NaturalLanguageParser(
