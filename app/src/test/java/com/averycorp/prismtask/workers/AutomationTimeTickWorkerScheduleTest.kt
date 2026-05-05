@@ -23,8 +23,11 @@ class AutomationTimeTickWorkerScheduleTest {
 
     @Test
     fun midMinute_returnsTimeUntilNextBoundary() {
-        // 1_000_000_023_500 % 60_000 = 23_500 → 36_500 ms until next minute.
-        val now = 1_000_000_023_500L
+        // 1_000_000_043_500 % 60_000 = 23_500 → 36_500 ms until next minute.
+        // (Anchored to 1_000_000_020_000, which is 16_666_667 * 60_000 — a
+        // real minute boundary; 1_000_000_000_000 is *not* on a boundary.)
+        val now = 1_000_000_043_500L
+        assertEquals(23_500L, now % 60_000L) // sanity
         val delay = AutomationTimeTickWorker.computeNextMinuteBoundaryDelayMs(now)
         assertEquals(36_500L, delay)
     }
@@ -82,8 +85,10 @@ class AutomationTimeTickWorkerScheduleTest {
         // land exactly 60 minutes later — i.e. the helper produces
         // boundaries at exact 60_000ms intervals once the first delay
         // catches up to the boundary.
-        var now = 1_000_000_023_500L // 23.5s into a minute
-        // First call brings us to the boundary (36.5s away).
+        var now = 1_000_000_043_500L // 23.5s past the boundary at 1_000_000_020_000
+        assertEquals(23_500L, now % 60_000L) // sanity
+
+        // First call brings us to the next boundary (36.5s away → 1_000_000_080_000).
         val firstDelay = AutomationTimeTickWorker.computeNextMinuteBoundaryDelayMs(now)
         now += firstDelay
         assertEquals(0L, now % 60_000L) // landed on a boundary
@@ -95,8 +100,8 @@ class AutomationTimeTickWorkerScheduleTest {
             now += delay
         }
 
-        // 60 * 60_000 ms after landing on the boundary = 60 minutes later.
-        val expected = 1_000_000_060_000L + 60L * 60_000L
+        // 60 * 60_000 ms after landing on the boundary at 1_000_000_080_000.
+        val expected = 1_000_000_080_000L + 60L * 60_000L
         assertEquals(expected, now)
     }
 
