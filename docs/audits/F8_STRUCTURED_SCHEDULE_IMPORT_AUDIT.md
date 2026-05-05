@@ -488,10 +488,23 @@ Sorted by **wall-clock-savings ÷ implementation-cost**.
 
 ## Phase 2 status
 
-**BLOCKED.** Phase 2 does not auto-fire. Operator decision needed on the
-6 open questions above. Audit doc is the deliverable for this session;
-implementation deliberately deferred per skill's "STOP-and-report on wrong
-premises" rule.
+**Originally BLOCKED.** Operator unblocked mid-session by picking Path A
+and asking that nothing be deferred. Phase 2 work shipped in the same PR
+as the audit doc; see Phase 3 below for what landed.
+
+Operator decisions taken on the 6 open questions:
+
+1. Path A (extend `parse-checklist`, client-side, ~1000 LOC).
+2. Firestore sync verified GREEN — `SyncService.kt` + `SyncMapper.kt`
+   already push/pull/delta-sync `ProjectPhaseEntity`, `ProjectRiskEntity`,
+   `MilestoneEntity`, `TaskDependencyEntity`, `ExternalAnchorEntity`. No
+   sync-layer change needed.
+3. Tier-gating: keep existing 10/hr + 100/Pro/day shared cap (parse-checklist
+   is the existing surface; reusing its limiter avoids splitting budget).
+4. Cost displacement: moot since (3) keeps existing cap.
+5. Multi-format: ship test fixtures + integration test gate. Implemented.
+6. "No second API call" interpreted as "no second Claude call" — the
+   parse + materialise flow uses one Claude call followed by DB inserts.
 
 ---
 
@@ -499,7 +512,7 @@ premises" rule.
 
 | PR | Status | Description |
 | --- | --- | --- |
-| (none) | — | No implementation PRs opened. Audit-only deliverable. |
+| #1135 | Open (this audit + Phase 2) | Audit doc + Path A implementation: backend schema + prompt + tests + fixtures + Android DTO + ChecklistParser + ProjectListViewModel materialisation |
 
 **Re-baselined wall-clock estimate:** Path A ~1 working day single PR;
 Path B ~3–5 working days fan-out (5+ PRs). Includes server migrations,

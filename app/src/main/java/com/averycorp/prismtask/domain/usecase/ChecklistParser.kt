@@ -17,7 +17,39 @@ data class ComprehensiveImportResult(
     val course: ParsedCourse,
     val project: ParsedProject,
     val tags: List<ParsedTag>,
-    val tasks: List<ChecklistParsedTask>
+    val tasks: List<ChecklistParsedTask>,
+    // F.8 project-import extensions. Default empty so existing schoolwork
+    // callers (which ignore them) are unaffected.
+    val phases: List<ParsedProjectPhaseDomain> = emptyList(),
+    val risks: List<ParsedProjectRiskDomain> = emptyList(),
+    val externalAnchors: List<ParsedExternalAnchorDomain> = emptyList(),
+    val taskDependencies: List<ParsedTaskDependencyDomain> = emptyList()
+)
+
+data class ParsedProjectPhaseDomain(
+    val name: String,
+    val description: String?,
+    val startDate: Long?,
+    val endDate: Long?,
+    val orderIndex: Int
+)
+
+data class ParsedProjectRiskDomain(
+    val title: String,
+    val description: String?,
+    val level: String
+)
+
+data class ParsedExternalAnchorDomain(
+    val title: String,
+    val type: String,
+    val phaseName: String?,
+    val targetDate: Long?
+)
+
+data class ParsedTaskDependencyDomain(
+    val blockerTitle: String,
+    val blockedTitle: String
 )
 
 data class ParsedCourse(
@@ -54,7 +86,9 @@ data class ChecklistParsedTask(
     val completed: Boolean,
     val tags: List<String>,
     val subtasks: List<ChecklistParsedTask>,
-    val estimatedMinutes: Int?
+    val estimatedMinutes: Int?,
+    // F.8: name reference into ComprehensiveImportResult.phases.
+    val phaseName: String? = null
 )
 
 /**
@@ -306,7 +340,37 @@ private fun ParseChecklistResponse.toComprehensiveImportResult(): ComprehensiveI
         course = domainCourse,
         project = domainProject,
         tags = domainTags,
-        tasks = domainTasks
+        tasks = domainTasks,
+        phases = phases.map {
+            ParsedProjectPhaseDomain(
+                name = it.name,
+                description = it.description,
+                startDate = it.startDate?.let(::parseDateStringIso),
+                endDate = it.endDate?.let(::parseDateStringIso),
+                orderIndex = it.orderIndex
+            )
+        },
+        risks = risks.map {
+            ParsedProjectRiskDomain(
+                title = it.title,
+                description = it.description,
+                level = it.level
+            )
+        },
+        externalAnchors = externalAnchors.map {
+            ParsedExternalAnchorDomain(
+                title = it.title,
+                type = it.type,
+                phaseName = it.phaseName,
+                targetDate = it.targetDate?.let(::parseDateStringIso)
+            )
+        },
+        taskDependencies = taskDependencies.map {
+            ParsedTaskDependencyDomain(
+                blockerTitle = it.blockerTitle,
+                blockedTitle = it.blockedTitle
+            )
+        }
     )
 }
 
@@ -318,7 +382,8 @@ private fun ParsedChecklistTaskResponse.toDomain(): ChecklistParsedTask = Checkl
     completed = completed,
     tags = tags,
     subtasks = subtasks.map { it.toDomain() },
-    estimatedMinutes = estimatedMinutes
+    estimatedMinutes = estimatedMinutes,
+    phaseName = phaseName
 )
 
 private fun parseDateStringIso(dateStr: String): Long? {

@@ -473,7 +473,29 @@ Rules:
 - Assign appropriate tags to each task based on its type (video, assignment, exam, reading, code, etc.)
 - Create tag entries for all unique task types you encounter \u2014 pick semantically meaningful colors
 - For the project, pick an appropriate emoji icon and color based on the subject matter
-- Return ONLY valid JSON, no explanation or markdown"""
+- When the source clearly groups items under a section / week / sprint / phase heading, set each task's `phaseName` to that heading (must match a `phases[].name` below). Otherwise omit `phaseName`.
+- Return ONLY valid JSON, no explanation or markdown
+
+Optional project-structure fields (include only when the source clearly expresses them; otherwise return empty arrays):
+
+  "phases": [
+    {{"name": "string", "description": "string or null", "startDate": "YYYY-MM-DD or null", "endDate": "YYYY-MM-DD or null", "orderIndex": 0}}
+  ],
+  "risks": [
+    {{"title": "string", "description": "string or null", "level": "LOW|MEDIUM|HIGH"}}
+  ],
+  "externalAnchors": [
+    {{"title": "string", "type": "calendar_deadline|numeric_threshold|boolean_gate", "phaseName": "string or null", "targetDate": "YYYY-MM-DD or null"}}
+  ],
+  "taskDependencies": [
+    {{"blockerTitle": "string (must match a tasks[].title)", "blockedTitle": "string (must match a tasks[].title)"}}
+  ]
+
+When extracting these:
+- Phases: only emit when the source explicitly groups items by week / phase / sprint / unit / module. Use the section heading as `name`. orderIndex is 0-based per source order.
+- Risks: only emit when the source explicitly calls out risks, blockers, dependencies on external factors, or open questions.
+- externalAnchors: only emit for items that are date-pinned events the project must align to (deliverable deadlines, exam dates, demo dates) — phaseName references a phases[].name when applicable.
+- taskDependencies: only emit when the source explicitly uses words like "blocks", "depends on", "after", "requires" linking two task items by title."""
 
     try:
         text = _call_haiku(api_key, system_prompt, data.content, max_tokens=8192)

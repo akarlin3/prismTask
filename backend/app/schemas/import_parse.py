@@ -57,6 +57,10 @@ class ParsedChecklistTask(BaseModel):
     completed: bool = False
     tags: list[str] = []
     estimatedMinutes: Optional[int] = None
+    # F.8: refs phases[].name when source clearly groups this task under
+    # a phase / week / sprint heading. Resolved client-side after phase
+    # IDs are known.
+    phaseName: Optional[str] = None
     subtasks: list[ParsedChecklistTask] = []
 
 
@@ -79,8 +83,44 @@ class ParsedTagInfo(BaseModel):
     color: Optional[str] = None
 
 
+class ParsedProjectPhase(BaseModel):
+    name: str
+    description: Optional[str] = None
+    startDate: Optional[str] = None  # YYYY-MM-DD
+    endDate: Optional[str] = None  # YYYY-MM-DD
+    orderIndex: int = 0
+
+
+class ParsedProjectRisk(BaseModel):
+    title: str
+    description: Optional[str] = None
+    # LOW | MEDIUM | HIGH — string preserved verbatim for client-side mapping.
+    level: str = "MEDIUM"
+
+
+class ParsedExternalAnchor(BaseModel):
+    title: str
+    # calendar_deadline | numeric_threshold | boolean_gate
+    type: str = "calendar_deadline"
+    # Phase title that anchors this. Refs phases[].name; resolved client-side.
+    phaseName: Optional[str] = None
+    targetDate: Optional[str] = None  # YYYY-MM-DD
+
+
+class ParsedTaskDependency(BaseModel):
+    # Refs tasks[].title; resolved to IDs client-side after task insert.
+    blockerTitle: str
+    blockedTitle: str
+
+
 class ParseChecklistResponse(BaseModel):
     course: ParsedCourseInfo
     project: ParsedProjectInfo
     tags: list[ParsedTagInfo]
     tasks: list[ParsedChecklistTask]
+    # F.8 extensions. Default empty so existing callers (schoolwork import)
+    # are unaffected; project-import callers read them when populated.
+    phases: list[ParsedProjectPhase] = []
+    risks: list[ParsedProjectRisk] = []
+    externalAnchors: list[ParsedExternalAnchor] = []
+    taskDependencies: list[ParsedTaskDependency] = []
