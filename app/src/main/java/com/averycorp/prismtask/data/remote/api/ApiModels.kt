@@ -812,14 +812,49 @@ data class ParsedChecklistTaskResponse(
     val completed: Boolean = false,
     val tags: List<String> = emptyList(),
     val estimatedMinutes: Int? = null,
+    // F.8: refs phases[].name when source groups task under a phase.
+    val phaseName: String? = null,
     val subtasks: List<ParsedChecklistTaskResponse> = emptyList()
+)
+
+data class ParsedProjectPhaseResponse(
+    val name: String,
+    val description: String? = null,
+    val startDate: String? = null,
+    val endDate: String? = null,
+    val orderIndex: Int = 0
+)
+
+data class ParsedProjectRiskResponse(
+    val title: String,
+    val description: String? = null,
+    val level: String = "MEDIUM"
+)
+
+data class ParsedExternalAnchorResponse(
+    val title: String,
+    val type: String = "calendar_deadline",
+    val phaseName: String? = null,
+    val targetDate: String? = null
+)
+
+data class ParsedTaskDependencyResponse(
+    val blockerTitle: String,
+    val blockedTitle: String
 )
 
 data class ParseChecklistResponse(
     val course: ParsedChecklistCourseResponse,
     val project: ParsedChecklistProjectResponse,
     val tags: List<ParsedChecklistTagResponse>,
-    val tasks: List<ParsedChecklistTaskResponse>
+    val tasks: List<ParsedChecklistTaskResponse>,
+    // F.8 project-import extensions. Default empty so existing schoolwork
+    // callers (which ignore these) are unaffected. Project-import callers
+    // read them when populated.
+    val phases: List<ParsedProjectPhaseResponse> = emptyList(),
+    val risks: List<ParsedProjectRiskResponse> = emptyList(),
+    val externalAnchors: List<ParsedExternalAnchorResponse> = emptyList(),
+    val taskDependencies: List<ParsedTaskDependencyResponse> = emptyList()
 )
 
 // endregion
