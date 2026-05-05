@@ -166,7 +166,8 @@ constructor(
      * (Settings → Advanced Tuning) take effect on the next task creation
      * without needing the editor to be re-opened.
      */
-    private val lifeCategoryCustomKeywords: StateFlow<com.averycorp.prismtask.data.preferences.LifeCategoryCustomKeywords> =
+    private val lifeCategoryCustomKeywords:
+        StateFlow<com.averycorp.prismtask.data.preferences.LifeCategoryCustomKeywords> =
         advancedTuningPreferences.getLifeCategoryCustomKeywords().stateIn(
             viewModelScope,
             SharingStarted.WhileSubscribed(5000),
@@ -203,7 +204,8 @@ constructor(
     var cognitiveLoadManuallySet by mutableStateOf(false)
         private set
 
-    private val cognitiveLoadCustomKeywords: StateFlow<com.averycorp.prismtask.data.preferences.CognitiveLoadCustomKeywords> =
+    private val cognitiveLoadCustomKeywords:
+        StateFlow<com.averycorp.prismtask.data.preferences.CognitiveLoadCustomKeywords> =
         advancedTuningPreferences.getCognitiveLoadCustomKeywords().stateIn(
             viewModelScope,
             SharingStarted.WhileSubscribed(5000),

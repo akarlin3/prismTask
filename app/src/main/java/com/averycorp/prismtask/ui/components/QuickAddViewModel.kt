@@ -90,7 +90,8 @@ constructor(
      * so newly-added keywords (Settings → Advanced Tuning) take effect on
      * the very next quick-add submission.
      */
-    private val lifeCategoryCustomKeywords: StateFlow<com.averycorp.prismtask.data.preferences.LifeCategoryCustomKeywords> =
+    private val lifeCategoryCustomKeywords:
+        StateFlow<com.averycorp.prismtask.data.preferences.LifeCategoryCustomKeywords> =
         advancedTuningPreferences.getLifeCategoryCustomKeywords().stateIn(
             viewModelScope,
             SharingStarted.WhileSubscribed(5000),
