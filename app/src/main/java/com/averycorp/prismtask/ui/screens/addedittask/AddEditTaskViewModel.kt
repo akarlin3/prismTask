@@ -16,6 +16,7 @@ import com.averycorp.prismtask.data.local.converter.RecurrenceConverter
 import com.averycorp.prismtask.data.local.entity.AttachmentEntity
 import com.averycorp.prismtask.data.local.entity.ProjectEntity
 import com.averycorp.prismtask.data.local.entity.TagEntity
+import com.averycorp.prismtask.data.local.entity.TaskDependencyEntity
 import com.averycorp.prismtask.data.local.entity.TaskEntity
 import com.averycorp.prismtask.data.preferences.NotificationPreferences
 import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
@@ -23,6 +24,7 @@ import com.averycorp.prismtask.data.repository.AttachmentRepository
 import com.averycorp.prismtask.data.repository.BoundaryRuleRepository
 import com.averycorp.prismtask.data.repository.ProjectRepository
 import com.averycorp.prismtask.data.repository.TagRepository
+import com.averycorp.prismtask.data.repository.TaskDependencyRepository
 import com.averycorp.prismtask.data.repository.TaskRepository
 import com.averycorp.prismtask.data.repository.TaskTemplateRepository
 import com.averycorp.prismtask.data.repository.TaskTimingRepository
@@ -74,6 +76,7 @@ constructor(
     private val attachmentRepository: AttachmentRepository,
     private val templateRepository: TaskTemplateRepository,
     private val taskTimingRepository: TaskTimingRepository,
+    private val taskDependencyRepository: TaskDependencyRepository,
     private val boundaryRuleRepository: BoundaryRuleRepository,
     private val notificationPreferences: NotificationPreferences,
     private val userPreferencesDataStore: com.averycorp.prismtask.data.preferences.UserPreferencesDataStore,
@@ -297,6 +300,32 @@ constructor(
                 flowOf(0)
             }
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+    /**
+     * Edges where the currently-edited task is the *blocked* endpoint —
+     * i.e. the tasks that must finish before this one can start. Drives
+     * the Organize tab's Blockers section. Empty until the task is
+     * persisted (edges FK to a real `tasks.id`).
+     */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val blockers: StateFlow<List<TaskDependencyEntity>> = _taskIdFlow
+        .flatMapLatest { id ->
+            if (id != null) {
+                taskDependencyRepository.observeBlockersOf(id)
+            } else {
+                flowOf(emptyList())
+            }
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    /**
+     * Snapshot of all tasks for the blocker picker. The dependency table
+     * is project-agnostic — cross-project edges are legal — so the picker
+     * shows every task in the database minus the currently-edited one
+     * and any tasks already on the blocker list.
+     */
+    val allTasksForPicker: StateFlow<List<TaskEntity>> = taskRepository
+        .getAllTasks()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     init {
         try {
@@ -784,6 +813,54 @@ constructor(
             } catch (e: Exception) {
                 Log.e("AddEditTaskVM", "Failed to delete attachment", e)
                 _errorMessages.emit("Failed to delete attachment")
+            }
+        }
+    }
+
+    /**
+     * Adds [blockerTaskId] to this task's blocker set. Edit-mode only —
+     * dependency edges FK to a saved `tasks.id`, so the call is rejected
+     * with an error message in create mode. Cycle detection runs in the
+     * repository; rejection bubbles back as a user-facing snackbar.
+     */
+    fun addBlocker(blockerTaskId: Long) {
+        val blockedTaskId = currentTaskId
+        if (blockedTaskId == null) {
+            viewModelScope.launch {
+                _errorMessages.emit("Save the task first to add blockers")
+            }
+            return
+        }
+        if (blockerTaskId == blockedTaskId) {
+            viewModelScope.launch {
+                _errorMessages.emit("A task can't block itself")
+            }
+            return
+        }
+        viewModelScope.launch {
+            val result = taskDependencyRepository.addDependency(
+                blockerTaskId = blockerTaskId,
+                blockedTaskId = blockedTaskId
+            )
+            result.exceptionOrNull()?.let { err ->
+                val message = when (err) {
+                    is TaskDependencyRepository.DependencyError.CycleRejected ->
+                        "That blocker would close a cycle"
+                    else -> "Couldn't add blocker"
+                }
+                _errorMessages.emit(message)
+            }
+        }
+    }
+
+    /** Removes a single blocker edge by id. No-op if the edge is gone. */
+    fun removeBlocker(edge: TaskDependencyEntity) {
+        viewModelScope.launch {
+            try {
+                taskDependencyRepository.removeById(edge.id)
+            } catch (e: Exception) {
+                Log.e("AddEditTaskVM", "Failed to remove blocker", e)
+                _errorMessages.emit("Couldn't remove blocker")
             }
         }
     }

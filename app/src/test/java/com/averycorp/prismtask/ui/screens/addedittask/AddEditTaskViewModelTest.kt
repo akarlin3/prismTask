@@ -1,6 +1,7 @@
 package com.averycorp.prismtask.ui.screens.addedittask
 
 import androidx.lifecycle.SavedStateHandle
+import com.averycorp.prismtask.data.local.entity.TaskDependencyEntity
 import com.averycorp.prismtask.data.local.entity.TaskEntity
 import com.averycorp.prismtask.data.preferences.NotificationPreferences
 import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
@@ -9,6 +10,7 @@ import com.averycorp.prismtask.data.repository.AttachmentRepository
 import com.averycorp.prismtask.data.repository.BoundaryRuleRepository
 import com.averycorp.prismtask.data.repository.ProjectRepository
 import com.averycorp.prismtask.data.repository.TagRepository
+import com.averycorp.prismtask.data.repository.TaskDependencyRepository
 import com.averycorp.prismtask.data.repository.TaskRepository
 import com.averycorp.prismtask.data.repository.TaskTemplateRepository
 import com.averycorp.prismtask.data.repository.TaskTimingRepository
@@ -18,6 +20,7 @@ import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
@@ -46,6 +49,7 @@ class AddEditTaskViewModelTest {
     private lateinit var attachmentRepository: AttachmentRepository
     private lateinit var templateRepository: TaskTemplateRepository
     private lateinit var taskTimingRepository: TaskTimingRepository
+    private lateinit var taskDependencyRepository: TaskDependencyRepository
     private lateinit var boundaryRuleRepository: BoundaryRuleRepository
     private lateinit var notificationPreferences: NotificationPreferences
     private lateinit var userPreferencesDataStore: UserPreferencesDataStore
@@ -63,6 +67,9 @@ class AddEditTaskViewModelTest {
         templateRepository = mockk(relaxed = true)
         taskTimingRepository = mockk(relaxed = true)
         coEvery { taskTimingRepository.observeSumMinutesForTask(any()) } returns flowOf(0)
+        taskDependencyRepository = mockk(relaxed = true)
+        coEvery { taskDependencyRepository.observeBlockersOf(any()) } returns flowOf(emptyList())
+        coEvery { taskRepository.getAllTasks() } returns flowOf(emptyList())
         boundaryRuleRepository = mockk(relaxed = true)
         notificationPreferences = mockk(relaxed = true)
         userPreferencesDataStore = mockk(relaxed = true)
@@ -97,6 +104,7 @@ class AddEditTaskViewModelTest {
         attachmentRepository,
         templateRepository,
         taskTimingRepository,
+        taskDependencyRepository,
         boundaryRuleRepository,
         notificationPreferences,
         userPreferencesDataStore,
@@ -337,5 +345,110 @@ class AddEditTaskViewModelTest {
         coVerify(exactly = 0) {
             taskTimingRepository.logTime(any(), any(), any(), any(), any(), any())
         }
+    }
+
+    // ---------------------------------------------------------------------
+    // Blocker management (F.5 follow-on — task-editor dependency UI)
+    // ---------------------------------------------------------------------
+
+    @Test
+    fun `addBlocker in edit mode forwards to repository`() = runTest {
+        coEvery { taskRepository.getTaskById(7L) } returns flowOf(
+            TaskEntity(id = 7L, title = "Blocked task")
+        )
+        coEvery { taskDependencyRepository.addDependency(99L, 7L) } returns Result.success(123L)
+
+        val vm = newViewModel()
+        vm.initialize(taskId = 7L, projectId = null, initialDate = null)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        vm.addBlocker(blockerTaskId = 99L)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        coVerify(exactly = 1) {
+            taskDependencyRepository.addDependency(blockerTaskId = 99L, blockedTaskId = 7L)
+        }
+    }
+
+    @Test
+    fun `addBlocker in create mode emits error and does not hit repository`() = runTest {
+        val vm = newViewModel()
+        vm.initialize(taskId = null, projectId = null, initialDate = null)
+
+        vm.addBlocker(blockerTaskId = 42L)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        coVerify(exactly = 0) {
+            taskDependencyRepository.addDependency(any(), any())
+        }
+    }
+
+    @Test
+    fun `addBlocker rejects self as blocker`() = runTest {
+        coEvery { taskRepository.getTaskById(7L) } returns flowOf(
+            TaskEntity(id = 7L, title = "Self")
+        )
+        val vm = newViewModel()
+        vm.initialize(taskId = 7L, projectId = null, initialDate = null)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        vm.addBlocker(blockerTaskId = 7L)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        coVerify(exactly = 0) {
+            taskDependencyRepository.addDependency(any(), any())
+        }
+    }
+
+    @Test
+    fun `addBlocker surfaces cycle rejection from repository`() = runTest {
+        coEvery { taskRepository.getTaskById(7L) } returns flowOf(
+            TaskEntity(id = 7L, title = "Blocked task")
+        )
+        coEvery { taskDependencyRepository.addDependency(99L, 7L) } returns Result.failure(
+            TaskDependencyRepository.DependencyError.CycleRejected(99L, 7L)
+        )
+
+        val vm = newViewModel()
+        vm.initialize(taskId = 7L, projectId = null, initialDate = null)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val errors = mutableListOf<String>()
+        // Collect on testDispatcher so the subscriber and the VM's emitter share
+        // the same TestScheduler — backgroundScope on runTest's TestScope uses a
+        // different scheduler, so testDispatcher.scheduler.advanceUntilIdle()
+        // would not start the collector before the SharedFlow (no replay) emit.
+        val collectJob = launch(testDispatcher) { vm.errorMessages.collect { errors.add(it) } }
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        vm.addBlocker(blockerTaskId = 99L)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertTrue(
+            "cycle rejection should surface as a user-facing error",
+            errors.any { it.contains("cycle", ignoreCase = true) }
+        )
+        collectJob.cancel()
+    }
+
+    @Test
+    fun `removeBlocker forwards edge id to repository`() = runTest {
+        coEvery { taskRepository.getTaskById(7L) } returns flowOf(
+            TaskEntity(id = 7L, title = "Blocked task")
+        )
+        val vm = newViewModel()
+        vm.initialize(taskId = 7L, projectId = null, initialDate = null)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val edge = TaskDependencyEntity(
+            id = 333L,
+            blockerTaskId = 99L,
+            blockedTaskId = 7L,
+            createdAt = 0L
+        )
+        vm.removeBlocker(edge)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        coVerify(exactly = 1) { taskDependencyRepository.removeById(333L) }
     }
 }
