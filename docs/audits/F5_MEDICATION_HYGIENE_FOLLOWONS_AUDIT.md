@@ -371,3 +371,61 @@ Single bundle PR per operator-locked scope.
   with the "name-uniqueness is Room-only / sync-paths dedup before
   INSERT" architecture note in this bundle, or defer to a separate
   documentation pass. Defaulting to defer per memory #30.
+
+---
+
+# Phase 3 — Bundle summary (pre-merge)
+
+Single bundle PR carrying F.5b + F.5c per operator-locked scope. F.5a
+and F.5d ship as paper-closures (no code).
+
+**Files touched.**
+
+* `app/src/main/java/com/averycorp/prismtask/ui/screens/medication/MedicationRefillViewModel.kt`
+  — added `_errorMessages: MutableSharedFlow<String>` with public
+  `errorMessages` accessor; wrapped `addMedication`, `recordDailyDose`,
+  `recordRefill`, `disableRefillTracking` in `try/catch` with
+  per-method snackbar copy.
+* `app/src/main/java/com/averycorp/prismtask/ui/screens/medication/MedicationRefillScreen.kt`
+  — added `SnackbarHostState` + `LaunchedEffect` collector; wired
+  `Scaffold.snackbarHost` to render it.
+* `app/src/test/java/com/averycorp/prismtask/ui/screens/medication/MedicationRefillViewModelTest.kt`
+  (new) — 4 unit tests pinning the "repository throws → error
+  message emitted, no crash" invariant for each of the four wrapped
+  methods.
+* `app/src/androidTest/java/com/averycorp/prismtask/ui/screens/medication/components/MedicationEditorDialogTest.kt`
+  (new) — 5 Compose UI tests pinning the Save-button gate from
+  PR #1141 (`name.isNotBlank() && (selections.isNotEmpty() || activeSlots.isEmpty())`).
+
+**Aggregate diff.** ≈ 290 LOC added across 4 files (1 new VM test, 1
+new Compose UI test, 1 VM diff, 1 screen diff, 0 LOC removed).
+
+**Verification.** Local Android SDK is not provisioned in this
+environment (`scripts/hooks/install.sh` toolchain block returns "no
+android sdk locally"), so `./gradlew testDebugUnitTest` and
+`connectedDebugAndroidTest` were not run locally. CI is the
+verification gate per CLAUDE.md § "Build Commands" — Android CI fans
+out unit + connected suites on push.
+
+**Static gate posture.** No format / lint changes; the F.5b VM diff is
+a strict superset of the prior body wrapped in `try/catch`, the screen
+diff adds 4 new imports + 2 hosted-state additions, the new tests
+follow existing conventions (`MedicationViewModelAddMedicationTest` for
+F.5b, `WeeklyReviewsListScreenTest` for F.5c).
+
+**Memory entry candidates.**
+
+* **Wait-for-third-data-point on the medication-flow try/catch
+  pattern.** PR #1141 + this bundle = two PRs hardening medication
+  ViewModels. If a third lands (F.5a's UX dedup follow-up if the
+  operator elects to proceed there, or any future medication-adjacent
+  ViewModel), the pattern crosses into convention-worthy territory.
+  Defer the memory edit until then.
+* **Documenting the Mode 1 cross-surface dedup architecture from
+  F.5d** in CLAUDE.md memory #8. Three data-points already exist
+  (PR #1140 backend-pull dedup, P0 sync audit PR-B Firestore-pull
+  dedup, this audit). Operator decision in Phase 4 § Q2.
+
+**Schedule for next audit.** No follow-up audit scheduled.
+F.5a's UX-dedup-on-slot-names question and the F.5d documentation pass
+are independent items the operator can elect to file separately.

@@ -28,10 +28,13 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -56,6 +59,17 @@ fun MedicationRefillScreen(
 ) {
     val meds by viewModel.medications.collectAsStateWithLifecycle()
     var showAddDialog by remember { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    // Surface refill-flow errors (repository throws, future backend
+    // exception sources) via a Snackbar. Mirrors the collector wired
+    // into MedicationScreen by PR #1141 — see
+    // `docs/audits/F5_MEDICATION_HYGIENE_FOLLOWONS_AUDIT.md` § F.5b.
+    LaunchedEffect(Unit) {
+        viewModel.errorMessages.collect { message ->
+            snackbarHostState.showSnackbar(message)
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -72,7 +86,8 @@ fun MedicationRefillScreen(
             FloatingActionButton(onClick = { showAddDialog = true }) {
                 Icon(Icons.Default.Add, contentDescription = "Add medication")
             }
-        }
+        },
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
     ) { padding ->
         if (meds.isEmpty()) {
             Column(
