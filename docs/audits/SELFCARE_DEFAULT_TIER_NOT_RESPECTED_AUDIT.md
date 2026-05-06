@@ -114,3 +114,67 @@ Test:
 | 1 | Wire `tierDefaults` into `SelfCareScreen` and refactor `getSelectedTier(log, defaults)` (+ unit test) | High — fixes user-facing bug on every tab open | ~30 min | High |
 | 2 | (Deferred) Extract shared `SelfCareTierResolver` to `domain/usecase/` | Low (cleanup) | ~45 min | Low |
 | 3 | (Deferred) Audit other VMs for unsubscribed `WhileSubscribed` StateFlows whose `.value` is read directly | Medium (latent bugs) | Multi-hour sweep | Medium |
+
+## Phase 3 — Bundle summary
+
+- **PR #1151** — `fix(selfcare): respect configured default tier on screen open`
+  - Changed: `SelfCareScreen.kt` (collect `tierDefaults`, pass into resolver),
+    `SelfCareViewModel.kt` (refactor `getSelectedTier(log, defaults)`),
+    `SelfCareViewModelTierDefaultTest.kt` (new pinning test).
+  - Branch: `claude/fix-selfcare-default-4u4x2` (worktree teardown deferred —
+    operator may merge from any client, hooks fire on push to main).
+- Deferred items 2 + 3 stay deferred — not blocking the user-facing fix.
+- Memory entry candidate (non-obvious): "When a VM exposes a
+  preference-backed `StateFlow` with `WhileSubscribed(N)` and the
+  Composable doesn't collect it, `.value` reads return the constructor
+  default forever, regardless of stored DataStore state. Either collect
+  it in the screen or fold it into another `combine` that is collected."
+  Worth recording — this footgun bit a real user-visible feature.
+- Next audit: scan other ViewModels for the same pattern (deferred item
+  3). Run when another similar bug reproduces, not pre-emptively.
+
+## Phase 4 — Claude Chat handoff
+
+```markdown
+# PrismTask self-care default tier bug — handoff
+
+**Scope.** User reported: "My default self-care is survival, and it says
+that on the habits page, but it doesn't default to that when I actually
+click the self-care tab." Audited the read path on both surfaces.
+
+**Verdicts.**
+
+| Item | Verdict | Finding |
+|---|---|---|
+| Self-Care screen ignores configured default | RED | `SelfCareScreen` read `SelfCareViewModel.tierDefaults.value` directly. The StateFlow is `WhileSubscribed(5000)`; nothing collected it, so upstream DataStore flow never ran and `.value` stayed at `SelfCareTierDefaults()` constructor default (`"solid"`). Habits card was fine because `HabitListViewModel` folds `tierDefaults` into a subscribed `combine(...)`. |
+| Shared resolver extraction | DEFERRED | `getSelectedTier` and `HabitListViewModel.computeCardData` reimplement the same "stored → configured → penultimate → first" tier resolution. Cleanup, not a bug. |
+| Other unsubscribed `WhileSubscribed` `.value` reads | DEFERRED | Likely latent in other VMs; not in scope for the user-reported bug. |
+
+**Shipped.**
+- PR #1151 — collect `tierDefaults` in `SelfCareScreen` via
+  `collectAsStateWithLifecycle`, refactor
+  `getSelectedTier(log, defaults)`, add
+  `SelfCareViewModelTierDefaultTest` pinning that survival is honored on
+  morning + bedtime and out-of-order configured values fall back to
+  penultimate.
+
+**Deferred / stopped.**
+- Shared resolver extraction — pure cleanup, deferred to a quality pass.
+- Cross-VM unsubscribed-StateFlow audit — multi-hour sweep, deferred
+  until another similar symptom reproduces.
+
+**Non-obvious findings.**
+- Two screens reading the *same* preference produced *different*
+  observed values: the difference was whether the StateFlow was
+  collected at all. The data class default (`"solid"`) was a meaningful-
+  but-wrong fallback, which masked the bug — it looked like a working
+  default rather than an unloaded preference.
+- `WhileSubscribed(N)` + `.value`-read-from-non-collector is the trap
+  to remember: the upstream simply never runs. Initial-value semantics
+  are silently load-bearing.
+
+**Open questions.**
+- None. Fix is mechanical and matches the existing pattern in
+  `HabitListViewModel`. Manual smoke test still wanted to confirm the
+  user-visible behavior change after merge.
+```
