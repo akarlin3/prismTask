@@ -14,6 +14,7 @@ import com.averycorp.prismtask.data.local.dao.TaskTemplateDao
 import com.averycorp.prismtask.data.local.entity.DailyEssentialSlotCompletionEntity
 import com.averycorp.prismtask.data.local.entity.HabitCompletionEntity
 import com.averycorp.prismtask.data.local.entity.HabitEntity
+import com.averycorp.prismtask.data.local.entity.MedicationEntity
 import com.averycorp.prismtask.data.local.entity.ProjectEntity
 import com.averycorp.prismtask.data.local.entity.TagEntity
 import com.averycorp.prismtask.data.local.entity.TaskEntity
@@ -392,6 +393,13 @@ constructor(
         applied += applySlotCompletionChanges(
             response.changes.filter { it.entityType == "daily_essential_slot_completion" }
         )
+        // Medications must apply before any child entity (slots, tier_states)
+        // gains a backend-pull handler, so the cloud_id-keyed lookup the
+        // children rely on can resolve. Push has handled medications since
+        // PR4; pull was missed on the same round.
+        applied += applyMedicationChanges(
+            response.changes.filter { it.entityType == "medication" }
+        )
 
         val timestampMillis = response.serverTimestamp?.let { isoToMillisOrNull(it) }
             ?: System.currentTimeMillis()
@@ -559,6 +567,80 @@ constructor(
                 updatedAt = remoteUpdatedAt
             )
             habitDao.insert(habit)
+            applied++
+        }
+        return applied
+    }
+
+    /**
+     * Apply incoming medication changes. The backend stores a minimal
+     * subset of the [MedicationEntity] columns (`cloud_id`, `name`,
+     * `notes`, `is_active`) so the pull payload can only authoritatively
+     * update those fields — every other column on a pre-existing local
+     * row is preserved.
+     *
+     * Row resolution: medications are keyed by `cloud_id` across systems
+     * (Android local id != backend integer id), so we look up local rows
+     * by `cloud_id` first. If a remote medication shares a `name` with a
+     * local row that hasn't been cloud-tagged yet, we adopt the remote
+     * `cloud_id` onto the local row rather than inserting a duplicate
+     * (the `medications.name` UNIQUE index would reject the second
+     * insert anyway).
+     */
+    private suspend fun applyMedicationChanges(changes: List<SyncChange>): Int {
+        var applied = 0
+        for (change in changes) {
+            val data = change.data ?: continue
+            val cloudId = data.optString("cloud_id") ?: continue
+            val existing = medicationDao.getByCloudIdOnce(cloudId)
+                ?: data.optString("name")?.let { medicationDao.getByNameOnce(it) }
+
+            if (change.operation == "delete") {
+                if (existing != null) {
+                    medicationDao.deleteById(existing.id)
+                    applied++
+                }
+                continue
+            }
+
+            val remoteUpdatedAt = data.optString("updated_at")
+                ?.let { isoToMillisOrNull(it) }
+                ?: change.timestamp?.let { isoToMillisOrNull(it) }
+                ?: System.currentTimeMillis()
+            if (existing != null && existing.updatedAt >= remoteUpdatedAt) continue
+
+            val name = data.optString("name") ?: existing?.name ?: continue
+            val notes = data.optString("notes") ?: existing?.notes ?: ""
+            val isArchived = data.optBool("is_active")?.let { !it }
+                ?: existing?.isArchived
+                ?: false
+            val createdAt = data.optString("created_at")?.let { isoToMillisOrNull(it) }
+                ?: existing?.createdAt
+                ?: System.currentTimeMillis()
+
+            if (existing != null) {
+                medicationDao.update(
+                    existing.copy(
+                        cloudId = cloudId,
+                        name = name,
+                        notes = notes,
+                        isArchived = isArchived,
+                        createdAt = createdAt,
+                        updatedAt = remoteUpdatedAt
+                    )
+                )
+            } else {
+                medicationDao.insert(
+                    MedicationEntity(
+                        cloudId = cloudId,
+                        name = name,
+                        notes = notes,
+                        isArchived = isArchived,
+                        createdAt = createdAt,
+                        updatedAt = remoteUpdatedAt
+                    )
+                )
+            }
             applied++
         }
         return applied
