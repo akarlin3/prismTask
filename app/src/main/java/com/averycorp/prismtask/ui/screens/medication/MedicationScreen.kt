@@ -112,8 +112,6 @@ fun MedicationScreen(
 
     val snackbarHostState = remember { SnackbarHostState() }
 
-    val snackbarHostState = remember { SnackbarHostState() }
-
     // Editor dialog opens as soon as editingMed is set; selections load
     // asynchronously via the suspend helper on the viewmodel.
     LaunchedEffect(editingMed) {
@@ -277,7 +275,13 @@ fun MedicationScreen(
             onDismiss = { showAddDialog = false },
             onConfirm = { name, tier, notes, selections, reminderMode, intervalMinutes, promptDose ->
                 viewModel.addMedication(
-                    name, tier, notes, selections, reminderMode, intervalMinutes, promptDose
+                    name = name,
+                    tier = tier,
+                    notes = notes,
+                    slotSelections = selections,
+                    reminderMode = reminderMode,
+                    reminderIntervalMinutes = intervalMinutes,
+                    promptDoseAtLog = promptDose
                 )
                 showAddDialog = false
             },
@@ -299,7 +303,14 @@ fun MedicationScreen(
             onDismiss = { editingMed = null },
             onConfirm = { name, tier, notes, selections, reminderMode, intervalMinutes, promptDose ->
                 viewModel.updateMedication(
-                    med, name, tier, notes, selections, reminderMode, intervalMinutes, promptDose
+                    medication = med,
+                    name = name,
+                    tier = tier,
+                    notes = notes,
+                    slotSelections = selections,
+                    reminderMode = reminderMode,
+                    reminderIntervalMinutes = intervalMinutes,
+                    promptDoseAtLog = promptDose
                 )
                 editingMed = null
             },
