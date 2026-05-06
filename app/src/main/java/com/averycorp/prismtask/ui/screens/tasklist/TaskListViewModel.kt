@@ -21,8 +21,8 @@ import com.averycorp.prismtask.data.repository.TagRepository
 import com.averycorp.prismtask.data.repository.TaskRepository
 import com.averycorp.prismtask.domain.model.TagFilterMode
 import com.averycorp.prismtask.domain.model.TaskFilter
-import com.averycorp.prismtask.domain.usecase.ParsedTodoItem
-import com.averycorp.prismtask.domain.usecase.TodoListParser
+import com.averycorp.prismtask.domain.usecase.ImportOutcome
+import com.averycorp.prismtask.domain.usecase.ProjectImporter
 import com.averycorp.prismtask.domain.usecase.UrgencyScorer
 import com.averycorp.prismtask.ui.components.QuickRescheduleFormatter
 import com.averycorp.prismtask.util.DayBoundary
@@ -79,7 +79,7 @@ constructor(
     internal val projectRepository: ProjectRepository,
     private val tagRepository: TagRepository,
     private val attachmentRepository: AttachmentRepository,
-    private val todoListParser: TodoListParser,
+    private val projectImporter: ProjectImporter,
     internal val taskBehaviorPreferences: TaskBehaviorPreferences,
     private val sortPreferences: SortPreferences,
     private val userPreferencesDataStore: com.averycorp.prismtask.data.preferences.UserPreferencesDataStore,
@@ -916,40 +916,26 @@ constructor(
     }
 
     private suspend fun importContent(content: String) {
-        val parsed = todoListParser.parse(content)
-        if (parsed == null) {
-            snackbarHostState.showSnackbar("Could not parse to-do list format")
-            return
-        }
-
-        var count = 0
-        for (item in parsed.items) {
-            val taskId = insertParsedItem(item, parentTaskId = null)
-            if (taskId > 0) count++
-            for (sub in item.subtasks) {
-                insertParsedItem(sub, parentTaskId = taskId)
-            }
-        }
-
-        val label = parsed.name?.let { "$it: " } ?: ""
-        snackbarHostState.showSnackbar("Imported ${label}$count tasks")
-    }
-
-    private suspend fun insertParsedItem(item: ParsedTodoItem, parentTaskId: Long?): Long {
-        val now = System.currentTimeMillis()
-        return taskRepository.insertTask(
-            TaskEntity(
-                title = item.title,
-                description = item.description,
-                dueDate = item.dueDate,
-                priority = item.priority,
-                isCompleted = item.completed,
-                completedAt = if (item.completed) now else null,
-                parentTaskId = parentTaskId,
-                createdAt = now,
-                updatedAt = now
+        // Tasks screen preserves the pre-F.8 behaviour for simple sources
+        // (orphan tasks, no project) but lights up the rich F.8 path —
+        // Project + Phases + Risks + Anchors + Dependencies — when the source
+        // expresses that structure. Operator gap closed: previously only the
+        // (less-discoverable) Projects sub-screen would materialise the rich
+        // structure.
+        when (val outcome = projectImporter.importContent(content, projectifyFlat = false)) {
+            is ImportOutcome.Rich -> snackbarHostState.showSnackbar(
+                "Imported \"${outcome.projectName}\": ${outcome.taskCount} tasks, " +
+                    "${outcome.phaseCount} phases, ${outcome.riskCount} risks"
             )
-        )
+            is ImportOutcome.FlatProject -> Unit // unreachable when projectifyFlat=false
+            is ImportOutcome.FlatOrphans -> {
+                val label = outcome.listName?.let { "$it: " } ?: ""
+                snackbarHostState.showSnackbar("Imported ${label}${outcome.taskCount} tasks")
+            }
+            ImportOutcome.Unparseable -> snackbarHostState.showSnackbar(
+                "Could not parse to-do list format"
+            )
+        }
     }
 
     private fun sortTasks(tasks: List<TaskEntity>, sort: SortOption): List<TaskEntity> =
