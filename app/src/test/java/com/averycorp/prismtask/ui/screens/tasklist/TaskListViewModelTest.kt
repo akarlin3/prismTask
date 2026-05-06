@@ -1,6 +1,7 @@
 package com.averycorp.prismtask.ui.screens.tasklist
 
 import com.averycorp.prismtask.core.time.LocalDateFlow
+import com.averycorp.prismtask.data.local.entity.TaskEntity
 import com.averycorp.prismtask.data.preferences.SortPreferences
 import com.averycorp.prismtask.data.preferences.StartOfDay
 import com.averycorp.prismtask.data.preferences.SwipePrefs
@@ -214,7 +215,7 @@ class TaskListViewModelTest {
         every { localDateFlow.observe(any()) } returns flowOf(logicalDate)
         every { localDateFlow.observeIsoString(any()) } returns flowOf(logicalDate.toString())
 
-        val timelessTodayTask = com.averycorp.prismtask.data.local.entity.TaskEntity(
+        val timelessTodayTask = TaskEntity(
             id = 99L,
             title = "Buy milk",
             dueDate = midnightMillis,
