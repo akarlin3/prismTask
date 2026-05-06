@@ -260,3 +260,48 @@ and selections are empty) AND wrap the viewmodel write in try/catch.
 - **Don't auto-rename on collision** (e.g., append "(2)"). Rejected
   because it surprises the user — explicit error + edit-existing
   affordance is clearer.
+
+## Phase 3 — Bundle summary (pre-merge per memory #16 / CLAUDE.md repo-convention)
+
+| Improvement | PR | LOC delta |
+|-------------|-----|-----------|
+| Viewmodel try/catch + duplicate-name guard + errors flow | [#1141](https://github.com/averycorp/prismTask/pull/1141) | +71 / -5 in `MedicationViewModel.kt` |
+| Dialog Save-gating fix | #1141 | +10 / -1 in `MedicationEditorDialog.kt` |
+| Snackbar wiring on `MedicationScreen` | #1141 | +14 / -2 in `MedicationScreen.kt` |
+| Regression test (`MedicationViewModelAddMedicationTest`) | #1141 | +278 / 0 (new file) |
+
+**Aggregate: 4 files, +373 / -8.** Bundled into a single PR per
+operator scope-lock; well under the STOP-F 1500-LOC ceiling.
+
+**Branch:** `claude/medication-crash-audit-first-U2Mvc`. Worktree
+teardown paired with merge per memory `feedback_use_worktrees_for_features`.
+
+**Verification (pre-merge gates, memory #22 bidirectional):**
+- Static gates: ktlint / detekt / pytest / Android CI run via the
+  branch's automatic CI bundle (subscribed via `subscribe_pr_activity`).
+- Runtime gates: AVD smoke listed in PR test plan; the audit sandbox
+  has no AVD, so AVD verification is operator-side post-merge.
+- Memory #22 forward verification:
+  - `git log -p -S "_errorMessages.emit"` confirms the new emit
+    sites land on the `addMedication` and `updateMedication`
+    code paths.
+  - `git log -p -S "getByNameOnce"` confirms the pre-flight guard
+    sits inside the new try/catch.
+- Memory #22 reverse verification: AVD repro deferred to operator;
+  unit tests assert no exception propagation on the duplicate-name
+  and repository-throws branches.
+
+**Memory entry candidates:** None. The fix shape (snackbar-routed
+error flow + pre-flight `getByNameOnce`) is already established
+elsewhere in the codebase (`AddEditProjectViewModel`,
+`MedicationRefillViewModel`); this audit just brings the medication
+add path into line. No new convention worth recording.
+
+**D-series item closure:** 0 → 1.0 for the medication-add crash;
+Phase F GREEN-GO blockers down by one. Set-priority silent failure
+remains the other outstanding launch-blocker.
+
+**Next audit candidate:** F.5a (medication slot insert hardening)
+becomes the natural follow-up if any duplicate-slot-name crash
+report surfaces, or pre-emptively as a hygiene PR before Phase F
+kickoff May 15.
