@@ -184,4 +184,57 @@ class TaskListViewModelTest {
             vm.isMultiSelectMode.value
         )
     }
+
+    /**
+     * Regression: "From Earlier shows things due today" when SoD > 0.
+     *
+     * A timeless task created via the "Today" date picker / NLP "today"
+     * stores dueDate at calendar midnight (00:00 local). The bucketing
+     * compare must use calendar midnight too — using the SoD-anchored
+     * projection (`startOfToday` set to `today.atTime(sodHour, sodMinute)`)
+     * sat *after* 00:00 and pushed every such task into Overdue / "From
+     * Earlier".
+     *
+     * This test mocks SoD=4am and a single task whose dueDate is calendar
+     * midnight of the mocked logical date. It must land in Today, not
+     * Overdue.
+     */
+    @Test
+    fun groupedTasks_timelessTaskOnTodayLandsInTodayWhenSoDIsNonZero() = runTest(dispatcher) {
+        val logicalDate = java.time.LocalDate.parse("2026-04-26")
+        val midnightMillis = logicalDate
+            .atStartOfDay(java.time.ZoneId.systemDefault())
+            .toInstant()
+            .toEpochMilli()
+
+        coEvery { taskBehaviorPreferences.getStartOfDay() } returns
+            flowOf(StartOfDay(hour = 4, minute = 0, hasBeenSet = true))
+        coEvery { taskBehaviorPreferences.getDayStartHour() } returns flowOf(4)
+        every { localDateFlow.observe(any()) } returns flowOf(logicalDate)
+        every { localDateFlow.observeIsoString(any()) } returns flowOf(logicalDate.toString())
+
+        val timelessTodayTask = com.averycorp.prismtask.data.local.entity.TaskEntity(
+            id = 99L,
+            title = "Buy milk",
+            dueDate = midnightMillis,
+            parentTaskId = null
+        )
+        coEvery { taskRepository.getAllTasks() } returns flowOf(listOf(timelessTodayTask))
+        coEvery { taskRepository.getIncompleteRootTasks() } returns flowOf(listOf(timelessTodayTask))
+
+        val vm = newViewModel()
+        advanceUntilIdle()
+
+        val grouped = vm.groupedTasks.value
+        assertFalse(
+            "Timeless task at 00:00 must NOT bucket to Overdue when SoD=4 — " +
+                "this is the 'From Earlier shows things due today' regression. " +
+                "Found: ${grouped.keys}",
+            grouped["Overdue"].orEmpty().any { it.id == 99L }
+        )
+        assertTrue(
+            "Timeless task at 00:00 with logical-date = today must bucket to Today",
+            grouped["Today"].orEmpty().any { it.id == 99L }
+        )
+    }
 }

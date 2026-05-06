@@ -282,48 +282,22 @@ constructor(
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
     /**
-     * SoD-anchored start of the current logical day, as epoch millis.
-     * Backed by [LocalDateFlow] so the value advances reactively at every
-     * SoD boundary crossing — not just on preference change.
-     *
-     * The combine pulls SoD a second time so we have access to the
-     * `(hour, minute)` for the SoD-anchored projection (vs. the
-     * calendar-midnight projection used by `TodayViewModel.dayStart`).
-     * Initial value is `LocalDate.now().atTime(0,0)` as a one-frame
-     * fallback — the inner flow emits the SoD-correct value
-     * synchronously on subscription.
-     *
-     * See `docs/audits/UTIL_DAYBOUNDARY_SWEEP_AUDIT.md` § 3 and PR #798.
-     */
-    private val dayStartFlow: StateFlow<Long> = combine(
-        localDateFlow.observe(taskBehaviorPreferences.getStartOfDay()),
-        taskBehaviorPreferences.getStartOfDay()
-    ) { date, sod ->
-        date.atTime(sod.hour, sod.minute)
-            .atZone(java.time.ZoneId.systemDefault())
-            .toInstant()
-            .toEpochMilli()
-    }.stateIn(
-        viewModelScope,
-        SharingStarted.WhileSubscribed(5000),
-        java.time.LocalDate.now()
-            .atStartOfDay(java.time.ZoneId.systemDefault())
-            .toInstant()
-            .toEpochMilli()
-    )
-
-    val overdueCount: StateFlow<Int> = combine(rootTasks, dayStartFlow) { tasks, startOfToday ->
-        tasks.count { it.dueDate != null && it.dueDate < startOfToday }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
-
-    /**
      * Calendar midnight of the user's current *logical* day (SoD-aware).
      *
-     * Differs from [dayStartFlow] which is the SoD-time on the logical date
-     * (used for overdue comparisons). UI surfaces that need to reschedule a
-     * task to "today" want calendar midnight here so the stored due date
-     * matches the convention used elsewhere (timeless tasks store dueDate
-     * at 00:00 local).
+     * Used as the canonical "today threshold" for both UI bucketing
+     * (Overdue / Today / Tomorrow) and reschedule actions. Aligns with the
+     * storage convention for timeless tasks (those created via the "Today"
+     * date picker or NLP "today"), which write dueDate at 00:00 local.
+     *
+     * Backed by [LocalDateFlow] so the value advances reactively at every
+     * SoD boundary crossing — not just on preference change. See
+     * `docs/audits/UTIL_DAYBOUNDARY_SWEEP_AUDIT.md` § 3 and PR #798.
+     *
+     * Bug history: a previous SoD-anchored projection (now removed) used
+     * `date.atTime(sod.hour, sod.minute)` which sat *after* calendar
+     * midnight. Timeless tasks at 00:00 then satisfied
+     * `dueDate < startOfToday`, landing in From Earlier. The fix unifies
+     * both paths on calendar midnight.
      */
     val startOfToday: StateFlow<Long> = localDateFlow
         .observe(taskBehaviorPreferences.getStartOfDay())
@@ -336,6 +310,10 @@ constructor(
                 .toInstant()
                 .toEpochMilli()
         )
+
+    val overdueCount: StateFlow<Int> = combine(rootTasks, startOfToday) { tasks, sot ->
+        tasks.count { it.dueDate != null && it.dueDate < sot }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
     /**
      * Live Start-of-Day for UI components ([QuickReschedulePopup]) that need
@@ -988,7 +966,11 @@ constructor(
         }
 
     private fun groupByDate(tasks: List<TaskEntity>, sort: SortOption): Map<String, List<TaskEntity>> {
-        val startOfToday = dayStartFlow.value
+        // Calendar midnight, matching the storage convention for timeless
+        // tasks. Using the SoD-anchored projection here would push tasks
+        // stored at 00:00 (via the "Today" picker / NLP "today") into the
+        // Overdue bucket whenever SoD > 0.
+        val startOfToday = startOfToday.value
         val startOfTomorrow = startOfToday + DayBoundary.DAY_MILLIS
         val startOfDayAfterTomorrow = startOfTomorrow + DayBoundary.DAY_MILLIS
         val endOfWeek = startOfToday + 7 * DayBoundary.DAY_MILLIS
