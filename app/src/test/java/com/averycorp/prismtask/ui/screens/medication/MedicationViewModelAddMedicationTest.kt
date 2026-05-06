@@ -151,12 +151,14 @@ class MedicationViewModelAddMedicationTest {
 
         coVerify(exactly = 0) { medicationRepository.insert(any()) }
         coVerify {
-            medicationRepository.update(match {
-                it.id == 99L &&
-                    !it.isArchived &&
-                    it.notes == "fresh note" &&
-                    it.tier == "prescription"
-            })
+            medicationRepository.update(
+                match {
+                    it.id == 99L &&
+                        !it.isArchived &&
+                        it.notes == "fresh note" &&
+                        it.tier == "prescription"
+                }
+            )
         }
         // Junction is rebuilt against the unarchived row's id, not a fresh
         // insert id — confirms we routed through the unarchive branch.
@@ -268,9 +270,11 @@ class MedicationViewModelAddMedicationTest {
         advanceUntilIdle()
 
         coVerify {
-            medicationRepository.update(match {
-                it.id == 5L && it.notes == "fresh note"
-            })
+            medicationRepository.update(
+                match {
+                    it.id == 5L && it.notes == "fresh note"
+                }
+            )
         }
         // Self-update path skips the name lookup entirely.
         coVerify(exactly = 0) { medicationRepository.getByNameOnce(any()) }
