@@ -277,7 +277,13 @@ fun MedicationScreen(
             onDismiss = { showAddDialog = false },
             onConfirm = { name, tier, notes, selections, reminderMode, intervalMinutes, promptDose ->
                 viewModel.addMedication(
-                    name, tier, notes, selections, reminderMode, intervalMinutes, promptDose
+                    name,
+                    tier,
+                    notes,
+                    selections,
+                    reminderMode,
+                    intervalMinutes,
+                    promptDose
                 )
                 showAddDialog = false
             },
@@ -299,7 +305,14 @@ fun MedicationScreen(
             onDismiss = { editingMed = null },
             onConfirm = { name, tier, notes, selections, reminderMode, intervalMinutes, promptDose ->
                 viewModel.updateMedication(
-                    med, name, tier, notes, selections, reminderMode, intervalMinutes, promptDose
+                    med,
+                    name,
+                    tier,
+                    notes,
+                    selections,
+                    reminderMode,
+                    intervalMinutes,
+                    promptDose
                 )
                 editingMed = null
             },
