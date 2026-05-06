@@ -13,7 +13,6 @@ import com.averycorp.prismtask.domain.automation.AutomationAction
 import com.averycorp.prismtask.domain.automation.AutomationEvent
 import com.averycorp.prismtask.domain.automation.EvaluationContext
 import com.averycorp.prismtask.domain.automation.ExecutionContext
-import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
 import io.mockk.slot
