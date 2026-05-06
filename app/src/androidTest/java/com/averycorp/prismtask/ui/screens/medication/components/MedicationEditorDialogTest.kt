@@ -57,7 +57,7 @@ class MedicationEditorDialogTest {
                 initialSelections = emptyList(),
                 activeSlots = listOf(morningSlot, eveningSlot),
                 onDismiss = {},
-                onConfirm = { _, _, _, _, _, _ -> },
+                onConfirm = { _, _, _, _, _, _, _ -> },
                 onCreateNewSlot = {}
             )
         }
@@ -77,7 +77,7 @@ class MedicationEditorDialogTest {
                 initialSelections = emptyList(),
                 activeSlots = listOf(morningSlot, eveningSlot),
                 onDismiss = {},
-                onConfirm = { _, _, _, _, _, _ -> },
+                onConfirm = { _, _, _, _, _, _, _ -> },
                 onCreateNewSlot = {}
             )
         }
@@ -93,7 +93,7 @@ class MedicationEditorDialogTest {
                 initialSelections = listOf(MedicationSlotSelection(slotId = morningSlot.id)),
                 activeSlots = listOf(morningSlot, eveningSlot),
                 onDismiss = {},
-                onConfirm = { _, _, _, _, _, _ -> },
+                onConfirm = { _, _, _, _, _, _, _ -> },
                 onCreateNewSlot = {}
             )
         }
@@ -113,7 +113,7 @@ class MedicationEditorDialogTest {
                 initialSelections = emptyList(),
                 activeSlots = emptyList(),
                 onDismiss = {},
-                onConfirm = { _, _, _, _, _, _ -> },
+                onConfirm = { _, _, _, _, _, _, _ -> },
                 onCreateNewSlot = {}
             )
         }
@@ -129,7 +129,7 @@ class MedicationEditorDialogTest {
                 initialSelections = listOf(MedicationSlotSelection(slotId = morningSlot.id)),
                 activeSlots = listOf(morningSlot, eveningSlot),
                 onDismiss = {},
-                onConfirm = { _, _, _, _, _, _ -> },
+                onConfirm = { _, _, _, _, _, _, _ -> },
                 onCreateNewSlot = {}
             )
         }
