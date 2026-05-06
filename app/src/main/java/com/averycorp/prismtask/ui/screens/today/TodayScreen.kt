@@ -2,6 +2,7 @@ package com.averycorp.prismtask.ui.screens.today
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -13,11 +14,15 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.ContentPaste
+import androidx.compose.material.icons.filled.GridView
+import androidx.compose.material.icons.filled.RateReview
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
@@ -428,6 +433,9 @@ fun TodayScreen(
                     }
 
                     // Quick action chips — STANDARD+
+                    // Horizontally scrollable so the row scales as more AI
+                    // entry points are added without breaking small-screen
+                    // layout. See docs/audits/AI_TODAY_ACCESS_AUDIT.md.
                     item(key = "quick_actions") {
                         val chipColors = AssistChipDefaults.assistChipColors(
                             containerColor = MaterialTheme.colorScheme.surfaceVariant,
@@ -437,7 +445,9 @@ fun TodayScreen(
                         val chipBorder = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
                         androidx.compose.foundation.layout.Row(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            modifier = Modifier.padding(vertical = 2.dp)
+                            modifier = Modifier
+                                .padding(vertical = 2.dp)
+                                .horizontalScroll(rememberScrollState())
                         ) {
                             AssistChip(
                                 onClick = { navController.navigate(PrismTaskRoute.DailyBriefing.route) },
@@ -462,6 +472,33 @@ fun TodayScreen(
                                 label = { Text("Plan Week") },
                                 leadingIcon = {
                                     Icon(Icons.Default.CalendarMonth, contentDescription = null, modifier = Modifier.size(16.dp))
+                                },
+                                colors = chipColors,
+                                border = chipBorder
+                            )
+                            AssistChip(
+                                onClick = { navController.navigate(PrismTaskRoute.EisenhowerMatrix.route) },
+                                label = { Text("Matrix") },
+                                leadingIcon = {
+                                    Icon(Icons.Default.GridView, contentDescription = null, modifier = Modifier.size(16.dp))
+                                },
+                                colors = chipColors,
+                                border = chipBorder
+                            )
+                            AssistChip(
+                                onClick = { navController.navigate(PrismTaskRoute.PasteConversation.route) },
+                                label = { Text("Extract") },
+                                leadingIcon = {
+                                    Icon(Icons.Default.ContentPaste, contentDescription = null, modifier = Modifier.size(16.dp))
+                                },
+                                colors = chipColors,
+                                border = chipBorder
+                            )
+                            AssistChip(
+                                onClick = { navController.navigate(PrismTaskRoute.WeeklyReview.route) },
+                                label = { Text("Review") },
+                                leadingIcon = {
+                                    Icon(Icons.Default.RateReview, contentDescription = null, modifier = Modifier.size(16.dp))
                                 },
                                 colors = chipColors,
                                 border = chipBorder
