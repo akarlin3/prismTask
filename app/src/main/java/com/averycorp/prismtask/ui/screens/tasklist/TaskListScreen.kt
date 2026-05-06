@@ -1,8 +1,6 @@
 package com.averycorp.prismtask.ui.screens.tasklist
 
 import androidx.activity.compose.BackHandler
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -34,7 +32,6 @@ import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SelectAll
 import androidx.compose.material.icons.filled.SortByAlpha
-import androidx.compose.material.icons.filled.UploadFile
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
@@ -46,7 +43,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
@@ -165,14 +161,6 @@ fun TaskListScreen(
     var showBatchReschedulePopup by remember { mutableStateOf(false) }
     var showBatchTagsDialog by remember { mutableStateOf(false) }
     var showBatchMoveDialog by remember { mutableStateOf(false) }
-    var showPasteDialog by remember { mutableStateOf(false) }
-    var pasteContent by remember { mutableStateOf("") }
-    // Tasks screen defaults to OFF — most users on this surface want flat
-    // task additions (the pre-F.8 inbox-style behaviour). The Projects
-    // screen mirror defaults to ON.
-    var pasteAsProject by remember { mutableStateOf(false) }
-    var pendingFileUri by remember { mutableStateOf<android.net.Uri?>(null) }
-    var fileAsProject by remember { mutableStateOf(false) }
     var editorSheet by remember { mutableStateOf<TaskEditorSheetState?>(null) }
     var reschedulePopupTask by remember { mutableStateOf<TaskEntity?>(null) }
     // Move-to-project sheet, triggered from the 3-dot overflow menu on each
@@ -216,17 +204,6 @@ fun TaskListScreen(
             if (result == SnackbarResult.ActionPerformed) {
                 batchUndoListener.undo(event.batchId)
             }
-        }
-    }
-
-    val filePicker = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenDocument()
-    ) { uri ->
-        if (uri != null) {
-            // Stage the URI and open the confirm dialog so the user picks
-            // the "Import as new project?" toggle before we read the file.
-            fileAsProject = false
-            pendingFileUri = uri
         }
     }
 
@@ -307,102 +284,6 @@ fun TaskListScreen(
         )
     }
 
-    if (showPasteDialog) {
-        AlertDialog(
-            onDismissRequest = {
-                showPasteDialog = false
-                pasteContent = ""
-            },
-            title = { Text("Paste To-Do List") },
-            text = {
-                Column {
-                    OutlinedTextField(
-                        value = pasteContent,
-                        onValueChange = { pasteContent = it },
-                        placeholder = { Text("Paste JSX / markdown list here\u2026") },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(200.dp),
-                        textStyle = MaterialTheme.typography.bodySmall,
-                        maxLines = 50
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { pasteAsProject = !pasteAsProject }
-                    ) {
-                        androidx.compose.material3.Checkbox(
-                            checked = pasteAsProject,
-                            onCheckedChange = { pasteAsProject = it }
-                        )
-                        Text(
-                            "Import As New Project",
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        if (pasteContent.isNotBlank()) {
-                            viewModel.importFromText(pasteContent, asProject = pasteAsProject)
-                        }
-                        showPasteDialog = false
-                        pasteContent = ""
-                    },
-                    enabled = pasteContent.isNotBlank()
-                ) {
-                    Text("Import")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = {
-                    showPasteDialog = false
-                    pasteContent = ""
-                }) {
-                    Text("Cancel")
-                }
-            }
-        )
-    }
-
-    if (pendingFileUri != null) {
-        AlertDialog(
-            onDismissRequest = { pendingFileUri = null },
-            title = { Text("Import File") },
-            text = {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { fileAsProject = !fileAsProject }
-                ) {
-                    androidx.compose.material3.Checkbox(
-                        checked = fileAsProject,
-                        onCheckedChange = { fileAsProject = it }
-                    )
-                    Text(
-                        "Import As New Project",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    pendingFileUri?.let {
-                        viewModel.importFromFile(context, it, asProject = fileAsProject)
-                    }
-                    pendingFileUri = null
-                }) { Text("Import") }
-            },
-            dismissButton = {
-                TextButton(onClick = { pendingFileUri = null }) { Text("Cancel") }
-            }
-        )
-    }
 
     if (showFilterSheet) {
         ModalBottomSheet(
@@ -766,41 +647,31 @@ fun TaskListScreen(
             }
         },
         floatingActionButton = {
-            // Hide the task FABs when the Projects pane is active — the pane
+            // Hide the task FAB when the Projects pane is active — the pane
             // renders its own FAB for "new project" so the screen only ever
             // shows one primary action at a time.
+            //
+            // Schedule-import paste / upload buttons now live exclusively on
+            // the Projects screen (`ProjectListScreen`) — that is the
+            // canonical home for "Import Project from Schedule File" (F.8).
+            // Pre-F.8 these buttons also lived here for inbox-style flat
+            // imports; they were removed when the F.8 toggle landed and
+            // the entry point was consolidated.
             if (!isMultiSelectMode && selectedPane == PANE_TASKS) {
-                Column(
-                    horizontalAlignment = Alignment.End,
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    SmallFloatingActionButton(
-                        onClick = { showPasteDialog = true },
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer
-                    ) {
-                        Icon(Icons.Default.ContentPaste, contentDescription = "Paste To-Do List", modifier = Modifier.size(20.dp))
-                    }
-                    SmallFloatingActionButton(
-                        onClick = { filePicker.launch(arrayOf("*/*")) },
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer
-                    ) {
-                        Icon(Icons.Default.UploadFile, contentDescription = "Import File", modifier = Modifier.size(20.dp))
-                    }
-                    FloatingActionButton(
-                        onClick = {
-                            editorSheet = TaskEditorSheetState(
-                                projectId = selectedProjectId
-                            )
-                        },
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Add,
-                            contentDescription = "Add Task",
-                            tint = MaterialTheme.colorScheme.onPrimary
+                FloatingActionButton(
+                    onClick = {
+                        editorSheet = TaskEditorSheetState(
+                            projectId = selectedProjectId
                         )
-                    }
+                    },
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = "Add Task",
+                        tint = MaterialTheme.colorScheme.onPrimary
+                    )
                 }
             }
         }
