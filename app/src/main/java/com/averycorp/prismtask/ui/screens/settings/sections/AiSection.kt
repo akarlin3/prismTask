@@ -18,6 +18,10 @@ fun AiSection(
     onNavigateToDailyBriefing: () -> Unit,
     onNavigateToWeeklyPlanner: () -> Unit,
     onNavigateToTimeline: () -> Unit,
+    onNavigateToPasteExtract: () -> Unit = {},
+    onNavigateToWeeklyReview: () -> Unit = {},
+    onNavigateToMoodAnalytics: () -> Unit = {},
+    onNavigateToAiChat: () -> Unit = {},
     eisenhowerAutoClassifyEnabled: Boolean = true,
     onEisenhowerAutoClassifyChanged: (Boolean) -> Unit = {},
     aiFeaturesEnabled: Boolean = true,
@@ -85,6 +89,30 @@ fun AiSection(
         title = "Time Blocking",
         subtitle = "Auto-schedule your day with AI-optimized time blocks",
         onClick = onNavigateToTimeline
+    )
+
+    SettingsRowWithSubtitle(
+        title = "Extract Tasks From Text",
+        subtitle = "Paste a chat, email, or meeting note and let Claude pull tasks out of it",
+        onClick = onNavigateToPasteExtract
+    )
+
+    SettingsRowWithSubtitle(
+        title = "Weekly Review",
+        subtitle = "Guided end-of-week reflection on what shipped and what's next",
+        onClick = onNavigateToWeeklyReview
+    )
+
+    SettingsRowWithSubtitle(
+        title = "Mood Analytics",
+        subtitle = "Correlate mood and energy logs with task completion and habits",
+        onClick = onNavigateToMoodAnalytics
+    )
+
+    SettingsRowWithSubtitle(
+        title = "AI Coach Chat",
+        subtitle = "Conversational task planning and coaching (Pro)",
+        onClick = onNavigateToAiChat
     )
 
     HorizontalDivider()
