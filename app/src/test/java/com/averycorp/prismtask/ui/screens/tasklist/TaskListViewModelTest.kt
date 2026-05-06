@@ -19,6 +19,7 @@ import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -223,17 +224,23 @@ class TaskListViewModelTest {
         coEvery { taskRepository.getIncompleteRootTasks() } returns flowOf(listOf(timelessTodayTask))
 
         val vm = newViewModel()
+        // groupedTasks is gated by SharingStarted.WhileSubscribed — `.value`
+        // alone returns the initial empty map without activating the upstream.
+        // Launch a collector in backgroundScope so the combine actually fires.
+        val emissions = mutableListOf<Map<String, List<TaskEntity>>>()
+        backgroundScope.launch { vm.groupedTasks.collect { emissions.add(it) } }
         advanceUntilIdle()
 
-        val grouped = vm.groupedTasks.value
+        val grouped = emissions.lastOrNull() ?: emptyMap()
         assertFalse(
             "Timeless task at 00:00 must NOT bucket to Overdue when SoD=4 — " +
                 "this is the 'From Earlier shows things due today' regression. " +
-                "Found: ${grouped.keys}",
+                "Found buckets: ${grouped.keys}",
             grouped["Overdue"].orEmpty().any { it.id == 99L }
         )
         assertTrue(
-            "Timeless task at 00:00 with logical-date = today must bucket to Today",
+            "Timeless task at 00:00 with logical-date = today must bucket to Today. " +
+                "Found buckets: ${grouped.keys}, Today contents: ${grouped["Today"]?.map { it.id }}",
             grouped["Today"].orEmpty().any { it.id == 99L }
         )
     }

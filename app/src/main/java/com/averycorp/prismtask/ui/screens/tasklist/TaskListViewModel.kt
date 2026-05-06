@@ -248,10 +248,47 @@ constructor(
             sortTasks(filtered, sort)
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    /**
+     * Calendar midnight of the user's current *logical* day (SoD-aware).
+     *
+     * Used as the canonical "today threshold" for both UI bucketing
+     * (Overdue / Today / Tomorrow) and reschedule actions. Aligns with the
+     * storage convention for timeless tasks (those created via the "Today"
+     * date picker or NLP "today"), which write dueDate at 00:00 local.
+     *
+     * Backed by [LocalDateFlow] so the value advances reactively at every
+     * SoD boundary crossing — not just on preference change. See
+     * `docs/audits/UTIL_DAYBOUNDARY_SWEEP_AUDIT.md` § 3 and PR #798.
+     *
+     * Bug history: a previous SoD-anchored projection (now removed) used
+     * `date.atTime(sod.hour, sod.minute)` which sat *after* calendar
+     * midnight. Timeless tasks at 00:00 then satisfied
+     * `dueDate < startOfToday`, landing in From Earlier. The fix unifies
+     * both paths on calendar midnight and folds the field into
+     * [groupedTasks]'s combine so SoD crossings reactively re-bucket.
+     */
+    val startOfToday: StateFlow<Long> = localDateFlow
+        .observe(taskBehaviorPreferences.getStartOfDay())
+        .map { it.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli() }
+        .stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5000),
+            java.time.LocalDate.now()
+                .atStartOfDay(java.time.ZoneId.systemDefault())
+                .toInstant()
+                .toEpochMilli()
+        )
+
     val groupedTasks: StateFlow<Map<String, List<TaskEntity>>> =
-        combine(allRootTasks, _currentFilter, _currentSort, taskTagsMap) { taskList, filter, sort, tagsMap ->
+        combine(
+            allRootTasks,
+            _currentFilter,
+            _currentSort,
+            taskTagsMap,
+            startOfToday
+        ) { taskList, filter, sort, tagsMap, sot ->
             val filtered = applyFilter(taskList, filter, tagsMap)
-            groupByDate(filtered, sort)
+            groupByDate(filtered, sort, sot)
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
     /**
@@ -280,36 +317,6 @@ constructor(
             }
             grouped.mapValues { (_, list) -> sortTasks(list, sort) }
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
-
-    /**
-     * Calendar midnight of the user's current *logical* day (SoD-aware).
-     *
-     * Used as the canonical "today threshold" for both UI bucketing
-     * (Overdue / Today / Tomorrow) and reschedule actions. Aligns with the
-     * storage convention for timeless tasks (those created via the "Today"
-     * date picker or NLP "today"), which write dueDate at 00:00 local.
-     *
-     * Backed by [LocalDateFlow] so the value advances reactively at every
-     * SoD boundary crossing — not just on preference change. See
-     * `docs/audits/UTIL_DAYBOUNDARY_SWEEP_AUDIT.md` § 3 and PR #798.
-     *
-     * Bug history: a previous SoD-anchored projection (now removed) used
-     * `date.atTime(sod.hour, sod.minute)` which sat *after* calendar
-     * midnight. Timeless tasks at 00:00 then satisfied
-     * `dueDate < startOfToday`, landing in From Earlier. The fix unifies
-     * both paths on calendar midnight.
-     */
-    val startOfToday: StateFlow<Long> = localDateFlow
-        .observe(taskBehaviorPreferences.getStartOfDay())
-        .map { it.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli() }
-        .stateIn(
-            viewModelScope,
-            SharingStarted.WhileSubscribed(5000),
-            java.time.LocalDate.now()
-                .atStartOfDay(java.time.ZoneId.systemDefault())
-                .toInstant()
-                .toEpochMilli()
-        )
 
     val overdueCount: StateFlow<Int> = combine(rootTasks, startOfToday) { tasks, sot ->
         tasks.count { it.dueDate != null && it.dueDate < sot }
@@ -965,12 +972,16 @@ constructor(
             )
         }
 
-    private fun groupByDate(tasks: List<TaskEntity>, sort: SortOption): Map<String, List<TaskEntity>> {
-        // Calendar midnight, matching the storage convention for timeless
-        // tasks. Using the SoD-anchored projection here would push tasks
-        // stored at 00:00 (via the "Today" picker / NLP "today") into the
-        // Overdue bucket whenever SoD > 0.
-        val startOfToday = startOfToday.value
+    private fun groupByDate(
+        tasks: List<TaskEntity>,
+        sort: SortOption,
+        startOfToday: Long
+    ): Map<String, List<TaskEntity>> {
+        // startOfToday is calendar midnight, matching the storage convention
+        // for timeless tasks. Using the SoD-anchored projection would push
+        // tasks stored at 00:00 (via the "Today" picker / NLP "today") into
+        // the Overdue bucket whenever SoD > 0. Folded into [groupedTasks]'s
+        // combine so SoD crossings reactively re-bucket.
         val startOfTomorrow = startOfToday + DayBoundary.DAY_MILLIS
         val startOfDayAfterTomorrow = startOfTomorrow + DayBoundary.DAY_MILLIS
         val endOfWeek = startOfToday + 7 * DayBoundary.DAY_MILLIS
