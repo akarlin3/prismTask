@@ -103,45 +103,55 @@ class MutateTaskActionHandler @Inject constructor(
                 "title" -> {
                     val v = value as? String
                         ?: return ActionResult.Error(type, "wrong type for title: expected String, got ${value?.javaClass?.simpleName ?: "null"}")
-                    next = next.copy(title = v); applied += field
+                    next = next.copy(title = v)
+                    applied += field
                 }
                 "description" -> {
                     if (value != null && value !is String) {
                         return ActionResult.Error(type, "wrong type for description: expected String?, got ${value.javaClass.simpleName}")
                     }
-                    next = next.copy(description = value as? String); applied += field
+                    next = next.copy(description = value as? String)
+                    applied += field
                 }
                 "priority" -> {
                     val v = (value as? Number)?.toInt()
                         ?: return ActionResult.Error(type, "wrong type for priority: expected Number, got ${value?.javaClass?.simpleName ?: "null"}")
-                    next = next.copy(priority = v); applied += field
+                    next = next.copy(priority = v)
+                    applied += field
                 }
                 "dueDate" -> {
                     if (value != null && value !is Number) {
                         return ActionResult.Error(type, "wrong type for dueDate: expected Number?, got ${value.javaClass.simpleName}")
                     }
-                    next = next.copy(dueDate = (value as? Number)?.toLong()); applied += field
+                    next = next.copy(dueDate = (value as? Number)?.toLong())
+                    applied += field
                 }
                 "isFlagged" -> {
                     val v = value as? Boolean
                         ?: return ActionResult.Error(type, "wrong type for isFlagged: expected Boolean, got ${value?.javaClass?.simpleName ?: "null"}")
-                    next = next.copy(isFlagged = v); applied += field
+                    next = next.copy(isFlagged = v)
+                    applied += field
                 }
                 "lifeCategory" -> {
                     if (value != null && value !is String) {
                         return ActionResult.Error(type, "wrong type for lifeCategory: expected String?, got ${value.javaClass.simpleName}")
                     }
-                    next = next.copy(lifeCategory = value as? String); applied += field
+                    next = next.copy(lifeCategory = value as? String)
+                    applied += field
                 }
                 "projectId" -> {
                     if (value != null && value !is Number) {
                         return ActionResult.Error(type, "wrong type for projectId: expected Number?, got ${value.javaClass.simpleName}")
                     }
-                    next = next.copy(projectId = (value as? Number)?.toLong()); applied += field
+                    next = next.copy(projectId = (value as? Number)?.toLong())
+                    applied += field
                 }
                 "tagsAdd", "tagsRemove" -> {
                     if (value !is List<*>) {
-                        return ActionResult.Error(type, "wrong type for $field: expected List<String>, got ${value?.javaClass?.simpleName ?: "null"}")
+                        return ActionResult.Error(
+                            type,
+                            "wrong type for $field: expected List<String>, got ${value?.javaClass?.simpleName ?: "null"}"
+                        )
                     }
                     // Real handling happens in applyTagDelta below; tracking
                     // the key here so the success message stays honest.

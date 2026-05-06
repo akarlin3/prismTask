@@ -12,7 +12,6 @@ import com.averycorp.prismtask.data.repository.AttachmentRepository
 import com.averycorp.prismtask.data.repository.ProjectRepository
 import com.averycorp.prismtask.data.repository.TagRepository
 import com.averycorp.prismtask.data.repository.TaskRepository
-import com.averycorp.prismtask.domain.usecase.ProjectImporter
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -47,7 +46,6 @@ class TaskListViewModelTest {
     private lateinit var projectRepository: ProjectRepository
     private lateinit var tagRepository: TagRepository
     private lateinit var attachmentRepository: AttachmentRepository
-    private lateinit var projectImporter: ProjectImporter
     private lateinit var taskBehaviorPreferences: TaskBehaviorPreferences
     private lateinit var sortPreferences: SortPreferences
     private lateinit var userPreferencesDataStore: UserPreferencesDataStore
@@ -60,7 +58,6 @@ class TaskListViewModelTest {
         projectRepository = mockk(relaxed = true)
         tagRepository = mockk(relaxed = true)
         attachmentRepository = mockk(relaxed = true)
-        projectImporter = mockk(relaxed = true)
         taskBehaviorPreferences = mockk(relaxed = true)
         sortPreferences = mockk(relaxed = true)
         userPreferencesDataStore = mockk(relaxed = true)
@@ -100,7 +97,6 @@ class TaskListViewModelTest {
         projectRepository,
         tagRepository,
         attachmentRepository,
-        projectImporter,
         taskBehaviorPreferences,
         sortPreferences,
         userPreferencesDataStore,

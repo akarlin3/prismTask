@@ -152,7 +152,7 @@ class TaskRepositoryTest {
 
         val taskCreated = collected.filterIsInstance<
             com.averycorp.prismtask.domain.automation.AutomationEvent.TaskCreated
-        >()
+            >()
         assertEquals(1, taskCreated.size)
         assertEquals(id, taskCreated.first().taskId)
     }
