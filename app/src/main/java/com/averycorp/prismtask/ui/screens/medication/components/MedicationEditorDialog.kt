@@ -12,6 +12,7 @@ import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -68,11 +69,13 @@ fun MedicationEditorDialog(
         notes: String,
         selections: List<MedicationSlotSelection>,
         reminderMode: String?,
-        reminderIntervalMinutes: Int?
+        reminderIntervalMinutes: Int?,
+        promptDoseAtLog: Boolean
     ) -> Unit,
     onCreateNewSlot: () -> Unit,
     initialReminderMode: String? = null,
-    initialReminderIntervalMinutes: Int? = null
+    initialReminderIntervalMinutes: Int? = null,
+    initialPromptDoseAtLog: Boolean = false
 ) {
     var name by remember { mutableStateOf(initialName) }
     var tier by remember { mutableStateOf(initialTier) }
@@ -87,6 +90,7 @@ fun MedicationEditorDialog(
     var customIntervalText by remember(intervalMinutes) {
         mutableStateOf(intervalMinutes.toString())
     }
+    var promptDoseAtLog by remember { mutableStateOf(initialPromptDoseAtLog) }
     val intervalPresets = listOf(120, 240, 360, 480)
     val isCustomInterval = intervalMinutes !in intervalPresets
 
@@ -224,6 +228,27 @@ fun MedicationEditorDialog(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Prompt for Dose at Logging Time",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Text(
+                            text = "Ask for an amount (e.g. \"500 mg\") each time you log this med.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = promptDoseAtLog,
+                        onCheckedChange = { promptDoseAtLog = it }
+                    )
+                }
             }
         },
         confirmButton = {
@@ -244,7 +269,8 @@ fun MedicationEditorDialog(
                         notes.trim(),
                         selections,
                         reminderModeChoiceToString(reminderModeChoice),
-                        if (reminderModeChoice == MedicationReminderModeChoice.INTERVAL) intervalMinutes else null
+                        if (reminderModeChoice == MedicationReminderModeChoice.INTERVAL) intervalMinutes else null,
+                        promptDoseAtLog
                     )
                 },
                 enabled = name.isNotBlank() && hasSlotIfRequired

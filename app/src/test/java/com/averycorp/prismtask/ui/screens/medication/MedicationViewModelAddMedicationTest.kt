@@ -253,6 +253,79 @@ class MedicationViewModelAddMedicationTest {
     }
 
     @Test
+    fun recordUnslottedDose_insertsAnytimeDoseRow() = runTest(dispatcher) {
+        val med = MedicationEntity(id = 7L, name = "Ibuprofen", tier = "essential")
+        val vm = newViewModel()
+
+        vm.recordUnslottedDose(med)
+        advanceUntilIdle()
+
+        coVerify {
+            medicationRepository.logDose(
+                medicationId = 7L,
+                slotKey = "anytime",
+                doseAmount = null
+            )
+        }
+    }
+
+    @Test
+    fun recordUnslottedDose_threadsDoseAmountWhenProvided() = runTest(dispatcher) {
+        val med = MedicationEntity(
+            id = 8L,
+            name = "Ibuprofen",
+            tier = "essential",
+            promptDoseAtLog = true
+        )
+        val vm = newViewModel()
+
+        vm.recordUnslottedDose(med, doseAmount = "400 mg")
+        advanceUntilIdle()
+
+        coVerify {
+            medicationRepository.logDose(
+                medicationId = 8L,
+                slotKey = "anytime",
+                doseAmount = "400 mg"
+            )
+        }
+    }
+
+    @Test
+    fun recordUnslottedDose_repositoryThrows_emitsErrorWithoutCrashing() = runTest(dispatcher) {
+        val med = MedicationEntity(id = 9L, name = "Ibuprofen", tier = "essential")
+        coEvery {
+            medicationRepository.logDose(any(), any(), any(), any(), any())
+        } throws RuntimeException("disk full")
+        val vm = newViewModel()
+
+        vm.errorMessages.test {
+            vm.recordUnslottedDose(med)
+            advanceUntilIdle()
+            assertEquals("Couldn't record dose. Please try again.", awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun addMedication_persistsPromptDoseAtLogToggle() = runTest(dispatcher) {
+        val vm = newViewModel()
+
+        vm.addMedication(
+            name = "Lamotrigine 200mg",
+            tier = MedicationTier.ESSENTIAL,
+            notes = "",
+            slotSelections = emptyList(),
+            promptDoseAtLog = true
+        )
+        advanceUntilIdle()
+
+        coVerify {
+            medicationRepository.insert(match { it.promptDoseAtLog })
+        }
+    }
+
+    @Test
     fun updateMedication_renameToOwnName_skipsCollisionCheck() = runTest(dispatcher) {
         // When the user opens the edit dialog and saves without changing
         // the name, we must NOT treat the row as colliding with itself.

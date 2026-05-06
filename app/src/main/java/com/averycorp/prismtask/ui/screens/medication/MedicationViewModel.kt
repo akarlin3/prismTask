@@ -81,6 +81,19 @@ data class MedicationSlotTodayState(
         }
 }
 
+/**
+ * Surface row for medications without any linked slot. Drives the
+ * "Unscheduled Medications" section of the Medication screen — a slot-less
+ * med would otherwise be invisible (the per-slot card list filters by
+ * junction membership). [takenAt] is the most recent non-synthetic dose's
+ * `taken_at` for today, used to render a "Last taken at HH:mm" label.
+ */
+data class UnslottedMedicationState(
+    val medication: MedicationEntity,
+    val takenToday: Boolean,
+    val takenAt: Long? = null
+)
+
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class MedicationViewModel
@@ -199,6 +212,38 @@ constructor(
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000L), emptyList())
 
+    /**
+     * Per-medication "unscheduled" state for medications that aren't linked
+     * to any slot. Drives the "Unscheduled Medications" section on the
+     * Medication screen — without this, a med added without a slot pick is
+     * silently invisible (the slot-card list filters by junction
+     * membership). Each row carries the most recent non-synthetic dose's
+     * `taken_at` for today so the UI can render a "Taken at HH:mm" label.
+     *
+     * Doses logged from this section use `slotKey = "anytime"` to match
+     * the existing custom-dose convention; the surface stays distinct
+     * from the per-slot dose log so a med ever later linked to a slot
+     * doesn't pick up a stale "anytime" row as a slot dose.
+     */
+    val unslottedMedicationsState: StateFlow<List<UnslottedMedicationState>> = combine(
+        medications,
+        todaysDoses
+    ) { meds, doses ->
+        meds.mapNotNull { med ->
+            val linkedSlotIds = slotRepository.getSlotIdsForMedicationOnce(med.id)
+            if (linkedSlotIds.isNotEmpty()) return@mapNotNull null
+            val latestDose = doses
+                .asSequence()
+                .filter { it.medicationId == med.id && !it.isSyntheticSkip }
+                .maxByOrNull { it.takenAt }
+            UnslottedMedicationState(
+                medication = med,
+                takenToday = latestDose != null,
+                takenAt = latestDose?.takenAt
+            )
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000L), emptyList())
+
     private fun MedicationTierStateEntity.isUserSetSource(): Boolean =
         TierSource.fromStorage(this.tierSource) == TierSource.USER_SET
 
@@ -212,7 +257,11 @@ constructor(
      * auto-compute so the achieved-tier indicator updates reactively —
      * unless the row is `USER_SET`, in which case the user override wins.
      */
-    fun toggleDose(slot: MedicationSlotEntity, medication: MedicationEntity) {
+    fun toggleDose(
+        slot: MedicationSlotEntity,
+        medication: MedicationEntity,
+        doseAmount: String? = null
+    ) {
         viewModelScope.launch {
             val already = todaysDoses.value.firstOrNull {
                 it.medicationId == medication.id && it.slotKey == slot.id.toString()
@@ -222,7 +271,8 @@ constructor(
             } else {
                 medicationRepository.logDose(
                     medicationId = medication.id,
-                    slotKey = slot.id.toString()
+                    slotKey = slot.id.toString(),
+                    doseAmount = doseAmount
                 )
             }
             refreshTierState(slot.id)
@@ -315,7 +365,8 @@ constructor(
         notes: String,
         slotSelections: List<MedicationSlotSelection>,
         reminderMode: String? = null,
-        reminderIntervalMinutes: Int? = null
+        reminderIntervalMinutes: Int? = null,
+        promptDoseAtLog: Boolean = false
     ) {
         if (name.isBlank()) return
         viewModelScope.launch {
@@ -329,7 +380,8 @@ constructor(
                             tier = tier.toStorage(),
                             notes = notes.trim(),
                             reminderMode = reminderMode,
-                            reminderIntervalMinutes = reminderIntervalMinutes
+                            reminderIntervalMinutes = reminderIntervalMinutes,
+                            promptDoseAtLog = promptDoseAtLog
                         )
                     )
                     existing.isArchived -> {
@@ -339,6 +391,7 @@ constructor(
                                 notes = notes.trim(),
                                 reminderMode = reminderMode,
                                 reminderIntervalMinutes = reminderIntervalMinutes,
+                                promptDoseAtLog = promptDoseAtLog,
                                 isArchived = false
                             )
                         )
@@ -388,7 +441,8 @@ constructor(
         notes: String,
         slotSelections: List<MedicationSlotSelection>,
         reminderMode: String? = null,
-        reminderIntervalMinutes: Int? = null
+        reminderIntervalMinutes: Int? = null,
+        promptDoseAtLog: Boolean = false
     ) {
         if (name.isBlank()) return
         viewModelScope.launch {
@@ -410,7 +464,8 @@ constructor(
                         tier = tier.toStorage(),
                         notes = notes.trim(),
                         reminderMode = reminderMode,
-                        reminderIntervalMinutes = reminderIntervalMinutes
+                        reminderIntervalMinutes = reminderIntervalMinutes,
+                        promptDoseAtLog = promptDoseAtLog
                     )
                 )
                 slotRepository.replaceLinksForMedication(medication.id, slotSelections.map { it.slotId })
@@ -448,6 +503,44 @@ constructor(
 
     fun archiveMedication(medication: MedicationEntity) {
         viewModelScope.launch { medicationRepository.archive(medication.id) }
+    }
+
+    /**
+     * Record a fresh "anytime" dose for a medication that isn't linked to
+     * any slot. Each tap inserts a new `medication_doses` row — no toggle
+     * semantics — so a user taking the same PRN med twice in one day gets
+     * two distinct entries in the medication log. Uses `slotKey = "anytime"`
+     * to stay consistent with [MedicationRepository.logCustomDose] and to
+     * avoid colliding with a numeric slot id if the med is later linked.
+     *
+     * The "last taken at HH:mm" label on the unscheduled-meds section
+     * (driven by [unslottedMedicationsState]) gives the user visual
+     * confirmation; un-recording must go through the Medication Log
+     * screen rather than this button.
+     */
+    fun recordUnslottedDose(medication: MedicationEntity, doseAmount: String? = null) {
+        viewModelScope.launch {
+            try {
+                medicationRepository.logDose(
+                    medicationId = medication.id,
+                    slotKey = ANYTIME_SLOT_KEY,
+                    doseAmount = doseAmount
+                )
+            } catch (e: Exception) {
+                android.util.Log.e("MedicationVM", "Failed to record unslotted dose", e)
+                _errorMessages.emit("Couldn't record dose. Please try again.")
+            }
+        }
+    }
+
+    companion object {
+        /**
+         * Slot-key sentinel for medications without a linked slot. Matches
+         * `MedicationRepository.logCustomDose`'s convention so the
+         * Medication Log filters can treat both as "not anchored to a
+         * scheduled slot."
+         */
+        private const val ANYTIME_SLOT_KEY = "anytime"
     }
 
     // ── Bulk tier marking ──────────────────────────────────────────────

@@ -87,6 +87,15 @@ data class MedicationEntity(
     val reminderMode: String? = null,
     @ColumnInfo(name = "reminder_interval_minutes")
     val reminderIntervalMinutes: Int? = null,
+    /**
+     * When `true`, the dose-record UI prompts the user for a dose amount
+     * (e.g. "500 mg", "1 tablet") before inserting the
+     * [MedicationDoseEntity] row. The captured string lands on the dose
+     * row's [MedicationDoseEntity.doseAmount] column. Default off — most
+     * users take a fixed dose and don't want the extra prompt.
+     */
+    @ColumnInfo(name = "prompt_dose_at_log", defaultValue = "0")
+    val promptDoseAtLog: Boolean = false,
     @ColumnInfo(name = "created_at")
     val createdAt: Long = System.currentTimeMillis(),
     @ColumnInfo(name = "updated_at")

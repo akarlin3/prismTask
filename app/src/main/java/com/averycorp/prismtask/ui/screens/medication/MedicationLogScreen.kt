@@ -334,6 +334,14 @@ private fun DoseRow(label: String, dose: MedicationDoseEntity, groupedDate: Loca
             )
         }
     }
+    if (!dose.doseAmount.isNullOrBlank()) {
+        Text(
+            text = "Dose: ${dose.doseAmount}",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(start = 22.dp, bottom = 2.dp)
+        )
+    }
     if (dose.note.isNotBlank()) {
         Text(
             text = dose.note,

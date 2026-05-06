@@ -44,6 +44,7 @@ object MedicationSyncMapper {
         "reminderDaysBefore" to med.reminderDaysBefore,
         "reminderMode" to med.reminderMode,
         "reminderIntervalMinutes" to med.reminderIntervalMinutes,
+        "promptDoseAtLog" to med.promptDoseAtLog,
         "slotCloudIds" to slotCloudIds,
         "createdAt" to med.createdAt,
         "updatedAt" to med.updatedAt
@@ -86,6 +87,7 @@ object MedicationSyncMapper {
         reminderDaysBefore = (data["reminderDaysBefore"] as? Number)?.toInt() ?: 3,
         reminderMode = (data["reminderMode"] as? String)?.takeIf { it.isNotBlank() },
         reminderIntervalMinutes = (data["reminderIntervalMinutes"] as? Number)?.toInt(),
+        promptDoseAtLog = data["promptDoseAtLog"] as? Boolean ?: false,
         createdAt = (data["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
         updatedAt = (data["updatedAt"] as? Number)?.toLong() ?: System.currentTimeMillis()
     )
@@ -102,6 +104,7 @@ object MedicationSyncMapper {
         "takenDateLocal" to dose.takenDateLocal,
         "note" to dose.note,
         "isSyntheticSkip" to dose.isSyntheticSkip,
+        "doseAmount" to dose.doseAmount,
         "createdAt" to dose.createdAt,
         "updatedAt" to dose.updatedAt
     )
@@ -121,6 +124,7 @@ object MedicationSyncMapper {
         takenDateLocal = data["takenDateLocal"] as? String ?: "",
         note = data["note"] as? String ?: "",
         isSyntheticSkip = data["isSyntheticSkip"] as? Boolean ?: false,
+        doseAmount = data["doseAmount"] as? String,
         createdAt = (data["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
         updatedAt = (data["updatedAt"] as? Number)?.toLong() ?: System.currentTimeMillis()
     )
